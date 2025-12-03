@@ -214,7 +214,7 @@ export function spawnBinary(command: string, args: string[] = []) {
       detached: true,
       env: {
         ...process.env,
-        RUST_LOG: process.env.RUST_LOG || "debug",
+        RUST_LOG: process.env.RUST_LOG || "photon_indexer=debug",
       },
     });
 

@@ -10,21 +10,16 @@ use super::tx_sender::BatchInstruction;
 #[derive(Debug, Clone)]
 pub struct CachedProof {
     pub seq: u64,
+    pub old_root: [u8; 32],
+    pub new_root: [u8; 32],
     pub instruction: BatchInstruction,
 }
 
-/// Cache for pre-generated proofs.
-/// Stores proofs along with the merkle root they were generated against.
-/// If the on-chain root changes (another forester processed), the cache is invalidated.
 #[derive(Debug)]
 pub struct ProofCache {
-    /// The merkle tree this cache is for
     tree: Pubkey,
-    /// The merkle root at which these proofs were generated
     base_root: [u8; 32],
-    /// Pre-generated proofs ready to send
     proofs: VecDeque<CachedProof>,
-    /// Whether the cache is currently being populated
     is_warming: bool,
 }
 
@@ -38,8 +33,6 @@ impl ProofCache {
         }
     }
 
-    /// Start warming the cache with a new base root.
-    /// Clears any existing cached proofs.
     pub fn start_warming(&mut self, base_root: [u8; 32]) {
         debug!(
             "Starting cache warm-up for tree {} with root {:?}",
@@ -51,13 +44,32 @@ impl ProofCache {
         self.is_warming = true;
     }
 
-    /// Add a pre-generated proof to the cache
-    pub fn add_proof(&mut self, seq: u64, instruction: BatchInstruction) {
+    pub fn add_proof(
+        &mut self,
+        seq: u64,
+        old_root: [u8; 32],
+        new_root: [u8; 32],
+        instruction: BatchInstruction,
+    ) {
         if !self.is_warming {
             warn!("Attempted to add proof to cache that is not warming");
             return;
         }
-        self.proofs.push_back(CachedProof { seq, instruction });
+        if self.proofs.is_empty() && self.base_root != [0u8; 32] && self.base_root != old_root {
+            warn!(
+                "First cached proof root mismatch for tree {}: base_root={:?}, proof.old_root={:?}",
+                self.tree,
+                &self.base_root[..4],
+                &old_root[..4]
+            );
+        }
+
+        self.proofs.push_back(CachedProof {
+            seq,
+            old_root,
+            new_root,
+            instruction,
+        });
         debug!(
             "Cached proof seq={} for tree {} (total cached: {})",
             seq,
@@ -66,7 +78,6 @@ impl ProofCache {
         );
     }
 
-    /// Finish warming the cache
     pub fn finish_warming(&mut self) {
         self.is_warming = false;
         info!(
@@ -77,73 +88,69 @@ impl ProofCache {
         );
     }
 
-    /// Check if the cache is valid for the given on-chain root.
-    /// Returns true if we have cached proofs that match the current root.
-    pub fn is_valid_for_root(&self, current_root: &[u8; 32]) -> bool {
-        if self.proofs.is_empty() {
-            return false;
-        }
-        if self.is_warming {
-            return false;
-        }
-        &self.base_root == current_root
-    }
-
-    /// Take all cached proofs if valid for the given root.
-    /// Returns None if the cache is invalid or empty.
+    /// Take cached proofs if they form a valid root chain starting at `current_root`.
     pub fn take_if_valid(&mut self, current_root: &[u8; 32]) -> Option<Vec<CachedProof>> {
-        if !self.is_valid_for_root(current_root) {
-            if !self.proofs.is_empty() {
-                info!(
-                    "Cache invalidated for tree {}: expected root {:?}, got {:?}. Discarding {} proofs.",
-                    self.tree,
-                    &self.base_root[..4],
-                    &current_root[..4],
-                    self.proofs.len()
-                );
-            }
-            self.proofs.clear();
+        if self.proofs.is_empty() || self.is_warming {
             return None;
         }
 
-        let proofs: Vec<_> = self.proofs.drain(..).collect();
+        let mut expected = *current_root;
+        let mut taken: Vec<CachedProof> = Vec::new();
+
+        while let Some(proof) = self.proofs.pop_front() {
+            if proof.old_root != expected {
+                let remaining = self.proofs.len();
+                info!(
+                    "Cache invalidated for tree {} at seq {}: expected root {:?}, got {:?}. Dropping remaining {} proofs.",
+                    self.tree,
+                    proof.seq,
+                    &expected[..4],
+                    &proof.old_root[..4],
+                    remaining
+                );
+                self.proofs.clear();
+                break;
+            }
+            expected = proof.new_root;
+            taken.push(proof);
+        }
+
+        if taken.is_empty() {
+            return None;
+        }
+
         info!(
-            "Using {} cached proofs for tree {} (root {:?})",
-            proofs.len(),
+            "Using {} cached proofs for tree {} starting at root {:?} ending at {:?}",
+            taken.len(),
             self.tree,
-            &current_root[..4]
+            &current_root[..4],
+            &expected[..4]
         );
-        Some(proofs)
+        Some(taken)
     }
 
-    /// Get the number of cached proofs
     pub fn len(&self) -> usize {
         self.proofs.len()
     }
 
-    /// Check if the cache is empty
     pub fn is_empty(&self) -> bool {
         self.proofs.is_empty()
     }
 
-    /// Check if cache is currently warming
     pub fn is_warming(&self) -> bool {
         self.is_warming
     }
 
-    /// Get the base root
     pub fn base_root(&self) -> &[u8; 32] {
         &self.base_root
     }
 
-    /// Clear the cache
     pub fn clear(&mut self) {
         self.proofs.clear();
         self.is_warming = false;
     }
 }
 
-/// Thread-safe wrapper for ProofCache
 pub struct SharedProofCache {
     inner: Mutex<ProofCache>,
 }
@@ -165,8 +172,17 @@ impl SharedProofCache {
         self.inner.lock().await.start_warming(base_root);
     }
 
-    pub async fn add_proof(&self, seq: u64, instruction: BatchInstruction) {
-        self.inner.lock().await.add_proof(seq, instruction);
+    pub async fn add_proof(
+        &self,
+        seq: u64,
+        old_root: [u8; 32],
+        new_root: [u8; 32],
+        instruction: BatchInstruction,
+    ) {
+        self.inner
+            .lock()
+            .await
+            .add_proof(seq, old_root, new_root, instruction);
     }
 
     pub async fn finish_warming(&self) {

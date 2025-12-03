@@ -5,6 +5,7 @@ use light_batched_merkle_tree::merkle_tree::{
     InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
 };
 use light_prover_client::{
+    errors::ProverClientError,
     proof::ProofCompressed,
     proof_client::{ProofClient, SubmitProofResult},
     proof_types::{
@@ -45,19 +46,44 @@ impl ProofInput {
     fn new_root_bytes(&self) -> crate::Result<[u8; 32]> {
         match self {
             ProofInput::Append(inputs) => {
-                let biguint = inputs.new_root.to_biguint().ok_or_else(|| {
-                    anyhow::anyhow!("Failed to convert append new_root to biguint")
-                })?;
+                let biguint = inputs
+                    .new_root
+                    .to_biguint()
+                    .ok_or_else(|| anyhow::anyhow!("Failed to convert append new_root to biguint"))?;
                 light_hasher::bigint::bigint_to_be_bytes_array::<32>(&biguint).map_err(Into::into)
             }
             ProofInput::Nullify(inputs) => {
-                let biguint = inputs.new_root.to_biguint().ok_or_else(|| {
-                    anyhow::anyhow!("Failed to convert nullify new_root to biguint")
-                })?;
+                let biguint = inputs
+                    .new_root
+                    .to_biguint()
+                    .ok_or_else(|| anyhow::anyhow!("Failed to convert nullify new_root to biguint"))?;
                 light_hasher::bigint::bigint_to_be_bytes_array::<32>(&biguint).map_err(Into::into)
             }
             ProofInput::AddressAppend(inputs) => {
                 light_hasher::bigint::bigint_to_be_bytes_array::<32>(&inputs.new_root)
+                    .map_err(Into::into)
+            }
+        }
+    }
+
+    fn old_root_bytes(&self) -> crate::Result<[u8; 32]> {
+        match self {
+            ProofInput::Append(inputs) => {
+                let biguint = inputs
+                    .old_root
+                    .to_biguint()
+                    .ok_or_else(|| anyhow::anyhow!("Failed to convert append old_root to biguint"))?;
+                light_hasher::bigint::bigint_to_be_bytes_array::<32>(&biguint).map_err(Into::into)
+            }
+            ProofInput::Nullify(inputs) => {
+                let biguint = inputs
+                    .old_root
+                    .to_biguint()
+                    .ok_or_else(|| anyhow::anyhow!("Failed to convert nullify old_root to biguint"))?;
+                light_hasher::bigint::bigint_to_be_bytes_array::<32>(&biguint).map_err(Into::into)
+            }
+            ProofInput::AddressAppend(inputs) => {
+                light_hasher::bigint::bigint_to_be_bytes_array::<32>(&inputs.old_root)
                     .map_err(Into::into)
             }
         }
@@ -74,6 +100,8 @@ pub struct ProofJob {
 pub struct ProofResult {
     pub(crate) seq: u64,
     pub(crate) result: Result<BatchInstruction, String>,
+    pub(crate) old_root: [u8; 32],
+    pub(crate) new_root: [u8; 32],
 }
 
 struct ProofClients {
@@ -127,48 +155,55 @@ async fn run_proof_pipeline(
     clients: Arc<ProofClients>,
 ) -> crate::Result<()> {
     while let Ok(job) = job_rx.recv().await {
-        let client = clients.get_client(&job.inputs);
-        let inputs_json = job.inputs.to_json();
-        let circuit_type = job.inputs.circuit_type();
-
-        match client.submit_proof_async(inputs_json, circuit_type).await {
-            Ok(SubmitProofResult::Queued(job_id)) => {
-                debug!(
-                    "Submitted proof job seq={} type={} job_id={}",
-                    job.seq, circuit_type, job_id
-                );
-
-                let poll_client = clients.clone();
-                tokio::spawn(async move {
-                    poll_and_send_result(poll_client, job_id, job.seq, job.inputs, job.result_tx)
-                        .await
-                });
-            }
-            Ok(SubmitProofResult::Immediate(proof)) => {
-                debug!(
-                    "Got immediate proof for seq={} type={}",
-                    job.seq, circuit_type
-                );
-
-                let result = build_proof_result(job.seq, &job.inputs, proof);
-                let _ = job.result_tx.send(result).await;
-            }
-            Err(e) => {
-                error!(
-                    "Failed to submit proof job seq={} type={}: {}",
-                    job.seq, circuit_type, e
-                );
-
-                let result = ProofResult {
-                    seq: job.seq,
-                    result: Err(format!("Submit failed: {}", e)),
-                };
-                let _ = job.result_tx.send(result).await;
-            }
-        }
+        let clients = clients.clone();
+        // Spawn immediately so we don't block receiving the next job
+        // while waiting for HTTP submission
+        tokio::spawn(async move {
+            submit_and_poll_proof(clients, job).await;
+        });
     }
 
     Ok(())
+}
+
+async fn submit_and_poll_proof(clients: Arc<ProofClients>, job: ProofJob) {
+    let client = clients.get_client(&job.inputs);
+    let inputs_json = job.inputs.to_json();
+    let circuit_type = job.inputs.circuit_type();
+
+    match client.submit_proof_async(inputs_json, circuit_type).await {
+        Ok(SubmitProofResult::Queued(job_id)) => {
+            debug!(
+                "Submitted proof job seq={} type={} job_id={}",
+                job.seq, circuit_type, job_id
+            );
+
+            poll_and_send_result(clients, job_id, job.seq, job.inputs, job.result_tx).await;
+        }
+        Ok(SubmitProofResult::Immediate(proof)) => {
+            debug!(
+                "Got immediate proof for seq={} type={}",
+                job.seq, circuit_type
+            );
+
+            let result = build_proof_result(job.seq, &job.inputs, proof);
+            let _ = job.result_tx.send(result).await;
+        }
+        Err(e) => {
+            error!(
+                "Failed to submit proof job seq={} type={}: {}",
+                job.seq, circuit_type, e
+            );
+
+            let result = ProofResult {
+                seq: job.seq,
+                result: Err(format!("Submit failed: {}", e)),
+                old_root: [0u8; 32],
+                new_root: [0u8; 32],
+            };
+            let _ = job.result_tx.send(result).await;
+        }
+    }
 }
 
 async fn poll_and_send_result(
@@ -180,10 +215,58 @@ async fn poll_and_send_result(
 ) {
     let client = clients.get_client(&inputs);
 
+    // Poll; on job_not_found, resubmit once and poll the new job.
     let result = match client.poll_proof_completion(job_id.clone()).await {
         Ok(proof) => {
             debug!("Proof completed for seq={} job_id={}", seq, job_id);
             build_proof_result(seq, &inputs, proof)
+        }
+        Err(e) if is_job_not_found(&e) => {
+            warn!(
+                "Proof polling got job_not_found for seq={} job_id={}; retrying submit once",
+                seq, job_id
+            );
+            let inputs_json = inputs.to_json();
+            let circuit_type = inputs.circuit_type();
+            match client.submit_proof_async(inputs_json, circuit_type).await {
+                Ok(SubmitProofResult::Queued(new_job_id)) => {
+                    debug!(
+                        "Resubmitted proof job seq={} type={} new_job_id={}",
+                        seq, circuit_type, new_job_id
+                    );
+                    match client.poll_proof_completion(new_job_id.clone()).await {
+                        Ok(proof) => {
+                            debug!(
+                                "Proof completed after retry for seq={} job_id={}",
+                                seq, new_job_id
+                            );
+                            build_proof_result(seq, &inputs, proof)
+                        }
+                        Err(e2) => ProofResult {
+                            seq,
+                            result: Err(format!(
+                                "Proof failed after retry job_id={}: {}",
+                                new_job_id, e2
+                            )),
+                            old_root: [0u8; 32],
+                            new_root: [0u8; 32],
+                        },
+                    }
+                }
+                Ok(SubmitProofResult::Immediate(proof)) => {
+                    debug!(
+                        "Immediate proof after retry for seq={} type={}",
+                        seq, circuit_type
+                    );
+                    build_proof_result(seq, &inputs, proof)
+                }
+                Err(e_submit) => ProofResult {
+                    seq,
+                    result: Err(format!("Proof retry submit failed: {}", e_submit)),
+                    old_root: [0u8; 32],
+                    new_root: [0u8; 32],
+                },
+            }
         }
         Err(e) => {
             warn!(
@@ -193,6 +276,8 @@ async fn poll_and_send_result(
             ProofResult {
                 seq,
                 result: Err(format!("Proof failed: {}", e)),
+                old_root: [0u8; 32],
+                new_root: [0u8; 32],
             }
         }
     };
@@ -202,6 +287,13 @@ async fn poll_and_send_result(
     }
 }
 
+fn is_job_not_found(err: &ProverClientError) -> bool {
+    matches!(
+        err,
+        ProverClientError::ProverServerError(msg) if msg.contains("job_not_found")
+    )
+}
+
 fn build_proof_result(seq: u64, inputs: &ProofInput, proof: ProofCompressed) -> ProofResult {
     let new_root = match inputs.new_root_bytes() {
         Ok(root) => root,
@@ -209,6 +301,19 @@ fn build_proof_result(seq: u64, inputs: &ProofInput, proof: ProofCompressed) -> 
             return ProofResult {
                 seq,
                 result: Err(format!("Failed to get new root: {}", e)),
+                old_root: [0u8; 32],
+                new_root: [0u8; 32],
+            };
+        }
+    };
+    let old_root = match inputs.old_root_bytes() {
+        Ok(root) => root,
+        Err(e) => {
+            return ProofResult {
+                seq,
+                result: Err(format!("Failed to get old root: {}", e)),
+                old_root: [0u8; 32],
+                new_root: [0u8; 32],
             };
         }
     };
@@ -234,6 +339,8 @@ fn build_proof_result(seq: u64, inputs: &ProofInput, proof: ProofCompressed) -> 
 
     ProofResult {
         seq,
+        old_root,
+        new_root,
         result: Ok(instruction),
     }
 }

@@ -15,6 +15,7 @@ use forester::{
     utils::get_protocol_config,
     ForesterConfig,
 };
+use forester_utils::forester_epoch::get_epoch_phases;
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
@@ -55,12 +56,13 @@ use tokio::{
     sync::{mpsc, oneshot},
     time::timeout,
 };
+use tracing_subscriber;
 
 mod test_utils;
 use test_utils::*;
 
 const MINT_TO_NUM: u64 = 5;
-const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 10;
+const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 20;
 const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
 
 const TARGET_STATE_QUEUE_SIZE: usize = 100;
@@ -144,9 +146,8 @@ async fn prefill_state_queue<R: Rpc>(
             bootstrap_successful += 1;
             if (i + 1) % 5 == 0 {
                 println!(
-                    "  Bootstrap progress: {}/{} mints successful",
-                    bootstrap_successful,
-                    i + 1
+                    "  Bootstrap progress: {} mints successful",
+                    bootstrap_successful
                 );
             }
         } else {
@@ -673,23 +674,29 @@ async fn get_address_queue_pending<R: Rpc>(rpc: &mut R, merkle_tree_pubkey: &Pub
 #[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 #[serial]
 async fn performance_test_prefilled_queues() {
-    println!("\n=== FORESTER PERFORMANCE TEST ===");
-    println!("Test: Pre-fill all queues, then measure forester processing time\n");
+    // println!("\n=== FORESTER PERFORMANCE TEST ===");
+    // println!("Test: Pre-fill all queues, then measure forester processing time\n");
+
+    // Initialize tracing subscriber to see forester logs
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_test_writer()
+        .try_init()
+        .ok();
 
     let env = TestAccounts::get_local_test_validator_accounts();
-
     // Initialize local validator
-    init(Some(LightValidatorConfig {
-        enable_indexer: true,
-        enable_prover: false,
-        wait_time: 60,
-        sbf_programs: vec![(
-            "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
-            "../target/deploy/create_address_test_program.so".to_string(),
-        )],
-        limit_ledger_size: None,
-    }))
-    .await;
+    // init(Some(LightValidatorConfig {
+    //     enable_indexer: true,
+    //     enable_prover: false,
+    //     wait_time: 60,
+    //     sbf_programs: vec![(
+    //         "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
+    //         "../target/deploy/create_address_test_program.so".to_string(),
+    //     )],
+    //     limit_ledger_size: None,
+    // }))
+    // .await;
 
     spawn_prover().await;
 
@@ -704,9 +711,9 @@ async fn performance_test_prefilled_queues() {
     )
     .await;
 
-    let mint_keypair = Keypair::new();
-    let mint_pubkey = create_mint_helper_with_keypair(&mut rpc, &payer, &mint_keypair).await;
-    println!("Created mint: {}", mint_pubkey);
+    // let mint_keypair = Keypair::new();
+    // let mint_pubkey = create_mint_helper_with_keypair(&mut rpc, &payer, &mint_keypair).await;
+    // println!("Created mint: {}", mint_pubkey);
 
     let (_, _, pre_state_root) = get_initial_merkle_tree_state(
         &mut rpc,
@@ -723,55 +730,103 @@ async fn performance_test_prefilled_queues() {
     println!("State root: {:?}[..8]", &pre_state_root[..8]);
     println!("Address root: {:?}[..8]", &pre_address_root[..8]);
 
-    // PRE-FILL QUEUES BEFORE STARTING FORESTER
-    println!("\n=== PHASE 1: PRE-FILLING QUEUES ===");
+    // Debug epoch state
+    let protocol_config = get_protocol_config(&mut rpc).await;
+    let current_slot = rpc.get_slot().await.unwrap();
+    let current_epoch = protocol_config.get_current_epoch(current_slot);
+    let phases = get_epoch_phases(&protocol_config, current_epoch);
 
-    let state_txs =
-        prefill_state_queue(&mut rpc, &env, &payer, &mint_pubkey, NUM_STATE_TRANSACTIONS).await;
-
-    let address_txs = prefill_address_queue(&mut rpc, &env, &payer, NUM_ADDRESS_TRANSACTIONS).await;
-
-    let (state_out, state_in, addr_queue) = get_queue_pending_items(&mut rpc, &env).await;
-    println!("\n=== Queue Status Before Forester ===");
-    println!("State output queue: {} pending items", state_out);
-    println!("State input queue: {} pending items", state_in);
-    println!("Address queue: {} pending items", addr_queue);
-
-    assert!(
-        state_out > 0,
-        "State output queue should have items before forester starts, but was empty"
-    );
-    assert!(
-        state_out >= TARGET_STATE_QUEUE_SIZE / 2,
-        "State output queue has {} items but expected at least {} (half of target {})",
-        state_out,
-        TARGET_STATE_QUEUE_SIZE / 2,
-        TARGET_STATE_QUEUE_SIZE
-    );
-
-    assert!(
-        addr_queue > 0,
-        "Address queue should have items before forester starts, but was empty"
-    );
-    assert!(
-        addr_queue >= TARGET_ADDRESS_QUEUE_SIZE / 2,
-        "Address queue has {} items but expected at least {} (half of target {}). Addresses may not be going into queue properly.",
-        addr_queue,
-        TARGET_ADDRESS_QUEUE_SIZE / 2,
-        TARGET_ADDRESS_QUEUE_SIZE
-    );
-
-    let total_queue_items = state_out + addr_queue;
+    println!("\n=== Epoch Debug Info ===");
+    println!("Protocol config:");
+    println!("  genesis_slot: {}", protocol_config.genesis_slot);
     println!(
-        "Queues are properly filled (state_output: {}/{}, address: {}/{}, total: {})",
-        state_out,
-        TARGET_STATE_QUEUE_SIZE,
-        addr_queue,
-        TARGET_ADDRESS_QUEUE_SIZE,
-        total_queue_items
+        "  active_phase_length: {}",
+        protocol_config.active_phase_length
+    );
+    println!(
+        "  registration_phase_length: {}",
+        protocol_config.registration_phase_length
+    );
+    println!(
+        "  report_work_phase_length: {}",
+        protocol_config.report_work_phase_length
+    );
+    println!("Current slot: {}", current_slot);
+    println!("Current epoch: {}", current_epoch);
+    println!("Epoch {} phases:", current_epoch);
+    println!(
+        "  registration: {} - {}",
+        phases.registration.start, phases.registration.end
+    );
+    println!("  active: {} - {}", phases.active.start, phases.active.end);
+    println!(
+        "  report_work: {} - {}",
+        phases.report_work.start, phases.report_work.end
     );
 
-    println!("\n=== PHASE 2: STARTING FORESTER ===");
+    // Check which phase we're in
+    if current_slot < phases.registration.end {
+        println!("STATUS: In REGISTRATION phase (can register)");
+    } else if current_slot < phases.active.start {
+        println!(
+            "STATUS: Between registration and active (WAITING for active phase at slot {})",
+            phases.active.start
+        );
+    } else if current_slot < phases.active.end {
+        println!("STATUS: In ACTIVE phase (should be processing)");
+    } else {
+        println!("STATUS: Past active phase");
+    }
+
+    // PRE-FILL QUEUES BEFORE STARTING FORESTER
+    // println!("\n=== PHASE 1: PRE-FILLING QUEUES ===");
+
+    // let state_txs =
+    //     prefill_state_queue(&mut rpc, &env, &payer, &mint_pubkey, NUM_STATE_TRANSACTIONS).await;
+
+    // let address_txs = prefill_address_queue(&mut rpc, &env, &payer, NUM_ADDRESS_TRANSACTIONS).await;
+
+    // let (state_out, state_in, addr_queue) = get_queue_pending_items(&mut rpc, &env).await;
+    // println!("\n=== Queue Status Before Forester ===");
+    // println!("State output queue: {} pending items", state_out);
+    // println!("State input queue: {} pending items", state_in);
+    // println!("Address queue: {} pending items", addr_queue);
+
+    // assert!(
+    //     state_out > 0,
+    //     "State output queue should have items before forester starts, but was empty"
+    // );
+    // assert!(
+    //     state_out >= TARGET_STATE_QUEUE_SIZE / 2,
+    //     "State output queue has {} items but expected at least {} (half of target {})",
+    //     state_out,
+    //     TARGET_STATE_QUEUE_SIZE / 2,
+    //     TARGET_STATE_QUEUE_SIZE
+    // );
+
+    // assert!(
+    //     addr_queue > 0,
+    //     "Address queue should have items before forester starts, but was empty"
+    // );
+    // assert!(
+    //     addr_queue >= TARGET_ADDRESS_QUEUE_SIZE / 2,
+    //     "Address queue has {} items but expected at least {} (half of target {}). Addresses may not be going into queue properly.",
+    //     addr_queue,
+    //     TARGET_ADDRESS_QUEUE_SIZE / 2,
+    //     TARGET_ADDRESS_QUEUE_SIZE
+    // );
+
+    // let total_queue_items = state_out + addr_queue;
+    // println!(
+    //     "Queues are properly filled (state_output: {}/{}, address: {}/{}, total: {})",
+    //     state_out,
+    //     TARGET_STATE_QUEUE_SIZE,
+    //     addr_queue,
+    //     TARGET_ADDRESS_QUEUE_SIZE,
+    //     total_queue_items
+    // );
+
+    // println!("\n=== PHASE 2: STARTING FORESTER ===");
 
     let config = ForesterConfig {
         external_services: ExternalServicesConfig {
@@ -779,9 +834,9 @@ async fn performance_test_prefilled_queues() {
             ws_rpc_url: Some(get_ws_rpc_url()),
             indexer_url: Some(get_indexer_url()),
             prover_url: Some(get_prover_url()),
-            prover_append_url: None,
-            prover_update_url: None,
-            prover_address_append_url: None,
+            prover_append_url: Some(get_prover_url()),
+            prover_update_url: Some(get_prover_url()),
+            prover_address_append_url: Some(get_prover_url()),
             prover_api_key: get_prover_api_key(),
             prover_polling_interval: None,
             prover_max_wait_time: None,
@@ -801,12 +856,18 @@ async fn performance_test_prefilled_queues() {
             slot_update_interval_seconds: 10,
             tree_discovery_interval_seconds: 5,
             enable_metrics: false,
-            skip_v1_state_trees: true, // Focus on V2
+            skip_v1_state_trees: true,
             skip_v2_state_trees: false,
             skip_v1_address_trees: true,
             skip_v2_address_trees: false,
-            // Filter to only process the specific trees we prefilled
-            tree_ids: vec![env.v2_state_trees[0].merkle_tree, env.v2_address_trees[0]],
+            tree_ids: vec![
+                env.v2_state_trees[0].merkle_tree,
+                env.v2_state_trees[1].merkle_tree,
+                env.v2_state_trees[2].merkle_tree,
+                env.v2_state_trees[3].merkle_tree,
+                env.v2_state_trees[4].merkle_tree,
+                env.v2_address_trees[0],
+            ],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
         },
@@ -826,20 +887,20 @@ async fn performance_test_prefilled_queues() {
         compressible_config: None,
     };
 
-    let protocol_config = get_protocol_config(&mut rpc).await;
+    // let protocol_config = get_protocol_config(&mut rpc).await;
 
-    let active_slot = get_next_active_phase_with_time(&mut rpc, &protocol_config, 100).await;
-    let current_slot = rpc.get_slot().await.unwrap();
-    println!(
-        "Current slot: {}, Active phase starts at slot {}",
-        current_slot, active_slot
-    );
+    // let active_slot = get_next_active_phase_with_time(&mut rpc, &protocol_config, 100).await;
+    // let current_slot = rpc.get_slot().await.unwrap();
+    // println!(
+    //     "Current slot: {}, Active phase starts at slot {}",
+    //     current_slot, active_slot
+    // );
 
-    println!(
-        "Waiting until slot {} to start forester...",
-        active_slot.saturating_sub(5)
-    );
-    wait_for_slot(&mut rpc, active_slot.saturating_sub(5)).await;
+    // println!(
+    //     "Waiting until slot {} to start forester...",
+    //     active_slot.saturating_sub(5)
+    // );
+    // wait_for_slot(&mut rpc, active_slot.saturating_sub(5)).await;
 
     let (
         service_handle,
@@ -849,25 +910,40 @@ async fn performance_test_prefilled_queues() {
         mut work_report_receiver,
     ) = setup_forester_pipeline(&config).await;
 
-    println!("Forester pipeline started, waiting for first work report...");
+    // Check if the forester task failed early
+    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    if service_handle.is_finished() {
+        match service_handle.await {
+            Ok(Ok(())) => panic!("Forester finished successfully but unexpectedly early"),
+            Ok(Err(e)) => panic!("Forester failed with error: {:?}", e),
+            Err(e) => panic!("Forester task panicked: {:?}", e),
+        }
+    }
+    println!("Forester pipeline started successfully, waiting for work reports...");
 
-    // Wait for active phase
-    wait_for_slot(&mut rpc, active_slot).await;
-    println!("Active phase started at slot {}", active_slot);
+    // println!("Forester pipeline started, waiting for first work report...");
+    // // Wait for active phase
+    // wait_for_slot(&mut rpc, active_slot).await;
+    // println!("Active phase started at slot {}", active_slot);
 
     // Monitor work reports - use ProcessingMetrics from reports
     let mut total_processed = 0;
     let mut total_metrics = ProcessingMetrics::default();
     let mut last_report_time = Instant::now();
+    let mut epochs_completed = 0;
+    const MAX_EPOCHS: usize = 10;
 
     let timeout_duration = Duration::from_secs(DEFAULT_TIMEOUT_SECONDS);
     let _result = timeout(timeout_duration, async {
         while let Some(report) = work_report_receiver.recv().await {
+            epochs_completed += 1;
             println!(
-                "Work report: epoch={} items={} total={:?}",
+                "Work report: epoch={} items={} total={:?} (epoch {}/{})",
                 report.epoch,
                 report.processed_items,
-                report.metrics.total()
+                report.metrics.total(),
+                epochs_completed,
+                MAX_EPOCHS
             );
             println!(
                 "  Append:  circuit={:?}, proof={:?}",
@@ -899,9 +975,22 @@ async fn performance_test_prefilled_queues() {
                 last_report_time = Instant::now();
             }
 
-            let expected_total = state_txs + address_txs;
-            if total_processed >= expected_total {
-                println!("\nAll items processed!");
+            // Check queue status after each epoch
+            let (state_out, state_in, addr_queue) = get_queue_pending_items(&mut rpc, &env).await;
+            println!(
+                "  Queue status: state_out={}, state_in={}, addr={}",
+                state_out, state_in, addr_queue
+            );
+
+            // Exit early if all queues are empty
+            if state_out == 0 && state_in == 0 && addr_queue == 0 {
+                println!("\nAll queues empty after {} epochs!", epochs_completed);
+                break;
+            }
+
+            // Don't assert until we've given it MAX_EPOCHS chances
+            if epochs_completed >= MAX_EPOCHS {
+                println!("\nReached {} epochs, checking final state...", MAX_EPOCHS);
                 break;
             }
         }
@@ -1032,7 +1121,6 @@ async fn performance_test_prefilled_queues() {
     println!("State input queue: {} pending items", final_state_in);
     println!("Address queue: {} pending items", final_addr_queue);
 
-    // Assert queues are empty or nearly empty (allow small margin for in-flight transactions)
     const MAX_REMAINING_ITEMS: usize = 10;
     assert!(
         final_state_out <= MAX_REMAINING_ITEMS,

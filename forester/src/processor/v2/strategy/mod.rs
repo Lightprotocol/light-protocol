@@ -24,8 +24,8 @@ pub struct QueueData<T> {
 }
 
 #[async_trait]
-pub trait TreeStrategy<R: Rpc>: Send + Sync + std::fmt::Debug {
-    type StagingTree: Send;
+pub trait TreeStrategy<R: Rpc>: Send + Sync + Clone + std::fmt::Debug + 'static {
+    type StagingTree: Send + 'static;
 
     fn name(&self) -> &'static str;
     fn circuit_type(&self, queue_data: &Self::StagingTree) -> CircuitType;

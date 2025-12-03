@@ -15,7 +15,7 @@ pub use common::{BatchContext, ProverConfig, QueueWork};
 use light_compressed_account::TreeType;
 pub use proof_cache::{CachedProof, SharedProofCache};
 
-pub use processor::QueueProcessor;
+pub use processor::{is_constraint_error, QueueProcessor};
 pub use tx_sender::BatchInstruction;
 
 #[instrument(

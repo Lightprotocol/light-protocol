@@ -1,4 +1,6 @@
+use crate::processor::v2::BatchInstruction;
 use anyhow::{anyhow, Context};
+use borsh::BorshSerialize;
 use dashmap::mapref::entry::Entry;
 use dashmap::DashMap;
 use forester_utils::{
@@ -12,6 +14,10 @@ use light_client::{
     rpc::{LightClient, LightClientConfig, RetryConfig, Rpc, RpcError},
 };
 use light_compressed_account::TreeType;
+use light_registry::account_compression_cpi::sdk::{
+    create_batch_append_instruction, create_batch_nullify_instruction,
+    create_batch_update_address_tree_instruction,
+};
 use light_registry::{
     protocol_config::state::{EpochState, ProtocolConfig},
     sdk::{create_finalize_registration_instruction, create_report_work_instruction},
@@ -33,6 +39,7 @@ use std::{
     },
     time::Duration,
 };
+
 use tokio::{
     sync::{broadcast, broadcast::error::RecvError, mpsc, oneshot, Mutex},
     task::JoinHandle,
@@ -57,7 +64,10 @@ use crate::{
         },
         v2::strategy::AddressTreeStrategy,
         v2::strategy::StateTreeStrategy,
-        v2::{BatchContext, ProcessingResult, ProverConfig, QueueProcessor, QueueWork, SharedProofCache},
+        v2::{
+            BatchContext, ProcessingResult, ProverConfig, QueueProcessor, QueueWork,
+            SharedProofCache,
+        },
     },
     queue_helpers::QueueItemData,
     rollover::{
@@ -195,6 +205,8 @@ pub struct EpochManager<R: Rpc> {
     state_processors: StateBatchProcessorMap<R>,
     address_processors: AddressBatchProcessorMap<R>,
     compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
+    /// Cached zkp_batch_size per tree to filter queue updates below threshold
+    zkp_batch_sizes: Arc<DashMap<Pubkey, u64>>,
 }
 
 impl<R: Rpc> Clone for EpochManager<R> {
@@ -219,6 +231,7 @@ impl<R: Rpc> Clone for EpochManager<R> {
             state_processors: self.state_processors.clone(),
             address_processors: self.address_processors.clone(),
             compressible_tracker: self.compressible_tracker.clone(),
+            zkp_batch_sizes: self.zkp_batch_sizes.clone(),
         }
     }
 }
@@ -277,6 +290,7 @@ impl<R: Rpc> EpochManager<R> {
             state_processors: Arc::new(DashMap::new()),
             address_processors: Arc::new(DashMap::new()),
             compressible_tracker,
+            zkp_batch_sizes: Arc::new(DashMap::new()),
         })
     }
 
@@ -497,52 +511,68 @@ impl<R: Rpc> EpochManager<R> {
                 }
             }
 
-            let next_epoch = current_epoch + 1;
-            if last_epoch.is_none_or(|last| next_epoch > last) {
-                let next_phases = get_epoch_phases(&self.protocol_config, next_epoch);
+            // Find the next epoch we can register for (scan forward if needed)
+            let mut target_epoch = current_epoch + 1;
+            if last_epoch.is_none_or(|last| target_epoch > last) {
+                // Scan forward to find an epoch whose registration is still open
+                // This handles the case where we missed multiple epochs
+                loop {
+                    let target_phases = get_epoch_phases(&self.protocol_config, target_epoch);
 
-                // If the next epoch's registration phase has started, send it immediately
-                if slot >= next_phases.registration.start && slot < next_phases.registration.end {
+                    // If registration hasn't started yet, wait for it
+                    if slot < target_phases.registration.start {
+                        let mut rpc = self.rpc_pool.get_connection().await?;
+                        let slots_to_wait = target_phases.registration.start.saturating_sub(slot);
+                        debug!(
+                            "Waiting for epoch {} registration phase to start. Current slot: {}, Registration phase start slot: {}, Slots to wait: {}",
+                            target_epoch, slot, target_phases.registration.start, slots_to_wait
+                        );
+
+                        if let Err(e) = wait_until_slot_reached(
+                            &mut *rpc,
+                            &self.slot_tracker,
+                            target_phases.registration.start,
+                        )
+                        .await
+                        {
+                            error!("Error waiting for registration phase: {:?}", e);
+                            break;
+                        }
+
+                        debug!(
+                            "Epoch {} registration phase started, sending for processing",
+                            target_epoch
+                        );
+                        if let Err(e) = tx.send(target_epoch).await {
+                            error!(
+                                "Failed to send epoch {} for processing: {:?}",
+                                target_epoch, e
+                            );
+                            break;
+                        }
+                        last_epoch = Some(target_epoch);
+                        break;
+                    }
+
+                    // If we're within the registration window, send it
+                    if slot < target_phases.registration.end {
+                        debug!(
+                            "Epoch {} registration phase is open (slot {} < end {}), sending for processing",
+                            target_epoch, slot, target_phases.registration.end
+                        );
+                        tx.send(target_epoch).await?;
+                        last_epoch = Some(target_epoch);
+                        break;
+                    }
+
+                    // Registration already ended, try next epoch
                     debug!(
-                        "Next epoch {} registration phase already started, sending for processing",
-                        next_epoch
+                        "Epoch {} registration already ended (slot {} >= end {}), checking next epoch",
+                        target_epoch, slot, target_phases.registration.end
                     );
-                    tx.send(next_epoch).await?;
-                    last_epoch = Some(next_epoch);
-                    continue; // Check for further epochs immediately
+                    target_epoch += 1;
                 }
-
-                // Otherwise, wait for the next epoch's registration phase to start
-                let mut rpc = self.rpc_pool.get_connection().await?;
-                let slots_to_wait = next_phases.registration.start.saturating_sub(slot);
-                debug!(
-                "Waiting for epoch {} registration phase to start. Current slot: {}, Registration phase start slot: {}, Slots to wait: {}",
-                next_epoch, slot, next_phases.registration.start, slots_to_wait
-            );
-
-                if let Err(e) = wait_until_slot_reached(
-                    &mut *rpc,
-                    &self.slot_tracker,
-                    next_phases.registration.start,
-                )
-                .await
-                {
-                    error!("Error waiting for next registration phase: {:?}", e);
-                    continue;
-                }
-
-                debug!(
-                    "Next epoch {} registration phase started, sending for processing",
-                    next_epoch
-                );
-                if let Err(e) = tx.send(next_epoch).await {
-                    error!(
-                        "Failed to send next epoch {} for processing: {:?}",
-                        next_epoch, e
-                    );
-                    continue;
-                }
-                last_epoch = Some(next_epoch);
+                continue; // Re-check state after processing
             } else {
                 // we've already sent the next epoch, wait a bit before checking again
                 tokio::time::sleep(Duration::from_secs(10)).await;
@@ -724,9 +754,18 @@ impl<R: Rpc> EpochManager<R> {
             self.wait_for_report_work_phase(&registration_info).await?;
         }
 
-        // Report work
+        // Always send metrics report to channel for monitoring/testing
+        // This ensures metrics are captured even if we missed the report_work phase
+        self.send_work_report(&registration_info).await?;
+
+        // Report work on-chain only if within the report_work phase
         if self.sync_slot().await? < phases.report_work.end {
-            self.report_work(&registration_info).await?;
+            self.report_work_onchain(&registration_info).await?;
+        } else {
+            info!(
+                "Skipping on-chain work report for epoch {} (report_work phase ended)",
+                registration_info.epoch.epoch
+            );
         }
 
         // TODO: implement
@@ -1625,7 +1664,6 @@ impl<R: Rpc> EpochManager<R> {
         )
         .await?;
 
-        // Check if we have valid cached proofs to send
         if let Some(items_sent) = self
             .try_send_cached_proofs(epoch_info, tree_accounts, consecutive_eligibility_end)
             .await?
@@ -1635,8 +1673,12 @@ impl<R: Rpc> EpochManager<R> {
                     "Sent {} items from cache for tree {}",
                     items_sent, tree_pubkey
                 );
-                self.update_metrics_and_counts(epoch_info.epoch, items_sent, Duration::from_millis(1))
-                    .await;
+                self.update_metrics_and_counts(
+                    epoch_info.epoch,
+                    items_sent,
+                    Duration::from_millis(1),
+                )
+                .await;
             }
         }
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
@@ -1678,7 +1720,14 @@ impl<R: Rpc> EpochManager<R> {
                 Ok(Some(update)) => {
                     timeouts = 0;
 
-                    if update.queue_size > 0 {
+                    // Check cached batch size to skip processing when queue is below threshold
+                    let min_batch_size = self
+                        .zkp_batch_sizes
+                        .get(&tree_pubkey)
+                        .map(|v| *v)
+                        .unwrap_or(1);
+
+                    if update.queue_size >= min_batch_size {
                         info!(
                             "V2 Queue update received for tree {}: {} items (type: {:?})",
                             tree_pubkey, update.queue_size, update.queue_type
@@ -1712,8 +1761,11 @@ impl<R: Rpc> EpochManager<R> {
                                 error!("V2 processing failed: {:?}", e);
                             }
                         }
-                    } else {
-                        trace!("V2 received empty queue update for tree {}", tree_pubkey);
+                    } else if update.queue_size > 0 {
+                        trace!(
+                            "V2 Queue update for tree {} below batch threshold ({} < {})",
+                            tree_pubkey, update.queue_size, min_batch_size
+                        );
                     }
                 }
                 Ok(None) => {
@@ -2098,6 +2150,10 @@ impl<R: Rpc> EpochManager<R> {
                     let processor = Arc::new(Mutex::new(
                         QueueProcessor::new(batch_context, StateTreeStrategy).await?,
                     ));
+                    // Cache the zkp_batch_size for early filtering of queue updates
+                    let batch_size = processor.lock().await.zkp_batch_size();
+                    self.zkp_batch_sizes
+                        .insert(tree_accounts.merkle_tree, batch_size);
                     occupied.insert((epoch_info.epoch, processor.clone()));
                     Ok(processor)
                 }
@@ -2108,6 +2164,10 @@ impl<R: Rpc> EpochManager<R> {
                 let processor = Arc::new(Mutex::new(
                     QueueProcessor::new(batch_context, StateTreeStrategy).await?,
                 ));
+                // Cache the zkp_batch_size for early filtering of queue updates
+                let batch_size = processor.lock().await.zkp_batch_size();
+                self.zkp_batch_sizes
+                    .insert(tree_accounts.merkle_tree, batch_size);
                 vacant.insert((epoch_info.epoch, processor.clone()));
                 Ok(processor)
             }
@@ -2134,6 +2194,10 @@ impl<R: Rpc> EpochManager<R> {
                     let processor = Arc::new(Mutex::new(
                         QueueProcessor::new(batch_context, AddressTreeStrategy).await?,
                     ));
+                    // Cache the zkp_batch_size for early filtering of queue updates
+                    let batch_size = processor.lock().await.zkp_batch_size();
+                    self.zkp_batch_sizes
+                        .insert(tree_accounts.merkle_tree, batch_size);
                     occupied.insert((epoch_info.epoch, processor.clone()));
                     Ok(processor)
                 }
@@ -2144,6 +2208,10 @@ impl<R: Rpc> EpochManager<R> {
                 let processor = Arc::new(Mutex::new(
                     QueueProcessor::new(batch_context, AddressTreeStrategy).await?,
                 ));
+                // Cache the zkp_batch_size for early filtering of queue updates
+                let batch_size = processor.lock().await.zkp_batch_size();
+                self.zkp_batch_sizes
+                    .insert(tree_accounts.merkle_tree, batch_size);
                 vacant.insert((epoch_info.epoch, processor.clone()));
                 Ok(processor)
             }
@@ -2175,7 +2243,28 @@ impl<R: Rpc> EpochManager<R> {
                     };
 
                     let mut proc = processor.lock().await;
-                    proc.process_queue_update(work).await
+                    match proc.process_queue_update(work).await {
+                        Ok(res) => Ok(res),
+                        Err(e) => {
+                            let msg = e.to_string();
+                            if crate::processor::v2::is_constraint_error(&msg) {
+                                warn!(
+                                    "State processing hit constraint error for tree {}: {}. Dropping processor to flush cache.",
+                                    tree_accounts.merkle_tree, msg
+                                );
+                                drop(proc); // Release lock before removing
+                                self.state_processors.remove(&tree_accounts.merkle_tree);
+                                self.proof_caches.remove(&tree_accounts.merkle_tree);
+                                Err(e)
+                            } else {
+                                warn!(
+                                    "Failed to process state queue for tree {}: {}. Will retry next tick without dropping processor.",
+                                    tree_accounts.merkle_tree, msg
+                                );
+                                Ok(ProcessingResult::default())
+                            }
+                        }
+                    }
                 } else {
                     Ok(ProcessingResult::default())
                 }
@@ -2200,12 +2289,22 @@ impl<R: Rpc> EpochManager<R> {
                     match proc.process_queue_update(work).await {
                         Ok(res) => Ok(res),
                         Err(e) => {
-                            warn!(
-                                "Failed to process address queue for tree {}: {}. Removing processor.",
-                                tree_accounts.merkle_tree, e
-                            );
-                            self.address_processors.remove(&tree_accounts.merkle_tree);
-                            Err(e)
+                            let msg = e.to_string();
+                            if crate::processor::v2::is_constraint_error(&msg) {
+                                warn!(
+                                    "Address processing hit constraint error for tree {}: {}. Dropping processor to flush cache.",
+                                    tree_accounts.merkle_tree, msg
+                                );
+                                self.address_processors.remove(&tree_accounts.merkle_tree);
+                                self.proof_caches.remove(&tree_accounts.merkle_tree);
+                                Err(e)
+                            } else {
+                                warn!(
+                                    "Failed to process address queue for tree {}: {}. Will retry next tick without dropping processor.",
+                                    tree_accounts.merkle_tree, msg
+                                );
+                                Ok(ProcessingResult::default())
+                            }
                         }
                     }
                 } else {
@@ -2242,8 +2341,6 @@ impl<R: Rpc> EpochManager<R> {
         }
     }
 
-    /// Pre-warm proofs during idle time before the forester's next eligible slot.
-    /// Consumes queue updates and generates proofs, caching them for later use.
     async fn prewarm_proofs_during_wait(
         &self,
         epoch_info: &Epoch,
@@ -2252,91 +2349,88 @@ impl<R: Rpc> EpochManager<R> {
         deadline_slot: u64,
         queue_update_rx: &mut mpsc::Receiver<QueueUpdateMessage>,
     ) -> Result<()> {
-        let tree_pubkey = tree_accounts.merkle_tree;
-
-        // Get or create proof cache for this tree
-        let cache = self
-            .proof_caches
-            .entry(tree_pubkey)
-            .or_insert_with(|| Arc::new(SharedProofCache::new(tree_pubkey)))
-            .clone();
-
-        // Try to receive a queue update (non-blocking initially, then with timeout)
-        let update = match tokio::time::timeout(Duration::from_millis(100), queue_update_rx.recv())
-            .await
-        {
-            Ok(Some(update)) if update.queue_size > 0 => update,
-            Ok(Some(_)) => {
-                trace!("Empty queue update during pre-warm for tree {}", tree_pubkey);
-                return Ok(());
-            }
-            Ok(None) => {
-                debug!("Queue channel closed during pre-warm for tree {}", tree_pubkey);
-                return Ok(());
-            }
-            Err(_) => {
-                trace!("No queue update available for pre-warming tree {}", tree_pubkey);
-                return Ok(());
-            }
-        };
-
-        info!(
-            "Pre-warming {} items for tree {} (deadline slot: {})",
-            update.queue_size, tree_pubkey, deadline_slot
-        );
-
-        // Get or create processor
-        let processor = match tree_accounts.tree_type {
+        match tree_accounts.tree_type {
             TreeType::StateV2 => {
-                let proc = self
+                let tree_pubkey = tree_accounts.merkle_tree;
+
+                let cache = self
+                    .proof_caches
+                    .entry(tree_pubkey)
+                    .or_insert_with(|| Arc::new(SharedProofCache::new(tree_pubkey)))
+                    .clone();
+
+                let update =
+                    match tokio::time::timeout(Duration::from_millis(100), queue_update_rx.recv())
+                        .await
+                    {
+                        Ok(Some(update)) if update.queue_size > 0 => update,
+                        Ok(Some(_)) => {
+                            trace!(
+                                "Empty queue update during pre-warm for tree {}",
+                                tree_pubkey
+                            );
+                            return Ok(());
+                        }
+                        Ok(None) => {
+                            debug!(
+                                "Queue channel closed during pre-warm for tree {}",
+                                tree_pubkey
+                            );
+                            return Ok(());
+                        }
+                        Err(_) => {
+                            trace!(
+                                "No queue update available for pre-warming tree {}",
+                                tree_pubkey
+                            );
+                            return Ok(());
+                        }
+                    };
+
+                info!(
+                    "Pre-warming {} items for tree {} (deadline slot: {})",
+                    update.queue_size, tree_pubkey, deadline_slot
+                );
+
+                let processor = self
                     .get_or_create_state_processor(epoch_info, tree_accounts)
                     .await?;
                 {
-                    let mut p = proc.lock().await;
+                    let mut p = processor.lock().await;
                     p.update_eligibility(consecutive_eligibility_end);
                 }
-                Some(proc)
+
+                let work = QueueWork {
+                    queue_type: update.queue_type,
+                    queue_size: update.queue_size,
+                };
+
+                let mut p = processor.lock().await;
+                match p.prewarm_proofs(cache.clone(), work).await {
+                    Ok(count) => {
+                        info!(
+                            "Pre-warmed {} proofs for tree {} before eligible slot",
+                            count, tree_pubkey
+                        );
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to pre-warm proofs for tree {}: {:?}",
+                            tree_pubkey, e
+                        );
+                        cache.clear().await;
+                    }
+                }
+                Ok(())
             }
             TreeType::AddressV2 => {
-                let proc = self
-                    .get_or_create_address_processor(epoch_info, tree_accounts)
-                    .await?;
-                {
-                    let mut p = proc.lock().await;
-                    p.update_eligibility(consecutive_eligibility_end);
-                }
-                None // Address processors have different type, handle separately
+                // Temporarily disable address prewarm to avoid interfering with live queue data.
+                Ok(())
             }
-            _ => return Ok(()),
-        };
-
-        // Pre-warm proofs for state trees
-        if let Some(proc) = processor {
-            let work = QueueWork {
-                queue_type: update.queue_type,
-                queue_size: update.queue_size,
-            };
-
-            let mut p = proc.lock().await;
-            match p.prewarm_proofs(cache.clone(), work).await {
-                Ok(count) => {
-                    info!(
-                        "Pre-warmed {} proofs for tree {} before eligible slot",
-                        count, tree_pubkey
-                    );
-                }
-                Err(e) => {
-                    warn!("Failed to pre-warm proofs for tree {}: {:?}", tree_pubkey, e);
-                    cache.clear().await;
-                }
-            }
+            _ => Ok(()),
         }
-
-        Ok(())
     }
 
-    /// Try to send cached proofs if they are valid for the current on-chain root.
-    /// Returns Some(items_sent) if cached proofs were used, None if cache was invalid.
     async fn try_send_cached_proofs(
         &self,
         epoch_info: &Epoch,
@@ -2345,19 +2439,16 @@ impl<R: Rpc> EpochManager<R> {
     ) -> Result<Option<usize>> {
         let tree_pubkey = tree_accounts.merkle_tree;
 
-        // Get proof cache for this tree
         let cache = match self.proof_caches.get(&tree_pubkey) {
             Some(c) => c.clone(),
             None => return Ok(None),
         };
 
-        // Check if cache is still being warmed
         if cache.is_warming().await {
             debug!("Cache still warming for tree {}, skipping", tree_pubkey);
             return Ok(None);
         }
 
-        // Get current on-chain root
         let mut rpc = self.rpc_pool.get_connection().await?;
         let current_root = match self.fetch_current_root(&mut *rpc, tree_accounts).await {
             Ok(root) => root,
@@ -2370,7 +2461,6 @@ impl<R: Rpc> EpochManager<R> {
             }
         };
 
-        // Try to take cached proofs if valid
         let cached_proofs = match cache.take_if_valid(&current_root).await {
             Some(proofs) => proofs,
             None => {
@@ -2394,7 +2484,6 @@ impl<R: Rpc> EpochManager<R> {
             &current_root[..4]
         );
 
-        // Send cached proofs as transactions
         let items_sent = self
             .send_cached_proofs_as_transactions(epoch_info, tree_accounts, cached_proofs)
             .await?;
@@ -2402,7 +2491,6 @@ impl<R: Rpc> EpochManager<R> {
         Ok(Some(items_sent))
     }
 
-    /// Fetch the current merkle root from chain
     async fn fetch_current_root(
         &self,
         rpc: &mut impl Rpc,
@@ -2431,71 +2519,59 @@ impl<R: Rpc> EpochManager<R> {
         Ok(root)
     }
 
-    /// Send cached proofs as transactions
     async fn send_cached_proofs_as_transactions(
         &self,
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
         cached_proofs: Vec<crate::processor::v2::CachedProof>,
     ) -> Result<usize> {
-        use crate::processor::v2::BatchInstruction;
-        use light_registry::account_compression_cpi::sdk::{
-            create_batch_append_instruction, create_batch_nullify_instruction,
-            create_batch_update_address_tree_instruction,
-        };
-        use borsh::BorshSerialize;
-
         let mut total_items = 0;
         let authority = self.config.payer_keypair.pubkey();
         let derivation = self.config.derivation_pubkey;
 
-        // Group proofs into batches for transaction efficiency
         const PROOFS_PER_TX: usize = 4;
         for chunk in cached_proofs.chunks(PROOFS_PER_TX) {
             let mut instructions = Vec::new();
 
             for proof in chunk {
                 let ix = match &proof.instruction {
-                    BatchInstruction::Append(data) => {
-                        data.iter()
-                            .map(|d| {
-                                create_batch_append_instruction(
-                                    authority,
-                                    derivation,
-                                    tree_accounts.merkle_tree,
-                                    tree_accounts.queue,
-                                    epoch_info.epoch,
-                                    d.try_to_vec().unwrap(),
-                                )
-                            })
-                            .collect::<Vec<_>>()
-                    }
-                    BatchInstruction::Nullify(data) => {
-                        data.iter()
-                            .map(|d| {
-                                create_batch_nullify_instruction(
-                                    authority,
-                                    derivation,
-                                    tree_accounts.merkle_tree,
-                                    epoch_info.epoch,
-                                    d.try_to_vec().unwrap(),
-                                )
-                            })
-                            .collect::<Vec<_>>()
-                    }
-                    BatchInstruction::AddressAppend(data) => {
-                        data.iter()
-                            .map(|d| {
-                                create_batch_update_address_tree_instruction(
-                                    authority,
-                                    derivation,
-                                    tree_accounts.merkle_tree,
-                                    epoch_info.epoch,
-                                    d.try_to_vec().unwrap(),
-                                )
-                            })
-                            .collect::<Vec<_>>()
-                    }
+                    BatchInstruction::Append(data) => data
+                        .iter()
+                        .map(|d| {
+                            create_batch_append_instruction(
+                                authority,
+                                derivation,
+                                tree_accounts.merkle_tree,
+                                tree_accounts.queue,
+                                epoch_info.epoch,
+                                d.try_to_vec().unwrap(),
+                            )
+                        })
+                        .collect::<Vec<_>>(),
+                    BatchInstruction::Nullify(data) => data
+                        .iter()
+                        .map(|d| {
+                            create_batch_nullify_instruction(
+                                authority,
+                                derivation,
+                                tree_accounts.merkle_tree,
+                                epoch_info.epoch,
+                                d.try_to_vec().unwrap(),
+                            )
+                        })
+                        .collect::<Vec<_>>(),
+                    BatchInstruction::AddressAppend(data) => data
+                        .iter()
+                        .map(|d| {
+                            create_batch_update_address_tree_instruction(
+                                authority,
+                                derivation,
+                                tree_accounts.merkle_tree,
+                                epoch_info.epoch,
+                                d.try_to_vec().unwrap(),
+                            )
+                        })
+                        .collect::<Vec<_>>(),
                 };
                 instructions.extend(ix);
                 total_items += 1;
@@ -2564,10 +2640,38 @@ impl<R: Rpc> EpochManager<R> {
         Ok(())
     }
 
+    /// Send work report metrics to the channel for monitoring/testing.
+    /// This is always called, regardless of whether we're in the report_work phase.
     #[instrument(level = "debug", skip(self, epoch_info), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch.epoch
     ))]
-    async fn report_work(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
-        info!("Reporting work");
+    async fn send_work_report(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
+        let report = WorkReport {
+            epoch: epoch_info.epoch.epoch,
+            processed_items: self.get_processed_items_count(epoch_info.epoch.epoch).await,
+            metrics: self.get_processing_metrics(epoch_info.epoch.epoch).await,
+        };
+
+        info!(
+            "Sending work report: epoch={} items={} metrics={:?}",
+            report.epoch, report.processed_items, report.metrics
+        );
+
+        self.work_report_sender
+            .send(report)
+            .await
+            .map_err(|e| ChannelError::WorkReportSend {
+                epoch: report.epoch,
+                error: e.to_string(),
+            })?;
+
+        Ok(())
+    }
+
+    /// Report work on-chain. Only called if within the report_work phase.
+    #[instrument(level = "debug", skip(self, epoch_info), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch.epoch
+    ))]
+    async fn report_work_onchain(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
+        info!("Reporting work on-chain");
         let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
             photon_url: self.config.external_services.indexer_url.clone(),
@@ -2602,22 +2706,6 @@ impl<R: Rpc> EpochManager<R> {
             epoch_info.epoch.epoch,
         );
 
-        // Always send the work report with metrics, regardless of on-chain result
-        let report = WorkReport {
-            epoch: epoch_info.epoch.epoch,
-            processed_items: self.get_processed_items_count(epoch_info.epoch.epoch).await,
-            metrics: self.get_processing_metrics(epoch_info.epoch.epoch).await,
-        };
-
-        // Send metrics report first (before potential early return on error)
-        self.work_report_sender
-            .send(report)
-            .await
-            .map_err(|e| ChannelError::WorkReportSend {
-                epoch: report.epoch,
-                error: e.to_string(),
-            })?;
-
         match rpc
             .create_and_send_transaction(
                 &[ix],
@@ -2627,7 +2715,7 @@ impl<R: Rpc> EpochManager<R> {
             .await
         {
             Ok(_) => {
-                info!("Work reported");
+                info!("Work reported on-chain");
             }
             Err(e) => {
                 if e.to_string().contains("already been processed") {

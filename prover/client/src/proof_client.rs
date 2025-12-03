@@ -25,7 +25,7 @@ const DEFAULT_MAX_WAIT_TIME_SECS: u64 = 600;
 const DEFAULT_LOCAL_SERVER: &str = "http://localhost:3001";
 
 const INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS: u64 = 200;
-const INITIAL_POLL_DELAY_LARGE_CIRCUIT_MS: u64 = 1000;
+const INITIAL_POLL_DELAY_LARGE_CIRCUIT_MS: u64 = 200;
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]

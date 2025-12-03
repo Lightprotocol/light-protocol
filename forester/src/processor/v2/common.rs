@@ -19,7 +19,7 @@ use crate::{
     Result,
 };
 
-const SLOTS_STOP_THRESHOLD: u64 = 1;
+const SLOTS_STOP_THRESHOLD: u64 = 3;
 
 #[derive(Debug, Clone)]
 pub struct QueueWork {
@@ -124,7 +124,7 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
 
     if current_phase_state != EpochState::Active {
         debug!(
-            "!! Skipping transaction send: not in active phase (current phase: {:?}, slot: {})",
+            "Skipping transaction send: not in active phase (current phase: {:?}, slot: {})",
             current_phase_state, current_slot
         );
         return Err(ForesterError::NotInActivePhase.into());

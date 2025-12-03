@@ -140,7 +140,17 @@ impl<R: Rpc> TxSender<R> {
 
     #[inline]
     fn is_still_eligible_at(&self, current_slot: u64) -> bool {
-        current_slot < self.context.epoch_phases.active.end
+        let forester_end = self
+            .context
+            .forester_eligibility_end_slot
+            .load(Ordering::Relaxed);
+        let eligibility_end_slot = if forester_end > 0 {
+            forester_end
+        } else {
+            self.context.epoch_phases.active.end
+        };
+        // Stop 2 slots before eligibility ends to avoid race conditions
+        current_slot + 2 < eligibility_end_slot
     }
 
     async fn run(mut self, mut proof_rx: mpsc::Receiver<ProofResult>) -> crate::Result<usize> {
@@ -206,7 +216,7 @@ impl<R: Rpc> TxSender<R> {
                 // 2. We're running low on time (epoch ending soon)
                 let should_send = self.pending_batch.len() >= V2_IXS_PER_TX
                     || (!self.pending_batch.is_empty()
-                    && self.should_flush_due_to_time_at(current_slot));
+                        && self.should_flush_due_to_time_at(current_slot));
 
                 if should_send {
                     processed += self.send_pending_batch().await?;

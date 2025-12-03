@@ -122,6 +122,21 @@ func (handler proofStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 			Str("job_id", jobID).
 			Msg("Job not found in any queue or metadata")
 
+		if handler.redisQueue != nil && handler.redisQueue.Client != nil {
+			if stats, statsErr := handler.redisQueue.GetQueueStats(); statsErr == nil {
+				logging.Logger().Info().
+					Str("job_id", jobID).
+					Interface("queue_stats", stats).
+					Str("redis_addr", handler.redisQueue.Client.Options().Addr).
+					Msg("Queue stats at job_not_found")
+			} else {
+				logging.Logger().Warn().
+					Err(statsErr).
+					Str("job_id", jobID).
+					Msg("Failed to fetch queue stats during job_not_found")
+			}
+		}
+
 		notFoundError := &Error{
 			StatusCode: http.StatusNotFound,
 			Code:       "job_not_found",
@@ -613,6 +628,12 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, keyManager *com
 				return
 			}
 
+			logging.Logger().Info().
+				Str("job_id", jobID).
+				Str("queue", queueName).
+				Str("circuit_type", string(proofRequestMeta.CircuitType)).
+				Msg("Enqueued proof job")
+
 			response := map[string]interface{}{
 				"job_id":       jobID,
 				"status":       "queued",
@@ -770,6 +791,7 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 		logging.Logger().Warn().
 			Err(err).
 			Str("job_id", jobID).
+			Str("queue", queueName).
 			Msg("Failed to store job metadata (job is still queued)")
 	}
 

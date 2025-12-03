@@ -5,7 +5,7 @@ use crate::{
     processor::v2::{
         common::WorkerPool,
         proof_cache::SharedProofCache,
-        proof_worker::{spawn_proof_workers, ProofInput, ProofJob, ProofResult},
+        proof_worker::{spawn_proof_workers, ProofJob, ProofResult},
         strategy::{CircuitType, QueueData, TreeStrategy},
         tx_sender::TxSender,
         BatchContext, ProcessingResult, QueueWork,
@@ -13,13 +13,14 @@ use crate::{
 };
 use anyhow::anyhow;
 use light_client::rpc::Rpc;
+use light_compressed_account::QueueType;
 use solana_sdk::pubkey::Pubkey;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
-const MAX_BATCHES_LIMIT: usize = 1000;
+// Limit batches to avoid "too many SQL variables" error from indexer
+const MAX_BATCHES_LIMIT: usize = 16;
 
-#[derive(Debug)]
 pub struct QueueProcessor<R: Rpc, S: TreeStrategy<R>> {
     context: BatchContext<R>,
     strategy: S,
@@ -30,7 +31,17 @@ pub struct QueueProcessor<R: Rpc, S: TreeStrategy<R>> {
     _phantom: std::marker::PhantomData<R>,
 }
 
-impl<R: Rpc, S: TreeStrategy<R>> QueueProcessor<R, S> {
+impl<R: Rpc, S: TreeStrategy<R>> std::fmt::Debug for QueueProcessor<R, S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("QueueProcessor")
+            .field("merkle_tree", &self.context.merkle_tree)
+            .field("epoch", &self.context.epoch)
+            .field("zkp_batch_size", &self.zkp_batch_size)
+            .finish()
+    }
+}
+
+impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
     pub async fn new(context: BatchContext<R>, strategy: S) -> crate::Result<Self> {
         let zkp_batch_size = strategy.fetch_zkp_batch_size(&context).await?;
         Ok(Self {
@@ -69,6 +80,7 @@ impl<R: Rpc, S: TreeStrategy<R>> QueueProcessor<R, S> {
             self.worker_pool = Some(WorkerPool { job_tx });
         }
 
+        // Fetch fresh queue data for each iteration
         let queue_data = match self
             .strategy
             .fetch_queue_data(&self.context, &queue_work, max_batches, self.zkp_batch_size)
@@ -94,9 +106,14 @@ impl<R: Rpc, S: TreeStrategy<R>> QueueProcessor<R, S> {
     pub fn epoch(&self) -> u64 {
         self.context.epoch
     }
+
+    pub fn zkp_batch_size(&self) -> u64 {
+        self.zkp_batch_size
+    }
+
     async fn process_batches(
         &mut self,
-        mut queue_data: QueueData<S::StagingTree>,
+        queue_data: QueueData<S::StagingTree>,
     ) -> crate::Result<ProcessingResult> {
         self.current_root = queue_data.initial_root;
         let num_batches = queue_data.num_batches;
@@ -119,23 +136,35 @@ impl<R: Rpc, S: TreeStrategy<R>> QueueProcessor<R, S> {
             .clone();
 
         let circuit_inputs_start = Instant::now();
-        let jobs_sent = self
-            .enqueue_jobs(&mut queue_data, num_batches, job_tx, proof_tx.clone())
+        let (jobs_sent, queue_data) = self
+            .enqueue_jobs(queue_data, num_batches, job_tx, proof_tx.clone())
             .await?;
         let circuit_inputs_duration = circuit_inputs_start.elapsed();
 
         drop(proof_tx);
 
-        let tx_processed = tx_sender_handle
+        let tx_result = tx_sender_handle
             .await
             .map_err(|e| anyhow!("Tx sender join error: {}", e))
-            .and_then(|res| res)
-            .inspect_err(|e| {
+            .and_then(|res| res);
+
+        let tx_processed = match &tx_result {
+            Ok(count) => *count,
+            Err(e) => {
+                let err_str = e.to_string();
                 warn!(
                     "Tx sender error for tree {}: {}",
-                    self.context.merkle_tree, e
+                    self.context.merkle_tree, err_str
                 );
-            })?;
+
+                if is_constraint_error(&err_str) {
+                    // Surface constraint errors so the caller can reset/flush state.
+                    return Err(anyhow!("Constraint error during tx send: {}", err_str));
+                }
+
+                0
+            }
+        };
 
         let total_proof_and_tx_time = proof_gen_start.elapsed();
 
@@ -163,54 +192,89 @@ impl<R: Rpc, S: TreeStrategy<R>> QueueProcessor<R, S> {
             CircuitType::AddressAppend => metrics.address_append = circuit_metrics,
         }
 
+        // Always return metrics so timing data is captured even on error
+        // Log the error but don't propagate it - partial progress is still progress
+        if let Err(e) = tx_result {
+            warn!(
+                "Returning partial metrics despite error for tree {}: {}",
+                self.context.merkle_tree, e
+            );
+        }
+
         Ok(ProcessingResult {
             items_processed: tx_processed,
             metrics,
         })
     }
 
+    /// Enqueue proof generation jobs on a blocking thread pool.
+    /// Takes ownership of queue_data and returns it along with jobs_sent count.
+    /// This allows the proof worker to process jobs concurrently while inputs are generated.
     async fn enqueue_jobs(
         &mut self,
-        queue_data: &mut QueueData<S::StagingTree>,
+        queue_data: QueueData<S::StagingTree>,
         num_batches: usize,
         job_tx: async_channel::Sender<ProofJob>,
         result_tx: mpsc::Sender<ProofResult>,
-    ) -> crate::Result<usize> {
-        let zkp_batch_size = self.zkp_batch_size as usize;
-        let mut jobs_sent = 0;
+    ) -> crate::Result<(usize, QueueData<S::StagingTree>)>
+    where
+        S::StagingTree: 'static,
+    {
+        let zkp_batch_size = self.zkp_batch_size;
+        let zkp_batch_size_usize = zkp_batch_size as usize;
+        let strategy = self.strategy.clone();
+        let initial_seq = self.seq;
 
-        for batch_idx in 0..num_batches {
-            let start = batch_idx * zkp_batch_size;
+        // Run CPU-bound proof input generation on blocking thread pool
+        // This allows the proof worker to process jobs concurrently
+        let result = tokio::task::spawn_blocking(move || {
+            let mut staging_tree = queue_data.staging_tree;
+            let mut jobs_sent = 0;
+            let mut final_root = queue_data.initial_root;
+            let mut current_seq = initial_seq;
 
-            let (inputs, new_root) = self.strategy.build_proof_job(
-                &mut queue_data.staging_tree,
-                batch_idx,
-                start,
-                self.zkp_batch_size,
-            )?;
+            for batch_idx in 0..num_batches {
+                let start = batch_idx * zkp_batch_size_usize;
 
-            let job = self.finish_job(new_root, inputs, result_tx.clone());
-            job_tx.send(job).await?;
-            jobs_sent += 1;
-        }
+                let (inputs, new_root) = strategy.build_proof_job(
+                    &mut staging_tree,
+                    batch_idx,
+                    start,
+                    zkp_batch_size,
+                )?;
 
-        Ok(jobs_sent)
-    }
+                final_root = new_root;
+                let job = ProofJob {
+                    seq: current_seq,
+                    inputs,
+                    result_tx: result_tx.clone(),
+                };
+                current_seq += 1;
 
-    fn finish_job(
-        &mut self,
-        new_root: [u8; 32],
-        inputs: ProofInput,
-        result_tx: mpsc::Sender<ProofResult>,
-    ) -> ProofJob {
-        self.current_root = new_root;
-        let job_seq = self.seq;
-        self.seq += 1;
-        ProofJob {
-            seq: job_seq,
-            inputs,
-            result_tx,
-        }
+                // Use blocking send since we're in a sync context
+                job_tx
+                    .send_blocking(job)
+                    .map_err(|e| anyhow::anyhow!("Failed to send job: {}", e))?;
+                jobs_sent += 1;
+            }
+
+            let updated_queue_data = QueueData {
+                staging_tree,
+                initial_root: queue_data.initial_root,
+                num_batches: queue_data.num_batches,
+            };
+
+            Ok::<_, anyhow::Error>((jobs_sent, final_root, current_seq, updated_queue_data))
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("Blocking task panicked: {}", e))??;
+
+        let (jobs_sent, final_root, final_seq, queue_data) = result;
+
+        self.current_root = final_root;
+        self.seq = final_seq;
+
+        Ok((jobs_sent, queue_data))
     }
 
     /// Pre-warm the proof cache by generating proofs without sending transactions.
@@ -245,11 +309,49 @@ impl<R: Rpc, S: TreeStrategy<R>> QueueProcessor<R, S> {
         self.prewarm_batches(cache, queue_data).await
     }
 
+    /// Pre-warm proofs by fetching queue data directly from the indexer without
+    /// consuming queue update messages. Useful when we don't want to drain
+    /// queue_update channels (e.g., address queues).
+    pub async fn prewarm_from_indexer(
+        &mut self,
+        cache: Arc<SharedProofCache>,
+        queue_type: QueueType,
+        max_batches: usize,
+    ) -> crate::Result<usize> {
+        if max_batches == 0 {
+            return Ok(0);
+        }
+
+        let max_batches = max_batches.min(MAX_BATCHES_LIMIT);
+        let queue_size_hint = (self.zkp_batch_size as usize * max_batches) as u64;
+
+        if self.worker_pool.is_none() {
+            let job_tx = spawn_proof_workers(&self.context.prover_config);
+            self.worker_pool = Some(WorkerPool { job_tx });
+        }
+
+        let queue_work = QueueWork {
+            queue_type,
+            queue_size: queue_size_hint,
+        };
+
+        let queue_data = match self
+            .strategy
+            .fetch_queue_data(&self.context, &queue_work, max_batches, self.zkp_batch_size)
+            .await?
+        {
+            Some(data) => data,
+            None => return Ok(0),
+        };
+
+        self.prewarm_batches(cache, queue_data).await
+    }
+
     /// Generate proofs and cache them instead of sending transactions
     async fn prewarm_batches(
         &mut self,
         cache: Arc<SharedProofCache>,
-        mut queue_data: QueueData<S::StagingTree>,
+        queue_data: QueueData<S::StagingTree>,
     ) -> crate::Result<usize> {
         let initial_root = queue_data.initial_root;
         self.current_root = initial_root;
@@ -276,8 +378,8 @@ impl<R: Rpc, S: TreeStrategy<R>> QueueProcessor<R, S> {
             &initial_root[..4]
         );
 
-        let jobs_sent = self
-            .enqueue_jobs(&mut queue_data, num_batches, job_tx, proof_tx.clone())
+        let (jobs_sent, _queue_data) = self
+            .enqueue_jobs(queue_data, num_batches, job_tx, proof_tx.clone())
             .await?;
 
         drop(proof_tx);
@@ -287,7 +389,9 @@ impl<R: Rpc, S: TreeStrategy<R>> QueueProcessor<R, S> {
         while let Some(result) = proof_rx.recv().await {
             match result.result {
                 Ok(instruction) => {
-                    cache.add_proof(result.seq, instruction).await;
+                    cache
+                        .add_proof(result.seq, result.old_root, result.new_root, instruction)
+                        .await;
                     proofs_cached += 1;
                 }
                 Err(e) => {
@@ -305,9 +409,7 @@ impl<R: Rpc, S: TreeStrategy<R>> QueueProcessor<R, S> {
         if proofs_cached < jobs_sent {
             warn!(
                 "Pre-warmed {} proofs but expected {} for tree {}",
-                proofs_cached,
-                jobs_sent,
-                self.context.merkle_tree
+                proofs_cached, jobs_sent, self.context.merkle_tree
             );
         } else {
             info!(
@@ -326,4 +428,13 @@ impl<R: Rpc, S: TreeStrategy<R>> QueueProcessor<R, S> {
     pub fn current_root(&self) -> &[u8; 32] {
         &self.current_root
     }
+}
+
+pub fn is_constraint_error(msg: &str) -> bool {
+    let lower = msg.to_ascii_lowercase();
+    lower.contains("constraint")
+        || lower.contains("unsatisfied")
+        // ProofVerificationFailed (error code 13006 / 0x32ce) - staging tree is out of sync
+        || lower.contains("0x32ce")
+        || lower.contains("13006")
 }

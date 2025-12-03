@@ -25,14 +25,14 @@ func NewRedisQueue(redisURL string) (*RedisQueue, error) {
 	}
 
 	// Configure connection pool and timeouts for Cloud Run + VPC connector reliability
-	opts.PoolSize = 20                    // Connection pool size per instance
-	opts.MinIdleConns = 5                 // Keep some connections warm
-	opts.DialTimeout = 10 * time.Second   // Timeout for establishing new connections
-	opts.ReadTimeout = 30 * time.Second   // Timeout for read operations (BLPOP can be slow)
-	opts.WriteTimeout = 10 * time.Second  // Timeout for write operations
-	opts.PoolTimeout = 15 * time.Second   // Timeout for getting connection from pool
+	opts.PoolSize = 200                    // Connection pool size per instance
+	opts.MinIdleConns = 5                  // Keep some connections warm
+	opts.DialTimeout = 10 * time.Second    // Timeout for establishing new connections
+	opts.ReadTimeout = 30 * time.Second    // Timeout for read operations (BLPOP can be slow)
+	opts.WriteTimeout = 10 * time.Second   // Timeout for write operations
+	opts.PoolTimeout = 15 * time.Second    // Timeout for getting connection from pool
 	opts.ConnMaxIdleTime = 5 * time.Minute // Close idle connections after this time
-	opts.MaxRetries = 3                   // Retry failed commands
+	opts.MaxRetries = 3                    // Retry failed commands
 
 	client := redis.NewClient(opts)
 	ctx := context.Background()
@@ -70,6 +70,7 @@ func (rq *RedisQueue) EnqueueProof(queueName string, job *ProofJob) error {
 	logging.Logger().Info().
 		Str("job_id", job.ID).
 		Str("queue", queueName).
+		Str("redis_addr", rq.Client.Options().Addr).
 		Msg("Job enqueued successfully")
 	return nil
 }
@@ -99,6 +100,7 @@ func (rq *RedisQueue) StoreJobMeta(jobID string, queueName string, circuitType s
 		Str("job_id", jobID).
 		Str("queue", queueName).
 		Str("circuit_type", circuitType).
+		Str("redis_addr", rq.Client.Options().Addr).
 		Msg("Stored job metadata for status tracking")
 
 	return nil
