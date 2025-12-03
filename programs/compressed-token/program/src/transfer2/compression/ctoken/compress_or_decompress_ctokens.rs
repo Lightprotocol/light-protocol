@@ -16,11 +16,12 @@ use spl_pod::solana_msg::msg;
 use super::{compress_and_close::process_compress_and_close, inputs::CTokenCompressionInputs};
 use crate::shared::owner_validation::check_ctoken_owner;
 
-/// Perform compression/decompression on a ctoken account
+/// Perform compression/decompression on a ctoken account.
 #[profile]
 pub fn compress_or_decompress_ctokens(
     inputs: CTokenCompressionInputs,
-) -> Result<Option<u64>, ProgramError> {
+    transfer_amount: &mut u64,
+) -> Result<(), ProgramError> {
     let CTokenCompressionInputs {
         authority,
         compress_and_close_inputs,
@@ -78,6 +79,7 @@ pub fn compress_or_decompress_ctokens(
                 ctoken.extensions.as_deref(),
                 token_account_info,
                 &mut current_slot,
+                transfer_amount,
             )
         }
         ZCompressionMode::Decompress => {
@@ -92,6 +94,7 @@ pub fn compress_or_decompress_ctokens(
                 ctoken.extensions.as_deref(),
                 token_account_info,
                 &mut current_slot,
+                transfer_amount,
             )
         }
         ZCompressionMode::CompressAndClose => process_compress_and_close(
@@ -110,7 +113,12 @@ fn process_compressible_extension(
     extensions: Option<&[ZExtensionStructMut]>,
     token_account_info: &AccountInfo,
     current_slot: &mut u64,
-) -> Result<Option<u64>, ProgramError> {
+    transfer_amount: &mut u64,
+) -> Result<(), ProgramError> {
+    if *transfer_amount != 0 {
+        return Ok(());
+    }
+
     if let Some(extensions) = extensions {
         for extension in extensions.iter() {
             if let ZExtensionStructMut::Compressible(compressible_extension) = extension {
@@ -119,7 +127,7 @@ fn process_compressible_extension(
                         .map_err(|_| CTokenError::SysvarAccessError)?
                         .slot;
                 }
-                let transfer_amount = compressible_extension
+                *transfer_amount = compressible_extension
                     .calculate_top_up_lamports(
                         token_account_info.data_len() as u64,
                         *current_slot,
@@ -128,9 +136,9 @@ fn process_compressible_extension(
                     )
                     .map_err(|_| CTokenError::InvalidAccountData)?;
 
-                return Ok(Some(transfer_amount));
+                return Ok(());
             }
         }
     }
-    Ok(None)
+    Ok(())
 }

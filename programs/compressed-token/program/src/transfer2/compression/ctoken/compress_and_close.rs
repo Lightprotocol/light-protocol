@@ -18,7 +18,7 @@ use crate::{
     transfer2::accounts::Transfer2Accounts,
 };
 
-/// Process compress and close operation for a ctoken account
+/// Process compress and close operation for a ctoken account.
 #[profile]
 pub fn process_compress_and_close(
     authority: Option<&AccountInfo>,
@@ -27,7 +27,7 @@ pub fn process_compress_and_close(
     token_account_info: &AccountInfo,
     ctoken: &mut ZCompressedTokenMut,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
-) -> Result<Option<u64>, ProgramError> {
+) -> Result<(), ProgramError> {
     let authority = authority.ok_or(ErrorCode::CompressAndCloseAuthorityMissing)?;
     check_signer(authority).map_err(|e| {
         anchor_lang::solana_program::msg!("Authority signer check failed: {:?}", e);
@@ -64,7 +64,7 @@ pub fn process_compress_and_close(
     }
 
     *ctoken.amount = 0.into();
-    Ok(None)
+    Ok(())
 }
 
 /// Validate compressed token account for compress and close operation

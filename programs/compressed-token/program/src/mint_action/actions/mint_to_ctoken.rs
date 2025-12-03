@@ -21,7 +21,8 @@ pub fn process_mint_to_ctoken_action(
     validated_accounts: &MintActionAccounts,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     mint: Pubkey,
-) -> Result<Option<u64>, ProgramError> {
+    transfer_amount: &mut u64,
+) -> Result<(), ProgramError> {
     check_authority(
         compressed_mint.base.mint_authority,
         validated_accounts.authority.key(),
@@ -55,7 +56,7 @@ pub fn process_mint_to_ctoken_action(
         packed_accounts,
     );
 
-    compress_or_decompress_ctokens(inputs)
+    compress_or_decompress_ctokens(inputs, transfer_amount)
 }
 
 #[profile]

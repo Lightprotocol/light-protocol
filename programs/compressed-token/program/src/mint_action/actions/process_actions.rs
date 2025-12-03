@@ -94,29 +94,23 @@ pub fn process_actions<'a>(
                 // compressed_mint.metadata.spl_mint_initialized = true;
             }
             ZAction::MintToCToken(mint_to_ctoken_action) => {
-                let transfer_amount = process_mint_to_ctoken_action(
+                let account_index = mint_to_ctoken_action.account_index as usize;
+                if account_index >= MAX_PACKED_ACCOUNTS {
+                    msg!(
+                        "Account index {} out of bounds, max {} allowed",
+                        account_index,
+                        MAX_PACKED_ACCOUNTS
+                    );
+                    return Err(ErrorCode::TooManyCompressionTransfers.into());
+                }
+                process_mint_to_ctoken_action(
                     mint_to_ctoken_action,
                     compressed_mint,
                     validated_accounts,
                     packed_accounts,
                     parsed_instruction_data.mint.metadata.mint,
+                    &mut transfer_map[account_index],
                 )?;
-
-                // Accumulate transfer amount if present (deduplication happens here)
-                if let Some(amount) = transfer_amount {
-                    let account_index = mint_to_ctoken_action.account_index;
-                    if account_index as usize >= MAX_PACKED_ACCOUNTS {
-                        msg!(
-                            "Too many compression transfers: {}, max {} allowed",
-                            account_index,
-                            MAX_PACKED_ACCOUNTS
-                        );
-                        return Err(ErrorCode::TooManyCompressionTransfers.into());
-                    }
-                    transfer_map[account_index as usize] = transfer_map[account_index as usize]
-                        .checked_add(amount)
-                        .ok_or(ProgramError::ArithmeticOverflow)?;
-                }
             }
             ZAction::UpdateMetadataField(update_metadata_action) => {
                 process_update_metadata_field_action(
