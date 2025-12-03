@@ -163,12 +163,17 @@ fn process_compressible_config<'info>(
         return Err(anchor_compressed_token::ErrorCode::OneEpochPrefundingNotAllowed.into());
     }
 
-    if compressible_config_ix_data
+    // For ATAs with compress_to_pubkey, validate the provided seeds match the ATA derivation
+    if let Some(compress_to_pubkey) = compressible_config_ix_data
         .compress_to_account_pubkey
-        .is_some()
+        .as_ref()
     {
-        msg!("Associated token accounts must not compress to pubkey");
-        return Err(ProgramError::InvalidInstructionData);
+        compress_to_pubkey
+            .check_seeds(associated_token_account.key())
+            .map_err(|_| {
+                msg!("compress_to_pubkey seeds do not match ATA derivation");
+                ProgramError::InvalidInstructionData
+            })?;
     }
 
     let compressible_config_account = next_config_account(iter)?;

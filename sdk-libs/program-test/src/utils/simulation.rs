@@ -14,15 +14,32 @@ pub async fn simulate_cu(
     payer: &Keypair,
     instruction: &Instruction,
 ) -> u64 {
+    simulate_cu_multi(rpc, payer, instruction, &[]).await
+}
+
+/// Simulate a transaction with multiple signers and return the compute units consumed.
+///
+/// This is a test utility function for measuring transaction costs.
+/// The payer is always included as a signer. Additional signers can be passed via `additional_signers`.
+pub async fn simulate_cu_multi(
+    rpc: &mut LightProgramTest,
+    payer: &Keypair,
+    instruction: &Instruction,
+    additional_signers: &[&Keypair],
+) -> u64 {
     let blockhash = rpc
         .get_latest_blockhash()
         .await
         .expect("Failed to get latest blockhash")
         .0;
+
+    let mut signers: Vec<&Keypair> = vec![payer];
+    signers.extend(additional_signers);
+
     let tx = Transaction::new_signed_with_payer(
         std::slice::from_ref(instruction),
         Some(&payer.pubkey()),
-        &[payer],
+        &signers,
         blockhash,
     );
     let simulate_tx = VersionedTransaction::from(tx);

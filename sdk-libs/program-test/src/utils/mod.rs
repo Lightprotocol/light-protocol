@@ -8,4 +8,4 @@ pub mod setup_light_programs;
 pub mod tree_accounts;
 
 pub mod simulation;
-pub use simulation::simulate_cu;
+pub use simulation::{simulate_cu, simulate_cu_multi};

@@ -99,7 +99,7 @@ impl CreateAssociatedTokenAccount {
                         0
                     },
                     write_top_up: config.lamports_per_write.unwrap_or(0),
-                    compress_to_account_pubkey: None,
+                    compress_to_account_pubkey: config.compress_to_account_pubkey.clone(),
                 });
 
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
@@ -241,7 +241,7 @@ impl<'info> From<&CreateAssociatedTokenAccountInfos<'info>> for CreateAssociated
                     rent_sponsor: *config.rent_sponsor.key,
                     pre_pay_num_epochs: config.pre_pay_num_epochs,
                     lamports_per_write: config.lamports_per_write,
-                    compress_to_account_pubkey: None,
+                    compress_to_account_pubkey: config.compress_to_account_pubkey.clone(),
                     token_account_version: config.token_account_version,
                 }),
             idempotent: account_infos.idempotent,
@@ -320,7 +320,7 @@ impl CreateAssociatedTokenAccount2 {
                         0
                     },
                     write_top_up: config.lamports_per_write.unwrap_or(0),
-                    compress_to_account_pubkey: None,
+                    compress_to_account_pubkey: config.compress_to_account_pubkey.clone(),
                 });
 
         let instruction_data = CreateAssociatedTokenAccount2InstructionData {
@@ -444,7 +444,7 @@ impl<'info> From<&CreateAssociatedTokenAccount2Infos<'info>> for CreateAssociate
                     rent_sponsor: *config.rent_sponsor.key,
                     pre_pay_num_epochs: config.pre_pay_num_epochs,
                     lamports_per_write: config.lamports_per_write,
-                    compress_to_account_pubkey: None,
+                    compress_to_account_pubkey: config.compress_to_account_pubkey.clone(),
                     token_account_version: config.token_account_version,
                 }),
             idempotent: account_infos.idempotent,

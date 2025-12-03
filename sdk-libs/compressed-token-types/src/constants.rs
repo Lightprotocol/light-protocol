@@ -50,3 +50,4 @@ pub const THAW: [u8; 8] = [226, 249, 34, 57, 189, 21, 177, 101];
 pub const CREATE_TOKEN_POOL: [u8; 8] = [23, 169, 27, 122, 147, 169, 209, 152];
 pub const CREATE_ADDITIONAL_TOKEN_POOL: [u8; 8] = [114, 143, 210, 73, 96, 115, 1, 228];
 pub const TRANSFER2: u8 = 101;
+pub const TRANSFER2_WITH_ATA: u8 = 108;

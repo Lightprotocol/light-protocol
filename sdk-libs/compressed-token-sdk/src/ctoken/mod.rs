@@ -3,6 +3,7 @@ mod compressible;
 mod create;
 mod create_ata;
 mod create_cmint;
+mod decompress_ata;
 mod mint_to;
 mod transfer_ctoken;
 mod transfer_ctoken_spl;
@@ -14,6 +15,7 @@ pub use compressible::{CompressibleParams, CompressibleParamsInfos};
 pub use create::*;
 pub use create_ata::*;
 pub use create_cmint::*;
+pub use decompress_ata::{create_decompress_ata_instruction, DecompressAtaParams};
 use light_compressed_token_types::POOL_SEED;
 use light_compressible::config::CompressibleConfig;
 pub use light_ctoken_types::{
