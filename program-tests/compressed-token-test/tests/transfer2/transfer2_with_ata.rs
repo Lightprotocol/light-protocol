@@ -591,3 +591,161 @@ async fn test_transfer2_with_ata_wrong_bump_fails() {
 
     assert!(result.is_err(), "Should fail with wrong ATA bump");
 }
+
+// ============================================================================
+// CU BENCHMARKS - Compare Transfer2WithAta vs Regular Transfer2
+// ============================================================================
+
+/// Benchmark: Compare CU usage between Transfer2WithAta and regular Transfer2 decompression
+#[tokio::test]
+#[serial]
+async fn test_transfer2_with_ata_cu_benchmark() {
+    use light_program_test::utils::simulate_cu_multi;
+    use light_token_client::instructions::transfer2::{
+        create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+    };
+
+    println!("\n========================================");
+    println!("Transfer2WithAta vs Transfer2 CU Benchmark");
+    println!("========================================\n");
+
+    // Test configurations: (num_inputs, amount_per_input)
+    let test_configs = [(1, 1000u64), (2, 500u64)];
+
+    for (num_inputs, amount_per_input) in test_configs {
+        println!("--- {} input(s), {} tokens each ---", num_inputs, amount_per_input);
+
+        // Setup for Transfer2WithAta
+        let mut ata_ctx = setup_transfer2_with_ata_test().await.unwrap();
+        ata_ctx.create_mint().await.unwrap();
+
+        // Create multiple ATA-owned compressed accounts
+        for _ in 0..num_inputs {
+            ata_ctx.create_ata_with_compress_to_pubkey().await.unwrap();
+            ata_ctx.mint_and_compress_to_ata(amount_per_input).await.unwrap();
+        }
+
+        // Re-create ATA for destination
+        ata_ctx.create_ata_with_compress_to_pubkey().await.unwrap();
+
+        let ata_compressed_accounts = ata_ctx.get_ata_owned_compressed_accounts().await.unwrap();
+        assert_eq!(
+            ata_compressed_accounts.len(),
+            num_inputs,
+            "Should have {} ATA-owned compressed accounts",
+            num_inputs
+        );
+
+        // Build Transfer2WithAta instruction
+        let ata_input = DecompressAtaInput {
+            compressed_token_accounts: ata_compressed_accounts,
+            owner_wallet: ata_ctx.owner_wallet.pubkey(),
+            mint: ata_ctx.mint,
+            destination_ata: ata_ctx.ata,
+            decompress_amount: None,
+        };
+
+        let ata_ix = create_decompress_ata_instruction(&mut ata_ctx.rpc, ata_input, ata_ctx.payer.pubkey())
+            .await
+            .unwrap();
+
+        // Measure Transfer2WithAta CU
+        let ata_cu = simulate_cu_multi(
+            &mut ata_ctx.rpc,
+            &ata_ctx.payer,
+            &ata_ix,
+            &[&ata_ctx.owner_wallet],
+        )
+        .await;
+
+        // Setup for regular Transfer2 decompression
+        let mut transfer2_ctx = setup_transfer2_with_ata_test().await.unwrap();
+        transfer2_ctx.create_mint().await.unwrap();
+
+        // For regular transfer2, mint directly to wallet (wallet-owned compressed tokens)
+        let total_amount = amount_per_input * num_inputs as u64;
+        for _ in 0..num_inputs {
+            transfer2_ctx.mint_to_wallet(amount_per_input).await.unwrap();
+        }
+
+        // Create CToken ATA for decompression destination (regular non-compressible ATA)
+        let (ctoken_ata, bump) = derive_ctoken_ata(&transfer2_ctx.owner_wallet.pubkey(), &transfer2_ctx.mint);
+        let create_ata_ix = light_compressed_token_sdk::ctoken::CreateAssociatedTokenAccount {
+            idempotent: false,
+            bump,
+            payer: transfer2_ctx.payer.pubkey(),
+            owner: transfer2_ctx.owner_wallet.pubkey(),
+            mint: transfer2_ctx.mint,
+            associated_token_account: ctoken_ata,
+            compressible: None,
+        }
+        .instruction()
+        .unwrap();
+
+        transfer2_ctx
+            .rpc
+            .create_and_send_transaction(
+                &[create_ata_ix],
+                &transfer2_ctx.payer.pubkey(),
+                &[&transfer2_ctx.payer],
+            )
+            .await
+            .unwrap();
+
+        // Get wallet-owned compressed accounts
+        let wallet_compressed_accounts = transfer2_ctx.get_wallet_owned_compressed_accounts().await.unwrap();
+        assert_eq!(
+            wallet_compressed_accounts.len(),
+            num_inputs,
+            "Should have {} wallet-owned compressed accounts",
+            num_inputs
+        );
+
+        // Build regular Transfer2 decompression instruction
+        let decompress_input = DecompressInput {
+            compressed_token_account: wallet_compressed_accounts,
+            decompress_amount: total_amount,
+            solana_token_account: ctoken_ata,
+            amount: total_amount,
+            pool_index: None,
+        };
+
+        let transfer2_ix = create_generic_transfer2_instruction(
+            &mut transfer2_ctx.rpc,
+            vec![Transfer2InstructionType::Decompress(decompress_input)],
+            transfer2_ctx.payer.pubkey(),
+            false,
+        )
+        .await
+        .unwrap();
+
+        // Measure regular Transfer2 CU
+        let transfer2_cu = simulate_cu_multi(
+            &mut transfer2_ctx.rpc,
+            &transfer2_ctx.payer,
+            &transfer2_ix,
+            &[&transfer2_ctx.owner_wallet],
+        )
+        .await;
+
+        // Calculate and print results
+        let cu_diff = ata_cu as i64 - transfer2_cu as i64;
+        let percent_diff = if transfer2_cu > 0 {
+            (cu_diff as f64 / transfer2_cu as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        println!("{} input(s) with ata    : {} cu", num_inputs, ata_cu);
+        println!("{} input(s) transfer2   : {} cu", num_inputs, transfer2_cu);
+        println!(
+            "{} input(s) difference  : {:+} cu ({:+.1}%)",
+            num_inputs, cu_diff, percent_diff
+        );
+        println!();
+    }
+
+    println!("========================================");
+    println!("Benchmark complete");
+    println!("========================================\n");
+}
