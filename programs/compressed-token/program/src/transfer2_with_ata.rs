@@ -22,7 +22,6 @@ pub fn process_transfer2_with_ata(
     // Parse suffix: [transfer2_data...] ++ [wallet_idx, mint_idx, ata_idx, bump, use_delegate]
     let len = instruction_data.len();
     if len < 5 {
-        msg!("ix data too short");
         return Err(ProgramError::InvalidInstructionData);
     }
     let (transfer2_data, suffix) = instruction_data.split_at(len - 5);

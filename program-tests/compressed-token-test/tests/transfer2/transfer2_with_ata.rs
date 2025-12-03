@@ -46,7 +46,7 @@ use light_token_client::{
     instructions::{
         mint_action::{MintActionParams, MintActionType},
         transfer2::{create_generic_transfer2_instruction, Transfer2InstructionType},
-        transfer2_with_ata::{create_decompress_ata_instruction, DecompressAtaInput},
+        transfer2_with_ata::{create_decompress_ata_instruction_rpc, DecompressAtaInput},
     },
 };
 use serial_test::serial;
@@ -321,7 +321,7 @@ async fn test_transfer2_with_ata_single_input_success() {
         use_delegate: false,
     };
 
-    let ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+    let ix = create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey())
         .await
         .unwrap();
 
@@ -369,7 +369,7 @@ async fn test_transfer2_with_ata_multiple_inputs_success() {
         use_delegate: false,
     };
 
-    let ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+    let ix = create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey())
         .await
         .unwrap();
 
@@ -417,7 +417,8 @@ async fn test_transfer2_with_ata_wrong_owner_signer_fails() {
         use_delegate: false,
     };
 
-    let result = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey()).await;
+    let result =
+        create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey()).await;
     assert!(
         result.is_err(),
         "Should fail when ATA doesn't match owner_wallet derivation"
@@ -448,7 +449,8 @@ async fn test_transfer2_with_ata_wrong_mint_fails() {
         use_delegate: false,
     };
 
-    let result = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey()).await;
+    let result =
+        create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey()).await;
     assert!(
         result.is_err(),
         "Should fail when mint doesn't match ATA derivation"
@@ -477,7 +479,7 @@ async fn test_transfer2_with_ata_wallet_not_signer_fails() {
         use_delegate: false,
     };
 
-    let ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+    let ix = create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey())
         .await
         .unwrap();
 
@@ -517,7 +519,8 @@ async fn test_transfer2_with_ata_wrong_ata_account_fails() {
         use_delegate: false,
     };
 
-    let result = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey()).await;
+    let result =
+        create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey()).await;
     assert!(
         result.is_err(),
         "Should fail when destination_ata doesn't match derivation"
@@ -567,7 +570,8 @@ async fn test_transfer2_with_ata_mixed_ownership_fails() {
     };
 
     // Should fail because not all inputs have owner = ATA
-    let result = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey()).await;
+    let result =
+        create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey()).await;
     assert!(
         result.is_err(),
         "Should fail when mixing ATA-owned and wallet-owned inputs"
@@ -597,7 +601,7 @@ async fn test_attack_wrong_bump_fails() {
         use_delegate: false,
     };
 
-    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+    let mut ix = create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey())
         .await
         .unwrap();
 
@@ -619,18 +623,17 @@ async fn test_attack_wrong_bump_fails() {
 // DELEGATE MODE TESTS
 // ============================================================================
 //
-// These tests verify the security of delegate mode in Transfer2WithAta.
-// Key security properties:
-// 1. If delegate is provided (delegate_index != 255), delegate MUST sign
-// 2. All inputs MUST have matching delegate field when delegate mode is used
-// 3. Owner signing should NOT work when delegate mode is specified
-// 4. Delegate index must point to valid account
+// Key security properties for delegate mode:
+// 1. use_delegate=true requires inputs to have delegate set
+// 2. Delegate (derived from inputs) MUST sign
+// 3. All inputs MUST have same delegate
+//
+// NOTE: Success test for delegate mode blocked - needs ATA-owned tokens with delegates
 
-/// Test: ATTACK - Specify delegate mode but don't include delegate signature
-/// This tests that an attacker cannot bypass delegate signing requirement
+/// Test: use_delegate=true but inputs have no delegate (variant 1)
 #[tokio::test]
 #[serial]
-async fn test_delegate_mode_delegate_not_signer_fails() {
+async fn test_delegate_mode_no_delegate_in_inputs_fails() {
     let mut ctx = setup_transfer2_with_ata_test().await.unwrap();
     ctx.create_mint().await.unwrap();
     ctx.create_ata_with_compress_to_pubkey().await.unwrap();
@@ -640,13 +643,6 @@ async fn test_delegate_mode_delegate_not_signer_fails() {
     let compressed_accounts = ctx.get_ata_owned_compressed_accounts().await.unwrap();
     assert!(!compressed_accounts.is_empty());
 
-    // Create a fake delegate keypair
-    let fake_delegate = Keypair::new();
-    airdrop_lamports(&mut ctx.rpc, &fake_delegate.pubkey(), 1_000_000_000)
-        .await
-        .unwrap();
-
-    // Build instruction with owner mode first (to get valid base instruction)
     let input = DecompressAtaInput {
         compressed_token_accounts: compressed_accounts.clone(),
         owner_wallet: ctx.owner_wallet.pubkey(),
@@ -656,24 +652,15 @@ async fn test_delegate_mode_delegate_not_signer_fails() {
         use_delegate: false,
     };
 
-    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+    let mut ix = create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey())
         .await
         .unwrap();
 
-    // ATTACK: Change delegate_index from 255 (no delegate) to point to an account
-    // but DON'T add delegate as signer
+    // Set use_delegate=true
     let data_len = ix.data.len();
-    // Add fake_delegate to accounts (not as signer)
-    let fake_delegate_idx = ix.accounts.len() as u8;
-    ix.accounts
-        .push(solana_sdk::instruction::AccountMeta::new_readonly(
-            fake_delegate.pubkey(),
-            false, // NOT a signer - this is the attack
-        ));
-    // Set delegate_index to point to fake_delegate
-    ix.data[data_len - 1] = fake_delegate_idx;
+    ix.data[data_len - 1] = 1;
 
-    // This should fail because delegate is not a signer
+    // Fails: inputs have no delegate
     let result = ctx
         .rpc
         .create_and_send_transaction(&[ix], &ctx.payer.pubkey(), &[&ctx.payer, &ctx.owner_wallet])
@@ -681,15 +668,14 @@ async fn test_delegate_mode_delegate_not_signer_fails() {
 
     assert!(
         result.is_err(),
-        "SECURITY: Must fail when delegate mode is specified but delegate doesn't sign"
+        "Must fail when use_delegate=true but inputs have no delegate"
     );
 }
 
-/// Test: ATTACK - Specify delegate mode, delegate signs, but inputs don't have delegate set
-/// This tests that tokens without delegates cannot be stolen via delegate mode
+/// Test: SDK rejects use_delegate=true when inputs have no delegate
 #[tokio::test]
 #[serial]
-async fn test_delegate_mode_inputs_have_no_delegate_fails() {
+async fn test_sdk_rejects_use_delegate_without_delegate() {
     let mut ctx = setup_transfer2_with_ata_test().await.unwrap();
     ctx.create_mint().await.unwrap();
     ctx.create_ata_with_compress_to_pubkey().await.unwrap();
@@ -699,64 +685,32 @@ async fn test_delegate_mode_inputs_have_no_delegate_fails() {
     let compressed_accounts = ctx.get_ata_owned_compressed_accounts().await.unwrap();
     assert!(!compressed_accounts.is_empty());
 
-    // Verify inputs have NO delegate (this is the precondition for this attack test)
+    // Inputs have no delegate
     for acc in &compressed_accounts {
-        assert!(
-            acc.token.delegate.is_none(),
-            "Test precondition: inputs should not have delegate"
-        );
+        assert!(acc.token.delegate.is_none());
     }
 
-    // Create attacker keypair who will try to steal tokens by claiming to be delegate
-    let attacker = Keypair::new();
-    airdrop_lamports(&mut ctx.rpc, &attacker.pubkey(), 1_000_000_000)
-        .await
-        .unwrap();
-
-    // Build instruction in owner mode first
     let input = DecompressAtaInput {
-        compressed_token_accounts: compressed_accounts.clone(),
+        compressed_token_accounts: compressed_accounts,
         owner_wallet: ctx.owner_wallet.pubkey(),
         mint: ctx.mint,
         destination_ata: ctx.ata,
         decompress_amount: None,
-        use_delegate: false,
+        use_delegate: true, // SDK should reject this
     };
 
-    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
-        .await
-        .unwrap();
-
-    // ATTACK: Add attacker as "delegate" and set delegate_index
-    let data_len = ix.data.len();
-    let attacker_idx = ix.accounts.len() as u8;
-    ix.accounts
-        .push(solana_sdk::instruction::AccountMeta::new_readonly(
-            attacker.pubkey(),
-            true, // Attacker DOES sign
-        ));
-    // Set delegate_index to point to attacker
-    ix.data[data_len - 1] = attacker_idx;
-
-    // This should fail because inputs don't have delegate set (has_delegate() == false)
-    // Even though attacker signs, the on-chain check should reject because
-    // input.has_delegate() will be false
-    let result = ctx
-        .rpc
-        .create_and_send_transaction(&[ix], &ctx.payer.pubkey(), &[&ctx.payer, &attacker])
-        .await;
-
+    let result =
+        create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey()).await;
     assert!(
         result.is_err(),
-        "SECURITY: Must fail when inputs don't have delegate but delegate mode is used"
+        "SDK must reject use_delegate=true when inputs have no delegate"
     );
 }
 
-/// Test: ATTACK - Delegate index out of bounds
-/// This tests that malformed instructions with invalid indices are rejected
+/// Test: Any non-zero use_delegate value triggers delegate mode
 #[tokio::test]
 #[serial]
-async fn test_delegate_mode_delegate_index_out_of_bounds_fails() {
+async fn test_any_nonzero_use_delegate_triggers_delegate_mode() {
     let mut ctx = setup_transfer2_with_ata_test().await.unwrap();
     ctx.create_mint().await.unwrap();
     ctx.create_ata_with_compress_to_pubkey().await.unwrap();
@@ -764,10 +718,9 @@ async fn test_delegate_mode_delegate_index_out_of_bounds_fails() {
     ctx.create_ata_with_compress_to_pubkey().await.unwrap();
 
     let compressed_accounts = ctx.get_ata_owned_compressed_accounts().await.unwrap();
-    assert!(!compressed_accounts.is_empty());
 
     let input = DecompressAtaInput {
-        compressed_token_accounts: compressed_accounts.clone(),
+        compressed_token_accounts: compressed_accounts,
         owner_wallet: ctx.owner_wallet.pubkey(),
         mint: ctx.mint,
         destination_ata: ctx.ata,
@@ -775,16 +728,15 @@ async fn test_delegate_mode_delegate_index_out_of_bounds_fails() {
         use_delegate: false,
     };
 
-    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+    let mut ix = create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey())
         .await
         .unwrap();
 
-    // ATTACK: Set delegate_index to out of bounds value
+    // Set use_delegate to large value (255) - should still be treated as true
     let data_len = ix.data.len();
-    let num_accounts = ix.accounts.len();
-    ix.data[data_len - 1] = (num_accounts + 10) as u8; // Way out of bounds
+    ix.data[data_len - 1] = 255;
 
-    // This should fail with NotEnoughAccountKeys or similar
+    // Fails: delegate mode triggered but inputs have no delegate
     let result = ctx
         .rpc
         .create_and_send_transaction(&[ix], &ctx.payer.pubkey(), &[&ctx.payer, &ctx.owner_wallet])
@@ -792,60 +744,7 @@ async fn test_delegate_mode_delegate_index_out_of_bounds_fails() {
 
     assert!(
         result.is_err(),
-        "SECURITY: Must fail when delegate_index is out of bounds"
-    );
-}
-
-/// Test: ATTACK - Use delegate mode but have owner sign instead of delegate
-/// This tests that owner cannot act as delegate when delegate mode is specified
-#[tokio::test]
-#[serial]
-async fn test_delegate_mode_owner_signs_instead_of_delegate_fails() {
-    let mut ctx = setup_transfer2_with_ata_test().await.unwrap();
-    ctx.create_mint().await.unwrap();
-    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
-    ctx.mint_and_compress_to_ata(1000).await.unwrap();
-    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
-
-    let compressed_accounts = ctx.get_ata_owned_compressed_accounts().await.unwrap();
-    assert!(!compressed_accounts.is_empty());
-
-    // Create a "delegate" that won't sign
-    let fake_delegate = Keypair::new();
-
-    let input = DecompressAtaInput {
-        compressed_token_accounts: compressed_accounts.clone(),
-        owner_wallet: ctx.owner_wallet.pubkey(),
-        mint: ctx.mint,
-        destination_ata: ctx.ata,
-        decompress_amount: None,
-        use_delegate: false,
-    };
-
-    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
-        .await
-        .unwrap();
-
-    // ATTACK: Add delegate to accounts but don't make it signer
-    let data_len = ix.data.len();
-    let delegate_idx = ix.accounts.len() as u8;
-    ix.accounts
-        .push(solana_sdk::instruction::AccountMeta::new_readonly(
-            fake_delegate.pubkey(),
-            false, // NOT signer
-        ));
-    ix.data[data_len - 1] = delegate_idx;
-
-    // Try to sign with owner only (which signed in owner mode)
-    // This should fail because delegate mode requires delegate to sign
-    let result = ctx
-        .rpc
-        .create_and_send_transaction(&[ix], &ctx.payer.pubkey(), &[&ctx.payer, &ctx.owner_wallet])
-        .await;
-
-    assert!(
-        result.is_err(),
-        "SECURITY: Must fail when delegate mode is used but only owner signs"
+        "Any non-zero use_delegate should trigger delegate mode"
     );
 }
 
@@ -872,7 +771,7 @@ async fn test_attack_wrong_wallet_index_fails() {
         use_delegate: false,
     };
 
-    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+    let mut ix = create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey())
         .await
         .unwrap();
 
@@ -916,7 +815,7 @@ async fn test_attack_wrong_mint_index_fails() {
         use_delegate: false,
     };
 
-    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+    let mut ix = create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey())
         .await
         .unwrap();
 
@@ -960,7 +859,7 @@ async fn test_attack_wrong_ata_index_fails() {
         use_delegate: false,
     };
 
-    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+    let mut ix = create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey())
         .await
         .unwrap();
 
@@ -978,39 +877,6 @@ async fn test_attack_wrong_ata_index_fails() {
     assert!(
         result.is_err(),
         "SECURITY: Must fail when ata_index points to wrong account"
-    );
-}
-
-/// Test: SDK validation - delegate provided but inputs don't have that delegate
-/// This tests SDK-side validation catches mismatched delegates
-#[tokio::test]
-#[serial]
-async fn test_sdk_rejects_delegate_not_matching_inputs() {
-    let mut ctx = setup_transfer2_with_ata_test().await.unwrap();
-    ctx.create_mint().await.unwrap();
-    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
-    ctx.mint_and_compress_to_ata(1000).await.unwrap();
-    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
-
-    let compressed_accounts = ctx.get_ata_owned_compressed_accounts().await.unwrap();
-    assert!(!compressed_accounts.is_empty());
-
-    // These accounts don't have any delegate set
-    // Try to use delegate mode - SDK should reject
-    let input = DecompressAtaInput {
-        compressed_token_accounts: compressed_accounts.clone(),
-        owner_wallet: ctx.owner_wallet.pubkey(),
-        mint: ctx.mint,
-        destination_ata: ctx.ata,
-        decompress_amount: None,
-        use_delegate: true, // Request delegate mode but inputs don't have delegate set
-    };
-
-    let result = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey()).await;
-
-    assert!(
-        result.is_err(),
-        "SDK must reject when delegate is specified but inputs don't have that delegate"
     );
 }
 
@@ -1037,7 +903,7 @@ async fn test_attack_duplicate_wallet_mint_index_fails() {
         use_delegate: false,
     };
 
-    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+    let mut ix = create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey())
         .await
         .unwrap();
 
@@ -1080,7 +946,7 @@ async fn test_attack_duplicate_wallet_ata_index_fails() {
         use_delegate: false,
     };
 
-    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+    let mut ix = create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey())
         .await
         .unwrap();
 
@@ -1124,7 +990,7 @@ async fn test_attack_ata_index_in_system_slot_fails() {
         use_delegate: false,
     };
 
-    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+    let mut ix = create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey())
         .await
         .unwrap();
 
@@ -1141,53 +1007,6 @@ async fn test_attack_ata_index_in_system_slot_fails() {
     assert!(
         result.is_err(),
         "SECURITY: Must fail when ata_index is in system slot (packed_index underflow)"
-    );
-}
-
-/// Test: ATTACK - Delegate index same as wallet index
-/// This tests account confusion when delegate points to same account as wallet
-#[tokio::test]
-#[serial]
-async fn test_attack_delegate_index_equals_wallet_index_fails() {
-    let mut ctx = setup_transfer2_with_ata_test().await.unwrap();
-    ctx.create_mint().await.unwrap();
-    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
-    ctx.mint_and_compress_to_ata(1000).await.unwrap();
-    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
-
-    let compressed_accounts = ctx.get_ata_owned_compressed_accounts().await.unwrap();
-    assert!(!compressed_accounts.is_empty());
-
-    let input = DecompressAtaInput {
-        compressed_token_accounts: compressed_accounts.clone(),
-        owner_wallet: ctx.owner_wallet.pubkey(),
-        mint: ctx.mint,
-        destination_ata: ctx.ata,
-        decompress_amount: None,
-        use_delegate: false,
-    };
-
-    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
-        .await
-        .unwrap();
-
-    // ATTACK: Set delegate_index to same value as wallet_index
-    // This tries to use owner_wallet as both the wallet for ATA derivation AND as delegate
-    let data_len = ix.data.len();
-    let wallet_idx = ix.data[data_len - 5];
-    ix.data[data_len - 1] = wallet_idx; // delegate_idx = wallet_idx
-
-    // This should fail because:
-    // 1. In delegate mode, inputs must have delegate field set to delegate_packed_index
-    // 2. Our inputs don't have delegate set, so has_delegate() = false
-    let result = ctx
-        .rpc
-        .create_and_send_transaction(&[ix], &ctx.payer.pubkey(), &[&ctx.payer, &ctx.owner_wallet])
-        .await;
-
-    assert!(
-        result.is_err(),
-        "SECURITY: Must fail when delegate_idx == wallet_idx (inputs don't have delegate)"
     );
 }
 
@@ -1214,7 +1033,7 @@ async fn test_attack_all_indices_same_fails() {
         use_delegate: false,
     };
 
-    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+    let mut ix = create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey())
         .await
         .unwrap();
 
@@ -1259,7 +1078,7 @@ async fn test_attack_all_zero_suffix_indices_fails() {
         use_delegate: false,
     };
 
-    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+    let mut ix = create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey())
         .await
         .unwrap();
 
@@ -1303,7 +1122,7 @@ async fn test_instruction_data_too_short_fails() {
         use_delegate: false,
     };
 
-    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+    let mut ix = create_decompress_ata_instruction_rpc(&mut ctx.rpc, input, ctx.payer.pubkey())
         .await
         .unwrap();
 
@@ -1382,10 +1201,13 @@ async fn test_transfer2_with_ata_cu_benchmark() {
             use_delegate: false,
         };
 
-        let ata_ix =
-            create_decompress_ata_instruction(&mut ata_ctx.rpc, ata_input, ata_ctx.payer.pubkey())
-                .await
-                .unwrap();
+        let ata_ix = create_decompress_ata_instruction_rpc(
+            &mut ata_ctx.rpc,
+            ata_input,
+            ata_ctx.payer.pubkey(),
+        )
+        .await
+        .unwrap();
 
         // Measure Transfer2WithAta CU
         let ata_cu = simulate_cu_multi(
