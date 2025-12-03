@@ -205,9 +205,10 @@ async fn test_ctoken_transfer_basic_non_compressible() {
 
 #[tokio::test]
 async fn test_ctoken_transfer_compressible_no_topup() {
-    // Create compressible accounts with 2 prepaid epochs (sufficient, no top-up needed)
+    // Create compressible accounts with 3 prepaid epochs (sufficient for max_funded_epochs=2, no top-up needed)
+    // epochs_funded_ahead = total_epochs_fundable - required_epochs = 3 - 1 = 2 >= 2
     let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
-        setup_transfer_test(Some(2), 1000).await.unwrap();
+        setup_transfer_test(Some(3), 1000).await.unwrap();
 
     // Use the owner keypair as authority (token accounts are owned by context.owner_keypair)
     let owner_keypair = context.owner_keypair.insecure_clone();
@@ -225,9 +226,10 @@ async fn test_ctoken_transfer_compressible_no_topup() {
 
 #[tokio::test]
 async fn test_ctoken_transfer_compressible_with_topup() {
-    // Create compressible accounts with 2 prepaid epochs
+    // Create compressible accounts with 3 prepaid epochs (sufficient for max_funded_epochs=2, no top-up needed)
+    // epochs_funded_ahead = total_epochs_fundable - required_epochs = 3 - 1 = 2 >= 2
     let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
-        setup_transfer_test(Some(2), 1000).await.unwrap();
+        setup_transfer_test(Some(3), 1000).await.unwrap();
     // For this test, we need to transfer ownership to the payer so it can pay for top-ups
     // Or we can use a delegate. But the simplest is to use payer as authority for this specific test.
     // Actually, the owner needs to be the authority for the transfer to work.
@@ -451,7 +453,7 @@ async fn test_ctoken_transfer_mixed_compressible_non_compressible() {
     let compressible_data = CompressibleData {
         compression_authority: context.compression_authority,
         rent_sponsor: context.rent_sponsor,
-        num_prepaid_epochs: 2,
+        num_prepaid_epochs: 3, // 3 epochs for no top-up: epochs_funded_ahead = 3 - 1 = 2 >= 2
         lamports_per_write: Some(100),
         account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
         compress_to_pubkey: false,
