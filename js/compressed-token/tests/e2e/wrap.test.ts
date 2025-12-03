@@ -15,8 +15,10 @@ import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, decompress } from '../../src/actions';
 import {
     createAssociatedTokenAccount,
+    getOrCreateAssociatedTokenAccount,
     getAssociatedTokenAddressSync,
     TOKEN_PROGRAM_ID,
+    TOKEN_2022_PROGRAM_ID,
     getAccount,
 } from '@solana/spl-token';
 
@@ -35,12 +37,10 @@ import {
     selectTokenPoolInfosForDecompression,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
-import { createWrapInstruction } from '../../src/mint/instructions/wrap';
-import { wrap } from '../../src/mint/actions/wrap';
-import {
-    getATAAddressInterface,
-    createATAInterfaceIdempotent,
-} from '../../src/mint/actions/create-ata-interface';
+import { createWrapInstruction } from '../../src/v3/instructions/wrap';
+import { wrap } from '../../src/v3/actions/wrap';
+import { getAssociatedTokenAddressInterface } from '../../src';
+import { createAtaInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
 
 // Force V2 for CToken tests
 featureFlags.version = VERSION.V2;
@@ -68,7 +68,6 @@ describe('createWrapInstruction', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
-                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -86,7 +85,10 @@ describe('createWrapInstruction', () => {
             false,
             TOKEN_PROGRAM_ID,
         );
-        const destination = getATAAddressInterface(mint, owner.publicKey);
+        const destination = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
 
         const tokenPoolInfo = tokenPoolInfos.find(info => info.isInitialized);
         expect(tokenPoolInfo).toBeDefined();
@@ -115,7 +117,10 @@ describe('createWrapInstruction', () => {
             false,
             TOKEN_PROGRAM_ID,
         );
-        const destination = getATAAddressInterface(mint, owner.publicKey);
+        const destination = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
 
         const tokenPoolInfo = tokenPoolInfos.find(info => info.isInitialized);
 
@@ -145,7 +150,10 @@ describe('createWrapInstruction', () => {
             false,
             TOKEN_PROGRAM_ID,
         );
-        const destination = getATAAddressInterface(mint, owner.publicKey);
+        const destination = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
 
         const tokenPoolInfo = tokenPoolInfos.find(info => info.isInitialized);
 
@@ -189,7 +197,6 @@ describe('wrap action', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
-                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -234,8 +241,11 @@ describe('wrap action', () => {
         );
 
         // Create CToken ATA
-        const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
-        await createATAInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+        await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
 
         // Check initial balances
         const splBalanceBefore = await getAccount(rpc, splAta);
@@ -300,8 +310,11 @@ describe('wrap action', () => {
         );
 
         // Create CToken ATA
-        const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
-        await createATAInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+        await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
 
         // Wrap full balance
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
@@ -362,8 +375,11 @@ describe('wrap action', () => {
             selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(200)),
         );
 
-        const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
-        await createATAInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+        await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
 
         // Wrap without providing tokenPoolInfo - should fetch automatically
         const result = await wrap(
@@ -430,8 +446,11 @@ describe('wrap action', () => {
             selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(300)),
         );
 
-        const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
-        await createATAInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+        await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
 
         // Wrap with separate payer
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
@@ -475,7 +494,6 @@ describe('wrap with non-ATA accounts', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
-                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -490,18 +508,21 @@ describe('wrap with non-ATA accounts', () => {
 
         // Explicitly derive ATAs
         // Note: SPL ATAs use getAssociatedTokenAddressSync
-        // CToken ATAs use getATAAddressInterface (which defaults to CToken program)
+        // CToken ATAs use getAssociatedTokenAddressInterface (which defaults to CToken program)
         const source = getAssociatedTokenAddressSync(
             mint,
             owner.publicKey,
             false,
             TOKEN_PROGRAM_ID,
         );
-        const destination = getATAAddressInterface(mint, owner.publicKey);
+        const destination = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
 
         // Setup: Create both ATAs and fund source
         await createAssociatedTokenAccount(rpc, payer, mint, owner.publicKey);
-        await createATAInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
+        await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
 
         await mintTo(
             rpc,
@@ -545,4 +566,203 @@ describe('wrap with non-ATA accounts', () => {
         const destBalance = await getCTokenBalance(rpc, destination);
         expect(destBalance).toBe(BigInt(200));
     }, 60_000);
+});
+
+describe('wrap Token-2022 to CToken', () => {
+    let rpc: Rpc;
+    let payer: Signer;
+    let stateTreeInfo: TreeInfo;
+
+    beforeAll(async () => {
+        const lightWasm = await WasmFactory.getInstance();
+        rpc = await getTestRpc(lightWasm);
+        payer = await newAccountWithLamports(rpc, 10e9);
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
+    }, 60_000);
+
+    it('should wrap Token-2022 tokens to CToken ATA', async () => {
+        const owner = await newAccountWithLamports(rpc, 1e9);
+        const mintAuthority = Keypair.generate();
+
+        // Create T22 mint with token pool via createMint action
+        const mintKeypair = Keypair.generate();
+        const { mint: t22Mint } = await createMint(
+            rpc,
+            payer,
+            mintAuthority.publicKey,
+            TEST_TOKEN_DECIMALS,
+            mintKeypair,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
+
+        // Create T22 ATA using getOrCreateAssociatedTokenAccount
+        const t22AtaAccount = await getOrCreateAssociatedTokenAccount(
+            rpc,
+            payer as Keypair,
+            t22Mint,
+            owner.publicKey,
+            false,
+            'confirmed',
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
+        const t22Ata = t22AtaAccount.address;
+
+        // Mint compressed then decompress to T22 ATA
+        const tokenPoolInfos = await getTokenPoolInfos(rpc, t22Mint);
+        await mintTo(
+            rpc,
+            payer,
+            t22Mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(1000),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
+
+        const updatedPoolInfos = await getTokenPoolInfos(rpc, t22Mint);
+        await decompress(
+            rpc,
+            payer,
+            t22Mint,
+            bn(1000),
+            owner,
+            t22Ata,
+            selectTokenPoolInfosForDecompression(updatedPoolInfos, bn(1000)),
+        );
+
+        // Create CToken ATA
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            t22Mint,
+            owner.publicKey,
+        );
+        await createAtaInterfaceIdempotent(
+            rpc,
+            payer,
+            t22Mint,
+            owner.publicKey,
+        );
+
+        // Check initial balances
+        const t22BalanceBefore = await getAccount(
+            rpc,
+            t22Ata,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
+        expect(t22BalanceBefore.amount).toBe(BigInt(1000));
+
+        // Wrap tokens
+        const finalPoolInfos = await getTokenPoolInfos(rpc, t22Mint);
+        const tokenPoolInfo = finalPoolInfos.find(info => info.isInitialized);
+
+        const result = await wrap(
+            rpc,
+            payer,
+            t22Ata,
+            ctokenAta,
+            owner,
+            t22Mint,
+            BigInt(500),
+            tokenPoolInfo,
+        );
+
+        expect(result.transactionSignature).toBeDefined();
+
+        // Check balances after
+        const t22BalanceAfter = await getAccount(
+            rpc,
+            t22Ata,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
+        expect(t22BalanceAfter.amount).toBe(BigInt(500));
+
+        const ctokenBalanceAfter = await getCTokenBalance(rpc, ctokenAta);
+        expect(ctokenBalanceAfter).toBe(BigInt(500));
+    }, 90_000);
+
+    it('should auto-fetch SPL interface info for Token-2022 wrap', async () => {
+        const owner = await newAccountWithLamports(rpc, 1e9);
+        const mintAuthority = Keypair.generate();
+
+        // Create T22 mint with token pool
+        const mintKeypair = Keypair.generate();
+        const { mint: t22Mint } = await createMint(
+            rpc,
+            payer,
+            mintAuthority.publicKey,
+            TEST_TOKEN_DECIMALS,
+            mintKeypair,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
+
+        // Create T22 ATA using getOrCreateAssociatedTokenAccount
+        const t22AtaAccount = await getOrCreateAssociatedTokenAccount(
+            rpc,
+            payer as Keypair,
+            t22Mint,
+            owner.publicKey,
+            false,
+            'confirmed',
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
+        const t22Ata = t22AtaAccount.address;
+
+        const tokenPoolInfos = await getTokenPoolInfos(rpc, t22Mint);
+        await mintTo(
+            rpc,
+            payer,
+            t22Mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(500),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
+
+        const updatedPoolInfos = await getTokenPoolInfos(rpc, t22Mint);
+        await decompress(
+            rpc,
+            payer,
+            t22Mint,
+            bn(500),
+            owner,
+            t22Ata,
+            selectTokenPoolInfosForDecompression(updatedPoolInfos, bn(500)),
+        );
+
+        // Create CToken ATA
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            t22Mint,
+            owner.publicKey,
+        );
+        await createAtaInterfaceIdempotent(
+            rpc,
+            payer,
+            t22Mint,
+            owner.publicKey,
+        );
+
+        // Wrap without providing tokenPoolInfo - should auto-fetch
+        const result = await wrap(
+            rpc,
+            payer,
+            t22Ata,
+            ctokenAta,
+            owner,
+            t22Mint,
+            BigInt(250),
+            // tokenPoolInfo not provided
+        );
+
+        expect(result.transactionSignature).toBeDefined();
+
+        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
+        expect(ctokenBalance).toBe(BigInt(250));
+    }, 90_000);
 });

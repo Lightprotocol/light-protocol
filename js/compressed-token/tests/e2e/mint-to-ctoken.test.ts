@@ -13,14 +13,14 @@ import {
     featureFlags,
     CTOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
-import { createMintInterface } from '../../src/mint/actions/create-mint-interface';
-import { mintTo } from '../../src/mint/actions/mint-to';
-import { getMintInterface } from '../../src/mint/helpers';
-import { createAssociatedCTokenAccount } from '../../src/mint/actions/create-associated-ctoken';
+import { createMintInterface } from '../../src/v3/actions/create-mint-interface';
+import { mintTo } from '../../src/v3/actions/mint-to';
+import { getMintInterface } from '../../src/v3/get-mint-interface';
+import { createAssociatedCTokenAccount } from '../../src/v3/actions/create-associated-ctoken';
 import {
     getAssociatedCTokenAddress,
     findMintAddress,
-} from '../../src/compressible/derivation';
+} from '../../src/v3/derivation';
 
 featureFlags.version = VERSION.V2;
 
@@ -48,9 +48,6 @@ describe('mintTo (MintToCToken)', () => {
             null,
             decimals,
             mintSigner,
-            undefined,
-            undefined,
-            undefined,
         );
         await rpc.confirmTransaction(result.transactionSignature, 'confirmed');
         mint = result.mint;

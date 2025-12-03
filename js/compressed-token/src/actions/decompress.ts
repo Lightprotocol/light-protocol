@@ -16,10 +16,10 @@ import BN from 'bn.js';
 import { CompressedTokenProgram } from '../program';
 import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
 import {
-    selectTokenPoolInfosForDecompression,
-    TokenPoolInfo,
+    selectSplInterfaceInfosForDecompression,
+    SplInterfaceInfo,
+    getSplInterfaceInfos,
 } from '../utils/get-token-pool-infos';
-import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
 
 /**
  * Decompress compressed tokens
@@ -31,7 +31,7 @@ import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
  * @param owner                 Owner of the compressed tokens
  * @param toAddress             Destination **uncompressed** token account
  *                              address. (ATA)
- * @param tokenPoolInfos        Optional: Token pool infos.
+ * @param splInterfaceInfos     Optional: SPL interface infos.
  * @param confirmOptions        Options for confirming the transaction
  *
  * @return confirmed transaction signature
@@ -43,7 +43,7 @@ export async function decompress(
     amount: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    tokenPoolInfos?: TokenPoolInfo[],
+    splInterfaceInfos?: SplInterfaceInfo[],
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     amount = bn(amount);
@@ -68,10 +68,11 @@ export async function decompress(
         })),
     );
 
-    tokenPoolInfos = tokenPoolInfos ?? (await getTokenPoolInfos(rpc, mint));
+    splInterfaceInfos =
+        splInterfaceInfos ?? (await getSplInterfaceInfos(rpc, mint));
 
-    const selectedTokenPoolInfos = selectTokenPoolInfosForDecompression(
-        tokenPoolInfos,
+    const selectedSplInterfaceInfos = selectSplInterfaceInfosForDecompression(
+        splInterfaceInfos,
         amount,
     );
 
@@ -80,7 +81,7 @@ export async function decompress(
         inputCompressedTokenAccounts: inputAccounts,
         toAddress,
         amount,
-        tokenPoolInfos: selectedTokenPoolInfos,
+        tokenPoolInfos: selectedSplInterfaceInfos,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.compressedProof,
     });

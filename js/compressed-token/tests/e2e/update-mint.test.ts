@@ -9,13 +9,13 @@ import {
     getDefaultAddressTreeInfo,
     CTOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
-import { createMintInterface } from '../../src/mint/actions';
+import { createMintInterface } from '../../src/v3/actions';
 import {
     updateMintAuthority,
     updateFreezeAuthority,
-} from '../../src/mint/actions/update-mint';
-import { getMintInterface } from '../../src/mint/helpers';
-import { findMintAddress } from '../../src/compressible/derivation';
+} from '../../src/v3/actions/update-mint';
+import { getMintInterface } from '../../src/v3/get-mint-interface';
+import { findMintAddress } from '../../src/v3/derivation';
 
 featureFlags.version = VERSION.V2;
 
@@ -43,9 +43,6 @@ describe('updateMint', () => {
             null,
             decimals,
             mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -63,7 +60,6 @@ describe('updateMint', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialMintAuthority,
             newMintAuthority.publicKey,
         );
@@ -96,9 +92,6 @@ describe('updateMint', () => {
             null,
             decimals,
             mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -106,7 +99,6 @@ describe('updateMint', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             null,
         );
@@ -138,9 +130,6 @@ describe('updateMint', () => {
             initialFreezeAuthority.publicKey,
             decimals,
             mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -158,7 +147,6 @@ describe('updateMint', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialFreezeAuthority,
             newFreezeAuthority.publicKey,
         );
@@ -193,9 +181,6 @@ describe('updateMint', () => {
             freezeAuthority.publicKey,
             decimals,
             mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -203,7 +188,6 @@ describe('updateMint', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             freezeAuthority,
             null,
         );
@@ -238,9 +222,6 @@ describe('updateMint', () => {
             initialFreezeAuthority.publicKey,
             decimals,
             mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -248,7 +229,6 @@ describe('updateMint', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialMintAuthority,
             newMintAuthority.publicKey,
         );
@@ -268,7 +248,6 @@ describe('updateMint', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialFreezeAuthority,
             newFreezeAuthority.publicKey,
         );

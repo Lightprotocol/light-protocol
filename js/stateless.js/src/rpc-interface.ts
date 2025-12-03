@@ -5,6 +5,9 @@ import {
     Commitment,
     GetAccountInfoConfig,
     AccountInfo,
+    ConfirmedSignatureInfo,
+    SignaturesForAddressOptions,
+    TokenAmount,
 } from '@solana/web3.js';
 import {
     type as pick,
@@ -893,6 +896,30 @@ export interface CompressionApiInterface {
         isCold: boolean;
         loadContext?: MerkleContext;
     } | null>;
+
+    getSignaturesForAddressInterface(
+        address: PublicKey,
+        options?: SignaturesForAddressOptions,
+        compressedOptions?: PaginatedOptions,
+    ): Promise<SignaturesForAddressInterfaceResult>;
+
+    getSignaturesForOwnerInterface(
+        owner: PublicKey,
+        options?: SignaturesForAddressOptions,
+        compressedOptions?: PaginatedOptions,
+    ): Promise<SignaturesForAddressInterfaceResult>;
+
+    getTokenAccountBalanceInterface(
+        address: PublicKey,
+        owner: PublicKey,
+        mint: PublicKey,
+        commitment?: Commitment,
+    ): Promise<UnifiedTokenBalance>;
+
+    getBalanceInterface(
+        address: PublicKey,
+        commitment?: Commitment,
+    ): Promise<UnifiedBalance>;
 }
 
 // Public types for consumers
@@ -913,3 +940,104 @@ export type RpcResultError = {
 };
 
 export type RpcResult<T> = RpcResultSuccess<T> | RpcResultError;
+
+/**
+ * Source type for signature data.
+ */
+export const SignatureSource = {
+    /** From standard Solana RPC (getSignaturesForAddress) */
+    Solana: 'solana',
+    /** From compression indexer (getCompressionSignaturesFor*) */
+    Compressed: 'compressed',
+} as const;
+
+export type SignatureSourceType =
+    (typeof SignatureSource)[keyof typeof SignatureSource];
+
+/**
+ * Unified signature info combining data from both Solana RPC and compression indexer.
+ *
+ * Design rationale:
+ * - `sources` array indicates where this signature was found (can be both!)
+ * - Primary data comes from Solana RPC when available (richer: err, memo, confirmationStatus)
+ * - Compression-only signatures still included for complete transaction history
+ */
+export interface UnifiedSignatureInfo {
+    /** Transaction signature (base58) */
+    signature: string;
+    /** Slot when the transaction was processed */
+    slot: number;
+    /** Block time (unix timestamp), null if not available */
+    blockTime: number | null;
+    /** Transaction error, null if successful. Only from Solana RPC. */
+    err: any | null;
+    /** Memo data. Only from Solana RPC. */
+    memo: string | null;
+    /** Confirmation status. Only from Solana RPC. */
+    confirmationStatus?: string;
+    /**
+     * Sources where this signature was found.
+     * - ['solana'] = only in Solana RPC
+     * - ['compressed'] = only in compression indexer
+     * - ['solana', 'compressed'] = found in both (compression tx indexed by both)
+     */
+    sources: SignatureSourceType[];
+}
+
+/**
+ * Result of getSignaturesForAddressInterface / getSignaturesForOwnerInterface.
+ *
+ * Design rationale:
+ * - `signatures`: Unified view, merged and deduplicated, sorted by slot desc
+ * - `solana` / `compressed`: Raw responses preserved for clients that need source-specific data
+ * - Allows callers to use the unified view OR drill into specific sources
+ */
+export interface SignaturesForAddressInterfaceResult {
+    /** Merged signatures from all sources, sorted by slot (descending) */
+    signatures: UnifiedSignatureInfo[];
+    /** Raw signatures from Solana RPC */
+    solana: ConfirmedSignatureInfo[];
+    /** Raw signatures from compression indexer */
+    compressed: SignatureWithMetadata[];
+}
+
+/**
+ * Unified token balance combining on-chain and compressed balances.
+ *
+ * Design rationale:
+ * - `amount`: Total balance for display (what user cares about)
+ * - `onChainAmount` / `compressedAmount`: Breakdown for operations that need to know source
+ * - `solana`: Raw response preserved for clients needing full TokenAmount (uiAmount, etc)
+ */
+export interface UnifiedTokenBalance {
+    /** Total balance (on-chain + compressed) */
+    amount: BN;
+    /** On-chain (hot) token balance */
+    onChainAmount: BN;
+    /** Compressed (cold) token balance */
+    compressedAmount: BN;
+    /** True if any compressed balance exists (signals need for decompress before transfer) */
+    hasCompressedBalance: boolean;
+    /** Token decimals (from on-chain mint or 0 if unknown) */
+    decimals: number;
+    /** Raw Solana RPC TokenAmount response, null if no on-chain account */
+    solana: TokenAmount | null;
+}
+
+/**
+ * Unified SOL balance combining on-chain and compressed balances.
+ *
+ * Design rationale:
+ * - Mirrors UnifiedTokenBalance structure for consistency
+ * - `hasCompressedBalance` signals to UI that decompress may be needed
+ */
+export interface UnifiedBalance {
+    /** Total balance (on-chain + compressed) in lamports */
+    total: BN;
+    /** On-chain balance in lamports */
+    onChain: BN;
+    /** Compressed balance in lamports */
+    compressed: BN;
+    /** True if any compressed balance exists */
+    hasCompressedBalance: boolean;
+}

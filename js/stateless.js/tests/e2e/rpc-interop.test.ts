@@ -502,6 +502,21 @@ describe('rpc-interop', () => {
             payer.publicKey,
         );
 
+        console.log(
+            'senderAccounts',
+            senderAccounts.items.map(
+                account =>
+                    account.hash.toString() + ' ' + account.lamports.toString(),
+            ),
+        );
+        console.log(
+            'senderAccountsTest',
+            senderAccountsTest.items.map(
+                account =>
+                    account.hash.toString() + ' ' + account.lamports.toString(),
+            ),
+        );
+
         assert.equal(
             senderAccounts.items.length,
             senderAccountsTest.items.length,
@@ -610,25 +625,21 @@ describe('rpc-interop', () => {
     });
 
     // Skip in V2: test depends on createAccount tests running before it (executedTxs count)
-    it.skipIf(featureFlags.isV2())(
-        '[test-rpc missing] getCompressionSignaturesForAccount should match',
-        async () => {
-            const senderAccounts = await rpc.getCompressedAccountsByOwner(
-                payer.publicKey,
-            );
+    it('[test-rpc missing] getCompressionSignaturesForAccount should match', async () => {
+        const senderAccounts = await rpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
 
-            await transfer(rpc, payer, 1, payer, bob.publicKey);
+        await transfer(rpc, payer, 1, payer, bob.publicKey);
 
-            executedTxs++;
-            const signaturesSpent =
-                await rpc.getCompressionSignaturesForAccount(
-                    bn(senderAccounts.items[0].hash),
-                );
+        executedTxs++;
+        const signaturesSpent = await rpc.getCompressionSignaturesForAccount(
+            bn(senderAccounts.items[0].hash),
+        );
 
-            /// 1 spent account, so always 2 signatures.
-            assert.equal(signaturesSpent.length, 2);
-        },
-    );
+        /// 1 spent account, so always 2 signatures.
+        assert.equal(signaturesSpent.length, 2);
+    });
 
     it('[test-rpc missing] getSignaturesForOwner should match', async () => {
         const signatures = await rpc.getCompressionSignaturesForOwner(
@@ -672,28 +683,19 @@ describe('rpc-interop', () => {
     });
 
     // Skip in V2: depends on getCompressionSignaturesForAccount having run a transfer
-    it.skipIf(featureFlags.isV2())(
-        '[test-rpc missing] getCompressedTransaction should match',
-        async () => {
-            const signatures = await rpc.getCompressionSignaturesForOwner(
-                payer.publicKey,
-            );
+    it('[test-rpc missing] getCompressedTransaction should match', async () => {
+        const signatures = await rpc.getCompressionSignaturesForOwner(
+            payer.publicKey,
+        );
 
-            const compressedTx = await rpc.getTransactionWithCompressionInfo(
-                signatures.items[0].signature,
-            );
+        const compressedTx = await rpc.getTransactionWithCompressionInfo(
+            signatures.items[0].signature,
+        );
 
-            /// is transfer
-            assert.equal(
-                compressedTx?.compressionInfo.closedAccounts.length,
-                1,
-            );
-            assert.equal(
-                compressedTx?.compressionInfo.openedAccounts.length,
-                2,
-            );
-        },
-    );
+        /// is transfer
+        assert.equal(compressedTx?.compressionInfo.closedAccounts.length, 1);
+        assert.equal(compressedTx?.compressionInfo.openedAccounts.length, 2);
+    });
 
     // Skip in V2: createAccount is only supported via CPI in V2
     it.skipIf(featureFlags.isV2())(

@@ -26,13 +26,13 @@ import {
  * @param rpc               RPC connection to use
  * @param payer             Fee payer
  * @param mintAuthority     Account that will control minting
- * @param freezeAuthority   Optional: Account that will control freeze and thaw.
  * @param decimals          Location of the decimal place
  * @param keypair           Optional: Mint keypair. Defaults to a random
  *                          keypair.
  * @param confirmOptions    Options for confirming the transaction
  * @param tokenProgramId    Optional: Program ID for the token. Defaults to
  *                          TOKEN_PROGRAM_ID.
+ * @param freezeAuthority   Optional: Account that will control freeze and thaw.
  *
  * @return Object with mint address and transaction signature
  */
@@ -40,11 +40,11 @@ export async function createMint(
     rpc: Rpc,
     payer: Signer,
     mintAuthority: PublicKey | Signer,
-    freezeAuthority: PublicKey | Signer | null,
     decimals: number,
-    keypair = Keypair.generate(),
+    keypair: Keypair = Keypair.generate(),
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey | boolean,
+    freezeAuthority?: PublicKey | Signer | null,
 ): Promise<{ mint: PublicKey; transactionSignature: TransactionSignature }> {
     const rentExemptBalance =
         await rpc.getMinimumBalanceForRentExemption(MINT_SIZE);
@@ -77,7 +77,7 @@ export async function createMint(
 
     const additionalSigners = dedupeSigner(
         payer,
-        [mintAuthority, freezeAuthority].filter(
+        [mintAuthority, freezeAuthority ?? null].filter(
             (signer): signer is Signer =>
                 signer != undefined && 'secretKey' in signer,
         ),

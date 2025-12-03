@@ -114,7 +114,6 @@ describe('transfer', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
-                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -153,7 +152,6 @@ describe('transfer', () => {
             bob,
             charlie.publicKey,
         );
-        console.log('txid transfer ', txid);
         await assertTransfer(
             rpc,
             bobPreCompressedTokenAccounts,
@@ -179,7 +177,6 @@ describe('transfer', () => {
             bob,
             charlie.publicKey,
         );
-        console.log('txid transfer 2 ', txid2);
         await assertTransfer(
             rpc,
             bobPreCompressedTokenAccounts2.items,
@@ -244,7 +241,6 @@ describe('transfer', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
-                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
                 undefined,
@@ -312,7 +308,6 @@ describe('e2e transfer with multiple accounts', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
-                null,
                 9,
                 mintKeypair,
             )

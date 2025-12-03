@@ -9,22 +9,20 @@ import {
     getDefaultAddressTreeInfo,
     CTOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
-import { createMintInterface } from '../../src/mint/actions';
-import { createTokenMetadata } from '../../src/mint/instructions';
+import { createMintInterface } from '../../src/v3/actions';
+import { createTokenMetadata } from '../../src/v3/instructions';
 import {
     updateMintAuthority,
     updateFreezeAuthority,
-} from '../../src/mint/actions/update-mint';
+} from '../../src/v3/actions/update-mint';
 import {
     updateMetadataField,
     updateMetadataAuthority,
-} from '../../src/mint/actions/update-metadata';
-import {
-    createATAInterfaceIdempotent,
-    getATAAddressInterface,
-} from '../../src/mint/actions/create-ata-interface';
-import { getMintInterface } from '../../src/mint/helpers';
-import { findMintAddress } from '../../src/compressible/derivation';
+} from '../../src/v3/actions/update-metadata';
+import { createAtaInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
+import { getAssociatedTokenAddressInterface } from '../../src/';
+import { getMintInterface } from '../../src/v3/get-mint-interface';
+import { findMintAddress } from '../../src/v3/derivation';
 
 featureFlags.version = VERSION.V2;
 
@@ -60,9 +58,9 @@ describe('Complete Mint Workflow', () => {
                 initialFreezeAuthority.publicKey,
                 decimals,
                 mintSigner,
-                initialMetadata,
-                addressTreeInfo,
                 undefined,
+                undefined,
+                initialMetadata,
             );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -87,7 +85,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialMintAuthority,
             'name',
             'Workflow Token V2',
@@ -106,7 +103,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialMintAuthority,
             'uri',
             'https://workflow.com/updated',
@@ -128,7 +124,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialMintAuthority,
             newMetadataAuthority.publicKey,
         );
@@ -149,7 +144,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialMintAuthority,
             newMintAuthority.publicKey,
         );
@@ -170,7 +164,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialFreezeAuthority,
             newFreezeAuthority.publicKey,
         );
@@ -190,30 +183,39 @@ describe('Complete Mint Workflow', () => {
         const owner2 = Keypair.generate();
         const owner3 = Keypair.generate();
 
-        const { address: ata1 } = await createATAInterfaceIdempotent(
+        const { address: ata1 } = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mint,
             owner1.publicKey,
         );
 
-        const { address: ata2 } = await createATAInterfaceIdempotent(
+        const { address: ata2 } = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mint,
             owner2.publicKey,
         );
 
-        const { address: ata3 } = await createATAInterfaceIdempotent(
+        const { address: ata3 } = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mint,
             owner3.publicKey,
         );
 
-        const expectedAta1 = getATAAddressInterface(mint, owner1.publicKey);
-        const expectedAta2 = getATAAddressInterface(mint, owner2.publicKey);
-        const expectedAta3 = getATAAddressInterface(mint, owner3.publicKey);
+        const expectedAta1 = getAssociatedTokenAddressInterface(
+            mint,
+            owner1.publicKey,
+        );
+        const expectedAta2 = getAssociatedTokenAddressInterface(
+            mint,
+            owner2.publicKey,
+        );
+        const expectedAta3 = getAssociatedTokenAddressInterface(
+            mint,
+            owner3.publicKey,
+        );
 
         expect(ata1.toString()).toBe(expectedAta1.toString());
         expect(ata2.toString()).toBe(expectedAta2.toString());
@@ -262,9 +264,9 @@ describe('Complete Mint Workflow', () => {
             freezeAuthority.publicKey,
             decimals,
             mintSigner,
-            metadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            metadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -280,7 +282,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             freezeAuthority,
             null,
         );
@@ -298,14 +299,14 @@ describe('Complete Mint Workflow', () => {
         );
 
         const owner = Keypair.generate();
-        const { address: ataAddress } = await createATAInterfaceIdempotent(
+        const { address: ataAddress } = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mintPda,
             owner.publicKey,
         );
 
-        const expectedAddress = getATAAddressInterface(
+        const expectedAddress = getAssociatedTokenAddressInterface(
             mintPda,
             owner.publicKey,
         );
@@ -330,9 +331,6 @@ describe('Complete Mint Workflow', () => {
                 null,
                 decimals,
                 mintSigner,
-                undefined,
-                addressTreeInfo,
-                undefined,
             );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -351,14 +349,14 @@ describe('Complete Mint Workflow', () => {
         ];
 
         for (const owner of owners) {
-            const { address: ataAddress } = await createATAInterfaceIdempotent(
+            const { address: ataAddress } = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
                 mint,
                 owner.publicKey,
             );
 
-            const expectedAddress = getATAAddressInterface(
+            const expectedAddress = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
@@ -390,21 +388,21 @@ describe('Complete Mint Workflow', () => {
             null,
             decimals,
             mintSigner,
-            metadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            metadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
         const owner = Keypair.generate();
-        const { address: ataAddress } = await createATAInterfaceIdempotent(
+        const { address: ataAddress } = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mintPda,
             owner.publicKey,
         );
 
-        const expectedAddress = getATAAddressInterface(
+        const expectedAddress = getAssociatedTokenAddressInterface(
             mintPda,
             owner.publicKey,
         );
@@ -414,7 +412,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             'name',
             'After ATA',
@@ -456,9 +453,9 @@ describe('Complete Mint Workflow', () => {
                 freezeAuthority.publicKey,
                 decimals,
                 mintSigner,
-                metadata,
-                addressTreeInfo,
                 undefined,
+                undefined,
+                metadata,
             );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -490,14 +487,14 @@ describe('Complete Mint Workflow', () => {
         const owner1 = Keypair.generate();
         const owner2 = Keypair.generate();
 
-        const { address: ata1 } = await createATAInterfaceIdempotent(
+        const { address: ata1 } = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mint,
             owner1.publicKey,
         );
 
-        const { address: ata2 } = await createATAInterfaceIdempotent(
+        const { address: ata2 } = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mint,
@@ -514,7 +511,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             newMintAuthority.publicKey,
         );
@@ -534,7 +530,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             'symbol',
             'FULL2',
@@ -552,7 +547,7 @@ describe('Complete Mint Workflow', () => {
             newMintAuthority.publicKey.toString(),
         );
 
-        const { address: ata1Again } = await createATAInterfaceIdempotent(
+        const { address: ata1Again } = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mint,
@@ -576,9 +571,6 @@ describe('Complete Mint Workflow', () => {
                 null,
                 decimals,
                 mintSigner,
-                undefined,
-                addressTreeInfo,
-                undefined,
             );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -592,14 +584,17 @@ describe('Complete Mint Workflow', () => {
         expect(mintInfo.tokenMetadata).toBeUndefined();
 
         const owner = Keypair.generate();
-        const { address: ataAddress } = await createATAInterfaceIdempotent(
+        const { address: ataAddress } = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mint,
             owner.publicKey,
         );
 
-        const expectedAddress = getATAAddressInterface(mint, owner.publicKey);
+        const expectedAddress = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
         expect(ataAddress.toString()).toBe(expectedAddress.toString());
 
         const accountInfo = await rpc.getAccountInfo(ataAddress);
@@ -611,7 +606,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             newMintAuthority.publicKey,
         );
@@ -645,25 +639,22 @@ describe('Complete Mint Workflow', () => {
                 null,
                 decimals,
                 mintSigner,
-                undefined,
-                addressTreeInfo,
-                undefined,
             );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
-        const derivedAddressBefore = getATAAddressInterface(
+        const derivedAddressBefore = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
 
-        const { address: ataAddress } = await createATAInterfaceIdempotent(
+        const { address: ataAddress } = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mint,
             owner.publicKey,
         );
 
-        const derivedAddressAfter = getATAAddressInterface(
+        const derivedAddressAfter = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );

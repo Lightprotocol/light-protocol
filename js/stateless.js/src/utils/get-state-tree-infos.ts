@@ -1,6 +1,30 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { TreeInfo, TreeType } from '../state/types';
+import { MerkleContext } from '../state/compressed-account';
 import { featureFlags, StateTreeLUTPair } from '../constants';
+
+/**
+ * Get the currently active output queue from a merkle context.
+ *
+ * @param merkleContext The merkle context to get the output queue from
+ * @returns The output queue public key
+ */
+export function getOutputQueue(merkleContext: MerkleContext): PublicKey {
+    return (
+        merkleContext.treeInfo.nextTreeInfo?.queue ??
+        merkleContext.treeInfo.queue
+    );
+}
+
+/**
+ * Get the currently active output tree info from a merkle context.
+ *
+ * @param merkleContext The merkle context to get the output tree info from
+ * @returns The output tree info
+ */
+export function getOutputTreeInfo(merkleContext: MerkleContext): TreeInfo {
+    return merkleContext.treeInfo.nextTreeInfo ?? merkleContext.treeInfo;
+}
 
 /**
  * @deprecated use {@link getTreeInfoByPubkey} instead

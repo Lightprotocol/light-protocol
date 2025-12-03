@@ -21,14 +21,14 @@ import {
 } from '../../src/utils/get-token-pool-infos';
 import {
     createLoadAccountsParams,
-    createLoadATAInstructionsFromInterface,
-    createLoadATAInstructions,
+    createLoadAtaInstructionsFromInterface,
+    createLoadAtaInstructions,
     CompressibleAccountInput,
     ParsedAccountInfoInterface,
     calculateCompressibleLoadComputeUnits,
-} from '../../src/compressible/unified-load';
-import { getATAInterface } from '../../src/mint/get-account-interface';
-import { getATAAddressInterface } from '../../src/mint/actions/create-ata-interface';
+} from '../../src/v3/actions/load-ata';
+import { getAtaInterface } from '../../src/v3/get-account-interface';
+import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 
 featureFlags.version = VERSION.V2;
 
@@ -54,7 +54,6 @@ describe('compressible-load', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
-                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -117,8 +116,9 @@ describe('compressible-load', () => {
                     selectTokenPoolInfo(tokenPoolInfos),
                 );
 
-                const coldInfo = await getATAInterface(
+                const coldInfo = await getAtaInterface(
                     rpc,
+                    getAssociatedTokenAddressInterface(mint, owner.publicKey),
                     owner.publicKey,
                     mint,
                     undefined,
@@ -138,7 +138,10 @@ describe('compressible-load', () => {
                         info: hotInfo,
                     },
                     {
-                        address: getATAAddressInterface(mint, owner.publicKey),
+                        address: getAssociatedTokenAddressInterface(
+                            mint,
+                            owner.publicKey,
+                        ),
                         accountType: 'cTokenData',
                         tokenVariant: 'vault2',
                         info: coldInfo,
@@ -175,8 +178,9 @@ describe('compressible-load', () => {
                     selectTokenPoolInfo(tokenPoolInfos),
                 );
 
-                const accountInfo = await getATAInterface(
+                const accountInfo = await getAtaInterface(
                     rpc,
+                    getAssociatedTokenAddressInterface(mint, owner.publicKey),
                     owner.publicKey,
                     mint,
                     undefined,
@@ -185,7 +189,10 @@ describe('compressible-load', () => {
 
                 const accounts: CompressibleAccountInput[] = [
                     {
-                        address: getATAAddressInterface(mint, owner.publicKey),
+                        address: getAssociatedTokenAddressInterface(
+                            mint,
+                            owner.publicKey,
+                        ),
                         accountType: 'cTokenData',
                         info: accountInfo,
                     },
@@ -216,8 +223,9 @@ describe('compressible-load', () => {
                     selectTokenPoolInfo(tokenPoolInfos),
                 );
 
-                const accountInfo = await getATAInterface(
+                const accountInfo = await getAtaInterface(
                     rpc,
+                    getAssociatedTokenAddressInterface(mint, owner.publicKey),
                     owner.publicKey,
                     mint,
                     undefined,
@@ -226,7 +234,10 @@ describe('compressible-load', () => {
 
                 const accounts: CompressibleAccountInput[] = [
                     {
-                        address: getATAAddressInterface(mint, owner.publicKey),
+                        address: getAssociatedTokenAddressInterface(
+                            mint,
+                            owner.publicKey,
+                        ),
                         accountType: 'cTokenData',
                         tokenVariant: 'token0Vault',
                         info: accountInfo,
@@ -267,8 +278,9 @@ describe('compressible-load', () => {
                     selectTokenPoolInfo(tokenPoolInfos),
                 );
 
-                const ata = await getATAInterface(
+                const ata = await getAtaInterface(
                     rpc,
+                    getAssociatedTokenAddressInterface(mint, owner.publicKey),
                     owner.publicKey,
                     mint,
                     undefined,
@@ -302,15 +314,16 @@ describe('compressible-load', () => {
                 );
 
                 // Load first to make it hot
-                const coldAta = await getATAInterface(
+                const coldAta = await getAtaInterface(
                     rpc,
+                    getAssociatedTokenAddressInterface(mint, owner.publicKey),
                     owner.publicKey,
                     mint,
                     undefined,
                     CTOKEN_PROGRAM_ID,
                 );
 
-                const loadIxs = await createLoadATAInstructionsFromInterface(
+                const loadIxs = await createLoadAtaInstructionsFromInterface(
                     rpc,
                     payer.publicKey,
                     coldAta,
@@ -324,8 +337,8 @@ describe('compressible-load', () => {
         });
     });
 
-    describe('createLoadATAInstructionsFromInterface', () => {
-        it('should throw if AccountInterface not from getATAInterface', async () => {
+    describe('createLoadAtaInstructionsFromInterface', () => {
+        it('should throw if AccountInterface not from getAtaInterface', async () => {
             const fakeInterface = {
                 accountInfo: { data: Buffer.alloc(0) },
                 parsed: {},
@@ -334,19 +347,19 @@ describe('compressible-load', () => {
             } as any;
 
             await expect(
-                createLoadATAInstructionsFromInterface(
+                createLoadAtaInstructionsFromInterface(
                     rpc,
                     payer.publicKey,
                     fakeInterface,
                 ),
-            ).rejects.toThrow('must be from getATAInterface');
+            ).rejects.toThrow('must be from getAtaInterface');
         });
 
         it('should return empty when nothing to load', async () => {
             const owner = Keypair.generate();
 
-            // No balance - getATAInterface will throw, so we test the empty case differently
-            // For an owner with no tokens, getATAInterface throws TokenAccountNotFoundError
+            // No balance - getAtaInterface will throw, so we test the empty case differently
+            // For an owner with no tokens, getAtaInterface throws TokenAccountNotFoundError
             // This is expected behavior
         });
 
@@ -364,8 +377,9 @@ describe('compressible-load', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ata = await getATAInterface(
+            const ata = await getAtaInterface(
                 rpc,
+                getAssociatedTokenAddressInterface(mint, owner.publicKey),
                 owner.publicKey,
                 mint,
                 undefined,
@@ -376,7 +390,7 @@ describe('compressible-load', () => {
             expect(ata._owner?.equals(owner.publicKey)).toBe(true);
             expect(ata._mint?.equals(mint)).toBe(true);
 
-            const ixs = await createLoadATAInstructionsFromInterface(
+            const ixs = await createLoadAtaInstructionsFromInterface(
                 rpc,
                 payer.publicKey,
                 ata,
@@ -387,7 +401,7 @@ describe('compressible-load', () => {
         });
     });
 
-    describe('createLoadATAInstructions', () => {
+    describe('createLoadAtaInstructions', () => {
         it('should build load instructions by owner and mint', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
 
@@ -402,13 +416,16 @@ describe('compressible-load', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ata = getATAAddressInterface(mint, owner.publicKey);
-            const ixs = await createLoadATAInstructions(
+            const ata = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
+            const ixs = await createLoadAtaInstructions(
                 rpc,
-                payer.publicKey,
                 ata,
                 owner.publicKey,
                 mint,
+                payer.publicKey,
                 { tokenPoolInfos },
             );
 
@@ -417,7 +434,7 @@ describe('compressible-load', () => {
 
         it('should return empty when nothing to load (hot ATA)', async () => {
             // For a hot ATA with no cold/SPL/T22 balance, should return empty
-            // This is tested via createLoadATAInstructionsFromInterface since createLoadATAInstructions
+            // This is tested via createLoadAtaInstructionsFromInterface since createLoadAtaInstructions
             // fetches internally
         });
     });

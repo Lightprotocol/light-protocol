@@ -11,7 +11,7 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
-import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
+import { getSplInterfaceInfos } from '../utils/get-token-pool-infos';
 
 /**
  * Register an existing mint with the CompressedToken program
@@ -25,7 +25,7 @@ import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
  *
  * @return transaction signature
  */
-export async function createTokenPool(
+export async function createSplInterface(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
@@ -52,12 +52,17 @@ export async function createTokenPool(
 }
 
 /**
- * Create additional token pools for an existing mint
+ * @deprecated Use {@link createSplInterface} instead.
+ */
+export const createTokenPool = createSplInterface;
+
+/**
+ * Create additional SPL interfaces for an existing mint
  *
  * @param rpc                   RPC connection to use
  * @param payer                 Fee payer
  * @param mint                  SPL Mint address
- * @param numMaxAdditionalPools Number of additional token pools to create. Max
+ * @param numMaxAdditionalPools Number of additional SPL interfaces to create. Max
  *                              3.
  * @param confirmOptions        Optional: Options for confirming the transaction
  * @param tokenProgramId        Optional: Address of the token program. Default:
@@ -65,7 +70,7 @@ export async function createTokenPool(
  *
  * @return transaction signature
  */
-export async function addTokenPools(
+export async function addSplInterfaces(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
@@ -78,9 +83,9 @@ export async function addTokenPools(
         : await CompressedTokenProgram.getMintProgramId(mint, rpc);
     const instructions: TransactionInstruction[] = [];
 
-    const infos = (await getTokenPoolInfos(rpc, mint)).slice(0, 4);
+    const infos = (await getSplInterfaceInfos(rpc, mint)).slice(0, 4);
 
-    // Get indices of uninitialized pools
+    // Get indices of uninitialized interfaces
     const uninitializedIndices = [];
     for (let i = 0; i < infos.length; i++) {
         if (!infos[i].isInitialized) {
@@ -88,7 +93,7 @@ export async function addTokenPools(
         }
     }
 
-    // Create instructions for requested number of pools
+    // Create instructions for requested number of interfaces
     for (let i = 0; i < numMaxAdditionalPools; i++) {
         if (i >= uninitializedIndices.length) {
             break;
@@ -111,3 +116,8 @@ export async function addTokenPools(
 
     return txId;
 }
+
+/**
+ * @deprecated Use {@link addSplInterfaces} instead.
+ */
+export const addTokenPools = addSplInterfaces;

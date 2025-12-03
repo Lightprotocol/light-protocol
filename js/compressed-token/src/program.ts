@@ -62,6 +62,9 @@ import {
     TokenTransferOutputData,
 } from './types';
 import {
+    checkSplInterfaceInfo,
+    SplInterfaceInfo,
+    // Deprecated aliases
     checkTokenPoolInfo,
     TokenPoolInfo,
 } from './utils/get-token-pool-infos';
@@ -339,10 +342,10 @@ export type MintToParams = {
 };
 
 /**
- * Register an existing SPL mint account to the compressed token program
- * Creates an omnibus account for the mint
+ * Register an existing SPL mint account to the compressed token program.
+ * Creates an omnibus account (SPL interface) for the mint.
  */
-export type CreateTokenPoolParams = {
+export type CreateSplInterfaceParams = {
     /**
      * Fee payer
      */
@@ -357,7 +360,12 @@ export type CreateTokenPoolParams = {
     tokenProgramId?: PublicKey;
 };
 
-export type AddTokenPoolParams = {
+/**
+ * @deprecated Use {@link CreateSplInterfaceParams} instead.
+ */
+export type CreateTokenPoolParams = CreateSplInterfaceParams;
+
+export type AddSplInterfaceParams = {
     /**
      * Fee payer
      */
@@ -367,7 +375,7 @@ export type AddTokenPoolParams = {
      */
     mint: PublicKey;
     /**
-     * Token pool index
+     * SPL interface pool index
      */
     poolIndex: number;
     /**
@@ -375,6 +383,11 @@ export type AddTokenPoolParams = {
      */
     tokenProgramId?: PublicKey;
 };
+
+/**
+ * @deprecated Use {@link AddSplInterfaceParams} instead.
+ */
+export type AddTokenPoolParams = AddSplInterfaceParams;
 
 /**
  * Mint from existing SPL mint to compressed token accounts
@@ -624,14 +637,14 @@ export class CompressedTokenProgram {
     }
 
     /**
-     * Derive the token pool pda.
-     * To derive the token pool pda with bump, use {@link deriveTokenPoolPdaWithIndex}.
+     * Derive the SPL interface PDA.
+     * To derive the SPL interface PDA with bump, use {@link deriveSplInterfacePdaWithIndex}.
      *
-     * @param mint The mint of the token pool
+     * @param mint The mint of the SPL interface
      *
-     * @returns The token pool pda
+     * @returns The SPL interface PDA
      */
-    static deriveTokenPoolPda(mint: PublicKey): PublicKey {
+    static deriveSplInterfacePda(mint: PublicKey): PublicKey {
         const seeds = [POOL_SEED, mint.toBuffer()];
         const [address, _] = PublicKey.findProgramAddressSync(
             seeds,
@@ -641,37 +654,57 @@ export class CompressedTokenProgram {
     }
 
     /**
-     * Find the index and bump for a given token pool pda and mint.
+     * @deprecated Use {@link deriveSplInterfacePda} instead.
+     */
+    static deriveTokenPoolPda(mint: PublicKey): PublicKey {
+        return this.deriveSplInterfacePda(mint);
+    }
+
+    /**
+     * Find the index and bump for a given SPL interface PDA and mint.
      *
-     * @param poolPda The token pool pda to find the index and bump for
-     * @param mint The mint of the token pool
+     * @param poolPda The SPL interface PDA to find the index and bump for
+     * @param mint The mint of the SPL interface
      *
      * @returns The index and bump number.
      */
-    static findTokenPoolIndexAndBump(
+    static findSplInterfaceIndexAndBump(
         poolPda: PublicKey,
         mint: PublicKey,
     ): [number, number] {
         for (let index = 0; index < 5; index++) {
             const derivedPda =
-                CompressedTokenProgram.deriveTokenPoolPdaWithIndex(mint, index);
+                CompressedTokenProgram.deriveSplInterfacePdaWithIndex(
+                    mint,
+                    index,
+                );
             if (derivedPda[0].equals(poolPda)) {
                 return [index, derivedPda[1]];
             }
         }
-        throw new Error('Token pool not found');
+        throw new Error('SPL interface not found');
     }
 
     /**
-     * Derive the token pool pda with index.
+     * @deprecated Use {@link findSplInterfaceIndexAndBump} instead.
+     */
+    static findTokenPoolIndexAndBump(
+        poolPda: PublicKey,
+        mint: PublicKey,
+    ): [number, number] {
+        return this.findSplInterfaceIndexAndBump(poolPda, mint);
+    }
+
+    /**
+     * Derive the SPL interface PDA with index.
      *
-     * @param mint The mint of the token pool
-     * @param index Index. starts at 0. The Protocol supports 4 indexes aka token pools
+     * @param mint The mint of the SPL interface
+     * @param index Index. starts at 0. The Protocol supports 4 indexes aka SPL interfaces
      * per mint.
      *
-     * @returns The token pool pda and bump.
+     * @returns The SPL interface PDA and bump.
      */
-    static deriveTokenPoolPdaWithIndex(
+    static deriveSplInterfacePdaWithIndex(
         mint: PublicKey,
         index: number,
     ): [PublicKey, number] {
@@ -690,6 +723,16 @@ export class CompressedTokenProgram {
             this.programId,
         );
         return [address, bump];
+    }
+
+    /**
+     * @deprecated Use {@link deriveSplInterfacePdaWithIndex} instead.
+     */
+    static deriveTokenPoolPdaWithIndex(
+        mint: PublicKey,
+        index: number,
+    ): [PublicKey, number] {
+        return this.deriveSplInterfacePdaWithIndex(mint, index);
     }
 
     /** @internal */
@@ -776,15 +819,15 @@ export class CompressedTokenProgram {
         feePayer,
         mint,
         tokenProgramId,
-    }: CreateTokenPoolParams): Promise<TransactionInstruction> {
+    }: CreateSplInterfaceParams): Promise<TransactionInstruction> {
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
-        const tokenPoolPda = this.deriveTokenPoolPdaWithIndex(mint, 0);
+        const splInterfacePda = this.deriveSplInterfacePdaWithIndex(mint, 0);
 
         const keys = createTokenPoolAccountsLayout({
             mint,
             feePayer,
-            tokenPoolPda: tokenPoolPda[0],
+            tokenPoolPda: splInterfacePda[0],
             tokenProgram,
             cpiAuthorityPda: this.deriveCpiAuthorityPda,
             systemProgram: SystemProgram.programId,
@@ -814,7 +857,7 @@ export class CompressedTokenProgram {
         mint,
         poolIndex,
         tokenProgramId,
-    }: AddTokenPoolParams): Promise<TransactionInstruction> {
+    }: AddSplInterfaceParams): Promise<TransactionInstruction> {
         if (poolIndex <= 0) {
             throw new Error(
                 'Pool index must be greater than 0. For 0, use CreateTokenPool instead.',
@@ -828,17 +871,20 @@ export class CompressedTokenProgram {
 
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
-        const existingTokenPoolPda = this.deriveTokenPoolPdaWithIndex(
+        const existingSplInterfacePda = this.deriveSplInterfacePdaWithIndex(
             mint,
             poolIndex - 1,
         );
-        const tokenPoolPda = this.deriveTokenPoolPdaWithIndex(mint, poolIndex);
+        const splInterfacePda = this.deriveSplInterfacePdaWithIndex(
+            mint,
+            poolIndex,
+        );
 
         const keys = addTokenPoolAccountsLayout({
             mint,
             feePayer,
-            tokenPoolPda: tokenPoolPda[0],
-            existingTokenPoolPda: existingTokenPoolPda[0],
+            tokenPoolPda: splInterfacePda[0],
+            existingTokenPoolPda: existingSplInterfacePda[0],
             tokenProgram,
             cpiAuthorityPda: this.deriveCpiAuthorityPda,
             systemProgram: SystemProgram.programId,
@@ -878,7 +924,7 @@ export class CompressedTokenProgram {
     }: MintToParams): Promise<TransactionInstruction> {
         const systemKeys = defaultStaticAccountsStruct();
         const tokenProgram = tokenPoolInfo.tokenProgram;
-        checkTokenPoolInfo(tokenPoolInfo, mint);
+        checkSplInterfaceInfo(tokenPoolInfo, mint);
 
         const amounts = toArray<BN | number>(amount).map(amount => bn(amount));
         const toPubkeys = toArray(toPubkey);
@@ -895,7 +941,7 @@ export class CompressedTokenProgram {
             authority,
             cpiAuthorityPda: this.deriveCpiAuthorityPda,
             tokenProgram,
-            tokenPoolPda: tokenPoolInfo.tokenPoolPda,
+            tokenPoolPda: tokenPoolInfo.splInterfacePda,
             lightSystemProgram: LightSystemProgram.programId,
             registeredProgramPda: systemKeys.registeredProgramPda,
             noopProgram: systemKeys.noopProgram,
@@ -1093,7 +1139,7 @@ export class CompressedTokenProgram {
         if (mints) {
             optionalMintKeys = [
                 ...mints,
-                ...mints.map(mint => this.deriveTokenPoolPda(mint)),
+                ...mints.map(mint => this.deriveSplInterfacePda(mint)),
             ];
         }
 
@@ -1173,7 +1219,7 @@ export class CompressedTokenProgram {
         const amountArray = toArray<BN | number>(amount);
         const toAddressArray = toArray(toAddress);
 
-        checkTokenPoolInfo(tokenPoolInfo, mint);
+        checkSplInterfaceInfo(tokenPoolInfo, mint);
 
         if (amountArray.length !== toAddressArray.length) {
             throw new Error(
@@ -1181,8 +1227,8 @@ export class CompressedTokenProgram {
             );
         }
         if (featureFlags.isV2()) {
-            const [index, bump] = this.findTokenPoolIndexAndBump(
-                tokenPoolInfo.tokenPoolPda,
+            const [index, bump] = this.findSplInterfaceIndexAndBump(
+                tokenPoolInfo.splInterfacePda,
                 mint,
             );
             const rawData: BatchCompressInstructionData = {
@@ -1204,7 +1250,7 @@ export class CompressedTokenProgram {
                 authority: owner,
                 cpiAuthorityPda: this.deriveCpiAuthorityPda,
                 tokenProgram: tokenPoolInfo.tokenProgram,
-                tokenPoolPda: tokenPoolInfo.tokenPoolPda,
+                tokenPoolPda: tokenPoolInfo.splInterfacePda,
                 lightSystemProgram: LightSystemProgram.programId,
                 ...defaultStaticAccountsStruct(),
                 merkleTree: outputStateTreeInfo.queue,
@@ -1269,7 +1315,7 @@ export class CompressedTokenProgram {
                 lightSystemProgram: LightSystemProgram.programId,
                 selfProgram: this.programId,
                 systemProgram: SystemProgram.programId,
-                tokenPoolPda: tokenPoolInfo.tokenPoolPda,
+                tokenPoolPda: tokenPoolInfo.splInterfacePda,
                 compressOrDecompressTokenAccount: source,
                 tokenProgram: tokenPoolInfo.tokenProgram,
             });
@@ -1325,7 +1371,7 @@ export class CompressedTokenProgram {
             tokenTransferOutputs: tokenTransferOutputs,
             remainingAccounts: tokenPoolInfosArray
                 .slice(1)
-                .map(info => info.tokenPoolPda),
+                .map(info => info.splInterfacePda),
         });
 
         const { mint } = parseTokenData(inputCompressedTokenAccounts);
@@ -1365,7 +1411,7 @@ export class CompressedTokenProgram {
             accountCompressionAuthority: accountCompressionAuthority,
             accountCompressionProgram: accountCompressionProgram,
             selfProgram: this.programId,
-            tokenPoolPda: tokenPoolInfosArray[0].tokenPoolPda,
+            tokenPoolPda: tokenPoolInfosArray[0].splInterfacePda,
             compressOrDecompressTokenAccount: toAddress,
             tokenProgram,
             systemProgram: SystemProgram.programId,
@@ -1443,7 +1489,7 @@ export class CompressedTokenProgram {
         outputStateTreeInfo,
         tokenPoolInfo,
     }: CompressSplTokenAccountParams): Promise<TransactionInstruction> {
-        checkTokenPoolInfo(tokenPoolInfo, mint);
+        checkSplInterfaceInfo(tokenPoolInfo, mint);
         const remainingAccountMetas: AccountMeta[] = [
             {
                 pubkey:
@@ -1477,7 +1523,7 @@ export class CompressedTokenProgram {
             accountCompressionAuthority: accountCompressionAuthority,
             accountCompressionProgram: accountCompressionProgram,
             selfProgram: this.programId,
-            tokenPoolPda: tokenPoolInfo.tokenPoolPda,
+            tokenPoolPda: tokenPoolInfo.splInterfacePda,
             compressOrDecompressTokenAccount: tokenAccount,
             tokenProgram: tokenPoolInfo.tokenProgram,
             systemProgram: SystemProgram.programId,

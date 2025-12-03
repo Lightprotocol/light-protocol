@@ -9,18 +9,15 @@ import {
     getDefaultAddressTreeInfo,
     CTOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
-import {
-    createMintInterface,
-    updateMintAuthority,
-} from '../../src/mint/actions';
-import { createTokenMetadata } from '../../src/mint/instructions';
+import { createMintInterface, updateMintAuthority } from '../../src/v3/actions';
+import { createTokenMetadata } from '../../src/v3/instructions';
 import {
     updateMetadataField,
     updateMetadataAuthority,
     removeMetadataKey,
-} from '../../src/mint/actions/update-metadata';
-import { getMintInterface } from '../../src/mint/helpers';
-import { findMintAddress } from '../../src/compressible/derivation';
+} from '../../src/v3/actions/update-metadata';
+import { getMintInterface } from '../../src/v3/get-mint-interface';
+import { findMintAddress } from '../../src/v3/derivation';
 
 featureFlags.version = VERSION.V2;
 
@@ -54,9 +51,9 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            initialMetadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            initialMetadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -72,7 +69,6 @@ describe('updateMetadata', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             'name',
             'Updated Token',
@@ -113,9 +109,9 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            initialMetadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            initialMetadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -123,7 +119,6 @@ describe('updateMetadata', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             'symbol',
             'UPDATED',
@@ -161,9 +156,9 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            initialMetadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            initialMetadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -171,7 +166,6 @@ describe('updateMetadata', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             'uri',
             'https://new.com/metadata',
@@ -212,9 +206,9 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            initialMetadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            initialMetadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -232,7 +226,6 @@ describe('updateMetadata', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialMetadataAuthority,
             newMetadataAuthority.publicKey,
         );
@@ -270,9 +263,9 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            initialMetadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            initialMetadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -280,7 +273,6 @@ describe('updateMetadata', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             'name',
             'New Name',
@@ -299,7 +291,6 @@ describe('updateMetadata', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             'symbol',
             'NEW',
@@ -319,7 +310,6 @@ describe('updateMetadata', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             'uri',
             'https://updated.com',
@@ -359,9 +349,9 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            initialMetadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            initialMetadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -370,7 +360,6 @@ describe('updateMetadata', () => {
                 rpc,
                 payer,
                 mintPda,
-                mintSigner,
                 wrongAuthority,
                 'name',
                 'Hacked Name',
@@ -394,9 +383,6 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -405,7 +391,6 @@ describe('updateMetadata', () => {
                 rpc,
                 payer,
                 mintPda,
-                mintSigner,
                 wrongAuthority,
                 newAuthority.publicKey,
             ),
@@ -433,9 +418,9 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            metadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            metadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -443,7 +428,6 @@ describe('updateMetadata', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             'custom_key',
             true,
@@ -480,9 +464,9 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            metadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            metadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -490,7 +474,6 @@ describe('updateMetadata', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             'name',
             'Updated by Mint Authority',
