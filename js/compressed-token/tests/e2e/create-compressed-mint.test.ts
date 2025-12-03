@@ -11,7 +11,6 @@ import {
     createRpc,
     VERSION,
     featureFlags,
-    getDefaultAddressTreeInfo,
     buildAndSignTx,
     sendAndConfirmTx,
     CTOKEN_PROGRAM_ID,
@@ -21,10 +20,10 @@ import {
 import {
     createMintInstruction,
     createTokenMetadata,
-} from '../../src/mint/instructions';
-import { createMintInterface } from '../../src/mint/actions';
-import { getMintInterface } from '../../src/mint/helpers';
-import { findMintAddress } from '../../src/compressible/derivation';
+} from '../../src/v3/instructions';
+import { createMintInterface } from '../../src/v3/actions';
+import { getMintInterface } from '../../src/v3/get-mint-interface';
+import { findMintAddress } from '../../src/v3/derivation';
 
 featureFlags.version = VERSION.V2;
 
@@ -41,9 +40,8 @@ describe('createMintInterface (compressed)', () => {
         mintAuthority = Keypair.generate();
     });
 
-    it('should create a compressed mint with metadata and fetch it', async () => {
+    it('should create a compressed mint and fetch it', async () => {
         const decimals = 9;
-        const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
         const { transactionSignature: signature } = await createMintInterface(
@@ -53,9 +51,7 @@ describe('createMintInterface (compressed)', () => {
             null,
             decimals,
             mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
+            { skipPreflight: true },
         );
 
         await rpc.confirmTransaction(signature, 'confirmed');
@@ -110,9 +106,6 @@ describe('createMintInterface (compressed)', () => {
             freezeAuthority.publicKey,
             decimals,
             mintSigner2,
-            undefined,
-            addressTreeInfo,
-            undefined,
         );
 
         await rpc.confirmTransaction(signature, 'confirmed');

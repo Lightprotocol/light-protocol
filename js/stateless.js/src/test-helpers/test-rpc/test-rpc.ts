@@ -996,4 +996,42 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     ): Promise<any> {
         throw new Error('getAccountInfoInterface not implemented in TestRpc');
     }
+
+    async getSignaturesForAddressInterface(
+        _address: PublicKey,
+        _options?: any,
+        _compressedOptions?: PaginatedOptions,
+    ): Promise<any> {
+        throw new Error(
+            'getSignaturesForAddressInterface not implemented in TestRpc',
+        );
+    }
+
+    async getSignaturesForOwnerInterface(
+        _owner: PublicKey,
+        _options?: any,
+        _compressedOptions?: PaginatedOptions,
+    ): Promise<any> {
+        throw new Error(
+            'getSignaturesForOwnerInterface not implemented in TestRpc',
+        );
+    }
+
+    async getTokenAccountBalanceInterface(
+        _address: PublicKey,
+        _owner: PublicKey,
+        _mint: PublicKey,
+        _commitment?: any,
+    ): Promise<any> {
+        throw new Error(
+            'getTokenAccountBalanceInterface not implemented in TestRpc',
+        );
+    }
+
+    async getBalanceInterface(
+        _address: PublicKey,
+        _commitment?: any,
+    ): Promise<any> {
+        throw new Error('getBalanceInterface not implemented in TestRpc');
+    }
 }

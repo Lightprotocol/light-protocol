@@ -43,7 +43,6 @@ describe('rpc-multi-trees', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
-                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )

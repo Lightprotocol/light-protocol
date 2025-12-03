@@ -120,7 +120,6 @@ describe('compress', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
-                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -317,7 +316,6 @@ describe('compress', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
-                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
                 undefined,

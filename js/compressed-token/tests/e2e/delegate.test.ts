@@ -126,7 +126,6 @@ describe('delegate', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
-                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )

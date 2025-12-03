@@ -6,7 +6,7 @@ import {
     PackedMerkleContextLegacy,
     CompressedCpiContext,
 } from '@lightprotocol/stateless.js';
-import { TokenPoolInfo } from './utils/get-token-pool-infos';
+import { SplInterfaceInfo, TokenPoolInfo } from './utils/get-token-pool-infos';
 
 export type TokenTransferOutputData = {
     /**
@@ -84,11 +84,16 @@ export type CompressSplTokenAccountInstructionData = {
     cpiContext: CompressedCpiContext | null;
 };
 
-export function isSingleTokenPoolInfo(
-    tokenPoolInfos: TokenPoolInfo | TokenPoolInfo[],
-): tokenPoolInfos is TokenPoolInfo {
-    return !Array.isArray(tokenPoolInfos);
+export function isSingleSplInterfaceInfo(
+    splInterfaceInfos: SplInterfaceInfo | SplInterfaceInfo[],
+): splInterfaceInfos is SplInterfaceInfo {
+    return !Array.isArray(splInterfaceInfos);
 }
+
+/**
+ * @deprecated Use {@link isSingleSplInterfaceInfo} instead.
+ */
+export const isSingleTokenPoolInfo = isSingleSplInterfaceInfo;
 
 export type CompressedTokenInstructionDataTransfer = {
     /**

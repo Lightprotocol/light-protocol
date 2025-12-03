@@ -66,7 +66,6 @@ describe('createMint (SPL)', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
-                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -89,7 +88,6 @@ describe('createMint (SPL)', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
-                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             ),
@@ -98,13 +96,7 @@ describe('createMint (SPL)', () => {
 
     it('should create mint with payer as authority', async () => {
         mint = (
-            await createMint(
-                rpc,
-                payer,
-                payer.publicKey,
-                null,
-                TEST_TOKEN_DECIMALS,
-            )
+            await createMint(rpc, payer, payer.publicKey, TEST_TOKEN_DECIMALS)
         ).mint;
 
         const poolAccount = CompressedTokenProgram.deriveTokenPoolPda(mint);

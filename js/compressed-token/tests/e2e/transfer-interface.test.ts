@@ -18,17 +18,17 @@ import {
     selectTokenPoolInfo,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
-import { getATAAddressInterface } from '../../src/mint/actions/create-ata-interface';
-import { getOrCreateATAInterface } from '../../src/mint/actions/get-or-create-ata-interface';
-import { transferInterface } from '../../src/mint/actions/transfer-interface';
+import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
+import { getOrCreateAtaInterface } from '../../src/v3/actions/get-or-create-ata-interface';
+import { transferInterface } from '../../src/v3/actions/transfer-interface';
 import {
-    loadATA,
-    createLoadATAInstructions,
-} from '../../src/compressible/unified-load';
+    loadAta,
+    createLoadAtaInstructions,
+} from '../../src/v3/actions/load-ata';
 import {
     createTransferInterfaceInstruction,
     createCTokenTransferInstruction,
-} from '../../src/mint/instructions/transfer-interface';
+} from '../../src/v3/instructions/transfer-interface';
 
 featureFlags.version = VERSION.V2;
 
@@ -54,7 +54,6 @@ describe('transfer-interface', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
-                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -122,17 +121,20 @@ describe('transfer-interface', () => {
         });
     });
 
-    describe('createLoadATAInstructions', () => {
+    describe('createLoadAtaInstructions', () => {
         it('should return empty when no balances to load (idempotent)', async () => {
             const owner = Keypair.generate();
-            const ata = getATAAddressInterface(mint, owner.publicKey);
+            const ata = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
 
-            const ixs = await createLoadATAInstructions(
+            const ixs = await createLoadAtaInstructions(
                 rpc,
-                payer.publicKey,
                 ata,
                 owner.publicKey,
                 mint,
+                payer.publicKey,
             );
 
             expect(ixs.length).toBe(0);
@@ -153,14 +155,15 @@ describe('transfer-interface', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ata = getATAAddressInterface(mint, owner.publicKey);
-            const ixs = await createLoadATAInstructions(
-                rpc,
-                payer.publicKey,
-                ata,
-                owner.publicKey,
+            const ata = getAssociatedTokenAddressInterface(
                 mint,
-                { tokenPoolInfos },
+                owner.publicKey,
+            );
+            const ixs = await createLoadAtaInstructions(
+                rpc,
+                ata,
+                payer.publicKey,
+                mint,
             );
 
             expect(ixs.length).toBeGreaterThan(0);
@@ -191,26 +194,30 @@ describe('transfer-interface', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ata = getATAAddressInterface(mint, owner.publicKey);
-            const ixs = await createLoadATAInstructions(
-                rpc,
-                payer.publicKey,
-                ata,
-                owner.publicKey,
+            const ata = getAssociatedTokenAddressInterface(
                 mint,
-                { tokenPoolInfos },
+                owner.publicKey,
+            );
+            const ixs = await createLoadAtaInstructions(
+                rpc,
+                ata,
+                payer.publicKey,
+                mint,
             );
 
             expect(ixs.length).toBeGreaterThan(0);
         });
     });
 
-    describe('loadATA action', () => {
+    describe('loadAta action', () => {
         it('should return null when nothing to load (idempotent)', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
-            const ata = getATAAddressInterface(mint, owner.publicKey);
+            const ata = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
 
-            const signature = await loadATA(rpc, payer, ata, owner, mint);
+            const signature = await loadAta(rpc, ata, owner, mint);
 
             expect(signature).toBeNull();
         });
@@ -230,24 +237,20 @@ describe('transfer-interface', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ata = getATAAddressInterface(mint, owner.publicKey);
-            const signature = await loadATA(
-                rpc,
-                payer,
-                ata,
-                owner,
+            const ata = getAssociatedTokenAddressInterface(
                 mint,
-                undefined,
-                {
-                    tokenPoolInfos,
-                },
+                owner.publicKey,
             );
+            const signature = await loadAta(rpc, ata, owner, mint);
 
             expect(signature).not.toBeNull();
             expect(typeof signature).toBe('string');
 
             // Verify hot balance increased
-            const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
+            const ctokenAta = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
             const ataInfo = await rpc.getAccountInfo(ctokenAta);
             expect(ataInfo).not.toBeNull();
             const hotBalance = ataInfo!.data.readBigUInt64LE(64);
@@ -271,29 +274,33 @@ describe('transfer-interface', () => {
                 stateTreeInfo,
                 selectTokenPoolInfo(tokenPoolInfos),
             );
-            const senderAta = getATAAddressInterface(mint, sender.publicKey);
-            await loadATA(rpc, payer, senderAta, sender, mint, undefined, {
-                tokenPoolInfos,
-            });
+            const senderAta = getAssociatedTokenAddressInterface(
+                mint,
+                sender.publicKey,
+            );
+            await loadAta(rpc, senderAta, sender, mint);
 
             // Create recipient ATA first (like SPL Token flow)
-            const recipientAta = await getOrCreateATAInterface(
+            const recipientAta = await getOrCreateAtaInterface(
                 rpc,
                 payer,
                 mint,
                 recipient.publicKey,
             );
 
-            const sourceAta = getATAAddressInterface(mint, sender.publicKey);
+            const sourceAta = getAssociatedTokenAddressInterface(
+                mint,
+                sender.publicKey,
+            );
 
             // Transfer - destination is ATA address
             const signature = await transferInterface(
                 rpc,
                 payer,
                 sourceAta,
-                recipientAta.address,
-                sender,
                 mint,
+                recipientAta.parsed.address,
+                sender,
                 BigInt(1000),
             );
 
@@ -305,7 +312,7 @@ describe('transfer-interface', () => {
             expect(senderBalance).toBe(BigInt(4000));
 
             const recipientAtaInfo = await rpc.getAccountInfo(
-                recipientAta.address,
+                recipientAta.parsed.address,
             );
             const recipientBalance = recipientAtaInfo!.data.readBigUInt64LE(64);
             expect(recipientBalance).toBe(BigInt(1000));
@@ -328,34 +335,37 @@ describe('transfer-interface', () => {
             );
 
             // Create recipient ATA first
-            const recipientAta = await getOrCreateATAInterface(
+            const recipientAta = await getOrCreateAtaInterface(
                 rpc,
                 payer,
                 mint,
                 recipient.publicKey,
             );
 
-            const sourceAta = getATAAddressInterface(mint, sender.publicKey);
+            const sourceAta = getAssociatedTokenAddressInterface(
+                mint,
+                sender.publicKey,
+            );
 
             // Transfer should auto-load sender's cold balance
             const signature = await transferInterface(
                 rpc,
                 payer,
                 sourceAta,
-                recipientAta.address,
-                sender,
                 mint,
+                recipientAta.parsed.address,
+                sender,
                 BigInt(2000),
                 CTOKEN_PROGRAM_ID,
                 undefined,
-                { tokenPoolInfos },
+                { splInterfaceInfos: tokenPoolInfos },
             );
 
             expect(signature).toBeDefined();
 
             // Verify recipient received tokens
             const recipientAtaInfo = await rpc.getAccountInfo(
-                recipientAta.address,
+                recipientAta.parsed.address,
             );
             const recipientBalance = recipientAtaInfo!.data.readBigUInt64LE(64);
             expect(recipientBalance).toBe(BigInt(2000));
@@ -371,7 +381,7 @@ describe('transfer-interface', () => {
             const recipient = Keypair.generate();
             const wrongSource = Keypair.generate().publicKey;
 
-            const recipientAta = await getOrCreateATAInterface(
+            const recipientAta = await getOrCreateAtaInterface(
                 rpc,
                 payer,
                 mint,
@@ -383,9 +393,9 @@ describe('transfer-interface', () => {
                     rpc,
                     payer,
                     wrongSource,
-                    recipientAta.address,
-                    sender,
                     mint,
+                    recipientAta.parsed.address,
+                    sender,
                     BigInt(100),
                 ),
             ).rejects.toThrow('Source mismatch');
@@ -407,27 +417,30 @@ describe('transfer-interface', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const recipientAta = await getOrCreateATAInterface(
+            const recipientAta = await getOrCreateAtaInterface(
                 rpc,
                 payer,
                 mint,
                 recipient.publicKey,
             );
 
-            const sourceAta = getATAAddressInterface(mint, sender.publicKey);
+            const sourceAta = getAssociatedTokenAddressInterface(
+                mint,
+                sender.publicKey,
+            );
 
             await expect(
                 transferInterface(
                     rpc,
                     payer,
                     sourceAta,
-                    recipientAta.address,
-                    sender,
                     mint,
+                    recipientAta.parsed.address,
+                    sender,
                     BigInt(99999),
                     CTOKEN_PROGRAM_ID,
                     undefined,
-                    { tokenPoolInfos },
+                    { splInterfaceInfos: tokenPoolInfos },
                 ),
             ).rejects.toThrow('Insufficient balance');
         });
@@ -447,10 +460,11 @@ describe('transfer-interface', () => {
                 stateTreeInfo,
                 selectTokenPoolInfo(tokenPoolInfos),
             );
-            const senderAta2 = getATAAddressInterface(mint, sender.publicKey);
-            await loadATA(rpc, payer, senderAta2, sender, mint, undefined, {
-                tokenPoolInfos,
-            });
+            const senderAta2 = getAssociatedTokenAddressInterface(
+                mint,
+                sender.publicKey,
+            );
+            await loadAta(rpc, senderAta2, sender, mint);
 
             // Setup recipient with existing ATA and balance
             await mintTo(
@@ -463,24 +477,30 @@ describe('transfer-interface', () => {
                 stateTreeInfo,
                 selectTokenPoolInfo(tokenPoolInfos),
             );
-            const recipientAta2 = getATAAddressInterface(
+            const recipientAta2 = getAssociatedTokenAddressInterface(
                 mint,
                 recipient.publicKey,
             );
-            await loadATA(
+            await loadAta(
                 rpc,
-                payer,
                 recipientAta2,
                 recipient,
                 mint,
                 undefined,
+                undefined,
                 {
-                    tokenPoolInfos,
+                    splInterfaceInfos: tokenPoolInfos,
                 },
             );
 
-            const sourceAta = getATAAddressInterface(mint, sender.publicKey);
-            const destAta = getATAAddressInterface(mint, recipient.publicKey);
+            const sourceAta = getAssociatedTokenAddressInterface(
+                mint,
+                sender.publicKey,
+            );
+            const destAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
 
             const recipientBalanceBefore = (await rpc.getAccountInfo(
                 destAta,
@@ -491,9 +511,9 @@ describe('transfer-interface', () => {
                 rpc,
                 payer,
                 sourceAta,
+                mint,
                 destAta,
                 sender,
-                mint,
                 BigInt(500),
             );
 

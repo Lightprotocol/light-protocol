@@ -6,6 +6,7 @@ import {
     GetAccountInfoConfig,
     PublicKey,
     SolanaJSONRPCError,
+    SignaturesForAddressOptions,
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import {
@@ -58,6 +59,12 @@ import {
     HashWithTreeInfo,
     DerivationMode,
     AddressWithTreeInfoV2,
+    SignaturesForAddressInterfaceResult,
+    UnifiedSignatureInfo,
+    UnifiedTokenBalance,
+    UnifiedBalance,
+    SignatureSource,
+    SignatureSourceType,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -89,6 +96,7 @@ import {
 } from './constants';
 import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
+import { ConfirmedSignatureInfo } from '@solana/web3.js';
 
 import {
     proofFromJsonStruct,
@@ -620,6 +628,63 @@ function buildCompressedAccountWithMaybeTokenData(
 
     return { account: compressedAccount, maybeTokenData: parsed };
 }
+/**
+ * Merge signatures from Solana RPC and compression indexer.
+ * Deduplicates by signature, tracking sources in the `sources` array.
+ * When a signature exists in both, uses Solana data (richer) but marks both sources.
+ * @internal
+ */
+function mergeSignatures(
+    solanaSignatures: ConfirmedSignatureInfo[],
+    compressedSignatures: SignatureWithMetadata[],
+): UnifiedSignatureInfo[] {
+    const signatureMap = new Map<string, UnifiedSignatureInfo>();
+
+    // Process compressed signatures first
+    for (const sig of compressedSignatures) {
+        signatureMap.set(sig.signature, {
+            signature: sig.signature,
+            slot: sig.slot,
+            blockTime: sig.blockTime,
+            err: null,
+            memo: null,
+            confirmationStatus: undefined,
+            sources: [SignatureSource.Compressed],
+        });
+    }
+
+    // Process Solana signatures, merging sources if duplicate
+    for (const sig of solanaSignatures) {
+        const existing = signatureMap.get(sig.signature);
+        if (existing) {
+            // Found in both - use Solana data (richer), add both sources
+            signatureMap.set(sig.signature, {
+                signature: sig.signature,
+                slot: sig.slot,
+                blockTime: sig.blockTime ?? null,
+                err: sig.err,
+                memo: sig.memo ?? null,
+                confirmationStatus: sig.confirmationStatus,
+                sources: [SignatureSource.Solana, SignatureSource.Compressed],
+            });
+        } else {
+            // Only in Solana
+            signatureMap.set(sig.signature, {
+                signature: sig.signature,
+                slot: sig.slot,
+                blockTime: sig.blockTime ?? null,
+                err: sig.err,
+                memo: sig.memo ?? null,
+                confirmationStatus: sig.confirmationStatus,
+                sources: [SignatureSource.Solana],
+            });
+        }
+    }
+
+    // Sort by slot descending (most recent first)
+    return Array.from(signatureMap.values()).sort((a, b) => b.slot - a.slot);
+}
+
 /**
  *
  */
@@ -2121,5 +2186,174 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         // account does not exist.
         return null;
+    }
+
+    /**
+     * Get signatures for an address from both Solana and compression indexer.
+     * Merges results by signature, tracking which sources each was found in.
+     *
+     * @param address               Address to fetch signatures for.
+     * @param options               Options for the Solana getSignaturesForAddress call.
+     * @param compressedOptions     Options for the compression getCompressionSignaturesForAddress call.
+     * @returns                     Unified signatures from both sources.
+     */
+    async getSignaturesForAddressInterface(
+        address: PublicKey,
+        options?: SignaturesForAddressOptions,
+        compressedOptions?: PaginatedOptions,
+    ): Promise<SignaturesForAddressInterfaceResult> {
+        const [solanaResult, compressedResult] = await Promise.allSettled([
+            this.getSignaturesForAddress(address, options),
+            this.getCompressionSignaturesForAddress(address, compressedOptions),
+        ]);
+
+        const solanaSignatures =
+            solanaResult.status === 'fulfilled' ? solanaResult.value : [];
+        const compressedSignatures =
+            compressedResult.status === 'fulfilled'
+                ? compressedResult.value.items
+                : [];
+
+        const signatures = mergeSignatures(
+            solanaSignatures,
+            compressedSignatures,
+        );
+
+        return {
+            signatures,
+            solana: solanaSignatures,
+            compressed: compressedSignatures,
+        };
+    }
+
+    /**
+     * Get signatures for an owner from both Solana and compression indexer.
+     * Combines Solana getSignaturesForAddress with compression getCompressionSignaturesForOwner.
+     * This is the recommended method for wallet-style signature lookups.
+     *
+     * @param owner                 Owner address to fetch signatures for.
+     * @param options               Options for the Solana getSignaturesForAddress call.
+     * @param compressedOptions     Options for the compression getCompressionSignaturesForOwner call.
+     * @returns                     Unified signatures from both sources.
+     */
+    async getSignaturesForOwnerInterface(
+        owner: PublicKey,
+        options?: SignaturesForAddressOptions,
+        compressedOptions?: PaginatedOptions,
+    ): Promise<SignaturesForAddressInterfaceResult> {
+        const [solanaResult, compressedResult] = await Promise.allSettled([
+            this.getSignaturesForAddress(owner, options),
+            this.getCompressionSignaturesForOwner(owner, compressedOptions),
+        ]);
+
+        const solanaSignatures =
+            solanaResult.status === 'fulfilled' ? solanaResult.value : [];
+        const compressedSignatures =
+            compressedResult.status === 'fulfilled'
+                ? compressedResult.value.items
+                : [];
+
+        const signatures = mergeSignatures(
+            solanaSignatures,
+            compressedSignatures,
+        );
+
+        return {
+            signatures,
+            solana: solanaSignatures,
+            compressed: compressedSignatures,
+        };
+    }
+
+    /**
+     * Get token account balance from both on-chain and compressed sources.
+     *
+     * @param address       Token account address (for on-chain lookup).
+     * @param owner         Owner public key (for compressed token lookup).
+     * @param mint          Mint public key (for compressed token lookup).
+     * @param commitment    Commitment level for on-chain query.
+     * @returns             Unified token balance from both sources.
+     */
+    async getTokenAccountBalanceInterface(
+        address: PublicKey,
+        owner: PublicKey,
+        mint: PublicKey,
+        commitment?: Commitment,
+    ): Promise<UnifiedTokenBalance> {
+        const [onChainResult, compressedResult] = await Promise.allSettled([
+            this.getTokenAccountBalance(address, commitment),
+            this.getCompressedTokenBalancesByOwner(owner, { mint }),
+        ]);
+
+        // Parse on-chain result
+        let onChainAmount = bn(0);
+        let decimals = 0;
+        let solanaTokenAmount = null;
+
+        if (onChainResult.status === 'fulfilled' && onChainResult.value) {
+            const value = onChainResult.value.value;
+            onChainAmount = bn(value.amount);
+            decimals = value.decimals;
+            solanaTokenAmount = value;
+        }
+
+        // Parse compressed result
+        let compressedAmount = bn(0);
+        if (compressedResult.status === 'fulfilled') {
+            const items = compressedResult.value.items;
+            // Filter by mint and sum up balances
+            const matchingBalances = items.filter(item =>
+                item.mint.equals(mint),
+            );
+            for (const balance of matchingBalances) {
+                compressedAmount = compressedAmount.add(balance.balance);
+            }
+        }
+
+        const total = onChainAmount.add(compressedAmount);
+
+        return {
+            amount: total,
+            onChainAmount,
+            compressedAmount,
+            hasCompressedBalance: !compressedAmount.isZero(),
+            decimals,
+            solana: solanaTokenAmount,
+        };
+    }
+
+    /**
+     * Get SOL balance from both on-chain and compressed sources.
+     *
+     * @param address       Address to fetch balance for.
+     * @param commitment    Commitment level for on-chain query.
+     * @returns             Unified SOL balance from both sources.
+     */
+    async getBalanceInterface(
+        address: PublicKey,
+        commitment?: Commitment,
+    ): Promise<UnifiedBalance> {
+        const [onChainResult, compressedResult] = await Promise.allSettled([
+            this.getBalance(address, commitment),
+            this.getCompressedBalanceByOwner(address),
+        ]);
+
+        const onChainBalance =
+            onChainResult.status === 'fulfilled'
+                ? bn(onChainResult.value)
+                : bn(0);
+        const compressedBalance =
+            compressedResult.status === 'fulfilled'
+                ? compressedResult.value
+                : bn(0);
+
+        const total = onChainBalance.add(compressedBalance);
+
+        return {
+            total,
+            onChain: onChainBalance,
+            compressed: compressedBalance,
+            hasCompressedBalance: !compressedBalance.isZero(),
+        };
     }
 }

@@ -15,9 +15,9 @@ import {
 } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
 import {
-    getTokenPoolInfos,
-    selectTokenPoolInfo,
-    TokenPoolInfo,
+    getSplInterfaceInfos,
+    selectSplInterfaceInfo,
+    SplInterfaceInfo,
 } from '../utils/get-token-pool-infos';
 import { CompressedTokenProgram } from '../program';
 
@@ -33,7 +33,7 @@ import { CompressedTokenProgram } from '../program';
  *                              Default: 0
  * @param outputStateTreeInfo   Optional: State tree account that the compressed
  *                              account into
- * @param tokenPoolInfo         Optional: Token pool info.
+ * @param splInterfaceInfo      Optional: SPL interface info.
  * @param confirmOptions        Options for confirming the transaction
 
  *
@@ -47,15 +47,15 @@ export async function compressSplTokenAccount(
     tokenAccount: PublicKey,
     remainingAmount?: BN,
     outputStateTreeInfo?: TreeInfo,
-    tokenPoolInfo?: TokenPoolInfo,
+    splInterfaceInfo?: SplInterfaceInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     outputStateTreeInfo =
         outputStateTreeInfo ??
         selectStateTreeInfo(await rpc.getStateTreeInfos());
-    tokenPoolInfo =
-        tokenPoolInfo ??
-        selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
+    splInterfaceInfo =
+        splInterfaceInfo ??
+        selectSplInterfaceInfo(await getSplInterfaceInfos(rpc, mint));
 
     const compressIx = await CompressedTokenProgram.compressSplTokenAccount({
         feePayer: payer.publicKey,
@@ -64,7 +64,7 @@ export async function compressSplTokenAccount(
         mint,
         remainingAmount,
         outputStateTreeInfo,
-        tokenPoolInfo,
+        tokenPoolInfo: splInterfaceInfo,
     });
 
     const blockhashCtx = await rpc.getLatestBlockhash();

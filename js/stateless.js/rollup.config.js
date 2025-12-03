@@ -14,6 +14,7 @@ const rolls = (fmt, env) => ({
         dir: `dist/${fmt}/${env}`,
         format: fmt,
         entryFileNames: `[name].${fmt === 'cjs' ? 'cjs' : 'js'}`,
+        chunkFileNames: `[name]-[hash].${fmt === 'cjs' ? 'cjs' : 'js'}`,
         sourcemap: true,
     },
     external: ['@solana/web3.js'],
