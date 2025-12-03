@@ -15,7 +15,7 @@ use crate::{
         convert_program_error,
         transfer_lamports::{multi_transfer_lamports, Transfer},
     },
-    LIGHT_CPI_SIGNER,
+    LIGHT_CPI_SIGNER, MAX_PACKED_ACCOUNTS,
 };
 
 pub mod ctoken;
@@ -38,21 +38,31 @@ pub fn process_token_compression(
     cpi_authority: &AccountInfo,
 ) -> Result<(), ProgramError> {
     if let Some(compressions) = inputs.compressions.as_ref() {
-        // Array to accumulate transfer amounts by account index (max 40 packed accounts)
-        let mut transfer_map = [0u64; 40];
+        let mut transfer_map = [0u64; MAX_PACKED_ACCOUNTS];
 
         for compression in compressions {
+            let account_index = compression.source_or_recipient as usize;
+            if account_index >= MAX_PACKED_ACCOUNTS {
+                msg!(
+                    "Account index {} out of bounds, max {} allowed",
+                    account_index,
+                    MAX_PACKED_ACCOUNTS
+                );
+                return Err(ErrorCode::TooManyCompressionTransfers.into());
+            }
+
             let source_or_recipient = packed_accounts.get_u8(
                 compression.source_or_recipient,
                 "compression source or recipient",
             )?;
 
-            let transfer = match source_or_recipient.owner() {
+            match source_or_recipient.owner() {
                 ID => ctoken::process_ctoken_compressions(
                     inputs,
                     compression,
                     source_or_recipient,
                     packed_accounts,
+                    &mut transfer_map[account_index],
                 )?,
                 SPL_TOKEN_ID => {
                     spl::process_spl_compressions(
@@ -62,8 +72,6 @@ pub fn process_token_compression(
                         packed_accounts,
                         cpi_authority,
                     )?;
-                    // SPL token compressions don't require lamport transfers for compressible extension´
-                    None
                 }
                 SPL_TOKEN_2022_ID => {
                     spl::process_spl_compressions(
@@ -73,8 +81,6 @@ pub fn process_token_compression(
                         packed_accounts,
                         cpi_authority,
                     )?;
-                    // SPL token compressions don't require lamport transfers for compressible extension´
-                    None
                 }
                 _ => {
                     msg!(
@@ -88,24 +94,9 @@ pub fn process_token_compression(
                     return Err(ProgramError::InvalidInstructionData);
                 }
             };
-
-            // Accumulate transfer amount if present
-            if let Some((account_index, amount)) = transfer {
-                if account_index >= 40 {
-                    msg!(
-                        "Too many compression transfers: {}, max 40 allowed",
-                        account_index
-                    );
-                    return Err(ErrorCode::TooManyCompressionTransfers.into());
-                }
-                transfer_map[account_index as usize] = transfer_map[account_index as usize]
-                    .checked_add(amount)
-                    .ok_or(ProgramError::ArithmeticOverflow)?;
-            }
         }
 
-        // Build rent_return_transfers & top up array from accumulated amounts
-        let transfers: ArrayVec<Transfer, 40> = transfer_map
+        let transfers: ArrayVec<Transfer, MAX_PACKED_ACCOUNTS> = transfer_map
             .iter()
             .enumerate()
             .filter_map(|(index, &amount)| {
@@ -121,7 +112,7 @@ pub fn process_token_compression(
                     amount,
                 })
             })
-            .collect::<Result<ArrayVec<Transfer, 40>, ProgramError>>()?;
+            .collect::<Result<ArrayVec<Transfer, MAX_PACKED_ACCOUNTS>, ProgramError>>()?;
 
         if !transfers.is_empty() {
             multi_transfer_lamports(fee_payer, &transfers).map_err(convert_program_error)?

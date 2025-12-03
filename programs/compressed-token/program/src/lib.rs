@@ -40,6 +40,7 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
 pub const MAX_ACCOUNTS: usize = 30;
+pub(crate) const MAX_PACKED_ACCOUNTS: usize = 40;
 
 // Custom ctoken instructions start at 100 to skip spl-token program instrutions.
 // When adding new instructions check anchor discriminators for collisions!

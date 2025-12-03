@@ -988,8 +988,8 @@ async fn test_account_index_out_of_bounds() {
         )
         .await;
 
-    // Should fail with NotEnoughAccountKeys
-    assert_rpc_error(result, 0, 20014).unwrap();
+    // Should fail with TooManyCompressionTransfers (account index 99 >= 40)
+    assert_rpc_error(result, 0, 95).unwrap();
 }
 
 /// Test 16: Authority index out of bounds
