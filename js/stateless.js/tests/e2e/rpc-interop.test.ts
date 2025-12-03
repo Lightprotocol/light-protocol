@@ -502,6 +502,21 @@ describe('rpc-interop', () => {
             payer.publicKey,
         );
 
+        console.log(
+            'senderAccounts',
+            senderAccounts.items.map(
+                account =>
+                    account.hash.toString() + ' ' + account.lamports.toString(),
+            ),
+        );
+        console.log(
+            'senderAccountsTest',
+            senderAccountsTest.items.map(
+                account =>
+                    account.hash.toString() + ' ' + account.lamports.toString(),
+            ),
+        );
+
         assert.equal(
             senderAccounts.items.length,
             senderAccountsTest.items.length,
