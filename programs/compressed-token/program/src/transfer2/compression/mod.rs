@@ -15,7 +15,7 @@ use crate::{
         convert_program_error,
         transfer_lamports::{multi_transfer_lamports, Transfer},
     },
-    LIGHT_CPI_SIGNER,
+    LIGHT_CPI_SIGNER, MAX_PACKED_ACCOUNTS,
 };
 
 pub mod ctoken;
@@ -38,15 +38,15 @@ pub fn process_token_compression(
     cpi_authority: &AccountInfo,
 ) -> Result<(), ProgramError> {
     if let Some(compressions) = inputs.compressions.as_ref() {
-        // Array to accumulate transfer amounts by account index (max 40 packed accounts)
-        let mut transfer_map = [0u64; 40];
+        let mut transfer_map = [0u64; MAX_PACKED_ACCOUNTS];
 
         for compression in compressions {
             let account_index = compression.source_or_recipient as usize;
-            if account_index >= 40 {
+            if account_index >= MAX_PACKED_ACCOUNTS {
                 msg!(
-                    "Account index {} out of bounds, max 40 allowed",
-                    account_index
+                    "Account index {} out of bounds, max {} allowed",
+                    account_index,
+                    MAX_PACKED_ACCOUNTS
                 );
                 return Err(ErrorCode::TooManyCompressionTransfers.into());
             }
@@ -96,8 +96,7 @@ pub fn process_token_compression(
             };
         }
 
-        // Build rent_return_transfers & top up array from accumulated amounts
-        let transfers: ArrayVec<Transfer, 40> = transfer_map
+        let transfers: ArrayVec<Transfer, MAX_PACKED_ACCOUNTS> = transfer_map
             .iter()
             .enumerate()
             .filter_map(|(index, &amount)| {
@@ -113,7 +112,7 @@ pub fn process_token_compression(
                     amount,
                 })
             })
-            .collect::<Result<ArrayVec<Transfer, 40>, ProgramError>>()?;
+            .collect::<Result<ArrayVec<Transfer, MAX_PACKED_ACCOUNTS>, ProgramError>>()?;
 
         if !transfers.is_empty() {
             multi_transfer_lamports(fee_payer, &transfers).map_err(convert_program_error)?

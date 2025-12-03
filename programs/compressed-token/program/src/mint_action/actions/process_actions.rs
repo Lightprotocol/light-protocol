@@ -28,10 +28,8 @@ use crate::{
         convert_program_error,
         transfer_lamports::{multi_transfer_lamports, Transfer},
     },
+    MAX_PACKED_ACCOUNTS,
 };
-
-/// Maximum number of packed accounts allowed in a single instruction
-const MAX_PACKED_ACCOUNTS: usize = 40;
 
 #[allow(clippy::too_many_arguments)]
 #[profile]
