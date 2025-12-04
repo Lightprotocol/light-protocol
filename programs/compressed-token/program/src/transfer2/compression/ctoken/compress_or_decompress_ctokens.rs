@@ -17,10 +17,14 @@ use super::{compress_and_close::process_compress_and_close, inputs::CTokenCompre
 use crate::shared::owner_validation::check_ctoken_owner;
 
 /// Perform compression/decompression on a ctoken account.
+///
+/// # Arguments
+/// * `lamports_budget` - Mutable budget to decrement when transfer amounts are calculated.
 #[profile]
 pub fn compress_or_decompress_ctokens(
     inputs: CTokenCompressionInputs,
     transfer_amount: &mut u64,
+    lamports_budget: &mut u64,
 ) -> Result<(), ProgramError> {
     let CTokenCompressionInputs {
         authority,
@@ -80,6 +84,7 @@ pub fn compress_or_decompress_ctokens(
                 token_account_info,
                 &mut current_slot,
                 transfer_amount,
+                lamports_budget,
             )
         }
         ZCompressionMode::Decompress => {
@@ -95,6 +100,7 @@ pub fn compress_or_decompress_ctokens(
                 token_account_info,
                 &mut current_slot,
                 transfer_amount,
+                lamports_budget,
             )
         }
         ZCompressionMode::CompressAndClose => process_compress_and_close(
@@ -114,6 +120,7 @@ fn process_compressible_extension(
     token_account_info: &AccountInfo,
     current_slot: &mut u64,
     transfer_amount: &mut u64,
+    lamports_budget: &mut u64,
 ) -> Result<(), ProgramError> {
     if *transfer_amount != 0 {
         return Ok(());
@@ -135,6 +142,8 @@ fn process_compressible_extension(
                         light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                     )
                     .map_err(|_| CTokenError::InvalidAccountData)?;
+                // Decrement budget
+                *lamports_budget = lamports_budget.saturating_sub(*transfer_amount);
 
                 return Ok(());
             }

@@ -13,6 +13,10 @@ use crate::shared::{
 };
 
 /// Process ctoken transfer instruction
+///
+/// Instruction data format (backwards compatible):
+/// - 8 bytes: amount (legacy, no max_top_up enforcement)
+/// - 10 bytes: amount + max_top_up (u16, 0 = no limit)
 #[profile]
 #[inline(always)]
 pub fn process_ctoken_transfer(
@@ -27,16 +31,39 @@ pub fn process_ctoken_transfer(
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    process_transfer(accounts, instruction_data)
+    // Validate minimum instruction data length
+    if instruction_data.len() < 8 {
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
+    // Parse max_top_up based on instruction data length
+    // 0 means no limit
+    let max_top_up = match instruction_data.len() {
+        8 => 0u16, // Legacy: no max_top_up
+        10 => u16::from_le_bytes(
+            instruction_data[8..10]
+                .try_into()
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
+        ),
+        _ => return Err(ProgramError::InvalidInstructionData),
+    };
+
+    // Only pass the first 8 bytes (amount) to the SPL transfer processor
+    process_transfer(accounts, &instruction_data[..8])
         .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
-    calculate_and_execute_top_up_transfers(accounts)
+    calculate_and_execute_top_up_transfers(accounts, max_top_up)
 }
 
 /// Calculate and execute top-up transfers for compressible accounts
+///
+/// # Arguments
+/// * `accounts` - The account infos (source, dest, authority/payer)
+/// * `max_top_up` - Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
 #[inline(always)]
 #[profile]
 fn calculate_and_execute_top_up_transfers(
     accounts: &[pinocchio::account_info::AccountInfo],
+    max_top_up: u16,
 ) -> Result<(), ProgramError> {
     // Initialize transfers array with account references, amounts will be updated
     let account0 = accounts.first().ok_or(ProgramError::NotEnoughAccountKeys)?;
@@ -52,6 +79,9 @@ fn calculate_and_execute_top_up_transfers(
         },
     ];
     let mut current_slot = 0;
+    // Initialize budget: +1 allows exact match (total == max_top_up)
+    let mut lamports_budget = (max_top_up as u64).saturating_add(1);
+
     // Calculate transfer amounts for accounts with compressible extensions
     for transfer in transfers.iter_mut() {
         if transfer.account.data_len() > light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize {
@@ -78,6 +108,8 @@ fn calculate_and_execute_top_up_transfers(
                                 light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                             )
                             .map_err(|_| CTokenError::InvalidAccountData)?;
+                        // Decrement budget
+                        lamports_budget = lamports_budget.saturating_sub(transfer.amount);
                     }
                 }
             } else {
@@ -93,9 +125,14 @@ fn calculate_and_execute_top_up_transfers(
 
     if transfers[0].amount == 0 && transfers[1].amount == 0 {
         return Ok(());
-    } else {
-        let payer = accounts.get(2).ok_or(ProgramError::NotEnoughAccountKeys)?;
-        multi_transfer_lamports(payer, &transfers).map_err(convert_program_error)?;
     }
+
+    // Check budget wasn't exhausted (0 means exceeded max_top_up)
+    if max_top_up != 0 && lamports_budget == 0 {
+        return Err(CTokenError::MaxTopUpExceeded.into());
+    }
+
+    let payer = accounts.get(2).ok_or(ProgramError::NotEnoughAccountKeys)?;
+    multi_transfer_lamports(payer, &transfers).map_err(convert_program_error)?;
     Ok(())
 }

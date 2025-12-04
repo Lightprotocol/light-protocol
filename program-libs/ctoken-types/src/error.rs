@@ -132,6 +132,9 @@ pub enum CTokenError {
 
     #[error("write_top_up exceeds max_top_up from RentConfig")]
     WriteTopUpExceedsMaximum,
+
+    #[error("Calculated top-up exceeds sender's max_top_up limit")]
+    MaxTopUpExceeded,
 }
 
 impl From<CTokenError> for u32 {
@@ -179,6 +182,7 @@ impl From<CTokenError> for u32 {
             CTokenError::DuplicateMetadataKey => 18040,
             CTokenError::TooManySeeds(_) => 18041,
             CTokenError::WriteTopUpExceedsMaximum => 18042,
+            CTokenError::MaxTopUpExceeded => 18043,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

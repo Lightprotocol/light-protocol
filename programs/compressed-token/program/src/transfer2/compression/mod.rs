@@ -3,8 +3,11 @@ use anchor_lang::prelude::ProgramError;
 use arrayvec::ArrayVec;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::pubkey::AsPubkey;
-use light_ctoken_types::instructions::transfer2::{
-    ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode,
+use light_ctoken_types::{
+    instructions::transfer2::{
+        ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode,
+    },
+    CTokenError,
 };
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
@@ -30,15 +33,21 @@ const SPL_TOKEN_2022_ID: &[u8; 32] = &spl_token_2022::ID.to_bytes();
 const ID: &[u8; 32] = &LIGHT_CPI_SIGNER.program_id;
 
 /// Process native compressions/decompressions with token accounts
+///
+/// # Arguments
+/// * `max_top_up` - Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
 #[profile]
 pub fn process_token_compression(
     fee_payer: &AccountInfo,
     inputs: &ZCompressedTokenInstructionDataTransfer2,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     cpi_authority: &AccountInfo,
+    max_top_up: u16,
 ) -> Result<(), ProgramError> {
     if let Some(compressions) = inputs.compressions.as_ref() {
         let mut transfer_map = [0u64; MAX_PACKED_ACCOUNTS];
+        // Initialize budget: +1 allows exact match (total == max_top_up)
+        let mut lamports_budget = (max_top_up as u64).saturating_add(1);
 
         for compression in compressions {
             let account_index = compression.source_or_recipient as usize;
@@ -63,6 +72,7 @@ pub fn process_token_compression(
                     source_or_recipient,
                     packed_accounts,
                     &mut transfer_map[account_index],
+                    &mut lamports_budget,
                 )?,
                 SPL_TOKEN_ID => {
                     spl::process_spl_compressions(
@@ -115,6 +125,10 @@ pub fn process_token_compression(
             .collect::<Result<ArrayVec<Transfer, MAX_PACKED_ACCOUNTS>, ProgramError>>()?;
 
         if !transfers.is_empty() {
+            // Check budget wasn't exhausted (0 means exceeded max_top_up)
+            if max_top_up != 0 && lamports_budget == 0 {
+                return Err(CTokenError::MaxTopUpExceeded.into());
+            }
             multi_transfer_lamports(fee_payer, &transfers).map_err(convert_program_error)?
         }
     }

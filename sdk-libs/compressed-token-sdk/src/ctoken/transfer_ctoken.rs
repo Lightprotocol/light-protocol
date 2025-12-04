@@ -10,6 +10,9 @@ pub struct TransferCtoken {
     pub destination: Pubkey,
     pub amount: u64,
     pub authority: Pubkey,
+    /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
+    /// When set to a non-zero value, includes max_top_up in instruction data
+    pub max_top_up: Option<u16>,
 }
 
 pub struct TransferCtokenAccountInfos<'info> {
@@ -17,6 +20,8 @@ pub struct TransferCtokenAccountInfos<'info> {
     pub destination: AccountInfo<'info>,
     pub amount: u64,
     pub authority: AccountInfo<'info>,
+    /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
+    pub max_top_up: Option<u16>,
 }
 
 impl<'info> TransferCtokenAccountInfos<'info> {
@@ -44,6 +49,7 @@ impl<'info> From<&TransferCtokenAccountInfos<'info>> for TransferCtoken {
             destination: *account_infos.destination.key,
             amount: account_infos.amount,
             authority: *account_infos.authority.key,
+            max_top_up: account_infos.max_top_up,
         }
     }
 }
@@ -60,6 +66,10 @@ impl TransferCtoken {
             data: {
                 let mut data = vec![3u8];
                 data.extend_from_slice(&self.amount.to_le_bytes());
+                // Include max_top_up if set (10-byte format)
+                if let Some(max_top_up) = self.max_top_up {
+                    data.extend_from_slice(&max_top_up.to_le_bytes());
+                }
                 data
             },
         })

@@ -22,6 +22,7 @@ pub fn process_mint_to_ctoken_action(
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     mint: Pubkey,
     transfer_amount: &mut u64,
+    lamports_budget: &mut u64,
 ) -> Result<(), ProgramError> {
     check_authority(
         compressed_mint.base.mint_authority,
@@ -56,7 +57,7 @@ pub fn process_mint_to_ctoken_action(
         packed_accounts,
     );
 
-    compress_or_decompress_ctokens(inputs, transfer_amount)
+    compress_or_decompress_ctokens(inputs, transfer_amount, lamports_budget)
 }
 
 #[profile]

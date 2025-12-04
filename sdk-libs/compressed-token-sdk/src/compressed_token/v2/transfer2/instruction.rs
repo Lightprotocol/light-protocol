@@ -21,6 +21,8 @@ pub struct Transfer2Config {
     pub sol_pool_pda: bool,
     pub sol_decompression_recipient: Option<Pubkey>,
     pub filter_zero_amount_outputs: bool,
+    /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
+    pub max_top_up: u16,
 }
 
 impl Transfer2Config {
@@ -46,6 +48,12 @@ impl Transfer2Config {
 
     pub fn filter_zero_amount_outputs(mut self) -> Self {
         self.filter_zero_amount_outputs = true;
+        self
+    }
+
+    /// Set maximum per-account top-up lamports (0 = no limit)
+    pub fn with_max_top_up(mut self, max_top_up: u16) -> Self {
+        self.max_top_up = max_top_up;
         self
     }
 }
@@ -116,6 +124,7 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
             Some(collected_compressions)
         },
         cpi_context: transfer_config.cpi_context,
+        max_top_up: transfer_config.max_top_up,
     };
 
     // Serialize instruction data

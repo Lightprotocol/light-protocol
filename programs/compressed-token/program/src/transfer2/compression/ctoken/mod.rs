@@ -23,6 +23,7 @@ pub(super) fn process_ctoken_compressions(
     token_account_info: &AccountInfo,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     transfer_amount: &mut u64,
+    lamports_budget: &mut u64,
 ) -> Result<(), anchor_lang::prelude::ProgramError> {
     // Validate compression fields for the given mode
     validate_compression_mode_fields(compression)?;
@@ -35,5 +36,5 @@ pub(super) fn process_ctoken_compressions(
         packed_accounts,
     )?;
 
-    compress_or_decompress_ctokens(compression_inputs, transfer_amount)
+    compress_or_decompress_ctokens(compression_inputs, transfer_amount, lamports_budget)
 }

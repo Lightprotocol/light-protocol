@@ -267,6 +267,7 @@ fn build_compressions_only_instruction(
         out_tlv: None,
         compressions,
         cpi_context: None,
+        max_top_up: 0, // No limit
     };
 
     // Serialize instruction data
