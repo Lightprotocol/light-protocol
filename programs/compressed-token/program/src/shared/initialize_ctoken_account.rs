@@ -154,8 +154,7 @@ fn configure_compressible_extension(
     }
 
     // Validate write_top_up doesn't exceed max_top_up
-    if compressible_config.write_top_up as u64
-        > compressible_config_account.rent_config.max_top_up as u64
+    if compressible_config.write_top_up > compressible_config_account.rent_config.max_top_up as u32
     {
         msg!(
             "write_top_up {} exceeds max_top_up {}",

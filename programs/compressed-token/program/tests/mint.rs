@@ -137,6 +137,7 @@ fn test_rnd_create_compressed_mint_account() {
             actions: vec![], // No actions for basic test
             proof: None,
             cpi_context: None,
+            max_top_up: 0,
         };
 
         // Step 4: Serialize instruction data to test zero-copy

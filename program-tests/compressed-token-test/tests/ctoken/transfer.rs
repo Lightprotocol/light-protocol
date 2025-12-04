@@ -564,7 +564,11 @@ async fn test_ctoken_transfer_max_top_up_exceeded() {
     // Execute transfer expecting failure
     let result = context
         .rpc
-        .create_and_send_transaction(&[transfer_ix], &payer_pubkey, &[&context.payer, &owner_keypair])
+        .create_and_send_transaction(
+            &[transfer_ix],
+            &payer_pubkey,
+            &[&context.payer, &owner_keypair],
+        )
         .await;
 
     // Assert MaxTopUpExceeded (error code 18043)

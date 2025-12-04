@@ -142,7 +142,7 @@ fn process_compressible_extension(
                         light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                     )
                     .map_err(|_| CTokenError::InvalidAccountData)?;
-                // Decrement budget
+
                 *lamports_budget = lamports_budget.saturating_sub(*transfer_amount);
 
                 return Ok(());

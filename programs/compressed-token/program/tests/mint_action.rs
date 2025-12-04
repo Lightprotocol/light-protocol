@@ -185,6 +185,7 @@ fn generate_random_instruction_data(
         compressed_address: rng.gen::<[u8; 32]>(),
         token_pool_bump: rng.gen::<u8>(),
         token_pool_index: rng.gen::<u8>(),
+        max_top_up: rng.gen::<u16>(),
         actions,
         proof: if rng.gen_bool(0.6) {
             Some(random_compressed_proof(rng))
@@ -223,13 +224,11 @@ fn compute_expected_config(data: &MintActionCompressedInstructionData) -> Accoun
         .map(|ctx| ctx.first_set_context || ctx.set_context)
         .unwrap_or(false);
 
-    // 3. has_mint_to_actions
-    let has_mint_to_actions = data.actions.iter().any(|action| {
-        matches!(
-            action,
-            Action::MintToCompressed(_) | Action::MintToCToken(_)
-        )
-    });
+    // 3. has_mint_to_actions (only MintToCompressed needs tokens_out_queue, not MintToCToken)
+    let has_mint_to_actions = data
+        .actions
+        .iter()
+        .any(|action| matches!(action, Action::MintToCompressed(_)));
 
     // 4. create_spl_mint
     let create_spl_mint = data

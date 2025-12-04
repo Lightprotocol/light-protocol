@@ -904,10 +904,9 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
         .value
         .unwrap();
 
-    let compressed_mint: light_ctoken_types::state::CompressedMint = BorshDeserialize::deserialize(
-        &mut compressed_mint_account.data.unwrap().data.as_slice(),
-    )
-    .unwrap();
+    let compressed_mint: light_ctoken_types::state::CompressedMint =
+        BorshDeserialize::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
+            .unwrap();
 
     // Get validity proof
     let rpc_proof_result = rpc

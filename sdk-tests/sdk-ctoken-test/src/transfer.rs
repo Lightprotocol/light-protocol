@@ -34,6 +34,7 @@ pub fn process_transfer_invoke(
         destination: accounts[1].clone(),
         amount: data.amount,
         authority: accounts[2].clone(),
+        max_top_up: None,
     }
     .invoke()?;
 
@@ -73,6 +74,7 @@ pub fn process_transfer_invoke_signed(
         destination: accounts[1].clone(),
         amount: data.amount,
         authority: accounts[2].clone(),
+        max_top_up: None,
     };
 
     // Invoke with PDA signing - the builder handles instruction creation and invoke_signed CPI

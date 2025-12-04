@@ -108,7 +108,7 @@ fn calculate_and_execute_top_up_transfers(
                                 light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                             )
                             .map_err(|_| CTokenError::InvalidAccountData)?;
-                        // Decrement budget
+
                         lamports_budget = lamports_budget.saturating_sub(transfer.amount);
                     }
                 }
