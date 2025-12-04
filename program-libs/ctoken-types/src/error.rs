@@ -129,6 +129,9 @@ pub enum CTokenError {
 
     #[error("Too many PDA seeds. Maximum {0} seeds allowed")]
     TooManySeeds(usize),
+
+    #[error("write_top_up exceeds max_top_up from RentConfig")]
+    WriteTopUpExceedsMaximum,
 }
 
 impl From<CTokenError> for u32 {
@@ -175,6 +178,7 @@ impl From<CTokenError> for u32 {
             CTokenError::TooManyAdditionalMetadata => 18039,
             CTokenError::DuplicateMetadataKey => 18040,
             CTokenError::TooManySeeds(_) => 18041,
+            CTokenError::WriteTopUpExceedsMaximum => 18042,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

@@ -126,7 +126,8 @@ async fn test_create_account_random() {
                 }
             },
             lamports_per_write: if rng.gen_bool(0.5) {
-                Some(rng.gen_range(0..=u16::MAX as u32))
+                // Limit to max_top_up to avoid WriteTopUpExceedsMaximum error
+                Some(rng.gen_range(0..=RentConfig::default().max_top_up as u32))
             } else {
                 None
             },
@@ -447,7 +448,36 @@ async fn test_create_compressible_token_account_failing() {
         light_program_test::utils::assert::assert_rpc_error(result, 0, 20001).unwrap();
     }
 
-    // Test 7: Wrong account type (correct program owner, wrong discriminator)
+    // Test 7: write_top_up exceeds max_top_up from RentConfig
+    // Accounts cannot be created with lamports_per_write > max_top_up.
+    // This protects against griefing attacks where recipient creates account with excessive top-up.
+    // Error: 18042 (WriteTopUpExceedsMaximum from CTokenError)
+    {
+        context.token_account_keypair = Keypair::new();
+
+        // Default max_top_up is 6208, so use 6209 to exceed it
+        let excessive_lamports_per_write = RentConfig::default().max_top_up as u32 + 1;
+
+        let compressible_data = CompressibleData {
+            compression_authority: context.compression_authority,
+            rent_sponsor: context.rent_sponsor,
+            num_prepaid_epochs: 2,
+            lamports_per_write: Some(excessive_lamports_per_write),
+            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            compress_to_pubkey: false,
+            payer: payer_pubkey,
+        };
+
+        create_and_assert_token_account_fails(
+            &mut context,
+            compressible_data,
+            "write_top_up_exceeds_max_top_up",
+            18042, // WriteTopUpExceedsMaximum from CTokenError
+        )
+        .await;
+    }
+
+    // Test 8: Wrong account type (correct program owner, wrong discriminator)
     // Passing an account owned by the registry program but not a CompressibleConfig.
     // Using the protocol config account which has a different discriminator.
     // Error: 2 (InvalidDiscriminator from account-checks)

@@ -29,6 +29,9 @@ pub trait RentConfigTrait {
     /// Get maximum funded epochs
     fn max_funded_epochs(&self) -> u64;
 
+    /// Get maximum top-up amount per write operation
+    fn max_top_up(&self) -> u64;
+
     /// Calculate rent per epoch for a given number of bytes
     #[inline(always)]
     fn rent_curve_per_epoch(&self, num_bytes: u64) -> u64 {
@@ -72,7 +75,9 @@ pub struct RentConfig {
     pub compression_cost: u16,
     pub lamports_per_byte_per_epoch: u8,
     pub max_funded_epochs: u8, // once the account is funded for max_funded_epochs top up per write is not executed
-    pub _padding: [u8; 2],
+    /// Maximum lamports that can be charged per top-up operation.
+    /// Protects against griefing by accounts with high lamports_per_write.
+    pub max_top_up: u16,
 }
 
 impl Default for RentConfig {
@@ -82,7 +87,7 @@ impl Default for RentConfig {
             compression_cost: COMPRESSION_COST + COMPRESSION_INCENTIVE,
             lamports_per_byte_per_epoch: RENT_PER_BYTE,
             max_funded_epochs: 2, // once the account is funded for max_funded_epochs top up per write is not executed
-            _padding: [0; 2],
+            max_top_up: 12416,    // 48h rent for ctoken accounts of size 260 bytes
         }
     }
 }
@@ -106,6 +111,11 @@ impl RentConfigTrait for RentConfig {
     #[inline(always)]
     fn max_funded_epochs(&self) -> u64 {
         self.max_funded_epochs as u64
+    }
+
+    #[inline(always)]
+    fn max_top_up(&self) -> u64 {
+        self.max_top_up as u64
     }
 }
 
@@ -142,6 +152,11 @@ impl RentConfigTrait for ZRentConfig<'_> {
     fn max_funded_epochs(&self) -> u64 {
         self.max_funded_epochs as u64
     }
+
+    #[inline(always)]
+    fn max_top_up(&self) -> u64 {
+        self.max_top_up.into()
+    }
 }
 
 // Implement trait for zero-copy mutable reference
@@ -165,6 +180,11 @@ impl RentConfigTrait for ZRentConfigMut<'_> {
     fn max_funded_epochs(&self) -> u64 {
         self.max_funded_epochs as u64
     }
+
+    #[inline(always)]
+    fn max_top_up(&self) -> u64 {
+        self.max_top_up.into()
+    }
 }
 
 impl ZRentConfigMut<'_> {
@@ -174,6 +194,6 @@ impl ZRentConfigMut<'_> {
         self.compression_cost = config.compression_cost.into();
         self.lamports_per_byte_per_epoch = config.lamports_per_byte_per_epoch;
         self.max_funded_epochs = config.max_funded_epochs;
-        self._padding = config._padding;
+        self.max_top_up = config.max_top_up.into();
     }
 }

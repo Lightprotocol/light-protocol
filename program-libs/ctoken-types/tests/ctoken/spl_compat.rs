@@ -540,7 +540,7 @@ fn test_compressible_extension_partial_eq() {
             compression_cost: 0,
             lamports_per_byte_per_epoch: 0,
             max_funded_epochs: 0,
-            _padding: [0; 2],
+            max_top_up: 0,
         },
     };
 
