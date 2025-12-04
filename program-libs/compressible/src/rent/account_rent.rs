@@ -158,6 +158,28 @@ impl AccountRentState {
 
         available_balance.saturating_sub(lamports_due)
     }
+
+    /// Calculate how many epochs AFTER the current epoch are funded.
+    ///
+    /// # Parameters
+    /// - `config`: Rent configuration (provides compression_cost and rent curve)
+    /// - `rent_exemption_lamports`: Solana's required minimum balance
+    ///
+    /// # Returns
+    /// Number of epochs funded beyond the current epoch (0 if none)
+    #[inline(always)]
+    pub fn epochs_funded_ahead(
+        &self,
+        config: &impl RentConfigTrait,
+        rent_exemption_lamports: u64,
+    ) -> u64 {
+        let available_balance =
+            self.get_available_rent_balance(rent_exemption_lamports, config.compression_cost());
+        let rent_per_epoch = config.rent_curve_per_epoch(self.num_bytes);
+        let total_epochs_fundable = available_balance / rent_per_epoch;
+        let required_epochs = self.get_required_epochs::<true>();
+        total_epochs_fundable.saturating_sub(required_epochs)
+    }
 }
 
 /// Distribution of lamports when closing an account

@@ -123,7 +123,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         .await
         .unwrap();
 
-    let num_prepaid_epochs = 2;
+    let num_prepaid_epochs = 3; // 3 epochs for no top-up: epochs_funded_ahead = 3 - 1 = 2 >= 2
     let lamports_per_write = Some(100);
 
     // Initialize compressible token account
@@ -215,10 +215,11 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
 
     // Calculate transaction fee from the transaction result
     let tx_fee = 10_000; // Standard transaction fee
+                         // With 3 prepaid epochs: compression_cost (11000) + 3 * rent_per_epoch (388) = 12164
     assert_eq!(
         payer_balance_before - payer_balance_after,
-        11_776 + tx_fee,
-        "Payer should have paid exactly 14,830 lamports for additional rent (1 epoch) plus {} tx fee",
+        12_164 + tx_fee,
+        "Payer should have paid 12,164 lamports for additional rent (3 epochs) plus {} tx fee",
         tx_fee
     );
 
