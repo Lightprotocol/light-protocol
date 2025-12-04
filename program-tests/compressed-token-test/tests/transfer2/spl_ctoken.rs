@@ -16,6 +16,7 @@ use light_compressed_token_sdk::{
     ValidityProof,
 };
 use light_ctoken_types::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
+use light_program_test::utils::assert::assert_rpc_error;
 pub use light_program_test::{LightProgramTest, ProgramTestConfig};
 pub use light_test_utils::{
     airdrop_lamports,
@@ -205,7 +206,7 @@ async fn test_spl_to_ctoken_transfer() {
 }
 
 #[tokio::test]
-async fn test_ctoken_to_spl_with_compress_and_close() {
+async fn test_failing_ctoken_to_spl_with_compress_and_close() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new(true, None))
         .await
         .unwrap();
@@ -312,54 +313,10 @@ async fn test_ctoken_to_spl_with_compress_and_close() {
     .unwrap();
 
     // Execute transaction
-    rpc.create_and_send_transaction(&[transfer_ix], &payer.pubkey(), &[&payer, &recipient])
-        .await
-        .unwrap();
-
-    // Verify final balances
-    {
-        // Verify SPL token balance is restored
-        let spl_account_data = rpc
-            .get_account(spl_token_account_keypair.pubkey())
-            .await
-            .unwrap()
-            .unwrap();
-        let spl_account = spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&spl_account_data.data)
-            .map_err(|e| {
-                RpcError::AssertRpcError(format!("Failed to parse SPL token account: {}", e))
-            })
-            .unwrap();
-        let restored_spl_balance: u64 = spl_account.amount.into();
-        assert_eq!(
-            restored_spl_balance, amount,
-            "SPL token balance should be restored to original amount"
-        );
-    }
-
-    {
-        // Verify CToken account is CLOSED (not just balance = 0)
-        let ctoken_account_result = rpc.get_account(associated_token_account).await.unwrap();
-        match ctoken_account_result {
-            None => {
-                println!("✓ CToken account successfully closed (account does not exist)");
-            }
-            Some(account_data) => {
-                assert_eq!(
-                    account_data.data.len(),
-                    0,
-                    "CToken account data should be empty after CompressAndClose"
-                );
-                assert_eq!(
-                    account_data.lamports, 0,
-                    "CToken account lamports should be 0 after CompressAndClose"
-                );
-                println!("✓ CToken account successfully closed (zeroed out)");
-            }
-        }
-    }
-
-    println!("✓ Successfully completed CToken -> SPL transfer with CompressAndClose");
-    println!("  This validates owner can use CompressAndClose without explicit compressed_token_account validation");
+    let result = rpc
+        .create_and_send_transaction(&[transfer_ix], &payer.pubkey(), &[&payer, &recipient])
+        .await;
+    assert_rpc_error(result, 0, 3).unwrap();
 }
 
 pub struct CtokenToSplTransferAndClose {
