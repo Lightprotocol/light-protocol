@@ -57,6 +57,8 @@ pub struct MintActionCompressedInstructionData {
     /// Used to check token pool derivation.
     /// Only required if associated spl mint exists and actions contain mint actions.
     pub token_pool_index: u8,
+    /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
+    pub max_top_up: u16,
     pub create_mint: Option<CreateMint>,
     pub actions: Vec<Action>,
     pub proof: Option<CompressedProof>,

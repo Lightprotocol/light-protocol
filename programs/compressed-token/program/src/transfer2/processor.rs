@@ -139,6 +139,7 @@ fn process_no_system_program_cpi(
         inputs,
         &validated_accounts.packed_accounts,
         cpi_authority_pda,
+        inputs.max_top_up.get(),
     )?;
 
     close_for_compress_and_close(compressions.as_slice(), validated_accounts)?;
@@ -208,6 +209,7 @@ fn process_with_system_program_cpi(
             inputs,
             &validated_accounts.packed_accounts,
             system_accounts.cpi_authority_pda,
+            inputs.max_top_up.get(),
         )?;
 
         // Get CPI accounts slice and tree accounts for light-system-program invocation

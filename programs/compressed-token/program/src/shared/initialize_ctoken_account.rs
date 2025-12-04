@@ -3,7 +3,7 @@ use light_account_checks::AccountInfoTrait;
 use light_compressible::{compression_info::ZCompressionInfoMut, config::CompressibleConfig};
 use light_ctoken_types::{
     instructions::extensions::compressible::CompressibleExtensionInstructionData,
-    state::CompressionInfo, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+    state::CompressionInfo, CTokenError, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
@@ -153,6 +153,16 @@ fn configure_compressible_extension(
         compressible_extension.rent_sponsor = compressible_config_account.rent_sponsor.to_bytes();
     }
 
+    // Validate write_top_up doesn't exceed max_top_up
+    if compressible_config.write_top_up > compressible_config_account.rent_config.max_top_up as u32
+    {
+        msg!(
+            "write_top_up {} exceeds max_top_up {}",
+            compressible_config.write_top_up,
+            compressible_config_account.rent_config.max_top_up
+        );
+        return Err(CTokenError::WriteTopUpExceedsMaximum.into());
+    }
     compressible_extension
         .lamports_per_write
         .set(compressible_config.write_top_up);

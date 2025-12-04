@@ -19,7 +19,10 @@ use light_token_client::{
 };
 use serial_test::serial;
 use solana_sdk::{
-    instruction::AccountMeta, signature::Keypair, signer::Signer, transaction::Transaction,
+    instruction::{AccountMeta, Instruction},
+    signature::Keypair,
+    signer::Signer,
+    transaction::Transaction,
 };
 
 /// Functional and Failing tests:
@@ -805,6 +808,164 @@ async fn functional_and_failing_tests() {
         )
         .await;
     }
+}
+
+/// Test that mint_action fails when max_top_up is exceeded during MintToCToken.
+/// Creates a compressible CToken ATA with pre_pay_num_epochs = 0 (no prepaid rent),
+/// which requires rent top-up on any mint write. Setting max_top_up = 1 (too low)
+/// should trigger MaxTopUpExceeded error (18043).
+#[tokio::test]
+#[serial]
+async fn test_mint_to_ctoken_max_top_up_exceeded() {
+    use light_compressed_account::instruction_data::traits::LightInstructionData;
+    use light_compressed_token_sdk::compressed_token::{
+        create_compressed_mint::derive_compressed_mint_address, mint_action::MintActionMetaConfig,
+    };
+    use light_ctoken_types::{
+        instructions::mint_action::{
+            CompressedMintWithContext, MintActionCompressedInstructionData, MintToCTokenAction,
+        },
+        state::TokenDataVersion,
+        COMPRESSED_TOKEN_PROGRAM_ID,
+    };
+
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+
+    let payer = Keypair::new();
+    rpc.airdrop_lamports(&payer.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    let mint_seed = Keypair::new();
+    let mint_authority = Keypair::new();
+    rpc.airdrop_lamports(&mint_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
+    let compressed_mint_address =
+        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (spl_mint_pda, _) = find_spl_mint_address(&mint_seed.pubkey());
+
+    // 1. Create compressed mint
+    light_token_client::actions::create_mint(
+        &mut rpc,
+        &mint_seed,
+        8, // decimals
+        &mint_authority,
+        None, // no freeze authority
+        None, // no metadata
+        &payer,
+    )
+    .await
+    .unwrap();
+
+    // 2. Create compressible CToken ATA with pre_pay_num_epochs = 0 (NO prepaid rent)
+    let recipient = Keypair::new();
+
+    let compressible_params = CompressibleParams {
+        compressible_config: rpc
+            .test_accounts
+            .funding_pool_config
+            .compressible_config_pda,
+        rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+        pre_pay_num_epochs: 0, // NO prepaid epochs - needs top-up immediately
+        lamports_per_write: Some(1000),
+        compress_to_account_pubkey: None,
+        token_account_version: TokenDataVersion::ShaFlat,
+    };
+
+    let create_ata_ix = CreateAssociatedTokenAccount::new(
+        payer.pubkey(),
+        recipient.pubkey(),
+        spl_mint_pda,
+        compressible_params,
+    )
+    .instruction()
+    .unwrap();
+
+    rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
+
+    let ctoken_ata =
+        light_compressed_token_sdk::ctoken::derive_ctoken_ata(&recipient.pubkey(), &spl_mint_pda).0;
+
+    // 3. Build MintToCToken instruction with max_top_up = 1 (too low)
+    // Get current compressed mint state
+    let compressed_mint_account = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap();
+
+    let compressed_mint: light_ctoken_types::state::CompressedMint =
+        BorshDeserialize::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
+            .unwrap();
+
+    // Get validity proof
+    let rpc_proof_result = rpc
+        .get_validity_proof(vec![compressed_mint_account.hash], vec![], None)
+        .await
+        .unwrap()
+        .value;
+
+    let compressed_mint_inputs = CompressedMintWithContext {
+        prove_by_index: rpc_proof_result.accounts[0].root_index.proof_by_index(),
+        leaf_index: compressed_mint_account.leaf_index,
+        root_index: rpc_proof_result.accounts[0]
+            .root_index
+            .root_index()
+            .unwrap_or_default(),
+        address: compressed_mint_address,
+        mint: compressed_mint.try_into().unwrap(),
+    };
+
+    // Build instruction data with max_top_up = 1 (too low to cover rent top-up)
+    let instruction_data =
+        MintActionCompressedInstructionData::new(compressed_mint_inputs, rpc_proof_result.proof.0)
+            .with_mint_to_ctoken(MintToCTokenAction {
+                account_index: 0,
+                amount: 1000u64,
+            })
+            .with_max_top_up(1); // max_top_up = 1 lamport (way too low)
+
+    // Build account metas
+    let config = MintActionMetaConfig::new(
+        payer.pubkey(),
+        mint_authority.pubkey(),
+        rpc_proof_result.accounts[0].tree_info.tree,
+        rpc_proof_result.accounts[0].tree_info.queue,
+        rpc_proof_result.accounts[0].tree_info.queue,
+    )
+    .with_ctoken_accounts(vec![ctoken_ata]);
+
+    let account_metas = config.to_account_metas();
+
+    // Serialize instruction data
+    let data = instruction_data.data().unwrap();
+
+    // Build final instruction
+    let ix = Instruction {
+        program_id: COMPRESSED_TOKEN_PROGRAM_ID.into(),
+        accounts: account_metas,
+        data,
+    };
+
+    // 4. Execute and expect MaxTopUpExceeded (18043)
+    let result = rpc
+        .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer, &mint_authority])
+        .await;
+
+    assert_rpc_error(
+        result, 0, 18043, // CTokenError::MaxTopUpExceeded = 18043
+    )
+    .unwrap();
 }
 
 /// Test that mint_signer must be a signer when creating a compressed mint

@@ -102,6 +102,7 @@ impl<'info> TransferInterface<'info> {
                 destination: self.destination_account.clone(),
                 amount: self.amount,
                 authority: self.authority.clone(),
+                max_top_up: None, // No limit by default
             }
             .invoke(),
 
@@ -171,6 +172,7 @@ impl<'info> TransferInterface<'info> {
                 destination: self.destination_account.clone(),
                 amount: self.amount,
                 authority: self.authority.clone(),
+                max_top_up: None, // No limit by default
             }
             .invoke_signed(signer_seeds),
 

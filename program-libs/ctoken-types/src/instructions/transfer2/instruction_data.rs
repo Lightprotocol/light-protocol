@@ -17,6 +17,8 @@ pub struct CompressedTokenInstructionDataTransfer2 {
     /// Placeholder currently unimplemented.
     pub lamports_change_account_owner_index: u8,
     pub output_queue: u8,
+    /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
+    pub max_top_up: u16,
     pub cpi_context: Option<CompressedCpiContext>,
     pub compressions: Option<Vec<Compression>>,
     pub proof: Option<CompressedProof>,

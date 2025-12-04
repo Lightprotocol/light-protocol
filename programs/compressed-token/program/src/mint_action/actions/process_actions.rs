@@ -7,6 +7,7 @@ use light_ctoken_types::{
     hash_cache::HashCache,
     instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
     state::CompressedMint,
+    CTokenError,
 };
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
@@ -46,6 +47,9 @@ pub fn process_actions<'a>(
 ) -> Result<(), ProgramError> {
     // Array to accumulate transfer amounts by account index
     let mut transfer_map = [0u64; MAX_PACKED_ACCOUNTS];
+    // Initialize budget: +1 allows exact match (total == max_top_up)
+    let max_top_up: u16 = parsed_instruction_data.max_top_up.get();
+    let mut lamports_budget = (max_top_up as u64).saturating_add(1);
 
     // Start metadata authority with same value as mint authority
     for action in parsed_instruction_data.actions.iter() {
@@ -108,6 +112,7 @@ pub fn process_actions<'a>(
                     packed_accounts,
                     parsed_instruction_data.mint.metadata.mint,
                     &mut transfer_map[account_index],
+                    &mut lamports_budget,
                 )?;
             }
             ZAction::UpdateMetadataField(update_metadata_action) => {
@@ -155,6 +160,11 @@ pub fn process_actions<'a>(
 
     // Execute transfers if any exist
     if !transfers.is_empty() {
+        // Check budget wasn't exhausted (0 means exceeded max_top_up)
+        if max_top_up != 0 && lamports_budget == 0 {
+            return Err(CTokenError::MaxTopUpExceeded.into());
+        }
+
         let fee_payer = validated_accounts
             .executing
             .as_ref()

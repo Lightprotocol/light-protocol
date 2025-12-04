@@ -97,6 +97,7 @@ macro_rules! impl_is_compressible {
                 rent_exemption_lamports: u64,
             ) -> Result<u64, CompressibleError> {
                 let lamports_per_write: u32 = self.lamports_per_write.into();
+
                 // Calculate rent status using AccountRentState
                 let state = crate::rent::AccountRentState {
                     num_bytes,

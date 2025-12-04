@@ -33,6 +33,7 @@ impl MintActionCompressedInstructionData {
             compressed_address: mint_with_context.address,
             token_pool_bump: 0,
             token_pool_index: 0,
+            max_top_up: 0, // No limit by default
             create_mint: None,
             actions: Vec::new(),
             proof,
@@ -54,6 +55,7 @@ impl MintActionCompressedInstructionData {
             compressed_address,
             token_pool_bump: 0,
             token_pool_index: 0,
+            max_top_up: 0, // No limit by default
             create_mint: Some(CreateMint::default()),
             actions: Vec::new(),
             proof: Some(proof),
@@ -75,6 +77,7 @@ impl MintActionCompressedInstructionData {
             compressed_address,
             token_pool_bump: 0,
             token_pool_index: 0,
+            max_top_up: 0, // No limit by default
             create_mint: Some(CreateMint::default()),
             actions: Vec::new(),
             proof: None, // Proof is verified with execution not write
@@ -128,6 +131,12 @@ impl MintActionCompressedInstructionData {
     #[must_use = "with_cpi_context returns a new value"]
     pub fn with_cpi_context(mut self, cpi_context: CpiContext) -> Self {
         self.cpi_context = Some(cpi_context);
+        self
+    }
+
+    #[must_use = "with_max_top_up returns a new value"]
+    pub fn with_max_top_up(mut self, max_top_up: u16) -> Self {
+        self.max_top_up = max_top_up;
         self
     }
 

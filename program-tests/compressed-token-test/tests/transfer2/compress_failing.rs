@@ -585,3 +585,132 @@ async fn test_compression_recipient_out_of_bounds() -> Result<(), RpcError> {
 
     Ok(())
 }
+
+/// Test that transfer2 compression fails when max_top_up is exceeded.
+/// Creates a compressible CToken ATA with pre_pay_num_epochs = 0 (no prepaid rent),
+/// which requires rent top-up on any compression write. Setting max_top_up = 1 (too low)
+/// should trigger MaxTopUpExceeded error (18043).
+#[tokio::test]
+async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Create owner and airdrop lamports
+    let owner = Keypair::new();
+    rpc.airdrop_lamports(&owner.pubkey(), 1_000_000_000).await?;
+
+    // Create mint authority
+    let mint_authority = Keypair::new();
+    rpc.airdrop_lamports(&mint_authority.pubkey(), 1_000_000_000)
+        .await?;
+
+    // Create compressed mint seed
+    let mint_seed = Keypair::new();
+
+    // Derive mint and ATA addresses
+    let (mint, _) = find_spl_mint_address(&mint_seed.pubkey());
+    let (ctoken_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
+
+    // Create compressible CToken ATA with pre_pay_num_epochs = 0 (NO prepaid rent)
+    // This means any write operation will require immediate rent top-up
+    let compressible_params = CompressibleParams {
+        compressible_config: rpc
+            .test_accounts
+            .funding_pool_config
+            .compressible_config_pda,
+        rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+        pre_pay_num_epochs: 0, // NO prepaid epochs - needs top-up immediately
+        lamports_per_write: Some(1000),
+        compress_to_account_pubkey: None,
+        token_account_version: TokenDataVersion::ShaFlat,
+    };
+
+    let create_ata_instruction = CreateAssociatedTokenAccount::new(
+        payer.pubkey(),
+        owner.pubkey(),
+        mint,
+        compressible_params,
+    )
+    .instruction()
+    .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA: {:?}", e)))?;
+
+    rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
+        .await?;
+
+    // Create mint and mint tokens to decompressed CToken ATA
+    let token_amount = 1000u64;
+    let decompressed_recipients = vec![Recipient::new(owner.pubkey(), token_amount)];
+
+    light_token_client::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        vec![],                  // no compressed recipients
+        decompressed_recipients, // mint to decompressed CToken ATA
+        None,
+        None,
+        Some(light_token_client::instructions::mint_action::NewMint {
+            decimals: 6,
+            supply: 0,
+            mint_authority: mint_authority.pubkey(),
+            freeze_authority: None,
+            metadata: None,
+            version: 3, // ShaFlat for compressible accounts
+        }),
+    )
+    .await?;
+
+    // Get output queue for compression
+    let output_queue = rpc
+        .get_random_state_tree_info()
+        .unwrap()
+        .get_output_pubkey()
+        .unwrap();
+
+    // Warp forward to a new epoch so that lamports_per_write is charged
+    use light_program_test::program_test::TestRpc;
+    rpc.warp_to_slot(500_000)?;
+
+    // Build compression Transfer2Inputs with max_top_up = 1 (way too low)
+    let mut packed_accounts = PackedAccounts::default();
+    packed_accounts.insert_or_get(output_queue);
+
+    let mint_index = packed_accounts.insert_or_get_read_only(mint);
+    let authority_index = packed_accounts.insert_or_get_config(owner.pubkey(), true, false);
+    let recipient_index = packed_accounts.insert_or_get_read_only(owner.pubkey());
+    let ctoken_ata_index = packed_accounts.insert_or_get_config(ctoken_ata, false, true);
+
+    let mut compression_account = CTokenAccount2::new_empty(recipient_index, mint_index);
+    compression_account
+        .compress_ctoken(token_amount, ctoken_ata_index, authority_index)
+        .map_err(|e| RpcError::AssertRpcError(format!("Failed to compress: {:?}", e)))?;
+
+    let (account_metas, _, _) = packed_accounts.to_account_metas();
+
+    let compression_inputs = Transfer2Inputs {
+        token_accounts: vec![compression_account],
+        validity_proof: ValidityProof::default(),
+        transfer_config: Transfer2Config::default()
+            .filter_zero_amount_outputs()
+            .with_max_top_up(1), // max_top_up = 1 lamport (way too low)
+        meta_config: Transfer2AccountsMetaConfig::new(payer.pubkey(), account_metas),
+        in_lamports: None,
+        out_lamports: None,
+        output_queue: 0,
+    };
+
+    // Create instruction
+    let ix = create_transfer2_instruction(compression_inputs)
+        .map_err(|e| RpcError::AssertRpcError(format!("Failed to create instruction: {:?}", e)))?;
+
+    // Send transaction
+    let result = rpc
+        .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer, &owner])
+        .await;
+
+    // Should fail with MaxTopUpExceeded (18043)
+    light_program_test::utils::assert::assert_rpc_error(result, 0, 18043).unwrap();
+
+    Ok(())
+}

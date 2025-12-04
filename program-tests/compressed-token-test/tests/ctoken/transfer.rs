@@ -124,6 +124,35 @@ fn build_transfer_instruction(
     }
 }
 
+/// Build a ctoken transfer instruction with max_top_up parameter
+fn build_transfer_instruction_with_max_top_up(
+    source: Pubkey,
+    destination: Pubkey,
+    amount: u64,
+    authority: Pubkey,
+    max_top_up: u16,
+) -> solana_sdk::instruction::Instruction {
+    use anchor_lang::prelude::AccountMeta;
+    use solana_sdk::instruction::Instruction;
+
+    // Build instruction data: discriminator (3) + amount (8 bytes) + max_top_up (2 bytes)
+    let mut data = vec![3]; // CTokenTransfer discriminator
+    data.extend_from_slice(&amount.to_le_bytes()); // Amount as u64 little-endian
+    data.extend_from_slice(&max_top_up.to_le_bytes()); // max_top_up as u16 little-endian
+
+    // Build instruction
+    Instruction {
+        program_id: light_compressed_token::ID,
+        accounts: vec![
+            AccountMeta::new(source, false),
+            AccountMeta::new(destination, false),
+            AccountMeta::new(authority, true), // Authority must sign (also acts as payer for top-ups)
+            AccountMeta::new_readonly(Pubkey::default(), false), // System program for lamport transfers during top-up
+        ],
+        data,
+    }
+}
+
 /// Execute a ctoken transfer and assert success
 async fn transfer_and_assert(
     context: &mut AccountTestContext,
@@ -499,4 +528,51 @@ async fn test_ctoken_transfer_mixed_compressible_non_compressible() {
         "mixed_compressible_source",
     )
     .await;
+}
+
+// ============================================================================
+// max_top_up Tests
+// ============================================================================
+
+/// Test that ctoken_transfer fails when max_top_up is exceeded.
+/// Creates compressible accounts with num_prepaid_epochs = 0 (no prepaid rent),
+/// which requires rent top-up on every write. Setting max_top_up = 1 (too low)
+/// should trigger MaxTopUpExceeded error (18043).
+#[tokio::test]
+async fn test_ctoken_transfer_max_top_up_exceeded() {
+    // Create compressible accounts with num_prepaid_epochs = 0 (needs top-up immediately)
+    let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_test(Some(0), 1000).await.unwrap();
+
+    // Fund owner to pay for potential top-up
+    context
+        .rpc
+        .airdrop_lamports(&context.owner_keypair.pubkey(), 100_000_000)
+        .await
+        .unwrap();
+
+    let owner_keypair = context.owner_keypair.insecure_clone();
+    let payer_pubkey = context.payer.pubkey();
+
+    // Build transfer instruction with max_top_up = 1 (too low to cover rent top-up)
+    let transfer_ix = build_transfer_instruction_with_max_top_up(
+        source,
+        destination,
+        100,
+        owner_keypair.pubkey(),
+        1, // max_top_up = 1 lamport (way too low for any rent top-up)
+    );
+
+    // Execute transfer expecting failure
+    let result = context
+        .rpc
+        .create_and_send_transaction(
+            &[transfer_ix],
+            &payer_pubkey,
+            &[&context.payer, &owner_keypair],
+        )
+        .await;
+
+    // Assert MaxTopUpExceeded (error code 18043)
+    light_program_test::utils::assert::assert_rpc_error(result, 0, 18043).unwrap();
 }

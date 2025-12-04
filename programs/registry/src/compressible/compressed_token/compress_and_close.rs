@@ -136,6 +136,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         out_tlv: None,
         compressions: Some(compressions),
         cpi_context: None,
+        max_top_up: 0,
     };
 
     // Serialize instruction data
