@@ -25,8 +25,9 @@ import {
 import {
     AccountInterface,
     getATAInterface,
+    getAssociatedTokenAddressInterface,
+    AssociatedTokenAddressInterface,
 } from '../mint/get-account-interface';
-import { getATAAddressInterface } from '../mint/actions/create-ata-interface';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../mint/instructions/create-associated-ctoken';
 import { createWrapInstruction } from '../mint/instructions/wrap';
 import { createDecompress2Instruction } from '../mint/instructions/decompress2';
@@ -149,7 +150,10 @@ export async function createLoadATAInstructionsFromInterface(
     const sources = ata._sources ?? [];
 
     // Derive addresses
-    const ctokenAta = getATAAddressInterface(mint, owner);
+    const ctokenAtaAddress = getAssociatedTokenAddressInterface(
+        mint,
+        owner,
+    ).address;
     const splAta = getAssociatedTokenAddressSync(
         mint,
         owner,
@@ -189,7 +193,7 @@ export async function createLoadATAInstructionsFromInterface(
         instructions.push(
             createAssociatedTokenAccountInterfaceIdempotentInstruction(
                 payer,
-                ctokenAta,
+                ctokenAtaAddress,
                 owner,
                 mint,
                 CTOKEN_PROGRAM_ID,
@@ -209,7 +213,7 @@ export async function createLoadATAInstructionsFromInterface(
         instructions.push(
             createWrapInstruction(
                 splAta,
-                ctokenAta,
+                ctokenAtaAddress,
                 owner,
                 mint,
                 splBalance,
@@ -224,7 +228,7 @@ export async function createLoadATAInstructionsFromInterface(
         instructions.push(
             createWrapInstruction(
                 t22Ata,
-                ctokenAta,
+                ctokenAtaAddress,
                 owner,
                 mint,
                 t22Balance,
@@ -256,7 +260,7 @@ export async function createLoadATAInstructionsFromInterface(
                 createDecompress2Instruction(
                     payer,
                     compressedAccounts,
-                    ctokenAta,
+                    ctokenAtaAddress,
                     coldBalance,
                     proof.compressedProof,
                     proof.rootIndices,
@@ -279,27 +283,24 @@ export async function createLoadATAInstructionsFromInterface(
  *
  * @param rpc     RPC connection
  * @param payer   Fee payer
- * @param ata     CToken ATA address (from getATAAddressInterface)
- * @param owner   ATA owner
- * @param mint    Token mint
+ * @param ata     AssociatedTokenAddressInterface (from getAssociatedTokenAddressInterface)
  * @param options Optional load options
  * @returns       Array of instructions (empty if nothing to load)
  *
  * @example
  * ```typescript
- * const ata = getATAAddressInterface(mint, sender);
- * const instructions = await createLoadATAInstructions(rpc, payer, ata, sender, mint);
+ * const ata = getAssociatedTokenAddressInterface(mint, sender);
+ * const instructions = await createLoadATAInstructions(rpc, payer, ata);
  * ```
  */
 export async function createLoadATAInstructions(
     rpc: Rpc,
-    payer: PublicKey,
-    ata: PublicKey,
-    owner: PublicKey,
-    mint: PublicKey,
+    ata: AssociatedTokenAddressInterface,
+    payer?: PublicKey,
     options?: InterfaceOptions,
 ): Promise<TransactionInstruction[]> {
-    const ataInterface = await getATAInterface(rpc, owner, mint);
+    payer ??= ata.owner;
+    const ataInterface = await getATAInterface(rpc, ata);
     return createLoadATAInstructionsFromInterface(
         rpc,
         payer,
@@ -318,37 +319,41 @@ export async function createLoadATAInstructions(
  *
  * Idempotent: returns null if nothing to load.
  *
- * @param rpc             RPC connection
- * @param payer           Fee payer (signer)
- * @param ata             CToken ATA address (from getATAAddressInterface)
- * @param owner           Owner of the tokens (signer)
- * @param mint            Mint address
- * @param confirmOptions  Optional confirm options
- * @param options         Optional interface options
+ * @param rpc               RPC connection
+ * @param payer             Fee payer (signer)
+ * @param ata               AssociatedTokenAddressInterface
+ * @param owner             Owner of the tokens (signer)
+ * @param confirmOptions    Optional confirm options
+ * @param interfaceOptions  Optional interface options
  * @returns Transaction signature, or null if nothing to load
  *
  * @example
  * ```typescript
- * const ata = getATAAddressInterface(mint, sender);
- * const signature = await loadATA(rpc, payer, ata, sender, mint);
+ * const ata = getAssociatedTokenAddressInterface(mint, sender);
+ * const signature = await loadATA(rpc, payer, ata, owner);
  * ```
  */
 export async function loadATA(
     rpc: Rpc,
-    payer: Signer,
-    ata: PublicKey,
     owner: Signer,
-    mint: PublicKey,
+    ata: AssociatedTokenAddressInterface,
+    payer?: Signer,
     confirmOptions?: ConfirmOptions,
-    options?: InterfaceOptions,
+    interfaceOptions?: InterfaceOptions,
 ): Promise<TransactionSignature | null> {
+    if (!owner.publicKey.equals(ata.owner)) {
+        throw new Error(
+            `Owner mismatch: provided owner ${owner.publicKey.toBase58()} does not match ata.owner ${ata.owner.toBase58()}`,
+        );
+    }
+
+    payer ??= owner;
+
     const ixs = await createLoadATAInstructions(
         rpc,
-        payer.publicKey,
         ata,
-        owner.publicKey,
-        mint,
-        options,
+        payer.publicKey,
+        interfaceOptions,
     );
 
     if (ixs.length === 0) {
@@ -390,8 +395,10 @@ export async function loadATA(
  * @example
  * ```typescript
  * const poolInfo = await myProgram.fetchPoolState(rpc, poolAddress);
- * const vault0Info = await getATAInterface(rpc, poolAddress, token0Mint, undefined, CTOKEN_PROGRAM_ID);
- * const userAta = await getATAInterface(rpc, userWallet, tokenMint);
+ * const vault0Ata = getAssociatedTokenAddressInterface(token0Mint, poolAddress);
+ * const vault0Info = await getATAInterface(rpc, vault0Ata, undefined, CTOKEN_PROGRAM_ID);
+ * const userAta = getAssociatedTokenAddressInterface(tokenMint, userWallet);
+ * const userAtaInfo = await getATAInterface(rpc, userAta);
  *
  * const result = await createLoadAccountsParams(
  *     rpc,

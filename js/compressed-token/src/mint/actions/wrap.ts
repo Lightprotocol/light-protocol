@@ -52,13 +52,13 @@ export interface WrapResult {
  *
  * @example
  * const splAta = getAssociatedTokenAddressSync(mint, owner.publicKey, false, TOKEN_PROGRAM_ID);
- * const ctokenAta = getATAAddressInterface(mint, owner.publicKey); // defaults to CToken
+ * const ctokenAta = getAssociatedTokenAddressInterface(mint, owner.publicKey); // defaults to CToken
  *
  * await wrap(
  *   rpc,
  *   payer,
  *   splAta,
- *   ctokenAta,
+ *   ctokenAta.address,
  *   owner,
  *   mint,
  *   1000n,

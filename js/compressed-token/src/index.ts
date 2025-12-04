@@ -49,7 +49,7 @@ export {
     createMintInterface,
     createATAInterface,
     createATAInterfaceIdempotent,
-    getATAAddressInterface,
+    getAssociatedTokenAddressInterface,
     getOrCreateATAInterface,
     transferInterface,
     decompress2,

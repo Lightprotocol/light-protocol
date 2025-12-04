@@ -37,10 +37,8 @@ import {
 } from '../../src/utils/get-token-pool-infos';
 import { createWrapInstruction } from '../../src/mint/instructions/wrap';
 import { wrap } from '../../src/mint/actions/wrap';
-import {
-    getATAAddressInterface,
-    createATAInterfaceIdempotent,
-} from '../../src/mint/actions/create-ata-interface';
+import { getAssociatedTokenAddressInterface } from '../../src/mint/get-account-interface';
+import { createATAInterfaceIdempotent } from '../../src/mint/actions/create-ata-interface';
 
 // Force V2 for CToken tests
 featureFlags.version = VERSION.V2;
@@ -86,14 +84,17 @@ describe('createWrapInstruction', () => {
             false,
             TOKEN_PROGRAM_ID,
         );
-        const destination = getATAAddressInterface(mint, owner.publicKey);
+        const destination = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
 
         const tokenPoolInfo = tokenPoolInfos.find(info => info.isInitialized);
         expect(tokenPoolInfo).toBeDefined();
 
         const ix = createWrapInstruction(
             source,
-            destination,
+            destination.address,
             owner.publicKey,
             mint,
             BigInt(1000),
@@ -115,13 +116,16 @@ describe('createWrapInstruction', () => {
             false,
             TOKEN_PROGRAM_ID,
         );
-        const destination = getATAAddressInterface(mint, owner.publicKey);
+        const destination = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
 
         const tokenPoolInfo = tokenPoolInfos.find(info => info.isInitialized);
 
         const ix = createWrapInstruction(
             source,
-            destination,
+            destination.address,
             owner.publicKey,
             mint,
             BigInt(500),
@@ -145,13 +149,16 @@ describe('createWrapInstruction', () => {
             false,
             TOKEN_PROGRAM_ID,
         );
-        const destination = getATAAddressInterface(mint, owner.publicKey);
+        const destination = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
 
         const tokenPoolInfo = tokenPoolInfos.find(info => info.isInitialized);
 
         const ix = createWrapInstruction(
             source,
-            destination,
+            destination.address,
             owner.publicKey,
             mint,
             BigInt(100),
@@ -234,7 +241,10 @@ describe('wrap action', () => {
         );
 
         // Create CToken ATA
-        const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
         await createATAInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
 
         // Check initial balances
@@ -249,7 +259,7 @@ describe('wrap action', () => {
             rpc,
             payer,
             splAta,
-            ctokenAta,
+            ctokenAta.address,
             owner,
             mint,
             BigInt(500),
@@ -262,7 +272,10 @@ describe('wrap action', () => {
         const splBalanceAfter = await getAccount(rpc, splAta);
         expect(splBalanceAfter.amount).toBe(BigInt(500));
 
-        const ctokenBalanceAfter = await getCTokenBalance(rpc, ctokenAta);
+        const ctokenBalanceAfter = await getCTokenBalance(
+            rpc,
+            ctokenAta.address,
+        );
         expect(ctokenBalanceAfter).toBe(BigInt(500));
     }, 60_000);
 
@@ -300,7 +313,10 @@ describe('wrap action', () => {
         );
 
         // Create CToken ATA
-        const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
         await createATAInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
 
         // Wrap full balance
@@ -311,7 +327,7 @@ describe('wrap action', () => {
             rpc,
             payer,
             splAta,
-            ctokenAta,
+            ctokenAta.address,
             owner,
             mint,
             BigInt(500), // full balance
@@ -325,7 +341,10 @@ describe('wrap action', () => {
         expect(splBalanceAfter.amount).toBe(BigInt(0));
 
         // CToken should have full balance
-        const ctokenBalanceAfter = await getCTokenBalance(rpc, ctokenAta);
+        const ctokenBalanceAfter = await getCTokenBalance(
+            rpc,
+            ctokenAta.address,
+        );
         expect(ctokenBalanceAfter).toBe(BigInt(500));
     }, 60_000);
 
@@ -362,7 +381,10 @@ describe('wrap action', () => {
             selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(200)),
         );
 
-        const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
         await createATAInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
 
         // Wrap without providing tokenPoolInfo - should fetch automatically
@@ -370,7 +392,7 @@ describe('wrap action', () => {
             rpc,
             payer,
             splAta,
-            ctokenAta,
+            ctokenAta.address,
             owner,
             mint,
             BigInt(100),
@@ -379,7 +401,7 @@ describe('wrap action', () => {
 
         expect(result.transactionSignature).toBeDefined();
 
-        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
+        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta.address);
         expect(ctokenBalance).toBe(BigInt(100));
     }, 60_000);
 
@@ -430,7 +452,10 @@ describe('wrap action', () => {
             selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(300)),
         );
 
-        const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
         await createATAInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
 
         // Wrap with separate payer
@@ -441,7 +466,7 @@ describe('wrap action', () => {
             rpc,
             separatePayer, // Different from owner
             splAta,
-            ctokenAta,
+            ctokenAta.address,
             owner, // Owner still signs for the source account
             mint,
             BigInt(150),
@@ -450,7 +475,7 @@ describe('wrap action', () => {
 
         expect(result.transactionSignature).toBeDefined();
 
-        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
+        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta.address);
         expect(ctokenBalance).toBe(BigInt(150));
     }, 60_000);
 });
@@ -490,14 +515,17 @@ describe('wrap with non-ATA accounts', () => {
 
         // Explicitly derive ATAs
         // Note: SPL ATAs use getAssociatedTokenAddressSync
-        // CToken ATAs use getATAAddressInterface (which defaults to CToken program)
+        // CToken ATAs use getAssociatedTokenAddressInterface (which defaults to CToken program)
         const source = getAssociatedTokenAddressSync(
             mint,
             owner.publicKey,
             false,
             TOKEN_PROGRAM_ID,
         );
-        const destination = getATAAddressInterface(mint, owner.publicKey);
+        const destination = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
 
         // Setup: Create both ATAs and fund source
         await createAssociatedTokenAccount(rpc, payer, mint, owner.publicKey);
@@ -533,7 +561,7 @@ describe('wrap with non-ATA accounts', () => {
             rpc,
             payer,
             source,
-            destination,
+            destination.address,
             owner,
             mint,
             BigInt(200),
@@ -542,7 +570,7 @@ describe('wrap with non-ATA accounts', () => {
 
         expect(result.transactionSignature).toBeDefined();
 
-        const destBalance = await getCTokenBalance(rpc, destination);
+        const destBalance = await getCTokenBalance(rpc, destination.address);
         expect(destBalance).toBe(BigInt(200));
     }, 60_000);
 });

@@ -26,7 +26,7 @@ import {
     createCTokenTransferInstruction,
 } from '../instructions/transfer-interface';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-associated-ctoken';
-import { getATAAddressInterface } from './create-ata-interface';
+import { getAssociatedTokenAddressInterface } from '../get-account-interface';
 import {
     getTokenPoolInfos,
     TokenPoolInfo,
@@ -153,14 +153,20 @@ export async function transferInterface(
     }
 
     // CToken transfer
-    const expectedSource = getATAAddressInterface(mint, owner.publicKey);
-    if (!source.equals(expectedSource)) {
+    const expectedSource = getAssociatedTokenAddressInterface(
+        mint,
+        owner.publicKey,
+    );
+    if (!source.equals(expectedSource.address)) {
         throw new Error(
-            `Source mismatch. Expected ${expectedSource.toBase58()}, got ${source.toBase58()}`,
+            `Source mismatch. Expected ${expectedSource.address.toBase58()}, got ${source.toBase58()}`,
         );
     }
 
-    const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
+    const ctokenAtaAddress = getAssociatedTokenAddressInterface(
+        mint,
+        owner.publicKey,
+    ).address;
 
     // Derive ATAs for all token programs (sender only)
     const splAta = getAssociatedTokenAddressSync(
@@ -181,7 +187,7 @@ export async function transferInterface(
     // Fetch sender's accounts in parallel
     const [ctokenAtaInfo, splAtaInfo, t22AtaInfo, compressedResult] =
         await Promise.all([
-            rpc.getAccountInfo(ctokenAta),
+            rpc.getAccountInfo(ctokenAtaAddress),
             rpc.getAccountInfo(splAta),
             rpc.getAccountInfo(t22Ata),
             rpc.getCompressedTokenAccountsByOwner(owner.publicKey, { mint }),
@@ -226,7 +232,7 @@ export async function transferInterface(
         instructions.push(
             createAssociatedTokenAccountInterfaceIdempotentInstruction(
                 payer.publicKey,
-                ctokenAta,
+                ctokenAtaAddress,
                 owner.publicKey,
                 mint,
                 CTOKEN_PROGRAM_ID,
@@ -249,7 +255,7 @@ export async function transferInterface(
         instructions.push(
             createWrapInstruction(
                 splAta,
-                ctokenAta,
+                ctokenAtaAddress,
                 owner.publicKey,
                 mint,
                 splBalance,
@@ -265,7 +271,7 @@ export async function transferInterface(
         instructions.push(
             createWrapInstruction(
                 t22Ata,
-                ctokenAta,
+                ctokenAtaAddress,
                 owner.publicKey,
                 mint,
                 t22Balance,
@@ -293,7 +299,7 @@ export async function transferInterface(
             createDecompress2Instruction(
                 payer.publicKey,
                 compressedAccounts,
-                ctokenAta,
+                ctokenAtaAddress,
                 compressedBalance,
                 proof.compressedProof,
                 proof.rootIndices,

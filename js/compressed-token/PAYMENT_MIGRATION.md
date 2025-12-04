@@ -80,51 +80,26 @@ const tx = new Transaction().add(
 );
 ```
 
-### CToken (sender already hot)
-
-```typescript
-import {
-    getAtaAddressInterface,
-    createAtaInterfaceIdempotentInstruction,
-    createTransferInterfaceInstruction,
-    CTOKEN_PROGRAM_ID,
-} from '@lightprotocol/compressed-token';
-
-const sourceAta = getAtaAddressInterface(mint, sender);
-const recipientAta = getAtaAddressInterface(mint, recipient);
-
-const tx = new Transaction().add(
-    createAtaInterfaceIdempotentInstruction(
-        payer,
-        recipientAta,
-        recipient,
-        mint,
-        CTOKEN_PROGRAM_ID,
-    ),
-    createTransferInterfaceInstruction(sourceAta, recipientAta, sender, amount),
-);
-```
-
-### CToken (sender may be cold - needs loading)
+### With Interface
 
 ```typescript
 import {
     createLoadAtaInstructions,
-    getAtaAddressInterface,
+    getAssociatedTokenAddressInterface,
     createAtaInterfaceIdempotentInstruction,
     createTransferInterfaceInstruction,
     CTOKEN_PROGRAM_ID,
 } from '@lightprotocol/compressed-token';
 
-// 1. Derive addresses
-const sourceAta = getAtaAddressInterface(mint, sender);
-const recipientAta = getAtaAddressInterface(mint, recipient);
+// 1. Derive addresses (returns { address, mint, owner })
+const sourceAta = getAssociatedTokenAddressInterface(mint, sender);
+const recipientAta = getAssociatedTokenAddressInterface(mint, recipient);
 
 // 2. Build load instructions (empty if already hot)
 const loadIxs = await createLoadAtaInstructions(
     rpc,
     payer,
-    sourceAta,
+    sourceAta.address,
     sender,
     mint,
 );
@@ -134,12 +109,17 @@ const tx = new Transaction().add(
     ...loadIxs, // Load sender if cold (wrap SPL/T22, decompress)
     createAtaInterfaceIdempotentInstruction(
         payer,
-        recipientAta,
+        recipientAta.address,
         recipient,
         mint,
         CTOKEN_PROGRAM_ID,
     ),
-    createTransferInterfaceInstruction(sourceAta, recipientAta, sender, amount),
+    createTransferInterfaceInstruction(
+        sourceAta.address,
+        recipientAta.address,
+        sender,
+        amount,
+    ),
 );
 ```
 
@@ -149,7 +129,7 @@ const tx = new Transaction().add(
 import {
     getAtaInterface,
     createLoadAtaInstructionsFromInterface,
-    getAtaAddressInterface,
+    getAssociatedTokenAddressInterface,
     createAtaInterfaceIdempotentInstruction,
     createTransferInterfaceInstruction,
     CTOKEN_PROGRAM_ID,
@@ -165,21 +145,26 @@ const loadIxs = await createLoadAtaInstructionsFromInterface(
     senderAtaInfo,
 );
 
-// 3. Derive addresses
-const sourceAta = getAtaAddressInterface(mint, sender);
-const recipientAta = getAtaAddressInterface(mint, recipient);
+// 3. Derive addresses (returns { address, mint, owner })
+const sourceAta = getAssociatedTokenAddressInterface(mint, sender);
+const recipientAta = getAssociatedTokenAddressInterface(mint, recipient);
 
 // 4. Build transaction
 const tx = new Transaction().add(
     ...loadIxs,
     createAtaInterfaceIdempotentInstruction(
         payer,
-        recipientAta,
+        recipientAta.address,
         recipient,
         mint,
         CTOKEN_PROGRAM_ID,
     ),
-    createTransferInterfaceInstruction(sourceAta, recipientAta, sender, amount),
+    createTransferInterfaceInstruction(
+        sourceAta.address,
+        recipientAta.address,
+        sender,
+        amount,
+    ),
 );
 ```
 
@@ -189,7 +174,7 @@ const tx = new Transaction().add(
 
 | SPL Token                                           | CToken                                                            |
 | --------------------------------------------------- | ----------------------------------------------------------------- |
-| `getAssociatedTokenAddressSync`                     | `getAtaAddressInterface`                                          |
+| `getAssociatedTokenAddressSync`                     | `getAssociatedTokenAddressInterface`                              |
 | `createAssociatedTokenAccountIdempotentInstruction` | `createAtaInterfaceIdempotentInstruction`                         |
 | `createTransferInstruction`                         | `createTransferInterfaceInstruction`                              |
 | N/A                                                 | `createLoadAtaInstructions` (fetch + build)                       |

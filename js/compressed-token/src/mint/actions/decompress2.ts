@@ -16,7 +16,7 @@ import {
 import BN from 'bn.js';
 import { createDecompress2Instruction } from '../instructions/decompress2';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-associated-ctoken';
-import { getATAAddressInterface } from './create-ata-interface';
+import { getAssociatedTokenAddressInterface } from '../get-account-interface';
 import { CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 
 /**
@@ -107,19 +107,20 @@ export async function decompress2(
     );
 
     // Determine destination ATA
-    const ctokenAta =
-        destinationAta ?? getATAAddressInterface(mint, owner.publicKey);
+    const ctokenAtaAddress =
+        destinationAta ??
+        getAssociatedTokenAddressInterface(mint, owner.publicKey).address;
 
     // Build instructions
     const instructions = [];
 
     // Create CToken ATA if needed (idempotent)
-    const ctokenAtaInfo = await rpc.getAccountInfo(ctokenAta);
+    const ctokenAtaInfo = await rpc.getAccountInfo(ctokenAtaAddress);
     if (!ctokenAtaInfo) {
         instructions.push(
             createAssociatedTokenAccountInterfaceIdempotentInstruction(
                 payer.publicKey,
-                ctokenAta,
+                ctokenAtaAddress,
                 owner.publicKey,
                 mint,
                 CTOKEN_PROGRAM_ID,
@@ -143,7 +144,7 @@ export async function decompress2(
         createDecompress2Instruction(
             payer.publicKey,
             accountsToUse,
-            ctokenAta,
+            ctokenAtaAddress,
             amount,
             proof.compressedProof,
             proof.rootIndices,

@@ -17,7 +17,7 @@ import {
     selectTokenPoolInfo,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
-import { getATAAddressInterface } from '../../src/mint/actions/create-ata-interface';
+import { getAssociatedTokenAddressInterface } from '../../src/mint/get-account-interface';
 import { decompress2 } from '../../src/mint/actions/decompress2';
 import { createDecompress2Instruction } from '../../src/mint/instructions/decompress2';
 
@@ -102,8 +102,11 @@ describe('decompress2', () => {
             expect(signature).not.toBeNull();
 
             // Verify CToken ATA has balance
-            const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
-            const ataInfo = await rpc.getAccountInfo(ctokenAta);
+            const ctokenAta = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
+            const ataInfo = await rpc.getAccountInfo(ctokenAta.address);
             expect(ataInfo).not.toBeNull();
             const hotBalance = ataInfo!.data.readBigUInt64LE(64);
             expect(hotBalance).toBe(BigInt(5000));
@@ -143,8 +146,11 @@ describe('decompress2', () => {
             expect(signature).not.toBeNull();
 
             // Verify CToken ATA has balance
-            const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
-            const ataInfo = await rpc.getAccountInfo(ctokenAta);
+            const ctokenAta = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
+            const ataInfo = await rpc.getAccountInfo(ctokenAta.address);
             expect(ataInfo).not.toBeNull();
             // Note: decompress2 decompresses all from selected accounts,
             // so the balance will be 10000 (full account)
@@ -205,8 +211,11 @@ describe('decompress2', () => {
             expect(signature).not.toBeNull();
 
             // Verify total hot balance = 6000
-            const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
-            const ataInfo = await rpc.getAccountInfo(ctokenAta);
+            const ctokenAta = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
+            const ataInfo = await rpc.getAccountInfo(ctokenAta.address);
             expect(ataInfo).not.toBeNull();
             const hotBalance = ataInfo!.data.readBigUInt64LE(64);
             expect(hotBalance).toBe(BigInt(6000));
@@ -249,8 +258,11 @@ describe('decompress2', () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
 
             // Verify ATA doesn't exist
-            const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
-            const beforeInfo = await rpc.getAccountInfo(ctokenAta);
+            const ctokenAta = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
+            const beforeInfo = await rpc.getAccountInfo(ctokenAta.address);
             expect(beforeInfo).toBeNull();
 
             // Mint compressed tokens
@@ -276,7 +288,7 @@ describe('decompress2', () => {
             expect(signature).not.toBeNull();
 
             // Verify ATA was created with balance
-            const afterInfo = await rpc.getAccountInfo(ctokenAta);
+            const afterInfo = await rpc.getAccountInfo(ctokenAta.address);
             expect(afterInfo).not.toBeNull();
             const hotBalance = afterInfo!.data.readBigUInt64LE(64);
             expect(hotBalance).toBe(BigInt(1000));
@@ -305,8 +317,11 @@ describe('decompress2', () => {
             });
 
             // Verify initial balance
-            const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
-            const midInfo = await rpc.getAccountInfo(ctokenAta);
+            const ctokenAta = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
+            const midInfo = await rpc.getAccountInfo(ctokenAta.address);
             expect(midInfo!.data.readBigUInt64LE(64)).toBe(BigInt(2000));
 
             // Mint more compressed tokens
@@ -330,7 +345,7 @@ describe('decompress2', () => {
             });
 
             // Verify total balance = 5000
-            const afterInfo = await rpc.getAccountInfo(ctokenAta);
+            const afterInfo = await rpc.getAccountInfo(ctokenAta.address);
             expect(afterInfo!.data.readBigUInt64LE(64)).toBe(BigInt(5000));
         });
 
@@ -351,7 +366,7 @@ describe('decompress2', () => {
             );
 
             // Decompress to recipient's ATA
-            const recipientAta = getATAAddressInterface(
+            const recipientAta = getAssociatedTokenAddressInterface(
                 mint,
                 recipient.publicKey,
             );
@@ -360,19 +375,24 @@ describe('decompress2', () => {
                 payer,
                 owner,
                 mint,
-                destinationAta: recipientAta,
+                destinationAta: recipientAta.address,
             });
 
             expect(signature).not.toBeNull();
 
             // Verify recipient ATA has balance
-            const recipientInfo = await rpc.getAccountInfo(recipientAta);
+            const recipientInfo = await rpc.getAccountInfo(
+                recipientAta.address,
+            );
             expect(recipientInfo).not.toBeNull();
             expect(recipientInfo!.data.readBigUInt64LE(64)).toBe(BigInt(4000));
 
             // Owner's ATA should not exist or have 0 balance
-            const ownerAta = getATAAddressInterface(mint, owner.publicKey);
-            const ownerInfo = await rpc.getAccountInfo(ownerAta);
+            const ownerAta = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
+            const ownerInfo = await rpc.getAccountInfo(ownerAta.address);
             if (ownerInfo) {
                 expect(ownerInfo.data.readBigUInt64LE(64)).toBe(BigInt(0));
             }
@@ -409,12 +429,15 @@ describe('decompress2', () => {
                 })),
             );
 
-            const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
+            const ctokenAta = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
 
             const ix = createDecompress2Instruction(
                 payer.publicKey,
                 compressedResult.items,
-                ctokenAta,
+                ctokenAta.address,
                 BigInt(1000),
                 proof.compressedProof,
                 proof.rootIndices,
@@ -496,12 +519,15 @@ describe('decompress2', () => {
                 })),
             );
 
-            const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
+            const ctokenAta = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
 
             const ix = createDecompress2Instruction(
                 payer.publicKey,
                 compressedResult.items,
-                ctokenAta,
+                ctokenAta.address,
                 BigInt(1000),
                 proof.compressedProof,
                 proof.rootIndices,
@@ -543,12 +569,15 @@ describe('decompress2', () => {
                 })),
             );
 
-            const ctokenAta = getATAAddressInterface(mint, owner.publicKey);
+            const ctokenAta = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
 
             const ix = createDecompress2Instruction(
                 payer.publicKey,
                 compressedResult.items,
-                ctokenAta,
+                ctokenAta.address,
                 BigInt(1000),
                 proof.compressedProof,
                 proof.rootIndices,
@@ -561,7 +590,9 @@ describe('decompress2', () => {
             expect(ix.keys[2].isWritable).toBe(false);
 
             // Find destination account and verify it's writable
-            const destKey = ix.keys.find(k => k.pubkey.equals(ctokenAta));
+            const destKey = ix.keys.find(k =>
+                k.pubkey.equals(ctokenAta.address),
+            );
             expect(destKey).toBeDefined();
             expect(destKey!.isWritable).toBe(true);
         });

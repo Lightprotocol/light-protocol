@@ -25,6 +25,7 @@ import {
 } from '../instructions/create-associated-ctoken';
 import { getAssociatedCTokenAddress } from '../../compressible';
 import { getATAProgramId } from '../../utils';
+import { getAssociatedTokenAddressInterface } from '../get-account-interface';
 
 // Re-export types for backwards compatibility
 export type { CTokenConfig };
@@ -45,40 +46,6 @@ export interface CreateATAInterfaceParams {
 export interface CreateATAInterfaceResult {
     address: PublicKey;
     transactionSignature: TransactionSignature;
-}
-
-/**
- * Derive the associated token address for any token program.
- * Follows SPL Token getAssociatedTokenAddressSync signature.
- * Defaults to CToken program.
- *
- * @param mint - Mint public key
- * @param owner - Owner public key
- * @param allowOwnerOffCurve - Allow owner to be a PDA (default: false)
- * @param programId - Token program ID (default: CTOKEN_PROGRAM_ID)
- * @param associatedTokenProgramId - Associated token program ID
- */
-export function getATAAddressInterface(
-    mint: PublicKey,
-    owner: PublicKey,
-    allowOwnerOffCurve = false,
-    programId: PublicKey = CTOKEN_PROGRAM_ID,
-    associatedTokenProgramId?: PublicKey,
-): PublicKey {
-    const effectiveAtaProgramId =
-        associatedTokenProgramId ?? getATAProgramId(programId);
-
-    if (programId.equals(CTOKEN_PROGRAM_ID)) {
-        return getAssociatedCTokenAddress(owner, mint);
-    }
-
-    return getAssociatedTokenAddressSync(
-        mint,
-        owner,
-        allowOwnerOffCurve,
-        programId,
-        effectiveAtaProgramId,
-    );
 }
 
 /**
@@ -136,7 +103,7 @@ export async function createATAInterface(
     const effectiveAtaProgramId =
         associatedTokenProgramId ?? getATAProgramId(programId);
 
-    const associatedToken = getATAAddressInterface(
+    const associatedToken = getAssociatedTokenAddressInterface(
         mint,
         owner,
         allowOwnerOffCurve,
@@ -146,7 +113,7 @@ export async function createATAInterface(
 
     const ix = createAssociatedTokenAccountInterfaceInstruction(
         payer.publicKey,
-        associatedToken,
+        associatedToken.address,
         owner,
         mint,
         programId,
@@ -177,7 +144,7 @@ export async function createATAInterface(
         );
     }
 
-    return { address: associatedToken, transactionSignature: txId };
+    return { address: associatedToken.address, transactionSignature: txId };
 }
 
 /**
@@ -225,7 +192,7 @@ export async function createATAInterfaceIdempotent(
     const effectiveAtaProgramId =
         associatedTokenProgramId ?? getATAProgramId(programId);
 
-    const associatedToken = getATAAddressInterface(
+    const associatedToken = getAssociatedTokenAddressInterface(
         mint,
         owner,
         allowOwnerOffCurve,
@@ -235,7 +202,7 @@ export async function createATAInterfaceIdempotent(
 
     const ix = createAssociatedTokenAccountInterfaceIdempotentInstruction(
         payer.publicKey,
-        associatedToken,
+        associatedToken.address,
         owner,
         mint,
         programId,
@@ -266,5 +233,5 @@ export async function createATAInterfaceIdempotent(
         );
     }
 
-    return { address: associatedToken, transactionSignature: txId };
+    return { address: associatedToken.address, transactionSignature: txId };
 }
