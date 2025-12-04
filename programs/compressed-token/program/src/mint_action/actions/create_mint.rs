@@ -31,6 +31,15 @@ pub fn process_create_mint_action(
         .create_mint
         .as_ref()
         .ok_or(ProgramError::InvalidInstructionData)?;
+
+    if !pubkey_eq(
+        &spl_mint_pda,
+        parsed_instruction_data.mint.metadata.mint.array_ref(),
+    ) {
+        msg!("Invalid mint PDA derivation");
+        return Err(ErrorCode::MintActionInvalidMintPda.into());
+    }
+
     // With cpi context this program does not have access
     // to the address Merkle tree account that is used in the cpi to the light system program.
     // This breaks the implicit check of new_address_params_assigned.
