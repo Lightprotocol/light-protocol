@@ -89,39 +89,40 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
                 }
 
                 if COMPRESS_AND_CLOSE {
-                    #[allow(clippy::collapsible_if)]
-                    if !owner_matches {
-                        if compressible_ext.compression_authority != *accounts.authority.key() {
-                            msg!("rent authority mismatch");
+                    // For CompressAndClose with Compressible extension:
+                    // ONLY compression_authority can compress and close, NOT the owner
+                    if compressible_ext.compression_authority != *accounts.authority.key() {
+                        msg!("compress and close requires compression authority for compressible accounts");
+                        return Err(ProgramError::InvalidAccountData);
+                    }
+
+                    #[cfg(target_os = "solana")]
+                    let current_slot = pinocchio::sysvars::clock::Clock::get()
+                        .map_err(convert_program_error)?
+                        .slot;
+
+                    // Check timing constraints
+                    #[cfg(target_os = "solana")]
+                    {
+                        let is_compressible = compressible_ext
+                            .is_compressible(
+                                accounts.token_account.data_len() as u64,
+                                current_slot,
+                                accounts.token_account.lamports(),
+                            )
+                            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+                        if is_compressible.is_none() {
+                            msg!("account not compressible");
                             return Err(ProgramError::InvalidAccountData);
-                        }
-
-                        #[cfg(target_os = "solana")]
-                        use pinocchio::sysvars::Sysvar;
-                        #[cfg(target_os = "solana")]
-                        let current_slot = pinocchio::sysvars::clock::Clock::get()
-                            .map_err(convert_program_error)?
-                            .slot;
-
-                        // For rent authority, check timing constraints
-                        #[cfg(target_os = "solana")]
-                        {
-                            let is_compressible = compressible_ext
-                                .is_compressible(
-                                    accounts.token_account.data_len() as u64,
-                                    current_slot,
-                                    accounts.token_account.lamports(),
-                                )
-                                .map_err(|_| ProgramError::InvalidAccountData)?;
-
-                            if is_compressible.is_none() {
-                                msg!("account not compressible");
-                                return Err(ProgramError::InvalidAccountData);
-                            } else {
-                                return Ok((true, compressible_ext.compress_to_pubkey()));
-                            }
+                        } else {
+                            return Ok((true, compressible_ext.compress_to_pubkey()));
                         }
                     }
+
+                    // For non-solana (test environment), always allow compression_authority
+                    #[cfg(not(target_os = "solana"))]
+                    return Ok((true, compressible_ext.compress_to_pubkey()));
                 }
                 // Check if authority is the rent authority && rent_sponsor is the destination account
             }
