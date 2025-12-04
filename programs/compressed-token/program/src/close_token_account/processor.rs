@@ -4,9 +4,9 @@ use light_account_checks::{checks::check_signer, AccountInfoTrait};
 use light_compressible::rent::{get_rent_exemption_lamports, AccountRentState};
 use light_ctoken_types::state::{CToken, ZCompressedTokenMut, ZExtensionStructMut};
 use light_program_profiler::profile;
-use pinocchio::account_info::AccountInfo;
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::Sysvar;
+use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
 use spl_pod::solana_msg::msg;
 use spl_token_2022::state::AccountState;
 
@@ -38,8 +38,9 @@ pub fn process_close_token_account(
 pub fn validate_token_account_close_instruction(
     accounts: &CloseTokenAccountAccounts,
     ctoken: &ZCompressedTokenMut<'_>,
-) -> Result<(bool, bool), ProgramError> {
-    validate_token_account::<false>(accounts, ctoken)
+) -> Result<(), ProgramError> {
+    validate_token_account::<false>(accounts, ctoken)?;
+    Ok(())
 }
 
 /// Validates that a ctoken solana account is ready to be closed.
@@ -48,7 +49,7 @@ pub fn validate_token_account_close_instruction(
 pub fn validate_token_account_for_close_transfer2(
     accounts: &CloseTokenAccountAccounts,
     ctoken: &ZCompressedTokenMut<'_>,
-) -> Result<(bool, bool), ProgramError> {
+) -> Result<bool, ProgramError> {
     validate_token_account::<true>(accounts, ctoken)
 }
 
@@ -56,7 +57,7 @@ pub fn validate_token_account_for_close_transfer2(
 fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
     accounts: &CloseTokenAccountAccounts,
     ctoken: &ZCompressedTokenMut<'_>,
-) -> Result<(bool, bool), ProgramError> {
+) -> Result<bool, ProgramError> {
     if accounts.token_account.key() == accounts.destination.key() {
         return Err(ProgramError::InvalidAccountData);
     }
@@ -74,10 +75,9 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
             return Err(ErrorCode::NonNativeHasBalance.into());
         }
     }
-    // Verify the authority matches the account owner or rent authority (if compressible)
-    let owner_matches = ctoken.owner.to_bytes() == *accounts.authority.key();
+    // For COMPRESS_AND_CLOSE: Only compressible accounts (with Compressible extension) are allowed
+    // For regular close: Owner must match
     if let Some(extensions) = ctoken.extensions.as_ref() {
-        // Look for compressible extension
         for extension in extensions {
             if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
                 let rent_sponsor = accounts
@@ -89,10 +89,9 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
                 }
 
                 if COMPRESS_AND_CLOSE {
-                    // For CompressAndClose with Compressible extension:
-                    // ONLY compression_authority can compress and close, NOT the owner
+                    // For CompressAndClose: ONLY compression_authority can compress and close
                     if compressible_ext.compression_authority != *accounts.authority.key() {
-                        msg!("compress and close requires compression authority for compressible accounts");
+                        msg!("compress and close requires compression authority");
                         return Err(ProgramError::InvalidAccountData);
                     }
 
@@ -101,7 +100,6 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
                         .map_err(convert_program_error)?
                         .slot;
 
-                    // Check timing constraints
                     #[cfg(target_os = "solana")]
                     {
                         let is_compressible = compressible_ext
@@ -115,29 +113,32 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
                         if is_compressible.is_none() {
                             msg!("account not compressible");
                             return Err(ProgramError::InvalidAccountData);
-                        } else {
-                            return Ok((true, compressible_ext.compress_to_pubkey()));
                         }
                     }
 
-                    // For non-solana (test environment), always allow compression_authority
-                    #[cfg(not(target_os = "solana"))]
-                    return Ok((true, compressible_ext.compress_to_pubkey()));
+                    return Ok(compressible_ext.compress_to_pubkey());
                 }
-                // Check if authority is the rent authority && rent_sponsor is the destination account
+                // For regular close (!COMPRESS_AND_CLOSE): fall through to owner check
             }
         }
     }
-    if !owner_matches {
+
+    // CompressAndClose requires Compressible extension - if we reach here without returning, reject
+    if COMPRESS_AND_CLOSE {
+        msg!("compress and close requires compressible extension");
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    // For regular close: verify authority matches owner
+    if !pubkey_eq(ctoken.owner.array_ref(), accounts.authority.key()) {
         msg!(
-            "owner: ctoken.owner {:?} != {:?} authority",
+            "owner mismatch: ctoken.owner {:?} != {:?} authority",
             solana_pubkey::Pubkey::from(ctoken.owner.to_bytes()),
             solana_pubkey::Pubkey::from(*accounts.authority.key())
         );
-        // If we have no rent authority owner must match
         return Err(ErrorCode::OwnerMismatch.into());
     }
-    Ok((false, false))
+    Ok(false)
 }
 
 pub fn close_token_account(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(), ProgramError> {

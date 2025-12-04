@@ -64,8 +64,8 @@ async fn test_compress_and_close_owner_scenarios() {
         .await;
     }
 
-    // Test 3: Owner closes regular 165-byte ctoken account (no compressible extension)
-    // Non-compressible accounts can still be closed by owner
+    // Test 3: Owner cannot close regular 165-byte ctoken account (no compressible extension)
+    // Non-compressible accounts cannot use compress_and_close
     {
         let mut context = setup_account_test().await.unwrap();
 
@@ -91,13 +91,51 @@ async fn test_compress_and_close_owner_scenarios() {
             .unwrap();
         context.rpc.set_account(token_account_pubkey, token_account);
 
-        // Compress and close as owner - should succeed for non-compressible accounts
-        compress_and_close_owner_and_assert(
-            &mut context,
-            None, // Default destination (owner)
-            "owner_non_compressible",
+        let payer_pubkey = context.payer.pubkey();
+
+        // Get output queue for compression
+        let output_queue = context
+            .rpc
+            .get_random_state_tree_info()
+            .unwrap()
+            .get_output_pubkey()
+            .unwrap();
+
+        // Create compress_and_close instruction with is_compressible=false for non-compressible account
+        use light_token_client::instructions::transfer2::{
+            create_generic_transfer2_instruction, CompressAndCloseInput, Transfer2InstructionType,
+        };
+
+        let compress_and_close_ix = create_generic_transfer2_instruction(
+            &mut context.rpc,
+            vec![Transfer2InstructionType::CompressAndClose(
+                CompressAndCloseInput {
+                    solana_ctoken_account: token_account_pubkey,
+                    authority: context.owner_keypair.pubkey(),
+                    output_queue,
+                    destination: None,
+                    is_compressible: false, // Non-compressible account
+                },
+            )],
+            payer_pubkey,
+            false,
         )
-        .await;
+        .await
+        .unwrap();
+
+        // Execute transaction expecting failure
+        let result = context
+            .rpc
+            .create_and_send_transaction(
+                &[compress_and_close_ix],
+                &payer_pubkey,
+                &[&context.payer, &context.owner_keypair],
+            )
+            .await;
+
+        // Assert that the transaction failed with InvalidAccountData (error code 3)
+        // "compress and close requires compressible extension"
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 3).unwrap();
     }
 
     // Test 4: Owner cannot close compressible associated token account

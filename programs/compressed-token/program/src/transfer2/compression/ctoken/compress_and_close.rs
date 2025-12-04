@@ -40,31 +40,29 @@ pub fn process_compress_and_close(
     let close_inputs =
         compress_and_close_inputs.ok_or(ErrorCode::CompressAndCloseDestinationMissing)?;
 
-    let (compression_authority_is_signer, compress_to_pubkey) =
-        validate_token_account_for_close_transfer2(
-            &CloseTokenAccountAccounts {
-                token_account: token_account_info,
-                destination: close_inputs.destination,
-                authority,
-                rent_sponsor: Some(close_inputs.rent_sponsor),
-            },
-            ctoken,
-        )?;
+    // Validate token account - only compressible accounts with compression_authority are allowed
+    let compress_to_pubkey = validate_token_account_for_close_transfer2(
+        &CloseTokenAccountAccounts {
+            token_account: token_account_info,
+            destination: close_inputs.destination,
+            authority,
+            rent_sponsor: Some(close_inputs.rent_sponsor),
+        },
+        ctoken,
+    )?;
 
-    if compression_authority_is_signer {
-        // Compress the complete balance to this compressed token account.
-        let compressed_account = close_inputs
-            .compressed_token_account
-            .ok_or(ErrorCode::CompressAndCloseOutputMissing)?;
-        validate_compressed_token_account(
-            packed_accounts,
-            amount,
-            compressed_account,
-            ctoken,
-            compress_to_pubkey,
-            token_account_info.key(),
-        )?;
-    }
+    // Validate compressed output matches the account being closed
+    let compressed_account = close_inputs
+        .compressed_token_account
+        .ok_or(ErrorCode::CompressAndCloseOutputMissing)?;
+    validate_compressed_token_account(
+        packed_accounts,
+        amount,
+        compressed_account,
+        ctoken,
+        compress_to_pubkey,
+        token_account_info.key(),
+    )?;
 
     *ctoken.amount = 0.into();
     Ok(())
