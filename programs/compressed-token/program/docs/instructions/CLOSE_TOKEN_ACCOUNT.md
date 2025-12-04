@@ -9,9 +9,10 @@
 2. Account layout `CToken` is defined in path: program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs
 3. Supports both regular (non-compressible) and compressible token accounts (with compressible extension)
 4. For compressible accounts (with compressible extension):
-   - Rent exemption is returned to the rent recipient (destination account)
-   - Write top-up lamports are returned to the authority (original fee payer)
-   - Authority can be either the owner OR the rent authority (if account is compressible)
+   - Rent exemption + rent lamports are returned to the rent_sponsor
+   - Remaining lamports are returned to the destination account
+   - Only the owner can close using this instruction (balance must be zero)
+   - **Note:** To compress and close with non-zero balance, use CompressAndClose mode in Transfer2 (compression_authority only)
 5. For non-compressible accounts:
    - All lamports are transferred to the destination account
    - Only the owner can close the account
@@ -36,10 +37,8 @@
 
 3. authority
    - (signer)
-   - Either the account owner OR rent authority (for compressible accounts)
-   - For compressible accounts closed by rent authority:
-     - Account must be compressible (past rent expiry)
-     - Authority must match compression_authority in extension
+   - Must be the account owner
+   - For compressible accounts: only owner can close (compression_authority uses Transfer2 CompressAndClose instead)
 
 4. rent_sponsor (required for compressible accounts)
    - (mutable)
@@ -73,19 +72,12 @@
       - Verify amount == 0 (non-zero returns `ErrorCode::NonNativeHasBalance`)
 
    3.3. **Authority validation**:
-      - Check if compressed_token.owner == authority.key() (store as `owner_matches`)
-      - If account has extensions vector:
-        3.3.1. Iterate through extensions looking for `ZExtensionStructMut::Compressible`
-        3.3.2. If compressible extension found:
-          - Get rent_sponsor from accounts (returns error if missing)
-          - Verify compressible_ext.rent_sponsor == rent_sponsor.key()
-          - If not owner_matches and CHECK_RENT_AUTH=true:
-            - Verify compressible_ext.compression_authority == authority.key()
-            - Get current slot from Clock sysvar
-            - Call `compressible_ext.is_compressible(data_len, current_slot, lamports)`
-            - If not compressible: return error
-            - Return Ok((true, compress_to_pubkey_flag))
-      - If owner doesn't match and no valid rent authority: return `ErrorCode::OwnerMismatch`
+      - If account has extensions vector with `ZExtensionStructMut::Compressible`:
+        - Get rent_sponsor from accounts (returns error if missing)
+        - Verify compressible_ext.rent_sponsor == rent_sponsor.key()
+        - Fall through to owner check (compression_authority cannot use this instruction)
+      - Verify authority.key() == compressed_token.owner (returns `ErrorCode::OwnerMismatch` if not)
+      - **Note:** For CompressAndClose mode in Transfer2, compression_authority validation is done separately
 
 4. **Distribute lamports** (`close_token_account_inner`):
    4.1. **Setup**:
@@ -110,13 +102,10 @@
         - base_rent, lamports_per_byte_per_epoch, compression_cost
       - Returns (lamports_to_rent_sponsor, lamports_to_destination)
       - Get rent_sponsor account from accounts (error if missing)
-      - Special case: if authority.key() == compression_authority:
-        - Extract compression incentive from lamports_to_rent_sponsor
-        - Add lamports_to_destination to lamports_to_rent_sponsor
-        - Set lamports_to_destination = compression_cost (goes to forester)
       - Transfer lamports_to_rent_sponsor to rent_sponsor via `transfer_lamports` (if > 0)
       - Transfer lamports_to_destination to destination via `transfer_lamports` (if > 0)
       - Return early (skip non-compressible path)
+      - **Note:** Compression incentive logic only applies when compression_authority closes via Transfer2 CompressAndClose
 
    4.4. **For non-compressible accounts**:
       - Transfer all token_account.lamports to destination via `transfer_lamports`
@@ -140,13 +129,14 @@
 - `ErrorCode::AccountFrozen` (error code: 6076) - Account state is Frozen
 - `ProgramError::UninitializedAccount` (error code: 10) - Account state is Uninitialized or invalid
 - `ErrorCode::NonNativeHasBalance` (error code: 6074) - Account has non-zero token balance
-- `ErrorCode::OwnerMismatch` (error code: 6075) - Authority doesn't match owner and isn't valid rent authority
+- `ErrorCode::OwnerMismatch` (error code: 6075) - Authority doesn't match owner
 - `ProgramError::InsufficientFunds` (error code: 6) - Insufficient funds for lamport transfer during rent calculation
 
 **Edge Cases and Considerations:**
-- When rent authority closes an account, all funds (including user funds) go to rent_sponsor
+- Only the owner can use this instruction (CloseTokenAccount)
+- For compression_authority to close accounts, use CompressAndClose mode in Transfer2
 - Compressible accounts require 4 accounts, non-compressible require only 3
-- The timing check for compressibility uses current slot vs last_claimed_slot
+- Balance must be zero for this instruction (use Transfer2 CompressAndClose to compress non-zero balances)
 - The instruction handles accounts with no extensions gracefully (non-compressible path)
 - Zero-lamport accounts are handled without attempting transfers
 - Separation of rent_sponsor from destination allows users to specify where their funds go while ensuring rent goes to the protocol

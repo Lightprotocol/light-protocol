@@ -8,8 +8,7 @@
 | Only compress/decompress (no transfers) | → [Path A](#path-a-no-compressed-accounts-compressions-only-operations) (line 134) + [Compressions-only accounts](#compressions-only-accounts-when-no_compressed_accounts) (line 99) |
 | Compress SPL tokens | → [SPL compression](#spl-token-compressiondecompression) (line 217) |
 | Compress CToken accounts | → [CToken compression](#ctoken-compressiondecompression-srctransfer2compressionctoken) (line 227) |
-| Close account as **owner** | → [CompressAndClose](#for-compressandclose) (line 243) - no validation needed |
-| Close account as **rent authority** | → [Rent authority rules](#design-principle-ownership-separation) (line 244) + `compressible/docs/RENT.md` |
+| Close compressible account (forester) | → [CompressAndClose](#for-compressandclose) (line 243) - compression_authority only |
 | Use CPI context | → [Write mode](#cpi-context-write-path) (line 192) or [Execute mode](#cpi-context-support-for-cross-program-invocations) (line 27) |
 | Debug errors | → [Error reference](#errors) (line 275) |
 
@@ -28,7 +27,7 @@
 3. Compression modes:
    - `Compress`: Move tokens from Solana account (ctoken or SPL) to compressed state
    - `Decompress`: Move tokens from compressed state to Solana account (ctoken or SPL)
-   - `CompressAndClose`: Compress full ctoken balance and close the account (authority: owner or rent authority for compressible accounts)
+   - `CompressAndClose`: Compress full ctoken balance and close the account (authority: compression_authority only, requires compressible extension, **ctoken accounts only - NOT supported for SPL tokens**)
 
 4. Global sum check enforces transaction balance:
    - Input sum = compressed inputs + compress operations (tokens entering compressed state)
@@ -161,7 +160,7 @@ Packed accounts (dynamic indexing):
 
    c. **Close accounts for CompressAndClose operations:**
       - After compression validation succeeds, close the token accounts:
-        - Lamport distribution via `compressible::calculate_close_lamports`:
+        - Lamport distribution via `AccountRentState::calculate_close_distribution()`:
           - Rent exemption + completed epoch rent → rent_sponsor account
           - Unutilized rent (partial epoch) → destination account
           - Compression incentive → forester (when rent authority closes)
@@ -212,8 +211,8 @@ Packed accounts (dynamic indexing):
 **Compression/Decompression Processing Details:**
 
 **Key distinction between compression modes:**
-- **Compress/Decompress:** Only participate in sum checks - tokens are added/subtracted from running sums per mint, ensuring overall balance but no specific output validation
-- **CompressAndClose:** Validates a specific compressed token account exists in outputs that mirrors the account being closed (same mint, amount equals full balance, owner preserved or set to account pubkey, no delegate - delegation not implemented for ctoken accounts)
+- **Compress/Decompress:** Participate in sum checks - tokens are added/subtracted from running sums per mint, ensuring overall balance but no specific output validation
+- **CompressAndClose:** Participates in sum checks (like Compress) AND additionally validates a specific compressed token account exists in outputs that mirrors the account being closed (same mint, amount equals full balance, owner preserved or set to account pubkey, no delegate). The output validation happens IN ADDITION to sum checks, providing extra security for account closure.
 
 When compression processing occurs (in both Path A and Path B):
 
@@ -256,31 +255,40 @@ When compression processing occurs (in both Path A and Path B):
    - **For CompressAndClose:**
      - **Authority validation:**
        - Authority must be signer
-       - Authority must be either token account owner OR rent authority (for compressible accounts)
-     - **Design principle: Ownership separation** (see `program-libs/compressible/docs/RENT.md` for detailed rent calculations)
-       - Tokens: Belong to the owner who can compress them freely
-       - Rent exemption + completed epoch rent: Belong to rent authority (who funded them)
-       - Unutilized rent (partial current epoch): Returns to user/destination
-       - Compression incentive: Goes to forester when rent authority compresses
+       - Authority must be the compression_authority (from compressible extension)
+       - Owner CANNOT use CompressAndClose - only compression_authority can
+       - Non-compressible accounts (without Compressible extension) CANNOT use CompressAndClose
+     - **Compressibility timing check** (required gate for compression_authority):
+       - Calls `compressible_ext.is_compressible(data_len, current_slot, lamports)`
+       - Returns `Some(_)` if account can be compressed, `None` if not yet compressible
+       - Account becomes compressible when it lacks sufficient rent for current epoch + 1
+       - This prevents compression_authority from arbitrarily compressing accounts before rent expires
+       - Error: `ProgramError::InvalidAccountData` with message "account not compressible" if check fails
+     - **Frozen account check:**
+       - Frozen ctoken accounts (state == 2) cannot be compressed
+       - Error: `ErrorCode::AccountFrozen` if account is frozen
+     - **Design principle: Compression authority control** (see `program-libs/compressible/docs/RENT.md` for detailed rent calculations)
+       - Tokens: Belong to the owner, but compression is controlled by compression_authority
+       - Rent exemption + completed epoch rent: Belong to rent_sponsor (who funded them)
+       - Compression incentive: Goes to forester (destination) when compression_authority compresses
        - **Compressibility determination** (via `compressible::calculate_rent_and_balance`):
          - Account becomes compressible when it lacks rent for current epoch + 1
-         - Rent authority can only compress when `is_compressible()` returns true
+         - Compression_authority can only compress when `is_compressible()` returns true
          - See `program-libs/compressible/docs/` for complete rent system documentation
-       - When **owner** closes: No compressed output validation required (owner controls their tokens, sum check ensures balance)
-       - When **rent authority** closes: Must validate compressed output exactly preserves owner's tokens
-     - **Compressed token account validation (only when rent authority closes) - MUST exist in outputs with:**
+     - **Compressed token account validation - MUST exist in outputs with:**
        - Amount: Must exactly match the full token account balance being compressed
-       - Owner: If compress_to_pubkey flag is false, owner must match original token account owner
-       - Owner: If compress_to_pubkey flag is true, owner must be the token account's pubkey (allows closing accounts owned by PDAs)
-       - **Note:** compress_to_pubkey validation ONLY applies when rent authority closes. When owner closes, no output validation occurs (owner has full control, sum check ensures balance preservation)
+       - Owner: If `compress_to_pubkey` flag is false, owner must match original token account owner
+       - Owner: If `compress_to_pubkey` flag is true, owner must be the token account's pubkey (allows closing accounts owned by PDAs)
+       - **Note:** `compress_to_pubkey` is stored in the compressible extension and set during account creation, not per-instruction
+       - Mint: Must match the ctoken account's mint field
        - Delegate: Must be None (has_delegate=false and delegate=0) - delegates cannot be carried over
        - Version: Must be ShaFlat (version=3) for security
        - Version: Must match the version specified in the token account's compressible extension
      - **Account state updates:**
        - Token account balance is set to 0
        - Account is marked for closing after the transaction
-     - **Security guarantee:** Unlike Compress which only adds to sum checks, CompressAndClose ensures the exact compressed account exists, preventing token loss or misdirection
-     - **Uniqueness validation:** All CompressAndClose operations in a single instruction must use different compressed output account indices. Duplicate output indices are rejected to prevent fund theft attacks where a rent authority could close multiple accounts but route all funds to a single compressed output
+     - **Security guarantee:** CompressAndClose ensures the exact compressed account exists, preventing token loss or misdirection. Only compression_authority can initiate, protecting users from unauthorized compression.
+     - **Uniqueness validation:** All CompressAndClose operations in a single instruction must use different compressed output account indices. Duplicate output indices are rejected to prevent fund theft attacks where a compression_authority could close multiple accounts but route all funds to a single compressed output
    - Calculate compressible extension top-up if present (returns Option<u64>)
    - **Transfer deduplication optimization:**
      - Collects all transfers into a 40-element array indexed by account
@@ -317,9 +325,13 @@ When compression processing occurs (in both Path A and Path B):
 - `ErrorCode::CpiContextExpected` (error code: 6085) - CPI context required but not provided
 - `ErrorCode::CompressAndCloseDestinationMissing` (error code: 6087) - Missing destination for CompressAndClose
 - `ErrorCode::CompressAndCloseAuthorityMissing` (error code: 6088) - Missing authority for CompressAndClose
-- `ErrorCode::CompressAndCloseAmountMismatch` (error code: 6090) - CompressAndClose amount doesn't match balance
-- `ErrorCode::CompressAndCloseDelegateNotAllowed` (error code: 6092) - Delegates cannot use CompressAndClose
+- `ErrorCode::CompressAndCloseInvalidOwner` (error code: 6089) - Compressed token owner does not match expected owner (source ctoken.owner or token_account.pubkey if compress_to_pubkey)
+- `ErrorCode::CompressAndCloseAmountMismatch` (error code: 6090) - Compression amount must match the full token balance
+- `ErrorCode::CompressAndCloseBalanceMismatch` (error code: 6091) - Token account balance must match compressed output amount
+- `ErrorCode::CompressAndCloseDelegateNotAllowed` (error code: 6092) - Source token account has delegate OR compressed output has delegate (delegates not supported)
+- `ErrorCode::CompressAndCloseInvalidVersion` (error code: 6093) - Compressed token version must be 3 (ShaFlat) and must match compressible extension's account_version
 - `ErrorCode::CompressAndCloseDuplicateOutput` (error code: 6420) - Cannot use the same compressed output account for multiple CompressAndClose operations (security protection against fund theft)
+- `ErrorCode::CompressAndCloseOutputMissing` (error code: 6421) - Compressed token account output required but not provided
 - `AccountError::InvalidSigner` (error code: 12015) - Required signer account is not signing
 - `AccountError::AccountNotMutable` (error code: 12008) - Required mutable account is not mutable
 - Additional errors from close_token_account for CompressAndClose operations
