@@ -7,7 +7,10 @@ use light_ctoken_types::{
     state::{ZCompressedTokenMut, ZExtensionStructMut},
 };
 use light_program_profiler::profile;
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use pinocchio::{
+    account_info::AccountInfo,
+    pubkey::{pubkey_eq, Pubkey},
+};
 use spl_pod::solana_msg::msg;
 
 use super::inputs::CompressAndCloseInputs;
@@ -81,6 +84,16 @@ fn validate_compressed_token_account(
     if ctoken.delegate.is_some() {
         msg!("Source token account has delegate, cannot compress and close");
         return Err(ErrorCode::CompressAndCloseDelegateNotAllowed.into());
+    }
+
+    if !pubkey_eq(
+        ctoken.mint.array_ref(),
+        packed_accounts
+            .get_u8(compressed_token_account.mint, "CompressAndClose: mint")?
+            .key(),
+    ) {
+        msg!("Invalid mint PDA derivation");
+        return Err(ErrorCode::MintActionInvalidMintPda.into());
     }
 
     // Owners should match if not compressing to pubkey
