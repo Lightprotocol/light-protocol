@@ -25,7 +25,7 @@ import {
 } from '../instructions/create-associated-ctoken';
 import { getAssociatedCTokenAddress } from '../../compressible';
 import { getATAProgramId } from '../../utils';
-import { getAssociatedTokenAddressInterface } from '../get-account-interface';
+import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 
 // Re-export types for backwards compatibility
 export type { CTokenConfig };

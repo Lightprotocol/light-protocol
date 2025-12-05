@@ -26,7 +26,7 @@ import {
     createCTokenTransferInstruction,
 } from '../instructions/transfer-interface';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-associated-ctoken';
-import { getAssociatedTokenAddressInterface } from '../get-account-interface';
+import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import {
     getTokenPoolInfos,
     TokenPoolInfo,

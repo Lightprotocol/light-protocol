@@ -15,7 +15,7 @@ import {
 import BN from 'bn.js';
 import { createDecompress2Instruction } from '../instructions/decompress2';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-associated-ctoken';
-import { getAssociatedTokenAddressInterface } from '../get-account-interface';
+import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import { CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 
 /**

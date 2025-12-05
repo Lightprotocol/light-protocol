@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { Keypair, PublicKey } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+    TOKEN_PROGRAM_ID,
+    getAssociatedTokenAddressSync,
+} from '@solana/spl-token';
 import { Rpc, CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
+import { getATAProgramId } from '../../src/utils';
 
 import {
     getAssociatedTokenAddressInterface as unifiedGetAssociatedTokenAddressInterface,
@@ -44,11 +48,13 @@ describe('unified guards', () => {
         const owner = Keypair.generate().publicKey;
         const mint = Keypair.generate().publicKey;
 
-        const wrongAta = unifiedGetAssociatedTokenAddressInterface(
+        // Derive SPL ATA using base function (not unified)
+        const wrongAta = getAssociatedTokenAddressSync(
             mint,
             owner,
             false,
             TOKEN_PROGRAM_ID,
+            getATAProgramId(TOKEN_PROGRAM_ID),
         );
 
         await expect(
