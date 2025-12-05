@@ -21,7 +21,7 @@ import {
     ExtensionType,
     MINT_CONTEXT_SIZE,
     MintContextLayout,
-} from '../../src/mint/serde';
+} from '../../src/v3/serde';
 import { MINT_SIZE } from '@solana/spl-token';
 
 describe('serde', () => {

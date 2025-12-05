@@ -3,7 +3,7 @@ import {
     toOffChainMetadataJson,
     OffChainTokenMetadata,
     OffChainTokenMetadataJson,
-} from '../../src/mint/upload';
+} from '../../src/v3/upload';
 
 describe('upload', () => {
     describe('toOffChainMetadataJson', () => {

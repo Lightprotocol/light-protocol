@@ -34,15 +34,15 @@ import {
 import {
     getATAInterface,
     getAssociatedTokenAddressInterface,
-} from '../../src/mint/get-account-interface';
-import { getOrCreateATAInterface } from '../../src/mint/actions/get-or-create-ata-interface';
-import { transferInterface } from '../../src/mint/actions/transfer-interface';
+} from '../../src/v3/get-account-interface';
+import { getOrCreateATAInterface } from '../../src/v3/actions/get-or-create-ata-interface';
+import { transferInterface } from '../../src/v3/actions/transfer-interface';
 import {
     createLoadAccountsParams,
     loadATA,
-} from '../../src/compressible/unified-load';
-import { createTransferInterfaceInstruction } from '../../src/mint/instructions/transfer-interface';
-import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../../src/mint/instructions/create-associated-ctoken';
+} from '../../src/v3/actions/load-ata';
+import { createTransferInterfaceInstruction } from '../../src/v3/instructions/transfer-interface';
+import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../../src/v3/instructions/create-associated-ctoken';
 
 featureFlags.version = VERSION.V2;
 

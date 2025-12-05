@@ -35,10 +35,10 @@ import {
     selectTokenPoolInfosForDecompression,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
-import { createWrapInstruction } from '../../src/mint/instructions/wrap';
-import { wrap } from '../../src/mint/actions/wrap';
-import { getAssociatedTokenAddressInterface } from '../../src/mint/get-account-interface';
-import { createATAInterfaceIdempotent } from '../../src/mint/actions/create-ata-interface';
+import { createWrapInstruction } from '../../src/v3/instructions/wrap';
+import { wrap } from '../../src/v3/actions/wrap';
+import { getAssociatedTokenAddressInterface } from '../../src/v3/get-account-interface';
+import { createATAInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
 
 // Force V2 for CToken tests
 featureFlags.version = VERSION.V2;

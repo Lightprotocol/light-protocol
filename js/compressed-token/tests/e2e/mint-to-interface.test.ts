@@ -16,12 +16,12 @@ import {
     TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-import { createMintInterface } from '../../src/mint/actions/create-mint-interface';
-import { mintToInterface } from '../../src/mint/actions/mint-to-interface';
+import { createMintInterface } from '../../src/v3/actions/create-mint-interface';
+import { mintToInterface } from '../../src/v3/actions/mint-to-interface';
 import { createMint } from '../../src/actions/create-mint';
-import { createAssociatedCTokenAccount } from '../../src/mint/actions/create-associated-ctoken';
-import { getAssociatedCTokenAddress } from '../../src/compressible/derivation';
-import { getAccountInterface } from '../../src/mint/get-account-interface';
+import { createAssociatedCTokenAccount } from '../../src/v3/actions/create-associated-ctoken';
+import { getAssociatedCTokenAddress } from '../../src/v3/derivation';
+import { getAccountInterface } from '../../src/v3/get-account-interface';
 
 featureFlags.version = VERSION.V2;
 

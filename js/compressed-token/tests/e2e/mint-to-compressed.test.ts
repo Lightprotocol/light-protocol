@@ -14,10 +14,10 @@ import {
     CTOKEN_PROGRAM_ID,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
-import { createMintInterface } from '../../src/mint/actions/create-mint-interface';
-import { mintToCompressed } from '../../src/mint/actions/mint-to-compressed';
-import { getMintInterface } from '../../src/mint/helpers';
-import { findMintAddress } from '../../src/compressible/derivation';
+import { createMintInterface } from '../../src/v3/actions/create-mint-interface';
+import { mintToCompressed } from '../../src/v3/actions/mint-to-compressed';
+import { getMintInterface } from '../../src/v3/get-mint-interface';
+import { findMintAddress } from '../../src/v3/derivation';
 
 featureFlags.version = VERSION.V2;
 

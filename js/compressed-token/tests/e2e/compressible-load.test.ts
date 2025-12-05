@@ -26,11 +26,11 @@ import {
     CompressibleAccountInput,
     ParsedAccountInfoInterface,
     calculateCompressibleLoadComputeUnits,
-} from '../../src/compressible/unified-load';
+} from '../../src/v3/actions/load-ata';
 import {
     getATAInterface,
     getAssociatedTokenAddressInterface,
-} from '../../src/mint/get-account-interface';
+} from '../../src/v3/get-account-interface';
 
 featureFlags.version = VERSION.V2;
 

@@ -5,12 +5,12 @@ import {
     getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import { Rpc, CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
-import { getATAProgramId } from '../../src/utils';
+import { getATAProgramId } from '../../src/v3/ata-utils';
 
 import {
     getAssociatedTokenAddressInterface as unifiedGetAssociatedTokenAddressInterface,
     createLoadATAInstructions as unifiedCreateLoadATAInstructions,
-} from '../../src/unified';
+} from '../../src/v3/unified';
 
 describe('unified guards', () => {
     it('throws when unified getAssociatedTokenAddressInterface uses non c-token program', () => {

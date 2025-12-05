@@ -18,17 +18,17 @@ import {
     selectTokenPoolInfo,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
-import { getAssociatedTokenAddressInterface } from '../../src/mint/get-account-interface';
-import { getOrCreateATAInterface } from '../../src/mint/actions/get-or-create-ata-interface';
-import { transferInterface } from '../../src/mint/actions/transfer-interface';
+import { getAssociatedTokenAddressInterface } from '../../src/v3/get-account-interface';
+import { getOrCreateATAInterface } from '../../src/v3/actions/get-or-create-ata-interface';
+import { transferInterface } from '../../src/v3/actions/transfer-interface';
 import {
     loadATA,
     createLoadATAInstructions,
-} from '../../src/compressible/unified-load';
+} from '../../src/v3/actions/load-ata';
 import {
     createTransferInterfaceInstruction,
     createCTokenTransferInstruction,
-} from '../../src/mint/instructions/transfer-interface';
+} from '../../src/v3/instructions/transfer-interface';
 
 featureFlags.version = VERSION.V2;
 

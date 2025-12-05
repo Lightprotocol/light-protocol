@@ -8,14 +8,14 @@ import {
     featureFlags,
     getDefaultAddressTreeInfo,
 } from '@lightprotocol/stateless.js';
-import { createMintInterface } from '../../src/mint/actions';
+import { createMintInterface } from '../../src/v3/actions';
 import {
     createAssociatedCTokenAccount,
     createAssociatedCTokenAccountIdempotent,
-} from '../../src/mint/actions/create-associated-ctoken';
-import { createTokenMetadata } from '../../src/mint/instructions';
+} from '../../src/v3/actions/create-associated-ctoken';
+import { createTokenMetadata } from '../../src/v3/instructions';
 import { getAssociatedCTokenAddress } from '../../src/compressible';
-import { findMintAddress } from '../../src/compressible/derivation';
+import { findMintAddress } from '../../src/v3/derivation';
 
 featureFlags.version = VERSION.V2;
 

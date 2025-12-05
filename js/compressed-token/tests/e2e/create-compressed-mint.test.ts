@@ -21,10 +21,10 @@ import {
 import {
     createMintInstruction,
     createTokenMetadata,
-} from '../../src/mint/instructions';
-import { createMintInterface } from '../../src/mint/actions';
-import { getMintInterface } from '../../src/mint/helpers';
-import { findMintAddress } from '../../src/compressible/derivation';
+} from '../../src/v3/instructions';
+import { createMintInterface } from '../../src/v3/actions';
+import { getMintInterface } from '../../src/v3/get-mint-interface';
+import { findMintAddress } from '../../src/v3/derivation';
 
 featureFlags.version = VERSION.V2;
 

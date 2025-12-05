@@ -17,9 +17,9 @@ import {
     selectTokenPoolInfo,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
-import { getAssociatedTokenAddressInterface } from '../../src/mint/get-account-interface';
-import { decompress2 } from '../../src/mint/actions/decompress2';
-import { createDecompress2Instruction } from '../../src/mint/instructions/decompress2';
+import { getAssociatedTokenAddressInterface } from '../../src/v3/get-account-interface';
+import { decompress2 } from '../../src/v3/actions/decompress2';
+import { createDecompress2Instruction } from '../../src/v3/instructions/decompress2';
 
 featureFlags.version = VERSION.V2;
 

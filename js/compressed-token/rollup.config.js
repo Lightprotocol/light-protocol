@@ -12,7 +12,7 @@ import replace from '@rollup/plugin-replace';
 const rolls = (fmt, env) => ({
     input: {
         index: 'src/index.ts',
-        'unified/index': 'src/unified/index.ts',
+        'unified/index': 'src/v3/unified/index.ts',
     },
     output: {
         dir: `dist/${fmt}/${env}`,
@@ -103,7 +103,7 @@ const typesConfig = {
 };
 
 const typesConfigUnified = {
-    input: 'src/unified/index.ts',
+    input: 'src/v3/unified/index.ts',
     output: [{ file: 'dist/types/unified/index.d.ts', format: 'es' }],
     external: [
         '@coral-xyz/borsh',

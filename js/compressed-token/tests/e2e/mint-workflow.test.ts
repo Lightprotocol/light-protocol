@@ -9,20 +9,20 @@ import {
     getDefaultAddressTreeInfo,
     CTOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
-import { createMintInterface } from '../../src/mint/actions';
-import { createTokenMetadata } from '../../src/mint/instructions';
+import { createMintInterface } from '../../src/v3/actions';
+import { createTokenMetadata } from '../../src/v3/instructions';
 import {
     updateMintAuthority,
     updateFreezeAuthority,
-} from '../../src/mint/actions/update-mint';
+} from '../../src/v3/actions/update-mint';
 import {
     updateMetadataField,
     updateMetadataAuthority,
-} from '../../src/mint/actions/update-metadata';
-import { createATAInterfaceIdempotent } from '../../src/mint/actions/create-ata-interface';
-import { getAssociatedTokenAddressInterface } from '../../src/mint/get-account-interface';
-import { getMintInterface } from '../../src/mint/helpers';
-import { findMintAddress } from '../../src/compressible/derivation';
+} from '../../src/v3/actions/update-metadata';
+import { createATAInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
+import { getAssociatedTokenAddressInterface } from '../../src/v3/get-account-interface';
+import { getMintInterface } from '../../src/v3/get-mint-interface';
+import { findMintAddress } from '../../src/v3/derivation';
 
 featureFlags.version = VERSION.V2;
 
