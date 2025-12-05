@@ -73,7 +73,7 @@ async fn test_create_ata_invoke() {
     let ata_account_data = rpc.get_account(ata_address).await.unwrap().unwrap();
 
     // Parse and verify account data
-    use light_ctoken_types::state::CToken;
+    use light_ctoken_interface::state::CToken;
     let account_state = CToken::deserialize(&mut &ata_account_data.data[..]).unwrap();
     assert_eq!(
         account_state.mint.to_bytes(),
@@ -159,7 +159,7 @@ async fn test_create_ata_invoke_signed() {
     let ata_account_data = rpc.get_account(ata_address).await.unwrap().unwrap();
 
     // Parse and verify account data
-    use light_ctoken_types::state::CToken;
+    use light_ctoken_interface::state::CToken;
     let account_state = CToken::deserialize(&mut &ata_account_data.data[..]).unwrap();
     assert_eq!(
         account_state.mint.to_bytes(),

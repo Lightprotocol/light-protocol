@@ -1,5 +1,5 @@
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-use light_ctoken_types::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
+use light_ctoken_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
 use solana_instruction::{AccountMeta, Instruction};

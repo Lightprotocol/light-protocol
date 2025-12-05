@@ -1,5 +1,5 @@
 use light_compressed_account::instruction_data::traits::LightInstructionData;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::mint_action::MintActionCompressedInstructionData, COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use solana_instruction::Instruction;
@@ -46,11 +46,12 @@ impl CTokenInstruction for MintActionCompressedInstructionData {
             cpi_ctx.first_set_context = true;
             cpi_ctx.set_context = false;
         } else {
-            instruction_data.cpi_context =
-                Some(light_ctoken_types::instructions::mint_action::CpiContext {
+            instruction_data.cpi_context = Some(
+                light_ctoken_interface::instructions::mint_action::CpiContext {
                     first_set_context: true,
                     ..Default::default()
-                });
+                },
+            );
         }
 
         build_cpi_write_instruction(instruction_data, accounts)
@@ -65,11 +66,12 @@ impl CTokenInstruction for MintActionCompressedInstructionData {
             cpi_ctx.set_context = true;
             cpi_ctx.first_set_context = false;
         } else {
-            instruction_data.cpi_context =
-                Some(light_ctoken_types::instructions::mint_action::CpiContext {
+            instruction_data.cpi_context = Some(
+                light_ctoken_interface::instructions::mint_action::CpiContext {
                     set_context: true,
                     ..Default::default()
-                });
+                },
+            );
         }
 
         build_cpi_write_instruction(instruction_data, accounts)

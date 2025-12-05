@@ -2496,7 +2496,7 @@ dependencies = [
  "light-compressed-account",
  "light-compressed-token-types",
  "light-compressible",
- "light-ctoken-types",
+ "light-ctoken-interface",
  "light-macros",
  "light-program-profiler",
  "light-sdk",
@@ -2576,7 +2576,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-ctoken-types"
+name = "light-ctoken-interface"
 version = "0.1.0"
 dependencies = [
  "aligned-sized",
@@ -2811,7 +2811,7 @@ dependencies = [
  "borsh 0.10.4",
  "light-account-checks",
  "light-compressed-account",
- "light-ctoken-types",
+ "light-ctoken-interface",
  "light-hasher",
  "light-macros",
  "light-sdk-macros",
@@ -3064,7 +3064,7 @@ dependencies = [
  "light-compressed-token-sdk",
  "light-compressed-token-types",
  "light-compressible-client",
- "light-ctoken-types",
+ "light-ctoken-interface",
  "light-program-test",
  "light-sdk",
  "light-sdk-types",

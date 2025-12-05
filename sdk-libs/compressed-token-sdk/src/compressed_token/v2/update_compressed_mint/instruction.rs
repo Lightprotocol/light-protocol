@@ -2,7 +2,7 @@ use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, traits::LightInstructionData,
 };
 use light_compressed_token_types::CompressedMintAuthorityType;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     self,
     instructions::mint_action::{CompressedMintWithContext, CpiContext},
 };
@@ -41,12 +41,12 @@ pub fn update_compressed_mint_cpi(
     cpi_context: Option<CpiContext>,
 ) -> Result<Instruction> {
     let mut instruction_data =
-        light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new(
+        light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new(
             input.compressed_mint_inputs.clone(),
             input.proof,
         );
 
-    let update_authority = light_ctoken_types::instructions::mint_action::UpdateAuthority {
+    let update_authority = light_ctoken_interface::instructions::mint_action::UpdateAuthority {
         new_authority: input.new_authority.map(|auth| auth.to_bytes().into()),
     };
 
@@ -79,7 +79,7 @@ pub fn update_compressed_mint_cpi(
 
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
-            light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
+            light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID,
         ),
         accounts: account_metas,
         data,
@@ -112,12 +112,12 @@ pub fn create_update_compressed_mint_cpi_write(
     }
 
     let mut instruction_data =
-        light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new(
+        light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new(
             inputs.compressed_mint_inputs.clone(),
             None, // No proof for CPI write
         );
 
-    let update_authority = light_ctoken_types::instructions::mint_action::UpdateAuthority {
+    let update_authority = light_ctoken_interface::instructions::mint_action::UpdateAuthority {
         new_authority: inputs.new_authority.map(|auth| auth.to_bytes().into()),
     };
 
@@ -147,7 +147,7 @@ pub fn create_update_compressed_mint_cpi_write(
 
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
-            light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
+            light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID,
         ),
         accounts: account_metas,
         data,

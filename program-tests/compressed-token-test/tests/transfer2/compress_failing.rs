@@ -47,7 +47,7 @@ use light_compressed_token_sdk::{
     ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
     ValidityProof,
 };
-use light_ctoken_types::{instructions::mint_action::Recipient, state::TokenDataVersion};
+use light_ctoken_interface::{instructions::mint_action::Recipient, state::TokenDataVersion};
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::RpcError;

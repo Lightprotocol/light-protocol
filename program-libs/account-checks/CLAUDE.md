@@ -9,7 +9,7 @@
 - `light-compressed-token` - Validates all account inputs in compressed token instructions
 - `light-system` - Core validation for compressed account operations
 - `light-compressible` - Validates CompressibleConfig accounts and PDAs
-- `light-ctoken-types` - Uses AccountInfoTrait for runtime-agnostic account handling
+- `light-ctoken-interface` - Uses AccountInfoTrait for runtime-agnostic account handling
 - `light-account-compression` - Merkle tree account validation
 - `light-batched-merkle-tree` - Batch operation account checks
 - `compressed-token-sdk` - Uses validation helpers in instruction builders

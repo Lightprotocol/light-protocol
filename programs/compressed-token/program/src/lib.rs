@@ -1,7 +1,7 @@
 use std::mem::ManuallyDrop;
 
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID;
 use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 use pinocchio::{account_info::AccountInfo, msg};
 

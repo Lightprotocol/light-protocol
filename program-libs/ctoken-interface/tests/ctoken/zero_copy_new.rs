@@ -6,7 +6,7 @@
 //! 2. test_compressed_token_new_zero_copy_with_delegate
 //! 3. test_compressed_token_new_zero_copy_all_options
 
-use light_ctoken_types::state::ctoken::{CToken, CompressedTokenConfig};
+use light_ctoken_interface::state::ctoken::{CToken, CompressedTokenConfig};
 use light_zero_copy::traits::ZeroCopyNew;
 
 #[test]

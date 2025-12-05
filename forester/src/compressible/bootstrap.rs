@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use base64::{engine::general_purpose, Engine as _};
 use borsh::BorshDeserialize;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     state::{extensions::ExtensionStruct, CToken},
     COMPRESSED_TOKEN_PROGRAM_ID, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };

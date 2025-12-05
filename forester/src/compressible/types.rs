@@ -1,4 +1,4 @@
-use light_ctoken_types::state::CToken;
+use light_ctoken_interface::state::CToken;
 use solana_sdk::pubkey::Pubkey;
 
 /// State of a compressible CToken account

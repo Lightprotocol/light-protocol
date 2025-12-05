@@ -4,7 +4,7 @@
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
-use light_ctoken_types::state::{
+use light_ctoken_interface::state::{
     extensions::{AdditionalMetadata, ExtensionStruct, TokenMetadata},
     mint::{BaseMint, CompressedMint, CompressedMintMetadata},
 };
@@ -109,12 +109,12 @@ fn generate_random_mint() -> CompressedMint {
 
 /// Reconstruct extensions from zero-copy format
 fn reconstruct_extensions(
-    zc_extensions: &Option<Vec<light_ctoken_types::state::extensions::ZExtensionStruct>>,
+    zc_extensions: &Option<Vec<light_ctoken_interface::state::extensions::ZExtensionStruct>>,
 ) -> Option<Vec<ExtensionStruct>> {
     zc_extensions.as_ref().map(|exts| {
         exts.iter()
             .map(|ext| match ext {
-                light_ctoken_types::state::extensions::ZExtensionStruct::TokenMetadata(
+                light_ctoken_interface::state::extensions::ZExtensionStruct::TokenMetadata(
                     zc_metadata,
                 ) => ExtensionStruct::TokenMetadata(TokenMetadata {
                     update_authority: zc_metadata.update_authority,

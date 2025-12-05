@@ -16,7 +16,7 @@ pub fn create_token_pool_account_manual(
     _program_id: &Pubkey,
     token_pool_bump: u8,
 ) -> Result<(), ProgramError> {
-    let token_account_size = light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize;
+    let token_account_size = light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE as usize;
 
     // Get required accounts
     let mint_account = executing_accounts

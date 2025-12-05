@@ -150,7 +150,7 @@ let ix = create_compressible_associated_token_account(CreateCompressibleAssociat
   rent_sponsor,
   pre_pay_num_epochs: 2,
   lamports_per_write: Some(1_000),
-  token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+  token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
 })?;
 ```
 
@@ -161,7 +161,7 @@ use light_compressed_token_sdk::instructions::{
   create_compressed_mint, CreateCompressedMintInputs,
   create_mint_to_compressed_instruction, MintToCompressedInputs
 };
-use light_ctoken_types::instructions::mint_action::Recipient;
+use light_ctoken_interface::instructions::mint_action::Recipient;
 
 let create_cmint_ix = create_compressed_mint(CreateCompressedMintInputs { /* fill from RPC + keys */ })?;
 let mint_ix = create_mint_to_compressed_instruction(MintToCompressedInputs {
@@ -177,10 +177,10 @@ use light_token_client::actions::{create_compressible_token_account, CreateCompr
 
 let token_acc = create_compressible_token_account(&mut rpc, CreateCompressibleTokenAccountInputs {
   owner, mint, num_prepaid_epochs: 2, payer: &payer, token_account_keypair: None,
-  lamports_per_write: None, token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat
+  lamports_per_write: None, token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat
 }).await?;
 
-let sig = mint_to_compressed(&mut rpc, spl_mint_pda, vec![Recipient{ recipient: token_acc, amount: 1000 }], light_ctoken_types::state::TokenDataVersion::ShaFlat, &mint_authority, &payer).await?;
+let sig = mint_to_compressed(&mut rpc, spl_mint_pda, vec![Recipient{ recipient: token_acc, amount: 1000 }], light_ctoken_interface::state::TokenDataVersion::ShaFlat, &mint_authority, &payer).await?;
 ```
 
 ### TL;DR checklists

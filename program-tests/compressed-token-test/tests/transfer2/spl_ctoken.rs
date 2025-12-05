@@ -13,7 +13,7 @@ use light_compressed_token_sdk::{
     token_pool::find_token_pool_pda_with_index,
     ValidityProof,
 };
-use light_ctoken_types::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
+use light_ctoken_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
 use light_program_test::utils::assert::assert_rpc_error;
 pub use light_program_test::{LightProgramTest, ProgramTestConfig};
 pub use light_test_utils::{

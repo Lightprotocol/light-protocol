@@ -1,4 +1,4 @@
-use light_ctoken_types::{
+use light_ctoken_interface::{
     error::CTokenError,
     state::{CToken, CompressedTokenConfig},
 };

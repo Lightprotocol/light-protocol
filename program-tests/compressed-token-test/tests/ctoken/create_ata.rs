@@ -12,7 +12,7 @@ async fn test_create_compressible_ata() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 0,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -36,7 +36,7 @@ async fn test_create_compressible_ata() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -60,7 +60,7 @@ async fn test_create_compressible_ata() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 10,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -84,7 +84,7 @@ async fn test_create_compressible_ata() {
             rent_sponsor: payer_pubkey,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -108,7 +108,7 @@ async fn test_create_compressible_ata() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 0,
             lamports_per_write: None,
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -135,7 +135,7 @@ async fn test_create_ata_idempotent() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -169,7 +169,7 @@ async fn test_create_ata_idempotent() {
         // Should still be 260 bytes (compressible)
         assert_eq!(
             account.data.len(),
-            light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize,
+            light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize,
             "Account should still be compressible size after idempotent recreation"
         );
     }
@@ -205,7 +205,7 @@ async fn test_create_ata_failing() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 1, // Forbidden value
             lamports_per_write: Some(100),
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -232,7 +232,7 @@ async fn test_create_ata_failing() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -281,7 +281,7 @@ async fn test_create_ata_failing() {
             pre_pay_num_epochs: 10, // High number to require more lamports
             lamports_per_write: Some(1000),
             compress_to_account_pubkey: None,
-            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
         };
 
         let create_ata_ix = CreateAssociatedTokenAccount::new(
@@ -307,7 +307,7 @@ async fn test_create_ata_failing() {
     // Error: 2 (InvalidInstructionData)
     {
         use anchor_lang::prelude::borsh::BorshSerialize;
-        use light_ctoken_types::instructions::{
+        use light_ctoken_interface::instructions::{
             create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
             extensions::compressible::{CompressToPubkey, CompressibleExtensionInstructionData},
         };
@@ -329,7 +329,8 @@ async fn test_create_ata_failing() {
             bump,
             compressible_config: Some(CompressibleExtensionInstructionData {
                 compression_only: 0,
-                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat as u8,
+                token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat
+                    as u8,
                 rent_payment: 2,
                 has_top_up: 1,
                 write_top_up: 100,
@@ -378,7 +379,7 @@ async fn test_create_ata_failing() {
     // Error: 21 (ProgramFailedToComplete - provided seeds do not result in valid address)
     {
         use anchor_lang::prelude::borsh::BorshSerialize;
-        use light_ctoken_types::instructions::{
+        use light_ctoken_interface::instructions::{
             create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
             extensions::compressible::CompressibleExtensionInstructionData,
         };
@@ -401,7 +402,8 @@ async fn test_create_ata_failing() {
             bump: wrong_bump, // Wrong bump!
             compressible_config: Some(CompressibleExtensionInstructionData {
                 compression_only: 0,
-                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat as u8,
+                token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat
+                    as u8,
                 rent_payment: 2,
                 has_top_up: 1,
                 write_top_up: 100,
@@ -469,7 +471,7 @@ async fn test_create_ata_failing() {
             pre_pay_num_epochs: 2,
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
-            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
         };
 
         let create_ata_ix = CreateAssociatedTokenAccount::new(
@@ -506,7 +508,7 @@ async fn test_create_ata_failing() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(excessive_lamports_per_write),
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -538,7 +540,7 @@ async fn test_create_ata_failing() {
             pre_pay_num_epochs: 2,
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
-            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
         };
 
         let create_ata_ix = CreateAssociatedTokenAccount::new(
@@ -576,7 +578,7 @@ async fn test_ata_multiple_mints_same_owner() {
         rent_sponsor: context.rent_sponsor,
         num_prepaid_epochs: 2,
         lamports_per_write: Some(100),
-        account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
         compress_to_pubkey: false,
         payer: payer_pubkey,
     };
@@ -645,7 +647,7 @@ async fn test_ata_multiple_owners_same_mint() {
         rent_sponsor: context.rent_sponsor,
         num_prepaid_epochs: 2,
         lamports_per_write: Some(100),
-        account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
         compress_to_pubkey: false,
         payer: payer_pubkey,
     };
@@ -657,7 +659,7 @@ async fn test_ata_multiple_owners_same_mint() {
         pre_pay_num_epochs: 2,
         lamports_per_write: Some(100),
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let create_ata_ix1 = CreateAssociatedTokenAccount::new(payer_pubkey, owner1, mint)
@@ -796,7 +798,7 @@ async fn test_create_ata_random() {
             } else {
                 None
             },
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat, // Only V3 supported
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat, // Only V3 supported
             compress_to_pubkey: false, // Cannot be used with ATAs
             payer: payer_pubkey,
         };

@@ -1,4 +1,4 @@
-use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 

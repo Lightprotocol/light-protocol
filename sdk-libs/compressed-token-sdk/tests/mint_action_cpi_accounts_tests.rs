@@ -5,7 +5,7 @@ use light_compressed_token_sdk::compressed_token::mint_action::{
     cpi_accounts::MintActionCpiAccountsConfig, MintActionCpiAccounts,
 };
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
-use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID;
 use light_sdk_types::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
     REGISTERED_PROGRAM_PDA,

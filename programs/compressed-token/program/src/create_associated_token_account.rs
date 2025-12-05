@@ -2,7 +2,7 @@ use anchor_lang::prelude::ProgramError;
 use borsh::BorshDeserialize;
 use light_account_checks::AccountIterator;
 use light_compressible::config::CompressibleConfig;
-use light_ctoken_types::instructions::{
+use light_ctoken_interface::instructions::{
     create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
     extensions::compressible::CompressibleExtensionInstructionData,
 };
@@ -112,9 +112,9 @@ pub(crate) fn process_create_associated_token_account_inner<const IDEMPOTENT: bo
     }
 
     let token_account_size = if compressible_config.is_some() {
-        light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
+        light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
     } else {
-        light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize
+        light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE as usize
     };
 
     let (compressible_config_account, custom_rent_payer) =

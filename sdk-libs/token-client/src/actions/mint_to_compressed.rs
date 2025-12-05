@@ -2,7 +2,7 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_ctoken_types::{instructions::mint_action::Recipient, state::TokenDataVersion};
+use light_ctoken_interface::{instructions::mint_action::Recipient, state::TokenDataVersion};
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;

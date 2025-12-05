@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID;
 use light_program_test::LightProgramTest;
 use light_token_client::instructions::transfer2::{
     CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
@@ -387,7 +387,7 @@ pub async fn assert_transfer2_with_delegate(
                     .expect("Failed to unpack SPL token account");
 
                 // Check if compress_to_pubkey is set in the compressible extension
-                use light_ctoken_types::state::{ctoken::CToken, ZExtensionStruct};
+                use light_ctoken_interface::state::{ctoken::CToken, ZExtensionStruct};
                 use light_zero_copy::traits::ZeroCopyAt;
 
                 let compress_to_pubkey = if pre_account_data.data.len() > 165 {

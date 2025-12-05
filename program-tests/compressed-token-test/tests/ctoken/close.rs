@@ -171,7 +171,7 @@ async fn test_close_token_account_fails() {
             rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: context.payer.pubkey(),
         };
@@ -188,7 +188,7 @@ async fn test_close_token_account_fails() {
             .unwrap();
 
         // Deserialize, modify amount, serialize back
-        use light_ctoken_types::state::ctoken::CToken;
+        use light_ctoken_interface::state::ctoken::CToken;
         use light_zero_copy::traits::ZeroCopyAtMut;
         let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut account.data).unwrap();
         *ctoken.amount = 1u64.into();
@@ -224,7 +224,7 @@ async fn test_close_token_account_fails() {
             rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: context.payer.pubkey(),
         };
@@ -241,7 +241,7 @@ async fn test_close_token_account_fails() {
             .unwrap();
 
         // Deserialize, modify state to Uninitialized, serialize back
-        use light_ctoken_types::state::ctoken::CToken;
+        use light_ctoken_interface::state::ctoken::CToken;
         use light_zero_copy::traits::ZeroCopyAtMut;
         use spl_token_2022::state::AccountState;
         let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut account.data).unwrap();
@@ -278,7 +278,7 @@ async fn test_close_token_account_fails() {
             rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: context.payer.pubkey(),
         };
@@ -294,7 +294,7 @@ async fn test_close_token_account_fails() {
             .unwrap();
 
         // Deserialize, modify state to Frozen, serialize back
-        use light_ctoken_types::state::ctoken::CToken;
+        use light_ctoken_interface::state::ctoken::CToken;
         use light_zero_copy::traits::ZeroCopyAtMut;
         use spl_token_2022::state::AccountState;
         let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut account.data).unwrap();

@@ -15,7 +15,7 @@ use light_compressed_token_sdk::{
     },
     ValidityProof,
 };
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::{mint_action::Recipient, transfer2::MultiInputTokenDataWithContext},
     state::TokenDataVersion,
 };

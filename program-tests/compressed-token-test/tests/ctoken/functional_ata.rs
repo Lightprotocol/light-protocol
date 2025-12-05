@@ -61,7 +61,7 @@ async fn test_associated_token_account_operations() {
         pre_pay_num_epochs: num_prepaid_epochs,
         lamports_per_write,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let compressible_instruction = CreateAssociatedTokenAccount::new(
@@ -94,7 +94,7 @@ async fn test_associated_token_account_operations() {
             num_prepaid_epochs, // Use actual balance with rent
             lamports_per_write,
             compress_to_pubkey: false,
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
     )

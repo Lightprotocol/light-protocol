@@ -17,7 +17,7 @@ use light_compressed_token::{
         token_input::{set_input_compressed_account, set_input_compressed_account_frozen},
     },
 };
-use light_ctoken_types::{
+use light_ctoken_interface::{
     hash_cache::HashCache, instructions::transfer2::MultiInputTokenDataWithContext,
     state::CompressedTokenAccountState,
 };

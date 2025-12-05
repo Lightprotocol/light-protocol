@@ -1,7 +1,7 @@
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof, traits::LightInstructionData,
 };
-use light_ctoken_types::instructions::mint_action::{
+use light_ctoken_interface::instructions::mint_action::{
     CompressedMintWithContext, CpiContext, MintToCTokenAction,
 };
 use solana_account_info::AccountInfo;
@@ -100,7 +100,7 @@ impl MintToCToken {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         // Build instruction data with mint_to_ctoken actions
         let mut instruction_data =
-            light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new(
+            light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new(
                 self.params.compressed_mint_inputs.clone(),
                 self.params.proof.0,
             );
@@ -139,7 +139,7 @@ impl MintToCToken {
             .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
 
         Ok(Instruction {
-            program_id: Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+            program_id: Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
             accounts: account_metas,
             data,
         })
@@ -223,7 +223,7 @@ impl MintToCTokenCpiWrite {
 
         // Build instruction data with mint_to_ctoken actions
         let mut instruction_data =
-            light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new(
+            light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new(
                 self.params.compressed_mint_inputs.clone(),
                 None, // No proof for CPI write
             );
@@ -249,7 +249,7 @@ impl MintToCTokenCpiWrite {
             .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
 
         Ok(Instruction {
-            program_id: Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+            program_id: Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
             accounts: account_metas,
             data,
         })

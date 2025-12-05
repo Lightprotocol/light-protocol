@@ -29,7 +29,7 @@ light-sparse-merkle-tree = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-program-test = { workspace = true }
 light-compressible = { workspace = true }
-light-ctoken-types = { workspace = true }
+light-ctoken-interface = { workspace = true }
 light-compressed-token-sdk = { workspace = true }
 solana-rpc-client-api = { workspace = true }
 solana-transaction-status = { workspace = true }

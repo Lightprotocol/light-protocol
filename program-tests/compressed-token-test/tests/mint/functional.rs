@@ -6,7 +6,7 @@ use light_compressed_token_sdk::{
     },
     ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
 };
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData, mint_action::Recipient,
     },
@@ -636,7 +636,7 @@ async fn test_update_compressed_mint_authority() {
     // Note: We need to get fresh account info after the updates
     let updated_compressed_accounts = rpc
         .get_compressed_accounts_by_owner(
-            &Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+            &Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
             None,
             None,
         )
@@ -709,7 +709,7 @@ async fn test_ctoken_transfer() {
         pre_pay_num_epochs: 10,
         lamports_per_write: Some(1000),
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let create_ata_instruction =
@@ -1188,7 +1188,7 @@ async fn test_mint_actions() {
             supply:0,
             mint_authority: mint_authority.pubkey(),
             freeze_authority: Some(freeze_authority.pubkey()),
-            metadata: Some(light_ctoken_types::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+            metadata: Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
                 update_authority: Some(mint_authority.pubkey().into()),
                 name: "Test Token".as_bytes().to_vec(),
                 symbol: "TEST".as_bytes().to_vec(),
@@ -1223,8 +1223,8 @@ async fn test_mint_actions() {
             spl_mint_initialized: false, // Should be true after CreateSplMint action
         },
         extensions: Some(vec![
-            light_ctoken_types::state::extensions::ExtensionStruct::TokenMetadata(
-                light_ctoken_types::state::extensions::TokenMetadata {
+            light_ctoken_interface::state::extensions::ExtensionStruct::TokenMetadata(
+                light_ctoken_interface::state::extensions::TokenMetadata {
                     update_authority: mint_authority.pubkey().into(), // Original authority in metadata
                     mint: spl_mint_pda.into(),
                     name: "Test Token".as_bytes().to_vec(),

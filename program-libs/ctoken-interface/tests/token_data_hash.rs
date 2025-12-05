@@ -1,5 +1,5 @@
 use light_compressed_account::Pubkey;
-use light_ctoken_types::state::{CompressedTokenAccountState, TokenData};
+use light_ctoken_interface::state::{CompressedTokenAccountState, TokenData};
 
 pub struct TestCase {
     pub name: String,

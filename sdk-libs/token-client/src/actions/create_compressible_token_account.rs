@@ -1,6 +1,6 @@
 use light_client::rpc::{Rpc, RpcError};
 use light_compressed_token_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
-use light_ctoken_types::state::TokenDataVersion;
+use light_ctoken_interface::state::TokenDataVersion;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;

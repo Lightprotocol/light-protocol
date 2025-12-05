@@ -21,7 +21,7 @@ light-protocol/
 │   ├── compressed-account/       # Compressed account types and utilities
 │   ├── compressible/             # Configuration for compressible token accounts
 │   ├── concurrent-merkle-tree/   # Concurrent Merkle tree operations
-│   ├── ctoken-types/             # Compressed token types and interfaces
+│   ├── ctoken-interface/             # Compressed token types and interfaces
 │   ├── hash-set/                 # Hash set implementation for Solana programs
 │   ├── hasher/                   # Poseidon hash implementation
 │   ├── heap/                     # Heap data structure for Solana programs

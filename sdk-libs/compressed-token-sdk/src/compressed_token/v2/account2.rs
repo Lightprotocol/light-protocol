@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use light_ctoken_types::instructions::transfer2::{
+use light_ctoken_interface::instructions::transfer2::{
     Compression, CompressionMode, MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
 };
 use light_program_profiler::profile;

@@ -3,7 +3,7 @@ use light_compressed_token_sdk::compressed_token::{
     ctoken_instruction::CTokenInstruction, mint_action::MintActionCpiWriteAccounts,
     transfer2::Transfer2CpiAccounts,
 };
-use light_ctoken_types::instructions::mint_action::{
+use light_ctoken_interface::instructions::mint_action::{
     CompressedMintWithContext, MintActionCompressedInstructionData, MintToCompressedAction,
     Recipient,
 };
@@ -14,7 +14,7 @@ use crate::Generic;
 pub struct MintCompressedTokensCpiWriteParams {
     pub compressed_mint_with_context: CompressedMintWithContext,
     pub recipients: Vec<Recipient>,
-    pub cpi_context: light_ctoken_types::instructions::mint_action::CpiContext,
+    pub cpi_context: light_ctoken_interface::instructions::mint_action::CpiContext,
     pub cpi_context_pubkey: Pubkey,
 }
 

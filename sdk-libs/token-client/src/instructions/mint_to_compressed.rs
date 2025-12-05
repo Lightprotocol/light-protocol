@@ -12,7 +12,7 @@ use light_compressed_token_sdk::{
     },
     token_pool::{derive_token_pool, find_token_pool_pda_with_index},
 };
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::mint_action::{CompressedMintWithContext, Recipient},
     state::{CompressedMint, TokenDataVersion},
 };

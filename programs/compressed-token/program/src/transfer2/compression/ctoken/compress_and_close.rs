@@ -2,7 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use bitvec::prelude::*;
 use light_account_checks::{checks::check_signer, packed_accounts::ProgramPackedAccounts};
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::transfer2::{ZCompression, ZCompressionMode, ZMultiTokenTransferOutputData},
     state::{ZCompressedTokenMut, ZExtensionStructMut},
 };

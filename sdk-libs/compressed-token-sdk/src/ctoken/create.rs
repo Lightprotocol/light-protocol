@@ -1,5 +1,5 @@
 use borsh::BorshSerialize;
-use light_ctoken_types::instructions::{
+use light_ctoken_interface::instructions::{
     create_ctoken_account::CreateTokenAccountInstructionData,
     extensions::compressible::CompressibleExtensionInstructionData,
 };
@@ -83,7 +83,7 @@ impl CreateCTokenAccount {
         };
 
         Ok(Instruction {
-            program_id: Pubkey::from(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+            program_id: Pubkey::from(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
             accounts,
             data,
         })

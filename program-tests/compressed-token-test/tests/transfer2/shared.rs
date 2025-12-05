@@ -6,7 +6,7 @@ use light_compressed_token_sdk::{
     compressed_token::create_compressed_mint::find_spl_mint_address,
     ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
 };
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::{mint_action::Recipient, transfer2::CompressedTokenInstructionDataTransfer2},
     state::TokenDataVersion,
 };

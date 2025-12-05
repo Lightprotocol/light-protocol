@@ -2,7 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use borsh::BorshSerialize;
 use light_compressed_account::instruction_data::data::ZOutputCompressedAccountWithPackedContextMut;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     hash_cache::HashCache, instructions::mint_action::ZMintActionCompressedInstructionData,
     state::CompressedMint,
 };

@@ -124,7 +124,7 @@ pub async fn setup_create_compressed_mint(
             .value
             .expect("Compressed mint should exist");
 
-        use light_ctoken_types::state::CompressedMint;
+        use light_ctoken_interface::state::CompressedMint;
         let compressed_mint =
             CompressedMint::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
                 .unwrap();
@@ -137,7 +137,7 @@ pub async fn setup_create_compressed_mint(
             .value;
 
         // Build CompressedMintWithContext
-        use light_ctoken_types::instructions::mint_action::CompressedMintWithContext;
+        use light_ctoken_interface::instructions::mint_action::CompressedMintWithContext;
         let compressed_mint_with_context = CompressedMintWithContext {
             address: compression_address,
             leaf_index: compressed_mint_account.leaf_index,

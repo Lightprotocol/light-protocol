@@ -11,7 +11,7 @@ use light_compressed_token_sdk::{
     ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
     CPI_AUTHORITY_PDA,
 };
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData,
         mint_action::{CompressedMintInstructionData, CompressedMintWithContext, Recipient},
@@ -97,7 +97,7 @@ async fn test_pda_ctoken() {
     println!("🧪 Verifying chained CPI results...");
 
     // 1. Verify compressed mint was created and mint authority was revoked
-    let compressed_mint = light_ctoken_types::state::CompressedMint::deserialize(
+    let compressed_mint = light_ctoken_interface::state::CompressedMint::deserialize(
         &mut &mint_account.data.as_ref().unwrap().data[..],
     )
     .unwrap();
@@ -212,7 +212,7 @@ pub async fn create_mint(
         pre_pay_num_epochs: 2,
         lamports_per_write: Some(1000),
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let create_ata_instruction =
@@ -277,7 +277,7 @@ pub async fn create_mint(
             },
             mint_authority: Some(mint_authority.pubkey().into()),
             freeze_authority: freeze_authority.map(|fa| fa.into()),
-            extensions: metadata.map(|m| vec![light_ctoken_types::instructions::extensions::ExtensionInstructionData::TokenMetadata(m)]),
+            extensions: metadata.map(|m| vec![light_ctoken_interface::instructions::extensions::ExtensionInstructionData::TokenMetadata(m)]),
         },
     };
 

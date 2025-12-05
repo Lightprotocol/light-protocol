@@ -7,7 +7,7 @@ use light_compressed_token_sdk::{
     },
     ctoken::CreateAssociatedTokenAccount,
 };
-use light_ctoken_types::state::{extensions::AdditionalMetadata, CompressedMint};
+use light_ctoken_interface::state::{extensions::AdditionalMetadata, CompressedMint};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
@@ -84,7 +84,7 @@ async fn test_random_mint_action() {
         8, // decimals
         &authority,
         Some(authority.pubkey()),
-        Some(light_ctoken_types::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+        Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
             update_authority: Some(authority.pubkey().into()),
             name: "Test Token".as_bytes().to_vec(),
             symbol: "TEST".as_bytes().to_vec(),
@@ -111,7 +111,7 @@ async fn test_random_mint_action() {
         8,
         authority.pubkey(),
         authority.pubkey(),
-        Some(light_ctoken_types::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+        Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
             update_authority: Some(authority.pubkey().into()),
             name: "Test Token".as_bytes().to_vec(),
             symbol: "TEST".as_bytes().to_vec(),

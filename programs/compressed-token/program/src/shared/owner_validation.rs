@@ -1,7 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::check_signer;
-use light_ctoken_types::state::ZCompressedTokenMut;
+use light_ctoken_interface::state::ZCompressedTokenMut;
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 

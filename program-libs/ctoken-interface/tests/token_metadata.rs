@@ -5,7 +5,7 @@
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
-use light_ctoken_types::state::extensions::{
+use light_ctoken_interface::state::extensions::{
     AdditionalMetadata, TokenMetadata as LightTokenMetadata,
 };
 use rand::{distributions::Alphanumeric, thread_rng, Rng};

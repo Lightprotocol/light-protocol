@@ -7,7 +7,7 @@ use light_account_checks::{
 use light_compressed_token::transfer2::{
     accounts::Transfer2Accounts, compression::ctoken::close_for_compress_and_close,
 };
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::transfer2::{Compression, CompressionMode},
     state::{CToken, CompressedTokenConfig},
 };
@@ -36,7 +36,7 @@ fn create_compressible_ctoken_data(
 
     // Set compressible extension fields
     if let Some(extensions) = ctoken.extensions.as_mut() {
-        if let Some(light_ctoken_types::state::ZExtensionStructMut::Compressible(comp_ext)) =
+        if let Some(light_ctoken_interface::state::ZExtensionStructMut::Compressible(comp_ext)) =
             extensions.first_mut()
         {
             comp_ext.config_account_version.set(1);

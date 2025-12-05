@@ -4,7 +4,7 @@
 // };
 // use light_compressed_token::mint_action::accounts::{AccountsConfig, MintActionAccounts};
 // use light_compressed_token::ErrorCode;
-// use light_ctoken_types::CMINT_ADDRESS_TREE;
+// use light_ctoken_interface::CMINT_ADDRESS_TREE;
 // use pinocchio::account_info::AccountInfo;
 // use pinocchio::pubkey::Pubkey;
 

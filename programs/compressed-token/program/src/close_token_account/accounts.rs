@@ -1,6 +1,6 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::check_owner;
-use light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
+use light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 

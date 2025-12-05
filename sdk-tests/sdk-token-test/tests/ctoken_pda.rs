@@ -7,7 +7,7 @@ use light_compressed_token_sdk::{
     },
     CPI_AUTHORITY_PDA,
 };
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData,
         mint_action::{CompressedMintInstructionData, CompressedMintWithContext, Recipient},
@@ -93,7 +93,7 @@ async fn test_ctoken_pda() {
     println!("🧪 Verifying chained CPI results...");
 
     // 1. Verify compressed mint was created and mint authority was revoked
-    let compressed_mint = light_ctoken_types::state::CompressedMint::deserialize(
+    let compressed_mint = light_ctoken_interface::state::CompressedMint::deserialize(
         &mut &mint_account.data.as_ref().unwrap().data[..],
     )
     .unwrap();
@@ -207,7 +207,7 @@ pub async fn create_mint<R: Rpc + Indexer>(
             },
             mint_authority: Some(mint_authority.pubkey().into()),
             freeze_authority: freeze_authority.map(|fa| fa.into()),
-            extensions: metadata.map(|m| vec![light_ctoken_types::instructions::extensions::ExtensionInstructionData::TokenMetadata(m)]),
+            extensions: metadata.map(|m| vec![light_ctoken_interface::instructions::extensions::ExtensionInstructionData::TokenMetadata(m)]),
         },
     };
 

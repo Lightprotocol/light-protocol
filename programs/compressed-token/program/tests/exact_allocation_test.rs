@@ -3,7 +3,7 @@ use light_compressed_account::instruction_data::with_readonly::InstructionDataIn
 use light_compressed_token::shared::cpi_bytes_size::{
     allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
 };
-use light_ctoken_types::state::{
+use light_ctoken_interface::state::{
     extensions::{AdditionalMetadataConfig, TokenMetadataConfig},
     CompressedMint, CompressedMintConfig, ExtensionStructConfig,
 };

@@ -1,5 +1,5 @@
 use light_compressed_account::compressed_account::PackedMerkleContext;
-use light_ctoken_types::instructions::transfer2::{
+use light_ctoken_interface::instructions::transfer2::{
     CompressedCpiContext, MultiInputTokenDataWithContext,
 };
 use light_program_profiler::profile;

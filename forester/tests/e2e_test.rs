@@ -36,7 +36,7 @@ use light_compressed_token::process_transfer::{
     TokenTransferOutputData,
 };
 use light_compressed_token_sdk::compat::TokenDataWithMerkleContext;
-use light_ctoken_types::state::TokenDataVersion;
+use light_ctoken_interface::state::TokenDataVersion;
 use light_hasher::Poseidon;
 use light_program_test::accounts::test_accounts::TestAccounts;
 use light_prover_client::prover::spawn_prover;

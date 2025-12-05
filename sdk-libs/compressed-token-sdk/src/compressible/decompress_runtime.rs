@@ -1,5 +1,5 @@
 //! Runtime helpers for token decompression.
-use light_ctoken_types::instructions::transfer2::MultiInputTokenDataWithContext;
+use light_ctoken_interface::instructions::transfer2::MultiInputTokenDataWithContext;
 use light_sdk::{cpi::v2::CpiAccounts, instruction::ValidityProof};
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
 use solana_account_info::AccountInfo;
@@ -131,7 +131,7 @@ where
                     .take(ctoken_signer_seeds.len().saturating_sub(1))
                     .cloned()
                     .collect();
-                light_ctoken_types::instructions::extensions::compressible::CompressToPubkey {
+                light_ctoken_interface::instructions::extensions::compressible::CompressToPubkey {
                     bump,
                     program_id: program_id.to_bytes(),
                     seeds: seeds_without_bump,
@@ -153,7 +153,7 @@ where
                 pre_pay_num_epochs: 2,
                 lamports_per_write: None,
                 compress_to_account_pubkey: compress_to_pubkey,
-                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+                token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             }),
         }
         .invoke_signed(&[seeds_slice])?;

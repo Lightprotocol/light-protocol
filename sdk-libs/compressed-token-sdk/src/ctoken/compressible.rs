@@ -1,4 +1,4 @@
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::extensions::compressible::CompressToPubkey, state::TokenDataVersion,
 };
 use solana_account_info::AccountInfo;

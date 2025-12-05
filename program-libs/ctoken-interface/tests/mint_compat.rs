@@ -4,7 +4,7 @@
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
-use light_ctoken_types::state::BaseMint;
+use light_ctoken_interface::state::BaseMint;
 use rand::{thread_rng, Rng};
 use spl_token_2022::{solana_program::program_pack::Pack, state::Mint};
 

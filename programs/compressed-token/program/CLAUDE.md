@@ -111,7 +111,7 @@ Every instruction description must include the sections:
 - **`lib.rs`** - Main entry point and instruction dispatch
 
 ## Data Structures
-All state and instruction data structures are defined in **`program-libs/ctoken-types/`** (`light-ctoken-types` crate):
+All state and instruction data structures are defined in **`program-libs/ctoken-types/`** (`light-ctoken-interface` crate):
 - **`state/`** - Account state structures (CompressedToken, TokenData, CompressedMint)
 - **`instructions/`** - Instruction data structures for all operations
 - **`state/extensions/`** - Extension data (Compressible, TokenMetadata)

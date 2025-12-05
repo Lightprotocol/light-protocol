@@ -1,4 +1,4 @@
-use light_ctoken_types::state::TokenDataVersion;
+use light_ctoken_interface::state::TokenDataVersion;
 use serial_test::serial;
 
 use crate::transfer2::shared::{

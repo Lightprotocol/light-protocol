@@ -9,7 +9,7 @@ use light_compressed_token_sdk::compressed_token::{
         MintActionMetaConfigCpiWrite,
     },
 };
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::mint_action::{
         CompressedMintInstructionData, CompressedMintWithContext, CpiContext,
         MintActionCompressedInstructionData,

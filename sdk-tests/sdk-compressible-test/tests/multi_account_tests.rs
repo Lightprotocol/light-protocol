@@ -12,7 +12,7 @@ use light_compressed_token_sdk::{
 };
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
 use light_compressible_client::compressible_instruction;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
     state::CompressedMintMetadata,
 };

@@ -1,5 +1,5 @@
 use anchor_lang::InstructionData;
-use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID;
 use light_program_test::{
     program_test::TestRpc, Indexer, LightProgramTest, ProgramTestConfig, Rpc,
 };

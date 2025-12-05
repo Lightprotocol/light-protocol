@@ -5,7 +5,7 @@ use light_client::{
 use light_compressed_token_sdk::ctoken::{
     derive_compressed_mint_address, find_spl_mint_address, CreateCMint, CreateCMintParams,
 };
-use light_ctoken_types::instructions::extensions::{
+use light_ctoken_interface::instructions::extensions::{
     token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,
 };
 use solana_instruction::Instruction;

@@ -1,5 +1,5 @@
 use light_compressed_token_types::constants::POOL_SEED;
-use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID;
 use solana_pubkey::Pubkey;
 
 use crate::{AnchorDeserialize, AnchorSerialize};

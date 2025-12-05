@@ -5,17 +5,17 @@ edition = { workspace = true }
 
 [features]
 
-anchor = ["anchor-lang", "light-compressed-token-types/anchor",  "light-ctoken-types/anchor"]
+anchor = ["anchor-lang", "light-compressed-token-types/anchor",  "light-ctoken-interface/anchor"]
 cpi-context = ["light-sdk/cpi-context"]
 profile-program = [
     "light-program-profiler/profile-program",
     "light-compressed-account/profile-program",
-    "light-ctoken-types/profile-program",
+    "light-ctoken-interface/profile-program",
 ]
 profile-heap = [
     "light-program-profiler/profile-heap",
     "light-compressed-account/profile-heap",
-    "light-ctoken-types/profile-heap",
+    "light-ctoken-interface/profile-heap",
 ]
 
 [dependencies]
@@ -23,7 +23,7 @@ profile-heap = [
 light-compressed-token-types = { workspace = true }
 light-compressed-account = { workspace = true, features = ["std"] }
 light-compressible = { workspace = true }
-light-ctoken-types = { workspace = true }
+light-ctoken-interface = { workspace = true }
 light-sdk = { workspace = true, features = ["v2"] }
 light-macros = { workspace = true }
 thiserror = { workspace = true }

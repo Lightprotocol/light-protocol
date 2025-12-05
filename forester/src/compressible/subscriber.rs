@@ -1,7 +1,7 @@
 use std::{str::FromStr, sync::Arc};
 
 use futures::StreamExt;
-use light_ctoken_types::{COMPRESSED_TOKEN_PROGRAM_ID, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE};
+use light_ctoken_interface::{COMPRESSED_TOKEN_PROGRAM_ID, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE};
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::{
     nonblocking::pubsub_client::PubsubClient,

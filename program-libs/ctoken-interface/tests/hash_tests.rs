@@ -1,7 +1,7 @@
 // #[cfg(test)]
 // mod hash_tests {
 //     use light_compressed_account::Pubkey;
-//     use light_ctoken_types::state::{BaseMint, CompressedMint, CompressedMintMetadata};
+//     use light_ctoken_interface::state::{BaseMint, CompressedMint, CompressedMintMetadata};
 //     use rand::Rng;
 
 //     /// Hash Collision Detection Tests

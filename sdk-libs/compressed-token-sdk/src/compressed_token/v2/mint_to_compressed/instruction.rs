@@ -1,7 +1,7 @@
 use light_compressed_account::instruction_data::traits::LightInstructionData;
 pub use light_compressed_token_types::account_infos::mint_to_compressed::DecompressedMintConfig;
 use light_compressed_token_types::CompressedProof;
-use light_ctoken_types::instructions::mint_action::{
+use light_ctoken_interface::instructions::mint_action::{
     CompressedMintWithContext, CpiContext, Recipient,
 };
 use solana_instruction::Instruction;
@@ -56,13 +56,14 @@ pub fn create_mint_to_compressed_instruction(
         token_pool: _,
     } = inputs;
 
-    let mint_to_action = light_ctoken_types::instructions::mint_action::MintToCompressedAction {
-        token_account_version,
-        recipients,
-    };
+    let mint_to_action =
+        light_ctoken_interface::instructions::mint_action::MintToCompressedAction {
+            token_account_version,
+            recipients,
+        };
 
     let mut instruction_data =
-        light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new(
+        light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new(
             compressed_mint_inputs.clone(),
             proof,
         )
@@ -98,7 +99,7 @@ pub fn create_mint_to_compressed_instruction(
 
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
-            light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
+            light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID,
         ),
         accounts: account_metas,
         data,

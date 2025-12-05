@@ -1,6 +1,6 @@
 use light_client::rpc::Rpc;
 use light_compressible::rent::AccountRentState;
-use light_ctoken_types::state::{ctoken::CToken, ZExtensionStruct};
+use light_ctoken_interface::state::{ctoken::CToken, ZExtensionStruct};
 use light_program_test::LightProgramTest;
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_sdk::{pubkey::Pubkey, signer::Signer};
@@ -123,7 +123,7 @@ async fn assert_compressible_extension(
     let compressible_extension = extension
         .iter()
         .find_map(|ext| match ext {
-            light_ctoken_types::state::extensions::ZExtensionStruct::Compressible(comp) => {
+            light_ctoken_interface::state::extensions::ZExtensionStruct::Compressible(comp) => {
                 Some(comp)
             }
             _ => None,

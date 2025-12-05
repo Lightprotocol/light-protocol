@@ -26,7 +26,7 @@ use light_compressed_token::{
     process_transfer::{transfer_sdk::create_transfer_instruction, TokenTransferOutputData},
 };
 use light_compressed_token_sdk::compat::TokenDataWithMerkleContext;
-use light_ctoken_types::state::{CompressedTokenAccountState, TokenData};
+use light_ctoken_interface::state::{CompressedTokenAccountState, TokenData};
 use light_hasher::Poseidon;
 use light_program_test::{indexer::TestIndexerExtensions, program_test::TestRpc};
 use solana_banks_client::BanksClientError;

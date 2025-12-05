@@ -1,5 +1,5 @@
 use light_compressed_token_types::{constants::TRANSFER2, ValidityProof};
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::transfer2::{CompressedCpiContext, CompressedTokenInstructionDataTransfer2},
     COMPRESSED_TOKEN_PROGRAM_ID,
 };

@@ -6,7 +6,7 @@
 //! 3. test_account_type_compatibility_with_spl_parsing
 
 use light_compressed_account::Pubkey;
-use light_ctoken_types::state::{
+use light_ctoken_interface::state::{
     ctoken::{CToken, CompressedTokenConfig, ZCToken},
     CompressionInfoConfig, ExtensionStructConfig,
 };
@@ -177,7 +177,7 @@ fn compare_compressed_token_with_pod_account(
 
 /// Compare all fields between our CToken mutable zero-copy implementation and Pod account
 fn compare_compressed_token_mut_with_pod_account(
-    compressed_token: &light_ctoken_types::state::ctoken::ZCompressedTokenMut,
+    compressed_token: &light_ctoken_interface::state::ctoken::ZCompressedTokenMut,
     pod_account: &PodAccount,
 ) -> bool {
     // Extensions should be None for basic SPL Token accounts
@@ -490,7 +490,7 @@ fn test_account_type_compatibility_with_spl_parsing() {
 #[test]
 fn test_compressible_extension_partial_eq() {
     use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
-    use light_ctoken_types::state::{
+    use light_ctoken_interface::state::{
         ctoken::AccountState as CtokenAccountState, extensions::ExtensionStruct,
     };
 
@@ -510,7 +510,7 @@ fn test_compressible_extension_partial_eq() {
         // Set extension fields
         if let Some(ref mut exts) = zctoken_mut.extensions {
             for ext in exts.iter_mut() {
-                if let light_ctoken_types::state::extensions::ZExtensionStructMut::Compressible(
+                if let light_ctoken_interface::state::extensions::ZExtensionStructMut::Compressible(
                     ref mut comp,
                 ) = ext
                 {

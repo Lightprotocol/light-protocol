@@ -2,7 +2,7 @@ use anchor_spl::token_2022::spl_token_2022;
 use light_client::rpc::Rpc;
 use light_compressed_token_sdk::ctoken::derive_ctoken_ata;
 use light_compressible::rent::RentConfig;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     state::{ctoken::CToken, extensions::CompressionInfo, AccountState},
     BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
@@ -17,7 +17,7 @@ pub struct CompressibleData {
     pub num_prepaid_epochs: u8,
     pub lamports_per_write: Option<u32>,
     pub compress_to_pubkey: bool,
-    pub account_version: light_ctoken_types::state::TokenDataVersion,
+    pub account_version: light_ctoken_interface::state::TokenDataVersion,
     pub payer: Pubkey,
 }
 
@@ -90,7 +90,7 @@ pub async fn assert_create_token_account_internal(
                 delegated_amount: 0,
                 close_authority: None,
                 extensions: Some(vec![
-                    light_ctoken_types::state::extensions::ExtensionStruct::Compressible(
+                    light_ctoken_interface::state::extensions::ExtensionStruct::Compressible(
                         CompressionInfo {
                             config_account_version: 1,
                             last_claimed_slot: current_slot,

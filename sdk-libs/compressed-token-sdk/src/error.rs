@@ -1,6 +1,6 @@
 use light_account_checks::AccountError;
 use light_compressed_token_types::error::LightTokenSdkTypeError;
-use light_ctoken_types::CTokenError;
+use light_ctoken_interface::CTokenError;
 use light_sdk::error::LightSdkError;
 use light_sdk_types::error::LightSdkTypesError;
 use light_zero_copy::errors::ZeroCopyError;

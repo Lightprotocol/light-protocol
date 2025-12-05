@@ -1,5 +1,5 @@
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
-use light_ctoken_types::{
+use light_ctoken_interface::{
     state::{CToken, ZExtensionStruct},
     CTokenError,
 };
@@ -84,7 +84,7 @@ fn calculate_and_execute_top_up_transfers(
 
     // Calculate transfer amounts for accounts with compressible extensions
     for transfer in transfers.iter_mut() {
-        if transfer.account.data_len() > light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize {
+        if transfer.account.data_len() > light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE as usize {
             let account_data = transfer
                 .account
                 .try_borrow_data()
@@ -105,7 +105,7 @@ fn calculate_and_execute_top_up_transfers(
                                 transfer.account.data_len() as u64,
                                 current_slot,
                                 transfer.account.lamports(),
-                                light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                                light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                             )
                             .map_err(|_| CTokenError::InvalidAccountData)?;
 

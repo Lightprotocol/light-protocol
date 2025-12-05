@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
-use light_ctoken_types::state::{
+use light_ctoken_interface::state::{
     BaseMint, CompressedMint, CompressedMintConfig, CompressedMintMetadata,
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
