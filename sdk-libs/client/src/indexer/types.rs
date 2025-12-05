@@ -6,7 +6,7 @@ use light_compressed_account::{
     instruction_data::compressed_proof::CompressedProof,
     TreeType,
 };
-use light_compressed_token_sdk::compat::{AccountState, TokenData};
+use light_ctoken_sdk::compat::{AccountState, TokenData};
 use light_indexed_merkle_tree::array::IndexedElement;
 use light_sdk::instruction::{
     PackedAccounts, PackedAddressTreeInfo, PackedStateTreeInfo, ValidityProof,
@@ -893,13 +893,11 @@ impl TryFrom<&photon_api::models::TokenAccountV2> for CompressedTokenAccount {
 }
 
 #[allow(clippy::from_over_into)]
-impl Into<light_compressed_token_sdk::compat::TokenDataWithMerkleContext>
-    for CompressedTokenAccount
-{
-    fn into(self) -> light_compressed_token_sdk::compat::TokenDataWithMerkleContext {
+impl Into<light_ctoken_sdk::compat::TokenDataWithMerkleContext> for CompressedTokenAccount {
+    fn into(self) -> light_ctoken_sdk::compat::TokenDataWithMerkleContext {
         let compressed_account = CompressedAccountWithMerkleContext::from(self.account);
 
-        light_compressed_token_sdk::compat::TokenDataWithMerkleContext {
+        light_ctoken_sdk::compat::TokenDataWithMerkleContext {
             token_data: self.token,
             compressed_account,
         }
@@ -907,32 +905,30 @@ impl Into<light_compressed_token_sdk::compat::TokenDataWithMerkleContext>
 }
 
 #[allow(clippy::from_over_into)]
-impl Into<Vec<light_compressed_token_sdk::compat::TokenDataWithMerkleContext>>
+impl Into<Vec<light_ctoken_sdk::compat::TokenDataWithMerkleContext>>
     for super::response::Response<super::response::ItemsWithCursor<CompressedTokenAccount>>
 {
-    fn into(self) -> Vec<light_compressed_token_sdk::compat::TokenDataWithMerkleContext> {
+    fn into(self) -> Vec<light_ctoken_sdk::compat::TokenDataWithMerkleContext> {
         self.value
             .items
             .into_iter()
             .map(
-                |token_account| light_compressed_token_sdk::compat::TokenDataWithMerkleContext {
+                |token_account| light_ctoken_sdk::compat::TokenDataWithMerkleContext {
                     token_data: token_account.token,
                     compressed_account: CompressedAccountWithMerkleContext::from(
                         token_account.account.clone(),
                     ),
                 },
             )
-            .collect::<Vec<light_compressed_token_sdk::compat::TokenDataWithMerkleContext>>()
+            .collect::<Vec<light_ctoken_sdk::compat::TokenDataWithMerkleContext>>()
     }
 }
 
-impl TryFrom<light_compressed_token_sdk::compat::TokenDataWithMerkleContext>
-    for CompressedTokenAccount
-{
+impl TryFrom<light_ctoken_sdk::compat::TokenDataWithMerkleContext> for CompressedTokenAccount {
     type Error = IndexerError;
 
     fn try_from(
-        token_data_with_context: light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        token_data_with_context: light_ctoken_sdk::compat::TokenDataWithMerkleContext,
     ) -> Result<Self, Self::Error> {
         let account = CompressedAccount::try_from(token_data_with_context.compressed_account)?;
 

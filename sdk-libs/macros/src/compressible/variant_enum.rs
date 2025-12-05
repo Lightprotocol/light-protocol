@@ -41,8 +41,8 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
         #[derive(Clone, Debug, anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize)]
         pub enum CompressedAccountVariant {
             #(#account_variants)*
-            PackedCTokenData(light_compressed_token_sdk::compat::PackedCTokenData<CTokenAccountVariant>),
-            CTokenData(light_compressed_token_sdk::compat::CTokenData<CTokenAccountVariant>),
+            PackedCTokenData(light_ctoken_sdk::compat::PackedCTokenData<CTokenAccountVariant>),
+            CTokenData(light_ctoken_sdk::compat::CTokenData<CTokenAccountVariant>),
         }
     };
 
@@ -187,7 +187,7 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#pack_match_arms)*
                     Self::PackedCTokenData(_) => unreachable!(),
                     Self::CTokenData(data) => {
-                        Self::PackedCTokenData(light_compressed_token_sdk::Pack::pack(data, remaining_accounts))
+                        Self::PackedCTokenData(light_ctoken_sdk::Pack::pack(data, remaining_accounts))
                     }
                 }
             }

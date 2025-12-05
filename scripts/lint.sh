@@ -33,7 +33,7 @@ NO_DEFAULT_CRATES=(
     "light-sdk-types"
     "light-sdk-pinocchio"
     "light-sdk-macros"
-    "light-compressed-token-sdk"
+    "light-ctoken-sdk"
     "light-compressed-token-types"
     "light-sdk"
     "sdk-compressible-test"
@@ -100,7 +100,7 @@ ANCHOR_CRATES=(
     "light-compressible"
     "light-sdk-types"
     "light-sdk"
-    "light-compressed-token-sdk"
+    "light-ctoken-sdk"
     "light-compressed-token-types"
 )
 

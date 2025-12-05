@@ -117,7 +117,7 @@ use light_compressed_account::{
     TreeType,
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use light_compressed_token_sdk::compat::{AccountState, TokenDataWithMerkleContext};
+use light_ctoken_sdk::compat::{AccountState, TokenDataWithMerkleContext};
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,

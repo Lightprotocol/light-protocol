@@ -2,7 +2,12 @@ use light_client::{
     indexer::{CompressedTokenAccount, Indexer},
     rpc::Rpc,
 };
-use light_compressed_token_sdk::{
+use light_ctoken_interface::{
+    instructions::transfer2::{MultiInputTokenDataWithContext, MultiTokenTransferOutputData},
+    state::TokenDataVersion,
+    COMPRESSED_TOKEN_PROGRAM_ID,
+};
+use light_ctoken_sdk::{
     compressed_token::{
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
@@ -12,11 +17,6 @@ use light_compressed_token_sdk::{
     },
     error::TokenSdkError,
     token_pool::find_token_pool_pda_with_index,
-};
-use light_ctoken_interface::{
-    instructions::transfer2::{MultiInputTokenDataWithContext, MultiTokenTransferOutputData},
-    state::TokenDataVersion,
-    COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
 use solana_instruction::Instruction;

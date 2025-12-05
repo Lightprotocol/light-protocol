@@ -5,8 +5,8 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_compressed_token_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
 use light_compressible::config::CompressibleConfig;
+use light_ctoken_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
 use light_registry::{
     accounts::CompressAndCloseContext as CompressAndCloseAccounts,
     compressible::compressed_token::CompressAndCloseIndices, instruction::CompressAndClose,

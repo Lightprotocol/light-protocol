@@ -164,7 +164,7 @@ async fn test_compress_and_close_owner_scenarios() {
         .await;
 
         // Set token balance on ATA
-        use light_compressed_token_sdk::ctoken::derive_ctoken_ata;
+        use light_ctoken_sdk::ctoken::derive_ctoken_ata;
         let (ata_pubkey, _bump) =
             derive_ctoken_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 

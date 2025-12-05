@@ -1,12 +1,4 @@
 use anchor_lang::{prelude::AccountMeta, InstructionData};
-use light_compressed_token_sdk::{
-    compressed_token::{
-        create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
-        mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
-    },
-    ctoken::CreateAssociatedTokenAccount,
-    utils::CTokenDefaultAccounts,
-};
 use light_ctoken_interface::{
     instructions::{
         mint_action::{CompressedMintWithContext, Recipient},
@@ -14,6 +6,14 @@ use light_ctoken_interface::{
     },
     state::{BaseMint, CompressedMintMetadata},
     COMPRESSED_MINT_SEED,
+};
+use light_ctoken_sdk::{
+    compressed_token::{
+        create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
+        mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
+    },
+    ctoken::CreateAssociatedTokenAccount,
+    utils::CTokenDefaultAccounts,
 };
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::{
@@ -95,7 +95,7 @@ async fn create_compressed_mints_and_tokens(
 
     // Create associated token account for mint1 decompression
     let (token_account1_pubkey, _bump) =
-        light_compressed_token_sdk::ctoken::derive_ctoken_ata(&payer.pubkey(), &mint1_pda);
+        light_ctoken_sdk::ctoken::derive_ctoken_ata(&payer.pubkey(), &mint1_pda);
     let create_ata_instruction =
         CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), mint1_pda)
             .instruction()

@@ -35,7 +35,8 @@
 // 1. create and mint to one ctoken compressed account
 //
 
-use light_compressed_token_sdk::{
+use light_ctoken_interface::{instructions::mint_action::Recipient, state::TokenDataVersion};
+use light_ctoken_sdk::{
     compressed_token::{
         create_compressed_mint::find_spl_mint_address,
         transfer2::{
@@ -47,7 +48,6 @@ use light_compressed_token_sdk::{
     ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
     ValidityProof,
 };
-use light_ctoken_interface::{instructions::mint_action::Recipient, state::TokenDataVersion};
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::RpcError;

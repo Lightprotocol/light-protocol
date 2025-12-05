@@ -1,8 +1,9 @@
 use anchor_lang::prelude::{AccountMeta, ProgramError};
 // Re-export all necessary imports for test modules
 pub use anchor_spl::token_2022::spl_token_2022;
-pub use light_compressed_token_sdk::ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount};
-use light_compressed_token_sdk::{
+use light_ctoken_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
+pub use light_ctoken_sdk::ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount};
+use light_ctoken_sdk::{
     compressed_token::{
         transfer2::{
             create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config,
@@ -13,7 +14,6 @@ use light_compressed_token_sdk::{
     token_pool::find_token_pool_pda_with_index,
     ValidityProof,
 };
-use light_ctoken_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
 use light_program_test::utils::assert::assert_rpc_error;
 pub use light_program_test::{LightProgramTest, ProgramTestConfig};
 pub use light_test_utils::{

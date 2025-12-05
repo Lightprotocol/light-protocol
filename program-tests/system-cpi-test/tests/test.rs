@@ -18,7 +18,7 @@ use light_compressed_account::{
     TreeType,
 };
 use light_compressed_token::process_transfer::InputTokenDataWithContext;
-use light_compressed_token_sdk::compat::{AccountState, TokenDataWithMerkleContext};
+use light_ctoken_sdk::compat::{AccountState, TokenDataWithMerkleContext};
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{

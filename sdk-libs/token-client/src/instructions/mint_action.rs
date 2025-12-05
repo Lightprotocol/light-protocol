@@ -4,10 +4,6 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_account::instruction_data::traits::LightInstructionData;
-use light_compressed_token_sdk::compressed_token::{
-    create_compressed_mint::{derive_compressed_mint_address, find_spl_mint_address},
-    mint_action::MintActionMetaConfig,
-};
 use light_ctoken_interface::{
     instructions::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
@@ -19,6 +15,10 @@ use light_ctoken_interface::{
     },
     state::CompressedMint,
     COMPRESSED_TOKEN_PROGRAM_ID,
+};
+use light_ctoken_sdk::compressed_token::{
+    create_compressed_mint::{derive_compressed_mint_address, find_spl_mint_address},
+    mint_action::MintActionMetaConfig,
 };
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;

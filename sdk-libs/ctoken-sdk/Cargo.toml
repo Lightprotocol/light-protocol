@@ -1,5 +1,5 @@
 [package]
-name = "light-compressed-token-sdk"
+name = "light-ctoken-sdk"
 version = "0.1.0"
 edition = { workspace = true }
 

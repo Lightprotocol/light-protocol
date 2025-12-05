@@ -2,17 +2,17 @@ use anchor_lang::{
     prelude::{AccountMeta, Pubkey},
     InstructionData,
 };
-use light_compressed_token_sdk::{
+use light_ctoken_interface::{
+    instructions::mint_action::{CompressedMintWithContext, Recipient},
+    state::{BaseMint, CompressedMint, CompressedMintMetadata},
+    COMPRESSED_MINT_SEED, COMPRESSED_TOKEN_PROGRAM_ID,
+};
+use light_ctoken_sdk::{
     compressed_token::{
         create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
         mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
     },
     ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount},
-};
-use light_ctoken_interface::{
-    instructions::mint_action::{CompressedMintWithContext, Recipient},
-    state::{BaseMint, CompressedMint, CompressedMintMetadata},
-    COMPRESSED_MINT_SEED, COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};

@@ -1,12 +1,6 @@
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_client::indexer::Indexer;
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
-use light_compressed_token_sdk::{
-    compressed_token::create_compressed_mint::{
-        derive_compressed_mint_address, find_spl_mint_address,
-    },
-    CPI_AUTHORITY_PDA,
-};
 use light_ctoken_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData,
@@ -14,6 +8,12 @@ use light_ctoken_interface::{
     },
     state::{extensions::AdditionalMetadata, CompressedMintMetadata},
     COMPRESSED_TOKEN_PROGRAM_ID,
+};
+use light_ctoken_sdk::{
+    compressed_token::create_compressed_mint::{
+        derive_compressed_mint_address, find_spl_mint_address,
+    },
+    CPI_AUTHORITY_PDA,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};

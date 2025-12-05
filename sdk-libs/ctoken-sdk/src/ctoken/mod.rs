@@ -42,7 +42,7 @@ pub struct SystemAccountInfos<'info> {
 /// System accounts with Pubkey references for instruction building.
 ///
 /// ```rust
-/// # use light_compressed_token_sdk::ctoken::SystemAccounts;
+/// # use light_ctoken_sdk::ctoken::SystemAccounts;
 /// # use solana_instruction::AccountMeta;
 /// let system_accounts = SystemAccounts::default();
 /// let accounts = vec![

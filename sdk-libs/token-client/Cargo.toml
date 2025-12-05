@@ -12,7 +12,7 @@ light-compressed-account = { workspace = true, features = ["std"] }
 light-ctoken-interface = { workspace = true }
 light-sdk = { workspace = true }
 light-client = { workspace = true, features = ["v2"] }
-light-compressed-token-sdk = { workspace = true }
+light-ctoken-sdk = { workspace = true }
 light-zero-copy = { workspace = true }
 
 # Solana dependencies

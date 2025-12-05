@@ -3,13 +3,13 @@ use std::str::FromStr;
 
 // TODO: refactor into dir
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
-use light_compressed_token_sdk::ctoken::{
-    derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount,
-};
 use light_compressible::{
     config::CompressibleConfig, error::CompressibleError, rent::SLOTS_PER_EPOCH,
 };
 use light_ctoken_interface::state::{CToken, ExtensionStruct};
+use light_ctoken_sdk::ctoken::{
+    derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount,
+};
 use light_program_test::{
     forester::claim_forester, program_test::TestRpc, utils::assert::assert_rpc_error,
     LightProgramTest, ProgramTestConfig,

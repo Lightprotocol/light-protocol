@@ -9,7 +9,7 @@ use light_compressed_account::hash_to_bn254_field_size_be;
 use light_compressed_token::mint_sdk::{
     create_create_token_pool_instruction, create_mint_to_instruction,
 };
-use light_compressed_token_sdk::compat::{AccountState, TokenData};
+use light_ctoken_sdk::compat::{AccountState, TokenData};
 use light_program_test::{
     accounts::test_accounts::TestAccounts, program_test::LightProgramTest, ProgramTestConfig,
 };

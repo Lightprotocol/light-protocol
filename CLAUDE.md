@@ -41,7 +41,7 @@ light-protocol/
 │   ├── client/                   # RPC client for querying compressed accounts
 │   ├── sdk/                      # Core SDK for Rust/Anchor programs
 │   ├── sdk-pinocchio/            # Pinocchio-specific SDK implementation
-│   ├── compressed-token-sdk/     # Compressed token client utilities
+│   ├── ctoken-sdk/               # Compressed token client utilities
 │   └── program-test/             # Fast local test environment (LiteSVM)
 ├── prover/                    # ZK proof generation
 │   ├── server/                   # Go-based prover server and circuit implementation (Gnark)

@@ -4,7 +4,7 @@ use light_client::indexer::{
     AddressMerkleTreeAccounts, MerkleProof, NewAddressProofWithContext, StateMerkleTreeAccounts,
 };
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
-use light_compressed_token_sdk::compat::TokenDataWithMerkleContext;
+use light_ctoken_sdk::compat::TokenDataWithMerkleContext;
 use light_event::event::PublicTransactionEvent;
 use solana_sdk::signature::Keypair;
 

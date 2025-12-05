@@ -30,7 +30,7 @@ light-sdk = { workspace = true, features = ["anchor"] }
 light-program-test = { workspace = true }
 light-compressible = { workspace = true }
 light-ctoken-interface = { workspace = true }
-light-compressed-token-sdk = { workspace = true }
+light-ctoken-sdk = { workspace = true }
 solana-rpc-client-api = { workspace = true }
 solana-transaction-status = { workspace = true }
 bb8 = { workspace = true }
@@ -72,6 +72,6 @@ light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
 light-token-client = { workspace = true }
 dotenvy = "0.15"
 light-compressed-token = { workspace = true }
-light-compressed-token-sdk = { workspace = true }
+light-ctoken-sdk = { workspace = true }
 rand = { workspace = true }
 create-address-test-program = { workspace = true }

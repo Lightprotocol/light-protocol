@@ -25,11 +25,11 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 pub mod csdk_anchor_derived_test {
     use anchor_lang::solana_program::{program::invoke, sysvar::clock::Clock};
     use light_compressed_account::instruction_data::traits::LightInstructionData;
-    use light_compressed_token_sdk::compressed_token::{
-        create_compressed_mint::find_spl_mint_address, mint_action::MintActionMetaConfig,
-    };
     use light_ctoken_interface::instructions::mint_action::{
         MintActionCompressedInstructionData, MintToCompressedAction, Recipient,
+    };
+    use light_ctoken_sdk::compressed_token::{
+        create_compressed_mint::find_spl_mint_address, mint_action::MintActionMetaConfig,
     };
     use light_sdk::{
         compressible::{

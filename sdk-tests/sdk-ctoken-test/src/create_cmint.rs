@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_compressed_token_sdk::{
+use light_ctoken_sdk::{
     ctoken::{
         CreateCMintAccountInfos, CreateCMintParams, ExtensionInstructionData, SystemAccountInfos,
     },

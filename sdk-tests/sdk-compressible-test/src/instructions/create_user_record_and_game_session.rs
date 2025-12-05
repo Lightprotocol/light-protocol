@@ -3,10 +3,10 @@ use anchor_lang::{
     solana_program::{instruction::Instruction, program::invoke, sysvar::clock::Clock},
 };
 use light_compressed_account::instruction_data::traits::LightInstructionData;
-use light_compressed_token_sdk::compressed_token::{
+use light_ctoken_interface::instructions::mint_action::{MintToCompressedAction, Recipient};
+use light_ctoken_sdk::compressed_token::{
     create_compressed_mint::find_spl_mint_address, mint_action::MintActionMetaConfig,
 };
-use light_ctoken_interface::instructions::mint_action::{MintToCompressedAction, Recipient};
 use light_sdk::{
     compressible::{
         compress_account_on_init::prepare_compressed_account_on_init, CompressibleConfig,

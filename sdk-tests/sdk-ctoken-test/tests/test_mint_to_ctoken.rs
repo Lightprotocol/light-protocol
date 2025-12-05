@@ -4,7 +4,7 @@ mod shared;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_compressed_token_sdk::{
+use light_ctoken_sdk::{
     compressed_token::mint_action::MintActionMetaConfig, ctoken::CTOKEN_PROGRAM_ID,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
@@ -49,7 +49,7 @@ async fn test_mint_to_ctoken() {
         let instruction_data =
             [vec![2u8], create_token_account_data.try_to_vec().unwrap()].concat();
 
-        use light_compressed_token_sdk::ctoken::{config_pda, rent_sponsor_pda};
+        use light_ctoken_sdk::ctoken::{config_pda, rent_sponsor_pda};
         let config = config_pda();
         let rent_sponsor = rent_sponsor_pda();
 
@@ -200,12 +200,12 @@ async fn test_mint_to_ctoken_invoke_signed() {
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     // Derive compression address using the PDA mint_signer
-    let compression_address = light_compressed_token_sdk::ctoken::derive_compressed_mint_address(
+    let compression_address = light_ctoken_sdk::ctoken::derive_compressed_mint_address(
         &mint_signer_pda,
         &address_tree.tree,
     );
 
-    let mint_pda = light_compressed_token_sdk::ctoken::find_spl_mint_address(&mint_signer_pda).0;
+    let mint_pda = light_ctoken_sdk::ctoken::find_spl_mint_address(&mint_signer_pda).0;
 
     let rpc_result = rpc
         .get_validity_proof(
@@ -222,7 +222,7 @@ async fn test_mint_to_ctoken_invoke_signed() {
 
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
-    let default_pubkeys = light_compressed_token_sdk::utils::CTokenDefaultAccounts::default();
+    let default_pubkeys = light_ctoken_sdk::utils::CTokenDefaultAccounts::default();
 
     // Step 1: Create compressed mint with PDA authority using wrapper program (discriminator 14)
     {
@@ -284,7 +284,7 @@ async fn test_mint_to_ctoken_invoke_signed() {
         let instruction_data =
             [vec![2u8], create_token_account_data.try_to_vec().unwrap()].concat();
 
-        use light_compressed_token_sdk::ctoken::{config_pda, rent_sponsor_pda};
+        use light_ctoken_sdk::ctoken::{config_pda, rent_sponsor_pda};
         let config = config_pda();
         let rent_sponsor = rent_sponsor_pda();
 
@@ -363,7 +363,7 @@ async fn test_mint_to_ctoken_invoke_signed() {
         // for invoke_signed (the wrapper program signs via CPI)
         let compressed_token_program_id =
             Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
-        let default_pubkeys = light_compressed_token_sdk::utils::CTokenDefaultAccounts::default();
+        let default_pubkeys = light_ctoken_sdk::utils::CTokenDefaultAccounts::default();
 
         let wrapper_accounts = vec![
             AccountMeta::new_readonly(compressed_token_program_id, false),

@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
-use light_compressed_token_sdk::ValidityProof;
 use light_ctoken_interface::instructions::mint_action::{CompressedMintWithContext, Recipient};
+use light_ctoken_sdk::ValidityProof;
 
 use super::{
     create_pda::process_create_escrow_pda_with_cpi_context, mint::process_mint_action, PdaCToken,

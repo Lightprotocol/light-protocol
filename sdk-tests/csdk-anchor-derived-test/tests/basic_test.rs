@@ -1,12 +1,12 @@
 use anchor_lang::{AccountDeserialize, AnchorDeserialize, InstructionData, ToAccountMetas};
 use csdk_anchor_derived_test::{AccountCreationData, CompressionParams, GameSession, UserRecord};
 use light_compressed_account::address::derive_address;
-use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
-    derive_compressed_mint_address, find_spl_mint_address,
-};
 use light_ctoken_interface::{
     instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
     state::CompressedMintMetadata,
+};
+use light_ctoken_sdk::compressed_token::create_compressed_mint::{
+    derive_compressed_mint_address, find_spl_mint_address,
 };
 use light_macros::pubkey;
 use light_program_test::{

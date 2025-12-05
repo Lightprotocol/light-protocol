@@ -1,5 +1,9 @@
 use anchor_lang::ToAccountMetas;
-use light_compressed_token_sdk::{
+use light_compressed_token_types::constants::{
+    ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA, LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID,
+    PROGRAM_ID as COMPRESSED_TOKEN_PROGRAM_ID,
+};
+use light_ctoken_sdk::{
     compressed_token::{
         batch_compress::{get_batch_compress_instruction_account_metas, BatchCompressMetaConfig},
         transfer::account_metas::{
@@ -7,10 +11,6 @@ use light_compressed_token_sdk::{
         },
     },
     utils::CTokenDefaultAccounts,
-};
-use light_compressed_token_types::constants::{
-    ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA, LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID,
-    PROGRAM_ID as COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_sdk::constants::REGISTERED_PROGRAM_PDA;
 use solana_pubkey::Pubkey;

@@ -1,11 +1,5 @@
 use anchor_lang::{prelude::borsh::BorshDeserialize, solana_program::program_pack::Pack};
 use light_client::indexer::Indexer;
-use light_compressed_token_sdk::{
-    compressed_token::create_compressed_mint::{
-        derive_compressed_mint_address, find_spl_mint_address,
-    },
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
-};
 use light_ctoken_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData, mint_action::Recipient,
@@ -15,6 +9,12 @@ use light_ctoken_interface::{
         TokenDataVersion,
     },
     COMPRESSED_MINT_SEED,
+};
+use light_ctoken_sdk::{
+    compressed_token::create_compressed_mint::{
+        derive_compressed_mint_address, find_spl_mint_address,
+    },
+    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
@@ -1051,7 +1051,11 @@ async fn test_create_compressed_mint_with_token_metadata() {
         &[COMPRESSED_MINT_SEED, mint_seed.pubkey().as_ref()],
         &light_compressed_token::ID,
     );
-    let compressed_mint_address = light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let compressed_mint_address =
+        light_ctoken_sdk::compressed_token::create_compressed_mint::derive_compressed_mint_address(
+            &mint_seed.pubkey(),
+            &address_tree_pubkey,
+        );
 
     // Verify the compressed mint was created
     let compressed_mint_account = rpc

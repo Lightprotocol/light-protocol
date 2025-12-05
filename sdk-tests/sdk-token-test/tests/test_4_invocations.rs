@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::AccountMeta, AccountDeserialize, InstructionData};
-use light_compressed_token_sdk::{
+use light_ctoken_sdk::{
     compressed_token::transfer::account_metas::{
         get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
     },
@@ -531,7 +531,7 @@ async fn test_four_invokes_instruction(
         transfer_2: sdk_token_test::TransferParams {
             mint: mint2,
             transfer_amount: 300,
-            token_metas: vec![light_compressed_token_sdk::TokenAccountMeta {
+            token_metas: vec![light_ctoken_sdk::TokenAccountMeta {
                 amount: mint2_token_account.token.amount,
                 delegate_index: None,
                 packed_tree_info: mint2_tree_info,
@@ -544,7 +544,7 @@ async fn test_four_invokes_instruction(
         transfer_3: sdk_token_test::TransferParams {
             mint: mint3,
             transfer_amount: 200,
-            token_metas: vec![light_compressed_token_sdk::TokenAccountMeta {
+            token_metas: vec![light_ctoken_sdk::TokenAccountMeta {
                 amount: mint3_token_account.token.amount,
                 delegate_index: None,
                 packed_tree_info: mint3_tree_info,

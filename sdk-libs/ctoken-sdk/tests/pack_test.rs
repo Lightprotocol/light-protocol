@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
 
-    use light_compressed_token_sdk::{
+    use light_ctoken_sdk::{
         compat::{PackedCTokenDataWithVariant, TokenData, TokenDataWithVariant},
         Pack,
     };

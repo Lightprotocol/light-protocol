@@ -43,12 +43,12 @@
 //
 // ============================================================================
 
-use light_compressed_token_sdk::{
+use light_ctoken_interface::instructions::{mint_action::Recipient, transfer2::Compression};
+use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::find_spl_mint_address,
     ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount},
     ValidityProof,
 };
-use light_ctoken_interface::instructions::{mint_action::Recipient, transfer2::Compression};
 use light_program_test::{
     utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
 };
@@ -227,8 +227,8 @@ fn build_compressions_only_instruction(
     packed_account_metas: Vec<solana_sdk::instruction::AccountMeta>,
 ) -> Result<solana_sdk::instruction::Instruction, RpcError> {
     use anchor_lang::AnchorSerialize;
-    use light_compressed_token_sdk::constants::{CPI_AUTHORITY_PDA, TRANSFER2};
     use light_ctoken_interface::instructions::transfer2::CompressedTokenInstructionDataTransfer2;
+    use light_ctoken_sdk::constants::{CPI_AUTHORITY_PDA, TRANSFER2};
     use solana_sdk::instruction::AccountMeta;
 
     // For compressions-only mode (decompressed_accounts_only), the account order is:

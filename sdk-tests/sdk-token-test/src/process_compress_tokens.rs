@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_compressed_token_sdk::compressed_token::transfer::{
+use light_ctoken_sdk::compressed_token::transfer::{
     instruction::{compress, CompressInputs},
     TransferAccountInfos,
 };

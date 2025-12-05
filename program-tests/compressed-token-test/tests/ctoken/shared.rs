@@ -1,10 +1,10 @@
 // Re-export all necessary imports for test modules
-pub use light_compressed_token_sdk::ctoken::{
+pub use light_compressible::rent::{RentConfig, SLOTS_PER_EPOCH};
+pub use light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
+pub use light_ctoken_sdk::ctoken::{
     derive_ctoken_ata, CloseAccount, CompressibleParams, CreateAssociatedTokenAccount,
     CreateCTokenAccount,
 };
-pub use light_compressible::rent::{RentConfig, SLOTS_PER_EPOCH};
-pub use light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
 pub use light_program_test::{
     forester::compress_and_close_forester, program_test::TestRpc, LightProgramTest,
     ProgramTestConfig,
@@ -765,7 +765,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
     };
 
     // Add system accounts
-    use light_compressed_token_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
+    use light_ctoken_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
     let config = CTokenCompressAndCloseAccounts {
         compressed_token_program: compressed_token_program_id,
         cpi_authority_pda: Pubkey::find_program_address(

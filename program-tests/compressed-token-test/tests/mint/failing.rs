@@ -2,13 +2,13 @@
 
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
-use light_compressed_token_sdk::{
+use light_ctoken_interface::state::{extensions::AdditionalMetadata, CompressedMint};
+use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::{
         derive_compressed_mint_address, find_spl_mint_address,
     },
     ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
 };
-use light_ctoken_interface::state::{extensions::AdditionalMetadata, CompressedMint};
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
@@ -469,11 +469,8 @@ async fn functional_and_failing_tests() {
             .await
             .unwrap();
 
-        let recipient_ata = light_compressed_token_sdk::ctoken::derive_ctoken_ata(
-            &recipient2.pubkey(),
-            &spl_mint_pda,
-        )
-        .0;
+        let recipient_ata =
+            light_ctoken_sdk::ctoken::derive_ctoken_ata(&recipient2.pubkey(), &spl_mint_pda).0;
 
         // Try to mint with valid NEW authority (since we updated it)
         let result = light_token_client::actions::mint_action_comprehensive(
@@ -814,15 +811,15 @@ async fn functional_and_failing_tests() {
 #[serial]
 async fn test_mint_to_ctoken_max_top_up_exceeded() {
     use light_compressed_account::instruction_data::traits::LightInstructionData;
-    use light_compressed_token_sdk::compressed_token::{
-        create_compressed_mint::derive_compressed_mint_address, mint_action::MintActionMetaConfig,
-    };
     use light_ctoken_interface::{
         instructions::mint_action::{
             CompressedMintWithContext, MintActionCompressedInstructionData, MintToCTokenAction,
         },
         state::TokenDataVersion,
         COMPRESSED_TOKEN_PROGRAM_ID,
+    };
+    use light_ctoken_sdk::compressed_token::{
+        create_compressed_mint::derive_compressed_mint_address, mint_action::MintActionMetaConfig,
     };
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
@@ -884,7 +881,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
         .unwrap();
 
     let ctoken_ata =
-        light_compressed_token_sdk::ctoken::derive_ctoken_ata(&recipient.pubkey(), &spl_mint_pda).0;
+        light_ctoken_sdk::ctoken::derive_ctoken_ata(&recipient.pubkey(), &spl_mint_pda).0;
 
     // 3. Build MintToCToken instruction with max_top_up = 1 (too low)
     // Get current compressed mint state

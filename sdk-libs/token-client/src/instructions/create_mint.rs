@@ -2,11 +2,11 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_compressed_token_sdk::ctoken::{
-    derive_compressed_mint_address, find_spl_mint_address, CreateCMint, CreateCMintParams,
-};
 use light_ctoken_interface::instructions::extensions::{
     token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,
+};
+use light_ctoken_sdk::ctoken::{
+    derive_compressed_mint_address, find_spl_mint_address, CreateCMint, CreateCMintParams,
 };
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;

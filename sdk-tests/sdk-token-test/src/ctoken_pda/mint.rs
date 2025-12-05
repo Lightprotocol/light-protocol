@@ -1,9 +1,9 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_compressed_token_sdk::compressed_token::{
-    ctoken_instruction::CTokenInstruction, mint_action::MintActionCpiWriteAccounts,
-};
 use light_ctoken_interface::instructions::mint_action::{
     MintActionCompressedInstructionData, MintToCompressedAction, UpdateAuthority,
+};
+use light_ctoken_sdk::compressed_token::{
+    ctoken_instruction::CTokenInstruction, mint_action::MintActionCpiWriteAccounts,
 };
 use light_sdk::cpi::v2::CpiAccounts;
 

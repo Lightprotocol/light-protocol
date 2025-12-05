@@ -1,11 +1,11 @@
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::rpc::Rpc;
-use light_compressed_token_sdk::ctoken::derive_ctoken_ata;
 use light_compressible::rent::RentConfig;
 use light_ctoken_interface::{
     state::{ctoken::CToken, extensions::CompressionInfo, AccountState},
     BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
+use light_ctoken_sdk::ctoken::derive_ctoken_ata;
 use light_program_test::LightProgramTest;
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};

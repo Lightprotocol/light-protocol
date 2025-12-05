@@ -1,13 +1,13 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
-use light_compressed_token_sdk::{
+use light_ctoken_interface::state::{
+    extensions::AdditionalMetadata, CompressedMint, TokenDataVersion,
+};
+use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::{
         derive_compressed_mint_address, find_spl_mint_address,
     },
     ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
-};
-use light_ctoken_interface::state::{
-    extensions::AdditionalMetadata, CompressedMint, TokenDataVersion,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
@@ -183,7 +183,7 @@ async fn functional_all_in_one_instruction() {
         },
         // 2. MintToCToken - mint to decompressed account
         MintActionType::MintToCToken {
-            account: light_compressed_token_sdk::ctoken::derive_ctoken_ata(
+            account: light_ctoken_sdk::ctoken::derive_ctoken_ata(
                 &recipient.pubkey(),
                 &spl_mint_pda,
             )

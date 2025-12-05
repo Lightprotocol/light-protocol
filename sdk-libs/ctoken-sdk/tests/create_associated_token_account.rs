@@ -1,4 +1,4 @@
-use light_compressed_token_sdk::ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount};
+use light_ctoken_sdk::ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount};
 use solana_pubkey::Pubkey;
 
 const CREATE_ATA_DISCRIMINATOR: u8 = 100;
