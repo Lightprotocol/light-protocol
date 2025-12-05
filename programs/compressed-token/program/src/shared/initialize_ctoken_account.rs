@@ -83,8 +83,8 @@ pub fn initialize_ctoken_account(
         // Bytes 2-5: Vec length = 1 (little-endian u32)
         extension_bytes[2..6].copy_from_slice(&[1, 0, 0, 0]);
 
-        // Byte 6: Compressible enum discriminator = 26
-        extension_bytes[6] = 26;
+        // Byte 6: Compressible enum discriminator = 32 (avoids Token-2022 overlap)
+        extension_bytes[6] = 32;
 
         // Create zero-copy mutable reference to CompressionInfo
         let (mut compressible_extension, _) = CompressionInfo::zero_copy_at_mut(compressible_data)

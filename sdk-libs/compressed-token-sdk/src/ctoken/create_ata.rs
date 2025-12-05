@@ -97,6 +97,7 @@ impl CreateAssociatedTokenAccount {
                     } else {
                         0
                     },
+                    compression_only: 0,
                     write_top_up: config.lamports_per_write.unwrap_or(0),
                     compress_to_account_pubkey: None,
                 });
@@ -318,6 +319,7 @@ impl CreateAssociatedTokenAccount2 {
                     } else {
                         0
                     },
+                    compression_only: 0,
                     write_top_up: config.lamports_per_write.unwrap_or(0),
                     compress_to_account_pubkey: None,
                 });
