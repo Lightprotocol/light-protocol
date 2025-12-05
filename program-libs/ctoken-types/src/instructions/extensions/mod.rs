@@ -28,4 +28,19 @@ pub enum ExtensionInstructionData {
     Placeholder17,
     Placeholder18,
     TokenMetadata(TokenMetadataInstructionData),
+    Placeholder20,
+    Placeholder21,
+    Placeholder22,
+    Placeholder23,
+    Placeholder24,
+    Placeholder25,
+    Placeholder26,
+    /// Reserved for PausableAccount extension
+    Placeholder27,
+    /// Reserved for PermanentDelegateAccount extension
+    Placeholder28,
+    Placeholder29,
+    Placeholder30,
+    /// Reserved for CompressedOnly extension
+    Placeholder31,
 }

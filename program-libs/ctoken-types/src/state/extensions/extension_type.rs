@@ -31,8 +31,17 @@ pub enum ExtensionType {
     Placeholder23,
     Placeholder24,
     Placeholder25,
+    /// Reserved for Token-2022 Pausable compatibility
+    Placeholder26,
+    /// Reserved for Token-2022 PausableAccount compatibility
+    Placeholder27,
+    /// Reserved for Token-2022 extensions
+    Placeholder28,
+    Placeholder29,
+    Placeholder30,
+    Placeholder31,
     /// Account contains compressible timing data and rent authority
-    Compressible = 26,
+    Compressible = 32,
 }
 
 impl TryFrom<u8> for ExtensionType {
@@ -41,7 +50,7 @@ impl TryFrom<u8> for ExtensionType {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             19 => Ok(ExtensionType::TokenMetadata),
-            26 => Ok(ExtensionType::Compressible),
+            32 => Ok(ExtensionType::Compressible),
             _ => Err(crate::CTokenError::UnsupportedExtension),
         }
     }

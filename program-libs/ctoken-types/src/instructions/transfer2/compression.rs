@@ -68,6 +68,9 @@ pub struct Compression {
     /// compressed account index for CompressAndClose
     pub pool_index: u8, // This account is not necessary to decompress ctokens because there are no token pools
     pub bump: u8, // This account is not necessary to decompress ctokens because there are no token pools
+    /// Placeholder for future use (decimals for spl token operations, or flags).
+    /// Currently unused - always set to 0.
+    pub decimals: u8,
 }
 
 impl ZCompression<'_> {
@@ -110,6 +113,7 @@ impl Compression {
             pool_account_index: rent_sponsor_index,
             pool_index: compressed_account_index,
             bump: destination_index,
+            decimals: 0,
         }
     }
 
@@ -131,6 +135,7 @@ impl Compression {
             pool_account_index,
             pool_index,
             bump,
+            decimals: 0,
         }
     }
     pub fn compress_ctoken(amount: u64, mint: u8, source: u8, authority: u8) -> Self {
@@ -143,6 +148,7 @@ impl Compression {
             pool_account_index: 0,
             pool_index: 0,
             bump: 0,
+            decimals: 0,
         }
     }
 
@@ -163,6 +169,7 @@ impl Compression {
             pool_account_index,
             pool_index,
             bump,
+            decimals: 0,
         }
     }
 
@@ -176,6 +183,7 @@ impl Compression {
             pool_account_index: 0,
             pool_index: 0,
             bump: 0,
+            decimals: 0,
         }
     }
 }

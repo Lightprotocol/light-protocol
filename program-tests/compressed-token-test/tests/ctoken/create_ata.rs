@@ -330,6 +330,7 @@ async fn test_create_ata_failing() {
             mint: context.mint_pubkey.into(),
             bump,
             compressible_config: Some(CompressibleExtensionInstructionData {
+                compression_only: 0,
                 token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat as u8,
                 rent_payment: 2,
                 has_top_up: 1,
@@ -396,6 +397,7 @@ async fn test_create_ata_failing() {
             mint: context.mint_pubkey.into(),
             bump: wrong_bump, // Wrong bump!
             compressible_config: Some(CompressibleExtensionInstructionData {
+                compression_only: 0,
                 token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat as u8,
                 rent_payment: 2,
                 has_top_up: 1,

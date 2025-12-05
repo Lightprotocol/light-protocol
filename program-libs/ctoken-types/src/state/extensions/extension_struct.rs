@@ -38,6 +38,15 @@ pub enum ExtensionStruct {
     Placeholder23,
     Placeholder24,
     Placeholder25,
+    /// Reserved for Token-2022 Pausable compatibility
+    Placeholder26,
+    /// Reserved for Token-2022 PausableAccount compatibility
+    Placeholder27,
+    /// Reserved for Token-2022 extensions
+    Placeholder28,
+    Placeholder29,
+    Placeholder30,
+    Placeholder31,
     /// Account contains compressible timing data and rent authority
     Compressible(CompressionInfo),
 }
@@ -70,6 +79,15 @@ pub enum ZExtensionStructMut<'a> {
     Placeholder23,
     Placeholder24,
     Placeholder25,
+    /// Reserved for Token-2022 Pausable compatibility
+    Placeholder26,
+    /// Reserved for Token-2022 PausableAccount compatibility
+    Placeholder27,
+    /// Reserved for Token-2022 extensions
+    Placeholder28,
+    Placeholder29,
+    Placeholder30,
+    Placeholder31,
     /// Account contains compressible timing data and rent authority
     Compressible(<CompressionInfo as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut),
 }
@@ -99,8 +117,8 @@ impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
-            26 => {
-                // Compressible variant
+            32 => {
+                // Compressible variant (index 32 to avoid Token-2022 overlap)
                 let (compressible_ext, remaining_bytes) =
                     CompressionInfo::zero_copy_at_mut(remaining_data)?;
                 Ok((
@@ -159,14 +177,14 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                 ))
             }
             ExtensionStructConfig::Compressible(config) => {
-                // Write discriminant (26 for Compressible)
+                // Write discriminant (32 for Compressible - avoids Token-2022 overlap)
                 if bytes.is_empty() {
                     return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
                         1,
                         bytes.len(),
                     ));
                 }
-                bytes[0] = 26u8;
+                bytes[0] = 32u8;
 
                 let (compressible_ext, remaining_bytes) =
                     CompressionInfo::new_zero_copy(&mut bytes[1..], config)?;
@@ -208,5 +226,14 @@ pub enum ExtensionStructConfig {
     Placeholder23,
     Placeholder24,
     Placeholder25,
+    /// Reserved for Token-2022 Pausable compatibility
+    Placeholder26,
+    /// Reserved for Token-2022 PausableAccount compatibility
+    Placeholder27,
+    /// Reserved for Token-2022 extensions
+    Placeholder28,
+    Placeholder29,
+    Placeholder30,
+    Placeholder31,
     Compressible(CompressionInfoConfig),
 }

@@ -64,6 +64,7 @@ fn test_close_for_compress_and_close_duplicate_detection() {
             pool_account_index: 2, // rent_sponsor index
             pool_index: 0,         // DUPLICATE: compressed_account_index = 0
             bump: 3,               // destination index
+            decimals: 0,
         },
         Compression {
             mode: CompressionMode::CompressAndClose,
@@ -74,6 +75,7 @@ fn test_close_for_compress_and_close_duplicate_detection() {
             pool_account_index: 2, // rent_sponsor index
             pool_index: 0,         // DUPLICATE: compressed_account_index = 0 (SAME AS FIRST!)
             bump: 3,               // destination index
+            decimals: 0,
         },
     ];
 

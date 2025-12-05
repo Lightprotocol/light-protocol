@@ -306,6 +306,7 @@ impl CTokenAccount2 {
             pool_account_index: 0,
             pool_index: 0,
             bump: 0,
+            decimals: 0,
         });
         self.method_used = true;
 

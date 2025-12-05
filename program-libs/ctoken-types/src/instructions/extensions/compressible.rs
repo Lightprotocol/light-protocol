@@ -19,6 +19,9 @@ pub struct CompressibleExtensionInstructionData {
     /// Paid once at initialization.
     pub rent_payment: u8,
     pub has_top_up: u8,
+    /// Placeholder for future use. If true, the compressed token account cannot be transferred,
+    /// only decompressed. Currently unused - always set to 0.
+    pub compression_only: u8,
     pub write_top_up: u32,
     pub compress_to_account_pubkey: Option<CompressToPubkey>,
 }
