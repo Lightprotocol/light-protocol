@@ -386,315 +386,322 @@ async function _getAccountInterface(
         throw new Error('Only one of Address or fetchByOwner can be provided');
     }
 
-    // try all three programs in parallel
+    // Unified mode (auto-detect: cToken + optional SPL/T22)
     if (!programId) {
-        // c-token
-        const cTokenAta = address
-            ? address
-            : getAssociatedTokenAddressSync(
-                  fetchByOwner!.mint,
-                  fetchByOwner!.owner,
-                  false,
-                  CTOKEN_PROGRAM_ID,
-                  getATAProgramId(CTOKEN_PROGRAM_ID),
-              );
-
-        const fetchPromises: Promise<{
-            accountInfo: AccountInfo<Buffer>;
-            parsed: Account;
-            isCold: boolean;
-            loadContext?: MerkleContext;
-        }>[] = [];
-        const fetchTypes: TokenAccountSource['type'][] = [];
-        const fetchAddresses: PublicKey[] = [];
-
-        // c-token hot + cold
-        fetchPromises.push(_tryFetchCTokenHot(rpc, cTokenAta, commitment));
-        fetchTypes.push('ctoken-hot');
-        fetchAddresses.push(cTokenAta);
-
-        fetchPromises.push(
-            fetchByOwner
-                ? _tryFetchCTokenColdByOwner(
-                      rpc,
-                      fetchByOwner.owner,
-                      fetchByOwner.mint,
-                      cTokenAta,
-                  )
-                : _tryFetchCTokenColdByAddress(rpc, address!),
-        );
-        fetchTypes.push('ctoken-cold');
-        fetchAddresses.push(cTokenAta);
-
-        // spl/t22
-        let splTokenAta: PublicKey | undefined;
-        let token2022Ata: PublicKey | undefined;
-
-        if (wrap) {
-            splTokenAta = address
-                ? address
-                : getAssociatedTokenAddressSync(
-                      fetchByOwner!.mint,
-                      fetchByOwner!.owner,
-                      false,
-                      TOKEN_PROGRAM_ID,
-                      getATAProgramId(TOKEN_PROGRAM_ID),
-                  );
-            token2022Ata = address
-                ? address
-                : getAssociatedTokenAddressSync(
-                      fetchByOwner!.mint,
-                      fetchByOwner!.owner,
-                      false,
-                      TOKEN_2022_PROGRAM_ID,
-                      getATAProgramId(TOKEN_2022_PROGRAM_ID),
-                  );
-
-            fetchPromises.push(_tryFetchSpl(rpc, splTokenAta, commitment));
-            fetchTypes.push('spl');
-            fetchAddresses.push(splTokenAta);
-
-            fetchPromises.push(
-                _tryFetchToken2022(rpc, token2022Ata, commitment),
-            );
-            fetchTypes.push('token2022');
-            fetchAddresses.push(token2022Ata);
-        }
-
-        const results = await Promise.allSettled(fetchPromises);
-
-        // collect all successful results
-        const sources: TokenAccountSource[] = [];
-
-        for (let i = 0; i < results.length; i++) {
-            const result = results[i];
-            if (result.status === 'fulfilled') {
-                const value = result.value;
-                sources.push({
-                    type: fetchTypes[i],
-                    address: fetchAddresses[i],
-                    amount: value.parsed.amount,
-                    accountInfo: value.accountInfo,
-                    loadContext: value.loadContext,
-                    parsed: value.parsed,
-                });
-            }
-        }
-
-        // account not found
-        if (sources.length === 0) {
-            const triedPrograms = wrap
-                ? 'TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, and CTOKEN_PROGRAM_ID (both onchain and compressed)'
-                : 'CTOKEN_PROGRAM_ID (both onchain and compressed)';
-            throw new Error(`Token account not found. Tried ${triedPrograms}.`);
-        }
-
-        // priority order: c-token hot > c-token cold > spl/t22
-        const priority: TokenAccountSource['type'][] = [
-            'ctoken-hot',
-            'ctoken-cold',
-            'spl',
-            'token2022',
-        ];
-
-        sources.sort((a, b) => {
-            const aIdx = priority.indexOf(a.type);
-            const bIdx = priority.indexOf(b.type);
-            return aIdx - bIdx;
-        });
-
-        // aggregate balance from all sources
-        const totalAmount = sources.reduce(
-            (sum, src) => sum + src.amount,
-            BigInt(0),
-        );
-
-        const primarySource = sources[0];
-
-        const hasDelegate = sources.some(src => src.parsed.delegate !== null);
-        const anyFrozen = sources.some(src => src.parsed.isFrozen);
-        const needsConsolidation = sources.length > 1;
-
-        // Create unified account with aggregated balance
-        const unifiedAccount: Account = {
-            ...primarySource.parsed,
-            address: cTokenAta,
-            amount: totalAmount,
-        };
-
-        const isCold = primarySource.type === 'ctoken-cold';
-
-        return {
-            accountInfo: primarySource.accountInfo!,
-            parsed: unifiedAccount,
-            isCold,
-            loadContext: primarySource.loadContext,
-            _sources: sources,
-            _needsConsolidation: needsConsolidation,
-            _hasDelegate: hasDelegate,
-            _anyFrozen: anyFrozen,
-        };
-    }
-
-    // c-token only
-    if (programId.equals(CTOKEN_PROGRAM_ID)) {
-        // Derive address if not provided
-        if (!address) {
-            if (!fetchByOwner) {
-                throw new Error('fetchByOwner is required');
-            }
-            address = getAssociatedTokenAddressSync(
-                fetchByOwner.mint,
-                fetchByOwner.owner,
-                false,
-                CTOKEN_PROGRAM_ID,
-                getATAProgramId(CTOKEN_PROGRAM_ID),
-            );
-        }
-
-        const [onchainResult, compressedResult] = await Promise.allSettled([
-            rpc.getAccountInfo(address, commitment),
-            // Fetch compressed: by owner+mint for ATAs, by address for non-ATAs
-            fetchByOwner
-                ? rpc.getCompressedTokenAccountsByOwner(fetchByOwner.owner, {
-                      mint: fetchByOwner.mint,
-                  })
-                : rpc.getCompressedTokenAccountsByOwner(address),
-        ]);
-
-        const onchainAccount =
-            onchainResult.status === 'fulfilled' ? onchainResult.value : null;
-        const compressedAccounts =
-            compressedResult.status === 'fulfilled'
-                ? compressedResult.value.items.map(
-                      item => item.compressedAccount,
-                  )
-                : [];
-
-        const sources: TokenAccountSource[] = [];
-
-        // Collect hot (decompressed) CToken account
-        if (onchainAccount && onchainAccount.owner.equals(programId)) {
-            const parsed = parseCTokenHot(address, onchainAccount);
-            sources.push({
-                type: 'ctoken-hot',
-                address,
-                amount: parsed.parsed.amount,
-                accountInfo: onchainAccount,
-                parsed: parsed.parsed,
-            });
-        }
-
-        // Collect cold (compressed) CToken accounts
-        for (const compressedAccount of compressedAccounts) {
-            if (
-                compressedAccount &&
-                compressedAccount.data &&
-                compressedAccount.data.data.length > 0 &&
-                compressedAccount.owner.equals(programId)
-            ) {
-                const parsed = parseCTokenCold(address, compressedAccount);
-                sources.push({
-                    type: 'ctoken-cold',
-                    address,
-                    amount: parsed.parsed.amount,
-                    accountInfo: parsed.accountInfo,
-                    loadContext: parsed.loadContext,
-                    parsed: parsed.parsed,
-                });
-            }
-        }
-
-        if (sources.length === 0) {
-            throw new TokenAccountNotFoundError();
-        }
-
-        // Priority: hot > cold
-        sources.sort((a, b) => {
-            if (a.type === 'ctoken-hot' && b.type === 'ctoken-cold') return -1;
-            if (a.type === 'ctoken-cold' && b.type === 'ctoken-hot') return 1;
-            return 0;
-        });
-
-        // Aggregate balance
-        const totalAmount = sources.reduce(
-            (sum, src) => sum + src.amount,
-            BigInt(0),
-        );
-
-        const primarySource = sources[0];
-        const hasDelegate = sources.some(src => src.parsed.delegate !== null);
-        const anyFrozen = sources.some(src => src.parsed.isFrozen);
-        const needsConsolidation = sources.length > 1;
-
-        const unifiedAccount: Account = {
-            ...primarySource.parsed,
+        return getUnifiedAccountInterface(
+            rpc,
             address,
-            amount: totalAmount,
-        };
-
-        return {
-            accountInfo: primarySource.accountInfo!,
-            parsed: unifiedAccount,
-            isCold: primarySource.type === 'ctoken-cold',
-            loadContext: primarySource.loadContext,
-            _sources: sources,
-            _needsConsolidation: needsConsolidation,
-            _hasDelegate: hasDelegate,
-            _anyFrozen: anyFrozen,
-        };
+            commitment,
+            fetchByOwner,
+            wrap,
+        );
     }
 
-    // spl/t22-only
+    // cToken-only mode
+    if (programId.equals(CTOKEN_PROGRAM_ID)) {
+        return getCTokenAccountInterface(
+            rpc,
+            address,
+            commitment,
+            fetchByOwner,
+        );
+    }
+
+    // SPL / Token-2022 only
     if (
         programId.equals(TOKEN_PROGRAM_ID) ||
         programId.equals(TOKEN_2022_PROGRAM_ID)
     ) {
-        if (!address) {
-            if (!fetchByOwner) {
-                throw new Error('fetchByOwner is required');
-            }
-            address = getAssociatedTokenAddressSync(
-                fetchByOwner.mint,
-                fetchByOwner.owner,
-                false,
-                programId,
-                getATAProgramId(programId),
-            );
-        }
-
-        const info = await rpc.getAccountInfo(address, commitment);
-        if (!info) {
-            throw new TokenAccountNotFoundError();
-        }
-
-        const account = unpackAccountSPL(address, info, programId);
-
-        const type: TokenAccountSource['type'] = programId.equals(
-            TOKEN_PROGRAM_ID,
-        )
-            ? 'spl'
-            : 'token2022';
-
-        return {
-            accountInfo: info,
-            parsed: account,
-            isCold: false,
-            loadContext: undefined,
-            _sources: [
-                {
-                    type,
-                    address,
-                    amount: account.amount,
-                    accountInfo: info,
-                    parsed: account,
-                },
-            ],
-            _needsConsolidation: false,
-            _hasDelegate: account.delegate !== null,
-            _anyFrozen: account.isFrozen,
-        };
+        return getSplOrToken2022AccountInterface(
+            rpc,
+            address,
+            commitment,
+            programId,
+            fetchByOwner,
+        );
     }
 
     throw new Error(`Unsupported program ID: ${programId.toBase58()}`);
+}
+
+async function getUnifiedAccountInterface(
+    rpc: Rpc,
+    address: PublicKey | undefined,
+    commitment: Commitment | undefined,
+    fetchByOwner: { owner: PublicKey; mint: PublicKey } | undefined,
+    wrap: boolean,
+): Promise<AccountInterface> {
+    // Canonical address for unified mode is always the cToken ATA
+    const cTokenAta =
+        address ??
+        getAssociatedTokenAddressSync(
+            fetchByOwner!.mint,
+            fetchByOwner!.owner,
+            false,
+            CTOKEN_PROGRAM_ID,
+            getATAProgramId(CTOKEN_PROGRAM_ID),
+        );
+
+    const fetchPromises: Promise<{
+        accountInfo: AccountInfo<Buffer>;
+        parsed: Account;
+        isCold: boolean;
+        loadContext?: MerkleContext;
+    }>[] = [];
+    const fetchTypes: TokenAccountSource['type'][] = [];
+    const fetchAddresses: PublicKey[] = [];
+
+    // cToken hot + cold
+    fetchPromises.push(_tryFetchCTokenHot(rpc, cTokenAta, commitment));
+    fetchTypes.push('ctoken-hot');
+    fetchAddresses.push(cTokenAta);
+
+    fetchPromises.push(
+        fetchByOwner
+            ? _tryFetchCTokenColdByOwner(
+                  rpc,
+                  fetchByOwner.owner,
+                  fetchByOwner.mint,
+                  cTokenAta,
+              )
+            : _tryFetchCTokenColdByAddress(rpc, address!),
+    );
+    fetchTypes.push('ctoken-cold');
+    fetchAddresses.push(cTokenAta);
+
+    // SPL / Token-2022 (only when wrap is enabled)
+    if (wrap) {
+        const splTokenAta =
+            address ??
+            getAssociatedTokenAddressSync(
+                fetchByOwner!.mint,
+                fetchByOwner!.owner,
+                false,
+                TOKEN_PROGRAM_ID,
+                getATAProgramId(TOKEN_PROGRAM_ID),
+            );
+        const token2022Ata =
+            address ??
+            getAssociatedTokenAddressSync(
+                fetchByOwner!.mint,
+                fetchByOwner!.owner,
+                false,
+                TOKEN_2022_PROGRAM_ID,
+                getATAProgramId(TOKEN_2022_PROGRAM_ID),
+            );
+
+        fetchPromises.push(_tryFetchSpl(rpc, splTokenAta, commitment));
+        fetchTypes.push('spl');
+        fetchAddresses.push(splTokenAta);
+
+        fetchPromises.push(_tryFetchToken2022(rpc, token2022Ata, commitment));
+        fetchTypes.push('token2022');
+        fetchAddresses.push(token2022Ata);
+    }
+
+    const results = await Promise.allSettled(fetchPromises);
+
+    // collect all successful results
+    const sources: TokenAccountSource[] = [];
+
+    for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        if (result.status === 'fulfilled') {
+            const value = result.value;
+            sources.push({
+                type: fetchTypes[i],
+                address: fetchAddresses[i],
+                amount: value.parsed.amount,
+                accountInfo: value.accountInfo,
+                loadContext: value.loadContext,
+                parsed: value.parsed,
+            });
+        }
+    }
+
+    // account not found
+    if (sources.length === 0) {
+        const triedPrograms = wrap
+            ? 'TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, and CTOKEN_PROGRAM_ID (both onchain and compressed)'
+            : 'CTOKEN_PROGRAM_ID (both onchain and compressed)';
+        throw new Error(`Token account not found. Tried ${triedPrograms}.`);
+    }
+
+    // priority order: cToken hot > cToken cold > SPL/T22
+    const priority: TokenAccountSource['type'][] = [
+        'ctoken-hot',
+        'ctoken-cold',
+        'spl',
+        'token2022',
+    ];
+
+    sources.sort((a, b) => {
+        const aIdx = priority.indexOf(a.type);
+        const bIdx = priority.indexOf(b.type);
+        return aIdx - bIdx;
+    });
+
+    return buildAccountInterfaceFromSources(sources, cTokenAta);
+}
+
+async function getCTokenAccountInterface(
+    rpc: Rpc,
+    address: PublicKey | undefined,
+    commitment: Commitment | undefined,
+    fetchByOwner?: { owner: PublicKey; mint: PublicKey },
+): Promise<AccountInterface> {
+    // Derive address if not provided
+    if (!address) {
+        if (!fetchByOwner) {
+            throw new Error('fetchByOwner is required');
+        }
+        address = getAssociatedTokenAddressSync(
+            fetchByOwner.mint,
+            fetchByOwner.owner,
+            false,
+            CTOKEN_PROGRAM_ID,
+            getATAProgramId(CTOKEN_PROGRAM_ID),
+        );
+    }
+
+    const [onchainResult, compressedResult] = await Promise.allSettled([
+        rpc.getAccountInfo(address, commitment),
+        // Fetch compressed: by owner+mint for ATAs, by address for non-ATAs
+        fetchByOwner
+            ? rpc.getCompressedTokenAccountsByOwner(fetchByOwner.owner, {
+                  mint: fetchByOwner.mint,
+              })
+            : rpc.getCompressedTokenAccountsByOwner(address),
+    ]);
+
+    const onchainAccount =
+        onchainResult.status === 'fulfilled' ? onchainResult.value : null;
+    const compressedAccounts =
+        compressedResult.status === 'fulfilled'
+            ? compressedResult.value.items.map(item => item.compressedAccount)
+            : [];
+
+    const sources: TokenAccountSource[] = [];
+
+    // Collect hot (decompressed) CToken account
+    if (onchainAccount && onchainAccount.owner.equals(CTOKEN_PROGRAM_ID)) {
+        const parsed = parseCTokenHot(address, onchainAccount);
+        sources.push({
+            type: 'ctoken-hot',
+            address,
+            amount: parsed.parsed.amount,
+            accountInfo: onchainAccount,
+            parsed: parsed.parsed,
+        });
+    }
+
+    // Collect cold (compressed) CToken accounts
+    for (const compressedAccount of compressedAccounts) {
+        if (
+            compressedAccount &&
+            compressedAccount.data &&
+            compressedAccount.data.data.length > 0 &&
+            compressedAccount.owner.equals(CTOKEN_PROGRAM_ID)
+        ) {
+            const parsed = parseCTokenCold(address, compressedAccount);
+            sources.push({
+                type: 'ctoken-cold',
+                address,
+                amount: parsed.parsed.amount,
+                accountInfo: parsed.accountInfo,
+                loadContext: parsed.loadContext,
+                parsed: parsed.parsed,
+            });
+        }
+    }
+
+    if (sources.length === 0) {
+        throw new TokenAccountNotFoundError();
+    }
+
+    // Priority: hot > cold
+    sources.sort((a, b) => {
+        if (a.type === 'ctoken-hot' && b.type === 'ctoken-cold') return -1;
+        if (a.type === 'ctoken-cold' && b.type === 'ctoken-hot') return 1;
+        return 0;
+    });
+
+    return buildAccountInterfaceFromSources(sources, address);
+}
+
+async function getSplOrToken2022AccountInterface(
+    rpc: Rpc,
+    address: PublicKey | undefined,
+    commitment: Commitment | undefined,
+    programId: PublicKey,
+    fetchByOwner?: { owner: PublicKey; mint: PublicKey },
+): Promise<AccountInterface> {
+    if (!address) {
+        if (!fetchByOwner) {
+            throw new Error('fetchByOwner is required');
+        }
+        address = getAssociatedTokenAddressSync(
+            fetchByOwner.mint,
+            fetchByOwner.owner,
+            false,
+            programId,
+            getATAProgramId(programId),
+        );
+    }
+
+    const info = await rpc.getAccountInfo(address, commitment);
+    if (!info) {
+        throw new TokenAccountNotFoundError();
+    }
+
+    const account = unpackAccountSPL(address, info, programId);
+
+    const type: TokenAccountSource['type'] = programId.equals(TOKEN_PROGRAM_ID)
+        ? 'spl'
+        : 'token2022';
+
+    const sources: TokenAccountSource[] = [
+        {
+            type,
+            address,
+            amount: account.amount,
+            accountInfo: info,
+            parsed: account,
+        },
+    ];
+
+    return buildAccountInterfaceFromSources(sources, address);
+}
+
+function buildAccountInterfaceFromSources(
+    sources: TokenAccountSource[],
+    canonicalAddress: PublicKey,
+): AccountInterface {
+    const totalAmount = sources.reduce(
+        (sum, src) => sum + src.amount,
+        BigInt(0),
+    );
+
+    const primarySource = sources[0];
+
+    const hasDelegate = sources.some(src => src.parsed.delegate !== null);
+    const anyFrozen = sources.some(src => src.parsed.isFrozen);
+    const needsConsolidation = sources.length > 1;
+
+    const unifiedAccount: Account = {
+        ...primarySource.parsed,
+        address: canonicalAddress,
+        amount: totalAmount,
+    };
+
+    return {
+        accountInfo: primarySource.accountInfo!,
+        parsed: unifiedAccount,
+        isCold: primarySource.type === 'ctoken-cold',
+        loadContext: primarySource.loadContext,
+        _sources: sources,
+        _needsConsolidation: needsConsolidation,
+        _hasDelegate: hasDelegate,
+        _anyFrozen: anyFrozen,
+    };
 }
