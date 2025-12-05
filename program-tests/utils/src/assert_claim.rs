@@ -42,17 +42,17 @@ pub async fn assert_claim(
         if let Some(extensions) = pre_compressed_token.extensions.as_mut() {
             for extension in extensions {
                 if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
-                    pre_last_claimed_slot = u64::from(compressible_ext.last_claimed_slot);
+                    pre_last_claimed_slot = u64::from(compressible_ext.info.last_claimed_slot);
                     // Check if compression_authority is set (non-zero)
                     pre_compression_authority =
-                        if compressible_ext.compression_authority != [0u8; 32] {
-                            Some(Pubkey::from(compressible_ext.compression_authority))
+                        if compressible_ext.info.compression_authority != [0u8; 32] {
+                            Some(Pubkey::from(compressible_ext.info.compression_authority))
                         } else {
                             None
                         };
                     // Check if rent_sponsor is set (non-zero)
-                    pre_rent_sponsor = if compressible_ext.rent_sponsor != [0u8; 32] {
-                        Some(Pubkey::from(compressible_ext.rent_sponsor))
+                    pre_rent_sponsor = if compressible_ext.info.rent_sponsor != [0u8; 32] {
+                        Some(Pubkey::from(compressible_ext.info.rent_sponsor))
                     } else {
                         None
                     };
@@ -63,7 +63,7 @@ pub async fn assert_claim(
                         )
                         .await
                         .unwrap();
-                    let lamports_result = compressible_ext.claim(
+                    let lamports_result = compressible_ext.info.claim(
                         COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
                         current_slot,
                         pre_token_account.lamports,
@@ -110,7 +110,7 @@ pub async fn assert_claim(
         if let Some(extensions) = post_compressed_token.extensions.as_ref() {
             for extension in extensions {
                 if let ZExtensionStruct::Compressible(compressible_ext) = extension {
-                    post_last_claimed_slot = u64::from(compressible_ext.last_claimed_slot);
+                    post_last_claimed_slot = u64::from(compressible_ext.info.last_claimed_slot);
                     println!("post_last_claimed_slot {}", post_last_claimed_slot);
 
                     break;

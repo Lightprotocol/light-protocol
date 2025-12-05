@@ -14,6 +14,7 @@ pub struct CompressibleParams {
     pub compress_to_account_pubkey: Option<CompressToPubkey>,
     pub compressible_config: Pubkey,
     pub rent_sponsor: Pubkey,
+    pub compression_only: bool,
 }
 
 impl Default for CompressibleParams {
@@ -25,6 +26,7 @@ impl Default for CompressibleParams {
             lamports_per_write: Some(766),
             compress_to_account_pubkey: None,
             token_account_version: TokenDataVersion::ShaFlat,
+            compression_only: true,
         }
     }
 }
@@ -53,6 +55,7 @@ pub struct CompressibleParamsInfos<'info> {
     pub lamports_per_write: Option<u32>,
     pub compress_to_account_pubkey: Option<CompressToPubkey>,
     pub token_account_version: TokenDataVersion,
+    pub compression_only: bool,
 }
 
 impl<'info> CompressibleParamsInfos<'info> {
@@ -70,6 +73,7 @@ impl<'info> CompressibleParamsInfos<'info> {
             lamports_per_write: defaults.lamports_per_write,
             compress_to_account_pubkey: None,
             token_account_version: TokenDataVersion::ShaFlat,
+            compression_only: true,
         }
     }
 

@@ -276,7 +276,27 @@ pub fn derive_zero_copy_eq_impl(input: ProcTokenStream) -> syn::Result<proc_macr
     utils::validate_repr_c_required(&input.attrs, "ZeroCopyEq")?;
 
     // Process the input to extract struct information
-    let (name, z_struct_name, z_struct_meta_name, fields) = utils::process_input(&input)?;
+    let (name, z_struct_name, _z_struct_meta_name, fields) = utils::process_input(&input)?;
+
+    // Handle unit structs (no fields)
+    let Some(fields) = fields else {
+        // Unit struct - all unit structs of the same type are equal
+        return Ok(quote! {
+            impl<'a> ::core::cmp::PartialEq<#name> for #z_struct_name<'a> {
+                fn eq(&self, _other: &#name) -> bool {
+                    true // Unit structs are always equal
+                }
+            }
+
+            impl<'a> ::core::cmp::PartialEq<#z_struct_name<'a>> for #name {
+                fn eq(&self, _other: &#z_struct_name<'a>) -> bool {
+                    true // Unit structs are always equal
+                }
+            }
+        });
+    };
+
+    let z_struct_meta_name = quote::format_ident!("Z{}Meta", name);
 
     // Process the fields to separate meta fields and struct fields
     let (meta_fields, struct_fields) = utils::process_fields(fields);

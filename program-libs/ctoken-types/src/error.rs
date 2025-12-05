@@ -135,6 +135,12 @@ pub enum CTokenError {
 
     #[error("Calculated top-up exceeds sender's max_top_up limit")]
     MaxTopUpExceeded,
+
+    #[error("CompressedOnly tokens cannot have compressed outputs - must decompress only")]
+    CompressedOnlyBlocksTransfer,
+
+    #[error("out_tlv output count must match compressions count")]
+    OutTlvOutputCountMismatch,
 }
 
 impl From<CTokenError> for u32 {
@@ -183,6 +189,8 @@ impl From<CTokenError> for u32 {
             CTokenError::TooManySeeds(_) => 18041,
             CTokenError::WriteTopUpExceedsMaximum => 18042,
             CTokenError::MaxTopUpExceeded => 18043,
+            CTokenError::CompressedOnlyBlocksTransfer => 18044,
+            CTokenError::OutTlvOutputCountMismatch => 18045,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

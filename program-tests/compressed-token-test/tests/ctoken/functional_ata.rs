@@ -62,6 +62,7 @@ async fn test_associated_token_account_operations() {
         lamports_per_write,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let compressible_instruction = CreateAssociatedTokenAccount::new(

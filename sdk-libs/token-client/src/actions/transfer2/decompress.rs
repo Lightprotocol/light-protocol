@@ -30,6 +30,7 @@ pub async fn decompress<R: Rpc + Indexer>(
     solana_token_account: Pubkey,
     authority: &Keypair,
     payer: &Keypair,
+    decimals: u8,
 ) -> Result<Signature, RpcError> {
     let ix = create_generic_transfer2_instruction(
         rpc,
@@ -39,6 +40,8 @@ pub async fn decompress<R: Rpc + Indexer>(
             solana_token_account,
             amount: decompress_amount,
             pool_index: None,
+            decimals,
+            in_tlv: None,
         })],
         payer.pubkey(),
         false,

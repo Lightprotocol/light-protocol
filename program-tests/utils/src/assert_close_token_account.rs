@@ -161,17 +161,17 @@ async fn assert_compressible_extension(
     // Verify compressible extension fields are valid
     let current_slot = rpc.get_slot().await.expect("Failed to get current slot");
     assert!(
-        u64::from(compressible_extension.last_claimed_slot) <= current_slot,
+        u64::from(compressible_extension.info.last_claimed_slot) <= current_slot,
         "Last claimed slot ({}) should not be greater than current slot ({})",
-        u64::from(compressible_extension.last_claimed_slot),
+        u64::from(compressible_extension.info.last_claimed_slot),
         current_slot
     );
 
     // Verify config_account_version is initialized
     assert!(
-        compressible_extension.config_account_version == 1,
+        compressible_extension.info.config_account_version == 1,
         "Config account version should be 1 (initialized), got {}",
-        compressible_extension.config_account_version
+        compressible_extension.info.config_account_version
     );
 
     // Calculate expected lamport distribution using the same function as the program
@@ -186,24 +186,28 @@ async fn assert_compressible_extension(
         num_bytes: account_size,
         current_slot,
         current_lamports: account_lamports_before_close,
-        last_claimed_slot: u64::from(compressible_extension.last_claimed_slot),
+        last_claimed_slot: u64::from(compressible_extension.info.last_claimed_slot),
     };
 
     let distribution =
-        state.calculate_close_distribution(&compressible_extension.rent_config, base_lamports);
+        state.calculate_close_distribution(&compressible_extension.info.rent_config, base_lamports);
     let (mut lamports_to_rent_sponsor, mut lamports_to_destination) =
         (distribution.to_rent_sponsor, distribution.to_user);
 
-    let compression_cost: u64 = compressible_extension.rent_config.compression_cost.into();
+    let compression_cost: u64 = compressible_extension
+        .info
+        .rent_config
+        .compression_cost
+        .into();
 
     // Get the rent recipient from the extension
-    let rent_sponsor = Pubkey::from(compressible_extension.rent_sponsor);
+    let rent_sponsor = Pubkey::from(compressible_extension.info.rent_sponsor);
 
     // Check if rent authority is the signer
     // Check if compression_authority is set (non-zero)
     let is_compression_authority_signer =
-        if compressible_extension.compression_authority != [0u8; 32] {
-            authority_pubkey == Pubkey::from(compressible_extension.compression_authority)
+        if compressible_extension.info.compression_authority != [0u8; 32] {
+            authority_pubkey == Pubkey::from(compressible_extension.info.compression_authority)
         } else {
             false
         };

@@ -23,6 +23,7 @@ fn create_unique_type_key(ident: &Ident) -> String {
 /// Represents the type of input data (struct or enum)
 pub enum InputType<'a> {
     Struct(&'a FieldsNamed),
+    UnitStruct, // Unit struct with no fields (e.g., `struct Foo;`)
     Enum(&'a DataEnum),
 }
 
@@ -30,10 +31,10 @@ pub enum InputType<'a> {
 pub fn process_input(
     input: &DeriveInput,
 ) -> syn::Result<(
-    &Ident,             // Original struct name
-    proc_macro2::Ident, // Z-struct name
-    proc_macro2::Ident, // Z-struct meta name
-    &FieldsNamed,       // Struct fields
+    &Ident,               // Original struct name
+    proc_macro2::Ident,   // Z-struct name
+    proc_macro2::Ident,   // Z-struct meta name
+    Option<&FieldsNamed>, // Struct fields (None for unit structs)
 )> {
     let name = &input.ident;
     let z_struct_name = format_ident!("Z{}", name);
@@ -44,11 +45,12 @@ pub fn process_input(
 
     let fields = match &input.data {
         Data::Struct(data) => match &data.fields {
-            Fields::Named(fields) => fields,
+            Fields::Named(fields) => Some(fields),
+            Fields::Unit => None, // Support unit structs (e.g., `struct Foo;`)
             _ => {
                 return Err(syn::Error::new_spanned(
                     &data.fields,
-                    "ZeroCopy only supports structs with named fields",
+                    "ZeroCopy only supports structs with named fields or unit structs",
                 ))
             }
         },
@@ -80,10 +82,11 @@ pub fn process_input_generic(
     let input_type = match &input.data {
         Data::Struct(data) => match &data.fields {
             Fields::Named(fields) => InputType::Struct(fields),
+            Fields::Unit => InputType::UnitStruct, // Support unit structs
             _ => {
                 return Err(syn::Error::new_spanned(
                     &data.fields,
-                    "ZeroCopy only supports structs with named fields",
+                    "ZeroCopy only supports structs with named fields or unit structs",
                 ))
             }
         },

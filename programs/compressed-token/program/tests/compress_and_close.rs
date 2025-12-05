@@ -39,11 +39,17 @@ fn create_compressible_ctoken_data(
         if let Some(light_ctoken_types::state::ZExtensionStructMut::Compressible(comp_ext)) =
             extensions.first_mut()
         {
-            comp_ext.config_account_version.set(1);
-            comp_ext.account_version = 3; // ShaFlat
-            comp_ext.compression_authority.copy_from_slice(owner_pubkey);
-            comp_ext.rent_sponsor.copy_from_slice(rent_sponsor_pubkey);
-            comp_ext.last_claimed_slot.set(0);
+            comp_ext.info.config_account_version.set(1);
+            comp_ext.info.account_version = 3; // ShaFlat
+            comp_ext
+                .info
+                .compression_authority
+                .copy_from_slice(owner_pubkey);
+            comp_ext
+                .info
+                .rent_sponsor
+                .copy_from_slice(rent_sponsor_pubkey);
+            comp_ext.info.last_claimed_slot.set(0);
         }
     }
 
@@ -64,7 +70,7 @@ fn test_close_for_compress_and_close_duplicate_detection() {
             pool_account_index: 2, // rent_sponsor index
             pool_index: 0,         // DUPLICATE: compressed_account_index = 0
             bump: 3,               // destination index
-            decimals: 0,
+            decimals: 9,
         },
         Compression {
             mode: CompressionMode::CompressAndClose,
@@ -75,7 +81,7 @@ fn test_close_for_compress_and_close_duplicate_detection() {
             pool_account_index: 2, // rent_sponsor index
             pool_index: 0,         // DUPLICATE: compressed_account_index = 0 (SAME AS FIRST!)
             bump: 3,               // destination index
-            decimals: 0,
+            decimals: 9,
         },
     ];
 

@@ -1,16 +1,16 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::checks::check_owner;
+use light_compressed_account::Pubkey;
 use light_ctoken_types::{
-    instructions::transfer2::ZCompressionMode,
-    state::{CToken, ZExtensionStructMut},
+    instructions::{extensions::ZExtensionInstructionData, transfer2::ZCompressionMode},
+    state::{CToken, ZCompressedTokenMut, ZExtensionStructMut},
     CTokenError,
 };
 use light_program_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
-    pubkey::pubkey_eq,
-    sysvars::{clock::Clock, Sysvar},
+    sysvars::{clock::Clock, rent::Rent, Sysvar},
 };
 use spl_pod::solana_msg::msg;
 
@@ -35,6 +35,9 @@ pub fn compress_or_decompress_ctokens(
         token_account_info,
         mode,
         packed_accounts,
+        mint_checks,
+        input_tlv,
+        input_delegate,
     } = inputs;
 
     check_owner(&crate::LIGHT_CPI_SIGNER.program_id, token_account_info)?;
@@ -44,7 +47,12 @@ pub fn compress_or_decompress_ctokens(
 
     let (mut ctoken, _) = CToken::zero_copy_at_mut_checked(&mut token_account_data)?;
 
-    if !pubkey_eq(ctoken.mint.array_ref(), &mint) {
+    // Reject uninitialized accounts (state == 0)
+    if *ctoken.state == 0 {
+        msg!("Account is uninitialized");
+        return Err(CTokenError::InvalidAccountState.into());
+    }
+    if ctoken.mint.to_bytes() != mint {
         msg!(
             "mint mismatch account: ctoken.mint {:?}, mint {:?}",
             solana_pubkey::Pubkey::new_from_array(ctoken.mint.to_bytes()),
@@ -54,11 +62,14 @@ pub fn compress_or_decompress_ctokens(
     }
 
     // Check if account is frozen (SPL Token-2022 compatibility)
-    // Frozen accounts cannot have their balance modified in any way
-    // TODO: Once freezing ctoken accounts is implemented, we need to allow
-    // CompressAndClose with rent authority for frozen accounts (similar to
-    // how rent authority can compress expired accounts)
-    if *ctoken.state == 2 {
+    // Frozen accounts cannot have their balance modified except for CompressAndClose
+    // with rent authority (compression authority can compress expired frozen accounts)
+    let is_compress_and_close_with_rent_sponsor = mode == ZCompressionMode::CompressAndClose
+        && compress_and_close_inputs
+            .as_ref()
+            .map(|inputs| inputs.rent_sponsor_is_signer_flag)
+            .unwrap_or(false);
+    if *ctoken.state == 2 && !is_compress_and_close_with_rent_sponsor {
         msg!("Cannot modify frozen account");
         return Err(ErrorCode::AccountFrozen.into());
     }
@@ -71,7 +82,7 @@ pub fn compress_or_decompress_ctokens(
         ZCompressionMode::Compress => {
             // Verify authority for compression operations and update delegated amount if needed
             let authority_account = authority.ok_or(ErrorCode::InvalidCompressAuthority)?;
-            check_ctoken_owner(&mut ctoken, authority_account)?;
+            check_ctoken_owner(&mut ctoken, authority_account, mint_checks.as_ref(), amount)?;
 
             // Compress: subtract from solana account
             // Update the balance in the ctoken solana account
@@ -96,6 +107,9 @@ pub fn compress_or_decompress_ctokens(
                 .ok_or(ProgramError::ArithmeticOverflow)?
                 .into();
 
+            // Handle extension state transfer from input compressed account
+            apply_decompress_extension_state(&mut ctoken, input_tlv, input_delegate)?;
+
             process_compressible_extension(
                 ctoken.extensions.as_deref(),
                 token_account_info,
@@ -115,8 +129,101 @@ pub fn compress_or_decompress_ctokens(
     }
 }
 
+/// Apply extension state from the input compressed account during decompress.
+/// This transfers delegate, delegated_amount, and withheld_transfer_fee from
+/// the compressed account's CompressedOnly extension to the CToken account.
 #[inline(always)]
-fn process_compressible_extension(
+fn apply_decompress_extension_state(
+    ctoken: &mut ZCompressedTokenMut,
+    input_tlv: Option<&[ZExtensionInstructionData]>,
+    input_delegate: Option<&AccountInfo>,
+) -> Result<(), ProgramError> {
+    // Extract CompressedOnly extension data from input TLV
+    let compressed_only_data = input_tlv.and_then(|tlv| {
+        tlv.iter().find_map(|ext| {
+            if let ZExtensionInstructionData::CompressedOnly(data) = ext {
+                Some(data)
+            } else {
+                None
+            }
+        })
+    });
+
+    // If no CompressedOnly extension, nothing to transfer
+    let Some(ext_data) = compressed_only_data else {
+        return Ok(());
+    };
+
+    let delegated_amount: u64 = ext_data.delegated_amount.into();
+    let withheld_transfer_fee: u64 = ext_data.withheld_transfer_fee.into();
+
+    // Handle delegate and delegated_amount
+    if delegated_amount > 0 || input_delegate.is_some() {
+        let input_delegate_pubkey = input_delegate.map(|acc| Pubkey::from(*acc.key()));
+
+        // Validate delegate compatibility
+        if let Some(ctoken_delegate) = ctoken.delegate.as_ref() {
+            // CToken has a delegate - check if it matches the input delegate
+            if let Some(input_del) = input_delegate_pubkey.as_ref() {
+                if ctoken_delegate.to_bytes() != input_del.to_bytes() {
+                    msg!(
+                        "Decompress delegate mismatch: CToken delegate {:?} != input delegate {:?}",
+                        ctoken_delegate.to_bytes(),
+                        input_del.to_bytes()
+                    );
+                    return Err(ErrorCode::DecompressDelegateMismatch.into());
+                }
+            }
+            // Delegates match - add to delegated_amount
+        } else if let Some(input_del) = input_delegate_pubkey {
+            // CToken has no delegate - set it from the input
+            ctoken.set_delegate(Some(input_del))?;
+        } else if delegated_amount > 0 {
+            // Has delegated_amount but no delegate pubkey - invalid state
+            msg!("Decompress: delegated_amount > 0 but no delegate pubkey provided");
+            return Err(CTokenError::InvalidAccountData.into());
+        }
+
+        // Add delegated_amount to CToken's delegated_amount
+        if delegated_amount > 0 {
+            let current_delegated: u64 = (*ctoken.delegated_amount).into();
+            *ctoken.delegated_amount = current_delegated
+                .checked_add(delegated_amount)
+                .ok_or(ProgramError::ArithmeticOverflow)?
+                .into();
+        }
+    }
+
+    // Handle withheld_transfer_fee
+    if withheld_transfer_fee > 0 {
+        let mut fee_applied = false;
+        if let Some(extensions) = ctoken.extensions.as_deref_mut() {
+            for extension in extensions.iter_mut() {
+                if let ZExtensionStructMut::TransferFeeAccount(ref mut fee_ext) = extension {
+                    fee_ext
+                        .add_withheld_amount(withheld_transfer_fee)
+                        .map_err(|_| ProgramError::ArithmeticOverflow)?;
+                    fee_applied = true;
+                    break;
+                }
+            }
+        }
+        if !fee_applied {
+            msg!("Decompress: withheld_transfer_fee > 0 but no TransferFeeAccount extension found");
+            return Err(CTokenError::InvalidAccountData.into());
+        }
+    }
+
+    // Handle is_frozen - restore frozen state from compressed token
+    if ext_data.is_frozen != 0 {
+        *ctoken.state = 2; // AccountState::Frozen
+    }
+
+    Ok(())
+}
+
+#[inline(always)]
+pub fn process_compressible_extension(
     extensions: Option<&[ZExtensionStructMut]>,
     token_account_info: &AccountInfo,
     current_slot: &mut u64,
@@ -135,12 +242,17 @@ fn process_compressible_extension(
                         .map_err(|_| CTokenError::SysvarAccessError)?
                         .slot;
                 }
+                let rent_exemption = Rent::get()
+                    .map_err(|_| CTokenError::SysvarAccessError)?
+                    .minimum_balance(token_account_info.data_len());
+
                 *transfer_amount = compressible_extension
+                    .info
                     .calculate_top_up_lamports(
                         token_account_info.data_len() as u64,
                         *current_slot,
                         token_account_info.lamports(),
-                        light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                        rent_exemption,
                     )
                     .map_err(|_| CTokenError::InvalidAccountData)?;
 

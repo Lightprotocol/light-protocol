@@ -61,6 +61,7 @@ pub async fn create_compressible_token_account<R: Rpc>(
         lamports_per_write,
         compress_to_account_pubkey: None,
         token_account_version,
+        compression_only: true,
     };
 
     let create_token_account_ix =

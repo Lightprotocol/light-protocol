@@ -204,7 +204,7 @@ async fn functional_and_failing_tests() {
         .await;
 
         assert_rpc_error(
-            result, 0, 18, // light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
+            result, 0, 6018, // light_compressed_token::ErrorCode::InvalidAuthorityMint
         )
         .unwrap();
     }
@@ -278,7 +278,7 @@ async fn functional_and_failing_tests() {
         .await;
 
         assert_rpc_error(
-            result, 0, 18, // light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
+            result, 0, 6018, // light_compressed_token::ErrorCode::InvalidAuthorityMint
         )
         .unwrap();
     }
@@ -349,8 +349,7 @@ async fn functional_and_failing_tests() {
         .await;
 
         assert_rpc_error(
-            result, 0,
-            18, // InvalidAuthorityMint error code (authority validation always returns 18)
+            result, 0, 6018, // InvalidAuthorityMint error code
         )
         .unwrap();
     }
@@ -431,8 +430,7 @@ async fn functional_and_failing_tests() {
         .await;
 
         assert_rpc_error(
-            result, 0,
-            18, //    light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
+            result, 0, 6018, // light_compressed_token::ErrorCode::InvalidAuthorityMint
         )
         .unwrap();
     }
@@ -529,7 +527,7 @@ async fn functional_and_failing_tests() {
         .await;
 
         assert_rpc_error(
-            result, 0, 18, // light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
+            result, 0, 6018, // light_compressed_token::ErrorCode::InvalidAuthorityMint
         )
         .unwrap();
     }
@@ -610,7 +608,7 @@ async fn functional_and_failing_tests() {
         .await;
 
         assert_rpc_error(
-            result, 0, 18, // light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
+            result, 0, 6018, // light_compressed_token::ErrorCode::InvalidAuthorityMint
         )
         .unwrap();
     }
@@ -690,7 +688,7 @@ async fn functional_and_failing_tests() {
         .await;
 
         assert_rpc_error(
-            result, 0, 18, // light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
+            result, 0, 6018, // light_compressed_token::ErrorCode::InvalidAuthorityMint
         )
         .unwrap();
     }
@@ -867,6 +865,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
         lamports_per_write: Some(1000),
         compress_to_account_pubkey: None,
         token_account_version: TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let create_ata_ix =

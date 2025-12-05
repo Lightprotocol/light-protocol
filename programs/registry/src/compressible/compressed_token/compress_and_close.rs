@@ -1,13 +1,17 @@
 use anchor_lang::{prelude::ProgramError, pubkey, AnchorDeserialize, AnchorSerialize, Result};
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_ctoken_types::{
-    instructions::transfer2::{
-        CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,
-        MultiTokenTransferOutputData,
+    instructions::{
+        extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
+        transfer2::{
+            CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,
+            MultiTokenTransferOutputData,
+        },
     },
-    state::CToken,
+    state::{CToken, ZExtensionStruct},
 };
 use light_program_profiler::profile;
+use light_zero_copy::traits::ZeroCopyAt;
 use solana_account_info::AccountInfo;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
@@ -30,6 +34,7 @@ pub struct CompressAndCloseIndices {
     pub mint_index: u8,
     pub owner_index: u8,
     pub rent_sponsor_index: u8, // Can vary with custom rent sponsors
+    pub delegate_index: u8,     // Index to delegate in packed_accounts, 0 if no delegate
 }
 
 /// Compress and close compressed token accounts with pre-computed indices
@@ -74,6 +79,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
     // Create one output per compression (no deduplication)
     let mut output_accounts = Vec::with_capacity(indices.len());
     let mut compressions = Vec::with_capacity(indices.len());
+    let mut out_tlv: Vec<Vec<ExtensionInstructionData>> = Vec::with_capacity(indices.len());
 
     // Process each set of indices
     for (i, idx) in indices.iter().enumerate() {
@@ -91,14 +97,68 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             RegistryError::InvalidSigner
         })?;
 
+        // Parse the full CToken to check for marker extensions
+        let (ctoken, _) = CToken::zero_copy_at(&account_data).map_err(|e| {
+            anchor_lang::prelude::msg!("Failed to parse CToken: {:?}", e);
+            RegistryError::InvalidSigner
+        })?;
+
+        // Check if this account has marker extensions that require CompressedOnly in output
+        let mut has_marker_extensions = false;
+        let mut withheld_transfer_fee: u64 = 0;
+        let delegated_amount: u64 = (*ctoken.delegated_amount).into();
+        // AccountState::Frozen = 2 in CToken
+        let is_frozen = ctoken.state == 2;
+
+        // Frozen accounts require CompressedOnly extension to preserve frozen state
+        if is_frozen {
+            has_marker_extensions = true;
+        }
+
+        if let Some(extensions) = &ctoken.extensions {
+            for ext in extensions.iter() {
+                match ext {
+                    ZExtensionStruct::PausableAccount(_)
+                    | ZExtensionStruct::PermanentDelegateAccount(_)
+                    | ZExtensionStruct::TransferHookAccount(_) => {
+                        has_marker_extensions = true;
+                    }
+                    ZExtensionStruct::TransferFeeAccount(fee_ext) => {
+                        has_marker_extensions = true;
+                        withheld_transfer_fee = fee_ext.withheld_amount.into();
+                    }
+                    ZExtensionStruct::Compressible(compressible_ext) => {
+                        // If compression_only flag is set, we need CompressedOnly extension
+                        if compressible_ext.compression_only() {
+                            has_marker_extensions = true;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // Build TLV extensions for this output if marker extensions are present
+        if has_marker_extensions {
+            out_tlv.push(vec![ExtensionInstructionData::CompressedOnly(
+                CompressedOnlyExtensionInstructionData {
+                    delegated_amount,
+                    withheld_transfer_fee,
+                    is_frozen,
+                },
+            )]);
+        } else {
+            out_tlv.push(vec![]);
+        }
+
         // Create one output account per compression operation
         output_accounts.push(MultiTokenTransferOutputData {
             owner: idx.owner_index,
             amount,
-            delegate: 0,
+            delegate: idx.delegate_index,
             mint: idx.mint_index,
             version: 3, // Shaflat
-            has_delegate: false,
+            has_delegate: delegated_amount > 0,
         });
 
         let compression = Compression {
@@ -110,7 +170,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             pool_account_index: idx.rent_sponsor_index,
             pool_index: i as u8,
             bump: destination_index,
-            decimals: 0,
+            decimals: 1, // Used as rent_sponsor_is_signer flag (non-zero = true)
         };
 
         compressions.push(compression);
@@ -122,6 +182,8 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         .is_signer = true;
 
     // Build instruction data inline
+    // Only include out_tlv if any account has extensions
+    let has_any_tlv = out_tlv.iter().any(|v| !v.is_empty());
     let instruction_data = CompressedTokenInstructionDataTransfer2 {
         with_transaction_hash: false,
         with_lamports_change_account_merkle_tree_index: false,
@@ -134,7 +196,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         in_lamports: None,
         out_lamports: None,
         in_tlv: None,
-        out_tlv: None,
+        out_tlv: if has_any_tlv { Some(out_tlv) } else { None },
         compressions: Some(compressions),
         cpi_context: None,
         max_top_up: 0,

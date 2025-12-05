@@ -83,6 +83,7 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
             lamports_per_write: None,
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
         };
 
         let create_token_account_ix =
@@ -231,6 +232,7 @@ async fn test_decompress_full_cpi() {
                     tree_info,
                     dest_pubkey,
                     &mut remaining_accounts,
+                    None, // No TLV extensions
                 )
             })
             .collect();
@@ -424,6 +426,7 @@ async fn test_decompress_full_cpi_with_context() {
                     tree_info,
                     dest_pubkey,
                     &mut remaining_accounts,
+                    None, // No TLV extensions
                 )
             })
             .collect();

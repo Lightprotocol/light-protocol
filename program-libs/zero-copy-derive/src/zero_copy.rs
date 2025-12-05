@@ -300,6 +300,37 @@ pub fn derive_zero_copy_impl(input: ProcTokenStream) -> syn::Result<proc_macro2:
                 #deserialize_impl
             })
         }
+        utils::InputType::UnitStruct => {
+            // Unit struct has no fields - generate minimal implementations
+            let z_struct_name = z_name;
+
+            let zero_copy_struct_inner_impl =
+                generate_zero_copy_struct_inner::<false>(name, &z_struct_name)?;
+
+            // Generate a simple unit ZStruct type alias
+            let z_struct_def = quote! {
+                /// Zero-copy reference type for unit struct #name
+                pub type #z_struct_name<'a> = &'a #name;
+            };
+
+            // Generate minimal deserialize impl for unit struct
+            let deserialize_impl = quote! {
+                impl<'a> ::light_zero_copy::traits::ZeroCopyAt<'a> for #name {
+                    type ZeroCopyAt = #z_struct_name<'a>;
+                    fn zero_copy_at(bytes: &'a [u8]) -> ::core::result::Result<(Self::ZeroCopyAt, &'a [u8]), ::light_zero_copy::errors::ZeroCopyError> {
+                        // Unit struct has zero size, return reference to static instance
+                        static UNIT: #name = #name;
+                        Ok((&UNIT, bytes))
+                    }
+                }
+            };
+
+            Ok(quote! {
+                #z_struct_def
+                #zero_copy_struct_inner_impl
+                #deserialize_impl
+            })
+        }
         utils::InputType::Enum(enum_data) => {
             let z_enum_name = z_name;
 

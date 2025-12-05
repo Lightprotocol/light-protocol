@@ -51,6 +51,13 @@ pub mod light_compressed_token {
     ) -> Result<()> {
         instructions::create_token_pool::assert_mint_extensions(
             &ctx.accounts.mint.to_account_info().try_borrow_data()?,
+        )?;
+        // Initialize the token account via CPI (Anchor's init constraint only allocated space)
+        instructions::create_token_pool::initialize_token_account(
+            &ctx.accounts.token_pool_pda,
+            &ctx.accounts.mint,
+            &ctx.accounts.cpi_authority_pda,
+            &ctx.accounts.token_program.to_account_info(),
         )
     }
 
@@ -68,6 +75,13 @@ pub mod light_compressed_token {
             &ctx.accounts.mint.key().to_bytes(),
             &ctx.accounts.existing_token_pool_pda.key(),
             &[token_pool_index.saturating_sub(1)],
+        )?;
+        // Initialize the token account via CPI (Anchor's init constraint only allocated space)
+        instructions::create_token_pool::initialize_token_account(
+            &ctx.accounts.token_pool_pda,
+            &ctx.accounts.mint,
+            &ctx.accounts.cpi_authority_pda,
+            &ctx.accounts.token_program.to_account_info(),
         )
     }
 
@@ -428,11 +442,54 @@ pub enum ErrorCode {
         "CompressAndClose by compression authority requires compressed token account in outputs"
     )]
     CompressAndCloseOutputMissing,
+    #[msg("Invalid mint account data")]
+    InvalidMint,
+    #[msg("Token operations blocked - mint is paused")]
+    MintPaused,
+    #[msg("Mint account required for transfer when account has PausableAccount extension")]
+    MintRequiredForTransfer,
+    #[msg("Non-zero transfer fees are not supported")]
+    NonZeroTransferFeeNotSupported,
+    #[msg("Transfer hooks with non-nil program_id are not supported")]
+    TransferHookNotSupported,
+    #[msg("Mint has extensions that require compression_only mode")]
+    CompressionOnlyRequired,
+    #[msg("CompressAndClose: Compressed token mint does not match source token account mint")]
+    CompressAndCloseInvalidMint,
+    #[msg("CompressAndClose: Missing required CompressedOnly extension in output TLV")]
+    CompressAndCloseMissingCompressedOnlyExtension,
+    #[msg("CompressAndClose: CompressedOnly mint_account_index must be 0")]
+    CompressAndCloseInvalidMintAccountIndex,
+    #[msg(
+        "CompressAndClose: Delegated amount mismatch between ctoken and CompressedOnly extension"
+    )]
+    CompressAndCloseDelegatedAmountMismatch,
+    #[msg("CompressAndClose: Delegate mismatch between ctoken and compressed token output")]
+    CompressAndCloseInvalidDelegate,
+    #[msg("CompressAndClose: Withheld transfer fee mismatch")]
+    CompressAndCloseWithheldFeeMismatch,
+    #[msg("CompressAndClose: Frozen state mismatch")]
+    CompressAndCloseFrozenMismatch,
+    #[msg("TLV extensions require version 3 (ShaFlat)")]
+    TlvRequiresVersion3,
+    #[msg("CToken account has extensions that cannot be compressed. Only Compressible extension or no extensions allowed.")]
+    CTokenHasDisallowedExtensions,
+    #[msg("CompressAndClose: rent_sponsor_is_signer flag does not match actual signer")]
+    RentSponsorIsSignerMismatch,
+    #[msg("Mint has restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook) must not create compressed token accounts.")]
+    MintHasRestrictedExtensions,
+    #[msg("Decompress: CToken delegate does not match input compressed account delegate")]
+    DecompressDelegateMismatch,
+    #[msg("Mint cache capacity exceeded (max 5 unique mints)")]
+    MintCacheCapacityExceeded,
 }
+
+/// Anchor error code offset - error codes start at 6000
+pub const ERROR_CODE_OFFSET: u32 = 6000;
 
 impl From<ErrorCode> for ProgramError {
     fn from(e: ErrorCode) -> Self {
-        ProgramError::Custom(e as u32)
+        ProgramError::Custom(ERROR_CODE_OFFSET + e as u32)
     }
 }
 

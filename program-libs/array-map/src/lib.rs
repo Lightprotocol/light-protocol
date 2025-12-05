@@ -39,20 +39,20 @@ where
         self.last_updated_index
     }
 
-    pub fn get(&self, index: usize) -> Option<&(K, V)> {
+    pub fn get_by_index(&self, index: usize) -> Option<&(K, V)> {
         self.entries.get(index)
     }
 
-    pub fn get_mut(&mut self, index: usize) -> Option<&mut (K, V)> {
+    pub fn get_by_index_mut(&mut self, index: usize) -> Option<&mut (K, V)> {
         self.entries.get_mut(index)
     }
 
-    pub fn get_u8(&self, index: u8) -> Option<&(K, V)> {
-        self.get(index as usize)
+    pub fn get_by_index_u8(&self, index: u8) -> Option<&(K, V)> {
+        self.get_by_index(index as usize)
     }
 
-    pub fn get_mut_u8(&mut self, index: u8) -> Option<&mut (K, V)> {
-        self.get_mut(index as usize)
+    pub fn get_by_index_mut_u8(&mut self, index: u8) -> Option<&mut (K, V)> {
+        self.get_by_index_mut(index as usize)
     }
 
     pub fn get_by_key(&self, key: &K) -> Option<&V> {

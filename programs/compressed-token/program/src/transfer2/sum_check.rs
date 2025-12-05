@@ -110,7 +110,7 @@ pub fn sum_check_multi_mint(
 
     // Verify all sums are zero
     for i in 0..mint_sums.len() {
-        if let Some((_mint_index, balance)) = mint_sums.get(i) {
+        if let Some((_mint_index, balance)) = mint_sums.get_by_index(i) {
             if *balance != 0 {
                 return Err(ErrorCode::SumCheckFailed);
             }
@@ -132,7 +132,7 @@ pub fn validate_mint_uniqueness(
     let mut seen_pubkeys: ArrayMap<[u8; 32], u8, 5> = ArrayMap::new();
 
     for i in 0..mint_map.len() {
-        if let Some((mint_index, _balance)) = mint_map.get(i) {
+        if let Some((mint_index, _balance)) = mint_map.get_by_index(i) {
             // Get the mint account pubkey from packed accounts
             let mint_account = packed_accounts
                 .get(*mint_index as usize, "mint")
