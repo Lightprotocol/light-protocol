@@ -110,9 +110,14 @@ pub async fn assert_create_token_account_internal(
             assert_eq!(actual_token_account, expected_token_account);
 
             // Check if account existed before transaction (for idempotent mode)
-            let account_existed_before = rpc
-                .get_pre_transaction_account(&token_account_pubkey)
-                .is_some();
+            // Account "existed" only if it had data (was initialized), not just lamports
+            let pre_tx_account = rpc.get_pre_transaction_account(&token_account_pubkey);
+            let account_existed_before = pre_tx_account
+                .as_ref()
+                .map(|acc| !acc.data.is_empty())
+                .unwrap_or(false);
+            // Get pre-existing lamports (e.g., from attacker donation for DoS prevention test)
+            let pre_existing_lamports = pre_tx_account.map(|acc| acc.lamports).unwrap_or(0);
 
             // Assert payer and rent sponsor balance changes
             let payer_balance_before = rpc
@@ -183,12 +188,17 @@ pub async fn assert_create_token_account_internal(
                     payer_balance_before - payer_balance_after
                 );
 
-                // Rent sponsor pays: rent_exemption only
+                // Rent sponsor pays: rent_exemption minus any pre-existing lamports
+                // (pre-existing lamports from attacker donation are kept in the account)
+                let expected_rent_sponsor_payment =
+                    rent_exemption.saturating_sub(pre_existing_lamports);
                 assert_eq!(
                     rent_sponsor_balance_before - rent_sponsor_balance_after,
+                    expected_rent_sponsor_payment,
+                    "Rent sponsor should have paid {} lamports (rent exemption {} - pre-existing {}), but paid {}",
+                    expected_rent_sponsor_payment,
                     rent_exemption,
-                    "Rent sponsor should have paid {} lamports (rent exemption only), but paid {}",
-                    rent_exemption,
+                    pre_existing_lamports,
                     rent_sponsor_balance_before - rent_sponsor_balance_after
                 );
             }

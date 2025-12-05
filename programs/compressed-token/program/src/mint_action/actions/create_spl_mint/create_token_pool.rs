@@ -44,19 +44,18 @@ pub fn create_token_pool_account_manual(
 
     // Create account using shared function
     let bump_seed = [token_pool_bump];
-    let seeds = [
+    let pool_seeds = [
         Seed::from(POOL_SEED),
         Seed::from(mint_key.as_ref()),
         Seed::from(bump_seed.as_ref()),
     ];
 
-    let seeds_inputs = [seeds.as_slice()];
-
     create_pda_account(
         executing_accounts.system.fee_payer,
         token_pool_pda,
         token_account_size,
-        seeds_inputs,
+        None,                        // fee_payer is keypair
+        Some(pool_seeds.as_slice()), // token_pool is PDA
         None,
     )
 }

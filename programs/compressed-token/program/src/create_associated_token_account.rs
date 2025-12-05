@@ -115,20 +115,19 @@ pub(crate) fn process_create_associated_token_account_inner<const IDEMPOTENT: bo
         } else {
             // Create the PDA account (with rent-exempt balance only)
             let bump_seed = [bump];
-            let seeds = [
+            let ata_seeds = [
                 Seed::from(owner_bytes.as_ref()),
                 Seed::from(crate::LIGHT_CPI_SIGNER.program_id.as_ref()),
                 Seed::from(mint_bytes.as_ref()),
                 Seed::from(bump_seed.as_ref()),
             ];
 
-            let seeds_inputs = [seeds.as_slice()];
-
             create_pda_account(
                 fee_payer,
                 associated_token_account,
                 token_account_size,
-                seeds_inputs,
+                None,                       // fee_payer is keypair
+                Some(ata_seeds.as_slice()), // ATA is PDA
                 None,
             )?;
             (None, None)
@@ -185,7 +184,7 @@ fn process_compressible_config<'info>(
             compressible_config_ix_data.rent_payment as u64,
         );
 
-    // Build ATA seeds
+    // Build ATA seeds (new_account is always a PDA)
     let ata_bump_seed = [ata_bump];
     let ata_seeds = [
         Seed::from(owner_bytes.as_ref()),
@@ -194,36 +193,30 @@ fn process_compressible_config<'info>(
         Seed::from(ata_bump_seed.as_ref()),
     ];
 
-    // Build rent sponsor seeds if needed (must be outside conditional for lifetime)
-    let rent_sponsor_bump;
-    let version_bytes;
-    let rent_sponsor_seeds;
+    // Build rent sponsor seeds if using rent sponsor PDA as fee_payer
+    let rent_sponsor_bump = [compressible_config_account.rent_sponsor_bump];
+    let version_bytes = compressible_config_account.version.to_le_bytes();
+    let rent_sponsor_seeds = [
+        Seed::from(b"rent_sponsor".as_ref()),
+        Seed::from(version_bytes.as_ref()),
+        Seed::from(rent_sponsor_bump.as_ref()),
+    ];
 
-    // Create the PDA account (with rent-exempt balance only)
-    // rent_payer will be the rent_sponsor PDA for compressible accounts
-    let seeds_inputs: [&[Seed]; 2] = if custom_rent_payer {
-        // Only ATA seeds when custom rent payer
-        [ata_seeds.as_slice(), &[]]
+    // fee_payer_seeds: Some for rent_sponsor PDA, None for custom keypair
+    // new_account_seeds: Always Some (ATA is always a PDA)
+    let fee_payer_seeds = if custom_rent_payer {
+        None
     } else {
-        // Both rent sponsor PDA seeds and ATA seeds
-        rent_sponsor_bump = [compressible_config_account.rent_sponsor_bump];
-        version_bytes = compressible_config_account.version.to_le_bytes();
-        rent_sponsor_seeds = [
-            Seed::from(b"rent_sponsor".as_ref()),
-            Seed::from(version_bytes.as_ref()),
-            Seed::from(rent_sponsor_bump.as_ref()),
-        ];
-
-        [rent_sponsor_seeds.as_slice(), ata_seeds.as_slice()]
+        Some(rent_sponsor_seeds.as_slice())
     };
-
     let additional_lamports = if custom_rent_payer { Some(rent) } else { None };
 
     create_pda_account(
         rent_payer,
         associated_token_account,
         token_account_size,
-        seeds_inputs,
+        fee_payer_seeds,
+        Some(ata_seeds.as_slice()),
         additional_lamports,
     )?;
 
