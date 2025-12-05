@@ -288,8 +288,8 @@ async fn test_create_ata_failing() {
             poor_payer_pubkey,
             new_owner.pubkey(),
             context.mint_pubkey,
-            compressible_params,
         )
+        .with_compressible(compressible_params)
         .instruction()
         .unwrap();
 
@@ -465,8 +465,8 @@ async fn test_create_ata_failing() {
             payer_pubkey,
             context.owner_keypair.pubkey(),
             context.mint_pubkey,
-            compressible_params,
         )
+        .with_compressible(compressible_params)
         .instruction()
         .unwrap();
 
@@ -534,8 +534,8 @@ async fn test_create_ata_failing() {
             payer_pubkey,
             context.owner_keypair.pubkey(),
             context.mint_pubkey,
-            compressible_params,
         )
+        .with_compressible(compressible_params)
         .instruction()
         .unwrap();
 
@@ -649,10 +649,10 @@ async fn test_ata_multiple_owners_same_mint() {
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
     };
 
-    let create_ata_ix1 =
-        CreateAssociatedTokenAccount::new(payer_pubkey, owner1, mint, compressible_params.clone())
-            .instruction()
-            .unwrap();
+    let create_ata_ix1 = CreateAssociatedTokenAccount::new(payer_pubkey, owner1, mint)
+        .with_compressible(compressible_params.clone())
+        .instruction()
+        .unwrap();
 
     context
         .rpc
@@ -671,10 +671,10 @@ async fn test_ata_multiple_owners_same_mint() {
     )
     .await;
 
-    let create_ata_ix2 =
-        CreateAssociatedTokenAccount::new(payer_pubkey, owner2, mint, compressible_params.clone())
-            .instruction()
-            .unwrap();
+    let create_ata_ix2 = CreateAssociatedTokenAccount::new(payer_pubkey, owner2, mint)
+        .with_compressible(compressible_params.clone())
+        .instruction()
+        .unwrap();
 
     context
         .rpc
@@ -693,10 +693,10 @@ async fn test_ata_multiple_owners_same_mint() {
     )
     .await;
 
-    let create_ata_ix3 =
-        CreateAssociatedTokenAccount::new(payer_pubkey, owner3, mint, compressible_params)
-            .instruction()
-            .unwrap();
+    let create_ata_ix3 = CreateAssociatedTokenAccount::new(payer_pubkey, owner3, mint)
+        .with_compressible(compressible_params)
+        .instruction()
+        .unwrap();
 
     context
         .rpc

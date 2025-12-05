@@ -21,20 +21,19 @@ pub struct CreateCTokenAccount {
 }
 
 impl CreateCTokenAccount {
-    pub fn new(
-        payer: Pubkey,
-        account: Pubkey,
-        mint: Pubkey,
-        owner: Pubkey,
-        compressible_params: CompressibleParams,
-    ) -> Self {
+    pub fn new(payer: Pubkey, account: Pubkey, mint: Pubkey, owner: Pubkey) -> Self {
         Self {
             payer,
             account,
             mint,
             owner,
-            compressible: Some(compressible_params),
+            compressible: Some(CompressibleParams::default()),
         }
+    }
+
+    pub fn with_compressible(mut self, compressible: CompressibleParams) -> Self {
+        self.compressible = Some(compressible);
+        self
     }
 
     pub fn instruction(self) -> Result<Instruction, ProgramError> {

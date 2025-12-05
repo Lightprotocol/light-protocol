@@ -5,7 +5,7 @@ mod shared;
 use borsh::BorshSerialize;
 use light_client::rpc::Rpc;
 use light_compressed_token_sdk::{
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
+    ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount},
     token_pool::find_token_pool_pda_with_index,
 };
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
@@ -65,14 +65,9 @@ async fn test_spl_to_ctoken_invoke() {
         .await
         .unwrap();
 
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        recipient.pubkey(),
-        mint,
-        CompressibleParams::default(),
-    )
-    .instruction()
-    .unwrap();
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+        .instruction()
+        .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
@@ -188,14 +183,9 @@ async fn test_ctoken_to_spl_invoke() {
         .unwrap();
 
     // Create ctoken ATA and fund it via SPL transfer first
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        owner.pubkey(),
-        mint,
-        CompressibleParams::default(),
-    )
-    .instruction()
-    .unwrap();
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+        .instruction()
+        .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
@@ -379,14 +369,9 @@ async fn test_spl_to_ctoken_invoke_signed() {
         .await
         .unwrap();
 
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        recipient.pubkey(),
-        mint,
-        CompressibleParams::default(),
-    )
-    .instruction()
-    .unwrap();
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+        .instruction()
+        .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();

@@ -215,14 +215,11 @@ pub async fn create_mint(
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
     };
 
-    let create_ata_instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        mint_authority.pubkey(),
-        mint,
-        compressible_params,
-    )
-    .instruction()
-    .unwrap();
+    let create_ata_instruction =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), mint_authority.pubkey(), mint)
+            .with_compressible(compressible_params)
+            .instruction()
+            .unwrap();
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[payer])
         .await
         .expect("Failed to create associated token account");

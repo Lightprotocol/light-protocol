@@ -44,12 +44,7 @@ pub struct CreateAssociatedTokenAccount {
 }
 
 impl CreateAssociatedTokenAccount {
-    pub fn new(
-        payer: Pubkey,
-        owner: Pubkey,
-        mint: Pubkey,
-        compressible_params: CompressibleParams,
-    ) -> Self {
+    pub fn new(payer: Pubkey, owner: Pubkey, mint: Pubkey) -> Self {
         let (ata, bump) = derive_ctoken_ata(&owner, &mint);
         Self {
             payer,
@@ -57,7 +52,7 @@ impl CreateAssociatedTokenAccount {
             mint,
             associated_token_account: ata,
             bump,
-            compressible: Some(compressible_params),
+            compressible: Some(CompressibleParams::default()),
             idempotent: false,
         }
     }
@@ -66,7 +61,6 @@ impl CreateAssociatedTokenAccount {
         payer: Pubkey,
         owner: Pubkey,
         mint: Pubkey,
-        compressible_params: CompressibleParams,
         associated_token_account: Pubkey,
         bump: u8,
     ) -> Self {
@@ -76,9 +70,14 @@ impl CreateAssociatedTokenAccount {
             mint,
             associated_token_account,
             bump,
-            compressible: Some(compressible_params),
+            compressible: Some(CompressibleParams::default()),
             idempotent: false,
         }
+    }
+
+    pub fn with_compressible(mut self, compressible: CompressibleParams) -> Self {
+        self.compressible = Some(compressible);
+        self
     }
 
     pub fn idempotent(mut self) -> Self {

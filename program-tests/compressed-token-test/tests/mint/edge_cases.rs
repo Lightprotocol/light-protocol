@@ -159,14 +159,11 @@ async fn functional_all_in_one_instruction() {
         token_account_version: TokenDataVersion::ShaFlat,
     };
 
-    let create_compressible_ata_ix = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        recipient.pubkey(),
-        spl_mint_pda,
-        compressible_params,
-    )
-    .instruction()
-    .unwrap();
+    let create_compressible_ata_ix =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+            .with_compressible(compressible_params)
+            .instruction()
+            .unwrap();
 
     rpc.create_and_send_transaction(&[create_compressible_ata_ix], &payer.pubkey(), &[&payer])
         .await

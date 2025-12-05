@@ -23,12 +23,9 @@ async fn create_and_assert_ata2(
             token_account_version: compressible.account_version,
         };
 
-        let mut builder = CreateAssociatedTokenAccount::new(
-            payer_pubkey,
-            owner_pubkey,
-            context.mint_pubkey,
-            compressible_params,
-        );
+        let mut builder =
+            CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+                .with_compressible(compressible_params);
 
         if idempotent {
             builder = builder.idempotent();

@@ -103,8 +103,8 @@ pub async fn create_and_assert_token_account(
         token_account_pubkey,
         context.mint_pubkey,
         context.owner_keypair.pubkey(),
-        compressible_params,
     )
+    .with_compressible(compressible_params)
     .instruction()
     .unwrap();
 
@@ -157,8 +157,8 @@ pub async fn create_and_assert_token_account_fails(
         token_account_pubkey,
         context.mint_pubkey,
         context.owner_keypair.pubkey(),
-        compressible_params,
     )
+    .with_compressible(compressible_params)
     .instruction()
     .unwrap();
 
@@ -424,12 +424,9 @@ pub async fn create_and_assert_ata(
             token_account_version: compressible.account_version,
         };
 
-        let mut builder = CreateAssociatedTokenAccount::new(
-            payer_pubkey,
-            owner_pubkey,
-            context.mint_pubkey,
-            compressible_params,
-        );
+        let mut builder =
+            CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+                .with_compressible(compressible_params);
 
         if idempotent {
             builder = builder.idempotent();
@@ -500,12 +497,9 @@ pub async fn create_and_assert_ata_fails(
         CompressibleParams::default()
     };
 
-    let mut builder = CreateAssociatedTokenAccount::new(
-        payer_pubkey,
-        owner_pubkey,
-        context.mint_pubkey,
-        compressible_params,
-    );
+    let mut builder =
+        CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+            .with_compressible(compressible_params);
 
     if idempotent {
         builder = builder.idempotent();

@@ -100,14 +100,11 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
         token_account_version: TokenDataVersion::ShaFlat,
     };
 
-    let create_ata_instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        owner.pubkey(),
-        mint,
-        compressible_params,
-    )
-    .instruction()
-    .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA: {:?}", e)))?;
+    let create_ata_instruction =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+            .with_compressible(compressible_params)
+            .instruction()
+            .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA: {:?}", e)))?;
 
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await?;
@@ -625,14 +622,11 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
         token_account_version: TokenDataVersion::ShaFlat,
     };
 
-    let create_ata_instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        owner.pubkey(),
-        mint,
-        compressible_params,
-    )
-    .instruction()
-    .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA: {:?}", e)))?;
+    let create_ata_instruction =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+            .with_compressible(compressible_params)
+            .instruction()
+            .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA: {:?}", e)))?;
 
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await?;

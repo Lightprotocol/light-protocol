@@ -68,8 +68,8 @@ async fn test_associated_token_account_operations() {
         payer_pubkey,
         compressible_owner_pubkey,
         context.mint_pubkey,
-        compressible_params,
     )
+    .with_compressible(compressible_params)
     .instruction()
     .unwrap();
 
@@ -182,14 +182,10 @@ async fn test_create_ata_idempotent() {
     .await;
 
     // Attempt to create the same ATA again using non-idempotent instruction (should fail)
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer_pubkey,
-        owner_pubkey,
-        context.mint_pubkey,
-        CompressibleParams::default(),
-    )
-    .instruction()
-    .unwrap();
+    let instruction =
+        CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+            .instruction()
+            .unwrap();
 
     let result = context
         .rpc
@@ -203,15 +199,11 @@ async fn test_create_ata_idempotent() {
     );
 
     // Now try with idempotent instruction (should succeed)
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer_pubkey,
-        owner_pubkey,
-        context.mint_pubkey,
-        CompressibleParams::default(),
-    )
-    .idempotent()
-    .instruction()
-    .unwrap();
+    let instruction =
+        CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+            .idempotent()
+            .instruction()
+            .unwrap();
 
     context
         .rpc

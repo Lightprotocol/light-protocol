@@ -141,8 +141,8 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         token_account_pubkey,
         context.mint_pubkey,
         context.owner_keypair.pubkey(),
-        compressible_params,
     )
+    .with_compressible(compressible_params)
     .instruction()
     .map_err(|e| {
         RpcError::AssertRpcError(format!(

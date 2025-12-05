@@ -5,7 +5,7 @@ use light_compressed_token_sdk::{
     compressed_token::create_compressed_mint::{
         derive_compressed_mint_address, find_spl_mint_address,
     },
-    ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
+    ctoken::CreateAssociatedTokenAccount,
 };
 use light_ctoken_types::state::{extensions::AdditionalMetadata, CompressedMint};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
@@ -130,14 +130,10 @@ async fn test_random_mint_action() {
 
     for _ in 0..5 {
         let recipient = Keypair::new();
-        let create_ata_ix = CreateAssociatedTokenAccount::new(
-            payer.pubkey(),
-            recipient.pubkey(),
-            spl_mint_pda,
-            CompressibleParams::default(),
-        )
-        .instruction()
-        .unwrap();
+        let create_ata_ix =
+            CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+                .instruction()
+                .unwrap();
 
         rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
             .await

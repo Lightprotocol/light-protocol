@@ -1,6 +1,4 @@
-use light_compressed_token_sdk::ctoken::{
-    derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount,
-};
+use light_compressed_token_sdk::ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount};
 use solana_pubkey::Pubkey;
 
 const CREATE_ATA_DISCRIMINATOR: u8 = 100;
@@ -11,15 +9,13 @@ fn test_discriminator_selection() {
     let payer = Pubkey::new_unique();
     let owner = Pubkey::new_unique();
     let mint = Pubkey::new_unique();
-    let compressible_params = CompressibleParams::default();
 
-    let ix_regular =
-        CreateAssociatedTokenAccount::new(payer, owner, mint, compressible_params.clone())
-            .instruction()
-            .unwrap();
+    let ix_regular = CreateAssociatedTokenAccount::new(payer, owner, mint)
+        .instruction()
+        .unwrap();
     assert_eq!(ix_regular.data[0], CREATE_ATA_DISCRIMINATOR);
 
-    let ix_idempotent = CreateAssociatedTokenAccount::new(payer, owner, mint, compressible_params)
+    let ix_idempotent = CreateAssociatedTokenAccount::new(payer, owner, mint)
         .idempotent()
         .instruction()
         .unwrap();
@@ -31,13 +27,11 @@ fn test_instruction_data_consistency() {
     let payer = Pubkey::new_unique();
     let owner = Pubkey::new_unique();
     let mint = Pubkey::new_unique();
-    let compressible_params = CompressibleParams::default();
 
-    let ix_regular =
-        CreateAssociatedTokenAccount::new(payer, owner, mint, compressible_params.clone())
-            .instruction()
-            .unwrap();
-    let ix_idempotent = CreateAssociatedTokenAccount::new(payer, owner, mint, compressible_params)
+    let ix_regular = CreateAssociatedTokenAccount::new(payer, owner, mint)
+        .instruction()
+        .unwrap();
+    let ix_idempotent = CreateAssociatedTokenAccount::new(payer, owner, mint)
         .idempotent()
         .instruction()
         .unwrap();
@@ -54,32 +48,19 @@ fn test_with_bump_functions() {
     let payer = Pubkey::new_unique();
     let owner = Pubkey::new_unique();
     let mint = Pubkey::new_unique();
-    let compressible_params = CompressibleParams::default();
     let (ata_pubkey, bump) = derive_ctoken_ata(&owner, &mint);
 
-    let ix_with_bump = CreateAssociatedTokenAccount::new_with_bump(
-        payer,
-        owner,
-        mint,
-        compressible_params.clone(),
-        ata_pubkey,
-        bump,
-    )
-    .instruction()
-    .unwrap();
+    let ix_with_bump =
+        CreateAssociatedTokenAccount::new_with_bump(payer, owner, mint, ata_pubkey, bump)
+            .instruction()
+            .unwrap();
     assert_eq!(ix_with_bump.data[0], CREATE_ATA_DISCRIMINATOR);
 
-    let ix_with_bump_idempotent = CreateAssociatedTokenAccount::new_with_bump(
-        payer,
-        owner,
-        mint,
-        compressible_params,
-        ata_pubkey,
-        bump,
-    )
-    .idempotent()
-    .instruction()
-    .unwrap();
+    let ix_with_bump_idempotent =
+        CreateAssociatedTokenAccount::new_with_bump(payer, owner, mint, ata_pubkey, bump)
+            .idempotent()
+            .instruction()
+            .unwrap();
     assert_eq!(
         ix_with_bump_idempotent.data[0],
         CREATE_ATA_IDEMPOTENT_DISCRIMINATOR
@@ -91,12 +72,10 @@ fn test_account_count() {
     let payer = Pubkey::new_unique();
     let owner = Pubkey::new_unique();
     let mint = Pubkey::new_unique();
-    let compressible_params = CompressibleParams::default();
 
-    let ix_compressible =
-        CreateAssociatedTokenAccount::new(payer, owner, mint, compressible_params)
-            .instruction()
-            .unwrap();
+    let ix_compressible = CreateAssociatedTokenAccount::new(payer, owner, mint)
+        .instruction()
+        .unwrap();
 
     assert_eq!(ix_compressible.accounts.len(), 5);
 }
