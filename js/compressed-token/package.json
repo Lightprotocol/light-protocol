@@ -11,10 +11,20 @@
             "types": "./dist/types/index.d.ts",
             "default": "./dist/cjs/node/index.cjs"
         },
+        "./unified": {
+            "require": "./dist/cjs/node/unified/index.cjs",
+            "types": "./dist/types/unified/index.d.ts",
+            "default": "./dist/cjs/node/unified/index.cjs"
+        },
         "./browser": {
             "import": "./dist/es/browser/index.js",
             "require": "./dist/cjs/browser/index.cjs",
             "types": "./dist/types/index.d.ts"
+        },
+        "./browser/unified": {
+            "import": "./dist/es/browser/unified/index.js",
+            "require": "./dist/cjs/browser/unified/index.cjs",
+            "types": "./dist/types/unified/index.d.ts"
         }
     },
     "types": "./dist/types/index.d.ts",

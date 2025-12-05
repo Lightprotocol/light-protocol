@@ -422,7 +422,7 @@ describe('Payment Flows', () => {
                 mint,
                 sender.publicKey,
             );
-            await loadATA(rpc, senderAta, sender, mint;
+            await loadATA(rpc, senderAta, sender, mint);
 
             const senderAtaAddress = getAssociatedTokenAddressInterface(
                 mint,

@@ -74,15 +74,8 @@ function calculateComputeUnits(
 
 /**
  * Transfer tokens using the CToken interface.
+ *
  * Mirrors SPL Token's transfer() - destination must exist.
- *
- * This action:
- * 1. Validates source matches derived ATA from owner + mint
- * 2. Loads ALL sender balances to CToken ATA (SPL, T22, compressed)
- * 3. Executes hot-to-hot transfer
- *
- * Note: Like SPL Token, this does NOT create the destination ATA.
- * Use getOrCreateATAInterface() first if destination may not exist.
  *
  * @param rpc             RPC connection
  * @param payer           Fee payer (signer)
@@ -94,6 +87,7 @@ function calculateComputeUnits(
  * @param programId       Token program ID (default: CTOKEN_PROGRAM_ID)
  * @param confirmOptions  Optional confirm options
  * @param options         Optional interface options
+ * @param wrap            Include SPL/T22 wrapping (default: false)
  * @returns Transaction signature
  */
 export async function transferInterface(
@@ -107,6 +101,7 @@ export async function transferInterface(
     programId: PublicKey = CTOKEN_PROGRAM_ID,
     confirmOptions?: ConfirmOptions,
     options?: InterfaceOptions,
+    wrap = false,
 ): Promise<TransactionSignature> {
     const amountBigInt = BigInt(amount.toString());
     const { tokenPoolInfos: providedTokenPoolInfos } = options ?? {};
@@ -168,30 +163,50 @@ export async function transferInterface(
         owner.publicKey,
     );
 
-    // Derive ATAs for all token programs (sender only)
-    const splAta = getAssociatedTokenAddressSync(
-        mint,
-        owner.publicKey,
-        false,
-        TOKEN_PROGRAM_ID,
-        getATAProgramId(TOKEN_PROGRAM_ID),
-    );
-    const t22Ata = getAssociatedTokenAddressSync(
-        mint,
-        owner.publicKey,
-        false,
-        TOKEN_2022_PROGRAM_ID,
-        getATAProgramId(TOKEN_2022_PROGRAM_ID),
-    );
+    // Derive SPL/T22 ATAs only if wrap is true
+    let splAta: PublicKey | undefined;
+    let t22Ata: PublicKey | undefined;
 
-    // Fetch sender's accounts in parallel
-    const [ctokenAtaInfo, splAtaInfo, t22AtaInfo, compressedResult] =
-        await Promise.all([
-            rpc.getAccountInfo(ctokenAtaAddress),
-            rpc.getAccountInfo(splAta),
-            rpc.getAccountInfo(t22Ata),
-            rpc.getCompressedTokenAccountsByOwner(owner.publicKey, { mint }),
-        ]);
+    if (wrap) {
+        splAta = getAssociatedTokenAddressSync(
+            mint,
+            owner.publicKey,
+            false,
+            TOKEN_PROGRAM_ID,
+            getATAProgramId(TOKEN_PROGRAM_ID),
+        );
+        t22Ata = getAssociatedTokenAddressSync(
+            mint,
+            owner.publicKey,
+            false,
+            TOKEN_2022_PROGRAM_ID,
+            getATAProgramId(TOKEN_2022_PROGRAM_ID),
+        );
+    }
+
+    // Fetch sender's accounts in parallel (conditionally include SPL/T22)
+    const fetchPromises: Promise<unknown>[] = [
+        rpc.getAccountInfo(ctokenAtaAddress),
+        rpc.getCompressedTokenAccountsByOwner(owner.publicKey, { mint }),
+    ];
+    if (wrap && splAta && t22Ata) {
+        fetchPromises.push(rpc.getAccountInfo(splAta));
+        fetchPromises.push(rpc.getAccountInfo(t22Ata));
+    }
+
+    const results = await Promise.all(fetchPromises);
+    const ctokenAtaInfo = results[0] as Awaited<
+        ReturnType<typeof rpc.getAccountInfo>
+    >;
+    const compressedResult = results[1] as Awaited<
+        ReturnType<typeof rpc.getCompressedTokenAccountsByOwner>
+    >;
+    const splAtaInfo = wrap
+        ? (results[2] as Awaited<ReturnType<typeof rpc.getAccountInfo>>)
+        : null;
+    const t22AtaInfo = wrap
+        ? (results[3] as Awaited<ReturnType<typeof rpc.getAccountInfo>>)
+        : null;
 
     const compressedAccounts = compressedResult.items;
 
@@ -201,11 +216,11 @@ export async function transferInterface(
             ? ctokenAtaInfo.data.readBigUInt64LE(64)
             : BigInt(0);
     const splBalance =
-        splAtaInfo && splAtaInfo.data.length >= 72
+        wrap && splAtaInfo && splAtaInfo.data.length >= 72
             ? splAtaInfo.data.readBigUInt64LE(64)
             : BigInt(0);
     const t22Balance =
-        t22AtaInfo && t22AtaInfo.data.length >= 72
+        wrap && t22AtaInfo && t22AtaInfo.data.length >= 72
             ? t22AtaInfo.data.readBigUInt64LE(64)
             : BigInt(0);
     const compressedBalance = compressedAccounts.reduce(
@@ -250,8 +265,8 @@ export async function transferInterface(
         : [];
     const tokenPoolInfo = tokenPoolInfos.find(info => info.isInitialized);
 
-    // Wrap SPL tokens if balance exists
-    if (splBalance > BigInt(0) && tokenPoolInfo) {
+    // Wrap SPL tokens if balance exists (only when wrap=true)
+    if (wrap && splAta && splBalance > BigInt(0) && tokenPoolInfo) {
         instructions.push(
             createWrapInstruction(
                 splAta,
@@ -266,8 +281,8 @@ export async function transferInterface(
         splWrapCount++;
     }
 
-    // Wrap T22 tokens if balance exists
-    if (t22Balance > BigInt(0) && tokenPoolInfo) {
+    // Wrap T22 tokens if balance exists (only when wrap=true)
+    if (wrap && t22Ata && t22Balance > BigInt(0) && tokenPoolInfo) {
         instructions.push(
             createWrapInstruction(
                 t22Ata,

@@ -58,7 +58,7 @@ export interface WrapResult {
  *   rpc,
  *   payer,
  *   splAta,
- *   ctokenAta.address,
+ *   ctokenAta,
  *   owner,
  *   mint,
  *   1000n,

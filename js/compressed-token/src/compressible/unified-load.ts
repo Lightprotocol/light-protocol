@@ -268,13 +268,7 @@ export async function createLoadATAInstructionsFromInterface(
 }
 
 /**
- * Create instructions to load an ATA.
- *
- * Fetches the AccountInterface internally, then builds instructions to:
- * 1. Create CToken ATA if needed (idempotent)
- * 2. Wrap SPL tokens to CToken ATA (if SPL balance > 0)
- * 3. Wrap T22 tokens to CToken ATA (if T22 balance > 0)
- * 4. Decompress2 compressed tokens to CToken ATA (if cold balance > 0)
+ * Create instructions to load token balances into a CToken ATA.
  *
  * @param rpc     RPC connection
  * @param ata     Associated token address (PublicKey)
@@ -282,13 +276,8 @@ export async function createLoadATAInstructionsFromInterface(
  * @param mint    Mint public key
  * @param payer   Fee payer (defaults to owner)
  * @param options Optional load options
+ * @param wrap    Include SPL/T22 wrapping (default: false)
  * @returns       Array of instructions (empty if nothing to load)
- *
- * @example
- * ```typescript
- * const ata = getAssociatedTokenAddressInterface(mint, sender);
- * const instructions = await createLoadATAInstructions(rpc, ata, sender, mint);
- * ```
  */
 export async function createLoadATAInstructions(
     rpc: Rpc,
@@ -297,9 +286,18 @@ export async function createLoadATAInstructions(
     mint: PublicKey,
     payer?: PublicKey,
     options?: InterfaceOptions,
+    wrap = false,
 ): Promise<TransactionInstruction[]> {
     payer ??= owner;
-    const ataInterface = await getATAInterface(rpc, ata, owner, mint);
+    const ataInterface = await getATAInterface(
+        rpc,
+        ata,
+        owner,
+        mint,
+        undefined,
+        undefined,
+        wrap,
+    );
     return createLoadATAInstructionsFromInterface(
         rpc,
         payer,
@@ -309,12 +307,7 @@ export async function createLoadATAInstructions(
 }
 
 /**
- * Load ALL token balances into a single CToken ATA (ATA-only, full execute).
- *
- * This loads:
- * 1. SPL ATA balance → wrapped to CToken ATA
- * 2. Token-2022 ATA balance → wrapped to CToken ATA
- * 3. All compressed tokens → decompressed to CToken ATA
+ * Load token balances into a CToken ATA.
  *
  * Idempotent: returns null if nothing to load.
  *
@@ -325,13 +318,8 @@ export async function createLoadATAInstructions(
  * @param payer             Fee payer (signer, defaults to owner)
  * @param confirmOptions    Optional confirm options
  * @param interfaceOptions  Optional interface options
+ * @param wrap              Include SPL/T22 wrapping (default: false)
  * @returns Transaction signature, or null if nothing to load
- *
- * @example
- * ```typescript
- * const ata = getAssociatedTokenAddressInterface(mint, sender);
- * const signature = await loadATA(rpc, ata, owner, mint);
- * ```
  */
 export async function loadATA(
     rpc: Rpc,
@@ -341,6 +329,7 @@ export async function loadATA(
     payer?: Signer,
     confirmOptions?: ConfirmOptions,
     interfaceOptions?: InterfaceOptions,
+    wrap = false,
 ): Promise<TransactionSignature | null> {
     payer ??= owner;
 
@@ -351,6 +340,7 @@ export async function loadATA(
         mint,
         payer.publicKey,
         interfaceOptions,
+        wrap,
     );
 
     if (ixs.length === 0) {
