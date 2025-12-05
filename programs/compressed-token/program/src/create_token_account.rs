@@ -11,12 +11,7 @@ use light_ctoken_types::{
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_program_profiler::profile;
-use pinocchio::{
-    account_info::AccountInfo,
-    instruction::Seed,
-    sysvars::{rent::Rent, Sysvar},
-};
-use pinocchio_system::instructions::CreateAccount;
+use pinocchio::{account_info::AccountInfo, instruction::Seed};
 use spl_pod::{bytemuck, solana_msg::msg};
 
 use crate::shared::{
@@ -188,42 +183,41 @@ pub fn process_create_token_account(
 
         let custom_rent_payer =
             *compressible.rent_payer.key() != config_account.rent_sponsor.to_bytes();
-        if custom_rent_payer {
-            // custom rent payer for account creation -> pays rent exemption
-            // rent payer must be signer.
-            create_account_with_custom_rent_payer(
-                compressible.rent_payer,
-                accounts.token_account,
-                account_size,
-                rent,
-            )
+
+        // Build fee_payer seeds (rent_sponsor PDA or None for custom keypair)
+        let version_bytes = config_account.version.to_le_bytes();
+        let bump_seed = [config_account.rent_sponsor_bump];
+        let rent_sponsor_seeds = [
+            Seed::from(b"rent_sponsor".as_ref()),
+            Seed::from(version_bytes.as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+
+        // fee_payer_seeds: Some for rent_sponsor PDA, None for custom keypair
+        // new_account_seeds: None (token_account is always a keypair signer)
+        let fee_payer_seeds = if custom_rent_payer {
+            None
+        } else {
+            Some(rent_sponsor_seeds.as_slice())
+        };
+
+        // Create token account (handles DoS prevention internally)
+        create_pda_account(
+            compressible.rent_payer,
+            accounts.token_account,
+            account_size,
+            fee_payer_seeds,
+            None, // token_account is keypair signer
+            None, // no additional lamports here
+        )?;
+
+        // Payer transfers the additional rent (compression incentive)
+        transfer_lamports_via_cpi(rent, compressible.payer, accounts.token_account)
             .map_err(convert_program_error)?;
 
+        if custom_rent_payer {
             (Some(*config_account), Some(*compressible.rent_payer.key()))
         } else {
-            // Rent recipient is fee payer for account creation -> pays rent exemption
-            let version_bytes = config_account.version.to_le_bytes();
-            let bump_seed = [config_account.rent_sponsor_bump];
-            let seeds = [
-                Seed::from(b"rent_sponsor".as_ref()),
-                Seed::from(version_bytes.as_ref()),
-                Seed::from(bump_seed.as_ref()),
-            ];
-
-            let seeds_inputs = [seeds.as_slice()];
-
-            // PDA creates account with only rent-exempt balance
-            create_pda_account(
-                compressible.rent_payer,
-                accounts.token_account,
-                account_size,
-                seeds_inputs,
-                None,
-            )?;
-
-            // Payer transfers the additional rent (compression incentive)
-            transfer_lamports_via_cpi(rent, compressible.payer, accounts.token_account)
-                .map_err(convert_program_error)?;
             (Some(*config_account), None)
         }
     } else {
@@ -239,25 +233,4 @@ pub fn process_create_token_account(
         compressible_config_account,
         custom_rent_payer,
     )
-}
-
-#[profile]
-#[inline(always)]
-fn create_account_with_custom_rent_payer(
-    rent_payer: &AccountInfo,
-    token_account: &AccountInfo,
-    account_size: usize,
-    rent: u64,
-) -> pinocchio::ProgramResult {
-    let solana_rent = Rent::get()?;
-    let lamports = solana_rent.minimum_balance(account_size) + rent;
-
-    let create_account = CreateAccount {
-        from: rent_payer,
-        to: token_account,
-        lamports,
-        space: account_size as u64,
-        owner: &crate::LIGHT_CPI_SIGNER.program_id,
-    };
-    create_account.invoke()
 }

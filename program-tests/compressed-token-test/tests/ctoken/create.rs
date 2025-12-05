@@ -206,7 +206,7 @@ async fn test_create_compressible_token_account_failing() {
             &mut context,
             compressible_data,
             "account_already_initialized",
-            0, // AlreadyInitialized system program cpi fails (for compressible accounts we create the token accounts via cpi)
+            78, // AlreadyInitialized (our program checks this after Assign+realloc pattern)
         )
         .await;
     }

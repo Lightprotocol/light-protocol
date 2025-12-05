@@ -33,19 +33,18 @@ pub fn create_mint_account(
 
     // Create account using shared function
     let bump_seed = [mint_bump];
-    let seeds = [
+    let mint_seeds = [
         Seed::from(COMPRESSED_MINT_SEED),
         Seed::from(mint_signer.key().as_ref()),
         Seed::from(bump_seed.as_ref()),
     ];
 
-    let seeds_inputs = [seeds.as_slice()];
-
     create_pda_account(
         executing_accounts.system.fee_payer,
         mint_account,
         mint_account_size,
-        seeds_inputs,
+        None,                        // fee_payer is keypair
+        Some(mint_seeds.as_slice()), // mint is PDA
         None,
     )
 }

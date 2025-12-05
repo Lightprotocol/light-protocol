@@ -220,3 +220,173 @@ async fn test_create_ata_idempotent() {
     )
     .await;
 }
+
+/// Test: DoS prevention for ATA creation
+/// 1. Derive ATA address
+/// 2. Pre-fund the ATA address with lamports (simulating attacker donation)
+/// 3. SUCCESS: Create ATA should succeed despite pre-funded lamports
+#[tokio::test]
+#[serial]
+async fn test_create_ata_with_prefunded_lamports() {
+    let mut context = setup_account_test().await.unwrap();
+    let payer_pubkey = context.payer.pubkey();
+    let owner_pubkey = context.owner_keypair.pubkey();
+
+    // Derive ATA address
+    let (ata, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
+
+    // Pre-fund the ATA address with lamports (simulating attacker donation DoS attempt)
+    let prefund_amount = 1_000; // 1000 lamports
+    let transfer_ix = solana_sdk::system_instruction::transfer(&payer_pubkey, &ata, prefund_amount);
+
+    context
+        .rpc
+        .create_and_send_transaction(&[transfer_ix], &payer_pubkey, &[&context.payer])
+        .await
+        .unwrap();
+
+    // Verify the ATA address now has lamports
+    let ata_account = context.rpc.get_account(ata).await.unwrap();
+    assert!(
+        ata_account.is_some(),
+        "ATA address should exist with lamports"
+    );
+    assert_eq!(
+        ata_account.unwrap().lamports,
+        prefund_amount,
+        "ATA should have pre-funded lamports"
+    );
+
+    // Now create the ATA - this should succeed despite pre-funded lamports
+    let instruction = CreateAssociatedTokenAccount {
+        idempotent: false,
+        bump,
+        payer: payer_pubkey,
+        owner: owner_pubkey,
+        mint: context.mint_pubkey,
+        associated_token_account: ata,
+        compressible: None,
+    }
+    .instruction()
+    .unwrap();
+
+    context
+        .rpc
+        .create_and_send_transaction(&[instruction], &payer_pubkey, &[&context.payer])
+        .await
+        .unwrap();
+
+    // Verify ATA was created correctly
+    assert_create_associated_token_account(
+        &mut context.rpc,
+        owner_pubkey,
+        context.mint_pubkey,
+        None,
+    )
+    .await;
+
+    // Verify the ATA now has more lamports (rent-exempt + pre-funded)
+    let final_ata_account = context.rpc.get_account(ata).await.unwrap().unwrap();
+    assert!(
+        final_ata_account.lamports > prefund_amount,
+        "ATA should have rent-exempt balance plus pre-funded amount"
+    );
+}
+
+/// Test: DoS prevention for token account creation with custom rent payer
+/// 1. Generate token account keypair
+/// 2. Pre-fund the token account address with lamports (simulating attacker donation)
+/// 3. SUCCESS: Create token account should succeed despite pre-funded lamports
+#[tokio::test]
+#[serial]
+async fn test_create_token_account_with_prefunded_lamports() {
+    let mut context = setup_account_test().await.unwrap();
+    let payer_pubkey = context.payer.pubkey();
+    let token_account_pubkey = context.token_account_keypair.pubkey();
+
+    // Pre-fund the token account address with lamports (simulating attacker donation DoS attempt)
+    let prefund_amount = 1_000; // 1000 lamports
+    let transfer_ix = solana_sdk::system_instruction::transfer(
+        &payer_pubkey,
+        &token_account_pubkey,
+        prefund_amount,
+    );
+
+    context
+        .rpc
+        .create_and_send_transaction(&[transfer_ix], &payer_pubkey, &[&context.payer])
+        .await
+        .unwrap();
+
+    // Verify the token account address now has lamports
+    let token_account = context.rpc.get_account(token_account_pubkey).await.unwrap();
+    assert!(
+        token_account.is_some(),
+        "Token account address should exist with lamports"
+    );
+    assert_eq!(
+        token_account.unwrap().lamports,
+        prefund_amount,
+        "Token account should have pre-funded lamports"
+    );
+
+    // Now create the compressible token account - this should succeed despite pre-funded lamports
+    let compressible_params = CompressibleParams {
+        compressible_config: context.compressible_config,
+        rent_sponsor: context.rent_sponsor,
+        pre_pay_num_epochs: 0,
+        lamports_per_write: Some(100),
+        compress_to_account_pubkey: None,
+        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+    };
+
+    let create_token_account_ix = CreateCTokenAccount::new(
+        payer_pubkey,
+        token_account_pubkey,
+        context.mint_pubkey,
+        context.owner_keypair.pubkey(),
+    )
+    .with_compressible(compressible_params)
+    .instruction()
+    .unwrap();
+
+    context
+        .rpc
+        .create_and_send_transaction(
+            &[create_token_account_ix],
+            &payer_pubkey,
+            &[&context.payer, &context.token_account_keypair],
+        )
+        .await
+        .unwrap();
+
+    // Verify token account was created correctly
+    assert_create_token_account(
+        &mut context.rpc,
+        token_account_pubkey,
+        context.mint_pubkey,
+        context.owner_keypair.pubkey(),
+        Some(CompressibleData {
+            compression_authority: context.compression_authority,
+            rent_sponsor: context.rent_sponsor,
+            num_prepaid_epochs: 0,
+            lamports_per_write: Some(100),
+            compress_to_pubkey: false,
+            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            payer: payer_pubkey,
+        }),
+    )
+    .await;
+
+    // Verify the token account now has more lamports (rent-exempt + pre-funded)
+    let final_token_account = context
+        .rpc
+        .get_account(token_account_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        final_token_account.lamports > prefund_amount,
+        "Token account should have rent-exempt balance plus pre-funded amount"
+    );
+}

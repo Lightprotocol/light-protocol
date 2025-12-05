@@ -6,67 +6,88 @@ use pinocchio::{
     pubkey::Pubkey,
     sysvars::{rent::Rent, Sysvar},
 };
-use pinocchio_system::instructions::CreateAccount;
+use pinocchio_system::instructions::{Assign, CreateAccount, Transfer};
 
 use crate::{shared::convert_program_error, LIGHT_CPI_SIGNER};
 
-// /// Configuration for creating a PDA account
-// #[derive(Debug)]
-// pub struct CreatePdaSeeds<'a> {
-//     /// The seeds used to derive the PDA (without bump)
-//     pub seeds: &'a [&'a [u8]],
-//     /// The bump seed for PDA derivation
-//     pub bump: u8,
-// }
-
-/// Creates a PDA account with the specified configuration(s).
-///
-/// This function abstracts the common PDA account creation pattern used across
-/// create_associated_token_account, create_mint_account, and create_token_pool.
-///
-/// ## Process
-/// 1. Calculates rent based on account size
-/// 2. Builds seed arrays with bumps for each config
-/// 3. Creates account via system program with specified owner
-/// 4. Signs transaction with derived PDA seeds
+/// Creates an account with explicit seed parameters for fee_payer and new_account.
 ///
 /// ## Parameters
-/// - `configs`: ArrayVec of PDA configs. First config is for the new account being created.
-///   Additional configs are for fee payer PDAs that need to sign.
+/// - `fee_payer`: Account paying for rent (keypair or PDA like rent_sponsor)
+/// - `new_account`: Account being created (keypair or PDA like ATA)
+/// - `account_size`: Size in bytes for the new account
+/// - `fee_payer_seeds`: PDA seeds if fee_payer is a PDA (e.g., rent_sponsor), None if keypair
+/// - `new_account_seeds`: PDA seeds if new_account is a PDA (e.g., ATA), None if keypair
+/// - `additional_lamports`: Extra lamports beyond rent-exempt minimum (e.g., compression cost)
+///
+/// ## Cold Path
+/// If new_account already has lamports (e.g., attacker donation), uses
+/// Assign + realloc + Transfer pattern instead of CreateAccount which would fail.
 #[profile]
-pub fn create_pda_account<const N: usize>(
+pub fn create_pda_account(
     fee_payer: &AccountInfo,
     new_account: &AccountInfo,
     account_size: usize,
-    seeds_inputs: [&[Seed]; N],
+    fee_payer_seeds: Option<&[Seed]>,
+    new_account_seeds: Option<&[Seed]>,
     additional_lamports: Option<u64>,
 ) -> Result<(), ProgramError> {
-    // Ensure we have at least one config
-    if seeds_inputs.is_empty() {
-        return Err(ProgramError::InvalidInstructionData);
-    }
     // Calculate rent
     let rent = Rent::get().map_err(|_| ProgramError::UnsupportedSysvar)?;
     let lamports = rent.minimum_balance(account_size) + additional_lamports.unwrap_or_default();
 
-    let create_account = CreateAccount {
+    // Build signers from seeds
+    let fee_payer_signer: Option<Signer> = fee_payer_seeds.map(Signer::from);
+    let new_account_signer: Option<Signer> = new_account_seeds.map(Signer::from);
+
+    // Cold Path: if account already has lamports (e.g., from attacker donation),
+    // use Assign + realloc + Transfer instead of CreateAccount which would fail.
+    if new_account.lamports() > 0 {
+        let current_lamports = new_account.lamports();
+
+        Assign {
+            account: new_account,
+            owner: &LIGHT_CPI_SIGNER.program_id,
+        }
+        .invoke_signed(new_account_signer.as_slice())
+        .map_err(convert_program_error)?;
+
+        new_account
+            .resize(account_size)
+            .map_err(convert_program_error)?;
+
+        // Transfer remaining lamports for rent-exemption if needed
+        if lamports > current_lamports {
+            Transfer {
+                from: fee_payer,
+                to: new_account,
+                lamports: lamports - current_lamports,
+            }
+            .invoke_signed(fee_payer_signer.as_slice())
+            .map_err(convert_program_error)?;
+        }
+
+        return Ok(());
+    }
+
+    // Normal path: CreateAccount (requires both to sign)
+    let mut signers = arrayvec::ArrayVec::<Signer, 2>::new();
+    if let Some(s) = fee_payer_signer {
+        signers.push(s);
+    }
+    if let Some(s) = new_account_signer {
+        signers.push(s);
+    }
+
+    CreateAccount {
         from: fee_payer,
         to: new_account,
         lamports,
         space: account_size as u64,
         owner: &LIGHT_CPI_SIGNER.program_id,
-    };
-
-    let mut signers = arrayvec::ArrayVec::<Signer, N>::new();
-    for seeds in seeds_inputs.iter() {
-        if !seeds.is_empty() {
-            signers.push(Signer::from(*seeds));
-        }
     }
-
-    create_account
-        .invoke_signed(signers.as_slice())
-        .map_err(convert_program_error)
+    .invoke_signed(signers.as_slice())
+    .map_err(convert_program_error)
 }
 
 /// Verifies that the provided account matches the expected PDA
