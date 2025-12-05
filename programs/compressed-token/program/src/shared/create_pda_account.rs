@@ -45,7 +45,6 @@ pub fn create_pda_account(
     if new_account.lamports() > 0 {
         let current_lamports = new_account.lamports();
 
-        // 1. Assign to our program (requires new_account to sign)
         Assign {
             account: new_account,
             owner: &LIGHT_CPI_SIGNER.program_id,
