@@ -12,6 +12,7 @@ import {
     getATAInterface as _getATAInterface,
     AccountInterface,
 } from '../mint/get-account-interface';
+import { getAssociatedTokenAddressInterface as _getAssociatedTokenAddressInterface } from '../mint/get-associated-token-address-interface';
 import {
     createLoadATAInstructions as _createLoadATAInstructions,
     loadATA as _loadATA,
@@ -39,6 +40,41 @@ export async function getATAInterface(
     programId?: PublicKey,
 ): Promise<AccountInterface> {
     return _getATAInterface(rpc, ata, owner, mint, commitment, programId, true);
+}
+
+/**
+ * Derive the canonical token ATA for SPL/T22/c-token in the unified path.
+ *
+ * Enforces CTOKEN_PROGRAM_ID.
+ *
+ * @param mint                      Mint public key
+ * @param owner                     Owner public key
+ * @param allowOwnerOffCurve        Allow owner to be a PDA. Default false.
+ * @param programId                 Token program ID. Default c-token.
+ * @param associatedTokenProgramId  Associated token program ID. Default
+ *                                  auto-detected.
+ * @returns                         Associated token address.
+ */
+export function getAssociatedTokenAddressInterface(
+    mint: PublicKey,
+    owner: PublicKey,
+    allowOwnerOffCurve = false,
+    programId: PublicKey = CTOKEN_PROGRAM_ID,
+    associatedTokenProgramId?: PublicKey,
+): PublicKey {
+    if (!programId.equals(CTOKEN_PROGRAM_ID)) {
+        throw new Error(
+            'Please derive the unified ATA from the c-token program; balances across SPL, T22, and c-token are unified under the canonical c-token ATA.',
+        );
+    }
+
+    return _getAssociatedTokenAddressInterface(
+        mint,
+        owner,
+        allowOwnerOffCurve,
+        programId,
+        associatedTokenProgramId,
+    );
 }
 
 /**
@@ -150,7 +186,6 @@ export async function transferInterface(
 }
 
 export {
-    getAssociatedTokenAddressInterface,
     getAccountInterface,
     AccountInterface,
     TokenAccountSource,

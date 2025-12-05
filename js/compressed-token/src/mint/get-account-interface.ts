@@ -6,7 +6,6 @@ import {
     TokenAccountNotFoundError,
     getAssociatedTokenAddressSync,
     AccountState,
-    AccountLayout,
     Account,
 } from '@solana/spl-token';
 import {
@@ -14,48 +13,14 @@ import {
     CTOKEN_PROGRAM_ID,
     MerkleContext,
     CompressedAccountWithMerkleContext,
-    ParsedTokenAccount,
 } from '@lightprotocol/stateless.js';
 import { Buffer } from 'buffer';
 import BN from 'bn.js';
 import { getATAProgramId } from '../utils';
-
-// Re-export types that are used in the interface
 export { Account, AccountState } from '@solana/spl-token';
 export { ParsedTokenAccount } from '@lightprotocol/stateless.js';
 
-/**
- * Derive the associated token address for any token program.
- * Follows SPL Token getAssociatedTokenAddressSync signature.
- * Defaults to c-token as the canonical ATA.
- *
- * @param mint - Mint public key
- * @param owner - Owner public key
- * @param allowOwnerOffCurve - Allow owner to be a PDA (default: false)
- * @param programId - Token program ID (default: CTOKEN_PROGRAM_ID)
- * @param associatedTokenProgramId - Associated token program ID
- * @returns Associated token address (PublicKey)
- */
-export function getAssociatedTokenAddressInterface(
-    mint: PublicKey,
-    owner: PublicKey,
-    allowOwnerOffCurve = false,
-    programId: PublicKey = CTOKEN_PROGRAM_ID,
-    associatedTokenProgramId?: PublicKey,
-): PublicKey {
-    const effectiveAssociatedProgramId =
-        associatedTokenProgramId ?? getATAProgramId(programId);
-
-    // by passing program id, user indicates preference for the canonical ATA (c-token by default)
-    return getAssociatedTokenAddressSync(
-        mint,
-        owner,
-        allowOwnerOffCurve,
-        programId,
-        effectiveAssociatedProgramId,
-    );
-}
-
+/** @internal */
 export interface TokenAccountSource {
     type: 'spl' | 'token2022' | 'ctoken-hot' | 'ctoken-cold';
     address: PublicKey;
@@ -82,6 +47,7 @@ export interface AccountInterface {
     _mint?: PublicKey;
 }
 
+/** @internal */
 function parseTokenData(data: Buffer): {
     mint: PublicKey;
     owner: PublicKey;
@@ -126,6 +92,7 @@ function parseTokenData(data: Buffer): {
     }
 }
 
+/** @internal */
 export function convertTokenDataToAccount(
     address: PublicKey,
     tokenData: {
@@ -153,11 +120,10 @@ export function convertTokenDataToAccount(
     };
 }
 
-/** normalize compressed account to account info */
+/** Convert compressed account to AccountInfo */
 export function toAccountInfo(
     compressedAccount: CompressedAccountWithMerkleContext,
 ): AccountInfo<Buffer> {
-    // we must define Buffer type explicitly.
     const dataDiscriminatorBuffer: Buffer = Buffer.from(
         compressedAccount.data!.discriminator,
     );
@@ -173,6 +139,7 @@ export function toAccountInfo(
     };
 }
 
+/** @internal */
 export function parseCTokenHot(
     address: PublicKey,
     accountInfo: AccountInfo<Buffer>,
@@ -192,6 +159,7 @@ export function parseCTokenHot(
     };
 }
 
+/** @internal */
 export function parseCTokenCold(
     address: PublicKey,
     compressedAccount: CompressedAccountWithMerkleContext,
@@ -216,7 +184,7 @@ export function parseCTokenCold(
     };
 }
 /**
- * Retrieve information about a token account (SPL, T22, C-Token)
+ * Retrieve information about a token account. SPL/T22/c-token.
  *
  * @param rpc        RPC connection to use
  * @param address    Token account address
@@ -238,7 +206,7 @@ export async function getAccountInterface(
  * Retrieve associated token account for a given owner and mint.
  *
  * @param rpc         RPC connection
- * @param ata         Associated token address (PublicKey)
+ * @param ata         Associated token address
  * @param owner       Owner public key
  * @param mint        Mint public key
  * @param commitment  Optional commitment level
@@ -273,7 +241,7 @@ export async function getATAInterface(
 }
 
 /**
- * Helper: Try to fetch SPL Token account
+ * @internal
  */
 async function _tryFetchSpl(
     rpc: Rpc,
@@ -299,7 +267,7 @@ async function _tryFetchSpl(
 }
 
 /**
- * Helper: Try to fetch Token-2022 account
+ * @internal
  */
 async function _tryFetchToken2022(
     rpc: Rpc,
@@ -325,7 +293,7 @@ async function _tryFetchToken2022(
 }
 
 /**
- * Helper: Try to fetch CToken hot (decompressed) account
+ * @internal
  */
 async function _tryFetchCTokenHot(
     rpc: Rpc,
@@ -345,7 +313,7 @@ async function _tryFetchCTokenHot(
 }
 
 /**
- * Helper: Try to fetch CToken cold (compressed) account by owner+mint
+ * @internal
  */
 async function _tryFetchCTokenColdByOwner(
     rpc: Rpc,
@@ -373,7 +341,7 @@ async function _tryFetchCTokenColdByOwner(
 }
 
 /**
- * Helper: Try to fetch CToken cold (compressed) account by address (for non-ATA ctokens)
+ * @internal
  */
 async function _tryFetchCTokenColdByAddress(
     rpc: Rpc,
@@ -396,22 +364,9 @@ async function _tryFetchCTokenColdByAddress(
     return parseCTokenCold(address, compressedAccount);
 }
 
-// TODO: add test
-//
-// TODO: implement actual solution for compressed token accounts for vaults for
-// spl/t22 mints.
 /**
  * @internal
- * Retrieve information about a token account (SPL, T22, C-Token)
- *
- * @param rpc        RPC connection to use
- * @param address    Token account address
- * @param commitment Desired level of commitment for querying the state
- * @param programId  Token program ID. If not provided, tries all programs concurrently to auto-detect
- * @param fetchByOwner ATA options. If provided, tries to fetch the compressible side by owner and mint instead of address
- * @param wrap    If true and programId is undefined, include SPL/T22 in aggregation. Default false.
- *
- * @return Token account information with compression context if applicable
+ * Retrieve information about a token account SPL/T22/c-token.
  */
 async function _getAccountInterface(
     rpc: Rpc,
@@ -431,9 +386,9 @@ async function _getAccountInterface(
         throw new Error('Only one of Address or fetchByOwner can be provided');
     }
 
-    // Auto-detect mode (no programId specified)
+    // try all three programs in parallel
     if (!programId) {
-        // Derive CToken ATA address
+        // c-token
         const cTokenAta = address
             ? address
             : getAssociatedTokenAddressSync(
@@ -444,7 +399,6 @@ async function _getAccountInterface(
                   getATAProgramId(CTOKEN_PROGRAM_ID),
               );
 
-        // Build fetch promises based on wrap flag
         const fetchPromises: Promise<{
             accountInfo: AccountInfo<Buffer>;
             parsed: Account;
@@ -454,7 +408,7 @@ async function _getAccountInterface(
         const fetchTypes: TokenAccountSource['type'][] = [];
         const fetchAddresses: PublicKey[] = [];
 
-        // Always fetch CToken (hot + cold)
+        // c-token hot + cold
         fetchPromises.push(_tryFetchCTokenHot(rpc, cTokenAta, commitment));
         fetchTypes.push('ctoken-hot');
         fetchAddresses.push(cTokenAta);
@@ -472,7 +426,7 @@ async function _getAccountInterface(
         fetchTypes.push('ctoken-cold');
         fetchAddresses.push(cTokenAta);
 
-        // Only fetch SPL/T22 if wrap is true
+        // spl/t22
         let splTokenAta: PublicKey | undefined;
         let token2022Ata: PublicKey | undefined;
 
@@ -509,7 +463,7 @@ async function _getAccountInterface(
 
         const results = await Promise.allSettled(fetchPromises);
 
-        // Collect all successful results
+        // collect all successful results
         const sources: TokenAccountSource[] = [];
 
         for (let i = 0; i < results.length; i++) {
@@ -527,7 +481,7 @@ async function _getAccountInterface(
             }
         }
 
-        // None succeeded - account not found
+        // account not found
         if (sources.length === 0) {
             const triedPrograms = wrap
                 ? 'TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, and CTOKEN_PROGRAM_ID (both onchain and compressed)'
@@ -535,7 +489,7 @@ async function _getAccountInterface(
             throw new Error(`Token account not found. Tried ${triedPrograms}.`);
         }
 
-        // Priority order: CToken hot > CToken cold > SPL/T22
+        // priority order: c-token hot > c-token cold > spl/t22
         const priority: TokenAccountSource['type'][] = [
             'ctoken-hot',
             'ctoken-cold',
@@ -549,16 +503,14 @@ async function _getAccountInterface(
             return aIdx - bIdx;
         });
 
-        // Aggregate balance from all sources
+        // aggregate balance from all sources
         const totalAmount = sources.reduce(
             (sum, src) => sum + src.amount,
             BigInt(0),
         );
 
-        // Use the highest priority source as base
         const primarySource = sources[0];
 
-        // Check for concerns
         const hasDelegate = sources.some(src => src.parsed.delegate !== null);
         const anyFrozen = sources.some(src => src.parsed.isFrozen);
         const needsConsolidation = sources.length > 1;
@@ -584,7 +536,7 @@ async function _getAccountInterface(
         };
     }
 
-    // Handle specific programId - CTOKEN
+    // c-token only
     if (programId.equals(CTOKEN_PROGRAM_ID)) {
         // Derive address if not provided
         if (!address) {
@@ -693,12 +645,11 @@ async function _getAccountInterface(
         };
     }
 
-    // Handle specific programId - SPL Token or Token-2022
+    // spl/t22-only
     if (
         programId.equals(TOKEN_PROGRAM_ID) ||
         programId.equals(TOKEN_2022_PROGRAM_ID)
     ) {
-        // Derive address if not provided
         if (!address) {
             if (!fetchByOwner) {
                 throw new Error('fetchByOwner is required');

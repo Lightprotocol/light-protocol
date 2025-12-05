@@ -25,8 +25,8 @@ import {
 import {
     AccountInterface,
     getATAInterface,
-    getAssociatedTokenAddressInterface,
 } from '../mint/get-account-interface';
+import { getAssociatedTokenAddressInterface } from '../mint/get-associated-token-address-interface';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../mint/instructions/create-associated-ctoken';
 import { createWrapInstruction } from '../mint/instructions/wrap';
 import { createDecompress2Instruction } from '../mint/instructions/decompress2';
@@ -285,6 +285,19 @@ export async function createLoadATAInstructions(
     wrap = false,
 ): Promise<TransactionInstruction[]> {
     payer ??= owner;
+
+    if (wrap) {
+        const expectedCtokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner,
+        );
+        if (!ata.equals(expectedCtokenAta)) {
+            throw new Error(
+                'Unified loadATA expects ATA to be derived from c-token program. Derive it with getAssociatedTokenAddressInterface.',
+            );
+        }
+    }
+
     const ataInterface = await getATAInterface(
         rpc,
         ata,

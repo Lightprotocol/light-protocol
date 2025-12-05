@@ -17,7 +17,6 @@ import {
 } from '@solana/spl-token';
 import {
     deserializeMint,
-    CompressedMint,
     MintContext,
     TokenMetadata,
     MintExtension,
@@ -26,22 +25,23 @@ import {
 
 export interface MintInterface {
     mint: Mint;
-    programId: PublicKey; // Token program that owns this mint (TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, or CTOKEN_PROGRAM_ID)
+    programId: PublicKey;
     merkleContext?: MerkleContext;
     mintContext?: MintContext;
-    tokenMetadata?: TokenMetadata; // Parsed metadata (first-class)
-    extensions?: MintExtension[]; // Raw extensions array (optional)
+    tokenMetadata?: TokenMetadata;
+    extensions?: MintExtension[];
 }
 
 /**
- * Get mint interface - supports both SPL and compressed mints
- * Supports TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID (SPL), and CTOKEN_PROGRAM_ID (compressed)
+ * Get unified mint info for SPL/T22/c-token mints.
  *
- * @param rpc - RPC connection
- * @param address - The mint address
- * @param commitment - Optional commitment level
- * @param programId - Token program ID. If not provided, tries all programs to auto-detect
- * @returns Object with mint, optional merkleContext, mintContext, and tokenMetadata for compressed mints
+ * @param rpc           RPC connection
+ * @param address       The mint address
+ * @param commitment    Optional commitment level
+ * @param programId     Token program ID. If not provided, tries all programs to
+ *                      auto-detect.
+ * @returns Object with mint, optional merkleContext, mintContext, and
+ * tokenMetadata
  */
 export async function getMintInterface(
     rpc: Rpc,
@@ -49,7 +49,7 @@ export async function getMintInterface(
     commitment?: Commitment,
     programId?: PublicKey,
 ): Promise<MintInterface> {
-    // Auto-detect: try all three programs in parallel
+    // try all three programs in parallel
     if (!programId) {
         const [tokenResult, token2022Result, compressedResult] =
             await Promise.allSettled([
@@ -63,7 +63,6 @@ export async function getMintInterface(
                 getMintInterface(rpc, address, commitment, CTOKEN_PROGRAM_ID),
             ]);
 
-        // Return whichever succeeded
         if (tokenResult.status === 'fulfilled') {
             return tokenResult.value;
         }
@@ -74,14 +73,12 @@ export async function getMintInterface(
             return compressedResult.value;
         }
 
-        // None succeeded - mint not found
         throw new Error(
             `Mint not found: ${address.toString()}. ` +
                 `Tried TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, and CTOKEN_PROGRAM_ID.`,
         );
     }
 
-    // If programId is compressed token program, fetch compressed mint
     if (programId.equals(CTOKEN_PROGRAM_ID)) {
         const addressTree = getDefaultAddressTreeInfo().tree;
         const compressedAddress = deriveAddressV2(
@@ -120,7 +117,6 @@ export async function getMintInterface(
             proveByIndex: compressedAccount.proveByIndex,
         };
 
-        // Extract and parse TokenMetadata
         const tokenMetadata = extractTokenMetadata(
             compressedMintData.extensions,
         );
@@ -134,7 +130,6 @@ export async function getMintInterface(
             extensions: compressedMintData.extensions || undefined,
         };
 
-        // Validate: CTOKEN_PROGRAM_ID requires merkleContext and mintContext
         if (programId.equals(CTOKEN_PROGRAM_ID)) {
             if (!result.merkleContext) {
                 throw new Error(
@@ -151,20 +146,19 @@ export async function getMintInterface(
         return result;
     }
 
-    // Otherwise, fetch SPL mint (TOKEN_PROGRAM_ID or TOKEN_2022_PROGRAM_ID)
+    // Otherwise, fetch SPL/T22 mint
     const mint = await getSplMint(rpc, address, commitment, programId);
     return { mint, programId };
 }
 
 /**
- * Unpack mint interface from raw account data
- * Handles both SPL and compressed mint formats
- * Note: merkleContext not available from raw data, use getMintInterface for full context
+ * Unpack mint info from raw account data for SPL/T22, c-token.
  *
- * @param address - The mint pubkey
- * @param data - The raw account data or AccountInfo
- * @param programId - Token program ID (defaults to TOKEN_PROGRAM_ID)
- * @returns Object with mint, optional mintContext and tokenMetadata for compressed mints
+ * @param address       The mint pubkey
+ * @param data          The raw account data or AccountInfo
+ * @param programId     Token program ID (defaults to c-token)
+ * @returns Object with mint, optional mintContext and tokenMetadata for c-token
+ * mints
  */
 export function unpackMintInterface(
     address: PublicKey,
@@ -224,10 +218,10 @@ export function unpackMintInterface(
 }
 
 /**
- * Unpack compressed mint context and metadata from raw account data
+ * Unpack c-token mint context and metadata from raw account data
  *
- * @param data - The raw account data
- * @returns Object with mintContext, tokenMetadata, and extensions
+ * @param data  The raw account data
+ * @returns     Object with mintContext, tokenMetadata, and extensions
  */
 export function unpackMintData(data: Buffer | Uint8Array): {
     mintContext: MintContext;
