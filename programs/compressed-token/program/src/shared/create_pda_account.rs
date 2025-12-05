@@ -53,7 +53,6 @@ pub fn create_pda_account(
         .invoke_signed(new_account_signer.as_slice())
         .map_err(convert_program_error)?;
 
-        // 2. Resize the account (no CPI needed - we own it now)
         new_account
             .resize(account_size)
             .map_err(convert_program_error)?;
