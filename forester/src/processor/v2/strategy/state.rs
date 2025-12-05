@@ -24,6 +24,15 @@ pub enum StatePhase {
     Nullify,
 }
 
+/// Represents a batch operation in the interleaved sequence
+#[derive(Debug, Clone, Copy)]
+pub enum BatchOp {
+    /// Append batch at the given index within output queue
+    Append(usize),
+    /// Nullify batch at the given index within input queue
+    Nullify(usize),
+}
+
 #[derive(Debug)]
 pub struct StateQueueData {
     pub staging_tree: StagingTree,
@@ -34,6 +43,12 @@ pub struct StateQueueData {
     /// This is used when both output and input queues have data to ensure
     /// proper root chaining: initial_root -> post_append_root -> post_nullify_root
     pub append_batches_before_nullify: usize,
+    /// Interleaved batch operation sequence.
+    /// When set, this determines the order of operations for maximum parallelism.
+    /// Format: [Append(0), Nullify(0), Append(1), Nullify(1), ...]
+    /// A nullify batch can only appear after enough appends have been processed
+    /// such that all nullify leaf indices are < (initial_next_index + appends_so_far * batch_size)
+    pub interleaved_ops: Option<Vec<BatchOp>>,
 }
 
 #[async_trait]
@@ -52,7 +67,17 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
     }
 
     fn circuit_type_for_batch(&self, queue_data: &Self::StagingTree, batch_idx: usize) -> CircuitType {
-        // When processing combined APPEND+NULLIFY, determine circuit type based on batch index
+        // If we have interleaved ops, use that to determine circuit type
+        if let Some(ref ops) = queue_data.interleaved_ops {
+            if let Some(op) = ops.get(batch_idx) {
+                return match op {
+                    BatchOp::Append(_) => CircuitType::Append,
+                    BatchOp::Nullify(_) => CircuitType::Nullify,
+                };
+            }
+        }
+
+        // Fallback: When processing combined APPEND+NULLIFY, determine circuit type based on batch index
         let is_append_phase = batch_idx < queue_data.append_batches_before_nullify
             || (queue_data.append_batches_before_nullify == 0
                 && queue_data.phase == StatePhase::Append);
@@ -110,6 +135,14 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
             .map(|iq| iq.leaf_indices.len())
             .unwrap_or(0);
 
+        debug!(
+            "Queue data: append_items={}, nullify_items={}, output_queue={}, input_queue={}",
+            append_items,
+            nullify_items,
+            state_queue.output_queue.is_some(),
+            state_queue.input_queue.is_some()
+        );
+
         let append_batches = append_items / zkp_batch_size_usize;
         let nullify_batches = nullify_items / zkp_batch_size_usize;
 
@@ -118,15 +151,20 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
         let (append_batches_before_nullify, total_batches, effective_phase) =
             if append_batches > 0 && nullify_batches > 0 {
                 // Process both: APPENDs first, then NULLIFYs
+                // We need to allocate max_batches between appends and nullifies
                 let total = (append_batches + nullify_batches).min(max_batches);
-                let appends_to_process = append_batches.min(total);
+                // Allocate half to each (but no more than available for each type)
+                let half_batches = max_batches / 2;
+                let appends_to_process = append_batches.min(half_batches).max(1);
+                let nullifies_to_process = nullify_batches.min(total.saturating_sub(appends_to_process));
+                let actual_total = appends_to_process + nullifies_to_process;
                 debug!(
                     "Processing {} APPEND batches then {} NULLIFY batches (total: {})",
                     appends_to_process,
-                    total.saturating_sub(appends_to_process),
-                    total
+                    nullifies_to_process,
+                    actual_total
                 );
-                (appends_to_process, total, StatePhase::Append)
+                (appends_to_process, actual_total, StatePhase::Append)
             } else if append_batches > 0 {
                 (0, append_batches.min(max_batches), StatePhase::Append)
             } else if nullify_batches > 0 {
@@ -198,6 +236,44 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
             return Ok(None);
         }
 
+        // Compute interleaved operations if we have both append and nullify
+        let interleaved_ops = if append_batches_before_nullify > 0 {
+            let output_batch = state_queue.output_queue.as_ref().unwrap();
+            let input_batch = state_queue.input_queue.as_ref().unwrap();
+            let initial_next_index = output_batch.next_index;
+
+            let nullifies_to_process = total_batches.saturating_sub(append_batches_before_nullify);
+
+            tracing::info!(
+                "Interleave check: initial_next_index={}, nullify leaf_indices[0..min(10,len)]={:?}, batch_size={}, num_appends={}, num_nullifies={}",
+                initial_next_index,
+                &input_batch.leaf_indices[..input_batch.leaf_indices.len().min(10)],
+                zkp_batch_size,
+                append_batches_before_nullify,
+                nullifies_to_process
+            );
+
+            Some(compute_interleaved_ops(
+                append_batches_before_nullify,
+                nullifies_to_process,
+                initial_next_index,
+                zkp_batch_size,
+                &input_batch.leaf_indices,
+            ))
+        } else {
+            None
+        };
+
+        let interleaved_total = interleaved_ops.as_ref().map(|ops| ops.len()).unwrap_or(total_batches);
+        if interleaved_ops.is_some() {
+            tracing::info!(
+                "Interleaved ops: {} total ({} append, {} nullify)",
+                interleaved_total,
+                interleaved_ops.as_ref().unwrap().iter().filter(|op| matches!(op, BatchOp::Append(_))).count(),
+                interleaved_ops.as_ref().unwrap().iter().filter(|op| matches!(op, BatchOp::Nullify(_))).count(),
+            );
+        }
+
         Ok(Some(QueueData {
             staging_tree: StateQueueData {
                 staging_tree,
@@ -205,9 +281,10 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
                 phase: effective_phase,
                 next_index,
                 append_batches_before_nullify,
+                interleaved_ops,
             },
             initial_root,
-            num_batches: total_batches,
+            num_batches: interleaved_total,
         }))
     }
 
@@ -215,12 +292,28 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
         &self,
         queue_data: &mut Self::StagingTree,
         batch_idx: usize,
-        start: usize,
+        _start: usize,
         zkp_batch_size: u64,
         epoch: u64,
         tree: &str,
     ) -> crate::Result<(ProofInput, [u8; 32])> {
-        // When we have both APPEND and NULLIFY batches, process APPENDs first.
+        // If we have interleaved ops, use that to determine what to build
+        if let Some(ref ops) = queue_data.interleaved_ops {
+            if let Some(op) = ops.get(batch_idx) {
+                return match op {
+                    BatchOp::Append(append_idx) => {
+                        let start = append_idx * zkp_batch_size as usize;
+                        self.build_append_job(queue_data, *append_idx, start, zkp_batch_size, epoch, tree)
+                    }
+                    BatchOp::Nullify(nullify_idx) => {
+                        let start = nullify_idx * zkp_batch_size as usize;
+                        self.build_nullify_job(queue_data, *nullify_idx, start, zkp_batch_size, epoch, tree)
+                    }
+                };
+            }
+        }
+
+        // Fallback: When we have both APPEND and NULLIFY batches, process APPENDs first.
         // The append_batches_before_nullify field tells us how many APPEND batches
         // must be processed before we switch to NULLIFY.
         let is_append_phase = batch_idx < queue_data.append_batches_before_nullify
@@ -228,6 +321,7 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
                 && queue_data.phase == StatePhase::Append);
 
         if is_append_phase {
+            let start = batch_idx * zkp_batch_size as usize;
             self.build_append_job(queue_data, batch_idx, start, zkp_batch_size, epoch, tree)
         } else {
             // Adjust batch_idx and start for NULLIFY phase
@@ -339,4 +433,102 @@ impl StateTreeStrategy {
 
         Ok((ProofInput::Nullify(circuit_inputs), new_root))
     }
+}
+
+/// Compute interleaved batch operations for maximum parallelism.
+///
+/// The key insight: a nullify batch can be scheduled immediately after an append
+/// if all leaf indices in that nullify batch are less than the next_index boundary
+/// after the preceding append operations.
+///
+/// After Append_N completes, leaves [initial_next_index .. initial_next_index + (N+1)*batch_size) exist.
+/// So Nullify can run if max_leaf_idx < initial_next_index + (N+1)*batch_size
+///
+/// This allows us to interleave like: [A0, N0, A1, N1, A2, ...] instead of [A0, A1, A2, ..., N0, N1, ...]
+fn compute_interleaved_ops(
+    num_appends: usize,
+    num_nullifies: usize,
+    initial_next_index: u64,
+    batch_size: u64,
+    nullify_leaf_indices: &[u64],
+) -> Vec<BatchOp> {
+    let batch_size_usize = batch_size as usize;
+    let mut ops = Vec::with_capacity(num_appends + num_nullifies);
+
+    // Track how many appends have been scheduled
+    let mut appends_scheduled = 0usize;
+    // Track which nullify batches have been scheduled
+    let mut nullifies_scheduled = 0usize;
+
+    // Pre-compute max leaf index for each nullify batch
+    let nullify_batch_max_indices: Vec<u64> = (0..num_nullifies)
+        .map(|batch_idx| {
+            let start = batch_idx * batch_size_usize;
+            let end = ((batch_idx + 1) * batch_size_usize).min(nullify_leaf_indices.len());
+            nullify_leaf_indices[start..end]
+                .iter()
+                .copied()
+                .max()
+                .unwrap_or(0)
+        })
+        .collect();
+
+    if !nullify_batch_max_indices.is_empty() {
+        tracing::info!(
+            "compute_interleaved_ops: nullify_batch_max_indices[0..min(5,len)]={:?}",
+            &nullify_batch_max_indices[..nullify_batch_max_indices.len().min(5)]
+        );
+    }
+
+    // Greedily schedule operations: always schedule an append first, then check if nullify can follow
+    while appends_scheduled < num_appends || nullifies_scheduled < num_nullifies {
+        // Schedule an append if available
+        if appends_scheduled < num_appends {
+            ops.push(BatchOp::Append(appends_scheduled));
+            appends_scheduled += 1;
+        }
+
+        // After scheduling append, check if we can now schedule nullify batches
+        // Boundary after appends_scheduled appends: leaves [0..initial_next_index + appends_scheduled*batch_size) exist
+        let boundary = initial_next_index + (appends_scheduled as u64 * batch_size);
+
+        // Schedule as many nullify batches as are now eligible
+        let mut scheduled_this_round = 0;
+        while nullifies_scheduled < num_nullifies {
+            let max_leaf_idx = nullify_batch_max_indices[nullifies_scheduled];
+            if max_leaf_idx < boundary {
+                // This nullify batch can run now - all its leaves exist after the appends so far
+                ops.push(BatchOp::Nullify(nullifies_scheduled));
+                nullifies_scheduled += 1;
+                scheduled_this_round += 1;
+            } else {
+                // This nullify needs more appends first
+                if nullifies_scheduled == 0 && appends_scheduled <= 2 {
+                    tracing::info!(
+                        "Nullify batch {} skipped: max_leaf_idx={} >= boundary={} (initial_next_index={}, appends_scheduled={})",
+                        nullifies_scheduled, max_leaf_idx, boundary, initial_next_index, appends_scheduled
+                    );
+                }
+                break;
+            }
+        }
+        if scheduled_this_round > 0 && appends_scheduled <= 2 {
+            tracing::info!(
+                "After append {}: scheduled {} nullifies (boundary={})",
+                appends_scheduled - 1, scheduled_this_round, boundary
+            );
+        }
+
+        // If no more appends but still have nullifies, they must be waiting for leaves
+        // that will never exist (shouldn't happen with consistent data)
+        if appends_scheduled >= num_appends && nullifies_scheduled < num_nullifies {
+            // Force schedule remaining nullifies at the end
+            while nullifies_scheduled < num_nullifies {
+                ops.push(BatchOp::Nullify(nullifies_scheduled));
+                nullifies_scheduled += 1;
+            }
+        }
+    }
+
+    ops
 }

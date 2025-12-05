@@ -159,13 +159,11 @@ impl AddressStagingTree {
             }
         }
 
-        let current_root = merkle_tree.root();
-
         Ok(Self {
             merkle_tree,
             indexed_changelog: Vec::new(),
             changelog: Vec::new(),
-            current_root,
+            current_root: initial_root,
             next_index: start_index,
             initial_start_index: start_index,
             sparse_tree: subtrees.map(|frontier| SparseMerkleTree::new(frontier, start_index)),

@@ -87,6 +87,21 @@ fn get_prover_url() -> String {
     env::var("LIGHT_PROVER_URL").unwrap_or_else(|_| "http://localhost:3001".to_string())
 }
 
+fn get_prover_append_url() -> String {
+    env::var("LIGHT_PROVER_APPEND_URL")
+        .unwrap_or_else(|_| "http://localhost:3001".to_string())
+}
+
+fn get_prover_update_url() -> String {
+    env::var("LIGHT_PROVER_UPDATE_URL")
+        .unwrap_or_else(|_| "http://localhost:3001".to_string())
+}
+
+fn get_prover_address_append_url() -> String {
+    env::var("LIGHT_PROVER_ADDRESS_APPEND_URL")
+        .unwrap_or_else(|_| "http://localhost:3001".to_string())
+}
+
 fn get_prover_api_key() -> Option<String> {
     env::var("PROVER_API_KEY").ok()
 }
@@ -834,9 +849,9 @@ async fn performance_test_prefilled_queues() {
             ws_rpc_url: Some(get_ws_rpc_url()),
             indexer_url: Some(get_indexer_url()),
             prover_url: Some(get_prover_url()),
-            prover_append_url: Some(get_prover_url()),
-            prover_update_url: Some(get_prover_url()),
-            prover_address_append_url: Some(get_prover_url()),
+            prover_append_url: Some(get_prover_append_url()),
+            prover_update_url: Some(get_prover_update_url()),
+            prover_address_append_url: Some(get_prover_address_append_url()),
             prover_api_key: get_prover_api_key(),
             prover_polling_interval: None,
             prover_max_wait_time: None,

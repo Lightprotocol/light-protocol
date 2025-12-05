@@ -315,12 +315,14 @@ impl<R: Rpc> TxSender<R> {
 
         let mut all_instructions: Vec<Instruction> = Vec::new();
         let mut last_root: Option<[u8; 32]> = None;
-        let mut instr_type = "";
+        let mut append_count = 0usize;
+        let mut nullify_count = 0usize;
+        let mut _address_append_count = 0usize;
 
         for (instr, _seq) in &batch {
             let (instructions, expected_root) = match instr {
                 BatchInstruction::Append(proofs) => {
-                    instr_type = "Append";
+                    append_count += 1;
                     let ix = proofs
                         .iter()
                         .map(|data| {
@@ -337,7 +339,7 @@ impl<R: Rpc> TxSender<R> {
                     (ix, proofs.last().map(|p| p.new_root))
                 }
                 BatchInstruction::Nullify(proofs) => {
-                    instr_type = "Nullify";
+                    nullify_count += 1;
                     let ix = proofs
                         .iter()
                         .map(|data| {
@@ -353,7 +355,7 @@ impl<R: Rpc> TxSender<R> {
                     (ix, proofs.last().map(|p| p.new_root))
                 }
                 BatchInstruction::AddressAppend(proofs) => {
-                    instr_type = "AddressAppend";
+                    _address_append_count += 1;
                     let ix = proofs
                         .iter()
                         .map(|data| {
@@ -375,6 +377,17 @@ impl<R: Rpc> TxSender<R> {
                 last_root = Some(root);
             }
         }
+
+        // Build instruction type string for logging
+        let instr_type = if append_count > 0 && nullify_count > 0 {
+            format!("Append+Nullify({}+{})", append_count, nullify_count)
+        } else if append_count > 0 {
+            "Append".to_string()
+        } else if nullify_count > 0 {
+            "Nullify".to_string()
+        } else {
+            "AddressAppend".to_string()
+        };
 
         match send_transaction_batch(&self.context, all_instructions).await {
             Ok(sig) => {
