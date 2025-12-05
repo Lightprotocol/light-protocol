@@ -60,7 +60,6 @@ describe('updateMint', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialMintAuthority,
             newMintAuthority.publicKey,
         );
@@ -100,7 +99,6 @@ describe('updateMint', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             null,
         );
@@ -149,7 +147,6 @@ describe('updateMint', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialFreezeAuthority,
             newFreezeAuthority.publicKey,
         );
@@ -191,7 +188,6 @@ describe('updateMint', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             freezeAuthority,
             null,
         );
@@ -233,7 +229,6 @@ describe('updateMint', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialMintAuthority,
             newMintAuthority.publicKey,
         );
@@ -253,7 +248,6 @@ describe('updateMint', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialFreezeAuthority,
             newFreezeAuthority.publicKey,
         );

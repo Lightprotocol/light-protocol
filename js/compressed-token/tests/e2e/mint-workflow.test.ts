@@ -85,7 +85,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialMintAuthority,
             'name',
             'Workflow Token V2',
@@ -104,7 +103,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialMintAuthority,
             'uri',
             'https://workflow.com/updated',
@@ -126,7 +124,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialMintAuthority,
             newMetadataAuthority.publicKey,
         );
@@ -147,7 +144,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialMintAuthority,
             newMintAuthority.publicKey,
         );
@@ -168,7 +164,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             initialFreezeAuthority,
             newFreezeAuthority.publicKey,
         );
@@ -287,7 +282,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             freezeAuthority,
             null,
         );
@@ -420,7 +414,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             'name',
             'After ATA',
@@ -520,7 +513,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             newMintAuthority.publicKey,
         );
@@ -540,7 +532,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             'symbol',
             'FULL2',
@@ -617,7 +608,6 @@ describe('Complete Mint Workflow', () => {
             rpc,
             payer,
             mintPda,
-            mintSigner,
             mintAuthority,
             newMintAuthority.publicKey,
         );
