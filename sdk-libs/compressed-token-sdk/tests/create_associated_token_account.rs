@@ -77,5 +77,6 @@ fn test_account_count() {
         .instruction()
         .unwrap();
 
-    assert_eq!(ix_compressible.accounts.len(), 5);
+    // Account order: owner, mint, payer, ata, system_program, config, rent_sponsor (7 accounts)
+    assert_eq!(ix_compressible.accounts.len(), 7);
 }

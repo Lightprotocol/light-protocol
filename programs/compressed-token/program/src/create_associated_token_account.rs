@@ -20,6 +20,7 @@ use crate::{
 };
 
 /// Process the create associated token account instruction (non-idempotent)
+/// Owner and mint are passed as accounts instead of instruction data
 #[inline(always)]
 pub fn process_create_associated_token_account(
     account_infos: &[AccountInfo],
@@ -28,7 +29,8 @@ pub fn process_create_associated_token_account(
     process_create_associated_token_account_with_mode::<false>(account_infos, instruction_data)
 }
 
-/// Process the create associated token account instruction (non-idempotent)
+/// Process the create associated token account instruction (idempotent)
+/// Owner and mint are passed as accounts instead of instruction data
 #[inline(always)]
 pub fn process_create_associated_token_account_idempotent(
     account_infos: &[AccountInfo],
@@ -37,26 +39,42 @@ pub fn process_create_associated_token_account_idempotent(
     process_create_associated_token_account_with_mode::<true>(account_infos, instruction_data)
 }
 
-/// Process create associated token account with compile-time idempotent mode
+/// Convert create_associated_token_account instruction format to create_ata format by extracting
+/// owner and mint from accounts and calling the inner function directly
 ///
 /// Note:
 /// - we don't validate the mint because it would be very expensive with compressed mints
 /// - it is possible to create an associated token account for non existing mints
 /// - accounts with non existing mints can never have a balance
+///
+/// Account order:
+/// 0. owner (non-mut, non-signer)
+/// 1. mint (non-mut, non-signer)
+/// 2. fee_payer (signer, mut)
+/// 3. associated_token_account (mut)
+/// 4. system_program
+/// 5. optional accounts (config, rent_payer, etc.)
 #[inline(always)]
-#[profile]
-pub(crate) fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
+fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     account_infos: &[AccountInfo],
     mut instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
+    if account_infos.len() < 2 {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+
     let instruction_inputs =
         CreateAssociatedTokenAccountInstructionData::deserialize(&mut instruction_data)
             .map_err(ProgramError::from)?;
 
+    let (owner_and_mint, remaining_accounts) = account_infos.split_at(2);
+    let owner = &owner_and_mint[0];
+    let mint = &owner_and_mint[1];
+
     process_create_associated_token_account_inner::<IDEMPOTENT>(
-        account_infos,
-        &instruction_inputs.owner.to_bytes(),
-        &instruction_inputs.mint.to_bytes(),
+        remaining_accounts,
+        owner.key(),
+        mint.key(),
         instruction_inputs.bump,
         instruction_inputs.compressible_config,
     )

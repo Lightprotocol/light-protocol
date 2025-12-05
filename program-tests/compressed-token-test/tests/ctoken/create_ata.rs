@@ -326,8 +326,6 @@ async fn test_create_ata_failing() {
         };
 
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
-            owner: context.owner_keypair.pubkey().into(),
-            mint: context.mint_pubkey.into(),
             bump,
             compressible_config: Some(CompressibleExtensionInstructionData {
                 compression_only: 0,
@@ -342,9 +340,15 @@ async fn test_create_ata_failing() {
         let mut data = vec![100]; // CreateAssociatedTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
+        // Account order: mint, payer, ata, system_program, config, rent_sponsor
         let ix = Instruction {
             program_id: light_compressed_token::ID,
             accounts: vec![
+                solana_sdk::instruction::AccountMeta::new_readonly(
+                    context.owner_keypair.pubkey(),
+                    false,
+                ),
+                solana_sdk::instruction::AccountMeta::new_readonly(context.mint_pubkey, false),
                 solana_sdk::instruction::AccountMeta::new(payer_pubkey, true),
                 solana_sdk::instruction::AccountMeta::new(ata_pubkey, false),
                 solana_sdk::instruction::AccountMeta::new_readonly(
@@ -392,9 +396,8 @@ async fn test_create_ata_failing() {
             correct_bump + 1
         };
 
+        // Owner and mint are now passed as accounts, not in instruction data
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
-            owner: context.owner_keypair.pubkey().into(),
-            mint: context.mint_pubkey.into(),
             bump: wrong_bump, // Wrong bump!
             compressible_config: Some(CompressibleExtensionInstructionData {
                 compression_only: 0,
@@ -409,9 +412,15 @@ async fn test_create_ata_failing() {
         let mut data = vec![100]; // CreateAssociatedTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
+        // Account order: owner, mint, payer, ata, system_program, config, rent_sponsor
         let ix = Instruction {
             program_id: light_compressed_token::ID,
             accounts: vec![
+                solana_sdk::instruction::AccountMeta::new_readonly(
+                    context.owner_keypair.pubkey(),
+                    false,
+                ),
+                solana_sdk::instruction::AccountMeta::new_readonly(context.mint_pubkey, false),
                 solana_sdk::instruction::AccountMeta::new(payer_pubkey, true),
                 solana_sdk::instruction::AccountMeta::new(ata_pubkey, false),
                 solana_sdk::instruction::AccountMeta::new_readonly(

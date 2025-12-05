@@ -36,10 +36,8 @@ async fn test_create_ata_invoke() {
     use light_compressed_token_sdk::ctoken::derive_ctoken_ata;
     let (ata_address, bump) = derive_ctoken_ata(&owner, &mint_pda);
 
-    // Build CreateAtaData
+    // Build CreateAtaData (owner and mint are passed as accounts)
     let create_ata_data = CreateAtaData {
-        owner,
-        mint: mint_pda,
         bump,
         pre_pay_num_epochs: 2,
         lamports_per_write: 1,
@@ -51,9 +49,12 @@ async fn test_create_ata_invoke() {
     let config = config_pda();
     let rent_sponsor = rent_sponsor_pda();
 
+    // Account order: owner, mint, payer, ata, system_program, config, rent_sponsor, ctoken_program
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
+            AccountMeta::new_readonly(owner, false),
+            AccountMeta::new_readonly(mint_pda, false),
             AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new(ata_address, false),
             AccountMeta::new_readonly(Pubkey::default(), false), // system_program
@@ -121,10 +122,8 @@ async fn test_create_ata_invoke_signed() {
     use light_compressed_token_sdk::ctoken::derive_ctoken_ata;
     let (ata_address, bump) = derive_ctoken_ata(&pda_owner, &mint_pda);
 
-    // Build CreateAtaData with PDA as owner
+    // Build CreateAtaData with PDA as owner (owner and mint are passed as accounts)
     let create_ata_data = CreateAtaData {
-        owner: pda_owner,
-        mint: mint_pda,
         bump,
         pre_pay_num_epochs: 2,
         lamports_per_write: 1,
@@ -136,9 +135,12 @@ async fn test_create_ata_invoke_signed() {
     let config = config_pda();
     let rent_sponsor = rent_sponsor_pda();
 
+    // Account order: owner, mint, payer, ata, system_program, config, rent_sponsor, ctoken_program
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
+            AccountMeta::new_readonly(pda_owner, false), // owner
+            AccountMeta::new_readonly(mint_pda, false),
             AccountMeta::new(pda_owner, false), // PDA payer - not a signer (program signs via invoke_signed)
             AccountMeta::new(ata_address, false),
             AccountMeta::new_readonly(Pubkey::default(), false), // system_program
