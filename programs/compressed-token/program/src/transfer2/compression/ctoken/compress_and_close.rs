@@ -7,7 +7,10 @@ use light_ctoken_types::{
     state::{ZCompressedTokenMut, ZExtensionStructMut},
 };
 use light_program_profiler::profile;
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use pinocchio::{
+    account_info::AccountInfo,
+    pubkey::{pubkey_eq, Pubkey},
+};
 use spl_pod::solana_msg::msg;
 
 use super::inputs::CompressAndCloseInputs;
@@ -37,31 +40,29 @@ pub fn process_compress_and_close(
     let close_inputs =
         compress_and_close_inputs.ok_or(ErrorCode::CompressAndCloseDestinationMissing)?;
 
-    let (compression_authority_is_signer, compress_to_pubkey) =
-        validate_token_account_for_close_transfer2(
-            &CloseTokenAccountAccounts {
-                token_account: token_account_info,
-                destination: close_inputs.destination,
-                authority,
-                rent_sponsor: Some(close_inputs.rent_sponsor),
-            },
-            ctoken,
-        )?;
+    // Validate token account - only compressible accounts with compression_authority are allowed
+    let compress_to_pubkey = validate_token_account_for_close_transfer2(
+        &CloseTokenAccountAccounts {
+            token_account: token_account_info,
+            destination: close_inputs.destination,
+            authority,
+            rent_sponsor: Some(close_inputs.rent_sponsor),
+        },
+        ctoken,
+    )?;
 
-    if compression_authority_is_signer {
-        // Compress the complete balance to this compressed token account.
-        let compressed_account = close_inputs
-            .compressed_token_account
-            .ok_or(ErrorCode::CompressAndCloseOutputMissing)?;
-        validate_compressed_token_account(
-            packed_accounts,
-            amount,
-            compressed_account,
-            ctoken,
-            compress_to_pubkey,
-            token_account_info.key(),
-        )?;
-    }
+    // Validate compressed output matches the account being closed
+    let compressed_account = close_inputs
+        .compressed_token_account
+        .ok_or(ErrorCode::CompressAndCloseOutputMissing)?;
+    validate_compressed_token_account(
+        packed_accounts,
+        amount,
+        compressed_account,
+        ctoken,
+        compress_to_pubkey,
+        token_account_info.key(),
+    )?;
 
     *ctoken.amount = 0.into();
     Ok(())
@@ -81,6 +82,16 @@ fn validate_compressed_token_account(
     if ctoken.delegate.is_some() {
         msg!("Source token account has delegate, cannot compress and close");
         return Err(ErrorCode::CompressAndCloseDelegateNotAllowed.into());
+    }
+
+    if !pubkey_eq(
+        ctoken.mint.array_ref(),
+        packed_accounts
+            .get_u8(compressed_token_account.mint, "CompressAndClose: mint")?
+            .key(),
+    ) {
+        msg!("Invalid mint PDA derivation");
+        return Err(ErrorCode::MintActionInvalidMintPda.into());
     }
 
     // Owners should match if not compressing to pubkey

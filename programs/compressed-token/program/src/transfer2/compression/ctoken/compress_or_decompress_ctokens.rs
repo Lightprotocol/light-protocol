@@ -9,6 +9,7 @@ use light_ctoken_types::{
 use light_program_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
+    pubkey::pubkey_eq,
     sysvars::{clock::Clock, Sysvar},
 };
 use spl_pod::solana_msg::msg;
@@ -43,7 +44,7 @@ pub fn compress_or_decompress_ctokens(
 
     let (mut ctoken, _) = CToken::zero_copy_at_mut_checked(&mut token_account_data)?;
 
-    if ctoken.mint.to_bytes() != mint {
+    if !pubkey_eq(ctoken.mint.array_ref(), &mint) {
         msg!(
             "mint mismatch account: ctoken.mint {:?}, mint {:?}",
             solana_pubkey::Pubkey::new_from_array(ctoken.mint.to_bytes()),

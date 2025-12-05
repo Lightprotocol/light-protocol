@@ -12,9 +12,6 @@ mod ctoken_pda;
 pub mod mint_compressed_tokens_cpi_write;
 mod pda_ctoken;
 mod process_batch_compress_tokens;
-mod process_compress_and_close_cpi;
-mod process_compress_and_close_cpi_context;
-mod process_compress_and_close_cpi_indices;
 mod process_compress_full_and_close;
 mod process_compress_tokens;
 mod process_create_compressed_account;
@@ -31,9 +28,6 @@ use light_sdk::instruction::account_meta::CompressedAccountMeta;
 use light_sdk_types::cpi_accounts::{v2::CpiAccounts, CpiAccountsConfig};
 pub use pda_ctoken::*;
 use process_batch_compress_tokens::process_batch_compress_tokens;
-use process_compress_and_close_cpi::process_compress_and_close_cpi;
-use process_compress_and_close_cpi_context::process_compress_and_close_cpi_context;
-use process_compress_and_close_cpi_indices::process_compress_and_close_cpi_indices;
 use process_compress_full_and_close::process_compress_full_and_close;
 use process_compress_tokens::process_compress_tokens;
 use process_create_compressed_account::process_create_compressed_account;
@@ -123,42 +117,6 @@ pub mod sdk_token_test {
             close_recipient_index,
             system_accounts_offset,
         )
-    }
-
-    /// Process compress_and_close using the new CompressAndClose mode
-    /// Compress and close using the higher-level SDK function
-    /// This uses compress_and_close_ctoken_accounts which handles all index discovery
-    pub fn compress_and_close_cpi<'info>(
-        ctx: Context<'_, '_, '_, 'info, OneCTokenAccount<'info>>,
-        with_compression_authority: bool,
-        system_accounts_offset: u8,
-    ) -> Result<()> {
-        process_compress_and_close_cpi(ctx, with_compression_authority, system_accounts_offset)
-    }
-
-    /// Process compress_and_close using the new CompressAndClose mode
-    /// Compress and close using the higher-level SDK function
-    /// This uses compress_and_close_ctoken_accounts which handles all index discovery
-    pub fn compress_and_close_cpi_with_cpi_context<'info>(
-        ctx: Context<'_, '_, 'info, 'info, Generic<'info>>,
-        indices: Vec<
-            light_compressed_token_sdk::compressed_token::compress_and_close::CompressAndCloseIndices,
-        >,
-        params: MintCompressedTokensCpiWriteParams,
-    ) -> Result<()> {
-        process_compress_and_close_cpi_context(ctx, indices, params)
-    }
-
-    /// Compress and close with manual indices
-    /// This atomically compresses tokens and closes the account in a single instruction
-    pub fn compress_and_close_cpi_indices<'info>(
-        ctx: Context<'_, '_, 'info, 'info, Generic<'info>>,
-        indices: Vec<
-            light_compressed_token_sdk::compressed_token::compress_and_close::CompressAndCloseIndices,
-        >,
-        system_accounts_offset: u8,
-    ) -> Result<()> {
-        process_compress_and_close_cpi_indices(ctx, indices, system_accounts_offset)
     }
 
     /// Decompress full balance from compressed accounts with CPI context

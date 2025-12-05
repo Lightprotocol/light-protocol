@@ -12,45 +12,60 @@ use super::shared::*;
 #[tokio::test]
 #[serial]
 async fn test_compress_and_close_owner_scenarios() {
-    // Test 1: Owner closes account with token balance
+    // Test 1: Owner cannot close compressible account with token balance
+    // Only compression_authority can compress and close compressible accounts
     {
         let mut context = setup_compress_and_close_test(
             2,     // 2 prepaid epochs
             1000,  // 1000 token balance
-            None,  // No time warp needed for owner
+            None,  // No time warp needed
             false, // Use default rent sponsor
         )
         .await
         .unwrap();
 
-        compress_and_close_owner_and_assert(
+        // Clone owner keypair before mutable borrow
+        let owner_keypair = context.owner_keypair.insecure_clone();
+
+        // Owner trying to compress and close should fail with InvalidAccountData
+        compress_and_close_and_assert_fails(
             &mut context,
+            &owner_keypair,
             None, // Default destination (owner)
-            "owner_with_balance",
+            "owner_with_balance_should_fail",
+            3, // ProgramError::InvalidAccountData
         )
         .await;
     }
 
-    // Test 2: Owner closes account with zero balance
+    // Test 2: Owner cannot close compressible account with zero balance
+    // Only compression_authority can compress and close compressible accounts
     {
         let mut context = setup_compress_and_close_test(
             2,     // 2 prepaid epochs
             0,     // Zero token balance
-            None,  // No time warp needed for owner
+            None,  // No time warp needed
             false, // Use default rent sponsor
         )
         .await
         .unwrap();
 
-        compress_and_close_owner_and_assert(
+        // Clone owner keypair before mutable borrow
+        let owner_keypair = context.owner_keypair.insecure_clone();
+
+        // Owner trying to compress and close should fail with InvalidAccountData
+        compress_and_close_and_assert_fails(
             &mut context,
+            &owner_keypair,
             None, // Default destination (owner)
-            "owner_zero_balance",
+            "owner_zero_balance_should_fail",
+            3, // ProgramError::InvalidAccountData
         )
         .await;
     }
 
-    // Test 3: Owner closes regular 165-byte ctoken account (no compressible extension)
+    // Test 3: Owner cannot close regular 165-byte ctoken account (no compressible extension)
+    // Non-compressible accounts cannot use compress_and_close
     {
         let mut context = setup_account_test().await.unwrap();
 
@@ -76,16 +91,55 @@ async fn test_compress_and_close_owner_scenarios() {
             .unwrap();
         context.rpc.set_account(token_account_pubkey, token_account);
 
-        // Compress and close as owner
-        compress_and_close_owner_and_assert(
-            &mut context,
-            None, // Default destination (owner)
-            "owner_non_compressible",
+        let payer_pubkey = context.payer.pubkey();
+
+        // Get output queue for compression
+        let output_queue = context
+            .rpc
+            .get_random_state_tree_info()
+            .unwrap()
+            .get_output_pubkey()
+            .unwrap();
+
+        // Create compress_and_close instruction with is_compressible=false for non-compressible account
+        use light_token_client::instructions::transfer2::{
+            create_generic_transfer2_instruction, CompressAndCloseInput, Transfer2InstructionType,
+        };
+
+        let compress_and_close_ix = create_generic_transfer2_instruction(
+            &mut context.rpc,
+            vec![Transfer2InstructionType::CompressAndClose(
+                CompressAndCloseInput {
+                    solana_ctoken_account: token_account_pubkey,
+                    authority: context.owner_keypair.pubkey(),
+                    output_queue,
+                    destination: None,
+                    is_compressible: false, // Non-compressible account
+                },
+            )],
+            payer_pubkey,
+            false,
         )
-        .await;
+        .await
+        .unwrap();
+
+        // Execute transaction expecting failure
+        let result = context
+            .rpc
+            .create_and_send_transaction(
+                &[compress_and_close_ix],
+                &payer_pubkey,
+                &[&context.payer, &context.owner_keypair],
+            )
+            .await;
+
+        // Assert that the transaction failed with InvalidAccountData (error code 3)
+        // "compress and close requires compressible extension"
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 3).unwrap();
     }
 
-    // Test 4: Owner closes associated token account
+    // Test 4: Owner cannot close compressible associated token account
+    // Only compression_authority can compress and close compressible accounts
     {
         let mut context = setup_account_test().await.unwrap();
         let payer_pubkey = context.payer.pubkey();
@@ -127,7 +181,6 @@ async fn test_compress_and_close_owner_scenarios() {
         context.rpc.set_account(ata_pubkey, ata_account);
 
         // Create compress_and_close instruction manually for ATA
-        use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
         use light_token_client::instructions::transfer2::{
             create_generic_transfer2_instruction, CompressAndCloseInput, Transfer2InstructionType,
         };
@@ -156,27 +209,18 @@ async fn test_compress_and_close_owner_scenarios() {
         .await
         .unwrap();
 
-        context
+        // Owner trying to compress and close ATA should fail with InvalidAccountData
+        let result = context
             .rpc
             .create_and_send_transaction(
                 &[compress_and_close_ix],
                 &payer_pubkey,
                 &[&context.payer, &context.owner_keypair],
             )
-            .await
-            .unwrap();
+            .await;
 
-        assert_transfer2_compress_and_close(
-            &mut context.rpc,
-            CompressAndCloseInput {
-                solana_ctoken_account: ata_pubkey,
-                authority: context.owner_keypair.pubkey(),
-                output_queue,
-                destination: None,
-                is_compressible: true,
-            },
-        )
-        .await;
+        // Assert that the transaction failed with InvalidAccountData (error code 3)
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 3).unwrap();
     }
 }
 
@@ -365,13 +409,14 @@ async fn test_compress_and_close_rent_authority_scenarios() {
 #[tokio::test]
 #[serial]
 async fn test_compress_and_close_compress_to_pubkey() {
-    // Test 9: compress_to_pubkey=true, account pubkey becomes owner in compressed output (PDA use case)
+    // Test: compress_to_pubkey=true, account pubkey becomes owner in compressed output (PDA use case)
+    // Uses compression_authority (forester) since owner cannot compress and close compressible accounts
     {
         let mut context = setup_compress_and_close_test(
-            2,     // 2 prepaid epochs
-            500,   // 500 token balance
-            None,  // No time warp needed for owner
-            false, // Use default rent sponsor
+            2,       // 2 prepaid epochs
+            500,     // 500 token balance
+            Some(2), // Warp to epoch 2 (makes account compressible for forester)
+            false,   // Use default rent sponsor
         )
         .await
         .unwrap();
@@ -405,11 +450,42 @@ async fn test_compress_and_close_compress_to_pubkey() {
         // Write the modified account back
         context.rpc.set_account(token_account_pubkey, token_account);
 
-        // Execute compress_and_close using helper
-        compress_and_close_owner_and_assert(
-            &mut context,
-            None, // Default destination (owner)
-            "compress_to_pubkey_true",
+        // Get forester keypair
+        let forester_keypair = context.rpc.test_accounts.protocol.forester.insecure_clone();
+
+        // Create destination for compression incentive
+        let destination = Keypair::new();
+        context
+            .rpc
+            .airdrop_lamports(&destination.pubkey(), 1_000_000)
+            .await
+            .unwrap();
+
+        // Compress and close using rent authority (forester)
+        compress_and_close_forester(
+            &mut context.rpc,
+            &[token_account_pubkey],
+            &forester_keypair,
+            &context.payer,
+            Some(destination.pubkey()),
+        )
+        .await
+        .unwrap();
+
+        // Assert compress and close succeeded - the owner in compressed output should be the token_account_pubkey
+        use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
+        use light_token_client::instructions::transfer2::CompressAndCloseInput;
+
+        let output_queue = context.rpc.get_random_state_tree_info().unwrap().queue;
+        assert_transfer2_compress_and_close(
+            &mut context.rpc,
+            CompressAndCloseInput {
+                solana_ctoken_account: token_account_pubkey,
+                authority: context.compression_authority,
+                output_queue,
+                destination: Some(destination.pubkey()),
+                is_compressible: true,
+            },
         )
         .await;
     }
