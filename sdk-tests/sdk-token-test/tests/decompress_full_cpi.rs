@@ -85,14 +85,11 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
             token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
         };
 
-        let create_token_account_ix = CreateAssociatedTokenAccount::new(
-            payer.pubkey(),
-            destination_owner,
-            mint_pubkey,
-            compressible_params,
-        )
-        .instruction()
-        .unwrap();
+        let create_token_account_ix =
+            CreateAssociatedTokenAccount::new(payer.pubkey(), destination_owner, mint_pubkey)
+                .with_compressible(compressible_params)
+                .instruction()
+                .unwrap();
 
         rpc.create_and_send_transaction(&[create_token_account_ix], &payer.pubkey(), &[&payer])
             .await

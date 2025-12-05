@@ -459,14 +459,10 @@ impl TestContext {
                     compress_to_account_pubkey: None,
                     token_account_version: TokenDataVersion::ShaFlat, // CompressAndClose requires ShaFlat
                 };
-                CreateAssociatedTokenAccount::new(
-                    payer.pubkey(),
-                    signer.pubkey(),
-                    mint,
-                    compressible_params,
-                )
-                .instruction()
-                .unwrap()
+                CreateAssociatedTokenAccount::new(payer.pubkey(), signer.pubkey(), mint)
+                    .with_compressible(compressible_params)
+                    .instruction()
+                    .unwrap()
             } else {
                 // Create non-compressible CToken ATA
                 CreateAssociatedTokenAccount {

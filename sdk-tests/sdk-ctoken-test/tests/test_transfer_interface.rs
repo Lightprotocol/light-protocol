@@ -5,7 +5,7 @@ mod shared;
 use borsh::BorshSerialize;
 use light_client::rpc::Rpc;
 use light_compressed_token_sdk::{
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
+    ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount},
     token_pool::find_token_pool_pda_with_index,
 };
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
@@ -66,14 +66,9 @@ async fn test_transfer_interface_spl_to_ctoken_invoke() {
         .await
         .unwrap();
 
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        recipient.pubkey(),
-        mint,
-        CompressibleParams::default(),
-    )
-    .instruction()
-    .unwrap();
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+        .instruction()
+        .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
@@ -161,14 +156,9 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
         .unwrap();
 
     // Create and fund CToken ATA
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        owner.pubkey(),
-        mint,
-        CompressibleParams::default(),
-    )
-    .instruction()
-    .unwrap();
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+        .instruction()
+        .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
@@ -297,28 +287,18 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
     let transfer_amount = 5000u64;
 
     // Create sender CToken ATA
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        sender.pubkey(),
-        mint,
-        CompressibleParams::default(),
-    )
-    .instruction()
-    .unwrap();
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), sender.pubkey(), mint)
+        .instruction()
+        .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
     let sender_ctoken = derive_ctoken_ata(&sender.pubkey(), &mint).0;
 
     // Create recipient CToken ATA
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        recipient.pubkey(),
-        mint,
-        CompressibleParams::default(),
-    )
-    .instruction()
-    .unwrap();
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+        .instruction()
+        .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
@@ -476,14 +456,9 @@ async fn test_transfer_interface_spl_to_ctoken_invoke_signed() {
         .await
         .unwrap();
 
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        recipient.pubkey(),
-        mint,
-        CompressibleParams::default(),
-    )
-    .instruction()
-    .unwrap();
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+        .instruction()
+        .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
@@ -736,14 +711,9 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
     light_test_utils::airdrop_lamports(&mut rpc, &recipient.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        recipient.pubkey(),
-        mint,
-        CompressibleParams::default(),
-    )
-    .instruction()
-    .unwrap();
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+        .instruction()
+        .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();

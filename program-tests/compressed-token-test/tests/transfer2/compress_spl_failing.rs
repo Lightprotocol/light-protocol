@@ -37,7 +37,7 @@ use light_compressed_token_sdk::{
         },
         CTokenAccount2,
     },
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
+    ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount},
     token_pool::find_token_pool_pda_with_index,
     ValidityProof,
 };
@@ -100,14 +100,11 @@ async fn setup_spl_compression_test(
     airdrop_lamports(&mut rpc, &recipient.pubkey(), 1_000_000_000).await?;
 
     // Create compressed token ATA for recipient
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        recipient.pubkey(),
-        mint,
-        CompressibleParams::default(),
-    )
-    .instruction()
-    .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e)))?;
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+        .instruction()
+        .map_err(|e| {
+            RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e))
+        })?;
 
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await?;

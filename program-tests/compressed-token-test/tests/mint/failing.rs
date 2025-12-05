@@ -402,14 +402,10 @@ async fn functional_and_failing_tests() {
         // Create a ctoken account first
         let recipient = Keypair::new();
 
-        let create_ata_ix = CreateAssociatedTokenAccount::new(
-            payer.pubkey(),
-            recipient.pubkey(),
-            spl_mint_pda,
-            CompressibleParams::default(),
-        )
-        .instruction()
-        .unwrap();
+        let create_ata_ix =
+            CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+                .instruction()
+                .unwrap();
 
         rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
             .await
@@ -460,14 +456,10 @@ async fn functional_and_failing_tests() {
         // Create a new recipient for successful mint
         let recipient2 = Keypair::new();
 
-        let create_ata_ix2 = CreateAssociatedTokenAccount::new(
-            payer.pubkey(),
-            recipient2.pubkey(),
-            spl_mint_pda,
-            CompressibleParams::default(),
-        )
-        .instruction()
-        .unwrap();
+        let create_ata_ix2 =
+            CreateAssociatedTokenAccount::new(payer.pubkey(), recipient2.pubkey(), spl_mint_pda)
+                .instruction()
+                .unwrap();
 
         rpc.create_and_send_transaction(&[create_ata_ix2], &payer.pubkey(), &[&payer])
             .await
@@ -877,14 +869,11 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
         token_account_version: TokenDataVersion::ShaFlat,
     };
 
-    let create_ata_ix = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        recipient.pubkey(),
-        spl_mint_pda,
-        compressible_params,
-    )
-    .instruction()
-    .unwrap();
+    let create_ata_ix =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+            .with_compressible(compressible_params)
+            .instruction()
+            .unwrap();
 
     rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
         .await

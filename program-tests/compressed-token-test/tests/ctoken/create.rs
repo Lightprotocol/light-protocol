@@ -241,8 +241,8 @@ async fn test_create_compressible_token_account_failing() {
             token_account_pubkey.pubkey(),
             context.mint_pubkey,
             context.owner_keypair.pubkey(),
-            compressible_params,
         )
+        .with_compressible(compressible_params)
         .instruction()
         .unwrap();
 
@@ -380,8 +380,8 @@ async fn test_create_compressible_token_account_failing() {
             token_account_pubkey,
             context.mint_pubkey,
             context.owner_keypair.pubkey(),
-            compressible_params,
         )
+        .with_compressible(compressible_params)
         .instruction()
         .unwrap();
 
@@ -430,8 +430,8 @@ async fn test_create_compressible_token_account_failing() {
             context.token_account_keypair.pubkey(),
             context.mint_pubkey,
             context.owner_keypair.pubkey(),
-            compressible_params,
         )
+        .with_compressible(compressible_params)
         .instruction()
         .unwrap();
 
@@ -501,8 +501,8 @@ async fn test_create_compressible_token_account_failing() {
             context.token_account_keypair.pubkey(),
             context.mint_pubkey,
             context.owner_keypair.pubkey(),
-            compressible_params,
         )
+        .with_compressible(compressible_params)
         .instruction()
         .unwrap();
 

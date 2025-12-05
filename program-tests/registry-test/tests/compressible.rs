@@ -497,20 +497,17 @@ async fn test_pause_compressible_config_with_valid_authority() -> Result<(), Rpc
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
     };
 
-    let compressible_instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        payer.pubkey(),
-        Pubkey::new_unique(),
-        compressible_params,
-    )
-    .instruction()
-    .map_err(|e| {
-        RpcError::AssertRpcError(format!(
-            "Failed to create compressible ATA instruction: {}",
-            e
-        ))
-    })
-    .unwrap();
+    let compressible_instruction =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
+            .with_compressible(compressible_params)
+            .instruction()
+            .map_err(|e| {
+                RpcError::AssertRpcError(format!(
+                    "Failed to create compressible ATA instruction: {}",
+                    e
+                ))
+            })
+            .unwrap();
 
     let result = rpc
         .create_and_send_transaction(&[compressible_instruction], &payer.pubkey(), &[&payer])
@@ -633,20 +630,17 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
     };
 
-    let compressible_instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        payer.pubkey(),
-        Pubkey::new_unique(),
-        compressible_params,
-    )
-    .instruction()
-    .map_err(|e| {
-        RpcError::AssertRpcError(format!(
-            "Failed to create compressible ATA instruction: {}",
-            e
-        ))
-    })
-    .unwrap();
+    let compressible_instruction =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
+            .with_compressible(compressible_params)
+            .instruction()
+            .map_err(|e| {
+                RpcError::AssertRpcError(format!(
+                    "Failed to create compressible ATA instruction: {}",
+                    e
+                ))
+            })
+            .unwrap();
 
     let result = rpc
         .create_and_send_transaction(&[compressible_instruction], &payer.pubkey(), &[&payer])
@@ -682,20 +676,17 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
     };
 
-    let compressible_instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        payer.pubkey(),
-        Pubkey::new_unique(),
-        compressible_params,
-    )
-    .instruction()
-    .map_err(|e| {
-        RpcError::AssertRpcError(format!(
-            "Failed to create compressible ATA instruction: {}",
-            e
-        ))
-    })
-    .unwrap();
+    let compressible_instruction =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
+            .with_compressible(compressible_params)
+            .instruction()
+            .map_err(|e| {
+                RpcError::AssertRpcError(format!(
+                    "Failed to create compressible ATA instruction: {}",
+                    e
+                ))
+            })
+            .unwrap();
 
     let result2 = rpc
         .create_and_send_transaction(&[compressible_instruction], &payer.pubkey(), &[&payer])
@@ -774,20 +765,17 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
     };
 
-    let compressible_instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        token_account_keypair.pubkey(),
-        mint,
-        compressible_params,
-    )
-    .instruction()
-    .map_err(|e| {
-        RpcError::AssertRpcError(format!(
-            "Failed to create compressible ATA instruction: {}",
-            e
-        ))
-    })
-    .unwrap();
+    let compressible_instruction =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), token_account_keypair.pubkey(), mint)
+            .with_compressible(compressible_params)
+            .instruction()
+            .map_err(|e| {
+                RpcError::AssertRpcError(format!(
+                    "Failed to create compressible ATA instruction: {}",
+                    e
+                ))
+            })
+            .unwrap();
 
     rpc.create_and_send_transaction(&[compressible_instruction], &payer.pubkey(), &[&payer])
         .await
@@ -824,20 +812,17 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
     };
 
-    let compressible_instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        token_account_keypair2.pubkey(),
-        mint,
-        compressible_params,
-    )
-    .instruction()
-    .map_err(|e| {
-        RpcError::AssertRpcError(format!(
-            "Failed to create compressible ATA instruction: {}",
-            e
-        ))
-    })
-    .unwrap();
+    let compressible_instruction =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), token_account_keypair2.pubkey(), mint)
+            .with_compressible(compressible_params)
+            .instruction()
+            .map_err(|e| {
+                RpcError::AssertRpcError(format!(
+                    "Failed to create compressible ATA instruction: {}",
+                    e
+                ))
+            })
+            .unwrap();
 
     let result = rpc
         .create_and_send_transaction(&[compressible_instruction], &payer.pubkey(), &[&payer])

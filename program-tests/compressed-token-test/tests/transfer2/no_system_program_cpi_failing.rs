@@ -45,7 +45,7 @@
 
 use light_compressed_token_sdk::{
     compressed_token::create_compressed_mint::find_spl_mint_address,
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
+    ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount},
     ValidityProof,
 };
 use light_ctoken_types::instructions::{mint_action::Recipient, transfer2::Compression};
@@ -106,29 +106,19 @@ async fn setup_no_system_program_cpi_test(
     let (recipient_ata, _) = derive_ctoken_ata(&recipient.pubkey(), &mint);
 
     // Create CToken ATA for owner (source)
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        owner.pubkey(),
-        mint,
-        CompressibleParams::default(),
-    )
-    .instruction()
-    .map_err(|e| RpcError::AssertRpcError(format!("Failed to create source ATA: {}", e)))
-    .unwrap();
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+        .instruction()
+        .map_err(|e| RpcError::AssertRpcError(format!("Failed to create source ATA: {}", e)))
+        .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
 
     // Create CToken ATA for recipient
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        recipient.pubkey(),
-        mint,
-        CompressibleParams::default(),
-    )
-    .instruction()
-    .map_err(|e| RpcError::AssertRpcError(format!("Failed to create recipient ATA: {}", e)))
-    .unwrap();
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+        .instruction()
+        .map_err(|e| RpcError::AssertRpcError(format!("Failed to create recipient ATA: {}", e)))
+        .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
@@ -719,14 +709,10 @@ async fn test_too_many_mints() {
         let (recipient_ata, _) = derive_ctoken_ata(&context.recipient.pubkey(), &mint);
 
         // Create source ATA
-        let instruction = CreateAssociatedTokenAccount::new(
-            context.payer.pubkey(),
-            context.owner.pubkey(),
-            mint,
-            CompressibleParams::default(),
-        )
-        .instruction()
-        .unwrap();
+        let instruction =
+            CreateAssociatedTokenAccount::new(context.payer.pubkey(), context.owner.pubkey(), mint)
+                .instruction()
+                .unwrap();
         context
             .rpc
             .create_and_send_transaction(&[instruction], &context.payer.pubkey(), &[&context.payer])
@@ -738,7 +724,6 @@ async fn test_too_many_mints() {
             context.payer.pubkey(),
             context.recipient.pubkey(),
             mint,
-            CompressibleParams::default(),
         )
         .instruction()
         .unwrap();

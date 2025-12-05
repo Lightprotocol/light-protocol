@@ -529,8 +529,8 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
         token_account_pubkey,
         context.mint_pubkey,
         context.owner_keypair.pubkey(),
-        compressible_params,
     )
+    .with_compressible(compressible_params)
     .instruction()
     .unwrap();
     // Verify pool PDA balance decreased by only the rent-exempt amount (not the additional rent)

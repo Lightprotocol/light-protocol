@@ -34,8 +34,8 @@ pub fn process_create_ctoken_with_compress_to_pubkey<'info>(
         token_account_pubkey,
         mint,
         *ctx.accounts.signer.key,
-        compressible_params,
     )
+    .with_compressible(compressible_params)
     .instruction()?;
 
     let seeds = [seeds[0], seeds[1], &[bump]];

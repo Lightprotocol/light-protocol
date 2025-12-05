@@ -63,15 +63,11 @@ pub async fn create_compressible_token_account<R: Rpc>(
         token_account_version,
     };
 
-    let create_token_account_ix = CreateCTokenAccount::new(
-        payer.pubkey(),
-        token_account_pubkey,
-        mint,
-        owner,
-        compressible_params,
-    )
-    .instruction()
-    .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
+    let create_token_account_ix =
+        CreateCTokenAccount::new(payer.pubkey(), token_account_pubkey, mint, owner)
+            .with_compressible(compressible_params)
+            .instruction()
+            .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
 
     rpc.create_and_send_transaction(
         &[create_token_account_ix],

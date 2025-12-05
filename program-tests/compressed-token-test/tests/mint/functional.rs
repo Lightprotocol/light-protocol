@@ -712,14 +712,11 @@ async fn test_ctoken_transfer() {
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
     };
 
-    let create_ata_instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        recipient_keypair.pubkey(),
-        spl_mint_pda,
-        compressible_params,
-    )
-    .instruction()
-    .unwrap();
+    let create_ata_instruction =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), recipient_keypair.pubkey(), spl_mint_pda)
+            .with_compressible(compressible_params)
+            .instruction()
+            .unwrap();
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
