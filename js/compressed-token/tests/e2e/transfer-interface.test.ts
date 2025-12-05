@@ -133,6 +133,8 @@ describe('transfer-interface', () => {
             const ixs = await createLoadATAInstructions(
                 rpc,
                 ata,
+                owner.publicKey,
+                mint,
                 payer.publicKey,
             );
 
@@ -216,7 +218,7 @@ describe('transfer-interface', () => {
                 owner.publicKey,
             );
 
-            const signature = await loadATA(rpc, payer, ata, owner);
+            const signature = await loadATA(rpc, ata, owner, mint);
 
             expect(signature).toBeNull();
         });
@@ -240,9 +242,7 @@ describe('transfer-interface', () => {
                 mint,
                 owner.publicKey,
             );
-            const signature = await loadATA(rpc, payer, ata, owner, undefined, {
-                tokenPoolInfos,
-            });
+            const signature = await loadATA(rpc, ata, owner, mint);
 
             expect(signature).not.toBeNull();
             expect(typeof signature).toBe('string');
@@ -252,7 +252,7 @@ describe('transfer-interface', () => {
                 mint,
                 owner.publicKey,
             );
-            const ataInfo = await rpc.getAccountInfo(ctokenAta.address);
+            const ataInfo = await rpc.getAccountInfo(ctokenAta);
             expect(ataInfo).not.toBeNull();
             const hotBalance = ataInfo!.data.readBigUInt64LE(64);
             expect(hotBalance).toBe(BigInt(2000));
@@ -279,9 +279,7 @@ describe('transfer-interface', () => {
                 mint,
                 sender.publicKey,
             );
-            await loadATA(rpc, payer, senderAta, sender, undefined, {
-                tokenPoolInfos,
-            });
+            await loadATA(rpc, senderAta, sender, mint);
 
             // Create recipient ATA first (like SPL Token flow)
             const recipientAta = await getOrCreateATAInterface(
@@ -467,9 +465,7 @@ describe('transfer-interface', () => {
                 mint,
                 sender.publicKey,
             );
-            await loadATA(rpc, payer, senderAta2, sender, undefined, {
-                tokenPoolInfos,
-            });
+            await loadATA(rpc, senderAta2, sender, mint);
 
             // Setup recipient with existing ATA and balance
             await mintTo(
@@ -486,7 +482,7 @@ describe('transfer-interface', () => {
                 mint,
                 recipient.publicKey,
             );
-            await loadATA(rpc, payer, recipientAta2, recipient, undefined, {
+            await loadATA(rpc, recipientAta2, recipient, mint, undefined, undefined, {
                 tokenPoolInfos,
             });
 

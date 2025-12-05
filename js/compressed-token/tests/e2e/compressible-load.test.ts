@@ -122,6 +122,8 @@ describe('compressible-load', () => {
                 const coldInfo = await getATAInterface(
                     rpc,
                     getAssociatedTokenAddressInterface(mint, owner.publicKey),
+                    owner.publicKey,
+                    mint,
                     undefined,
                     CTOKEN_PROGRAM_ID,
                 );
@@ -142,7 +144,7 @@ describe('compressible-load', () => {
                         address: getAssociatedTokenAddressInterface(
                             mint,
                             owner.publicKey,
-                        ).address,
+                        ),
                         accountType: 'cTokenData',
                         tokenVariant: 'vault2',
                         info: coldInfo,
@@ -191,7 +193,7 @@ describe('compressible-load', () => {
                         address: getAssociatedTokenAddressInterface(
                             mint,
                             owner.publicKey,
-                        ).address,
+                        ),
                         accountType: 'cTokenData',
                         info: accountInfo,
                     },
@@ -234,7 +236,7 @@ describe('compressible-load', () => {
                         address: getAssociatedTokenAddressInterface(
                             mint,
                             owner.publicKey,
-                        ).address,
+                        ),
                         accountType: 'cTokenData',
                         tokenVariant: 'token0Vault',
                         info: accountInfo,
@@ -414,6 +416,8 @@ describe('compressible-load', () => {
             const ixs = await createLoadATAInstructions(
                 rpc,
                 ata,
+                owner.publicKey,
+                mint,
                 payer.publicKey,
                 { tokenPoolInfos },
             );

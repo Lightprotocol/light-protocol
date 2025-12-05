@@ -108,7 +108,7 @@ export async function decompress2(
     // Determine destination ATA
     const ctokenAtaAddress =
         destinationAta ??
-        getAssociatedTokenAddressInterface(mint, owner.publicKey).address;
+        getAssociatedTokenAddressInterface(mint, owner.publicKey);
 
     // Build instructions
     const instructions = [];

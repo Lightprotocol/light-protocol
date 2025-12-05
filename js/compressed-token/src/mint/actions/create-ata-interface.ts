@@ -113,7 +113,7 @@ export async function createATAInterface(
 
     const ix = createAssociatedTokenAccountInterfaceInstruction(
         payer.publicKey,
-        associatedToken.address,
+        associatedToken,
         owner,
         mint,
         programId,
@@ -144,7 +144,7 @@ export async function createATAInterface(
         );
     }
 
-    return { address: associatedToken.address, transactionSignature: txId };
+    return { address: associatedToken, transactionSignature: txId };
 }
 
 /**
@@ -202,7 +202,7 @@ export async function createATAInterfaceIdempotent(
 
     const ix = createAssociatedTokenAccountInterfaceIdempotentInstruction(
         payer.publicKey,
-        associatedToken.address,
+        associatedToken,
         owner,
         mint,
         programId,
@@ -233,5 +233,5 @@ export async function createATAInterfaceIdempotent(
         );
     }
 
-    return { address: associatedToken.address, transactionSignature: txId };
+    return { address: associatedToken, transactionSignature: txId };
 }

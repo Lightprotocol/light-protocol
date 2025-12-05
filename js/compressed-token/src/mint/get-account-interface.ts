@@ -25,16 +25,6 @@ export { Account, AccountState } from '@solana/spl-token';
 export { ParsedTokenAccount } from '@lightprotocol/stateless.js';
 
 /**
- * Interface for associated token address information.
- * Returned by getAssociatedTokenAddressInterface.
- */
-export interface AssociatedTokenAddressInterface {
-    address: PublicKey;
-    mint: PublicKey;
-    owner: PublicKey;
-}
-
-/**
  * Derive the associated token address for any token program.
  * Follows SPL Token getAssociatedTokenAddressSync signature.
  * Defaults to c-token as the canonical ATA.
@@ -44,6 +34,7 @@ export interface AssociatedTokenAddressInterface {
  * @param allowOwnerOffCurve - Allow owner to be a PDA (default: false)
  * @param programId - Token program ID (default: CTOKEN_PROGRAM_ID)
  * @param associatedTokenProgramId - Associated token program ID
+ * @returns Associated token address (PublicKey)
  */
 export function getAssociatedTokenAddressInterface(
     mint: PublicKey,
@@ -51,22 +42,18 @@ export function getAssociatedTokenAddressInterface(
     allowOwnerOffCurve = false,
     programId: PublicKey = CTOKEN_PROGRAM_ID,
     associatedTokenProgramId?: PublicKey,
-): AssociatedTokenAddressInterface {
+): PublicKey {
     const effectiveAssociatedProgramId =
         associatedTokenProgramId ?? getATAProgramId(programId);
 
     // by passing program id, user indicates preference for the canonical ATA (c-token by default)
-    return {
-        address: getAssociatedTokenAddressSync(
-            mint,
-            owner,
-            allowOwnerOffCurve,
-            programId,
-            effectiveAssociatedProgramId,
-        ),
+    return getAssociatedTokenAddressSync(
         mint,
         owner,
-    };
+        allowOwnerOffCurve,
+        programId,
+        effectiveAssociatedProgramId,
+    );
 }
 
 export interface TokenAccountSource {
@@ -251,14 +238,18 @@ export async function getAccountInterface(
  * Retrieve associated token account for a given owner and mint.
  *
  * @param rpc         RPC connection
- * @param ata         AssociatedTokenAddressInterface (from getAssociatedTokenAddressInterface)
+ * @param ata         Associated token address (PublicKey)
+ * @param owner       Owner public key
+ * @param mint        Mint public key
  * @param commitment  Optional commitment level
  * @param programId  Optional program ID
  * @returns AccountInterface with ATA metadata
  */
 export async function getATAInterface(
     rpc: Rpc,
-    ata: AssociatedTokenAddressInterface,
+    ata: PublicKey,
+    owner: PublicKey,
+    mint: PublicKey,
     commitment?: Commitment,
     programId?: PublicKey,
 ): Promise<AccountInterface> {
@@ -268,13 +259,13 @@ export async function getATAInterface(
         commitment,
         programId,
         {
-            owner: ata.owner,
-            mint: ata.mint,
+            owner,
+            mint,
         },
     );
     result._isAta = true;
-    result._owner = ata.owner;
-    result._mint = ata.mint;
+    result._owner = owner;
+    result._mint = mint;
     return result;
 }
 

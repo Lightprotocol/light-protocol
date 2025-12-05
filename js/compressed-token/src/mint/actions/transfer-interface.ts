@@ -157,16 +157,16 @@ export async function transferInterface(
         mint,
         owner.publicKey,
     );
-    if (!source.equals(expectedSource.address)) {
+    if (!source.equals(expectedSource)) {
         throw new Error(
-            `Source mismatch. Expected ${expectedSource.address.toBase58()}, got ${source.toBase58()}`,
+            `Source mismatch. Expected ${expectedSource.toBase58()}, got ${source.toBase58()}`,
         );
     }
 
     const ctokenAtaAddress = getAssociatedTokenAddressInterface(
         mint,
         owner.publicKey,
-    ).address;
+    );
 
     // Derive ATAs for all token programs (sender only)
     const splAta = getAssociatedTokenAddressSync(
