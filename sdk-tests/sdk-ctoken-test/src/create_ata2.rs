@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_token_sdk::ctoken::{
-    CompressibleParamsInfos, CreateAssociatedTokenAccount2Infos,
+    CompressibleParamsInfos, CreateAssociatedTokenAccountInfos,
 };
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
@@ -38,7 +38,7 @@ pub fn process_create_ata2_invoke(
         accounts[4].clone(),
     );
 
-    CreateAssociatedTokenAccount2Infos {
+    CreateAssociatedTokenAccountInfos {
         owner: accounts[0].clone(),
         mint: accounts[1].clone(),
         payer: accounts[2].clone(),
@@ -86,7 +86,7 @@ pub fn process_create_ata2_invoke_signed(
     );
 
     let signer_seeds: &[&[u8]] = &[ATA_SEED, &[bump]];
-    CreateAssociatedTokenAccount2Infos {
+    CreateAssociatedTokenAccountInfos {
         owner: accounts[0].clone(),
         mint: accounts[1].clone(),
         payer: accounts[2].clone(), // PDA
