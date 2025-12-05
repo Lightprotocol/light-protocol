@@ -56,7 +56,7 @@ pub fn create_pda_account(
             .resize(account_size)
             .map_err(convert_program_error)?;
 
-        // 3. Transfer remaining lamports for rent-exemption (if needed)
+        // Transfer remaining lamports for rent-exemption if needed
         if lamports > current_lamports {
             Transfer {
                 from: fee_payer,
