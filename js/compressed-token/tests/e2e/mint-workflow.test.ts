@@ -20,7 +20,7 @@ import {
     updateMetadataAuthority,
 } from '../../src/v3/actions/update-metadata';
 import { createATAInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
-import { getAssociatedTokenAddressInterface } from '../../src/v3/get-account-interface';
+import { getAssociatedTokenAddressInterface } from '../../src/';
 import { getMintInterface } from '../../src/v3/get-mint-interface';
 import { findMintAddress } from '../../src/v3/derivation';
 

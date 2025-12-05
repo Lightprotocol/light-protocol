@@ -17,7 +17,7 @@ import {
     selectTokenPoolInfo,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
-import { getAssociatedTokenAddressInterface } from '../../src/v3/get-account-interface';
+import { getAssociatedTokenAddressInterface } from '../../src/';
 import { decompress2 } from '../../src/v3/actions/decompress2';
 import { createDecompress2Instruction } from '../../src/v3/instructions/decompress2';
 

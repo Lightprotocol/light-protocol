@@ -27,10 +27,8 @@ import {
     ParsedAccountInfoInterface,
     calculateCompressibleLoadComputeUnits,
 } from '../../src/v3/actions/load-ata';
-import {
-    getATAInterface,
-    getAssociatedTokenAddressInterface,
-} from '../../src/v3/get-account-interface';
+import { getATAInterface } from '../../src/v3/get-account-interface';
+import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 
 featureFlags.version = VERSION.V2;
 
@@ -184,6 +182,8 @@ describe('compressible-load', () => {
                 const accountInfo = await getATAInterface(
                     rpc,
                     getAssociatedTokenAddressInterface(mint, owner.publicKey),
+                    owner.publicKey,
+                    mint,
                     undefined,
                     CTOKEN_PROGRAM_ID,
                 );
@@ -227,6 +227,8 @@ describe('compressible-load', () => {
                 const accountInfo = await getATAInterface(
                     rpc,
                     getAssociatedTokenAddressInterface(mint, owner.publicKey),
+                    owner.publicKey,
+                    mint,
                     undefined,
                     CTOKEN_PROGRAM_ID,
                 );
@@ -280,6 +282,8 @@ describe('compressible-load', () => {
                 const ata = await getATAInterface(
                     rpc,
                     getAssociatedTokenAddressInterface(mint, owner.publicKey),
+                    owner.publicKey,
+                    mint,
                     undefined,
                     CTOKEN_PROGRAM_ID,
                 );
@@ -314,6 +318,8 @@ describe('compressible-load', () => {
                 const coldAta = await getATAInterface(
                     rpc,
                     getAssociatedTokenAddressInterface(mint, owner.publicKey),
+                    owner.publicKey,
+                    mint,
                     undefined,
                     CTOKEN_PROGRAM_ID,
                 );
@@ -375,6 +381,8 @@ describe('compressible-load', () => {
             const ata = await getATAInterface(
                 rpc,
                 getAssociatedTokenAddressInterface(mint, owner.publicKey),
+                owner.publicKey,
+                mint,
                 undefined,
                 CTOKEN_PROGRAM_ID,
             );

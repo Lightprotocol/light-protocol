@@ -31,10 +31,8 @@ import {
     selectTokenPoolInfo,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
-import {
-    getATAInterface,
-    getAssociatedTokenAddressInterface,
-} from '../../src/v3/get-account-interface';
+import { getATAInterface } from '../../src/v3/get-account-interface';
+import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 import { getOrCreateATAInterface } from '../../src/v3/actions/get-or-create-ata-interface';
 import { transferInterface } from '../../src/v3/actions/transfer-interface';
 import {

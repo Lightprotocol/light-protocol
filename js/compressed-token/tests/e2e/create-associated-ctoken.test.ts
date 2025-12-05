@@ -14,7 +14,7 @@ import {
     createAssociatedCTokenAccountIdempotent,
 } from '../../src/v3/actions/create-associated-ctoken';
 import { createTokenMetadata } from '../../src/v3/instructions';
-import { getAssociatedCTokenAddress } from '../../src/compressible';
+import { getAssociatedCTokenAddress } from '../../src/v3/derivation';
 import { findMintAddress } from '../../src/v3/derivation';
 
 featureFlags.version = VERSION.V2;
