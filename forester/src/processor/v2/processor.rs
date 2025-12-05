@@ -1,4 +1,8 @@
-use std::{sync::atomic::Ordering, sync::Arc, time::Instant};
+use std::{
+    sync::atomic::Ordering,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use crate::{
     epoch_manager::{CircuitMetrics, ProcessingMetrics},
@@ -20,6 +24,38 @@ use tracing::{debug, info, warn};
 
 // Limit batches to avoid "too many SQL variables" error from indexer
 const MAX_BATCHES_LIMIT: usize = 16;
+
+/// Tracks timing and counts per circuit type for accurate metrics
+#[derive(Debug, Default, Clone)]
+struct BatchTimings {
+    /// Circuit input generation time per circuit type
+    append_circuit_inputs: Duration,
+    nullify_circuit_inputs: Duration,
+    address_append_circuit_inputs: Duration,
+    /// Batch counts per circuit type
+    append_count: usize,
+    nullify_count: usize,
+    address_append_count: usize,
+}
+
+impl BatchTimings {
+    fn add_timing(&mut self, circuit_type: CircuitType, duration: Duration) {
+        match circuit_type {
+            CircuitType::Append => {
+                self.append_circuit_inputs += duration;
+                self.append_count += 1;
+            }
+            CircuitType::Nullify => {
+                self.nullify_circuit_inputs += duration;
+                self.nullify_count += 1;
+            }
+            CircuitType::AddressAppend => {
+                self.address_append_circuit_inputs += duration;
+                self.address_append_count += 1;
+            }
+        }
+    }
+}
 
 pub struct QueueProcessor<R: Rpc, S: TreeStrategy<R>> {
     context: BatchContext<R>,
@@ -44,10 +80,18 @@ impl<R: Rpc, S: TreeStrategy<R>> std::fmt::Debug for QueueProcessor<R, S> {
 impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
     pub async fn new(context: BatchContext<R>, strategy: S) -> crate::Result<Self> {
         let zkp_batch_size = strategy.fetch_zkp_batch_size(&context).await?;
+        // Initialize with on-chain root to ensure we don't accept stale indexer data
+        let current_root = strategy.fetch_onchain_root(&context).await?;
+        info!(
+            "Initializing {} processor for tree {} with on-chain root {:?}[..4]",
+            strategy.name(),
+            context.merkle_tree,
+            &current_root[..4]
+        );
         Ok(Self {
             context,
             strategy,
-            current_root: [0u8; 32],
+            current_root,
             zkp_batch_size,
             seq: 0,
             worker_pool: None,
@@ -89,6 +133,15 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
             Some(data) => data,
             None => return Ok(ProcessingResult::default()),
         };
+
+        if self.current_root != [0u8; 32] && queue_data.initial_root != self.current_root {
+            debug!(
+                "Indexer root {:?}[..4] doesn't match expected {:?}[..4], waiting for indexer sync",
+                &queue_data.initial_root[..4],
+                &self.current_root[..4]
+            );
+            return Ok(ProcessingResult::default());
+        }
 
         self.process_batches(queue_data).await
     }
@@ -135,11 +188,9 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
             .job_tx
             .clone();
 
-        let circuit_inputs_start = Instant::now();
-        let (jobs_sent, queue_data) = self
+        let (jobs_sent, timings) = self
             .enqueue_jobs(queue_data, num_batches, job_tx, proof_tx.clone())
             .await?;
-        let circuit_inputs_duration = circuit_inputs_start.elapsed();
 
         drop(proof_tx);
 
@@ -148,8 +199,8 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
             .map_err(|e| anyhow!("Tx sender join error: {}", e))
             .and_then(|res| res);
 
-        let tx_processed = match &tx_result {
-            Ok(count) => *count,
+        let (tx_processed, proof_timings) = match &tx_result {
+            Ok(result) => (result.items_processed, result.proof_timings.clone()),
             Err(e) => {
                 let err_str = e.to_string();
                 warn!(
@@ -162,14 +213,11 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
                     return Err(anyhow!("Constraint error during tx send: {}", err_str));
                 }
 
-                0
+                (0, Default::default())
             }
         };
 
-        let total_proof_and_tx_time = proof_gen_start.elapsed();
-
-        let proof_generation_duration =
-            total_proof_and_tx_time.saturating_sub(circuit_inputs_duration);
+        let _total_time = proof_gen_start.elapsed();
 
         if tx_processed < jobs_sent * self.zkp_batch_size as usize {
             debug!(
@@ -179,17 +227,31 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
             );
         }
 
-        let circuit_type = self.strategy.circuit_type(&queue_data.staging_tree);
-        let circuit_metrics = CircuitMetrics {
-            circuit_inputs_duration,
-            proof_generation_duration,
-        };
-
+        // Build metrics using actual measured timings:
+        // - Circuit inputs: from BatchTimings (measured per-batch during enqueue_jobs)
+        // - Proof generation: from ProofTimings (actual server times from prover)
         let mut metrics = ProcessingMetrics::default();
-        match circuit_type {
-            CircuitType::Append => metrics.append = circuit_metrics,
-            CircuitType::Nullify => metrics.nullify = circuit_metrics,
-            CircuitType::AddressAppend => metrics.address_append = circuit_metrics,
+
+        if timings.append_count > 0 {
+            metrics.append = CircuitMetrics {
+                circuit_inputs_duration: timings.append_circuit_inputs,
+                proof_generation_duration: proof_timings.append_proof_duration(),
+                round_trip_duration: proof_timings.append_round_trip_duration(),
+            };
+        }
+        if timings.nullify_count > 0 {
+            metrics.nullify = CircuitMetrics {
+                circuit_inputs_duration: timings.nullify_circuit_inputs,
+                proof_generation_duration: proof_timings.nullify_proof_duration(),
+                round_trip_duration: proof_timings.nullify_round_trip_duration(),
+            };
+        }
+        if timings.address_append_count > 0 {
+            metrics.address_append = CircuitMetrics {
+                circuit_inputs_duration: timings.address_append_circuit_inputs,
+                proof_generation_duration: proof_timings.address_append_proof_duration(),
+                round_trip_duration: proof_timings.address_append_round_trip_duration(),
+            };
         }
 
         // Always return metrics so timing data is captured even on error
@@ -216,7 +278,7 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
         num_batches: usize,
         job_tx: async_channel::Sender<ProofJob>,
         result_tx: mpsc::Sender<ProofResult>,
-    ) -> crate::Result<(usize, QueueData<S::StagingTree>)>
+    ) -> crate::Result<(usize, BatchTimings)>
     where
         S::StagingTree: 'static,
     {
@@ -224,6 +286,8 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
         let zkp_batch_size_usize = zkp_batch_size as usize;
         let strategy = self.strategy.clone();
         let initial_seq = self.seq;
+        let epoch = self.context.epoch;
+        let tree = self.context.merkle_tree.to_string();
 
         // Run CPU-bound proof input generation on blocking thread pool
         // This allows the proof worker to process jobs concurrently
@@ -232,16 +296,28 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
             let mut jobs_sent = 0;
             let mut final_root = queue_data.initial_root;
             let mut current_seq = initial_seq;
+            let mut timings = BatchTimings::default();
 
             for batch_idx in 0..num_batches {
                 let start = batch_idx * zkp_batch_size_usize;
 
+                // Track circuit type for this specific batch (accounts for combined APPEND+NULLIFY)
+                let circuit_type = strategy.circuit_type_for_batch(&staging_tree, batch_idx);
+
+                // Measure circuit input generation time per-batch
+                let circuit_start = Instant::now();
                 let (inputs, new_root) = strategy.build_proof_job(
                     &mut staging_tree,
                     batch_idx,
                     start,
                     zkp_batch_size,
+                    epoch,
+                    &tree,
                 )?;
+                let circuit_duration = circuit_start.elapsed();
+
+                // Track timing and count by circuit type
+                timings.add_timing(circuit_type, circuit_duration);
 
                 final_root = new_root;
                 let job = ProofJob {
@@ -258,23 +334,17 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
                 jobs_sent += 1;
             }
 
-            let updated_queue_data = QueueData {
-                staging_tree,
-                initial_root: queue_data.initial_root,
-                num_batches: queue_data.num_batches,
-            };
-
-            Ok::<_, anyhow::Error>((jobs_sent, final_root, current_seq, updated_queue_data))
+            Ok::<_, anyhow::Error>((jobs_sent, final_root, current_seq, timings))
         })
         .await
         .map_err(|e| anyhow::anyhow!("Blocking task panicked: {}", e))??;
 
-        let (jobs_sent, final_root, final_seq, queue_data) = result;
+        let (jobs_sent, final_root, final_seq, timings) = result;
 
         self.current_root = final_root;
         self.seq = final_seq;
 
-        Ok((jobs_sent, queue_data))
+        Ok((jobs_sent, timings))
     }
 
     /// Pre-warm the proof cache by generating proofs without sending transactions.
@@ -378,7 +448,7 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
             &initial_root[..4]
         );
 
-        let (jobs_sent, _queue_data) = self
+        let (jobs_sent, _) = self
             .enqueue_jobs(queue_data, num_batches, job_tx, proof_tx.clone())
             .await?;
 

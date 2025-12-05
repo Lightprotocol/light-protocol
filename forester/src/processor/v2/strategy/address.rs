@@ -36,6 +36,10 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
         fetch_address_zkp_batch_size(context).await
     }
 
+    async fn fetch_onchain_root(&self, context: &BatchContext<R>) -> crate::Result<[u8; 32]> {
+        fetch_onchain_address_root(context).await
+    }
+
     async fn fetch_queue_data(
         &self,
         context: &BatchContext<R>,
@@ -190,6 +194,8 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
         batch_idx: usize,
         start: usize,
         zkp_batch_size: u64,
+        epoch: u64,
+        tree: &str,
     ) -> crate::Result<(ProofInput, [u8; 32])> {
         let address_queue = &queue_data.address_queue;
         let range = batch_range(zkp_batch_size, address_queue.addresses.len(), start);
@@ -215,6 +221,8 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
                 low_element_proofs,
                 leaves_hashchain,
                 zkp_batch_size_actual,
+                epoch,
+                tree,
             )
             .map_err(|e| anyhow!("Failed to process address batch: {}", e))?;
         let new_root = result.new_root;

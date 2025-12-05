@@ -6,7 +6,7 @@ use light_batched_merkle_tree::merkle_tree::{
 };
 use light_prover_client::{
     errors::ProverClientError,
-    proof::ProofCompressed,
+    proof::ProofCompressedWithTiming,
     proof_client::{ProofClient, SubmitProofResult},
     proof_types::{
         batch_address_append::{to_json as address_append_to_json, BatchAddressAppendInputs},
@@ -102,6 +102,10 @@ pub struct ProofResult {
     pub(crate) result: Result<BatchInstruction, String>,
     pub(crate) old_root: [u8; 32],
     pub(crate) new_root: [u8; 32],
+    /// Pure proof generation time in milliseconds (from prover server).
+    pub(crate) proof_duration_ms: u64,
+    /// Total round-trip time in milliseconds (submit to result, includes queue wait).
+    pub(crate) round_trip_ms: u64,
 }
 
 struct ProofClients {
@@ -171,6 +175,8 @@ async fn submit_and_poll_proof(clients: Arc<ProofClients>, job: ProofJob) {
     let inputs_json = job.inputs.to_json();
     let circuit_type = job.inputs.circuit_type();
 
+    let round_trip_start = std::time::Instant::now();
+
     match client.submit_proof_async(inputs_json, circuit_type).await {
         Ok(SubmitProofResult::Queued(job_id)) => {
             debug!(
@@ -178,15 +184,16 @@ async fn submit_and_poll_proof(clients: Arc<ProofClients>, job: ProofJob) {
                 job.seq, circuit_type, job_id
             );
 
-            poll_and_send_result(clients, job_id, job.seq, job.inputs, job.result_tx).await;
+            poll_and_send_result(clients, job_id, job.seq, job.inputs, job.result_tx, round_trip_start).await;
         }
         Ok(SubmitProofResult::Immediate(proof)) => {
+            let round_trip_ms = round_trip_start.elapsed().as_millis() as u64;
             debug!(
-                "Got immediate proof for seq={} type={}",
-                job.seq, circuit_type
+                "Got immediate proof for seq={} type={} round_trip={}ms",
+                job.seq, circuit_type, round_trip_ms
             );
 
-            let result = build_proof_result(job.seq, &job.inputs, proof);
+            let result = build_proof_result(job.seq, &job.inputs, proof, round_trip_ms);
             let _ = job.result_tx.send(result).await;
         }
         Err(e) => {
@@ -200,6 +207,8 @@ async fn submit_and_poll_proof(clients: Arc<ProofClients>, job: ProofJob) {
                 result: Err(format!("Submit failed: {}", e)),
                 old_root: [0u8; 32],
                 new_root: [0u8; 32],
+                proof_duration_ms: 0,
+                round_trip_ms: 0,
             };
             let _ = job.result_tx.send(result).await;
         }
@@ -212,14 +221,17 @@ async fn poll_and_send_result(
     seq: u64,
     inputs: ProofInput,
     result_tx: mpsc::Sender<ProofResult>,
+    round_trip_start: std::time::Instant,
 ) {
     let client = clients.get_client(&inputs);
 
     // Poll; on job_not_found, resubmit once and poll the new job.
     let result = match client.poll_proof_completion(job_id.clone()).await {
         Ok(proof) => {
-            debug!("Proof completed for seq={} job_id={}", seq, job_id);
-            build_proof_result(seq, &inputs, proof)
+            let round_trip_ms = round_trip_start.elapsed().as_millis() as u64;
+            debug!("Proof completed for seq={} job_id={} round_trip={}ms proof={}ms",
+                   seq, job_id, round_trip_ms, proof.proof_duration_ms);
+            build_proof_result(seq, &inputs, proof, round_trip_ms)
         }
         Err(e) if is_job_not_found(&e) => {
             warn!(
@@ -236,11 +248,12 @@ async fn poll_and_send_result(
                     );
                     match client.poll_proof_completion(new_job_id.clone()).await {
                         Ok(proof) => {
+                            let round_trip_ms = round_trip_start.elapsed().as_millis() as u64;
                             debug!(
-                                "Proof completed after retry for seq={} job_id={}",
-                                seq, new_job_id
+                                "Proof completed after retry for seq={} job_id={} round_trip={}ms",
+                                seq, new_job_id, round_trip_ms
                             );
-                            build_proof_result(seq, &inputs, proof)
+                            build_proof_result(seq, &inputs, proof, round_trip_ms)
                         }
                         Err(e2) => ProofResult {
                             seq,
@@ -250,21 +263,26 @@ async fn poll_and_send_result(
                             )),
                             old_root: [0u8; 32],
                             new_root: [0u8; 32],
+                            proof_duration_ms: 0,
+                            round_trip_ms: 0,
                         },
                     }
                 }
                 Ok(SubmitProofResult::Immediate(proof)) => {
+                    let round_trip_ms = round_trip_start.elapsed().as_millis() as u64;
                     debug!(
-                        "Immediate proof after retry for seq={} type={}",
-                        seq, circuit_type
+                        "Immediate proof after retry for seq={} type={} round_trip={}ms",
+                        seq, circuit_type, round_trip_ms
                     );
-                    build_proof_result(seq, &inputs, proof)
+                    build_proof_result(seq, &inputs, proof, round_trip_ms)
                 }
                 Err(e_submit) => ProofResult {
                     seq,
                     result: Err(format!("Proof retry submit failed: {}", e_submit)),
                     old_root: [0u8; 32],
                     new_root: [0u8; 32],
+                    proof_duration_ms: 0,
+                    round_trip_ms: 0,
                 },
             }
         }
@@ -278,6 +296,8 @@ async fn poll_and_send_result(
                 result: Err(format!("Proof failed: {}", e)),
                 old_root: [0u8; 32],
                 new_root: [0u8; 32],
+                proof_duration_ms: 0,
+                round_trip_ms: 0,
             }
         }
     };
@@ -294,7 +314,12 @@ fn is_job_not_found(err: &ProverClientError) -> bool {
     )
 }
 
-fn build_proof_result(seq: u64, inputs: &ProofInput, proof: ProofCompressed) -> ProofResult {
+fn build_proof_result(
+    seq: u64,
+    inputs: &ProofInput,
+    proof_with_timing: ProofCompressedWithTiming,
+    round_trip_ms: u64,
+) -> ProofResult {
     let new_root = match inputs.new_root_bytes() {
         Ok(root) => root,
         Err(e) => {
@@ -303,6 +328,8 @@ fn build_proof_result(seq: u64, inputs: &ProofInput, proof: ProofCompressed) -> 
                 result: Err(format!("Failed to get new root: {}", e)),
                 old_root: [0u8; 32],
                 new_root: [0u8; 32],
+                proof_duration_ms: proof_with_timing.proof_duration_ms,
+                round_trip_ms,
             };
         }
     };
@@ -314,10 +341,13 @@ fn build_proof_result(seq: u64, inputs: &ProofInput, proof: ProofCompressed) -> 
                 result: Err(format!("Failed to get old root: {}", e)),
                 old_root: [0u8; 32],
                 new_root: [0u8; 32],
+                proof_duration_ms: proof_with_timing.proof_duration_ms,
+                round_trip_ms,
             };
         }
     };
 
+    let proof = proof_with_timing.proof;
     let instruction = match inputs {
         ProofInput::Append(_) => BatchInstruction::Append(vec![InstructionDataBatchAppendInputs {
             new_root,
@@ -342,5 +372,7 @@ fn build_proof_result(seq: u64, inputs: &ProofInput, proof: ProofCompressed) -> 
         old_root,
         new_root,
         result: Ok(instruction),
+        proof_duration_ms: proof_with_timing.proof_duration_ms,
+        round_trip_ms,
     }
 }

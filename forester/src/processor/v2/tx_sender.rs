@@ -1,4 +1,5 @@
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 
 use borsh::BorshSerialize;
 
@@ -27,6 +28,47 @@ use crate::{
     errors::ForesterError,
     processor::v2::{common::send_transaction_batch, proof_worker::ProofResult, BatchContext},
 };
+
+/// Aggregated proof times by circuit type
+#[derive(Debug, Clone, Default)]
+pub struct ProofTimings {
+    /// Pure proof generation times from prover server (excludes queue wait)
+    pub append_proof_ms: u64,
+    pub nullify_proof_ms: u64,
+    pub address_append_proof_ms: u64,
+    /// Round-trip times (submit to result, includes queue wait + proof)
+    pub append_round_trip_ms: u64,
+    pub nullify_round_trip_ms: u64,
+    pub address_append_round_trip_ms: u64,
+}
+
+impl ProofTimings {
+    pub fn append_proof_duration(&self) -> Duration {
+        Duration::from_millis(self.append_proof_ms)
+    }
+    pub fn nullify_proof_duration(&self) -> Duration {
+        Duration::from_millis(self.nullify_proof_ms)
+    }
+    pub fn address_append_proof_duration(&self) -> Duration {
+        Duration::from_millis(self.address_append_proof_ms)
+    }
+    pub fn append_round_trip_duration(&self) -> Duration {
+        Duration::from_millis(self.append_round_trip_ms)
+    }
+    pub fn nullify_round_trip_duration(&self) -> Duration {
+        Duration::from_millis(self.nullify_round_trip_ms)
+    }
+    pub fn address_append_round_trip_duration(&self) -> Duration {
+        Duration::from_millis(self.address_append_round_trip_ms)
+    }
+}
+
+/// Result of TxSender processing
+#[derive(Debug, Clone, Default)]
+pub struct TxSenderResult {
+    pub items_processed: usize,
+    pub proof_timings: ProofTimings,
+}
 
 #[derive(Debug, Clone)]
 pub enum BatchInstruction {
@@ -103,6 +145,7 @@ pub struct TxSender<R: Rpc> {
     zkp_batch_size: u64,
     last_seen_root: [u8; 32],
     pending_batch: Vec<(BatchInstruction, u64)>, // (instruction, seq)
+    proof_timings: ProofTimings,
 }
 
 impl<R: Rpc> TxSender<R> {
@@ -111,13 +154,14 @@ impl<R: Rpc> TxSender<R> {
         proof_rx: mpsc::Receiver<ProofResult>,
         zkp_batch_size: u64,
         last_seen_root: [u8; 32],
-    ) -> JoinHandle<crate::Result<usize>> {
+    ) -> JoinHandle<crate::Result<TxSenderResult>> {
         let sender = Self {
             context,
             buffer: OrderedProofBuffer::new(MAX_BUFFER_SIZE),
             zkp_batch_size,
             last_seen_root,
             pending_batch: Vec::with_capacity(V2_IXS_PER_TX),
+            proof_timings: ProofTimings::default(),
         };
 
         tokio::spawn(async move { sender.run(proof_rx).await })
@@ -153,7 +197,7 @@ impl<R: Rpc> TxSender<R> {
         current_slot + 2 < eligibility_end_slot
     }
 
-    async fn run(mut self, mut proof_rx: mpsc::Receiver<ProofResult>) -> crate::Result<usize> {
+    async fn run(mut self, mut proof_rx: mpsc::Receiver<ProofResult>) -> crate::Result<TxSenderResult> {
         let mut processed = 0usize;
 
         while let Some(result) = proof_rx.recv().await {
@@ -165,7 +209,31 @@ impl<R: Rpc> TxSender<R> {
                     self.context.epoch,
                     self.buffer.len() + 1
                 );
-                return Ok(processed);
+                return Ok(TxSenderResult {
+                    items_processed: processed,
+                    proof_timings: self.proof_timings,
+                });
+            }
+
+            // Track proof times by circuit type
+            match &result.result {
+                Ok(instr) => {
+                    match instr {
+                        BatchInstruction::Append(_) => {
+                            self.proof_timings.append_proof_ms += result.proof_duration_ms;
+                            self.proof_timings.append_round_trip_ms += result.round_trip_ms;
+                        }
+                        BatchInstruction::Nullify(_) => {
+                            self.proof_timings.nullify_proof_ms += result.proof_duration_ms;
+                            self.proof_timings.nullify_round_trip_ms += result.round_trip_ms;
+                        }
+                        BatchInstruction::AddressAppend(_) => {
+                            self.proof_timings.address_append_proof_ms += result.proof_duration_ms;
+                            self.proof_timings.address_append_round_trip_ms += result.round_trip_ms;
+                        }
+                    }
+                }
+                Err(_) => {} // Don't track failed proofs
             }
 
             // Handle proof failures
@@ -228,7 +296,10 @@ impl<R: Rpc> TxSender<R> {
             processed += self.send_pending_batch().await?;
         }
 
-        Ok(processed)
+        Ok(TxSenderResult {
+            items_processed: processed,
+            proof_timings: self.proof_timings,
+        })
     }
 
     async fn send_pending_batch(&mut self) -> crate::Result<usize> {

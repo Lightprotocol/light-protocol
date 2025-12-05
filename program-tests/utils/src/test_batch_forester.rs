@@ -182,9 +182,9 @@ pub async fn create_append_batch_ix_data<R: Rpc>(
     InstructionDataBatchAppendInputs {
         new_root,
         compressed_proof: CompressedProof {
-            a: proof.a,
-            b: proof.b,
-            c: proof.c,
+            a: proof.proof.a,
+            b: proof.proof.b,
+            c: proof.proof.c,
         },
     }
 }
@@ -311,9 +311,9 @@ pub async fn get_batched_nullify_ix_data<R: Rpc>(
     Ok(InstructionDataBatchNullifyInputs {
         new_root,
         compressed_proof: CompressedProof {
-            a: proof.a,
-            b: proof.b,
-            c: proof.c,
+            a: proof.proof.a,
+            b: proof.proof.b,
+            c: proof.proof.c,
         },
     })
 }
@@ -738,9 +738,9 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<R: Rpc
             let instruction_data = InstructionDataBatchNullifyInputs {
                 new_root: circuit_inputs_new_root,
                 compressed_proof: CompressedProof {
-                    a: compressed_proof.a,
-                    b: compressed_proof.b,
-                    c: compressed_proof.c,
+                    a: compressed_proof.proof.a,
+                    b: compressed_proof.proof.b,
+                    c: compressed_proof.proof.c,
                 },
             };
             Ok(instruction_data)

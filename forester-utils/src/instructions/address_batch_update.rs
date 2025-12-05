@@ -156,13 +156,13 @@ async fn stream_instruction_data<'a, R: Rpc>(
             let mut proof_buffer = Vec::new();
             for (idx, result) in proof_results {
                 match result {
-                    Ok((compressed_proof, new_root)) => {
+                    Ok((compressed_proof_with_timing, new_root)) => {
                         let instruction_data = InstructionDataAddressAppendInputs {
                             new_root,
                             compressed_proof: CompressedProof {
-                                a: compressed_proof.a,
-                                b: compressed_proof.b,
-                                c: compressed_proof.c,
+                                a: compressed_proof_with_timing.proof.a,
+                                b: compressed_proof_with_timing.proof.b,
+                                c: compressed_proof_with_timing.proof.c,
                             },
                         };
                         proof_buffer.push(instruction_data);

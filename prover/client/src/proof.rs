@@ -24,6 +24,14 @@ pub struct ProofCompressed {
     pub c: [u8; 32],
 }
 
+/// ProofCompressed with timing information from the prover server
+#[derive(Debug, Clone, Copy)]
+pub struct ProofCompressedWithTiming {
+    pub proof: ProofCompressed,
+    /// Duration in milliseconds for proof generation on the server
+    pub proof_duration_ms: u64,
+}
+
 impl From<ProofCompressed> for CompressedProof {
     fn from(proof: ProofCompressed) -> Self {
         CompressedProof {

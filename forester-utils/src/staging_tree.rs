@@ -115,6 +115,8 @@ impl StagingTree {
         batch_type: BatchType,
         batch_idx: usize,
         batch_seq: u64,
+        epoch: u64,
+        tree: &str,
     ) -> Result<BatchUpdateResult, ForesterUtilsError> {
         if leaf_indices.len() != new_leaves.len() {
             return Err(ForesterUtilsError::StagingTree(format!(
@@ -167,11 +169,13 @@ impl StagingTree {
         self.current_root = new_root;
 
         debug!(
-            "{} batch {} root transition: {:?}[..4] -> {:?}[..4]",
+            "{} batch {} root transition: {:?}[..4] -> {:?}[..4] (epoch={}, tree={})",
             batch_type,
             batch_idx,
             &old_root[..4],
-            &new_root[..4]
+            &new_root[..4],
+            epoch,
+            tree
         );
 
         Ok(BatchUpdateResult {

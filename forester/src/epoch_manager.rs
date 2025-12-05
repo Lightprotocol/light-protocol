@@ -92,8 +92,10 @@ type AddressBatchProcessorMap<R> =
 pub struct CircuitMetrics {
     /// Time spent building circuit inputs
     pub circuit_inputs_duration: std::time::Duration,
-    /// Time spent generating ZK proofs
+    /// Time spent generating ZK proofs (pure prover server time)
     pub proof_generation_duration: std::time::Duration,
+    /// Total round-trip time (submit to result, includes queue wait)
+    pub round_trip_duration: std::time::Duration,
 }
 
 impl CircuitMetrics {
@@ -106,6 +108,7 @@ impl std::ops::AddAssign for CircuitMetrics {
     fn add_assign(&mut self, rhs: Self) {
         self.circuit_inputs_duration += rhs.circuit_inputs_duration;
         self.proof_generation_duration += rhs.proof_generation_duration;
+        self.round_trip_duration += rhs.round_trip_duration;
     }
 }
 
@@ -140,6 +143,12 @@ impl ProcessingMetrics {
         self.append.proof_generation_duration
             + self.nullify.proof_generation_duration
             + self.address_append.proof_generation_duration
+    }
+
+    pub fn total_round_trip(&self) -> std::time::Duration {
+        self.append.round_trip_duration
+            + self.nullify.round_trip_duration
+            + self.address_append.round_trip_duration
     }
 }
 
@@ -3177,14 +3186,17 @@ mod tests {
                 append: CircuitMetrics {
                     circuit_inputs_duration: std::time::Duration::from_secs(1),
                     proof_generation_duration: std::time::Duration::from_secs(3),
+                    round_trip_duration: std::time::Duration::from_secs(10),
                 },
                 nullify: CircuitMetrics {
                     circuit_inputs_duration: std::time::Duration::from_secs(1),
                     proof_generation_duration: std::time::Duration::from_secs(2),
+                    round_trip_duration: std::time::Duration::from_secs(8),
                 },
                 address_append: CircuitMetrics {
                     circuit_inputs_duration: std::time::Duration::from_secs(1),
                     proof_generation_duration: std::time::Duration::from_secs(2),
+                    round_trip_duration: std::time::Duration::from_secs(9),
                 },
                 tx_sending_duration: std::time::Duration::ZERO,
             },
@@ -3196,5 +3208,6 @@ mod tests {
         assert_eq!(report.metrics.total().as_secs(), 10);
         assert_eq!(report.metrics.total_circuit_inputs().as_secs(), 3);
         assert_eq!(report.metrics.total_proof_generation().as_secs(), 7);
+        assert_eq!(report.metrics.total_round_trip().as_secs(), 27);
     }
 }

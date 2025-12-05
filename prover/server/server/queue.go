@@ -234,8 +234,8 @@ func (rq *RedisQueue) GetResult(jobID string) (interface{}, error) {
 	key := fmt.Sprintf("zk_result_%s", jobID)
 	result, err := rq.Client.Get(rq.Ctx, key).Result()
 	if err == nil {
-		var proof common.Proof
-		err = json.Unmarshal([]byte(result), &proof)
+		var proofWithTiming common.ProofWithTiming
+		err = json.Unmarshal([]byte(result), &proofWithTiming)
 		if err != nil {
 			logging.Logger().Error().
 				Str("job_id", jobID).
@@ -245,7 +245,7 @@ func (rq *RedisQueue) GetResult(jobID string) (interface{}, error) {
 
 			return nil, fmt.Errorf("failed to unmarshal direct result: %w", err)
 		}
-		return &proof, nil
+		return &proofWithTiming, nil
 	}
 
 	if err != redis.Nil {
@@ -265,14 +265,14 @@ func (rq *RedisQueue) searchResultInQueue(jobID string) (interface{}, error) {
 		var resultJob ProofJob
 		if json.Unmarshal([]byte(item), &resultJob) == nil {
 			if resultJob.ID == jobID && resultJob.Type == "result" {
-				var proof common.Proof
-				err = json.Unmarshal(resultJob.Payload, &proof)
+				var proofWithTiming common.ProofWithTiming
+				err = json.Unmarshal(resultJob.Payload, &proofWithTiming)
 				if err != nil {
 					return nil, fmt.Errorf("failed to unmarshal queued result: %w", err)
 				}
-				rq.StoreResult(jobID, &proof)
+				rq.StoreResult(jobID, &proofWithTiming)
 
-				return &proof, nil
+				return &proofWithTiming, nil
 			}
 		}
 	}
@@ -634,8 +634,8 @@ func ComputeInputHash(payload json.RawMessage) string {
 }
 
 // FindCachedResult searches for a cached result by input hash in the results queue
-// Returns the proof result and job ID if found, otherwise returns nil
-func (rq *RedisQueue) FindCachedResult(inputHash string) (*common.Proof, string, error) {
+// Returns the proof result (as ProofWithTiming) and job ID if found, otherwise returns nil
+func (rq *RedisQueue) FindCachedResult(inputHash string) (*common.ProofWithTiming, string, error) {
 	items, err := rq.Client.LRange(rq.Ctx, "zk_results_queue", 0, -1).Result()
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to search results queue: %w", err)
@@ -647,9 +647,8 @@ func (rq *RedisQueue) FindCachedResult(inputHash string) (*common.Proof, string,
 			// Check if this result has the same input hash
 			storedHash, err := rq.Client.Get(rq.Ctx, fmt.Sprintf("zk_input_hash_%s", resultJob.ID)).Result()
 			if err == nil && storedHash == inputHash {
-				// Found a matching result
-				var proof common.Proof
-				err = json.Unmarshal(resultJob.Payload, &proof)
+				var proofWithTiming common.ProofWithTiming
+				err = json.Unmarshal(resultJob.Payload, &proofWithTiming)
 				if err != nil {
 					logging.Logger().Warn().
 						Err(err).
@@ -663,9 +662,10 @@ func (rq *RedisQueue) FindCachedResult(inputHash string) (*common.Proof, string,
 				logging.Logger().Info().
 					Str("input_hash", inputHash).
 					Str("cached_job_id", resultJob.ID).
+					Int64("proof_duration_ms", proofWithTiming.ProofDurationMs).
 					Msg("Found cached successful proof result")
 
-				return &proof, resultJob.ID, nil
+				return &proofWithTiming, resultJob.ID, nil
 			}
 		}
 	}

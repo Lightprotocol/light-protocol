@@ -251,10 +251,12 @@ impl AddressStagingTree {
         low_element_proofs: &[Vec<[u8; 32]>],
         leaves_hashchain: [u8; 32],
         zkp_batch_size: usize,
+        epoch: u64,
+        tree: &str,
     ) -> Result<AddressBatchResult, ForesterUtilsError> {
-        if let Some(mut tree) = self.sparse_tree.take() {
+        if let Some(mut sparse_tree) = self.sparse_tree.take() {
             let result = self.process_batch_sparse(
-                &mut tree,
+                &mut sparse_tree,
                 addresses,
                 low_element_values,
                 low_element_next_values,
@@ -263,8 +265,10 @@ impl AddressStagingTree {
                 low_element_proofs,
                 leaves_hashchain,
                 zkp_batch_size,
+                epoch,
+                tree,
             );
-            self.sparse_tree = Some(tree);
+            self.sparse_tree = Some(sparse_tree);
             return result;
         }
 
@@ -506,12 +510,13 @@ impl AddressStagingTree {
         })?;
 
         tracing::debug!(
-            "AddressStagingTree::process_batch completed: old_root={:?}, new_root={:?}, \
-             batch_size={}, next_index={}",
+            "ADDRESS_APPEND batch root transition: {:?}[..4] -> {:?}[..4] (batch_size={}, next_index={}, epoch={}, tree={})",
             &old_root[..4],
             &new_root[..4],
             circuit_inputs.batch_size,
-            self.next_index
+            self.next_index,
+            epoch,
+            tree
         );
 
         Ok(AddressBatchResult {
@@ -523,7 +528,7 @@ impl AddressStagingTree {
 
     fn process_batch_sparse(
         &mut self,
-        tree: &mut SparseMerkleTree<Poseidon, HEIGHT>,
+        sparse_tree: &mut SparseMerkleTree<Poseidon, HEIGHT>,
         addresses: &[[u8; 32]],
         low_element_values: &[[u8; 32]],
         low_element_next_values: &[[u8; 32]],
@@ -532,6 +537,8 @@ impl AddressStagingTree {
         low_element_proofs: &[Vec<[u8; 32]>],
         leaves_hashchain: [u8; 32],
         zkp_batch_size: usize,
+        epoch: u64,
+        tree: &str,
     ) -> Result<AddressBatchResult, ForesterUtilsError> {
         use light_prover_client::proof_types::batch_address_append::get_batch_address_append_circuit_inputs;
 
@@ -550,7 +557,7 @@ impl AddressStagingTree {
                 .collect(),
             low_element_proofs.to_vec(),
             addresses.to_vec(),
-            tree,
+            sparse_tree,
             leaves_hashchain,
             zkp_batch_size,
             &mut self.sparse_changelog,
@@ -567,6 +574,16 @@ impl AddressStagingTree {
             ForesterUtilsError::AddressStagingTree(format!("Failed to serialize new root: {}", e))
         })?;
         self.next_index += zkp_batch_size;
+
+        tracing::debug!(
+            "ADDRESS_APPEND batch root transition: {:?}[..4] -> {:?}[..4] (sparse, batch_size={}, next_index={}, epoch={}, tree={})",
+            &old_root[..4],
+            &self.current_root[..4],
+            zkp_batch_size,
+            self.next_index,
+            epoch,
+            tree
+        );
 
         Ok(AddressBatchResult {
             circuit_inputs: inputs,

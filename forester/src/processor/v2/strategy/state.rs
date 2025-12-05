@@ -7,17 +7,13 @@ use crate::processor::v2::{
 };
 use anyhow::anyhow;
 use async_trait::async_trait;
-use forester_utils::{
-    staging_tree::{BatchType, StagingTree},
-    utils::wait_for_indexer,
-};
+use forester_utils::staging_tree::{BatchType, StagingTree};
 use light_batched_merkle_tree::constants::DEFAULT_BATCH_STATE_TREE_HEIGHT;
 use light_client::rpc::Rpc;
-use light_compressed_account::QueueType;
 use light_prover_client::proof_types::{
     batch_append::BatchAppendsCircuitInputs, batch_update::BatchUpdateCircuitInputs,
 };
-use tracing::{debug, warn};
+use tracing::debug;
 
 #[derive(Debug, Clone)]
 pub struct StateTreeStrategy;
@@ -34,6 +30,10 @@ pub struct StateQueueData {
     pub state_queue: light_client::indexer::StateQueueDataV2,
     pub phase: StatePhase,
     pub next_index: Option<u64>,
+    /// Number of APPEND batches that must be processed before NULLIFY batches.
+    /// This is used when both output and input queues have data to ensure
+    /// proper root chaining: initial_root -> post_append_root -> post_nullify_root
+    pub append_batches_before_nullify: usize,
 }
 
 #[async_trait]
@@ -51,8 +51,25 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
         }
     }
 
+    fn circuit_type_for_batch(&self, queue_data: &Self::StagingTree, batch_idx: usize) -> CircuitType {
+        // When processing combined APPEND+NULLIFY, determine circuit type based on batch index
+        let is_append_phase = batch_idx < queue_data.append_batches_before_nullify
+            || (queue_data.append_batches_before_nullify == 0
+                && queue_data.phase == StatePhase::Append);
+
+        if is_append_phase {
+            CircuitType::Append
+        } else {
+            CircuitType::Nullify
+        }
+    }
+
     async fn fetch_zkp_batch_size(&self, context: &BatchContext<R>) -> crate::Result<u64> {
         fetch_zkp_batch_size(context).await
+    }
+
+    async fn fetch_onchain_root(&self, context: &BatchContext<R>) -> crate::Result<[u8; 32]> {
+        fetch_onchain_state_root(context).await
     }
 
     async fn fetch_queue_data(
@@ -66,86 +83,88 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
         let total_needed = max_batches.saturating_mul(zkp_batch_size_usize);
         let fetch_len = total_needed as u64;
 
-        // Retry loop: fetch from indexer, validate root, wait if mismatch
-        // const MAX_ROOT_RETRIES: u32 = 3;
-        // let mut state_queue = None;
-
-        // for attempt in 0..MAX_ROOT_RETRIES {
         let state_queue =
             match fetch_batches(context, None, None, fetch_len, zkp_batch_size).await? {
                 Some(sq) => sq,
                 None => return Ok(None),
             };
 
-        // Validate indexer root matches on-chain root before generating proofs
-        //     let onchain_root = fetch_onchain_state_root(context).await?;
-        //     if sq.initial_root == onchain_root {
-        //         state_queue = Some(sq);
-        //         break;
-        //     }
-
-        //     warn!(
-        //         "Indexer root mismatch for tree {} (attempt {}/{}): indexer={}, onchain={}. Waiting for indexer...",
-        //         context.merkle_tree,
-        //         attempt + 1,
-        //         MAX_ROOT_RETRIES,
-        //         bs58::encode(&sq.initial_root).into_string(),
-        //         bs58::encode(&onchain_root).into_string()
-        //     );
-
-        //     // Wait for indexer to catch up
-        //     let rpc = context.rpc_pool.get_connection().await?;
-        //     if let Err(e) = wait_for_indexer(&*rpc).await {
-        //         warn!("wait_for_indexer failed: {}", e);
-        //     }
-        // }
-
-        // let state_queue = match state_queue {
-        //     Some(sq) => sq,
-        //     None => {
-        //         warn!(
-        //             "Indexer root still mismatched after {} retries for tree {}. Skipping.",
-        //             MAX_ROOT_RETRIES, context.merkle_tree
-        //         );
-        //         return Ok(None);
-        //     }
-        // };
-
-        let phase = match queue_work.queue_type {
-            QueueType::OutputStateV2 => StatePhase::Append,
-            QueueType::InputStateV2 => StatePhase::Nullify,
-            _ => return Ok(None),
-        };
+        // Ignore queue_work.queue_type hint - always check both queues and process
+        // APPEND batches before NULLIFY batches to ensure proper root chaining.
+        let _ = queue_work.queue_type;
 
         let initial_root = state_queue.initial_root;
         let root_seq = state_queue.root_seq;
         let nodes = &state_queue.nodes;
         let node_hashes = &state_queue.node_hashes;
 
-        let (leaf_indices, leaves, next_index, available) = match phase {
-            StatePhase::Append => {
-                let batch = match state_queue.output_queue.as_ref() {
-                    Some(b) if !b.leaf_indices.is_empty() => b,
-                    _ => return Ok(None),
-                };
-                (
-                    batch.leaf_indices.clone(),
-                    batch.old_leaves.clone(),
-                    Some(batch.next_index),
-                    batch.leaf_indices.len(),
-                )
-            }
-            StatePhase::Nullify => {
-                let batch = match state_queue.input_queue.as_ref() {
-                    Some(b) if !b.leaf_indices.is_empty() => b,
-                    _ => return Ok(None),
-                };
-                (
-                    batch.leaf_indices.clone(),
-                    batch.current_leaves.clone(),
-                    None,
-                    batch.leaf_indices.len(),
-                )
+        // Count available items for both phases
+        let append_items = state_queue
+            .output_queue
+            .as_ref()
+            .map(|oq| oq.leaf_indices.len())
+            .unwrap_or(0);
+        let nullify_items = state_queue
+            .input_queue
+            .as_ref()
+            .map(|iq| iq.leaf_indices.len())
+            .unwrap_or(0);
+
+        let append_batches = append_items / zkp_batch_size_usize;
+        let nullify_batches = nullify_items / zkp_batch_size_usize;
+
+        // Always process APPEND batches first, then NULLIFY batches.
+        // This ensures proper root chaining: initial_root -> post_append_root -> post_nullify_root
+        let (append_batches_before_nullify, total_batches, effective_phase) =
+            if append_batches > 0 && nullify_batches > 0 {
+                // Process both: APPENDs first, then NULLIFYs
+                let total = (append_batches + nullify_batches).min(max_batches);
+                let appends_to_process = append_batches.min(total);
+                debug!(
+                    "Processing {} APPEND batches then {} NULLIFY batches (total: {})",
+                    appends_to_process,
+                    total.saturating_sub(appends_to_process),
+                    total
+                );
+                (appends_to_process, total, StatePhase::Append)
+            } else if append_batches > 0 {
+                (0, append_batches.min(max_batches), StatePhase::Append)
+            } else if nullify_batches > 0 {
+                (0, nullify_batches.min(max_batches), StatePhase::Nullify)
+            } else {
+                return Ok(None);
+            };
+
+        // Get data for staging tree initialization.
+        // We need to include leaf data for BOTH phases if we're processing both,
+        // since the staging tree needs all leaves to compute proofs.
+        let (leaf_indices, leaves, next_index) = if append_batches_before_nullify > 0 {
+            // Processing both APPEND and NULLIFY - combine leaf data
+            let output_batch = state_queue.output_queue.as_ref().unwrap();
+            let input_batch = state_queue.input_queue.as_ref().unwrap();
+
+            let mut combined_indices = output_batch.leaf_indices.clone();
+            let mut combined_leaves = output_batch.old_leaves.clone();
+
+            // Add NULLIFY leaves (these are at different indices)
+            combined_indices.extend(input_batch.leaf_indices.iter().copied());
+            combined_leaves.extend(input_batch.current_leaves.iter().copied());
+
+            (combined_indices, combined_leaves, Some(output_batch.next_index))
+        } else {
+            match effective_phase {
+                StatePhase::Append => {
+                    let batch = state_queue.output_queue.as_ref().unwrap();
+                    (
+                        batch.leaf_indices.clone(),
+                        batch.old_leaves.clone(),
+                        Some(batch.next_index),
+                    )
+                }
+                StatePhase::Nullify => {
+                    let batch = state_queue.input_queue.as_ref().unwrap();
+                    (batch.leaf_indices.clone(), batch.current_leaves.clone(), None)
+                }
             }
         };
 
@@ -175,8 +194,7 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
         .await
         .map_err(|e| anyhow!("spawn_blocking join error: {}", e))??;
 
-        let num_batches = (available / zkp_batch_size_usize).min(max_batches);
-        if num_batches == 0 {
+        if total_batches == 0 {
             return Ok(None);
         }
 
@@ -184,11 +202,12 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
             staging_tree: StateQueueData {
                 staging_tree,
                 state_queue,
-                phase,
+                phase: effective_phase,
                 next_index,
+                append_batches_before_nullify,
             },
             initial_root,
-            num_batches,
+            num_batches: total_batches,
         }))
     }
 
@@ -198,14 +217,23 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
         batch_idx: usize,
         start: usize,
         zkp_batch_size: u64,
+        epoch: u64,
+        tree: &str,
     ) -> crate::Result<(ProofInput, [u8; 32])> {
-        match queue_data.phase {
-            StatePhase::Append => {
-                self.build_append_job(queue_data, batch_idx, start, zkp_batch_size)
-            }
-            StatePhase::Nullify => {
-                self.build_nullify_job(queue_data, batch_idx, start, zkp_batch_size)
-            }
+        // When we have both APPEND and NULLIFY batches, process APPENDs first.
+        // The append_batches_before_nullify field tells us how many APPEND batches
+        // must be processed before we switch to NULLIFY.
+        let is_append_phase = batch_idx < queue_data.append_batches_before_nullify
+            || (queue_data.append_batches_before_nullify == 0
+                && queue_data.phase == StatePhase::Append);
+
+        if is_append_phase {
+            self.build_append_job(queue_data, batch_idx, start, zkp_batch_size, epoch, tree)
+        } else {
+            // Adjust batch_idx and start for NULLIFY phase
+            let nullify_batch_idx = batch_idx - queue_data.append_batches_before_nullify;
+            let nullify_start = nullify_batch_idx * zkp_batch_size as usize;
+            self.build_nullify_job(queue_data, nullify_batch_idx, nullify_start, zkp_batch_size, epoch, tree)
         }
     }
 }
@@ -217,6 +245,8 @@ impl StateTreeStrategy {
         batch_idx: usize,
         start: usize,
         zkp_batch_size: u64,
+        epoch: u64,
+        tree: &str,
     ) -> crate::Result<(ProofInput, [u8; 32])> {
         let batch = queue_data
             .state_queue
@@ -237,6 +267,8 @@ impl StateTreeStrategy {
             BatchType::Append,
             batch_idx,
             batch_seq,
+            epoch,
+            tree,
         )?;
 
         let new_root = result.new_root;
@@ -262,6 +294,8 @@ impl StateTreeStrategy {
         batch_idx: usize,
         start: usize,
         zkp_batch_size: u64,
+        epoch: u64,
+        tree: &str,
     ) -> crate::Result<(ProofInput, [u8; 32])> {
         let batch = queue_data
             .state_queue
@@ -284,6 +318,8 @@ impl StateTreeStrategy {
             BatchType::Nullify,
             batch_idx,
             batch_seq,
+            epoch,
+            tree,
         )?;
 
         let new_root = result.new_root;

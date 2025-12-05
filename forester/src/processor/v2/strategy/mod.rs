@@ -30,7 +30,20 @@ pub trait TreeStrategy<R: Rpc>: Send + Sync + Clone + std::fmt::Debug + 'static 
     fn name(&self) -> &'static str;
     fn circuit_type(&self, queue_data: &Self::StagingTree) -> CircuitType;
 
+    /// Get the circuit type for a specific batch index.
+    /// This is needed for combined APPEND+NULLIFY processing where the circuit type
+    /// changes mid-batch based on batch_idx.
+    fn circuit_type_for_batch(&self, queue_data: &Self::StagingTree, batch_idx: usize) -> CircuitType {
+        // Default implementation just delegates to circuit_type (batch_idx used by StateTreeStrategy override)
+        let _ = batch_idx;
+        self.circuit_type(queue_data)
+    }
+
     async fn fetch_zkp_batch_size(&self, context: &BatchContext<R>) -> crate::Result<u64>;
+
+    /// Fetch the current on-chain root for this tree type.
+    /// Used to initialize processor state and validate indexer data.
+    async fn fetch_onchain_root(&self, context: &BatchContext<R>) -> crate::Result<[u8; 32]>;
 
     async fn fetch_queue_data(
         &self,
@@ -46,5 +59,7 @@ pub trait TreeStrategy<R: Rpc>: Send + Sync + Clone + std::fmt::Debug + 'static 
         batch_idx: usize,
         start: usize,
         zkp_batch_size: u64,
+        epoch: u64,
+        tree: &str,
     ) -> crate::Result<(ProofInput, [u8; 32])>;
 }

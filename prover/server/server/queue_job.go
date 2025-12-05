@@ -312,7 +312,7 @@ func (w *BaseQueueWorker) processJobs() {
 			return
 		}
 
-		err = w.processProofJob(job)
+		proof, err := w.generateProof(job)
 		w.removeFromProcessingQueue(job.ID)
 
 		proofDuration := time.Since(proofStartTime)
@@ -327,10 +327,37 @@ func (w *BaseQueueWorker) processJobs() {
 
 			w.addToFailedQueue(job, err)
 		} else {
+			// Store result with timing information
+			proofWithTiming := &common.ProofWithTiming{
+				Proof:           proof,
+				ProofDurationMs: proofDuration.Milliseconds(),
+			}
+
+			resultData, _ := json.Marshal(proofWithTiming)
+			resultJob := &ProofJob{
+				ID:        job.ID,
+				Type:      "result",
+				Payload:   json.RawMessage(resultData),
+				CreatedAt: time.Now(),
+			}
+			if enqueueErr := w.queue.EnqueueProof("zk_results_queue", resultJob); enqueueErr != nil {
+				logging.Logger().Error().
+					Err(enqueueErr).
+					Str("job_id", job.ID).
+					Msg("Failed to enqueue result")
+			}
+			if storeErr := w.queue.StoreResult(job.ID, proofWithTiming); storeErr != nil {
+				logging.Logger().Error().
+					Err(storeErr).
+					Str("job_id", job.ID).
+					Msg("Failed to store result")
+			}
+
 			logging.Logger().Info().
 				Str("job_id", job.ID).
 				Str("queue", w.queueName).
 				Dur("duration", proofDuration).
+				Int64("duration_ms", proofDuration.Milliseconds()).
 				Msg("Proof job completed successfully")
 		}
 
@@ -368,10 +395,12 @@ func (w *AddressAppendQueueWorker) Stop() {
 	w.BaseQueueWorker.Stop()
 }
 
-func (w *BaseQueueWorker) processProofJob(job *ProofJob) error {
+// generateProof generates a proof for the given job and returns it.
+// Result storage is handled by the caller to include timing information.
+func (w *BaseQueueWorker) generateProof(job *ProofJob) (*common.Proof, error) {
 	proofRequestMeta, err := common.ParseProofRequestMeta(job.Payload)
 	if err != nil {
-		return fmt.Errorf("failed to parse proof request: %w", err)
+		return nil, fmt.Errorf("failed to parse proof request: %w", err)
 	}
 
 	timer := StartProofTimer(string(proofRequestMeta.CircuitType))
@@ -396,13 +425,13 @@ func (w *BaseQueueWorker) processProofJob(job *ProofJob) error {
 	case common.BatchAddressAppendCircuitType:
 		proof, proofError = w.processBatchAddressAppendProof(job.Payload)
 	default:
-		return fmt.Errorf("unknown circuit type: %s", proofRequestMeta.CircuitType)
+		return nil, fmt.Errorf("unknown circuit type: %s", proofRequestMeta.CircuitType)
 	}
 
 	if proofError != nil {
 		timer.ObserveError("proof_generation_failed")
 		RecordJobComplete(false)
-		return proofError
+		return nil, proofError
 	}
 
 	timer.ObserveDuration()
@@ -413,18 +442,7 @@ func (w *BaseQueueWorker) processProofJob(job *ProofJob) error {
 		RecordProofSize(string(proofRequestMeta.CircuitType), len(proofBytes))
 	}
 
-	resultData, _ := json.Marshal(proof)
-	resultJob := &ProofJob{
-		ID:        job.ID,
-		Type:      "result",
-		Payload:   json.RawMessage(resultData),
-		CreatedAt: time.Now(),
-	}
-	err = w.queue.EnqueueProof("zk_results_queue", resultJob)
-	if err != nil {
-		return err
-	}
-	return w.queue.StoreResult(job.ID, proof)
+	return proof, nil
 }
 
 func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta common.ProofRequestMeta) (*common.Proof, error) {

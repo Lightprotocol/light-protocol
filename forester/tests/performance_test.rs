@@ -946,19 +946,22 @@ async fn performance_test_prefilled_queues() {
                 MAX_EPOCHS
             );
             println!(
-                "  Append:  circuit={:?}, proof={:?}",
+                "  Append:  circuit={:?}, proof={:?}, round_trip={:?}",
                 report.metrics.append.circuit_inputs_duration,
-                report.metrics.append.proof_generation_duration
+                report.metrics.append.proof_generation_duration,
+                report.metrics.append.round_trip_duration
             );
             println!(
-                "  Nullify: circuit={:?}, proof={:?}",
+                "  Nullify: circuit={:?}, proof={:?}, round_trip={:?}",
                 report.metrics.nullify.circuit_inputs_duration,
-                report.metrics.nullify.proof_generation_duration
+                report.metrics.nullify.proof_generation_duration,
+                report.metrics.nullify.round_trip_duration
             );
             println!(
-                "  Address: circuit={:?}, proof={:?}",
+                "  Address: circuit={:?}, proof={:?}, round_trip={:?}",
                 report.metrics.address_append.circuit_inputs_duration,
-                report.metrics.address_append.proof_generation_duration
+                report.metrics.address_append.proof_generation_duration,
+                report.metrics.address_append.round_trip_duration
             );
 
             if report.processed_items > 0 {
@@ -1016,6 +1019,10 @@ async fn performance_test_prefilled_queues() {
         "    Proof gen:      {:?}",
         total_metrics.append.proof_generation_duration
     );
+    println!(
+        "    Round trip:     {:?} (cumulative)",
+        total_metrics.append.round_trip_duration
+    );
     println!("    Total:          {:?}", total_metrics.append.total());
     println!("  Nullify (state input queue):");
     println!(
@@ -1026,6 +1033,10 @@ async fn performance_test_prefilled_queues() {
         "    Proof gen:      {:?}",
         total_metrics.nullify.proof_generation_duration
     );
+    println!(
+        "    Round trip:     {:?} (cumulative)",
+        total_metrics.nullify.round_trip_duration
+    );
     println!("    Total:          {:?}", total_metrics.nullify.total());
     println!("  AddressAppend:");
     println!(
@@ -1035,6 +1046,10 @@ async fn performance_test_prefilled_queues() {
     println!(
         "    Proof gen:      {:?}",
         total_metrics.address_append.proof_generation_duration
+    );
+    println!(
+        "    Round trip:     {:?} (cumulative)",
+        total_metrics.address_append.round_trip_duration
     );
     println!(
         "    Total:          {:?}",
@@ -1052,6 +1067,16 @@ async fn performance_test_prefilled_queues() {
         total_metrics.total_proof_generation(),
         100.0 * total_metrics.total_proof_generation().as_secs_f64()
             / processing_time.as_secs_f64().max(0.001)
+    );
+    println!(
+        "  Total round trip:     {:?} (cumulative, proofs run in parallel)",
+        total_metrics.total_round_trip()
+    );
+    let parallelism = total_metrics.total_round_trip().as_secs_f64()
+        / processing_time.as_secs_f64().max(0.001);
+    println!(
+        "  Effective parallelism: {:.1}x (round_trip / wall_clock)",
+        parallelism
     );
     println!("\nTotal items processed: {}", total_processed);
     println!("  State output items: {}", state_output_items);
