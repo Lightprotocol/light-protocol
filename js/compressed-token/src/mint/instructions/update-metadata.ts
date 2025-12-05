@@ -91,7 +91,9 @@ function encodeUpdateMetadataInstructionData(
     const mintInterface = params.mintInterface;
 
     if (!mintInterface.tokenMetadata) {
-        throw new Error('MintInterface must have tokenMetadata for metadata operations');
+        throw new Error(
+            'MintInterface must have tokenMetadata for metadata operations',
+        );
     }
 
     const instructionData: MintActionCompressedInstructionData = {
@@ -110,7 +112,8 @@ function encodeUpdateMetadataInstructionData(
             decimals: mintInterface.mint.decimals,
             metadata: {
                 version: mintInterface.mintContext!.version,
-                splMintInitialized: mintInterface.mintContext!.splMintInitialized,
+                splMintInitialized:
+                    mintInterface.mintContext!.splMintInitialized,
                 mint: mintInterface.mintContext!.splMint,
             },
             mintAuthority: mintInterface.mint.mintAuthority,

@@ -1,6 +1,6 @@
 /**
  * Unified exports for @lightprotocol/compressed-token/unified
-*/
+ */
 import { PublicKey, Signer, ConfirmOptions, Commitment } from '@solana/web3.js';
 import { Rpc, CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
@@ -40,7 +40,7 @@ export async function getATAInterface(
 
 /**
  * Create instructions to load ALL token balances into a CToken ATA.
- * 
+ *
  * @param rpc     RPC connection
  * @param ata     Associated token address
  * @param owner   Owner public key
