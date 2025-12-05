@@ -164,7 +164,7 @@ describe('transfer-interface', () => {
                 rpc,
                 ata,
                 payer.publicKey,
-                { tokenPoolInfos },
+                mint,
             );
 
             expect(ixs.length).toBeGreaterThan(0);
@@ -203,7 +203,7 @@ describe('transfer-interface', () => {
                 rpc,
                 ata,
                 payer.publicKey,
-                { tokenPoolInfos },
+                mint,
             );
 
             expect(ixs.length).toBeGreaterThan(0);
@@ -298,7 +298,7 @@ describe('transfer-interface', () => {
             const signature = await transferInterface(
                 rpc,
                 payer,
-                sourceAta.address,
+                sourceAta,
                 recipientAta.address,
                 sender,
                 mint,
@@ -308,7 +308,7 @@ describe('transfer-interface', () => {
             expect(signature).toBeDefined();
 
             // Verify balances
-            const senderAtaInfo = await rpc.getAccountInfo(sourceAta.address);
+            const senderAtaInfo = await rpc.getAccountInfo(sourceAta);
             const senderBalance = senderAtaInfo!.data.readBigUInt64LE(64);
             expect(senderBalance).toBe(BigInt(4000));
 
@@ -352,7 +352,7 @@ describe('transfer-interface', () => {
             const signature = await transferInterface(
                 rpc,
                 payer,
-                sourceAta.address,
+                sourceAta,
                 recipientAta.address,
                 sender,
                 mint,
@@ -372,7 +372,7 @@ describe('transfer-interface', () => {
             expect(recipientBalance).toBe(BigInt(2000));
 
             // Sender should have change (loaded all 3000, sent 2000)
-            const senderAtaInfo = await rpc.getAccountInfo(sourceAta.address);
+            const senderAtaInfo = await rpc.getAccountInfo(sourceAta);
             const senderBalance = senderAtaInfo!.data.readBigUInt64LE(64);
             expect(senderBalance).toBe(BigInt(1000));
         });
@@ -434,7 +434,7 @@ describe('transfer-interface', () => {
                 transferInterface(
                     rpc,
                     payer,
-                    sourceAta.address,
+                    sourceAta,
                     recipientAta.address,
                     sender,
                     mint,
@@ -482,9 +482,17 @@ describe('transfer-interface', () => {
                 mint,
                 recipient.publicKey,
             );
-            await loadATA(rpc, recipientAta2, recipient, mint, undefined, undefined, {
-                tokenPoolInfos,
-            });
+            await loadATA(
+                rpc,
+                recipientAta2,
+                recipient,
+                mint,
+                undefined,
+                undefined,
+                {
+                    tokenPoolInfos,
+                },
+            );
 
             const sourceAta = getAssociatedTokenAddressInterface(
                 mint,
@@ -496,15 +504,15 @@ describe('transfer-interface', () => {
             );
 
             const recipientBalanceBefore = (await rpc.getAccountInfo(
-                destAta.address,
+                destAta,
             ))!.data.readBigUInt64LE(64);
 
             // Transfer
             await transferInterface(
                 rpc,
                 payer,
-                sourceAta.address,
-                destAta.address,
+                sourceAta,
+                destAta,
                 sender,
                 mint,
                 BigInt(500),
@@ -512,7 +520,7 @@ describe('transfer-interface', () => {
 
             // Verify recipient balance increased
             const recipientBalanceAfter = (await rpc.getAccountInfo(
-                destAta.address,
+                destAta,
             ))!.data.readBigUInt64LE(64);
             expect(recipientBalanceAfter).toBe(
                 recipientBalanceBefore + BigInt(500),

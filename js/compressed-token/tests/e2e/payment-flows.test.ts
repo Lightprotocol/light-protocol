@@ -236,7 +236,7 @@ describe('Payment Flows', () => {
             );
 
             const recipientBefore = (await rpc.getAccountInfo(
-                destAta.address,
+                destAta,
             ))!.data.readBigUInt64LE(64);
 
             // Transfer - no loading needed
@@ -251,7 +251,7 @@ describe('Payment Flows', () => {
             );
 
             const recipientAfter = (await rpc.getAccountInfo(
-                destAta.address,
+                destAta,
             ))!.data.readBigUInt64LE(64);
             expect(recipientAfter).toBe(recipientBefore + BigInt(500));
         });
@@ -284,7 +284,12 @@ describe('Payment Flows', () => {
                 mint,
                 sender.publicKey,
             );
-            const senderAta = await getATAInterface(rpc, senderAtaAddress, sender.publicKey, mint);
+            const senderAta = await getATAInterface(
+                rpc,
+                senderAtaAddress,
+                sender.publicKey,
+                mint,
+            );
 
             // STEP 2: Build load params
             const result = await createLoadAccountsParams(
@@ -332,7 +337,7 @@ describe('Payment Flows', () => {
 
             // Verify
             const recipientBalance = (await rpc.getAccountInfo(
-                recipientAtaAddress.address,
+                recipientAtaAddress,
             ))!.data.readBigUInt64LE(64);
             expect(recipientBalance).toBe(amount);
         });
@@ -359,7 +364,12 @@ describe('Payment Flows', () => {
             await loadATA(rpc, senderAtaAddress, sender, mint);
 
             // Sender is hot - createLoadAccountsParams returns empty ataInstructions
-            const senderAta = await getATAInterface(rpc, senderAtaAddress, sender.publicKey, mint);
+            const senderAta = await getATAInterface(
+                rpc,
+                senderAtaAddress,
+                sender.publicKey,
+                mint,
+            );
             const result = await createLoadAccountsParams(
                 rpc,
                 payer.publicKey,
@@ -397,7 +407,7 @@ describe('Payment Flows', () => {
 
             // Verify
             const balance = (await rpc.getAccountInfo(
-                recipientAtaAddress.address,
+                recipientAtaAddress,
             ))!.data.readBigUInt64LE(64);
             expect(balance).toBe(BigInt(500));
         });
@@ -475,10 +485,10 @@ describe('Payment Flows', () => {
 
             // Verify
             const r1Balance = (await rpc.getAccountInfo(
-                r1AtaAddress.address,
+                r1AtaAddress,
             ))!.data.readBigUInt64LE(64);
             const r2Balance = (await rpc.getAccountInfo(
-                r2AtaAddress.address,
+                r2AtaAddress,
             ))!.data.readBigUInt64LE(64);
             expect(r1Balance).toBe(BigInt(1000));
             expect(r2Balance).toBe(BigInt(2000));

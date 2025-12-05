@@ -106,7 +106,7 @@ describe('decompress2', () => {
                 mint,
                 owner.publicKey,
             );
-            const ataInfo = await rpc.getAccountInfo(ctokenAta.address);
+            const ataInfo = await rpc.getAccountInfo(ctokenAta);
             expect(ataInfo).not.toBeNull();
             const hotBalance = ataInfo!.data.readBigUInt64LE(64);
             expect(hotBalance).toBe(BigInt(5000));
@@ -150,7 +150,7 @@ describe('decompress2', () => {
                 mint,
                 owner.publicKey,
             );
-            const ataInfo = await rpc.getAccountInfo(ctokenAta.address);
+            const ataInfo = await rpc.getAccountInfo(ctokenAta);
             expect(ataInfo).not.toBeNull();
             // Note: decompress2 decompresses all from selected accounts,
             // so the balance will be 10000 (full account)
@@ -215,7 +215,7 @@ describe('decompress2', () => {
                 mint,
                 owner.publicKey,
             );
-            const ataInfo = await rpc.getAccountInfo(ctokenAta.address);
+            const ataInfo = await rpc.getAccountInfo(ctokenAta);
             expect(ataInfo).not.toBeNull();
             const hotBalance = ataInfo!.data.readBigUInt64LE(64);
             expect(hotBalance).toBe(BigInt(6000));
@@ -262,7 +262,7 @@ describe('decompress2', () => {
                 mint,
                 owner.publicKey,
             );
-            const beforeInfo = await rpc.getAccountInfo(ctokenAta.address);
+            const beforeInfo = await rpc.getAccountInfo(ctokenAta);
             expect(beforeInfo).toBeNull();
 
             // Mint compressed tokens
@@ -288,7 +288,7 @@ describe('decompress2', () => {
             expect(signature).not.toBeNull();
 
             // Verify ATA was created with balance
-            const afterInfo = await rpc.getAccountInfo(ctokenAta.address);
+            const afterInfo = await rpc.getAccountInfo(ctokenAta);
             expect(afterInfo).not.toBeNull();
             const hotBalance = afterInfo!.data.readBigUInt64LE(64);
             expect(hotBalance).toBe(BigInt(1000));
@@ -321,7 +321,7 @@ describe('decompress2', () => {
                 mint,
                 owner.publicKey,
             );
-            const midInfo = await rpc.getAccountInfo(ctokenAta.address);
+            const midInfo = await rpc.getAccountInfo(ctokenAta);
             expect(midInfo!.data.readBigUInt64LE(64)).toBe(BigInt(2000));
 
             // Mint more compressed tokens
@@ -345,7 +345,7 @@ describe('decompress2', () => {
             });
 
             // Verify total balance = 5000
-            const afterInfo = await rpc.getAccountInfo(ctokenAta.address);
+            const afterInfo = await rpc.getAccountInfo(ctokenAta);
             expect(afterInfo!.data.readBigUInt64LE(64)).toBe(BigInt(5000));
         });
 
@@ -375,15 +375,13 @@ describe('decompress2', () => {
                 payer,
                 owner,
                 mint,
-                destinationAta: recipientAta.address,
+                destinationAta: recipientAta,
             });
 
             expect(signature).not.toBeNull();
 
             // Verify recipient ATA has balance
-            const recipientInfo = await rpc.getAccountInfo(
-                recipientAta.address,
-            );
+            const recipientInfo = await rpc.getAccountInfo(recipientAta);
             expect(recipientInfo).not.toBeNull();
             expect(recipientInfo!.data.readBigUInt64LE(64)).toBe(BigInt(4000));
 
@@ -392,7 +390,7 @@ describe('decompress2', () => {
                 mint,
                 owner.publicKey,
             );
-            const ownerInfo = await rpc.getAccountInfo(ownerAta.address);
+            const ownerInfo = await rpc.getAccountInfo(ownerAta);
             if (ownerInfo) {
                 expect(ownerInfo.data.readBigUInt64LE(64)).toBe(BigInt(0));
             }
@@ -437,7 +435,7 @@ describe('decompress2', () => {
             const ix = createDecompress2Instruction(
                 payer.publicKey,
                 compressedResult.items,
-                ctokenAta.address,
+                ctokenAta,
                 BigInt(1000),
                 proof,
             );
@@ -526,7 +524,7 @@ describe('decompress2', () => {
             const ix = createDecompress2Instruction(
                 payer.publicKey,
                 compressedResult.items,
-                ctokenAta.address,
+                ctokenAta,
                 BigInt(1000),
                 proof,
             );
@@ -575,7 +573,7 @@ describe('decompress2', () => {
             const ix = createDecompress2Instruction(
                 payer.publicKey,
                 compressedResult.items,
-                ctokenAta.address,
+                ctokenAta,
                 BigInt(1000),
                 proof,
             );
@@ -587,9 +585,7 @@ describe('decompress2', () => {
             expect(ix.keys[2].isWritable).toBe(false);
 
             // Find destination account and verify it's writable
-            const destKey = ix.keys.find(k =>
-                k.pubkey.equals(ctokenAta.address),
-            );
+            const destKey = ix.keys.find(k => k.pubkey.equals(ctokenAta));
             expect(destKey).toBeDefined();
             expect(destKey!.isWritable).toBe(true);
         });

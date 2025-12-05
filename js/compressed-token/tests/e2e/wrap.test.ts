@@ -94,7 +94,7 @@ describe('createWrapInstruction', () => {
 
         const ix = createWrapInstruction(
             source,
-            destination.address,
+            destination,
             owner.publicKey,
             mint,
             BigInt(1000),
@@ -125,7 +125,7 @@ describe('createWrapInstruction', () => {
 
         const ix = createWrapInstruction(
             source,
-            destination.address,
+            destination,
             owner.publicKey,
             mint,
             BigInt(500),
@@ -158,7 +158,7 @@ describe('createWrapInstruction', () => {
 
         const ix = createWrapInstruction(
             source,
-            destination.address,
+            destination,
             owner.publicKey,
             mint,
             BigInt(100),
@@ -259,7 +259,7 @@ describe('wrap action', () => {
             rpc,
             payer,
             splAta,
-            ctokenAta.address,
+            ctokenAta,
             owner,
             mint,
             BigInt(500),
@@ -272,10 +272,7 @@ describe('wrap action', () => {
         const splBalanceAfter = await getAccount(rpc, splAta);
         expect(splBalanceAfter.amount).toBe(BigInt(500));
 
-        const ctokenBalanceAfter = await getCTokenBalance(
-            rpc,
-            ctokenAta.address,
-        );
+        const ctokenBalanceAfter = await getCTokenBalance(rpc, ctokenAta);
         expect(ctokenBalanceAfter).toBe(BigInt(500));
     }, 60_000);
 
@@ -327,7 +324,7 @@ describe('wrap action', () => {
             rpc,
             payer,
             splAta,
-            ctokenAta.address,
+            ctokenAta,
             owner,
             mint,
             BigInt(500), // full balance
@@ -341,10 +338,7 @@ describe('wrap action', () => {
         expect(splBalanceAfter.amount).toBe(BigInt(0));
 
         // CToken should have full balance
-        const ctokenBalanceAfter = await getCTokenBalance(
-            rpc,
-            ctokenAta.address,
-        );
+        const ctokenBalanceAfter = await getCTokenBalance(rpc, ctokenAta);
         expect(ctokenBalanceAfter).toBe(BigInt(500));
     }, 60_000);
 
@@ -392,7 +386,7 @@ describe('wrap action', () => {
             rpc,
             payer,
             splAta,
-            ctokenAta.address,
+            ctokenAta,
             owner,
             mint,
             BigInt(100),
@@ -401,7 +395,7 @@ describe('wrap action', () => {
 
         expect(result.transactionSignature).toBeDefined();
 
-        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta.address);
+        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
         expect(ctokenBalance).toBe(BigInt(100));
     }, 60_000);
 
@@ -466,7 +460,7 @@ describe('wrap action', () => {
             rpc,
             separatePayer, // Different from owner
             splAta,
-            ctokenAta.address,
+            ctokenAta,
             owner, // Owner still signs for the source account
             mint,
             BigInt(150),
@@ -475,7 +469,7 @@ describe('wrap action', () => {
 
         expect(result.transactionSignature).toBeDefined();
 
-        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta.address);
+        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
         expect(ctokenBalance).toBe(BigInt(150));
     }, 60_000);
 });
@@ -561,7 +555,7 @@ describe('wrap with non-ATA accounts', () => {
             rpc,
             payer,
             source,
-            destination.address,
+            destination,
             owner,
             mint,
             BigInt(200),
@@ -570,7 +564,7 @@ describe('wrap with non-ATA accounts', () => {
 
         expect(result.transactionSignature).toBeDefined();
 
-        const destBalance = await getCTokenBalance(rpc, destination.address);
+        const destBalance = await getCTokenBalance(rpc, destination);
         expect(destBalance).toBe(BigInt(200));
     }, 60_000);
 });

@@ -217,9 +217,9 @@ describe('Complete Mint Workflow', () => {
             owner3.publicKey,
         );
 
-        expect(ata1.toString()).toBe(expectedAta1.address.toString());
-        expect(ata2.toString()).toBe(expectedAta2.address.toString());
-        expect(ata3.toString()).toBe(expectedAta3.address.toString());
+        expect(ata1.toString()).toBe(expectedAta1.toString());
+        expect(ata2.toString()).toBe(expectedAta2.toString());
+        expect(ata3.toString()).toBe(expectedAta3.toString());
 
         const finalMintInfo = await getMintInterface(
             rpc,
@@ -310,7 +310,7 @@ describe('Complete Mint Workflow', () => {
             mintPda,
             owner.publicKey,
         );
-        expect(ataAddress.toString()).toBe(expectedAddress.address.toString());
+        expect(ataAddress.toString()).toBe(expectedAddress.toString());
 
         const accountInfo = await rpc.getAccountInfo(ataAddress);
         expect(accountInfo).not.toBe(null);
@@ -360,9 +360,7 @@ describe('Complete Mint Workflow', () => {
                 mint,
                 owner.publicKey,
             );
-            expect(ataAddress.toString()).toBe(
-                expectedAddress.address.toString(),
-            );
+            expect(ataAddress.toString()).toBe(expectedAddress.toString());
 
             const accountInfo = await rpc.getAccountInfo(ataAddress);
             expect(accountInfo).not.toBe(null);
@@ -408,7 +406,7 @@ describe('Complete Mint Workflow', () => {
             mintPda,
             owner.publicKey,
         );
-        expect(ataAddress.toString()).toBe(expectedAddress.address.toString());
+        expect(ataAddress.toString()).toBe(expectedAddress.toString());
 
         const updateNameSig = await updateMetadataField(
             rpc,
@@ -597,7 +595,7 @@ describe('Complete Mint Workflow', () => {
             mint,
             owner.publicKey,
         );
-        expect(ataAddress.toString()).toBe(expectedAddress.address.toString());
+        expect(ataAddress.toString()).toBe(expectedAddress.toString());
 
         const accountInfo = await rpc.getAccountInfo(ataAddress);
         expect(accountInfo).not.toBe(null);
@@ -661,14 +659,10 @@ describe('Complete Mint Workflow', () => {
             owner.publicKey,
         );
 
-        expect(ataAddress.toString()).toBe(
-            derivedAddressBefore.address.toString(),
-        );
-        expect(ataAddress.toString()).toBe(
-            derivedAddressAfter.address.toString(),
-        );
-        expect(derivedAddressBefore.address.toString()).toBe(
-            derivedAddressAfter.address.toString(),
+        expect(ataAddress.toString()).toBe(derivedAddressBefore.toString());
+        expect(ataAddress.toString()).toBe(derivedAddressAfter.toString());
+        expect(derivedAddressBefore.toString()).toBe(
+            derivedAddressAfter.toString(),
         );
     });
 });
