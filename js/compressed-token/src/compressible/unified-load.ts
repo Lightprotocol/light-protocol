@@ -110,10 +110,6 @@ export interface LoadResult {
     ataInstructions: TransactionInstruction[];
 }
 
-// ============================================
-// Shared helper: Build load instructions from AccountInterface
-// ============================================
-
 /**
  * Create instructions to load an ATA from its AccountInterface.
  *
@@ -360,16 +356,13 @@ export async function loadATA(
     return sendAndConfirmTx(rpc, tx, confirmOptions);
 }
 
-// ============================================
-// Main function: createLoadAccountsParams
-// ============================================
-
 /**
  * Create params for loading program accounts and ATAs.
  *
  * Returns:
- * - decompressParams: for custom program's decompressAccountsIdempotent instruction
- * - ataInstructions: for loading user ATAs (create ATA, wrap SPL/T22, decompress2)
+ * - decompressParams: for a caller program's standardized
+ *   decompressAccountsIdempotent instruction
+ * - ataInstructions: for loading user ATAs
  *
  * @param rpc              RPC connection
  * @param payer            Fee payer (needed for ATA instructions)
@@ -420,9 +413,6 @@ export async function createLoadAccountsParams(
     atas: AccountInterface[] = [],
     options?: InterfaceOptions,
 ): Promise<LoadResult> {
-    // ============================================
-    // 1. Build decompressParams for program accounts
-    // ============================================
     let decompressParams: CompressibleLoadParams | null = null;
 
     const compressedProgramAccounts = programAccounts.filter(
@@ -437,7 +427,6 @@ export async function createLoadAccountsParams(
             queue: acc.info.loadContext!.treeInfo.queue,
         }));
 
-        // Get validity proof
         const proofResult = await rpc.getValidityProofV0(proofInputs, []);
 
         // Build accounts data for packing
@@ -488,9 +477,6 @@ export async function createLoadAccountsParams(
         };
     }
 
-    // ============================================
-    // 2. Build ATA load instructions
-    // ============================================
     const ataInstructions: TransactionInstruction[] = [];
 
     for (const ata of atas) {
@@ -527,7 +513,3 @@ export function calculateCompressibleLoadComputeUnits(
 
     return cu;
 }
-
-// Re-export for backward compatibility
-export { buildDecompressParams } from './helpers';
-export type { AccountInput, DecompressInstructionParams } from './helpers';

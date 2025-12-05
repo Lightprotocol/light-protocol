@@ -1,5 +1,8 @@
 /**
- * Unified exports for @lightprotocol/compressed-token/unified
+ * Exports for @lightprotocol/compressed-token/unified
+ *
+ * Import from `/unified` to get a single unified ATA for SPL/T22 and c-token
+ * mints.
  */
 import { PublicKey, Signer, ConfirmOptions, Commitment } from '@solana/web3.js';
 import { Rpc, CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
