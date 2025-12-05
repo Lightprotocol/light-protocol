@@ -43,9 +43,6 @@ describe('updateMint', () => {
             null,
             decimals,
             mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -96,9 +93,6 @@ describe('updateMint', () => {
             null,
             decimals,
             mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -138,9 +132,6 @@ describe('updateMint', () => {
             initialFreezeAuthority.publicKey,
             decimals,
             mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -193,9 +184,6 @@ describe('updateMint', () => {
             freezeAuthority.publicKey,
             decimals,
             mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -238,9 +226,6 @@ describe('updateMint', () => {
             initialFreezeAuthority.publicKey,
             decimals,
             mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 

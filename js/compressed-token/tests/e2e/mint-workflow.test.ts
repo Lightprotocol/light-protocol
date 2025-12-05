@@ -58,9 +58,9 @@ describe('Complete Mint Workflow', () => {
                 initialFreezeAuthority.publicKey,
                 decimals,
                 mintSigner,
-                initialMetadata,
-                addressTreeInfo,
                 undefined,
+                undefined,
+                initialMetadata,
             );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -269,9 +269,9 @@ describe('Complete Mint Workflow', () => {
             freezeAuthority.publicKey,
             decimals,
             mintSigner,
-            metadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            metadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -337,9 +337,6 @@ describe('Complete Mint Workflow', () => {
                 null,
                 decimals,
                 mintSigner,
-                undefined,
-                addressTreeInfo,
-                undefined,
             );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -399,9 +396,9 @@ describe('Complete Mint Workflow', () => {
             null,
             decimals,
             mintSigner,
-            metadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            metadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -465,9 +462,9 @@ describe('Complete Mint Workflow', () => {
                 freezeAuthority.publicKey,
                 decimals,
                 mintSigner,
-                metadata,
-                addressTreeInfo,
                 undefined,
+                undefined,
+                metadata,
             );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -585,9 +582,6 @@ describe('Complete Mint Workflow', () => {
                 null,
                 decimals,
                 mintSigner,
-                undefined,
-                addressTreeInfo,
-                undefined,
             );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -657,9 +651,6 @@ describe('Complete Mint Workflow', () => {
                 null,
                 decimals,
                 mintSigner,
-                undefined,
-                addressTreeInfo,
-                undefined,
             );
         await rpc.confirmTransaction(createSig, 'confirmed');
 

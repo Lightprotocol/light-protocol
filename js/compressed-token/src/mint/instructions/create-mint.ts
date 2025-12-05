@@ -12,10 +12,12 @@ import {
     deriveAddressV2,
     TreeInfo,
     AddressTreeInfo,
+    ValidityProof,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../../program';
 import { findMintAddress } from '../../compressible/derivation';
 import {
+    AdditionalMetadata,
     encodeMintActionInstructionData,
     MintActionCompressedInstructionData,
     TokenMetadataInstructionData as TokenMetadataBorshData,
@@ -23,24 +25,17 @@ import {
 import { TokenDataVersion } from '../../constants';
 
 /**
- * Token metadata for creating a compressed mint
- * Uses strings for user-friendly input
+ * Token metadata for creating a c-token mint.
  */
 export interface TokenMetadataInstructionData {
     name: string;
     symbol: string;
     uri: string;
     updateAuthority?: PublicKey | null;
-    additionalMetadata?: {
-        key: string;
-        value: string;
-    }[];
+    additionalMetadata: AdditionalMetadata[] | null;
 }
 
-/** @deprecated Use TokenMetadataInstructionData instead */
-export type TokenMetadataInstructionDataInput = TokenMetadataInstructionData;
-
-interface EncodeCreateMintInstructionParams {
+export interface EncodeCreateMintInstructionParams {
     mintSigner: PublicKey;
     mintAuthority: PublicKey;
     freezeAuthority: PublicKey | null;
@@ -48,7 +43,7 @@ interface EncodeCreateMintInstructionParams {
     addressTree: PublicKey;
     outputQueue: PublicKey;
     rootIndex: number;
-    proof: { a: number[]; b: number[]; c: number[] } | null;
+    proof: ValidityProof | null;
     metadata?: TokenMetadataInstructionData;
 }
 
@@ -57,16 +52,18 @@ export function createTokenMetadata(
     symbol: string,
     uri: string,
     updateAuthority?: PublicKey | null,
+    additionalMetadata: AdditionalMetadata[] | null = null,
 ): TokenMetadataInstructionData {
     return {
         name,
         symbol,
         uri,
         updateAuthority: updateAuthority ?? null,
+        additionalMetadata: additionalMetadata ?? null,
     };
 }
 
-function encodeCreateMintInstructionData(
+export function encodeCreateMintInstructionData(
     params: EncodeCreateMintInstructionParams,
 ): Buffer {
     const [splMintPda] = findMintAddress(params.mintSigner);
@@ -86,12 +83,13 @@ function encodeCreateMintInstructionData(
                     name: Buffer.from(params.metadata.name),
                     symbol: Buffer.from(params.metadata.symbol),
                     uri: Buffer.from(params.metadata.uri),
-                    additionalMetadata: null,
+                    additionalMetadata: params.metadata.additionalMetadata,
                 },
             },
         ];
     }
 
+    /** TODO: check leafIndex */
     const instructionData: MintActionCompressedInstructionData = {
         leafIndex: 0,
         proveByIndex: false,
@@ -137,14 +135,14 @@ export interface CreateMintInstructionParams {
 }
 
 /**
- * Create instruction for initializing a compressed token mint.
+ * Create instruction for initializing a c-token mint.
  *
  * @param mintSigner          Mint signer keypair public key.
  * @param decimals            Number of decimals for the mint.
  * @param mintAuthority       Mint authority public key.
  * @param freezeAuthority     Optional freeze authority public key.
  * @param payer               Fee payer public key.
- * @param validityProof       Validity proof for the compressed account.
+ * @param validityProof       Validity proof for the mint account.
  * @param addressTreeInfo     Address tree info for the mint.
  * @param outputStateTreeInfo Output state tree info.
  * @param metadata            Optional token metadata.

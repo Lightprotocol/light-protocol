@@ -41,12 +41,12 @@ export { TokenMetadataInstructionData };
  * @param freezeAuthority   Optional: Account that will control freeze and thaw.
  * @param decimals          Location of the decimal place
  * @param keypair           Optional: Mint keypair. Defaults to a random keypair.
- * @param metadata          Optional: Token metadata (only used for compressed mints)
- * @param addressTreeInfo   Optional: Address tree info (only used for compressed mints)
- * @param outputStateTreeInfo Optional: Output state tree info (only used for compressed mints)
  * @param confirmOptions    Optional: Options for confirming the transaction
  * @param programId         Optional: Token program ID. Defaults to CTOKEN_PROGRAM_ID (compressed).
  *                          Set to TOKEN_PROGRAM_ID or TOKEN_2022_PROGRAM_ID for SPL mints.
+ * @param tokenMetadata     Optional: Token metadata (only used for compressed mints)
+ * @param outputStateTreeInfo Optional: Output state tree info (only used for compressed mints)
+ * @param addressTreeInfo   Optional: Address tree info (only used for compressed mints)
  *
  * @return Object with mint address and transaction signature
  */
@@ -57,11 +57,11 @@ export async function createMintInterface(
     freezeAuthority: PublicKey | Signer | null,
     decimals: number,
     keypair: Keypair = Keypair.generate(),
-    metadata?: TokenMetadataInstructionData,
-    addressTreeInfo?: AddressTreeInfo,
-    outputStateTreeInfo?: TreeInfo,
     confirmOptions?: ConfirmOptions,
     programId: PublicKey = CTOKEN_PROGRAM_ID,
+    tokenMetadata?: TokenMetadataInstructionData,
+    outputStateTreeInfo?: TreeInfo,
+    addressTreeInfo?: AddressTreeInfo,
 ): Promise<{ mint: PublicKey; transactionSignature: TransactionSignature }> {
     // Dispatch to SPL/Token-2022 mint creation
     if (
@@ -117,7 +117,7 @@ export async function createMintInterface(
         validityProof,
         addressTreeInfo,
         outputStateTreeInfo,
-        metadata,
+        tokenMetadata,
     );
 
     const additionalSigners = dedupeSigner(payer, [keypair, mintAuthority]);

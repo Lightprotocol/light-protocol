@@ -44,9 +44,6 @@ describe('createAssociatedCTokenAccount', () => {
                 null,
                 decimals,
                 mintSigner,
-                undefined,
-                addressTreeInfo,
-                undefined,
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
@@ -88,9 +85,6 @@ describe('createAssociatedCTokenAccount', () => {
                 null,
                 decimals,
                 mintSigner,
-                undefined,
-                addressTreeInfo,
-                undefined,
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
@@ -124,9 +118,6 @@ describe('createAssociatedCTokenAccount', () => {
                 null,
                 decimals,
                 mintSigner,
-                undefined,
-                addressTreeInfo,
-                undefined,
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
@@ -178,9 +169,6 @@ describe('createAssociatedCTokenAccount', () => {
                 null,
                 decimals,
                 mintSigner,
-                undefined,
-                addressTreeInfo,
-                undefined,
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
@@ -243,9 +231,6 @@ describe('createAssociatedCTokenAccount', () => {
                 null,
                 decimals,
                 mintSigner,
-                undefined,
-                addressTreeInfo,
-                undefined,
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
@@ -311,9 +296,9 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
                 null,
                 decimals,
                 mintSigner,
-                metadata,
-                addressTreeInfo,
                 undefined,
+                undefined,
+                metadata,
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
@@ -376,9 +361,6 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
                 freezeAuthority.publicKey,
                 decimals,
                 mintSigner,
-                undefined,
-                addressTreeInfo,
-                undefined,
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
@@ -415,9 +397,6 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
                 null,
                 decimals,
                 mintSigner1,
-                undefined,
-                addressTreeInfo,
-                undefined,
             );
         await rpc.confirmTransaction(createMint1Sig, 'confirmed');
 
@@ -433,9 +412,6 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
                 null,
                 decimals,
                 mintSigner2,
-                undefined,
-                addressTreeInfo,
-                undefined,
             );
         await rpc.confirmTransaction(createMint2Sig, 'confirmed');
 
@@ -483,9 +459,6 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
                 null,
                 decimals,
                 mintSigner,
-                undefined,
-                addressTreeInfo,
-                undefined,
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
@@ -522,9 +495,6 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
                 null,
                 decimals,
                 mintSigner,
-                undefined,
-                addressTreeInfo,
-                undefined,
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 

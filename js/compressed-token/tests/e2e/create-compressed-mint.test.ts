@@ -53,9 +53,6 @@ describe('createMintInterface (compressed)', () => {
             null,
             decimals,
             mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
         );
 
         await rpc.confirmTransaction(signature, 'confirmed');
@@ -110,9 +107,6 @@ describe('createMintInterface (compressed)', () => {
             freezeAuthority.publicKey,
             decimals,
             mintSigner2,
-            undefined,
-            addressTreeInfo,
-            undefined,
         );
 
         await rpc.confirmTransaction(signature, 'confirmed');

@@ -48,9 +48,6 @@ describe('mintTo (MintToCToken)', () => {
             null,
             decimals,
             mintSigner,
-            undefined,
-            undefined,
-            undefined,
         );
         await rpc.confirmTransaction(result.transactionSignature, 'confirmed');
         mint = result.mint;

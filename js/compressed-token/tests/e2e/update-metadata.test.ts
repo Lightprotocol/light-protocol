@@ -54,9 +54,9 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            initialMetadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            initialMetadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -113,9 +113,9 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            initialMetadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            initialMetadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -161,9 +161,9 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            initialMetadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            initialMetadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -212,9 +212,9 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            initialMetadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            initialMetadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -270,9 +270,9 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            initialMetadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            initialMetadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -359,9 +359,9 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            initialMetadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            initialMetadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -394,9 +394,6 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -433,9 +430,9 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            metadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            metadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
@@ -480,9 +477,9 @@ describe('updateMetadata', () => {
             null,
             decimals,
             mintSigner,
-            metadata,
-            addressTreeInfo,
             undefined,
+            undefined,
+            metadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
 

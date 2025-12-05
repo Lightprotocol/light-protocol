@@ -194,9 +194,6 @@ describe('mintToInterface - Compressed Mints', () => {
             null,
             decimals,
             mintSigner,
-            undefined,
-            undefined,
-            undefined,
         );
         await rpc.confirmTransaction(result.transactionSignature, 'confirmed');
         mint = result.mint;
@@ -361,9 +358,6 @@ describe('mintToInterface - Edge Cases', () => {
             null,
             6,
             mintSigner,
-            undefined,
-            undefined,
-            undefined,
         );
         await rpc.confirmTransaction(result.transactionSignature, 'confirmed');
         compressedMint = result.mint;
@@ -412,9 +406,6 @@ describe('mintToInterface - Edge Cases', () => {
             null,
             9,
             mintSigner,
-            undefined,
-            undefined,
-            undefined,
         );
         await rpc.confirmTransaction(result.transactionSignature, 'confirmed');
 
