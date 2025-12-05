@@ -346,3 +346,7 @@ pub mod output_queue_data_v2;
 pub use self::output_queue_data_v2::OutputQueueDataV2;
 pub mod state_queue_data_v2;
 pub use self::state_queue_data_v2::StateQueueDataV2;
+pub mod queue_request;
+pub use self::queue_request::QueueRequest;
+pub mod node;
+pub use self::node::Node;

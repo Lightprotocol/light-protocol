@@ -65,14 +65,14 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
                 }
             };
 
-        // // Validate indexer root matches on-chain root before generating proofs
+        // Validate indexer root matches on-chain root before generating proofs
         // let onchain_root = fetch_onchain_address_root(context).await?;
         // if aq.initial_root == onchain_root {
         //     address_queue = Some(aq);
         //     break;
         // }
 
-        // warn!(
+        //     warn!(
         //     "Indexer root mismatch for address tree {} (attempt {}/{}): indexer={}, onchain={}. Waiting for indexer...",
         //     context.merkle_tree,
         //     attempt + 1,
@@ -81,11 +81,11 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
         //     bs58::encode(&onchain_root).into_string()
         // );
 
-        // // Wait for indexer to catch up
-        // let rpc = context.rpc_pool.get_connection().await?;
-        // if let Err(e) = wait_for_indexer(&*rpc).await {
-        //     warn!("wait_for_indexer failed: {}", e);
-        // }
+        // Wait for indexer to catch up
+        //     let rpc = context.rpc_pool.get_connection().await?;
+        //     if let Err(e) = wait_for_indexer(&*rpc).await {
+        //         warn!("wait_for_indexer failed: {}", e);
+        //     }
         // }
 
         // let address_queue = match address_queue {

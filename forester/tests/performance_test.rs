@@ -674,29 +674,29 @@ async fn get_address_queue_pending<R: Rpc>(rpc: &mut R, merkle_tree_pubkey: &Pub
 #[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 #[serial]
 async fn performance_test_prefilled_queues() {
-    // println!("\n=== FORESTER PERFORMANCE TEST ===");
-    // println!("Test: Pre-fill all queues, then measure forester processing time\n");
+    println!("\n=== FORESTER PERFORMANCE TEST ===");
+    println!("Test: Pre-fill all queues, then measure forester processing time\n");
 
     // Initialize tracing subscriber to see forester logs
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .with_test_writer()
-        .try_init()
-        .ok();
+    // tracing_subscriber::fmt()
+    //     .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+    //     .with_test_writer()
+    //     .try_init()
+    //     .ok();
 
     let env = TestAccounts::get_local_test_validator_accounts();
     // Initialize local validator
-    // init(Some(LightValidatorConfig {
-    //     enable_indexer: true,
-    //     enable_prover: false,
-    //     wait_time: 60,
-    //     sbf_programs: vec![(
-    //         "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
-    //         "../target/deploy/create_address_test_program.so".to_string(),
-    //     )],
-    //     limit_ledger_size: None,
-    // }))
-    // .await;
+    init(Some(LightValidatorConfig {
+        enable_indexer: true,
+        enable_prover: false,
+        wait_time: 60,
+        sbf_programs: vec![(
+            "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
+            "../target/deploy/create_address_test_program.so".to_string(),
+        )],
+        limit_ledger_size: None,
+    }))
+    .await;
 
     spawn_prover().await;
 
@@ -711,9 +711,9 @@ async fn performance_test_prefilled_queues() {
     )
     .await;
 
-    // let mint_keypair = Keypair::new();
-    // let mint_pubkey = create_mint_helper_with_keypair(&mut rpc, &payer, &mint_keypair).await;
-    // println!("Created mint: {}", mint_pubkey);
+    let mint_keypair = Keypair::new();
+    let mint_pubkey = create_mint_helper_with_keypair(&mut rpc, &payer, &mint_keypair).await;
+    println!("Created mint: {}", mint_pubkey);
 
     let (_, _, pre_state_root) = get_initial_merkle_tree_state(
         &mut rpc,
@@ -779,54 +779,54 @@ async fn performance_test_prefilled_queues() {
     }
 
     // PRE-FILL QUEUES BEFORE STARTING FORESTER
-    // println!("\n=== PHASE 1: PRE-FILLING QUEUES ===");
+    println!("\n=== PHASE 1: PRE-FILLING QUEUES ===");
 
-    // let state_txs =
-    //     prefill_state_queue(&mut rpc, &env, &payer, &mint_pubkey, NUM_STATE_TRANSACTIONS).await;
+    let state_txs =
+        prefill_state_queue(&mut rpc, &env, &payer, &mint_pubkey, NUM_STATE_TRANSACTIONS).await;
 
-    // let address_txs = prefill_address_queue(&mut rpc, &env, &payer, NUM_ADDRESS_TRANSACTIONS).await;
+    let address_txs = prefill_address_queue(&mut rpc, &env, &payer, NUM_ADDRESS_TRANSACTIONS).await;
 
-    // let (state_out, state_in, addr_queue) = get_queue_pending_items(&mut rpc, &env).await;
-    // println!("\n=== Queue Status Before Forester ===");
-    // println!("State output queue: {} pending items", state_out);
-    // println!("State input queue: {} pending items", state_in);
-    // println!("Address queue: {} pending items", addr_queue);
+    let (state_out, state_in, addr_queue) = get_queue_pending_items(&mut rpc, &env).await;
+    println!("\n=== Queue Status Before Forester ===");
+    println!("State output queue: {} pending items", state_out);
+    println!("State input queue: {} pending items", state_in);
+    println!("Address queue: {} pending items", addr_queue);
 
-    // assert!(
-    //     state_out > 0,
-    //     "State output queue should have items before forester starts, but was empty"
-    // );
-    // assert!(
-    //     state_out >= TARGET_STATE_QUEUE_SIZE / 2,
-    //     "State output queue has {} items but expected at least {} (half of target {})",
-    //     state_out,
-    //     TARGET_STATE_QUEUE_SIZE / 2,
-    //     TARGET_STATE_QUEUE_SIZE
-    // );
+    assert!(
+        state_out > 0,
+        "State output queue should have items before forester starts, but was empty"
+    );
+    assert!(
+        state_out >= TARGET_STATE_QUEUE_SIZE / 2,
+        "State output queue has {} items but expected at least {} (half of target {})",
+        state_out,
+        TARGET_STATE_QUEUE_SIZE / 2,
+        TARGET_STATE_QUEUE_SIZE
+    );
 
-    // assert!(
-    //     addr_queue > 0,
-    //     "Address queue should have items before forester starts, but was empty"
-    // );
-    // assert!(
-    //     addr_queue >= TARGET_ADDRESS_QUEUE_SIZE / 2,
-    //     "Address queue has {} items but expected at least {} (half of target {}). Addresses may not be going into queue properly.",
-    //     addr_queue,
-    //     TARGET_ADDRESS_QUEUE_SIZE / 2,
-    //     TARGET_ADDRESS_QUEUE_SIZE
-    // );
+    assert!(
+        addr_queue > 0,
+        "Address queue should have items before forester starts, but was empty"
+    );
+    assert!(
+        addr_queue >= TARGET_ADDRESS_QUEUE_SIZE / 2,
+        "Address queue has {} items but expected at least {} (half of target {}). Addresses may not be going into queue properly.",
+        addr_queue,
+        TARGET_ADDRESS_QUEUE_SIZE / 2,
+        TARGET_ADDRESS_QUEUE_SIZE
+    );
 
-    // let total_queue_items = state_out + addr_queue;
-    // println!(
-    //     "Queues are properly filled (state_output: {}/{}, address: {}/{}, total: {})",
-    //     state_out,
-    //     TARGET_STATE_QUEUE_SIZE,
-    //     addr_queue,
-    //     TARGET_ADDRESS_QUEUE_SIZE,
-    //     total_queue_items
-    // );
+    let total_queue_items = state_out + addr_queue;
+    println!(
+        "Queues are properly filled (state_output: {}/{}, address: {}/{}, total: {})",
+        state_out,
+        TARGET_STATE_QUEUE_SIZE,
+        addr_queue,
+        TARGET_ADDRESS_QUEUE_SIZE,
+        total_queue_items
+    );
 
-    // println!("\n=== PHASE 2: STARTING FORESTER ===");
+    println!("\n=== PHASE 2: STARTING FORESTER ===");
 
     let config = ForesterConfig {
         external_services: ExternalServicesConfig {
@@ -887,20 +887,20 @@ async fn performance_test_prefilled_queues() {
         compressible_config: None,
     };
 
-    // let protocol_config = get_protocol_config(&mut rpc).await;
+    let protocol_config = get_protocol_config(&mut rpc).await;
 
-    // let active_slot = get_next_active_phase_with_time(&mut rpc, &protocol_config, 100).await;
-    // let current_slot = rpc.get_slot().await.unwrap();
-    // println!(
-    //     "Current slot: {}, Active phase starts at slot {}",
-    //     current_slot, active_slot
-    // );
+    let active_slot = get_next_active_phase_with_time(&mut rpc, &protocol_config, 100).await;
+    let current_slot = rpc.get_slot().await.unwrap();
+    println!(
+        "Current slot: {}, Active phase starts at slot {}",
+        current_slot, active_slot
+    );
 
-    // println!(
-    //     "Waiting until slot {} to start forester...",
-    //     active_slot.saturating_sub(5)
-    // );
-    // wait_for_slot(&mut rpc, active_slot.saturating_sub(5)).await;
+    println!(
+        "Waiting until slot {} to start forester...",
+        active_slot.saturating_sub(5)
+    );
+    wait_for_slot(&mut rpc, active_slot.saturating_sub(5)).await;
 
     let (
         service_handle,
@@ -921,10 +921,10 @@ async fn performance_test_prefilled_queues() {
     }
     println!("Forester pipeline started successfully, waiting for work reports...");
 
-    // println!("Forester pipeline started, waiting for first work report...");
-    // // Wait for active phase
-    // wait_for_slot(&mut rpc, active_slot).await;
-    // println!("Active phase started at slot {}", active_slot);
+    println!("Forester pipeline started, waiting for first work report...");
+    // Wait for active phase
+    wait_for_slot(&mut rpc, active_slot).await;
+    println!("Active phase started at slot {}", active_slot);
 
     // Monitor work reports - use ProcessingMetrics from reports
     let mut total_processed = 0;

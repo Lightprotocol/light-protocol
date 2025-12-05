@@ -1650,18 +1650,35 @@ impl Indexer for PhotonIndexer {
         {
             let config = config.unwrap_or_default();
             self.retry(config.retry_config, || async {
-                let params = photon_api::models::GetQueueElementsV2PostRequestParams {
-                    tree: bs58::encode(merkle_tree_pubkey).into_string(),
-                    output_queue_start_index: options.output_queue_start_index,
-                    output_queue_limit: options.output_queue_limit,
-                    output_queue_zkp_batch_size: options.output_queue_zkp_batch_size,
-                    input_queue_start_index: options.input_queue_start_index,
-                    input_queue_limit: options.input_queue_limit,
-                    input_queue_zkp_batch_size: options.input_queue_zkp_batch_size,
-                    address_queue_start_index: options.address_queue_start_index,
-                    address_queue_limit: options.address_queue_limit,
-                    address_queue_zkp_batch_size: options.address_queue_zkp_batch_size,
-                };
+                // Build nested QueueRequest objects for the new API format
+                let output_queue = options.output_queue_limit.map(|limit| {
+                    let mut req = photon_api::models::QueueRequest::new(limit);
+                    req.start_index = options.output_queue_start_index;
+                    req.zkp_batch_size = options.output_queue_zkp_batch_size;
+                    req
+                });
+
+                let input_queue = options.input_queue_limit.map(|limit| {
+                    let mut req = photon_api::models::QueueRequest::new(limit);
+                    req.start_index = options.input_queue_start_index;
+                    req.zkp_batch_size = options.input_queue_zkp_batch_size;
+                    req
+                });
+
+                let address_queue = options.address_queue_limit.map(|limit| {
+                    let mut req = photon_api::models::QueueRequest::new(limit);
+                    req.start_index = options.address_queue_start_index;
+                    req.zkp_batch_size = options.address_queue_zkp_batch_size;
+                    req
+                });
+
+                let mut params =
+                    photon_api::models::GetQueueElementsV2PostRequestParams::new(
+                        bs58::encode(merkle_tree_pubkey).into_string(),
+                    );
+                params.output_queue = output_queue;
+                params.input_queue = input_queue;
+                params.address_queue = address_queue;
 
                 let request = photon_api::models::GetQueueElementsV2PostRequest {
                     params: Box::new(params),
@@ -1685,10 +1702,12 @@ impl Indexer for PhotonIndexer {
                 }
 
                 let state_queue = if let Some(state) = api_response.state_queue {
+                    // Extract nodes and node_hashes from combined Node objects
+                    let nodes: Vec<u64> = state.nodes.iter().map(|n| n.index).collect();
                     let node_hashes: Result<Vec<[u8; 32]>, IndexerError> = state
-                        .node_hashes
+                        .nodes
                         .iter()
-                        .map(|h| Hash::from_base58(h))
+                        .map(|n| Hash::from_base58(&n.hash))
                         .collect();
                     let initial_root = Hash::from_base58(&state.initial_root)?;
 
@@ -1756,7 +1775,7 @@ impl Indexer for PhotonIndexer {
                     };
 
                     Some(super::StateQueueDataV2 {
-                        nodes: state.nodes,
+                        nodes,
                         node_hashes: node_hashes?,
                         initial_root,
                         root_seq: state.root_seq,
@@ -1798,10 +1817,12 @@ impl Indexer for PhotonIndexer {
                         })
                         .collect();
 
+                    // Extract nodes and node_hashes from combined Node objects
+                    let nodes: Vec<u64> = address.nodes.iter().map(|n| n.index).collect();
                     let node_hashes: Result<Vec<[u8; 32]>, IndexerError> = address
-                        .node_hashes
+                        .nodes
                         .iter()
-                        .map(|h| Hash::from_base58(h))
+                        .map(|n| Hash::from_base58(&n.hash))
                         .collect();
 
                     let initial_root = Hash::from_base58(&address.initial_root)?;
@@ -1825,7 +1846,7 @@ impl Indexer for PhotonIndexer {
                         low_element_indices: address.low_element_indices,
                         low_element_next_indices: address.low_element_next_indices,
                         low_element_proofs: low_element_proofs?,
-                        nodes: address.nodes,
+                        nodes,
                         node_hashes: node_hashes?,
                         initial_root,
                         first_queue_index: address.start_index,

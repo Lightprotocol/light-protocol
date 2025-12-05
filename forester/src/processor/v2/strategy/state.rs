@@ -67,8 +67,8 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
         let fetch_len = total_needed as u64;
 
         // Retry loop: fetch from indexer, validate root, wait if mismatch
-        const MAX_ROOT_RETRIES: u32 = 3;
-        // let state_queue = None;
+        // const MAX_ROOT_RETRIES: u32 = 3;
+        // let mut state_queue = None;
 
         // for attempt in 0..MAX_ROOT_RETRIES {
         let state_queue =
@@ -77,7 +77,7 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
                 None => return Ok(None),
             };
 
-        //     // Validate indexer root matches on-chain root before generating proofs
+        // Validate indexer root matches on-chain root before generating proofs
         //     let onchain_root = fetch_onchain_state_root(context).await?;
         //     if sq.initial_root == onchain_root {
         //         state_queue = Some(sq);
@@ -105,8 +105,7 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
         //     None => {
         //         warn!(
         //             "Indexer root still mismatched after {} retries for tree {}. Skipping.",
-        //             MAX_ROOT_RETRIES,
-        //             context.merkle_tree
+        //             MAX_ROOT_RETRIES, context.merkle_tree
         //         );
         //         return Ok(None);
         //     }
