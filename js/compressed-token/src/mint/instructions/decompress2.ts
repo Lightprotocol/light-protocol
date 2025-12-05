@@ -8,8 +8,7 @@ import {
     LightSystemProgram,
     defaultStaticAccountsStruct,
     ParsedTokenAccount,
-    bn,
-    CompressedProof,
+    ValidityProofWithContext,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../../program';
 import {
@@ -69,8 +68,7 @@ function buildInputTokenData(
  * @param inputCompressedTokenAccounts Input compressed token accounts
  * @param toAddress                    Destination CToken account address
  * @param amount                       Amount to decompress
- * @param proof                        Validity proof (null if all accounts are proveByIndex)
- * @param rootIndices                  Root indices for each input account
+ * @param validityProof                Validity proof (contains compressedProof and rootIndices)
  * @returns TransactionInstruction
  */
 export function createDecompress2Instruction(
@@ -78,8 +76,7 @@ export function createDecompress2Instruction(
     inputCompressedTokenAccounts: ParsedTokenAccount[],
     toAddress: PublicKey,
     amount: bigint,
-    proof: CompressedProof | null,
-    rootIndices: number[],
+    validityProof: ValidityProofWithContext,
 ): TransactionInstruction {
     if (inputCompressedTokenAccounts.length === 0) {
         throw new Error('No input compressed token accounts provided');
@@ -135,7 +132,7 @@ export function createDecompress2Instruction(
     // Build input token data
     const inTokenData = buildInputTokenData(
         inputCompressedTokenAccounts,
-        rootIndices,
+        validityProof.rootIndices,
         packedAccountIndices,
     );
 
@@ -162,11 +159,11 @@ export function createDecompress2Instruction(
         outputQueue: 0, // First queue in packed accounts
         cpiContext: null,
         compressions,
-        proof: proof
+        proof: validityProof.compressedProof
             ? {
-                  a: Array.from(proof.a),
-                  b: Array.from(proof.b),
-                  c: Array.from(proof.c),
+                  a: Array.from(validityProof.compressedProof.a),
+                  b: Array.from(validityProof.compressedProof.b),
+                  c: Array.from(validityProof.compressedProof.c),
               }
             : null,
         inTokenData,

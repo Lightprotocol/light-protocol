@@ -1,5 +1,8 @@
 import { PublicKey, TransactionInstruction } from '@solana/web3.js';
-import { ValidityProofWithContext } from '@lightprotocol/stateless.js';
+import {
+    getOutputTreeInfo,
+    ValidityProofWithContext,
+} from '@lightprotocol/stateless.js';
 import { createMintToInstruction as createSplMintToInstruction } from '@solana/spl-token';
 import { createMintToInstruction as createCtokenMintToInstruction } from './mint-to';
 import { MintInterface } from '../helpers';
@@ -39,7 +42,7 @@ export function createMintToInterfaceInstruction(
     const mint = mintInterface.mint.address;
     const programId = mintInterface.programId;
 
-    // For SPL and Token-2022 mints (no merkleContext)
+    // SPL/T22
     if (!mintInterface.merkleContext) {
         return createSplMintToInstruction(
             mint,
@@ -51,21 +54,12 @@ export function createMintToInterfaceInstruction(
         );
     }
 
-    // For compressed mints (has merkleContext) - mint to decompressed CToken account
     if (!validityProof) {
-        throw new Error(
-            'Validity proof required for compressed mint operations',
-        );
+        throw new Error('Validity proof required for c-token mint-to');
     }
-
     if (!mintInterface.mintContext) {
-        throw new Error('mintContext required for compressed mint operations');
+        throw new Error('mintContext required for c-token mint-to');
     }
-
-    // ensure we rollover if needed.
-    const outputStateTreeInfo =
-        mintInterface.merkleContext.treeInfo.nextTreeInfo ??
-        mintInterface.merkleContext.treeInfo;
 
     const mintData = {
         supply: mintInterface.mint.supply,
@@ -92,7 +86,7 @@ export function createMintToInterfaceInstruction(
         validityProof,
         mintInterface.merkleContext,
         mintData,
-        outputStateTreeInfo,
+        getOutputTreeInfo(mintInterface.merkleContext),
         destination,
         amount,
     );

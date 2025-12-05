@@ -11,11 +11,10 @@ import {
     defaultStaticAccountsStruct,
     deriveAddressV2,
     getDefaultAddressTreeInfo,
-    MerkleContext,
+    getOutputQueue,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../../program';
-import { findMintAddress } from '../../compressible/derivation';
-import { MintInstructionDataWithMetadata } from '../serde';
+import { MintInterface } from '../helpers';
 import {
     encodeMintActionInstructionData,
     MintActionCompressedInstructionData,
@@ -43,12 +42,12 @@ type UpdateMetadataAction =
       };
 
 interface EncodeUpdateMetadataInstructionParams {
-    mintSigner: PublicKey;
+    splMint: PublicKey;
     addressTree: PublicKey;
     leafIndex: number;
     rootIndex: number;
     proof: { a: number[]; b: number[]; c: number[] } | null;
-    mintData: MintInstructionDataWithMetadata;
+    mintInterface: MintInterface;
     action: UpdateMetadataAction;
 }
 
@@ -83,12 +82,17 @@ function convertActionToBorsh(action: UpdateMetadataAction): Action {
 function encodeUpdateMetadataInstructionData(
     params: EncodeUpdateMetadataInstructionParams,
 ): Buffer {
-    const [splMintPda] = findMintAddress(params.mintSigner);
     const compressedAddress = deriveAddressV2(
-        splMintPda.toBytes(),
+        params.splMint.toBytes(),
         params.addressTree,
         CTOKEN_PROGRAM_ID,
     );
+
+    const mintInterface = params.mintInterface;
+
+    if (!mintInterface.tokenMetadata) {
+        throw new Error('MintInterface must have tokenMetadata for metadata operations');
+    }
 
     const instructionData: MintActionCompressedInstructionData = {
         leafIndex: params.leafIndex,
@@ -102,23 +106,23 @@ function encodeUpdateMetadataInstructionData(
         proof: params.proof,
         cpiContext: null,
         mint: {
-            supply: params.mintData.supply,
-            decimals: params.mintData.decimals,
+            supply: mintInterface.mint.supply,
+            decimals: mintInterface.mint.decimals,
             metadata: {
-                version: params.mintData.version,
-                splMintInitialized: params.mintData.splMintInitialized,
-                mint: params.mintData.splMint,
+                version: mintInterface.mintContext!.version,
+                splMintInitialized: mintInterface.mintContext!.splMintInitialized,
+                mint: mintInterface.mintContext!.splMint,
             },
-            mintAuthority: params.mintData.mintAuthority,
-            freezeAuthority: params.mintData.freezeAuthority,
+            mintAuthority: mintInterface.mint.mintAuthority,
+            freezeAuthority: mintInterface.mint.freezeAuthority,
             extensions: [
                 {
                     tokenMetadata: {
                         updateAuthority:
-                            params.mintData.metadata.updateAuthority ?? null,
-                        name: Buffer.from(params.mintData.metadata.name),
-                        symbol: Buffer.from(params.mintData.metadata.symbol),
-                        uri: Buffer.from(params.mintData.metadata.uri),
+                            mintInterface.tokenMetadata.updateAuthority ?? null,
+                        name: Buffer.from(mintInterface.tokenMetadata.name),
+                        symbol: Buffer.from(mintInterface.tokenMetadata.symbol),
+                        uri: Buffer.from(mintInterface.tokenMetadata.uri),
                         additionalMetadata: null,
                     },
                 },
@@ -130,23 +134,39 @@ function encodeUpdateMetadataInstructionData(
 }
 
 function createUpdateMetadataInstruction(
-    mintSigner: PublicKey,
+    mintInterface: MintInterface,
     authority: PublicKey,
     payer: PublicKey,
     validityProof: ValidityProofWithContext,
-    merkleContext: MerkleContext,
-    mintData: MintInstructionDataWithMetadata,
-    outputQueue: PublicKey,
     action: UpdateMetadataAction,
 ): TransactionInstruction {
+    if (!mintInterface.merkleContext) {
+        throw new Error(
+            'MintInterface must have merkleContext for compressed mint operations',
+        );
+    }
+    if (!mintInterface.mintContext) {
+        throw new Error(
+            'MintInterface must have mintContext for compressed mint operations',
+        );
+    }
+    if (!mintInterface.tokenMetadata) {
+        throw new Error(
+            'MintInterface must have tokenMetadata for metadata operations',
+        );
+    }
+
+    const merkleContext = mintInterface.merkleContext;
+    const outputQueue = getOutputQueue(merkleContext);
+
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMetadataInstructionData({
-        mintSigner,
+        splMint: mintInterface.mintContext.splMint,
         addressTree: addressTreeInfo.tree,
         leafIndex: merkleContext.leafIndex,
         rootIndex: validityProof.rootIndices[0],
         proof: validityProof.compressedProof,
-        mintData,
+        mintInterface,
         action,
     });
 
@@ -200,44 +220,26 @@ function createUpdateMetadataInstruction(
     });
 }
 
-// Keep old interface type for backwards compatibility export
-export interface CreateUpdateMetadataFieldInstructionParams {
-    mintSigner: PublicKey;
-    authority: PublicKey;
-    payer: PublicKey;
-    validityProof: ValidityProofWithContext;
-    merkleContext: MerkleContext;
-    mintData: MintInstructionDataWithMetadata;
-    outputQueue: PublicKey;
-    fieldType: 'name' | 'symbol' | 'uri' | 'custom';
-    value: string;
-    customKey?: string;
-    extensionIndex?: number;
-}
-
 /**
  * Create instruction for updating a compressed mint's metadata field.
  *
- * @param mintSigner     Mint signer public key.
- * @param authority      Metadata update authority public key.
- * @param payer          Fee payer public key.
- * @param validityProof  Validity proof for the compressed mint.
- * @param merkleContext  Merkle context of the compressed mint.
- * @param mintData       Mint instruction data with metadata.
- * @param outputQueue    Output queue for state changes.
- * @param fieldType      Field to update: 'name', 'symbol', 'uri', or 'custom'.
- * @param value          New value for the field.
- * @param customKey      Custom key name (required if fieldType is 'custom').
- * @param extensionIndex Extension index (default: 0).
+ * Output queue is automatically derived from mintInterface.merkleContext.treeInfo
+ * (preferring nextTreeInfo.queue if available for rollover support).
+ *
+ * @param mintInterface  MintInterface from getMintInterface() - must have merkleContext and tokenMetadata
+ * @param authority      Metadata update authority public key (must sign)
+ * @param payer          Fee payer public key
+ * @param validityProof  Validity proof for the compressed mint
+ * @param fieldType      Field to update: 'name', 'symbol', 'uri', or 'custom'
+ * @param value          New value for the field
+ * @param customKey      Custom key name (required if fieldType is 'custom')
+ * @param extensionIndex Extension index (default: 0)
  */
 export function createUpdateMetadataFieldInstruction(
-    mintSigner: PublicKey,
+    mintInterface: MintInterface,
     authority: PublicKey,
     payer: PublicKey,
     validityProof: ValidityProofWithContext,
-    merkleContext: MerkleContext,
-    mintData: MintInstructionDataWithMetadata,
-    outputQueue: PublicKey,
     fieldType: 'name' | 'symbol' | 'uri' | 'custom',
     value: string,
     customKey?: string,
@@ -259,52 +261,33 @@ export function createUpdateMetadataFieldInstruction(
     };
 
     return createUpdateMetadataInstruction(
-        mintSigner,
+        mintInterface,
         authority,
         payer,
         validityProof,
-        merkleContext,
-        mintData,
-        outputQueue,
         action,
     );
-}
-
-// Keep old interface type for backwards compatibility export
-export interface CreateUpdateMetadataAuthorityInstructionParams {
-    mintSigner: PublicKey;
-    currentAuthority: PublicKey;
-    newAuthority: PublicKey;
-    payer: PublicKey;
-    validityProof: ValidityProofWithContext;
-    merkleContext: MerkleContext;
-    mintData: MintInstructionDataWithMetadata;
-    outputQueue: PublicKey;
-    extensionIndex?: number;
 }
 
 /**
  * Create instruction for updating a compressed mint's metadata authority.
  *
- * @param mintSigner       Mint signer public key.
- * @param currentAuthority Current metadata update authority public key.
- * @param newAuthority     New metadata update authority public key.
- * @param payer            Fee payer public key.
- * @param validityProof    Validity proof for the compressed mint.
- * @param merkleContext    Merkle context of the compressed mint.
- * @param mintData         Mint instruction data with metadata.
- * @param outputQueue      Output queue for state changes.
- * @param extensionIndex   Extension index (default: 0).
+ * Output queue is automatically derived from mintInterface.merkleContext.treeInfo
+ * (preferring nextTreeInfo.queue if available for rollover support).
+ *
+ * @param mintInterface    MintInterface from getMintInterface() - must have merkleContext and tokenMetadata
+ * @param currentAuthority Current metadata update authority public key (must sign)
+ * @param newAuthority     New metadata update authority public key
+ * @param payer            Fee payer public key
+ * @param validityProof    Validity proof for the compressed mint
+ * @param extensionIndex   Extension index (default: 0)
  */
 export function createUpdateMetadataAuthorityInstruction(
-    mintSigner: PublicKey,
+    mintInterface: MintInterface,
     currentAuthority: PublicKey,
     newAuthority: PublicKey,
     payer: PublicKey,
     validityProof: ValidityProofWithContext,
-    merkleContext: MerkleContext,
-    mintData: MintInstructionDataWithMetadata,
-    outputQueue: PublicKey,
     extensionIndex: number = 0,
 ): TransactionInstruction {
     const action: UpdateMetadataAction = {
@@ -314,53 +297,33 @@ export function createUpdateMetadataAuthorityInstruction(
     };
 
     return createUpdateMetadataInstruction(
-        mintSigner,
+        mintInterface,
         currentAuthority,
         payer,
         validityProof,
-        merkleContext,
-        mintData,
-        outputQueue,
         action,
     );
-}
-
-// Keep old interface type for backwards compatibility export
-export interface CreateRemoveMetadataKeyInstructionParams {
-    mintSigner: PublicKey;
-    authority: PublicKey;
-    payer: PublicKey;
-    validityProof: ValidityProofWithContext;
-    merkleContext: MerkleContext;
-    mintData: MintInstructionDataWithMetadata;
-    outputQueue: PublicKey;
-    key: string;
-    idempotent?: boolean;
-    extensionIndex?: number;
 }
 
 /**
  * Create instruction for removing a metadata key from a compressed mint.
  *
- * @param mintSigner     Mint signer public key.
- * @param authority      Metadata update authority public key.
- * @param payer          Fee payer public key.
- * @param validityProof  Validity proof for the compressed mint.
- * @param merkleContext  Merkle context of the compressed mint.
- * @param mintData       Mint instruction data with metadata.
- * @param outputQueue    Output queue for state changes.
- * @param key            Metadata key to remove.
- * @param idempotent     If true, don't error if key doesn't exist (default: false).
- * @param extensionIndex Extension index (default: 0).
+ * Output queue is automatically derived from mintInterface.merkleContext.treeInfo
+ * (preferring nextTreeInfo.queue if available for rollover support).
+ *
+ * @param mintInterface  MintInterface from getMintInterface() - must have merkleContext and tokenMetadata
+ * @param authority      Metadata update authority public key (must sign)
+ * @param payer          Fee payer public key
+ * @param validityProof  Validity proof for the compressed mint
+ * @param key            Metadata key to remove
+ * @param idempotent     If true, don't error if key doesn't exist (default: false)
+ * @param extensionIndex Extension index (default: 0)
  */
 export function createRemoveMetadataKeyInstruction(
-    mintSigner: PublicKey,
+    mintInterface: MintInterface,
     authority: PublicKey,
     payer: PublicKey,
     validityProof: ValidityProofWithContext,
-    merkleContext: MerkleContext,
-    mintData: MintInstructionDataWithMetadata,
-    outputQueue: PublicKey,
     key: string,
     idempotent: boolean = false,
     extensionIndex: number = 0,
@@ -373,13 +336,10 @@ export function createRemoveMetadataKeyInstruction(
     };
 
     return createUpdateMetadataInstruction(
-        mintSigner,
+        mintInterface,
         authority,
         payer,
         validityProof,
-        merkleContext,
-        mintData,
-        outputQueue,
         action,
     );
 }

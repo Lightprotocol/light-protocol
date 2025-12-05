@@ -439,8 +439,7 @@ describe('decompress2', () => {
                 compressedResult.items,
                 ctokenAta.address,
                 BigInt(1000),
-                proof.compressedProof,
-                proof.rootIndices,
+                proof,
             );
 
             // Verify instruction structure
@@ -473,8 +472,8 @@ describe('decompress2', () => {
                     [],
                     ctokenAta,
                     BigInt(1000),
-                    null,
-                    [],
+                    // Minimal mock - instruction throws before using proof
+                    { compressedProof: null, rootIndices: [] } as any,
                 ),
             ).toThrow('No input compressed token accounts provided');
         });
@@ -529,8 +528,7 @@ describe('decompress2', () => {
                 compressedResult.items,
                 ctokenAta.address,
                 BigInt(1000),
-                proof.compressedProof,
-                proof.rootIndices,
+                proof,
             );
 
             // Instruction should be valid
@@ -579,8 +577,7 @@ describe('decompress2', () => {
                 compressedResult.items,
                 ctokenAta.address,
                 BigInt(1000),
-                proof.compressedProof,
-                proof.rootIndices,
+                proof,
             );
 
             // Fee payer should be writable

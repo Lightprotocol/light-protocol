@@ -301,8 +301,7 @@ export async function transferInterface(
                 compressedAccounts,
                 ctokenAtaAddress,
                 compressedBalance,
-                proof.compressedProof,
-                proof.rootIndices,
+                proof,
             ),
         );
     }

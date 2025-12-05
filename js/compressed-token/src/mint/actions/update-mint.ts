@@ -9,8 +9,6 @@ import {
     Rpc,
     buildAndSignTx,
     sendAndConfirmTx,
-    TreeInfo,
-    selectStateTreeInfo,
     DerivationMode,
     bn,
     CTOKEN_PROGRAM_ID,
@@ -21,38 +19,42 @@ import {
 } from '../instructions/update-mint';
 import { getMintInterface } from '../helpers';
 
+/**
+ * Update the mint authority of a compressed token mint.
+ *
+ * @param rpc                    RPC connection
+ * @param payer                  Fee payer (signer)
+ * @param mint                   Mint address
+ * @param currentMintAuthority   Current mint authority (signer)
+ * @param newMintAuthority       New mint authority (or null to revoke)
+ * @param confirmOptions         Optional confirm options
+ */
 export async function updateMintAuthority(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
-    mintSigner: Signer,
     currentMintAuthority: Signer,
     newMintAuthority: PublicKey | null,
-    outputStateTreeInfo?: TreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    outputStateTreeInfo =
-        outputStateTreeInfo ??
-        selectStateTreeInfo(await rpc.getStateTreeInfos());
-
-    const mintInfo = await getMintInterface(
+    const mintInterface = await getMintInterface(
         rpc,
         mint,
-        undefined,
+        confirmOptions?.commitment,
         CTOKEN_PROGRAM_ID,
     );
 
-    if (!mintInfo.merkleContext) {
+    if (!mintInterface.merkleContext) {
         throw new Error('Mint does not have MerkleContext');
     }
 
     const validityProof = await rpc.getValidityProofV2(
         [
             {
-                hash: bn(mintInfo.merkleContext.hash),
-                leafIndex: mintInfo.merkleContext.leafIndex,
-                treeInfo: mintInfo.merkleContext.treeInfo,
-                proveByIndex: mintInfo.merkleContext.proveByIndex,
+                hash: bn(mintInterface.merkleContext.hash),
+                leafIndex: mintInterface.merkleContext.leafIndex,
+                treeInfo: mintInterface.merkleContext.treeInfo,
+                proveByIndex: mintInterface.merkleContext.proveByIndex,
             },
         ],
         [],
@@ -60,30 +62,11 @@ export async function updateMintAuthority(
     );
 
     const ix = createUpdateMintAuthorityInstruction(
+        mintInterface,
         currentMintAuthority.publicKey,
         newMintAuthority,
         payer.publicKey,
         validityProof,
-        mintInfo.merkleContext,
-        {
-            supply: mintInfo.mint.supply,
-            decimals: mintInfo.mint.decimals,
-            mintAuthority: mintInfo.mint.mintAuthority,
-            freezeAuthority: mintInfo.mint.freezeAuthority,
-            splMint: mintInfo.mintContext!.splMint,
-            splMintInitialized: mintInfo.mintContext!.splMintInitialized,
-            version: mintInfo.mintContext!.version,
-            metadata: mintInfo.tokenMetadata
-                ? {
-                      updateAuthority:
-                          mintInfo.tokenMetadata.updateAuthority || null,
-                      name: mintInfo.tokenMetadata.name,
-                      symbol: mintInfo.tokenMetadata.symbol,
-                      uri: mintInfo.tokenMetadata.uri,
-                  }
-                : undefined,
-        },
-        outputStateTreeInfo.queue,
     );
 
     const additionalSigners = currentMintAuthority.publicKey.equals(
@@ -103,37 +86,42 @@ export async function updateMintAuthority(
     return await sendAndConfirmTx(rpc, tx, confirmOptions);
 }
 
+/**
+ * Update the freeze authority of a compressed token mint.
+ *
+ * @param rpc                      RPC connection
+ * @param payer                    Fee payer (signer)
+ * @param mint                     Mint address
+ * @param currentFreezeAuthority   Current freeze authority (signer)
+ * @param newFreezeAuthority       New freeze authority (or null to revoke)
+ * @param confirmOptions           Optional confirm options
+ */
 export async function updateFreezeAuthority(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
-    mintSigner: Signer,
     currentFreezeAuthority: Signer,
     newFreezeAuthority: PublicKey | null,
-    outputStateTreeInfo?: TreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    outputStateTreeInfo =
-        outputStateTreeInfo ??
-        selectStateTreeInfo(await rpc.getStateTreeInfos());
-
-    const mintInfo = await getMintInterface(
+    const mintInterface = await getMintInterface(
         rpc,
         mint,
-        undefined,
+        confirmOptions?.commitment,
         CTOKEN_PROGRAM_ID,
     );
-    if (!mintInfo.merkleContext) {
+
+    if (!mintInterface.merkleContext) {
         throw new Error('Mint does not have MerkleContext');
     }
 
     const validityProof = await rpc.getValidityProofV2(
         [
             {
-                hash: bn(mintInfo.merkleContext.hash),
-                leafIndex: mintInfo.merkleContext.leafIndex,
-                treeInfo: mintInfo.merkleContext.treeInfo,
-                proveByIndex: mintInfo.merkleContext.proveByIndex,
+                hash: bn(mintInterface.merkleContext.hash),
+                leafIndex: mintInterface.merkleContext.leafIndex,
+                treeInfo: mintInterface.merkleContext.treeInfo,
+                proveByIndex: mintInterface.merkleContext.proveByIndex,
             },
         ],
         [],
@@ -141,30 +129,11 @@ export async function updateFreezeAuthority(
     );
 
     const ix = createUpdateFreezeAuthorityInstruction(
+        mintInterface,
         currentFreezeAuthority.publicKey,
         newFreezeAuthority,
         payer.publicKey,
         validityProof,
-        mintInfo.merkleContext,
-        {
-            supply: mintInfo.mint.supply,
-            decimals: mintInfo.mint.decimals,
-            mintAuthority: mintInfo.mint.mintAuthority,
-            freezeAuthority: mintInfo.mint.freezeAuthority,
-            splMint: mintInfo.mintContext!.splMint,
-            splMintInitialized: mintInfo.mintContext!.splMintInitialized,
-            version: mintInfo.mintContext!.version,
-            metadata: mintInfo.tokenMetadata
-                ? {
-                      updateAuthority:
-                          mintInfo.tokenMetadata.updateAuthority || null,
-                      name: mintInfo.tokenMetadata.name,
-                      symbol: mintInfo.tokenMetadata.symbol,
-                      uri: mintInfo.tokenMetadata.uri,
-                  }
-                : undefined,
-        },
-        outputStateTreeInfo.queue,
     );
 
     const additionalSigners = currentFreezeAuthority.publicKey.equals(

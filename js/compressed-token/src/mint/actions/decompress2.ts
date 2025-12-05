@@ -11,7 +11,6 @@ import {
     sendAndConfirmTx,
     dedupeSigner,
     ParsedTokenAccount,
-    bn,
 } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
 import { createDecompress2Instruction } from '../instructions/decompress2';
@@ -98,7 +97,7 @@ export async function decompress2(
     }
 
     // Get validity proof
-    const proof = await rpc.getValidityProofV0(
+    const validityProof = await rpc.getValidityProofV0(
         accountsToUse.map(acc => ({
             hash: acc.compressedAccount.hash,
             tree: acc.compressedAccount.treeInfo.tree,
@@ -129,7 +128,7 @@ export async function decompress2(
     }
 
     // Calculate compute units
-    const hasValidityProof = proof.compressedProof !== null;
+    const hasValidityProof = validityProof.compressedProof !== null;
     let computeUnits = 50_000; // Base
     if (hasValidityProof) {
         computeUnits += 100_000;
@@ -146,8 +145,7 @@ export async function decompress2(
             accountsToUse,
             ctokenAtaAddress,
             amount,
-            proof.compressedProof,
-            proof.rootIndices,
+            validityProof,
         ),
     );
 

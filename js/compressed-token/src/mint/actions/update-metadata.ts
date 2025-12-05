@@ -9,8 +9,6 @@ import {
     Rpc,
     buildAndSignTx,
     sendAndConfirmTx,
-    TreeInfo,
-    selectStateTreeInfo,
     DerivationMode,
     bn,
     CTOKEN_PROGRAM_ID,
@@ -22,41 +20,48 @@ import {
 } from '../instructions/update-metadata';
 import { getMintInterface } from '../helpers';
 
+/**
+ * Update a metadata field on a compressed token mint.
+ *
+ * @param rpc            RPC connection
+ * @param payer          Fee payer (signer)
+ * @param mint           Mint address
+ * @param authority      Metadata update authority (signer)
+ * @param fieldType      Field to update: 'name', 'symbol', 'uri', or 'custom'
+ * @param value          New value for the field
+ * @param customKey      Custom key name (required if fieldType is 'custom')
+ * @param extensionIndex Extension index (default: 0)
+ * @param confirmOptions Optional confirm options
+ */
 export async function updateMetadataField(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
-    mintSigner: Signer,
     authority: Signer,
     fieldType: 'name' | 'symbol' | 'uri' | 'custom',
     value: string,
     customKey?: string,
     extensionIndex: number = 0,
-    outputStateTreeInfo?: TreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    outputStateTreeInfo =
-        outputStateTreeInfo ??
-        selectStateTreeInfo(await rpc.getStateTreeInfos());
-
-    const mintInfo = await getMintInterface(
+    const mintInterface = await getMintInterface(
         rpc,
         mint,
         confirmOptions?.commitment,
         CTOKEN_PROGRAM_ID,
     );
 
-    if (!mintInfo.tokenMetadata || !mintInfo.merkleContext) {
+    if (!mintInterface.tokenMetadata || !mintInterface.merkleContext) {
         throw new Error('Mint does not have TokenMetadata extension');
     }
 
     const validityProof = await rpc.getValidityProofV2(
         [
             {
-                hash: bn(mintInfo.merkleContext.hash),
-                leafIndex: mintInfo.merkleContext.leafIndex,
-                treeInfo: mintInfo.merkleContext.treeInfo,
-                proveByIndex: mintInfo.merkleContext.proveByIndex,
+                hash: bn(mintInterface.merkleContext.hash),
+                leafIndex: mintInterface.merkleContext.leafIndex,
+                treeInfo: mintInterface.merkleContext.treeInfo,
+                proveByIndex: mintInterface.merkleContext.proveByIndex,
             },
         ],
         [],
@@ -64,27 +69,10 @@ export async function updateMetadataField(
     );
 
     const ix = createUpdateMetadataFieldInstruction(
-        mintSigner.publicKey,
+        mintInterface,
         authority.publicKey,
         payer.publicKey,
         validityProof,
-        mintInfo.merkleContext,
-        {
-            supply: mintInfo.mint.supply,
-            decimals: mintInfo.mint.decimals,
-            mintAuthority: mintInfo.mint.mintAuthority,
-            freezeAuthority: mintInfo.mint.freezeAuthority,
-            splMint: mintInfo.mintContext!.splMint,
-            splMintInitialized: mintInfo.mintContext!.splMintInitialized,
-            version: mintInfo.mintContext!.version,
-            metadata: {
-                updateAuthority: mintInfo.tokenMetadata.updateAuthority || null,
-                name: mintInfo.tokenMetadata.name,
-                symbol: mintInfo.tokenMetadata.symbol,
-                uri: mintInfo.tokenMetadata.uri,
-            },
-        },
-        outputStateTreeInfo.queue,
         fieldType,
         value,
         customKey,
@@ -106,39 +94,44 @@ export async function updateMetadataField(
     return await sendAndConfirmTx(rpc, tx, confirmOptions);
 }
 
+/**
+ * Update the metadata authority of a compressed token mint.
+ *
+ * @param rpc              RPC connection
+ * @param payer            Fee payer (signer)
+ * @param mint             Mint address
+ * @param currentAuthority Current metadata update authority (signer)
+ * @param newAuthority     New metadata update authority
+ * @param extensionIndex   Extension index (default: 0)
+ * @param confirmOptions   Optional confirm options
+ */
 export async function updateMetadataAuthority(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
-    mintSigner: Signer,
     currentAuthority: Signer,
     newAuthority: PublicKey,
     extensionIndex: number = 0,
-    outputStateTreeInfo?: TreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    outputStateTreeInfo =
-        outputStateTreeInfo ??
-        selectStateTreeInfo(await rpc.getStateTreeInfos());
-
-    const mintInfo = await getMintInterface(
+    const mintInterface = await getMintInterface(
         rpc,
         mint,
         confirmOptions?.commitment,
         CTOKEN_PROGRAM_ID,
     );
 
-    if (!mintInfo.tokenMetadata || !mintInfo.merkleContext) {
+    if (!mintInterface.tokenMetadata || !mintInterface.merkleContext) {
         throw new Error('Mint does not have TokenMetadata extension');
     }
 
     const validityProof = await rpc.getValidityProofV2(
         [
             {
-                hash: bn(mintInfo.merkleContext.hash),
-                leafIndex: mintInfo.merkleContext.leafIndex,
-                treeInfo: mintInfo.merkleContext.treeInfo,
-                proveByIndex: mintInfo.merkleContext.proveByIndex,
+                hash: bn(mintInterface.merkleContext.hash),
+                leafIndex: mintInterface.merkleContext.leafIndex,
+                treeInfo: mintInterface.merkleContext.treeInfo,
+                proveByIndex: mintInterface.merkleContext.proveByIndex,
             },
         ],
         [],
@@ -146,28 +139,11 @@ export async function updateMetadataAuthority(
     );
 
     const ix = createUpdateMetadataAuthorityInstruction(
-        mintSigner.publicKey,
+        mintInterface,
         currentAuthority.publicKey,
         newAuthority,
         payer.publicKey,
         validityProof,
-        mintInfo.merkleContext,
-        {
-            supply: mintInfo.mint.supply,
-            decimals: mintInfo.mint.decimals,
-            mintAuthority: mintInfo.mint.mintAuthority,
-            freezeAuthority: mintInfo.mint.freezeAuthority,
-            splMint: mintInfo.mintContext!.splMint,
-            splMintInitialized: mintInfo.mintContext!.splMintInitialized,
-            version: mintInfo.mintContext!.version,
-            metadata: {
-                updateAuthority: mintInfo.tokenMetadata.updateAuthority || null,
-                name: mintInfo.tokenMetadata.name,
-                symbol: mintInfo.tokenMetadata.symbol,
-                uri: mintInfo.tokenMetadata.uri,
-            },
-        },
-        outputStateTreeInfo.queue,
         extensionIndex,
     );
 
@@ -186,40 +162,46 @@ export async function updateMetadataAuthority(
     return await sendAndConfirmTx(rpc, tx, confirmOptions);
 }
 
+/**
+ * Remove a metadata key from a compressed token mint.
+ *
+ * @param rpc            RPC connection
+ * @param payer          Fee payer (signer)
+ * @param mint           Mint address
+ * @param authority      Metadata update authority (signer)
+ * @param key            Metadata key to remove
+ * @param idempotent     If true, don't error if key doesn't exist (default: false)
+ * @param extensionIndex Extension index (default: 0)
+ * @param confirmOptions Optional confirm options
+ */
 export async function removeMetadataKey(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
-    mintSigner: Signer,
     authority: Signer,
     key: string,
     idempotent: boolean = false,
     extensionIndex: number = 0,
-    outputStateTreeInfo?: TreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    outputStateTreeInfo =
-        outputStateTreeInfo ??
-        selectStateTreeInfo(await rpc.getStateTreeInfos());
-
-    const mintInfo = await getMintInterface(
+    const mintInterface = await getMintInterface(
         rpc,
         mint,
         confirmOptions?.commitment,
         CTOKEN_PROGRAM_ID,
     );
 
-    if (!mintInfo.tokenMetadata || !mintInfo.merkleContext) {
+    if (!mintInterface.tokenMetadata || !mintInterface.merkleContext) {
         throw new Error('Mint does not have TokenMetadata extension');
     }
 
     const validityProof = await rpc.getValidityProofV2(
         [
             {
-                hash: bn(mintInfo.merkleContext.hash),
-                leafIndex: mintInfo.merkleContext.leafIndex,
-                treeInfo: mintInfo.merkleContext.treeInfo,
-                proveByIndex: mintInfo.merkleContext.proveByIndex,
+                hash: bn(mintInterface.merkleContext.hash),
+                leafIndex: mintInterface.merkleContext.leafIndex,
+                treeInfo: mintInterface.merkleContext.treeInfo,
+                proveByIndex: mintInterface.merkleContext.proveByIndex,
             },
         ],
         [],
@@ -227,27 +209,10 @@ export async function removeMetadataKey(
     );
 
     const ix = createRemoveMetadataKeyInstruction(
-        mintSigner.publicKey,
+        mintInterface,
         authority.publicKey,
         payer.publicKey,
         validityProof,
-        mintInfo.merkleContext,
-        {
-            supply: mintInfo.mint.supply,
-            decimals: mintInfo.mint.decimals,
-            mintAuthority: mintInfo.mint.mintAuthority,
-            freezeAuthority: mintInfo.mint.freezeAuthority,
-            splMint: mintInfo.mintContext!.splMint,
-            splMintInitialized: mintInfo.mintContext!.splMintInitialized,
-            version: mintInfo.mintContext!.version,
-            metadata: {
-                updateAuthority: mintInfo.tokenMetadata.updateAuthority || null,
-                name: mintInfo.tokenMetadata.name,
-                symbol: mintInfo.tokenMetadata.symbol,
-                uri: mintInfo.tokenMetadata.uri,
-            },
-        },
-        outputStateTreeInfo.queue,
         key,
         idempotent,
         extensionIndex,

@@ -11,10 +11,10 @@ import {
     defaultStaticAccountsStruct,
     deriveAddressV2,
     getDefaultAddressTreeInfo,
-    MerkleContext,
+    getOutputQueue,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../../program';
-import { MintInstructionData } from '../serde';
+import { MintInterface } from '../helpers';
 import {
     encodeMintActionInstructionData,
     MintActionCompressedInstructionData,
@@ -23,12 +23,13 @@ import {
 } from './mint-action-layout';
 
 interface EncodeUpdateMintInstructionParams {
+    splMint: PublicKey;
     addressTree: PublicKey;
     leafIndex: number;
     proveByIndex: boolean;
     rootIndex: number;
     proof: { a: number[]; b: number[]; c: number[] } | null;
-    mintData: MintInstructionData;
+    mintInterface: MintInterface;
     newAuthority: PublicKey | null;
     actionType: 'mintAuthority' | 'freezeAuthority';
 }
@@ -37,7 +38,7 @@ function encodeUpdateMintInstructionData(
     params: EncodeUpdateMintInstructionParams,
 ): Buffer {
     const compressedAddress = deriveAddressV2(
-        params.mintData.splMint.toBytes(),
+        params.splMint.toBytes(),
         params.addressTree,
         CTOKEN_PROGRAM_ID,
     );
@@ -50,15 +51,18 @@ function encodeUpdateMintInstructionData(
 
     // Build extensions if metadata present
     let extensions: ExtensionInstructionData[] | null = null;
-    if (params.mintData.metadata) {
+    if (params.mintInterface.tokenMetadata) {
         extensions = [
             {
                 tokenMetadata: {
                     updateAuthority:
-                        params.mintData.metadata.updateAuthority ?? null,
-                    name: Buffer.from(params.mintData.metadata.name),
-                    symbol: Buffer.from(params.mintData.metadata.symbol),
-                    uri: Buffer.from(params.mintData.metadata.uri),
+                        params.mintInterface.tokenMetadata.updateAuthority ??
+                        null,
+                    name: Buffer.from(params.mintInterface.tokenMetadata.name),
+                    symbol: Buffer.from(
+                        params.mintInterface.tokenMetadata.symbol,
+                    ),
+                    uri: Buffer.from(params.mintInterface.tokenMetadata.uri),
                     additionalMetadata: null,
                 },
             },
@@ -77,15 +81,16 @@ function encodeUpdateMintInstructionData(
         proof: params.proof,
         cpiContext: null,
         mint: {
-            supply: params.mintData.supply,
-            decimals: params.mintData.decimals,
+            supply: params.mintInterface.mint.supply,
+            decimals: params.mintInterface.mint.decimals,
             metadata: {
-                version: params.mintData.version,
-                splMintInitialized: params.mintData.splMintInitialized,
-                mint: params.mintData.splMint,
+                version: params.mintInterface.mintContext!.version,
+                splMintInitialized:
+                    params.mintInterface.mintContext!.splMintInitialized,
+                mint: params.mintInterface.mintContext!.splMint,
             },
-            mintAuthority: params.mintData.mintAuthority,
-            freezeAuthority: params.mintData.freezeAuthority,
+            mintAuthority: params.mintInterface.mint.mintAuthority,
+            freezeAuthority: params.mintInterface.mint.freezeAuthority,
             extensions,
         },
     };
@@ -93,46 +98,45 @@ function encodeUpdateMintInstructionData(
     return encodeMintActionInstructionData(instructionData);
 }
 
-// Keep old interface type for backwards compatibility export
-export interface CreateUpdateMintAuthorityInstructionParams {
-    mintSigner: PublicKey;
-    currentMintAuthority: PublicKey;
-    newMintAuthority: PublicKey | null;
-    payer: PublicKey;
-    validityProof: ValidityProofWithContext;
-    merkleContext: MerkleContext;
-    mintData: MintInstructionData;
-    outputQueue: PublicKey;
-}
-
 /**
  * Create instruction for updating a compressed mint's mint authority.
  *
- * @param currentMintAuthority Current mint authority public key.
- * @param newMintAuthority     New mint authority (or null to revoke).
- * @param payer                Fee payer public key.
- * @param validityProof        Validity proof for the compressed mint.
- * @param merkleContext        Merkle context of the compressed mint.
- * @param mintData             Mint instruction data.
- * @param outputQueue          Output queue for state changes.
+ * @param mintInterface          MintInterface from getMintInterface() - must have merkleContext
+ * @param currentMintAuthority   Current mint authority public key (must sign)
+ * @param newMintAuthority       New mint authority (or null to revoke)
+ * @param payer                  Fee payer public key
+ * @param validityProof          Validity proof for the compressed mint
  */
 export function createUpdateMintAuthorityInstruction(
+    mintInterface: MintInterface,
     currentMintAuthority: PublicKey,
     newMintAuthority: PublicKey | null,
     payer: PublicKey,
     validityProof: ValidityProofWithContext,
-    merkleContext: MerkleContext,
-    mintData: MintInstructionData,
-    outputQueue: PublicKey,
 ): TransactionInstruction {
+    if (!mintInterface.merkleContext) {
+        throw new Error(
+            'MintInterface must have merkleContext for compressed mint operations',
+        );
+    }
+    if (!mintInterface.mintContext) {
+        throw new Error(
+            'MintInterface must have mintContext for compressed mint operations',
+        );
+    }
+
+    const merkleContext = mintInterface.merkleContext;
+    const outputQueue = getOutputQueue(merkleContext);
+
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMintInstructionData({
+        splMint: mintInterface.mintContext.splMint,
         addressTree: addressTreeInfo.tree,
         leafIndex: merkleContext.leafIndex,
         proveByIndex: true,
         rootIndex: validityProof.rootIndices[0],
         proof: validityProof.compressedProof,
-        mintData,
+        mintInterface,
         newAuthority: newMintAuthority,
         actionType: 'mintAuthority',
     });
@@ -187,46 +191,48 @@ export function createUpdateMintAuthorityInstruction(
     });
 }
 
-// Keep old interface type for backwards compatibility export
-export interface CreateUpdateFreezeAuthorityInstructionParams {
-    mintSigner: PublicKey;
-    currentFreezeAuthority: PublicKey;
-    newFreezeAuthority: PublicKey | null;
-    payer: PublicKey;
-    validityProof: ValidityProofWithContext;
-    merkleContext: MerkleContext;
-    mintData: MintInstructionData;
-    outputQueue: PublicKey;
-}
-
 /**
  * Create instruction for updating a compressed mint's freeze authority.
  *
- * @param currentFreezeAuthority  Current freeze authority public key.
- * @param newFreezeAuthority      New freeze authority (or null to revoke).
- * @param payer                   Fee payer public key.
- * @param validityProof           Validity proof for the compressed mint.
- * @param merkleContext           Merkle context of the compressed mint.
- * @param mintData                Mint instruction data.
- * @param outputQueue             Output queue for state changes.
+ * Output queue is automatically derived from mintInterface.merkleContext.treeInfo
+ * (preferring nextTreeInfo.queue if available for rollover support).
+ *
+ * @param mintInterface            MintInterface from getMintInterface() - must have merkleContext
+ * @param currentFreezeAuthority   Current freeze authority public key (must sign)
+ * @param newFreezeAuthority       New freeze authority (or null to revoke)
+ * @param payer                    Fee payer public key
+ * @param validityProof            Validity proof for the compressed mint
  */
 export function createUpdateFreezeAuthorityInstruction(
+    mintInterface: MintInterface,
     currentFreezeAuthority: PublicKey,
     newFreezeAuthority: PublicKey | null,
     payer: PublicKey,
     validityProof: ValidityProofWithContext,
-    merkleContext: MerkleContext,
-    mintData: MintInstructionData,
-    outputQueue: PublicKey,
 ): TransactionInstruction {
+    if (!mintInterface.merkleContext) {
+        throw new Error(
+            'MintInterface must have merkleContext for compressed mint operations',
+        );
+    }
+    if (!mintInterface.mintContext) {
+        throw new Error(
+            'MintInterface must have mintContext for compressed mint operations',
+        );
+    }
+
+    const merkleContext = mintInterface.merkleContext;
+    const outputQueue = getOutputQueue(merkleContext);
+
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMintInstructionData({
+        splMint: mintInterface.mintContext.splMint,
         addressTree: addressTreeInfo.tree,
         leafIndex: merkleContext.leafIndex,
         proveByIndex: true,
         rootIndex: validityProof.rootIndices[0],
         proof: validityProof.compressedProof,
-        mintData,
+        mintInterface,
         newAuthority: newFreezeAuthority,
         actionType: 'freezeAuthority',
     });

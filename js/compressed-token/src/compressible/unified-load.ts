@@ -262,8 +262,7 @@ export async function createLoadATAInstructionsFromInterface(
                     compressedAccounts,
                     ctokenAtaAddress,
                     coldBalance,
-                    proof.compressedProof,
-                    proof.rootIndices,
+                    proof,
                 ),
             );
         }
