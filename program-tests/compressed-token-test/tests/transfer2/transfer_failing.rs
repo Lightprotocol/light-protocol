@@ -72,7 +72,7 @@ async fn setup_transfer_test(
     )
     .await?;
 
-    let mint = light_ctoken_sdk::compressed_token::create_compressed_mint::find_spl_mint_address(
+    let mint = light_ctoken_sdk::compressed_token::create_compressed_mint::find_cmint_address(
         &mint_seed.pubkey(),
     )
     .0;
@@ -682,7 +682,7 @@ async fn setup_transfer_test_with_delegate(
     )
     .await?;
 
-    let mint = light_ctoken_sdk::compressed_token::create_compressed_mint::find_spl_mint_address(
+    let mint = light_ctoken_sdk::compressed_token::create_compressed_mint::find_cmint_address(
         &mint_seed.pubkey(),
     )
     .0;

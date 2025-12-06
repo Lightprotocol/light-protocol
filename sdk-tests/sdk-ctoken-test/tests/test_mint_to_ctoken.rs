@@ -200,12 +200,12 @@ async fn test_mint_to_ctoken_invoke_signed() {
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     // Derive compression address using the PDA mint_signer
-    let compression_address = light_ctoken_sdk::ctoken::derive_compressed_mint_address(
+    let compression_address = light_ctoken_sdk::ctoken::derive_cmint_compressed_address(
         &mint_signer_pda,
         &address_tree.tree,
     );
 
-    let mint_pda = light_ctoken_sdk::ctoken::find_spl_mint_address(&mint_signer_pda).0;
+    let mint_pda = light_ctoken_sdk::ctoken::find_cmint_address(&mint_signer_pda).0;
 
     let rpc_result = rpc
         .get_validity_proof(

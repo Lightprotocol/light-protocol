@@ -11,7 +11,7 @@ use light_ctoken_interface::{
 };
 use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::{
-        derive_compressed_mint_address, find_spl_mint_address,
+        derive_cmint_compressed_address, find_cmint_address,
     },
     CPI_AUTHORITY_PDA,
 };
@@ -148,10 +148,10 @@ pub async fn create_mint<R: Rpc + Indexer>(
 
     // Derive compressed mint address using utility function
     let compressed_mint_address =
-        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint bump for the instruction
-    let (mint, _) = find_spl_mint_address(&mint_seed.pubkey());
+    let (mint, _) = find_cmint_address(&mint_seed.pubkey());
 
     let pda_address_seed = hash_to_bn254_field_size_be(
         [b"escrow", payer.pubkey().to_bytes().as_ref()]

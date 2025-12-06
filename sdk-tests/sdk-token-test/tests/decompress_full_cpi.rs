@@ -6,7 +6,7 @@ const TEST_INPUT_RANGE: [usize; 4] = [1, 2, 3, 4];
 
 use light_ctoken_interface::instructions::mint_action::{CompressedMintWithContext, Recipient};
 use light_ctoken_sdk::compressed_token::{
-    create_compressed_mint::find_spl_mint_address, decompress_full::DecompressFullAccounts,
+    create_compressed_mint::find_cmint_address, decompress_full::DecompressFullAccounts,
 };
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::PackedAccounts;
@@ -45,7 +45,7 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
     let payer = rpc.get_payer().insecure_clone();
 
     let mint_seed = Keypair::new();
-    let mint_pubkey = find_spl_mint_address(&mint_seed.pubkey()).0;
+    let mint_pubkey = find_cmint_address(&mint_seed.pubkey()).0;
     let mint_authority = payer.pubkey();
     let decimals = 9u8;
 
@@ -332,7 +332,7 @@ async fn test_decompress_full_cpi_with_context() {
 
         let address_tree_info = rpc.get_address_tree_v2();
         let compressed_mint_address =
-            light_ctoken_sdk::compressed_token::create_compressed_mint::derive_compressed_mint_address(
+            light_ctoken_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address(
                 &ctx.mint_seed.pubkey(),
                 &address_tree_info.tree,
             );

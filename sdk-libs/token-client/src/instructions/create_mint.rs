@@ -6,7 +6,7 @@ use light_ctoken_interface::instructions::extensions::{
     token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,
 };
 use light_ctoken_sdk::ctoken::{
-    derive_compressed_mint_address, find_spl_mint_address, CreateCMint, CreateCMintParams,
+    derive_cmint_compressed_address, find_cmint_address, CreateCMint, CreateCMintParams,
 };
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
@@ -41,7 +41,7 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
     let output_queue = rpc.get_random_state_tree_info()?.queue;
 
     let compressed_mint_address =
-        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Create extensions if metadata is provided
     let extensions = metadata.map(|meta| vec![ExtensionInstructionData::TokenMetadata(meta)]);
@@ -68,7 +68,7 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
         mint_authority,
         proof: rpc_result.proof.0.unwrap(),
         compression_address: compressed_mint_address,
-        mint: find_spl_mint_address(&mint_seed.pubkey()).0,
+        mint: find_cmint_address(&mint_seed.pubkey()).0,
         freeze_authority,
         extensions,
     };

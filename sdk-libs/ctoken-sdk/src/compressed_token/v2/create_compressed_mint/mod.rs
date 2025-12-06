@@ -6,6 +6,6 @@ pub use account_metas::{
 };
 pub use instruction::{
     create_compressed_mint, create_compressed_mint_cpi, create_compressed_mint_cpi_write,
-    derive_cmint_from_spl_mint, derive_compressed_mint_address, find_spl_mint_address,
+    derive_cmint_compressed_address, derive_cmint_from_spl_mint, find_cmint_address,
     CreateCompressedMintInputs,
 };

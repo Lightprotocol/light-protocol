@@ -11,7 +11,7 @@ use light_ctoken_interface::{
 };
 use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::{
-        derive_compressed_mint_address, find_spl_mint_address,
+        derive_cmint_compressed_address, find_cmint_address,
     },
     ctoken,
     pack::compat::CTokenDataWithVariant,
@@ -238,9 +238,9 @@ pub async fn create_user_record_and_game_session(
     let freeze_authority = mint_authority;
     let mint_signer = Keypair::new();
     let compressed_mint_address =
-        derive_compressed_mint_address(&mint_signer.pubkey(), &address_tree_pubkey);
+        derive_cmint_compressed_address(&mint_signer.pubkey(), &address_tree_pubkey);
 
-    let (spl_mint, mint_bump) = find_spl_mint_address(&mint_signer.pubkey());
+    let (spl_mint, mint_bump) = find_cmint_address(&mint_signer.pubkey());
     let accounts = sdk_compressible_test::accounts::CreateUserRecordAndGameSession {
         user: user.pubkey(),
         user_record: *user_record_pda,
@@ -415,13 +415,10 @@ pub async fn create_user_record_and_game_session(
     assert_eq!(game_session.player, user.pubkey());
     assert_eq!(game_session.score, 0);
 
-    let token_account_address = get_ctoken_signer_seeds(
-        &user.pubkey(),
-        &find_spl_mint_address(&mint_signer.pubkey()).0,
-    )
-    .1;
+    let token_account_address =
+        get_ctoken_signer_seeds(&user.pubkey(), &find_cmint_address(&mint_signer.pubkey()).0).1;
 
-    let mint = find_spl_mint_address(&mint_signer.pubkey()).0;
+    let mint = find_cmint_address(&mint_signer.pubkey()).0;
     let token_account_address_2 = get_ctoken_signer2_seeds(&user.pubkey()).1;
     let token_account_address_3 = get_ctoken_signer3_seeds(&user.pubkey()).1;
     let token_account_address_4 = get_ctoken_signer4_seeds(&user.pubkey(), &user.pubkey()).1;

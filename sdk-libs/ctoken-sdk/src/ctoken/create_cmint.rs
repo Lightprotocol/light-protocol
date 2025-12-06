@@ -39,10 +39,10 @@ pub struct CreateCMintParams {
 /// ```rust,no_run
 /// # use solana_pubkey::Pubkey;
 /// use light_ctoken_sdk::ctoken::{
-///     CreateCMint, CreateCMintParams, derive_compressed_mint_address, find_spl_mint_address,
+///     CreateCMint, CreateCMintParams, derive_cmint_compressed_address, find_cmint_address,
 /// };
 /// # use light_ctoken_sdk::CompressedProof;
-/// # let mint_seed_keypair_pubkey = Pubkey::new_unique();
+/// # let mint_seed_pubkey = Pubkey::new_unique();
 /// # let payer = Pubkey::new_unique();
 /// # let address_tree = Pubkey::new_unique();
 /// # let output_queue = Pubkey::new_unique();
@@ -51,8 +51,8 @@ pub struct CreateCMintParams {
 /// # let proof: CompressedProof = todo!();
 ///
 /// // Derive addresses
-/// let compression_address = derive_compressed_mint_address(&mint_seed_keypair_pubkey, &address_tree);
-/// let mint = find_spl_mint_address(&mint_seed_keypair_pubkey).0;
+/// let compression_address = derive_cmint_compressed_address(&mint_seed_pubkey, &address_tree);
+/// let mint = find_cmint_address(&mint_seed_pubkey).0;
 ///
 /// let params = CreateCMintParams {
 ///     decimals: 9,
@@ -66,7 +66,7 @@ pub struct CreateCMintParams {
 /// };
 /// let instruction = CreateCMint::new(
 ///     params,
-///     mint_seed_keypair_pubkey,
+///     mint_seed_pubkey,
 ///     payer,
 ///     address_tree,
 ///     output_queue,
@@ -76,7 +76,8 @@ pub struct CreateCMintParams {
 #[derive(Debug, Clone)]
 pub struct CreateCMint {
     /// Used as seed for the mint address.
-    pub mint_signer: Pubkey,
+    /// The mint seed account must be a signer.
+    pub mint_seed_pubkey: Pubkey,
     pub payer: Pubkey,
     pub address_tree_pubkey: Pubkey,
     pub output_queue: Pubkey,
@@ -88,13 +89,13 @@ pub struct CreateCMint {
 impl CreateCMint {
     pub fn new(
         params: CreateCMintParams,
-        mint_signer: Pubkey,
+        mint_seed_pubkey: Pubkey,
         payer: Pubkey,
         address_tree_pubkey: Pubkey,
         output_queue: Pubkey,
     ) -> Self {
         Self {
-            mint_signer,
+            mint_seed_pubkey,
             payer,
             address_tree_pubkey,
             output_queue,
@@ -144,7 +145,7 @@ impl CreateCMint {
         let mut meta_config = MintActionMetaConfig::new_create_mint(
             self.payer,
             self.params.mint_authority,
-            self.mint_signer,
+            self.mint_seed_pubkey,
             self.address_tree_pubkey,
             self.output_queue,
         );
@@ -303,7 +304,7 @@ impl CreateCompressedMintCpiWrite {
 // AccountInfos Struct: CreateCMintCpi (for CPI usage)
 // ============================================================================
 pub struct CreateCMintCpi<'info> {
-    pub mint_signer: AccountInfo<'info>,
+    pub mint_seed: AccountInfo<'info>,
     /// The authority for the mint (will be stored as mint_authority).
     pub authority: AccountInfo<'info>,
     /// The fee payer for the transaction.
@@ -317,8 +318,8 @@ pub struct CreateCMintCpi<'info> {
 }
 
 impl<'info> CreateCMintCpi<'info> {
-    pub fn new_with_address(
-        mint_signer: AccountInfo<'info>,
+    pub fn new(
+        mint_seed: AccountInfo<'info>,
         authority: AccountInfo<'info>,
         payer: AccountInfo<'info>,
         address_tree: AccountInfo<'info>,
@@ -327,7 +328,7 @@ impl<'info> CreateCMintCpi<'info> {
         params: CreateCMintParams,
     ) -> Self {
         Self {
-            mint_signer,
+            mint_seed,
             authority,
             payer,
             address_tree,
@@ -349,7 +350,7 @@ impl<'info> CreateCMintCpi<'info> {
         // Account order must match the instruction's account metas order (from get_mint_action_instruction_account_metas)
         let mut account_infos = vec![
             self.system_accounts.light_system_program, // Index 0
-            self.mint_signer,                          // Index 1
+            self.mint_seed,                            // Index 1
             self.authority,                            // Index 2 (authority)
             self.payer,                                // Index 3 (fee_payer)
             self.system_accounts.cpi_authority_pda,
@@ -374,7 +375,7 @@ impl<'info> CreateCMintCpi<'info> {
         // Account order must match the instruction's account metas order (from get_mint_action_instruction_account_metas)
         let mut account_infos = vec![
             self.system_accounts.light_system_program, // Index 0
-            self.mint_signer,                          // Index 1
+            self.mint_seed,                            // Index 1
             self.authority,                            // Index 2 (authority)
             self.payer,                                // Index 3 (fee_payer)
             self.system_accounts.cpi_authority_pda,
@@ -407,7 +408,7 @@ impl<'info> TryFrom<&CreateCMintCpi<'info>> for CreateCMint {
             return Err(ProgramError::InvalidAccountData);
         }
         Ok(Self {
-            mint_signer: *account_infos.mint_signer.key,
+            mint_seed_pubkey: *account_infos.mint_seed.key,
             payer: *account_infos.payer.key,
             address_tree_pubkey: *account_infos.address_tree.key,
             output_queue: *account_infos.output_queue.key,
@@ -484,12 +485,12 @@ impl<'info> TryFrom<&CreateCompressedMintCpiWriteCpi<'info>> for CreateCompresse
 // ============================================================================
 
 /// Derives the compressed mint address from the mint seed and address tree
-pub fn derive_compressed_mint_address(
+pub fn derive_cmint_compressed_address(
     mint_seed: &Pubkey,
     address_tree_pubkey: &Pubkey,
 ) -> [u8; 32] {
     light_compressed_account::address::derive_address(
-        &find_spl_mint_address(mint_seed).0.to_bytes(),
+        &find_cmint_address(mint_seed).0.to_bytes(),
         &address_tree_pubkey.to_bytes(),
         &light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID,
     )
@@ -505,7 +506,7 @@ pub fn derive_cmint_from_spl_mint(mint: &Pubkey, address_tree_pubkey: &Pubkey) -
 }
 
 /// Finds the SPL mint address from a mint seed
-pub fn find_spl_mint_address(mint_seed: &Pubkey) -> (Pubkey, u8) {
+pub fn find_cmint_address(mint_seed: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_seed.as_ref()],
         &Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),

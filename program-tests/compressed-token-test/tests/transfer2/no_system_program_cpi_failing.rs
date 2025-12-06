@@ -45,7 +45,7 @@
 
 use light_ctoken_interface::instructions::{mint_action::Recipient, transfer2::Compression};
 use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::find_spl_mint_address,
+    compressed_token::create_compressed_mint::find_cmint_address,
     ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount},
     ValidityProof,
 };
@@ -101,7 +101,7 @@ async fn setup_no_system_program_cpi_test(
 
     // Create compressed mint seed
     let mint_seed = Keypair::new();
-    let (mint, _) = find_spl_mint_address(&mint_seed.pubkey());
+    let (mint, _) = find_cmint_address(&mint_seed.pubkey());
     let (source_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
     let (recipient_ata, _) = derive_ctoken_ata(&recipient.pubkey(), &mint);
 
@@ -704,7 +704,7 @@ async fn test_too_many_mints() {
     for _ in 0..5 {
         // Create new mint seed
         let mint_seed = Keypair::new();
-        let (mint, _) = find_spl_mint_address(&mint_seed.pubkey());
+        let (mint, _) = find_cmint_address(&mint_seed.pubkey());
         let (source_ata, _) = derive_ctoken_ata(&context.owner.pubkey(), &mint);
         let (recipient_ata, _) = derive_ctoken_ata(&context.recipient.pubkey(), &mint);
 

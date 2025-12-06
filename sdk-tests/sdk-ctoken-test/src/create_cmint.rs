@@ -77,7 +77,7 @@ pub fn process_create_cmint(
     // Build the account infos struct
     // In this case, payer == authority (accounts[3])
     CreateCMintCpi {
-        mint_signer: accounts[2].clone(),
+        mint_seed: accounts[2].clone(),
         authority: accounts[3].clone(),
         payer: accounts[3].clone(),
         address_tree: accounts[11].clone(),
@@ -152,7 +152,7 @@ pub fn process_create_cmint_invoke_signed(
     // Build the account infos struct
     // In this case, payer == authority (accounts[3])
     let account_infos = CreateCMintCpi {
-        mint_signer: accounts[2].clone(),
+        mint_seed: accounts[2].clone(),
         authority: accounts[3].clone(),
         payer: accounts[3].clone(),
         address_tree: accounts[11].clone(),
@@ -240,7 +240,7 @@ pub fn process_create_cmint_with_pda_authority(
 
     // Build the account infos struct using SDK
     let account_infos = CreateCMintCpi {
-        mint_signer: accounts[2].clone(),
+        mint_seed: accounts[2].clone(),
         authority: accounts[3].clone(),
         payer: accounts[4].clone(),
         address_tree: accounts[11].clone(),
