@@ -303,6 +303,32 @@ impl CreateCompressedMintCpiWrite {
 // ============================================================================
 // AccountInfos Struct: CreateCMintCpi (for CPI usage)
 // ============================================================================
+
+/// # Create a compressed mint via CPI:
+/// ```rust,no_run
+/// # use light_ctoken_sdk::ctoken::{CreateCMintCpi, CreateCMintParams, SystemAccountInfos};
+/// # use solana_account_info::AccountInfo;
+/// # let mint_seed: AccountInfo = todo!();
+/// # let authority: AccountInfo = todo!();
+/// # let payer: AccountInfo = todo!();
+/// # let address_tree: AccountInfo = todo!();
+/// # let output_queue: AccountInfo = todo!();
+/// # let system_accounts: SystemAccountInfos = todo!();
+/// # let params: CreateCMintParams = todo!();
+/// CreateCMintCpi {
+///     mint_seed,
+///     authority,
+///     payer,
+///     address_tree,
+///     output_queue,
+///     system_accounts,
+///     cpi_context: None,
+///     cpi_context_account: None,
+///     params,
+/// }
+/// .invoke()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
 pub struct CreateCMintCpi<'info> {
     pub mint_seed: AccountInfo<'info>,
     /// The authority for the mint (will be stored as mint_authority).

@@ -103,6 +103,26 @@ impl CreateCTokenAccount {
     }
 }
 
+/// # Create a ctoken account via CPI:
+/// ```rust,no_run
+/// # use light_ctoken_sdk::ctoken::{CreateCTokenAccountCpi, CompressibleParamsCpi};
+/// # use solana_account_info::AccountInfo;
+/// # use solana_pubkey::Pubkey;
+/// # let payer: AccountInfo = todo!();
+/// # let account: AccountInfo = todo!();
+/// # let mint: AccountInfo = todo!();
+/// # let owner: Pubkey = todo!();
+/// # let compressible: CompressibleParamsCpi = todo!();
+/// CreateCTokenAccountCpi {
+///     payer,
+///     account,
+///     mint,
+///     owner,
+///     compressible: Some(compressible),
+/// }
+/// .invoke()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
 pub struct CreateCTokenAccountCpi<'info> {
     pub payer: AccountInfo<'info>,
     pub account: AccountInfo<'info>,

@@ -50,6 +50,33 @@ pub struct TransferSplToCtoken {
     pub spl_token_program: Pubkey,
 }
 
+/// # Transfer SPL to ctoken via CPI:
+/// ```rust,no_run
+/// # use light_ctoken_sdk::ctoken::TransferSplToCtokenCpi;
+/// # use solana_account_info::AccountInfo;
+/// # let source_spl_token_account: AccountInfo = todo!();
+/// # let destination_ctoken_account: AccountInfo = todo!();
+/// # let authority: AccountInfo = todo!();
+/// # let mint: AccountInfo = todo!();
+/// # let payer: AccountInfo = todo!();
+/// # let spl_interface_pda: AccountInfo = todo!();
+/// # let spl_token_program: AccountInfo = todo!();
+/// # let compressed_token_program_authority: AccountInfo = todo!();
+/// TransferSplToCtokenCpi {
+///     amount: 100,
+///     spl_interface_pda_bump: 255,
+///     source_spl_token_account,
+///     destination_ctoken_account,
+///     authority,
+///     mint,
+///     payer,
+///     spl_interface_pda,
+///     spl_token_program,
+///     compressed_token_program_authority,
+/// }
+/// .invoke()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
 pub struct TransferSplToCtokenCpi<'info> {
     pub amount: u64,
     pub spl_interface_pda_bump: u8,

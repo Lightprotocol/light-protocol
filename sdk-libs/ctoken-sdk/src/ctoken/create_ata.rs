@@ -145,6 +145,30 @@ impl CreateAssociatedTokenAccount {
     }
 }
 
+/// # Create an associated ctoken account via CPI:
+/// ```rust,no_run
+/// # use light_ctoken_sdk::ctoken::{CreateAssociatedTokenAccountCpi, CompressibleParamsCpi};
+/// # use solana_account_info::AccountInfo;
+/// # let owner: AccountInfo = todo!();
+/// # let mint: AccountInfo = todo!();
+/// # let payer: AccountInfo = todo!();
+/// # let associated_token_account: AccountInfo = todo!();
+/// # let system_program: AccountInfo = todo!();
+/// # let bump: u8 = todo!();
+/// # let compressible: CompressibleParamsCpi = todo!();
+/// CreateAssociatedTokenAccountCpi {
+///     owner,
+///     mint,
+///     payer,
+///     associated_token_account,
+///     system_program,
+///     bump,
+///     compressible: Some(compressible),
+///     idempotent: true,
+/// }
+/// .invoke()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
 pub struct CreateAssociatedTokenAccountCpi<'info> {
     pub owner: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,

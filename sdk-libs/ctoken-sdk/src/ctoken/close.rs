@@ -65,6 +65,25 @@ impl CloseCTokenAccount {
     }
 }
 
+/// # Close a ctoken account via CPI:
+/// ```rust,no_run
+/// # use light_ctoken_sdk::ctoken::CloseCTokenAccountCpi;
+/// # use solana_account_info::AccountInfo;
+/// # let token_program: AccountInfo = todo!();
+/// # let account: AccountInfo = todo!();
+/// # let destination: AccountInfo = todo!();
+/// # let owner: AccountInfo = todo!();
+/// # let rent_sponsor: AccountInfo = todo!();
+/// CloseCTokenAccountCpi {
+///     token_program,
+///     account,
+///     destination,
+///     owner,
+///     rent_sponsor: Some(rent_sponsor),
+/// }
+/// .invoke()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
 pub struct CloseCTokenAccountCpi<'info> {
     pub token_program: AccountInfo<'info>,
     pub account: AccountInfo<'info>,

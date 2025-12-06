@@ -283,6 +283,33 @@ impl MintToCTokenCpiWrite {
 // AccountInfos Struct: MintToCTokenCpi (for CPI usage)
 // ============================================================================
 
+/// # Mint to ctoken account via CPI:
+/// ```rust,no_run
+/// # use light_ctoken_sdk::ctoken::{MintToCTokenCpi, MintToCTokenParams, SystemAccountInfos};
+/// # use solana_account_info::AccountInfo;
+/// # let authority: AccountInfo = todo!();
+/// # let payer: AccountInfo = todo!();
+/// # let state_tree: AccountInfo = todo!();
+/// # let input_queue: AccountInfo = todo!();
+/// # let output_queue: AccountInfo = todo!();
+/// # let ctoken_accounts: Vec<AccountInfo> = todo!();
+/// # let system_accounts: SystemAccountInfos = todo!();
+/// # let params: MintToCTokenParams = todo!();
+/// MintToCTokenCpi {
+///     authority,
+///     payer,
+///     state_tree,
+///     input_queue,
+///     output_queue,
+///     ctoken_accounts,
+///     system_accounts,
+///     cpi_context: None,
+///     cpi_context_account: None,
+///     params,
+/// }
+/// .invoke()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
 pub struct MintToCTokenCpi<'info> {
     /// The authority for the mint operation (mint_authority).
     pub authority: AccountInfo<'info>,

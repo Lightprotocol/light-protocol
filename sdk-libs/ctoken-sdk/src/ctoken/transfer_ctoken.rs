@@ -31,6 +31,23 @@ pub struct TransferCtoken {
     pub max_top_up: Option<u16>,
 }
 
+/// # Transfer ctoken via CPI:
+/// ```rust,no_run
+/// # use light_ctoken_sdk::ctoken::TransferCtokenCpi;
+/// # use solana_account_info::AccountInfo;
+/// # let source: AccountInfo = todo!();
+/// # let destination: AccountInfo = todo!();
+/// # let authority: AccountInfo = todo!();
+/// TransferCtokenCpi {
+///     source,
+///     destination,
+///     amount: 100,
+///     authority,
+///     max_top_up: None,
+/// }
+/// .invoke()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
 pub struct TransferCtokenCpi<'info> {
     pub source: AccountInfo<'info>,
     pub destination: AccountInfo<'info>,
