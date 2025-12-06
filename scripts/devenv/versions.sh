@@ -13,7 +13,7 @@ export SOLANA_VERSION="2.2.15"
 export ANCHOR_VERSION="0.31.1"
 export JQ_VERSION="1.8.0"
 export PHOTON_VERSION="0.51.1"
-export PHOTON_COMMIT="bb4271d"
+export PHOTON_COMMIT="642d656"
 export REDIS_VERSION="8.0.1"
 
 export ANCHOR_TAG="anchor-v${ANCHOR_VERSION}"
