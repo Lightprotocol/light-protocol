@@ -73,6 +73,7 @@ impl CloseCTokenAccount {
 /// # let account: AccountInfo = todo!();
 /// # let destination: AccountInfo = todo!();
 /// # let owner: AccountInfo = todo!();
+/// // Use ctoken::RENT_SPONSOR or ctoken::rent_sponsor_pda() to get the protocol rent sponsor.
 /// # let rent_sponsor: AccountInfo = todo!();
 /// CloseCTokenAccountCpi {
 ///     token_program,

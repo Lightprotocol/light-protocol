@@ -6,12 +6,13 @@
 //! - are on Solana devnet.
 //! - are Solana accounts.
 //! - can hold cMint and spl Mint tokens.
-//! - cost 22,000 lamports to create with 24 hours rent.
+//! - cost 17,288 lamports to create with 24 hours rent.
 //! - are compressible:
 //!     - rent exemption is sponsored by the protocol.
 //!     - rent is 388 lamports per rent epoch (1.5 hours).
 //!     - once the account's lamports balance is insufficient, it is compressed to a compressed token account.
 //!     - compressed tokens can be decompressed to a cToken account.
+//!     - configurable lamports per write (eg transfer) keep the cToken account perpetually funded when used. So you don't have to worry about funding rent.
 //!
 //! ## Compressed Token Accounts
 //! - are on Solana mainnet.
