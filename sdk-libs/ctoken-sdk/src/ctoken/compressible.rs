@@ -45,6 +45,7 @@ impl CompressibleParams {
     }
 }
 
+/// Account infos for compressible token accounts in CPI operations.
 pub struct CompressibleParamsInfos<'info> {
     pub compressible_config: AccountInfo<'info>,
     pub rent_sponsor: AccountInfo<'info>,

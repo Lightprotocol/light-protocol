@@ -1,7 +1,55 @@
 //! High-level builders for compressed token operations.
 //!
-//! Provides instruction builders and CPI helpers for creating, transferring,
-//! and managing compressed token accounts.
+//! This module provides the primary API for working with compressed tokens.
+//!
+//! ## Account Creation
+//!
+//! - [`CreateAssociatedTokenAccount`] - Create associated token account (client)
+//! - [`CreateAssociatedTokenAccountInfos`] - Create ATA via CPI
+//! - [`CreateCTokenAccount`] - Create token account at specific address
+//!
+//! ## Transfers
+//!
+//! - [`TransferCtoken`] - Transfer between ctoken accounts (client)
+//! - [`TransferCtokenAccountInfos`] - Transfer via CPI
+//! - [`TransferInterface`] - Auto-detect source/destination account types
+//!
+//! ## SPL Compatibility
+//!
+//! - [`TransferSplToCtoken`] - Compress SPL tokens into ctoken account
+//! - [`TransferCtokenToSpl`] - Decompress ctoken to SPL token account
+//!
+//! ## Minting
+//!
+//! - [`CreateCMint`] - Create compressed mint (client)
+//! - [`MintToCToken`] - Mint tokens to ctoken accounts
+//!
+//! # Example: CPI Transfer with TransferInterface
+//!
+//! ```rust,ignore
+//! use light_ctoken_sdk::ctoken::TransferInterface;
+//!
+//! // Auto-detects account types and routes to the correct transfer method
+//! TransferInterface::new(
+//!     amount,
+//!     source_account,
+//!     destination_account,
+//!     authority,
+//!     payer,
+//!     ctoken_program_authority,
+//! )
+//! .with_spl_interface(mint, spl_token_program, token_pool_pda, bump)?
+//! .invoke()?;
+//! ```
+//!
+//! # Constants
+//!
+//! | Constant | Description |
+//! |----------|-------------|
+//! | [`CTOKEN_PROGRAM_ID`] | Compressed Token Program ID |
+//! | [`CTOKEN_CPI_AUTHORITY`] | CPI authority PDA |
+//! | [`COMPRESSIBLE_CONFIG_V1`] | Default compressible config |
+//! | [`RENT_SPONSOR`] | Default rent sponsor |
 
 mod close;
 mod compressible;
@@ -33,8 +81,19 @@ pub use transfer_ctoken_spl::{TransferCtokenToSpl, TransferCtokenToSplAccountInf
 pub use transfer_interface::{SplInterface, TransferInterface};
 pub use transfer_spl_ctoken::{TransferSplToCtoken, TransferSplToCtokenAccountInfos};
 
-/// System account infos required for CPI operations to the Light Protocol.
-/// These accounts are always required when executing compressed token operations (not for CPI write mode).
+/// System accounts required for CPI operations to Light Protocol.
+///
+/// Pass these accounts when invoking compressed token operations from your program.
+/// Not required for CPI write mode.
+///
+/// # Fields
+///
+/// - `light_system_program` - Light System Program
+/// - `cpi_authority_pda` - CPI authority (signs for your program)
+/// - `registered_program_pda` - Your program's registration
+/// - `account_compression_authority` - Compression authority
+/// - `account_compression_program` - Account Compression Program
+/// - `system_program` - Solana System Program
 pub struct SystemAccountInfos<'info> {
     pub light_system_program: AccountInfo<'info>,
     pub cpi_authority_pda: AccountInfo<'info>,
@@ -81,6 +140,7 @@ impl Default for SystemAccounts {
     }
 }
 
+/// Compressed Token Program ID: `cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m`
 pub const CTOKEN_PROGRAM_ID: Pubkey = pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
 pub const CTOKEN_CPI_AUTHORITY: Pubkey = pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
@@ -116,10 +176,12 @@ pub fn get_associated_ctoken_address_and_bump(owner: &Pubkey, mint: &Pubkey) -> 
     )
 }
 
+/// Returns the default compressible config PDA.
 pub fn config_pda() -> Pubkey {
     COMPRESSIBLE_CONFIG_V1
 }
 
+/// Returns the default rent sponsor PDA.
 pub fn rent_sponsor_pda() -> Pubkey {
     RENT_SPONSOR
 }
