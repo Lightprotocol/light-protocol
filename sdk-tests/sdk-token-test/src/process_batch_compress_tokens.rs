@@ -1,9 +1,7 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_ctoken_sdk::{
-    account_infos::BatchCompressAccountInfos,
-    compressed_token::batch_compress::{
-        create_batch_compress_instruction, BatchCompressInputs, Recipient,
-    },
+use light_compressed_token_types::account_infos::BatchCompressAccountInfos;
+use light_ctoken_sdk::compressed_token::batch_compress::{
+    create_batch_compress_instruction, BatchCompressInputs, Recipient,
 };
 
 use crate::Generic;
@@ -31,7 +29,7 @@ pub fn process_batch_compress_tokens<'info>(
     let batch_compress_inputs = BatchCompressInputs {
         fee_payer: *ctx.accounts.signer.key,
         authority: *ctx.accounts.signer.key,
-        token_pool_pda: *light_cpi_accounts.token_pool_pda().unwrap().key,
+        spl_interface_pda: *light_cpi_accounts.token_pool_pda().unwrap().key,
         sender_token_account: *light_cpi_accounts.sender_token_account().unwrap().key,
         token_program: *light_cpi_accounts.token_program().unwrap().key,
         merkle_tree: *light_cpi_accounts.merkle_tree().unwrap().key,

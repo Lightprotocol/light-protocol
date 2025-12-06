@@ -1,4 +1,4 @@
-// Tests for CreateCTokenAccountInfos (CreateTokenAccount instructions)
+// Tests for CreateCTokenAccountCpi (CreateTokenAccount instructions)
 
 mod shared;
 
@@ -15,7 +15,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test creating a token account using CreateCTokenAccountInfos::invoke()
+/// Test creating a token account using CreateCTokenAccountCpi::invoke()
 #[tokio::test]
 async fn test_create_token_account_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -88,7 +88,7 @@ async fn test_create_token_account_invoke() {
     assert_eq!(account_state.amount, 0, "Initial amount should be 0");
 }
 
-/// Test creating a PDA-owned token account using CreateCTokenAccountInfos::invoke_signed()
+/// Test creating a PDA-owned token account using CreateCTokenAccountCpi::invoke_signed()
 #[tokio::test]
 async fn test_create_token_account_invoke_signed() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(

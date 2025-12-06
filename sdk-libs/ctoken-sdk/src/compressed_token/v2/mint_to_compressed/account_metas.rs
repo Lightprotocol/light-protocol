@@ -15,7 +15,7 @@ pub struct MintToCompressedMetaConfig {
     pub compressed_mint_queue: Pubkey,
     pub spl_mint_initialized: bool,
     pub mint_pda: Option<Pubkey>,
-    pub token_pool_pda: Option<Pubkey>,
+    pub spl_interface_pda: Option<Pubkey>,
     pub token_program: Option<Pubkey>,
     pub with_lamports: bool,
 }
@@ -43,7 +43,7 @@ impl MintToCompressedMetaConfig {
             compressed_mint_queue,
             spl_mint_initialized: false,
             mint_pda: None,
-            token_pool_pda: None,
+            spl_interface_pda: None,
             token_program: None,
             with_lamports,
         }
@@ -68,7 +68,7 @@ impl MintToCompressedMetaConfig {
             compressed_mint_queue,
             spl_mint_initialized: false,
             mint_pda: None,
-            token_pool_pda: None,
+            spl_interface_pda: None,
             token_program: None,
             with_lamports,
         }
@@ -85,7 +85,7 @@ impl MintToCompressedMetaConfig {
         compressed_mint_tree: Pubkey,
         compressed_mint_queue: Pubkey,
         mint_pda: Pubkey,
-        token_pool_pda: Pubkey,
+        spl_interface_pda: Pubkey,
         token_program: Pubkey,
         with_lamports: bool,
     ) -> Self {
@@ -99,7 +99,7 @@ impl MintToCompressedMetaConfig {
             compressed_mint_queue,
             spl_mint_initialized: true,
             mint_pda: Some(mint_pda),
-            token_pool_pda: Some(token_pool_pda),
+            spl_interface_pda: Some(spl_interface_pda),
             token_program: Some(token_program),
             with_lamports,
         }
@@ -167,7 +167,7 @@ pub fn get_mint_to_compressed_instruction_account_metas(
     // Optional decompressed mint accounts
     if config.spl_mint_initialized {
         metas.push(AccountMeta::new(config.mint_pda.unwrap(), false)); // mint
-        metas.push(AccountMeta::new(config.token_pool_pda.unwrap(), false)); // token_pool_pda
+        metas.push(AccountMeta::new(config.spl_interface_pda.unwrap(), false)); // spl_interface_pda
         metas.push(AccountMeta::new_readonly(
             config.token_program.unwrap(),
             false,

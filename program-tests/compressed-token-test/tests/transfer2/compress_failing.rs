@@ -38,7 +38,7 @@
 use light_ctoken_interface::{instructions::mint_action::Recipient, state::TokenDataVersion};
 use light_ctoken_sdk::{
     compressed_token::{
-        create_compressed_mint::find_spl_mint_address,
+        create_compressed_mint::find_cmint_address,
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
             Transfer2Config, Transfer2Inputs,
@@ -84,7 +84,7 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
     let mint_seed = Keypair::new();
 
     // Derive mint and ATA addresses
-    let (mint, _) = find_spl_mint_address(&mint_seed.pubkey());
+    let (mint, _) = find_cmint_address(&mint_seed.pubkey());
     let (ctoken_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
 
     // Create compressible CToken ATA for owner
@@ -605,7 +605,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
     let mint_seed = Keypair::new();
 
     // Derive mint and ATA addresses
-    let (mint, _) = find_spl_mint_address(&mint_seed.pubkey());
+    let (mint, _) = find_cmint_address(&mint_seed.pubkey());
     let (ctoken_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
 
     // Create compressible CToken ATA with pre_pay_num_epochs = 0 (NO prepaid rent)

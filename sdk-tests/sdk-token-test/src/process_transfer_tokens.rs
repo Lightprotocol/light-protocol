@@ -5,9 +5,9 @@ use light_ctoken_sdk::{
             instruction::{transfer, TransferInputs},
             TransferAccountInfos,
         },
-        CTokenAccount,
+        CTokenAccount, TokenAccountMeta,
     },
-    TokenAccountMeta, ValidityProof,
+    ValidityProof,
 };
 
 use crate::Generic;

@@ -6,7 +6,19 @@ use solana_pubkey::Pubkey;
 
 use crate::ctoken::RENT_SPONSOR;
 
-pub struct CloseAccount {
+/// # Create a close ctoken account instruction:
+/// ```rust
+/// # use solana_pubkey::Pubkey;
+/// # use light_ctoken_sdk::ctoken::{CloseCTokenAccount, CTOKEN_PROGRAM_ID};
+/// # let account = Pubkey::new_unique();
+/// # let destination = Pubkey::new_unique();
+/// # let owner = Pubkey::new_unique();
+/// let instruction =
+///     CloseCTokenAccount::new(CTOKEN_PROGRAM_ID, account, destination, owner)
+///     .instruction()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
+pub struct CloseCTokenAccount {
     pub token_program: Pubkey,
     pub account: Pubkey,
     pub destination: Pubkey,
@@ -14,7 +26,7 @@ pub struct CloseAccount {
     pub rent_sponsor: Option<Pubkey>,
 }
 
-impl CloseAccount {
+impl CloseCTokenAccount {
     pub fn new(token_program: Pubkey, account: Pubkey, destination: Pubkey, owner: Pubkey) -> Self {
         Self {
             token_program,
@@ -53,7 +65,27 @@ impl CloseAccount {
     }
 }
 
-pub struct CloseAccountInfos<'info> {
+/// # Close a ctoken account via CPI:
+/// ```rust,no_run
+/// # use light_ctoken_sdk::ctoken::CloseCTokenAccountCpi;
+/// # use solana_account_info::AccountInfo;
+/// # let token_program: AccountInfo = todo!();
+/// # let account: AccountInfo = todo!();
+/// # let destination: AccountInfo = todo!();
+/// # let owner: AccountInfo = todo!();
+/// // Use ctoken::RENT_SPONSOR or ctoken::rent_sponsor_pda() to get the protocol rent sponsor.
+/// # let rent_sponsor: AccountInfo = todo!();
+/// CloseCTokenAccountCpi {
+///     token_program,
+///     account,
+///     destination,
+///     owner,
+///     rent_sponsor: Some(rent_sponsor),
+/// }
+/// .invoke()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
+pub struct CloseCTokenAccountCpi<'info> {
     pub token_program: AccountInfo<'info>,
     pub account: AccountInfo<'info>,
     pub destination: AccountInfo<'info>,
@@ -61,9 +93,9 @@ pub struct CloseAccountInfos<'info> {
     pub rent_sponsor: Option<AccountInfo<'info>>,
 }
 
-impl<'info> CloseAccountInfos<'info> {
+impl<'info> CloseCTokenAccountCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        CloseAccount::from(self).instruction()
+        CloseCTokenAccount::from(self).instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
@@ -89,8 +121,8 @@ impl<'info> CloseAccountInfos<'info> {
     }
 }
 
-impl<'info> From<&CloseAccountInfos<'info>> for CloseAccount {
-    fn from(account_infos: &CloseAccountInfos<'info>) -> Self {
+impl<'info> From<&CloseCTokenAccountCpi<'info>> for CloseCTokenAccount {
+    fn from(account_infos: &CloseCTokenAccountCpi<'info>) -> Self {
         Self {
             token_program: *account_infos.token_program.key,
             account: *account_infos.account.key,

@@ -3,7 +3,7 @@ use std::ops::Deref;
 use light_compressed_token_types::{PackedTokenTransferOutputData, TokenAccountMeta};
 use solana_pubkey::Pubkey;
 
-use crate::error::TokenSdkError;
+use crate::error::CTokenSdkError;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CTokenAccount {
@@ -68,9 +68,9 @@ impl CTokenAccount {
         recipient: &Pubkey,
         amount: u64,
         output_merkle_tree_index: Option<u8>,
-    ) -> Result<Self, TokenSdkError> {
+    ) -> Result<Self, CTokenSdkError> {
         if amount > self.output.amount {
-            return Err(TokenSdkError::InsufficientBalance);
+            return Err(CTokenSdkError::InsufficientBalance);
         }
         // TODO: skip outputs with zero amount when creating the instruction data.
         self.output.amount -= amount;
@@ -103,9 +103,9 @@ impl CTokenAccount {
         _delegate: &Pubkey,
         amount: u64,
         output_merkle_tree_index: Option<u8>,
-    ) -> Result<Self, TokenSdkError> {
+    ) -> Result<Self, CTokenSdkError> {
         if amount > self.output.amount {
-            return Err(TokenSdkError::InsufficientBalance);
+            return Err(CTokenSdkError::InsufficientBalance);
         }
 
         // Deduct the delegated amount from current account
@@ -134,11 +134,11 @@ impl CTokenAccount {
     }
 
     // TODO: consider this might be confusing because it must not be used in combination with fn compress()
-    pub fn compress(&mut self, amount: u64) -> Result<(), TokenSdkError> {
+    pub fn compress(&mut self, amount: u64) -> Result<(), CTokenSdkError> {
         self.output.amount += amount;
         self.is_compress = true;
         if self.is_decompress {
-            return Err(TokenSdkError::CannotCompressAndDecompress);
+            return Err(CTokenSdkError::CannotCompressAndDecompress);
         }
 
         match self.compression_amount.as_mut() {
@@ -151,12 +151,12 @@ impl CTokenAccount {
     }
 
     // TODO: consider this might be confusing because it must not be used in combination with fn decompress()
-    pub fn decompress(&mut self, amount: u64) -> Result<(), TokenSdkError> {
+    pub fn decompress(&mut self, amount: u64) -> Result<(), CTokenSdkError> {
         if self.is_compress {
-            return Err(TokenSdkError::CannotCompressAndDecompress);
+            return Err(CTokenSdkError::CannotCompressAndDecompress);
         }
         if self.output.amount < amount {
-            return Err(TokenSdkError::InsufficientBalance);
+            return Err(CTokenSdkError::InsufficientBalance);
         }
         self.output.amount -= amount;
 

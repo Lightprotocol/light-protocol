@@ -5,9 +5,9 @@ use light_ctoken_sdk::{
             instruction::{decompress, DecompressInputs},
             TransferAccountInfos,
         },
-        CTokenAccount,
+        CTokenAccount, TokenAccountMeta,
     },
-    TokenAccountMeta, ValidityProof,
+    ValidityProof,
 };
 
 use crate::Generic;
@@ -38,7 +38,7 @@ pub fn process_decompress_tokens<'info>(
         sender_account,
         amount: 10,
         tree_pubkeys: light_cpi_accounts.tree_pubkeys().unwrap(),
-        token_pool_pda: *light_cpi_accounts.token_pool_pda().unwrap().key,
+        spl_interface_pda: *light_cpi_accounts.token_pool_pda().unwrap().key,
         recipient_token_account: *light_cpi_accounts.decompression_recipient().unwrap().key,
         spl_token_program: *light_cpi_accounts.spl_token_program().unwrap().key,
         config: None,

@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_ctoken_sdk::ctoken::{CompressibleParamsInfos, CreateAssociatedTokenAccountInfos};
+use light_ctoken_sdk::ctoken::{CompressibleParamsCpi, CreateAssociatedTokenAccountCpi};
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{ATA_SEED, ID};
@@ -30,13 +30,13 @@ pub fn process_create_ata2_invoke(
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    let compressible_params = CompressibleParamsInfos::new(
+    let compressible_params = CompressibleParamsCpi::new(
         accounts[5].clone(),
         accounts[6].clone(),
         accounts[4].clone(),
     );
 
-    CreateAssociatedTokenAccountInfos {
+    CreateAssociatedTokenAccountCpi {
         owner: accounts[0].clone(),
         mint: accounts[1].clone(),
         payer: accounts[2].clone(),
@@ -77,14 +77,14 @@ pub fn process_create_ata2_invoke_signed(
         return Err(ProgramError::InvalidSeeds);
     }
 
-    let compressible_params = CompressibleParamsInfos::new(
+    let compressible_params = CompressibleParamsCpi::new(
         accounts[5].clone(),
         accounts[6].clone(),
         accounts[4].clone(),
     );
 
     let signer_seeds: &[&[u8]] = &[ATA_SEED, &[bump]];
-    CreateAssociatedTokenAccountInfos {
+    CreateAssociatedTokenAccountCpi {
         owner: accounts[0].clone(),
         mint: accounts[1].clone(),
         payer: accounts[2].clone(), // PDA

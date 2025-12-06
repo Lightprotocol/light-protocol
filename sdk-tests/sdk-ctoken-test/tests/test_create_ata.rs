@@ -1,4 +1,4 @@
-// Tests for CreateAssociatedTokenAccountInfos (CreateAta instructions)
+// Tests for CreateAssociatedTokenAccountCpi (CreateAta instructions)
 
 mod shared;
 
@@ -14,7 +14,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test creating an ATA using CreateAssociatedTokenAccountInfos::invoke()
+/// Test creating an ATA using CreateAssociatedTokenAccountCpi::invoke()
 #[tokio::test]
 async fn test_create_ata_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -88,7 +88,7 @@ async fn test_create_ata_invoke() {
     assert_eq!(account_state.amount, 0, "Initial amount should be 0");
 }
 
-/// Test creating an ATA with PDA payer using CreateAssociatedTokenAccountInfos::invoke_signed()
+/// Test creating an ATA with PDA payer using CreateAssociatedTokenAccountCpi::invoke_signed()
 #[tokio::test]
 async fn test_create_ata_invoke_signed() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(

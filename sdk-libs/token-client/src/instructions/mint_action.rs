@@ -17,7 +17,7 @@ use light_ctoken_interface::{
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_ctoken_sdk::compressed_token::{
-    create_compressed_mint::{derive_compressed_mint_address, find_spl_mint_address},
+    create_compressed_mint::{derive_cmint_compressed_address, find_cmint_address},
     mint_action::MintActionMetaConfig,
 };
 use solana_instruction::Instruction;
@@ -126,7 +126,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                 decimals: new_mint.decimals,
                 metadata: light_ctoken_interface::state::CompressedMintMetadata {
                     version: new_mint.version,
-                    mint: find_spl_mint_address(&params.mint_seed).0.to_bytes().into(),
+                    mint: find_cmint_address(&params.mint_seed).0.to_bytes().into(),
                     spl_mint_initialized: false, // Will be set to true if CreateSplMint action is present
                 },
                 mint_authority: Some(new_mint.mint_authority.to_bytes().into()),
@@ -340,7 +340,7 @@ pub async fn create_comprehensive_mint_action_instruction<R: Rpc + Indexer>(
     // Derive addresses
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Build actions
     let mut actions = Vec::new();

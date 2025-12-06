@@ -27,7 +27,7 @@ pub fn process_compress_tokens<'info>(
         sender_token_account: *light_cpi_accounts.sender_token_account().unwrap().key,
         amount,
         output_tree_index,
-        token_pool_pda: *light_cpi_accounts.token_pool_pda().unwrap().key,
+        spl_interface_pda: *light_cpi_accounts.token_pool_pda().unwrap().key,
         transfer_config: None,
         spl_token_program: *light_cpi_accounts.spl_token_program().unwrap().key,
         tree_accounts: light_cpi_accounts.tree_pubkeys().unwrap(),

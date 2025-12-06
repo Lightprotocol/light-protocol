@@ -1,4 +1,4 @@
-// Tests for CloseAccountInfos invoke() and invoke_signed()
+// Tests for CloseCTokenAccountCpi invoke() and invoke_signed()
 
 mod shared;
 
@@ -13,7 +13,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test closing a compressible token account using CloseAccountInfos::invoke()
+/// Test closing a compressible token account using CloseCTokenAccountCpi::invoke()
 #[tokio::test]
 async fn test_close_invoke() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
@@ -67,7 +67,7 @@ async fn test_close_invoke() {
     );
 }
 
-/// Test closing a PDA-owned compressible token account using CloseAccountInfos::invoke_signed()
+/// Test closing a PDA-owned compressible token account using CloseCTokenAccountCpi::invoke_signed()
 #[tokio::test]
 async fn test_close_invoke_signed() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));

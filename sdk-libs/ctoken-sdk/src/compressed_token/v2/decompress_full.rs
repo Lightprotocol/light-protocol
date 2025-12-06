@@ -18,7 +18,9 @@ use super::{
         Transfer2Inputs,
     },
 };
-use crate::{compat::TokenData, error::TokenSdkError, utils::CTokenDefaultAccounts, ValidityProof};
+use crate::{
+    compat::TokenData, error::CTokenSdkError, utils::CTokenDefaultAccounts, ValidityProof,
+};
 
 /// Struct to hold all the data needed for DecompressFull operation
 /// Contains the complete compressed account data and destination index
@@ -46,9 +48,9 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
     cpi_context_pubkey: Option<Pubkey>,
     indices: &[DecompressFullIndices],
     packed_accounts: &[AccountInfo<'info>],
-) -> Result<Instruction, TokenSdkError> {
+) -> Result<Instruction, CTokenSdkError> {
     if indices.is_empty() {
-        return Err(TokenSdkError::InvalidAccountData);
+        return Err(CTokenSdkError::InvalidAccountData);
     }
 
     // Process each set of indices
@@ -71,7 +73,7 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
 
         let owner_idx = idx.source.owner as usize;
         if owner_idx >= signer_flags.len() {
-            return Err(TokenSdkError::InvalidAccountData);
+            return Err(CTokenSdkError::InvalidAccountData);
         }
         signer_flags[owner_idx] = true;
     }

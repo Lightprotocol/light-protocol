@@ -1,4 +1,6 @@
-use light_ctoken_sdk::ctoken::{CloseAccount, CompressibleParams, CreateAssociatedTokenAccount};
+use light_ctoken_sdk::ctoken::{
+    CloseCTokenAccount, CompressibleParams, CreateAssociatedTokenAccount,
+};
 use light_test_utils::assert_create_token_account::assert_create_associated_token_account;
 
 use super::shared::*;
@@ -111,7 +113,7 @@ async fn test_associated_token_account_operations() {
         .unwrap();
 
     // Close compressible ATA
-    let close_account_ix = CloseAccount::new(
+    let close_account_ix = CloseCTokenAccount::new(
         light_compressed_token::ID,
         compressible_ata_pubkey,
         destination.pubkey(),                // destination for user funds

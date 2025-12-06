@@ -187,7 +187,7 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#pack_match_arms)*
                     Self::PackedCTokenData(_) => unreachable!(),
                     Self::CTokenData(data) => {
-                        Self::PackedCTokenData(light_ctoken_sdk::Pack::pack(data, remaining_accounts))
+                        Self::PackedCTokenData(light_ctoken_sdk::pack::Pack::pack(data, remaining_accounts))
                     }
                 }
             }

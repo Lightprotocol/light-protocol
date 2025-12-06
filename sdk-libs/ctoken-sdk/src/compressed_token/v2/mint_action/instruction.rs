@@ -7,7 +7,7 @@ use solana_msg::msg;
 use solana_program_error::ProgramError;
 
 use super::{cpi_accounts::MintActionCpiAccounts, MintActionCpiWriteAccounts};
-use crate::{compressed_token::ctoken_instruction::CTokenInstruction, error::TokenSdkError};
+use crate::{compressed_token::ctoken_instruction::CTokenInstruction, error::CTokenSdkError};
 
 impl CTokenInstruction for MintActionCompressedInstructionData {
     type ExecuteAccounts<'info, A: light_account_checks::AccountInfoTrait + Clone + 'info> =
@@ -24,7 +24,7 @@ impl CTokenInstruction for MintActionCompressedInstructionData {
                 msg!(
                     "CPI context write operations not supported in instruction(). Use instruction_write_to_cpi_context_first() or instruction_write_to_cpi_context_set() instead"
                 );
-                return Err(ProgramError::from(TokenSdkError::InvalidAccountData));
+                return Err(ProgramError::from(CTokenSdkError::InvalidAccountData));
             }
         }
 

@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_ctoken_interface::instructions::mint_action::CompressedMintWithContext;
-use light_ctoken_sdk::ctoken::{MintToCTokenInfos, MintToCTokenParams, SystemAccountInfos};
+use light_ctoken_sdk::ctoken::{MintToCTokenCpi, MintToCTokenParams, SystemAccountInfos};
 use light_sdk::instruction::ValidityProof;
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
@@ -20,9 +20,9 @@ pub struct MintToCTokenData {
 
 /// Handler for minting tokens to compressed token accounts
 ///
-/// Uses the MintToCTokenInfos builder pattern. This demonstrates how to:
+/// Uses the MintToCTokenCpi builder pattern. This demonstrates how to:
 /// 1. Build MintToCTokenParams using the constructor
-/// 2. Build MintToCTokenInfos with accounts and params
+/// 2. Build MintToCTokenCpi with accounts and params
 /// 3. Call invoke() which handles instruction building and CPI
 ///
 /// Account order (all accounts from SDK-generated instruction):
@@ -71,7 +71,7 @@ pub fn process_mint_to_ctoken(
     // Build the account infos struct and invoke
     // SDK account order: output_queue (9), tree (10), input_queue (11), ctoken_accounts (12+)
     // In this case, payer == authority (accounts[3])
-    MintToCTokenInfos {
+    MintToCTokenCpi {
         authority: accounts[2].clone(),    // authority from SDK accounts
         payer: accounts[3].clone(),        // fee_payer from SDK accounts
         state_tree: accounts[10].clone(),  // tree at index 10
@@ -90,7 +90,7 @@ pub fn process_mint_to_ctoken(
 
 /// Handler for minting tokens with PDA mint authority (invoke_signed)
 ///
-/// Uses the MintToCTokenInfos builder pattern with invoke_signed.
+/// Uses the MintToCTokenCpi builder pattern with invoke_signed.
 /// The mint authority is a PDA derived from this program.
 ///
 /// Account order (all accounts from SDK-generated instruction):
@@ -146,7 +146,7 @@ pub fn process_mint_to_ctoken_invoke_signed(
 
     // Build the account infos struct
     // authority is the PDA (accounts[2])
-    let account_infos = MintToCTokenInfos {
+    let account_infos = MintToCTokenCpi {
         authority: accounts[2].clone(),    // authority PDA
         payer: accounts[3].clone(),        // fee_payer from SDK accounts
         state_tree: accounts[10].clone(),  // tree at index 10

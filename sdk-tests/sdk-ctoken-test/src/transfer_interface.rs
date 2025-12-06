@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_ctoken_sdk::ctoken::TransferInterface;
+use light_ctoken_sdk::ctoken::TransferInterfaceCpi;
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::ID;
@@ -41,7 +41,7 @@ pub fn process_transfer_interface_invoke(
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    let mut transfer = TransferInterface::new(
+    let mut transfer = TransferInterfaceCpi::new(
         data.amount,
         accounts[1].clone(), // source_account
         accounts[2].clone(), // destination_account
@@ -65,7 +65,7 @@ pub fn process_transfer_interface_invoke(
     Ok(())
 }
 
-/// Handler for TransferInterface with PDA authority (invoke_signed)
+/// Handler for TransferInterfaceCpi with PDA authority (invoke_signed)
 ///
 /// The authority is a PDA derived from TRANSFER_INTERFACE_AUTHORITY_SEED.
 ///
@@ -97,7 +97,7 @@ pub fn process_transfer_interface_invoke_signed(
         return Err(ProgramError::InvalidSeeds);
     }
 
-    let mut transfer = TransferInterface::new(
+    let mut transfer = TransferInterfaceCpi::new(
         data.amount,
         accounts[1].clone(), // source_account
         accounts[2].clone(), // destination_account

@@ -2,7 +2,7 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_ctoken_sdk::CompressedMintAuthorityType;
+use light_compressed_token_types::CompressedMintAuthorityType;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;

@@ -20,17 +20,17 @@ pub async fn setup_create_compressed_mint(
         MintToCTokenParams,
     };
 
-    let mint_signer = Keypair::new();
+    let mint_seed = Keypair::new();
     let address_tree = rpc.get_address_tree_v2();
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     // Derive compression address using SDK helpers
-    let compression_address = light_ctoken_sdk::ctoken::derive_compressed_mint_address(
-        &mint_signer.pubkey(),
+    let compression_address = light_ctoken_sdk::ctoken::derive_cmint_compressed_address(
+        &mint_seed.pubkey(),
         &address_tree.tree,
     );
 
-    let mint_pda = light_ctoken_sdk::ctoken::find_spl_mint_address(&mint_signer.pubkey()).0;
+    let mint = light_ctoken_sdk::ctoken::find_cmint_address(&mint_seed.pubkey()).0;
 
     // Get validity proof for the address
     let rpc_result = rpc
@@ -53,7 +53,7 @@ pub async fn setup_create_compressed_mint(
         mint_authority,
         proof: rpc_result.proof.0.unwrap(),
         compression_address,
-        mint: mint_pda,
+        mint,
         freeze_authority: None,
         extensions: None,
     };
@@ -61,7 +61,7 @@ pub async fn setup_create_compressed_mint(
     // Create instruction directly using SDK
     let create_cmint_builder = CreateCMint::new(
         params,
-        mint_signer.pubkey(),
+        mint_seed.pubkey(),
         payer.pubkey(),
         address_tree.tree,
         output_queue,
@@ -69,7 +69,7 @@ pub async fn setup_create_compressed_mint(
     let instruction = create_cmint_builder.instruction().unwrap();
 
     // Send transaction
-    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer, &mint_signer])
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer, &mint_seed])
         .await
         .unwrap();
 
@@ -87,7 +87,7 @@ pub async fn setup_create_compressed_mint(
 
     // If no recipients, return early
     if recipients.is_empty() {
-        return (mint_pda, compression_address, vec![]);
+        return (mint, compression_address, vec![]);
     }
 
     // Create ATAs for each recipient
@@ -96,10 +96,10 @@ pub async fn setup_create_compressed_mint(
     let mut ata_pubkeys = Vec::with_capacity(recipients.len());
 
     for (_amount, owner) in &recipients {
-        let (ata_address, _bump) = derive_ctoken_ata(owner, &mint_pda);
+        let (ata_address, _bump) = derive_ctoken_ata(owner, &mint);
         ata_pubkeys.push(ata_address);
 
-        let create_ata = CreateAssociatedTokenAccount::new(payer.pubkey(), *owner, mint_pda);
+        let create_ata = CreateAssociatedTokenAccount::new(payer.pubkey(), *owner, mint);
         let ata_instruction = create_ata.instruction().unwrap();
 
         rpc.create_and_send_transaction(&[ata_instruction], &payer.pubkey(), &[payer])
@@ -180,5 +180,5 @@ pub async fn setup_create_compressed_mint(
             .unwrap();
     }
 
-    (mint_pda, compression_address, ata_pubkeys)
+    (mint, compression_address, ata_pubkeys)
 }

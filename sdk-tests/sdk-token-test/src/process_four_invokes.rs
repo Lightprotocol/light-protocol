@@ -1,13 +1,8 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
-use light_ctoken_sdk::{
-    compressed_token::{
-        transfer::instruction::{
-            compress, transfer, CompressInputs, TransferConfig, TransferInputs,
-        },
-        CTokenAccount,
-    },
-    TokenAccountMeta,
+use light_ctoken_sdk::compressed_token::{
+    transfer::instruction::{compress, transfer, CompressInputs, TransferConfig, TransferInputs},
+    CTokenAccount, TokenAccountMeta,
 };
 use light_sdk::{
     cpi::v2::CpiAccounts, instruction::ValidityProof as LightValidityProof,
@@ -174,7 +169,7 @@ fn compress_tokens_with_cpi_context<'a, 'info>(
         amount,
         output_tree_index,
         // output_queue_pubkey: *cpi_accounts.tree_accounts().unwrap()[0].key,
-        token_pool_pda: *remaining_accounts[1].key,
+        spl_interface_pda: *remaining_accounts[1].key,
         transfer_config: Some(TransferConfig {
             cpi_context: Some(CompressedCpiContext {
                 set_context: true,

@@ -1,7 +1,65 @@
-//! High-level builders for compressed token operations.
+//! High-level builders for ctoken operations.
 //!
-//! Provides instruction builders and CPI helpers for creating, transferring,
-//! and managing compressed token accounts.
+//!
+//! ## Account Creation
+//!
+//! - [`CreateAssociatedTokenAccount`] - Create associated ctoken account (ATA) instruction
+//! - [`CreateAssociatedTokenAccountCpi`] - Create associated ctoken account (ATA) via CPI
+//! - [`CreateCTokenAccount`] - Create ctoken account instruction
+//! - [`CreateCTokenAccountCpi`] - Create ctoken account via CPI
+//!
+//! ## Transfers
+//!
+//! - [`TransferInterfaceCpi`] - Transfer via CPI, auto-detect source/destination account types
+//!
+//! ## Close
+//!
+//! - [`CloseCTokenAccount`] - Create close ctoken account instruction
+//! - [`CloseCTokenAccountCpi`] - Close ctoken account via CPI
+//!
+//!
+//! ## Mint
+//!
+//! - [`CreateCMint`] - Create cMint
+//! - [`MintToCToken`] - Mint tokens to ctoken accounts
+//!
+//! # Example: Create cToken Account Instruction
+//!
+//! ```rust
+//! # use solana_pubkey::Pubkey;
+//! use light_ctoken_sdk::ctoken::CreateAssociatedTokenAccount;
+//! # let payer = Pubkey::new_unique();
+//! # let owner = Pubkey::new_unique();
+//! # let mint = Pubkey::new_unique();
+//!
+//! let instruction = CreateAssociatedTokenAccount::new(payer, owner, mint)
+//!     .idempotent()
+//!     .instruction()?;
+//! # Ok::<(), solana_program_error::ProgramError>(())
+//! ```
+//!
+//! # Example: Create cToken Account CPI
+//!
+//! ```rust,ignore
+//! use light_ctoken_sdk::ctoken::{CreateAssociatedTokenAccountCpi, CompressibleParamsCpi};
+//!
+//! CreateAssociatedTokenAccountCpi {
+//!     owner: ctx.accounts.owner.to_account_info(),
+//!     mint: ctx.accounts.mint.to_account_info(),
+//!     payer: ctx.accounts.payer.to_account_info(),
+//!     associated_token_account: ctx.accounts.ctoken_account.to_account_info(),
+//!     system_program: ctx.accounts.system_program.to_account_info(),
+//!     bump,
+//!     compressible: Some(CompressibleParamsCpi::default_with_accounts(
+//!         ctx.accounts.compressible_config.to_account_info(),
+//!         ctx.accounts.rent_sponsor.to_account_info(),
+//!         ctx.accounts.system_program.to_account_info(),
+//!     )),
+//!     idempotent: true,
+//! }
+//! .invoke()?;
+//! ```
+//!
 
 mod close;
 mod compressible;
@@ -15,26 +73,39 @@ mod transfer_interface;
 mod transfer_spl_ctoken;
 
 pub use close::*;
-pub use compressible::{CompressibleParams, CompressibleParamsInfos};
+pub use compressible::{CompressibleParams, CompressibleParamsCpi};
 pub use create::*;
 pub use create_ata::*;
 pub use create_cmint::*;
 use light_compressed_token_types::POOL_SEED;
 use light_compressible::config::CompressibleConfig;
 pub use light_ctoken_interface::{
-    instructions::extensions::{compressible::CompressToPubkey, ExtensionInstructionData},
+    instructions::{
+        extensions::{compressible::CompressToPubkey, ExtensionInstructionData},
+        mint_action::CompressedMintWithContext,
+    },
     state::TokenDataVersion,
 };
 pub use mint_to::*;
 use solana_account_info::AccountInfo;
 use solana_pubkey::{pubkey, Pubkey};
 pub use transfer_ctoken::*;
-pub use transfer_ctoken_spl::{TransferCtokenToSpl, TransferCtokenToSplAccountInfos};
-pub use transfer_interface::{SplInterface, TransferInterface};
-pub use transfer_spl_ctoken::{TransferSplToCtoken, TransferSplToCtokenAccountInfos};
+pub use transfer_ctoken_spl::{TransferCTokenToSpl, TransferCTokenToSplCpi};
+pub use transfer_interface::{SplInterface, TransferInterfaceCpi};
+pub use transfer_spl_ctoken::{TransferSplToCtoken, TransferSplToCtokenCpi};
 
-/// System account infos required for CPI operations to the Light Protocol.
-/// These accounts are always required when executing compressed token operations (not for CPI write mode).
+/// System accounts required for CPI operations to Light Protocol.
+///
+/// Pass these accounts when invoking compressed token operations from your program.
+///
+/// # Fields
+///
+/// - `light_system_program` - Light System Program
+/// - `cpi_authority_pda` - CPI authority (signs for your program)
+/// - `registered_program_pda` - Your program's registration
+/// - `account_compression_authority` - Compression authority
+/// - `account_compression_program` - Account Compression Program
+/// - `system_program` - Solana System Program
 pub struct SystemAccountInfos<'info> {
     pub light_system_program: AccountInfo<'info>,
     pub cpi_authority_pda: AccountInfo<'info>,
@@ -81,6 +152,7 @@ impl Default for SystemAccounts {
     }
 }
 
+/// Compressed Token Program ID: `cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m`
 pub const CTOKEN_PROGRAM_ID: Pubkey = pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
 pub const CTOKEN_CPI_AUTHORITY: Pubkey = pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
@@ -99,7 +171,7 @@ pub fn cpi_authority() -> Pubkey {
     CTOKEN_CPI_AUTHORITY
 }
 
-pub fn get_token_pool_address_and_bump(mint: &Pubkey) -> (Pubkey, u8) {
+pub fn get_spl_interface_pda_and_bump(mint: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(&[POOL_SEED, mint.as_ref()], &CTOKEN_PROGRAM_ID)
 }
 
@@ -116,10 +188,12 @@ pub fn get_associated_ctoken_address_and_bump(owner: &Pubkey, mint: &Pubkey) -> 
     )
 }
 
+/// Returns the default compressible config PDA.
 pub fn config_pda() -> Pubkey {
     COMPRESSIBLE_CONFIG_V1
 }
 
+/// Returns the default rent sponsor PDA.
 pub fn rent_sponsor_pda() -> Pubkey {
     RENT_SPONSOR
 }

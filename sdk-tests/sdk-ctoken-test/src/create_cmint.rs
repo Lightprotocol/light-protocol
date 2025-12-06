@@ -1,8 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_ctoken_sdk::{
-    ctoken::{
-        CreateCMintAccountInfos, CreateCMintParams, ExtensionInstructionData, SystemAccountInfos,
-    },
+    ctoken::{CreateCMintCpi, CreateCMintParams, ExtensionInstructionData, SystemAccountInfos},
     CompressedProof,
 };
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
@@ -27,9 +25,9 @@ pub struct CreateCmintData {
 
 /// Handler for creating a compressed mint (invoke)
 ///
-/// Uses the CreateCMintAccountInfos builder pattern. This demonstrates how to:
+/// Uses the CreateCMintCpi builder pattern. This demonstrates how to:
 /// 1. Build the CreateCMintParams struct from instruction data
-/// 2. Build the CreateCMintAccountInfos with accounts
+/// 2. Build the CreateCMintCpi with accounts
 /// 3. Call invoke() which handles instruction building and CPI
 ///
 /// Account order:
@@ -78,8 +76,8 @@ pub fn process_create_cmint(
 
     // Build the account infos struct
     // In this case, payer == authority (accounts[3])
-    CreateCMintAccountInfos {
-        mint_signer: accounts[2].clone(),
+    CreateCMintCpi {
+        mint_seed: accounts[2].clone(),
         authority: accounts[3].clone(),
         payer: accounts[3].clone(),
         address_tree: accounts[11].clone(),
@@ -96,7 +94,7 @@ pub fn process_create_cmint(
 
 /// Handler for creating a compressed mint with PDA mint signer (invoke_signed)
 ///
-/// Uses the CreateCMintAccountInfos builder pattern with invoke_signed.
+/// Uses the CreateCMintCpi builder pattern with invoke_signed.
 /// The mint_signer is a PDA derived from this program.
 ///
 /// Account order:
@@ -153,8 +151,8 @@ pub fn process_create_cmint_invoke_signed(
 
     // Build the account infos struct
     // In this case, payer == authority (accounts[3])
-    let account_infos = CreateCMintAccountInfos {
-        mint_signer: accounts[2].clone(),
+    let account_infos = CreateCMintCpi {
+        mint_seed: accounts[2].clone(),
         authority: accounts[3].clone(),
         payer: accounts[3].clone(),
         address_tree: accounts[11].clone(),
@@ -174,7 +172,7 @@ pub fn process_create_cmint_invoke_signed(
 
 /// Handler for creating a compressed mint with PDA mint signer AND PDA authority (invoke_signed)
 ///
-/// Uses the SDK's CreateCMintAccountInfos with separate authority and payer accounts.
+/// Uses the SDK's CreateCMintCpi with separate authority and payer accounts.
 /// Both mint_signer and authority are PDAs signed by this program.
 ///
 /// Account order:
@@ -241,8 +239,8 @@ pub fn process_create_cmint_with_pda_authority(
     };
 
     // Build the account infos struct using SDK
-    let account_infos = CreateCMintAccountInfos {
-        mint_signer: accounts[2].clone(),
+    let account_infos = CreateCMintCpi {
+        mint_seed: accounts[2].clone(),
         authority: accounts[3].clone(),
         payer: accounts[4].clone(),
         address_tree: accounts[11].clone(),

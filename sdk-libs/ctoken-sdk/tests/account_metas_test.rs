@@ -55,7 +55,7 @@ fn test_to_compressed_token_account_metas_with_optional_accounts() {
     let authority = Pubkey::new_unique();
 
     // Optional accounts
-    let token_pool_pda = Pubkey::new_unique();
+    let spl_interface_pda = Pubkey::new_unique();
     let compress_or_decompress_token_account = Pubkey::new_unique();
     let spl_token_program = Pubkey::new_unique();
 
@@ -70,7 +70,7 @@ fn test_to_compressed_token_account_metas_with_optional_accounts() {
         account_compression_authority: default_pubkeys.account_compression_authority,
         account_compression_program: default_pubkeys.account_compression_program,
         self_program: default_pubkeys.self_program,
-        token_pool_pda: Some(token_pool_pda),
+        token_pool_pda: Some(spl_interface_pda),
         compress_or_decompress_token_account: Some(compress_or_decompress_token_account),
         token_program: Some(spl_token_program),
         system_program: default_pubkeys.system_program,
@@ -93,7 +93,7 @@ fn test_to_compressed_token_account_metas_with_optional_accounts() {
 fn test_get_batch_compress_instruction_account_metas() {
     let fee_payer = Pubkey::new_unique();
     let authority = Pubkey::new_unique();
-    let token_pool_pda = Pubkey::new_unique();
+    let spl_interface_pda = Pubkey::new_unique();
     let sender_token_account = Pubkey::new_unique();
     let token_program = Pubkey::new_unique();
     let merkle_tree = Pubkey::new_unique();
@@ -101,7 +101,7 @@ fn test_get_batch_compress_instruction_account_metas() {
     let config = BatchCompressMetaConfig::new(
         fee_payer,
         authority,
-        token_pool_pda,
+        spl_interface_pda,
         sender_token_account,
         token_program,
         merkle_tree,
@@ -116,7 +116,7 @@ fn test_get_batch_compress_instruction_account_metas() {
         authority,
         cpi_authority_pda: Pubkey::from(CPI_AUTHORITY_PDA),
         mint: None,
-        token_pool_pda,
+        token_pool_pda: spl_interface_pda,
         token_program,
         light_system_program: Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),
         registered_program_pda: Pubkey::from(REGISTERED_PROGRAM_PDA),

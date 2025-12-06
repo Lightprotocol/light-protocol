@@ -32,7 +32,7 @@ The builder pattern offers several advantages:
 
 ```rust
 // Build the account infos struct
-let transfer_accounts = TransferCtokenAccountInfos {
+let transfer_accounts = TransferCTokenCpi {
     source: accounts[0].clone(),
     destination: accounts[1].clone(),
     amount: data.amount,
@@ -50,7 +50,7 @@ transfer_accounts.invoke()?;
 let (pda, bump) = Pubkey::find_program_address(&[TOKEN_ACCOUNT_SEED], &ID);
 
 // Build the account infos struct
-let transfer_accounts = TransferCtokenAccountInfos {
+let transfer_accounts = TransferCTokenCpi {
     source: accounts[0].clone(),
     destination: accounts[1].clone(),
     amount: data.amount,
@@ -68,13 +68,13 @@ transfer_accounts.invoke_signed(&[signer_seeds])?;
 
 All instructions use the **builder pattern** from `light-ctoken-sdk::ctoken`:
 
-- **create_cmint** (Instruction 0): Create compressed mint using `CreateCMintAccountInfos::invoke()`
-- **mint_to_ctoken** (Instruction 1): Mint tokens to compressed accounts using `MintToCTokenInfos::invoke()`
-- **create_token_account_invoke** (Instruction 2): Create compressible token account using `CreateCTokenAccountInfos`
+- **create_cmint** (Instruction 0): Create compressed mint using `CreateCMintCpi::invoke()`
+- **mint_to_ctoken** (Instruction 1): Mint tokens to compressed accounts using `MintToCTokenCpi::invoke()`
+- **create_token_account_invoke** (Instruction 2): Create compressible token account using `CreateCTokenAccountCpi`
 - **create_token_account_invoke_signed** (Instruction 3): Create with PDA ownership using `invoke_signed()`
-- **create_ata_invoke** (Instruction 4): Create compressible ATA using `CreateAssociatedTokenAccountInfos`
+- **create_ata_invoke** (Instruction 4): Create compressible ATA using `CreateAssociatedTokenAccountCpi`
 - **create_ata_invoke_signed** (Instruction 5): Create ATA with PDA ownership using `invoke_signed()`
-- **transfer_interface_invoke** (Instruction 6): Transfer using `TransferCtokenAccountInfos::invoke()`
+- **transfer_interface_invoke** (Instruction 6): Transfer using `TransferCTokenCpi::invoke()`
 - **transfer_interface_invoke_signed** (Instruction 7): Transfer with PDA signing using `invoke_signed()`
 
 All instructions compile successfully and demonstrate the clean builder pattern API with constructor usage.
@@ -141,7 +141,7 @@ This is useful for:
 
 ### Builder Pattern Benefits
 
-The `AccountInfos` structs from the `ctoken` module provide:
+The `Cpi` structs from the `ctoken` module provide:
 
 1. **invoke()** - For regular CPI calls where the program acts as authority
 2. **invoke_signed()** - For PDA-signed CPI calls
