@@ -15,10 +15,6 @@
 //!     ├─ use CompressedAccountMeta to instantiate a LightAccount struct.
 //!     │
 //!     └─ 𝐋𝐢𝐠𝐡𝐭 𝐒𝐲𝐬𝐭𝐞𝐦 𝐏𝐫𝐨𝐠𝐫𝐚𝐦 𝐂𝐏𝐈
-//!        ├─ Verify ValidityProof.
-//!        ├─ Update State Merkle tree.
-//!        ├─ Update Address Merkle tree.
-//!        └─ Complete atomic state transition.
 //! ```
 //! ## Main Types
 //!

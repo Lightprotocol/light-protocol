@@ -1,6 +1,6 @@
 //! The base library to use Compressed Accounts in Solana on-chain Rust and Anchor programs.
 //!
-//! Compressed Accounts stores state as account hashes in State Merkle trees.
+//! Compressed Accounts store state as account hashes in State Merkle trees.
 //! and unique addresses in Address Merkle trees.
 //! Validity proofs (zero-knowledge proofs) verify that compressed account
 //! state exists and new addresses do not exist yet.
@@ -31,6 +31,7 @@
 //!     - [`LightSystemProgramCpi`](crate::cpi::v1::LightSystemProgramCpi) - Prepare instruction data to cpi the light system program.
 //!     - [`InvokeLightSystemProgram::invoke`](crate::cpi) - Invoke the light system program via cpi.
 //!
+//! #  Client Program Interaction Flow
 //! ```text
 //!  ├─ 𝐂𝐥𝐢𝐞𝐧𝐭
 //!  │  ├─ Get ValidityProof from RPC.
