@@ -6,8 +6,8 @@
 //! - are on Solana devnet.
 //! - are Solana accounts.
 //! - can hold cMint and spl Mint tokens.
-//! - cost 22,000 lamports to create.
-//! - compressible:
+//! - cost 22,000 lamports to create with 24 hours rent.
+//! - are compressible:
 //!     - rent exemption is sponsored by the protocol.
 //!     - rent is 388 lamports per rent epoch (1.5 hours).
 //!     - once the account's lamports balance is insufficient, it is compressed to a compressed token account.
@@ -18,7 +18,7 @@
 //! - are compressed accounts.
 //! - can hold cMint and spl Mint tokens.
 //! - cost 5,000 lamports to create.
-//! - well suited for airdrops and reward distribution.
+//! - are well suited for airdrops and reward distribution.
 //!
 //! ## cMints:
 //! - are on Solana devnet.
@@ -42,12 +42,18 @@
 //!
 //! ## Common Operations
 //!
-//! | Operation | Client Builder | CPI Builder |
-//! |-----------|----------------|------------|
-//! | Create ATA | [`ctoken::CreateAssociatedTokenAccount`] | [`ctoken::CreateAssociatedTokenAccountInfos`] |
-//! | Transfer | [`ctoken::TransferCtoken`] | [`ctoken::TransferCtokenAccountInfos`] |
-//! | Mint | [`ctoken::MintToCToken`] | [`ctoken::MintToCTokenInfos`] |
-//! | Close | [`ctoken::CloseAccount`] | [`ctoken::CloseAccountInfos`] |
+//! | Operation | Instruction Builder | CPI Builder |
+//! |-----------|----------------|-------------|
+//! | Create Associated cToken Account | [`CreateAssociatedTokenAccount`](ctoken::CreateAssociatedTokenAccount) | [`CreateAssociatedTokenAccountInfos`](ctoken::CreateAssociatedTokenAccountInfos) |
+//! | Create cToken Account | [`CreateCTokenAccount`](ctoken::CreateCTokenAccount) | [`CreateCTokenAccountInfos`](ctoken::CreateCTokenAccountInfos) |
+//! | TransferInterface | [`TransferCtoken`](ctoken::TransferCtoken) | [`TransferInterface`](ctoken::TransferInterface) |
+//! | Close cToken account | [`CloseAccount`](ctoken::CloseAccount) | [`CloseAccountInfos`](ctoken::CloseAccountInfos) |
+//! | Create cMint | [`CreateCMint`](ctoken::CreateCMint) | [`CreateCMintAccountInfos`](ctoken::CreateCMintAccountInfos) |
+//! | MintTo cToken account from cMint | [`MintToCToken`](ctoken::MintToCToken) | [`MintToCTokenInfos`](ctoken::MintToCTokenInfos) |
+//!
+//! Note, TransferInterface supports tokens transfer between ctoken - ctoken, ctoken - spl, spl - ctoken accounts.
+//!
+//! Disclaimer, this library is not audited and in a beta state. Use at your own risk and expect breaking changes.
 
 pub mod compressed_token;
 pub mod compressible;

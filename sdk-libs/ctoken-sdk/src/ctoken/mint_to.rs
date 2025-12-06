@@ -15,10 +15,6 @@ use crate::compressed_token::mint_action::{
     MintActionMetaConfigCpiWrite,
 };
 
-// ============================================================================
-// Params Struct: MintToCTokenParams
-// ============================================================================
-
 #[derive(Debug, Clone)]
 pub struct MintToCTokenParams {
     pub compressed_mint_inputs: CompressedMintWithContext,
@@ -53,10 +49,6 @@ impl MintToCTokenParams {
         self
     }
 }
-
-// ============================================================================
-// Builder Struct: MintToCToken
-// ============================================================================
 
 #[derive(Debug, Clone)]
 pub struct MintToCToken {

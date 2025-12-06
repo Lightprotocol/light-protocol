@@ -11,6 +11,17 @@ use solana_pubkey::Pubkey;
 
 use crate::ctoken::{compressible::CompressibleParamsInfos, CompressibleParams};
 
+/// # Create a create ctoken account instruction:
+/// ```rust
+/// # use light_ctoken_sdk::ctoken::create::CreateCTokenAccount;
+/// # let payer = Pubkey::new_unique();
+/// # let account = Pubkey::new_unique();
+/// # let mint = Pubkey::new_unique();
+/// # let owner = Pubkey::new_unique();
+/// let instruction =
+///     CreateCTokenAccount::new(payer, account, mint, owner)
+///     .instruction()?;
+/// ```
 #[derive(Debug, Clone)]
 pub struct CreateCTokenAccount {
     pub payer: Pubkey,

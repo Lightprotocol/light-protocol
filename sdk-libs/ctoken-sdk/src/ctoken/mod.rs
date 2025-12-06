@@ -1,55 +1,60 @@
 //! High-level builders for compressed token operations.
 //!
-//! This module provides the primary API for working with compressed tokens.
 //!
 //! ## Account Creation
 //!
-//! - [`CreateAssociatedTokenAccount`] - Create associated token account (client)
-//! - [`CreateAssociatedTokenAccountInfos`] - Create ATA via CPI
-//! - [`CreateCTokenAccount`] - Create token account at specific address
+//! - [`CreateAssociatedTokenAccount`] - Create associated ctoken account (ATA) instruction
+//! - [`CreateAssociatedTokenAccountInfos`] - Create associated ctoken account (ATA) via CPI
+//! - [`CreateCTokenAccount`] - Create ctoken account instruction
+//! - [`CreateCTokenAccountInfos`] - Create ctoken account via CPI
 //!
 //! ## Transfers
 //!
-//! - [`TransferCtoken`] - Transfer between ctoken accounts (client)
-//! - [`TransferCtokenAccountInfos`] - Transfer via CPI
-//! - [`TransferInterface`] - Auto-detect source/destination account types
+//! - [`TransferInterface`] - Transfer via CPI, auto-detect source/destination account types
 //!
-//! ## SPL Compatibility
+//! ## Close
 //!
-//! - [`TransferSplToCtoken`] - Compress SPL tokens into ctoken account
-//! - [`TransferCtokenToSpl`] - Decompress ctoken to SPL token account
+//! - [`CloseCTokenAccount`] - Create close ctoken account instruction
+//! - [`CloseCTokenAccountInfos`] - Close ctoken account via CPI
 //!
-//! ## Minting
 //!
-//! - [`CreateCMint`] - Create compressed mint (client)
+//! ## Mint
+//!
+//! - [`CreateCMint`] - Create compressed mint
 //! - [`MintToCToken`] - Mint tokens to ctoken accounts
 //!
-//! # Example: CPI Transfer with TransferInterface
+//! # Example: Create cToken Account Instruction
+//!
+//! ```rust
+//! use light_ctoken_sdk::ctoken::CreateAssociatedTokenAccount;
+//!
+//! let instruction = CreateAssociatedTokenAccount::new(payer, owner, mint)
+//!     .idempotent()
+//!     .instruction()?;
+//! ```
+//!
+//! # Example: Create cToken Account (CPI)
 //!
 //! ```rust,ignore
-//! use light_ctoken_sdk::ctoken::TransferInterface;
+//! use light_ctoken_sdk::ctoken::{CreateAssociatedTokenAccountInfos, CompressibleParamsInfos};
 //!
-//! // Auto-detects account types and routes to the correct transfer method
-//! TransferInterface::new(
-//!     amount,
-//!     source_account,
-//!     destination_account,
-//!     authority,
-//!     payer,
-//!     ctoken_program_authority,
-//! )
-//! .with_spl_interface(mint, spl_token_program, token_pool_pda, bump)?
+//! CreateAssociatedTokenAccountInfos {
+//!     owner: ctx.accounts.owner.to_account_info(),
+//!     mint: ctx.accounts.mint.to_account_info(),
+//!     payer: ctx.accounts.payer.to_account_info(),
+//!     associated_token_account: ctx.accounts.ctoken_account.to_account_info(),
+//!     system_program: ctx.accounts.system_program.to_account_info(),
+//!     bump,
+//!     compressible: Some(CompressibleParamsInfos::default_with_accounts(
+//!         ctx.accounts.compressible_config.to_account_info(),
+//!         ctx.accounts.rent_sponsor.to_account_info(),
+//!         ctx.accounts.system_program.to_account_info(),
+//!     )),
+//!     idempotent: true,
+//! }
 //! .invoke()?;
 //! ```
 //!
-//! # Constants
-//!
-//! | Constant | Description |
-//! |----------|-------------|
-//! | [`CTOKEN_PROGRAM_ID`] | Compressed Token Program ID |
-//! | [`CTOKEN_CPI_AUTHORITY`] | CPI authority PDA |
-//! | [`COMPRESSIBLE_CONFIG_V1`] | Default compressible config |
-//! | [`RENT_SPONSOR`] | Default rent sponsor |
 
 mod close;
 mod compressible;
@@ -84,7 +89,6 @@ pub use transfer_spl_ctoken::{TransferSplToCtoken, TransferSplToCtokenAccountInf
 /// System accounts required for CPI operations to Light Protocol.
 ///
 /// Pass these accounts when invoking compressed token operations from your program.
-/// Not required for CPI write mode.
 ///
 /// # Fields
 ///
