@@ -15,7 +15,7 @@ pub struct SplInterface<'info> {
     pub spl_interface_pda_bump: u8,
 }
 
-pub struct TransferInterface<'info> {
+pub struct TransferInterfaceCpi<'info> {
     pub amount: u64,
     pub source_account: AccountInfo<'info>,
     pub destination_account: AccountInfo<'info>,
@@ -25,7 +25,7 @@ pub struct TransferInterface<'info> {
     pub spl_interface: Option<SplInterface<'info>>,
 }
 
-impl<'info> TransferInterface<'info> {
+impl<'info> TransferInterfaceCpi<'info> {
     /// # Arguments
     /// * `amount` - Amount to transfer
     /// * `source_account` - Source token account (can be ctoken or SPL)

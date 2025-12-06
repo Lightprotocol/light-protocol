@@ -13,7 +13,7 @@ use crate::compressed_token::{
     CTokenAccount2,
 };
 
-/// # Create a transfer SPL to ctoken instruction:
+/// # Create a transfer SPL to cToken instruction
 /// ```rust
 /// # use solana_pubkey::Pubkey;
 /// # use light_ctoken_sdk::ctoken::TransferSplToCtoken;

@@ -54,8 +54,8 @@ impl MintToCTokenParams {
 /// # Create a mint to ctoken instruction:
 /// ```rust,no_run
 /// # use solana_pubkey::Pubkey;
-/// use light_ctoken_sdk::ctoken::{MintToCToken, MintToCTokenParams};
-/// use light_ctoken_sdk::{ValidityProof, CompressedMintWithContext};
+/// use light_ctoken_sdk::ctoken::{MintToCToken, MintToCTokenParams, CompressedMintWithContext};
+/// use light_ctoken_sdk::ValidityProof;
 /// # let compressed_mint_with_context: CompressedMintWithContext = todo!();
 /// # let validity_proof: ValidityProof = todo!();
 /// # let mint_authority = Pubkey::new_unique();

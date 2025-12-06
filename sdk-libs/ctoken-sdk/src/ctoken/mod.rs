@@ -10,7 +10,7 @@
 //!
 //! ## Transfers
 //!
-//! - [`TransferInterface`] - Transfer via CPI, auto-detect source/destination account types
+//! - [`TransferInterfaceCpi`] - Transfer via CPI, auto-detect source/destination account types
 //!
 //! ## Close
 //!
@@ -20,7 +20,7 @@
 //!
 //! ## Mint
 //!
-//! - [`CreateCMint`] - Create compressed mint
+//! - [`CreateCMint`] - Create cMint
 //! - [`MintToCToken`] - Mint tokens to ctoken accounts
 //!
 //! # Example: Create cToken Account Instruction
@@ -38,7 +38,7 @@
 //! # Ok::<(), solana_program_error::ProgramError>(())
 //! ```
 //!
-//! # Example: Create cToken Account (CPI)
+//! # Example: Create cToken Account CPI
 //!
 //! ```rust,ignore
 //! use light_ctoken_sdk::ctoken::{CreateAssociatedTokenAccountCpi, CompressibleParamsCpi};
@@ -80,7 +80,10 @@ pub use create_cmint::*;
 use light_compressed_token_types::POOL_SEED;
 use light_compressible::config::CompressibleConfig;
 pub use light_ctoken_interface::{
-    instructions::extensions::{compressible::CompressToPubkey, ExtensionInstructionData},
+    instructions::{
+        extensions::{compressible::CompressToPubkey, ExtensionInstructionData},
+        mint_action::CompressedMintWithContext,
+    },
     state::TokenDataVersion,
 };
 pub use mint_to::*;
@@ -88,7 +91,7 @@ use solana_account_info::AccountInfo;
 use solana_pubkey::{pubkey, Pubkey};
 pub use transfer_ctoken::*;
 pub use transfer_ctoken_spl::{TransferCtokenToSpl, TransferCtokenToSplCpi};
-pub use transfer_interface::{SplInterface, TransferInterface};
+pub use transfer_interface::{SplInterface, TransferInterfaceCpi};
 pub use transfer_spl_ctoken::{TransferSplToCtoken, TransferSplToCtokenCpi};
 
 /// System accounts required for CPI operations to Light Protocol.

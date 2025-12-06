@@ -46,12 +46,14 @@
 //! |-----------|----------------|-------------|
 //! | Create Associated cToken Account | [`CreateAssociatedTokenAccount`](ctoken::CreateAssociatedTokenAccount) | [`CreateAssociatedTokenAccountCpi`](ctoken::CreateAssociatedTokenAccountCpi) |
 //! | Create cToken Account | [`CreateCTokenAccount`](ctoken::CreateCTokenAccount) | [`CreateCTokenAccountCpi`](ctoken::CreateCTokenAccountCpi) |
-//! | TransferInterface | [`TransferCtoken`](ctoken::TransferCtoken) | [`TransferInterface`](ctoken::TransferInterface) |
+//! | Transfer cToken | [`TransferCtoken`](ctoken::TransferCtoken) | [`TransferCtokenCpi`](ctoken::TransferCtokenCpi) |
+//! | Transfer cToken → SPL | [`TransferCtokenToSpl`](ctoken::TransferCtokenToSpl) | [`TransferCtokenToSplCpi`](ctoken::TransferCtokenToSplCpi) |
+//! | Transfer SPL → cToken | [`TransferSplToCtoken`](ctoken::TransferSplToCtoken) | [`TransferSplToCtokenCpi`](ctoken::TransferSplToCtokenCpi) |
+//! | Transfer (auto-detect) | - | [`TransferInterfaceCpi`](ctoken::TransferInterfaceCpi) |
 //! | Close cToken account | [`CloseCTokenAccount`](ctoken::CloseCTokenAccount) | [`CloseCTokenAccountCpi`](ctoken::CloseCTokenAccountCpi) |
 //! | Create cMint | [`CreateCMint`](ctoken::CreateCMint) | [`CreateCMintCpi`](ctoken::CreateCMintCpi) |
 //! | MintTo cToken account from cMint | [`MintToCToken`](ctoken::MintToCToken) | [`MintToCTokenCpi`](ctoken::MintToCTokenCpi) |
 //!
-//! Note, TransferInterface supports tokens transfer between ctoken - ctoken, ctoken - spl, spl - ctoken accounts.
 //!
 //! # Disclaimer
 //! This library is not audited and in a beta state. Use at your own risk and expect breaking changes.

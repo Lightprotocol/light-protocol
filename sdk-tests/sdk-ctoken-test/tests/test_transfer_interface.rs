@@ -1,4 +1,4 @@
-// Tests for TransferInterface - unified transfer interface that auto-detects account types
+// Tests for TransferInterfaceCpi - unified transfer interface that auto-detects account types
 
 mod shared;
 
@@ -23,7 +23,7 @@ use solana_sdk::{
 // INVOKE TESTS (regular signer authority)
 // =============================================================================
 
-/// Test TransferInterface: SPL -> CToken (invoke)
+/// Test TransferInterfaceCpi: SPL -> CToken (invoke)
 #[tokio::test]
 async fn test_transfer_interface_spl_to_ctoken_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
