@@ -13,7 +13,8 @@ use crate::ctoken::{compressible::CompressibleParamsCpi, CompressibleParams};
 
 /// # Create a create ctoken account instruction:
 /// ```rust
-/// # use light_ctoken_sdk::ctoken::create::CreateCTokenAccount;
+/// # use solana_pubkey::Pubkey;
+/// # use light_ctoken_sdk::ctoken::CreateCTokenAccount;
 /// # let payer = Pubkey::new_unique();
 /// # let account = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
@@ -21,6 +22,7 @@ use crate::ctoken::{compressible::CompressibleParamsCpi, CompressibleParams};
 /// let instruction =
 ///     CreateCTokenAccount::new(payer, account, mint, owner)
 ///     .instruction()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
 #[derive(Debug, Clone)]
 pub struct CreateCTokenAccount {

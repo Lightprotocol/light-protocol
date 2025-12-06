@@ -13,6 +13,30 @@ use crate::compressed_token::{
     CTokenAccount2,
 };
 
+/// # Create a transfer SPL to ctoken instruction:
+/// ```rust
+/// # use solana_pubkey::Pubkey;
+/// # use light_ctoken_sdk::ctoken::TransferSplToCtoken;
+/// # let source_spl_token_account = Pubkey::new_unique();
+/// # let destination_ctoken_account = Pubkey::new_unique();
+/// # let authority = Pubkey::new_unique();
+/// # let mint = Pubkey::new_unique();
+/// # let payer = Pubkey::new_unique();
+/// # let spl_interface_pda = Pubkey::new_unique();
+/// # let spl_token_program = Pubkey::new_unique();
+/// let instruction = TransferSplToCtoken {
+///     amount: 100,
+///     spl_interface_pda_bump: 255,
+///     source_spl_token_account,
+///     destination_ctoken_account,
+///     authority,
+///     mint,
+///     payer,
+///     spl_interface_pda,
+///     spl_token_program,
+/// }.instruction()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
 pub struct TransferSplToCtoken {
     pub amount: u64,
     pub spl_interface_pda_bump: u8,

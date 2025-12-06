@@ -6,6 +6,18 @@ use solana_pubkey::Pubkey;
 
 use crate::ctoken::RENT_SPONSOR;
 
+/// # Create a close ctoken account instruction:
+/// ```rust
+/// # use solana_pubkey::Pubkey;
+/// # use light_ctoken_sdk::ctoken::{CloseCTokenAccount, CTOKEN_PROGRAM_ID};
+/// # let account = Pubkey::new_unique();
+/// # let destination = Pubkey::new_unique();
+/// # let owner = Pubkey::new_unique();
+/// let instruction =
+///     CloseCTokenAccount::new(CTOKEN_PROGRAM_ID, account, destination, owner)
+///     .instruction()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
 pub struct CloseCTokenAccount {
     pub token_program: Pubkey,
     pub account: Pubkey,

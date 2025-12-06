@@ -15,6 +15,7 @@ use crate::compressed_token::mint_action::{
     MintActionMetaConfigCpiWrite,
 };
 
+/// Parameters for minting tokens to a ctoken account.
 #[derive(Debug, Clone)]
 pub struct MintToCTokenParams {
     pub compressed_mint_inputs: CompressedMintWithContext,
@@ -50,6 +51,36 @@ impl MintToCTokenParams {
     }
 }
 
+/// # Create a mint to ctoken instruction:
+/// ```rust,no_run
+/// # use solana_pubkey::Pubkey;
+/// use light_ctoken_sdk::ctoken::{MintToCToken, MintToCTokenParams};
+/// use light_ctoken_sdk::{ValidityProof, CompressedMintWithContext};
+/// # let compressed_mint_with_context: CompressedMintWithContext = todo!();
+/// # let validity_proof: ValidityProof = todo!();
+/// # let mint_authority = Pubkey::new_unique();
+/// # let payer = Pubkey::new_unique();
+/// # let state_tree_pubkey = Pubkey::new_unique();
+/// # let input_queue = Pubkey::new_unique();
+/// # let output_queue = Pubkey::new_unique();
+/// # let ctoken_account = Pubkey::new_unique();
+///
+/// let params = MintToCTokenParams::new(
+///     compressed_mint_with_context, // from rpc
+///     1000, // amount
+///     mint_authority,
+///     validity_proof, // from rpc
+/// );
+/// let instruction = MintToCToken::new(
+///     params,
+///     payer,
+///     state_tree_pubkey,
+///     input_queue,
+///     output_queue,
+///     vec![ctoken_account],
+/// ).instruction()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
 #[derive(Debug, Clone)]
 pub struct MintToCToken {
     pub payer: Pubkey,

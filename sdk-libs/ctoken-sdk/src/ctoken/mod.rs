@@ -26,11 +26,16 @@
 //! # Example: Create cToken Account Instruction
 //!
 //! ```rust
+//! # use solana_pubkey::Pubkey;
 //! use light_ctoken_sdk::ctoken::CreateAssociatedTokenAccount;
+//! # let payer = Pubkey::new_unique();
+//! # let owner = Pubkey::new_unique();
+//! # let mint = Pubkey::new_unique();
 //!
 //! let instruction = CreateAssociatedTokenAccount::new(payer, owner, mint)
 //!     .idempotent()
 //!     .instruction()?;
+//! # Ok::<(), solana_program_error::ProgramError>(())
 //! ```
 //!
 //! # Example: Create cToken Account (CPI)

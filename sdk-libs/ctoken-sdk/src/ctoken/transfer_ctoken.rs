@@ -5,6 +5,22 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
+/// # Create a transfer ctoken instruction:
+/// ```rust
+/// # use solana_pubkey::Pubkey;
+/// # use light_ctoken_sdk::ctoken::TransferCtoken;
+/// # let source = Pubkey::new_unique();
+/// # let destination = Pubkey::new_unique();
+/// # let authority = Pubkey::new_unique();
+/// let instruction = TransferCtoken {
+///     source,
+///     destination,
+///     amount: 100,
+///     authority,
+///     max_top_up: None,
+/// }.instruction()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
 pub struct TransferCtoken {
     pub source: Pubkey,
     pub destination: Pubkey,

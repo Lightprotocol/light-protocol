@@ -22,6 +22,7 @@ use crate::{
     ctoken::SystemAccountInfos,
 };
 
+/// Parameters for creating a compressed mint.
 #[derive(Debug, Clone)]
 pub struct CreateCMintParams {
     pub decimals: u8,
@@ -34,8 +35,47 @@ pub struct CreateCMintParams {
     pub extensions: Option<Vec<ExtensionInstructionData>>,
 }
 
+/// # Create a compressed mint instruction:
+/// ```rust,no_run
+/// # use solana_pubkey::Pubkey;
+/// use light_ctoken_sdk::ctoken::{
+///     CreateCMint, CreateCMintParams, derive_compressed_mint_address, find_spl_mint_address,
+/// };
+/// # use light_ctoken_sdk::CompressedProof;
+/// # let mint_seed_keypair_pubkey = Pubkey::new_unique();
+/// # let payer = Pubkey::new_unique();
+/// # let address_tree = Pubkey::new_unique();
+/// # let output_queue = Pubkey::new_unique();
+/// # let mint_authority = Pubkey::new_unique();
+/// # let address_merkle_tree_root_index: u16 = 0;
+/// # let proof: CompressedProof = todo!();
+///
+/// // Derive addresses
+/// let compression_address = derive_compressed_mint_address(&mint_seed_keypair_pubkey, &address_tree);
+/// let mint = find_spl_mint_address(&mint_seed_keypair_pubkey).0;
+///
+/// let params = CreateCMintParams {
+///     decimals: 9,
+///     address_merkle_tree_root_index, // from rpc.get_validity_proof
+///     mint_authority,
+///     proof, // from rpc.get_validity_proof
+///     compression_address,
+///     mint,
+///     freeze_authority: None,
+///     extensions: None,
+/// };
+/// let instruction = CreateCMint::new(
+///     params,
+///     mint_seed_keypair_pubkey,
+///     payer,
+///     address_tree,
+///     output_queue,
+/// ).instruction()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
 #[derive(Debug, Clone)]
 pub struct CreateCMint {
+    /// Used as seed for the mint address.
     pub mint_signer: Pubkey,
     pub payer: Pubkey,
     pub address_tree_pubkey: Pubkey,
