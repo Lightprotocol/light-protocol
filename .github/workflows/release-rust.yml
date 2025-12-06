@@ -105,3 +105,11 @@ jobs:
 
           echo ""
           echo "✓ GitHub releases created"
+
+      - name: Trigger docs sync
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.DOCS_REPO_TOKEN }}
+          repository: Lightprotocol/docs
+          event-type: sync-handlers
+          client-payload: '{"commit": "${{ github.sha }}", "release": true}'
