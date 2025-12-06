@@ -67,7 +67,7 @@ jobs:
               cargo test -p light-ctoken-sdk --all-features
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
