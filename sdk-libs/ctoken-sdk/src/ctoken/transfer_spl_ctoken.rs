@@ -15,27 +15,27 @@ use crate::compressed_token::{
 
 pub struct TransferSplToCtoken {
     pub amount: u64,
-    pub token_pool_pda_bump: u8,
+    pub spl_interface_pda_bump: u8,
     pub source_spl_token_account: Pubkey,
     /// Destination ctoken account (writable)
     pub destination_ctoken_account: Pubkey,
     pub authority: Pubkey,
     pub mint: Pubkey,
     pub payer: Pubkey,
-    pub token_pool_pda: Pubkey,
+    pub spl_interface_pda: Pubkey,
     pub spl_token_program: Pubkey,
 }
 
 pub struct TransferSplToCtokenAccountInfos<'info> {
     pub amount: u64,
-    pub token_pool_pda_bump: u8,
+    pub spl_interface_pda_bump: u8,
     pub source_spl_token_account: AccountInfo<'info>,
     /// Destination ctoken account (writable)
     pub destination_ctoken_account: AccountInfo<'info>,
     pub authority: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
     pub payer: AccountInfo<'info>,
-    pub token_pool_pda: AccountInfo<'info>,
+    pub spl_interface_pda: AccountInfo<'info>,
     pub spl_token_program: AccountInfo<'info>,
     pub compressed_token_program_authority: AccountInfo<'info>,
 }
@@ -55,7 +55,7 @@ impl<'info> TransferSplToCtokenAccountInfos<'info> {
             self.destination_ctoken_account,         // Index 1: Destination ctoken account
             self.authority,                          // Index 2: Authority (signer)
             self.source_spl_token_account,           // Index 3: Source SPL token account
-            self.token_pool_pda,                     // Index 4: Token pool PDA
+            self.spl_interface_pda,                  // Index 4: SPL interface PDA
             self.spl_token_program,                  // Index 5: SPL Token program
         ];
         invoke(&instruction, &account_infos)
@@ -71,7 +71,7 @@ impl<'info> TransferSplToCtokenAccountInfos<'info> {
             self.destination_ctoken_account,         // Index 1: Destination ctoken account
             self.authority,                          // Index 2: Authority (signer)
             self.source_spl_token_account,           // Index 3: Source SPL token account
-            self.token_pool_pda,                     // Index 4: Token pool PDA
+            self.spl_interface_pda,                  // Index 4: SPL interface PDA
             self.spl_token_program,                  // Index 5: SPL Token program
         ];
         invoke_signed(&instruction, &account_infos, signer_seeds)
@@ -87,8 +87,8 @@ impl<'info> From<&TransferSplToCtokenAccountInfos<'info>> for TransferSplToCtoke
             authority: *account_infos.authority.key,
             mint: *account_infos.mint.key,
             payer: *account_infos.payer.key,
-            token_pool_pda: *account_infos.token_pool_pda.key,
-            token_pool_pda_bump: account_infos.token_pool_pda_bump,
+            spl_interface_pda: *account_infos.spl_interface_pda.key,
+            spl_interface_pda_bump: account_infos.spl_interface_pda_bump,
             spl_token_program: *account_infos.spl_token_program.key,
         }
     }
@@ -105,8 +105,8 @@ impl TransferSplToCtoken {
             AccountMeta::new_readonly(self.authority, true),
             // Source SPL token account (index 3) - writable
             AccountMeta::new(self.source_spl_token_account, false),
-            // Token pool PDA (index 4) - writable
-            AccountMeta::new(self.token_pool_pda, false),
+            // SPL interface PDA (index 4) - writable
+            AccountMeta::new(self.spl_interface_pda, false),
             // SPL Token program (index 5) - needed for CPI
             AccountMeta::new_readonly(self.spl_token_program, false),
         ];
@@ -121,7 +121,7 @@ impl TransferSplToCtoken {
                 2, // authority
                 4, // pool_account_index:
                 0, // pool_index
-                self.token_pool_pda_bump,
+                self.spl_interface_pda_bump,
             )),
             delegate_is_set: false,
             method_used: true,

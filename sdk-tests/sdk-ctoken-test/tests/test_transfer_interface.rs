@@ -7,7 +7,7 @@ use light_client::rpc::Rpc;
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
 use light_ctoken_sdk::{
     ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount},
-    token_pool::find_token_pool_pda_with_index,
+    spl_interface::find_spl_interface_pda_with_index,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens};
@@ -75,7 +75,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke() {
     let ctoken_account = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
 
     // Get token pool PDA
-    let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
@@ -83,7 +83,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke() {
     // Build wrapper instruction
     let data = TransferInterfaceData {
         amount: transfer_amount,
-        token_pool_pda_bump: Some(token_pool_pda_bump),
+        spl_interface_pda_bump: Some(spl_interface_pda_bump),
     };
     // Discriminator 19 = TransferInterfaceInvoke
     let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
@@ -96,7 +96,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke() {
         AccountMeta::new(payer.pubkey(), true),                      // payer
         AccountMeta::new_readonly(cpi_authority_pda, false), // compressed_token_program_authority
         AccountMeta::new_readonly(mint, false),              // mint (for SPL bridge)
-        AccountMeta::new(token_pool_pda, false),             // token_pool_pda
+        AccountMeta::new(spl_interface_pda, false),          // spl_interface_pda
         AccountMeta::new_readonly(anchor_spl::token::ID, false), // spl_token_program
     ];
 
@@ -181,7 +181,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
     .await
     .unwrap();
 
-    let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
@@ -190,7 +190,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
     {
         let data = TransferInterfaceData {
             amount,
-            token_pool_pda_bump: Some(token_pool_pda_bump),
+            spl_interface_pda_bump: Some(spl_interface_pda_bump),
         };
         let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
         let wrapper_accounts = vec![
@@ -201,7 +201,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
             AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new_readonly(cpi_authority_pda, false),
             AccountMeta::new_readonly(mint, false),
-            AccountMeta::new(token_pool_pda, false),
+            AccountMeta::new(spl_interface_pda, false),
             AccountMeta::new_readonly(anchor_spl::token::ID, false),
         ];
         let instruction = Instruction {
@@ -217,7 +217,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
     // Now test CToken -> SPL transfer
     let data = TransferInterfaceData {
         amount: transfer_amount,
-        token_pool_pda_bump: Some(token_pool_pda_bump),
+        spl_interface_pda_bump: Some(spl_interface_pda_bump),
     };
     let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
 
@@ -229,7 +229,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
         AccountMeta::new(payer.pubkey(), true),  // payer
         AccountMeta::new_readonly(cpi_authority_pda, false),
         AccountMeta::new_readonly(mint, false),
-        AccountMeta::new(token_pool_pda, false),
+        AccountMeta::new(spl_interface_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
     ];
 
@@ -321,7 +321,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
     .await
     .unwrap();
 
-    let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
@@ -330,7 +330,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
     {
         let data = TransferInterfaceData {
             amount,
-            token_pool_pda_bump: Some(token_pool_pda_bump),
+            spl_interface_pda_bump: Some(spl_interface_pda_bump),
         };
         let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
         let wrapper_accounts = vec![
@@ -341,7 +341,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
             AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new_readonly(cpi_authority_pda, false),
             AccountMeta::new_readonly(mint, false),
-            AccountMeta::new(token_pool_pda, false),
+            AccountMeta::new(spl_interface_pda, false),
             AccountMeta::new_readonly(anchor_spl::token::ID, false),
         ];
         let instruction = Instruction {
@@ -357,7 +357,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
     // Now test CToken -> CToken transfer (no SPL bridge needed)
     let data = TransferInterfaceData {
         amount: transfer_amount,
-        token_pool_pda_bump: None, // Not needed for CToken->CToken
+        spl_interface_pda_bump: None, // Not needed for CToken->CToken
     };
     let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
 
@@ -464,14 +464,14 @@ async fn test_transfer_interface_spl_to_ctoken_invoke_signed() {
         .unwrap();
     let ctoken_account = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
 
-    let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
     let data = TransferInterfaceData {
         amount: transfer_amount,
-        token_pool_pda_bump: Some(token_pool_pda_bump),
+        spl_interface_pda_bump: Some(spl_interface_pda_bump),
     };
     // Discriminator 20 = TransferInterfaceInvokeSigned
     let wrapper_instruction_data = [vec![20u8], data.try_to_vec().unwrap()].concat();
@@ -484,7 +484,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke_signed() {
         AccountMeta::new(payer.pubkey(), true), // payer
         AccountMeta::new_readonly(cpi_authority_pda, false), // compressed_token_program_authority
         AccountMeta::new_readonly(mint, false),
-        AccountMeta::new(token_pool_pda, false),
+        AccountMeta::new(spl_interface_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
     ];
 
@@ -587,7 +587,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
     .await
     .unwrap();
 
-    let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
@@ -596,7 +596,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
     {
         let data = TransferInterfaceData {
             amount,
-            token_pool_pda_bump: Some(token_pool_pda_bump),
+            spl_interface_pda_bump: Some(spl_interface_pda_bump),
         };
         let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
         let wrapper_accounts = vec![
@@ -607,7 +607,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
             AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new_readonly(cpi_authority_pda, false),
             AccountMeta::new_readonly(mint, false),
-            AccountMeta::new(token_pool_pda, false),
+            AccountMeta::new(spl_interface_pda, false),
             AccountMeta::new_readonly(anchor_spl::token::ID, false),
         ];
         let instruction = Instruction {
@@ -623,7 +623,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
     // Now test CToken -> SPL with PDA authority
     let data = TransferInterfaceData {
         amount: transfer_amount,
-        token_pool_pda_bump: Some(token_pool_pda_bump),
+        spl_interface_pda_bump: Some(spl_interface_pda_bump),
     };
     // Discriminator 20 = TransferInterfaceInvokeSigned
     let wrapper_instruction_data = [vec![20u8], data.try_to_vec().unwrap()].concat();
@@ -636,7 +636,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
         AccountMeta::new(payer.pubkey(), true),  // payer
         AccountMeta::new_readonly(cpi_authority_pda, false),
         AccountMeta::new_readonly(mint, false),
-        AccountMeta::new(token_pool_pda, false),
+        AccountMeta::new(spl_interface_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
     ];
 
@@ -740,7 +740,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
     .await
     .unwrap();
 
-    let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
@@ -749,7 +749,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
     {
         let data = TransferInterfaceData {
             amount,
-            token_pool_pda_bump: Some(token_pool_pda_bump),
+            spl_interface_pda_bump: Some(spl_interface_pda_bump),
         };
         let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
         let wrapper_accounts = vec![
@@ -760,7 +760,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
             AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new_readonly(cpi_authority_pda, false),
             AccountMeta::new_readonly(mint, false),
-            AccountMeta::new(token_pool_pda, false),
+            AccountMeta::new(spl_interface_pda, false),
             AccountMeta::new_readonly(anchor_spl::token::ID, false),
         ];
         let instruction = Instruction {
@@ -776,7 +776,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
     // Now test CToken -> CToken with PDA authority
     let data = TransferInterfaceData {
         amount: transfer_amount,
-        token_pool_pda_bump: None, // Not needed for CToken->CToken
+        spl_interface_pda_bump: None, // Not needed for CToken->CToken
     };
     // Discriminator 20 = TransferInterfaceInvokeSigned
     let wrapper_instruction_data = [vec![20u8], data.try_to_vec().unwrap()].concat();

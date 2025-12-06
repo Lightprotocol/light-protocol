@@ -4,7 +4,7 @@ use light_ctoken_sdk::{
     compressed_token::batch_compress::{
         get_batch_compress_instruction_account_metas, BatchCompressMetaConfig, Recipient,
     },
-    token_pool::find_token_pool_pda_with_index,
+    spl_interface::find_spl_interface_pda_with_index,
     utils::CTokenDefaultAccounts,
     TokenAccountMeta, SPL_TOKEN_PROGRAM_ID,
 };
@@ -446,13 +446,14 @@ async fn batch_compress_spl_tokens(
     let token_account = token_account_keypair.pubkey();
     let mut remaining_accounts = PackedAccounts::default();
     remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
-    let token_pool_index = 0;
-    let (token_pool_pda, token_pool_bump) = find_token_pool_pda_with_index(&mint, token_pool_index);
-    println!("token_pool_pda {:?}", token_pool_pda);
+    let spl_interface_index = 0;
+    let (spl_interface_pda, spl_interface_bump) =
+        find_spl_interface_pda_with_index(&mint, spl_interface_index);
+    println!("spl_interface_pda {:?}", spl_interface_pda);
 
     // Use batch compress account metas
     let config = BatchCompressMetaConfig::new_client(
-        token_pool_pda,
+        spl_interface_pda,
         token_account,
         SPL_TOKEN_PROGRAM_ID.into(),
         rpc.get_random_state_tree_info().unwrap().queue,
@@ -470,8 +471,8 @@ async fn batch_compress_spl_tokens(
         accounts,
         data: sdk_token_test::instruction::BatchCompressTokens {
             recipients,
-            token_pool_index,
-            token_pool_bump,
+            token_pool_index: spl_interface_index,
+            token_pool_bump: spl_interface_bump,
         }
         .data(),
     };

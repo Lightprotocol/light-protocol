@@ -12,7 +12,7 @@ pub const TRANSFER_INTERFACE_AUTHORITY_SEED: &[u8] = b"transfer_interface_author
 pub struct TransferInterfaceData {
     pub amount: u64,
     /// Required for SPL<->CToken transfers, None for CToken->CToken
-    pub token_pool_pda_bump: Option<u8>,
+    pub spl_interface_pda_bump: Option<u8>,
 }
 
 /// Handler for TransferInterface (invoke)
@@ -31,7 +31,7 @@ pub struct TransferInterfaceData {
 /// - accounts[5]: compressed_token_program_authority
 ///   For SPL bridge (optional, required for SPL<->CToken):
 /// - accounts[6]: mint
-/// - accounts[7]: token_pool_pda
+/// - accounts[7]: spl_interface_pda
 /// - accounts[8]: spl_token_program
 pub fn process_transfer_interface_invoke(
     accounts: &[AccountInfo],
@@ -51,12 +51,12 @@ pub fn process_transfer_interface_invoke(
     );
 
     // Add SPL bridge config if provided
-    if accounts.len() >= 9 && data.token_pool_pda_bump.is_some() {
+    if accounts.len() >= 9 && data.spl_interface_pda_bump.is_some() {
         transfer = transfer.with_spl_interface(
             Some(accounts[6].clone()), // mint
             Some(accounts[8].clone()), // spl_token_program
-            Some(accounts[7].clone()), // token_pool_pda
-            data.token_pool_pda_bump,
+            Some(accounts[7].clone()), // spl_interface_pda
+            data.spl_interface_pda_bump,
         )?;
     }
 
@@ -78,7 +78,7 @@ pub fn process_transfer_interface_invoke(
 /// - accounts[5]: compressed_token_program_authority
 ///   For SPL bridge (optional, required for SPL<->CToken):
 /// - accounts[6]: mint
-/// - accounts[7]: token_pool_pda
+/// - accounts[7]: spl_interface_pda
 /// - accounts[8]: spl_token_program
 pub fn process_transfer_interface_invoke_signed(
     accounts: &[AccountInfo],
@@ -107,12 +107,12 @@ pub fn process_transfer_interface_invoke_signed(
     );
 
     // Add SPL bridge config if provided
-    if accounts.len() >= 9 && data.token_pool_pda_bump.is_some() {
+    if accounts.len() >= 9 && data.spl_interface_pda_bump.is_some() {
         transfer = transfer.with_spl_interface(
             Some(accounts[6].clone()), // mint
             Some(accounts[8].clone()), // spl_token_program
-            Some(accounts[7].clone()), // token_pool_pda
-            data.token_pool_pda_bump,
+            Some(accounts[7].clone()), // spl_interface_pda
+            data.spl_interface_pda_bump,
         )?;
     }
 

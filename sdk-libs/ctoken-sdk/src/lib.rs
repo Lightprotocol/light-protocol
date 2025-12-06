@@ -8,7 +8,7 @@ pub mod ctoken;
 
 pub mod error;
 pub mod pack;
-pub mod token_pool;
+pub mod spl_interface;
 pub mod utils;
 
 // Conditional anchor re-exports
@@ -23,7 +23,6 @@ pub use light_compressed_token_types::*;
 pub use pack::compat;
 #[cfg(feature = "compressible")]
 pub use pack::{Pack, Unpack};
-pub use token_pool::TokenPool;
 pub use utils::{
     account_meta_from_account_info, is_ctoken_account, AccountInfoToCompress,
     PackedCompressedTokenDataWithContext,

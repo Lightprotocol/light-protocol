@@ -7,7 +7,7 @@ use light_client::rpc::Rpc;
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
 use light_ctoken_sdk::{
     ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount},
-    token_pool::find_token_pool_pda_with_index,
+    spl_interface::find_spl_interface_pda_with_index,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens};
@@ -86,7 +86,7 @@ async fn test_spl_to_ctoken_invoke() {
     assert_eq!(initial_spl_balance, amount);
 
     // Get token pool PDA
-    let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
@@ -94,7 +94,7 @@ async fn test_spl_to_ctoken_invoke() {
     // Build wrapper instruction for SPL to CToken transfer
     let data = TransferSplToCtokenData {
         amount: transfer_amount,
-        token_pool_pda_bump,
+        spl_interface_pda_bump,
     };
     // Discriminator 15 = SplToCtokenInvoke
     let wrapper_instruction_data = [vec![15u8], data.try_to_vec().unwrap()].concat();
@@ -106,7 +106,7 @@ async fn test_spl_to_ctoken_invoke() {
     // - accounts[3]: authority (signer)
     // - accounts[4]: mint
     // - accounts[5]: payer (signer)
-    // - accounts[6]: token_pool_pda
+    // - accounts[6]: spl_interface_pda
     // - accounts[7]: spl_token_program
     // - accounts[8]: compressed_token_program_authority
     let wrapper_accounts = vec![
@@ -116,7 +116,7 @@ async fn test_spl_to_ctoken_invoke() {
         AccountMeta::new_readonly(sender.pubkey(), true), // authority (signer)
         AccountMeta::new_readonly(mint, false),
         AccountMeta::new(payer.pubkey(), true), // payer (signer)
-        AccountMeta::new(token_pool_pda, false),
+        AccountMeta::new(spl_interface_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
         AccountMeta::new_readonly(cpi_authority_pda, false),
     ];
@@ -209,7 +209,7 @@ async fn test_ctoken_to_spl_invoke() {
     .unwrap();
 
     // Transfer from temp SPL to ctoken to fund it
-    let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
@@ -217,7 +217,7 @@ async fn test_ctoken_to_spl_invoke() {
     {
         let data = TransferSplToCtokenData {
             amount,
-            token_pool_pda_bump,
+            spl_interface_pda_bump,
         };
         let wrapper_instruction_data = [vec![15u8], data.try_to_vec().unwrap()].concat();
         let wrapper_accounts = vec![
@@ -227,7 +227,7 @@ async fn test_ctoken_to_spl_invoke() {
             AccountMeta::new_readonly(owner.pubkey(), true),
             AccountMeta::new_readonly(mint, false),
             AccountMeta::new(payer.pubkey(), true),
-            AccountMeta::new(token_pool_pda, false),
+            AccountMeta::new(spl_interface_pda, false),
             AccountMeta::new_readonly(anchor_spl::token::ID, false),
             AccountMeta::new_readonly(cpi_authority_pda, false),
         ];
@@ -253,7 +253,7 @@ async fn test_ctoken_to_spl_invoke() {
     // Now test CToken to SPL transfer
     let data = TransferCtokenToSplData {
         amount: transfer_amount,
-        token_pool_pda_bump,
+        spl_interface_pda_bump,
     };
     // Discriminator 17 = CtokenToSplInvoke
     let wrapper_instruction_data = [vec![17u8], data.try_to_vec().unwrap()].concat();
@@ -265,7 +265,7 @@ async fn test_ctoken_to_spl_invoke() {
     // - accounts[3]: authority (signer)
     // - accounts[4]: mint
     // - accounts[5]: payer (signer)
-    // - accounts[6]: token_pool_pda
+    // - accounts[6]: spl_interface_pda
     // - accounts[7]: spl_token_program
     // - accounts[8]: compressed_token_program_authority
     let wrapper_accounts = vec![
@@ -275,7 +275,7 @@ async fn test_ctoken_to_spl_invoke() {
         AccountMeta::new_readonly(owner.pubkey(), true), // authority (signer)
         AccountMeta::new_readonly(mint, false),
         AccountMeta::new(payer.pubkey(), true), // payer (signer)
-        AccountMeta::new(token_pool_pda, false),
+        AccountMeta::new(spl_interface_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
         AccountMeta::new_readonly(cpi_authority_pda, false),
     ];
@@ -377,8 +377,8 @@ async fn test_spl_to_ctoken_invoke_signed() {
         .unwrap();
     let ctoken_account = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
 
-    // Get token pool PDA
-    let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
+    // Get SPL interface PDA
+    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
@@ -386,7 +386,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
     // Build wrapper instruction for SPL to CToken transfer with PDA authority
     let data = TransferSplToCtokenData {
         amount: transfer_amount,
-        token_pool_pda_bump,
+        spl_interface_pda_bump,
     };
     // Discriminator 16 = SplToCtokenInvokeSigned
     let wrapper_instruction_data = [vec![16u8], data.try_to_vec().unwrap()].concat();
@@ -398,7 +398,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
         AccountMeta::new_readonly(authority_pda, false), // authority is PDA, not signer
         AccountMeta::new_readonly(mint, false),
         AccountMeta::new(payer.pubkey(), true), // payer (signer)
-        AccountMeta::new(token_pool_pda, false),
+        AccountMeta::new(spl_interface_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
         AccountMeta::new_readonly(cpi_authority_pda, false),
     ];
@@ -516,7 +516,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
     .unwrap();
 
     // Transfer from temp SPL to ctoken to fund it
-    let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
@@ -524,7 +524,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
     {
         let data = TransferSplToCtokenData {
             amount,
-            token_pool_pda_bump,
+            spl_interface_pda_bump,
         };
         let wrapper_instruction_data = [vec![15u8], data.try_to_vec().unwrap()].concat();
         let wrapper_accounts = vec![
@@ -534,7 +534,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
             AccountMeta::new_readonly(temp_owner.pubkey(), true),
             AccountMeta::new_readonly(mint, false),
             AccountMeta::new(payer.pubkey(), true),
-            AccountMeta::new(token_pool_pda, false),
+            AccountMeta::new(spl_interface_pda, false),
             AccountMeta::new_readonly(anchor_spl::token::ID, false),
             AccountMeta::new_readonly(cpi_authority_pda, false),
         ];
@@ -560,7 +560,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
     // Now test CToken to SPL transfer with PDA authority
     let data = TransferCtokenToSplData {
         amount: transfer_amount,
-        token_pool_pda_bump,
+        spl_interface_pda_bump,
     };
     // Discriminator 18 = CtokenToSplInvokeSigned
     let wrapper_instruction_data = [vec![18u8], data.try_to_vec().unwrap()].concat();
@@ -572,7 +572,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
         AccountMeta::new_readonly(authority_pda, false), // authority is PDA, not signer
         AccountMeta::new_readonly(mint, false),
         AccountMeta::new(payer.pubkey(), true), // payer (signer)
-        AccountMeta::new(token_pool_pda, false),
+        AccountMeta::new(spl_interface_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
         AccountMeta::new_readonly(cpi_authority_pda, false),
     ];

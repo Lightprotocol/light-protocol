@@ -11,7 +11,7 @@ use light_ctoken_sdk::{
         },
         CTokenAccount2,
     },
-    token_pool::find_token_pool_pda_with_index,
+    spl_interface::find_spl_interface_pda_with_index,
     ValidityProof,
 };
 use light_program_test::utils::assert::assert_rpc_error;
@@ -289,7 +289,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
     // Now transfer back using CompressAndClose instead of regular transfer
     println!("Testing reverse transfer with CompressAndClose: ctoken to SPL");
 
-    let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
 
     let transfer_ix = CtokenToSplTransferAndClose {
         source_ctoken_account: associated_token_account,
@@ -298,8 +298,8 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         authority: recipient.pubkey(),
         mint,
         payer: payer.pubkey(),
-        token_pool_pda,
-        token_pool_pda_bump,
+        spl_interface_pda,
+        spl_interface_pda_bump,
         spl_token_program: anchor_spl::token::ID,
     }
     .instruction()
@@ -319,8 +319,8 @@ pub struct CtokenToSplTransferAndClose {
     pub authority: Pubkey,
     pub mint: Pubkey,
     pub payer: Pubkey,
-    pub token_pool_pda: Pubkey,
-    pub token_pool_pda_bump: u8,
+    pub spl_interface_pda: Pubkey,
+    pub spl_interface_pda_bump: u8,
     pub spl_token_program: Pubkey,
 }
 
@@ -335,8 +335,8 @@ impl CtokenToSplTransferAndClose {
             AccountMeta::new(self.destination_spl_token_account, false),
             // Authority (index 3) - signer
             AccountMeta::new(self.authority, true),
-            // Token pool PDA (index 4) - writable
-            AccountMeta::new(self.token_pool_pda, false),
+            // SPL interface PDA (index 4) - writable
+            AccountMeta::new(self.spl_interface_pda, false),
             // SPL Token program (index 5) - needed for CPI
             AccountMeta::new_readonly(self.spl_token_program, false),
         ];
@@ -368,7 +368,7 @@ impl CtokenToSplTransferAndClose {
                 2, // destination SPL token account index
                 4, // pool_account_index
                 0, // pool_index (TODO: make dynamic)
-                self.token_pool_pda_bump,
+                self.spl_interface_pda_bump,
             )),
             delegate_is_set: false,
             method_used: true,

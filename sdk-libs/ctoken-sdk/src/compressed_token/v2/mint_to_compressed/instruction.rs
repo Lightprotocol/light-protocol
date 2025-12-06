@@ -10,7 +10,7 @@ use solana_pubkey::Pubkey;
 use crate::{
     compressed_token::mint_action::MintActionMetaConfig,
     error::{Result, TokenSdkError},
-    TokenPool,
+    spl_interface::SplInterfacePda,
 };
 
 pub const MINT_TO_COMPRESSED_DISCRIMINATOR: u8 = 101;
@@ -32,7 +32,7 @@ pub struct MintToCompressedInputs {
     pub token_account_version: u8,
     pub cpi_context_pubkey: Option<Pubkey>,
     /// Required if the mint is decompressed
-    pub token_pool: Option<TokenPool>,
+    pub spl_interface_pda: Option<SplInterfacePda>,
 }
 
 /// Create a mint_to_compressed instruction (wrapper around mint_action)
@@ -53,7 +53,7 @@ pub fn create_mint_to_compressed_instruction(
         proof,
         token_account_version,
         cpi_context_pubkey,
-        token_pool: _,
+        spl_interface_pda: _,
     } = inputs;
 
     let mint_to_action =

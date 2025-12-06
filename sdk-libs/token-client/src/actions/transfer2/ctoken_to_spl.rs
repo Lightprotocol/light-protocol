@@ -3,7 +3,8 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_ctoken_sdk::{
-    ctoken::TransferCtokenToSpl, token_pool::find_token_pool_pda_with_index, SPL_TOKEN_PROGRAM_ID,
+    ctoken::TransferCtokenToSpl, spl_interface::find_spl_interface_pda_with_index,
+    SPL_TOKEN_PROGRAM_ID,
 };
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -20,7 +21,7 @@ pub async fn transfer_ctoken_to_spl<R: Rpc + Indexer>(
     mint: Pubkey,
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
-    let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
 
     let transfer_ix = TransferCtokenToSpl {
         source_ctoken_account,
@@ -29,8 +30,8 @@ pub async fn transfer_ctoken_to_spl<R: Rpc + Indexer>(
         authority: authority.pubkey(),
         mint,
         payer: payer.pubkey(),
-        token_pool_pda,
-        token_pool_pda_bump,
+        spl_interface_pda,
+        spl_interface_pda_bump,
         spl_token_program: Pubkey::new_from_array(SPL_TOKEN_PROGRAM_ID), // TODO: make dynamic
     }
     .instruction()
