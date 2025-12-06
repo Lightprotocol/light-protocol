@@ -1,72 +1,48 @@
-//! Crate Structure:
-//! What do I need to say:
-//! 1. what is it?
-//! 2. what are compressible, what are compressed tokens, and what are cmints?
-//! 3. what is on mainnet what is on devnet?
-//! 4. Modules
-//! 5. structure of ctoken instructions:
-//!     - (use create ata as example)
-//!     - create the Instruction in client
-//!     - create the Instruction in program
-//! 6. Quickstart:
-//!     - create cmint, create 2 accounts, mint ctokens, transfer ctokens
-//!     - create spl mint, create 1 spl account, mint spl tokens, create 1 ctoken account, transfer spl tokens to ctoken account
-//!     - use transfer interface for the transfers
-//!     - inconvenient because it requires light-client to send the transactions -> link to the examples in the program examples directory
-//!     - what about decompression?
+//! # cToken SDK
 //!
-//! What do I need to reexport from light-ctoken-interface?
-//! - users shouldn't need to import anything from /home/ananas/dev/light-protocol/program-libs/ctoken-interfaces
+//! The base library to use cToken Accounts, cMints, and compressed token accounts.
 //!
-//! # Compressed Token SDK
+//! ## cToken Accounts
+//! - are on Solana devnet.
+//! - are Solana accounts.
+//! - can hold cMint and spl Mint tokens.
+//! - cost 22,000 lamports to create.
+//! - compressible:
+//!     - rent exemption is sponsored by the protocol.
+//!     - rent is 388 lamports per rent epoch (1.5 hours).
+//!     - once the account's lamports balance is insufficient, it is compressed to a compressed token account.
+//!     - compressed tokens can be decompressed to a cToken account.
 //!
-//! Client and program utilities for compressed tokens on Light Protocol.
+//! ## Compressed Token Accounts
+//! - are on Solana mainnet.
+//! - are compressed accounts.
+//! - can hold cMint and spl Mint tokens.
+//! - cost 5,000 lamports to create.
+//! - well suited for airdrops and reward distribution.
+//!
+//! ## cMints:
+//! - are on Solana devnet.
+//! - are Compressed accounts.
+//! - cost 15,000 lamports to create.
+//! - support `TokenMetadata`.
+//!
+//!
+//! For full program examples, see the [Program Examples](https://github.com/Lightprotocol/program-examples).
+//! For detailed documentation, visit [zkcompression.com](https://www.zkcompression.com/).
+//! For rust client development see [`light-client`](https://docs.rs/light-client).
+//! For rust program testing see [`light-program-test`](https://docs.rs/light-program-test).
+//! For local test validator with light system programs see [Light CLI](https://www.npmjs.com/package/@lightprotocol/zk-compression-cli).
 //!
 //!
 //!
-//! ## Quick Start
+//! ## Features
 //!
-//! ```rust
-//! use light_ctoken_sdk::ctoken::{
-//!     CreateAssociatedTokenAccount,
-//!     TransferCtoken,
-//!     get_associated_ctoken_address,
-//! };
-//!
-//! // Derive ATA address
-//! let ata = get_associated_ctoken_address(&owner, &mint);
-//!
-//! // Create ATA instruction
-//! let create_ix = CreateAssociatedTokenAccount::new(payer, owner, mint)
-//!     .instruction()?;
-//!
-//! // Transfer instruction
-//! let transfer_ix = TransferCtoken {
-//!     source,
-//!     destination,
-//!     amount: 1_000_000,
-//!     authority: owner,
-//!     max_top_up: None,
-//! }.instruction()?;
-//! ```
-//!
-//! ## Modules
-//!
-//! - [`ctoken`] - High-level builders for token operations (recommended)
-//! - [`compressed_token`] - Low-level v1/v2 instruction builders
-//! - [`compressible`] - Compressible account utilities
-//!
-//! ## Feature Flags
-//!
-//! | Feature | Description |
-//! |---------|-------------|
-//! | `anchor` | Anchor framework integration |
-//! | `compressible` | Compressible token account support |
-//! | `cpi-context` | CPI context for batched operations |
+//! 1. anchor - Derives AnchorSerialize, AnchorDeserialize instead of BorshSerialize, BorshDeserialize.
+//! 2. compressible - utility functions for compressible sdk macros.
 //!
 //! ## Common Operations
 //!
-//! | Operation | Client Builder | CPI Helper |
+//! | Operation | Client Builder | CPI Builder |
 //! |-----------|----------------|------------|
 //! | Create ATA | [`ctoken::CreateAssociatedTokenAccount`] | [`ctoken::CreateAssociatedTokenAccountInfos`] |
 //! | Transfer | [`ctoken::TransferCtoken`] | [`ctoken::TransferCtokenAccountInfos`] |
