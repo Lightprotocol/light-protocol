@@ -1550,7 +1550,7 @@ fn generate_error_codes(variant: InstructionVariant) -> Result<TokenStream> {
         #[msg("Missing seed account")]
         MissingSeedAccount,
         #[msg("ATA uses SPL ATA derivation")]
-        AtaDoesNotUseSeedDerivation,
+        ATADoesNotUseSeedDerivation,
     };
 
     let variant_specific_errors = match variant {

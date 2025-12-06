@@ -23,7 +23,7 @@ install_photon() {
 
         if [ "$photon_installed" = false ] || [ "$photon_correct_version" = false ]; then
             echo "Installing Photon indexer (version $expected_version)..."
-            RUSTFLAGS="-A dead-code" cargo install --git https://github.com/helius-labs/photon.git --rev ${PHOTON_COMMIT} --locked --force
+            RUSTFLAGS="-A dead-code" cargo install --git https://github.com/lightprotocol/photon.git --rev ${PHOTON_COMMIT} --locked --force
             log "photon"
         else
             echo "Photon already installed with correct version, skipping..."

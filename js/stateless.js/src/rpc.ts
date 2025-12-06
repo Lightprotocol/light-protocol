@@ -1,6 +1,9 @@
 import {
+    AccountInfo,
+    Commitment,
     Connection,
     ConnectionConfig,
+    GetAccountInfoConfig,
     PublicKey,
     SolanaJSONRPCError,
 } from '@solana/web3.js';
@@ -51,6 +54,10 @@ import {
     PaginatedOptions,
     CompressedAccountResultV2,
     CompressedTokenAccountsByOwnerOrDelegateResultV2,
+    AddressWithTreeInfo,
+    HashWithTreeInfo,
+    DerivationMode,
+    AddressWithTreeInfoV2,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -64,6 +71,9 @@ import {
     ValidityProof,
     TreeType,
     AddressTreeInfo,
+    CompressedAccount,
+    MerkleContext,
+    CompressedAccountData,
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import {
@@ -74,6 +84,8 @@ import {
     versionedEndpoint,
     featureFlags,
     batchAddressTree,
+    CTOKEN_PROGRAM_ID,
+    getDefaultAddressSpace,
 } from './constants';
 import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
@@ -89,7 +101,7 @@ import {
     getTreeInfoByPubkey,
 } from './utils/get-state-tree-infos';
 import { TreeInfo } from './state/types';
-import { validateNumbersForProof } from './utils';
+import { deriveAddressV2, validateNumbersForProof } from './utils';
 
 /** @internal */
 export function parseAccountData({
@@ -1832,6 +1844,59 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
     /**
      * Fetch the latest validity proof for (1) compressed accounts specified by
+     * an array of account Merkle contexts, and (2) new unique addresses specified by
+     * an array of address objects with tree info.
+     *
+     * Validity proofs prove the presence of compressed accounts in state trees
+     * and the non-existence of addresses in address trees, respectively. They
+     * enable verification without recomputing the merkle proof path, thus
+     * lowering verification and data costs.
+     */
+    async getValidityProofV2(
+        accountMerkleContexts: (MerkleContext | undefined)[] = [],
+        newAddresses: AddressWithTreeInfoV2[] = [],
+        derivationMode?: DerivationMode,
+    ): Promise<ValidityProofWithContext> {
+        const hashesWithTrees = accountMerkleContexts
+            .filter(ctx => ctx !== undefined)
+            .map(ctx => ({
+                hash: ctx.hash,
+                tree: ctx.treeInfo.tree,
+                queue: ctx.treeInfo.queue,
+            }));
+
+        const addressesWithTrees = newAddresses.map(address => {
+            let derivedAddress: BN;
+            if (
+                derivationMode === DerivationMode.compressible ||
+                derivationMode === undefined
+            ) {
+                const publicKey = deriveAddressV2(
+                    Uint8Array.from(address.address),
+                    address.treeInfo.tree,
+                    CTOKEN_PROGRAM_ID,
+                );
+                derivedAddress = bn(publicKey.toBytes());
+            } else {
+                derivedAddress = bn(address.address);
+            }
+
+            return {
+                address: derivedAddress,
+                tree: address.treeInfo.tree,
+                queue: address.treeInfo.queue,
+            };
+        });
+
+        const { value } = await this.getValidityProofAndRpcContext(
+            hashesWithTrees,
+            addressesWithTrees,
+        );
+        return value;
+    }
+
+    /**
+     * Fetch the latest validity proof for (1) compressed accounts specified by
      * an array of account hashes. (2) new unique addresses specified by an
      * array of addresses. Returns with context slot.
      *
@@ -1950,5 +2015,111 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 context: res.result.context,
             };
         }
+    }
+
+    /**
+     * Fetch all the account info for the specified public key. Returns metadata
+     * to to load in case the account is cold.
+     * @param address               The account address to fetch.
+     * @param programId             The owner program ID.
+     * @param commitmentOrConfig    Optional. The commitment or config to use
+     *                              for the onchain account fetch.
+     * @param addressSpace          Optional. The address space info that was
+     *                              used at init.
+     *
+     * @returns                     Account info with load info, or null if
+     *                              account doesn't exist. LoadContext is always
+     *                              some if the account is compressible. isCold
+     *                              indicates the current state of the account,
+     *                              if true the account must referenced in a
+     *                              load instruction before use.
+     */
+    async getAccountInfoInterface(
+        address: PublicKey,
+        programId: PublicKey,
+        commitmentOrConfig?: Commitment | GetAccountInfoConfig,
+        addressSpace?: TreeInfo,
+    ): Promise<{
+        accountInfo: AccountInfo<Buffer>;
+        isCold: boolean;
+        loadContext?: MerkleContext;
+    } | null> {
+        if (!featureFlags.isV2()) {
+            throw new Error(
+                'getAccountInfoInterfacea requires feature flag V2',
+            );
+        }
+
+        addressSpace = addressSpace ?? getDefaultAddressSpace();
+
+        const cAddress = deriveAddressV2(
+            address.toBytes(),
+            addressSpace.tree,
+            programId,
+        );
+
+        const [onchainResult, compressedResult] = await Promise.allSettled([
+            this.getAccountInfo(address, commitmentOrConfig),
+            this.getCompressedAccount(bn(cAddress.toBytes())),
+        ]);
+
+        const onchainAccount =
+            onchainResult.status === 'fulfilled' ? onchainResult.value : null;
+        const compressedAccount =
+            compressedResult.status === 'fulfilled'
+                ? compressedResult.value
+                : null;
+
+        if (onchainAccount) {
+            if (compressedAccount) {
+                return {
+                    accountInfo: onchainAccount,
+                    // it's compressible and currently hot.
+                    loadContext: {
+                        treeInfo: compressedAccount.treeInfo,
+                        hash: compressedAccount.hash,
+                        leafIndex: compressedAccount.leafIndex,
+                        proveByIndex: compressedAccount.proveByIndex,
+                    },
+                    isCold: false,
+                };
+            }
+            // it's not compressible.
+            return {
+                accountInfo: onchainAccount,
+                loadContext: undefined,
+                isCold: false,
+            };
+        }
+
+        // is cold.
+        if (
+            compressedAccount &&
+            compressedAccount.data &&
+            compressedAccount.data.data.length > 0
+        ) {
+            const accountInfo: AccountInfo<Buffer> = {
+                executable: false,
+                owner: compressedAccount.owner,
+                lamports: compressedAccount.lamports.toNumber(),
+                data: Buffer.concat([
+                    Buffer.from(compressedAccount.data!.discriminator),
+                    compressedAccount.data!.data,
+                ]),
+            };
+            return {
+                accountInfo,
+                loadContext: {
+                    treeInfo: compressedAccount.treeInfo,
+                    hash: compressedAccount.hash,
+                    leafIndex: compressedAccount.leafIndex,
+                    proveByIndex: compressedAccount.proveByIndex,
+                },
+                isCold: true,
+            };
+        }
+
+        // account does not exist.
+        return null;
     }
 }

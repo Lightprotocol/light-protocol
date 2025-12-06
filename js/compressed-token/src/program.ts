@@ -702,7 +702,7 @@ export class CompressedTokenProgram {
     }
 
     /**
-     * Construct createMint instruction for compressed tokens.
+     * Construct createMint instruction for SPL tokens.
      *
      * @param feePayer              Fee payer.
      * @param mint                  SPL Mint address.

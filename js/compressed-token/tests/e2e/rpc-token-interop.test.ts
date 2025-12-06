@@ -46,6 +46,7 @@ describe('rpc-interop token', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -259,6 +260,7 @@ describe('rpc-interop token', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
             )
         ).mint;

@@ -114,6 +114,7 @@ describe('transfer', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -243,6 +244,7 @@ describe('transfer', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
                 undefined,
@@ -310,6 +312,7 @@ describe('e2e transfer with multiple accounts', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 9,
                 mintKeypair,
             )

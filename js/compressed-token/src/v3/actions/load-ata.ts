@@ -1,0 +1,528 @@
+import {
+    Rpc,
+    MerkleContext,
+    ValidityProof,
+    packDecompressAccountsIdempotent,
+    CTOKEN_PROGRAM_ID,
+    buildAndSignTx,
+    sendAndConfirmTx,
+    dedupeSigner,
+} from '@lightprotocol/stateless.js';
+import {
+    PublicKey,
+    AccountMeta,
+    TransactionInstruction,
+    Signer,
+    TransactionSignature,
+    ConfirmOptions,
+    ComputeBudgetProgram,
+} from '@solana/web3.js';
+import {
+    TOKEN_PROGRAM_ID,
+    TOKEN_2022_PROGRAM_ID,
+    getAssociatedTokenAddressSync,
+} from '@solana/spl-token';
+import {
+    AccountInterface,
+    getATAInterface as _getATAInterface,
+} from '../get-account-interface';
+import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
+import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-associated-ctoken';
+import { createWrapInstruction } from '../instructions/wrap';
+import { createDecompress2Instruction } from '../instructions/decompress2';
+import {
+    getTokenPoolInfos,
+    TokenPoolInfo,
+} from '../../utils/get-token-pool-infos';
+import { getATAProgramId } from '../ata-utils';
+import { InterfaceOptions } from './transfer-interface';
+
+/**
+ * Account info interface for compressible accounts.
+ * Matches return structure of getAccountInterface/getATAInterface.
+ *
+ * Integrating programs provide their own fetch/parse - this is just the data shape.
+ */
+export interface ParsedAccountInfoInterface<T = unknown> {
+    /** Parsed account data (program-specific) */
+    parsed: T;
+    /** Load context - present if account is compressed (cold), undefined if hot */
+    loadContext?: MerkleContext;
+}
+
+/**
+ * Input for createLoadAccountsParams.
+ * Supports both program PDAs and CToken vaults.
+ *
+ * The integrating program is responsible for fetching and parsing their accounts.
+ * This helper just packs them for the decompressAccountsIdempotent instruction.
+ */
+export interface CompressibleAccountInput<T = unknown> {
+    /** Account address */
+    address: PublicKey;
+    /**
+     * Account type key for packing:
+     * - For PDAs: program-specific type name (e.g., "poolState", "observationState")
+     * - For CToken vaults: "cTokenData"
+     */
+    accountType: string;
+    /**
+     * Token variant - required when accountType is "cTokenData".
+     * Examples: "lpVault", "token0Vault", "token1Vault"
+     */
+    tokenVariant?: string;
+    /** Parsed account info (from program-specific fetch) */
+    info: ParsedAccountInfoInterface<T>;
+}
+
+/**
+ * Packed compressed account for decompressAccountsIdempotent instruction
+ */
+export interface PackedCompressedAccount {
+    [key: string]: unknown;
+    merkleContext: {
+        merkleTreePubkeyIndex: number;
+        queuePubkeyIndex: number;
+    };
+}
+
+/**
+ * Result from building load params
+ */
+export interface CompressibleLoadParams {
+    /** Validity proof wrapped in option (null if all proveByIndex) */
+    proofOption: { 0: ValidityProof | null };
+    /** Packed compressed accounts data for instruction */
+    compressedAccounts: PackedCompressedAccount[];
+    /** Offset to system accounts in remainingAccounts */
+    systemAccountsOffset: number;
+    /** Account metas for remaining accounts */
+    remainingAccounts: AccountMeta[];
+}
+
+/**
+ * Result from createLoadAccountsParams
+ */
+export interface LoadResult {
+    /** Params for decompressAccountsIdempotent (null if no program accounts need decompressing) */
+    decompressParams: CompressibleLoadParams | null;
+    /** Instructions to load ATAs (create ATA, wrap SPL/T22, decompress2) */
+    ataInstructions: TransactionInstruction[];
+}
+
+/**
+ * Create instructions to load token balances into a CToken ATA.
+ *
+ * @param rpc     RPC connection
+ * @param ata     Associated token address (PublicKey)
+ * @param owner   Owner public key
+ * @param mint    Mint public key
+ * @param payer   Fee payer (defaults to owner)
+ * @param options Optional load options
+ * @param wrap    Include SPL/T22 wrapping (default: false)
+ * @returns       Array of instructions (empty if nothing to load)
+ */
+export async function createLoadATAInstructions(
+    rpc: Rpc,
+    ata: PublicKey,
+    owner: PublicKey,
+    mint: PublicKey,
+    payer?: PublicKey,
+    options?: InterfaceOptions,
+    wrap = false,
+): Promise<TransactionInstruction[]> {
+    payer ??= owner;
+
+    if (wrap) {
+        const expectedCtokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner,
+        );
+        if (!ata.equals(expectedCtokenAta)) {
+            throw new Error(
+                'Unified loadATA expects ATA to be derived from c-token program. Derive it with getAssociatedTokenAddressInterface.',
+            );
+        }
+    }
+
+    const ataInterface = await _getATAInterface(
+        rpc,
+        ata,
+        owner,
+        mint,
+        undefined,
+        undefined,
+        wrap,
+    );
+    return createLoadATAInstructionsFromInterface(
+        rpc,
+        payer,
+        ataInterface,
+        options,
+    );
+}
+
+/**
+ * Create instructions to load an ATA from its AccountInterface.
+ *
+ * This creates instructions to:
+ * 1. Create CToken ATA if needed (idempotent)
+ * 2. Wrap SPL tokens to CToken ATA (if SPL balance > 0)
+ * 3. Wrap T22 tokens to CToken ATA (if T22 balance > 0)
+ * 4. Decompress2 compressed tokens to CToken ATA (if cold balance > 0)
+ *
+ * Use this when you have a pre-fetched AccountInterface to save an RPC call.
+ *
+ * @param rpc     RPC connection
+ * @param payer   Fee payer
+ * @param ata     AccountInterface from getATAInterface (must have _isAta, _owner, _mint)
+ * @param options Optional load options
+ * @returns       Array of instructions (empty if nothing to load)
+ */
+export async function createLoadATAInstructionsFromInterface(
+    rpc: Rpc,
+    payer: PublicKey,
+    ata: AccountInterface,
+    options?: InterfaceOptions,
+): Promise<TransactionInstruction[]> {
+    if (!ata._isAta || !ata._owner || !ata._mint) {
+        throw new Error(
+            'AccountInterface must be from getATAInterface (requires _isAta, _owner, _mint)',
+        );
+    }
+
+    const instructions: TransactionInstruction[] = [];
+    const owner = ata._owner;
+    const mint = ata._mint;
+    const sources = ata._sources ?? [];
+
+    // Derive addresses
+    const ctokenAtaAddress = getAssociatedTokenAddressInterface(mint, owner);
+    const splAta = getAssociatedTokenAddressSync(
+        mint,
+        owner,
+        false,
+        TOKEN_PROGRAM_ID,
+        getATAProgramId(TOKEN_PROGRAM_ID),
+    );
+    const t22Ata = getAssociatedTokenAddressSync(
+        mint,
+        owner,
+        false,
+        TOKEN_2022_PROGRAM_ID,
+        getATAProgramId(TOKEN_2022_PROGRAM_ID),
+    );
+
+    // Check sources for balances
+    const splSource = sources.find(s => s.type === 'spl');
+    const t22Source = sources.find(s => s.type === 'token2022');
+    const ctokenHotSource = sources.find(s => s.type === 'ctoken-hot');
+    const ctokenColdSource = sources.find(s => s.type === 'ctoken-cold');
+
+    const splBalance = splSource?.amount ?? BigInt(0);
+    const t22Balance = t22Source?.amount ?? BigInt(0);
+    const coldBalance = ctokenColdSource?.amount ?? BigInt(0);
+
+    // Nothing to load
+    if (
+        splBalance === BigInt(0) &&
+        t22Balance === BigInt(0) &&
+        coldBalance === BigInt(0)
+    ) {
+        return [];
+    }
+
+    // 1. Create CToken ATA if needed (idempotent)
+    if (!ctokenHotSource) {
+        instructions.push(
+            createAssociatedTokenAccountInterfaceIdempotentInstruction(
+                payer,
+                ctokenAtaAddress,
+                owner,
+                mint,
+                CTOKEN_PROGRAM_ID,
+            ),
+        );
+    }
+
+    // Get token pool info for wrap operations
+    const tokenPoolInfos =
+        options?.tokenPoolInfos ?? (await getTokenPoolInfos(rpc, mint));
+    const tokenPoolInfo = tokenPoolInfos.find(
+        (info: TokenPoolInfo) => info.isInitialized,
+    );
+
+    // 2. Wrap SPL tokens
+    if (splBalance > BigInt(0) && tokenPoolInfo) {
+        instructions.push(
+            createWrapInstruction(
+                splAta,
+                ctokenAtaAddress,
+                owner,
+                mint,
+                splBalance,
+                tokenPoolInfo,
+                payer,
+            ),
+        );
+    }
+
+    // 3. Wrap T22 tokens
+    if (t22Balance > BigInt(0) && tokenPoolInfo) {
+        instructions.push(
+            createWrapInstruction(
+                t22Ata,
+                ctokenAtaAddress,
+                owner,
+                mint,
+                t22Balance,
+                tokenPoolInfo,
+                payer,
+            ),
+        );
+    }
+
+    // 4. Decompress2 compressed tokens
+    if (coldBalance > BigInt(0) && ctokenColdSource) {
+        // Need to fetch compressed accounts for decompress2 instruction
+        const compressedResult = await rpc.getCompressedTokenAccountsByOwner(
+            owner,
+            { mint },
+        );
+        const compressedAccounts = compressedResult.items;
+
+        if (compressedAccounts.length > 0) {
+            const proof = await rpc.getValidityProofV0(
+                compressedAccounts.map(acc => ({
+                    hash: acc.compressedAccount.hash,
+                    tree: acc.compressedAccount.treeInfo.tree,
+                    queue: acc.compressedAccount.treeInfo.queue,
+                })),
+            );
+
+            instructions.push(
+                createDecompress2Instruction(
+                    payer,
+                    compressedAccounts,
+                    ctokenAtaAddress,
+                    coldBalance,
+                    proof,
+                ),
+            );
+        }
+    }
+
+    return instructions;
+}
+
+/**
+ * Load token balances into a CToken ATA.
+ *
+ * Idempotent: returns null if nothing to load.
+ *
+ * @param rpc               RPC connection
+ * @param ata               Associated token address (PublicKey)
+ * @param owner             Owner of the tokens (signer)
+ * @param mint              Mint public key
+ * @param payer             Fee payer (signer, defaults to owner)
+ * @param confirmOptions    Optional confirm options
+ * @param interfaceOptions  Optional interface options
+ * @param wrap              Include SPL/T22 wrapping (default: false)
+ * @returns Transaction signature, or null if nothing to load
+ */
+export async function loadATA(
+    rpc: Rpc,
+    ata: PublicKey,
+    owner: Signer,
+    mint: PublicKey,
+    payer?: Signer,
+    confirmOptions?: ConfirmOptions,
+    interfaceOptions?: InterfaceOptions,
+    wrap = false,
+): Promise<TransactionSignature | null> {
+    payer ??= owner;
+
+    const ixs = await createLoadATAInstructions(
+        rpc,
+        ata,
+        owner.publicKey,
+        mint,
+        payer.publicKey,
+        interfaceOptions,
+        wrap,
+    );
+
+    if (ixs.length === 0) {
+        return null;
+    }
+
+    const { blockhash } = await rpc.getLatestBlockhash();
+    const additionalSigners = dedupeSigner(payer, [owner]);
+
+    const tx = buildAndSignTx(
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }), ...ixs],
+        payer,
+        blockhash,
+        additionalSigners,
+    );
+
+    return sendAndConfirmTx(rpc, tx, confirmOptions);
+}
+
+/**
+ * Create params for loading program accounts and ATAs.
+ *
+ * Returns:
+ * - decompressParams: for a caller program's standardized
+ *   decompressAccountsIdempotent instruction
+ * - ataInstructions: for loading user ATAs
+ *
+ * @param rpc              RPC connection
+ * @param payer            Fee payer (needed for ATA instructions)
+ * @param programId        Program ID for decompressAccountsIdempotent
+ * @param programAccounts  PDAs and vaults (caller pre-fetches)
+ * @param atas             User ATAs (fetched via getATAInterface)
+ * @param options          Optional load options
+ * @returns                LoadResult with decompressParams and ataInstructions
+ *
+ * @example
+ * ```typescript
+ * const poolInfo = await myProgram.fetchPoolState(rpc, poolAddress);
+ * const vault0Ata = getAssociatedTokenAddressInterface(token0Mint, poolAddress);
+ * const vault0Info = await getATAInterface(rpc, vault0Ata, poolAddress, token0Mint, undefined, CTOKEN_PROGRAM_ID);
+ * const userAta = getAssociatedTokenAddressInterface(tokenMint, userWallet);
+ * const userAtaInfo = await getATAInterface(rpc, userAta, userWallet, tokenMint);
+ *
+ * const result = await createLoadAccountsParams(
+ *     rpc,
+ *     payer.publicKey,
+ *     programId,
+ *     [
+ *         { address: poolAddress, accountType: 'poolState', info: poolInfo },
+ *         { address: vault0, accountType: 'cTokenData', tokenVariant: 'token0Vault', info: vault0Info },
+ *     ],
+ *     [userAta],
+ * );
+ *
+ * // Build transaction with both program decompress and ATA load
+ * const instructions = [...result.ataInstructions];
+ * if (result.decompressParams) {
+ *     instructions.push(await program.methods
+ *         .decompressAccountsIdempotent(
+ *             result.decompressParams.proofOption,
+ *             result.decompressParams.compressedAccounts,
+ *             result.decompressParams.systemAccountsOffset,
+ *         )
+ *         .remainingAccounts(result.decompressParams.remainingAccounts)
+ *         .instruction());
+ * }
+ * ```
+ */
+export async function createLoadAccountsParams(
+    rpc: Rpc,
+    payer: PublicKey,
+    programId: PublicKey,
+    programAccounts: CompressibleAccountInput[] = [],
+    atas: AccountInterface[] = [],
+    options?: InterfaceOptions,
+): Promise<LoadResult> {
+    let decompressParams: CompressibleLoadParams | null = null;
+
+    const compressedProgramAccounts = programAccounts.filter(
+        acc => acc.info.loadContext !== undefined,
+    );
+
+    if (compressedProgramAccounts.length > 0) {
+        // Build proof inputs
+        const proofInputs = compressedProgramAccounts.map(acc => ({
+            hash: acc.info.loadContext!.hash,
+            tree: acc.info.loadContext!.treeInfo.tree,
+            queue: acc.info.loadContext!.treeInfo.queue,
+        }));
+
+        const proofResult = await rpc.getValidityProofV0(proofInputs, []);
+
+        // Build accounts data for packing
+        const accountsData = compressedProgramAccounts.map(acc => {
+            if (acc.accountType === 'cTokenData') {
+                if (!acc.tokenVariant) {
+                    throw new Error(
+                        'tokenVariant is required when accountType is "cTokenData"',
+                    );
+                }
+                return {
+                    key: 'cTokenData',
+                    data: {
+                        variant: { [acc.tokenVariant]: {} },
+                        tokenData: acc.info.parsed,
+                    },
+                    treeInfo: acc.info.loadContext!.treeInfo,
+                };
+            }
+            return {
+                key: acc.accountType,
+                data: acc.info.parsed,
+                treeInfo: acc.info.loadContext!.treeInfo,
+            };
+        });
+
+        const addresses = compressedProgramAccounts.map(acc => acc.address);
+        const treeInfos = compressedProgramAccounts.map(
+            acc => acc.info.loadContext!.treeInfo,
+        );
+
+        const packed = await packDecompressAccountsIdempotent(
+            programId,
+            {
+                compressedProof: proofResult.compressedProof,
+                treeInfos,
+            },
+            accountsData,
+            addresses,
+        );
+
+        decompressParams = {
+            proofOption: packed.proofOption,
+            compressedAccounts:
+                packed.compressedAccounts as PackedCompressedAccount[],
+            systemAccountsOffset: packed.systemAccountsOffset,
+            remainingAccounts: packed.remainingAccounts,
+        };
+    }
+
+    const ataInstructions: TransactionInstruction[] = [];
+
+    for (const ata of atas) {
+        const ixs = await createLoadATAInstructionsFromInterface(
+            rpc,
+            payer,
+            ata,
+            options,
+        );
+        ataInstructions.push(...ixs);
+    }
+
+    return {
+        decompressParams,
+        ataInstructions,
+    };
+}
+
+/**
+ * Calculate compute units for compressible load operation
+ */
+export function calculateCompressibleLoadComputeUnits(
+    compressedAccountCount: number,
+    hasValidityProof: boolean,
+): number {
+    let cu = 50_000; // Base
+
+    if (hasValidityProof) {
+        cu += 100_000; // Proof verification
+    }
+
+    // Per compressed account
+    cu += compressedAccountCount * 30_000;
+
+    return cu;
+}
