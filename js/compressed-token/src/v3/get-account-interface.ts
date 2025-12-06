@@ -29,12 +29,12 @@ export const TokenAccountSourceType = {
     CTokenCold: 'ctoken-cold',
 } as const;
 
-export type TokenAccountSourceType =
+export type TokenAccountSourceTypeValue =
     (typeof TokenAccountSourceType)[keyof typeof TokenAccountSourceType];
 
 /** @internal */
 export interface TokenAccountSource {
-    type: TokenAccountSourceType;
+    type: TokenAccountSourceTypeValue;
     address: PublicKey;
     amount: bigint;
     accountInfo: AccountInfo<Buffer>;

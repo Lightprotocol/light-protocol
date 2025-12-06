@@ -109,6 +109,7 @@ export interface CreateAssociatedCTokenAccountInstructionParams {
  * @param configAccount     Optional config account.
  * @param rentPayerPda      Optional rent payer PDA.
  */
+// TODO: use createAssociatedCTokenAccount2.
 export function createAssociatedCTokenAccountInstruction(
     feePayer: PublicKey,
     owner: PublicKey,
