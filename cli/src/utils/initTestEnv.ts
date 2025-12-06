@@ -242,7 +242,7 @@ export async function getSolanaArgs({
   const dirPath = programsDirPath();
 
   const solanaArgs = [
-    "--reset",
+    // "--reset",
     `--limit-ledger-size=${limitLedgerSize}`,
     `--rpc-port=${rpcPort}`,
     `--gossip-host=${gossipHost}`,

@@ -259,7 +259,8 @@ impl ProofClient {
 
     fn log_response(&self, status_code: reqwest::StatusCode, response_text: &str) {
         if !status_code.is_success() {
-            error!("HTTP error: status={}, body={}", status_code, response_text);
+            error!("HTTP error: status={}, body={}, url={}", status_code, response_text,
+                   self.server_address);
         }
     }
 
