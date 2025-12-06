@@ -563,7 +563,7 @@ pub fn add_compressible_instructions(
                 }
             }
 
-            impl light_ctoken_sdk::CTokenSeedProvider for CTokenAccountVariant {
+            impl light_ctoken_sdk::compressible::CTokenSeedProvider for CTokenAccountVariant {
                 type Accounts<'info> = DecompressAccountsIdempotent<'info>;
 
                 fn get_seeds<'a, 'info>(

@@ -21,7 +21,10 @@ use super::{
         Transfer2Inputs,
     },
 };
-use crate::{error::TokenSdkError, utils::CTokenDefaultAccounts, AccountInfoToCompress};
+use crate::{
+    error::TokenSdkError,
+    utils::{AccountInfoToCompress, CTokenDefaultAccounts},
+};
 
 /// Struct to hold all the indices needed for CompressAndClose operation
 #[derive(Debug, Copy, Clone, crate::AnchorSerialize, crate::AnchorDeserialize)]
