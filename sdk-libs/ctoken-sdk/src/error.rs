@@ -1,3 +1,5 @@
+//! Error types for compressed token operations.
+
 use light_account_checks::AccountError;
 use light_compressed_token_types::error::LightTokenSdkTypeError;
 use light_ctoken_interface::CTokenError;

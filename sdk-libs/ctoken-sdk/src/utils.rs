@@ -1,3 +1,5 @@
+//! Utility functions and default account configurations.
+
 use light_ctoken_interface::instructions::transfer2::MultiInputTokenDataWithContext;
 use light_sdk_types::C_TOKEN_PROGRAM_ID;
 use solana_account_info::AccountInfo;

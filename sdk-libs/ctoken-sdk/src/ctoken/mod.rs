@@ -1,3 +1,8 @@
+//! High-level builders for compressed token operations.
+//!
+//! Provides instruction builders and CPI helpers for creating, transferring,
+//! and managing compressed token accounts.
+
 mod close;
 mod compressible;
 mod create;

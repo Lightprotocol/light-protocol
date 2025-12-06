@@ -1,3 +1,7 @@
+//! SDK for compressed token operations on Light Protocol.
+//!
+//! Provides builders and utilities for creating, transferring, and managing compressed tokens.
+
 pub mod compressed_token;
 pub mod compressible;
 pub mod ctoken;
@@ -12,10 +16,13 @@ pub mod utils;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+#[cfg(feature = "compressible")]
 pub use compressible::decompress_runtime::{process_decompress_tokens_runtime, CTokenSeedProvider};
 pub use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 pub use light_compressed_token_types::*;
-pub use pack::{compat, Pack, Unpack};
+pub use pack::compat;
+#[cfg(feature = "compressible")]
+pub use pack::{Pack, Unpack};
 pub use token_pool::TokenPool;
 pub use utils::{
     account_meta_from_account_info, is_ctoken_account, AccountInfoToCompress,

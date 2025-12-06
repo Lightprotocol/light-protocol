@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = { workspace = true }
 
 [features]
+default = []
+v1 = []
+compressible = []
+# TODO: Move claim.rs and withdraw_funding_pool.rs to forester-utils
+forester = []
 
 anchor = ["anchor-lang", "light-compressed-token-types/anchor",  "light-ctoken-interface/anchor"]
 cpi-context = ["light-sdk/cpi-context"]

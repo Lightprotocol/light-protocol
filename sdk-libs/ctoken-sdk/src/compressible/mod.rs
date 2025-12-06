@@ -1,7 +1,7 @@
-pub mod claim;
-pub mod decompress_runtime;
-pub mod withdraw_funding_pool;
+//! Compressible token utilities for runtime decompression.
 
-pub use claim::*;
+#[cfg(feature = "compressible")]
+pub mod decompress_runtime;
+
+#[cfg(feature = "compressible")]
 pub use decompress_runtime::{process_decompress_tokens_runtime, CTokenSeedProvider};
-pub use withdraw_funding_pool::*;
