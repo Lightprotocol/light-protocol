@@ -113,8 +113,6 @@ pub fn get_batch_compress_instruction_account_metas(
             false,
         ));
     }
-    println!("config {:?}", config);
-    println!("default_pubkeys {:?}", default_pubkeys);
     // spl_interface_pda (mut)
     metas.push(AccountMeta::new(config.spl_interface_pda, false));
 

@@ -108,7 +108,7 @@ pub fn create_update_compressed_mint_cpi_write(
     inputs: UpdateCompressedMintInputsCpiWrite,
 ) -> Result<Instruction> {
     if !inputs.cpi_context.first_set_context && !inputs.cpi_context.set_context {
-        return Err(CTokenSdkError::InvalidAccountData);
+        return Err(CTokenSdkError::InvalidCpiContext);
     }
 
     let mut instruction_data =

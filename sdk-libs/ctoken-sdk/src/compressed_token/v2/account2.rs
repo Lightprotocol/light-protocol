@@ -26,7 +26,7 @@ impl CTokenAccount2 {
         let amount = token_data.iter().map(|data| data.amount).sum();
         // Check if token_data is empty
         if token_data.is_empty() {
-            return Err(CTokenSdkError::InsufficientBalance); // TODO: Add proper error variant
+            return Err(CTokenSdkError::NoInputAccounts);
         }
 
         // Use the indices from the first token data (assuming they're all the same mint/owner)
@@ -62,7 +62,7 @@ impl CTokenAccount2 {
         let amount = token_data.iter().map(|data| data.amount).sum();
         // Check if token_data is empty
         if token_data.is_empty() {
-            return Err(CTokenSdkError::InsufficientBalance); // TODO: Add proper error variant
+            return Err(CTokenSdkError::NoInputAccounts);
         }
 
         // Use the indices from the first token data (assuming they're all the same mint/owner)

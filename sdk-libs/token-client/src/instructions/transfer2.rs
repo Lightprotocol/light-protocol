@@ -150,7 +150,6 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     payer: Pubkey,
     should_filter_zero_outputs: bool,
 ) -> Result<Instruction, CTokenSdkError> {
-    println!("here");
     // // Get a single shared output queue for ALL compress/compress-and-close operations
     // // This prevents reordering issues caused by the sort_by_key at the end
     // let shared_output_queue = rpc
@@ -373,7 +372,6 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 token_accounts.push(token_account);
             }
             Transfer2InstructionType::Transfer(input) => {
-                println!("here1");
                 let token_data = input
                     .compressed_token_account
                     .iter()
@@ -399,7 +397,6 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         )
                     })
                     .collect::<Vec<_>>();
-                println!("here2 {:?}", token_data);
                 inputs_offset += token_data.len();
                 if token_data.is_empty() {
                     // When no input accounts, create recipient account directly
@@ -429,10 +426,6 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 } else {
                     // Only use new_delegated if the input accounts actually have delegates
                     let has_delegates = token_data.iter().any(|data| data.has_delegate);
-                    println!(
-                        "is_delegate_transfer: {}, has_delegates: {}",
-                        input.is_delegate_transfer, has_delegates
-                    );
                     let mut token_account = if input.is_delegate_transfer && has_delegates {
                         CTokenAccount2::new_delegated(token_data)
                     } else {
@@ -503,10 +496,6 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 token_accounts.push(delegated_token_account);
             }
             Transfer2InstructionType::CompressAndClose(input) => {
-                println!(
-                    "input.solana_ctoken_account {:?}",
-                    input.solana_ctoken_account
-                );
                 // Get token account info to extract mint, balance, owner, and rent_sponsor
                 let token_account_info = rpc
                     .get_account(input.solana_ctoken_account)
@@ -519,7 +508,6 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 use light_zero_copy::traits::ZeroCopyAt;
                 let (compressed_token, _) = CToken::zero_copy_at(&token_account_info.data)
                     .map_err(|_| CTokenSdkError::InvalidAccountData)?;
-                println!("compressed_token {:?}", compressed_token);
                 let mint = compressed_token.mint;
                 let balance = compressed_token.amount;
                 let owner = compressed_token.owner;
@@ -542,20 +530,16 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                                 break;
                             }
                         }
-                        println!("rent sponsor {:?}", found_rent_sponsor);
-                        println!("compress_to_pubkey {:?}", found_compress_to_pubkey);
                         (
                             found_rent_sponsor.ok_or(CTokenSdkError::InvalidAccountData)?,
                             found_compression_authority,
                             found_compress_to_pubkey,
                         )
                     } else {
-                        println!("no extensions but is_compressible is true");
                         return Err(CTokenSdkError::InvalidAccountData);
                     }
                 } else {
                     // Non-compressible account: use owner as rent_sponsor
-                    println!("non-compressible account, using owner as rent sponsor");
                     (owner.to_bytes(), None, false)
                 };
 
@@ -637,6 +621,5 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
         token_accounts,
         output_queue: shared_output_queue,
     };
-    println!("pre create_transfer2_instruction {:?}", inputs);
     create_transfer2_instruction(inputs)
 }

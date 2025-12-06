@@ -67,6 +67,10 @@ pub enum CTokenSdkError {
     MissingSplInterfacePda,
     #[error("Missing SPL interface PDA bump")]
     MissingSplInterfacePdaBump,
+    #[error("Invalid CPI context: first_set_context or set_context must be true")]
+    InvalidCpiContext,
+    #[error("No input accounts provided")]
+    NoInputAccounts,
     #[error(transparent)]
     CompressedTokenTypes(#[from] LightTokenSdkTypeError),
     #[error(transparent)]
@@ -124,6 +128,8 @@ impl From<CTokenSdkError> for u32 {
             CTokenSdkError::MissingSplTokenProgram => 17026,
             CTokenSdkError::MissingSplInterfacePda => 17027,
             CTokenSdkError::MissingSplInterfacePdaBump => 17028,
+            CTokenSdkError::InvalidCpiContext => 17029,
+            CTokenSdkError::NoInputAccounts => 17030,
             CTokenSdkError::CompressedTokenTypes(e) => e.into(),
             CTokenSdkError::CTokenError(e) => e.into(),
             CTokenSdkError::LightSdkTypesError(e) => e.into(),
