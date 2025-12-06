@@ -138,12 +138,12 @@ where
                 }
             });
 
-        crate::ctoken::CreateCTokenAccountInfos {
+        crate::ctoken::CreateCTokenAccountCpi {
             payer: fee_payer.clone(),
             account: (*owner_info).clone(),
             mint: (*mint_info).clone(),
             owner: *authority.key,
-            compressible: Some(crate::ctoken::CompressibleParamsInfos {
+            compressible: Some(crate::ctoken::CompressibleParamsCpi {
                 compressible_config: ctoken_config.clone(),
                 rent_sponsor: ctoken_rent_sponsor.clone(),
                 system_program: cpi_accounts

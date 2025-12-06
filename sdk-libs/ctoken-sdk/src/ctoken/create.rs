@@ -9,7 +9,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::ctoken::{compressible::CompressibleParamsInfos, CompressibleParams};
+use crate::ctoken::{compressible::CompressibleParamsCpi, CompressibleParams};
 
 /// # Create a create ctoken account instruction:
 /// ```rust
@@ -101,21 +101,21 @@ impl CreateCTokenAccount {
     }
 }
 
-pub struct CreateCTokenAccountInfos<'info> {
+pub struct CreateCTokenAccountCpi<'info> {
     pub payer: AccountInfo<'info>,
     pub account: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
     pub owner: Pubkey,
-    pub compressible: Option<CompressibleParamsInfos<'info>>,
+    pub compressible: Option<CompressibleParamsCpi<'info>>,
 }
 
-impl<'info> CreateCTokenAccountInfos<'info> {
+impl<'info> CreateCTokenAccountCpi<'info> {
     pub fn new(
         payer: AccountInfo<'info>,
         account: AccountInfo<'info>,
         mint: AccountInfo<'info>,
         owner: Pubkey,
-        compressible: CompressibleParamsInfos<'info>,
+        compressible: CompressibleParamsCpi<'info>,
     ) -> Self {
         Self {
             payer,
@@ -167,8 +167,8 @@ impl<'info> CreateCTokenAccountInfos<'info> {
     }
 }
 
-impl<'info> From<&CreateCTokenAccountInfos<'info>> for CreateCTokenAccount {
-    fn from(account_infos: &CreateCTokenAccountInfos<'info>) -> Self {
+impl<'info> From<&CreateCTokenAccountCpi<'info>> for CreateCTokenAccount {
+    fn from(account_infos: &CreateCTokenAccountCpi<'info>) -> Self {
         Self {
             payer: *account_infos.payer.key,
             account: *account_infos.account.key,

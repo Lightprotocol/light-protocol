@@ -1,4 +1,4 @@
-// Tests for MintToCTokenInfos (MintToCtoken instruction)
+// Tests for MintToCTokenCpi (MintToCtoken instruction)
 
 mod shared;
 
@@ -20,7 +20,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test minting tokens to a ctoken account using MintToCTokenInfos::invoke()
+/// Test minting tokens to a ctoken account using MintToCTokenCpi::invoke()
 #[tokio::test]
 async fn test_mint_to_ctoken() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -175,7 +175,7 @@ async fn test_mint_to_ctoken() {
     );
 }
 
-/// Test minting tokens with PDA mint authority using MintToCTokenInfos::invoke_signed()
+/// Test minting tokens with PDA mint authority using MintToCTokenCpi::invoke_signed()
 ///
 /// This test uses the wrapper program to:
 /// 1. Create a compressed mint with PDA authority (discriminator 14 - CreateCmintWithPdaAuthority)

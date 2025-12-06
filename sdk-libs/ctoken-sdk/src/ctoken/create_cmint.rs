@@ -260,9 +260,9 @@ impl CreateCompressedMintCpiWrite {
 }
 
 // ============================================================================
-// AccountInfos Struct: CreateCMintAccountInfos (for CPI usage)
+// AccountInfos Struct: CreateCMintCpi (for CPI usage)
 // ============================================================================
-pub struct CreateCMintAccountInfos<'info> {
+pub struct CreateCMintCpi<'info> {
     pub mint_signer: AccountInfo<'info>,
     /// The authority for the mint (will be stored as mint_authority).
     pub authority: AccountInfo<'info>,
@@ -276,7 +276,7 @@ pub struct CreateCMintAccountInfos<'info> {
     pub params: CreateCMintParams,
 }
 
-impl<'info> CreateCMintAccountInfos<'info> {
+impl<'info> CreateCMintCpi<'info> {
     pub fn new_with_address(
         mint_signer: AccountInfo<'info>,
         authority: AccountInfo<'info>,
@@ -354,13 +354,13 @@ impl<'info> CreateCMintAccountInfos<'info> {
     }
 }
 
-impl<'info> TryFrom<&CreateCMintAccountInfos<'info>> for CreateCMint {
+impl<'info> TryFrom<&CreateCMintCpi<'info>> for CreateCMint {
     type Error = ProgramError;
 
-    fn try_from(account_infos: &CreateCMintAccountInfos<'info>) -> Result<Self, Self::Error> {
+    fn try_from(account_infos: &CreateCMintCpi<'info>) -> Result<Self, Self::Error> {
         if account_infos.params.mint_authority != *account_infos.authority.key {
             solana_msg::msg!(
-                "CreateCMintAccountInfos: params.mint_authority ({}) does not match authority account ({})",
+                "CreateCMintCpi: params.mint_authority ({}) does not match authority account ({})",
                 account_infos.params.mint_authority,
                 account_infos.authority.key
             );
@@ -382,10 +382,10 @@ impl<'info> TryFrom<&CreateCMintAccountInfos<'info>> for CreateCMint {
 }
 
 // ============================================================================
-// AccountInfos Struct: CreateCompressedMintCpiWriteInfos
+// AccountInfos Struct: CreateCompressedMintCpiWriteCpi
 // ============================================================================
 
-pub struct CreateCompressedMintCpiWriteInfos<'info> {
+pub struct CreateCompressedMintCpiWriteCpi<'info> {
     pub mint_signer: AccountInfo<'info>,
     pub authority: AccountInfo<'info>,
     pub payer: AccountInfo<'info>,
@@ -394,7 +394,7 @@ pub struct CreateCompressedMintCpiWriteInfos<'info> {
     pub params: CreateCMintCpiWriteParams,
 }
 
-impl<'info> CreateCompressedMintCpiWriteInfos<'info> {
+impl<'info> CreateCompressedMintCpiWriteCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
         CreateCompressedMintCpiWrite::try_from(self)?.instruction()
     }
@@ -415,16 +415,16 @@ impl<'info> CreateCompressedMintCpiWriteInfos<'info> {
     }
 }
 
-impl<'info> TryFrom<&CreateCompressedMintCpiWriteInfos<'info>> for CreateCompressedMintCpiWrite {
+impl<'info> TryFrom<&CreateCompressedMintCpiWriteCpi<'info>> for CreateCompressedMintCpiWrite {
     type Error = ProgramError;
 
     fn try_from(
-        account_infos: &CreateCompressedMintCpiWriteInfos<'info>,
+        account_infos: &CreateCompressedMintCpiWriteCpi<'info>,
     ) -> Result<Self, Self::Error> {
         // Validate that authority account matches params.mint_authority
         if account_infos.params.mint_authority != *account_infos.authority.key {
             solana_msg::msg!(
-                "CreateCompressedMintCpiWriteInfos: params.mint_authority ({}) does not match authority account ({})",
+                "CreateCompressedMintCpiWriteCpi: params.mint_authority ({}) does not match authority account ({})",
                 account_infos.params.mint_authority,
                 account_infos.authority.key
             );

@@ -53,7 +53,7 @@ impl CloseCTokenAccount {
     }
 }
 
-pub struct CloseCTokenAccountInfos<'info> {
+pub struct CloseCTokenAccountCpi<'info> {
     pub token_program: AccountInfo<'info>,
     pub account: AccountInfo<'info>,
     pub destination: AccountInfo<'info>,
@@ -61,7 +61,7 @@ pub struct CloseCTokenAccountInfos<'info> {
     pub rent_sponsor: Option<AccountInfo<'info>>,
 }
 
-impl<'info> CloseCTokenAccountInfos<'info> {
+impl<'info> CloseCTokenAccountCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
         CloseCTokenAccount::from(self).instruction()
     }
@@ -89,8 +89,8 @@ impl<'info> CloseCTokenAccountInfos<'info> {
     }
 }
 
-impl<'info> From<&CloseCTokenAccountInfos<'info>> for CloseCTokenAccount {
-    fn from(account_infos: &CloseCTokenAccountInfos<'info>) -> Self {
+impl<'info> From<&CloseCTokenAccountCpi<'info>> for CloseCTokenAccount {
+    fn from(account_infos: &CloseCTokenAccountCpi<'info>) -> Self {
         Self {
             token_program: *account_infos.token_program.key,
             account: *account_infos.account.key,

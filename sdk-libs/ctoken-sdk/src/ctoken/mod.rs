@@ -4,9 +4,9 @@
 //! ## Account Creation
 //!
 //! - [`CreateAssociatedTokenAccount`] - Create associated ctoken account (ATA) instruction
-//! - [`CreateAssociatedTokenAccountInfos`] - Create associated ctoken account (ATA) via CPI
+//! - [`CreateAssociatedTokenAccountCpi`] - Create associated ctoken account (ATA) via CPI
 //! - [`CreateCTokenAccount`] - Create ctoken account instruction
-//! - [`CreateCTokenAccountInfos`] - Create ctoken account via CPI
+//! - [`CreateCTokenAccountCpi`] - Create ctoken account via CPI
 //!
 //! ## Transfers
 //!
@@ -15,7 +15,7 @@
 //! ## Close
 //!
 //! - [`CloseCTokenAccount`] - Create close ctoken account instruction
-//! - [`CloseCTokenAccountInfos`] - Close ctoken account via CPI
+//! - [`CloseCTokenAccountCpi`] - Close ctoken account via CPI
 //!
 //!
 //! ## Mint
@@ -36,16 +36,16 @@
 //! # Example: Create cToken Account (CPI)
 //!
 //! ```rust,ignore
-//! use light_ctoken_sdk::ctoken::{CreateAssociatedTokenAccountInfos, CompressibleParamsInfos};
+//! use light_ctoken_sdk::ctoken::{CreateAssociatedTokenAccountCpi, CompressibleParamsCpi};
 //!
-//! CreateAssociatedTokenAccountInfos {
+//! CreateAssociatedTokenAccountCpi {
 //!     owner: ctx.accounts.owner.to_account_info(),
 //!     mint: ctx.accounts.mint.to_account_info(),
 //!     payer: ctx.accounts.payer.to_account_info(),
 //!     associated_token_account: ctx.accounts.ctoken_account.to_account_info(),
 //!     system_program: ctx.accounts.system_program.to_account_info(),
 //!     bump,
-//!     compressible: Some(CompressibleParamsInfos::default_with_accounts(
+//!     compressible: Some(CompressibleParamsCpi::default_with_accounts(
 //!         ctx.accounts.compressible_config.to_account_info(),
 //!         ctx.accounts.rent_sponsor.to_account_info(),
 //!         ctx.accounts.system_program.to_account_info(),
@@ -68,7 +68,7 @@ mod transfer_interface;
 mod transfer_spl_ctoken;
 
 pub use close::*;
-pub use compressible::{CompressibleParams, CompressibleParamsInfos};
+pub use compressible::{CompressibleParams, CompressibleParamsCpi};
 pub use create::*;
 pub use create_ata::*;
 pub use create_cmint::*;
@@ -82,9 +82,9 @@ pub use mint_to::*;
 use solana_account_info::AccountInfo;
 use solana_pubkey::{pubkey, Pubkey};
 pub use transfer_ctoken::*;
-pub use transfer_ctoken_spl::{TransferCtokenToSpl, TransferCtokenToSplAccountInfos};
+pub use transfer_ctoken_spl::{TransferCtokenToSpl, TransferCtokenToSplCpi};
 pub use transfer_interface::{SplInterface, TransferInterface};
-pub use transfer_spl_ctoken::{TransferSplToCtoken, TransferSplToCtokenAccountInfos};
+pub use transfer_spl_ctoken::{TransferSplToCtoken, TransferSplToCtokenCpi};
 
 /// System accounts required for CPI operations to Light Protocol.
 ///

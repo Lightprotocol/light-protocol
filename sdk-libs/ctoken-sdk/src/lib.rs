@@ -44,12 +44,12 @@
 //!
 //! | Operation | Instruction Builder | CPI Builder |
 //! |-----------|----------------|-------------|
-//! | Create Associated cToken Account | [`CreateAssociatedTokenAccount`](ctoken::CreateAssociatedTokenAccount) | [`CreateAssociatedTokenAccountInfos`](ctoken::CreateAssociatedTokenAccountInfos) |
-//! | Create cToken Account | [`CreateCTokenAccount`](ctoken::CreateCTokenAccount) | [`CreateCTokenAccountInfos`](ctoken::CreateCTokenAccountInfos) |
+//! | Create Associated cToken Account | [`CreateAssociatedTokenAccount`](ctoken::CreateAssociatedTokenAccount) | [`CreateAssociatedTokenAccountCpi`](ctoken::CreateAssociatedTokenAccountCpi) |
+//! | Create cToken Account | [`CreateCTokenAccount`](ctoken::CreateCTokenAccount) | [`CreateCTokenAccountCpi`](ctoken::CreateCTokenAccountCpi) |
 //! | TransferInterface | [`TransferCtoken`](ctoken::TransferCtoken) | [`TransferInterface`](ctoken::TransferInterface) |
-//! | Close cToken account | [`CloseAccount`](ctoken::CloseAccount) | [`CloseCTokenAccountInfos`](ctoken::CloseCTokenAccountInfos) |
-//! | Create cMint | [`CreateCMint`](ctoken::CreateCMint) | [`CreateCMintAccountInfos`](ctoken::CreateCMintAccountInfos) |
-//! | MintTo cToken account from cMint | [`MintToCToken`](ctoken::MintToCToken) | [`MintToCTokenInfos`](ctoken::MintToCTokenInfos) |
+//! | Close cToken account | [`CloseCTokenAccount`](ctoken::CloseCTokenAccount) | [`CloseCTokenAccountCpi`](ctoken::CloseCTokenAccountCpi) |
+//! | Create cMint | [`CreateCMint`](ctoken::CreateCMint) | [`CreateCMintCpi`](ctoken::CreateCMintCpi) |
+//! | MintTo cToken account from cMint | [`MintToCToken`](ctoken::MintToCToken) | [`MintToCTokenCpi`](ctoken::MintToCTokenCpi) |
 //!
 //! Note, TransferInterface supports tokens transfer between ctoken - ctoken, ctoken - spl, spl - ctoken accounts.
 //!

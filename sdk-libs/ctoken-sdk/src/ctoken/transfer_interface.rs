@@ -2,9 +2,8 @@ use solana_account_info::AccountInfo;
 use solana_program_error::ProgramError;
 
 use super::{
-    transfer_ctoken::TransferCtokenAccountInfos,
-    transfer_ctoken_spl::TransferCtokenToSplAccountInfos,
-    transfer_spl_ctoken::TransferSplToCtokenAccountInfos,
+    transfer_ctoken::TransferCtokenCpi, transfer_ctoken_spl::TransferCtokenToSplCpi,
+    transfer_spl_ctoken::TransferSplToCtokenCpi,
 };
 use crate::{error::TokenSdkError, utils::is_ctoken_account};
 
@@ -97,7 +96,7 @@ impl<'info> TransferInterface<'info> {
             .map_err(|_| ProgramError::Custom(TokenSdkError::CannotDetermineAccountType.into()))?;
 
         match (source_is_ctoken, dest_is_ctoken) {
-            (true, true) => TransferCtokenAccountInfos {
+            (true, true) => TransferCtokenCpi {
                 source: self.source_account.clone(),
                 destination: self.destination_account.clone(),
                 amount: self.amount,
@@ -111,7 +110,7 @@ impl<'info> TransferInterface<'info> {
                     ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
                 })?;
 
-                TransferCtokenToSplAccountInfos {
+                TransferCtokenToSplCpi {
                     source_ctoken_account: self.source_account.clone(),
                     destination_spl_token_account: self.destination_account.clone(),
                     amount: self.amount,
@@ -133,7 +132,7 @@ impl<'info> TransferInterface<'info> {
                     ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
                 })?;
 
-                TransferSplToCtokenAccountInfos {
+                TransferSplToCtokenCpi {
                     source_spl_token_account: self.source_account.clone(),
                     destination_ctoken_account: self.destination_account.clone(),
                     amount: self.amount,
@@ -167,7 +166,7 @@ impl<'info> TransferInterface<'info> {
             .map_err(|_| ProgramError::Custom(TokenSdkError::CannotDetermineAccountType.into()))?;
 
         match (source_is_ctoken, dest_is_ctoken) {
-            (true, true) => TransferCtokenAccountInfos {
+            (true, true) => TransferCtokenCpi {
                 source: self.source_account.clone(),
                 destination: self.destination_account.clone(),
                 amount: self.amount,
@@ -181,7 +180,7 @@ impl<'info> TransferInterface<'info> {
                     ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
                 })?;
 
-                TransferCtokenToSplAccountInfos {
+                TransferCtokenToSplCpi {
                     source_ctoken_account: self.source_account.clone(),
                     destination_spl_token_account: self.destination_account.clone(),
                     amount: self.amount,
@@ -203,7 +202,7 @@ impl<'info> TransferInterface<'info> {
                     ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
                 })?;
 
-                TransferSplToCtokenAccountInfos {
+                TransferSplToCtokenCpi {
                     source_spl_token_account: self.source_account.clone(),
                     destination_ctoken_account: self.destination_account.clone(),
                     amount: self.amount,

@@ -1,4 +1,4 @@
-// Tests for TransferSplToCtokenAccountInfos and TransferCtokenToSplAccountInfos
+// Tests for TransferSplToCtokenCpi and TransferCtokenToSplCpi
 
 mod shared;
 
@@ -21,7 +21,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test transferring SPL tokens to CToken using TransferSplToCtokenAccountInfos::invoke()
+/// Test transferring SPL tokens to CToken using TransferSplToCtokenCpi::invoke()
 #[tokio::test]
 async fn test_spl_to_ctoken_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -155,7 +155,7 @@ async fn test_spl_to_ctoken_invoke() {
     println!("SPL to CToken invoke test passed");
 }
 
-/// Test transferring CToken to SPL tokens using TransferCtokenToSplAccountInfos::invoke()
+/// Test transferring CToken to SPL tokens using TransferCtokenToSplCpi::invoke()
 #[tokio::test]
 async fn test_ctoken_to_spl_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(

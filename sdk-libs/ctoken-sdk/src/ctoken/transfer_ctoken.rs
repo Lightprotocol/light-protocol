@@ -15,7 +15,7 @@ pub struct TransferCtoken {
     pub max_top_up: Option<u16>,
 }
 
-pub struct TransferCtokenAccountInfos<'info> {
+pub struct TransferCtokenCpi<'info> {
     pub source: AccountInfo<'info>,
     pub destination: AccountInfo<'info>,
     pub amount: u64,
@@ -24,7 +24,7 @@ pub struct TransferCtokenAccountInfos<'info> {
     pub max_top_up: Option<u16>,
 }
 
-impl<'info> TransferCtokenAccountInfos<'info> {
+impl<'info> TransferCtokenCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
         TransferCtoken::from(self).instruction()
     }
@@ -42,8 +42,8 @@ impl<'info> TransferCtokenAccountInfos<'info> {
     }
 }
 
-impl<'info> From<&TransferCtokenAccountInfos<'info>> for TransferCtoken {
-    fn from(account_infos: &TransferCtokenAccountInfos<'info>) -> Self {
+impl<'info> From<&TransferCtokenCpi<'info>> for TransferCtoken {
+    fn from(account_infos: &TransferCtokenCpi<'info>) -> Self {
         Self {
             source: *account_infos.source.key,
             destination: *account_infos.destination.key,

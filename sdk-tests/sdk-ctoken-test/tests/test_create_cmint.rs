@@ -1,4 +1,4 @@
-// Tests for CreateCMintAccountInfos (CreateCmint instruction)
+// Tests for CreateCMintCpi (CreateCmint instruction)
 
 mod shared;
 
@@ -20,7 +20,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test creating a compressed mint using CreateCMintAccountInfos::invoke()
+/// Test creating a compressed mint using CreateCMintCpi::invoke()
 #[tokio::test]
 async fn test_create_compressed_mint() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -126,7 +126,7 @@ async fn test_create_compressed_mint() {
     assert!(compressed_account.is_some(), "Compressed mint should exist");
 }
 
-/// Test creating a compressed mint with PDA mint signer using CreateCMintAccountInfos::invoke_signed()
+/// Test creating a compressed mint with PDA mint signer using CreateCMintCpi::invoke_signed()
 #[tokio::test]
 async fn test_create_compressed_mint_invoke_signed() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(

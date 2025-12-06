@@ -26,7 +26,7 @@ pub struct TransferCtokenToSpl {
     pub spl_token_program: Pubkey,
 }
 
-pub struct TransferCtokenToSplAccountInfos<'info> {
+pub struct TransferCtokenToSplCpi<'info> {
     pub source_ctoken_account: AccountInfo<'info>,
     pub destination_spl_token_account: AccountInfo<'info>,
     pub amount: u64,
@@ -39,7 +39,7 @@ pub struct TransferCtokenToSplAccountInfos<'info> {
     pub compressed_token_program_authority: AccountInfo<'info>,
 }
 
-impl<'info> TransferCtokenToSplAccountInfos<'info> {
+impl<'info> TransferCtokenToSplCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
         TransferCtokenToSpl::from(self).instruction()
     }
@@ -77,8 +77,8 @@ impl<'info> TransferCtokenToSplAccountInfos<'info> {
     }
 }
 
-impl<'info> From<&TransferCtokenToSplAccountInfos<'info>> for TransferCtokenToSpl {
-    fn from(account_infos: &TransferCtokenToSplAccountInfos<'info>) -> Self {
+impl<'info> From<&TransferCtokenToSplCpi<'info>> for TransferCtokenToSpl {
+    fn from(account_infos: &TransferCtokenToSplCpi<'info>) -> Self {
         Self {
             source_ctoken_account: *account_infos.source_ctoken_account.key,
             destination_spl_token_account: *account_infos.destination_spl_token_account.key,

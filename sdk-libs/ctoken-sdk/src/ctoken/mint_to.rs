@@ -249,10 +249,10 @@ impl MintToCTokenCpiWrite {
 }
 
 // ============================================================================
-// AccountInfos Struct: MintToCTokenInfos (for CPI usage)
+// AccountInfos Struct: MintToCTokenCpi (for CPI usage)
 // ============================================================================
 
-pub struct MintToCTokenInfos<'info> {
+pub struct MintToCTokenCpi<'info> {
     /// The authority for the mint operation (mint_authority).
     pub authority: AccountInfo<'info>,
     /// The fee payer for the transaction.
@@ -267,7 +267,7 @@ pub struct MintToCTokenInfos<'info> {
     pub params: MintToCTokenParams,
 }
 
-impl<'info> MintToCTokenInfos<'info> {
+impl<'info> MintToCTokenCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
         MintToCToken::try_from(self)?.instruction()
     }
@@ -327,13 +327,13 @@ impl<'info> MintToCTokenInfos<'info> {
     }
 }
 
-impl<'info> TryFrom<&MintToCTokenInfos<'info>> for MintToCToken {
+impl<'info> TryFrom<&MintToCTokenCpi<'info>> for MintToCToken {
     type Error = ProgramError;
 
-    fn try_from(account_infos: &MintToCTokenInfos<'info>) -> Result<Self, Self::Error> {
+    fn try_from(account_infos: &MintToCTokenCpi<'info>) -> Result<Self, Self::Error> {
         if account_infos.params.mint_authority != *account_infos.authority.key {
             solana_msg::msg!(
-                "MintToCTokenInfos: params.mint_authority ({}) does not match authority account ({})",
+                "MintToCTokenCpi: params.mint_authority ({}) does not match authority account ({})",
                 account_infos.params.mint_authority,
                 account_infos.authority.key
             );
@@ -360,17 +360,17 @@ impl<'info> TryFrom<&MintToCTokenInfos<'info>> for MintToCToken {
 }
 
 // ============================================================================
-// AccountInfos Struct: MintToCTokenCpiWriteInfos
+// AccountInfos Struct: MintToCTokenCpiWriteCpi
 // ============================================================================
 
-pub struct MintToCTokenCpiWriteInfos<'info> {
+pub struct MintToCTokenCpiWriteCpi<'info> {
     pub payer: AccountInfo<'info>,
     pub cpi_context_account: AccountInfo<'info>,
     pub ctoken_accounts: Vec<AccountInfo<'info>>,
     pub params: MintToCTokenCpiWriteParams,
 }
 
-impl<'info> MintToCTokenCpiWriteInfos<'info> {
+impl<'info> MintToCTokenCpiWriteCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
         MintToCTokenCpiWrite::from(self).instruction()
     }
@@ -383,8 +383,8 @@ impl<'info> MintToCTokenCpiWriteInfos<'info> {
     }
 }
 
-impl<'info> From<&MintToCTokenCpiWriteInfos<'info>> for MintToCTokenCpiWrite {
-    fn from(account_infos: &MintToCTokenCpiWriteInfos<'info>) -> Self {
+impl<'info> From<&MintToCTokenCpiWriteCpi<'info>> for MintToCTokenCpiWrite {
+    fn from(account_infos: &MintToCTokenCpiWriteCpi<'info>) -> Self {
         Self {
             payer: *account_infos.payer.key,
             cpi_context_pubkey: *account_infos.cpi_context_account.key,

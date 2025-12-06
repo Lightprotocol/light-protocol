@@ -9,7 +9,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::ctoken::{compressible::CompressibleParamsInfos, CompressibleParams};
+use crate::ctoken::{compressible::CompressibleParamsCpi, CompressibleParams};
 
 const CREATE_ATA_DISCRIMINATOR: u8 = 100;
 const CREATE_ATA_IDEMPOTENT_DISCRIMINATOR: u8 = 102;
@@ -133,18 +133,18 @@ impl CreateAssociatedTokenAccount {
     }
 }
 
-pub struct CreateAssociatedTokenAccountInfos<'info> {
+pub struct CreateAssociatedTokenAccountCpi<'info> {
     pub owner: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
     pub payer: AccountInfo<'info>,
     pub associated_token_account: AccountInfo<'info>,
     pub system_program: AccountInfo<'info>,
     pub bump: u8,
-    pub compressible: Option<CompressibleParamsInfos<'info>>,
+    pub compressible: Option<CompressibleParamsCpi<'info>>,
     pub idempotent: bool,
 }
 
-impl<'info> CreateAssociatedTokenAccountInfos<'info> {
+impl<'info> CreateAssociatedTokenAccountCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
         CreateAssociatedTokenAccount::from(self).instruction()
     }
@@ -200,8 +200,8 @@ impl<'info> CreateAssociatedTokenAccountInfos<'info> {
     }
 }
 
-impl<'info> From<&CreateAssociatedTokenAccountInfos<'info>> for CreateAssociatedTokenAccount {
-    fn from(account_infos: &CreateAssociatedTokenAccountInfos<'info>) -> Self {
+impl<'info> From<&CreateAssociatedTokenAccountCpi<'info>> for CreateAssociatedTokenAccount {
+    fn from(account_infos: &CreateAssociatedTokenAccountCpi<'info>) -> Self {
         Self {
             payer: *account_infos.payer.key,
             owner: *account_infos.owner.key,
