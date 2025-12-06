@@ -1,4 +1,4 @@
-// Tests for TransferSplToCtokenCpi and TransferCtokenToSplCpi
+// Tests for TransferSplToCtokenCpi and TransferCTokenToSplCpi
 
 mod shared;
 
@@ -12,7 +12,7 @@ use light_ctoken_sdk::{
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens};
 use native_ctoken_examples::{
-    TransferCtokenToSplData, TransferSplToCtokenData, ID, TRANSFER_AUTHORITY_SEED,
+    TransferCTokenToSplData, TransferSplToCtokenData, ID, TRANSFER_AUTHORITY_SEED,
 };
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -155,7 +155,7 @@ async fn test_spl_to_ctoken_invoke() {
     println!("SPL to CToken invoke test passed");
 }
 
-/// Test transferring CToken to SPL tokens using TransferCtokenToSplCpi::invoke()
+/// Test transferring CToken to SPL tokens using TransferCTokenToSplCpi::invoke()
 #[tokio::test]
 async fn test_ctoken_to_spl_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -251,7 +251,7 @@ async fn test_ctoken_to_spl_invoke() {
     assert_eq!(u64::from(ctoken_state.amount), amount);
 
     // Now test CToken to SPL transfer
-    let data = TransferCtokenToSplData {
+    let data = TransferCTokenToSplData {
         amount: transfer_amount,
         spl_interface_pda_bump,
     };
@@ -558,7 +558,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
     assert_eq!(u64::from(ctoken_state.amount), amount);
 
     // Now test CToken to SPL transfer with PDA authority
-    let data = TransferCtokenToSplData {
+    let data = TransferCTokenToSplData {
         amount: transfer_amount,
         spl_interface_pda_bump,
     };

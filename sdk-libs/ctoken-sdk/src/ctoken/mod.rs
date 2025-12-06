@@ -90,7 +90,7 @@ pub use mint_to::*;
 use solana_account_info::AccountInfo;
 use solana_pubkey::{pubkey, Pubkey};
 pub use transfer_ctoken::*;
-pub use transfer_ctoken_spl::{TransferCtokenToSpl, TransferCtokenToSplCpi};
+pub use transfer_ctoken_spl::{TransferCTokenToSpl, TransferCTokenToSplCpi};
 pub use transfer_interface::{SplInterface, TransferInterfaceCpi};
 pub use transfer_spl_ctoken::{TransferSplToCtoken, TransferSplToCtokenCpi};
 

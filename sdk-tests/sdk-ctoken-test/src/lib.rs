@@ -38,7 +38,7 @@ pub use transfer_interface::{
 };
 pub use transfer_spl_ctoken::{
     process_ctoken_to_spl_invoke, process_ctoken_to_spl_invoke_signed,
-    process_spl_to_ctoken_invoke, process_spl_to_ctoken_invoke_signed, TransferCtokenToSplData,
+    process_spl_to_ctoken_invoke, process_spl_to_ctoken_invoke_signed, TransferCTokenToSplData,
     TransferSplToCtokenData, TRANSFER_AUTHORITY_SEED,
 };
 
@@ -227,12 +227,12 @@ pub fn process_instruction(
             process_spl_to_ctoken_invoke_signed(accounts, data)
         }
         InstructionType::CtokenToSplInvoke => {
-            let data = TransferCtokenToSplData::try_from_slice(&instruction_data[1..])
+            let data = TransferCTokenToSplData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_ctoken_to_spl_invoke(accounts, data)
         }
         InstructionType::CtokenToSplInvokeSigned => {
-            let data = TransferCtokenToSplData::try_from_slice(&instruction_data[1..])
+            let data = TransferCTokenToSplData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_ctoken_to_spl_invoke_signed(accounts, data)
         }

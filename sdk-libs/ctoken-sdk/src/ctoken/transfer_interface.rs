@@ -2,7 +2,7 @@ use solana_account_info::AccountInfo;
 use solana_program_error::ProgramError;
 
 use super::{
-    transfer_ctoken::TransferCtokenCpi, transfer_ctoken_spl::TransferCtokenToSplCpi,
+    transfer_ctoken::TransferCTokenCpi, transfer_ctoken_spl::TransferCTokenToSplCpi,
     transfer_spl_ctoken::TransferSplToCtokenCpi,
 };
 use crate::{error::CTokenSdkError, utils::is_ctoken_account};
@@ -97,7 +97,7 @@ impl<'info> TransferInterfaceCpi<'info> {
             .map_err(|_| ProgramError::Custom(CTokenSdkError::CannotDetermineAccountType.into()))?;
 
         match (source_is_ctoken, dest_is_ctoken) {
-            (true, true) => TransferCtokenCpi {
+            (true, true) => TransferCTokenCpi {
                 source: self.source_account.clone(),
                 destination: self.destination_account.clone(),
                 amount: self.amount,
@@ -111,7 +111,7 @@ impl<'info> TransferInterfaceCpi<'info> {
                     ProgramError::Custom(CTokenSdkError::SplInterfaceRequired.into())
                 })?;
 
-                TransferCtokenToSplCpi {
+                TransferCTokenToSplCpi {
                     source_ctoken_account: self.source_account.clone(),
                     destination_spl_token_account: self.destination_account.clone(),
                     amount: self.amount,
@@ -167,7 +167,7 @@ impl<'info> TransferInterfaceCpi<'info> {
             .map_err(|_| ProgramError::Custom(CTokenSdkError::CannotDetermineAccountType.into()))?;
 
         match (source_is_ctoken, dest_is_ctoken) {
-            (true, true) => TransferCtokenCpi {
+            (true, true) => TransferCTokenCpi {
                 source: self.source_account.clone(),
                 destination: self.destination_account.clone(),
                 amount: self.amount,
@@ -181,7 +181,7 @@ impl<'info> TransferInterfaceCpi<'info> {
                     ProgramError::Custom(CTokenSdkError::SplInterfaceRequired.into())
                 })?;
 
-                TransferCtokenToSplCpi {
+                TransferCTokenToSplCpi {
                     source_ctoken_account: self.source_account.clone(),
                     destination_spl_token_account: self.destination_account.clone(),
                     amount: self.amount,

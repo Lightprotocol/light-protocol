@@ -32,7 +32,7 @@ The builder pattern offers several advantages:
 
 ```rust
 // Build the account infos struct
-let transfer_accounts = TransferCtokenCpi {
+let transfer_accounts = TransferCTokenCpi {
     source: accounts[0].clone(),
     destination: accounts[1].clone(),
     amount: data.amount,
@@ -50,7 +50,7 @@ transfer_accounts.invoke()?;
 let (pda, bump) = Pubkey::find_program_address(&[TOKEN_ACCOUNT_SEED], &ID);
 
 // Build the account infos struct
-let transfer_accounts = TransferCtokenCpi {
+let transfer_accounts = TransferCTokenCpi {
     source: accounts[0].clone(),
     destination: accounts[1].clone(),
     amount: data.amount,
@@ -74,7 +74,7 @@ All instructions use the **builder pattern** from `light-ctoken-sdk::ctoken`:
 - **create_token_account_invoke_signed** (Instruction 3): Create with PDA ownership using `invoke_signed()`
 - **create_ata_invoke** (Instruction 4): Create compressible ATA using `CreateAssociatedTokenAccountCpi`
 - **create_ata_invoke_signed** (Instruction 5): Create ATA with PDA ownership using `invoke_signed()`
-- **transfer_interface_invoke** (Instruction 6): Transfer using `TransferCtokenCpi::invoke()`
+- **transfer_interface_invoke** (Instruction 6): Transfer using `TransferCTokenCpi::invoke()`
 - **transfer_interface_invoke_signed** (Instruction 7): Transfer with PDA signing using `invoke_signed()`
 
 All instructions compile successfully and demonstrate the clean builder pattern API with constructor usage.

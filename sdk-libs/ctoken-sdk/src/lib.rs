@@ -47,8 +47,8 @@
 //! |-----------|----------------|-------------|
 //! | Create Associated cToken Account | [`CreateAssociatedTokenAccount`](ctoken::CreateAssociatedTokenAccount) | [`CreateAssociatedTokenAccountCpi`](ctoken::CreateAssociatedTokenAccountCpi) |
 //! | Create cToken Account | [`CreateCTokenAccount`](ctoken::CreateCTokenAccount) | [`CreateCTokenAccountCpi`](ctoken::CreateCTokenAccountCpi) |
-//! | Transfer cToken | [`TransferCtoken`](ctoken::TransferCtoken) | [`TransferCtokenCpi`](ctoken::TransferCtokenCpi) |
-//! | Transfer cToken → SPL | [`TransferCtokenToSpl`](ctoken::TransferCtokenToSpl) | [`TransferCtokenToSplCpi`](ctoken::TransferCtokenToSplCpi) |
+//! | Transfer cToken | [`TransferCToken`](ctoken::TransferCToken) | [`TransferCTokenCpi`](ctoken::TransferCTokenCpi) |
+//! | Transfer cToken → SPL | [`TransferCTokenToSpl`](ctoken::TransferCTokenToSpl) | [`TransferCTokenToSplCpi`](ctoken::TransferCTokenToSplCpi) |
 //! | Transfer SPL → cToken | [`TransferSplToCtoken`](ctoken::TransferSplToCtoken) | [`TransferSplToCtokenCpi`](ctoken::TransferSplToCtokenCpi) |
 //! | Transfer (auto-detect) | - | [`TransferInterfaceCpi`](ctoken::TransferInterfaceCpi) |
 //! | Close cToken account | [`CloseCTokenAccount`](ctoken::CloseCTokenAccount) | [`CloseCTokenAccountCpi`](ctoken::CloseCTokenAccountCpi) |
