@@ -1,4 +1,4 @@
-//! High-level builders for compressed token operations.
+//! High-level builders for ctoken operations.
 //!
 //!
 //! ## Account Creation

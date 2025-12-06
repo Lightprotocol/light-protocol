@@ -9,7 +9,7 @@ use light_sdk_types::{
 use solana_instruction::AccountMeta;
 use solana_msg::msg;
 
-use crate::error::TokenSdkError;
+use crate::error::CTokenSdkError;
 
 #[derive(Debug, Clone, Default, Copy)]
 pub struct MintActionCpiAccountsConfig {
@@ -69,7 +69,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
     pub fn try_from_account_infos_full(
         accounts: &'a [A],
         config: MintActionCpiAccountsConfig,
-    ) -> Result<Self, TokenSdkError> {
+    ) -> Result<Self, CTokenSdkError> {
         let mut iter = AccountIterator::new(accounts);
 
         let compressed_token_program =
@@ -171,7 +171,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
     /// Simple version for common case (no optional features)
     #[inline(always)]
     #[track_caller]
-    pub fn try_from_account_infos(accounts: &'a [A]) -> Result<Self, TokenSdkError> {
+    pub fn try_from_account_infos(accounts: &'a [A]) -> Result<Self, CTokenSdkError> {
         Self::try_from_account_infos_full(accounts, MintActionCpiAccountsConfig::default())
     }
 

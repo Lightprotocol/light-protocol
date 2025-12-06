@@ -8,20 +8,20 @@ use solana_pubkey::Pubkey;
 use spl_pod::bytemuck::pod_from_bytes;
 use spl_token_2022::pod::PodAccount;
 
-use crate::{error::TokenSdkError, AnchorDeserialize, AnchorSerialize};
+use crate::{error::CTokenSdkError, AnchorDeserialize, AnchorSerialize};
 
-pub fn get_token_account_balance(token_account_info: &AccountInfo) -> Result<u64, TokenSdkError> {
+pub fn get_token_account_balance(token_account_info: &AccountInfo) -> Result<u64, CTokenSdkError> {
     let token_account_data = token_account_info
         .try_borrow_data()
-        .map_err(|_| TokenSdkError::AccountBorrowFailed)?;
+        .map_err(|_| CTokenSdkError::AccountBorrowFailed)?;
 
     let pod_account = pod_from_bytes::<PodAccount>(&token_account_data)
-        .map_err(|_| TokenSdkError::InvalidAccountData)?;
+        .map_err(|_| CTokenSdkError::InvalidAccountData)?;
 
     Ok(pod_account.amount.into())
 }
 
-pub fn is_ctoken_account(account_info: &AccountInfo) -> Result<bool, TokenSdkError> {
+pub fn is_ctoken_account(account_info: &AccountInfo) -> Result<bool, CTokenSdkError> {
     let ctoken_program_id = Pubkey::from(C_TOKEN_PROGRAM_ID);
 
     if account_info.owner == &ctoken_program_id {
@@ -35,7 +35,7 @@ pub fn is_ctoken_account(account_info: &AccountInfo) -> Result<bool, TokenSdkErr
         return Ok(false);
     }
 
-    Err(TokenSdkError::CannotDetermineAccountType)
+    Err(CTokenSdkError::CannotDetermineAccountType)
 }
 
 pub const CLOSE_TOKEN_ACCOUNT_DISCRIMINATOR: u8 = 9;

@@ -22,7 +22,7 @@ use super::{
     },
 };
 use crate::{
-    error::TokenSdkError,
+    error::CTokenSdkError,
     utils::{AccountInfoToCompress, CTokenDefaultAccounts},
 };
 
@@ -44,7 +44,7 @@ pub fn pack_for_compress_and_close(
     ctoken_account_data: &[u8],
     packed_accounts: &mut PackedAccounts,
     signer_is_compression_authority: bool, // if yes rent authority must be signer
-) -> Result<CompressAndCloseIndices, TokenSdkError> {
+) -> Result<CompressAndCloseIndices, CTokenSdkError> {
     let (ctoken_account, _) = CToken::zero_copy_at(ctoken_account_data)?;
     let source_index = packed_accounts.insert_or_get(ctoken_account_pubkey);
     let mint_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
@@ -118,35 +118,35 @@ fn find_account_indices(
     rent_sponsor_pubkey: &Pubkey,
     destination_pubkey: &Pubkey,
     // output_tree_pubkey: &Pubkey,
-) -> Result<CompressAndCloseIndices, TokenSdkError> {
+) -> Result<CompressAndCloseIndices, CTokenSdkError> {
     let source_index = find_index(ctoken_account_key).ok_or_else(|| {
         msg!("Source ctoken account not found in packed_accounts");
-        TokenSdkError::InvalidAccountData
+        CTokenSdkError::InvalidAccountData
     })?;
 
     let mint_index = find_index(mint_pubkey).ok_or_else(|| {
         msg!("Mint {} not found in packed_accounts", mint_pubkey);
-        TokenSdkError::InvalidAccountData
+        CTokenSdkError::InvalidAccountData
     })?;
 
     let owner_index = find_index(owner_pubkey).ok_or_else(|| {
         msg!("Owner {} not found in packed_accounts", owner_pubkey);
-        TokenSdkError::InvalidAccountData
+        CTokenSdkError::InvalidAccountData
     })?;
 
     let authority_index = find_index(authority).ok_or_else(|| {
         msg!("Authority not found in packed_accounts");
-        TokenSdkError::InvalidAccountData
+        CTokenSdkError::InvalidAccountData
     })?;
 
     let rent_sponsor_index = find_index(rent_sponsor_pubkey).ok_or_else(|| {
         msg!("Rent recipient not found in packed_accounts");
-        TokenSdkError::InvalidAccountData
+        CTokenSdkError::InvalidAccountData
     })?;
 
     let destination_index = find_index(destination_pubkey).ok_or_else(|| {
         msg!("Destination not found in packed_accounts");
-        TokenSdkError::InvalidAccountData
+        CTokenSdkError::InvalidAccountData
     })?;
 
     Ok(CompressAndCloseIndices {
@@ -176,10 +176,10 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
     cpi_context_pubkey: Option<Pubkey>,
     indices: &[CompressAndCloseIndices],
     packed_accounts: &[AccountInfo<'info>],
-) -> Result<Instruction, TokenSdkError> {
+) -> Result<Instruction, CTokenSdkError> {
     if indices.is_empty() {
         msg!("indices empty");
-        return Err(TokenSdkError::InvalidAccountData);
+        return Err(CTokenSdkError::InvalidAccountData);
     }
     // Convert packed_accounts to AccountMetas using ArrayVec to avoid heap allocation
     let mut packed_account_metas = arrayvec::ArrayVec::<AccountMeta, 32>::new();
@@ -197,11 +197,11 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         // Get the amount from the source token account
         let source_account = packed_accounts
             .get(idx.source_index as usize)
-            .ok_or(TokenSdkError::InvalidAccountData)?;
+            .ok_or(CTokenSdkError::InvalidAccountData)?;
 
         let account_data = source_account
             .try_borrow_data()
-            .map_err(|_| TokenSdkError::AccountBorrowFailed)?;
+            .map_err(|_| CTokenSdkError::AccountBorrowFailed)?;
 
         let amount = light_ctoken_interface::state::CToken::amount_from_slice(&account_data)?;
 
@@ -283,10 +283,10 @@ pub fn compress_and_close_ctoken_accounts<'info>(
     output_queue: AccountInfo<'info>,
     ctoken_solana_accounts: &[&AccountInfo<'info>],
     packed_accounts: &[AccountInfo<'info>],
-) -> Result<Instruction, TokenSdkError> {
+) -> Result<Instruction, CTokenSdkError> {
     if ctoken_solana_accounts.is_empty() {
         msg!("ctoken_solana_accounts empty");
-        return Err(TokenSdkError::InvalidAccountData);
+        return Err(CTokenSdkError::InvalidAccountData);
     }
 
     // Helper function to find index of a pubkey in packed_accounts using linear search
@@ -307,12 +307,12 @@ pub fn compress_and_close_ctoken_accounts<'info>(
         // Deserialize the ctoken Solana account using light zero copy
         let account_data = ctoken_account_info
             .try_borrow_data()
-            .map_err(|_| TokenSdkError::AccountBorrowFailed)?;
+            .map_err(|_| CTokenSdkError::AccountBorrowFailed)?;
 
         // Deserialize the full CToken including extensions
         let (compressed_token, _) =
             light_ctoken_interface::state::CToken::zero_copy_at(&account_data)
-                .map_err(|_| TokenSdkError::InvalidAccountData)?;
+                .map_err(|_| CTokenSdkError::InvalidAccountData)?;
 
         // Extract pubkeys from the deserialized account
         let mint_pubkey = Pubkey::from(compressed_token.mint.to_bytes());
@@ -365,7 +365,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
                     }
                 }
             }
-            rent_sponsor_pubkey.ok_or(TokenSdkError::InvalidAccountData)?
+            rent_sponsor_pubkey.ok_or(CTokenSdkError::InvalidAccountData)?
         };
 
         let destination_pubkey = if with_compression_authority {
@@ -419,7 +419,7 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
     post_system: &[AccountInfo<'info>],
     remaining_accounts: &[AccountInfo<'info>],
     with_compression_authority: bool,
-) -> Result<(), TokenSdkError> {
+) -> Result<(), CTokenSdkError> {
     let mut packed_accounts = Vec::with_capacity(post_system.len() + 4);
     packed_accounts.extend_from_slice(post_system);
     packed_accounts.push(cpi_authority);
@@ -454,7 +454,7 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
     }
 
     invoke_signed(&instruction, &account_infos, &all_signer_seeds)
-        .map_err(|e| TokenSdkError::CpiError(e.to_string()))?;
+        .map_err(|e| CTokenSdkError::CpiError(e.to_string()))?;
     Ok(())
 }
 

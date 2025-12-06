@@ -25,7 +25,7 @@ use solana_signer::Signer;
 /// * `metadata` - Optional metadata for the token
 ///
 /// # Returns
-/// `Result<Instruction, TokenSdkError>` - The compressed mint creation instruction
+/// `Result<Instruction, CTokenSdkError>` - The compressed mint creation instruction
 pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
     rpc: &mut R,
     mint_seed: &Keypair,

@@ -53,7 +53,8 @@
 //!
 //! Note, TransferInterface supports tokens transfer between ctoken - ctoken, ctoken - spl, spl - ctoken accounts.
 //!
-//! Disclaimer, this library is not audited and in a beta state. Use at your own risk and expect breaking changes.
+//! # Disclaimer
+//! This library is not audited and in a beta state. Use at your own risk and expect breaking changes.
 
 pub mod compressed_token;
 pub mod compressible;

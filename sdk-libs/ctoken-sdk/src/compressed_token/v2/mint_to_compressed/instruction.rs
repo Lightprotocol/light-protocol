@@ -9,7 +9,7 @@ use solana_pubkey::Pubkey;
 
 use crate::{
     compressed_token::mint_action::MintActionMetaConfig,
-    error::{Result, TokenSdkError},
+    error::{CTokenSdkError, Result},
     spl_interface::SplInterfacePda,
 };
 
@@ -95,7 +95,7 @@ pub fn create_mint_to_compressed_instruction(
 
     let data = instruction_data
         .data()
-        .map_err(|_| TokenSdkError::SerializationError)?;
+        .map_err(|_| CTokenSdkError::SerializationError)?;
 
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(

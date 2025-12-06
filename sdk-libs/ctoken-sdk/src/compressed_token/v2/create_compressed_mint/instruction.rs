@@ -18,7 +18,7 @@ use crate::{
         get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
         MintActionMetaConfigCpiWrite,
     },
-    error::{Result, TokenSdkError},
+    error::{CTokenSdkError, Result},
     AnchorDeserialize, AnchorSerialize,
 };
 
@@ -98,7 +98,7 @@ pub fn create_compressed_mint_cpi(
 
     let data = instruction_data
         .data()
-        .map_err(|_| TokenSdkError::SerializationError)?;
+        .map_err(|_| CTokenSdkError::SerializationError)?;
 
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
@@ -132,7 +132,7 @@ pub fn create_compressed_mint_cpi_write(
             "Invalid CPI context first cpi set or set context must be true {:?}",
             input.cpi_context
         );
-        return Err(TokenSdkError::InvalidAccountData);
+        return Err(CTokenSdkError::InvalidAccountData);
     }
 
     let compressed_mint_instruction_data = CompressedMintInstructionData {
@@ -165,7 +165,7 @@ pub fn create_compressed_mint_cpi_write(
 
     let data = instruction_data
         .data()
-        .map_err(|_| TokenSdkError::SerializationError)?;
+        .map_err(|_| CTokenSdkError::SerializationError)?;
 
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(

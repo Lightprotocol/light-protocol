@@ -5,7 +5,7 @@ use super::{
     transfer_ctoken::TransferCtokenCpi, transfer_ctoken_spl::TransferCtokenToSplCpi,
     transfer_spl_ctoken::TransferSplToCtokenCpi,
 };
-use crate::{error::TokenSdkError, utils::is_ctoken_account};
+use crate::{error::CTokenSdkError, utils::is_ctoken_account};
 
 /// Required accounts to interface between ctoken and SPL token accounts.
 pub struct SplInterface<'info> {
@@ -65,16 +65,16 @@ impl<'info> TransferInterface<'info> {
         spl_interface_pda_bump: Option<u8>,
     ) -> Result<Self, ProgramError> {
         let mint =
-            mint.ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingMintAccount.into()))?;
+            mint.ok_or_else(|| ProgramError::Custom(CTokenSdkError::MissingMintAccount.into()))?;
 
         let spl_token_program = spl_token_program
-            .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingSplTokenProgram.into()))?;
+            .ok_or_else(|| ProgramError::Custom(CTokenSdkError::MissingSplTokenProgram.into()))?;
 
         let spl_interface_pda = spl_interface_pda
-            .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingSplInterfacePda.into()))?;
+            .ok_or_else(|| ProgramError::Custom(CTokenSdkError::MissingSplInterfacePda.into()))?;
 
         let spl_interface_pda_bump = spl_interface_pda_bump.ok_or_else(|| {
-            ProgramError::Custom(TokenSdkError::MissingSplInterfacePdaBump.into())
+            ProgramError::Custom(CTokenSdkError::MissingSplInterfacePdaBump.into())
         })?;
 
         self.spl_interface = Some(SplInterface {
@@ -92,9 +92,9 @@ impl<'info> TransferInterface<'info> {
     /// * `CannotDetermineAccountType` - If account type cannot be determined
     pub fn invoke(self) -> Result<(), ProgramError> {
         let source_is_ctoken = is_ctoken_account(&self.source_account)
-            .map_err(|_| ProgramError::Custom(TokenSdkError::CannotDetermineAccountType.into()))?;
+            .map_err(|_| ProgramError::Custom(CTokenSdkError::CannotDetermineAccountType.into()))?;
         let dest_is_ctoken = is_ctoken_account(&self.destination_account)
-            .map_err(|_| ProgramError::Custom(TokenSdkError::CannotDetermineAccountType.into()))?;
+            .map_err(|_| ProgramError::Custom(CTokenSdkError::CannotDetermineAccountType.into()))?;
 
         match (source_is_ctoken, dest_is_ctoken) {
             (true, true) => TransferCtokenCpi {
@@ -108,7 +108,7 @@ impl<'info> TransferInterface<'info> {
 
             (true, false) => {
                 let config = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(CTokenSdkError::SplInterfaceRequired.into())
                 })?;
 
                 TransferCtokenToSplCpi {
@@ -130,7 +130,7 @@ impl<'info> TransferInterface<'info> {
 
             (false, true) => {
                 let config = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(CTokenSdkError::SplInterfaceRequired.into())
                 })?;
 
                 TransferSplToCtokenCpi {
@@ -151,7 +151,7 @@ impl<'info> TransferInterface<'info> {
             }
 
             (false, false) => Err(ProgramError::Custom(
-                TokenSdkError::UseRegularSplTransfer.into(),
+                CTokenSdkError::UseRegularSplTransfer.into(),
             )),
         }
     }
@@ -162,9 +162,9 @@ impl<'info> TransferInterface<'info> {
     /// * `CannotDetermineAccountType` - If account type cannot be determined
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let source_is_ctoken = is_ctoken_account(&self.source_account)
-            .map_err(|_| ProgramError::Custom(TokenSdkError::CannotDetermineAccountType.into()))?;
+            .map_err(|_| ProgramError::Custom(CTokenSdkError::CannotDetermineAccountType.into()))?;
         let dest_is_ctoken = is_ctoken_account(&self.destination_account)
-            .map_err(|_| ProgramError::Custom(TokenSdkError::CannotDetermineAccountType.into()))?;
+            .map_err(|_| ProgramError::Custom(CTokenSdkError::CannotDetermineAccountType.into()))?;
 
         match (source_is_ctoken, dest_is_ctoken) {
             (true, true) => TransferCtokenCpi {
@@ -178,7 +178,7 @@ impl<'info> TransferInterface<'info> {
 
             (true, false) => {
                 let config = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(CTokenSdkError::SplInterfaceRequired.into())
                 })?;
 
                 TransferCtokenToSplCpi {
@@ -200,7 +200,7 @@ impl<'info> TransferInterface<'info> {
 
             (false, true) => {
                 let config = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(CTokenSdkError::SplInterfaceRequired.into())
                 })?;
 
                 TransferSplToCtokenCpi {
@@ -221,7 +221,7 @@ impl<'info> TransferInterface<'info> {
             }
 
             (false, false) => Err(ProgramError::Custom(
-                TokenSdkError::UseRegularSplTransfer.into(),
+                CTokenSdkError::UseRegularSplTransfer.into(),
             )),
         }
     }

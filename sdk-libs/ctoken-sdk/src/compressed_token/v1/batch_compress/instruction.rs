@@ -7,7 +7,7 @@ use solana_pubkey::Pubkey;
 
 use super::account_metas::{get_batch_compress_instruction_account_metas, BatchCompressMetaConfig};
 use crate::{
-    error::{Result, TokenSdkError},
+    error::{CTokenSdkError, Result},
     AnchorDeserialize, AnchorSerialize,
 };
 
@@ -54,7 +54,7 @@ pub fn create_batch_compress_instruction(inputs: BatchCompressInputs) -> Result<
     // Serialize instruction data
     let data_vec = instruction_data
         .try_to_vec()
-        .map_err(|_| TokenSdkError::SerializationError)?;
+        .map_err(|_| CTokenSdkError::SerializationError)?;
     let mut data = Vec::with_capacity(data_vec.len() + 8 + 4);
     data.extend_from_slice(BATCH_COMPRESS.as_slice());
     data.extend_from_slice(

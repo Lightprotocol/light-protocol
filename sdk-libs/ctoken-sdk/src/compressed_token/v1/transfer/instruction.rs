@@ -9,7 +9,7 @@ use solana_pubkey::Pubkey;
 use super::account_metas::{get_transfer_instruction_account_metas, TokenAccountsMetaConfig};
 use crate::{
     compressed_token::v1::account::CTokenAccount,
-    error::{Result, TokenSdkError},
+    error::{CTokenSdkError, Result},
     AnchorSerialize,
 };
 // CTokenAccount abstraction to bundle inputs and create outputs.
@@ -65,17 +65,17 @@ pub fn create_transfer_instruction_raw(
 
     // Check 1: cpi accounts must be decompress or compress consistent with accounts
     if (is_compress && !meta_config.is_compress) || (is_decompress && !meta_config.is_decompress) {
-        return Err(TokenSdkError::InconsistentCompressDecompressState);
+        return Err(CTokenSdkError::InconsistentCompressDecompressState);
     }
 
     // Check 2: there can only be compress or decompress not both
     if is_compress && is_decompress {
-        return Err(TokenSdkError::BothCompressAndDecompress);
+        return Err(CTokenSdkError::BothCompressAndDecompress);
     }
 
     // Check 3: compress_or_decompress_amount must be Some
     if compress_or_decompress_amount.is_none() && meta_config.is_compress_or_decompress() {
-        return Err(TokenSdkError::InvalidCompressDecompressAmount);
+        return Err(CTokenSdkError::InvalidCompressDecompressAmount);
     }
 
     // Extract input and output data from token accounts
@@ -110,7 +110,7 @@ pub fn create_transfer_instruction_raw(
     // TODO: calculate exact len.
     let serialized = instruction_data
         .try_to_vec()
-        .map_err(|_| TokenSdkError::SerializationError)?;
+        .map_err(|_| CTokenSdkError::SerializationError)?;
 
     // Serialize instruction data
     let mut data = Vec::with_capacity(8 + 4 + serialized.len()); // rough estimate
@@ -214,7 +214,7 @@ pub fn transfer(inputs: TransferInputs) -> Result<Instruction> {
     } = inputs;
     // Sanity check.
     if sender_account.method_used {
-        return Err(TokenSdkError::MethodUsed);
+        return Err(CTokenSdkError::MethodUsed);
     }
     let account_meta_config = TokenAccountsMetaConfig::new(fee_payer, sender_account.owner());
     // None is the same output_tree_index as token account
@@ -257,7 +257,7 @@ pub fn decompress(inputs: DecompressInputs) -> Result<Instruction> {
     } = inputs;
     // Sanity check.
     if sender_account.method_used {
-        return Err(TokenSdkError::MethodUsed);
+        return Err(CTokenSdkError::MethodUsed);
     }
     let account_meta_config = TokenAccountsMetaConfig::decompress(
         fee_payer,

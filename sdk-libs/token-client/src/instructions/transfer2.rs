@@ -15,7 +15,7 @@ use light_ctoken_sdk::{
         },
         CTokenAccount2,
     },
-    error::TokenSdkError,
+    error::CTokenSdkError,
     spl_interface::find_spl_interface_pda_with_index,
 };
 use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
@@ -72,7 +72,7 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
     decompress_amount: u64,
     solana_token_account: Pubkey,
     payer: Pubkey,
-) -> Result<Instruction, TokenSdkError> {
+) -> Result<Instruction, CTokenSdkError> {
     create_generic_transfer2_instruction(
         rpc,
         vec![Transfer2InstructionType::Decompress(DecompressInput {
@@ -149,7 +149,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     actions: Vec<Transfer2InstructionType>,
     payer: Pubkey,
     should_filter_zero_outputs: bool,
-) -> Result<Instruction, TokenSdkError> {
+) -> Result<Instruction, CTokenSdkError> {
     println!("here");
     // // Get a single shared output queue for ALL compress/compress-and-close operations
     // // This prevents reordering issues caused by the sort_by_key at the end
@@ -232,7 +232,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                             )
                             .map(|(account, rpc_account)| {
                                 if input.to != account.token.owner {
-                                    return Err(TokenSdkError::InvalidCompressInputOwner);
+                                    return Err(CTokenSdkError::InvalidCompressInputOwner);
                                 }
                                 Ok(pack_input_token_account(
                                     account,
@@ -404,7 +404,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 if token_data.is_empty() {
                     // When no input accounts, create recipient account directly
                     // This requires mint to be specified in the input
-                    let mint = input.mint.ok_or(TokenSdkError::InvalidAccountData)?;
+                    let mint = input.mint.ok_or(CTokenSdkError::InvalidAccountData)?;
 
                     let recipient_index = packed_tree_accounts.insert_or_get(input.to);
                     let mint_index = packed_tree_accounts.insert_or_get_read_only(mint);
@@ -511,14 +511,14 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 let token_account_info = rpc
                     .get_account(input.solana_ctoken_account)
                     .await
-                    .map_err(|_| TokenSdkError::InvalidAccountData)?
-                    .ok_or(TokenSdkError::InvalidAccountData)?;
+                    .map_err(|_| CTokenSdkError::InvalidAccountData)?
+                    .ok_or(CTokenSdkError::InvalidAccountData)?;
 
                 // Parse the compressed token account using zero-copy deserialization
                 use light_ctoken_interface::state::{CToken, ZExtensionStruct};
                 use light_zero_copy::traits::ZeroCopyAt;
                 let (compressed_token, _) = CToken::zero_copy_at(&token_account_info.data)
-                    .map_err(|_| TokenSdkError::InvalidAccountData)?;
+                    .map_err(|_| CTokenSdkError::InvalidAccountData)?;
                 println!("compressed_token {:?}", compressed_token);
                 let mint = compressed_token.mint;
                 let balance = compressed_token.amount;
@@ -545,13 +545,13 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         println!("rent sponsor {:?}", found_rent_sponsor);
                         println!("compress_to_pubkey {:?}", found_compress_to_pubkey);
                         (
-                            found_rent_sponsor.ok_or(TokenSdkError::InvalidAccountData)?,
+                            found_rent_sponsor.ok_or(CTokenSdkError::InvalidAccountData)?,
                             found_compression_authority,
                             found_compress_to_pubkey,
                         )
                     } else {
                         println!("no extensions but is_compressible is true");
-                        return Err(TokenSdkError::InvalidAccountData);
+                        return Err(CTokenSdkError::InvalidAccountData);
                     }
                 } else {
                     // Non-compressible account: use owner as rent_sponsor
