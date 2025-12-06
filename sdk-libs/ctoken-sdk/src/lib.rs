@@ -47,7 +47,7 @@
 //! | Create Associated cToken Account | [`CreateAssociatedTokenAccount`](ctoken::CreateAssociatedTokenAccount) | [`CreateAssociatedTokenAccountInfos`](ctoken::CreateAssociatedTokenAccountInfos) |
 //! | Create cToken Account | [`CreateCTokenAccount`](ctoken::CreateCTokenAccount) | [`CreateCTokenAccountInfos`](ctoken::CreateCTokenAccountInfos) |
 //! | TransferInterface | [`TransferCtoken`](ctoken::TransferCtoken) | [`TransferInterface`](ctoken::TransferInterface) |
-//! | Close cToken account | [`CloseAccount`](ctoken::CloseAccount) | [`CloseAccountInfos`](ctoken::CloseAccountInfos) |
+//! | Close cToken account | [`CloseAccount`](ctoken::CloseAccount) | [`CloseCTokenAccountInfos`](ctoken::CloseCTokenAccountInfos) |
 //! | Create cMint | [`CreateCMint`](ctoken::CreateCMint) | [`CreateCMintAccountInfos`](ctoken::CreateCMintAccountInfos) |
 //! | MintTo cToken account from cMint | [`MintToCToken`](ctoken::MintToCToken) | [`MintToCTokenInfos`](ctoken::MintToCTokenInfos) |
 //!

@@ -6,7 +6,7 @@ use solana_pubkey::Pubkey;
 
 use crate::ctoken::RENT_SPONSOR;
 
-pub struct CloseAccount {
+pub struct CloseCTokenAccount {
     pub token_program: Pubkey,
     pub account: Pubkey,
     pub destination: Pubkey,
@@ -14,7 +14,7 @@ pub struct CloseAccount {
     pub rent_sponsor: Option<Pubkey>,
 }
 
-impl CloseAccount {
+impl CloseCTokenAccount {
     pub fn new(token_program: Pubkey, account: Pubkey, destination: Pubkey, owner: Pubkey) -> Self {
         Self {
             token_program,
@@ -53,7 +53,7 @@ impl CloseAccount {
     }
 }
 
-pub struct CloseAccountInfos<'info> {
+pub struct CloseCTokenAccountInfos<'info> {
     pub token_program: AccountInfo<'info>,
     pub account: AccountInfo<'info>,
     pub destination: AccountInfo<'info>,
@@ -61,9 +61,9 @@ pub struct CloseAccountInfos<'info> {
     pub rent_sponsor: Option<AccountInfo<'info>>,
 }
 
-impl<'info> CloseAccountInfos<'info> {
+impl<'info> CloseCTokenAccountInfos<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        CloseAccount::from(self).instruction()
+        CloseCTokenAccount::from(self).instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
@@ -89,8 +89,8 @@ impl<'info> CloseAccountInfos<'info> {
     }
 }
 
-impl<'info> From<&CloseAccountInfos<'info>> for CloseAccount {
-    fn from(account_infos: &CloseAccountInfos<'info>) -> Self {
+impl<'info> From<&CloseCTokenAccountInfos<'info>> for CloseCTokenAccount {
+    fn from(account_infos: &CloseCTokenAccountInfos<'info>) -> Self {
         Self {
             token_program: *account_infos.token_program.key,
             account: *account_infos.account.key,
