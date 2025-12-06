@@ -71,10 +71,11 @@ impl<'info> TransferInterface<'info> {
             .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingSplTokenProgram.into()))?;
 
         let spl_interface_pda = spl_interface_pda
-            .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingTokenPoolPda.into()))?;
+            .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingSplInterfacePda.into()))?;
 
-        let spl_interface_pda_bump = spl_interface_pda_bump
-            .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingTokenPoolPdaBump.into()))?;
+        let spl_interface_pda_bump = spl_interface_pda_bump.ok_or_else(|| {
+            ProgramError::Custom(TokenSdkError::MissingSplInterfacePdaBump.into())
+        })?;
 
         self.spl_interface = Some(SplInterface {
             mint,

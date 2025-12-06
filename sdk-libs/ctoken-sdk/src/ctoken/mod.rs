@@ -168,7 +168,7 @@ pub fn cpi_authority() -> Pubkey {
     CTOKEN_CPI_AUTHORITY
 }
 
-pub fn get_token_pool_address_and_bump(mint: &Pubkey) -> (Pubkey, u8) {
+pub fn get_spl_interface_pda_and_bump(mint: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(&[POOL_SEED, mint.as_ref()], &CTOKEN_PROGRAM_ID)
 }
 

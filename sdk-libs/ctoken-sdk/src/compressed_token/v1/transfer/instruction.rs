@@ -147,7 +147,7 @@ pub struct CompressInputs {
     pub sender_token_account: Pubkey,
     pub amount: u64,
     // pub output_queue_pubkey: Pubkey,
-    pub token_pool_pda: Pubkey,
+    pub spl_interface_pda: Pubkey,
     pub transfer_config: Option<TransferConfig>,
     pub spl_token_program: Pubkey,
     pub tree_accounts: Vec<Pubkey>,
@@ -164,7 +164,7 @@ pub fn compress(inputs: CompressInputs) -> Result<Instruction> {
         recipient,
         sender_token_account,
         amount,
-        token_pool_pda,
+        spl_interface_pda,
         transfer_config,
         spl_token_program,
         output_tree_index,
@@ -177,7 +177,7 @@ pub fn compress(inputs: CompressInputs) -> Result<Instruction> {
     let meta_config = TokenAccountsMetaConfig::compress(
         fee_payer,
         authority,
-        token_pool_pda,
+        spl_interface_pda,
         sender_token_account,
         spl_token_program,
     );
@@ -238,7 +238,7 @@ pub struct DecompressInputs {
     pub amount: u64,
     pub tree_pubkeys: Vec<Pubkey>,
     pub config: Option<TransferConfig>,
-    pub token_pool_pda: Pubkey,
+    pub spl_interface_pda: Pubkey,
     pub recipient_token_account: Pubkey,
     pub spl_token_program: Pubkey,
 }
@@ -251,7 +251,7 @@ pub fn decompress(inputs: DecompressInputs) -> Result<Instruction> {
         mut sender_account,
         tree_pubkeys,
         config,
-        token_pool_pda,
+        spl_interface_pda,
         recipient_token_account,
         spl_token_program,
     } = inputs;
@@ -262,7 +262,7 @@ pub fn decompress(inputs: DecompressInputs) -> Result<Instruction> {
     let account_meta_config = TokenAccountsMetaConfig::decompress(
         fee_payer,
         sender_account.owner(),
-        token_pool_pda,
+        spl_interface_pda,
         recipient_token_account,
         spl_token_program,
     );

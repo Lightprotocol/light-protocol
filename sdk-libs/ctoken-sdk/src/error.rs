@@ -65,10 +65,10 @@ pub enum TokenSdkError {
     MissingMintAccount,
     #[error("Missing SPL token program")]
     MissingSplTokenProgram,
-    #[error("Missing token pool PDA")]
-    MissingTokenPoolPda,
-    #[error("Missing token pool PDA bump")]
-    MissingTokenPoolPdaBump,
+    #[error("Missing SPL interface PDA")]
+    MissingSplInterfacePda,
+    #[error("Missing SPL interface PDA bump")]
+    MissingSplInterfacePdaBump,
     #[error(transparent)]
     CompressedTokenTypes(#[from] LightTokenSdkTypeError),
     #[error(transparent)]
@@ -124,8 +124,8 @@ impl From<TokenSdkError> for u32 {
             TokenSdkError::CpiContextRequired => 17024,
             TokenSdkError::MissingMintAccount => 17025,
             TokenSdkError::MissingSplTokenProgram => 17026,
-            TokenSdkError::MissingTokenPoolPda => 17027,
-            TokenSdkError::MissingTokenPoolPdaBump => 17028,
+            TokenSdkError::MissingSplInterfacePda => 17027,
+            TokenSdkError::MissingSplInterfacePdaBump => 17028,
             TokenSdkError::CompressedTokenTypes(e) => e.into(),
             TokenSdkError::CTokenError(e) => e.into(),
             TokenSdkError::LightSdkTypesError(e) => e.into(),

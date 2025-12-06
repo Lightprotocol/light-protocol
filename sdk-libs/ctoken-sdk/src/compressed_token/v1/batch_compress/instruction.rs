@@ -21,7 +21,7 @@ pub struct Recipient {
 pub struct BatchCompressInputs {
     pub fee_payer: Pubkey,
     pub authority: Pubkey,
-    pub token_pool_pda: Pubkey,
+    pub spl_interface_pda: Pubkey,
     pub sender_token_account: Pubkey,
     pub token_program: Pubkey,
     pub merkle_tree: Pubkey,
@@ -68,7 +68,7 @@ pub fn create_batch_compress_instruction(inputs: BatchCompressInputs) -> Result<
     let meta_config = BatchCompressMetaConfig {
         fee_payer: Some(inputs.fee_payer),
         authority: Some(inputs.authority),
-        token_pool_pda: inputs.token_pool_pda,
+        spl_interface_pda: inputs.spl_interface_pda,
         sender_token_account: inputs.sender_token_account,
         token_program: inputs.token_program,
         merkle_tree: inputs.merkle_tree,

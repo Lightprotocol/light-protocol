@@ -59,6 +59,7 @@ pub mod compressed_token;
 pub mod compressible;
 pub mod ctoken;
 
+pub mod constants;
 pub mod error;
 pub mod pack;
 pub mod spl_interface;
@@ -72,5 +73,4 @@ use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSeria
 pub use light_compressed_account::instruction_data::compressed_proof::{
     CompressedProof, ValidityProof,
 };
-pub use light_compressed_token_types::*;
 pub use pack::compat;

@@ -4,6 +4,7 @@ use anchor_lang::{
 use anchor_spl::token_interface::spl_token_2022;
 use light_client::indexer::Indexer;
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
+use light_compressed_token_types::CPI_AUTHORITY_PDA;
 use light_ctoken_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData,
@@ -17,7 +18,6 @@ use light_ctoken_sdk::{
         derive_cmint_compressed_address, find_cmint_address,
     },
     ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
-    CPI_AUTHORITY_PDA,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
