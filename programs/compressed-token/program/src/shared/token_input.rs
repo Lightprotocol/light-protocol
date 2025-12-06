@@ -4,7 +4,7 @@ use anchor_compressed_token::TokenData;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::AccountError;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     hash_cache::HashCache,
     instructions::transfer2::ZMultiInputTokenDataWithContext,
     state::{CompressedTokenAccountState, TokenDataVersion},

@@ -36,7 +36,7 @@ light-compressed-account = { workspace = true, features = ["anchor"] }
 spl-token-2022 = { workspace = true }
 light-zero-copy = { workspace = true }
 zerocopy = { workspace = true }
-light-ctoken-types = { workspace = true, features = ["anchor"] }
+light-ctoken-interface = { workspace = true, features = ["anchor"] }
 pinocchio-pubkey = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]

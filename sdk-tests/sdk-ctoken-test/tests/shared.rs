@@ -15,7 +15,7 @@ pub async fn setup_create_compressed_mint(
     decimals: u8,
     recipients: Vec<(u64, Pubkey)>,
 ) -> (Pubkey, [u8; 32], Vec<Pubkey>) {
-    use light_compressed_token_sdk::ctoken::{
+    use light_ctoken_sdk::ctoken::{
         CreateAssociatedTokenAccount, CreateCMint, CreateCMintParams, MintToCToken,
         MintToCTokenParams,
     };
@@ -25,13 +25,12 @@ pub async fn setup_create_compressed_mint(
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     // Derive compression address using SDK helpers
-    let compression_address = light_compressed_token_sdk::ctoken::derive_compressed_mint_address(
+    let compression_address = light_ctoken_sdk::ctoken::derive_compressed_mint_address(
         &mint_signer.pubkey(),
         &address_tree.tree,
     );
 
-    let mint_pda =
-        light_compressed_token_sdk::ctoken::find_spl_mint_address(&mint_signer.pubkey()).0;
+    let mint_pda = light_ctoken_sdk::ctoken::find_spl_mint_address(&mint_signer.pubkey()).0;
 
     // Get validity proof for the address
     let rpc_result = rpc
@@ -92,7 +91,7 @@ pub async fn setup_create_compressed_mint(
     }
 
     // Create ATAs for each recipient
-    use light_compressed_token_sdk::ctoken::derive_ctoken_ata;
+    use light_ctoken_sdk::ctoken::derive_ctoken_ata;
 
     let mut ata_pubkeys = Vec::with_capacity(recipients.len());
 
@@ -124,7 +123,7 @@ pub async fn setup_create_compressed_mint(
             .value
             .expect("Compressed mint should exist");
 
-        use light_ctoken_types::state::CompressedMint;
+        use light_ctoken_interface::state::CompressedMint;
         let compressed_mint =
             CompressedMint::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
                 .unwrap();
@@ -137,7 +136,7 @@ pub async fn setup_create_compressed_mint(
             .value;
 
         // Build CompressedMintWithContext
-        use light_ctoken_types::instructions::mint_action::CompressedMintWithContext;
+        use light_ctoken_interface::instructions::mint_action::CompressedMintWithContext;
         let compressed_mint_with_context = CompressedMintWithContext {
             address: compression_address,
             leaf_index: compressed_mint_account.leaf_index,

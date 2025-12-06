@@ -1,7 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     hash_cache::HashCache, instructions::mint_action::MintActionCompressedInstructionData,
     state::CompressedMint, CTokenError,
 };

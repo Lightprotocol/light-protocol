@@ -3,7 +3,7 @@ use anchor_lang::prelude::ProgramError;
 use light_compressed_account::{
     instruction_data::data::ZOutputCompressedAccountWithPackedContextMut, Pubkey,
 };
-use light_ctoken_types::{
+use light_ctoken_interface::{
     hash_cache::HashCache,
     state::{CompressedTokenAccountState, TokenData, TokenDataConfig, TokenDataVersion},
 };

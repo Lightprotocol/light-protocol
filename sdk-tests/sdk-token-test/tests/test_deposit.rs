@@ -1,6 +1,6 @@
 use anchor_lang::InstructionData;
 use light_client::indexer::{CompressedAccount, CompressedTokenAccount, IndexerRpcConfig};
-use light_compressed_token_sdk::{
+use light_ctoken_sdk::{
     compressed_token::batch_compress::{
         get_batch_compress_instruction_account_metas, BatchCompressMetaConfig, Recipient,
     },

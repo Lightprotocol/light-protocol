@@ -1,5 +1,5 @@
 use anchor_compressed_token::ErrorCode;
-use light_ctoken_types::instructions::mint_action::ZCpiContext;
+use light_ctoken_interface::instructions::mint_action::ZCpiContext;
 use light_program_profiler::profile;
 
 #[derive(Debug, PartialEq)]

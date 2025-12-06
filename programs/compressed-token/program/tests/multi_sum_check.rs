@@ -9,7 +9,7 @@ use light_account_checks::{
 use light_compressed_token::transfer2::sum_check::{
     sum_check_multi_mint, validate_mint_uniqueness,
 };
-use light_ctoken_types::instructions::transfer2::{
+use light_ctoken_interface::instructions::transfer2::{
     Compression, CompressionMode, MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
 };
 use light_zero_copy::traits::ZeroCopyAt;

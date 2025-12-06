@@ -2,7 +2,7 @@ pub mod processor;
 pub mod token_metadata;
 
 // Import from ctoken-types instead of local modules
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::{
         extensions::{ZExtensionInstructionData, ZTokenMetadataInstructionData},
         mint_action::ZAction,

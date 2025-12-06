@@ -3,7 +3,7 @@
 #![allow(deprecated)]
 
 use anchor_lang::prelude::*;
-use light_compressed_token_sdk::{
+use light_ctoken_sdk::{
     compressed_token::batch_compress::Recipient, TokenAccountMeta, ValidityProof,
 };
 use light_sdk::instruction::{PackedAddressTreeInfo, ValidityProof as LightValidityProof};
@@ -123,10 +123,8 @@ pub mod sdk_token_test {
     /// This decompresses the entire balance to destination ctoken accounts
     pub fn decompress_full_cpi<'info>(
         ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
-        indices: Vec<
-            light_compressed_token_sdk::compressed_token::decompress_full::DecompressFullIndices,
-        >,
-        validity_proof: light_compressed_token_sdk::ValidityProof,
+        indices: Vec<light_ctoken_sdk::compressed_token::decompress_full::DecompressFullIndices>,
+        validity_proof: light_ctoken_sdk::ValidityProof,
     ) -> Result<()> {
         process_decompress_full_cpi_context(ctx, indices, validity_proof, None)
     }
@@ -135,10 +133,8 @@ pub mod sdk_token_test {
     /// This decompresses the entire balance to destination ctoken accounts
     pub fn decompress_full_cpi_with_cpi_context<'info>(
         ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
-        indices: Vec<
-            light_compressed_token_sdk::compressed_token::decompress_full::DecompressFullIndices,
-        >,
-        validity_proof: light_compressed_token_sdk::ValidityProof,
+        indices: Vec<light_ctoken_sdk::compressed_token::decompress_full::DecompressFullIndices>,
+        validity_proof: light_ctoken_sdk::ValidityProof,
         params: Option<MintCompressedTokensCpiWriteParams>,
     ) -> Result<()> {
         process_decompress_full_cpi_context(ctx, indices, validity_proof, params)

@@ -3,7 +3,7 @@ use anchor_lang::prelude::ProgramError;
 use arrayvec::ArrayVec;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::instruction_data::data::ZOutputCompressedAccountWithPackedContextMut;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     hash_cache::HashCache,
     instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
     state::CompressedMint,

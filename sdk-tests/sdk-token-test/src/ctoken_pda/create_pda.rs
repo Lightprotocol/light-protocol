@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_compressed_token_sdk::ValidityProof;
+use light_ctoken_sdk::ValidityProof;
 use light_sdk::{
     account::LightAccount,
     cpi::{

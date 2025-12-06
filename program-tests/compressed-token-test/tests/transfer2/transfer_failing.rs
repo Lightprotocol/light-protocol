@@ -5,7 +5,11 @@
 // ============================================================================
 
 use light_client::indexer::{CompressedTokenAccount, Indexer};
-use light_compressed_token_sdk::{
+use light_ctoken_interface::{
+    instructions::{mint_action::Recipient, transfer2::MultiInputTokenDataWithContext},
+    state::TokenDataVersion,
+};
+use light_ctoken_sdk::{
     compressed_token::{
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
@@ -14,10 +18,6 @@ use light_compressed_token_sdk::{
         CTokenAccount2,
     },
     ValidityProof,
-};
-use light_ctoken_types::{
-    instructions::{mint_action::Recipient, transfer2::MultiInputTokenDataWithContext},
-    state::TokenDataVersion,
 };
 use light_program_test::{
     utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
@@ -72,8 +72,10 @@ async fn setup_transfer_test(
     )
     .await?;
 
-    let mint =
-        light_compressed_token_sdk::compressed_token::create_compressed_mint::find_spl_mint_address(&mint_seed.pubkey()).0;
+    let mint = light_ctoken_sdk::compressed_token::create_compressed_mint::find_spl_mint_address(
+        &mint_seed.pubkey(),
+    )
+    .0;
 
     // Mint tokens to owner if amount > 0
     if token_amount > 0 {
@@ -680,8 +682,10 @@ async fn setup_transfer_test_with_delegate(
     )
     .await?;
 
-    let mint =
-        light_compressed_token_sdk::compressed_token::create_compressed_mint::find_spl_mint_address(&mint_seed.pubkey()).0;
+    let mint = light_ctoken_sdk::compressed_token::create_compressed_mint::find_spl_mint_address(
+        &mint_seed.pubkey(),
+    )
+    .0;
 
     // Mint tokens to owner if amount > 0
     if token_amount > 0 {

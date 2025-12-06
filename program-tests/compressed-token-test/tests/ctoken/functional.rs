@@ -133,7 +133,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         pre_pay_num_epochs: num_prepaid_epochs,
         lamports_per_write,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let create_token_account_ix = CreateCTokenAccount::new(
@@ -182,7 +182,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
             num_prepaid_epochs,
             lamports_per_write,
             compress_to_pubkey: false,
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
     )

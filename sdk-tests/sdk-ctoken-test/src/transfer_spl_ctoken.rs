@@ -1,7 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_compressed_token_sdk::ctoken::{
-    TransferCtokenToSplAccountInfos, TransferSplToCtokenAccountInfos,
-};
+use light_ctoken_sdk::ctoken::{TransferCtokenToSplAccountInfos, TransferSplToCtokenAccountInfos};
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::ID;

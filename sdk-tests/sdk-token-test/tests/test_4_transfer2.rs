@@ -1,19 +1,19 @@
 use anchor_lang::{prelude::AccountMeta, InstructionData};
-use light_compressed_token_sdk::{
-    compressed_token::{
-        create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
-        mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
-    },
-    ctoken::CreateAssociatedTokenAccount,
-    utils::CTokenDefaultAccounts,
-};
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::{
         mint_action::{CompressedMintWithContext, Recipient},
         transfer2::MultiInputTokenDataWithContext,
     },
     state::{BaseMint, CompressedMintMetadata},
     COMPRESSED_MINT_SEED,
+};
+use light_ctoken_sdk::{
+    compressed_token::{
+        create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
+        mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
+    },
+    ctoken::CreateAssociatedTokenAccount,
+    utils::CTokenDefaultAccounts,
 };
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::{
@@ -95,7 +95,7 @@ async fn create_compressed_mints_and_tokens(
 
     // Create associated token account for mint1 decompression
     let (token_account1_pubkey, _bump) =
-        light_compressed_token_sdk::ctoken::derive_ctoken_ata(&payer.pubkey(), &mint1_pda);
+        light_ctoken_sdk::ctoken::derive_ctoken_ata(&payer.pubkey(), &mint1_pda);
     let create_ata_instruction =
         CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), mint1_pda)
             .instruction()
@@ -155,7 +155,7 @@ async fn create_compressed_mint_helper(
 
     // Find mint PDA
     let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID);
+        Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
     let (mint_pda, _) = Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_signer.pubkey().as_ref()],
         &compressed_token_program_id,
@@ -228,7 +228,7 @@ async fn mint_compressed_tokens(
         .unwrap();
 
     // Create expected compressed mint for the input
-    let expected_compressed_mint = light_ctoken_types::state::CompressedMint {
+    let expected_compressed_mint = light_ctoken_interface::state::CompressedMint {
         base: BaseMint {
             mint_authority: Some(payer.pubkey().into()),
             supply: 0,

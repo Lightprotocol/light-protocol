@@ -43,10 +43,10 @@ spl-token = { workspace = true }
 anchor-spl = { workspace = true }
 rand = { workspace = true }
 serial_test = { workspace = true }
-light-ctoken-types = { workspace = true }
+light-ctoken-interface = { workspace = true }
 light-token-client = { workspace = true }
 light-compressible = { workspace = true }
-light-compressed-token-sdk = { workspace = true }
+light-ctoken-sdk = { workspace = true }
 spl-token-2022 = { workspace = true }
 spl-pod = { workspace = true }
 light-zero-copy = { workspace = true , features = ["std", "derive", "mut"]}

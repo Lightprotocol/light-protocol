@@ -1,10 +1,10 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_compressed_token_sdk::compressed_token::{
-    ctoken_instruction::CTokenInstruction, mint_action::MintActionCpiAccounts,
-};
-use light_ctoken_types::instructions::mint_action::{
+use light_ctoken_interface::instructions::mint_action::{
     MintActionCompressedInstructionData, MintToCTokenAction, MintToCompressedAction,
     UpdateAuthority,
+};
+use light_ctoken_sdk::compressed_token::{
+    ctoken_instruction::CTokenInstruction, mint_action::MintActionCpiAccounts,
 };
 use light_sdk_types::cpi_accounts::v2::CpiAccounts;
 
@@ -37,16 +37,18 @@ pub fn process_mint_action<'a, 'info>(
             .final_mint_authority
             .map(|auth| auth.to_bytes().into()),
     })
-    .with_cpi_context(light_ctoken_types::instructions::mint_action::CpiContext {
-        set_context: false,
-        first_set_context: false,
-        in_tree_index: 1,
-        in_queue_index: 0,
-        out_queue_index: 0,
-        token_out_queue_index: 0,
-        assigned_account_index: 1,
-        ..Default::default()
-    });
+    .with_cpi_context(
+        light_ctoken_interface::instructions::mint_action::CpiContext {
+            set_context: false,
+            first_set_context: false,
+            in_tree_index: 1,
+            in_queue_index: 0,
+            out_queue_index: 0,
+            token_out_queue_index: 0,
+            assigned_account_index: 1,
+            ..Default::default()
+        },
+    );
 
     // Build account structure for CPI - manually construct from CpiAccounts
     let tree_accounts = cpi_accounts.tree_accounts().unwrap();

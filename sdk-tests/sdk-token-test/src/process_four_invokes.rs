@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
-use light_compressed_token_sdk::{
+use light_ctoken_sdk::{
     compressed_token::{
         transfer::instruction::{
             compress, transfer, CompressInputs, TransferConfig, TransferInputs,

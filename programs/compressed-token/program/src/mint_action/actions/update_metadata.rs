@@ -1,7 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::Pubkey;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::mint_action::{
         ZRemoveMetadataKeyAction, ZUpdateMetadataAuthorityAction, ZUpdateMetadataFieldAction,
     },
@@ -87,7 +87,7 @@ pub fn process_update_metadata_field_action(
             } else {
                 // TODO: Enable adding new keys for SPL Token-2022 compatibility
                 // metadata.additional_metadata.push(
-                //     light_ctoken_types::state::AdditionalMetadata {
+                //     light_ctoken_interface::state::AdditionalMetadata {
                 //         key: action.key.to_vec(),
                 //         value: action.value.to_vec(),
                 //     }

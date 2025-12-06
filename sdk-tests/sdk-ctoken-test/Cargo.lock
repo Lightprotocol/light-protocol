@@ -2426,7 +2426,7 @@ dependencies = [
  "bytemuck",
  "lazy_static",
  "light-compressed-account",
- "light-compressed-token-sdk",
+ "light-ctoken-sdk",
  "light-concurrent-merkle-tree",
  "light-event",
  "light-hasher",
@@ -2487,7 +2487,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-compressed-token-sdk"
+name = "light-ctoken-sdk"
 version = "0.1.0"
 dependencies = [
  "arrayvec",
@@ -2496,7 +2496,7 @@ dependencies = [
  "light-compressed-account",
  "light-compressed-token-types",
  "light-compressible",
- "light-ctoken-types",
+ "light-ctoken-interface",
  "light-macros",
  "light-program-profiler",
  "light-sdk",
@@ -2576,7 +2576,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-ctoken-types"
+name = "light-ctoken-interface"
 version = "0.1.0"
 dependencies = [
  "aligned-sized",
@@ -2745,7 +2745,7 @@ dependencies = [
  "chrono",
  "light-client",
  "light-compressed-account",
- "light-compressed-token-sdk",
+ "light-ctoken-sdk",
  "light-compressible-client",
  "light-event",
  "light-hasher",
@@ -2811,7 +2811,7 @@ dependencies = [
  "borsh 0.10.4",
  "light-account-checks",
  "light-compressed-account",
- "light-ctoken-types",
+ "light-ctoken-interface",
  "light-hasher",
  "light-macros",
  "light-sdk-macros",
@@ -3061,10 +3061,10 @@ dependencies = [
  "borsh 0.10.4",
  "light-client",
  "light-compressed-account",
- "light-compressed-token-sdk",
+ "light-ctoken-sdk",
  "light-compressed-token-types",
  "light-compressible-client",
- "light-ctoken-types",
+ "light-ctoken-interface",
  "light-program-test",
  "light-sdk",
  "light-sdk-types",

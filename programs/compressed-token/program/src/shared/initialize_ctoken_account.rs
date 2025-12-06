@@ -1,7 +1,7 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountInfoTrait;
 use light_compressible::{compression_info::ZCompressionInfoMut, config::CompressibleConfig};
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::extensions::compressible::CompressibleExtensionInstructionData,
     state::CompressionInfo, CTokenError, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };

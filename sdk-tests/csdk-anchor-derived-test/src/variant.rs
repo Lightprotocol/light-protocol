@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_compressed_token_sdk::{
+use light_ctoken_sdk::{
     compat::{CTokenData, PackedCTokenData},
     Pack as TokenPack,
 };
@@ -25,7 +25,7 @@ pub enum CTokenAccountVariant {
     CTokenSigner = 0,
 }
 
-impl light_compressed_token_sdk::CTokenSeedProvider for CTokenAccountVariant {
+impl light_ctoken_sdk::CTokenSeedProvider for CTokenAccountVariant {
     type Accounts<'info> = DecompressAccountsIdempotent<'info>;
 
     fn get_seeds<'a, 'info>(

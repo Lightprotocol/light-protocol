@@ -1,6 +1,4 @@
-use light_compressed_token_sdk::ctoken::{
-    CloseAccount, CompressibleParams, CreateAssociatedTokenAccount,
-};
+use light_ctoken_sdk::ctoken::{CloseAccount, CompressibleParams, CreateAssociatedTokenAccount};
 use light_test_utils::assert_create_token_account::assert_create_associated_token_account;
 
 use super::shared::*;
@@ -61,7 +59,7 @@ async fn test_associated_token_account_operations() {
         pre_pay_num_epochs: num_prepaid_epochs,
         lamports_per_write,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let compressible_instruction = CreateAssociatedTokenAccount::new(
@@ -94,7 +92,7 @@ async fn test_associated_token_account_operations() {
             num_prepaid_epochs, // Use actual balance with rent
             lamports_per_write,
             compress_to_pubkey: false,
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
     )
@@ -337,7 +335,7 @@ async fn test_create_token_account_with_prefunded_lamports() {
         pre_pay_num_epochs: 0,
         lamports_per_write: Some(100),
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let create_token_account_ix = CreateCTokenAccount::new(
@@ -372,7 +370,7 @@ async fn test_create_token_account_with_prefunded_lamports() {
             num_prepaid_epochs: 0,
             lamports_per_write: Some(100),
             compress_to_pubkey: false,
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
     )

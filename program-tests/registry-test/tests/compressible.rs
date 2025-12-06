@@ -3,13 +3,13 @@ use std::str::FromStr;
 
 // TODO: refactor into dir
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
-use light_compressed_token_sdk::ctoken::{
-    derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount,
-};
 use light_compressible::{
     config::CompressibleConfig, error::CompressibleError, rent::SLOTS_PER_EPOCH,
 };
-use light_ctoken_types::state::{CToken, ExtensionStruct};
+use light_ctoken_interface::state::{CToken, ExtensionStruct};
+use light_ctoken_sdk::ctoken::{
+    derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount,
+};
 use light_program_test::{
     forester::claim_forester, program_test::TestRpc, utils::assert::assert_rpc_error,
     LightProgramTest, ProgramTestConfig,
@@ -109,7 +109,7 @@ async fn test_claim_rent_for_completed_epochs() -> Result<(), RpcError> {
             payer: &payer,
             token_account_keypair: None,
             lamports_per_write,
-            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
         },
     )
     .await
@@ -168,7 +168,7 @@ async fn test_claim_multiple_accounts_different_epochs() {
                 payer: &payer,
                 token_account_keypair: None,
                 lamports_per_write: Some(100),
-                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+                token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             },
         )
         .await
@@ -494,7 +494,7 @@ async fn test_pause_compressible_config_with_valid_authority() -> Result<(), Rpc
         pre_pay_num_epochs: 2,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let compressible_instruction =
@@ -627,7 +627,7 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
         pre_pay_num_epochs: 2,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let compressible_instruction =
@@ -673,7 +673,7 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
         pre_pay_num_epochs: 2,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let compressible_instruction =
@@ -762,7 +762,7 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
         pre_pay_num_epochs: 10,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let compressible_instruction =
@@ -809,7 +809,7 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
         pre_pay_num_epochs: 2,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let compressible_instruction =
@@ -1125,7 +1125,7 @@ async fn assert_not_compressible<R: Rpc>(
     name: &str,
 ) -> Result<(), RpcError> {
     use borsh::BorshDeserialize;
-    use light_ctoken_types::state::{CToken, ExtensionStruct};
+    use light_ctoken_interface::state::{CToken, ExtensionStruct};
 
     let account = rpc
         .get_account(account_pubkey)
@@ -1149,7 +1149,7 @@ async fn assert_not_compressible<R: Rpc>(
                 };
                 let is_compressible = state.is_compressible(
                     &compressible_ext.rent_config,
-                    light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                    light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                 );
 
                 assert!(
@@ -1164,7 +1164,7 @@ async fn assert_not_compressible<R: Rpc>(
                     .get_last_funded_epoch(
                         account.data.len() as u64,
                         account.lamports,
-                        light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                        light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                     )
                     .map_err(|e| {
                         RpcError::AssertRpcError(format!(
@@ -1227,7 +1227,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
             payer: &payer,
             token_account_keypair: None,
             lamports_per_write: Some(100),
-            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
         },
     )
     .await
@@ -1243,7 +1243,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
             payer: &payer,
             token_account_keypair: None,
             lamports_per_write: Some(100),
-            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
         },
     )
     .await
@@ -1252,7 +1252,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     // Mint 1,000,000 tokens to Account A
     let transfer_amount = 1_000_000u64;
     {
-        use light_ctoken_types::state::CToken;
+        use light_ctoken_interface::state::CToken;
         use light_zero_copy::traits::ZeroCopyAtMut;
 
         let mut account_data = rpc.get_account(account_a).await?.unwrap();

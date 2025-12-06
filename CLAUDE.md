@@ -21,7 +21,7 @@ light-protocol/
 │   ├── compressed-account/       # Compressed account types and utilities
 │   ├── compressible/             # Configuration for compressible token accounts
 │   ├── concurrent-merkle-tree/   # Concurrent Merkle tree operations
-│   ├── ctoken-types/             # Compressed token types and interfaces
+│   ├── ctoken-interface/             # Compressed token types and interfaces
 │   ├── hash-set/                 # Hash set implementation for Solana programs
 │   ├── hasher/                   # Poseidon hash implementation
 │   ├── heap/                     # Heap data structure for Solana programs
@@ -41,7 +41,7 @@ light-protocol/
 │   ├── client/                   # RPC client for querying compressed accounts
 │   ├── sdk/                      # Core SDK for Rust/Anchor programs
 │   ├── sdk-pinocchio/            # Pinocchio-specific SDK implementation
-│   ├── compressed-token-sdk/     # Compressed token client utilities
+│   ├── ctoken-sdk/               # Compressed token client utilities
 │   └── program-test/             # Fast local test environment (LiteSVM)
 ├── prover/                    # ZK proof generation
 │   ├── server/                   # Go-based prover server and circuit implementation (Gnark)

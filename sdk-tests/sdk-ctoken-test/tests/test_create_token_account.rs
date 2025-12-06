@@ -4,7 +4,7 @@ mod shared;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
-use light_compressed_token_sdk::ctoken::CTOKEN_PROGRAM_ID;
+use light_ctoken_sdk::ctoken::CTOKEN_PROGRAM_ID;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use native_ctoken_examples::{CreateTokenAccountData, ID};
 use shared::setup_create_compressed_mint;
@@ -43,7 +43,7 @@ async fn test_create_token_account_invoke() {
     };
     let instruction_data = [vec![2u8], create_token_account_data.try_to_vec().unwrap()].concat();
 
-    use light_compressed_token_sdk::ctoken::{config_pda, rent_sponsor_pda};
+    use light_ctoken_sdk::ctoken::{config_pda, rent_sponsor_pda};
     let config = config_pda();
     let rent_sponsor = rent_sponsor_pda();
 
@@ -73,7 +73,7 @@ async fn test_create_token_account_invoke() {
         .unwrap();
 
     // Parse and verify account data
-    use light_ctoken_types::state::CToken;
+    use light_ctoken_interface::state::CToken;
     let account_state = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     assert_eq!(
         account_state.mint.to_bytes(),
@@ -119,7 +119,7 @@ async fn test_create_token_account_invoke_signed() {
     // Discriminator 3 = CreateTokenAccountInvokeSigned
     let instruction_data = [vec![3u8], create_token_account_data.try_to_vec().unwrap()].concat();
 
-    use light_compressed_token_sdk::ctoken::{config_pda, rent_sponsor_pda};
+    use light_ctoken_sdk::ctoken::{config_pda, rent_sponsor_pda};
     let config = config_pda();
     let rent_sponsor = rent_sponsor_pda();
 
@@ -146,7 +146,7 @@ async fn test_create_token_account_invoke_signed() {
     let ctoken_account_data = rpc.get_account(ctoken_account_pda).await.unwrap().unwrap();
 
     // Parse and verify account data
-    use light_ctoken_types::state::CToken;
+    use light_ctoken_interface::state::CToken;
     let account_state = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     assert_eq!(
         account_state.mint.to_bytes(),

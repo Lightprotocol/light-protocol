@@ -1,6 +1,6 @@
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::Pubkey;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::extensions::token_metadata::ZTokenMetadataInstructionData,
     state::ZTokenMetadataMut,
 };

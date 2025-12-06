@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke_signed};
-use light_compressed_token_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
-use light_ctoken_types::instructions::extensions::compressible::CompressToPubkey;
+use light_ctoken_interface::instructions::extensions::compressible::CompressToPubkey;
+use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
 
 use crate::Generic;
 
@@ -26,7 +26,7 @@ pub fn process_create_ctoken_with_compress_to_pubkey<'info>(
         pre_pay_num_epochs: 2,
         lamports_per_write: None,
         compress_to_account_pubkey: Some(compress_to_pubkey),
-        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let instruction = CreateCTokenAccount::new(

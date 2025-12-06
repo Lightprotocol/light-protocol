@@ -2,7 +2,9 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::Pubkey;
-use light_ctoken_types::{instructions::mint_action::ZMintToCTokenAction, state::CompressedMint};
+use light_ctoken_interface::{
+    instructions::mint_action::ZMintToCTokenAction, state::CompressedMint,
+};
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;

@@ -1,6 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::mint_action::{ZCompressedMintInstructionData, ZCreateSplMintAction},
     CTokenError,
 };

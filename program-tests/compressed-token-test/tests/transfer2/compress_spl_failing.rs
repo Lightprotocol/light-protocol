@@ -29,7 +29,7 @@
 // 5.3. recipient out of bounds
 
 use anchor_spl::token_2022::spl_token_2022;
-use light_compressed_token_sdk::{
+use light_ctoken_sdk::{
     compressed_token::{
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,

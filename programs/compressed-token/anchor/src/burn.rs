@@ -318,7 +318,7 @@ mod test {
     use account_compression::StateMerkleTreeAccount;
     use anchor_lang::{solana_program::account_info::AccountInfo, Discriminator};
     use light_compressed_account::compressed_account::PackedMerkleContext;
-    use light_ctoken_types::state::CompressedTokenAccountState;
+    use light_ctoken_interface::state::CompressedTokenAccountState;
     use rand::Rng;
 
     use super::*;

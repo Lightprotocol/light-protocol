@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use anchor_lang::AnchorDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_compressed_token_sdk::{
-    compressed_token::create_compressed_mint::find_spl_mint_address,
-    ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
-};
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::{mint_action::Recipient, transfer2::CompressedTokenInstructionDataTransfer2},
     state::TokenDataVersion,
+};
+use light_ctoken_sdk::{
+    compressed_token::create_compressed_mint::find_spl_mint_address,
+    ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
 };
 use light_program_test::{indexer::TestIndexerExtensions, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
@@ -443,8 +443,7 @@ impl TestContext {
                 .unwrap_or(&false);
 
             // Create CToken ATA (compressible or regular based on requirements)
-            let (ata, bump) =
-                light_compressed_token_sdk::ctoken::derive_ctoken_ata(&signer.pubkey(), &mint);
+            let (ata, bump) = light_ctoken_sdk::ctoken::derive_ctoken_ata(&signer.pubkey(), &mint);
 
             let create_ata_ix = if is_compressible {
                 println!(
@@ -493,7 +492,7 @@ impl TestContext {
                 // Get the compressed mint address
                 let address_tree_pubkey = rpc.get_address_tree_v2().tree;
                 let compressed_mint_address =
-                    light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_compressed_mint_address(
+                    light_ctoken_sdk::compressed_token::create_compressed_mint::derive_compressed_mint_address(
                         &mint_seed.pubkey(),
                         &address_tree_pubkey,
                     );

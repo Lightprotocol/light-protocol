@@ -1,7 +1,7 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use borsh::BorshSerialize;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::mint_action::ZMintActionCompressedInstructionData, state::CompressedMint,
 };
 use light_hasher::{sha256::Sha256BE, Hasher};

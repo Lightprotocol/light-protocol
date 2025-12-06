@@ -1,7 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::checks::check_owner;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::transfer2::ZCompressionMode,
     state::{CToken, ZExtensionStructMut},
     CTokenError,
@@ -140,7 +140,7 @@ fn process_compressible_extension(
                         token_account_info.data_len() as u64,
                         *current_slot,
                         token_account_info.lamports(),
-                        light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                        light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                     )
                     .map_err(|_| CTokenError::InvalidAccountData)?;
 

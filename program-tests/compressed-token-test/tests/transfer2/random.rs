@@ -1,4 +1,4 @@
-use light_ctoken_types::state::TokenDataVersion;
+use light_ctoken_interface::state::TokenDataVersion;
 use rand::{
     rngs::{StdRng, ThreadRng},
     Rng, RngCore, SeedableRng,

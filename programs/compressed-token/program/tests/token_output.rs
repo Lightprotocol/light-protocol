@@ -18,7 +18,7 @@ use light_compressed_token::{
         token_output::set_output_compressed_account,
     },
 };
-use light_ctoken_types::{
+use light_ctoken_interface::{
     hash_cache::HashCache, state::CompressedTokenAccountState as AccountState,
 };
 use light_zero_copy::ZeroCopyNew;

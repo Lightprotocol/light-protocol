@@ -1,7 +1,7 @@
 use anchor_compressed_token::{check_spl_token_pool_derivation_with_index, ErrorCode};
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
     CMINT_ADDRESS_TREE,
 };

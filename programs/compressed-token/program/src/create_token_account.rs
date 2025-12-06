@@ -6,7 +6,7 @@ use light_account_checks::{
 };
 use light_compressed_account::Pubkey;
 use light_compressible::config::CompressibleConfig;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::create_ctoken_account::CreateTokenAccountInstructionData,
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };

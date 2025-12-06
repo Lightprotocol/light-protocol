@@ -79,7 +79,7 @@ async fn test_create_ata2_basic() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -110,7 +110,7 @@ async fn test_create_ata2_idempotent() {
         rent_sponsor: context.rent_sponsor,
         num_prepaid_epochs: 2,
         lamports_per_write: Some(100),
-        account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
         compress_to_pubkey: false,
         payer: payer_pubkey,
     };
@@ -140,7 +140,7 @@ async fn test_create_ata2_idempotent() {
 
     assert_eq!(
         account.data.len(),
-        light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize,
+        light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize,
         "Account should still be compressible size after idempotent recreation"
     );
 }

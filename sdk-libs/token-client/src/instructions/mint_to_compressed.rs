@@ -3,7 +3,11 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_compressed_token_sdk::{
+use light_ctoken_interface::{
+    instructions::mint_action::{CompressedMintWithContext, Recipient},
+    state::{CompressedMint, TokenDataVersion},
+};
+use light_ctoken_sdk::{
     compressed_token::{
         create_compressed_mint::derive_cmint_from_spl_mint,
         mint_to_compressed::{
@@ -11,10 +15,6 @@ use light_compressed_token_sdk::{
         },
     },
     token_pool::{derive_token_pool, find_token_pool_pda_with_index},
-};
-use light_ctoken_types::{
-    instructions::mint_action::{CompressedMintWithContext, Recipient},
-    state::{CompressedMint, TokenDataVersion},
 };
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;

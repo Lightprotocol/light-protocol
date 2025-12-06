@@ -4,7 +4,7 @@ mod shared;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
-use light_compressed_token_sdk::ctoken::CTOKEN_PROGRAM_ID;
+use light_ctoken_sdk::ctoken::CTOKEN_PROGRAM_ID;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use native_ctoken_examples::{InstructionType, TransferData, ID, TOKEN_ACCOUNT_SEED};
 use shared::*;
@@ -60,7 +60,7 @@ async fn test_ctoken_transfer_invoke() {
         .unwrap();
 
     // Verify final balances
-    use light_ctoken_types::state::CToken;
+    use light_ctoken_interface::state::CToken;
     let source_data_after = rpc.get_account(source_ata).await.unwrap().unwrap();
     let source_state_after = CToken::deserialize(&mut &source_data_after.data[..]).unwrap();
     assert_eq!(source_state_after.amount, 500);
@@ -117,7 +117,7 @@ async fn test_ctoken_transfer_invoke_signed() {
         .unwrap();
 
     // Verify final balances
-    use light_ctoken_types::state::CToken;
+    use light_ctoken_interface::state::CToken;
     let source_data_after = rpc.get_account(source_ata).await.unwrap().unwrap();
     let source_state_after = CToken::deserialize(&mut &source_data_after.data[..]).unwrap();
     assert_eq!(source_state_after.amount, 700);

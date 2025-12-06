@@ -3,10 +3,10 @@ use anchor_lang::{
     solana_program::{instruction::Instruction, program::invoke, sysvar::clock::Clock},
 };
 use light_compressed_account::instruction_data::traits::LightInstructionData;
-use light_compressed_token_sdk::compressed_token::{
+use light_ctoken_interface::instructions::mint_action::{MintToCompressedAction, Recipient};
+use light_ctoken_sdk::compressed_token::{
     create_compressed_mint::find_spl_mint_address, mint_action::MintActionMetaConfig,
 };
-use light_ctoken_types::instructions::mint_action::{MintToCompressedAction, Recipient};
 use light_sdk::{
     compressible::{
         compress_account_on_init::prepare_compressed_account_on_init, CompressibleConfig,
@@ -123,7 +123,7 @@ pub fn create_user_record_and_game_session<'info>(
 
     let proof = compression_params.proof.0.unwrap_or_default();
     let mut instruction_data =
-        light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
+        light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
             compression_params.mint_with_context.address,
             0, // root_index
             proof,
@@ -157,7 +157,7 @@ pub fn create_user_record_and_game_session<'info>(
         ]));
 
     instruction_data = instruction_data.with_cpi_context(
-        light_ctoken_types::instructions::mint_action::CpiContext {
+        light_ctoken_interface::instructions::mint_action::CpiContext {
             address_tree_pubkey: address_tree_pubkey.to_bytes(),
             set_context: false,
             first_set_context: false,
@@ -191,7 +191,7 @@ pub fn create_user_record_and_game_session<'info>(
 
     // Build instruction
     let mint_action_instruction = Instruction {
-        program_id: Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
         accounts: account_metas,
         data,
     };

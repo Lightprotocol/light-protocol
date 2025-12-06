@@ -4,11 +4,7 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_account::instruction_data::traits::LightInstructionData;
-use light_compressed_token_sdk::compressed_token::{
-    create_compressed_mint::{derive_compressed_mint_address, find_spl_mint_address},
-    mint_action::MintActionMetaConfig,
-};
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
         mint_action::{
@@ -19,6 +15,10 @@ use light_ctoken_types::{
     },
     state::CompressedMint,
     COMPRESSED_TOKEN_PROGRAM_ID,
+};
+use light_ctoken_sdk::compressed_token::{
+    create_compressed_mint::{derive_compressed_mint_address, find_spl_mint_address},
+    mint_action::MintActionMetaConfig,
 };
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
@@ -121,10 +121,10 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         })?;
 
         let mint_data =
-            light_ctoken_types::instructions::mint_action::CompressedMintInstructionData {
+            light_ctoken_interface::instructions::mint_action::CompressedMintInstructionData {
                 supply: new_mint.supply,
                 decimals: new_mint.decimals,
-                metadata: light_ctoken_types::state::CompressedMintMetadata {
+                metadata: light_ctoken_interface::state::CompressedMintMetadata {
                     version: new_mint.version,
                     mint: find_spl_mint_address(&params.mint_seed).0.to_bytes().into(),
                     spl_mint_initialized: false, // Will be set to true if CreateSplMint action is present

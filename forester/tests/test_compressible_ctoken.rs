@@ -9,8 +9,8 @@ use light_client::{
     local_test_validator::{spawn_validator, LightValidatorConfig},
     rpc::{LightClient, LightClientConfig, Rpc},
 };
-use light_compressed_token_sdk::compressed_token::create_compressed_mint;
-use light_ctoken_types::state::TokenDataVersion;
+use light_ctoken_interface::state::TokenDataVersion;
+use light_ctoken_sdk::compressed_token::create_compressed_mint;
 use light_registry::{
     protocol_config::state::ProtocolConfigPda,
     sdk::{
@@ -521,7 +521,7 @@ async fn run_bootstrap_test(
                     exts.iter().any(|ext| {
                         matches!(
                             ext,
-                            light_ctoken_types::state::extensions::ExtensionStruct::Compressible(_)
+                            light_ctoken_interface::state::extensions::ExtensionStruct::Compressible(_)
                         )
                     })
                 });

@@ -3,7 +3,7 @@
 mod shared;
 
 use light_client::rpc::Rpc;
-use light_compressed_token_sdk::ctoken::{rent_sponsor_pda, CTOKEN_PROGRAM_ID};
+use light_ctoken_sdk::ctoken::{rent_sponsor_pda, CTOKEN_PROGRAM_ID};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use native_ctoken_examples::{InstructionType, ID, TOKEN_ACCOUNT_SEED};
 use shared::*;

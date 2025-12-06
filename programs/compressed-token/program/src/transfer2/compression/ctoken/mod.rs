@@ -1,5 +1,5 @@
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
-use light_ctoken_types::instructions::transfer2::{
+use light_ctoken_interface::instructions::transfer2::{
     ZCompressedTokenInstructionDataTransfer2, ZCompression,
 };
 use light_program_profiler::profile;

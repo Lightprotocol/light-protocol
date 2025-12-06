@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo;
-use light_compressed_token_sdk::compat::PackedCTokenData;
+use light_ctoken_sdk::compat::PackedCTokenData;
 use light_sdk::{
     compressible::{compress_account::prepare_account_for_compression, CompressibleConfig},
     cpi::v2::CpiAccounts,
@@ -183,7 +183,7 @@ impl<'info> light_sdk::compressible::DecompressContext<'info>
             return Ok(());
         }
 
-        light_compressed_token_sdk::compressible::decompress_runtime::process_decompress_tokens_runtime::<
+        light_ctoken_sdk::compressible::decompress_runtime::process_decompress_tokens_runtime::<
             CTokenAccountVariant,
             _,
         >(

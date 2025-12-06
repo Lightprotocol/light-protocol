@@ -1,13 +1,13 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_client::indexer::Indexer;
-use light_compressed_token_sdk::{
+use light_ctoken_interface::state::{extensions::AdditionalMetadata, CompressedMint};
+use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::{
         derive_compressed_mint_address, find_spl_mint_address,
     },
     ctoken::CreateAssociatedTokenAccount,
 };
-use light_ctoken_types::state::{extensions::AdditionalMetadata, CompressedMint};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
@@ -84,7 +84,7 @@ async fn test_random_mint_action() {
         8, // decimals
         &authority,
         Some(authority.pubkey()),
-        Some(light_ctoken_types::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+        Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
             update_authority: Some(authority.pubkey().into()),
             name: "Test Token".as_bytes().to_vec(),
             symbol: "TEST".as_bytes().to_vec(),
@@ -111,7 +111,7 @@ async fn test_random_mint_action() {
         8,
         authority.pubkey(),
         authority.pubkey(),
-        Some(light_ctoken_types::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+        Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
             update_authority: Some(authority.pubkey().into()),
             name: "Test Token".as_bytes().to_vec(),
             symbol: "TEST".as_bytes().to_vec(),
@@ -139,11 +139,7 @@ async fn test_random_mint_action() {
             .await
             .unwrap();
 
-        let ata = light_compressed_token_sdk::ctoken::derive_ctoken_ata(
-            &recipient.pubkey(),
-            &spl_mint_pda,
-        )
-        .0;
+        let ata = light_ctoken_sdk::ctoken::derive_ctoken_ata(&recipient.pubkey(), &spl_mint_pda).0;
 
         ctoken_atas.push(ata);
     }

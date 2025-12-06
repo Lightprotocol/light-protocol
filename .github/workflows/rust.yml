@@ -59,7 +59,7 @@ jobs:
               cargo test -p light-hash-set --all-features
               cargo test -p batched-merkle-tree-test -- --skip test_simulate_transactions --skip test_e2e
               cargo test -p light-concurrent-merkle-tree
-              cargo test -p light-ctoken-types --features poseidon
+              cargo test -p light-ctoken-interface --features poseidon
               cargo test -p light-compressible --all-features
           - name: program-libs-slow
             packages: light-bloom-filter light-indexed-merkle-tree batched-merkle-tree-test

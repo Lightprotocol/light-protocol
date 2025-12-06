@@ -17,7 +17,7 @@ The program showcases **8 different instructions** that cover the core compresse
 
 ## Implementation Pattern: Builder Pattern from `ctoken` Module
 
-This implementation uses the **builder pattern** from the `light-compressed-token-sdk::ctoken` module. This pattern provides a clean, ergonomic API for CPI operations.
+This implementation uses the **builder pattern** from the `light-ctoken-sdk::ctoken` module. This pattern provides a clean, ergonomic API for CPI operations.
 
 ### Why Use the Builder Pattern?
 
@@ -66,7 +66,7 @@ transfer_accounts.invoke_signed(&[signer_seeds])?;
 
 ### ✅ Fully Implemented (8/8 Instructions)
 
-All instructions use the **builder pattern** from `light-compressed-token-sdk::ctoken`:
+All instructions use the **builder pattern** from `light-ctoken-sdk::ctoken`:
 
 - **create_cmint** (Instruction 0): Create compressed mint using `CreateCMintAccountInfos::invoke()`
 - **mint_to_ctoken** (Instruction 1): Mint tokens to compressed accounts using `MintToCTokenInfos::invoke()`
@@ -94,7 +94,7 @@ ctoken/native/
 
 All dependencies use **path references** to `/Users/ananas/dev/light-protocol2/sdk-libs/`:
 
-- `light-compressed-token-sdk` → Main SDK with ctoken builder pattern
+- `light-ctoken-sdk` → Main SDK with ctoken builder pattern
 - `light-compressed-token-types` → Type definitions
 - `light-sdk` → Core SDK
 - `light-sdk-types` → Common types

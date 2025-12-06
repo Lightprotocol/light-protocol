@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use borsh::BorshDeserialize;
 use dashmap::DashMap;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     state::{extensions::ExtensionStruct, CToken},
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
 };

@@ -2,7 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{checks::check_signer, AccountInfoTrait};
 use light_compressible::rent::{get_rent_exemption_lamports, AccountRentState};
-use light_ctoken_types::state::{CToken, ZCompressedTokenMut, ZExtensionStructMut};
+use light_ctoken_interface::state::{CToken, ZCompressedTokenMut, ZExtensionStructMut};
 use light_program_profiler::profile;
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::Sysvar;
@@ -161,7 +161,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
 
     if let Some(extensions) = ctoken.extensions.as_ref() {
         for extension in extensions {
-            if let light_ctoken_types::state::ZExtensionStruct::Compressible(compressible_ext) =
+            if let light_ctoken_interface::state::ZExtensionStruct::Compressible(compressible_ext) =
                 extension
             {
                 // Calculate distribution based on rent and write_top_up

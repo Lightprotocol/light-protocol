@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
-use light_ctoken_types::state::{
+use light_ctoken_interface::state::{
     extensions::{AdditionalMetadata, ExtensionStruct},
     CToken, CompressedMint,
 };
@@ -186,7 +186,7 @@ pub async fn assert_mint_action(
                         account_size,
                         current_slot,
                         pre_lamports,
-                        light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                        light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                     )
                     .unwrap();
 

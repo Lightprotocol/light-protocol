@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_compressed_token_sdk::{
+use light_ctoken_sdk::{
     compressed_token::{
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
@@ -87,7 +87,7 @@ pub fn process_compress_full_and_close<'info>(
     invoke(&instruction, account_infos.as_slice())?;
 
     let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID);
+        Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
     // Create close instruction without rent_sponsor for non-compressible accounts
     let close_instruction = CloseAccount {
         token_program: compressed_token_program_id,

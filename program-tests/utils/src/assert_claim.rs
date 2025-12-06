@@ -1,5 +1,5 @@
 use light_client::rpc::Rpc;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     state::{CToken, ZExtensionStruct, ZExtensionStructMut},
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };

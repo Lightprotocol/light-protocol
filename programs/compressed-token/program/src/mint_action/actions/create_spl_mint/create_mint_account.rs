@@ -1,5 +1,5 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_ctoken_types::{
+use light_ctoken_interface::{
     instructions::mint_action::ZCompressedMintInstructionData, COMPRESSED_MINT_SEED,
 };
 use light_program_profiler::profile;
@@ -19,7 +19,7 @@ pub fn create_mint_account(
     mint_bump: u8,
     mint_signer: &AccountInfo,
 ) -> Result<(), ProgramError> {
-    let mint_account_size = light_ctoken_types::MINT_ACCOUNT_SIZE as usize;
+    let mint_account_size = light_ctoken_interface::MINT_ACCOUNT_SIZE as usize;
     let mint_account = executing_accounts
         .mint
         .ok_or(ProgramError::InvalidAccountData)?;

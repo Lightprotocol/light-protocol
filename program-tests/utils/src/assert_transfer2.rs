@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID;
 use light_program_test::LightProgramTest;
 use light_token_client::instructions::transfer2::{
     CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
@@ -88,12 +88,12 @@ pub async fn assert_transfer2_with_delegate(
                 };
 
                 // Get mint from the source compressed token account
-                let expected_recipient_token_data = light_compressed_token_sdk::compat::TokenData {
+                let expected_recipient_token_data = light_ctoken_sdk::compat::TokenData {
                     mint: source_mint,
                     owner: transfer_input.to,
                     amount: transfer_input.amount,
                     delegate: None,
-                    state: light_compressed_token_sdk::compat::AccountState::Initialized,
+                    state: light_ctoken_sdk::compat::AccountState::Initialized,
                     tlv: None,
                 };
 
@@ -157,12 +157,12 @@ pub async fn assert_transfer2_with_delegate(
                             None // No delegate to preserve
                         };
 
-                    let expected_change_token = light_compressed_token_sdk::compat::TokenData {
+                    let expected_change_token = light_ctoken_sdk::compat::TokenData {
                         mint: source_mint,
                         owner: source_owner,
                         amount: change_amount,
                         delegate: expected_delegate,
-                        state: light_compressed_token_sdk::compat::AccountState::Initialized,
+                        state: light_ctoken_sdk::compat::AccountState::Initialized,
                         tlv: None,
                     };
 
@@ -216,12 +216,12 @@ pub async fn assert_transfer2_with_delegate(
                         None // Default to None if no authority specified
                     };
 
-                    let expected_change_token = light_compressed_token_sdk::compat::TokenData {
+                    let expected_change_token = light_ctoken_sdk::compat::TokenData {
                         mint: source_mint,
                         owner: source_owner,
                         amount: change_amount,
                         delegate: expected_delegate,
-                        state: light_compressed_token_sdk::compat::AccountState::Initialized,
+                        state: light_ctoken_sdk::compat::AccountState::Initialized,
                         tlv: None,
                     };
 
@@ -278,12 +278,12 @@ pub async fn assert_transfer2_with_delegate(
                         .value
                         .items;
 
-                    let expected_change_token = light_compressed_token_sdk::compat::TokenData {
+                    let expected_change_token = light_ctoken_sdk::compat::TokenData {
                         mint: source_mint,
                         owner: source_owner,
                         amount: change_amount,
                         delegate: Some(approve_input.delegate),
-                        state: light_compressed_token_sdk::compat::AccountState::Initialized,
+                        state: light_ctoken_sdk::compat::AccountState::Initialized,
                         tlv: None,
                     };
 
@@ -336,12 +336,12 @@ pub async fn assert_transfer2_with_delegate(
                     .map(|accounts| accounts.iter().map(|a| a.token.amount).sum::<u64>())
                     .unwrap_or(0);
 
-                let expected_recipient_token_data = light_compressed_token_sdk::compat::TokenData {
+                let expected_recipient_token_data = light_ctoken_sdk::compat::TokenData {
                     mint: compress_input.mint,
                     owner: compress_input.to,
                     amount: compress_input.amount + compressed_input_amount,
                     delegate: None,
-                    state: light_compressed_token_sdk::compat::AccountState::Initialized,
+                    state: light_ctoken_sdk::compat::AccountState::Initialized,
                     tlv: None,
                 };
                 recipient_accounts.iter().for_each(|account| {
@@ -387,7 +387,7 @@ pub async fn assert_transfer2_with_delegate(
                     .expect("Failed to unpack SPL token account");
 
                 // Check if compress_to_pubkey is set in the compressible extension
-                use light_ctoken_types::state::{ctoken::CToken, ZExtensionStruct};
+                use light_ctoken_interface::state::{ctoken::CToken, ZExtensionStruct};
                 use light_zero_copy::traits::ZeroCopyAt;
 
                 let compress_to_pubkey = if pre_account_data.data.len() > 165 {
@@ -482,7 +482,7 @@ pub async fn assert_transfer2_with_delegate(
                 );
                 assert_eq!(
                     compressed_account.token.state,
-                    light_compressed_token_sdk::compat::AccountState::Initialized,
+                    light_ctoken_sdk::compat::AccountState::Initialized,
                     "CompressAndClose compressed account should be initialized"
                 );
                 assert_eq!(

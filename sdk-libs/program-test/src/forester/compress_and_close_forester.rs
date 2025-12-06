@@ -5,8 +5,8 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_compressed_token_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
 use light_compressible::config::CompressibleConfig;
+use light_ctoken_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
 use light_registry::{
     accounts::CompressAndCloseContext as CompressAndCloseAccounts,
     compressible::compressed_token::CompressAndCloseIndices, instruction::CompressAndClose,
@@ -83,7 +83,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     packed_accounts.insert_or_get(output_queue);
 
     // Parse the ctoken account to get required pubkeys
-    use light_ctoken_types::state::{CToken, ZExtensionStruct};
+    use light_ctoken_interface::state::{CToken, ZExtensionStruct};
     use light_zero_copy::traits::ZeroCopyAt;
 
     let mut indices_vec = Vec::with_capacity(solana_ctoken_accounts.len());

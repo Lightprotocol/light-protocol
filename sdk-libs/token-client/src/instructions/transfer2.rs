@@ -2,7 +2,12 @@ use light_client::{
     indexer::{CompressedTokenAccount, Indexer},
     rpc::Rpc,
 };
-use light_compressed_token_sdk::{
+use light_ctoken_interface::{
+    instructions::transfer2::{MultiInputTokenDataWithContext, MultiTokenTransferOutputData},
+    state::TokenDataVersion,
+    COMPRESSED_TOKEN_PROGRAM_ID,
+};
+use light_ctoken_sdk::{
     compressed_token::{
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
@@ -12,11 +17,6 @@ use light_compressed_token_sdk::{
     },
     error::TokenSdkError,
     token_pool::find_token_pool_pda_with_index,
-};
-use light_ctoken_types::{
-    instructions::transfer2::{MultiInputTokenDataWithContext, MultiTokenTransferOutputData},
-    state::TokenDataVersion,
-    COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
 use solana_instruction::Instruction;
@@ -513,7 +513,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     .ok_or(TokenSdkError::InvalidAccountData)?;
 
                 // Parse the compressed token account using zero-copy deserialization
-                use light_ctoken_types::state::{CToken, ZExtensionStruct};
+                use light_ctoken_interface::state::{CToken, ZExtensionStruct};
                 use light_zero_copy::traits::ZeroCopyAt;
                 let (compressed_token, _) = CToken::zero_copy_at(&token_account_info.data)
                     .map_err(|_| TokenSdkError::InvalidAccountData)?;

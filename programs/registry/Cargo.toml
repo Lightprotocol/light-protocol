@@ -25,7 +25,7 @@ aligned-sized = { workspace = true }
 anchor-lang = { workspace = true, features = ["init-if-needed"] }
 account-compression = { workspace = true }
 light-compressible = { workspace = true, features = ["anchor"] }
-light-ctoken-types = { workspace = true, features = ["anchor"] }
+light-ctoken-interface = { workspace = true, features = ["anchor"] }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 light-account-checks = { workspace = true, features = ["solana", "std", "msg"] }
 light-program-profiler = { workspace = true }

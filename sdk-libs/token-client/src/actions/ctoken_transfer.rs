@@ -56,7 +56,7 @@ pub fn create_transfer_ctoken_instruction(
     authority: Pubkey,
 ) -> Result<Instruction, RpcError> {
     let transfer_instruction = Instruction {
-        program_id: Pubkey::from(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::from(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
         accounts: vec![
             AccountMeta::new(source, false),      // Source token account
             AccountMeta::new(destination, false), // Destination token account
