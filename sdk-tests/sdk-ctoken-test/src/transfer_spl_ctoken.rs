@@ -11,14 +11,14 @@ pub const TRANSFER_AUTHORITY_SEED: &[u8] = b"transfer_authority";
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct TransferSplToCtokenData {
     pub amount: u64,
-    pub token_pool_pda_bump: u8,
+    pub spl_interface_pda_bump: u8,
 }
 
 /// Instruction data for CToken to SPL transfer
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct TransferCtokenToSplData {
     pub amount: u64,
-    pub token_pool_pda_bump: u8,
+    pub spl_interface_pda_bump: u8,
 }
 
 /// Handler for transferring SPL tokens to CToken (invoke)
@@ -30,7 +30,7 @@ pub struct TransferCtokenToSplData {
 /// - accounts[3]: authority (signer)
 /// - accounts[4]: mint
 /// - accounts[5]: payer (signer)
-/// - accounts[6]: token_pool_pda
+/// - accounts[6]: spl_interface_pda
 /// - accounts[7]: spl_token_program
 /// - accounts[8]: compressed_token_program_authority
 pub fn process_spl_to_ctoken_invoke(
@@ -48,8 +48,8 @@ pub fn process_spl_to_ctoken_invoke(
         authority: accounts[3].clone(),
         mint: accounts[4].clone(),
         payer: accounts[5].clone(),
-        token_pool_pda: accounts[6].clone(),
-        token_pool_pda_bump: data.token_pool_pda_bump,
+        spl_interface_pda: accounts[6].clone(),
+        spl_interface_pda_bump: data.spl_interface_pda_bump,
         spl_token_program: accounts[7].clone(),
         compressed_token_program_authority: accounts[8].clone(),
     }
@@ -69,7 +69,7 @@ pub fn process_spl_to_ctoken_invoke(
 /// - accounts[3]: authority (PDA, not signer - program signs)
 /// - accounts[4]: mint
 /// - accounts[5]: payer (signer)
-/// - accounts[6]: token_pool_pda
+/// - accounts[6]: spl_interface_pda
 /// - accounts[7]: spl_token_program
 /// - accounts[8]: compressed_token_program_authority
 pub fn process_spl_to_ctoken_invoke_signed(
@@ -96,8 +96,8 @@ pub fn process_spl_to_ctoken_invoke_signed(
         authority: accounts[3].clone(),
         mint: accounts[4].clone(),
         payer: accounts[5].clone(),
-        token_pool_pda: accounts[6].clone(),
-        token_pool_pda_bump: data.token_pool_pda_bump,
+        spl_interface_pda: accounts[6].clone(),
+        spl_interface_pda_bump: data.spl_interface_pda_bump,
         spl_token_program: accounts[7].clone(),
         compressed_token_program_authority: accounts[8].clone(),
     };
@@ -118,7 +118,7 @@ pub fn process_spl_to_ctoken_invoke_signed(
 /// - accounts[3]: authority (signer)
 /// - accounts[4]: mint
 /// - accounts[5]: payer (signer)
-/// - accounts[6]: token_pool_pda
+/// - accounts[6]: spl_interface_pda
 /// - accounts[7]: spl_token_program
 /// - accounts[8]: compressed_token_program_authority
 pub fn process_ctoken_to_spl_invoke(
@@ -136,8 +136,8 @@ pub fn process_ctoken_to_spl_invoke(
         authority: accounts[3].clone(),
         mint: accounts[4].clone(),
         payer: accounts[5].clone(),
-        token_pool_pda: accounts[6].clone(),
-        token_pool_pda_bump: data.token_pool_pda_bump,
+        spl_interface_pda: accounts[6].clone(),
+        spl_interface_pda_bump: data.spl_interface_pda_bump,
         spl_token_program: accounts[7].clone(),
         compressed_token_program_authority: accounts[8].clone(),
     }
@@ -157,7 +157,7 @@ pub fn process_ctoken_to_spl_invoke(
 /// - accounts[3]: authority (PDA, not signer - program signs)
 /// - accounts[4]: mint
 /// - accounts[5]: payer (signer)
-/// - accounts[6]: token_pool_pda
+/// - accounts[6]: spl_interface_pda
 /// - accounts[7]: spl_token_program
 /// - accounts[8]: compressed_token_program_authority
 pub fn process_ctoken_to_spl_invoke_signed(
@@ -184,8 +184,8 @@ pub fn process_ctoken_to_spl_invoke_signed(
         authority: accounts[3].clone(),
         mint: accounts[4].clone(),
         payer: accounts[5].clone(),
-        token_pool_pda: accounts[6].clone(),
-        token_pool_pda_bump: data.token_pool_pda_bump,
+        spl_interface_pda: accounts[6].clone(),
+        spl_interface_pda_bump: data.spl_interface_pda_bump,
         spl_token_program: accounts[7].clone(),
         compressed_token_program_authority: accounts[8].clone(),
     };

@@ -64,7 +64,7 @@ jobs:
               cargo test -p light-client
               cargo test -p light-sparse-merkle-tree
               cargo test -p light-compressed-token-types
-              cargo test -p light-ctoken-sdk
+              cargo test -p light-ctoken-sdk --all-features
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4

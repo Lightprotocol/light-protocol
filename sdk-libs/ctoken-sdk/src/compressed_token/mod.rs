@@ -1,8 +1,11 @@
+//! Compressed token account types and instruction builders.
+
+#[cfg(feature = "v1")]
 mod v1;
 mod v2;
 
 pub mod ctoken_instruction;
 
-// Re-export everything from v1 and v2
+#[cfg(feature = "v1")]
 pub use v1::*;
 pub use v2::*;

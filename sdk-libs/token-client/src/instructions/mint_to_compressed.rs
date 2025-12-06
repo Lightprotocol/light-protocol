@@ -14,7 +14,7 @@ use light_ctoken_sdk::{
             create_mint_to_compressed_instruction, DecompressedMintConfig, MintToCompressedInputs,
         },
     },
-    token_pool::{derive_token_pool, find_token_pool_pda_with_index},
+    spl_interface::{derive_spl_interface_pda, find_spl_interface_pda_with_index},
 };
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
@@ -59,19 +59,19 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
 
     // Create decompressed mint config and token pool if mint is decompressed
     let decompressed_mint_config = if compressed_mint.metadata.spl_mint_initialized {
-        let (token_pool_pda, _) = find_token_pool_pda_with_index(&spl_mint_pda, 0);
+        let (spl_interface_pda, _) = find_spl_interface_pda_with_index(&spl_mint_pda, 0);
         Some(DecompressedMintConfig {
             mint_pda: spl_mint_pda,
-            token_pool_pda,
+            token_pool_pda: spl_interface_pda,
             token_program: spl_token_2022::ID,
         })
     } else {
         None
     };
 
-    // Derive token pool if needed for decompressed mints
-    let token_pool = if compressed_mint.metadata.spl_mint_initialized {
-        Some(derive_token_pool(&spl_mint_pda, 0))
+    // Derive spl interface pda if needed for decompressed mints
+    let spl_interface_pda = if compressed_mint.metadata.spl_mint_initialized {
+        Some(derive_spl_interface_pda(&spl_mint_pda, 0))
     } else {
         None
     };
@@ -103,7 +103,7 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
             decompressed_mint_config,
             proof: rpc_proof_result.proof.into(),
             token_account_version: token_account_version as u8, // V2 for batched merkle trees
-            token_pool,
+            spl_interface_pda,
         },
         None,
     )

@@ -12,8 +12,8 @@ use crate::{error::TokenSdkError, utils::is_ctoken_account};
 pub struct SplInterface<'info> {
     pub mint: AccountInfo<'info>,
     pub spl_token_program: AccountInfo<'info>,
-    pub token_pool_pda: AccountInfo<'info>,
-    pub token_pool_pda_bump: u8,
+    pub spl_interface_pda: AccountInfo<'info>,
+    pub spl_interface_pda_bump: u8,
 }
 
 pub struct TransferInterface<'info> {
@@ -56,14 +56,14 @@ impl<'info> TransferInterface<'info> {
     /// # Arguments
     /// * `mint` - Optional mint account (required for SPL<->ctoken transfers)
     /// * `spl_token_program` - Optional SPL token program (required for SPL<->ctoken transfers)
-    /// * `compressed_token_pool_pda` - Optional token pool PDA (required for SPL<->ctoken transfers)
-    /// * `compressed_token_pool_pda_bump` - Optional bump seed for token pool PDA
+    /// * `spl_interface_pda` - Optional SPL interface PDA (required for SPL<->ctoken transfers)
+    /// * `spl_interface_pda_bump` - Optional bump seed for SPL interface PDA
     pub fn with_spl_interface(
         mut self,
         mint: Option<AccountInfo<'info>>,
         spl_token_program: Option<AccountInfo<'info>>,
-        token_pool_pda: Option<AccountInfo<'info>>,
-        token_pool_pda_bump: Option<u8>,
+        spl_interface_pda: Option<AccountInfo<'info>>,
+        spl_interface_pda_bump: Option<u8>,
     ) -> Result<Self, ProgramError> {
         let mint =
             mint.ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingMintAccount.into()))?;
@@ -71,17 +71,17 @@ impl<'info> TransferInterface<'info> {
         let spl_token_program = spl_token_program
             .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingSplTokenProgram.into()))?;
 
-        let token_pool_pda = token_pool_pda
+        let spl_interface_pda = spl_interface_pda
             .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingTokenPoolPda.into()))?;
 
-        let token_pool_pda_bump = token_pool_pda_bump
+        let spl_interface_pda_bump = spl_interface_pda_bump
             .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingTokenPoolPdaBump.into()))?;
 
         self.spl_interface = Some(SplInterface {
             mint,
             spl_token_program,
-            token_pool_pda,
-            token_pool_pda_bump,
+            spl_interface_pda,
+            spl_interface_pda_bump,
         });
         Ok(self)
     }
@@ -118,8 +118,8 @@ impl<'info> TransferInterface<'info> {
                     authority: self.authority.clone(),
                     mint: config.mint.clone(),
                     payer: self.payer.clone(),
-                    token_pool_pda: config.token_pool_pda.clone(),
-                    token_pool_pda_bump: config.token_pool_pda_bump,
+                    spl_interface_pda: config.spl_interface_pda.clone(),
+                    spl_interface_pda_bump: config.spl_interface_pda_bump,
                     spl_token_program: config.spl_token_program.clone(),
                     compressed_token_program_authority: self
                         .compressed_token_program_authority
@@ -140,8 +140,8 @@ impl<'info> TransferInterface<'info> {
                     authority: self.authority.clone(),
                     mint: config.mint.clone(),
                     payer: self.payer.clone(),
-                    token_pool_pda: config.token_pool_pda.clone(),
-                    token_pool_pda_bump: config.token_pool_pda_bump,
+                    spl_interface_pda: config.spl_interface_pda.clone(),
+                    spl_interface_pda_bump: config.spl_interface_pda_bump,
                     spl_token_program: config.spl_token_program.clone(),
                     compressed_token_program_authority: self
                         .compressed_token_program_authority
@@ -188,8 +188,8 @@ impl<'info> TransferInterface<'info> {
                     authority: self.authority.clone(),
                     mint: config.mint.clone(),
                     payer: self.payer.clone(),
-                    token_pool_pda: config.token_pool_pda.clone(),
-                    token_pool_pda_bump: config.token_pool_pda_bump,
+                    spl_interface_pda: config.spl_interface_pda.clone(),
+                    spl_interface_pda_bump: config.spl_interface_pda_bump,
                     spl_token_program: config.spl_token_program.clone(),
                     compressed_token_program_authority: self
                         .compressed_token_program_authority
@@ -210,8 +210,8 @@ impl<'info> TransferInterface<'info> {
                     authority: self.authority.clone(),
                     mint: config.mint.clone(),
                     payer: self.payer.clone(),
-                    token_pool_pda: config.token_pool_pda.clone(),
-                    token_pool_pda_bump: config.token_pool_pda_bump,
+                    spl_interface_pda: config.spl_interface_pda.clone(),
+                    spl_interface_pda_bump: config.spl_interface_pda_bump,
                     spl_token_program: config.spl_token_program.clone(),
                     compressed_token_program_authority: self
                         .compressed_token_program_authority

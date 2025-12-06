@@ -38,7 +38,7 @@ use light_ctoken_sdk::{
         CTokenAccount2,
     },
     ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount},
-    token_pool::find_token_pool_pda_with_index,
+    spl_interface::find_spl_interface_pda_with_index,
     ValidityProof,
 };
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
@@ -190,10 +190,10 @@ fn create_spl_compression_inputs(
     // Add SPL token program (spl_token::ID is the owner of SPL token accounts)
     let _token_program_index = packed_tree_accounts.insert_or_get_read_only(spl_token::ID);
 
-    // Derive token pool PDA using SDK function
+    // Derive SPL interface PDA using SDK function
     let pool_index = 0u8;
-    let (token_pool_pda, bump) = find_token_pool_pda_with_index(&mint, pool_index);
-    let pool_account_index = packed_tree_accounts.insert_or_get(token_pool_pda);
+    let (spl_interface_pda, bump) = find_spl_interface_pda_with_index(&mint, pool_index);
+    let pool_account_index = packed_tree_accounts.insert_or_get(spl_interface_pda);
 
     // Compress from SPL token account
     token_account
@@ -454,7 +454,7 @@ async fn test_spl_compression_invalid_pool_bump() -> Result<(), RpcError> {
 
     // Derive pool with correct seed but wrong bump
     let pool_index = 0u8;
-    let (_, correct_bump) = find_token_pool_pda_with_index(&mint, pool_index);
+    let (_, correct_bump) = find_spl_interface_pda_with_index(&mint, pool_index);
 
     // Modify the bump in the compression data to an incorrect value
     if let Some(compression) = &mut compression_inputs.token_accounts[0].compression {
@@ -489,7 +489,7 @@ async fn test_spl_compression_invalid_pool_index() -> Result<(), RpcError> {
 
     // Derive pool with index 1 instead of 0
     let wrong_pool_index = 1u8;
-    let (wrong_pool_pda, wrong_bump) = find_token_pool_pda_with_index(&mint, wrong_pool_index);
+    let (wrong_pool_pda, wrong_bump) = find_spl_interface_pda_with_index(&mint, wrong_pool_index);
 
     // Update the compression data with wrong pool index
     if let Some(compression) = &mut compression_inputs.token_accounts[0].compression {

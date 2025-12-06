@@ -3,7 +3,7 @@ use light_ctoken_sdk::{
     compressed_token::transfer::account_metas::{
         get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
     },
-    token_pool::get_token_pool_pda,
+    spl_interface::get_spl_interface_pda,
     utils::CTokenDefaultAccounts,
     SPL_TOKEN_PROGRAM_ID,
 };
@@ -259,9 +259,9 @@ async fn compress_spl_tokens(
     token_account: Pubkey,
 ) -> Result<Signature, RpcError> {
     let mut remaining_accounts = PackedAccounts::default();
-    let token_pool_pda = get_token_pool_pda(&mint);
+    let spl_interface_pda = get_spl_interface_pda(&mint);
     let config = TokenAccountsMetaConfig::compress_client(
-        token_pool_pda,
+        spl_interface_pda,
         token_account,
         SPL_TOKEN_PROGRAM_ID.into(),
     );
@@ -427,11 +427,11 @@ async fn test_four_invokes_instruction(
 ) -> Result<(), RpcError> {
     let default_pubkeys = CTokenDefaultAccounts::default();
     let mut remaining_accounts = PackedAccounts::default();
-    let token_pool_pda1 = get_token_pool_pda(&mint1);
+    let spl_interface_pda1 = get_spl_interface_pda(&mint1);
     // Remaining accounts 0
     remaining_accounts.add_pre_accounts_meta(AccountMeta::new(compression_token_account, false));
     // Remaining accounts 1
-    remaining_accounts.add_pre_accounts_meta(AccountMeta::new(token_pool_pda1, false));
+    remaining_accounts.add_pre_accounts_meta(AccountMeta::new(spl_interface_pda1, false));
     // Remaining accounts 2
     remaining_accounts.add_pre_accounts_meta(AccountMeta::new(SPL_TOKEN_PROGRAM_ID.into(), false));
     // Remaining accounts 3

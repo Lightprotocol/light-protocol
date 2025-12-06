@@ -267,7 +267,7 @@ async fn mint_compressed_tokens(
             output_queue_tokens: output_queue,
             decompressed_mint_config: None,
             token_account_version: 2,
-            token_pool: None,
+            spl_interface_pda: None,
         },
         None,
     )

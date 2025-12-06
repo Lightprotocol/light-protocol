@@ -1,3 +1,4 @@
+#![cfg(feature = "v1")]
 use anchor_lang::ToAccountMetas;
 use light_compressed_token_types::constants::{
     ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA, LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID,

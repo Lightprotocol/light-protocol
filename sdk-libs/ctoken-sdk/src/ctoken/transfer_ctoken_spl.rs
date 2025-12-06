@@ -21,8 +21,8 @@ pub struct TransferCtokenToSpl {
     pub authority: Pubkey,
     pub mint: Pubkey,
     pub payer: Pubkey,
-    pub token_pool_pda: Pubkey,
-    pub token_pool_pda_bump: u8,
+    pub spl_interface_pda: Pubkey,
+    pub spl_interface_pda_bump: u8,
     pub spl_token_program: Pubkey,
 }
 
@@ -33,8 +33,8 @@ pub struct TransferCtokenToSplAccountInfos<'info> {
     pub authority: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
     pub payer: AccountInfo<'info>,
-    pub token_pool_pda: AccountInfo<'info>,
-    pub token_pool_pda_bump: u8,
+    pub spl_interface_pda: AccountInfo<'info>,
+    pub spl_interface_pda_bump: u8,
     pub spl_token_program: AccountInfo<'info>,
     pub compressed_token_program_authority: AccountInfo<'info>,
 }
@@ -54,7 +54,7 @@ impl<'info> TransferCtokenToSplAccountInfos<'info> {
             self.source_ctoken_account,              // Index 1: Source ctoken account
             self.destination_spl_token_account,      // Index 2: Destination SPL token account
             self.authority,                          // Index 3: Authority (signer)
-            self.token_pool_pda,                     // Index 4: Token pool PDA
+            self.spl_interface_pda,                  // Index 4: SPL interface PDA
             self.spl_token_program,                  // Index 5: SPL Token program
         ];
         invoke(&instruction, &account_infos)
@@ -70,7 +70,7 @@ impl<'info> TransferCtokenToSplAccountInfos<'info> {
             self.source_ctoken_account,              // Index 1: Source ctoken account
             self.destination_spl_token_account,      // Index 2: Destination SPL token account
             self.authority,                          // Index 3: Authority (signer)
-            self.token_pool_pda,                     // Index 4: Token pool PDA
+            self.spl_interface_pda,                  // Index 4: SPL interface PDA
             self.spl_token_program,                  // Index 5: SPL Token program
         ];
         invoke_signed(&instruction, &account_infos, signer_seeds)
@@ -86,8 +86,8 @@ impl<'info> From<&TransferCtokenToSplAccountInfos<'info>> for TransferCtokenToSp
             authority: *account_infos.authority.key,
             mint: *account_infos.mint.key,
             payer: *account_infos.payer.key,
-            token_pool_pda: *account_infos.token_pool_pda.key,
-            token_pool_pda_bump: account_infos.token_pool_pda_bump,
+            spl_interface_pda: *account_infos.spl_interface_pda.key,
+            spl_interface_pda_bump: account_infos.spl_interface_pda_bump,
             spl_token_program: *account_infos.spl_token_program.key,
         }
     }
@@ -105,8 +105,8 @@ impl TransferCtokenToSpl {
             AccountMeta::new(self.destination_spl_token_account, false),
             // Authority (index 3) - signer
             AccountMeta::new_readonly(self.authority, true),
-            // Token pool PDA (index 4) - writable
-            AccountMeta::new(self.token_pool_pda, false),
+            // SPL interface PDA (index 4) - writable
+            AccountMeta::new(self.spl_interface_pda, false),
             // SPL Token program (index 5) - needed for CPI
             AccountMeta::new_readonly(self.spl_token_program, false),
         ];
@@ -135,7 +135,7 @@ impl TransferCtokenToSpl {
                 2, // destination SPL token account index
                 4, // pool_account_index
                 0, // pool_index (TODO: make dynamic)
-                self.token_pool_pda_bump,
+                self.spl_interface_pda_bump,
             )),
             delegate_is_set: false,
             method_used: true,

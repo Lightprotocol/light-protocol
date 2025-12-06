@@ -127,7 +127,7 @@ use crate::{
     AccountMeta, Pubkey,
 };
 
-/// Builder for organizing accounts into compressed account instructions.
+/// Builder to collect accounts for compressed account instructions.
 ///
 /// Manages three categories of accounts:
 /// - **Pre-accounts**: Signers and other custom accounts that come before system accounts.

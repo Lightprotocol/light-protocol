@@ -10,12 +10,12 @@
 //!
 //! ### Account Data Hashing
 //!
-//! Sha256 data hashing is the recommended for most use cases.
+//! Sha256 data hashing is recommended for most use cases.
 //! Account data is serialized into a vector with borsh and hashed with Sha256.
 //!
-//! Poseidon data hashing is recommended zk use cases.
-//! The data struct needs to implement the DataHasher implementation.
-//! The LightHasher derives, the DataHasher trait a hashing scheme from the compressed account layout.
+//! Poseidon data hashing is recommended for zk use cases.
+//! The data struct needs to implement the DataHasher trait.
+//! The LightHasher macro derives, the DataHasher trait. The hashing scheme resembles the struct layout.
 //! Alternatively, DataHasher can be implemented manually.
 //! Poseidon hashing is CU intensive and has limitations with regards to hash inputs see Poseidon module for details.
 //!

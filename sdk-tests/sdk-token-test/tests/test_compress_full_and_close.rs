@@ -153,7 +153,7 @@ async fn test_compress_full_and_close() {
             output_queue_tokens: compressed_mint_account.tree_info.queue,
             decompressed_mint_config: None,
             token_account_version: 2,
-            token_pool: None,
+            spl_interface_pda: None,
         },
         None,
     )
