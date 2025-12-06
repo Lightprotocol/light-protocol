@@ -191,7 +191,7 @@ pub fn create_user_record_and_game_session<'info>(
 
     // Build instruction
     let mint_action_instruction = Instruction {
-        program_id: Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
         accounts: account_metas,
         data,
     };

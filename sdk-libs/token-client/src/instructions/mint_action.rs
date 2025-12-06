@@ -14,7 +14,7 @@ use light_ctoken_interface::{
         },
     },
     state::CompressedMint,
-    COMPRESSED_TOKEN_PROGRAM_ID,
+    CTOKEN_PROGRAM_ID,
 };
 use light_ctoken_sdk::compressed_token::{
     create_compressed_mint::{derive_cmint_compressed_address, find_cmint_address},
@@ -317,7 +317,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
 
     // Build final instruction
     Ok(Instruction {
-        program_id: COMPRESSED_TOKEN_PROGRAM_ID.into(),
+        program_id: CTOKEN_PROGRAM_ID.into(),
         accounts: account_metas,
         data,
     })

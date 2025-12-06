@@ -96,7 +96,7 @@ impl CreateCTokenAccount {
         };
 
         Ok(Instruction {
-            program_id: Pubkey::from(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
+            program_id: Pubkey::from(light_ctoken_interface::CTOKEN_PROGRAM_ID),
             accounts,
             data,
         })

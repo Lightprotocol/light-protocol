@@ -102,7 +102,7 @@ pub fn create_compressed_mint_cpi(
 
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
-            light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID,
+            light_ctoken_interface::CTOKEN_PROGRAM_ID,
         ),
         accounts: account_metas,
         data,
@@ -169,7 +169,7 @@ pub fn create_compressed_mint_cpi_write(
 
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
-            light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID,
+            light_ctoken_interface::CTOKEN_PROGRAM_ID,
         ),
         accounts: account_metas,
         data,
@@ -191,7 +191,7 @@ pub fn derive_cmint_compressed_address(
     light_compressed_account::address::derive_address(
         &find_cmint_address(mint_seed).0.to_bytes(),
         &address_tree_pubkey.to_bytes(),
-        &light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID,
+        &light_ctoken_interface::CTOKEN_PROGRAM_ID,
     )
 }
 
@@ -199,13 +199,13 @@ pub fn derive_cmint_from_spl_mint(mint: &Pubkey, address_tree_pubkey: &Pubkey) -
     light_compressed_account::address::derive_address(
         &mint.to_bytes(),
         &address_tree_pubkey.to_bytes(),
-        &light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID,
+        &light_ctoken_interface::CTOKEN_PROGRAM_ID,
     )
 }
 
 pub fn find_cmint_address(mint_seed: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_seed.as_ref()],
-        &Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
+        &Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
     )
 }

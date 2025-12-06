@@ -2,7 +2,7 @@
 use anchor_lang::ToAccountMetas;
 use light_compressed_token_types::constants::{
     ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA, LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID,
-    PROGRAM_ID as COMPRESSED_TOKEN_PROGRAM_ID,
+    PROGRAM_ID as CTOKEN_PROGRAM_ID,
 };
 use light_ctoken_sdk::{
     compressed_token::{
@@ -124,7 +124,7 @@ fn test_get_batch_compress_instruction_account_metas() {
         account_compression_authority: default_pubkeys.account_compression_authority,
         account_compression_program: Pubkey::from(ACCOUNT_COMPRESSION_PROGRAM_ID),
         merkle_tree,
-        self_program: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
+        self_program: Pubkey::from(CTOKEN_PROGRAM_ID),
         system_program: Pubkey::default(),
         sol_pool_pda: None,
     };

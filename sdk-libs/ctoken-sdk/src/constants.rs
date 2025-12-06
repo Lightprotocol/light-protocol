@@ -21,5 +21,5 @@ pub const NOOP_PROGRAM_ID: Pubkey =
 pub const CPI_AUTHORITY_PDA: Pubkey =
     Pubkey::new_from_array(light_compressed_token_types::CPI_AUTHORITY_PDA);
 
-pub const COMPRESSED_TOKEN_PROGRAM_ID: Pubkey =
+pub const CTOKEN_PROGRAM_ID: Pubkey =
     Pubkey::new_from_array(light_compressed_token_types::PROGRAM_ID);

@@ -9,8 +9,7 @@ pub use compress_and_close::{
 use solana_pubkey::Pubkey;
 
 // Program ID for light-compressed-token
-pub const COMPRESSED_TOKEN_PROGRAM_ID: Pubkey =
-    pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
+pub const CTOKEN_PROGRAM_ID: Pubkey = pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
 // Light System Program ID
 pub const LIGHT_SYSTEM_PROGRAM_ID: Pubkey = pubkey!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");

@@ -18,10 +18,10 @@ pub fn derive_ctoken_ata(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[
             owner.as_ref(),
-            light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID.as_ref(),
+            light_ctoken_interface::CTOKEN_PROGRAM_ID.as_ref(),
             mint.as_ref(),
         ],
-        &Pubkey::from(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
+        &Pubkey::from(light_ctoken_interface::CTOKEN_PROGRAM_ID),
     )
 }
 
@@ -138,7 +138,7 @@ impl CreateAssociatedTokenAccount {
         }
 
         Ok(Instruction {
-            program_id: Pubkey::from(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
+            program_id: Pubkey::from(light_ctoken_interface::CTOKEN_PROGRAM_ID),
             accounts,
             data,
         })

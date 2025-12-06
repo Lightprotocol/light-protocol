@@ -271,7 +271,7 @@ fn build_compressions_only_instruction(
     data.extend(serialized);
 
     Ok(solana_sdk::instruction::Instruction {
-        program_id: light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID.into(),
+        program_id: light_ctoken_interface::CTOKEN_PROGRAM_ID.into(),
         accounts: account_metas,
         data,
     })

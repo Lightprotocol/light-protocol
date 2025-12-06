@@ -6,7 +6,7 @@ use light_client::{
 };
 use light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index;
 use light_ctoken_interface::{
-    instructions::mint_action::Recipient, state::CompressedMint, COMPRESSED_TOKEN_PROGRAM_ID,
+    instructions::mint_action::Recipient, state::CompressedMint, CTOKEN_PROGRAM_ID,
 };
 use light_ctoken_sdk::compressed_token::create_compressed_mint::derive_cmint_from_spl_mint;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
@@ -67,7 +67,7 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
         );
         assert_eq!(
             matching_account.account.owner.to_bytes(),
-            COMPRESSED_TOKEN_PROGRAM_ID,
+            CTOKEN_PROGRAM_ID,
             "Recipient token account should have correct program owner"
         );
 

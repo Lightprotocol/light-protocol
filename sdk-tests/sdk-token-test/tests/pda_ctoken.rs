@@ -11,7 +11,7 @@ use light_ctoken_interface::{
         mint_action::{CompressedMintInstructionData, CompressedMintWithContext, Recipient},
     },
     state::{extensions::AdditionalMetadata, CompressedMintMetadata},
-    COMPRESSED_TOKEN_PROGRAM_ID,
+    CTOKEN_PROGRAM_ID,
 };
 use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::{
@@ -296,7 +296,7 @@ pub async fn create_mint(
         payer: payer.pubkey(),
         mint_authority: mint_authority.pubkey(),
         mint_seed: mint_seed.pubkey(),
-        ctoken_program: Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+        ctoken_program: Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
         ctoken_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
         token_account,
     };

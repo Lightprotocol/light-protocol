@@ -228,7 +228,7 @@ pub mod csdk_anchor_full_derived_test {
 
         // Build mint action instruction
         let mint_action_instruction = solana_program::instruction::Instruction {
-            program_id: light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID.into(),
+            program_id: light_ctoken_interface::CTOKEN_PROGRAM_ID.into(),
             accounts: account_metas,
             data,
         };

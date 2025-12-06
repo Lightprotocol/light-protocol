@@ -79,7 +79,7 @@ pub fn update_compressed_mint_cpi(
 
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
-            light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID,
+            light_ctoken_interface::CTOKEN_PROGRAM_ID,
         ),
         accounts: account_metas,
         data,
@@ -147,7 +147,7 @@ pub fn create_update_compressed_mint_cpi_write(
 
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
-            light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID,
+            light_ctoken_interface::CTOKEN_PROGRAM_ID,
         ),
         accounts: account_metas,
         data,

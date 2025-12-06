@@ -162,7 +162,7 @@ impl MintToCToken {
             .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
 
         Ok(Instruction {
-            program_id: Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
+            program_id: Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
             accounts: account_metas,
             data,
         })
@@ -272,7 +272,7 @@ impl MintToCTokenCpiWrite {
             .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
 
         Ok(Instruction {
-            program_id: Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
+            program_id: Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
             accounts: account_metas,
             data,
         })

@@ -8,7 +8,7 @@ use light_ctoken_interface::{
         MintActionCompressedInstructionData,
     },
     state::CompressedMintMetadata,
-    CMINT_ADDRESS_TREE, COMPRESSED_TOKEN_PROGRAM_ID,
+    CMINT_ADDRESS_TREE, CTOKEN_PROGRAM_ID,
 };
 use light_ctoken_sdk::compressed_token::{
     create_compressed_mint::{derive_cmint_compressed_address, find_cmint_address},
@@ -158,7 +158,7 @@ async fn test_write_to_cpi_context_create_mint() {
 
     // Build compressed token instruction
     let ctoken_instruction = Instruction {
-        program_id: Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
         accounts: account_metas,
         data: data.clone(),
     };
@@ -170,7 +170,7 @@ async fn test_write_to_cpi_context_create_mint() {
     let wrapper_instruction = Instruction {
         program_id: WRAPPER_PROGRAM_ID,
         accounts: vec![AccountMeta::new_readonly(
-            Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+            Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
             false,
         )]
         .into_iter()
@@ -279,7 +279,7 @@ async fn test_write_to_cpi_context_invalid_address_tree() {
 
     // Build compressed token instruction
     let ctoken_instruction = Instruction {
-        program_id: Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
         accounts: account_metas,
         data: data.clone(),
     };
@@ -291,7 +291,7 @@ async fn test_write_to_cpi_context_invalid_address_tree() {
     let wrapper_instruction = Instruction {
         program_id: WRAPPER_PROGRAM_ID,
         accounts: vec![AccountMeta::new_readonly(
-            Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+            Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
             false,
         )]
         .into_iter()
@@ -371,7 +371,7 @@ async fn test_write_to_cpi_context_invalid_compressed_address() {
 
     // Build compressed token instruction
     let ctoken_instruction = Instruction {
-        program_id: Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
         accounts: account_metas,
         data: data.clone(),
     };
@@ -383,7 +383,7 @@ async fn test_write_to_cpi_context_invalid_compressed_address() {
     let wrapper_instruction = Instruction {
         program_id: WRAPPER_PROGRAM_ID,
         accounts: vec![AccountMeta::new_readonly(
-            Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+            Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
             false,
         )]
         .into_iter()
@@ -466,7 +466,7 @@ async fn test_execute_cpi_context_invalid_tree_index() {
 
     // Build compressed token instruction
     let execute_instruction = Instruction {
-        program_id: Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
         accounts: account_metas,
         data: data.clone(),
     };
@@ -478,7 +478,7 @@ async fn test_execute_cpi_context_invalid_tree_index() {
     let execute_wrapper_instruction = Instruction {
         program_id: WRAPPER_PROGRAM_ID,
         accounts: vec![AccountMeta::new_readonly(
-            Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+            Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
             false,
         )]
         .into_iter()

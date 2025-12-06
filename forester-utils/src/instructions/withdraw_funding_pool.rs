@@ -1,4 +1,4 @@
-use light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
@@ -37,7 +37,7 @@ pub fn withdraw_funding_pool(
     ];
 
     Instruction {
-        program_id: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::from(CTOKEN_PROGRAM_ID),
         accounts,
         data: instruction_data,
     }

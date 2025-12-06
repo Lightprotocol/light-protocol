@@ -636,7 +636,7 @@ async fn test_update_compressed_mint_authority() {
     // Note: We need to get fresh account info after the updates
     let updated_compressed_accounts = rpc
         .get_compressed_accounts_by_owner(
-            &Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
+            &Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
             None,
             None,
         )

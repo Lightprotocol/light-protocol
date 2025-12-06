@@ -816,7 +816,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
             CompressedMintWithContext, MintActionCompressedInstructionData, MintToCTokenAction,
         },
         state::TokenDataVersion,
-        COMPRESSED_TOKEN_PROGRAM_ID,
+        CTOKEN_PROGRAM_ID,
     };
     use light_ctoken_sdk::compressed_token::{
         create_compressed_mint::derive_cmint_compressed_address, mint_action::MintActionMetaConfig,
@@ -942,7 +942,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
 
     // Build final instruction
     let ix = Instruction {
-        program_id: COMPRESSED_TOKEN_PROGRAM_ID.into(),
+        program_id: CTOKEN_PROGRAM_ID.into(),
         accounts: account_metas,
         data,
     };

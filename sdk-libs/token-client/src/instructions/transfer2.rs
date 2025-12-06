@@ -5,7 +5,7 @@ use light_client::{
 use light_ctoken_interface::{
     instructions::transfer2::{MultiInputTokenDataWithContext, MultiTokenTransferOutputData},
     state::TokenDataVersion,
-    COMPRESSED_TOKEN_PROGRAM_ID,
+    CTOKEN_PROGRAM_ID,
 };
 use light_ctoken_sdk::{
     compressed_token::{
@@ -267,7 +267,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     .unwrap()
                     .owner;
 
-                if source_account_owner.to_bytes() != COMPRESSED_TOKEN_PROGRAM_ID {
+                if source_account_owner.to_bytes() != CTOKEN_PROGRAM_ID {
                     // For SPL compression, get mint first
                     let mint = input.mint;
 
@@ -334,7 +334,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     .unwrap()
                     .owner;
 
-                if recipient_account_owner.to_bytes() != COMPRESSED_TOKEN_PROGRAM_ID {
+                if recipient_account_owner.to_bytes() != CTOKEN_PROGRAM_ID {
                     // For SPL decompression, get mint first
                     let mint = input.compressed_token_account[0].token.mint;
 

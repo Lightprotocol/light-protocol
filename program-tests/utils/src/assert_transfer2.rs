@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use light_program_test::LightProgramTest;
 use light_token_client::instructions::transfer2::{
     CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
@@ -107,8 +107,7 @@ pub async fn assert_transfer2_with_delegate(
                 assert!(
                     recipient_accounts
                         .iter()
-                        .any(|account| account.account.owner.to_bytes()
-                            == COMPRESSED_TOKEN_PROGRAM_ID),
+                        .any(|account| account.account.owner.to_bytes() == CTOKEN_PROGRAM_ID),
                     "Transfer change token account should match expected"
                 );
                 recipient_accounts.iter().for_each(|account| {
@@ -179,7 +178,7 @@ pub async fn assert_transfer2_with_delegate(
                     );
                     assert_eq!(
                         matching_change_account.account.owner.to_bytes(),
-                        COMPRESSED_TOKEN_PROGRAM_ID,
+                        CTOKEN_PROGRAM_ID,
                         "Transfer change token account should match expected"
                     );
                 }
@@ -249,7 +248,7 @@ pub async fn assert_transfer2_with_delegate(
                     );
                     assert_eq!(
                         matching_change_account.account.owner.to_bytes(),
-                        COMPRESSED_TOKEN_PROGRAM_ID,
+                        CTOKEN_PROGRAM_ID,
                         "Decompress change token account should match expected"
                     );
                 }
@@ -300,7 +299,7 @@ pub async fn assert_transfer2_with_delegate(
                     );
                     assert_eq!(
                         matching_change_account.account.owner.to_bytes(),
-                        COMPRESSED_TOKEN_PROGRAM_ID,
+                        CTOKEN_PROGRAM_ID,
                         "Transfer change token account should match expected"
                     );
                     change_accounts.iter().for_each(|account| {
@@ -372,7 +371,7 @@ pub async fn assert_transfer2_with_delegate(
                 );
                 assert_eq!(
                     matching_account.account.owner.to_bytes(),
-                    COMPRESSED_TOKEN_PROGRAM_ID,
+                    CTOKEN_PROGRAM_ID,
                     "Compress recipient token account should match expected"
                 );
             }
@@ -493,7 +492,7 @@ pub async fn assert_transfer2_with_delegate(
                 // Verify compressed account metadata
                 assert_eq!(
                     compressed_account.account.owner.to_bytes(),
-                    COMPRESSED_TOKEN_PROGRAM_ID,
+                    CTOKEN_PROGRAM_ID,
                     "CompressAndClose compressed account should be owned by compressed token program"
                 );
                 assert_eq!(
