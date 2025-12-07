@@ -8,7 +8,7 @@ use light_compressible::{
 };
 use light_ctoken_interface::state::{CToken, ExtensionStruct};
 use light_ctoken_sdk::ctoken::{
-    derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount,
+    derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount,
 };
 use light_program_test::{
     forester::claim_forester, program_test::TestRpc, utils::assert::assert_rpc_error,
@@ -494,7 +494,7 @@ async fn test_pause_compressible_config_with_valid_authority() -> Result<(), Rpc
     };
 
     let compressible_instruction =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
+        CreateAssociatedCTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| {
@@ -627,7 +627,7 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
     };
 
     let compressible_instruction =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
+        CreateAssociatedCTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| {
@@ -673,7 +673,7 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
     };
 
     let compressible_instruction =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
+        CreateAssociatedCTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| {
@@ -762,7 +762,7 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
     };
 
     let compressible_instruction =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), token_account_keypair.pubkey(), mint)
+        CreateAssociatedCTokenAccount::new(payer.pubkey(), token_account_keypair.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| {
@@ -809,7 +809,7 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
     };
 
     let compressible_instruction =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), token_account_keypair2.pubkey(), mint)
+        CreateAssociatedCTokenAccount::new(payer.pubkey(), token_account_keypair2.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| {

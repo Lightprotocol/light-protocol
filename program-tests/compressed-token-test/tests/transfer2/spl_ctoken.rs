@@ -2,7 +2,7 @@ use anchor_lang::prelude::{AccountMeta, ProgramError};
 // Re-export all necessary imports for test modules
 pub use anchor_spl::token_2022::spl_token_2022;
 use light_ctoken_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
-pub use light_ctoken_sdk::ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount};
+pub use light_ctoken_sdk::ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount};
 use light_ctoken_sdk::{
     compressed_token::{
         transfer2::{
@@ -67,7 +67,7 @@ async fn test_spl_to_ctoken_transfer() {
         .unwrap();
 
     // Create compressed token ATA for recipient
-    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e)))
         .unwrap();
@@ -237,7 +237,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
 
     // Create non-compressible token ATA for recipient (required for CompressAndClose without rent_sponsor)
     let (associated_token_account, bump) = derive_ctoken_ata(&recipient.pubkey(), &mint);
-    let instruction = CreateAssociatedTokenAccount {
+    let instruction = CreateAssociatedCTokenAccount {
         idempotent: false,
         bump,
         payer: payer.pubkey(),

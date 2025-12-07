@@ -284,7 +284,7 @@ async fn test_create_ata_failing() {
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
         };
 
-        let create_ata_ix = CreateAssociatedTokenAccount::new(
+        let create_ata_ix = CreateAssociatedCTokenAccount::new(
             poor_payer_pubkey,
             new_owner.pubkey(),
             context.mint_pubkey,
@@ -337,7 +337,7 @@ async fn test_create_ata_failing() {
             }),
         };
 
-        let mut data = vec![100]; // CreateAssociatedTokenAccount discriminator
+        let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
         // Account order: mint, payer, ata, system_program, config, rent_sponsor
@@ -409,7 +409,7 @@ async fn test_create_ata_failing() {
             }),
         };
 
-        let mut data = vec![100]; // CreateAssociatedTokenAccount discriminator
+        let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
         // Account order: owner, mint, payer, ata, system_program, config, rent_sponsor
@@ -472,7 +472,7 @@ async fn test_create_ata_failing() {
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
         };
 
-        let create_ata_ix = CreateAssociatedTokenAccount::new(
+        let create_ata_ix = CreateAssociatedCTokenAccount::new(
             payer_pubkey,
             context.owner_keypair.pubkey(),
             context.mint_pubkey,
@@ -541,7 +541,7 @@ async fn test_create_ata_failing() {
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
         };
 
-        let create_ata_ix = CreateAssociatedTokenAccount::new(
+        let create_ata_ix = CreateAssociatedCTokenAccount::new(
             payer_pubkey,
             context.owner_keypair.pubkey(),
             context.mint_pubkey,
@@ -660,7 +660,7 @@ async fn test_ata_multiple_owners_same_mint() {
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
     };
 
-    let create_ata_ix1 = CreateAssociatedTokenAccount::new(payer_pubkey, owner1, mint)
+    let create_ata_ix1 = CreateAssociatedCTokenAccount::new(payer_pubkey, owner1, mint)
         .with_compressible(compressible_params.clone())
         .instruction()
         .unwrap();
@@ -682,7 +682,7 @@ async fn test_ata_multiple_owners_same_mint() {
     )
     .await;
 
-    let create_ata_ix2 = CreateAssociatedTokenAccount::new(payer_pubkey, owner2, mint)
+    let create_ata_ix2 = CreateAssociatedCTokenAccount::new(payer_pubkey, owner2, mint)
         .with_compressible(compressible_params.clone())
         .instruction()
         .unwrap();
@@ -704,7 +704,7 @@ async fn test_ata_multiple_owners_same_mint() {
     )
     .await;
 
-    let create_ata_ix3 = CreateAssociatedTokenAccount::new(payer_pubkey, owner3, mint)
+    let create_ata_ix3 = CreateAssociatedCTokenAccount::new(payer_pubkey, owner3, mint)
         .with_compressible(compressible_params)
         .instruction()
         .unwrap();

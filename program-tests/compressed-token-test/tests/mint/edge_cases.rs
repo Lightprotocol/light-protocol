@@ -7,7 +7,7 @@ use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::{
         derive_cmint_compressed_address, find_cmint_address,
     },
-    ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
+    ctoken::{CompressibleParams, CreateAssociatedCTokenAccount},
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
@@ -162,7 +162,7 @@ async fn functional_all_in_one_instruction() {
     };
 
     let create_compressible_ata_ix =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+        CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
             .with_compressible(compressible_params)
             .instruction()
             .unwrap();

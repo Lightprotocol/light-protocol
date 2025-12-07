@@ -16,7 +16,7 @@ use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::{
         derive_cmint_compressed_address, find_cmint_address,
     },
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
+    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
 };
 use light_ctoken_types::CPI_AUTHORITY_PDA;
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
@@ -216,7 +216,7 @@ pub async fn create_mint(
     };
 
     let create_ata_instruction =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), mint_authority.pubkey(), mint)
+        CreateAssociatedCTokenAccount::new(payer.pubkey(), mint_authority.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .unwrap();

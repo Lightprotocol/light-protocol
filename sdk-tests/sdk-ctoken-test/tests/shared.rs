@@ -16,7 +16,7 @@ pub async fn setup_create_compressed_mint(
     recipients: Vec<(u64, Pubkey)>,
 ) -> (Pubkey, [u8; 32], Vec<Pubkey>) {
     use light_ctoken_sdk::ctoken::{
-        CreateAssociatedTokenAccount, CreateCMint, CreateCMintParams, MintToCToken,
+        CreateAssociatedCTokenAccount, CreateCMint, CreateCMintParams, MintToCToken,
         MintToCTokenParams,
     };
 
@@ -99,7 +99,7 @@ pub async fn setup_create_compressed_mint(
         let (ata_address, _bump) = derive_ctoken_ata(owner, &mint);
         ata_pubkeys.push(ata_address);
 
-        let create_ata = CreateAssociatedTokenAccount::new(payer.pubkey(), *owner, mint);
+        let create_ata = CreateAssociatedCTokenAccount::new(payer.pubkey(), *owner, mint);
         let ata_instruction = create_ata.instruction().unwrap();
 
         rpc.create_and_send_transaction(&[ata_instruction], &payer.pubkey(), &[payer])

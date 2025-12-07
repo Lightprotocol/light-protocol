@@ -45,7 +45,7 @@
 //!
 //! | Operation | Instruction Builder | CPI Builder |
 //! |-----------|----------------|-------------|
-//! | Create Associated cToken Account | [`CreateAssociatedTokenAccount`](ctoken::CreateAssociatedTokenAccount) | [`CreateAssociatedTokenAccountCpi`](ctoken::CreateAssociatedTokenAccountCpi) |
+//! | Create Associated cToken Account | [`CreateAssociatedCTokenAccount`](ctoken::CreateAssociatedCTokenAccount) | [`CreateAssociatedCTokenAccountCpi`](ctoken::CreateAssociatedCTokenAccountCpi) |
 //! | Create cToken Account | [`CreateCTokenAccount`](ctoken::CreateCTokenAccount) | [`CreateCTokenAccountCpi`](ctoken::CreateCTokenAccountCpi) |
 //! | Transfer cToken | [`TransferCToken`](ctoken::TransferCToken) | [`TransferCTokenCpi`](ctoken::TransferCTokenCpi) |
 //! | Transfer cToken → SPL | [`TransferCTokenToSpl`](ctoken::TransferCTokenToSpl) | [`TransferCTokenToSplCpi`](ctoken::TransferCTokenToSplCpi) |

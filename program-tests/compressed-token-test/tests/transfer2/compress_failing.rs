@@ -45,7 +45,7 @@ use light_ctoken_sdk::{
         },
         CTokenAccount2,
     },
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
+    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
     ValidityProof,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc};
@@ -101,7 +101,7 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
     };
 
     let create_ata_instruction =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA: {:?}", e)))?;
@@ -623,7 +623,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
     };
 
     let create_ata_instruction =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA: {:?}", e)))?;

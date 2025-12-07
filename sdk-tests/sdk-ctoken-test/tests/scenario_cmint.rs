@@ -16,7 +16,7 @@ mod shared;
 use borsh::BorshDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_ctoken_sdk::ctoken::{
-    CToken, CreateAssociatedTokenAccount, DecompressToCtoken, TransferCToken,
+    CToken, CreateAssociatedCTokenAccount, DecompressToCtoken, TransferCToken,
 };
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use solana_sdk::{signature::Keypair, signer::Signer};
@@ -76,8 +76,14 @@ async fn test_cmint_to_ctoken_scenario() {
 
     println!("cMint scenario test setup complete!");
     println!("  - Created cMint: {}", mint);
-    println!("  - cToken account 1: {} (balance: {})", ctoken_ata1, balance1);
-    println!("  - cToken account 2: {} (balance: {})", ctoken_ata2, balance2);
+    println!(
+        "  - cToken account 1: {} (balance: {})",
+        ctoken_ata1, balance1
+    );
+    println!(
+        "  - cToken account 2: {} (balance: {})",
+        ctoken_ata2, balance2
+    );
 
     // 5. Transfer cTokens from account 1 to account 2
     let transfer_instruction = TransferCToken {
@@ -90,13 +96,9 @@ async fn test_cmint_to_ctoken_scenario() {
     .instruction()
     .unwrap();
 
-    rpc.create_and_send_transaction(
-        &[transfer_instruction],
-        &payer.pubkey(),
-        &[&payer, &owner1],
-    )
-    .await
-    .unwrap();
+    rpc.create_and_send_transaction(&[transfer_instruction], &payer.pubkey(), &[&payer, &owner1])
+        .await
+        .unwrap();
 
     // 6. Verify balances after transfer
     let ctoken_account_data = rpc.get_account(ctoken_ata1).await.unwrap().unwrap();
@@ -187,7 +189,7 @@ async fn test_cmint_to_ctoken_scenario() {
     // 9. Recreate cToken ATA for decompression (idempotent)
     println!("\nRecreating cToken ATA for decompression...");
     let create_ata_instruction =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), owner2.pubkey(), mint)
+        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner2.pubkey(), mint)
             .idempotent()
             .instruction()
             .unwrap();

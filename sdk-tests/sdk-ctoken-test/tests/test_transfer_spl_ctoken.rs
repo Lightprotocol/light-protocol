@@ -5,7 +5,7 @@ mod shared;
 use borsh::BorshSerialize;
 use light_client::rpc::Rpc;
 use light_ctoken_sdk::{
-    ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount},
+    ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount},
     spl_interface::find_spl_interface_pda_with_index,
 };
 use light_ctoken_types::CPI_AUTHORITY_PDA;
@@ -65,7 +65,7 @@ async fn test_spl_to_ctoken_invoke() {
         .await
         .unwrap();
 
-    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -183,7 +183,7 @@ async fn test_ctoken_to_spl_invoke() {
         .unwrap();
 
     // Create ctoken ATA and fund it via SPL transfer first
-    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -369,7 +369,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
         .await
         .unwrap();
 
-    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -473,7 +473,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
     // Create ctoken ATA owned by the PDA
     // We need to use a non-compressible ATA so it can be owned by a PDA
     let (ctoken_account, bump) = derive_ctoken_ata(&authority_pda, &mint);
-    let instruction = CreateAssociatedTokenAccount {
+    let instruction = CreateAssociatedCTokenAccount {
         idempotent: false,
         bump,
         payer: payer.pubkey(),

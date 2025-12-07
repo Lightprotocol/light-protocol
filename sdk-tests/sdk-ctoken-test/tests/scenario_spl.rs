@@ -15,7 +15,7 @@
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_ctoken_sdk::{
     ctoken::{
-        derive_ctoken_ata, CreateAssociatedTokenAccount, DecompressToCtoken, TransferSplToCtoken,
+        derive_ctoken_ata, CreateAssociatedCTokenAccount, DecompressToCtoken, TransferSplToCtoken,
     },
     spl_interface::find_spl_interface_pda_with_index,
 };
@@ -83,7 +83,7 @@ async fn test_spl_to_ctoken_scenario() {
 
     let (ctoken_ata, _bump) = derive_ctoken_ata(&ctoken_recipient.pubkey(), &mint);
     let create_ata_instruction =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
+        CreateAssociatedCTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
             .instruction()
             .unwrap();
 
@@ -221,7 +221,7 @@ async fn test_spl_to_ctoken_scenario() {
     // 10. Recreate cToken ATA for decompression (idempotent)
     println!("\nRecreating cToken ATA for decompression...");
     let create_ata_instruction =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
+        CreateAssociatedCTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
             .idempotent()
             .instruction()
             .unwrap();

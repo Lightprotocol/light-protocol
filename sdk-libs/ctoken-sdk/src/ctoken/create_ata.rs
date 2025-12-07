@@ -28,17 +28,17 @@ pub fn derive_ctoken_ata(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
 /// # Create an associated ctoken account instruction:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_ctoken_sdk::ctoken::CreateAssociatedTokenAccount;
+/// # use light_ctoken_sdk::ctoken::CreateAssociatedCTokenAccount;
 /// # let payer = Pubkey::new_unique();
 /// # let owner = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
 /// let instruction =
-///     CreateAssociatedTokenAccount::new(payer, owner, mint)
+///     CreateAssociatedCTokenAccount::new(payer, owner, mint)
 ///     .instruction()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
 #[derive(Debug, Clone)]
-pub struct CreateAssociatedTokenAccount {
+pub struct CreateAssociatedCTokenAccount {
     pub payer: Pubkey,
     pub owner: Pubkey,
     pub mint: Pubkey,
@@ -48,7 +48,7 @@ pub struct CreateAssociatedTokenAccount {
     pub idempotent: bool,
 }
 
-impl CreateAssociatedTokenAccount {
+impl CreateAssociatedCTokenAccount {
     pub fn new(payer: Pubkey, owner: Pubkey, mint: Pubkey) -> Self {
         let (ata, bump) = derive_ctoken_ata(&owner, &mint);
         Self {
@@ -142,7 +142,7 @@ impl CreateAssociatedTokenAccount {
 
 /// # Create an associated ctoken account via CPI:
 /// ```rust,no_run
-/// # use light_ctoken_sdk::ctoken::{CreateAssociatedTokenAccountCpi, CompressibleParamsCpi};
+/// # use light_ctoken_sdk::ctoken::{CreateAssociatedCTokenAccountCpi, CompressibleParamsCpi};
 /// # use solana_account_info::AccountInfo;
 /// # let owner: AccountInfo = todo!();
 /// # let mint: AccountInfo = todo!();
@@ -151,7 +151,7 @@ impl CreateAssociatedTokenAccount {
 /// # let system_program: AccountInfo = todo!();
 /// # let bump: u8 = todo!();
 /// # let compressible: CompressibleParamsCpi = todo!();
-/// CreateAssociatedTokenAccountCpi {
+/// CreateAssociatedCTokenAccountCpi {
 ///     owner,
 ///     mint,
 ///     payer,
@@ -164,7 +164,7 @@ impl CreateAssociatedTokenAccount {
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct CreateAssociatedTokenAccountCpi<'info> {
+pub struct CreateAssociatedCTokenAccountCpi<'info> {
     pub owner: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
     pub payer: AccountInfo<'info>,
@@ -175,9 +175,9 @@ pub struct CreateAssociatedTokenAccountCpi<'info> {
     pub idempotent: bool,
 }
 
-impl<'info> CreateAssociatedTokenAccountCpi<'info> {
+impl<'info> CreateAssociatedCTokenAccountCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        CreateAssociatedTokenAccount::from(self).instruction()
+        CreateAssociatedCTokenAccount::from(self).instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
@@ -231,8 +231,8 @@ impl<'info> CreateAssociatedTokenAccountCpi<'info> {
     }
 }
 
-impl<'info> From<&CreateAssociatedTokenAccountCpi<'info>> for CreateAssociatedTokenAccount {
-    fn from(account_infos: &CreateAssociatedTokenAccountCpi<'info>) -> Self {
+impl<'info> From<&CreateAssociatedCTokenAccountCpi<'info>> for CreateAssociatedCTokenAccount {
+    fn from(account_infos: &CreateAssociatedCTokenAccountCpi<'info>) -> Self {
         Self {
             payer: *account_infos.payer.key,
             owner: *account_infos.owner.key,

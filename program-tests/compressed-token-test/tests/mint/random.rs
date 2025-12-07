@@ -6,7 +6,7 @@ use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::{
         derive_cmint_compressed_address, find_cmint_address,
     },
-    ctoken::CreateAssociatedTokenAccount,
+    ctoken::CreateAssociatedCTokenAccount,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
@@ -131,7 +131,7 @@ async fn test_random_mint_action() {
     for _ in 0..5 {
         let recipient = Keypair::new();
         let create_ata_ix =
-            CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+            CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
                 .instruction()
                 .unwrap();
 
