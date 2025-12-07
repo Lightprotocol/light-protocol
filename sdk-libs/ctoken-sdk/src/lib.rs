@@ -51,6 +51,7 @@
 //! | Transfer cToken → SPL | [`TransferCTokenToSpl`](ctoken::TransferCTokenToSpl) | [`TransferCTokenToSplCpi`](ctoken::TransferCTokenToSplCpi) |
 //! | Transfer SPL → cToken | [`TransferSplToCtoken`](ctoken::TransferSplToCtoken) | [`TransferSplToCtokenCpi`](ctoken::TransferSplToCtokenCpi) |
 //! | Transfer (auto-detect) | - | [`TransferInterfaceCpi`](ctoken::TransferInterfaceCpi) |
+//! | Decompress to cToken account | [`DecompressToCtoken`](ctoken::DecompressToCtoken) | - |
 //! | Close cToken account | [`CloseCTokenAccount`](ctoken::CloseCTokenAccount) | [`CloseCTokenAccountCpi`](ctoken::CloseCTokenAccountCpi) |
 //! | Create cMint | [`CreateCMint`](ctoken::CreateCMint) | [`CreateCMintCpi`](ctoken::CreateCMintCpi) |
 //! | MintTo cToken account from cMint | [`MintToCToken`](ctoken::MintToCToken) | [`MintToCTokenCpi`](ctoken::MintToCTokenCpi) |

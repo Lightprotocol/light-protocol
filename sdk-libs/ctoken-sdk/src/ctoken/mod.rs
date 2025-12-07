@@ -12,6 +12,10 @@
 //!
 //! - [`TransferInterfaceCpi`] - Transfer via CPI, auto-detect source/destination account types
 //!
+//! ## Decompress
+//!
+//! - [`DecompressToCtoken`] - Decompress compressed tokens to a cToken account
+//!
 //! ## Close
 //!
 //! - [`CloseCTokenAccount`] - Create close ctoken account instruction
