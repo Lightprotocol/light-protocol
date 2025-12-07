@@ -531,7 +531,7 @@ pub fn derive_cmint_from_spl_mint(mint: &Pubkey, address_tree_pubkey: &Pubkey) -
     )
 }
 
-/// Finds the SPL mint address from a mint seed
+/// Finds the compressed mint (c-mint) address from a mint seed.
 pub fn find_cmint_address(mint_seed: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_seed.as_ref()],
