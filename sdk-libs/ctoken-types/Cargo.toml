@@ -1,7 +1,10 @@
 [package]
 name = "light-ctoken-types"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
+description = "ctoken and compressed token types for Light Protocol"
+license = "Apache-2.0"
+repository = "https://github.com/Lightprotocol/light-protocol"
 
 [features]
 anchor = [
