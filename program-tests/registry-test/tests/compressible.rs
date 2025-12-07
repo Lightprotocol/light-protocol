@@ -320,7 +320,6 @@ async fn pause_compressible_config<R: Rpc>(
     let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
 
     let accounts = UpdateCompressibleConfigAccounts {
-        fee_payer: payer.pubkey(),
         update_authority: update_authority.pubkey(),
         compressible_config,
         new_update_authority: None,
@@ -355,7 +354,6 @@ async fn unpause_compressible_config<R: Rpc>(
     let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
 
     let accounts = UpdateCompressibleConfigAccounts {
-        fee_payer: payer.pubkey(),
         update_authority: update_authority.pubkey(),
         compressible_config,
         new_update_authority: None,
@@ -390,7 +388,6 @@ async fn deprecate_compressible_config<R: Rpc>(
     let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
 
     let accounts = UpdateCompressibleConfigAccounts {
-        fee_payer: payer.pubkey(),
         update_authority: update_authority.pubkey(),
         compressible_config,
         new_update_authority: None,
@@ -425,7 +422,6 @@ async fn update_compressible_config_authorities<R: Rpc>(
     let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
 
     let accounts = UpdateCompressibleConfigAccounts {
-        fee_payer: payer.pubkey(),
         update_authority: update_authority.pubkey(),
         compressible_config,
         new_update_authority: new_update_authority.map(|k| k.pubkey()),

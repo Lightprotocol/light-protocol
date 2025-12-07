@@ -364,6 +364,11 @@ pub struct AccountsConfig {
     /// 4. SPL mint is either:
     ///    4.1. already initialized
     ///    4.2. or is initialized in this instruction
+    // TODO: SPL token accounts (mint, token_pool_pda, token_program) are required when
+    // spl_mint_initialized is true, but they are only actually used for MintToCompressed,
+    // MintToCToken, or CreateSplMint actions. For authority/metadata update actions
+    // (UpdateMintAuthority, UpdateFreezeAuthority, UpdateMetadataField, etc.), the SPL
+    // accounts are not needed. This cannot be tested until associated SPL mint is supported.
     pub spl_mint_initialized: bool,
     /// 5. Mint
     pub has_mint_to_actions: bool,

@@ -28,11 +28,11 @@ async function isExpectedPhotonVersion(
 
 function getPhotonInstallMessage(): string {
   if (USE_PHOTON_FROM_GIT && PHOTON_GIT_COMMIT) {
-    return `\nLatest Photon indexer not found. Please install it by running: "cargo install --git ${PHOTON_GIT_REPO} --rev ${PHOTON_GIT_COMMIT} --locked"`;
+    return `\nPhoton indexer ${PHOTON_VERSION} (commit ${PHOTON_GIT_COMMIT}) not found. Please install it by running: "cargo install --git ${PHOTON_GIT_REPO} --rev ${PHOTON_GIT_COMMIT} --locked --force"`;
   } else if (USE_PHOTON_FROM_GIT) {
-    return `\nLatest Photon indexer not found. Please install it by running: "cargo install --git ${PHOTON_GIT_REPO} --locked"`;
+    return `\nPhoton indexer ${PHOTON_VERSION} not found. Please install it by running: "cargo install --git ${PHOTON_GIT_REPO} --locked --force"`;
   } else {
-    return `\nLatest Photon indexer not found. Please install it by running: "cargo install photon-indexer --version ${PHOTON_VERSION} --locked"`;
+    return `\nPhoton indexer ${PHOTON_VERSION} not found. Please install it by running: "cargo install photon-indexer --version ${PHOTON_VERSION} --locked --force"`;
   }
 }
 

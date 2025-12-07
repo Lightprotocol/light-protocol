@@ -1,8 +1,8 @@
-use light_compressed_token_types::{constants::TRANSFER2, ValidityProof};
 use light_ctoken_interface::{
     instructions::transfer2::{CompressedCpiContext, CompressedTokenInstructionDataTransfer2},
     CTOKEN_PROGRAM_ID,
 };
+use light_ctoken_types::{constants::TRANSFER2, ValidityProof};
 use light_program_profiler::profile;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;

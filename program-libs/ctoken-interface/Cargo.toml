@@ -1,7 +1,9 @@
 [package]
 name = "light-ctoken-interface"
-version = "0.1.0"
+version = "0.1.1"
 edition = { workspace = true }
+description = "Light Protocol ctoken instruction data types."
+license = "MIT"
 
 [features]
 anchor = ["light-compressed-account/anchor", "dep:anchor-lang", "light-compressible/anchor"]
@@ -51,7 +53,7 @@ light-account-checks = { workspace = true, features = [
 ] }
 spl-token-metadata-interface = "0.6.0"
 light-ctoken-interface = { workspace = true, features = ["poseidon", "test-only"] }
-light-hasher = { workspace = true, features = ["keccak", "sha256"] }
+light-hasher = { workspace = true, features = ["keccak", "sha256", "poseidon"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

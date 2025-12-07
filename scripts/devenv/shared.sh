@@ -18,7 +18,7 @@ VERSIONS=(
     "solana:${SOLANA_VERSION}"
     "anchor:${ANCHOR_VERSION}"
     "jq:${JQ_TAG}"
-    "photon:${PHOTON_VERSION}"
+    "photon:${PHOTON_VERSION}:${PHOTON_COMMIT}"
     "redis:${REDIS_VERSION}"
 )
 

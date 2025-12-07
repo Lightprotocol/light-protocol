@@ -237,8 +237,7 @@ pub async fn create_user_record_and_game_session(
         mint_authority,
         some_account: some_account.pubkey(),
         ctoken_program: C_TOKEN_PROGRAM_ID.into(),
-        compress_token_program_cpi_authority: light_compressed_token_types::CPI_AUTHORITY_PDA
-            .into(),
+        compress_token_program_cpi_authority: light_ctoken_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
         config: *config_pda,
         rent_sponsor: RENT_SPONSOR,

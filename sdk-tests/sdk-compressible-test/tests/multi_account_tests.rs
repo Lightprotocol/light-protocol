@@ -3,7 +3,6 @@ use anchor_lang::{
 };
 use light_client::indexer::CompressedAccount;
 use light_compressed_account::address::derive_address;
-use light_compressed_token_types::CPI_AUTHORITY_PDA;
 use light_compressible_client::compressible_instruction;
 use light_ctoken_interface::{
     instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
@@ -16,6 +15,7 @@ use light_ctoken_sdk::{
     ctoken,
     pack::compat::CTokenDataWithVariant,
 };
+use light_ctoken_types::CPI_AUTHORITY_PDA;
 use light_program_test::{
     program_test::{
         initialize_compression_config, setup_mock_program_data, LightProgramTest, TestRpc,

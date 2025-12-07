@@ -1,4 +1,4 @@
-use light_compressed_token_types::CPI_AUTHORITY_PDA;
+use light_ctoken_types::CPI_AUTHORITY_PDA;
 use light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;

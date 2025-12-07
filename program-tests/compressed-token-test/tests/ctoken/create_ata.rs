@@ -332,7 +332,6 @@ async fn test_create_ata_failing() {
                 token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat
                     as u8,
                 rent_payment: 2,
-                has_top_up: 1,
                 write_top_up: 100,
                 compress_to_account_pubkey: Some(compress_to_pubkey), // Forbidden for ATAs!
             }),
@@ -405,7 +404,6 @@ async fn test_create_ata_failing() {
                 token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat
                     as u8,
                 rent_payment: 2,
-                has_top_up: 1,
                 write_top_up: 100,
                 compress_to_account_pubkey: None,
             }),

@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use light_compressed_token_types::{PackedTokenTransferOutputData, TokenAccountMeta};
+use light_ctoken_types::{PackedTokenTransferOutputData, TokenAccountMeta};
 use solana_pubkey::Pubkey;
 
 use crate::error::CTokenSdkError;

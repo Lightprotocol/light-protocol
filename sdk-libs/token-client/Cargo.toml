@@ -7,7 +7,7 @@ edition = { workspace = true }
 
 [dependencies]
 # Light Protocol dependencies
-light-compressed-token-types = { workspace = true }
+light-ctoken-types = { workspace = true }
 light-compressed-account = { workspace = true, features = ["std"] }
 light-ctoken-interface = { workspace = true }
 light-sdk = { workspace = true }
