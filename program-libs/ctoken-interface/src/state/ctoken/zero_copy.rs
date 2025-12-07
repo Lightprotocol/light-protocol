@@ -380,7 +380,23 @@ impl PartialEq<CToken> for ZCToken<'_> {
                                 }
                             }
                         }
-                        _ => return false, // Different extension types
+                        // Mismatched known extension types (e.g., Compressible vs TokenMetadata)
+                        (
+                            crate::state::extensions::ZExtensionStruct::Compressible(_),
+                            crate::state::extensions::ExtensionStruct::TokenMetadata(_),
+                        )
+                        | (
+                            crate::state::extensions::ZExtensionStruct::TokenMetadata(_),
+                            crate::state::extensions::ExtensionStruct::Compressible(_),
+                        ) => return false,
+                        // Unknown or unhandled extension types should panic to surface bugs early
+                        (zc_ext, regular_ext) => {
+                            panic!(
+                                "Unknown extension type comparison: ZCToken extension {:?} vs CToken extension {:?}",
+                                std::mem::discriminant(zc_ext),
+                                std::mem::discriminant(regular_ext)
+                            );
+                        }
                     }
                 }
             }
