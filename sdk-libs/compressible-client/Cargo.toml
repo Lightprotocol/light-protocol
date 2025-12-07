@@ -1,6 +1,6 @@
 [package]
 name = "light-compressible-client"
-version = "0.13.1"
+version = "0.17.0"
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/lightprotocol/light-protocol"
@@ -20,4 +20,4 @@ light-sdk = { workspace = true, features = ["v2", "cpi-context"] }
 anchor-lang = { workspace = true, features = ["idl-build"], optional = true }
 borsh = { workspace = true }
 
-thiserror = { workspace = true } 
+thiserror = { workspace = true }
