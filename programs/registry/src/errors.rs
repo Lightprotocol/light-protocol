@@ -32,4 +32,6 @@ pub enum RegistryError {
     InsufficientFunds,
     ProgramOwnerDefined,
     ProgramOwnerUndefined,
+    #[msg("Invalid config state for this operation")]
+    InvalidConfigState,
 }
