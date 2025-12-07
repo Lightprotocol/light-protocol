@@ -134,6 +134,7 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
 /// * `tree_infos` - Packed tree info for each compressed account
 /// * `destination_indices` - Destination account indices for each decompression
 /// * `packed_accounts` - PackedAccounts that will be used to insert/get indices
+/// * `version` - Token data version (from TokenDataVersion enum)
 ///
 /// # Returns
 /// Vec of DecompressFullIndices ready to use with decompress_full_ctoken_accounts_with_indices
@@ -143,6 +144,7 @@ pub fn pack_for_decompress_full(
     tree_info: &PackedStateTreeInfo,
     destination: Pubkey,
     packed_accounts: &mut PackedAccounts,
+    version: u8,
 ) -> DecompressFullIndices {
     let source = MultiInputTokenDataWithContext {
         owner: packed_accounts.insert_or_get_config(token.owner, true, false),
@@ -153,7 +155,7 @@ pub fn pack_for_decompress_full(
             .map(|d| packed_accounts.insert_or_get(d))
             .unwrap_or(0),
         mint: packed_accounts.insert_or_get(token.mint),
-        version: 2,
+        version,
         merkle_context: PackedMerkleContext {
             merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
             queue_pubkey_index: tree_info.queue_pubkey_index,
