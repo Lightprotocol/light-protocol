@@ -1,7 +1,9 @@
 [package]
 name = "light-compressible"
-version = "0.1.0"
+version = "0.2.1"
 edition = "2021"
+description = "Light Protocol compressible data structures"
+license = "MIT"
 
 [features]
 default = ["pinocchio", "solana"]
