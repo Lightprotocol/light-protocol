@@ -7,6 +7,7 @@ edition = { workspace = true }
 anchor = ["light-compressed-account/anchor", "dep:anchor-lang", "light-compressible/anchor"]
 solana = ["dep:solana-program-error", "dep:solana-sysvar", "solana-msg"]
 default = []
+test-only = []
 profile-program = []
 profile-heap = ["dep:light-heap"]
 poseidon = ["light-hasher/poseidon"]
@@ -49,7 +50,7 @@ light-account-checks = { workspace = true, features = [
     "solana",
 ] }
 spl-token-metadata-interface = "0.6.0"
-light-ctoken-interface = { workspace = true, features = ["poseidon"] }
+light-ctoken-interface = { workspace = true, features = ["poseidon", "test-only"] }
 light-hasher = { workspace = true, features = ["keccak", "sha256"] }
 
 [lints.rust.unexpected_cfgs]

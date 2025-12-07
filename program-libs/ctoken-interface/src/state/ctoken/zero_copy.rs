@@ -231,6 +231,7 @@ impl<'a> Deref for ZCToken<'a> {
     }
 }
 
+#[cfg(feature = "test-only")]
 impl PartialEq<CToken> for ZCToken<'_> {
     fn eq(&self, other: &CToken) -> bool {
         // Compare basic fields
@@ -408,6 +409,7 @@ impl PartialEq<CToken> for ZCToken<'_> {
     }
 }
 
+#[cfg(feature = "test-only")]
 impl PartialEq<ZCToken<'_>> for CToken {
     fn eq(&self, other: &ZCToken<'_>) -> bool {
         other.eq(self)
