@@ -1427,10 +1427,10 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressed-token",
- "light-compressed-token-types",
  "light-compressible",
  "light-ctoken-interface",
  "light-ctoken-sdk",
+ "light-ctoken-types",
  "light-program-test",
  "light-prover-client",
  "light-registry",
@@ -1644,11 +1644,11 @@ dependencies = [
  "borsh 0.10.4",
  "light-client",
  "light-compressed-account",
- "light-compressed-token-types",
  "light-compressible",
  "light-compressible-client",
  "light-ctoken-interface",
  "light-ctoken-sdk",
+ "light-ctoken-types",
  "light-hasher",
  "light-macros",
  "light-program-test",
@@ -1679,11 +1679,11 @@ dependencies = [
  "borsh 0.10.4",
  "light-client",
  "light-compressed-account",
- "light-compressed-token-types",
  "light-compressible",
  "light-compressible-client",
  "light-ctoken-interface",
  "light-ctoken-sdk",
+ "light-ctoken-types",
  "light-hasher",
  "light-macros",
  "light-program-test",
@@ -3699,20 +3699,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-compressed-token-types"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "borsh 0.10.4",
- "light-account-checks",
- "light-compressed-account",
- "light-macros",
- "light-sdk-types",
- "solana-msg 2.2.1",
- "thiserror 2.0.17",
-]
-
-[[package]]
 name = "light-compressible"
 version = "0.2.1"
 dependencies = [
@@ -3816,9 +3802,9 @@ dependencies = [
  "light-account-checks",
  "light-compressed-account",
  "light-compressed-token",
- "light-compressed-token-types",
  "light-compressible",
  "light-ctoken-interface",
+ "light-ctoken-types",
  "light-macros",
  "light-program-profiler",
  "light-sdk",
@@ -3833,6 +3819,20 @@ dependencies = [
  "solana-pubkey 2.4.0",
  "spl-pod",
  "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "thiserror 2.0.17",
+]
+
+[[package]]
+name = "light-ctoken-types"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "light-account-checks",
+ "light-compressed-account",
+ "light-macros",
+ "light-sdk-types",
+ "solana-msg 2.2.1",
  "thiserror 2.0.17",
 ]
 
@@ -4292,9 +4292,9 @@ dependencies = [
  "borsh 0.10.4",
  "light-client",
  "light-compressed-account",
- "light-compressed-token-types",
  "light-ctoken-interface",
  "light-ctoken-sdk",
+ "light-ctoken-types",
  "light-sdk",
  "light-zero-copy",
  "solana-instruction",
@@ -6049,11 +6049,11 @@ dependencies = [
  "borsh 0.10.4",
  "light-client",
  "light-compressed-account",
- "light-compressed-token-types",
  "light-compressible",
  "light-compressible-client",
  "light-ctoken-interface",
  "light-ctoken-sdk",
+ "light-ctoken-types",
  "light-hasher",
  "light-macros",
  "light-program-test",
@@ -6082,10 +6082,10 @@ dependencies = [
  "borsh 0.10.4",
  "light-client",
  "light-compressed-account",
- "light-compressed-token-types",
  "light-compressible-client",
  "light-ctoken-interface",
  "light-ctoken-sdk",
+ "light-ctoken-types",
  "light-program-test",
  "light-sdk",
  "light-sdk-types",
@@ -6158,10 +6158,10 @@ dependencies = [
  "light-batched-merkle-tree",
  "light-client",
  "light-compressed-account",
- "light-compressed-token-types",
  "light-compressible",
  "light-ctoken-interface",
  "light-ctoken-sdk",
+ "light-ctoken-types",
  "light-hasher",
  "light-program-profiler",
  "light-program-test",

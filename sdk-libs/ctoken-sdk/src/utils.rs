@@ -60,7 +60,7 @@ pub struct AccountInfoToCompress<'info> {
     pub account_info: AccountInfo<'info>,
     pub signer_seeds: Vec<Vec<u8>>,
 }
-use light_compressed_token_types::{
+use light_ctoken_types::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA,
     LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID, PROGRAM_ID as LIGHT_COMPRESSED_TOKEN_PROGRAM_ID,
 };

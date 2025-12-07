@@ -16,7 +16,7 @@
 - `light-sdk` - Core SDK account validation utilities
 - `light-sdk-pinocchio` - Pinocchio-specific SDK validation
 - `light-sdk-types` - Uses AccountInfoTrait for CPI context and tree info
-- `light-compressed-token-types` - Uses AccountInfoTrait for instruction account structures
+- `light-ctoken-types` - Uses AccountInfoTrait for instruction account structures
 
 # Navigation
 - This file: Overview and module organization

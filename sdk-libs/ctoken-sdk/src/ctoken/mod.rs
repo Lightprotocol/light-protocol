@@ -77,7 +77,6 @@ pub use compressible::{CompressibleParams, CompressibleParamsCpi};
 pub use create::*;
 pub use create_ata::*;
 pub use create_cmint::*;
-use light_compressed_token_types::POOL_SEED;
 use light_compressible::config::CompressibleConfig;
 pub use light_ctoken_interface::{
     instructions::{
@@ -86,6 +85,7 @@ pub use light_ctoken_interface::{
     },
     state::TokenDataVersion,
 };
+use light_ctoken_types::POOL_SEED;
 pub use mint_to::*;
 use solana_account_info::AccountInfo;
 use solana_pubkey::{pubkey, Pubkey};

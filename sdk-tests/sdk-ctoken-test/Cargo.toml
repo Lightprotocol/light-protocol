@@ -17,7 +17,7 @@ default = []
 [dependencies]
 # Light Protocol SDK dependencies (workspace-based)
 light-ctoken-sdk = { workspace = true }
-light-compressed-token-types = { workspace = true }
+light-ctoken-types = { workspace = true }
 light-ctoken-interface = { workspace = true }
 light-sdk = { workspace = true, features = ["v2"] }
 light-sdk-types = { workspace = true }

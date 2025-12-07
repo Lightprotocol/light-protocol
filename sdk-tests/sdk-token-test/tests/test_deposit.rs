@@ -1,6 +1,5 @@
 use anchor_lang::InstructionData;
 use light_client::indexer::{CompressedAccount, CompressedTokenAccount, IndexerRpcConfig};
-use light_compressed_token_types::{TokenAccountMeta, SPL_TOKEN_PROGRAM_ID};
 use light_ctoken_sdk::{
     compressed_token::batch_compress::{
         get_batch_compress_instruction_account_metas, BatchCompressMetaConfig, Recipient,
@@ -8,6 +7,7 @@ use light_ctoken_sdk::{
     spl_interface::find_spl_interface_pda_with_index,
     utils::CTokenDefaultAccounts,
 };
+use light_ctoken_types::{TokenAccountMeta, SPL_TOKEN_PROGRAM_ID};
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::{
     address::v1::derive_address,

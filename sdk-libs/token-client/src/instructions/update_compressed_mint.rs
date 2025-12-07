@@ -3,7 +3,6 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_compressed_token_types::CompressedMintAuthorityType;
 use light_ctoken_interface::{
     instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
     state::CompressedMint,
@@ -11,6 +10,7 @@ use light_ctoken_interface::{
 use light_ctoken_sdk::compressed_token::update_compressed_mint::{
     update_compressed_mint, UpdateCompressedMintInputs,
 };
+use light_ctoken_types::CompressedMintAuthorityType;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
