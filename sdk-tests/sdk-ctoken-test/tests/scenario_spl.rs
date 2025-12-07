@@ -1,26 +1,28 @@
 // SPL to cToken scenario test - Direct SDK calls without wrapper program
 //
 // This test demonstrates the complete flow:
-// 1. Create SPL mint
-// 2. Create SPL token account
-// 3. Mint SPL tokens
-// 4. Create cToken ATA (compressible)
-// 5. Transfer SPL tokens to cToken account
-// 6. Advance epochs to trigger compression
-// 7. Verify cToken account is compressed and closed
-// 8. Recreate cToken ATA
-// 9. Decompress compressed tokens back to cToken account
-// 10. Verify cToken account has tokens again
+// 1. Create SPL mint manually
+// 2. Create token pool (SPL interface PDA) using SDK instruction
+// 3. Create SPL token account
+// 4. Mint SPL tokens
+// 5. Create cToken ATA (compressible)
+// 6. Transfer SPL tokens to cToken account
+// 7. Advance epochs to trigger compression
+// 8. Verify cToken account is compressed and closed
+// 9. Recreate cToken ATA
+// 10. Decompress compressed tokens back to cToken account
+// 11. Verify cToken account has tokens again
 
+use anchor_spl::token::{spl_token, Mint};
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_ctoken_sdk::{
     ctoken::{
         derive_ctoken_ata, CreateAssociatedCTokenAccount, DecompressToCtoken, TransferSplToCtoken,
     },
-    spl_interface::find_spl_interface_pda_with_index,
+    spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
 };
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
-use light_test_utils::spl::{create_mint_helper, create_token_account, mint_spl_tokens};
+use light_test_utils::spl::{create_token_account, mint_spl_tokens};
 use solana_sdk::{signature::Keypair, signer::Signer};
 use spl_token_2022::pod::PodAccount;
 
@@ -40,18 +42,62 @@ async fn test_spl_to_ctoken_scenario() {
         .await
         .unwrap();
 
-    // 2. Create SPL mint
-    let mint = create_mint_helper(&mut rpc, &payer).await;
+    // 2. Create SPL mint manually
+    let mint_keypair = Keypair::new();
+    let mint = mint_keypair.pubkey();
+    let decimals = 2u8;
+
+    // Get rent for mint account
+    let mint_rent = rpc
+        .get_minimum_balance_for_rent_exemption(Mint::LEN)
+        .await
+        .unwrap();
+
+    // Create mint account instruction
+    let create_mint_account_ix = solana_sdk::system_instruction::create_account(
+        &payer.pubkey(),
+        &mint,
+        mint_rent,
+        Mint::LEN as u64,
+        &spl_token::ID,
+    );
+
+    // Initialize mint instruction
+    let initialize_mint_ix = spl_token::instruction::initialize_mint(
+        &spl_token::ID,
+        &mint,
+        &payer.pubkey(), // mint authority
+        None,            // freeze authority
+        decimals,
+    )
+    .unwrap();
+
+    rpc.create_and_send_transaction(
+        &[create_mint_account_ix, initialize_mint_ix],
+        &payer.pubkey(),
+        &[&payer, &mint_keypair],
+    )
+    .await
+    .unwrap();
+
+    // 3. Create token pool (SPL interface PDA) using SDK instruction
+    let create_pool_ix =
+        CreateSplInterfacePda::new(payer.pubkey(), mint, anchor_spl::token::ID).instruction();
+
+    rpc.create_and_send_transaction(&[create_pool_ix], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
+
     let mint_amount = 10_000u64;
     let transfer_amount = 5_000u64;
 
-    // 3. Create SPL token account
+    // 4. Create SPL token account
     let spl_token_account_keypair = Keypair::new();
     create_token_account(&mut rpc, &mint, &spl_token_account_keypair, &token_owner)
         .await
         .unwrap();
 
-    // 4. Mint SPL tokens to the SPL account
+    // 5. Mint SPL tokens to the SPL account
     mint_spl_tokens(
         &mut rpc,
         &mint,
@@ -75,7 +121,7 @@ async fn test_spl_to_ctoken_scenario() {
     let initial_spl_balance: u64 = spl_account.amount.into();
     assert_eq!(initial_spl_balance, mint_amount);
 
-    // 5. Create cToken ATA for the recipient (compressible with default 16 prepaid epochs)
+    // 6. Create cToken ATA for the recipient (compressible with default 16 prepaid epochs)
     let ctoken_recipient = Keypair::new();
     light_test_utils::airdrop_lamports(&mut rpc, &ctoken_recipient.pubkey(), 1_000_000_000)
         .await
@@ -98,7 +144,7 @@ async fn test_spl_to_ctoken_scenario() {
         "cToken ATA should exist"
     );
 
-    // 6. Transfer SPL tokens to cToken account
+    // 7. Transfer SPL tokens to cToken account
     let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
 
     let transfer_instruction = TransferSplToCtoken {

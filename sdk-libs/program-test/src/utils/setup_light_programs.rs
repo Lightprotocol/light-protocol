@@ -39,8 +39,6 @@ pub fn setup_light_programs(
         ..Default::default()
     });
     let mut program_test = program_test.with_transaction_history(0);
-    let project_root_target_deploy_path = std::env::var("SBF_OUT_DIR")
-        .map_err(|_| RpcError::CustomError("SBF_OUT_DIR not set.".to_string()))?;
     // find path to bin where light cli stores program binaries.
     let light_bin_path = find_light_bin().ok_or(RpcError::CustomError(
         "Failed to find light binary path. To use light-program-test zk compression cli needs to be installed and light system programs need to be downloaded. Light system programs are downloaded the first time light test-validator is run.".to_string(),
@@ -117,6 +115,11 @@ pub fn setup_light_programs(
             RpcError::CustomError(format!("Setting registered program account failed {}", e))
         })?;
     if let Some(programs) = additional_programs {
+        let project_root_target_deploy_path = std::env::var("SBF_OUT_DIR").map_err(|_| {
+            RpcError::CustomError(
+                "SBF_OUT_DIR not set. Required when using additional_programs.".to_string(),
+            )
+        })?;
         for (name, id) in programs {
             let path = format!("{}/{}.so", project_root_target_deploy_path, name);
             program_test
