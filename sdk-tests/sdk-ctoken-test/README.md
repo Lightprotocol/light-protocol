@@ -95,7 +95,7 @@ ctoken/native/
 All dependencies use **path references** to `/Users/ananas/dev/light-protocol2/sdk-libs/`:
 
 - `light-ctoken-sdk` → Main SDK with ctoken builder pattern
-- `light-compressed-token-types` → Type definitions
+- `light-ctoken-types` → Type definitions
 - `light-sdk` → Core SDK
 - `light-sdk-types` → Common types
 - `light-program-test` → Testing framework (dev dependency)

@@ -1,7 +1,7 @@
 //! SPL interface PDA derivation utilities.
 
-use light_compressed_token_types::constants::POOL_SEED;
 use light_ctoken_interface::CTOKEN_PROGRAM_ID;
+use light_ctoken_types::constants::POOL_SEED;
 use solana_pubkey::Pubkey;
 
 use crate::{AnchorDeserialize, AnchorSerialize};

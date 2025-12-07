@@ -1,11 +1,11 @@
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, traits::LightInstructionData,
 };
-use light_compressed_token_types::CompressedMintAuthorityType;
 use light_ctoken_interface::{
     self,
     instructions::mint_action::{CompressedMintWithContext, CpiContext},
 };
+use light_ctoken_types::CompressedMintAuthorityType;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 

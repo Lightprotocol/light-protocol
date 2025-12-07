@@ -50,4 +50,4 @@ light-ctoken-sdk = { workspace = true }
 spl-token-2022 = { workspace = true }
 spl-pod = { workspace = true }
 light-zero-copy = { workspace = true , features = ["std", "derive", "mut"]}
-light-compressed-token-types = { workspace = true }
+light-ctoken-types = { workspace = true }

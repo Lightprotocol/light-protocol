@@ -1,7 +1,7 @@
-use light_compressed_token_types::{
+use light_ctoken_interface;
+use light_ctoken_types::{
     instruction::batch_compress::BatchCompressInstructionData, BATCH_COMPRESS,
 };
-use light_ctoken_interface;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 

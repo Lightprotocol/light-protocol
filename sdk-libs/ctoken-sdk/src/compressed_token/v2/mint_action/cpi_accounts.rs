@@ -1,6 +1,6 @@
 use light_account_checks::{AccountError, AccountInfoTrait, AccountIterator};
-use light_compressed_token_types::CPI_AUTHORITY_PDA;
 use light_ctoken_interface::CTOKEN_PROGRAM_ID;
+use light_ctoken_types::CPI_AUTHORITY_PDA;
 use light_program_profiler::profile;
 use light_sdk_types::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
