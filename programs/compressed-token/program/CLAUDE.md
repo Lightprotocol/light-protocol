@@ -47,7 +47,7 @@ Every instruction description must include the sections:
 ### Account Management
 1. **Create CToken Account** - [`docs/instructions/CREATE_TOKEN_ACCOUNT.md`](docs/instructions/CREATE_TOKEN_ACCOUNT.md)
    - Create regular token account (discriminator: 18, enum: `CTokenInstruction::CreateTokenAccount`)
-   - Create associated token account (discriminator: 6, enum: `CTokenInstruction::CreateAssociatedTokenAccount`)
+   - Create associated token account (discriminator: 6, enum: `CTokenInstruction::CreateAssociatedCTokenAccount`)
    - Create associated token account idempotent (discriminator: 101, enum: `CTokenInstruction::CreateAssociatedTokenAccountIdempotent`)
    - **Config validation:** Requires ACTIVE config only
 

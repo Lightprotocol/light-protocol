@@ -2,7 +2,7 @@
 pub use light_compressible::rent::{RentConfig, SLOTS_PER_EPOCH};
 pub use light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
 pub use light_ctoken_sdk::ctoken::{
-    derive_ctoken_ata, CloseCTokenAccount, CompressibleParams, CreateAssociatedTokenAccount,
+    derive_ctoken_ata, CloseCTokenAccount, CompressibleParams, CreateAssociatedCTokenAccount,
     CreateCTokenAccount,
 };
 pub use light_program_test::{
@@ -425,7 +425,7 @@ pub async fn create_and_assert_ata(
         };
 
         let mut builder =
-            CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+            CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
                 .with_compressible(compressible_params);
 
         if idempotent {
@@ -435,7 +435,7 @@ pub async fn create_and_assert_ata(
         builder.instruction().unwrap()
     } else {
         // Create non-compressible account
-        let mut builder = CreateAssociatedTokenAccount {
+        let mut builder = CreateAssociatedCTokenAccount {
             idempotent: false,
             bump,
             payer: payer_pubkey,
@@ -498,7 +498,7 @@ pub async fn create_and_assert_ata_fails(
     };
 
     let mut builder =
-        CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+        CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
             .with_compressible(compressible_params);
 
     if idempotent {

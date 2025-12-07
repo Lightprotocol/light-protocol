@@ -24,7 +24,7 @@ async fn create_and_assert_ata2(
         };
 
         let mut builder =
-            CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+            CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
                 .with_compressible(compressible_params);
 
         if idempotent {
@@ -34,7 +34,7 @@ async fn create_and_assert_ata2(
         builder.instruction().unwrap()
     } else {
         // Create non-compressible account
-        let mut builder = CreateAssociatedTokenAccount {
+        let mut builder = CreateAssociatedCTokenAccount {
             idempotent: false,
             bump,
             payer: payer_pubkey,

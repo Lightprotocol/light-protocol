@@ -1,5 +1,5 @@
 use light_ctoken_sdk::ctoken::{
-    CloseCTokenAccount, CompressibleParams, CreateAssociatedTokenAccount,
+    CloseCTokenAccount, CompressibleParams, CreateAssociatedCTokenAccount,
 };
 use light_test_utils::assert_create_token_account::assert_create_associated_token_account;
 
@@ -21,7 +21,7 @@ async fn test_associated_token_account_operations() {
 
     // Create basic (non-compressible) ATA using SDK function
     let (ata, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
-    let instruction = CreateAssociatedTokenAccount {
+    let instruction = CreateAssociatedCTokenAccount {
         idempotent: false,
         bump,
         payer: payer_pubkey,
@@ -64,7 +64,7 @@ async fn test_associated_token_account_operations() {
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
     };
 
-    let compressible_instruction = CreateAssociatedTokenAccount::new(
+    let compressible_instruction = CreateAssociatedCTokenAccount::new(
         payer_pubkey,
         compressible_owner_pubkey,
         context.mint_pubkey,
@@ -154,7 +154,7 @@ async fn test_create_ata_idempotent() {
     let owner_pubkey = context.owner_keypair.pubkey();
     let (ata, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
     // Create ATA using non-idempotent instruction (first creation)
-    let instruction = CreateAssociatedTokenAccount {
+    let instruction = CreateAssociatedCTokenAccount {
         idempotent: false,
         bump,
         payer: payer_pubkey,
@@ -183,7 +183,7 @@ async fn test_create_ata_idempotent() {
 
     // Attempt to create the same ATA again using non-idempotent instruction (should fail)
     let instruction =
-        CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+        CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
             .instruction()
             .unwrap();
 
@@ -200,7 +200,7 @@ async fn test_create_ata_idempotent() {
 
     // Now try with idempotent instruction (should succeed)
     let instruction =
-        CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+        CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
             .idempotent()
             .instruction()
             .unwrap();
@@ -258,7 +258,7 @@ async fn test_create_ata_with_prefunded_lamports() {
     );
 
     // Now create the ATA - this should succeed despite pre-funded lamports
-    let instruction = CreateAssociatedTokenAccount {
+    let instruction = CreateAssociatedCTokenAccount {
         idempotent: false,
         bump,
         payer: payer_pubkey,

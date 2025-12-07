@@ -12,7 +12,7 @@ use light_ctoken_sdk::{
         create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
         mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
     },
-    ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount},
+    ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount},
 };
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
@@ -172,7 +172,7 @@ async fn test_compress_full_and_close() {
     // Step 4: Create associated token account for decompression
     let (ctoken_ata_pubkey, bump) = derive_ctoken_ata(&recipient, &mint_pda);
     // Create a non-compressible token account by setting compressible to None
-    let create_ata_instruction = CreateAssociatedTokenAccount {
+    let create_ata_instruction = CreateAssociatedCTokenAccount {
         idempotent: false,
         bump,
         payer: payer.pubkey(),

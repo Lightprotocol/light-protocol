@@ -3,14 +3,18 @@
 //!
 //! ## Account Creation
 //!
-//! - [`CreateAssociatedTokenAccount`] - Create associated ctoken account (ATA) instruction
-//! - [`CreateAssociatedTokenAccountCpi`] - Create associated ctoken account (ATA) via CPI
+//! - [`CreateAssociatedCTokenAccount`] - Create associated ctoken account (ATA) instruction
+//! - [`CreateAssociatedCTokenAccountCpi`] - Create associated ctoken account (ATA) via CPI
 //! - [`CreateCTokenAccount`] - Create ctoken account instruction
 //! - [`CreateCTokenAccountCpi`] - Create ctoken account via CPI
 //!
 //! ## Transfers
 //!
 //! - [`TransferInterfaceCpi`] - Transfer via CPI, auto-detect source/destination account types
+//!
+//! ## Decompress
+//!
+//! - [`DecompressToCtoken`] - Decompress compressed tokens to a cToken account
 //!
 //! ## Close
 //!
@@ -27,12 +31,12 @@
 //!
 //! ```rust
 //! # use solana_pubkey::Pubkey;
-//! use light_ctoken_sdk::ctoken::CreateAssociatedTokenAccount;
+//! use light_ctoken_sdk::ctoken::CreateAssociatedCTokenAccount;
 //! # let payer = Pubkey::new_unique();
 //! # let owner = Pubkey::new_unique();
 //! # let mint = Pubkey::new_unique();
 //!
-//! let instruction = CreateAssociatedTokenAccount::new(payer, owner, mint)
+//! let instruction = CreateAssociatedCTokenAccount::new(payer, owner, mint)
 //!     .idempotent()
 //!     .instruction()?;
 //! # Ok::<(), solana_program_error::ProgramError>(())
@@ -41,9 +45,9 @@
 //! # Example: Create cToken Account CPI
 //!
 //! ```rust,ignore
-//! use light_ctoken_sdk::ctoken::{CreateAssociatedTokenAccountCpi, CompressibleParamsCpi};
+//! use light_ctoken_sdk::ctoken::{CreateAssociatedCTokenAccountCpi, CompressibleParamsCpi};
 //!
-//! CreateAssociatedTokenAccountCpi {
+//! CreateAssociatedCTokenAccountCpi {
 //!     owner: ctx.accounts.owner.to_account_info(),
 //!     mint: ctx.accounts.mint.to_account_info(),
 //!     payer: ctx.accounts.payer.to_account_info(),
@@ -66,6 +70,7 @@ mod compressible;
 mod create;
 mod create_ata;
 mod create_cmint;
+mod decompress;
 mod mint_to;
 mod transfer_ctoken;
 mod transfer_ctoken_spl;
@@ -77,13 +82,14 @@ pub use compressible::{CompressibleParams, CompressibleParamsCpi};
 pub use create::*;
 pub use create_ata::*;
 pub use create_cmint::*;
+pub use decompress::DecompressToCtoken;
 use light_compressible::config::CompressibleConfig;
 pub use light_ctoken_interface::{
     instructions::{
         extensions::{compressible::CompressToPubkey, ExtensionInstructionData},
         mint_action::CompressedMintWithContext,
     },
-    state::TokenDataVersion,
+    state::{CToken, TokenDataVersion},
 };
 use light_ctoken_types::POOL_SEED;
 pub use mint_to::*;

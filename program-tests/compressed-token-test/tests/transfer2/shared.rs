@@ -8,7 +8,7 @@ use light_ctoken_interface::{
 };
 use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::find_cmint_address,
-    ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
+    ctoken::{CompressibleParams, CreateAssociatedCTokenAccount},
 };
 use light_program_test::{indexer::TestIndexerExtensions, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
@@ -458,13 +458,13 @@ impl TestContext {
                     compress_to_account_pubkey: None,
                     token_account_version: TokenDataVersion::ShaFlat, // CompressAndClose requires ShaFlat
                 };
-                CreateAssociatedTokenAccount::new(payer.pubkey(), signer.pubkey(), mint)
+                CreateAssociatedCTokenAccount::new(payer.pubkey(), signer.pubkey(), mint)
                     .with_compressible(compressible_params)
                     .instruction()
                     .unwrap()
             } else {
                 // Create non-compressible CToken ATA
-                CreateAssociatedTokenAccount {
+                CreateAssociatedCTokenAccount {
                     idempotent: false,
                     bump,
                     payer: payer.pubkey(),

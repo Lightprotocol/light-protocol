@@ -14,7 +14,7 @@ use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::{
         derive_cmint_compressed_address, find_cmint_address,
     },
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
+    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
@@ -241,7 +241,7 @@ async fn test_create_compressed_mint() {
     // 5. Decompress compressed tokens to ctokens
     // Create non-compressible token associated token account for decompression
     let (ctoken_ata_pubkey, bump) = derive_ctoken_ata(&new_recipient, &spl_mint_pda);
-    let create_ata_instruction = CreateAssociatedTokenAccount {
+    let create_ata_instruction = CreateAssociatedCTokenAccount {
         idempotent: false,
         bump,
         payer: payer.pubkey(),
@@ -437,7 +437,7 @@ async fn test_create_compressed_mint() {
     // Create non-compressible SPL token account for decompression destination
     let (decompress_dest_ata, decompress_bump) =
         derive_ctoken_ata(&decompress_recipient.pubkey(), &spl_mint_pda);
-    let create_decompress_ata_instruction = CreateAssociatedTokenAccount {
+    let create_decompress_ata_instruction = CreateAssociatedCTokenAccount {
         idempotent: false,
         bump: decompress_bump,
         payer: payer.pubkey(),
@@ -712,11 +712,14 @@ async fn test_ctoken_transfer() {
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
     };
 
-    let create_ata_instruction =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), recipient_keypair.pubkey(), spl_mint_pda)
-            .with_compressible(compressible_params)
-            .instruction()
-            .unwrap();
+    let create_ata_instruction = CreateAssociatedCTokenAccount::new(
+        payer.pubkey(),
+        recipient_keypair.pubkey(),
+        spl_mint_pda,
+    )
+    .with_compressible(compressible_params)
+    .instruction()
+    .unwrap();
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
@@ -774,7 +777,7 @@ async fn test_ctoken_transfer() {
         .await
         .unwrap();
 
-    let create_second_ata_instruction = CreateAssociatedTokenAccount {
+    let create_second_ata_instruction = CreateAssociatedCTokenAccount {
         idempotent: false,
         bump: second_recipient_ata_bump,
         payer: payer.pubkey(),

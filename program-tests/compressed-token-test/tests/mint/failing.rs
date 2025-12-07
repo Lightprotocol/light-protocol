@@ -7,7 +7,7 @@ use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::{
         derive_cmint_compressed_address, find_cmint_address,
     },
-    ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
+    ctoken::{CompressibleParams, CreateAssociatedCTokenAccount},
 };
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
@@ -407,7 +407,7 @@ async fn functional_and_failing_tests() {
         let recipient = Keypair::new();
 
         let create_ata_ix =
-            CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+            CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
                 .instruction()
                 .unwrap();
 
@@ -461,7 +461,7 @@ async fn functional_and_failing_tests() {
         let recipient2 = Keypair::new();
 
         let create_ata_ix2 =
-            CreateAssociatedTokenAccount::new(payer.pubkey(), recipient2.pubkey(), spl_mint_pda)
+            CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient2.pubkey(), spl_mint_pda)
                 .instruction()
                 .unwrap();
 
@@ -871,7 +871,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
     };
 
     let create_ata_ix =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+        CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
             .with_compressible(compressible_params)
             .instruction()
             .unwrap();
