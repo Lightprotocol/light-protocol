@@ -53,12 +53,12 @@ pub fn derive_spl_interface_pda(mint: &solana_pubkey::Pubkey, index: u8) -> SplI
 /// ```rust
 /// # use solana_pubkey::Pubkey;
 /// # use light_ctoken_sdk::spl_interface::CreateSplInterfacePda;
+/// # use light_ctoken_sdk::constants::SPL_TOKEN_PROGRAM_ID;
 /// # let fee_payer = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
-/// # let token_program = anchor_spl::token::ID;
+/// # let token_program = SPL_TOKEN_PROGRAM_ID;
 /// let instruction = CreateSplInterfacePda::new(fee_payer, mint, token_program)
-///     .instruction()?;
-/// # Ok::<(), solana_program_error::ProgramError>(())
+///     .instruction();
 /// ```
 pub struct CreateSplInterfacePda {
     pub fee_payer: Pubkey,
@@ -85,10 +85,7 @@ impl CreateSplInterfacePda {
             accounts: vec![
                 AccountMeta::new(self.fee_payer, true),
                 AccountMeta::new(self.spl_interface_pda, false),
-                AccountMeta::new_readonly(
-                    solana_pubkey::pubkey!("11111111111111111111111111111111"),
-                    false,
-                ), // system_program
+                AccountMeta::new_readonly(Pubkey::default(), false), // system_program
                 AccountMeta::new(self.mint, false),
                 AccountMeta::new_readonly(self.token_program, false),
                 AccountMeta::new_readonly(Pubkey::from(CPI_AUTHORITY_PDA), false),
