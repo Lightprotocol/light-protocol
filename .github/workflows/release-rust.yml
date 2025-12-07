@@ -2,14 +2,14 @@ name: Publish Rust Release
 
 on:
   pull_request:
-    types: [closed]
+    types: [opened, synchronize, labeled]
     branches:
       - main
 
 jobs:
   publish-release:
-    # Only run on merged release PRs
-    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')
+    # Run on release PRs (not waiting for merge)
+    if: contains(github.event.pull_request.labels.*.name, 'release')
     runs-on: ubuntu-latest
     permissions:
       contents: write
