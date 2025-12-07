@@ -4,33 +4,59 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/shared.sh"
 
 install_photon() {
-    local expected_version=$(get_version "photon")
-    local photon_installed=false
-    local photon_correct_version=false
+    local expected_version="${PHOTON_VERSION}"
+    local expected_commit="${PHOTON_COMMIT}"
+    local install_marker="photon:${expected_version}:${expected_commit}"
+
+    # Validate required variables
+    if [ -z "${expected_version}" ] || [ -z "${expected_commit}" ]; then
+        echo "ERROR: PHOTON_VERSION or PHOTON_COMMIT not set in versions.sh"
+        exit 1
+    fi
 
     export CARGO_HOME="${PREFIX}/cargo"
     export PATH="${PREFIX}/cargo/bin:${PATH}"
 
-    if ! is_installed "photon"; then
-        if [ -f "${PREFIX}/cargo/bin/photon" ]; then
-            photon_installed=true
-            if photon_version=$(${PREFIX}/cargo/bin/photon --version 2>/dev/null); then
-                if echo "$photon_version" | grep -q "$expected_version"; then
-                    photon_correct_version=true
-                fi
-            fi
-        fi
+    # Ensure directories and log file exist
+    mkdir -p "${PREFIX}/cargo/bin"
+    touch "$INSTALL_LOG"
 
-        if [ "$photon_installed" = false ] || [ "$photon_correct_version" = false ]; then
-            echo "Installing Photon indexer (version $expected_version)..."
-            RUSTFLAGS="-A dead-code" cargo install --git https://github.com/helius-labs/photon.git --rev ${PHOTON_COMMIT} --locked --force
-            log "photon"
+    # Portable sed -i (macOS vs Linux)
+    sed_inplace() {
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "$@"
         else
-            echo "Photon already installed with correct version, skipping..."
+            sed -i "$@"
         fi
-    else
-        echo "Photon already installed with correct version, skipping..."
+    }
+
+    # Check if exact version+commit combo is already installed
+    if grep -q "^${install_marker}$" "$INSTALL_LOG" 2>/dev/null; then
+        # Double-check binary actually exists
+        if [ -f "${PREFIX}/cargo/bin/photon" ]; then
+            echo "Photon ${expected_version} (commit ${expected_commit}) already installed, skipping..."
+            return 0
+        fi
+        # Binary missing despite log entry - remove stale log entry
+        sed_inplace "/^photon:/d" "$INSTALL_LOG" 2>/dev/null || true
     fi
+
+    # Remove any old photon entries from log (different version/commit)
+    sed_inplace "/^photon:/d" "$INSTALL_LOG" 2>/dev/null || true
+    sed_inplace "/^photon$/d" "$INSTALL_LOG" 2>/dev/null || true
+
+    echo "Installing Photon indexer ${expected_version} (commit ${expected_commit})..."
+    RUSTFLAGS="-A dead-code" cargo install --git https://github.com/helius-labs/photon.git --rev ${expected_commit} --locked --force
+
+    # Verify installation succeeded
+    if [ ! -f "${PREFIX}/cargo/bin/photon" ]; then
+        echo "ERROR: Photon installation failed - binary not found"
+        exit 1
+    fi
+
+    # Log the exact version+commit installed
+    echo "${install_marker}" >> "$INSTALL_LOG"
+    echo "Photon ${expected_version} (commit ${expected_commit}) installed successfully"
 }
 
 install_photon
