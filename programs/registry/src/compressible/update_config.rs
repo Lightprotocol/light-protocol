@@ -4,9 +4,6 @@ use light_compressible::config::CompressibleConfig;
 /// Context for updating a compressible config
 #[derive(Accounts)]
 pub struct UpdateCompressibleConfig<'info> {
-    #[account(mut)]
-    pub fee_payer: Signer<'info>,
-
     /// Authority that can update the config - must match the config's update_authority
     pub update_authority: Signer<'info>,
 
