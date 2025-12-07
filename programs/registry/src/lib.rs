@@ -738,7 +738,12 @@ pub mod light_registry {
     }
 
     /// Unpauses the compressible config.
+    /// Only paused configs (state=0) can be unpaused.
     pub fn unpause_compressible_config(ctx: Context<UpdateCompressibleConfig>) -> Result<()> {
+        require!(
+            ctx.accounts.compressible_config.state == 0,
+            RegistryError::InvalidConfigState
+        );
         ctx.accounts.compressible_config.state = 1;
         Ok(())
     }
