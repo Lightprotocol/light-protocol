@@ -4,7 +4,8 @@
 
 use anchor_lang::prelude::*;
 use light_ctoken_sdk::{
-    compressed_token::batch_compress::Recipient, TokenAccountMeta, ValidityProof,
+    compressed_token::{batch_compress::Recipient, TokenAccountMeta},
+    ValidityProof,
 };
 use light_sdk::instruction::{PackedAddressTreeInfo, ValidityProof as LightValidityProof};
 

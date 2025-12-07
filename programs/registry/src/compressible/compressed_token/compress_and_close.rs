@@ -17,7 +17,7 @@ use crate::errors::RegistryError;
 
 const TRANSFER2_DISCRIMINATOR: u8 = 101;
 use super::{
-    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, COMPRESSED_TOKEN_PROGRAM_ID,
+    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, CTOKEN_PROGRAM_ID,
     LIGHT_SYSTEM_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
 };
 
@@ -174,7 +174,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
     account_metas.extend(packed_account_metas);
 
     Ok(Instruction {
-        program_id: COMPRESSED_TOKEN_PROGRAM_ID,
+        program_id: CTOKEN_PROGRAM_ID,
         accounts: account_metas,
         data,
     })

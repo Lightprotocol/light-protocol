@@ -1,7 +1,7 @@
 use light_compressed_token_types::{constants::TRANSFER2, ValidityProof};
 use light_ctoken_interface::{
     instructions::transfer2::{CompressedCpiContext, CompressedTokenInstructionDataTransfer2},
-    COMPRESSED_TOKEN_PROGRAM_ID,
+    CTOKEN_PROGRAM_ID,
 };
 use light_program_profiler::profile;
 use solana_instruction::Instruction;
@@ -10,7 +10,7 @@ use solana_pubkey::Pubkey;
 use super::account_metas::{get_transfer2_instruction_account_metas, Transfer2AccountsMetaConfig};
 use crate::{
     compressed_token::CTokenAccount2,
-    error::{Result, TokenSdkError},
+    error::{CTokenSdkError, Result},
     AnchorSerialize,
 };
 
@@ -130,7 +130,7 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
     // Serialize instruction data
     let serialized = instruction_data
         .try_to_vec()
-        .map_err(|_| TokenSdkError::SerializationError)?;
+        .map_err(|_| CTokenSdkError::SerializationError)?;
 
     // Build instruction data with discriminator
     let mut data = Vec::with_capacity(1 + serialized.len());
@@ -140,7 +140,7 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
     let account_metas = get_transfer2_instruction_account_metas(meta_config);
 
     Ok(Instruction {
-        program_id: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::from(CTOKEN_PROGRAM_ID),
         accounts: account_metas,
         data,
     })
@@ -161,7 +161,7 @@ pub fn transfer2(inputs: create_transfer2_instruction) -> Result<Instruction> {
     // Validate that no token account has been used
     for token_account in &token_accounts {
         if token_account.method_used {
-            return Err(TokenSdkError::MethodUsed);
+            return Err(CTokenSdkError::MethodUsed);
         }
     }
 

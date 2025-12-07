@@ -5,7 +5,7 @@ use light_client::indexer::Indexer;
 use light_ctoken_interface::state::{extensions::AdditionalMetadata, CompressedMint};
 use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::{
-        derive_compressed_mint_address, find_spl_mint_address,
+        derive_cmint_compressed_address, find_cmint_address,
     },
     ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
 };
@@ -60,10 +60,10 @@ async fn functional_and_failing_tests() {
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     // Derive compressed mint address for verification
     let compressed_mint_address =
-        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint PDA for the rest of the test
-    let (spl_mint_pda, _) = find_spl_mint_address(&mint_seed.pubkey());
+    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
     // 1. Create compressed mint with both authorities
     {
         create_mint(
@@ -816,10 +816,10 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
             CompressedMintWithContext, MintActionCompressedInstructionData, MintToCTokenAction,
         },
         state::TokenDataVersion,
-        COMPRESSED_TOKEN_PROGRAM_ID,
+        CTOKEN_PROGRAM_ID,
     };
     use light_ctoken_sdk::compressed_token::{
-        create_compressed_mint::derive_compressed_mint_address, mint_action::MintActionMetaConfig,
+        create_compressed_mint::derive_cmint_compressed_address, mint_action::MintActionMetaConfig,
     };
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
@@ -839,8 +839,8 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (spl_mint_pda, _) = find_spl_mint_address(&mint_seed.pubkey());
+        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
 
     // 1. Create compressed mint
     light_token_client::actions::create_mint(
@@ -942,7 +942,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
 
     // Build final instruction
     let ix = Instruction {
-        program_id: COMPRESSED_TOKEN_PROGRAM_ID.into(),
+        program_id: CTOKEN_PROGRAM_ID.into(),
         accounts: account_metas,
         data,
     };

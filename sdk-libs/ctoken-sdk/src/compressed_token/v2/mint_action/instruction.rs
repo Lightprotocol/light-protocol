@@ -1,13 +1,13 @@
 use light_compressed_account::instruction_data::traits::LightInstructionData;
 use light_ctoken_interface::{
-    instructions::mint_action::MintActionCompressedInstructionData, COMPRESSED_TOKEN_PROGRAM_ID,
+    instructions::mint_action::MintActionCompressedInstructionData, CTOKEN_PROGRAM_ID,
 };
 use solana_instruction::Instruction;
 use solana_msg::msg;
 use solana_program_error::ProgramError;
 
 use super::{cpi_accounts::MintActionCpiAccounts, MintActionCpiWriteAccounts};
-use crate::{compressed_token::ctoken_instruction::CTokenInstruction, error::TokenSdkError};
+use crate::{compressed_token::ctoken_instruction::CTokenInstruction, error::CTokenSdkError};
 
 impl CTokenInstruction for MintActionCompressedInstructionData {
     type ExecuteAccounts<'info, A: light_account_checks::AccountInfoTrait + Clone + 'info> =
@@ -24,14 +24,14 @@ impl CTokenInstruction for MintActionCompressedInstructionData {
                 msg!(
                     "CPI context write operations not supported in instruction(). Use instruction_write_to_cpi_context_first() or instruction_write_to_cpi_context_set() instead"
                 );
-                return Err(ProgramError::from(TokenSdkError::InvalidAccountData));
+                return Err(ProgramError::from(CTokenSdkError::InvalidAccountData));
             }
         }
 
         let data = self.data().map_err(ProgramError::from)?;
 
         Ok(Instruction {
-            program_id: COMPRESSED_TOKEN_PROGRAM_ID.into(),
+            program_id: CTOKEN_PROGRAM_ID.into(),
             accounts: accounts.to_account_metas(),
             data,
         })
@@ -86,7 +86,7 @@ fn build_cpi_write_instruction<A: light_account_checks::AccountInfoTrait + Clone
 ) -> Result<Instruction, ProgramError> {
     let data = instruction_data.data().map_err(ProgramError::from)?;
     Ok(Instruction {
-        program_id: COMPRESSED_TOKEN_PROGRAM_ID.into(),
+        program_id: CTOKEN_PROGRAM_ID.into(),
         accounts: {
             let mut account_metas = Vec::with_capacity(
                 6 + accounts.recipient_token_accounts.len()

@@ -68,7 +68,7 @@ impl MintActionMetaConfig {
         cpi_context_pubkey: Pubkey,
     ) -> crate::error::Result<Self> {
         if instruction_data.cpi_context.is_none() {
-            return Err(crate::error::TokenSdkError::CpiContextRequired);
+            return Err(crate::error::CTokenSdkError::CpiContextRequired);
         }
 
         Ok(Self {

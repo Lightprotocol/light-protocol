@@ -1,11 +1,8 @@
 use anchor_lang::{prelude::*, solana_program::log::sol_log_compute_units};
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
-use light_ctoken_sdk::{
-    compressed_token::{
-        transfer::instruction::{TransferConfig, TransferInputs},
-        CTokenAccount,
-    },
-    TokenAccountMeta,
+use light_ctoken_sdk::compressed_token::{
+    transfer::instruction::{TransferConfig, TransferInputs},
+    CTokenAccount, TokenAccountMeta,
 };
 use light_sdk::{
     account::LightAccount,

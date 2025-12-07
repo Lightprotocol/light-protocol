@@ -4,20 +4,20 @@ use anchor_lang::{
 use anchor_spl::token_interface::spl_token_2022;
 use light_client::indexer::Indexer;
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
+use light_compressed_token_types::CPI_AUTHORITY_PDA;
 use light_ctoken_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData,
         mint_action::{CompressedMintInstructionData, CompressedMintWithContext, Recipient},
     },
     state::{extensions::AdditionalMetadata, CompressedMintMetadata},
-    COMPRESSED_TOKEN_PROGRAM_ID,
+    CTOKEN_PROGRAM_ID,
 };
 use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::{
-        derive_compressed_mint_address, find_spl_mint_address,
+        derive_cmint_compressed_address, find_cmint_address,
     },
     ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
-    CPI_AUTHORITY_PDA,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
@@ -194,10 +194,10 @@ pub async fn create_mint(
 
     // Derive compressed mint address using utility function
     let compressed_mint_address =
-        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint bump for the instruction
-    let (mint, _) = find_spl_mint_address(&mint_seed.pubkey());
+    let (mint, _) = find_cmint_address(&mint_seed.pubkey());
 
     // Create compressed token associated token account for the mint authority
     let (token_account, _) = derive_ctoken_ata(&mint_authority.pubkey(), &mint);
@@ -296,7 +296,7 @@ pub async fn create_mint(
         payer: payer.pubkey(),
         mint_authority: mint_authority.pubkey(),
         mint_seed: mint_seed.pubkey(),
-        ctoken_program: Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+        ctoken_program: Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
         ctoken_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
         token_account,
     };

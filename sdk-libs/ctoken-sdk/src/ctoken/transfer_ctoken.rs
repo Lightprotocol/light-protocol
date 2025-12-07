@@ -5,7 +5,23 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-pub struct TransferCtoken {
+/// # Create a transfer ctoken instruction:
+/// ```rust
+/// # use solana_pubkey::Pubkey;
+/// # use light_ctoken_sdk::ctoken::TransferCToken;
+/// # let source = Pubkey::new_unique();
+/// # let destination = Pubkey::new_unique();
+/// # let authority = Pubkey::new_unique();
+/// let instruction = TransferCToken {
+///     source,
+///     destination,
+///     amount: 100,
+///     authority,
+///     max_top_up: None,
+/// }.instruction()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
+pub struct TransferCToken {
     pub source: Pubkey,
     pub destination: Pubkey,
     pub amount: u64,
@@ -15,7 +31,24 @@ pub struct TransferCtoken {
     pub max_top_up: Option<u16>,
 }
 
-pub struct TransferCtokenAccountInfos<'info> {
+/// # Transfer ctoken via CPI:
+/// ```rust,no_run
+/// # use light_ctoken_sdk::ctoken::TransferCTokenCpi;
+/// # use solana_account_info::AccountInfo;
+/// # let source: AccountInfo = todo!();
+/// # let destination: AccountInfo = todo!();
+/// # let authority: AccountInfo = todo!();
+/// TransferCTokenCpi {
+///     source,
+///     destination,
+///     amount: 100,
+///     authority,
+///     max_top_up: None,
+/// }
+/// .invoke()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
+pub struct TransferCTokenCpi<'info> {
     pub source: AccountInfo<'info>,
     pub destination: AccountInfo<'info>,
     pub amount: u64,
@@ -24,26 +57,26 @@ pub struct TransferCtokenAccountInfos<'info> {
     pub max_top_up: Option<u16>,
 }
 
-impl<'info> TransferCtokenAccountInfos<'info> {
+impl<'info> TransferCTokenCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        TransferCtoken::from(self).instruction()
+        TransferCToken::from(self).instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
-        let instruction = TransferCtoken::from(&self).instruction()?;
+        let instruction = TransferCToken::from(&self).instruction()?;
         let account_infos = [self.source, self.destination, self.authority];
         invoke(&instruction, &account_infos)
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
-        let instruction = TransferCtoken::from(&self).instruction()?;
+        let instruction = TransferCToken::from(&self).instruction()?;
         let account_infos = [self.source, self.destination, self.authority];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
 
-impl<'info> From<&TransferCtokenAccountInfos<'info>> for TransferCtoken {
-    fn from(account_infos: &TransferCtokenAccountInfos<'info>) -> Self {
+impl<'info> From<&TransferCTokenCpi<'info>> for TransferCToken {
+    fn from(account_infos: &TransferCTokenCpi<'info>) -> Self {
         Self {
             source: *account_infos.source.key,
             destination: *account_infos.destination.key,
@@ -54,7 +87,7 @@ impl<'info> From<&TransferCtokenAccountInfos<'info>> for TransferCtoken {
     }
 }
 
-impl TransferCtoken {
+impl TransferCToken {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         Ok(Instruction {
             program_id: Pubkey::from(C_TOKEN_PROGRAM_ID),

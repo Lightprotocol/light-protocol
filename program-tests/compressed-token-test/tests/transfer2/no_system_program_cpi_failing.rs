@@ -45,7 +45,7 @@
 
 use light_ctoken_interface::instructions::{mint_action::Recipient, transfer2::Compression};
 use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::find_spl_mint_address,
+    compressed_token::create_compressed_mint::find_cmint_address,
     ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount},
     ValidityProof,
 };
@@ -101,7 +101,7 @@ async fn setup_no_system_program_cpi_test(
 
     // Create compressed mint seed
     let mint_seed = Keypair::new();
-    let (mint, _) = find_spl_mint_address(&mint_seed.pubkey());
+    let (mint, _) = find_cmint_address(&mint_seed.pubkey());
     let (source_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
     let (recipient_ata, _) = derive_ctoken_ata(&recipient.pubkey(), &mint);
 
@@ -227,8 +227,8 @@ fn build_compressions_only_instruction(
     packed_account_metas: Vec<solana_sdk::instruction::AccountMeta>,
 ) -> Result<solana_sdk::instruction::Instruction, RpcError> {
     use anchor_lang::AnchorSerialize;
+    use light_compressed_token_types::{CPI_AUTHORITY_PDA, TRANSFER2};
     use light_ctoken_interface::instructions::transfer2::CompressedTokenInstructionDataTransfer2;
-    use light_ctoken_sdk::constants::{CPI_AUTHORITY_PDA, TRANSFER2};
     use solana_sdk::instruction::AccountMeta;
 
     // For compressions-only mode (decompressed_accounts_only), the account order is:
@@ -271,7 +271,7 @@ fn build_compressions_only_instruction(
     data.extend(serialized);
 
     Ok(solana_sdk::instruction::Instruction {
-        program_id: light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID.into(),
+        program_id: light_ctoken_interface::CTOKEN_PROGRAM_ID.into(),
         accounts: account_metas,
         data,
     })
@@ -704,7 +704,7 @@ async fn test_too_many_mints() {
     for _ in 0..5 {
         // Create new mint seed
         let mint_seed = Keypair::new();
-        let (mint, _) = find_spl_mint_address(&mint_seed.pubkey());
+        let (mint, _) = find_cmint_address(&mint_seed.pubkey());
         let (source_ata, _) = derive_ctoken_ata(&context.owner.pubkey(), &mint);
         let (recipient_ata, _) = derive_ctoken_ata(&context.recipient.pubkey(), &mint);
 

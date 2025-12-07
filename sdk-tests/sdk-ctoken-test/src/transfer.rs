@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_ctoken_sdk::ctoken::TransferCtokenAccountInfos;
+use light_ctoken_sdk::ctoken::TransferCTokenCpi;
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{ID, TOKEN_ACCOUNT_SEED};
@@ -29,7 +29,7 @@ pub fn process_transfer_invoke(
     }
 
     // Build the account infos struct using the builder pattern
-    TransferCtokenAccountInfos {
+    TransferCTokenCpi {
         source: accounts[0].clone(),
         destination: accounts[1].clone(),
         amount: data.amount,
@@ -69,7 +69,7 @@ pub fn process_transfer_invoke_signed(
     }
 
     // Build the account infos struct
-    let transfer_accounts = TransferCtokenAccountInfos {
+    let transfer_accounts = TransferCTokenCpi {
         source: accounts[0].clone(),
         destination: accounts[1].clone(),
         amount: data.amount,

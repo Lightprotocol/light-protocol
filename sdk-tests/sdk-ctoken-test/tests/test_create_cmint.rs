@@ -1,4 +1,4 @@
-// Tests for CreateCMintAccountInfos (CreateCmint instruction)
+// Tests for CreateCMintCpi (CreateCmint instruction)
 
 mod shared;
 
@@ -20,7 +20,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test creating a compressed mint using CreateCMintAccountInfos::invoke()
+/// Test creating a compressed mint using CreateCMintCpi::invoke()
 #[tokio::test]
 async fn test_create_compressed_mint() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -39,15 +39,15 @@ async fn test_create_compressed_mint() {
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
+        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
 
     // Use SDK helper to derive the compression address correctly
-    let compression_address = light_ctoken_sdk::ctoken::derive_compressed_mint_address(
+    let compression_address = light_ctoken_sdk::ctoken::derive_cmint_compressed_address(
         &mint_signer.pubkey(),
         &address_tree.tree,
     );
 
-    let mint_pda = light_ctoken_sdk::ctoken::find_spl_mint_address(&mint_signer.pubkey()).0;
+    let mint_pda = light_ctoken_sdk::ctoken::find_cmint_address(&mint_signer.pubkey()).0;
 
     let rpc_result = rpc
         .get_validity_proof(
@@ -126,7 +126,7 @@ async fn test_create_compressed_mint() {
     assert!(compressed_account.is_some(), "Compressed mint should exist");
 }
 
-/// Test creating a compressed mint with PDA mint signer using CreateCMintAccountInfos::invoke_signed()
+/// Test creating a compressed mint with PDA mint signer using CreateCMintCpi::invoke_signed()
 #[tokio::test]
 async fn test_create_compressed_mint_invoke_signed() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -147,15 +147,15 @@ async fn test_create_compressed_mint_invoke_signed() {
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
+        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
 
     // Use SDK helper to derive the compression address correctly
-    let compression_address = light_ctoken_sdk::ctoken::derive_compressed_mint_address(
+    let compression_address = light_ctoken_sdk::ctoken::derive_cmint_compressed_address(
         &mint_signer_pda,
         &address_tree.tree,
     );
 
-    let mint_pda = light_ctoken_sdk::ctoken::find_spl_mint_address(&mint_signer_pda).0;
+    let mint_pda = light_ctoken_sdk::ctoken::find_cmint_address(&mint_signer_pda).0;
 
     let rpc_result = rpc
         .get_validity_proof(

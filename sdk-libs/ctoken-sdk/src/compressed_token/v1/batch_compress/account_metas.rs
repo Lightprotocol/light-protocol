@@ -8,7 +8,7 @@ use crate::utils::CTokenDefaultAccounts;
 pub struct BatchCompressMetaConfig {
     pub fee_payer: Option<Pubkey>,
     pub authority: Option<Pubkey>,
-    pub token_pool_pda: Pubkey,
+    pub spl_interface_pda: Pubkey,
     pub sender_token_account: Pubkey,
     pub token_program: Pubkey,
     pub merkle_tree: Pubkey,
@@ -20,7 +20,7 @@ impl BatchCompressMetaConfig {
     pub fn new(
         fee_payer: Pubkey,
         authority: Pubkey,
-        token_pool_pda: Pubkey,
+        spl_interface_pda: Pubkey,
         sender_token_account: Pubkey,
         token_program: Pubkey,
         merkle_tree: Pubkey,
@@ -34,7 +34,7 @@ impl BatchCompressMetaConfig {
         Self {
             fee_payer: Some(fee_payer),
             authority: Some(authority),
-            token_pool_pda,
+            spl_interface_pda,
             sender_token_account,
             token_program,
             merkle_tree,
@@ -44,7 +44,7 @@ impl BatchCompressMetaConfig {
 
     /// Create a new BatchCompressMetaConfig for client-side (CPI) usage
     pub fn new_client(
-        token_pool_pda: Pubkey,
+        spl_interface_pda: Pubkey,
         sender_token_account: Pubkey,
         token_program: Pubkey,
         merkle_tree: Pubkey,
@@ -58,7 +58,7 @@ impl BatchCompressMetaConfig {
         Self {
             fee_payer: None,
             authority: None,
-            token_pool_pda,
+            spl_interface_pda,
             sender_token_account,
             token_program,
             merkle_tree,
@@ -75,7 +75,7 @@ pub fn get_batch_compress_instruction_account_metas(
     let default_pubkeys = CTokenDefaultAccounts::default();
 
     // Calculate capacity based on whether fee_payer is provided
-    // Base accounts:   cpi_authority_pda + token_pool_pda + token_program + light_system_program +
+    // Base accounts:   cpi_authority_pda + spl_interface_pda + token_program + light_system_program +
     //                  registered_program_pda + noop_program + account_compression_authority +
     //                  account_compression_program + merkle_tree +
     //                  self_program + system_program + sender_token_account
@@ -113,10 +113,8 @@ pub fn get_batch_compress_instruction_account_metas(
             false,
         ));
     }
-    println!("config {:?}", config);
-    println!("default_pubkeys {:?}", default_pubkeys);
-    // token_pool_pda (mut)
-    metas.push(AccountMeta::new(config.token_pool_pda, false));
+    // spl_interface_pda (mut)
+    metas.push(AccountMeta::new(config.spl_interface_pda, false));
 
     // token_program
     metas.push(AccountMeta::new_readonly(config.token_program, false));

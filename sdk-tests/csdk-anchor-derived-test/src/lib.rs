@@ -29,7 +29,7 @@ pub mod csdk_anchor_derived_test {
         MintActionCompressedInstructionData, MintToCompressedAction, Recipient,
     };
     use light_ctoken_sdk::compressed_token::{
-        create_compressed_mint::find_spl_mint_address, mint_action::MintActionMetaConfig,
+        create_compressed_mint::find_cmint_address, mint_action::MintActionMetaConfig,
     };
     use light_sdk::{
         compressible::{
@@ -136,7 +136,7 @@ pub mod csdk_anchor_derived_test {
             .write_to_cpi_context_first()
             .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
 
-        let mint = find_spl_mint_address(&ctx.accounts.mint_signer.key()).0;
+        let mint = find_cmint_address(&ctx.accounts.mint_signer.key()).0;
         let (_, token_account_address) = get_ctoken_signer_seeds(&ctx.accounts.user.key(), &mint);
 
         let output_queue = *cpi_accounts.tree_accounts().unwrap()[0].key;
@@ -187,7 +187,7 @@ pub mod csdk_anchor_derived_test {
 
         // Build mint action instruction
         let mint_action_instruction = solana_program::instruction::Instruction {
-            program_id: light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID.into(),
+            program_id: light_ctoken_interface::CTOKEN_PROGRAM_ID.into(),
             accounts: account_metas,
             data,
         };

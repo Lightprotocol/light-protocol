@@ -4,7 +4,7 @@ use base64::{engine::general_purpose, Engine as _};
 use borsh::BorshDeserialize;
 use light_ctoken_interface::{
     state::{extensions::ExtensionStruct, CToken},
-    COMPRESSED_TOKEN_PROGRAM_ID, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, CTOKEN_PROGRAM_ID,
 };
 use serde_json::json;
 use solana_sdk::pubkey::Pubkey;
@@ -191,7 +191,7 @@ async fn bootstrap_with_v2_api(
     mut shutdown_rx: oneshot::Receiver<()>,
 ) -> Result<()> {
     let client = reqwest::Client::new();
-    let program_id = Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID);
+    let program_id = Pubkey::new_from_array(CTOKEN_PROGRAM_ID);
 
     let mut total_fetched = 0;
     let mut total_inserted = 0;
@@ -314,7 +314,7 @@ async fn bootstrap_with_standard_api(
     mut shutdown_rx: oneshot::Receiver<()>,
 ) -> Result<()> {
     let client = reqwest::Client::new();
-    let program_id = Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID);
+    let program_id = Pubkey::new_from_array(CTOKEN_PROGRAM_ID);
 
     let payload = json!({
         "jsonrpc": "2.0",

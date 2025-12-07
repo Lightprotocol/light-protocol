@@ -1,6 +1,6 @@
 use light_account_checks::{AccountError, AccountInfoTrait, AccountIterator};
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
-use light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use light_program_profiler::profile;
 use light_sdk_types::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
@@ -9,7 +9,7 @@ use light_sdk_types::{
 use solana_instruction::AccountMeta;
 use solana_msg::msg;
 
-use crate::error::TokenSdkError;
+use crate::error::CTokenSdkError;
 
 #[derive(Debug, Clone, Default, Copy)]
 pub struct MintActionCpiAccountsConfig {
@@ -69,11 +69,11 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
     pub fn try_from_account_infos_full(
         accounts: &'a [A],
         config: MintActionCpiAccountsConfig,
-    ) -> Result<Self, TokenSdkError> {
+    ) -> Result<Self, CTokenSdkError> {
         let mut iter = AccountIterator::new(accounts);
 
         let compressed_token_program =
-            iter.next_checked_pubkey("compressed_token_program", COMPRESSED_TOKEN_PROGRAM_ID)?;
+            iter.next_checked_pubkey("compressed_token_program", CTOKEN_PROGRAM_ID)?;
 
         let light_system_program =
             iter.next_checked_pubkey("light_system_program", LIGHT_SYSTEM_PROGRAM_ID)?;
@@ -171,7 +171,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
     /// Simple version for common case (no optional features)
     #[inline(always)]
     #[track_caller]
-    pub fn try_from_account_infos(accounts: &'a [A]) -> Result<Self, TokenSdkError> {
+    pub fn try_from_account_infos(accounts: &'a [A]) -> Result<Self, CTokenSdkError> {
         Self::try_from_account_infos_full(accounts, MintActionCpiAccountsConfig::default())
     }
 

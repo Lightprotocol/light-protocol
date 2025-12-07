@@ -4,7 +4,7 @@ use anchor_lang::{InstructionData, ToAccountMetas};
 use forester_utils::rpc_pool::SolanaRpcPool;
 use light_client::rpc::Rpc;
 use light_compressible::config::CompressibleConfig;
-use light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use light_ctoken_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenAccounts;
 use light_registry::{
     accounts::CompressAndCloseContext, compressible::compressed_token::CompressAndCloseIndices,
@@ -60,7 +60,7 @@ impl<R: Rpc> Compressor<R> {
         registered_forester_pda: Pubkey,
     ) -> Result<Signature> {
         let registry_program_id = Pubkey::from_str(REGISTRY_PROGRAM_ID_STR)?;
-        let compressed_token_program_id = Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID);
+        let compressed_token_program_id = Pubkey::new_from_array(CTOKEN_PROGRAM_ID);
 
         // Derive compression_authority PDA deterministically (version = 1)
         let compression_authority_seeds = CompressibleConfig::get_compression_authority_seeds(1);

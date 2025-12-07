@@ -4,7 +4,7 @@
 
 use anchor_lang::prelude::*;
 use light_ctoken_interface::instructions::mint_action::CompressedMintWithContext;
-use light_ctoken_sdk::Pack as _TokenPack;
+use light_ctoken_sdk::pack::Pack as _TokenPack;
 use light_sdk::{
     account::Size,
     compressible::{

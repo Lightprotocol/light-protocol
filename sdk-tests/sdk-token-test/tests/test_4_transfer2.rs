@@ -155,7 +155,7 @@ async fn create_compressed_mint_helper(
 
     // Find mint PDA
     let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
+        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
     let (mint_pda, _) = Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_signer.pubkey().as_ref()],
         &compressed_token_program_id,

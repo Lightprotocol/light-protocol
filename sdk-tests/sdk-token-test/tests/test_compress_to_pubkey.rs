@@ -1,5 +1,5 @@
 use anchor_lang::InstructionData;
-use light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use light_program_test::{
     program_test::TestRpc, Indexer, LightProgramTest, ProgramTestConfig, Rpc,
 };
@@ -52,10 +52,8 @@ async fn test_compress_to_pubkey() {
         false,
     )); // System program
     remaining_accounts.add_pre_accounts_meta(AccountMeta::new(rent_sponsor, false)); // Rent recipient
-    remaining_accounts.add_pre_accounts_meta(AccountMeta::new_readonly(
-        COMPRESSED_TOKEN_PROGRAM_ID.into(),
-        false,
-    ));
+    remaining_accounts
+        .add_pre_accounts_meta(AccountMeta::new_readonly(CTOKEN_PROGRAM_ID.into(), false));
     let (account_metas, _, _) = remaining_accounts.to_account_metas();
 
     let instruction_data = sdk_token_test::instruction::CreateCtokenWithCompressToPubkey {

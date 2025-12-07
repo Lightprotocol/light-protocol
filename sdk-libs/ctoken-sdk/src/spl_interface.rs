@@ -1,7 +1,7 @@
 //! SPL interface PDA derivation utilities.
 
 use light_compressed_token_types::constants::POOL_SEED;
-use light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use solana_pubkey::Pubkey;
 
 use crate::{AnchorDeserialize, AnchorSerialize};
@@ -26,7 +26,7 @@ pub fn find_spl_interface_pda_with_index(mint: &Pubkey, spl_interface_index: u8)
     } else {
         &seeds[..]
     };
-    Pubkey::find_program_address(seeds, &Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID))
+    Pubkey::find_program_address(seeds, &Pubkey::from(CTOKEN_PROGRAM_ID))
 }
 
 /// Get the spl interface pda for a given mint and index

@@ -3,7 +3,7 @@ use light_macros::pubkey_array;
 use crate::state::CompressionInfo;
 
 pub const CPI_AUTHORITY: [u8; 32] = pubkey_array!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
-pub const COMPRESSED_TOKEN_PROGRAM_ID: [u8; 32] =
+pub const CTOKEN_PROGRAM_ID: [u8; 32] =
     pubkey_array!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
 /// Account size constants

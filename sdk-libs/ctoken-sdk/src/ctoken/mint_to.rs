@@ -15,10 +15,7 @@ use crate::compressed_token::mint_action::{
     MintActionMetaConfigCpiWrite,
 };
 
-// ============================================================================
-// Params Struct: MintToCTokenParams
-// ============================================================================
-
+/// Parameters for minting tokens to a ctoken account.
 #[derive(Debug, Clone)]
 pub struct MintToCTokenParams {
     pub compressed_mint_inputs: CompressedMintWithContext,
@@ -54,10 +51,36 @@ impl MintToCTokenParams {
     }
 }
 
-// ============================================================================
-// Builder Struct: MintToCToken
-// ============================================================================
-
+/// # Create a mint to ctoken instruction:
+/// ```rust,no_run
+/// # use solana_pubkey::Pubkey;
+/// use light_ctoken_sdk::ctoken::{MintToCToken, MintToCTokenParams, CompressedMintWithContext};
+/// use light_ctoken_sdk::ValidityProof;
+/// # let compressed_mint_with_context: CompressedMintWithContext = todo!();
+/// # let validity_proof: ValidityProof = todo!();
+/// # let mint_authority = Pubkey::new_unique();
+/// # let payer = Pubkey::new_unique();
+/// # let state_tree_pubkey = Pubkey::new_unique();
+/// # let input_queue = Pubkey::new_unique();
+/// # let output_queue = Pubkey::new_unique();
+/// # let ctoken_account = Pubkey::new_unique();
+///
+/// let params = MintToCTokenParams::new(
+///     compressed_mint_with_context, // from rpc
+///     1000, // amount
+///     mint_authority,
+///     validity_proof, // from rpc
+/// );
+/// let instruction = MintToCToken::new(
+///     params,
+///     payer,
+///     state_tree_pubkey,
+///     input_queue,
+///     output_queue,
+///     vec![ctoken_account],
+/// ).instruction()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
 #[derive(Debug, Clone)]
 pub struct MintToCToken {
     pub payer: Pubkey,
@@ -139,7 +162,7 @@ impl MintToCToken {
             .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
 
         Ok(Instruction {
-            program_id: Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
+            program_id: Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
             accounts: account_metas,
             data,
         })
@@ -249,7 +272,7 @@ impl MintToCTokenCpiWrite {
             .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
 
         Ok(Instruction {
-            program_id: Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
+            program_id: Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
             accounts: account_metas,
             data,
         })
@@ -257,10 +280,37 @@ impl MintToCTokenCpiWrite {
 }
 
 // ============================================================================
-// AccountInfos Struct: MintToCTokenInfos (for CPI usage)
+// AccountInfos Struct: MintToCTokenCpi (for CPI usage)
 // ============================================================================
 
-pub struct MintToCTokenInfos<'info> {
+/// # Mint to ctoken account via CPI:
+/// ```rust,no_run
+/// # use light_ctoken_sdk::ctoken::{MintToCTokenCpi, MintToCTokenParams, SystemAccountInfos};
+/// # use solana_account_info::AccountInfo;
+/// # let authority: AccountInfo = todo!();
+/// # let payer: AccountInfo = todo!();
+/// # let state_tree: AccountInfo = todo!();
+/// # let input_queue: AccountInfo = todo!();
+/// # let output_queue: AccountInfo = todo!();
+/// # let ctoken_accounts: Vec<AccountInfo> = todo!();
+/// # let system_accounts: SystemAccountInfos = todo!();
+/// # let params: MintToCTokenParams = todo!();
+/// MintToCTokenCpi {
+///     authority,
+///     payer,
+///     state_tree,
+///     input_queue,
+///     output_queue,
+///     ctoken_accounts,
+///     system_accounts,
+///     cpi_context: None,
+///     cpi_context_account: None,
+///     params,
+/// }
+/// .invoke()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
+pub struct MintToCTokenCpi<'info> {
     /// The authority for the mint operation (mint_authority).
     pub authority: AccountInfo<'info>,
     /// The fee payer for the transaction.
@@ -275,7 +325,7 @@ pub struct MintToCTokenInfos<'info> {
     pub params: MintToCTokenParams,
 }
 
-impl<'info> MintToCTokenInfos<'info> {
+impl<'info> MintToCTokenCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
         MintToCToken::try_from(self)?.instruction()
     }
@@ -335,13 +385,13 @@ impl<'info> MintToCTokenInfos<'info> {
     }
 }
 
-impl<'info> TryFrom<&MintToCTokenInfos<'info>> for MintToCToken {
+impl<'info> TryFrom<&MintToCTokenCpi<'info>> for MintToCToken {
     type Error = ProgramError;
 
-    fn try_from(account_infos: &MintToCTokenInfos<'info>) -> Result<Self, Self::Error> {
+    fn try_from(account_infos: &MintToCTokenCpi<'info>) -> Result<Self, Self::Error> {
         if account_infos.params.mint_authority != *account_infos.authority.key {
             solana_msg::msg!(
-                "MintToCTokenInfos: params.mint_authority ({}) does not match authority account ({})",
+                "MintToCTokenCpi: params.mint_authority ({}) does not match authority account ({})",
                 account_infos.params.mint_authority,
                 account_infos.authority.key
             );
@@ -368,17 +418,17 @@ impl<'info> TryFrom<&MintToCTokenInfos<'info>> for MintToCToken {
 }
 
 // ============================================================================
-// AccountInfos Struct: MintToCTokenCpiWriteInfos
+// AccountInfos Struct: MintToCTokenCpiWriteCpi
 // ============================================================================
 
-pub struct MintToCTokenCpiWriteInfos<'info> {
+pub struct MintToCTokenCpiWriteCpi<'info> {
     pub payer: AccountInfo<'info>,
     pub cpi_context_account: AccountInfo<'info>,
     pub ctoken_accounts: Vec<AccountInfo<'info>>,
     pub params: MintToCTokenCpiWriteParams,
 }
 
-impl<'info> MintToCTokenCpiWriteInfos<'info> {
+impl<'info> MintToCTokenCpiWriteCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
         MintToCTokenCpiWrite::from(self).instruction()
     }
@@ -391,8 +441,8 @@ impl<'info> MintToCTokenCpiWriteInfos<'info> {
     }
 }
 
-impl<'info> From<&MintToCTokenCpiWriteInfos<'info>> for MintToCTokenCpiWrite {
-    fn from(account_infos: &MintToCTokenCpiWriteInfos<'info>) -> Self {
+impl<'info> From<&MintToCTokenCpiWriteCpi<'info>> for MintToCTokenCpiWrite {
+    fn from(account_infos: &MintToCTokenCpiWriteCpi<'info>) -> Self {
         Self {
             payer: *account_infos.payer.key,
             cpi_context_pubkey: *account_infos.cpi_context_account.key,

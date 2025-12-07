@@ -7,7 +7,7 @@ use solana_pubkey::Pubkey;
 
 use super::account_metas::{get_batch_compress_instruction_account_metas, BatchCompressMetaConfig};
 use crate::{
-    error::{Result, TokenSdkError},
+    error::{CTokenSdkError, Result},
     AnchorDeserialize, AnchorSerialize,
 };
 
@@ -21,7 +21,7 @@ pub struct Recipient {
 pub struct BatchCompressInputs {
     pub fee_payer: Pubkey,
     pub authority: Pubkey,
-    pub token_pool_pda: Pubkey,
+    pub spl_interface_pda: Pubkey,
     pub sender_token_account: Pubkey,
     pub token_program: Pubkey,
     pub merkle_tree: Pubkey,
@@ -54,7 +54,7 @@ pub fn create_batch_compress_instruction(inputs: BatchCompressInputs) -> Result<
     // Serialize instruction data
     let data_vec = instruction_data
         .try_to_vec()
-        .map_err(|_| TokenSdkError::SerializationError)?;
+        .map_err(|_| CTokenSdkError::SerializationError)?;
     let mut data = Vec::with_capacity(data_vec.len() + 8 + 4);
     data.extend_from_slice(BATCH_COMPRESS.as_slice());
     data.extend_from_slice(
@@ -68,7 +68,7 @@ pub fn create_batch_compress_instruction(inputs: BatchCompressInputs) -> Result<
     let meta_config = BatchCompressMetaConfig {
         fee_payer: Some(inputs.fee_payer),
         authority: Some(inputs.authority),
-        token_pool_pda: inputs.token_pool_pda,
+        spl_interface_pda: inputs.spl_interface_pda,
         sender_token_account: inputs.sender_token_account,
         token_program: inputs.token_program,
         merkle_tree: inputs.merkle_tree,
@@ -78,7 +78,7 @@ pub fn create_batch_compress_instruction(inputs: BatchCompressInputs) -> Result<
     let account_metas = get_batch_compress_instruction_account_metas(meta_config);
 
     Ok(Instruction {
-        program_id: Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
         accounts: account_metas,
         data,
     })

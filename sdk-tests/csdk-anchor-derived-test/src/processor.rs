@@ -183,10 +183,7 @@ impl<'info> light_sdk::compressible::DecompressContext<'info>
             return Ok(());
         }
 
-        light_ctoken_sdk::compressible::decompress_runtime::process_decompress_tokens_runtime::<
-            CTokenAccountVariant,
-            _,
-        >(
+        light_ctoken_sdk::compressible::process_decompress_tokens_runtime::<CTokenAccountVariant, _>(
             self,
             _remaining_accounts,
             _fee_payer,

@@ -2,14 +2,14 @@ use borsh::BorshSerialize;
 use light_compressed_token_types::{
     instruction::delegation::CompressedTokenInstructionDataApprove, ValidityProof,
 };
-use light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
 use super::account_metas::{get_approve_instruction_account_metas, ApproveMetaConfig};
 use crate::{
     compressed_token::v1::CTokenAccount,
-    error::{Result, TokenSdkError},
+    error::{CTokenSdkError, Result},
 };
 
 #[derive(Debug, Clone)]
@@ -35,13 +35,13 @@ pub fn create_approve_instruction(inputs: ApproveInputs) -> Result<Instruction> 
     let (input_token_data, _) = inputs.sender_account.into_inputs_and_outputs();
 
     if input_token_data.is_empty() {
-        return Err(TokenSdkError::InsufficientBalance);
+        return Err(CTokenSdkError::InsufficientBalance);
     }
 
     // Calculate total input amount
     let total_input_amount: u64 = input_token_data.iter().map(|data| data.amount).sum();
     if total_input_amount < inputs.delegated_amount {
-        return Err(TokenSdkError::InsufficientBalance);
+        return Err(CTokenSdkError::InsufficientBalance);
     }
 
     // Use the input token data directly since it's already in the correct format
@@ -63,7 +63,7 @@ pub fn create_approve_instruction(inputs: ApproveInputs) -> Result<Instruction> 
     // Serialize instruction data
     let serialized_data = instruction_data
         .try_to_vec()
-        .map_err(|_| TokenSdkError::SerializationError)?;
+        .map_err(|_| CTokenSdkError::SerializationError)?;
 
     // Create account meta config
     let meta_config = ApproveMetaConfig::new(
@@ -76,7 +76,7 @@ pub fn create_approve_instruction(inputs: ApproveInputs) -> Result<Instruction> 
     let account_metas = get_approve_instruction_account_metas(meta_config);
 
     Ok(Instruction {
-        program_id: Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
         accounts: account_metas,
         data: serialized_data,
     })

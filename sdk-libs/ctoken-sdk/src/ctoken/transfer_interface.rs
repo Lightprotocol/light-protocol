@@ -2,11 +2,10 @@ use solana_account_info::AccountInfo;
 use solana_program_error::ProgramError;
 
 use super::{
-    transfer_ctoken::TransferCtokenAccountInfos,
-    transfer_ctoken_spl::TransferCtokenToSplAccountInfos,
-    transfer_spl_ctoken::TransferSplToCtokenAccountInfos,
+    transfer_ctoken::TransferCTokenCpi, transfer_ctoken_spl::TransferCTokenToSplCpi,
+    transfer_spl_ctoken::TransferSplToCtokenCpi,
 };
-use crate::{error::TokenSdkError, utils::is_ctoken_account};
+use crate::{error::CTokenSdkError, utils::is_ctoken_account};
 
 /// Required accounts to interface between ctoken and SPL token accounts.
 pub struct SplInterface<'info> {
@@ -16,7 +15,7 @@ pub struct SplInterface<'info> {
     pub spl_interface_pda_bump: u8,
 }
 
-pub struct TransferInterface<'info> {
+pub struct TransferInterfaceCpi<'info> {
     pub amount: u64,
     pub source_account: AccountInfo<'info>,
     pub destination_account: AccountInfo<'info>,
@@ -26,7 +25,7 @@ pub struct TransferInterface<'info> {
     pub spl_interface: Option<SplInterface<'info>>,
 }
 
-impl<'info> TransferInterface<'info> {
+impl<'info> TransferInterfaceCpi<'info> {
     /// # Arguments
     /// * `amount` - Amount to transfer
     /// * `source_account` - Source token account (can be ctoken or SPL)
@@ -66,16 +65,17 @@ impl<'info> TransferInterface<'info> {
         spl_interface_pda_bump: Option<u8>,
     ) -> Result<Self, ProgramError> {
         let mint =
-            mint.ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingMintAccount.into()))?;
+            mint.ok_or_else(|| ProgramError::Custom(CTokenSdkError::MissingMintAccount.into()))?;
 
         let spl_token_program = spl_token_program
-            .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingSplTokenProgram.into()))?;
+            .ok_or_else(|| ProgramError::Custom(CTokenSdkError::MissingSplTokenProgram.into()))?;
 
         let spl_interface_pda = spl_interface_pda
-            .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingTokenPoolPda.into()))?;
+            .ok_or_else(|| ProgramError::Custom(CTokenSdkError::MissingSplInterfacePda.into()))?;
 
-        let spl_interface_pda_bump = spl_interface_pda_bump
-            .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingTokenPoolPdaBump.into()))?;
+        let spl_interface_pda_bump = spl_interface_pda_bump.ok_or_else(|| {
+            ProgramError::Custom(CTokenSdkError::MissingSplInterfacePdaBump.into())
+        })?;
 
         self.spl_interface = Some(SplInterface {
             mint,
@@ -92,12 +92,12 @@ impl<'info> TransferInterface<'info> {
     /// * `CannotDetermineAccountType` - If account type cannot be determined
     pub fn invoke(self) -> Result<(), ProgramError> {
         let source_is_ctoken = is_ctoken_account(&self.source_account)
-            .map_err(|_| ProgramError::Custom(TokenSdkError::CannotDetermineAccountType.into()))?;
+            .map_err(|_| ProgramError::Custom(CTokenSdkError::CannotDetermineAccountType.into()))?;
         let dest_is_ctoken = is_ctoken_account(&self.destination_account)
-            .map_err(|_| ProgramError::Custom(TokenSdkError::CannotDetermineAccountType.into()))?;
+            .map_err(|_| ProgramError::Custom(CTokenSdkError::CannotDetermineAccountType.into()))?;
 
         match (source_is_ctoken, dest_is_ctoken) {
-            (true, true) => TransferCtokenAccountInfos {
+            (true, true) => TransferCTokenCpi {
                 source: self.source_account.clone(),
                 destination: self.destination_account.clone(),
                 amount: self.amount,
@@ -108,10 +108,10 @@ impl<'info> TransferInterface<'info> {
 
             (true, false) => {
                 let config = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(CTokenSdkError::SplInterfaceRequired.into())
                 })?;
 
-                TransferCtokenToSplAccountInfos {
+                TransferCTokenToSplCpi {
                     source_ctoken_account: self.source_account.clone(),
                     destination_spl_token_account: self.destination_account.clone(),
                     amount: self.amount,
@@ -130,10 +130,10 @@ impl<'info> TransferInterface<'info> {
 
             (false, true) => {
                 let config = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(CTokenSdkError::SplInterfaceRequired.into())
                 })?;
 
-                TransferSplToCtokenAccountInfos {
+                TransferSplToCtokenCpi {
                     source_spl_token_account: self.source_account.clone(),
                     destination_ctoken_account: self.destination_account.clone(),
                     amount: self.amount,
@@ -151,7 +151,7 @@ impl<'info> TransferInterface<'info> {
             }
 
             (false, false) => Err(ProgramError::Custom(
-                TokenSdkError::UseRegularSplTransfer.into(),
+                CTokenSdkError::UseRegularSplTransfer.into(),
             )),
         }
     }
@@ -162,12 +162,12 @@ impl<'info> TransferInterface<'info> {
     /// * `CannotDetermineAccountType` - If account type cannot be determined
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let source_is_ctoken = is_ctoken_account(&self.source_account)
-            .map_err(|_| ProgramError::Custom(TokenSdkError::CannotDetermineAccountType.into()))?;
+            .map_err(|_| ProgramError::Custom(CTokenSdkError::CannotDetermineAccountType.into()))?;
         let dest_is_ctoken = is_ctoken_account(&self.destination_account)
-            .map_err(|_| ProgramError::Custom(TokenSdkError::CannotDetermineAccountType.into()))?;
+            .map_err(|_| ProgramError::Custom(CTokenSdkError::CannotDetermineAccountType.into()))?;
 
         match (source_is_ctoken, dest_is_ctoken) {
-            (true, true) => TransferCtokenAccountInfos {
+            (true, true) => TransferCTokenCpi {
                 source: self.source_account.clone(),
                 destination: self.destination_account.clone(),
                 amount: self.amount,
@@ -178,10 +178,10 @@ impl<'info> TransferInterface<'info> {
 
             (true, false) => {
                 let config = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(CTokenSdkError::SplInterfaceRequired.into())
                 })?;
 
-                TransferCtokenToSplAccountInfos {
+                TransferCTokenToSplCpi {
                     source_ctoken_account: self.source_account.clone(),
                     destination_spl_token_account: self.destination_account.clone(),
                     amount: self.amount,
@@ -200,10 +200,10 @@ impl<'info> TransferInterface<'info> {
 
             (false, true) => {
                 let config = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(CTokenSdkError::SplInterfaceRequired.into())
                 })?;
 
-                TransferSplToCtokenAccountInfos {
+                TransferSplToCtokenCpi {
                     source_spl_token_account: self.source_account.clone(),
                     destination_ctoken_account: self.destination_account.clone(),
                     amount: self.amount,
@@ -221,7 +221,7 @@ impl<'info> TransferInterface<'info> {
             }
 
             (false, false) => Err(ProgramError::Custom(
-                TokenSdkError::UseRegularSplTransfer.into(),
+                CTokenSdkError::UseRegularSplTransfer.into(),
             )),
         }
     }

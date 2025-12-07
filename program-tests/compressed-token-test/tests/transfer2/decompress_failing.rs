@@ -38,7 +38,7 @@ use light_ctoken_interface::{
 };
 use light_ctoken_sdk::{
     compressed_token::{
-        create_compressed_mint::find_spl_mint_address,
+        create_compressed_mint::find_cmint_address,
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
             Transfer2Config, Transfer2Inputs,
@@ -88,7 +88,7 @@ async fn setup_decompression_test(
     let mint_seed = Keypair::new();
 
     // Derive mint and ATA addresses
-    let (mint, _) = find_spl_mint_address(&mint_seed.pubkey());
+    let (mint, _) = find_cmint_address(&mint_seed.pubkey());
     let (ctoken_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
 
     // Create compressible CToken ATA for owner (recipient of decompression)

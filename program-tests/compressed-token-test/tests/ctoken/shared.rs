@@ -2,7 +2,7 @@
 pub use light_compressible::rent::{RentConfig, SLOTS_PER_EPOCH};
 pub use light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
 pub use light_ctoken_sdk::ctoken::{
-    derive_ctoken_ata, CloseAccount, CompressibleParams, CreateAssociatedTokenAccount,
+    derive_ctoken_ata, CloseCTokenAccount, CompressibleParams, CreateAssociatedTokenAccount,
     CreateCTokenAccount,
 };
 pub use light_program_test::{
@@ -320,7 +320,7 @@ pub async fn close_and_assert_token_account(
             panic!("Compressible account must have compressible extension");
         };
 
-        CloseAccount {
+        CloseCTokenAccount {
             token_program: light_compressed_token::ID,
             account: token_account_pubkey,
             destination,
@@ -330,7 +330,7 @@ pub async fn close_and_assert_token_account(
         .instruction()
         .unwrap()
     } else {
-        CloseAccount {
+        CloseCTokenAccount {
             token_program: light_compressed_token::ID,
             account: token_account_pubkey,
             destination,
@@ -378,7 +378,7 @@ pub async fn close_and_assert_token_account_fails(
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
-    let close_ix = CloseAccount {
+    let close_ix = CloseCTokenAccount {
         token_program: light_compressed_token::ID,
         account: token_account_pubkey,
         destination,

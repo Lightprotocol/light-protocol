@@ -1,4 +1,4 @@
-// Tests for MintToCTokenInfos (MintToCtoken instruction)
+// Tests for MintToCTokenCpi (MintToCtoken instruction)
 
 mod shared;
 
@@ -20,7 +20,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test minting tokens to a ctoken account using MintToCTokenInfos::invoke()
+/// Test minting tokens to a ctoken account using MintToCTokenCpi::invoke()
 #[tokio::test]
 async fn test_mint_to_ctoken() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -124,7 +124,7 @@ async fn test_mint_to_ctoken() {
 
         // Build wrapper instruction with compressed token program as first account
         let compressed_token_program_id =
-            Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
+            Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
 
         let mut wrapper_accounts = vec![AccountMeta::new_readonly(
             compressed_token_program_id,
@@ -175,7 +175,7 @@ async fn test_mint_to_ctoken() {
     );
 }
 
-/// Test minting tokens with PDA mint authority using MintToCTokenInfos::invoke_signed()
+/// Test minting tokens with PDA mint authority using MintToCTokenCpi::invoke_signed()
 ///
 /// This test uses the wrapper program to:
 /// 1. Create a compressed mint with PDA authority (discriminator 14 - CreateCmintWithPdaAuthority)
@@ -200,12 +200,12 @@ async fn test_mint_to_ctoken_invoke_signed() {
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     // Derive compression address using the PDA mint_signer
-    let compression_address = light_ctoken_sdk::ctoken::derive_compressed_mint_address(
+    let compression_address = light_ctoken_sdk::ctoken::derive_cmint_compressed_address(
         &mint_signer_pda,
         &address_tree.tree,
     );
 
-    let mint_pda = light_ctoken_sdk::ctoken::find_spl_mint_address(&mint_signer_pda).0;
+    let mint_pda = light_ctoken_sdk::ctoken::find_cmint_address(&mint_signer_pda).0;
 
     let rpc_result = rpc
         .get_validity_proof(
@@ -221,7 +221,7 @@ async fn test_mint_to_ctoken_invoke_signed() {
         .value;
 
     let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
+        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
     let default_pubkeys = light_ctoken_sdk::utils::CTokenDefaultAccounts::default();
 
     // Step 1: Create compressed mint with PDA authority using wrapper program (discriminator 14)
@@ -362,7 +362,7 @@ async fn test_mint_to_ctoken_invoke_signed() {
         // Build accounts manually since SDK marks authority as signer, but we need it as non-signer
         // for invoke_signed (the wrapper program signs via CPI)
         let compressed_token_program_id =
-            Pubkey::new_from_array(light_ctoken_interface::COMPRESSED_TOKEN_PROGRAM_ID);
+            Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
         let default_pubkeys = light_ctoken_sdk::utils::CTokenDefaultAccounts::default();
 
         let wrapper_accounts = vec![

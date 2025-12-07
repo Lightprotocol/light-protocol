@@ -5,7 +5,7 @@ use light_ctoken_interface::state::{
 };
 use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::{
-        derive_compressed_mint_address, find_spl_mint_address,
+        derive_cmint_compressed_address, find_cmint_address,
     },
     ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
 };
@@ -46,10 +46,10 @@ async fn functional_all_in_one_instruction() {
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     // Derive compressed mint address for verification
     let compressed_mint_address =
-        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint PDA for the rest of the test
-    let (spl_mint_pda, _) = find_spl_mint_address(&mint_seed.pubkey());
+    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
     // 1. Create compressed mint with both authorities
     {
         create_mint(

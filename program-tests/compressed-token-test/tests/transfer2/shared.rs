@@ -7,7 +7,7 @@ use light_ctoken_interface::{
     state::TokenDataVersion,
 };
 use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::find_spl_mint_address,
+    compressed_token::create_compressed_mint::find_cmint_address,
     ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
 };
 use light_program_test::{indexer::TestIndexerExtensions, LightProgramTest, ProgramTestConfig};
@@ -318,7 +318,7 @@ impl TestContext {
             } else {
                 // Create compressed mint for CToken operations
                 let mint_seed = Keypair::new();
-                let (mint, _) = find_spl_mint_address(&mint_seed.pubkey());
+                let (mint, _) = find_cmint_address(&mint_seed.pubkey());
 
                 create_mint(
                     &mut rpc,
@@ -492,7 +492,7 @@ impl TestContext {
                 // Get the compressed mint address
                 let address_tree_pubkey = rpc.get_address_tree_v2().tree;
                 let compressed_mint_address =
-                    light_ctoken_sdk::compressed_token::create_compressed_mint::derive_compressed_mint_address(
+                    light_ctoken_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address(
                         &mint_seed.pubkey(),
                         &address_tree_pubkey,
                     );

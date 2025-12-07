@@ -2,7 +2,7 @@
 
 use light_ctoken_sdk::{
     compat::{PackedCTokenDataWithVariant, TokenData, TokenDataWithVariant},
-    Pack,
+    pack::Pack,
 };
 use light_sdk::instruction::PackedAccounts;
 use solana_pubkey::Pubkey;

@@ -3,8 +3,8 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_ctoken_sdk::{
-    ctoken::TransferSplToCtoken, spl_interface::find_spl_interface_pda_with_index,
-    SPL_TOKEN_PROGRAM_ID,
+    constants::SPL_TOKEN_PROGRAM_ID, ctoken::TransferSplToCtoken,
+    spl_interface::find_spl_interface_pda_with_index,
 };
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -43,7 +43,7 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
         mint,
         payer: payer.pubkey(),
         spl_interface_pda,
-        spl_token_program: Pubkey::new_from_array(SPL_TOKEN_PROGRAM_ID), // TODO: make dynamic
+        spl_token_program: SPL_TOKEN_PROGRAM_ID, // TODO: make dynamic
     }
     .instruction()
     .map_err(|e| RpcError::CustomError(e.to_string()))?;
