@@ -3588,7 +3588,7 @@ dependencies = [
 
 [[package]]
 name = "light-client"
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
  "async-trait",
  "base64 0.13.1",
@@ -4999,7 +4999,7 @@ dependencies = [
 
 [[package]]
 name = "photon-api"
-version = "0.52.0"
+version = "0.53.0"
 dependencies = [
  "reqwest 0.12.24",
  "serde",
