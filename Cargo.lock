@@ -3770,6 +3770,7 @@ dependencies = [
  "light-array-map",
  "light-compressed-account",
  "light-compressible",
+ "light-ctoken-interface",
  "light-hasher",
  "light-heap",
  "light-macros",
