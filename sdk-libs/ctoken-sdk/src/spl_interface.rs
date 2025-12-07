@@ -1,7 +1,8 @@
 //! SPL interface PDA derivation utilities.
 
 use light_ctoken_interface::CTOKEN_PROGRAM_ID;
-use light_ctoken_types::constants::POOL_SEED;
+use light_ctoken_types::constants::{CPI_AUTHORITY_PDA, CREATE_TOKEN_POOL, POOL_SEED};
+use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
 use crate::{AnchorDeserialize, AnchorSerialize};
@@ -41,5 +42,58 @@ pub fn derive_spl_interface_pda(mint: &solana_pubkey::Pubkey, index: u8) -> SplI
         pubkey,
         bump,
         index,
+    }
+}
+
+/// # Create SPL interface PDA (token pool) instruction builder
+///
+/// Creates the spl interface pda for an SPL mint with index 0.
+/// Spl interface pdas store spl tokens that are wrapped in ctoken or compressed token accounts.
+///
+/// ```rust
+/// # use solana_pubkey::Pubkey;
+/// # use light_ctoken_sdk::spl_interface::CreateSplInterfacePda;
+/// # let fee_payer = Pubkey::new_unique();
+/// # let mint = Pubkey::new_unique();
+/// # let token_program = anchor_spl::token::ID;
+/// let instruction = CreateSplInterfacePda::new(fee_payer, mint, token_program)
+///     .instruction()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
+pub struct CreateSplInterfacePda {
+    pub fee_payer: Pubkey,
+    pub mint: Pubkey,
+    pub token_program: Pubkey,
+    pub spl_interface_pda: Pubkey,
+}
+
+impl CreateSplInterfacePda {
+    /// Derives the spl interface pda for an SPL mint with index 0.
+    pub fn new(fee_payer: Pubkey, mint: Pubkey, token_program: Pubkey) -> Self {
+        let (spl_interface_pda, _) = find_spl_interface_pda_with_index(&mint, 0);
+        Self {
+            fee_payer,
+            mint,
+            token_program,
+            spl_interface_pda,
+        }
+    }
+
+    pub fn instruction(self) -> Instruction {
+        Instruction {
+            program_id: Pubkey::from(CTOKEN_PROGRAM_ID),
+            accounts: vec![
+                AccountMeta::new(self.fee_payer, true),
+                AccountMeta::new(self.spl_interface_pda, false),
+                AccountMeta::new_readonly(
+                    solana_pubkey::pubkey!("11111111111111111111111111111111"),
+                    false,
+                ), // system_program
+                AccountMeta::new(self.mint, false),
+                AccountMeta::new_readonly(self.token_program, false),
+                AccountMeta::new_readonly(Pubkey::from(CPI_AUTHORITY_PDA), false),
+            ],
+            data: CREATE_TOKEN_POOL.to_vec(),
+        }
     }
 }
