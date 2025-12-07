@@ -2,6 +2,9 @@
 name = "light-ctoken-sdk"
 version = "0.2.1"
 edition = { workspace = true }
+description = "SDK for compressed tokens on Light Protocol"
+license = "Apache-2.0"
+repository = "https://github.com/Lightprotocol/light-protocol"
 
 [features]
 default = []
