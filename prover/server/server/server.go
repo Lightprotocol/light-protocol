@@ -1079,7 +1079,8 @@ func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta common.P
 		return nil, provingError(fmt.Errorf("inclusion proof: %w", err))
 	}
 
-	if proofRequestMeta.Version == 1 {
+	switch proofRequestMeta.Version {
+	case 1:
 		var params v1.InclusionParameters
 
 		if err := json.Unmarshal(buf, &params); err != nil {
@@ -1090,7 +1091,7 @@ func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta common.P
 			return nil, provingError(err)
 		}
 		return proof, nil
-	} else if proofRequestMeta.Version == 2 {
+	case 2:
 		var params v2.InclusionParameters
 		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
@@ -1122,7 +1123,8 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta commo
 		return nil, provingError(fmt.Errorf("non-inclusion proof: %w", err))
 	}
 
-	if proofRequestMeta.AddressTreeHeight == 26 {
+	switch proofRequestMeta.AddressTreeHeight {
+	case 26:
 		var params v1.NonInclusionParameters
 
 		var err = json.Unmarshal(buf, &params)
@@ -1137,7 +1139,7 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta commo
 			return nil, provingError(err)
 		}
 		return proof, nil
-	} else if proofRequestMeta.AddressTreeHeight == 40 {
+	case 40:
 		var params v2.NonInclusionParameters
 
 		var err = json.Unmarshal(buf, &params)
@@ -1152,7 +1154,7 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta commo
 			return nil, provingError(err)
 		}
 		return proof, nil
-	} else {
+	default:
 		return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
 	}
 }
@@ -1174,7 +1176,8 @@ func (handler proveHandler) combinedProof(buf []byte, proofRequestMeta common.Pr
 		return nil, provingError(fmt.Errorf("combined proof: %w", err))
 	}
 
-	if proofRequestMeta.AddressTreeHeight == 26 {
+	switch proofRequestMeta.AddressTreeHeight {
+	case 26:
 		var params v1.CombinedParameters
 		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
@@ -1184,7 +1187,7 @@ func (handler proveHandler) combinedProof(buf []byte, proofRequestMeta common.Pr
 			return nil, provingError(err)
 		}
 		return proof, nil
-	} else if proofRequestMeta.AddressTreeHeight == 40 {
+	case 40:
 		var params v2.CombinedParameters
 		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
@@ -1194,7 +1197,7 @@ func (handler proveHandler) combinedProof(buf []byte, proofRequestMeta common.Pr
 			return nil, provingError(err)
 		}
 		return proof, nil
-	} else {
+	default:
 		return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
 	}
 }
@@ -1206,6 +1209,11 @@ func (handler healthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	logging.Logger().Info().Msg("received health check request")
 	responseBytes, err := json.Marshal(map[string]string{"status": "ok"})
+	if err != nil {
+		logging.Logger().Error().Err(err).Msg("error marshaling response")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(responseBytes)
 	if err != nil {

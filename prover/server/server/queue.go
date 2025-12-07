@@ -313,6 +313,7 @@ func (rq *RedisQueue) CleanupOldResults() error {
 		logging.Logger().Error().
 			Err(err).
 			Msg("Failed to cleanup old results by time")
+		return err
 	}
 
 	if removed > 0 {
@@ -320,23 +321,6 @@ func (rq *RedisQueue) CleanupOldResults() error {
 			Int64("removed_results", removed).
 			Time("cutoff_time", cutoffTime).
 			Msg("Cleaned up old results by time")
-	}
-
-	ctx := context.Background()
-	length, err := rq.Client.LLen(ctx, "zk_results_queue").Result()
-	if err != nil {
-		return err
-	}
-
-	if length > 1000 {
-		toRemove := length - 1000
-		for i := int64(0); i < toRemove; i++ {
-			rq.Client.LPop(ctx, "zk_results_queue")
-		}
-
-		logging.Logger().Info().
-			Int64("removed_items", toRemove).
-			Msg("Cleaned up old results from queue (length-based safety)")
 	}
 
 	return nil

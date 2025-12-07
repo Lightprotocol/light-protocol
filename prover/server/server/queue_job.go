@@ -174,11 +174,12 @@ func (w *BaseQueueWorker) processJobs() {
 
 		queueWaitTime := jobAge.Seconds()
 		circuitType := "unknown"
-		if w.queueName == "zk_update_queue" {
+		switch w.queueName {
+		case "zk_update_queue":
 			circuitType = "update"
-		} else if w.queueName == "zk_append_queue" {
+		case "zk_append_queue":
 			circuitType = "append"
-		} else if w.queueName == "zk_address_append_queue" {
+		case "zk_address_append_queue":
 			circuitType = "address-append"
 		}
 		QueueWaitTime.WithLabelValues(circuitType).Observe(queueWaitTime)
@@ -457,13 +458,14 @@ func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta co
 		return nil, fmt.Errorf("inclusion proof: %w", err)
 	}
 
-	if meta.Version == 1 {
+	switch meta.Version {
+	case 1:
 		var params v1.InclusionParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal legacy inclusion parameters: %w", err)
 		}
 		return v1.ProveInclusion(ps, &params)
-	} else if meta.Version == 2 {
+	case 2:
 		var params v2.InclusionParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal inclusion parameters: %w", err)
@@ -515,13 +517,14 @@ func (w *BaseQueueWorker) processCombinedProof(payload json.RawMessage, meta com
 		return nil, fmt.Errorf("combined proof: %w", err)
 	}
 
-	if meta.AddressTreeHeight == 26 {
+	switch meta.AddressTreeHeight {
+	case 26:
 		var params v1.CombinedParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal legacy combined parameters: %w", err)
 		}
 		return v1.ProveCombined(ps, &params)
-	} else if meta.AddressTreeHeight == 40 {
+	case 40:
 		var params v2.CombinedParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal combined parameters: %w", err)
@@ -590,7 +593,7 @@ func (w *BaseQueueWorker) processBatchAddressAppendProof(payload json.RawMessage
 func (w *BaseQueueWorker) removeFromProcessingQueue(jobID string) {
 	processingQueueLength, _ := w.queue.Client.LLen(w.queue.Ctx, w.processingQueueName).Result()
 
-	for i := int64(0); i < processingQueueLength; i++ {
+	for i := range processingQueueLength {
 		item, err := w.queue.Client.LIndex(w.queue.Ctx, w.processingQueueName, i).Result()
 		if err != nil {
 			continue
