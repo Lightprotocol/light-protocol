@@ -15,10 +15,18 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     let (inputs, _) = InsertIntoQueuesInstructionData::zero_copy_at(bytes.as_slice())
         .map_err(ProgramError::from)?;
     if inputs.addresses.len() > 8 {
-        return Err(AccountCompressionErrorCode::MaxAddressQueuesExceeded.into());
+        msg!(
+            "Too many addresses: {}. The maximum is 8.",
+            inputs.addresses.len()
+        );
+        return Err(AccountCompressionErrorCode::TooManyAddresses.into());
     }
     if inputs.nullifiers.len() > 8 {
-        return Err(AccountCompressionErrorCode::MaxAddressQueuesExceeded.into());
+        msg!(
+            "Too many nullifiers: {}. The maximum is 8.",
+            inputs.nullifiers.len()
+        );
+        return Err(AccountCompressionErrorCode::TooManyNullifiers.into());
     }
     let authority = ctx.accounts.authority.to_account_info();
     // Checks accounts for every account in remaining accounts:

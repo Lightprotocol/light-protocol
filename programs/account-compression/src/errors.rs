@@ -66,4 +66,8 @@ pub enum AccountCompressionErrorCode {
     UnsupportedHeight,
     UnsupportedParameters,
     V1AccountMarkedAsProofByIndex,
+    #[msg("Too many addresses. The maximum is 8 per instruction.")]
+    TooManyAddresses,
+    #[msg("Too many nullifiers. The maximum is 8 per instruction.")]
+    TooManyNullifiers,
 }
