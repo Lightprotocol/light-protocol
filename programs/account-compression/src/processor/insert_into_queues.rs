@@ -21,9 +21,9 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
         );
         return Err(AccountCompressionErrorCode::TooManyAddresses.into());
     }
-    if inputs.nullifiers.len() > 8 {
+    if inputs.nullifiers.len() > 10 {
         msg!(
-            "Too many nullifiers: {}. The maximum is 8.",
+            "Too many nullifiers: {}. The maximum is 10.",
             inputs.nullifiers.len()
         );
         return Err(AccountCompressionErrorCode::TooManyNullifiers.into());

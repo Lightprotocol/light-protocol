@@ -28,7 +28,7 @@ pub const STATE_BLOOM_FILTER_CAPACITY: u64 = 2_301_536;
 pub const STATE_BLOOM_FILTER_NUM_HASHES: u64 = 10;
 
 // False positive probability 1.0E-12 for 30k elements.
-pub const ADDRESS_BLOOM_FILTER_CAPACITY: u64 = 4_603_056;
+pub const ADDRESS_BLOOM_FILTER_CAPACITY: u64 = 4_603_072;
 pub const ADDRESS_BLOOM_FILTER_NUM_HASHES: u64 = 10;
 
 #[deprecated(note = "Use DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE_V2 instead")]

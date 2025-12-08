@@ -43,9 +43,9 @@ pub fn insert_leaves<'a, 'b, 'c: 'info, 'info>(
         // 4. append batch to Merkle tree or insert into output queue
         match account {
             AcpAccount::OutputQueue(queue) => {
-                if end.saturating_sub(start) > 8 {
+                if end.saturating_sub(start) > 10 {
                     msg!(
-                        "Too many leaves: {}. The maximum for v2 trees is 8. There is no limit for v1 trees.",
+                        "Too many leaves: {}. The maximum for v2 trees is 10. There is no limit for v1 trees.",
                         end.saturating_sub(start)
                     );
                     return Err(AccountCompressionErrorCode::TooManyLeaves.into());
