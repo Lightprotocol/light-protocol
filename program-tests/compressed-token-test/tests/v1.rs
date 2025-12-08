@@ -5266,7 +5266,8 @@ async fn mint_with_batched_tree() {
         .unwrap();
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let amount = 10000u64;
-    let num_recipients = 30;
+    // v2 trees have a limit of 8 leaves per insert
+    let num_recipients = 8;
     mint_tokens_helper(
         &mut rpc,
         &mut test_indexer,
@@ -5568,8 +5569,8 @@ async fn batch_compress_with_batched_tree() {
     )
     .await
     .unwrap();
-    // 1. Functional compress 1 to 26 recipients
-    for num_recipients in 1..=26 {
+    // 1. Functional compress 1 to 8 recipients (v2 trees have a limit of 8 leaves per insert)
+    for num_recipients in 1..=8 {
         let recipients = (0..num_recipients)
             .map(|_| Pubkey::new_unique())
             .collect::<Vec<_>>();
@@ -5634,7 +5635,8 @@ async fn batch_compress_with_batched_tree() {
             sum_amounts + pre_token_pool_balance
         );
     }
-    for num_recipients in 1..=26 {
+    // v2 trees have a limit of 8 leaves per insert
+    for num_recipients in 1..=8 {
         let recipients = (0..num_recipients)
             .map(|_| Pubkey::new_unique())
             .collect::<Vec<_>>();
@@ -5702,7 +5704,8 @@ async fn batch_compress_with_batched_tree() {
 
     // 2. Failing unequal recipients amounts len
     {
-        let num_recipients = 26;
+        // Use 8 recipients (max for v2 trees) with mismatched amounts (7)
+        let num_recipients = 8;
         let recipients = (0..num_recipients)
             .map(|_| Pubkey::new_unique())
             .collect::<Vec<_>>();
