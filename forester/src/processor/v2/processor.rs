@@ -22,7 +22,7 @@ use solana_sdk::pubkey::Pubkey;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
-const MAX_BATCHES_LIMIT: usize = 12;
+const MAX_BATCHES_LIMIT: usize = 24;
 
 /// Tracks timing and counts per circuit type for accurate metrics
 #[derive(Debug, Default, Clone)]

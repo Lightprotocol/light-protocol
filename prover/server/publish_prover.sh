@@ -3,8 +3,8 @@ REGION=europe-west1
 REPO_NAME=light
 TAG="${1:-latest}"  # Usage: ./publish_prover.sh [version]
 
-docker buildx build --platform linux/amd64,linux/arm64 -f Dockerfile.light -t prover-light:$TAG .
-docker tag prover-light:latest $REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/prover-light:$TAG
+docker buildx build --platform linux/amd64,linux/arm64 -f Dockerfile.light -t prover-light:$TAG --load .
+docker tag prover-light:$TAG $REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/prover-light:$TAG
 docker push $REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/prover-light:$TAG
 
 # Deploy to GKE

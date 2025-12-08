@@ -25,8 +25,8 @@ func NewRedisQueue(redisURL string) (*RedisQueue, error) {
 	}
 
 	// Configure connection pool and timeouts for Cloud Run + VPC connector reliability
-	opts.PoolSize = 200                    // Connection pool size per instance
-	opts.MinIdleConns = 5                  // Keep some connections warm
+	opts.PoolSize = 500                    // Connection pool size per instance (increased for high load)
+	opts.MinIdleConns = 10                 // Keep some connections warm
 	opts.DialTimeout = 10 * time.Second    // Timeout for establishing new connections
 	opts.ReadTimeout = 30 * time.Second    // Timeout for read operations (BLPOP can be slow)
 	opts.WriteTimeout = 10 * time.Second   // Timeout for write operations
@@ -403,8 +403,9 @@ func (rq *RedisQueue) CleanupOldResultKeys() error {
 }
 
 func (rq *RedisQueue) CleanupStuckProcessingJobs() error {
-	// Jobs stuck in processing for more than 2 minutes are considered stuck
-	processingTimeout := time.Now().Add(-2 * time.Minute)
+	// Jobs stuck in processing for more than 10 minutes are considered stuck
+	// (proof generation can take 3-4 minutes under load)
+	processingTimeout := time.Now().Add(-10 * time.Minute)
 
 	processingQueues := []string{
 		"zk_update_processing_queue",
@@ -491,12 +492,23 @@ func (rq *RedisQueue) recoverStuckJobsFromQueue(queueName string, timeoutCutoff 
 
 					fiveMinutesAgo := time.Now().Add(-5 * time.Minute)
 					if job.CreatedAt.Before(fiveMinutesAgo) {
+						// Extract circuit type from payload for debugging, but don't store full payload
+						// to prevent memory issues (payloads can be hundreds of KB)
+						var circuitType string
+						var payloadMeta map[string]interface{}
+						if json.Unmarshal(job.Payload, &payloadMeta) == nil {
+							if ct, ok := payloadMeta["circuitType"].(string); ok {
+								circuitType = ct
+							}
+						}
+
 						failureDetails := map[string]interface{}{
 							"original_job": map[string]interface{}{
-								"id":         originalJobID,
-								"type":       "zk_proof",
-								"payload":    job.Payload,
-								"created_at": job.CreatedAt,
+								"id":           originalJobID,
+								"type":         "zk_proof",
+								"circuit_type": circuitType,
+								"payload_size": len(job.Payload),
+								"created_at":   job.CreatedAt,
 							},
 							"error":     "Job timed out in processing queue (stuck for >5 minutes)",
 							"failed_at": time.Now(),
@@ -638,7 +650,6 @@ func (rq *RedisQueue) FindCachedResult(inputHash string) (*common.ProofWithTimin
 						Err(err).
 						Str("input_hash", inputHash).
 						Str("job_id", resultJob.ID).
-						Str("payload", string(resultJob.Payload)).
 						Msg("Failed to unmarshal cached result payload, skipping")
 					continue
 				}

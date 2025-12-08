@@ -254,12 +254,17 @@ func (w *BaseQueueWorker) processJobs() {
 				errorMsg = "Proof generation failed (cached failure)"
 			}
 
-			// Add to failed queue with new job ID
+			// Add to failed queue with new job ID (without full payload to save memory)
 			failedJob := map[string]interface{}{
-				"original_job": job,
-				"error":        errorMsg,
-				"failed_at":    time.Now(),
-				"cached_from":  cachedFailedJobID,
+				"original_job": map[string]interface{}{
+					"id":           job.ID,
+					"type":         job.Type,
+					"payload_size": len(job.Payload),
+					"created_at":   job.CreatedAt,
+				},
+				"error":       errorMsg,
+				"failed_at":   time.Now(),
+				"cached_from": cachedFailedJobID,
 			}
 
 			failedData, _ := json.Marshal(failedJob)
@@ -327,6 +332,22 @@ func (w *BaseQueueWorker) processJobs() {
 				Msg("Failed to process proof job")
 
 			w.addToFailedQueue(job, err)
+
+			// On failure: clean up in-flight marker to allow retry with new job
+			if delErr := w.queue.DeleteInFlightJob(inputHash, job.ID); delErr != nil {
+				logging.Logger().Warn().
+					Err(delErr).
+					Str("job_id", job.ID).
+					Str("input_hash", inputHash).
+					Msg("Failed to delete in-flight job marker (non-critical)")
+			}
+			// Clean up job metadata
+			if delErr := w.queue.DeleteJobMeta(job.ID); delErr != nil {
+				logging.Logger().Warn().
+					Err(delErr).
+					Str("job_id", job.ID).
+					Msg("Failed to delete job metadata (non-critical)")
+			}
 		} else {
 			// Store result with timing information
 			proofWithTiming := &common.ProofWithTiming{
@@ -360,23 +381,17 @@ func (w *BaseQueueWorker) processJobs() {
 				Dur("duration", proofDuration).
 				Int64("duration_ms", proofDuration.Milliseconds()).
 				Msg("Proof job completed successfully")
-		}
 
-		// Clean up job metadata now that the job is complete (success or failure)
-		if delErr := w.queue.DeleteJobMeta(job.ID); delErr != nil {
-			logging.Logger().Warn().
-				Err(delErr).
-				Str("job_id", job.ID).
-				Msg("Failed to delete job metadata (non-critical)")
-		}
-
-		// Clean up in-flight marker to allow new jobs with the same input
-		if delErr := w.queue.DeleteInFlightJob(inputHash, job.ID); delErr != nil {
-			logging.Logger().Warn().
-				Err(delErr).
-				Str("job_id", job.ID).
-				Str("input_hash", inputHash).
-				Msg("Failed to delete in-flight job marker (non-critical)")
+			// On success: DON'T delete in-flight marker - let it expire with the result.
+			// This allows future requests with identical inputs to get the cached result
+			// instead of creating a new job. Both marker and result have 10-min TTL.
+			// Only clean up job metadata (no longer needed since result is stored).
+			if delErr := w.queue.DeleteJobMeta(job.ID); delErr != nil {
+				logging.Logger().Warn().
+					Err(delErr).
+					Str("job_id", job.ID).
+					Msg("Failed to delete job metadata (non-critical)")
+			}
 		}
 	}(job, inputHash)
 }
@@ -617,10 +632,26 @@ func (w *BaseQueueWorker) removeFromProcessingQueue(jobID string) {
 }
 
 func (w *BaseQueueWorker) addToFailedQueue(job *ProofJob, err error) {
+	// Extract circuit type from payload for debugging, but don't store full payload
+	// to prevent memory issues (payloads can be hundreds of KB)
+	var circuitType string
+	var payloadMeta map[string]interface{}
+	if json.Unmarshal(job.Payload, &payloadMeta) == nil {
+		if ct, ok := payloadMeta["circuitType"].(string); ok {
+			circuitType = ct
+		}
+	}
+
 	failedJob := map[string]interface{}{
-		"original_job": job,
-		"error":        err.Error(),
-		"failed_at":    time.Now(),
+		"original_job": map[string]interface{}{
+			"id":           job.ID,
+			"type":         job.Type,
+			"circuit_type": circuitType,
+			"payload_size": len(job.Payload),
+			"created_at":   job.CreatedAt,
+		},
+		"error":     err.Error(),
+		"failed_at": time.Now(),
 	}
 
 	failedData, _ := json.Marshal(failedJob)
@@ -631,8 +662,11 @@ func (w *BaseQueueWorker) addToFailedQueue(job *ProofJob, err error) {
 		CreatedAt: time.Now(),
 	}
 
-	err = w.queue.EnqueueProof("zk_failed_queue", failedJobStruct)
-	if err != nil {
-		return
+	enqueueErr := w.queue.EnqueueProof("zk_failed_queue", failedJobStruct)
+	if enqueueErr != nil {
+		logging.Logger().Error().
+			Err(enqueueErr).
+			Str("job_id", job.ID).
+			Msg("Failed to add job to failed queue")
 	}
 }

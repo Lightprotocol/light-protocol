@@ -363,20 +363,28 @@ def plot_tx_type_breakdown(tx_events: list[TxEvent], ax):
 
 
 def plot_time_breakdown_by_type(proof_completions: list[ProofEvent], ax):
-    """Stacked bar chart showing proof time vs queue wait by proof type."""
+    """Stacked bar chart showing proof time vs queue wait by proof type, separating cache hits."""
     proofs_with_timing = [p for p in proof_completions if p.proof_ms is not None and p.proof_type]
 
     if not proofs_with_timing:
         ax.text(0.5, 0.5, "No timing data by type", ha='center', va='center')
         return
 
-    # Aggregate by type
+    # Separate cache hits (negative queue wait = pre-warmed) from fresh proofs
+    fresh_proofs = [p for p in proofs_with_timing if p.queue_wait_ms >= 0]
+    cached_proofs = [p for p in proofs_with_timing if p.queue_wait_ms < 0]
+
+    # Aggregate fresh proofs by type
     type_data = {}
-    for p in proofs_with_timing:
+    for p in fresh_proofs:
         if p.proof_type not in type_data:
             type_data[p.proof_type] = {'proof': [], 'queue': []}
         type_data[p.proof_type]['proof'].append(p.proof_ms)
         type_data[p.proof_type]['queue'].append(p.queue_wait_ms)
+
+    if not type_data:
+        ax.text(0.5, 0.5, f"All {len(cached_proofs)} proofs were cache hits", ha='center', va='center')
+        return
 
     types = sorted(type_data.keys())
     proof_means = [np.mean(type_data[t]['proof']) for t in types]
@@ -390,7 +398,8 @@ def plot_time_breakdown_by_type(proof_completions: list[ProofEvent], ax):
     bars2 = ax.bar(x, queue_means, width, bottom=proof_means, label='Queue Wait', color='orange')
 
     ax.set_ylabel('Time (ms)')
-    ax.set_title('Mean Time Breakdown by Proof Type')
+    cache_pct = len(cached_proofs) / len(proofs_with_timing) * 100 if proofs_with_timing else 0
+    ax.set_title(f'Mean Time Breakdown (fresh only, {cache_pct:.0f}% cache hits excluded)')
     ax.set_xticks(x)
     ax.set_xticklabels([f"{t}\n(n={c})" for t, c in zip(types, counts)])
     ax.legend()
@@ -439,13 +448,18 @@ def plot_latency_timeline_by_type(proof_completions: list[ProofEvent], ax):
 
 
 def plot_proof_vs_queue_scatter(proof_completions: list[ProofEvent], ax):
-    """Scatter plot of proof time vs queue wait time."""
+    """Scatter plot of proof time vs queue wait time, highlighting cache hits."""
     proofs_with_timing = [p for p in proof_completions if p.proof_ms is not None]
 
     if not proofs_with_timing:
         ax.text(0.5, 0.5, "No timing data", ha='center', va='center')
         return
 
+    # Separate cache hits (negative queue wait) from fresh proofs
+    cached = [p for p in proofs_with_timing if p.queue_wait_ms < 0]
+    fresh = [p for p in proofs_with_timing if p.queue_wait_ms >= 0]
+
+    # Plot fresh proofs by type
     type_colors = {
         'append': 'blue',
         'update': 'red',
@@ -453,28 +467,39 @@ def plot_proof_vs_queue_scatter(proof_completions: list[ProofEvent], ax):
     }
 
     for proof_type, color in type_colors.items():
-        type_proofs = [p for p in proofs_with_timing if p.proof_type == proof_type]
+        type_proofs = [p for p in fresh if p.proof_type == proof_type]
         if type_proofs:
             proof_times = [p.proof_ms for p in type_proofs]
             queue_times = [p.queue_wait_ms for p in type_proofs]
-            ax.scatter(proof_times, queue_times, c=color, alpha=0.6, s=30, label=proof_type)
+            ax.scatter(proof_times, queue_times, c=color, alpha=0.6, s=30, label=f'{proof_type} (n={len(type_proofs)})')
 
-    # Unknown types
-    unknown = [p for p in proofs_with_timing if p.proof_type not in type_colors]
+    # Unknown types (fresh)
+    unknown = [p for p in fresh if p.proof_type not in type_colors]
     if unknown:
         proof_times = [p.proof_ms for p in unknown]
         queue_times = [p.queue_wait_ms for p in unknown]
-        ax.scatter(proof_times, queue_times, c='gray', alpha=0.4, s=20, label='unknown')
+        ax.scatter(proof_times, queue_times, c='gray', alpha=0.4, s=20, label=f'unknown (n={len(unknown)})')
 
-    # Add diagonal line where proof == queue
-    max_val = max(max(p.proof_ms for p in proofs_with_timing),
-                  max(p.queue_wait_ms for p in proofs_with_timing))
-    ax.plot([0, max_val], [0, max_val], 'k--', alpha=0.3, label='proof=queue')
+    # Plot cache hits separately (below zero line)
+    if cached:
+        proof_times = [p.proof_ms for p in cached]
+        queue_times = [p.queue_wait_ms for p in cached]
+        ax.scatter(proof_times, queue_times, c='lime', alpha=0.5, s=25, marker='v',
+                   label=f'cache hits (n={len(cached)})')
+
+    # Add zero line to show cache hit boundary
+    ax.axhline(y=0, color='black', linestyle='-', linewidth=1, alpha=0.5)
+
+    # Add diagonal line where proof == queue (for fresh proofs only)
+    if fresh:
+        max_val = max(max(p.proof_ms for p in fresh), max(p.queue_wait_ms for p in fresh))
+        ax.plot([0, max_val], [0, max_val], 'k--', alpha=0.3)
 
     ax.set_xlabel('Pure Proof Time (ms)')
-    ax.set_ylabel('Queue Wait Time (ms)')
-    ax.set_title('Proof Generation vs Queue Wait')
-    ax.legend(loc='upper right', fontsize=8)
+    ax.set_ylabel('Queue Wait Time (ms)\n(negative = cache hit)')
+    cache_pct = len(cached) / len(proofs_with_timing) * 100 if proofs_with_timing else 0
+    ax.set_title(f'Proof vs Queue Wait ({cache_pct:.0f}% cache hits)')
+    ax.legend(loc='upper right', fontsize=7)
 
 
 def print_summary(data: dict):
@@ -510,31 +535,45 @@ def print_summary(data: dict):
         # Time breakdown: proof vs queue wait
         proofs_with_timing = [p for p in proof_completions if p.proof_ms is not None]
         if proofs_with_timing:
-            proof_times = [p.proof_ms for p in proofs_with_timing]
-            queue_waits = [p.queue_wait_ms for p in proofs_with_timing]
+            # Separate cache hits (pre-warmed) from fresh proofs
+            cached_proofs = [p for p in proofs_with_timing if p.queue_wait_ms < 0]
+            fresh_proofs = [p for p in proofs_with_timing if p.queue_wait_ms >= 0]
 
-            print(f"\n  Time Breakdown (n={len(proofs_with_timing)} with timing data):")
-            print(f"    Pure Proof Time:")
-            print(f"      Min:    {min(proof_times):,} ms")
-            print(f"      Max:    {max(proof_times):,} ms")
-            print(f"      Mean:   {np.mean(proof_times):,.1f} ms")
-            print(f"      Median: {np.median(proof_times):,.1f} ms")
-            print(f"      p95:    {np.percentile(proof_times, 95):,.1f} ms")
+            cache_hit_rate = len(cached_proofs) / len(proofs_with_timing) * 100
+            print(f"\n  Cache Statistics (n={len(proofs_with_timing)} with timing data):")
+            print(f"    Cache hits (pre-warmed): {len(cached_proofs):,} ({cache_hit_rate:.1f}%)")
+            print(f"    Fresh proofs:            {len(fresh_proofs):,} ({100-cache_hit_rate:.1f}%)")
 
-            print(f"    Queue Wait Time (round_trip - proof):")
-            print(f"      Min:    {min(queue_waits):,} ms")
-            print(f"      Max:    {max(queue_waits):,} ms")
-            print(f"      Mean:   {np.mean(queue_waits):,.1f} ms")
-            print(f"      Median: {np.median(queue_waits):,.1f} ms")
-            print(f"      p95:    {np.percentile(queue_waits, 95):,.1f} ms")
+            if cached_proofs:
+                cached_latencies = [p.round_trip_ms for p in cached_proofs]
+                print(f"    Cache hit latency:       {np.mean(cached_latencies):.0f}ms mean, {np.median(cached_latencies):.0f}ms median")
 
-            # Percentage breakdown
-            total_time = sum(p.round_trip_ms for p in proofs_with_timing)
-            total_proof = sum(proof_times)
-            total_queue = sum(queue_waits)
-            print(f"\n    Time Distribution:")
-            print(f"      Proof generation: {total_proof/total_time*100:5.1f}% of total time")
-            print(f"      Queue wait:       {total_queue/total_time*100:5.1f}% of total time")
+            if fresh_proofs:
+                proof_times = [p.proof_ms for p in fresh_proofs]
+                queue_waits = [p.queue_wait_ms for p in fresh_proofs]
+
+                print(f"\n  Time Breakdown (fresh proofs only, n={len(fresh_proofs)}):")
+                print(f"    Pure Proof Time:")
+                print(f"      Min:    {min(proof_times):,} ms")
+                print(f"      Max:    {max(proof_times):,} ms")
+                print(f"      Mean:   {np.mean(proof_times):,.1f} ms")
+                print(f"      Median: {np.median(proof_times):,.1f} ms")
+                print(f"      p95:    {np.percentile(proof_times, 95):,.1f} ms")
+
+                print(f"    Queue Wait Time (round_trip - proof):")
+                print(f"      Min:    {min(queue_waits):,} ms")
+                print(f"      Max:    {max(queue_waits):,} ms")
+                print(f"      Mean:   {np.mean(queue_waits):,.1f} ms")
+                print(f"      Median: {np.median(queue_waits):,.1f} ms")
+                print(f"      p95:    {np.percentile(queue_waits, 95):,.1f} ms")
+
+                # Percentage breakdown
+                total_time = sum(p.round_trip_ms for p in fresh_proofs)
+                total_proof = sum(proof_times)
+                total_queue = sum(queue_waits)
+                print(f"\n    Time Distribution (fresh proofs):")
+                print(f"      Proof generation: {total_proof/total_time*100:5.1f}% of total time")
+                print(f"      Queue wait:       {total_queue/total_time*100:5.1f}% of total time")
 
         # Latency by proof type
         type_latencies = {}

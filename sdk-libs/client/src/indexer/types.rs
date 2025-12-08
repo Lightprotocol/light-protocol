@@ -114,8 +114,6 @@ pub struct AddressQueueDataV2 {
     pub subtrees: Vec<[u8; 32]>,
     pub start_index: u64,
     pub root_seq: u64,
-    /// Original low element proofs from indexer (for debugging/validation)
-    pub low_element_proofs: Vec<Vec<[u8; 32]>>,
 }
 
 impl AddressQueueDataV2 {

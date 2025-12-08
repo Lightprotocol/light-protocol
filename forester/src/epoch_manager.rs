@@ -2194,41 +2194,45 @@ impl<R: Rpc> EpochManager<R> {
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
     ) -> Result<Arc<Mutex<QueueProcessor<R, StateTreeStrategy>>>> {
-        let entry = self.state_processors.entry(tree_accounts.merkle_tree);
+        // First check if we already have a valid processor (quick path, no lock held across await)
+        if let Some(entry) = self.state_processors.get(&tree_accounts.merkle_tree) {
+            let (stored_epoch, processor_ref) = entry.value();
+            if *stored_epoch == epoch_info.epoch {
+                return Ok(processor_ref.clone());
+            }
+            // Stale epoch - will create new processor below
+            info!(
+                "Found stale StateBatchProcessor for tree {} (epoch {} -> {})",
+                tree_accounts.merkle_tree, *stored_epoch, epoch_info.epoch
+            );
+        }
 
-        match entry {
+        // Create processor outside of any DashMap lock to avoid blocking other shards
+        let batch_context =
+            self.build_batch_context(epoch_info, tree_accounts, None, None, None);
+        let processor = Arc::new(Mutex::new(
+            QueueProcessor::new(batch_context, StateTreeStrategy).await?,
+        ));
+
+        // Cache the zkp_batch_size for early filtering of queue updates
+        let batch_size = processor.lock().await.zkp_batch_size();
+        self.zkp_batch_sizes
+            .insert(tree_accounts.merkle_tree, batch_size);
+
+        // Insert the new processor (or get existing if another task beat us to it)
+        match self.state_processors.entry(tree_accounts.merkle_tree) {
             Entry::Occupied(mut occupied) => {
-                let (stored_epoch, processor_ref) = occupied.get();
+                let (stored_epoch, _) = occupied.get();
                 if *stored_epoch == epoch_info.epoch {
-                    Ok(processor_ref.clone())
+                    // Another task already inserted for this epoch - use theirs
+                    Ok(occupied.get().1.clone())
                 } else {
-                    info!(
-                        "Removing stale StateBatchProcessor for tree {} (epoch {} -> {})",
-                        tree_accounts.merkle_tree, *stored_epoch, epoch_info.epoch
-                    );
-                    let batch_context =
-                        self.build_batch_context(epoch_info, tree_accounts, None, None, None);
-                    let processor = Arc::new(Mutex::new(
-                        QueueProcessor::new(batch_context, StateTreeStrategy).await?,
-                    ));
-                    // Cache the zkp_batch_size for early filtering of queue updates
-                    let batch_size = processor.lock().await.zkp_batch_size();
-                    self.zkp_batch_sizes
-                        .insert(tree_accounts.merkle_tree, batch_size);
+                    // Replace stale entry
                     occupied.insert((epoch_info.epoch, processor.clone()));
                     Ok(processor)
                 }
             }
             Entry::Vacant(vacant) => {
-                let batch_context =
-                    self.build_batch_context(epoch_info, tree_accounts, None, None, None);
-                let processor = Arc::new(Mutex::new(
-                    QueueProcessor::new(batch_context, StateTreeStrategy).await?,
-                ));
-                // Cache the zkp_batch_size for early filtering of queue updates
-                let batch_size = processor.lock().await.zkp_batch_size();
-                self.zkp_batch_sizes
-                    .insert(tree_accounts.merkle_tree, batch_size);
                 vacant.insert((epoch_info.epoch, processor.clone()));
                 Ok(processor)
             }
@@ -2242,37 +2246,41 @@ impl<R: Rpc> EpochManager<R> {
     ) -> Result<Arc<Mutex<QueueProcessor<R, AddressTreeStrategy>>>> {
         use dashmap::mapref::entry::Entry;
 
-        let entry = self.address_processors.entry(tree_accounts.merkle_tree);
+        // First check if we already have a valid processor (quick path, no lock held across await)
+        if let Some(entry) = self.address_processors.get(&tree_accounts.merkle_tree) {
+            let (stored_epoch, processor_ref) = entry.value();
+            if *stored_epoch == epoch_info.epoch {
+                return Ok(processor_ref.clone());
+            }
+            // Stale epoch - will create new processor below
+        }
 
-        match entry {
+        // Create processor outside of any DashMap lock to avoid blocking other shards
+        let batch_context =
+            self.build_batch_context(epoch_info, tree_accounts, None, None, None);
+        let processor = Arc::new(Mutex::new(
+            QueueProcessor::new(batch_context, AddressTreeStrategy).await?,
+        ));
+
+        // Cache the zkp_batch_size for early filtering of queue updates
+        let batch_size = processor.lock().await.zkp_batch_size();
+        self.zkp_batch_sizes
+            .insert(tree_accounts.merkle_tree, batch_size);
+
+        // Insert the new processor (or get existing if another task beat us to it)
+        match self.address_processors.entry(tree_accounts.merkle_tree) {
             Entry::Occupied(mut occupied) => {
-                let (stored_epoch, processor_ref) = occupied.get();
+                let (stored_epoch, _) = occupied.get();
                 if *stored_epoch == epoch_info.epoch {
-                    Ok(processor_ref.clone())
+                    // Another task already inserted for this epoch - use theirs
+                    Ok(occupied.get().1.clone())
                 } else {
-                    let batch_context =
-                        self.build_batch_context(epoch_info, tree_accounts, None, None, None);
-                    let processor = Arc::new(Mutex::new(
-                        QueueProcessor::new(batch_context, AddressTreeStrategy).await?,
-                    ));
-                    // Cache the zkp_batch_size for early filtering of queue updates
-                    let batch_size = processor.lock().await.zkp_batch_size();
-                    self.zkp_batch_sizes
-                        .insert(tree_accounts.merkle_tree, batch_size);
+                    // Replace stale entry
                     occupied.insert((epoch_info.epoch, processor.clone()));
                     Ok(processor)
                 }
             }
             Entry::Vacant(vacant) => {
-                let batch_context =
-                    self.build_batch_context(epoch_info, tree_accounts, None, None, None);
-                let processor = Arc::new(Mutex::new(
-                    QueueProcessor::new(batch_context, AddressTreeStrategy).await?,
-                ));
-                // Cache the zkp_batch_size for early filtering of queue updates
-                let batch_size = processor.lock().await.zkp_batch_size();
-                self.zkp_batch_sizes
-                    .insert(tree_accounts.merkle_tree, batch_size);
                 vacant.insert((epoch_info.epoch, processor.clone()));
                 Ok(processor)
             }
@@ -2568,8 +2576,8 @@ impl<R: Rpc> EpochManager<R> {
                     };
 
                     // Pre-warm from indexer (doesn't require queue channel)
-                    // Use a reasonable batch limit for pre-warming (24 is the processor's limit)
-                    const PREWARM_MAX_BATCHES: usize = 24;
+                    // Limit batches to avoid overwhelming the prover (5 trees × 4 = 20 concurrent jobs)
+                    const PREWARM_MAX_BATCHES: usize = 4;
                     let mut p = processor.lock().await;
                     match p
                         .prewarm_from_indexer(

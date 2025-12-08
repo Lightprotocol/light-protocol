@@ -150,11 +150,19 @@ func (handler proofStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	logging.Logger().Info().
+	// Log job status without payload to avoid filling up log buffer
+	logEvent := logging.Logger().Info().
 		Str("job_id", jobID).
-		Str("status", jobStatus).
-		Interface("job_info", jobInfo).
-		Msg("Job found but not completed")
+		Str("status", jobStatus)
+	if jobInfo != nil {
+		if ct, ok := jobInfo["circuit_type"]; ok {
+			logEvent = logEvent.Interface("circuit_type", ct)
+		}
+		if ca, ok := jobInfo["created_at"]; ok {
+			logEvent = logEvent.Interface("created_at", ca)
+		}
+	}
+	logEvent.Msg("Job found but not completed")
 
 	response := map[string]interface{}{
 		"job_id": jobID,
@@ -252,35 +260,70 @@ func getStatusMessage(status string) string {
 }
 
 func (handler proofStatusHandler) checkJobExistsDetailed(jobID string) (bool, string, map[string]interface{}) {
-	if job, found := handler.findJobInQueue("zk_update_queue", jobID); found {
-		return true, "queued", job
+	// First check result cache (fast O(1) lookup)
+	result, err := handler.redisQueue.GetResult(jobID)
+	if err == nil && result != nil {
+		logging.Logger().Debug().
+			Str("job_id", jobID).
+			Msg("Job found in result cache")
+
+		jobInfo := map[string]interface{}{
+			"result":        result,
+			"result_cached": true,
+		}
+		return true, "completed", jobInfo
 	}
 
-	if job, found := handler.findJobInQueue("zk_append_queue", jobID); found {
-		return true, "queued", job
+	// Check job metadata to determine which queue to search (avoids full scan of all queues)
+	jobMeta, metaErr := handler.redisQueue.GetJobMeta(jobID)
+	if metaErr == nil && jobMeta != nil {
+		// We have metadata - check only the relevant queues based on queue name
+		if queueName, ok := jobMeta["queue"].(string); ok {
+			// Check main queue first
+			if job, found := handler.findJobInQueue(queueName, jobID); found {
+				return true, "queued", job
+			}
+			// Check processing queue for this circuit type
+			processingQueue := queueName[:len(queueName)-6] + "_processing_queue"
+			if job, found := handler.findJobInQueue(processingQueue, jobID); found {
+				return true, "processing", job
+			}
+		}
+		// Job has metadata but not found in expected queues - may be in results or failed
+		if job, found := handler.findJobInQueue("zk_failed_queue", jobID); found {
+			return true, "failed", job
+		}
+		// Check results queue
+		if job, found := handler.findJobInQueue("zk_results_queue", jobID); found {
+			if payloadRaw, ok := job["payload"]; ok {
+				if payloadStr, ok := payloadRaw.(string); ok {
+					var payloadData map[string]interface{}
+					if json.Unmarshal([]byte(payloadStr), &payloadData) == nil {
+						job["result"] = payloadData
+					}
+				}
+			}
+			return true, "completed", job
+		}
+		// Return metadata-based status even if not found in queues
+		// This handles race conditions where job moved between queues
+		status := "queued"
+		if metaStatus, ok := jobMeta["status"].(string); ok {
+			status = metaStatus
+		}
+		return true, status, map[string]interface{}{
+			"circuit_type": jobMeta["circuit_type"],
+			"submitted_at": jobMeta["submitted_at"],
+			"from_meta":    true,
+		}
 	}
 
-	if job, found := handler.findJobInQueue("zk_address_append_queue", jobID); found {
-		return true, "queued", job
-	}
-
-	if job, found := handler.findJobInQueue("zk_update_processing_queue", jobID); found {
-		return true, "processing", job
-	}
-
-	if job, found := handler.findJobInQueue("zk_append_processing_queue", jobID); found {
-		return true, "processing", job
-	}
-
-	if job, found := handler.findJobInQueue("zk_address_append_processing_queue", jobID); found {
-		return true, "processing", job
-	}
-
+	// No metadata - fall back to checking failed and results queues only
+	// (These are the terminal states where jobs might exist without metadata)
 	if job, found := handler.findJobInQueue("zk_failed_queue", jobID); found {
 		return true, "failed", job
 	}
 
-	// Check zk_results_queue for completed jobs
 	if job, found := handler.findJobInQueue("zk_results_queue", jobID); found {
 		if payloadRaw, ok := job["payload"]; ok {
 			if payloadStr, ok := payloadRaw.(string); ok {
@@ -291,20 +334,6 @@ func (handler proofStatusHandler) checkJobExistsDetailed(jobID string) (bool, st
 			}
 		}
 		return true, "completed", job
-	}
-
-	// Check zk_result_* Redis keys for cached results
-	result, err := handler.redisQueue.GetResult(jobID)
-	if err == nil && result != nil {
-		logging.Logger().Info().
-			Str("job_id", jobID).
-			Msg("Job found in result cache")
-
-		jobInfo := map[string]interface{}{
-			"result":        result,
-			"result_cached": true,
-		}
-		return true, "completed", jobInfo
 	}
 
 	return false, "", nil
@@ -632,27 +661,49 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, keyManager *com
 				isNew = true
 			}
 
-			// If there's already an in-flight job, return its ID
+			// If there's already an in-flight job, verify it exists before returning its ID
 			if !isNew {
-				response := map[string]interface{}{
-					"job_id":       existingJobID,
-					"status":       "already_queued",
-					"queue":        queueName,
-					"circuit_type": string(proofRequestMeta.CircuitType),
-					"message":      "Proof request with identical input already in queue. Returning existing job ID.",
-					"deduplicated": true,
+				// Verify the deduplicated job actually exists (has result, metadata, or is in queue)
+				jobExists := false
+				if result, _ := redisQueue.GetResult(existingJobID); result != nil {
+					jobExists = true
+				} else if meta, _ := redisQueue.GetJobMeta(existingJobID); meta != nil {
+					jobExists = true
 				}
 
-				logging.Logger().Info().
-					Str("existing_job_id", existingJobID).
-					Str("input_hash", inputHash).
-					Str("circuit_type", string(proofRequestMeta.CircuitType)).
-					Msg("Deduplicated proof request via /queue/add")
+				if jobExists {
+					response := map[string]interface{}{
+						"job_id":       existingJobID,
+						"status":       "already_queued",
+						"queue":        queueName,
+						"circuit_type": string(proofRequestMeta.CircuitType),
+						"message":      "Proof request with identical input already in queue. Returning existing job ID.",
+						"deduplicated": true,
+					}
 
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusAccepted)
-				json.NewEncoder(w).Encode(response)
-				return
+					logging.Logger().Info().
+						Str("existing_job_id", existingJobID).
+						Str("input_hash", inputHash).
+						Str("circuit_type", string(proofRequestMeta.CircuitType)).
+						Msg("Deduplicated proof request via /queue/add")
+
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusAccepted)
+					json.NewEncoder(w).Encode(response)
+					return
+				}
+
+				// Job doesn't exist - clean up stale marker and create new job
+				logging.Logger().Warn().
+					Str("stale_job_id", existingJobID).
+					Str("input_hash", inputHash).
+					Msg("Deduplication found stale job ID - cleaning up and creating new job")
+				redisQueue.CleanupStaleInFlightMarker(existingJobID)
+				// Generate new job ID and set in-flight marker
+				newJobID := uuid.New().String()
+				redisQueue.Client.Set(redisQueue.Ctx, fmt.Sprintf("zk_inflight_%s", inputHash), newJobID, 10*time.Minute)
+				existingJobID = newJobID // Update so line below assigns correct ID
+				isNew = true
 			}
 
 			// This is a new job
@@ -665,16 +716,27 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, keyManager *com
 				CreatedAt: time.Now(),
 			}
 
-			err = redisQueue.EnqueueProof(queueName, job)
-			if err != nil {
-				// Clean up in-flight marker since we failed to enqueue
-				redisQueue.DeleteInFlightJob(inputHash, jobID)
-				unexpectedError(err).send(w)
-				return
+			// Store job metadata BEFORE enqueueing to prevent race condition where worker
+			// picks up job before metadata exists, causing job_not_found on status checks
+			if err := redisQueue.StoreJobMeta(jobID, queueName, string(proofRequestMeta.CircuitType)); err != nil {
+				logging.Logger().Warn().
+					Err(err).
+					Str("job_id", jobID).
+					Str("queue", queueName).
+					Msg("Failed to store job metadata (will still attempt to enqueue)")
 			}
 
 			// Store input hash mapping for cleanup when job completes
 			redisQueue.StoreInputHash(jobID, inputHash)
+
+			err = redisQueue.EnqueueProof(queueName, job)
+			if err != nil {
+				// Clean up in-flight marker and metadata since we failed to enqueue
+				redisQueue.DeleteInFlightJob(inputHash, jobID)
+				redisQueue.DeleteJobMeta(jobID)
+				unexpectedError(err).send(w)
+				return
+			}
 
 			logging.Logger().Info().
 				Str("job_id", jobID).
@@ -820,31 +882,53 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 		isNew = true
 	}
 
-	// If there's already an in-flight job, return its ID
+	// If there's already an in-flight job, verify it exists before returning its ID
 	if !isNew {
-		estimatedTime := handler.getEstimatedTime(meta.CircuitType)
-
-		response := map[string]interface{}{
-			"job_id":         existingJobID,
-			"status":         "already_queued",
-			"circuit_type":   string(meta.CircuitType),
-			"queue":          queueName,
-			"estimated_time": estimatedTime,
-			"status_url":     fmt.Sprintf("/prove/status?job_id=%s", existingJobID),
-			"message":        "Proof request with identical input already in queue. Returning existing job ID.",
-			"deduplicated":   true,
+		// Verify the deduplicated job actually exists (has result, metadata, or is in queue)
+		jobExists := false
+		if result, _ := handler.redisQueue.GetResult(existingJobID); result != nil {
+			jobExists = true
+		} else if jobMeta, _ := handler.redisQueue.GetJobMeta(existingJobID); jobMeta != nil {
+			jobExists = true
 		}
 
-		logging.Logger().Info().
-			Str("existing_job_id", existingJobID).
-			Str("input_hash", inputHash).
-			Str("circuit_type", string(meta.CircuitType)).
-			Msg("Deduplicated proof request - returning existing job")
+		if jobExists {
+			estimatedTime := handler.getEstimatedTime(meta.CircuitType)
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusAccepted)
-		json.NewEncoder(w).Encode(response)
-		return
+			response := map[string]interface{}{
+				"job_id":         existingJobID,
+				"status":         "already_queued",
+				"circuit_type":   string(meta.CircuitType),
+				"queue":          queueName,
+				"estimated_time": estimatedTime,
+				"status_url":     fmt.Sprintf("/prove/status?job_id=%s", existingJobID),
+				"message":        "Proof request with identical input already in queue. Returning existing job ID.",
+				"deduplicated":   true,
+			}
+
+			logging.Logger().Info().
+				Str("existing_job_id", existingJobID).
+				Str("input_hash", inputHash).
+				Str("circuit_type", string(meta.CircuitType)).
+				Msg("Deduplicated proof request - returning existing job")
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusAccepted)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		// Job doesn't exist - clean up stale marker and create new job
+		logging.Logger().Warn().
+			Str("stale_job_id", existingJobID).
+			Str("input_hash", inputHash).
+			Msg("Deduplication found stale job ID - cleaning up and creating new job")
+		handler.redisQueue.CleanupStaleInFlightMarker(existingJobID)
+		// Generate new job ID and set in-flight marker
+		newJobID := uuid.New().String()
+		handler.redisQueue.Client.Set(handler.redisQueue.Ctx, fmt.Sprintf("zk_inflight_%s", inputHash), newJobID, 10*time.Minute)
+		existingJobID = newJobID // Update so line below assigns correct ID
+		isNew = true
 	}
 
 	// This is a new job - use the job ID we registered
@@ -857,12 +941,30 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 		CreatedAt: time.Now(),
 	}
 
+	// Store job metadata BEFORE enqueueing to prevent race condition where worker
+	// picks up job before metadata exists, causing job_not_found on status checks
+	if err := handler.redisQueue.StoreJobMeta(jobID, queueName, string(meta.CircuitType)); err != nil {
+		logging.Logger().Warn().
+			Err(err).
+			Str("job_id", jobID).
+			Str("queue", queueName).
+			Msg("Failed to store job metadata (will still attempt to enqueue)")
+	}
+
+	// Store input hash mapping for cleanup when job completes
+	handler.redisQueue.StoreInputHash(jobID, inputHash)
+
 	err = handler.redisQueue.EnqueueProof(queueName, job)
 	if err != nil {
 		logging.Logger().Error().Err(err).Msg("Failed to enqueue proof job")
 
-		// Clean up in-flight marker since we failed to enqueue
-		handler.redisQueue.DeleteInFlightJob(inputHash, jobID)
+		// Clean up in-flight marker and metadata since we failed to enqueue
+		if delErr := handler.redisQueue.DeleteInFlightJob(inputHash, jobID); delErr != nil {
+			logging.Logger().Error().Err(delErr).Str("job_id", jobID).Msg("Failed to cleanup in-flight marker after enqueue failure - may cause stale deduplication")
+		}
+		if delErr := handler.redisQueue.DeleteJobMeta(jobID); delErr != nil {
+			logging.Logger().Error().Err(delErr).Str("job_id", jobID).Msg("Failed to cleanup job metadata after enqueue failure")
+		}
 
 		if handler.isBatchOperation(meta.CircuitType) {
 			serviceUnavailableError := &Error{
@@ -877,20 +979,6 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 		logging.Logger().Warn().Msg("Queue failed, falling back to synchronous processing")
 		handler.handleSyncProof(w, r, buf, meta)
 		return
-	}
-
-	// Store input hash mapping for cleanup when job completes
-	handler.redisQueue.StoreInputHash(jobID, inputHash)
-
-	// Store job metadata for reliable status lookups - this ensures the status endpoint
-	// can find the job even if the queue lookup has race conditions or Redis replica lag
-	if err := handler.redisQueue.StoreJobMeta(jobID, queueName, string(meta.CircuitType)); err != nil {
-		// Log but don't fail - the job is already queued, metadata is just for status tracking
-		logging.Logger().Warn().
-			Err(err).
-			Str("job_id", jobID).
-			Str("queue", queueName).
-			Msg("Failed to store job metadata (job is still queued)")
 	}
 
 	estimatedTime := handler.getEstimatedTime(meta.CircuitType)

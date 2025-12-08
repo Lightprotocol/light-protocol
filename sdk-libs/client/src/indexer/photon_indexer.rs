@@ -1829,18 +1829,6 @@ impl Indexer for PhotonIndexer {
                         .map(|h| Hash::from_base58(h))
                         .collect();
 
-                    // Parse low_element_proofs for debugging/validation
-                    let low_element_proofs: Result<Vec<Vec<[u8; 32]>>, IndexerError> = address
-                        .low_element_proofs
-                        .iter()
-                        .map(|proof| {
-                            proof
-                                .iter()
-                                .map(|h| Hash::from_base58(h))
-                                .collect::<Result<Vec<[u8; 32]>, IndexerError>>()
-                        })
-                        .collect();
-
                     Some(super::AddressQueueDataV2 {
                         addresses: addresses?,
                         low_element_values: low_element_values?,
@@ -1855,7 +1843,6 @@ impl Indexer for PhotonIndexer {
                         subtrees: subtrees?,
                         start_index: address.start_index,
                         root_seq: address.root_seq,
-                        low_element_proofs: low_element_proofs?,
                     })
                 } else {
                     None

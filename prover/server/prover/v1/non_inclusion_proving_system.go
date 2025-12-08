@@ -64,7 +64,6 @@ func ProveNonInclusion(ps *common.MerkleProofSystem, params *NonInclusionParamet
 	inPathIndices := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
 
 	for i := 0; i < int(ps.NonInclusionNumberOfCompressedAccounts); i++ {
-		logging.Logger().Debug().Msgf("ProveNonInclusion: Input[%d] NextIndex=%d", i, params.Inputs[i].NextIndex)
 		roots[i] = params.Inputs[i].Root
 		values[i] = params.Inputs[i].Value
 		leafLowerRangeValues[i] = params.Inputs[i].LeafLowerRangeValue
