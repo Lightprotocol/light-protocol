@@ -25,6 +25,7 @@ import numpy as np
 # Regex patterns
 TS_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z")
 ROUND_TRIP_RE = re.compile(r"round_trip=(\d+)ms")
+PROOF_TIME_RE = re.compile(r"proof=(\d+)ms")
 IXS_RE = re.compile(r"ixs=(\d+)")
 TYPE_RE = re.compile(r"type=(\w+)")
 QUEUE_ITEMS_RE = re.compile(r"(\d+)\s+items")
@@ -39,7 +40,14 @@ class ProofEvent:
     seq: Optional[int] = None
     job_id: Optional[str] = None
     proof_type: Optional[str] = None
-    pure_proof_ms: Optional[float] = None  # Time from prover_client (actual prover wait)
+    proof_ms: Optional[int] = None  # Pure proof generation time from prover server
+
+    @property
+    def queue_wait_ms(self) -> Optional[int]:
+        """Time spent waiting in queue (round_trip - proof)."""
+        if self.proof_ms is not None:
+            return self.round_trip_ms - self.proof_ms
+        return None
 
 
 @dataclass
@@ -96,14 +104,17 @@ def parse_log(path: Path) -> dict:
             if "Proof completed" in line:
                 m = ROUND_TRIP_RE.search(line)
                 job_m = re.search(r'job_id=([a-f0-9-]+)', line)
+                proof_m = PROOF_TIME_RE.search(line)
                 if m:
                     job_id = job_m.group(1) if job_m else None
                     proof_type = job_types.get(job_id) if job_id else None
+                    proof_ms = int(proof_m.group(1)) if proof_m else None
                     proof_completions.append(ProofEvent(
                         timestamp=ts,
                         round_trip_ms=int(m.group(1)),
                         job_id=job_id,
-                        proof_type=proof_type
+                        proof_type=proof_type,
+                        proof_ms=proof_ms
                     ))
 
             # TX sent
@@ -351,6 +362,121 @@ def plot_tx_type_breakdown(tx_events: list[TxEvent], ax):
     ax.set_title('Transaction Type Distribution')
 
 
+def plot_time_breakdown_by_type(proof_completions: list[ProofEvent], ax):
+    """Stacked bar chart showing proof time vs queue wait by proof type."""
+    proofs_with_timing = [p for p in proof_completions if p.proof_ms is not None and p.proof_type]
+
+    if not proofs_with_timing:
+        ax.text(0.5, 0.5, "No timing data by type", ha='center', va='center')
+        return
+
+    # Aggregate by type
+    type_data = {}
+    for p in proofs_with_timing:
+        if p.proof_type not in type_data:
+            type_data[p.proof_type] = {'proof': [], 'queue': []}
+        type_data[p.proof_type]['proof'].append(p.proof_ms)
+        type_data[p.proof_type]['queue'].append(p.queue_wait_ms)
+
+    types = sorted(type_data.keys())
+    proof_means = [np.mean(type_data[t]['proof']) for t in types]
+    queue_means = [np.mean(type_data[t]['queue']) for t in types]
+    counts = [len(type_data[t]['proof']) for t in types]
+
+    x = np.arange(len(types))
+    width = 0.6
+
+    bars1 = ax.bar(x, proof_means, width, label='Proof Generation', color='steelblue')
+    bars2 = ax.bar(x, queue_means, width, bottom=proof_means, label='Queue Wait', color='orange')
+
+    ax.set_ylabel('Time (ms)')
+    ax.set_title('Mean Time Breakdown by Proof Type')
+    ax.set_xticks(x)
+    ax.set_xticklabels([f"{t}\n(n={c})" for t, c in zip(types, counts)])
+    ax.legend()
+
+    # Add percentage labels
+    for i, (p, q) in enumerate(zip(proof_means, queue_means)):
+        total = p + q
+        if total > 0:
+            ax.text(i, total + 200, f'{p/total*100:.0f}%/{q/total*100:.0f}%',
+                   ha='center', va='bottom', fontsize=8)
+
+
+def plot_latency_timeline_by_type(proof_completions: list[ProofEvent], ax):
+    """Plot latency over time with color by proof type."""
+    if not proof_completions:
+        ax.text(0.5, 0.5, "No proof data", ha='center', va='center')
+        return
+
+    # Color map for proof types
+    type_colors = {
+        'append': 'blue',
+        'update': 'red',
+        'address_append': 'green',
+    }
+
+    for proof_type, color in type_colors.items():
+        type_proofs = [p for p in proof_completions if p.proof_type == proof_type]
+        if type_proofs:
+            timestamps = [p.timestamp for p in type_proofs]
+            latencies = [p.round_trip_ms for p in type_proofs]
+            ax.scatter(timestamps, latencies, c=color, alpha=0.6, s=20, label=f'{proof_type} (n={len(type_proofs)})')
+
+    # Handle unknown types
+    unknown = [p for p in proof_completions if p.proof_type not in type_colors]
+    if unknown:
+        timestamps = [p.timestamp for p in unknown]
+        latencies = [p.round_trip_ms for p in unknown]
+        ax.scatter(timestamps, latencies, c='gray', alpha=0.4, s=15, label=f'unknown (n={len(unknown)})')
+
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Round-trip Latency (ms)')
+    ax.set_title('Latency Over Time by Proof Type')
+    ax.legend(loc='upper left', fontsize=8)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
+    ax.tick_params(axis='x', rotation=45)
+
+
+def plot_proof_vs_queue_scatter(proof_completions: list[ProofEvent], ax):
+    """Scatter plot of proof time vs queue wait time."""
+    proofs_with_timing = [p for p in proof_completions if p.proof_ms is not None]
+
+    if not proofs_with_timing:
+        ax.text(0.5, 0.5, "No timing data", ha='center', va='center')
+        return
+
+    type_colors = {
+        'append': 'blue',
+        'update': 'red',
+        'address_append': 'green',
+    }
+
+    for proof_type, color in type_colors.items():
+        type_proofs = [p for p in proofs_with_timing if p.proof_type == proof_type]
+        if type_proofs:
+            proof_times = [p.proof_ms for p in type_proofs]
+            queue_times = [p.queue_wait_ms for p in type_proofs]
+            ax.scatter(proof_times, queue_times, c=color, alpha=0.6, s=30, label=proof_type)
+
+    # Unknown types
+    unknown = [p for p in proofs_with_timing if p.proof_type not in type_colors]
+    if unknown:
+        proof_times = [p.proof_ms for p in unknown]
+        queue_times = [p.queue_wait_ms for p in unknown]
+        ax.scatter(proof_times, queue_times, c='gray', alpha=0.4, s=20, label='unknown')
+
+    # Add diagonal line where proof == queue
+    max_val = max(max(p.proof_ms for p in proofs_with_timing),
+                  max(p.queue_wait_ms for p in proofs_with_timing))
+    ax.plot([0, max_val], [0, max_val], 'k--', alpha=0.3, label='proof=queue')
+
+    ax.set_xlabel('Pure Proof Time (ms)')
+    ax.set_ylabel('Queue Wait Time (ms)')
+    ax.set_title('Proof Generation vs Queue Wait')
+    ax.legend(loc='upper right', fontsize=8)
+
+
 def print_summary(data: dict):
     """Print summary statistics to console."""
     proof_completions = data["proof_completions"]
@@ -381,22 +507,73 @@ def print_summary(data: dict):
             bar = '#' * int(pct / 2)
             print(f"    {name:>12}: {count:4d} ({pct:5.1f}%) {bar}")
 
+        # Time breakdown: proof vs queue wait
+        proofs_with_timing = [p for p in proof_completions if p.proof_ms is not None]
+        if proofs_with_timing:
+            proof_times = [p.proof_ms for p in proofs_with_timing]
+            queue_waits = [p.queue_wait_ms for p in proofs_with_timing]
+
+            print(f"\n  Time Breakdown (n={len(proofs_with_timing)} with timing data):")
+            print(f"    Pure Proof Time:")
+            print(f"      Min:    {min(proof_times):,} ms")
+            print(f"      Max:    {max(proof_times):,} ms")
+            print(f"      Mean:   {np.mean(proof_times):,.1f} ms")
+            print(f"      Median: {np.median(proof_times):,.1f} ms")
+            print(f"      p95:    {np.percentile(proof_times, 95):,.1f} ms")
+
+            print(f"    Queue Wait Time (round_trip - proof):")
+            print(f"      Min:    {min(queue_waits):,} ms")
+            print(f"      Max:    {max(queue_waits):,} ms")
+            print(f"      Mean:   {np.mean(queue_waits):,.1f} ms")
+            print(f"      Median: {np.median(queue_waits):,.1f} ms")
+            print(f"      p95:    {np.percentile(queue_waits, 95):,.1f} ms")
+
+            # Percentage breakdown
+            total_time = sum(p.round_trip_ms for p in proofs_with_timing)
+            total_proof = sum(proof_times)
+            total_queue = sum(queue_waits)
+            print(f"\n    Time Distribution:")
+            print(f"      Proof generation: {total_proof/total_time*100:5.1f}% of total time")
+            print(f"      Queue wait:       {total_queue/total_time*100:5.1f}% of total time")
+
         # Latency by proof type
         type_latencies = {}
         for p in proof_completions:
             if p.proof_type:
                 if p.proof_type not in type_latencies:
-                    type_latencies[p.proof_type] = []
-                type_latencies[p.proof_type].append(p.round_trip_ms)
+                    type_latencies[p.proof_type] = {'round_trip': [], 'proof': [], 'queue': []}
+                type_latencies[p.proof_type]['round_trip'].append(p.round_trip_ms)
+                if p.proof_ms is not None:
+                    type_latencies[p.proof_type]['proof'].append(p.proof_ms)
+                    type_latencies[p.proof_type]['queue'].append(p.queue_wait_ms)
 
         if type_latencies:
-            print("\n  Latency by Proof Type:")
+            print("\n  Latency by Proof Type (round_trip):")
             print(f"    {'Type':<18} {'Count':>6} {'Min':>8} {'p50':>8} {'Mean':>8} {'p95':>8} {'Max':>8}")
             print("    " + "-"*66)
             for proof_type in sorted(type_latencies.keys()):
-                lats = type_latencies[proof_type]
+                lats = type_latencies[proof_type]['round_trip']
                 if lats:
                     print(f"    {proof_type:<18} {len(lats):>6} {min(lats):>7}ms {np.percentile(lats, 50):>7.0f}ms {np.mean(lats):>7.0f}ms {np.percentile(lats, 95):>7.0f}ms {max(lats):>7}ms")
+
+            # Show proof time breakdown by type
+            has_proof_timing = any(type_latencies[t]['proof'] for t in type_latencies)
+            if has_proof_timing:
+                print("\n  Pure Proof Time by Type:")
+                print(f"    {'Type':<18} {'Count':>6} {'Min':>8} {'p50':>8} {'Mean':>8} {'p95':>8} {'Max':>8}")
+                print("    " + "-"*66)
+                for proof_type in sorted(type_latencies.keys()):
+                    lats = type_latencies[proof_type]['proof']
+                    if lats:
+                        print(f"    {proof_type:<18} {len(lats):>6} {min(lats):>7}ms {np.percentile(lats, 50):>7.0f}ms {np.mean(lats):>7.0f}ms {np.percentile(lats, 95):>7.0f}ms {max(lats):>7}ms")
+
+                print("\n  Queue Wait Time by Type:")
+                print(f"    {'Type':<18} {'Count':>6} {'Min':>8} {'p50':>8} {'Mean':>8} {'p95':>8} {'Max':>8}")
+                print("    " + "-"*66)
+                for proof_type in sorted(type_latencies.keys()):
+                    lats = type_latencies[proof_type]['queue']
+                    if lats:
+                        print(f"    {proof_type:<18} {len(lats):>6} {min(lats):>7}ms {np.percentile(lats, 50):>7.0f}ms {np.mean(lats):>7.0f}ms {np.percentile(lats, 95):>7.0f}ms {max(lats):>7}ms")
 
     if tx_events:
         total_proofs = sum(t.ixs for t in tx_events)
@@ -453,26 +630,35 @@ def main():
     if args.summary_only:
         return
 
-    # Create figure with subplots
-    fig = plt.figure(figsize=(16, 12))
+    # Create figure with subplots (3x3 grid for more detailed analysis)
+    fig = plt.figure(figsize=(18, 14))
 
-    ax1 = fig.add_subplot(2, 3, 1)
+    ax1 = fig.add_subplot(3, 3, 1)
     plot_latency_distribution(data["proof_completions"], ax1)
 
-    ax2 = fig.add_subplot(2, 3, 2)
-    plot_latency_timeline(data["proof_completions"], ax2)
+    ax2 = fig.add_subplot(3, 3, 2)
+    plot_latency_timeline_by_type(data["proof_completions"], ax2)
 
-    ax3 = fig.add_subplot(2, 3, 3)
-    plot_tx_type_breakdown(data["tx_events"], ax3)
+    ax3 = fig.add_subplot(3, 3, 3)
+    plot_time_breakdown_by_type(data["proof_completions"], ax3)
 
-    ax4 = fig.add_subplot(2, 3, 4)
-    plot_throughput_gaps(data["tx_events"], ax4)
+    ax4 = fig.add_subplot(3, 3, 4)
+    plot_proof_vs_queue_scatter(data["proof_completions"], ax4)
 
-    ax5 = fig.add_subplot(2, 3, 5)
-    plot_pipeline_utilization(data["proof_requests"], data["proof_completions"], ax5)
+    ax5 = fig.add_subplot(3, 3, 5)
+    plot_throughput_gaps(data["tx_events"], ax5)
 
-    ax6 = fig.add_subplot(2, 3, 6)
-    plot_bottleneck_timeline(data["bottlenecks"], ax6)
+    ax6 = fig.add_subplot(3, 3, 6)
+    plot_tx_type_breakdown(data["tx_events"], ax6)
+
+    ax7 = fig.add_subplot(3, 3, 7)
+    plot_pipeline_utilization(data["proof_requests"], data["proof_completions"], ax7)
+
+    ax8 = fig.add_subplot(3, 3, 8)
+    plot_bottleneck_timeline(data["bottlenecks"], ax8)
+
+    ax9 = fig.add_subplot(3, 3, 9)
+    plot_latency_timeline(data["proof_completions"], ax9)
 
     plt.tight_layout()
 

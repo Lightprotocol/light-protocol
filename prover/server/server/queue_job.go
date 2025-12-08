@@ -285,7 +285,7 @@ func (w *BaseQueueWorker) processJobs() {
 
 	w.semaphore <- struct{}{}
 
-	go func(job *ProofJob) {
+	go func(job *ProofJob, inputHash string) {
 		defer func() {
 			<-w.semaphore
 		}()
@@ -369,7 +369,16 @@ func (w *BaseQueueWorker) processJobs() {
 				Str("job_id", job.ID).
 				Msg("Failed to delete job metadata (non-critical)")
 		}
-	}(job)
+
+		// Clean up in-flight marker to allow new jobs with the same input
+		if delErr := w.queue.DeleteInFlightJob(inputHash, job.ID); delErr != nil {
+			logging.Logger().Warn().
+				Err(delErr).
+				Str("job_id", job.ID).
+				Str("input_hash", inputHash).
+				Msg("Failed to delete in-flight job marker (non-critical)")
+		}
+	}(job, inputHash)
 }
 
 func (w *UpdateQueueWorker) Start() {

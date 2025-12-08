@@ -1090,6 +1090,11 @@ impl<R: Rpc> EpochManager<R> {
             }
         }
 
+        // Pre-warm proofs for all V2 state trees while waiting for active phase
+        // This gives proofs a head start, reducing latency when active phase begins
+        self.prewarm_all_trees_during_wait(epoch_info, active_phase_start_slot)
+            .await;
+
         wait_until_slot_reached(&mut *rpc, &self.slot_tracker, active_phase_start_slot).await?;
 
         let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
@@ -1489,6 +1494,53 @@ impl<R: Rpc> EpochManager<R> {
                     }
                 }
                 tree_schedule.slots[slot_idx] = None;
+
+                // After processing a slot, check if there's a gap before the next eligible slot
+                // If so, use that time to pre-warm proofs for the next slot
+                if matches!(tree_type, TreeType::StateV2 | TreeType::AddressV2) {
+                    if let Some(ref mut rx) = queue_update_rx {
+                        let next_slot = tree_schedule
+                            .slots
+                            .iter()
+                            .enumerate()
+                            .find_map(|(idx, opt)| opt.as_ref().map(|s| (idx, s.clone())));
+
+                        if let Some((next_idx, next_slot_details)) = next_slot {
+                            let current = self.slot_tracker.estimated_current_slot();
+                            let slots_until_next = next_slot_details
+                                .start_solana_slot
+                                .saturating_sub(current);
+
+                            // Pre-warm if we have at least 2 seconds (4 slots) gap
+                            if slots_until_next > 4 {
+                                let consecutive_end = tree_schedule
+                                    .get_consecutive_eligibility_end(next_idx)
+                                    .unwrap_or(next_slot_details.end_solana_slot);
+
+                                info!(
+                                    "Pre-warming proofs for tree {} during {} slot gap before next eligible slot",
+                                    tree_schedule.tree_accounts.merkle_tree, slots_until_next
+                                );
+
+                                if let Err(e) = self
+                                    .prewarm_proofs_during_wait(
+                                        epoch_info,
+                                        &tree_schedule.tree_accounts,
+                                        consecutive_end,
+                                        next_slot_details.start_solana_slot,
+                                        rx,
+                                    )
+                                    .await
+                                {
+                                    warn!(
+                                        "Pre-warming between slots failed for tree {}: {:?}",
+                                        tree_schedule.tree_accounts.merkle_tree, e
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
             } else {
                 info!(
                     "No further eligible slots in schedule for tree {}",
@@ -2433,10 +2485,134 @@ impl<R: Rpc> EpochManager<R> {
                 Ok(())
             }
             TreeType::AddressV2 => {
-                // Temporarily disable address prewarm to avoid interfering with live queue data.
+                // DISABLED: Pre-warming for address trees is temporarily disabled
+                // to narrow down the source of constraint errors.
+                debug!(
+                    "Pre-warming disabled for address tree {}",
+                    tree_accounts.merkle_tree
+                );
                 Ok(())
             }
             _ => Ok(()),
+        }
+    }
+
+    /// Pre-warm proofs for all V2 state trees during the wait for active phase.
+    /// This runs proof generation in parallel across all trees to populate caches
+    /// before the active phase begins, reducing initial latency.
+    async fn prewarm_all_trees_during_wait(
+        &self,
+        epoch_info: &ForesterEpochInfo,
+        deadline_slot: u64,
+    ) {
+        let current_slot = self.slot_tracker.estimated_current_slot();
+        let slots_until_active = deadline_slot.saturating_sub(current_slot);
+
+        // Only pre-warm if we have at least 10 seconds (20 slots) before active phase
+        // This gives enough time to generate meaningful proofs
+        if slots_until_active < 20 {
+            debug!(
+                "Not enough time for pre-warming: {} slots until active phase",
+                slots_until_active
+            );
+            return;
+        }
+
+        let trees = self.trees.lock().await;
+        let v2_state_trees: Vec<_> = trees
+            .iter()
+            .filter(|t| matches!(t.tree_type, TreeType::StateV2))
+            .cloned()
+            .collect();
+        drop(trees);
+
+        if v2_state_trees.is_empty() {
+            return;
+        }
+
+        info!(
+            "Starting aggressive pre-warming for {} V2 state trees ({} slots until active phase)",
+            v2_state_trees.len(),
+            slots_until_active
+        );
+
+        // Spawn pre-warming tasks for all trees in parallel
+        let prewarm_futures: Vec<_> = v2_state_trees
+            .iter()
+            .map(|tree_accounts| {
+                let tree_pubkey = tree_accounts.merkle_tree;
+                let epoch_info = epoch_info.clone();
+                let tree_accounts = tree_accounts.clone();
+                let self_clone = self.clone();
+
+                async move {
+                    let cache = self_clone
+                        .proof_caches
+                        .entry(tree_pubkey)
+                        .or_insert_with(|| Arc::new(SharedProofCache::new(tree_pubkey)))
+                        .clone();
+
+                    // Get or create processor
+                    let processor = match self_clone
+                        .get_or_create_state_processor(&epoch_info.epoch, &tree_accounts)
+                        .await
+                    {
+                        Ok(p) => p,
+                        Err(e) => {
+                            warn!(
+                                "Failed to create processor for pre-warming tree {}: {:?}",
+                                tree_pubkey, e
+                            );
+                            return;
+                        }
+                    };
+
+                    // Pre-warm from indexer (doesn't require queue channel)
+                    // Use a reasonable batch limit for pre-warming (24 is the processor's limit)
+                    const PREWARM_MAX_BATCHES: usize = 24;
+                    let mut p = processor.lock().await;
+                    match p
+                        .prewarm_from_indexer(
+                            cache.clone(),
+                            light_compressed_account::QueueType::OutputStateV2,
+                            PREWARM_MAX_BATCHES,
+                        )
+                        .await
+                    {
+                        Ok(count) => {
+                            if count > 0 {
+                                info!(
+                                    "Pre-warmed {} proofs for tree {} during wait",
+                                    count, tree_pubkey
+                                );
+                            }
+                        }
+                        Err(e) => {
+                            debug!(
+                                "Pre-warming from indexer failed for tree {}: {:?}",
+                                tree_pubkey, e
+                            );
+                            cache.clear().await;
+                        }
+                    }
+                }
+            })
+            .collect();
+
+        // Wait for all pre-warming to complete, but with a timeout
+        // so we don't miss the active phase start
+        let timeout_slots = slots_until_active.saturating_sub(5); // Leave 5 slots buffer
+        let timeout_duration = Duration::from_millis(timeout_slots * 400); // ~400ms per slot
+
+        match tokio::time::timeout(timeout_duration, futures::future::join_all(prewarm_futures))
+            .await
+        {
+            Ok(_) => {
+                info!("Completed pre-warming for all trees before active phase");
+            }
+            Err(_) => {
+                info!("Pre-warming timed out, proceeding to active phase");
+            }
         }
     }
 

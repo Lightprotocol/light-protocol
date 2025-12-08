@@ -712,3 +712,113 @@ func (rq *RedisQueue) StoreInputHash(jobID string, inputHash string) error {
 
 	return nil
 }
+
+// GetOrSetInFlightJob atomically checks if a job with the given input hash is already in-flight.
+// If not, it registers the new job ID. Returns the existing job ID if found, or the new job ID if set.
+// The isNew return value indicates whether this is a new job (true) or an existing one (false).
+// TTL is set to 10 minutes to match the forester's max wait time.
+func (rq *RedisQueue) GetOrSetInFlightJob(inputHash, jobID string) (existingJobID string, isNew bool, err error) {
+	key := fmt.Sprintf("zk_inflight_%s", inputHash)
+
+	// Try to set the key atomically - only succeeds if key doesn't exist
+	set, err := rq.Client.SetNX(rq.Ctx, key, jobID, 10*time.Minute).Result()
+	if err != nil {
+		return "", false, fmt.Errorf("failed to check/set in-flight job: %w", err)
+	}
+
+	if set {
+		// Key was set - this is a new job
+		// Also store reverse mapping so we can find the input hash from job ID
+		// This is needed for CleanupStaleInFlightMarker when job_not_found
+		reverseKey := fmt.Sprintf("zk_input_hash_%s", jobID)
+		rq.Client.Set(rq.Ctx, reverseKey, inputHash, 10*time.Minute)
+
+		logging.Logger().Debug().
+			Str("job_id", jobID).
+			Str("input_hash", inputHash).
+			Msg("Registered new in-flight job")
+		return jobID, true, nil
+	}
+
+	// Key already exists - get the existing job ID
+	existing, err := rq.Client.Get(rq.Ctx, key).Result()
+	if err != nil {
+		// Key might have expired between SetNX and Get - treat as new
+		if err == redis.Nil {
+			// Retry setting the key
+			_, err = rq.Client.SetNX(rq.Ctx, key, jobID, 10*time.Minute).Result()
+			if err != nil {
+				return "", false, fmt.Errorf("failed to set in-flight job on retry: %w", err)
+			}
+			// Store reverse mapping for cleanup
+			reverseKey := fmt.Sprintf("zk_input_hash_%s", jobID)
+			rq.Client.Set(rq.Ctx, reverseKey, inputHash, 10*time.Minute)
+			return jobID, true, nil
+		}
+		return "", false, fmt.Errorf("failed to get existing in-flight job: %w", err)
+	}
+
+	logging.Logger().Info().
+		Str("existing_job_id", existing).
+		Str("input_hash", inputHash).
+		Msg("Found existing in-flight job with same input")
+
+	return existing, false, nil
+}
+
+// DeleteInFlightJob removes the in-flight marker for a job when it completes.
+// This should be called when a job finishes (success or failure) to allow
+// new jobs with the same input to be queued.
+func (rq *RedisQueue) DeleteInFlightJob(inputHash, jobID string) error {
+	key := fmt.Sprintf("zk_inflight_%s", inputHash)
+	err := rq.Client.Del(rq.Ctx, key).Err()
+	if err != nil {
+		return fmt.Errorf("failed to delete in-flight job marker: %w", err)
+	}
+
+	// Also clean up the reverse mapping
+	reverseKey := fmt.Sprintf("zk_input_hash_%s", jobID)
+	rq.Client.Del(rq.Ctx, reverseKey)
+
+	logging.Logger().Debug().
+		Str("input_hash", inputHash).
+		Str("job_id", jobID).
+		Msg("Deleted in-flight job marker")
+
+	return nil
+}
+
+// CleanupStaleInFlightMarker removes a stale in-flight marker for a job that no longer exists.
+// This is called when a status check returns job_not_found, indicating the job was lost
+// (e.g., due to prover restart) but the in-flight marker still exists.
+// This allows new requests with the same input to create a new job instead of being
+// deduplicated to the stale job ID.
+func (rq *RedisQueue) CleanupStaleInFlightMarker(jobID string) {
+	// Get the input hash associated with this job ID
+	inputHashKey := fmt.Sprintf("zk_input_hash_%s", jobID)
+	inputHash, err := rq.Client.Get(rq.Ctx, inputHashKey).Result()
+	if err != nil {
+		// No input hash found - nothing to clean up
+		return
+	}
+
+	// Check if the in-flight marker points to this job ID
+	inFlightKey := fmt.Sprintf("zk_inflight_%s", inputHash)
+	storedJobID, err := rq.Client.Get(rq.Ctx, inFlightKey).Result()
+	if err != nil {
+		// No in-flight marker - nothing to clean up
+		return
+	}
+
+	// Only delete if this marker points to the stale job
+	if storedJobID == jobID {
+		rq.Client.Del(rq.Ctx, inFlightKey)
+		logging.Logger().Info().
+			Str("job_id", jobID).
+			Str("input_hash", inputHash).
+			Msg("Cleaned up stale in-flight marker for lost job")
+	}
+
+	// Also clean up the input hash mapping
+	rq.Client.Del(rq.Ctx, inputHashKey)
+}

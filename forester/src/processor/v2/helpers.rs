@@ -99,6 +99,9 @@ pub async fn fetch_onchain_address_root<R: Rpc>(context: &BatchContext<R>) -> cr
     Ok(root)
 }
 
+/// Timeout for indexer fetch operations (30 seconds)
+const INDEXER_FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
 pub async fn fetch_batches<R: Rpc>(
     context: &BatchContext<R>,
     output_start_index: Option<u64>,
@@ -117,9 +120,23 @@ pub async fn fetch_batches<R: Rpc>(
         .with_input_queue(input_start_index, Some(fetch_len_u16))
         .with_input_queue_batch_size(Some(zkp_batch_size_u16));
 
-    let res = indexer
-        .get_queue_elements(context.merkle_tree.to_bytes(), options, None)
-        .await?;
+    let fetch_future = indexer.get_queue_elements(context.merkle_tree.to_bytes(), options, None);
+
+    let res = match tokio::time::timeout(INDEXER_FETCH_TIMEOUT, fetch_future).await {
+        Ok(result) => result?,
+        Err(_) => {
+            tracing::warn!(
+                "fetch_batches timed out after {:?} for tree {}",
+                INDEXER_FETCH_TIMEOUT,
+                context.merkle_tree
+            );
+            return Err(anyhow::anyhow!(
+                "Indexer fetch timed out after {:?} for state tree {}",
+                INDEXER_FETCH_TIMEOUT,
+                context.merkle_tree
+            ));
+        }
+    };
 
     Ok(res.value.state_queue)
 }
@@ -150,9 +167,23 @@ pub async fn fetch_address_batches<R: Rpc>(
         zkp_batch_size_u16
     );
 
-    let res = indexer
-        .get_queue_elements(context.merkle_tree.to_bytes(), options, None)
-        .await?;
+    let fetch_future = indexer.get_queue_elements(context.merkle_tree.to_bytes(), options, None);
+
+    let res = match tokio::time::timeout(INDEXER_FETCH_TIMEOUT, fetch_future).await {
+        Ok(result) => result?,
+        Err(_) => {
+            tracing::warn!(
+                "fetch_address_batches timed out after {:?} for tree {}",
+                INDEXER_FETCH_TIMEOUT,
+                context.merkle_tree
+            );
+            return Err(anyhow::anyhow!(
+                "Indexer fetch timed out after {:?} for address tree {}",
+                INDEXER_FETCH_TIMEOUT,
+                context.merkle_tree
+            ));
+        }
+    };
 
     if let Some(ref aq) = res.value.address_queue {
         tracing::debug!(

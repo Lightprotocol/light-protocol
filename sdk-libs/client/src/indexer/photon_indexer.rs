@@ -1806,18 +1806,8 @@ impl Indexer for PhotonIndexer {
                         .map(|h| Hash::from_base58(h))
                         .collect();
 
-                    let low_element_proofs: Result<Vec<Vec<[u8; 32]>>, IndexerError> = address
-                        .low_element_proofs
-                        .iter()
-                        .map(|proof_vec| {
-                            proof_vec
-                                .iter()
-                                .map(|h| Hash::from_base58(h))
-                                .collect::<Result<Vec<[u8; 32]>, IndexerError>>()
-                        })
-                        .collect();
-
                     // Extract nodes and node_hashes from combined Node objects
+                    // Proofs are reconstructed from nodes using AddressQueueDataV2::reconstruct_proof()
                     let nodes: Vec<u64> = address.nodes.iter().map(|n| n.index).collect();
                     let node_hashes: Result<Vec<[u8; 32]>, IndexerError> = address
                         .nodes
@@ -1839,13 +1829,24 @@ impl Indexer for PhotonIndexer {
                         .map(|h| Hash::from_base58(h))
                         .collect();
 
+                    // Parse low_element_proofs for debugging/validation
+                    let low_element_proofs: Result<Vec<Vec<[u8; 32]>>, IndexerError> = address
+                        .low_element_proofs
+                        .iter()
+                        .map(|proof| {
+                            proof
+                                .iter()
+                                .map(|h| Hash::from_base58(h))
+                                .collect::<Result<Vec<[u8; 32]>, IndexerError>>()
+                        })
+                        .collect();
+
                     Some(super::AddressQueueDataV2 {
                         addresses: addresses?,
                         low_element_values: low_element_values?,
                         low_element_next_values: low_element_next_values?,
                         low_element_indices: address.low_element_indices,
                         low_element_next_indices: address.low_element_next_indices,
-                        low_element_proofs: low_element_proofs?,
                         nodes,
                         node_hashes: node_hashes?,
                         initial_root,
@@ -1854,6 +1855,7 @@ impl Indexer for PhotonIndexer {
                         subtrees: subtrees?,
                         start_index: address.start_index,
                         root_seq: address.root_seq,
+                        low_element_proofs: low_element_proofs?,
                     })
                 } else {
                     None

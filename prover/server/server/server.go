@@ -137,6 +137,10 @@ func (handler proofStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 			}
 		}
 
+		// Clean up any stale in-flight marker for this job ID
+		// This allows new requests with the same input to create fresh jobs
+		handler.redisQueue.CleanupStaleInFlightMarker(jobID)
+
 		notFoundError := &Error{
 			StatusCode: http.StatusNotFound,
 			Code:       "job_not_found",
@@ -611,7 +615,48 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, keyManager *com
 				return
 			}
 
+			queueName := GetQueueNameForCircuit(proofRequestMeta.CircuitType)
+
+			// Compute input hash for deduplication
+			inputHash := ComputeInputHash(json.RawMessage(buf))
+
+			// Check if there's already an in-flight job with the same input
 			jobID := uuid.New().String()
+			existingJobID, isNew, err := redisQueue.GetOrSetInFlightJob(inputHash, jobID)
+			if err != nil {
+				logging.Logger().Warn().
+					Err(err).
+					Str("input_hash", inputHash).
+					Msg("Failed to check for in-flight job, proceeding with new job")
+				existingJobID = jobID
+				isNew = true
+			}
+
+			// If there's already an in-flight job, return its ID
+			if !isNew {
+				response := map[string]interface{}{
+					"job_id":       existingJobID,
+					"status":       "already_queued",
+					"queue":        queueName,
+					"circuit_type": string(proofRequestMeta.CircuitType),
+					"message":      "Proof request with identical input already in queue. Returning existing job ID.",
+					"deduplicated": true,
+				}
+
+				logging.Logger().Info().
+					Str("existing_job_id", existingJobID).
+					Str("input_hash", inputHash).
+					Str("circuit_type", string(proofRequestMeta.CircuitType)).
+					Msg("Deduplicated proof request via /queue/add")
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusAccepted)
+				json.NewEncoder(w).Encode(response)
+				return
+			}
+
+			// This is a new job
+			jobID = existingJobID
 
 			job := &ProofJob{
 				ID:        jobID,
@@ -620,13 +665,16 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, keyManager *com
 				CreatedAt: time.Now(),
 			}
 
-			queueName := GetQueueNameForCircuit(proofRequestMeta.CircuitType)
-
 			err = redisQueue.EnqueueProof(queueName, job)
 			if err != nil {
+				// Clean up in-flight marker since we failed to enqueue
+				redisQueue.DeleteInFlightJob(inputHash, jobID)
 				unexpectedError(err).send(w)
 				return
 			}
+
+			// Store input hash mapping for cleanup when job completes
+			redisQueue.StoreInputHash(jobID, inputHash)
 
 			logging.Logger().Info().
 				Str("job_id", jobID).
@@ -751,10 +799,56 @@ type healthHandler struct {
 }
 
 func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Request, buf []byte, meta common.ProofRequestMeta) {
-	jobID := uuid.New().String()
-
 	ProofRequestsTotal.WithLabelValues(string(meta.CircuitType)).Inc()
 	RecordCircuitInputSize(string(meta.CircuitType), len(buf))
+
+	queueName := GetQueueNameForCircuit(meta.CircuitType)
+
+	// Compute input hash for deduplication
+	inputHash := ComputeInputHash(json.RawMessage(buf))
+
+	// Check if there's already an in-flight job with the same input
+	jobID := uuid.New().String()
+	existingJobID, isNew, err := handler.redisQueue.GetOrSetInFlightJob(inputHash, jobID)
+	if err != nil {
+		logging.Logger().Warn().
+			Err(err).
+			Str("input_hash", inputHash).
+			Msg("Failed to check for in-flight job, proceeding with new job")
+		// Continue with new job on error
+		existingJobID = jobID
+		isNew = true
+	}
+
+	// If there's already an in-flight job, return its ID
+	if !isNew {
+		estimatedTime := handler.getEstimatedTime(meta.CircuitType)
+
+		response := map[string]interface{}{
+			"job_id":         existingJobID,
+			"status":         "already_queued",
+			"circuit_type":   string(meta.CircuitType),
+			"queue":          queueName,
+			"estimated_time": estimatedTime,
+			"status_url":     fmt.Sprintf("/prove/status?job_id=%s", existingJobID),
+			"message":        "Proof request with identical input already in queue. Returning existing job ID.",
+			"deduplicated":   true,
+		}
+
+		logging.Logger().Info().
+			Str("existing_job_id", existingJobID).
+			Str("input_hash", inputHash).
+			Str("circuit_type", string(meta.CircuitType)).
+			Msg("Deduplicated proof request - returning existing job")
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// This is a new job - use the job ID we registered
+	jobID = existingJobID
 
 	job := &ProofJob{
 		ID:        jobID,
@@ -763,11 +857,12 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 		CreatedAt: time.Now(),
 	}
 
-	queueName := GetQueueNameForCircuit(meta.CircuitType)
-
-	err := handler.redisQueue.EnqueueProof(queueName, job)
+	err = handler.redisQueue.EnqueueProof(queueName, job)
 	if err != nil {
 		logging.Logger().Error().Err(err).Msg("Failed to enqueue proof job")
+
+		// Clean up in-flight marker since we failed to enqueue
+		handler.redisQueue.DeleteInFlightJob(inputHash, jobID)
 
 		if handler.isBatchOperation(meta.CircuitType) {
 			serviceUnavailableError := &Error{
@@ -783,6 +878,9 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 		handler.handleSyncProof(w, r, buf, meta)
 		return
 	}
+
+	// Store input hash mapping for cleanup when job completes
+	handler.redisQueue.StoreInputHash(jobID, inputHash)
 
 	// Store job metadata for reliable status lookups - this ensures the status endpoint
 	// can find the job even if the queue lookup has race conditions or Redis replica lag
@@ -850,6 +948,20 @@ func (handler proveHandler) handleSyncProof(w http.ResponseWriter, r *http.Reque
 	resultChan := make(chan proofResult, 1)
 
 	go func() {
+		// Recover from panics to prevent server crash from malformed input
+		defer func() {
+			if r := recover(); r != nil {
+				logging.Logger().Error().
+					Interface("panic", r).
+					Str("circuit_type", string(meta.CircuitType)).
+					Msg("Panic recovered in proof processing")
+				resultChan <- proofResult{
+					proof: nil,
+					err:   unexpectedError(fmt.Errorf("internal error during proof processing: %v", r)),
+				}
+			}
+		}()
+
 		timer := StartProofTimer(string(meta.CircuitType))
 		RecordCircuitInputSize(string(meta.CircuitType), len(buf))
 

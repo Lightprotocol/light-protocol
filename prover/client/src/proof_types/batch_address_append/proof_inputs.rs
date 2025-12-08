@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use light_hasher::{
-    bigint::bigint_to_be_bytes_array, hash_chain::create_hash_chain_from_array, Poseidon,
+    bigint::bigint_to_be_bytes_array,
+    hash_chain::{create_hash_chain_from_array, create_hash_chain_from_slice},
+    Poseidon,
 };
 use light_indexed_array::{array::IndexedElement, changelog::RawIndexedElement};
 use light_sparse_merkle_tree::{
@@ -170,6 +172,38 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     // iterate over elements prior to start index to create changelog entries to
     // patch subsequent element proofs. The indexer won't be caught up yet.)
     let new_element_values = new_element_values[0..zkp_batch_size].to_vec();
+
+    // HASHCHAIN VALIDATION: Verify indexer's hashchain matches local computation.
+    // This catches mismatches between indexer and forester before sending to prover.
+    let computed_hashchain = create_hash_chain_from_slice(&new_element_values).map_err(|e| {
+        ProverClientError::GenericError(format!("Failed to compute hashchain: {}", e))
+    })?;
+    if computed_hashchain != leaves_hashchain {
+        tracing::error!(
+            "HASHCHAIN MISMATCH: computed {:?} != indexer {:?} (batch_size={}, next_index={})",
+            &computed_hashchain[..8],
+            &leaves_hashchain[..8],
+            zkp_batch_size,
+            next_index
+        );
+        // Log first few addresses to help debug
+        for (i, addr) in new_element_values.iter().take(3).enumerate() {
+            tracing::error!("  address[{}] = {:?}[..8]", i, &addr[..8]);
+        }
+        return Err(ProverClientError::GenericError(format!(
+            "HASHCHAIN MISMATCH: computed {:?}[..4] != indexer {:?}[..4]. \
+             The indexer's leaves_hash_chain doesn't match the addresses being processed.",
+            &computed_hashchain[..4],
+            &leaves_hashchain[..4]
+        )));
+    }
+    tracing::debug!(
+        "Hashchain validated OK: {:?}[..4] (batch_size={}, next_index={})",
+        &computed_hashchain[..4],
+        zkp_batch_size,
+        next_index
+    );
+
     let mut new_root = [0u8; 32];
     let mut low_element_circuit_merkle_proofs = vec![];
     let mut new_element_circuit_merkle_proofs = vec![];
@@ -183,6 +217,14 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     for entry in changelog.iter() {
         proof_cache.add_entry::<HEIGHT>(entry);
     }
+
+    // Track if this is the first batch (indexed_changelog empty at start).
+    // Must capture this BEFORE we start pushing to indexed_changelog in the loop.
+    let is_first_batch = indexed_changelog.is_empty();
+
+    // Track expected root for validation in first batch.
+    // Starts at current_root, updates after each element completes.
+    let mut expected_root_for_low = current_root;
 
     for i in 0..new_element_values.len() {
         let mut changelog_index = 0;
@@ -231,7 +273,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             index: new_low_element.index,
         };
 
-        {
+        let intermediate_root = {
             let mut low_element_proof_arr: [[u8; 32]; HEIGHT] = low_element_proof
                 .clone()
                 .try_into()
@@ -241,14 +283,70 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             proof_cache.update_proof::<HEIGHT>(low_element.index(), &mut low_element_proof_arr);
             let merkle_proof = low_element_proof_arr;
 
+            // Validate LOW element proofs for ALL elements in FIRST batch.
+            // expected_root_for_low starts at current_root and updates after each element.
+            if is_first_batch {
+                // Compute the OLD leaf hash (before update)
+                let old_low_leaf_hash = low_element
+                    .hash::<Poseidon>(&low_element_next_value)
+                    .map_err(|e| {
+                        ProverClientError::GenericError(format!(
+                            "Failed to hash old low element: {}",
+                            e
+                        ))
+                    })?;
+                let (computed_root, _) = compute_root_from_merkle_proof::<HEIGHT>(
+                    old_low_leaf_hash,
+                    &merkle_proof,
+                    low_element.index as u32,
+                );
+                if computed_root != expected_root_for_low {
+                    return Err(ProverClientError::GenericError(format!(
+                        "ELEMENT {} LOW_PROOF MISMATCH: computed {:?}[..4] != expected {:?}[..4] \
+                         (low_idx={}, low_value={:?}[..4], low_next={:?}[..4])",
+                        i,
+                        &computed_root[..4],
+                        &expected_root_for_low[..4],
+                        low_element.index,
+                        &bigint_to_be_bytes_array::<32>(&low_element.value).unwrap()[..4],
+                        &bigint_to_be_bytes_array::<32>(&low_element_next_value).unwrap()[..4],
+                    )));
+                }
+                if i == 0 {
+                    tracing::info!(
+                        "VALIDATION_PASS: element 0 low proof OK (root {:?}[..4])",
+                        &computed_root[..4]
+                    );
+                }
+            }
+
             let new_low_leaf_hash = new_low_element
                 .hash::<Poseidon>(&new_element.value)
                 .unwrap();
-            let (_updated_root, changelog_entry) = compute_root_from_merkle_proof::<HEIGHT>(
+            let (low_update_intermediate_root, changelog_entry) = compute_root_from_merkle_proof::<HEIGHT>(
                 new_low_leaf_hash,
                 &merkle_proof,
                 new_low_element.index as u32,
             );
+
+            // Debug: log info for first batch to diagnose constraint errors
+            // For seq=0 (first batch), log ALL elements to find which one has bad proof
+            if is_first_batch {
+                // Log every 10th element + first and last
+                if i == 0 || i % 10 == 0 || i == new_element_values.len() - 1 {
+                    tracing::debug!(
+                        "BATCH0_ELEM[{}]: low_idx={}, low_value={:?}[..4], low_next={:?}[..4], \
+                         new_value={:?}[..4], intermediate_root={:?}[..4]",
+                        i,
+                        new_low_element.index,
+                        &bigint_to_be_bytes_array::<32>(&low_element.value).unwrap()[..4],
+                        &bigint_to_be_bytes_array::<32>(&low_element_next_value).unwrap()[..4],
+                        &new_element_values[i][..4],
+                        &low_update_intermediate_root[..4],
+                    );
+                }
+            }
+
             proof_cache.add_entry::<HEIGHT>(&changelog_entry);
             changelog.push(changelog_entry);
             low_element_circuit_merkle_proofs.push(
@@ -257,7 +355,10 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
                     .map(|hash| BigUint::from_bytes_be(hash))
                     .collect(),
             );
-        }
+
+            // Capture intermediate root for new element validation
+            low_update_intermediate_root
+        };
         let low_element_changelog_entry = IndexedChangelogEntry {
             element: new_low_element_raw,
             proof: low_element_proof.as_slice()[..HEIGHT].try_into().unwrap(),
@@ -271,6 +372,11 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             let new_element_leaf_hash = new_element
                 .hash::<Poseidon>(&new_element_next_value)
                 .unwrap();
+
+            // Capture sparse tree state BEFORE append (for validation on first batch)
+            let sparse_root_before = sparse_merkle_tree.root();
+            let sparse_next_idx_before = sparse_merkle_tree.get_next_index();
+
             let mut merkle_proof_array = sparse_merkle_tree.append(new_element_leaf_hash);
 
             let current_index = next_index + i;
@@ -282,6 +388,74 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
                 &merkle_proof_array,
                 current_index as u32,
             );
+
+            // Validate sparse tree state only on FIRST element of FIRST batch.
+            if i == 0 && changelog.len() == 1 {
+                if sparse_next_idx_before != current_index {
+                    return Err(ProverClientError::GenericError(format!(
+                        "SPARSE INDEX MISMATCH: sparse tree next_index={} but expected current_index={}",
+                        sparse_next_idx_before,
+                        current_index
+                    )));
+                }
+
+                if sparse_root_before != current_root {
+                    return Err(ProverClientError::GenericError(format!(
+                        "SPARSE ROOT MISMATCH: sparse tree root {:?}[..4] != current_root {:?}[..4] \
+                         (next_index={}). The subtrees from indexer may be stale.",
+                        &sparse_root_before[..4],
+                        &current_root[..4],
+                        next_index
+                    )));
+                }
+            }
+
+            // Validate new element proof for ALL elements in FIRST batch.
+            // The patched proof should compute: ZERO + proof → intermediate_root
+            // This catches stale/incorrect proofs before sending to prover.
+            if is_first_batch {
+                let zero_hash = [0u8; 32];
+                let (root_with_zero, _) = compute_root_from_merkle_proof::<HEIGHT>(
+                    zero_hash,
+                    &merkle_proof_array,
+                    current_index as u32,
+                );
+                // The root_with_zero should equal intermediate_root (after low element update)
+                if root_with_zero != intermediate_root {
+                    // Log more details about the mismatch
+                    tracing::error!(
+                        "ELEMENT {} NEW_PROOF MISMATCH: proof + ZERO = {:?}[..4] but expected \
+                         intermediate_root = {:?}[..4] (index={}, low_idx={})",
+                        i,
+                        &root_with_zero[..4],
+                        &intermediate_root[..4],
+                        current_index,
+                        low_element.index
+                    );
+                    return Err(ProverClientError::GenericError(format!(
+                        "ELEMENT {} NEW_PROOF MISMATCH: proof + ZERO = {:?}[..4] but expected \
+                         intermediate_root = {:?}[..4] (index={}, low_idx={}). Patched proof is incorrect.",
+                        i,
+                        &root_with_zero[..4],
+                        &intermediate_root[..4],
+                        current_index,
+                        low_element.index
+                    )));
+                }
+                if i == 0 {
+                    tracing::info!(
+                        "VALIDATION_PASS: element 0 new_element proof OK \
+                         (intermediate_root {:?}[..4] -> updated_root {:?}[..4])",
+                        &intermediate_root[..4],
+                        &updated_root[..4]
+                    );
+                }
+
+                // Update expected_root_for_low for next element's low proof validation
+                // The next element's low proof should verify against updated_root
+                expected_root_for_low = updated_root;
+            }
+
             new_root = updated_root;
 
             proof_cache.add_entry::<HEIGHT>(&changelog_entry);

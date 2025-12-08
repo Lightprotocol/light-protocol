@@ -640,6 +640,13 @@ impl ProofClient {
                 (proof_value, 0)
             };
 
+        // Check if proof is null - this indicates the prover failed to generate a proof
+        if proof_json_value.is_null() {
+            return Err(ProverClientError::ProverServerError(
+                "Prover returned null proof - proof generation failed on server side".to_string(),
+            ));
+        }
+
         let proof_json_str = serde_json::to_string(&proof_json_value).map_err(|e| {
             ProverClientError::ProverServerError(format!("Failed to serialize proof JSON: {}", e))
         })?;
