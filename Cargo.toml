@@ -198,7 +198,7 @@ forester-utils = { path = "forester-utils", version = "2.0.0" }
 account-compression = { path = "programs/account-compression", version = "2.0.0", features = [
     "cpi",
 ] }
-light-compressed-token = { path = "programs/compressed-token/program", version = "2.0.0", features = [
+light-compressed-token = { path = "programs/compressed-token/program", version = "2.1.0", features = [
     "cpi",
 ] }
 light-ctoken-types = { path = "sdk-libs/ctoken-types", version = "0.2.1" }
@@ -207,7 +207,7 @@ light-token-client = { path = "sdk-libs/token-client", version = "0.1.0" }
 light-system-program-anchor = { path = "anchor-programs/system", version = "2.0.0", features = [
     "cpi",
 ] }
-light-registry = { path = "programs/registry", version = "2.0.0", features = [
+light-registry = { path = "programs/registry", version = "2.1.0", features = [
     "cpi",
 ] }
 create-address-test-program = { path = "program-tests/create-address-test-program", version = "1.0.0", features = [

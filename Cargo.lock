@@ -3660,7 +3660,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressed-token"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "account-compression",
  "anchor-compressed-token",
@@ -4085,7 +4085,7 @@ dependencies = [
 
 [[package]]
 name = "light-registry"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "account-compression",
  "aligned-sized",
@@ -11923,6 +11923,7 @@ name = "xtask"
 version = "1.1.0"
 dependencies = [
  "account-compression",
+ "anchor-lang",
  "anyhow",
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
@@ -11933,6 +11934,7 @@ dependencies = [
  "light-batched-merkle-tree",
  "light-client",
  "light-compressed-account",
+ "light-compressible",
  "light-concurrent-merkle-tree",
  "light-hash-set",
  "light-hasher",

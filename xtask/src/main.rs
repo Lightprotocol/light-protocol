@@ -3,6 +3,7 @@ use clap::{Parser, ValueEnum};
 mod bench;
 mod create_batch_address_tree;
 mod create_batch_state_tree;
+mod create_compressible_config;
 mod create_state_tree;
 mod create_update_protocol_config_ix;
 mod create_vkeyrs_from_gnark_key;
@@ -73,6 +74,10 @@ enum Command {
     ///   cargo xtask fetch-accounts rpc --lut --pubkeys <lut_pubkey> --network mainnet
     ///   cargo xtask fetch-accounts rpc --lut --pubkeys <lut_pubkey> --add-pubkeys <pk1>,<pk2> --network mainnet
     FetchAccounts(fetch_accounts::Options),
+    /// Create compressible config (config counter + compressible config)
+    /// Creates the config counter PDA and a compressible config with default RentConfig.
+    /// Example: cargo xtask create-compressible-config --network devnet
+    CreateCompressibleConfig(create_compressible_config::Options),
 }
 
 #[tokio::main]
@@ -108,5 +113,8 @@ async fn main() -> Result<(), anyhow::Error> {
         Command::PrintStateTree(opts) => print_state_tree::print_state_tree(opts).await,
         Command::ReinitCpiAccounts(opts) => reinit_cpi_accounts::reinit_cpi_accounts(opts).await,
         Command::FetchAccounts(opts) => fetch_accounts::fetch_accounts(opts).await,
+        Command::CreateCompressibleConfig(opts) => {
+            create_compressible_config::create_compressible_config(opts).await
+        }
     }
 }
