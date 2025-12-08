@@ -18,7 +18,7 @@ use crate::indexer::{
     response::{Context, Items, ItemsWithCursor, Response},
     Address, AddressWithTree, GetCompressedAccountsByOwnerConfig,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
-    IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, OutputQueueData, PaginatedOptions,
+    IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
 };
 
 // Tests are in program-tests/client-test/tests/light-client.rs
@@ -1536,6 +1536,7 @@ impl Indexer for PhotonIndexer {
 
         #[cfg(feature = "v2")]
         {
+            use crate::indexer::OutputQueueData;
             let merkle_tree_pubkey = _merkle_tree_pubkey;
             let options = _options;
             let config = _config.unwrap_or_default();
