@@ -14,13 +14,11 @@ import {
  * Create an unwrap instruction that moves tokens from a c-token account to an
  * SPL/T22 account.
  *
- * This is the reverse of wrap: c-token ATA -> pool -> SPL ATA
- *
  * @param source           Source c-token account
  * @param destination      Destination SPL/T22 token account
- * @param owner            Owner/authority of the source account (must sign)
+ * @param owner            Owner of the source account (signer)
  * @param mint             Mint address
- * @param amount           Amount to unwrap
+ * @param amount           Amount to unwrap,
  * @param splInterfaceInfo SPL interface info for the decompression
  * @param payer            Fee payer (defaults to owner if not provided)
  * @returns TransactionInstruction to unwrap tokens

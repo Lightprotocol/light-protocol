@@ -265,8 +265,8 @@ export {
 } from '../actions/load-ata';
 
 export {
-    LoadOptions,
-    TransferInterfaceOptions,
+    InterfaceOptions,
+    InterfaceOptions,
     InterfaceOptions,
 } from '../actions/transfer-interface';
 

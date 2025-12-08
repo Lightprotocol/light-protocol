@@ -39,41 +39,25 @@ import { loadAta } from './load-ata';
 /**
  * Retrieve the associated token account, or create it if it doesn't exist.
  *
- * For c-token with Signer owner:
- * - Creates hot ATA if it doesn't exist
- * - Loads cold (compressed) tokens into hot ATA if any exist
- * - Returns account with all tokens ready to use
+ * @param rpc                       Connection to use
+ * @param payer                     Payer of the transaction and initialization
+ *                                  fees.
+ * @param mint                      Mint associated with the account to set or
+ *                                  verify.
+ * @param owner                     Owner of the account. Pass Signer to
+ *                                  auto-load cold (compressed) tokens, or
+ *                                  PublicKey for read-only.
+ * @param allowOwnerOffCurve        Allow the owner account to be a PDA (Program
+ *                                  Derived Address).
+ * @param commitment                Desired level of commitment for querying the
+ *                                  state.
+ * @param confirmOptions            Options for confirming the transaction
+ * @param programId                 Token program ID (defaults to
+ *                                  CTOKEN_PROGRAM_ID)
+ * @param associatedTokenProgramId  Associated token program ID (auto-derived if
+ *                                  not provided)
  *
- * For c-token with PublicKey owner:
- * - Creates hot ATA if it doesn't exist
- * - Returns aggregated balance but does NOT auto-load (can't sign)
- * - Use loadAta() separately to consolidate
- *
- * For SPL/T22: standard behavior (create ATA if needed).
- *
- * Returns AccountInterface with:
- * - `parsed.amount`: aggregated balance (hot + cold for c-token)
- * - `_sources`: breakdown by source type (hot, cold, spl, token2022)
- * - `_needsConsolidation`: true if loadAta() should be called before writes
- *
- * @param rpc                      Connection to use
- * @param payer                    Payer of the transaction and initialization
- *                                 fees.
- * @param mint                     Mint associated with the account to set or
- *                                 verify.
- * @param owner                    Owner of the account. Pass Signer to auto-load
- *                                 cold tokens, or PublicKey for read-only.
- * @param allowOwnerOffCurve       Allow the owner account to be a PDA (Program
- *                                 Derived Address).
- * @param commitment               Desired level of commitment for querying the
- *                                 state.
- * @param confirmOptions           Options for confirming the transaction
- * @param programId                SPL Token program account or c-token program
- *                                 account.
- * @param associatedTokenProgramId SPL Associated Token program account or c-
- *                                 token program account.
- *
- * @return AccountInterface with aggregated balance and source breakdown
+ * @returns AccountInterface with aggregated balance and source breakdown
  */
 export async function getOrCreateAtaInterface(
     rpc: Rpc,

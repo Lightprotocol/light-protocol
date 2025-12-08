@@ -7,26 +7,19 @@ import {
 } from '@solana/spl-token';
 
 /**
- * c-token Transfer discriminator (matches InstructionType::CTokenTransfer = 3)
+ * c-token transfer instruction discriminator
  */
 const CTOKEN_TRANSFER_DISCRIMINATOR = 3;
 
 /**
- * Create a c-token transfer instruction for hot (on-chain) accounts.
- * Uses CTokenTransfer instruction (discriminator 3) which wraps SPL Token transfer.
- *
- * Accounts:
- * 1. source (mutable) - Source c-token account
- * 2. destination (mutable) - Destination c-token account
- * 3. authority (signer) - Owner of source account
- * 4. payer (optional, signer, mutable) - For compressible extension top-up
+ * Create a c-token transfer instruction.
  *
  * @param source        Source c-token account
  * @param destination   Destination c-token account
  * @param owner         Owner of the source account (signer)
  * @param amount        Amount to transfer
- * @param payer         Optional payer for compressible extension top-up
- * @returns TransactionInstruction for c-token transfer
+ * @param payer         Payer for compressible extension top-up (optional)
+ * @returns Transaction instruction for c-token transfer
  */
 export function createCTokenTransferInstruction(
     source: PublicKey,
@@ -64,47 +57,15 @@ export function createCTokenTransferInstruction(
 }
 
 /**
- * Construct a transfer instruction for SPL Token, Token-2022, or c-token (hot accounts).
- * Matches SPL Token createTransferInstruction signature exactly.
- * Defaults to c-token program.
- *
- * Dispatches to the appropriate program based on `programId`:
- * - `CTOKEN_PROGRAM_ID` -> c-token hot-to-hot transfer (default)
- * - `TOKEN_PROGRAM_ID` -> SPL Token transfer
- * - `TOKEN_2022_PROGRAM_ID` -> Token-2022 transfer
- *
- * Note: This is for on-chain (hot) token accounts only.
- * For compressed (cold) token transfers, use the `transfer` action.
- * For cross-program transfers (SPL <> c-token), use `wrap`/`unwrap`.
+ * Construct a transfer instruction for SPL/T22/c-token. Defaults to c-token
+ * program. For cross-program transfers (SPL <> c-token), use `wrap`/`unwrap`.
  *
  * @param source        Source token account
  * @param destination   Destination token account
- * @param owner         Owner of the source account
+ * @param owner         Owner of the source account (signer)
  * @param amount        Amount to transfer
- * @param multiSigners  Signing accounts if `owner` is a multisig (SPL only)
- * @param programId     Token program ID (default: CTOKEN_PROGRAM_ID)
- * @param payer         Fee payer for compressible top-up (c-token only)
- *
- * @example
- * // c-token hot transfer (default) - same signature as SPL!
- * const ix = createTransferInterfaceInstruction(
- *     sourceCtokenAccount,
- *     destCtokenAccount,
- *     owner,
- *     1000000n,
- * );
- *
- * @example
- * // SPL Token transfer - identical call, just change programId
- * import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
- * const ix = createTransferInterfaceInstruction(
- *     sourceAta,
- *     destAta,
- *     owner,
- *     1000000n,
- *     [],
- *     TOKEN_PROGRAM_ID,
- * );
+ * @param payer         Payer for compressible top-up (optional)
+ * @returns instruction for c-token transfer
  */
 export function createTransferInterfaceInstruction(
     source: PublicKey,

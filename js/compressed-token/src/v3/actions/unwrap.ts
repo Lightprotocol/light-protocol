@@ -23,21 +23,14 @@ import { loadAta as _loadAta } from './load-ata';
 /**
  * Unwrap c-tokens to SPL tokens.
  *
- * This is the reverse of wrap: converts c-token balance to SPL/T22 balance.
- * Destination SPL/T22 ATA must already exist (same as SPL token transfer pattern).
- *
- * Flow:
- * 1. Consolidate all c-token balances (cold -> hot) via loadAta
- * 2. Transfer from c-token hot ATA to SPL ATA via token pool
- *
  * @param rpc                RPC connection
  * @param payer              Fee payer
- * @param destination        Destination SPL/T22 token account (must exist)
+ * @param destination        Destination SPL/T22 token account
  * @param owner              Owner of the c-token (signer)
  * @param mint               Mint address
- * @param amount             Optional: specific amount to unwrap (defaults to all)
- * @param splInterfaceInfo   Optional: SPL interface info (will be fetched if not provided)
- * @param confirmOptions     Optional: confirm options
+ * @param amount             Amount to unwrap (defaults to all)
+ * @param splInterfaceInfo   SPL interface info
+ * @param confirmOptions     Confirm options
  *
  * @returns Transaction signature
  */
@@ -67,7 +60,6 @@ export async function unwrap(
         }
     }
 
-    // 2. Verify destination exists (SPL token pattern - destination must exist)
     const destAtaInfo = await rpc.getAccountInfo(destination);
     if (!destAtaInfo) {
         throw new Error(
@@ -76,17 +68,17 @@ export async function unwrap(
         );
     }
 
-    // 3. Load all tokens to c-token hot ATA first (consolidate cold -> hot)
+    // Load all tokens to c-token hot ATA
     const ctokenAta = getAssociatedTokenAddressInterface(mint, owner.publicKey);
     await _loadAta(rpc, ctokenAta, owner, mint, payer, confirmOptions);
 
-    // 4. Check c-token hot balance
+    // Check c-token hot balance
     const ctokenAccountInfo = await rpc.getAccountInfo(ctokenAta);
     if (!ctokenAccountInfo) {
         throw new Error('No c-token ATA found after loading');
     }
 
-    // Parse c-token account balance (offset 64 for amount in token account layout)
+    // Parse c-token account balance
     const data = ctokenAccountInfo.data;
     const ctokenBalance = data.readBigUInt64LE(64);
 
@@ -94,7 +86,6 @@ export async function unwrap(
         throw new Error('No c-token balance to unwrap');
     }
 
-    // 5. Determine amount to unwrap
     const unwrapAmount = amount ? BigInt(amount.toString()) : ctokenBalance;
 
     if (unwrapAmount > ctokenBalance) {
@@ -103,7 +94,7 @@ export async function unwrap(
         );
     }
 
-    // 6. Build unwrap instruction
+    // Build unwrap instruction
     const ix = createUnwrapInstruction(
         ctokenAta,
         destination,
@@ -114,12 +105,11 @@ export async function unwrap(
         payer.publicKey,
     );
 
-    // 7. Build and send transaction
     const { blockhash } = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [owner]);
 
     const tx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }), ix],
         payer,
         blockhash,
         additionalSigners,

@@ -29,26 +29,21 @@ import { createMint } from '../../actions/create-mint';
 export { TokenMetadataInstructionData };
 
 /**
- * Create and initialize a new mint (SPL, Token-2022, or Compressed Token).
+ * Create and initialize a new mint for SPL/T22/c-token.
  *
- * This is a unified interface that dispatches to either:
- * - SPL/Token-2022 mint creation when `programId` is TOKEN_PROGRAM_ID or TOKEN_2022_PROGRAM_ID
- * - Compressed token mint creation when `programId` is CTOKEN_PROGRAM_ID (default)
+ * @param rpc                   RPC connection to use
+ * @param payer                 Fee payer
+ * @param mintAuthority         Account that will control minting (signer for c-token mints)
+ * @param freezeAuthority       Account that will control freeze and thaw (optional)
+ * @param decimals              Location of the decimal place
+ * @param keypair               Mint keypair (defaults to a random keypair)
+ * @param confirmOptions        Confirm options
+ * @param programId             Token program ID (defaults to CTOKEN_PROGRAM_ID)
+ * @param tokenMetadata         Optional token metadata (c-token mints only)
+ * @param outputStateTreeInfo   Optional output state tree info (c-token mints only)
+ * @param addressTreeInfo       Optional address tree info (c-token mints only)
  *
- * @param rpc               RPC connection to use
- * @param payer             Fee payer
- * @param mintAuthority     Account that will control minting (must be Signer for compressed mints)
- * @param freezeAuthority   Optional: Account that will control freeze and thaw.
- * @param decimals          Location of the decimal place
- * @param keypair           Optional: Mint keypair. Defaults to a random keypair.
- * @param confirmOptions    Optional: Options for confirming the transaction
- * @param programId         Optional: Token program ID. Defaults to CTOKEN_PROGRAM_ID (compressed).
- *                          Set to TOKEN_PROGRAM_ID or TOKEN_2022_PROGRAM_ID for SPL mints.
- * @param tokenMetadata     Optional: Token metadata (only used for compressed mints)
- * @param outputStateTreeInfo Optional: Output state tree info (only used for compressed mints)
- * @param addressTreeInfo   Optional: Address tree info (only used for compressed mints)
- *
- * @return Object with mint address and transaction signature
+ * @returns Object with mint address and transaction signature
  */
 export async function createMintInterface(
     rpc: Rpc,

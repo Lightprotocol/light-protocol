@@ -92,8 +92,8 @@ export {
     CreateAtaInterfaceParams,
     CreateAtaInterfaceResult,
     InterfaceOptions,
-    LoadOptions,
-    TransferInterfaceOptions,
+    InterfaceOptions,
+    InterfaceOptions,
     // Helpers
     getMintInterface,
     unpackMintInterface,

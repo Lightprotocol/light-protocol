@@ -18,7 +18,7 @@ import {
 import { getAssociatedCTokenAddress } from '../derivation';
 
 /**
- * Create an associated compressed token account.
+ * Create an associated c-token account.
  *
  * @param rpc                RPC connection
  * @param payer              Fee payer

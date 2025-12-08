@@ -21,33 +21,23 @@ import { createDecompressInterfaceInstruction } from '../instructions/create-dec
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-ata-interface';
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import { CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
-import {
-    SplInterfaceInfo,
-    getSplInterfaceInfos,
-    selectSplInterfaceInfosForDecompression,
-} from '../../utils/get-token-pool-infos';
+import { SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 
 /**
  * Decompress compressed (cold) tokens to an on-chain token account.
  *
- * Low-level primitive for decompressing tokens. Destination type is determined
- * by `splInterfaceInfo`:
- * - undefined: Decompress to c-token ATA (default)
- * - provided: Decompress to SPL/T22 ATA via token pool
- *
- * For unified loading, use
- * {@link loadAta} instead.
+ * For unified loading, use {@link loadAta} instead.
  *
  * @param rpc                  RPC connection
  * @param payer                Fee payer (signer)
  * @param owner                Owner of the compressed tokens (signer)
  * @param mint                 Mint address
- * @param amount               Optional: specific amount to decompress (defaults to all)
- * @param destinationAta       Optional: destination token account address
- * @param destinationOwner     Optional: owner of the destination ATA
- * @param splInterfaceInfo     Optional: SPL interface info for SPL/T22 destinations
- * @param confirmOptions       Optional: confirm options
- * @returns Transaction signature, or null if no compressed tokens to decompress
+ * @param amount               Amount to decompress (defaults to all)
+ * @param destinationAta       Destination token account address
+ * @param destinationOwner     Owner of the destination ATA
+ * @param splInterfaceInfo     SPL interface info for SPL/T22 destinations
+ * @param confirmOptions       Confirm options
+ * @returns Transaction signature, null if nothing to load.
  */
 export async function decompressInterface(
     rpc: Rpc,

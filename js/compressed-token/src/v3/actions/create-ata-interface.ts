@@ -48,14 +48,8 @@ export interface CreateAtaInterfaceResult {
 }
 
 /**
- * Create an associated token account for SPL Token, Token-2022, or Compressed Token.
- * Follows SPL Token createAssociatedTokenAccount signature.
- * Defaults to c-token program.
- *
- * Dispatches to the appropriate program based on `programId`:
- * - `CTOKEN_PROGRAM_ID` -> Compressed Token ATA (default)
- * - `TOKEN_PROGRAM_ID` -> SPL Token ATA
- * - `TOKEN_2022_PROGRAM_ID` -> Token-2022 ATA
+ * Create an associated token account for SPL/T22/c-token. Follows SPL Token
+ * createAssociatedTokenAccount signature. Defaults to c-token program.
  *
  * @param rpc                      RPC connection
  * @param payer                    Fee payer and transaction signer
@@ -64,29 +58,10 @@ export interface CreateAtaInterfaceResult {
  * @param allowOwnerOffCurve       Allow owner to be a PDA (default: false)
  * @param confirmOptions           Options for confirming the transaction
  * @param programId                Token program ID (default: CTOKEN_PROGRAM_ID)
- * @param associatedTokenProgramId Associated token program ID (auto-derived if not provided)
- * @param ctokenConfig             Optional c-token-specific configuration
- *
- * @example
- * // Create Compressed Token ATA (default)
- * const { address } = await createAtaInterface(
- *     rpc,
- *     payer,
- *     mint,
- *     wallet.publicKey,
- * );
- *
- * @example
- * // Create SPL Token ATA
- * const { address } = await createAtaInterface(
- *     rpc,
- *     payer,
- *     splMint,
- *     wallet.publicKey,
- *     false,
- *     undefined,
- *     TOKEN_PROGRAM_ID,
- * );
+ * @param associatedTokenProgramId Associated token program ID (auto-derived if
+ *                                  not provided)
+ * @param ctokenConfig             c-token-specific configuration
+ * @returns Object with token account address and transaction signature
  */
 export async function createAtaInterface(
     rpc: Rpc,
@@ -147,16 +122,12 @@ export async function createAtaInterface(
 }
 
 /**
- * Create an associated token account idempotently for SPL Token, Token-2022, or Compressed Token.
- * Follows SPL Token createAssociatedTokenAccountIdempotent signature.
- * Defaults to c-token program.
+ * Create an associated token account idempotently for SPL/T22/c-token. Follows
+ * SPL Token createAssociatedTokenAccountIdempotent signature. Defaults to
+ * c-token program.
  *
- * This is idempotent - if the account already exists, the instruction succeeds without error.
- *
- * Dispatches to the appropriate program based on `programId`:
- * - `CTOKEN_PROGRAM_ID` -> Compressed Token ATA (default, idempotent)
- * - `TOKEN_PROGRAM_ID` -> SPL Token ATA (idempotent)
- * - `TOKEN_2022_PROGRAM_ID` -> Token-2022 ATA (idempotent)
+ * This is idempotent: if the account already exists, the instruction succeeds
+ * without error.
  *
  * @param rpc                      RPC connection
  * @param payer                    Fee payer and transaction signer
@@ -165,17 +136,11 @@ export async function createAtaInterface(
  * @param allowOwnerOffCurve       Allow owner to be a PDA (default: false)
  * @param confirmOptions           Options for confirming the transaction
  * @param programId                Token program ID (default: CTOKEN_PROGRAM_ID)
- * @param associatedTokenProgramId Associated token program ID (auto-derived if not provided)
+ * @param associatedTokenProgramId Associated token program ID (auto-derived if
+ *                                 not provided)
  * @param ctokenConfig             Optional c-token-specific configuration
  *
- * @example
- * // Create or get existing c-token ATA (default)
- * const { address } = await createAtaInterfaceIdempotent(
- *     rpc,
- *     payer,
- *     mint,
- *     wallet.publicKey,
- * );
+ * @returns Object with token account address and transaction signature
  */
 export async function createAtaInterfaceIdempotent(
     rpc: Rpc,

@@ -33,7 +33,6 @@ import {
 } from '../../utils/get-token-pool-infos';
 import { createWrapInstruction } from '../instructions/wrap';
 import { createDecompressInterfaceInstruction } from '../instructions/create-decompress-interface-instruction';
-import { getAtaInterface } from '../get-account-interface';
 
 /**
  * Options for interface operations (load, transfer)
@@ -355,7 +354,3 @@ export async function transferInterface(
 
     return sendAndConfirmTx(rpc, tx, confirmOptions);
 }
-
-// Re-export old names for backwards compatibility
-export type LoadOptions = InterfaceOptions;
-export type TransferInterfaceOptions = InterfaceOptions;
