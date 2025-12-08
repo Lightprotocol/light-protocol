@@ -264,11 +264,7 @@ export {
     LoadResult,
 } from '../actions/load-ata';
 
-export {
-    InterfaceOptions,
-    InterfaceOptions,
-    InterfaceOptions,
-} from '../actions/transfer-interface';
+export { InterfaceOptions } from '../actions/transfer-interface';
 
 export * from '../../actions';
 export * from '../../utils';
