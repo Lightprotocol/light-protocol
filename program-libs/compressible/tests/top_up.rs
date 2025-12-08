@@ -16,21 +16,21 @@ pub fn get_rent_exemption_lamports(_num_bytes: u64) -> u64 {
     2700480
 }
 
+#[derive(Debug)]
+struct TestCase {
+    name: &'static str,
+    current_slot: u64,
+    current_lamports: u64,
+    last_claimed_slot: u64,
+    lamports_per_write: u32,
+    expected_top_up: u64,
+    description: &'static str,
+}
+
 #[test]
 fn test_calculate_top_up_lamports() {
     let rent_exemption_lamports = get_rent_exemption_lamports(TEST_BYTES);
     let lamports_per_write = 5000u32;
-
-    #[derive(Debug)]
-    struct TestCase {
-        name: &'static str,
-        current_slot: u64,
-        current_lamports: u64,
-        last_claimed_slot: u64,
-        lamports_per_write: u32,
-        expected_top_up: u64,
-        description: &'static str,
-    }
 
     let test_cases = vec![
         // ============================================================
@@ -275,4 +275,105 @@ fn test_calculate_top_up_lamports() {
             test_case.name, test_case.description, test_case.expected_top_up, top_up, test_case
         );
     }
+}
+
+#[test]
+fn test_default_scenario_16_epochs_with_2_epoch_topup() {
+    let rent_exemption_lamports = get_rent_exemption_lamports(TEST_BYTES);
+
+    // Random starting slot (epoch 5)
+    let start_slot = SLOTS_PER_EPOCH * 5 + 1234;
+
+    let lamports_per_write = 388u32 * 2;
+    let initial_rent_epochs = 16u64; // Create with 16 epochs rent
+    let initial_lamports =
+        rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * initial_rent_epochs);
+
+    let extension = CompressionInfo {
+        account_version: 3,
+        config_account_version: 1,
+        compression_authority: [0u8; 32],
+        rent_sponsor: [0u8; 32],
+        last_claimed_slot: start_slot,
+        lamports_per_write,
+        compress_to_pubkey: 0,
+        rent_config: test_rent_config(), // max_funded_epochs = 2
+    };
+
+    // Test each epoch from 0 to 13 - should NOT require top-up
+    for epoch_offset in 0..=13 {
+        let current_slot = start_slot + (SLOTS_PER_EPOCH * epoch_offset);
+
+        let top_up = extension
+            .calculate_top_up_lamports(
+                TEST_BYTES,
+                current_slot,
+                initial_lamports,
+                rent_exemption_lamports,
+            )
+            .unwrap();
+
+        assert_eq!(
+            top_up,
+            0,
+            "Epoch offset {} should NOT require top-up (still {} epochs ahead)",
+            epoch_offset,
+            15 - epoch_offset
+        );
+    }
+
+    // Epoch 14 - should require top-up (only 1 epoch funded ahead < max_funded_epochs=2)
+    let epoch_14_slot = start_slot + (SLOTS_PER_EPOCH * 14);
+    let top_up = extension
+        .calculate_top_up_lamports(
+            TEST_BYTES,
+            epoch_14_slot,
+            initial_lamports,
+            rent_exemption_lamports,
+        )
+        .unwrap();
+
+    assert_eq!(
+        top_up, lamports_per_write as u64,
+        "Epoch 14 should require top-up (only 1 epoch funded ahead)"
+    );
+
+    // After write in epoch 14, lamports increase by top_up (lamports_per_write = 2 epochs rent)
+    let lamports_after_write = initial_lamports + top_up;
+
+    // Epochs 14 and 15 should NOT require top-up after the write
+    for epoch_offset in 14..=15 {
+        let current_slot = start_slot + (SLOTS_PER_EPOCH * epoch_offset);
+
+        let top_up = extension
+            .calculate_top_up_lamports(
+                TEST_BYTES,
+                current_slot,
+                lamports_after_write,
+                rent_exemption_lamports,
+            )
+            .unwrap();
+
+        assert_eq!(
+            top_up, 0,
+            "Epoch offset {} should NOT require top-up after write (funded for 2 more epochs)",
+            epoch_offset
+        );
+    }
+
+    // Epoch 16 - should require top-up again
+    let epoch_16_slot = start_slot + (SLOTS_PER_EPOCH * 16);
+    let top_up = extension
+        .calculate_top_up_lamports(
+            TEST_BYTES,
+            epoch_16_slot,
+            lamports_after_write,
+            rent_exemption_lamports,
+        )
+        .unwrap();
+
+    assert_eq!(
+        top_up, lamports_per_write as u64,
+        "Epoch 16 should require top-up again"
+    );
 }
