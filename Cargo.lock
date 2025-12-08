@@ -3572,6 +3572,7 @@ dependencies = [
  "solana-nostd-keccak",
  "solana-program-error 2.2.2",
  "thiserror 2.0.17",
+ "tinyvec",
 ]
 
 [[package]]

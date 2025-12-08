@@ -17,6 +17,7 @@ num-bigint = { workspace = true }
 solana-program-error = { workspace = true, optional = true }
 pinocchio = { workspace = true, optional = true }
 thiserror = { workspace = true }
+tinyvec = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

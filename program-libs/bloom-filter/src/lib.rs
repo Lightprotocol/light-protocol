@@ -1,6 +1,7 @@
 use std::f64::consts::LN_2;
 
 use thiserror::Error;
+use tinyvec::ArrayVec;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum BloomFilterError {
@@ -34,13 +35,12 @@ impl From<BloomFilterError> for pinocchio::program_error::ProgramError {
 }
 
 #[derive(Debug)]
-pub struct BloomFilter<'a> {
-    pub num_iters: usize,
+pub struct BloomFilter<'a, const NUM_ITERS: usize> {
     pub capacity: u64,
     pub store: &'a mut [u8],
 }
 
-impl<'a> BloomFilter<'a> {
+impl<'a, const NUM_ITERS: usize> BloomFilter<'a, NUM_ITERS> {
     // TODO: find source for this
     pub fn calculate_bloom_filter_size(n: usize, p: f64) -> usize {
         let m = -((n as f64) * p.ln()) / (LN_2 * LN_2);
@@ -52,36 +52,31 @@ impl<'a> BloomFilter<'a> {
         k.ceil() as usize
     }
 
-    pub fn new(
-        num_iters: usize,
-        capacity: u64,
-        store: &'a mut [u8],
-    ) -> Result<Self, BloomFilterError> {
+    pub fn new(capacity: u64, store: &'a mut [u8]) -> Result<Self, BloomFilterError> {
         // Capacity is in bits while store is in bytes.
         if store.len() * 8 != capacity as usize {
             return Err(BloomFilterError::InvalidStoreCapacity);
         }
-        Ok(Self {
-            num_iters,
-            capacity,
-            store,
-        })
+        Ok(Self { capacity, store })
     }
 
-    pub fn probe_index_keccak(value_bytes: &[u8; 32], iteration: usize, capacity: &u64) -> usize {
-        let iter_bytes: [u8; 8] = iteration.to_le_bytes();
-        let mut combined_bytes = [0u8; 40];
-        combined_bytes[..32].copy_from_slice(value_bytes);
-        combined_bytes[32..].copy_from_slice(&iter_bytes);
+    pub fn probe_index_keccak(
+        value_bytes: &[u8; 32],
+        capacity: u64,
+    ) -> ArrayVec<[usize; NUM_ITERS]> {
+        let hash = solana_nostd_keccak::hash(value_bytes);
 
-        let hash = solana_nostd_keccak::hash(&combined_bytes);
+        // Split the 32-byte hash into two 8-byte parts for h1 and h2
+        let h1 = u64::from_le_bytes(hash[0..8].try_into().unwrap());
+        let h2 = u64::from_le_bytes(hash[8..16].try_into().unwrap());
 
-        let mut index = 0u64;
-        for chunk in hash.chunks(8) {
-            let value = u64::from_le_bytes(chunk.try_into().unwrap());
-            index = value.wrapping_add(index) % *capacity;
-        }
-        index as usize
+        (0..NUM_ITERS)
+            .map(|i| {
+                // Double hashing: index_i = (h1 + i * h2) % capacity
+                let index = h1.wrapping_add((i as u64).wrapping_mul(h2)) % capacity;
+                index as usize
+            })
+            .collect()
     }
 
     pub fn insert(&mut self, value: &[u8; 32]) -> Result<(), BloomFilterError> {
@@ -102,8 +97,9 @@ impl<'a> BloomFilter<'a> {
         use bitvec::prelude::*;
 
         let bits = BitSlice::<u8, Msb0>::from_slice_mut(self.store);
-        for i in 0..self.num_iters {
-            let probe_index = Self::probe_index_keccak(value, i, &(self.capacity));
+        let probe_indices = Self::probe_index_keccak(value, self.capacity);
+
+        for probe_index in probe_indices {
             if bits[probe_index] {
                 continue;
             } else if insert {
@@ -129,8 +125,7 @@ mod test {
     fn test_insert_and_contains() -> Result<(), BloomFilterError> {
         let capacity = 128_000 * 8;
         let mut store = [0u8; 128_000];
-        let mut bf = BloomFilter {
-            num_iters: 3,
+        let mut bf: BloomFilter<'_, 3> = BloomFilter {
             capacity,
             store: &mut store,
         };
@@ -149,14 +144,7 @@ mod test {
     fn short_rnd_test() {
         let capacity = 500;
         let bloom_filter_capacity = 20_000 * 8;
-        let optimal_hash_functions = 3;
-        rnd_test(
-            1000,
-            capacity,
-            bloom_filter_capacity,
-            optimal_hash_functions,
-            false,
-        );
+        rnd_test::<3>(1000, capacity, bloom_filter_capacity, false);
     }
 
     /// Bench results:
@@ -168,26 +156,18 @@ mod test {
     fn bench_bloom_filter() {
         let capacity = 5000;
         let bloom_filter_capacity =
-            BloomFilter::calculate_bloom_filter_size(capacity, 0.000_000_000_1);
-        let optimal_hash_functions = 15;
+            BloomFilter::<15>::calculate_bloom_filter_size(capacity, 0.000_000_000_1);
         let iterations = 1_000_000;
-        rnd_test(
-            iterations,
-            capacity,
-            bloom_filter_capacity,
-            optimal_hash_functions,
-            true,
-        );
+        rnd_test::<15>(iterations, capacity, bloom_filter_capacity, true);
     }
 
-    fn rnd_test(
+    fn rnd_test<const NUM_ITERS: usize>(
         num_iters: usize,
         capacity: usize,
         bloom_filter_capacity: usize,
-        optimal_hash_functions: usize,
         bench: bool,
     ) {
-        println!("Optimal hash functions: {}", optimal_hash_functions);
+        println!("Optimal hash functions: {}", NUM_ITERS);
         println!(
             "Bloom filter capacity (kb): {}",
             bloom_filter_capacity / 8 / 1_000
@@ -198,8 +178,7 @@ mod test {
         for j in 0..num_iters {
             let mut inserted_values = Vec::new();
             let mut store = vec![0; bloom_filter_capacity];
-            let mut bf = BloomFilter {
-                num_iters: optimal_hash_functions,
+            let mut bf: BloomFilter<'_, NUM_ITERS> = BloomFilter {
                 capacity: bloom_filter_capacity as u64,
                 store: &mut store,
             };
@@ -207,7 +186,7 @@ mod test {
                 println!("Bloom filter capacity: {}", bf.capacity);
                 println!("Bloom filter size: {}", bf.store.len());
                 println!("Bloom filter size (kb): {}", bf.store.len() / 8 / 1_000);
-                println!("num iters: {}", bf.num_iters);
+                println!("num iters: {}", NUM_ITERS);
             }
             for i in 0..capacity {
                 num_total_txs += 1;
