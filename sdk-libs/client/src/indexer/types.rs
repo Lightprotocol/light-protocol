@@ -113,7 +113,11 @@ pub struct AddressQueueDataV2 {
 impl AddressQueueDataV2 {
     /// Reconstruct a merkle proof for a given low_element_index from the deduplicated nodes.
     /// The tree_height is needed to know how many levels to traverse.
-    pub fn reconstruct_proof(&self, address_idx: usize, tree_height: u8) -> Vec<[u8; 32]> {
+    pub fn reconstruct_proof(
+        &self,
+        address_idx: usize,
+        tree_height: u8,
+    ) -> Result<Vec<[u8; 32]>, IndexerError> {
         let leaf_index = self.low_element_indices[address_idx];
         let mut proof = Vec::with_capacity(tree_height as usize);
         let mut pos = leaf_index;
@@ -126,21 +130,28 @@ impl AddressQueueDataV2 {
             };
             let sibling_idx = Self::encode_node_index(level, sibling_pos);
 
-            // Find the sibling hash in nodes
             if let Some(hash_idx) = self.nodes.iter().position(|&n| n == sibling_idx) {
                 proof.push(self.node_hashes[hash_idx]);
             } else {
-                // If sibling not found, use zero hash (shouldn't happen with valid data)
-                proof.push([0u8; 32]);
+                return Err(IndexerError::MissingResult {
+                    context: "reconstruct_proof".to_string(),
+                    message: format!(
+                        "Missing proof node at level {} position {} (encoded: {})",
+                        level, sibling_pos, sibling_idx
+                    ),
+                });
             }
             pos /= 2;
         }
 
-        proof
+        Ok(proof)
     }
 
     /// Reconstruct all proofs for all addresses
-    pub fn reconstruct_all_proofs(&self, tree_height: u8) -> Vec<Vec<[u8; 32]>> {
+    pub fn reconstruct_all_proofs(
+        &self,
+        tree_height: u8,
+    ) -> Result<Vec<Vec<[u8; 32]>>, IndexerError> {
         (0..self.addresses.len())
             .map(|i| self.reconstruct_proof(i, tree_height))
             .collect()

@@ -1526,7 +1526,7 @@ impl Indexer for PhotonIndexer {
                     } else {
                         // Reconstruct proof from deduplicated nodes
                         // Tree height for address trees is typically 26
-                        address_queue.reconstruct_proof(i, 26)
+                        address_queue.reconstruct_proof(i, 26)?
                     },
                     root: address_queue.initial_root,
                     root_seq: address_queue.root_seq,
