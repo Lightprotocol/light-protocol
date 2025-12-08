@@ -88,7 +88,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
 
         let amount = CToken::amount_from_slice(&account_data).map_err(|e| {
             anchor_lang::prelude::msg!("Failed to read amount from CToken: {:?}", e);
-            RegistryError::InvalidSigner
+            RegistryError::InvalidTokenAccountData
         })?;
 
         // Create one output account per compression operation

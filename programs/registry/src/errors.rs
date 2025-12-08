@@ -34,4 +34,6 @@ pub enum RegistryError {
     ProgramOwnerUndefined,
     #[msg("Invalid config state for this operation")]
     InvalidConfigState,
+    #[msg("Failed to deserialize token account data")]
+    InvalidTokenAccountData,
 }

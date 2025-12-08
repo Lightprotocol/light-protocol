@@ -733,6 +733,11 @@ pub mod light_registry {
     /// 2. claiming from rent sponsor
     /// 3. witdrawal from rent sponsor
     pub fn pause_compressible_config(ctx: Context<UpdateCompressibleConfig>) -> Result<()> {
+        // Cannot pause a deprecated config
+        require!(
+            ctx.accounts.compressible_config.state != 2,
+            RegistryError::InvalidConfigState
+        );
         ctx.accounts.compressible_config.state = 0;
         Ok(())
     }
