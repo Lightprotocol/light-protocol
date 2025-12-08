@@ -8,9 +8,9 @@ import { CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import { PublicKey } from '@solana/web3.js';
 
 /**
- * Get the appropriate ATA program ID for a given token program ID
- * @param tokenProgramId - The token program ID
- * @returns The associated token program ID
+ * Get ATA program ID for a token program ID
+ * @param tokenProgramId    Token program ID
+ * @returns ATA program ID
  */
 export function getAtaProgramId(tokenProgramId: PublicKey): PublicKey {
     if (tokenProgramId.equals(CTOKEN_PROGRAM_ID)) {
@@ -30,24 +30,23 @@ export interface AtaValidationResult {
 }
 
 /**
- * Validate that an ATA address matches the expected derivation from mint+owner.
+ * Check if an ATA address matches the expected derivation from mint+owner.
  *
- * Performance: If programId is provided, only derives and checks that one ATA.
- * Otherwise derives all three (SPL, T22, c-token) until a match is found.
+ * Pass programId for fast path.
  *
- * @param ata       The ATA address to validate
+ * @param ata       ATA address to check
  * @param mint      Mint address
  * @param owner     Owner address
  * @param programId Optional: if known, only check this program's ATA
- * @returns         Validation result with detected type, or throws on mismatch
+ * @returns         Result with detected type, or throws on mismatch
  */
-export function validateAtaAddress(
+export function checkAtaAddress(
     ata: PublicKey,
     mint: PublicKey,
     owner: PublicKey,
     programId?: PublicKey,
 ): AtaValidationResult {
-    // Hot path: programId specified - only check that one
+    // fast path
     if (programId) {
         const expected = getAssociatedTokenAddressSync(
             mint,
@@ -69,8 +68,12 @@ export function validateAtaAddress(
         );
     }
 
-    // Check c-token first (most common for this codebase)
-    const ctokenExpected = getAssociatedTokenAddressSync(
+    let ctokenExpected: PublicKey;
+    let splExpected: PublicKey;
+    let t22Expected: PublicKey;
+
+    // c-token
+    ctokenExpected = getAssociatedTokenAddressSync(
         mint,
         owner,
         false,
@@ -78,11 +81,15 @@ export function validateAtaAddress(
         getAtaProgramId(CTOKEN_PROGRAM_ID),
     );
     if (ata.equals(ctokenExpected)) {
-        return { valid: true, type: 'ctoken', programId: CTOKEN_PROGRAM_ID };
+        return {
+            valid: true,
+            type: 'ctoken',
+            programId: CTOKEN_PROGRAM_ID,
+        };
     }
 
-    // Check SPL
-    const splExpected = getAssociatedTokenAddressSync(
+    // SPL
+    splExpected = getAssociatedTokenAddressSync(
         mint,
         owner,
         false,
@@ -93,14 +100,15 @@ export function validateAtaAddress(
         return { valid: true, type: 'spl', programId: TOKEN_PROGRAM_ID };
     }
 
-    // Check T22
-    const t22Expected = getAssociatedTokenAddressSync(
+    // T22
+    t22Expected = getAssociatedTokenAddressSync(
         mint,
         owner,
         false,
         TOKEN_2022_PROGRAM_ID,
         getAtaProgramId(TOKEN_2022_PROGRAM_ID),
     );
+
     if (ata.equals(t22Expected)) {
         return {
             valid: true,
@@ -109,7 +117,6 @@ export function validateAtaAddress(
         };
     }
 
-    // No match - invalid ATA
     throw new Error(
         `ATA address does not match any valid derivation from mint+owner. ` +
             `Got: ${ata.toBase58()}, expected one of: ` +

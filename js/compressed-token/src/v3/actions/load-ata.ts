@@ -31,7 +31,7 @@ import {
     getSplInterfaceInfos,
     SplInterfaceInfo,
 } from '../../utils/get-token-pool-infos';
-import { getAtaProgramId, validateAtaAddress, AtaType } from '../ata-utils';
+import { getAtaProgramId, checkAtaAddress, AtaType } from '../ata-utils';
 import { InterfaceOptions } from './transfer-interface';
 
 // Re-export types moved to instructions
@@ -74,7 +74,7 @@ export async function createLoadAtaInstructions(
 ): Promise<TransactionInstruction[]> {
     payer ??= owner;
 
-    // Validation happens inside getAtaInterface via validateAtaAddress helper:
+    // Validation happens inside getAtaInterface via checkAtaAddress helper:
     // - Always validates ata matches mint+owner derivation
     // - For wrap=true, additionally requires c-token ATA
     const ataInterface = await _getAtaInterface(
@@ -156,7 +156,7 @@ export async function createLoadAtaInstructionsFromInterface(
     // If called directly, this validates the targetAta is correct.
     let ataType: AtaType = 'ctoken';
     if (targetAta) {
-        const validation = validateAtaAddress(targetAta, mint, owner);
+        const validation = checkAtaAddress(targetAta, mint, owner);
         ataType = validation.type;
 
         // For wrap=true, must be c-token ATA

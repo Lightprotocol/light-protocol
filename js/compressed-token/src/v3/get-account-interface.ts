@@ -19,7 +19,7 @@ import {
 } from '@lightprotocol/stateless.js';
 import { Buffer } from 'buffer';
 import BN from 'bn.js';
-import { getAtaProgramId, validateAtaAddress } from './ata-utils';
+import { getAtaProgramId, checkAtaAddress } from './ata-utils';
 export { Account, AccountState } from '@solana/spl-token';
 export { ParsedTokenAccount } from '@lightprotocol/stateless.js';
 
@@ -241,7 +241,7 @@ export async function getAtaInterface(
     // Invariant: ata MUST match a valid derivation from mint+owner.
     // Hot path: if programId provided, only validate against that program.
     // For wrap=true, additionally require c-token ATA.
-    const validation = validateAtaAddress(ata, mint, owner, programId);
+    const validation = checkAtaAddress(ata, mint, owner, programId);
 
     if (wrap && validation.type !== 'ctoken') {
         throw new Error(

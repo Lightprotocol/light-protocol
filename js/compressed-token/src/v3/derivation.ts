@@ -9,7 +9,7 @@ import { Buffer } from 'buffer';
 /**
  * Returns the compressed mint address as bytes.
  */
-export function deriveCompressedMintAddress(
+export function deriveCTokenMintAddress(
     mintSeed: PublicKey,
     addressTreeInfo: TreeInfo,
 ) {

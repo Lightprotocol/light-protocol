@@ -38,7 +38,7 @@ import {
     loadAta,
     createLoadAtaInstructions,
 } from '../../src/v3/actions/load-ata';
-import { validateAtaAddress } from '../../src/v3/ata-utils';
+import { checkAtaAddress } from '../../src/v3/ata-utils';
 import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 
 featureFlags.version = VERSION.V2;
@@ -57,13 +57,13 @@ async function getCompressedBalance(
     );
 }
 
-describe('validateAtaAddress', () => {
+describe('checkAtaAddress', () => {
     it('should validate c-token ATA', () => {
         const mint = Keypair.generate().publicKey;
         const owner = Keypair.generate().publicKey;
 
         const ctokenAta = getAssociatedTokenAddressInterface(mint, owner);
-        const result = validateAtaAddress(ctokenAta, mint, owner);
+        const result = checkAtaAddress(ctokenAta, mint, owner);
         expect(result.valid).toBe(true);
         expect(result.type).toBe('ctoken');
     });
@@ -79,7 +79,7 @@ describe('validateAtaAddress', () => {
             TOKEN_PROGRAM_ID,
             getAtaProgramId(TOKEN_PROGRAM_ID),
         );
-        const result = validateAtaAddress(splAta, mint, owner);
+        const result = checkAtaAddress(splAta, mint, owner);
         expect(result.valid).toBe(true);
         expect(result.type).toBe('spl');
     });
@@ -95,7 +95,7 @@ describe('validateAtaAddress', () => {
             TOKEN_2022_PROGRAM_ID,
             getAtaProgramId(TOKEN_2022_PROGRAM_ID),
         );
-        const result = validateAtaAddress(t22Ata, mint, owner);
+        const result = checkAtaAddress(t22Ata, mint, owner);
         expect(result.valid).toBe(true);
         expect(result.type).toBe('token2022');
     });
@@ -105,7 +105,7 @@ describe('validateAtaAddress', () => {
         const owner = Keypair.generate().publicKey;
         const wrongAta = Keypair.generate().publicKey;
 
-        expect(() => validateAtaAddress(wrongAta, mint, owner)).toThrow(
+        expect(() => checkAtaAddress(wrongAta, mint, owner)).toThrow(
             'ATA address does not match any valid derivation',
         );
     });
@@ -121,12 +121,7 @@ describe('validateAtaAddress', () => {
             TOKEN_PROGRAM_ID,
             getAtaProgramId(TOKEN_PROGRAM_ID),
         );
-        const result = validateAtaAddress(
-            splAta,
-            mint,
-            owner,
-            TOKEN_PROGRAM_ID,
-        );
+        const result = checkAtaAddress(splAta, mint, owner, TOKEN_PROGRAM_ID);
         expect(result.valid).toBe(true);
         expect(result.type).toBe('spl');
     });

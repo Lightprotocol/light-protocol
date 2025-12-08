@@ -66,7 +66,7 @@ pub mod my_program {}
   // Program‑owned ctoken PDA (must provide authority seeds)
   TreasuryCtoken = (is_token, "treasury_ctoken", ctx.fee_payer, authority = (ctx.treasury)),
   // User ATA variant (no seeds, derived from owner+mint)
-  UserATA = (is_token, is_ata)
+  UserAta = (is_token, is_ata)
 )]
 #[program]
 pub mod my_program {}
