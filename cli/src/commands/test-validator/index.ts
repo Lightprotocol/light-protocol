@@ -128,6 +128,10 @@ class SetupCommand extends Command {
       description: "Enable verbose logging.",
       default: false,
     }),
+    "skip-reset": Flags.boolean({
+      description: "Skip resetting the ledger.",
+      default: false,
+    }),
   };
 
   validatePrograms(programs: { address: string; path: string }[]): void {
@@ -224,6 +228,7 @@ class SetupCommand extends Command {
             ? "mainnet"
             : undefined,
         verbose: flags.verbose,
+        skipReset: flags["skip-reset"],
       });
       this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
     }

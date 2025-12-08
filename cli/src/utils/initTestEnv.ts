@@ -74,7 +74,8 @@ async function getProgramOwnedAccounts(
   programId: string,
   rpcUrl: string,
 ): Promise<string[]> {
-  const isRegistry = programId === "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX";
+  const isRegistry =
+    programId === "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX";
 
   if (isRegistry) {
     // Return known registry accounts instead of fetching all (too slow due to 88k+ forester accounts)
@@ -137,6 +138,7 @@ export async function initTestEnv({
   validatorArgs,
   cloneNetwork,
   verbose,
+  skipReset,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
@@ -153,6 +155,7 @@ export async function initTestEnv({
   geyserConfig?: string;
   cloneNetwork?: "devnet" | "mainnet";
   verbose?: boolean;
+  skipReset?: boolean;
 }) {
   // We cannot await this promise directly because it will hang the process
   startTestValidator({
@@ -165,6 +168,7 @@ export async function initTestEnv({
     geyserConfig,
     cloneNetwork,
     verbose,
+    skipReset,
   });
   await waitForServers([{ port: rpcPort, path: "/health" }]);
   await confirmServerStability(`http://127.0.0.1:${rpcPort}/health`);
@@ -274,6 +278,7 @@ export async function getSolanaArgs({
   downloadBinaries = true,
   cloneNetwork,
   verbose = false,
+  skipReset = false,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
@@ -283,16 +288,20 @@ export async function getSolanaArgs({
   downloadBinaries?: boolean;
   cloneNetwork?: "devnet" | "mainnet";
   verbose?: boolean;
+  skipReset?: boolean;
 }): Promise<Array<string>> {
   const dirPath = programsDirPath();
 
   const solanaArgs = [
-    "--reset",
     `--limit-ledger-size=${limitLedgerSize}`,
     `--rpc-port=${rpcPort}`,
     `--gossip-host=${gossipHost}`,
     "--quiet",
   ];
+
+  if (!skipReset) {
+    solanaArgs.unshift("--reset");
+  }
 
   // Add cluster URL if cloning from a network
   if (cloneNetwork) {
@@ -372,6 +381,7 @@ export async function startTestValidator({
   geyserConfig,
   cloneNetwork,
   verbose,
+  skipReset,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
@@ -382,6 +392,7 @@ export async function startTestValidator({
   geyserConfig?: string;
   cloneNetwork?: "devnet" | "mainnet";
   verbose?: boolean;
+  skipReset?: boolean;
 }) {
   const command = "solana-test-validator";
   const solanaArgs = await getSolanaArgs({
@@ -392,6 +403,7 @@ export async function startTestValidator({
     gossipHost,
     cloneNetwork,
     verbose,
+    skipReset,
   });
 
   await killTestValidator();
