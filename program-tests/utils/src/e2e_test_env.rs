@@ -86,7 +86,10 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     fee::{FeeConfig, TransactionParams},
-    indexer::{AddressMerkleTreeAccounts, AddressWithTree, Indexer, StateMerkleTreeAccounts},
+    indexer::{
+        AddressMerkleTreeAccounts, AddressWithTree, Indexer, QueueElementsV2Options,
+        StateMerkleTreeAccounts,
+    },
     rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, Rpc},
 };
 // TODO: implement traits for context object and indexer that we can implement with an rpc as well
@@ -741,20 +744,18 @@ where
                                     [full_batch_index as usize]
                                     [zkp_batch_index as usize];
 
-                                let addresses = self
+                                let options = QueueElementsV2Options::default()
+                                    .with_address_queue(None, Some(batch.batch_size as u16));
+                                let result = self
                                     .indexer
-                                    .get_queue_elements(
-                                        merkle_tree_pubkey.to_bytes(),
-                                        None,
-                                        Some(batch.batch_size as u16),
-                                        None,
-                                        None,
-                                        None,
-                                    )
+                                    .get_queue_elements(merkle_tree_pubkey.to_bytes(), options, None)
                                     .await
                                     .unwrap();
-                                let addresses =
-                                    addresses.value.output_queue_elements.unwrap_or_default().iter().map(|x| x.account_hash).collect::<Vec<_>>();
+                                let addresses = result
+                                    .value
+                                    .address_queue
+                                    .map(|aq| aq.addresses)
+                                    .unwrap_or_default();
                                 // // local_leaves_hash_chain is only used for a test assertion.
                                 // let local_nullifier_hash_chain = create_hash_chain_from_array(&addresses);
                                 // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);

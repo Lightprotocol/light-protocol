@@ -6,7 +6,10 @@ use futures::stream::Stream;
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, merkle_tree::InstructionDataAddressAppendInputs,
 };
-use light_client::{indexer::Indexer, rpc::Rpc};
+use light_client::{
+    indexer::{AddressQueueData, Indexer, QueueElementsV2Options},
+    rpc::Rpc,
+};
 use light_compressed_account::{
     hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
 };
@@ -71,40 +74,49 @@ async fn stream_instruction_data<'a, R: Rpc>(
                 }
             }
 
-            let indexer_update_info = {
+            let address_queue = {
                 let mut connection = rpc_pool.get_connection().await?;
                 let indexer = connection.indexer_mut()?;
                 debug!(
                     "Requesting {} addresses from Photon for chunk {} with start_queue_index={:?}",
                     elements_for_chunk, chunk_idx, next_queue_index
                 );
+                let options = QueueElementsV2Options::default()
+                    .with_address_queue(next_queue_index, Some(elements_for_chunk as u16));
                 match indexer
-                .get_address_queue_with_proofs(
-                    &merkle_tree_pubkey,
-                    elements_for_chunk as u16,
-                    next_queue_index,
-                    None,
-                )
-                .await {
-                    Ok(info) => info,
+                    .get_queue_elements(merkle_tree_pubkey.to_bytes(), options, None)
+                    .await
+                {
+                    Ok(response) => match response.value.address_queue {
+                        Some(queue) => queue,
+                        None => {
+                            yield Err(ForesterUtilsError::Indexer(
+                                "No address queue data in response".into(),
+                            ));
+                            return;
+                        }
+                    },
                     Err(e) => {
-                        yield Err(ForesterUtilsError::Indexer(format!("Failed to get address queue with proofs: {}", e)));
+                        yield Err(ForesterUtilsError::Indexer(format!(
+                            "Failed to get queue elements: {}",
+                            e
+                        )));
                         return;
                     }
                 }
             };
 
             debug!(
-                "Photon response for chunk {}: received {} addresses, batch_start_index={}, first_queue_index={:?}, last_queue_index={:?}",
+                "Photon response for chunk {}: received {} addresses, start_index={}, first_queue_index={:?}, last_queue_index={:?}",
                 chunk_idx,
-                indexer_update_info.value.addresses.len(),
-                indexer_update_info.value.batch_start_index,
-                indexer_update_info.value.addresses.first().map(|a| a.queue_index),
-                indexer_update_info.value.addresses.last().map(|a| a.queue_index)
+                address_queue.addresses.len(),
+                address_queue.start_index,
+                address_queue.queue_indices.first(),
+                address_queue.queue_indices.last()
             );
 
-            if let Some(last_address) = indexer_update_info.value.addresses.last() {
-                next_queue_index = Some(last_address.queue_index + 1);
+            if let Some(last_queue_index) = address_queue.queue_indices.last() {
+                next_queue_index = Some(last_queue_index + 1);
                 debug!(
                     "Setting next_queue_index={} for chunk {}",
                     next_queue_index.unwrap(),
@@ -113,21 +125,24 @@ async fn stream_instruction_data<'a, R: Rpc>(
             }
 
             if chunk_idx == 0 {
-                if let Some(first_proof) = indexer_update_info.value.non_inclusion_proofs.first() {
-                    if first_proof.root != current_root {
-                        warn!("Indexer root does not match on-chain root");
-                        yield Err(ForesterUtilsError::Indexer("Indexer root does not match on-chain root".into()));
-                        return;
-                    }
-                } else {
-                    yield Err(ForesterUtilsError::Indexer("No non-inclusion proofs found in indexer response".into()));
+                if address_queue.addresses.is_empty() {
+                    yield Err(ForesterUtilsError::Indexer(
+                        "No addresses found in indexer response".into(),
+                    ));
+                    return;
+                }
+                if address_queue.initial_root != current_root {
+                    warn!("Indexer root does not match on-chain root");
+                    yield Err(ForesterUtilsError::Indexer(
+                        "Indexer root does not match on-chain root".into(),
+                    ));
                     return;
                 }
             }
 
             let (all_inputs, new_current_root) = match get_all_circuit_inputs_for_chunk(
                 chunk_hash_chains,
-                &indexer_update_info,
+                &address_queue,
                 zkp_batch_size,
                 chunk_start,
                 start_index,
@@ -197,9 +212,7 @@ fn calculate_max_zkp_batches_per_call(batch_size: u16) -> usize {
 
 fn get_all_circuit_inputs_for_chunk(
     chunk_hash_chains: &[[u8; 32]],
-    indexer_update_info: &light_client::indexer::Response<
-        light_client::indexer::BatchAddressUpdateIndexerResponse,
-    >,
+    address_queue: &AddressQueueData,
     batch_size: u16,
     chunk_start_idx: usize,
     global_start_index: u64,
@@ -212,14 +225,9 @@ fn get_all_circuit_inputs_for_chunk(
     ForesterUtilsError,
 > {
     let subtrees_array: [[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize] =
-        indexer_update_info
-            .value
-            .subtrees
-            .clone()
-            .try_into()
-            .map_err(|_| {
-                ForesterUtilsError::Prover("Failed to convert subtrees to array".into())
-            })?;
+        address_queue.subtrees.clone().try_into().map_err(|_| {
+            ForesterUtilsError::Prover("Failed to convert subtrees to array".into())
+        })?;
 
     let mut sparse_merkle_tree =
         SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(
@@ -235,7 +243,7 @@ fn get_all_circuit_inputs_for_chunk(
         let start_idx = batch_idx * batch_size as usize;
         let end_idx = start_idx + batch_size as usize;
 
-        let addresses_len = indexer_update_info.value.addresses.len();
+        let addresses_len = address_queue.addresses.len();
         if start_idx >= addresses_len {
             return Err(ForesterUtilsError::Indexer(format!(
                 "Insufficient addresses: batch {} requires start_idx {} but only {} addresses available",
@@ -250,41 +258,41 @@ fn get_all_circuit_inputs_for_chunk(
             )));
         }
 
-        let batch_addresses: Vec<[u8; 32]> = indexer_update_info.value.addresses
-            [start_idx..safe_end_idx]
+        let batch_addresses: Vec<[u8; 32]> =
+            address_queue.addresses[start_idx..safe_end_idx].to_vec();
+
+        // Check that we have enough low element data
+        let low_elements_len = address_queue.low_element_values.len();
+        if start_idx >= low_elements_len {
+            return Err(ForesterUtilsError::Indexer(format!(
+                "Insufficient low element data: batch {} requires start_idx {} but only {} elements available",
+                batch_idx, start_idx, low_elements_len
+            )));
+        }
+        let safe_low_end_idx = std::cmp::min(end_idx, low_elements_len);
+        if safe_low_end_idx - start_idx != batch_size as usize {
+            return Err(ForesterUtilsError::Indexer(format!(
+                "Insufficient low element data: batch {} requires {} elements (indices {}..{}) but only {} available",
+                batch_idx, batch_size, start_idx, end_idx, safe_low_end_idx - start_idx
+            )));
+        }
+
+        let low_element_values: Vec<[u8; 32]> =
+            address_queue.low_element_values[start_idx..safe_low_end_idx].to_vec();
+        let low_element_next_values: Vec<[u8; 32]> =
+            address_queue.low_element_next_values[start_idx..safe_low_end_idx].to_vec();
+        let low_element_indices: Vec<usize> = address_queue.low_element_indices
+            [start_idx..safe_low_end_idx]
             .iter()
-            .map(|x| x.address)
+            .map(|&x| x as usize)
             .collect();
-
-        let proofs_len = indexer_update_info.value.non_inclusion_proofs.len();
-        if start_idx >= proofs_len {
-            return Err(ForesterUtilsError::Indexer(format!(
-                "Insufficient non-inclusion proofs: batch {} requires start_idx {} but only {} proofs available",
-                batch_idx, start_idx, proofs_len
-            )));
-        }
-        let safe_proofs_end_idx = std::cmp::min(end_idx, proofs_len);
-        if safe_proofs_end_idx - start_idx != batch_size as usize {
-            return Err(ForesterUtilsError::Indexer(format!(
-                "Insufficient non-inclusion proofs: batch {} requires {} proofs (indices {}..{}) but only {} available",
-                batch_idx, batch_size, start_idx, end_idx, safe_proofs_end_idx - start_idx
-            )));
-        }
-
-        let mut low_element_values = Vec::new();
-        let mut low_element_next_values = Vec::new();
-        let mut low_element_indices = Vec::new();
-        let mut low_element_next_indices = Vec::new();
-        let mut low_element_proofs = Vec::new();
-
-        for proof in &indexer_update_info.value.non_inclusion_proofs[start_idx..safe_proofs_end_idx]
-        {
-            low_element_values.push(proof.low_address_value);
-            low_element_indices.push(proof.low_address_index as usize);
-            low_element_next_indices.push(proof.low_address_next_index as usize);
-            low_element_next_values.push(proof.low_address_next_value);
-            low_element_proofs.push(proof.low_address_proof.to_vec());
-        }
+        let low_element_next_indices: Vec<usize> = address_queue.low_element_next_indices
+            [start_idx..safe_low_end_idx]
+            .iter()
+            .map(|&x| x as usize)
+            .collect();
+        let low_element_proofs: Vec<Vec<[u8; 32]>> =
+            address_queue.low_element_proofs[start_idx..safe_low_end_idx].to_vec();
 
         let computed_hash_chain = create_hash_chain_from_slice(&batch_addresses)?;
         if computed_hash_chain != *leaves_hash_chain {

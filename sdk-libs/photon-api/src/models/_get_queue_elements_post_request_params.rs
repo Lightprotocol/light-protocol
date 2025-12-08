@@ -11,48 +11,28 @@
 use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GetQueueElementsPostRequestParams {
-    /// A 32-byte hash represented as a base58 string.
-    #[serde(rename = "tree")]
+    /// The merkle tree public key
     pub tree: String,
 
-    #[serde(
-        rename = "outputQueueStartIndex",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub output_queue_start_index: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_queue: Option<models::QueueRequest>,
 
-    #[serde(
-        rename = "outputQueueLimit",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub output_queue_limit: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_queue: Option<models::QueueRequest>,
 
-    #[serde(
-        rename = "inputQueueStartIndex",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub input_queue_start_index: Option<u64>,
-
-    #[serde(
-        rename = "inputQueueLimit",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub input_queue_limit: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address_queue: Option<models::QueueRequest>,
 }
 
 impl GetQueueElementsPostRequestParams {
     pub fn new(tree: String) -> GetQueueElementsPostRequestParams {
         GetQueueElementsPostRequestParams {
             tree,
-            output_queue_start_index: None,
-            output_queue_limit: None,
-            input_queue_start_index: None,
-            input_queue_limit: None,
+            output_queue: None,
+            input_queue: None,
+            address_queue: None,
         }
     }
 }

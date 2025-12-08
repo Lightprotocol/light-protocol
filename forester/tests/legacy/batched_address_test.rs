@@ -7,7 +7,9 @@ use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount,
 };
 use light_client::{
-    indexer::{photon_indexer::PhotonIndexer, AddressMerkleTreeAccounts, Indexer},
+    indexer::{
+        photon_indexer::PhotonIndexer, AddressMerkleTreeAccounts, Indexer, QueueElementsV2Options,
+    },
     local_test_validator::LightValidatorConfig,
     rpc::{client::RpcUrl, LightClient, LightClientConfig, Rpc},
 };
@@ -167,24 +169,25 @@ async fn test_address_batched() {
     )
     .unwrap();
 
-    let photon_address_queue_with_proofs = photon_indexer
-        .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10, None, None)
+    let options = QueueElementsV2Options::default().with_address_queue(None, Some(10));
+    let photon_address_queue = photon_indexer
+        .get_queue_elements(address_merkle_tree_pubkey.to_bytes(), options.clone(), None)
         .await
         .unwrap();
 
-    let test_indexer_address_queue_with_proofs = env
+    let test_indexer_address_queue = env
         .indexer
-        .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10, None, None)
+        .get_queue_elements(address_merkle_tree_pubkey.to_bytes(), options.clone(), None)
         .await
         .unwrap();
 
     println!(
         "photon_indexer_update_info {}: {:#?}",
-        0, photon_address_queue_with_proofs
+        0, photon_address_queue
     );
     println!(
         "test_indexer_update_info {}: {:#?}",
-        0, test_indexer_address_queue_with_proofs
+        0, test_indexer_address_queue
     );
 
     for i in 0..merkle_tree.queue_batches.batch_size {
@@ -202,26 +205,26 @@ async fn test_address_batched() {
         sleep(Duration::from_millis(100)).await;
 
         if (i + 1) % 10 == 0 {
-            let photon_address_queue_with_proofs = photon_indexer
-                .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10, None, None)
+            let photon_address_queue = photon_indexer
+                .get_queue_elements(address_merkle_tree_pubkey.to_bytes(), options.clone(), None)
                 .await
                 .unwrap();
 
-            let test_indexer_address_queue_with_proofs = env
+            let test_indexer_address_queue = env
                 .indexer
-                .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10, None, None)
+                .get_queue_elements(address_merkle_tree_pubkey.to_bytes(), options.clone(), None)
                 .await
                 .unwrap();
 
             println!(
                 "photon_indexer_update_info {}: {:#?}",
                 i + 1,
-                photon_address_queue_with_proofs
+                photon_address_queue
             );
             println!(
                 "test_indexer_update_info {}: {:#?}",
                 i + 1,
-                test_indexer_address_queue_with_proofs
+                test_indexer_address_queue
             );
         }
     }

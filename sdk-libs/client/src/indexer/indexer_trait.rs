@@ -7,10 +7,9 @@ use super::{
         CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueElementsResult,
         QueueInfoResult, SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
     },
-    Address, AddressWithTree, BatchAddressUpdateIndexerResponse,
-    GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
-    IndexerError, IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
-    RetryConfig,
+    Address, AddressWithTree, GetCompressedAccountsByOwnerConfig,
+    GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, IndexerError, IndexerRpcConfig,
+    MerkleProof, NewAddressProofWithContext, PaginatedOptions, QueueElementsV2Options, RetryConfig,
 };
 // TODO: remove all references in input types.
 #[async_trait]
@@ -172,32 +171,16 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<ValidityProofWithContext>, IndexerError>;
 
-    // TODO: in different pr:
-    //      replace zkp_batch_size with PaginatedOptions
-    //      - return type should be ItemsWithCursor
-    async fn get_address_queue_with_proofs(
-        &mut self,
-        merkle_tree_pubkey: &Pubkey,
-        zkp_batch_size: u16,
-        start_offset: Option<u64>,
-        config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError>;
-
-    // TODO: in different pr:
-    //      replace num_elements & start_queue_index with PaginatedOptions
-    //      - return type should be ItemsWithCursor
     /// Returns queue elements from the queue with the given merkle tree pubkey.
-    /// Can fetch from output queue (append), input queue (nullify), or both atomically.
+    /// Can fetch from output queue (append), input queue (nullify), address queue, or combinations.
     /// For input queues account compression program does not store queue elements in the
     /// account data but only emits these in the public transaction event. The
     /// indexer needs the queue elements to create batch update proofs.
+    /// Returns queue elements with deduplicated nodes for efficient staging tree construction.
     async fn get_queue_elements(
         &mut self,
         merkle_tree_pubkey: [u8; 32],
-        output_queue_start_index: Option<u64>,
-        output_queue_limit: Option<u16>,
-        input_queue_start_index: Option<u64>,
-        input_queue_limit: Option<u16>,
+        options: QueueElementsV2Options,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<QueueElementsResult>, IndexerError>;
 
@@ -208,14 +191,6 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<QueueInfoResult>, IndexerError>;
 
-    /// V2: Returns queue elements with deduplicated nodes for efficient staging tree construction.
-    /// Supports output queue, input queue, and address queue.
-    async fn get_queue_elements_v2(
-        &mut self,
-        merkle_tree_pubkey: [u8; 32],
-        options: super::QueueElementsV2Options,
-        config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<super::QueueElementsV2Result>, IndexerError>;
     async fn get_subtrees(
         &self,
         merkle_tree_pubkey: [u8; 32],
