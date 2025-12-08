@@ -35,6 +35,9 @@ light-compressed-account = { workspace= true }
 aligned-sized = { workspace= true }
 solana-sysvar = {workspace = true, optional = true}
 
+[dev-dependencies]
+rand = { workspace = true }
+
 [lints.rust.unexpected_cfgs]
 level = "allow"
 check-cfg = [

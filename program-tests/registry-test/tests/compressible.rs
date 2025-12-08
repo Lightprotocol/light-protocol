@@ -31,7 +31,9 @@ use solana_sdk::{
     signer::Signer,
     transaction::Transaction,
 };
-
+fn slot_to_epoch(slot: u64) -> u64 {
+    slot / SLOTS_PER_EPOCH
+}
 /// Withdraw funds from the compressed token pool via the registry program
 /// This function invokes the registry program's withdraw_funding_pool instruction,
 /// which then CPIs to the compressed token program with the compression_authority PDA as signer.
@@ -1169,7 +1171,7 @@ async fn assert_not_compressible<R: Rpc>(
                         ))
                     })?;
 
-                let current_epoch = light_compressible::rent::slot_to_epoch(current_slot);
+                let current_epoch = slot_to_epoch(current_slot);
 
                 assert!(
                     last_funded_epoch >= current_epoch,
