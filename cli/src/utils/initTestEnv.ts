@@ -18,6 +18,7 @@ import {
 } from "./process";
 import { killProver, startProver } from "./processProverServer";
 import { killIndexer, startIndexer } from "./processPhotonIndexer";
+import { Connection, PublicKey } from "@solana/web3.js";
 
 type Program = { id: string; name?: string; tag?: string; path?: string };
 export const SYSTEM_PROGRAMS: Program[] = [
@@ -47,6 +48,48 @@ export const SYSTEM_PROGRAMS: Program[] = [
     tag: LIGHT_REGISTRY_TAG,
   },
 ];
+
+// Programs to clone from devnet/mainnet (the three core Light programs)
+const PROGRAMS_TO_CLONE = [
+  "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX", // Light Registry
+  "SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7", // Light System Program
+  "compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq", // Account Compression
+];
+
+// Known Light Registry accounts to clone (excludes forester/epoch accounts)
+// These are the core config accounts needed for protocol operation
+const REGISTRY_ACCOUNTS_TO_CLONE = [
+  "CuEtcKkkbTn6qy2qxqDswq5U2ADsqoipYDAYfRvxPjcp", // governance_authority_pda (ProtocolConfigPda)
+  "8gH9tmziWsS8Wc4fnoN5ax3jsSumNYoRDuSBvmH2GMH8", // config_counter_pda
+  "35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh", // registered_program_pda
+  "DumMsyvkaGJG4QnQ1BhTgvoRMXsgGxfpKDUCr22Xqu4w", // registered_registry_program_pda
+  "24rt4RgeyjUCWGS2eF7L7gyNMuz6JWdqYpAvb1KRoHxs", // group_pda
+];
+
+/**
+ * Fetches account public keys owned by a program from a given cluster.
+ * For Light Registry, returns known config accounts (skips forester/epoch accounts).
+ */
+async function getProgramOwnedAccounts(
+  programId: string,
+  rpcUrl: string,
+): Promise<string[]> {
+  const isRegistry =
+    programId === "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX";
+
+  if (isRegistry) {
+    // Return known registry accounts instead of fetching all (too slow due to 88k+ forester accounts)
+    return REGISTRY_ACCOUNTS_TO_CLONE;
+  } else {
+    // For other programs, fetch all accounts
+    const connection = new Connection(rpcUrl);
+    const accounts = await connection.getProgramAccounts(
+      new PublicKey(programId),
+      { dataSlice: { offset: 0, length: 0 } },
+    );
+    return accounts.map((acc) => acc.pubkey.toBase58());
+  }
+}
 
 export async function stopTestEnv(options: {
   indexer: boolean;
@@ -93,6 +136,9 @@ export async function initTestEnv({
   limitLedgerSize,
   geyserConfig,
   validatorArgs,
+  cloneNetwork,
+  verbose,
+  skipReset,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
@@ -107,6 +153,9 @@ export async function initTestEnv({
   limitLedgerSize?: number;
   validatorArgs?: string;
   geyserConfig?: string;
+  cloneNetwork?: "devnet" | "mainnet";
+  verbose?: boolean;
+  skipReset?: boolean;
 }) {
   // We cannot await this promise directly because it will hang the process
   startTestValidator({
@@ -117,6 +166,9 @@ export async function initTestEnv({
     gossipHost,
     validatorArgs,
     geyserConfig,
+    cloneNetwork,
+    verbose,
+    skipReset,
   });
   await waitForServers([{ port: rpcPort, path: "/health" }]);
   await confirmServerStability(`http://127.0.0.1:${rpcPort}/health`);
@@ -224,6 +276,9 @@ export async function getSolanaArgs({
   rpcPort,
   gossipHost,
   downloadBinaries = true,
+  cloneNetwork,
+  verbose = false,
+  skipReset = false,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
@@ -231,28 +286,38 @@ export async function getSolanaArgs({
   rpcPort?: number;
   gossipHost?: string;
   downloadBinaries?: boolean;
+  cloneNetwork?: "devnet" | "mainnet";
+  verbose?: boolean;
+  skipReset?: boolean;
 }): Promise<Array<string>> {
-  // TODO: adjust program tags
-  const programs: Program[] = [...SYSTEM_PROGRAMS];
-  if (additionalPrograms)
-    additionalPrograms.forEach((program) => {
-      programs.push({ id: program.address, path: program.path });
-    });
-
   const dirPath = programsDirPath();
 
   const solanaArgs = [
-    "--reset",
     `--limit-ledger-size=${limitLedgerSize}`,
     `--rpc-port=${rpcPort}`,
     `--gossip-host=${gossipHost}`,
     "--quiet",
   ];
 
-  for (const program of programs) {
-    if (program.path) {
-      solanaArgs.push("--bpf-program", program.id, program.path);
+  if (!skipReset) {
+    solanaArgs.unshift("--reset");
+  }
+
+  // Add cluster URL if cloning from a network
+  if (cloneNetwork) {
+    const clusterUrl = cloneNetwork === "devnet" ? "devnet" : "mainnet-beta";
+    solanaArgs.push("--url", clusterUrl);
+  }
+
+  // Process system programs
+  for (const program of SYSTEM_PROGRAMS) {
+    const shouldClone = cloneNetwork && PROGRAMS_TO_CLONE.includes(program.id);
+
+    if (shouldClone) {
+      // Clone program from network
+      solanaArgs.push("--clone-upgradeable-program", program.id);
     } else {
+      // Load program from local binary
       const localFilePath = programFilePath(program.name!);
       if (program.name === "spl_noop.so" || downloadBinaries) {
         await downloadBinIfNotExists({
@@ -267,7 +332,37 @@ export async function getSolanaArgs({
       solanaArgs.push("--bpf-program", program.id, localFilePath);
     }
   }
-  if (!skipSystemAccounts) {
+
+  // Clone all accounts owned by the programs being cloned
+  if (cloneNetwork) {
+    const rpcUrl =
+      cloneNetwork === "devnet"
+        ? "https://api.devnet.solana.com"
+        : "https://api.mainnet-beta.solana.com";
+
+    for (const programId of PROGRAMS_TO_CLONE) {
+      if (verbose) {
+        console.log(`Fetching accounts owned by ${programId}...`);
+      }
+      const accounts = await getProgramOwnedAccounts(programId, rpcUrl);
+      if (verbose) {
+        console.log(`Found ${accounts.length} accounts`);
+      }
+      for (const account of accounts) {
+        solanaArgs.push("--maybe-clone", account);
+      }
+    }
+  }
+
+  // Add additional user-provided programs (always loaded locally)
+  if (additionalPrograms) {
+    for (const program of additionalPrograms) {
+      solanaArgs.push("--bpf-program", program.address, program.path);
+    }
+  }
+
+  // Load local system accounts only if not cloning from network
+  if (!skipSystemAccounts && !cloneNetwork) {
     const accountsRelPath = "../../accounts";
     const accountsPath = path.resolve(__dirname, accountsRelPath);
     solanaArgs.push("--account-dir", accountsPath);
@@ -284,6 +379,9 @@ export async function startTestValidator({
   gossipHost,
   validatorArgs,
   geyserConfig,
+  cloneNetwork,
+  verbose,
+  skipReset,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
@@ -292,6 +390,9 @@ export async function startTestValidator({
   gossipHost?: string;
   validatorArgs?: string;
   geyserConfig?: string;
+  cloneNetwork?: "devnet" | "mainnet";
+  verbose?: boolean;
+  skipReset?: boolean;
 }) {
   const command = "solana-test-validator";
   const solanaArgs = await getSolanaArgs({
@@ -300,6 +401,9 @@ export async function startTestValidator({
     limitLedgerSize,
     rpcPort,
     gossipHost,
+    cloneNetwork,
+    verbose,
+    skipReset,
   });
 
   await killTestValidator();

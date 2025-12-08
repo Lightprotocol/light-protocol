@@ -21,6 +21,8 @@ class SetupCommand extends Command {
     "$ light test-validator --geyser-config ./config.json",
     '$ light test-validator --validator-args "--limit-ledger-size 50000000"',
     "$ light test-validator --sbf-program <address> <path/program>",
+    "$ light test-validator --devnet",
+    "$ light test-validator --mainnet",
   ];
 
   protected finally(err: Error | undefined): Promise<any> {
@@ -108,6 +110,27 @@ class SetupCommand extends Command {
       required: false,
       multiple: true,
       summary: "Usage: --sbf-program <address> <path/program_name.so>",
+    }),
+    devnet: Flags.boolean({
+      description:
+        "Clone Light Protocol programs and accounts from devnet instead of loading local binaries.",
+      default: false,
+      exclusive: ["mainnet"],
+    }),
+    mainnet: Flags.boolean({
+      description:
+        "Clone Light Protocol programs and accounts from mainnet instead of loading local binaries.",
+      default: false,
+      exclusive: ["devnet"],
+    }),
+    verbose: Flags.boolean({
+      char: "v",
+      description: "Enable verbose logging.",
+      default: false,
+    }),
+    "skip-reset": Flags.boolean({
+      description: "Skip resetting the ledger.",
+      default: false,
     }),
   };
 
@@ -199,6 +222,13 @@ class SetupCommand extends Command {
         skipSystemAccounts: flags["skip-system-accounts"],
         geyserConfig: flags["geyser-config"],
         validatorArgs: flags["validator-args"],
+        cloneNetwork: flags.devnet
+          ? "devnet"
+          : flags.mainnet
+            ? "mainnet"
+            : undefined,
+        verbose: flags.verbose,
+        skipReset: flags["skip-reset"],
       });
       this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
     }
