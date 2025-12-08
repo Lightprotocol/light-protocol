@@ -33,6 +33,11 @@ import {
     PackedTokenTransferOutputData,
     selectTokenPoolInfo,
     selectTokenPoolInfosForDecompression,
+    SplInterfaceInfo,
+    selectSplInterfaceInfo,
+    selectSplInterfaceInfosForDecompression,
+    TokenPoolInfo,
+    toTokenPoolInfo,
 } from '../../src/';
 import { Keypair } from '@solana/web3.js';
 import { Connection } from '@solana/web3.js';
@@ -758,11 +763,11 @@ describe('layout', () => {
     });
 });
 
-describe('selectTokenPoolInfo', () => {
-    const infos = [
+describe('selectSplInterfaceInfo', () => {
+    const infos: SplInterfaceInfo[] = [
         {
             mint: new PublicKey('GyFUUg2iDsGZpaxceUNQAdXfFXzraekDzbBjhS7bkTA6'),
-            tokenPoolPda: new PublicKey(
+            splInterfacePda: new PublicKey(
                 '5d77eGcKa1CDRJrHeohyT1igCCPX9SYWqBd6NZqsWMyt',
             ),
             tokenProgram: new PublicKey(
@@ -776,7 +781,7 @@ describe('selectTokenPoolInfo', () => {
         },
         {
             mint: new PublicKey('GyFUUg2iDsGZpaxceUNQAdXfFXzraekDzbBjhS7bkTA6'),
-            tokenPoolPda: new PublicKey(
+            splInterfacePda: new PublicKey(
                 'CqZ5Wv44cEn2R88hrftMdWowiyPhAuLLRzj1BXyq2Kz7',
             ),
             tokenProgram: new PublicKey(
@@ -790,7 +795,7 @@ describe('selectTokenPoolInfo', () => {
         },
         {
             mint: new PublicKey('GyFUUg2iDsGZpaxceUNQAdXfFXzraekDzbBjhS7bkTA6'),
-            tokenPoolPda: new PublicKey(
+            splInterfacePda: new PublicKey(
                 '4ne3Bk9g8gKMWjTbDNc8Sigmec2FJWUjWAraMjJcQDTS',
             ),
             tokenProgram: new PublicKey(
@@ -804,7 +809,7 @@ describe('selectTokenPoolInfo', () => {
         },
         {
             mint: new PublicKey('GyFUUg2iDsGZpaxceUNQAdXfFXzraekDzbBjhS7bkTA6'),
-            tokenPoolPda: new PublicKey(
+            splInterfacePda: new PublicKey(
                 'Evr8a5qf2JSAf9DHF5L8qvmrdxtKWZJY9c61VkvfpTZA',
             ),
             tokenProgram: new PublicKey(
@@ -818,7 +823,7 @@ describe('selectTokenPoolInfo', () => {
         },
         {
             mint: new PublicKey('GyFUUg2iDsGZpaxceUNQAdXfFXzraekDzbBjhS7bkTA6'),
-            tokenPoolPda: new PublicKey(
+            splInterfacePda: new PublicKey(
                 'B6XrUD6K5VQZaG7m7fVwaf7JWbJXad8PTQdzzGcHdf7E',
             ),
             tokenProgram: new PublicKey(
@@ -834,12 +839,13 @@ describe('selectTokenPoolInfo', () => {
 
     it('should return the correct token pool info', () => {
         for (let i = 0; i < 10000; i++) {
-            const tokenPoolInfo = selectTokenPoolInfo(infos);
+            const tokenPoolInfo: SplInterfaceInfo =
+                selectSplInterfaceInfo(infos);
             expect(tokenPoolInfo.poolIndex).not.toBe(4);
             expect(tokenPoolInfo.isInitialized).toBe(true);
         }
 
-        const decompressedInfos = selectTokenPoolInfosForDecompression(
+        const decompressedInfos = selectSplInterfaceInfosForDecompression(
             infos,
             new BN(1e9),
         );
@@ -848,7 +854,7 @@ describe('selectTokenPoolInfo', () => {
         expect(decompressedInfos[1].poolIndex).toBe(1);
         expect(decompressedInfos[2].poolIndex).toBe(2);
         expect(decompressedInfos[3].poolIndex).toBe(3);
-        const decompressedInfos2 = selectTokenPoolInfosForDecompression(
+        const decompressedInfos2 = selectSplInterfaceInfosForDecompression(
             infos,
             new BN(1.51e8),
         );
@@ -858,7 +864,7 @@ describe('selectTokenPoolInfo', () => {
         expect(decompressedInfos2[2].poolIndex).toBe(2);
         expect(decompressedInfos2[3].poolIndex).toBe(3);
 
-        const decompressedInfos3 = selectTokenPoolInfosForDecompression(
+        const decompressedInfos3 = selectSplInterfaceInfosForDecompression(
             infos,
             new BN(1.5e8),
         );
@@ -866,8 +872,54 @@ describe('selectTokenPoolInfo', () => {
         expect(decompressedInfos3[0].poolIndex).toBe(1);
 
         for (let i = 0; i < 1000; i++) {
-            const decompressedInfos4 = selectTokenPoolInfosForDecompression(
+            const decompressedInfos4 = selectSplInterfaceInfosForDecompression(
                 infos,
+                new BN(1),
+            );
+            expect(decompressedInfos4.length).toBe(1);
+            expect(decompressedInfos4[0].poolIndex).not.toBe(4);
+        }
+    });
+
+    const tokenPoolInfos: TokenPoolInfo[] = infos.map(toTokenPoolInfo);
+
+    it('should return the correct legacy token pool info', () => {
+        for (let i = 0; i < 10000; i++) {
+            const tokenPoolInfo: TokenPoolInfo =
+                selectTokenPoolInfo(tokenPoolInfos);
+            expect(tokenPoolInfo.poolIndex).not.toBe(4);
+            expect(tokenPoolInfo.isInitialized).toBe(true);
+        }
+
+        const decompressedInfos = selectTokenPoolInfosForDecompression(
+            tokenPoolInfos,
+            new BN(1e9),
+        );
+        expect(decompressedInfos.length).toBe(4);
+        expect(decompressedInfos[0].poolIndex).toBe(0);
+        expect(decompressedInfos[1].poolIndex).toBe(1);
+        expect(decompressedInfos[2].poolIndex).toBe(2);
+        expect(decompressedInfos[3].poolIndex).toBe(3);
+        const decompressedInfos2 = selectTokenPoolInfosForDecompression(
+            tokenPoolInfos,
+            new BN(1.51e8),
+        );
+        expect(decompressedInfos2.length).toBe(4);
+        expect(decompressedInfos2[0].poolIndex).toBe(0);
+        expect(decompressedInfos2[1].poolIndex).toBe(1);
+        expect(decompressedInfos2[2].poolIndex).toBe(2);
+        expect(decompressedInfos2[3].poolIndex).toBe(3);
+
+        const decompressedInfos3 = selectTokenPoolInfosForDecompression(
+            tokenPoolInfos,
+            new BN(1.5e8),
+        );
+        expect(decompressedInfos3.length).toBe(1);
+        expect(decompressedInfos3[0].poolIndex).toBe(1);
+
+        for (let i = 0; i < 1000; i++) {
+            const decompressedInfos4 = selectTokenPoolInfosForDecompression(
+                tokenPoolInfos,
                 new BN(1),
             );
             expect(decompressedInfos4.length).toBe(1);

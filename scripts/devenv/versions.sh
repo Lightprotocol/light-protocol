@@ -14,7 +14,6 @@ export ANCHOR_VERSION="0.31.1"
 export JQ_VERSION="1.8.0"
 export PHOTON_VERSION="0.51.2"
 export PHOTON_COMMIT="711c47b20330c6bb78feb0a2c15e8292fcd0a7b0"
-#8bc3a8baeda38c62a7ac71be1d51d5c28e783842
 export REDIS_VERSION="8.0.1"
 
 export ANCHOR_TAG="anchor-v${ANCHOR_VERSION}"

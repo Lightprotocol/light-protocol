@@ -188,7 +188,7 @@ describe('multi-pool', () => {
         expect(() => {
             selectTokenPoolInfosForDecompression(tokenPoolInfos4, 1);
         }).toThrowError(
-            'All provided token pool balances are zero. Please pass recent token pool infos.',
+            'All provided SPL interface balances are zero. Please pass recent SPL interface infos.',
         );
     });
 });
