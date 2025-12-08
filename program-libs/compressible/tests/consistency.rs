@@ -1,6 +1,4 @@
 #![cfg(test)]
-use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
-
 use light_compressible::{
     compression_info::CompressionInfo,
     rent::{
@@ -8,6 +6,7 @@ use light_compressible::{
         COMPRESSION_INCENTIVE, SLOTS_PER_EPOCH,
     },
 };
+use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
 
 const TEST_BYTES: u64 = 260;
 const RENT_PER_EPOCH: u64 = 260 + 128;

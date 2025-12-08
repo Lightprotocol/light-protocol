@@ -62,7 +62,7 @@ declare_id!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
 pub mod light_registry {
 
     use constants::DEFAULT_WORK_V1;
-    use light_compressible::config::CompressibleConfig;
+    use light_compressible::config::{CompressibleConfig, CompressibleConfigState};
 
     use super::*;
 
@@ -735,10 +735,10 @@ pub mod light_registry {
     pub fn pause_compressible_config(ctx: Context<UpdateCompressibleConfig>) -> Result<()> {
         // Cannot pause a deprecated config
         require!(
-            ctx.accounts.compressible_config.state != 2,
+            ctx.accounts.compressible_config.state != CompressibleConfigState::Deprecated as u8,
             RegistryError::InvalidConfigState
         );
-        ctx.accounts.compressible_config.state = 0;
+        ctx.accounts.compressible_config.state = CompressibleConfigState::Inactive as u8;
         Ok(())
     }
 
@@ -746,10 +746,10 @@ pub mod light_registry {
     /// Only paused configs (state=0) can be unpaused.
     pub fn unpause_compressible_config(ctx: Context<UpdateCompressibleConfig>) -> Result<()> {
         require!(
-            ctx.accounts.compressible_config.state == 0,
+            ctx.accounts.compressible_config.state == CompressibleConfigState::Inactive as u8,
             RegistryError::InvalidConfigState
         );
-        ctx.accounts.compressible_config.state = 1;
+        ctx.accounts.compressible_config.state = CompressibleConfigState::Active as u8;
         Ok(())
     }
 
@@ -757,7 +757,7 @@ pub mod light_registry {
     /// Deprecate means no new ctoken accounts can be created with this config.
     /// Other operations are functional.
     pub fn deprecate_compressible_config(ctx: Context<UpdateCompressibleConfig>) -> Result<()> {
-        ctx.accounts.compressible_config.state = 2;
+        ctx.accounts.compressible_config.state = CompressibleConfigState::Deprecated as u8;
         Ok(())
     }
 
