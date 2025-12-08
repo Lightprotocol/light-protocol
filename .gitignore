@@ -1,3 +1,4 @@
+*.bak
 *.log
 *.tgz
 **/logs/
