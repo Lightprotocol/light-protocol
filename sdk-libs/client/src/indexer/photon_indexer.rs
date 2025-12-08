@@ -2,6 +2,7 @@ use std::{fmt::Debug, time::Duration};
 
 use async_trait::async_trait;
 use bs58;
+use light_prover_client::constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT;
 use photon_api::{
     apis::configuration::{ApiKey, Configuration},
     models::GetCompressedAccountsByOwnerPostRequestParams,
@@ -1524,9 +1525,8 @@ impl Indexer for PhotonIndexer {
                     low_address_proof: if !address_queue.low_element_proofs.is_empty() {
                         address_queue.low_element_proofs[i].clone()
                     } else {
-                        // Reconstruct proof from deduplicated nodes
-                        // Tree height for address trees is typically 26
-                        address_queue.reconstruct_proof(i, 26)?
+                        address_queue
+                            .reconstruct_proof(i, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as u8)?
                     },
                     root: address_queue.initial_root,
                     root_seq: address_queue.root_seq,
@@ -1827,7 +1827,6 @@ impl Indexer for PhotonIndexer {
                         nodes,
                         node_hashes: node_hashes?,
                         initial_root,
-                        first_queue_index: address.start_index,
                         leaves_hash_chains: leaves_hash_chains?,
                         subtrees: subtrees?,
                         start_index: address.start_index,
