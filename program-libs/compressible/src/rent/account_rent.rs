@@ -25,7 +25,7 @@ impl AccountRentState {
     /// # Returns
     /// The lamports available for rent payments, or 0 if insufficient balance
     #[inline(always)]
-    pub fn get_available_rent_balance(
+    fn get_available_rent_balance(
         &self,
         rent_exemption_lamports: u64,
         compression_cost: u64,
@@ -49,7 +49,7 @@ impl AccountRentState {
     /// # Returns
     /// The number of epochs requiring rent payment
     #[inline(always)]
-    pub fn get_required_epochs<const INCLUDE_ONGOING_EPOCH: bool>(&self) -> u64 {
+    fn get_required_epochs<const INCLUDE_ONGOING_EPOCH: bool>(&self) -> u64 {
         let last_completed_epoch = slot_to_epoch(self.current_slot);
         let last_claimed_epoch = slot_to_epoch(self.last_claimed_slot);
 
@@ -144,7 +144,7 @@ impl AccountRentState {
     ///
     /// # Returns
     /// The amount of unused lamports
-    pub fn get_unused_lamports(
+    fn get_unused_lamports(
         &self,
         config: &impl RentConfigTrait,
         rent_exemption_lamports: u64,
@@ -193,7 +193,7 @@ pub struct CloseDistribution {
 
 /// First epoch is 0.
 #[inline(always)]
-pub fn slot_to_epoch(slot: u64) -> u64 {
+fn slot_to_epoch(slot: u64) -> u64 {
     slot / SLOTS_PER_EPOCH
 }
 
