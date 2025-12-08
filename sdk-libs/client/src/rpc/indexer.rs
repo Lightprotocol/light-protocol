@@ -7,8 +7,8 @@ use crate::indexer::{
     CompressedTokenAccount, GetCompressedAccountsByOwnerConfig,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
     IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, NewAddressProofWithContext,
-    OwnerBalance, PaginatedOptions, QueueElementsResult, QueueInfoResult, Response, RetryConfig,
-    SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
+    OwnerBalance, PaginatedOptions, QueueElementsV2Options, QueueElementsV2Result, QueueInfoResult,
+    Response, RetryConfig, SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
 };
 
 #[async_trait]
@@ -204,24 +204,14 @@ impl Indexer for LightClient {
     async fn get_queue_elements(
         &mut self,
         merkle_tree_pubkey: [u8; 32],
-        output_queue_start_index: Option<u64>,
-        output_queue_limit: Option<u16>,
-        input_queue_start_index: Option<u64>,
-        input_queue_limit: Option<u16>,
+        options: QueueElementsV2Options,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<QueueElementsResult>, IndexerError> {
+    ) -> Result<Response<QueueElementsV2Result>, IndexerError> {
         Ok(self
             .indexer
             .as_mut()
             .ok_or(IndexerError::NotInitialized)?
-            .get_queue_elements(
-                merkle_tree_pubkey,
-                output_queue_start_index,
-                output_queue_limit,
-                input_queue_start_index,
-                input_queue_limit,
-                config,
-            )
+            .get_queue_elements(merkle_tree_pubkey, options, config)
             .await?)
     }
 
@@ -237,19 +227,6 @@ impl Indexer for LightClient {
             .await?)
     }
 
-    async fn get_queue_elements_v2(
-        &mut self,
-        merkle_tree_pubkey: [u8; 32],
-        options: crate::indexer::QueueElementsV2Options,
-        config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<crate::indexer::QueueElementsV2Result>, IndexerError> {
-        Ok(self
-            .indexer
-            .as_mut()
-            .ok_or(IndexerError::NotInitialized)?
-            .get_queue_elements_v2(merkle_tree_pubkey, options, config)
-            .await?)
-    }
     async fn get_subtrees(
         &self,
         merkle_tree_pubkey: [u8; 32],

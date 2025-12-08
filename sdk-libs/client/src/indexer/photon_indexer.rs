@@ -11,8 +11,8 @@ use tracing::{error, trace, warn};
 
 use super::{
     types::{
-        CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueElementsResult,
-        SignatureWithMetadata, TokenBalance,
+        CompressedAccount, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata,
+        TokenBalance,
     },
     BatchAddressUpdateIndexerResponse,
 };
@@ -1484,256 +1484,70 @@ impl Indexer for PhotonIndexer {
             let limit = _zkp_batch_size;
             let start_queue_index = _start_offset;
             let config = _config.unwrap_or_default();
-            self.retry(config.retry_config, || async {
-                let merkle_tree = Hash::from_bytes(merkle_tree_pubkey.to_bytes().as_ref())?;
-                let request = photon_api::models::GetBatchAddressUpdateInfoPostRequest {
-                    params: Box::new(
-                        photon_api::models::GetBatchAddressUpdateInfoPostRequestParams {
-                            limit,
-                            start_queue_index,
-                            tree: merkle_tree.to_base58(),
-                        },
-                    ),
-                    ..Default::default()
-                };
 
-                let result = photon_api::apis::default_api::get_batch_address_update_info_post(
-                    &self.configuration,
-                    request,
-                )
+            // Use get_queue_elements with address_queue option
+            let options = super::QueueElementsV2Options::default()
+                .with_address_queue(start_queue_index, Some(limit));
+
+            let response = self
+                .get_queue_elements(merkle_tree_pubkey.to_bytes(), options, Some(config))
                 .await?;
 
-                let api_response = Self::extract_result_with_error_check(
-                    "get_batch_address_update_info",
-                    result.error,
-                    result.result.map(|r| *r),
-                )?;
-                if api_response.context.slot < config.slot {
-                    return Err(IndexerError::IndexerNotSyncedToSlot);
-                }
-
-                let addresses = api_response
-                    .addresses
-                    .iter()
-                    .map(|x| crate::indexer::AddressQueueIndex {
-                        address: Hash::from_base58(x.address.clone().as_ref()).unwrap(),
-                        queue_index: x.queue_index,
-                    })
-                    .collect();
-
-                let mut proofs: Vec<NewAddressProofWithContext> = vec![];
-                for proof in api_response.non_inclusion_proofs {
-                    let proof = NewAddressProofWithContext {
-                        merkle_tree: *merkle_tree_pubkey,
-                        low_address_index: proof.low_element_leaf_index,
-                        low_address_value: Hash::from_base58(
-                            proof.lower_range_address.clone().as_ref(),
-                        )
-                        .unwrap(),
-                        low_address_next_index: proof.next_index,
-                        low_address_next_value: Hash::from_base58(
-                            proof.higher_range_address.clone().as_ref(),
-                        )
-                        .unwrap(),
-                        low_address_proof: proof
-                            .proof
-                            .iter()
-                            .map(|x| Hash::from_base58(x.clone().as_ref()).unwrap())
-                            .collect(),
-                        root: Hash::from_base58(proof.root.clone().as_ref()).unwrap(),
-                        root_seq: proof.root_seq,
-
-                        new_low_element: None,
-                        new_element: None,
-                        new_element_next_value: None,
-                    };
-                    proofs.push(proof);
-                }
-
-                let subtrees = api_response
-                    .subtrees
-                    .iter()
-                    .map(|x| {
-                        let mut arr = [0u8; 32];
-                        arr.copy_from_slice(x.as_slice());
-                        arr
-                    })
-                    .collect::<Vec<_>>();
-
-                let result = BatchAddressUpdateIndexerResponse {
-                    batch_start_index: api_response.start_index,
-                    addresses,
-                    non_inclusion_proofs: proofs,
-                    subtrees,
-                };
-                Ok(Response {
-                    context: Context {
-                        slot: api_response.context.slot,
-                    },
-                    value: result,
-                })
-            })
-            .await
-        }
-    }
-
-    async fn get_queue_elements(
-        &mut self,
-        _pubkey: [u8; 32],
-        _output_queue_start_index: Option<u64>,
-        _output_queue_limit: Option<u16>,
-        _input_queue_start_index: Option<u64>,
-        _input_queue_limit: Option<u16>,
-        _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<QueueElementsResult>, IndexerError> {
-        #[cfg(not(feature = "v2"))]
-        unimplemented!("get_queue_elements");
-        #[cfg(feature = "v2")]
-        {
-            use super::MerkleProofWithContext;
-            let pubkey = _pubkey;
-            let output_queue_start_index = _output_queue_start_index;
-            let output_queue_limit = _output_queue_limit;
-            let input_queue_start_index = _input_queue_start_index;
-            let input_queue_limit = _input_queue_limit;
-            let config = _config.unwrap_or_default();
-            self.retry(config.retry_config, || async {
-                let request: photon_api::models::GetQueueElementsPostRequest =
-                    photon_api::models::GetQueueElementsPostRequest {
-                        params: Box::from(photon_api::models::GetQueueElementsPostRequestParams {
-                            tree: bs58::encode(pubkey).into_string(),
-                            output_queue_start_index,
-                            output_queue_limit,
-                            input_queue_start_index,
-                            input_queue_limit,
-                        }),
-                        ..Default::default()
-                    };
-
-                let result = photon_api::apis::default_api::get_queue_elements_post(
-                    &self.configuration,
-                    request,
+            let address_queue = response.value.address_queue.ok_or_else(|| {
+                IndexerError::missing_result(
+                    "get_address_queue_with_proofs",
+                    "No address queue data in response",
                 )
-                .await;
-                let result: Result<Response<QueueElementsResult>, IndexerError> = match result {
-                    Ok(api_response) => match api_response.result {
-                        Some(api_result) => {
-                            if api_result.context.slot < config.slot {
-                                return Err(IndexerError::IndexerNotSyncedToSlot);
-                            }
+            })?;
 
-                            // Parse output queue elements
-                            let output_queue_elements = api_result
-                                .output_queue_elements
-                                .map(|elements| {
-                                    elements
-                                        .iter()
-                                        .map(|x| -> Result<_, IndexerError> {
-                                            let proof: Vec<Hash> = x
-                                                .proof
-                                                .iter()
-                                                .map(|p| Hash::from_base58(p))
-                                                .collect::<Result<Vec<_>, _>>()?;
-                                            let root = Hash::from_base58(&x.root)?;
-                                            let leaf = Hash::from_base58(&x.leaf)?;
-                                            let merkle_tree = Hash::from_base58(&x.tree)?;
-                                            let tx_hash = x
-                                                .tx_hash
-                                                .as_ref()
-                                                .map(|h| Hash::from_base58(h))
-                                                .transpose()?;
-                                            let account_hash = Hash::from_base58(&x.account_hash)?;
+            // Build addresses with queue indices
+            let addresses: Vec<crate::indexer::AddressQueueIndex> = address_queue
+                .addresses
+                .iter()
+                .zip(address_queue.queue_indices.iter())
+                .map(|(address, queue_index)| crate::indexer::AddressQueueIndex {
+                    address: *address,
+                    queue_index: *queue_index,
+                })
+                .collect();
 
-                                            Ok(MerkleProofWithContext {
-                                                proof,
-                                                root,
-                                                leaf_index: x.leaf_index,
-                                                leaf,
-                                                merkle_tree,
-                                                root_seq: x.root_seq,
-                                                tx_hash,
-                                                account_hash,
-                                            })
-                                        })
-                                        .collect::<Result<Vec<_>, _>>()
-                                })
-                                .transpose()?;
-
-                            // Parse input queue elements
-                            let input_queue_elements = api_result
-                                .input_queue_elements
-                                .map(|elements| {
-                                    elements
-                                        .iter()
-                                        .map(|x| -> Result<_, IndexerError> {
-                                            let proof: Vec<Hash> = x
-                                                .proof
-                                                .iter()
-                                                .map(|p| Hash::from_base58(p))
-                                                .collect::<Result<Vec<_>, _>>()?;
-                                            let root = Hash::from_base58(&x.root)?;
-                                            let leaf = Hash::from_base58(&x.leaf)?;
-                                            let merkle_tree = Hash::from_base58(&x.tree)?;
-                                            let tx_hash = x
-                                                .tx_hash
-                                                .as_ref()
-                                                .map(|h| Hash::from_base58(h))
-                                                .transpose()?;
-                                            let account_hash = Hash::from_base58(&x.account_hash)?;
-
-                                            Ok(MerkleProofWithContext {
-                                                proof,
-                                                root,
-                                                leaf_index: x.leaf_index,
-                                                leaf,
-                                                merkle_tree,
-                                                root_seq: x.root_seq,
-                                                tx_hash,
-                                                account_hash,
-                                            })
-                                        })
-                                        .collect::<Result<Vec<_>, _>>()
-                                })
-                                .transpose()?;
-
-                            Ok(Response {
-                                context: Context {
-                                    slot: api_result.context.slot,
-                                },
-                                value: QueueElementsResult {
-                                    output_queue_elements,
-                                    output_queue_index: api_result.output_queue_index,
-                                    input_queue_elements,
-                                    input_queue_index: api_result.input_queue_index,
-                                },
-                            })
-                        }
-                        None => {
-                            let error =
-                                api_response
-                                    .error
-                                    .ok_or_else(|| IndexerError::PhotonError {
-                                        context: "get_queue_elements".to_string(),
-                                        message: "No error details provided".to_string(),
-                                    })?;
-
-                            Err(IndexerError::PhotonError {
-                                context: "get_queue_elements".to_string(),
-                                message: error
-                                    .message
-                                    .unwrap_or_else(|| "Unknown error".to_string()),
-                            })
-                        }
+            // Build non-inclusion proofs from the address queue data
+            let mut proofs: Vec<NewAddressProofWithContext> = vec![];
+            for i in 0..address_queue.addresses.len() {
+                let proof = NewAddressProofWithContext {
+                    merkle_tree: *merkle_tree_pubkey,
+                    low_address_index: address_queue.low_element_indices[i],
+                    low_address_value: address_queue.low_element_values[i],
+                    low_address_next_index: address_queue.low_element_next_indices[i],
+                    low_address_next_value: address_queue.low_element_next_values[i],
+                    // Use original proofs from indexer if available, otherwise reconstruct
+                    low_address_proof: if !address_queue.low_element_proofs.is_empty() {
+                        address_queue.low_element_proofs[i].clone()
+                    } else {
+                        // Reconstruct proof from deduplicated nodes
+                        // Tree height for address trees is typically 26
+                        address_queue.reconstruct_proof(i, 26)
                     },
-                    Err(e) => Err(IndexerError::PhotonError {
-                        context: "get_queue_elements".to_string(),
-                        message: e.to_string(),
-                    }),
+                    root: address_queue.initial_root,
+                    root_seq: address_queue.root_seq,
+                    new_low_element: None,
+                    new_element: None,
+                    new_element_next_value: None,
                 };
+                proofs.push(proof);
+            }
 
-                result
+            let result = BatchAddressUpdateIndexerResponse {
+                batch_start_index: address_queue.start_index,
+                addresses,
+                non_inclusion_proofs: proofs,
+                subtrees: address_queue.subtrees,
+            };
+
+            Ok(Response {
+                context: response.context,
+                value: result,
             })
-            .await
         }
     }
 
@@ -1797,197 +1611,243 @@ impl Indexer for PhotonIndexer {
         .await
     }
 
-    async fn get_queue_elements_v2(
+    async fn get_queue_elements(
         &mut self,
         merkle_tree_pubkey: [u8; 32],
         options: super::QueueElementsV2Options,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<super::QueueElementsV2Result>, IndexerError> {
-        let config = config.unwrap_or_default();
-        self.retry(config.retry_config, || async {
-            let params = photon_api::models::GetQueueElementsV2PostRequestParams {
-                tree: bs58::encode(merkle_tree_pubkey).into_string(),
-                output_queue_start_index: options.output_queue_start_index,
-                output_queue_limit: options.output_queue_limit,
-                output_queue_zkp_batch_size: options.output_queue_zkp_batch_size,
-                input_queue_start_index: options.input_queue_start_index,
-                input_queue_limit: options.input_queue_limit,
-                input_queue_zkp_batch_size: options.input_queue_zkp_batch_size,
-                address_queue_start_index: options.address_queue_start_index,
-                address_queue_limit: options.address_queue_limit,
-                address_queue_zkp_batch_size: options.address_queue_zkp_batch_size,
-            };
+        #[cfg(not(feature = "v2"))]
+        unimplemented!();
 
-            let request = photon_api::models::GetQueueElementsV2PostRequest {
-                params: Box::new(params),
-                ..Default::default()
-            };
+        #[cfg(feature = "v2")]
+        {
+            let config = config.unwrap_or_default();
+            self.retry(config.retry_config, || async {
+                // Build nested QueueRequest objects for the new API format
+                let output_queue = options.output_queue_limit.map(|limit| {
+                    let mut req = photon_api::models::QueueRequest::new(limit);
+                    req.start_index = options.output_queue_start_index;
+                    req.zkp_batch_size = options.output_queue_zkp_batch_size;
+                    req
+                });
 
-            let result = photon_api::apis::default_api::get_queue_elements_v2_post(
-                &self.configuration,
-                request,
-            )
-            .await?;
+                let input_queue = options.input_queue_limit.map(|limit| {
+                    let mut req = photon_api::models::QueueRequest::new(limit);
+                    req.start_index = options.input_queue_start_index;
+                    req.zkp_batch_size = options.input_queue_zkp_batch_size;
+                    req
+                });
 
-            let api_response = Self::extract_result_with_error_check(
-                "get_queue_elements_v2",
-                result.error,
-                result.result.map(|r| *r),
-            )?;
+                let address_queue = options.address_queue_limit.map(|limit| {
+                    let mut req = photon_api::models::QueueRequest::new(limit);
+                    req.start_index = options.address_queue_start_index;
+                    req.zkp_batch_size = options.address_queue_zkp_batch_size;
+                    req
+                });
 
-            if api_response.context.slot < config.slot {
-                return Err(IndexerError::IndexerNotSyncedToSlot);
-            }
+                let mut params = photon_api::models::GetQueueElementsPostRequestParams::new(
+                    bs58::encode(merkle_tree_pubkey).into_string(),
+                );
+                params.output_queue = output_queue;
+                params.input_queue = input_queue;
+                params.address_queue = address_queue;
 
-            let state_queue = if let Some(state) = api_response.state_queue {
-                let node_hashes: Result<Vec<[u8; 32]>, IndexerError> = state
-                    .node_hashes
-                    .iter()
-                    .map(|h| Hash::from_base58(h))
-                    .collect();
-                let initial_root = Hash::from_base58(&state.initial_root)?;
-
-                let output_queue = if let Some(output) = state.output_queue {
-                    let account_hashes: Result<Vec<[u8; 32]>, IndexerError> = output
-                        .account_hashes
-                        .iter()
-                        .map(|h| Hash::from_base58(h))
-                        .collect();
-                    let old_leaves: Result<Vec<[u8; 32]>, IndexerError> =
-                        output.leaves.iter().map(|h| Hash::from_base58(h)).collect();
-                    let leaves_hash_chains: Result<Vec<[u8; 32]>, IndexerError> = output
-                        .leaves_hash_chains
-                        .iter()
-                        .map(|h| Hash::from_base58(h))
-                        .collect();
-
-                    Some(super::OutputQueueDataV2 {
-                        leaf_indices: output.leaf_indices,
-                        account_hashes: account_hashes?,
-                        old_leaves: old_leaves?,
-                        first_queue_index: output.first_queue_index,
-                        next_index: output.next_index,
-                        leaves_hash_chains: leaves_hash_chains?,
-                    })
-                } else {
-                    None
+                let request = photon_api::models::GetQueueElementsPostRequest {
+                    params: Box::new(params),
+                    ..Default::default()
                 };
 
-                let input_queue = if let Some(input) = state.input_queue {
-                    let account_hashes: Result<Vec<[u8; 32]>, IndexerError> = input
-                        .account_hashes
+                let result = photon_api::apis::default_api::get_queue_elements_post(
+                    &self.configuration,
+                    request,
+                )
+                .await?;
+
+                let api_response = Self::extract_result_with_error_check(
+                    "get_queue_elements",
+                    result.error,
+                    result.result.map(|r| *r),
+                )?;
+
+                if api_response.context.slot < config.slot {
+                    return Err(IndexerError::IndexerNotSyncedToSlot);
+                }
+
+                let state_queue = if let Some(state) = api_response.state_queue {
+                    // Extract nodes and node_hashes from combined Node objects
+                    let nodes: Vec<u64> = state.nodes.iter().map(|n| n.index).collect();
+                    let node_hashes: Result<Vec<[u8; 32]>, IndexerError> = state
+                        .nodes
                         .iter()
-                        .map(|h| Hash::from_base58(h))
+                        .map(|n| Hash::from_base58(&n.hash))
                         .collect();
-                    let current_leaves: Result<Vec<[u8; 32]>, IndexerError> =
-                        input.leaves.iter().map(|h| Hash::from_base58(h)).collect();
-                    let tx_hashes: Result<Vec<[u8; 32]>, IndexerError> = input
-                        .tx_hashes
-                        .iter()
-                        .map(|h| Hash::from_base58(h))
-                        .collect();
-                    let nullifiers: Result<Vec<[u8; 32]>, IndexerError> = input
-                        .nullifiers
-                        .iter()
-                        .map(|h| Hash::from_base58(h))
-                        .collect();
-                    let leaves_hash_chains: Result<Vec<[u8; 32]>, IndexerError> = input
-                        .leaves_hash_chains
-                        .iter()
-                        .map(|h| Hash::from_base58(h))
-                        .collect();
+                    let initial_root = Hash::from_base58(&state.initial_root)?;
 
-                    Some(super::InputQueueDataV2 {
-                        leaf_indices: input.leaf_indices,
-                        account_hashes: account_hashes?,
-                        current_leaves: current_leaves?,
-                        tx_hashes: tx_hashes?,
-                        nullifiers: nullifiers?,
-                        first_queue_index: input.first_queue_index,
-                        leaves_hash_chains: leaves_hash_chains?,
-                    })
-                } else {
-                    None
-                };
-
-                Some(super::StateQueueDataV2 {
-                    nodes: state.nodes,
-                    node_hashes: node_hashes?,
-                    initial_root,
-                    root_seq: state.root_seq,
-                    output_queue,
-                    input_queue,
-                })
-            } else {
-                None
-            };
-
-            // Transform AddressQueueDataV2
-            let address_queue = if let Some(address) = api_response.address_queue {
-                let addresses: Result<Vec<[u8; 32]>, IndexerError> = address
-                    .addresses
-                    .iter()
-                    .map(|h| Hash::from_base58(h))
-                    .collect();
-
-                let low_element_values: Result<Vec<[u8; 32]>, IndexerError> = address
-                    .low_element_values
-                    .iter()
-                    .map(|h| Hash::from_base58(h))
-                    .collect();
-
-                let low_element_next_values: Result<Vec<[u8; 32]>, IndexerError> = address
-                    .low_element_next_values
-                    .iter()
-                    .map(|h| Hash::from_base58(h))
-                    .collect();
-
-                let low_element_proofs: Result<Vec<Vec<[u8; 32]>>, IndexerError> = address
-                    .low_element_proofs
-                    .iter()
-                    .map(|proof_vec| {
-                        proof_vec
+                    let output_queue = if let Some(output) = state.output_queue {
+                        let account_hashes: Result<Vec<[u8; 32]>, IndexerError> = output
+                            .account_hashes
                             .iter()
                             .map(|h| Hash::from_base58(h))
-                            .collect::<Result<Vec<[u8; 32]>, IndexerError>>()
+                            .collect();
+                        let old_leaves: Result<Vec<[u8; 32]>, IndexerError> =
+                            output.leaves.iter().map(|h| Hash::from_base58(h)).collect();
+                        let leaves_hash_chains: Result<Vec<[u8; 32]>, IndexerError> = output
+                            .leaves_hash_chains
+                            .iter()
+                            .map(|h| Hash::from_base58(h))
+                            .collect();
+
+                        Some(super::OutputQueueDataV2 {
+                            leaf_indices: output.leaf_indices,
+                            account_hashes: account_hashes?,
+                            old_leaves: old_leaves?,
+                            first_queue_index: output.first_queue_index,
+                            next_index: output.next_index,
+                            leaves_hash_chains: leaves_hash_chains?,
+                        })
+                    } else {
+                        None
+                    };
+
+                    let input_queue = if let Some(input) = state.input_queue {
+                        let account_hashes: Result<Vec<[u8; 32]>, IndexerError> = input
+                            .account_hashes
+                            .iter()
+                            .map(|h| Hash::from_base58(h))
+                            .collect();
+                        let current_leaves: Result<Vec<[u8; 32]>, IndexerError> =
+                            input.leaves.iter().map(|h| Hash::from_base58(h)).collect();
+                        let tx_hashes: Result<Vec<[u8; 32]>, IndexerError> = input
+                            .tx_hashes
+                            .iter()
+                            .map(|h| Hash::from_base58(h))
+                            .collect();
+                        let nullifiers: Result<Vec<[u8; 32]>, IndexerError> = input
+                            .nullifiers
+                            .iter()
+                            .map(|h| Hash::from_base58(h))
+                            .collect();
+                        let leaves_hash_chains: Result<Vec<[u8; 32]>, IndexerError> = input
+                            .leaves_hash_chains
+                            .iter()
+                            .map(|h| Hash::from_base58(h))
+                            .collect();
+
+                        Some(super::InputQueueDataV2 {
+                            leaf_indices: input.leaf_indices,
+                            account_hashes: account_hashes?,
+                            current_leaves: current_leaves?,
+                            tx_hashes: tx_hashes?,
+                            nullifiers: nullifiers?,
+                            first_queue_index: input.first_queue_index,
+                            leaves_hash_chains: leaves_hash_chains?,
+                        })
+                    } else {
+                        None
+                    };
+
+                    Some(super::StateQueueDataV2 {
+                        nodes,
+                        node_hashes: node_hashes?,
+                        initial_root,
+                        root_seq: state.root_seq,
+                        output_queue,
+                        input_queue,
                     })
-                    .collect();
+                } else {
+                    None
+                };
 
-                let node_hashes: Result<Vec<[u8; 32]>, IndexerError> = address
-                    .node_hashes
-                    .iter()
-                    .map(|h| Hash::from_base58(h))
-                    .collect();
+                // Transform AddressQueueDataV2
+                let address_queue = if let Some(address) = api_response.address_queue {
+                    let addresses: Result<Vec<[u8; 32]>, IndexerError> = address
+                        .addresses
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
 
-                let initial_root = Hash::from_base58(&address.initial_root)?;
+                    let low_element_values: Result<Vec<[u8; 32]>, IndexerError> = address
+                        .low_element_values
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
 
-                Some(super::AddressQueueDataV2 {
-                    addresses: addresses?,
-                    low_element_values: low_element_values?,
-                    low_element_next_values: low_element_next_values?,
-                    low_element_indices: address.low_element_indices,
-                    low_element_next_indices: address.low_element_next_indices,
-                    low_element_proofs: low_element_proofs?,
-                    nodes: address.nodes,
-                    node_hashes: node_hashes?,
-                    initial_root,
-                    first_queue_index: address.start_index,
+                    let low_element_next_values: Result<Vec<[u8; 32]>, IndexerError> = address
+                        .low_element_next_values
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
+
+                    // Extract nodes and node_hashes from combined Node objects
+                    // Proofs are reconstructed from nodes using AddressQueueDataV2::reconstruct_proof()
+                    let nodes: Vec<u64> = address.nodes.iter().map(|n| n.index).collect();
+                    let node_hashes: Result<Vec<[u8; 32]>, IndexerError> = address
+                        .nodes
+                        .iter()
+                        .map(|n| Hash::from_base58(&n.hash))
+                        .collect();
+
+                    let initial_root = Hash::from_base58(&address.initial_root)?;
+
+                    let leaves_hash_chains: Result<Vec<[u8; 32]>, IndexerError> = address
+                        .leaves_hash_chains
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
+
+                    let subtrees: Result<Vec<[u8; 32]>, IndexerError> = address
+                        .subtrees
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
+
+                    // Parse low_element_proofs for debugging/validation
+                    let low_element_proofs: Result<Vec<Vec<[u8; 32]>>, IndexerError> = address
+                        .low_element_proofs
+                        .iter()
+                        .map(|proof| {
+                            proof.iter().map(|h| Hash::from_base58(h)).collect::<Result<
+                                Vec<[u8; 32]>,
+                                IndexerError,
+                            >>(
+                            )
+                        })
+                        .collect();
+
+                    Some(super::AddressQueueDataV2 {
+                        addresses: addresses?,
+                        queue_indices: address.queue_indices,
+                        low_element_values: low_element_values?,
+                        low_element_next_values: low_element_next_values?,
+                        low_element_indices: address.low_element_indices,
+                        low_element_next_indices: address.low_element_next_indices,
+                        nodes,
+                        node_hashes: node_hashes?,
+                        initial_root,
+                        first_queue_index: address.start_index,
+                        leaves_hash_chains: leaves_hash_chains?,
+                        subtrees: subtrees?,
+                        start_index: address.start_index,
+                        root_seq: address.root_seq,
+                        low_element_proofs: low_element_proofs?,
+                    })
+                } else {
+                    None
+                };
+
+                Ok(Response {
+                    context: Context {
+                        slot: api_response.context.slot,
+                    },
+                    value: super::QueueElementsV2Result {
+                        state_queue,
+                        address_queue,
+                    },
                 })
-            } else {
-                None
-            };
-
-            Ok(Response {
-                context: Context {
-                    slot: api_response.context.slot,
-                },
-                value: super::QueueElementsV2Result {
-                    state_queue,
-                    address_queue,
-                },
             })
-        })
-        .await
+            .await
+        }
     }
 
     async fn get_subtrees(

@@ -44,15 +44,6 @@ pub struct QueueInfoResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct QueueElementsResult {
-    pub output_queue_elements: Option<Vec<MerkleProofWithContext>>,
-    pub output_queue_index: Option<u64>,
-    pub input_queue_elements: Option<Vec<MerkleProofWithContext>>,
-    pub input_queue_index: Option<u64>,
-}
-
-/// V2 Output Queue Data
-#[derive(Debug, Clone, PartialEq, Default)]
 pub struct OutputQueueDataV2 {
     pub leaf_indices: Vec<u64>,
     pub account_hashes: Vec<[u8; 32]>,
@@ -96,18 +87,70 @@ pub struct StateQueueDataV2 {
 }
 
 /// V2 Address Queue Data with deduplicated nodes
+/// Proofs are reconstructed from `nodes`/`node_hashes` using `low_element_indices`
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct AddressQueueDataV2 {
     pub addresses: Vec<[u8; 32]>,
+    pub queue_indices: Vec<u64>,
     pub low_element_values: Vec<[u8; 32]>,
     pub low_element_next_values: Vec<[u8; 32]>,
     pub low_element_indices: Vec<u64>,
     pub low_element_next_indices: Vec<u64>,
-    pub low_element_proofs: Vec<Vec<[u8; 32]>>,
+    /// Deduplicated node indices - encoding: (level << 56) | position
     pub nodes: Vec<u64>,
+    /// Hashes corresponding to each node index
     pub node_hashes: Vec<[u8; 32]>,
     pub initial_root: [u8; 32],
     pub first_queue_index: u64,
+    pub leaves_hash_chains: Vec<[u8; 32]>,
+    pub subtrees: Vec<[u8; 32]>,
+    pub start_index: u64,
+    pub root_seq: u64,
+    /// Original low element proofs from indexer (for debugging/validation)
+    pub low_element_proofs: Vec<Vec<[u8; 32]>>,
+}
+
+impl AddressQueueDataV2 {
+    /// Reconstruct a merkle proof for a given low_element_index from the deduplicated nodes.
+    /// The tree_height is needed to know how many levels to traverse.
+    pub fn reconstruct_proof(&self, address_idx: usize, tree_height: u8) -> Vec<[u8; 32]> {
+        let leaf_index = self.low_element_indices[address_idx];
+        let mut proof = Vec::with_capacity(tree_height as usize);
+        let mut pos = leaf_index;
+
+        for level in 0..tree_height {
+            let sibling_pos = if pos.is_multiple_of(2) {
+                pos + 1
+            } else {
+                pos - 1
+            };
+            let sibling_idx = Self::encode_node_index(level, sibling_pos);
+
+            // Find the sibling hash in nodes
+            if let Some(hash_idx) = self.nodes.iter().position(|&n| n == sibling_idx) {
+                proof.push(self.node_hashes[hash_idx]);
+            } else {
+                // If sibling not found, use zero hash (shouldn't happen with valid data)
+                proof.push([0u8; 32]);
+            }
+            pos /= 2;
+        }
+
+        proof
+    }
+
+    /// Reconstruct all proofs for all addresses
+    pub fn reconstruct_all_proofs(&self, tree_height: u8) -> Vec<Vec<[u8; 32]>> {
+        (0..self.addresses.len())
+            .map(|i| self.reconstruct_proof(i, tree_height))
+            .collect()
+    }
+
+    /// Encode node index: (level << 56) | position
+    #[inline]
+    fn encode_node_index(level: u8, position: u64) -> u64 {
+        ((level as u64) << 56) | position
+    }
 }
 
 /// V2 Queue Elements Result with deduplicated node data

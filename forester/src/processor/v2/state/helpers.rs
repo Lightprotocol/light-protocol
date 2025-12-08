@@ -70,7 +70,7 @@ pub async fn fetch_batches<R: Rpc>(
         .with_input_queue_batch_size(Some(zkp_batch_size_u16));
 
     let res = indexer
-        .get_queue_elements_v2(context.merkle_tree.to_bytes(), options, None)
+        .get_queue_elements(context.merkle_tree.to_bytes(), options, None)
         .await?;
 
     Ok(res.value.state_queue)

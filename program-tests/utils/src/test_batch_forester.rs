@@ -321,7 +321,7 @@ pub async fn get_batched_nullify_ix_data<R: Rpc>(
 use forester_utils::{
     account_zero_copy::AccountZeroCopy, instructions::create_account::create_account_instruction,
 };
-use light_client::indexer::Indexer;
+use light_client::indexer::{Indexer, QueueElementsV2Options};
 use light_program_test::indexer::state_tree::StateMerkleTreeBundle;
 use light_sparse_merkle_tree::SparseMerkleTree;
 
@@ -650,24 +650,17 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<R: Rpc
     let leaves_hash_chain =
         merkle_tree.hash_chain_stores[full_batch_index as usize][zkp_batch_index as usize];
 
-    let addresses = indexer
-        .get_queue_elements(
-            merkle_tree_pubkey.to_bytes(),
-            None,
-            Some(batch.zkp_batch_size as u16),
-            None,
-            None,
-            None,
-        )
+    let options = QueueElementsV2Options::default()
+        .with_address_queue(None, Some(batch.zkp_batch_size as u16));
+    let result = indexer
+        .get_queue_elements(merkle_tree_pubkey.to_bytes(), options, None)
         .await
         .unwrap();
-    let addresses = addresses
+    let addresses = result
         .value
-        .output_queue_elements
-        .unwrap_or_default()
-        .iter()
-        .map(|x| x.account_hash)
-        .collect::<Vec<[u8; 32]>>();
+        .address_queue
+        .map(|aq| aq.addresses)
+        .unwrap_or_default();
     // // local_leaves_hash_chain is only used for a test assertion.
     // let local_nullifier_hash_chain = create_hash_chain_from_slice(addresses.as_slice()).unwrap();
     // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);

@@ -18,9 +18,8 @@ pub use types::{
     AddressQueueIndex, AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount,
     CompressedTokenAccount, Hash, InputQueueDataV2, MerkleProof, MerkleProofWithContext,
     NewAddressProofWithContext, NextTreeInfo, OutputQueueDataV2, OwnerBalance, ProofOfLeaf,
-    QueueElementsResult, QueueElementsV2Result, QueueInfo, QueueInfoResult, RootIndex,
-    SignatureWithMetadata, StateMerkleTreeAccounts, StateQueueDataV2, TokenBalance, TreeInfo,
-    ValidityProofWithContext,
+    QueueElementsV2Result, QueueInfo, QueueInfoResult, RootIndex, SignatureWithMetadata,
+    StateMerkleTreeAccounts, StateQueueDataV2, TokenBalance, TreeInfo, ValidityProofWithContext,
 };
 mod options;
 pub use options::*;

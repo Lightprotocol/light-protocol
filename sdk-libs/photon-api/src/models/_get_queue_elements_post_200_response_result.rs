@@ -14,44 +14,18 @@ use crate::models;
 pub struct GetQueueElementsPost200ResponseResult {
     #[serde(rename = "context")]
     pub context: Box<models::Context>,
-
-    #[serde(
-        rename = "outputQueueElements",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub output_queue_elements: Option<Vec<models::GetQueueElementsResponseValue>>,
-
-    #[serde(
-        rename = "outputQueueIndex",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub output_queue_index: Option<u64>,
-
-    #[serde(
-        rename = "inputQueueElements",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub input_queue_elements: Option<Vec<models::GetQueueElementsResponseValue>>,
-
-    #[serde(
-        rename = "inputQueueIndex",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub input_queue_index: Option<u64>,
+    #[serde(rename = "stateQueue", skip_serializing_if = "Option::is_none")]
+    pub state_queue: Option<Box<models::StateQueueDataV2>>,
+    #[serde(rename = "addressQueue", skip_serializing_if = "Option::is_none")]
+    pub address_queue: Option<Box<models::AddressQueueDataV2>>,
 }
 
 impl GetQueueElementsPost200ResponseResult {
     pub fn new(context: models::Context) -> GetQueueElementsPost200ResponseResult {
         GetQueueElementsPost200ResponseResult {
             context: Box::new(context),
-            output_queue_elements: None,
-            output_queue_index: None,
-            input_queue_elements: None,
-            input_queue_index: None,
+            state_queue: None,
+            address_queue: None,
         }
     }
 }
