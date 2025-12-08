@@ -19,7 +19,7 @@ export const SOLANA_VALIDATOR_PROCESS_NAME = "solana-test-validator";
 export const LIGHT_PROVER_PROCESS_NAME = "light-prover";
 export const INDEXER_PROCESS_NAME = "photon";
 
-export const PHOTON_VERSION = "0.51.1";
+export const PHOTON_VERSION = "0.51.2";
 
 // Set these to override Photon requirements with a specific git commit:
 export const USE_PHOTON_FROM_GIT = true; // If true, will show git install command instead of crates.io.
