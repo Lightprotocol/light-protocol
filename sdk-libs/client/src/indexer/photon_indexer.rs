@@ -1613,16 +1613,18 @@ impl Indexer for PhotonIndexer {
 
     async fn get_queue_elements(
         &mut self,
-        merkle_tree_pubkey: [u8; 32],
-        options: super::QueueElementsV2Options,
-        config: Option<IndexerRpcConfig>,
+        _merkle_tree_pubkey: [u8; 32],
+        _options: super::QueueElementsV2Options,
+        _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<super::QueueElementsV2Result>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!();
 
         #[cfg(feature = "v2")]
         {
-            let config = config.unwrap_or_default();
+            let merkle_tree_pubkey = _merkle_tree_pubkey;
+            let options = _options;
+            let config = _config.unwrap_or_default();
             self.retry(config.retry_config, || async {
                 // Build nested QueueRequest objects for the new API format
                 let output_queue = options.output_queue_limit.map(|limit| {
