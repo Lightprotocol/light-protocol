@@ -8,6 +8,8 @@ pub const DEFAULT_BATCH_STATE_TREE_HEIGHT: u32 = 32;
 
 pub const DEFAULT_BATCH_ROOT_HISTORY_LEN: u32 = 200;
 
+pub const DEFAULT_ADDRESS_BATCH_ROOT_HISTORY_LEN: u32 = 100;
+
 pub const DEFAULT_NUM_BATCHES: u64 = 2;
 
 pub const TEST_DEFAULT_BATCH_SIZE: u64 = 50;
@@ -16,13 +18,17 @@ pub const TEST_DEFAULT_ZKP_BATCH_SIZE: u64 = 10;
 
 pub const DEFAULT_BATCH_SIZE: u64 = 15000;
 
+pub const DEFAULT_ADDRESS_BATCH_SIZE: u64 = 30000;
+
 pub const DEFAULT_ZKP_BATCH_SIZE: u64 = 500;
 pub const DEFAULT_ADDRESS_ZKP_BATCH_SIZE: u64 = 250;
 
+// False positive probability 1.0E-12 for 15k elements.
 pub const STATE_BLOOM_FILTER_CAPACITY: u64 = 2_301_536;
 pub const STATE_BLOOM_FILTER_NUM_HASHES: u64 = 10;
 
-pub const ADDRESS_BLOOM_FILTER_CAPACITY: u64 = 2_301_536;
+// False positive probability 1.0E-12 for 30k elements.
+pub const ADDRESS_BLOOM_FILTER_CAPACITY: u64 = 4_603_051;
 pub const ADDRESS_BLOOM_FILTER_NUM_HASHES: u64 = 10;
 
 #[deprecated(note = "Use DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE_V2 instead")]
