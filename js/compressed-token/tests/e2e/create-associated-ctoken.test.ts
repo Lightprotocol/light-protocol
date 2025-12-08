@@ -47,14 +47,12 @@ describe('createAssociatedCTokenAccount', () => {
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
-        const { address: ataAddress, transactionSignature: createAtaSig } =
-            await createAssociatedCTokenAccount(
-                rpc,
-                payer,
-                owner.publicKey,
-                mintPda,
-            );
-        await rpc.confirmTransaction(createAtaSig, 'confirmed');
+        const ataAddress = await createAssociatedCTokenAccount(
+            rpc,
+            payer,
+            owner.publicKey,
+            mintPda,
+        );
 
         const expectedAddress = getAssociatedCTokenAddress(
             owner.publicKey,
@@ -88,14 +86,12 @@ describe('createAssociatedCTokenAccount', () => {
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
-        const { transactionSignature: createAtaSig } =
-            await createAssociatedCTokenAccount(
-                rpc,
-                payer,
-                owner.publicKey,
-                mintPda,
-            );
-        await rpc.confirmTransaction(createAtaSig, 'confirmed');
+        await createAssociatedCTokenAccount(
+            rpc,
+            payer,
+            owner.publicKey,
+            mintPda,
+        );
 
         await expect(
             createAssociatedCTokenAccount(rpc, payer, owner.publicKey, mintPda),
@@ -121,14 +117,12 @@ describe('createAssociatedCTokenAccount', () => {
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
-        const { address: ataAddress1, transactionSignature: createAtaSig1 } =
-            await createAssociatedCTokenAccountIdempotent(
-                rpc,
-                payer,
-                owner.publicKey,
-                mintPda,
-            );
-        await rpc.confirmTransaction(createAtaSig1, 'confirmed');
+        const ataAddress1 = await createAssociatedCTokenAccountIdempotent(
+            rpc,
+            payer,
+            owner.publicKey,
+            mintPda,
+        );
 
         const expectedAddress = getAssociatedCTokenAddress(
             owner.publicKey,
@@ -136,14 +130,12 @@ describe('createAssociatedCTokenAccount', () => {
         );
         expect(ataAddress1.toString()).toBe(expectedAddress.toString());
 
-        const { address: ataAddress2, transactionSignature: createAtaSig2 } =
-            await createAssociatedCTokenAccountIdempotent(
-                rpc,
-                payer,
-                owner.publicKey,
-                mintPda,
-            );
-        await rpc.confirmTransaction(createAtaSig2, 'confirmed');
+        const ataAddress2 = await createAssociatedCTokenAccountIdempotent(
+            rpc,
+            payer,
+            owner.publicKey,
+            mintPda,
+        );
 
         expect(ataAddress2.toString()).toBe(ataAddress1.toString());
 
@@ -172,21 +164,21 @@ describe('createAssociatedCTokenAccount', () => {
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
-        const { address: ata1 } = await createAssociatedCTokenAccount(
+        const ata1 = await createAssociatedCTokenAccount(
             rpc,
             payer,
             owner1.publicKey,
             mintPda,
         );
 
-        const { address: ata2 } = await createAssociatedCTokenAccount(
+        const ata2 = await createAssociatedCTokenAccount(
             rpc,
             payer,
             owner2.publicKey,
             mintPda,
         );
 
-        const { address: ata3 } = await createAssociatedCTokenAccount(
+        const ata3 = await createAssociatedCTokenAccount(
             rpc,
             payer,
             owner3.publicKey,
@@ -258,9 +250,11 @@ describe('createAssociatedCTokenAccount', () => {
                 owner.publicKey,
                 mintPda,
             );
-            expect(successfulResults[0].value.address.toString()).toBe(
-                expectedAddress.toString(),
-            );
+            expect(
+                (
+                    successfulResults[0] as PromiseFulfilledResult<PublicKey>
+                ).value.toString(),
+            ).toBe(expectedAddress.toString());
         }
     });
 });
@@ -307,23 +301,19 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
         const owner1 = Keypair.generate();
         const owner2 = Keypair.generate();
 
-        const { address: ata1, transactionSignature: createAta1Sig } =
-            await createAssociatedCTokenAccount(
-                rpc,
-                payer,
-                owner1.publicKey,
-                mint,
-            );
-        await rpc.confirmTransaction(createAta1Sig, 'confirmed');
+        const ata1 = await createAssociatedCTokenAccount(
+            rpc,
+            payer,
+            owner1.publicKey,
+            mint,
+        );
 
-        const { address: ata2, transactionSignature: createAta2Sig } =
-            await createAssociatedCTokenAccount(
-                rpc,
-                payer,
-                owner2.publicKey,
-                mint,
-            );
-        await rpc.confirmTransaction(createAta2Sig, 'confirmed');
+        const ata2 = await createAssociatedCTokenAccount(
+            rpc,
+            payer,
+            owner2.publicKey,
+            mint,
+        );
 
         const expectedAta1 = getAssociatedCTokenAddress(owner1.publicKey, mint);
         const expectedAta2 = getAssociatedCTokenAddress(owner2.publicKey, mint);
@@ -364,14 +354,12 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
-        const { address: ataAddress, transactionSignature: createAtaSig } =
-            await createAssociatedCTokenAccountIdempotent(
-                rpc,
-                payer,
-                owner.publicKey,
-                mint,
-            );
-        await rpc.confirmTransaction(createAtaSig, 'confirmed');
+        const ataAddress = await createAssociatedCTokenAccountIdempotent(
+            rpc,
+            payer,
+            owner.publicKey,
+            mint,
+        );
 
         const expectedAddress = getAssociatedCTokenAddress(
             owner.publicKey,
@@ -415,14 +403,14 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
             );
         await rpc.confirmTransaction(createMint2Sig, 'confirmed');
 
-        const { address: ata1 } = await createAssociatedCTokenAccount(
+        const ata1 = await createAssociatedCTokenAccount(
             rpc,
             payer,
             owner.publicKey,
             mintPda1,
         );
 
-        const { address: ata2 } = await createAssociatedCTokenAccount(
+        const ata2 = await createAssociatedCTokenAccount(
             rpc,
             payer,
             owner.publicKey,
@@ -465,7 +453,7 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         const owner = Keypair.generate();
-        const { address: ataAddress } = await createAssociatedCTokenAccount(
+        const ataAddress = await createAssociatedCTokenAccount(
             rpc,
             payer,
             owner.publicKey,
@@ -498,29 +486,26 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
-        const { address: ataAddress1 } =
-            await createAssociatedCTokenAccountIdempotent(
-                rpc,
-                payer,
-                owner.publicKey,
-                mintPda,
-            );
+        const ataAddress1 = await createAssociatedCTokenAccountIdempotent(
+            rpc,
+            payer,
+            owner.publicKey,
+            mintPda,
+        );
 
-        const { address: ataAddress2 } =
-            await createAssociatedCTokenAccountIdempotent(
-                rpc,
-                payer,
-                owner.publicKey,
-                mintPda,
-            );
+        const ataAddress2 = await createAssociatedCTokenAccountIdempotent(
+            rpc,
+            payer,
+            owner.publicKey,
+            mintPda,
+        );
 
-        const { address: ataAddress3 } =
-            await createAssociatedCTokenAccountIdempotent(
-                rpc,
-                payer,
-                owner.publicKey,
-                mintPda,
-            );
+        const ataAddress3 = await createAssociatedCTokenAccountIdempotent(
+            rpc,
+            payer,
+            owner.publicKey,
+            mintPda,
+        );
 
         expect(ataAddress1.toString()).toBe(ataAddress2.toString());
         expect(ataAddress2.toString()).toBe(ataAddress3.toString());

@@ -52,13 +52,12 @@ describe('mintTo (MintToCToken)', () => {
         await rpc.confirmTransaction(result.transactionSignature, 'confirmed');
         mint = result.mint;
 
-        const { transactionSignature } = await createAssociatedCTokenAccount(
+        await createAssociatedCTokenAccount(
             rpc,
             payer,
             recipient.publicKey,
             mint,
         );
-        await rpc.confirmTransaction(transactionSignature, 'confirmed');
         recipientCToken = getAssociatedCTokenAddress(recipient.publicKey, mint);
     });
 

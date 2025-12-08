@@ -183,21 +183,21 @@ describe('Complete Mint Workflow', () => {
         const owner2 = Keypair.generate();
         const owner3 = Keypair.generate();
 
-        const { address: ata1 } = await createAtaInterfaceIdempotent(
+        const ata1 = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mint,
             owner1.publicKey,
         );
 
-        const { address: ata2 } = await createAtaInterfaceIdempotent(
+        const ata2 = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mint,
             owner2.publicKey,
         );
 
-        const { address: ata3 } = await createAtaInterfaceIdempotent(
+        const ata3 = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mint,
@@ -299,7 +299,7 @@ describe('Complete Mint Workflow', () => {
         );
 
         const owner = Keypair.generate();
-        const { address: ataAddress } = await createAtaInterfaceIdempotent(
+        const ataAddress = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mintPda,
@@ -349,7 +349,7 @@ describe('Complete Mint Workflow', () => {
         ];
 
         for (const owner of owners) {
-            const { address: ataAddress } = await createAtaInterfaceIdempotent(
+            const ataAddress = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
                 mint,
@@ -395,7 +395,7 @@ describe('Complete Mint Workflow', () => {
         await rpc.confirmTransaction(createSig, 'confirmed');
 
         const owner = Keypair.generate();
-        const { address: ataAddress } = await createAtaInterfaceIdempotent(
+        const ataAddress = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mintPda,
@@ -487,14 +487,14 @@ describe('Complete Mint Workflow', () => {
         const owner1 = Keypair.generate();
         const owner2 = Keypair.generate();
 
-        const { address: ata1 } = await createAtaInterfaceIdempotent(
+        const ata1 = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mint,
             owner1.publicKey,
         );
 
-        const { address: ata2 } = await createAtaInterfaceIdempotent(
+        const ata2 = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mint,
@@ -547,7 +547,7 @@ describe('Complete Mint Workflow', () => {
             newMintAuthority.publicKey.toString(),
         );
 
-        const { address: ata1Again } = await createAtaInterfaceIdempotent(
+        const ata1Again = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mint,
@@ -584,7 +584,7 @@ describe('Complete Mint Workflow', () => {
         expect(mintInfo.tokenMetadata).toBeUndefined();
 
         const owner = Keypair.generate();
-        const { address: ataAddress } = await createAtaInterfaceIdempotent(
+        const ataAddress = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mint,
@@ -647,7 +647,7 @@ describe('Complete Mint Workflow', () => {
             owner.publicKey,
         );
 
-        const { address: ataAddress } = await createAtaInterfaceIdempotent(
+        const ataAddress = await createAtaInterfaceIdempotent(
             rpc,
             payer,
             mint,

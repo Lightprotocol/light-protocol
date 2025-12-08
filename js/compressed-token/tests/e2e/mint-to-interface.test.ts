@@ -200,13 +200,12 @@ describe('mintToInterface - Compressed Mints', () => {
 
     it('should mint compressed tokens to onchain ctoken account', async () => {
         const recipient = Keypair.generate();
-        const { transactionSignature } = await createAssociatedCTokenAccount(
+        await createAssociatedCTokenAccount(
             rpc,
             payer,
             recipient.publicKey,
             mint,
         );
-        await rpc.confirmTransaction(transactionSignature, 'confirmed');
 
         const recipientCToken = getAssociatedCTokenAddress(
             recipient.publicKey,
@@ -240,13 +239,12 @@ describe('mintToInterface - Compressed Mints', () => {
 
     it('should mint compressed tokens with bigint amount', async () => {
         const recipient = Keypair.generate();
-        const { transactionSignature } = await createAssociatedCTokenAccount(
+        await createAssociatedCTokenAccount(
             rpc,
             payer,
             recipient.publicKey,
             mint,
         );
-        await rpc.confirmTransaction(transactionSignature, 'confirmed');
 
         const recipientCToken = getAssociatedCTokenAddress(
             recipient.publicKey,
@@ -276,13 +274,12 @@ describe('mintToInterface - Compressed Mints', () => {
     it('should fail with wrong authority for compressed mint', async () => {
         const wrongAuthority = Keypair.generate();
         const recipient = Keypair.generate();
-        const { transactionSignature } = await createAssociatedCTokenAccount(
+        await createAssociatedCTokenAccount(
             rpc,
             payer,
             recipient.publicKey,
             mint,
         );
-        await rpc.confirmTransaction(transactionSignature, 'confirmed');
 
         const recipientCToken = getAssociatedCTokenAddress(
             recipient.publicKey,
@@ -303,13 +300,12 @@ describe('mintToInterface - Compressed Mints', () => {
 
     it('should auto-detect CTOKEN_PROGRAM_ID when programId not provided', async () => {
         const recipient = Keypair.generate();
-        const { transactionSignature } = await createAssociatedCTokenAccount(
+        await createAssociatedCTokenAccount(
             rpc,
             payer,
             recipient.publicKey,
             mint,
         );
-        await rpc.confirmTransaction(transactionSignature, 'confirmed');
 
         const recipientCToken = getAssociatedCTokenAddress(
             recipient.publicKey,
@@ -498,13 +494,12 @@ describe('mintToInterface - Edge Cases', () => {
 
     it('should handle zero amount minting', async () => {
         const recipient = Keypair.generate();
-        const { transactionSignature } = await createAssociatedCTokenAccount(
+        await createAssociatedCTokenAccount(
             rpc,
             payer,
             recipient.publicKey,
             compressedMint,
         );
-        await rpc.confirmTransaction(transactionSignature, 'confirmed');
 
         const recipientCToken = getAssociatedCTokenAddress(
             recipient.publicKey,
@@ -543,13 +538,12 @@ describe('mintToInterface - Edge Cases', () => {
         await rpc.confirmTransaction(result.transactionSignature, 'confirmed');
 
         const recipient = Keypair.generate();
-        const { transactionSignature } = await createAssociatedCTokenAccount(
+        await createAssociatedCTokenAccount(
             rpc,
             payer,
             recipient.publicKey,
             result.mint,
         );
-        await rpc.confirmTransaction(transactionSignature, 'confirmed');
 
         const recipientCToken = getAssociatedCTokenAddress(
             recipient.publicKey,

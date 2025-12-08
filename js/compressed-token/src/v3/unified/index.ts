@@ -318,9 +318,6 @@ export {
     updateMetadataField,
     updateMetadataAuthority,
     removeMetadataKey,
-    // Action types
-    CreateAtaInterfaceParams,
-    CreateAtaInterfaceResult,
     // Helpers
     getMintInterface,
     unpackMintInterface,

@@ -89,8 +89,6 @@ export {
     updateMetadataAuthority,
     removeMetadataKey,
     // Action types
-    CreateAtaInterfaceParams,
-    CreateAtaInterfaceResult,
     InterfaceOptions,
     // Helpers
     getMintInterface,

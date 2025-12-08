@@ -51,14 +51,12 @@ describe('createAtaInterface', () => {
                 mintSigner,
             );
 
-            const { address, transactionSignature } = await createAtaInterface(
+            const address = await createAtaInterface(
                 rpc,
                 payer,
                 mintPda,
                 owner.publicKey,
             );
-
-            await rpc.confirmTransaction(transactionSignature, 'confirmed');
 
             const expectedAddress = getAssociatedTokenAddressInterface(
                 mintPda,
@@ -88,7 +86,7 @@ describe('createAtaInterface', () => {
                 mintSigner,
             );
 
-            const { address, transactionSignature } = await createAtaInterface(
+            const address = await createAtaInterface(
                 rpc,
                 payer,
                 mintPda,
@@ -97,8 +95,6 @@ describe('createAtaInterface', () => {
                 undefined,
                 CTOKEN_PROGRAM_ID,
             );
-
-            await rpc.confirmTransaction(transactionSignature, 'confirmed');
 
             const expectedAddress = getAssociatedTokenAddressInterface(
                 mintPda,
@@ -146,21 +142,21 @@ describe('createAtaInterface', () => {
                 mintSigner,
             );
 
-            const { address: addr1 } = await createAtaInterfaceIdempotent(
+            const addr1 = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
                 mintPda,
                 owner.publicKey,
             );
 
-            const { address: addr2 } = await createAtaInterfaceIdempotent(
+            const addr2 = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
                 mintPda,
                 owner.publicKey,
             );
 
-            const { address: addr3 } = await createAtaInterfaceIdempotent(
+            const addr3 = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
                 mintPda,
@@ -187,14 +183,14 @@ describe('createAtaInterface', () => {
                 mintSigner,
             );
 
-            const { address: addr1 } = await createAtaInterface(
+            const addr1 = await createAtaInterface(
                 rpc,
                 payer,
                 mintPda,
                 owner1.publicKey,
             );
 
-            const { address: addr2 } = await createAtaInterface(
+            const addr2 = await createAtaInterface(
                 rpc,
                 payer,
                 mintPda,
@@ -233,7 +229,7 @@ describe('createAtaInterface', () => {
                 TOKEN_PROGRAM_ID,
             );
 
-            const { address, transactionSignature } = await createAtaInterface(
+            const address = await createAtaInterface(
                 rpc,
                 payer,
                 mint,
@@ -242,8 +238,6 @@ describe('createAtaInterface', () => {
                 undefined,
                 TOKEN_PROGRAM_ID,
             );
-
-            await rpc.confirmTransaction(transactionSignature, 'confirmed');
 
             const expectedAddress = getAssociatedTokenAddressSync(
                 mint,
@@ -276,7 +270,7 @@ describe('createAtaInterface', () => {
                 TOKEN_PROGRAM_ID,
             );
 
-            const { address: addr1 } = await createAtaInterfaceIdempotent(
+            const addr1 = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
                 mint,
@@ -286,7 +280,7 @@ describe('createAtaInterface', () => {
                 TOKEN_PROGRAM_ID,
             );
 
-            const { address: addr2 } = await createAtaInterfaceIdempotent(
+            const addr2 = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
                 mint,
@@ -354,7 +348,7 @@ describe('createAtaInterface', () => {
                 TOKEN_2022_PROGRAM_ID,
             );
 
-            const { address, transactionSignature } = await createAtaInterface(
+            const address = await createAtaInterface(
                 rpc,
                 payer,
                 mint,
@@ -363,8 +357,6 @@ describe('createAtaInterface', () => {
                 undefined,
                 TOKEN_2022_PROGRAM_ID,
             );
-
-            await rpc.confirmTransaction(transactionSignature, 'confirmed');
 
             const expectedAddress = getAssociatedTokenAddressSync(
                 mint,
@@ -397,7 +389,7 @@ describe('createAtaInterface', () => {
                 TOKEN_2022_PROGRAM_ID,
             );
 
-            const { address: addr1 } = await createAtaInterfaceIdempotent(
+            const addr1 = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
                 mint,
@@ -407,7 +399,7 @@ describe('createAtaInterface', () => {
                 TOKEN_2022_PROGRAM_ID,
             );
 
-            const { address: addr2 } = await createAtaInterfaceIdempotent(
+            const addr2 = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
                 mint,
@@ -442,15 +434,13 @@ describe('createAtaInterface', () => {
                 mintSigner,
             );
 
-            const { address, transactionSignature } = await createAtaInterface(
+            const address = await createAtaInterface(
                 rpc,
                 payer,
                 mintPda,
                 pdaOwner,
                 true, // allowOwnerOffCurve
             );
-
-            await rpc.confirmTransaction(transactionSignature, 'confirmed');
 
             const expectedAddress = getAssociatedTokenAddressInterface(
                 mintPda,
@@ -480,7 +470,7 @@ describe('createAtaInterface', () => {
                 TOKEN_PROGRAM_ID,
             );
 
-            const { address, transactionSignature } = await createAtaInterface(
+            const address = await createAtaInterface(
                 rpc,
                 payer,
                 mint,
@@ -489,8 +479,6 @@ describe('createAtaInterface', () => {
                 undefined,
                 TOKEN_PROGRAM_ID,
             );
-
-            await rpc.confirmTransaction(transactionSignature, 'confirmed');
 
             const expectedAddress = getAssociatedTokenAddressSync(
                 mint,
@@ -533,7 +521,7 @@ describe('createAtaInterface', () => {
             );
 
             // Create ATAs for both
-            const { address: splAta } = await createAtaInterfaceIdempotent(
+            const splAta = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
                 splMint,
@@ -543,7 +531,7 @@ describe('createAtaInterface', () => {
                 TOKEN_PROGRAM_ID,
             );
 
-            const { address: ctokenAta } = await createAtaInterfaceIdempotent(
+            const ctokenAta = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
                 ctokenMint,
@@ -569,7 +557,7 @@ describe('createAtaInterface', () => {
                 undefined,
                 TOKEN_PROGRAM_ID,
             );
-            const { address: splAta } = await createAtaInterfaceIdempotent(
+            const splAta = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
                 splMint,
@@ -599,7 +587,7 @@ describe('createAtaInterface', () => {
                 undefined,
                 TOKEN_2022_PROGRAM_ID,
             );
-            const { address: t22Ata } = await createAtaInterfaceIdempotent(
+            const t22Ata = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
                 t22Mint,
@@ -629,7 +617,7 @@ describe('createAtaInterface', () => {
                 9,
                 mintSigner,
             );
-            const { address: ctokenAta } = await createAtaInterfaceIdempotent(
+            const ctokenAta = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
                 ctokenMint,
@@ -677,7 +665,7 @@ describe('createAtaInterface', () => {
 
             // All successful results should have same address
             const addresses = successful.map(r =>
-                (r as PromiseFulfilledResult<any>).value.address.toBase58(),
+                (r as PromiseFulfilledResult<PublicKey>).value.toBase58(),
             );
             const uniqueAddresses = [...new Set(addresses)];
             expect(uniqueAddresses.length).toBe(1);

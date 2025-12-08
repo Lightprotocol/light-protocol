@@ -3,7 +3,6 @@ import {
     ConfirmOptions,
     PublicKey,
     Signer,
-    TransactionSignature,
 } from '@solana/web3.js';
 import {
     Rpc,
@@ -28,6 +27,7 @@ import { getAssociatedCTokenAddress } from '../derivation';
  * @param configAccount      Optional config account
  * @param rentPayerPda       Optional rent payer PDA
  * @param confirmOptions     Optional confirm options
+ * @returns Address of the new associated token account
  */
 export async function createAssociatedCTokenAccount(
     rpc: Rpc,
@@ -38,7 +38,7 @@ export async function createAssociatedCTokenAccount(
     configAccount?: PublicKey,
     rentPayerPda?: PublicKey,
     confirmOptions?: ConfirmOptions,
-): Promise<{ address: PublicKey; transactionSignature: TransactionSignature }> {
+): Promise<PublicKey> {
     const ix = createAssociatedCTokenAccountInstruction(
         payer.publicKey,
         owner,
@@ -56,10 +56,9 @@ export async function createAssociatedCTokenAccount(
         [],
     );
 
-    const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
-    const address = getAssociatedCTokenAddress(owner, mint);
+    await sendAndConfirmTx(rpc, tx, confirmOptions);
 
-    return { address, transactionSignature: txId };
+    return getAssociatedCTokenAddress(owner, mint);
 }
 
 /**
@@ -73,6 +72,7 @@ export async function createAssociatedCTokenAccount(
  * @param configAccount      Optional config account
  * @param rentPayerPda       Optional rent payer PDA
  * @param confirmOptions     Optional confirm options
+ * @returns Address of the associated token account
  */
 export async function createAssociatedCTokenAccountIdempotent(
     rpc: Rpc,
@@ -83,7 +83,7 @@ export async function createAssociatedCTokenAccountIdempotent(
     configAccount?: PublicKey,
     rentPayerPda?: PublicKey,
     confirmOptions?: ConfirmOptions,
-): Promise<{ address: PublicKey; transactionSignature: TransactionSignature }> {
+): Promise<PublicKey> {
     const ix = createAssociatedCTokenAccountIdempotentInstruction(
         payer.publicKey,
         owner,
@@ -101,8 +101,7 @@ export async function createAssociatedCTokenAccountIdempotent(
         [],
     );
 
-    const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
-    const address = getAssociatedCTokenAddress(owner, mint);
+    await sendAndConfirmTx(rpc, tx, confirmOptions);
 
-    return { address, transactionSignature: txId };
+    return getAssociatedCTokenAddress(owner, mint);
 }
