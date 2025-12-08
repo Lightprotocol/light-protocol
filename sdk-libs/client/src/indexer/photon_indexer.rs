@@ -2,7 +2,6 @@ use std::{fmt::Debug, time::Duration};
 
 use async_trait::async_trait;
 use bs58;
-use light_prover_client::constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT;
 use photon_api::{
     apis::configuration::{ApiKey, Configuration},
     models::GetCompressedAccountsByOwnerPostRequestParams,
@@ -10,12 +9,8 @@ use photon_api::{
 use solana_pubkey::Pubkey;
 use tracing::{error, trace, warn};
 
-use super::{
-    types::{
-        CompressedAccount, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata,
-        TokenBalance,
-    },
-    BatchAddressUpdateIndexerResponse,
+use super::types::{
+    CompressedAccount, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata, TokenBalance,
 };
 use crate::indexer::{
     base58::Base58Conversions,
@@ -23,7 +18,7 @@ use crate::indexer::{
     response::{Context, Items, ItemsWithCursor, Response},
     Address, AddressWithTree, GetCompressedAccountsByOwnerConfig,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
-    IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
+    IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, OutputQueueData, PaginatedOptions,
 };
 
 // Tests are in program-tests/client-test/tests/light-client.rs
@@ -1470,87 +1465,6 @@ impl Indexer for PhotonIndexer {
         .await
     }
 
-    async fn get_address_queue_with_proofs(
-        &mut self,
-        _merkle_tree_pubkey: &Pubkey,
-        _zkp_batch_size: u16,
-        _start_offset: Option<u64>,
-        _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError> {
-        #[cfg(not(feature = "v2"))]
-        unimplemented!("get_address_queue_with_proofs");
-        #[cfg(feature = "v2")]
-        {
-            let merkle_tree_pubkey = _merkle_tree_pubkey;
-            let limit = _zkp_batch_size;
-            let start_queue_index = _start_offset;
-            let config = _config.unwrap_or_default();
-
-            // Use get_queue_elements with address_queue option
-            let options = super::QueueElementsV2Options::default()
-                .with_address_queue(start_queue_index, Some(limit));
-
-            let response = self
-                .get_queue_elements(merkle_tree_pubkey.to_bytes(), options, Some(config))
-                .await?;
-
-            let address_queue = response.value.address_queue.ok_or_else(|| {
-                IndexerError::missing_result(
-                    "get_address_queue_with_proofs",
-                    "No address queue data in response",
-                )
-            })?;
-
-            // Build addresses with queue indices
-            let addresses: Vec<crate::indexer::AddressQueueIndex> = address_queue
-                .addresses
-                .iter()
-                .zip(address_queue.queue_indices.iter())
-                .map(|(address, queue_index)| crate::indexer::AddressQueueIndex {
-                    address: *address,
-                    queue_index: *queue_index,
-                })
-                .collect();
-
-            // Build non-inclusion proofs from the address queue data
-            let mut proofs: Vec<NewAddressProofWithContext> = vec![];
-            for i in 0..address_queue.addresses.len() {
-                let proof = NewAddressProofWithContext {
-                    merkle_tree: *merkle_tree_pubkey,
-                    low_address_index: address_queue.low_element_indices[i],
-                    low_address_value: address_queue.low_element_values[i],
-                    low_address_next_index: address_queue.low_element_next_indices[i],
-                    low_address_next_value: address_queue.low_element_next_values[i],
-                    // Use original proofs from indexer if available, otherwise reconstruct
-                    low_address_proof: if !address_queue.low_element_proofs.is_empty() {
-                        address_queue.low_element_proofs[i].clone()
-                    } else {
-                        address_queue
-                            .reconstruct_proof(i, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as u8)?
-                    },
-                    root: address_queue.initial_root,
-                    root_seq: address_queue.root_seq,
-                    new_low_element: None,
-                    new_element: None,
-                    new_element_next_value: None,
-                };
-                proofs.push(proof);
-            }
-
-            let result = BatchAddressUpdateIndexerResponse {
-                batch_start_index: address_queue.start_index,
-                addresses,
-                non_inclusion_proofs: proofs,
-                subtrees: address_queue.subtrees,
-            };
-
-            Ok(Response {
-                context: response.context,
-                value: result,
-            })
-        }
-    }
-
     async fn get_queue_info(
         &self,
         config: Option<IndexerRpcConfig>,
@@ -1616,7 +1530,7 @@ impl Indexer for PhotonIndexer {
         _merkle_tree_pubkey: [u8; 32],
         _options: super::QueueElementsV2Options,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<super::QueueElementsV2Result>, IndexerError> {
+    ) -> Result<Response<super::QueueElementsResult>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!();
 
@@ -1700,7 +1614,7 @@ impl Indexer for PhotonIndexer {
                             .map(|h| Hash::from_base58(h))
                             .collect();
 
-                        Some(super::OutputQueueDataV2 {
+                        Some(OutputQueueData {
                             leaf_indices: output.leaf_indices,
                             account_hashes: account_hashes?,
                             old_leaves: old_leaves?,
@@ -1736,7 +1650,7 @@ impl Indexer for PhotonIndexer {
                             .map(|h| Hash::from_base58(h))
                             .collect();
 
-                        Some(super::InputQueueDataV2 {
+                        Some(super::InputQueueData {
                             leaf_indices: input.leaf_indices,
                             account_hashes: account_hashes?,
                             current_leaves: current_leaves?,
@@ -1749,7 +1663,7 @@ impl Indexer for PhotonIndexer {
                         None
                     };
 
-                    Some(super::StateQueueDataV2 {
+                    Some(super::StateQueueData {
                         nodes,
                         node_hashes: node_hashes?,
                         initial_root,
@@ -1817,7 +1731,7 @@ impl Indexer for PhotonIndexer {
                         })
                         .collect();
 
-                    Some(super::AddressQueueDataV2 {
+                    Some(super::AddressQueueData {
                         addresses: addresses?,
                         queue_indices: address.queue_indices,
                         low_element_values: low_element_values?,
@@ -1841,7 +1755,7 @@ impl Indexer for PhotonIndexer {
                     context: Context {
                         slot: api_response.context.slot,
                     },
-                    value: super::QueueElementsV2Result {
+                    value: super::QueueElementsResult {
                         state_queue,
                         address_queue,
                     },

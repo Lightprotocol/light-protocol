@@ -44,7 +44,7 @@ pub struct QueueInfoResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct OutputQueueDataV2 {
+pub struct OutputQueueData {
     pub leaf_indices: Vec<u64>,
     pub account_hashes: Vec<[u8; 32]>,
     pub old_leaves: Vec<[u8; 32]>,
@@ -57,7 +57,7 @@ pub struct OutputQueueDataV2 {
 
 /// V2 Input Queue Data
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct InputQueueDataV2 {
+pub struct InputQueueData {
     pub leaf_indices: Vec<u64>,
     pub account_hashes: Vec<[u8; 32]>,
     pub current_leaves: Vec<[u8; 32]>,
@@ -71,7 +71,7 @@ pub struct InputQueueDataV2 {
 
 /// State queue data with shared tree nodes for output and input queues
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct StateQueueDataV2 {
+pub struct StateQueueData {
     /// Shared deduplicated tree nodes for state queues (output + input)
     /// node_index encoding: (level << 56) | position
     pub nodes: Vec<u64>,
@@ -81,15 +81,15 @@ pub struct StateQueueDataV2 {
     /// Sequence number of the root
     pub root_seq: u64,
     /// Output queue data (if requested)
-    pub output_queue: Option<OutputQueueDataV2>,
+    pub output_queue: Option<OutputQueueData>,
     /// Input queue data (if requested)
-    pub input_queue: Option<InputQueueDataV2>,
+    pub input_queue: Option<InputQueueData>,
 }
 
 /// V2 Address Queue Data with deduplicated nodes
 /// Proofs are reconstructed from `nodes`/`node_hashes` using `low_element_indices`
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct AddressQueueDataV2 {
+pub struct AddressQueueData {
     pub addresses: Vec<[u8; 32]>,
     pub queue_indices: Vec<u64>,
     pub low_element_values: Vec<[u8; 32]>,
@@ -109,7 +109,7 @@ pub struct AddressQueueDataV2 {
     pub low_element_proofs: Vec<Vec<[u8; 32]>>,
 }
 
-impl AddressQueueDataV2 {
+impl AddressQueueData {
     /// Reconstruct a merkle proof for a given low_element_index from the deduplicated nodes.
     /// The tree_height is needed to know how many levels to traverse.
     pub fn reconstruct_proof(
@@ -165,9 +165,9 @@ impl AddressQueueDataV2 {
 
 /// V2 Queue Elements Result with deduplicated node data
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct QueueElementsV2Result {
-    pub state_queue: Option<StateQueueDataV2>,
-    pub address_queue: Option<AddressQueueDataV2>,
+pub struct QueueElementsResult {
+    pub state_queue: Option<StateQueueData>,
+    pub address_queue: Option<AddressQueueData>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -820,20 +820,6 @@ impl TryFrom<&photon_api::models::Account> for CompressedAccount {
             prove_by_index: false,
         })
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct AddressQueueIndex {
-    pub address: [u8; 32],
-    pub queue_index: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct BatchAddressUpdateIndexerResponse {
-    pub batch_start_index: u64,
-    pub addresses: Vec<AddressQueueIndex>,
-    pub non_inclusion_proofs: Vec<NewAddressProofWithContext>,
-    pub subtrees: Vec<[u8; 32]>,
 }
 
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]

@@ -37,7 +37,7 @@ pub async fn fetch_batches<R: Rpc>(
     input_start_index: Option<u64>,
     fetch_len: u64,
     zkp_batch_size: u64,
-) -> crate::Result<Option<light_client::indexer::StateQueueDataV2>> {
+) -> crate::Result<Option<light_client::indexer::StateQueueData>> {
     let fetch_len_u16: u16 = match fetch_len.try_into() {
         Ok(v) => v,
         Err(_) => {

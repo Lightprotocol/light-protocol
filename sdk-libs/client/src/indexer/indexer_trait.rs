@@ -4,13 +4,12 @@ use solana_pubkey::Pubkey;
 use super::{
     response::{Items, ItemsWithCursor, Response},
     types::{
-        CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueElementsV2Result,
+        CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueElementsResult,
         QueueInfoResult, SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
     },
-    Address, AddressWithTree, BatchAddressUpdateIndexerResponse,
-    GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
-    IndexerError, IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
-    QueueElementsV2Options, RetryConfig,
+    Address, AddressWithTree, GetCompressedAccountsByOwnerConfig,
+    GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, IndexerError, IndexerRpcConfig,
+    MerkleProof, NewAddressProofWithContext, PaginatedOptions, QueueElementsV2Options, RetryConfig,
 };
 // TODO: remove all references in input types.
 #[async_trait]
@@ -172,17 +171,6 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<ValidityProofWithContext>, IndexerError>;
 
-    // TODO: in different pr:
-    //      replace zkp_batch_size with PaginatedOptions
-    //      - return type should be ItemsWithCursor
-    async fn get_address_queue_with_proofs(
-        &mut self,
-        merkle_tree_pubkey: &Pubkey,
-        zkp_batch_size: u16,
-        start_offset: Option<u64>,
-        config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError>;
-
     /// Returns queue elements from the queue with the given merkle tree pubkey.
     /// Can fetch from output queue (append), input queue (nullify), address queue, or combinations.
     /// For input queues account compression program does not store queue elements in the
@@ -194,7 +182,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         merkle_tree_pubkey: [u8; 32],
         options: QueueElementsV2Options,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<QueueElementsV2Result>, IndexerError>;
+    ) -> Result<Response<QueueElementsResult>, IndexerError>;
 
     /// Returns information about all queues in the system.
     /// Includes tree pubkey, queue pubkey, queue type, and queue size for each queue.

@@ -3,12 +3,12 @@ use solana_pubkey::Pubkey;
 
 use super::LightClient;
 use crate::indexer::{
-    Address, AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount,
-    CompressedTokenAccount, GetCompressedAccountsByOwnerConfig,
-    GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
-    IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, NewAddressProofWithContext,
-    OwnerBalance, PaginatedOptions, QueueElementsV2Options, QueueElementsV2Result, QueueInfoResult,
-    Response, RetryConfig, SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
+    Address, AddressWithTree, CompressedAccount, CompressedTokenAccount,
+    GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
+    Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
+    NewAddressProofWithContext, OwnerBalance, PaginatedOptions, QueueElementsResult,
+    QueueElementsV2Options, QueueInfoResult, Response, RetryConfig, SignatureWithMetadata,
+    TokenBalance, ValidityProofWithContext,
 };
 
 #[async_trait]
@@ -186,27 +186,12 @@ impl Indexer for LightClient {
             .await?)
     }
 
-    async fn get_address_queue_with_proofs(
-        &mut self,
-        merkle_tree_pubkey: &Pubkey,
-        zkp_batch_size: u16,
-        start_offset: Option<u64>,
-        config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError> {
-        Ok(self
-            .indexer
-            .as_mut()
-            .ok_or(IndexerError::NotInitialized)?
-            .get_address_queue_with_proofs(merkle_tree_pubkey, zkp_batch_size, start_offset, config)
-            .await?)
-    }
-
     async fn get_queue_elements(
         &mut self,
         merkle_tree_pubkey: [u8; 32],
         options: QueueElementsV2Options,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<QueueElementsV2Result>, IndexerError> {
+    ) -> Result<Response<QueueElementsResult>, IndexerError> {
         Ok(self
             .indexer
             .as_mut()

@@ -431,7 +431,7 @@ impl<R: Rpc> StateSupervisor<R> {
     async fn build_append_job(
         &mut self,
         batch_idx: usize,
-        state_queue: &light_client::indexer::StateQueueDataV2,
+        state_queue: &light_client::indexer::StateQueueData,
         start: usize,
         result_tx: mpsc::Sender<ProofResult>,
     ) -> crate::Result<Option<ProofJob>> {
@@ -483,7 +483,7 @@ impl<R: Rpc> StateSupervisor<R> {
     async fn build_nullify_job(
         &mut self,
         batch_idx: usize,
-        state_queue: &light_client::indexer::StateQueueDataV2,
+        state_queue: &light_client::indexer::StateQueueData,
         start: usize,
         result_tx: mpsc::Sender<ProofResult>,
     ) -> crate::Result<Option<ProofJob>> {
