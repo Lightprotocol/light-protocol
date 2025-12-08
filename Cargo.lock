@@ -3660,7 +3660,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressed-token"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "account-compression",
  "anchor-compressed-token",
@@ -4085,7 +4085,7 @@ dependencies = [
 
 [[package]]
 name = "light-registry"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "account-compression",
  "aligned-sized",
