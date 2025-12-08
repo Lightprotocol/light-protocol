@@ -270,7 +270,9 @@ async function getOrCreateCTokenAta(
         // Load if: cold balance exists, or (wrap=true and SPL/T22 balance exists)
         const sources = accountInterface._sources ?? [];
         const hasCold = sources.some(
-            s => s.type === TokenAccountSourceType.CTokenCold && s.amount > 0n,
+            s =>
+                s.type === TokenAccountSourceType.CTokenCold &&
+                s.amount > BigInt(0),
         );
         const hasSplToWrap =
             wrap &&
@@ -278,7 +280,7 @@ async function getOrCreateCTokenAta(
                 s =>
                     (s.type === TokenAccountSourceType.Spl ||
                         s.type === TokenAccountSourceType.Token2022) &&
-                    s.amount > 0n,
+                    s.amount > BigInt(0),
             );
 
         if (hasCold || hasSplToWrap) {

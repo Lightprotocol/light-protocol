@@ -69,6 +69,17 @@ import {
     TokenPoolInfo,
 } from './utils/get-token-pool-infos';
 
+/**
+ * Helper to get the PDA from either TokenPoolInfo or SplInterfaceInfo
+ * @internal
+ */
+function getTokenPoolPda(info: TokenPoolInfo | SplInterfaceInfo): PublicKey {
+    if ('tokenPoolPda' in info) {
+        return info.tokenPoolPda ?? info.splInterfacePda;
+    }
+    return info.splInterfacePda;
+}
+
 export type CompressParams = {
     /**
      * Fee payer
@@ -101,7 +112,7 @@ export type CompressParams = {
     /**
      * Token pool
      */
-    tokenPoolInfo: TokenPoolInfo;
+    tokenPoolInfo: TokenPoolInfo | SplInterfaceInfo;
 };
 
 export type CompressSplTokenAccountParams = {
@@ -132,7 +143,7 @@ export type CompressSplTokenAccountParams = {
     /**
      * Token pool
      */
-    tokenPoolInfo: TokenPoolInfo;
+    tokenPoolInfo: TokenPoolInfo | SplInterfaceInfo;
 };
 
 export type DecompressParams = {
@@ -163,7 +174,11 @@ export type DecompressParams = {
     /**
      * Token pool(s)
      */
-    tokenPoolInfos: TokenPoolInfo | TokenPoolInfo[];
+    tokenPoolInfos:
+        | TokenPoolInfo
+        | TokenPoolInfo[]
+        | SplInterfaceInfo
+        | SplInterfaceInfo[];
 };
 
 export type TransferParams = {
@@ -338,7 +353,7 @@ export type MintToParams = {
     /**
      * Token pool
      */
-    tokenPoolInfo: TokenPoolInfo;
+    tokenPoolInfo: TokenPoolInfo | SplInterfaceInfo;
 };
 
 /**
@@ -424,7 +439,7 @@ export type ApproveAndMintToParams = {
     /**
      * Token pool
      */
-    tokenPoolInfo: TokenPoolInfo;
+    tokenPoolInfo: TokenPoolInfo | SplInterfaceInfo;
 };
 
 export type CreateTokenProgramLookupTableParams = {
@@ -941,7 +956,7 @@ export class CompressedTokenProgram {
             authority,
             cpiAuthorityPda: this.deriveCpiAuthorityPda,
             tokenProgram,
-            tokenPoolPda: tokenPoolInfo.splInterfacePda,
+            tokenPoolPda: getTokenPoolPda(tokenPoolInfo),
             lightSystemProgram: LightSystemProgram.programId,
             registeredProgramPda: systemKeys.registeredProgramPda,
             noopProgram: systemKeys.noopProgram,
@@ -1228,7 +1243,7 @@ export class CompressedTokenProgram {
         }
         if (featureFlags.isV2()) {
             const [index, bump] = this.findSplInterfaceIndexAndBump(
-                tokenPoolInfo.splInterfacePda,
+                getTokenPoolPda(tokenPoolInfo),
                 mint,
             );
             const rawData: BatchCompressInstructionData = {
@@ -1250,7 +1265,7 @@ export class CompressedTokenProgram {
                 authority: owner,
                 cpiAuthorityPda: this.deriveCpiAuthorityPda,
                 tokenProgram: tokenPoolInfo.tokenProgram,
-                tokenPoolPda: tokenPoolInfo.splInterfacePda,
+                tokenPoolPda: getTokenPoolPda(tokenPoolInfo),
                 lightSystemProgram: LightSystemProgram.programId,
                 ...defaultStaticAccountsStruct(),
                 merkleTree: outputStateTreeInfo.queue,
@@ -1315,7 +1330,7 @@ export class CompressedTokenProgram {
                 lightSystemProgram: LightSystemProgram.programId,
                 selfProgram: this.programId,
                 systemProgram: SystemProgram.programId,
-                tokenPoolPda: tokenPoolInfo.splInterfacePda,
+                tokenPoolPda: getTokenPoolPda(tokenPoolInfo),
                 compressOrDecompressTokenAccount: source,
                 tokenProgram: tokenPoolInfo.tokenProgram,
             });
@@ -1371,7 +1386,9 @@ export class CompressedTokenProgram {
             tokenTransferOutputs: tokenTransferOutputs,
             remainingAccounts: tokenPoolInfosArray
                 .slice(1)
-                .map(info => info.splInterfacePda),
+                .map(info =>
+                    getTokenPoolPda(info as TokenPoolInfo | SplInterfaceInfo),
+                ),
         });
 
         const { mint } = parseTokenData(inputCompressedTokenAccounts);
@@ -1411,7 +1428,7 @@ export class CompressedTokenProgram {
             accountCompressionAuthority: accountCompressionAuthority,
             accountCompressionProgram: accountCompressionProgram,
             selfProgram: this.programId,
-            tokenPoolPda: tokenPoolInfosArray[0].splInterfacePda,
+            tokenPoolPda: getTokenPoolPda(tokenPoolInfosArray[0]),
             compressOrDecompressTokenAccount: toAddress,
             tokenProgram,
             systemProgram: SystemProgram.programId,
@@ -1523,7 +1540,7 @@ export class CompressedTokenProgram {
             accountCompressionAuthority: accountCompressionAuthority,
             accountCompressionProgram: accountCompressionProgram,
             selfProgram: this.programId,
-            tokenPoolPda: tokenPoolInfo.splInterfacePda,
+            tokenPoolPda: getTokenPoolPda(tokenPoolInfo),
             compressOrDecompressTokenAccount: tokenAccount,
             tokenProgram: tokenPoolInfo.tokenProgram,
             systemProgram: SystemProgram.programId,
