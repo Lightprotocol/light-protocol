@@ -1002,22 +1002,13 @@ export interface SignaturesForAddressInterfaceResult {
 }
 
 /**
- * Unified token balance combining on-chain and compressed balances.
- *
- * Design rationale:
- * - `amount`: Total balance for display (what user cares about)
- * - `onChainAmount` / `compressedAmount`: Breakdown for operations that need to know source
- * - `solana`: Raw response preserved for clients needing full TokenAmount (uiAmount, etc)
+ * Unified token balance combining hot and cold token balances.
  */
 export interface UnifiedTokenBalance {
-    /** Total balance (on-chain + compressed) */
+    /** Total balance (hot + cold) */
     amount: BN;
-    /** On-chain (hot) token balance */
-    onChainAmount: BN;
-    /** Compressed (cold) token balance */
-    compressedAmount: BN;
-    /** True if any compressed balance exists (signals need for decompress before transfer) */
-    hasCompressedBalance: boolean;
+    /** True if any cold balance exists - call load() before usage */
+    hasColdBalance: boolean;
     /** Token decimals (from on-chain mint or 0 if unknown) */
     decimals: number;
     /** Raw Solana RPC TokenAmount response, null if no on-chain account */
@@ -1025,19 +1016,11 @@ export interface UnifiedTokenBalance {
 }
 
 /**
- * Unified SOL balance combining on-chain and compressed balances.
- *
- * Design rationale:
- * - Mirrors UnifiedTokenBalance structure for consistency
- * - `hasCompressedBalance` signals to UI that decompress may be needed
+ * Unified SOL balance combining hot and cold SOL balances.
  */
 export interface UnifiedBalance {
-    /** Total balance (on-chain + compressed) in lamports */
+    /** Total balance (hot + cold) in lamports */
     total: BN;
-    /** On-chain balance in lamports */
-    onChain: BN;
-    /** Compressed balance in lamports */
-    compressed: BN;
-    /** True if any compressed balance exists */
-    hasCompressedBalance: boolean;
+    /** True if any cold balance exists - call load() before usage */
+    hasColdBalance: boolean;
 }

@@ -78,9 +78,7 @@ import {
     ValidityProof,
     TreeType,
     AddressTreeInfo,
-    CompressedAccount,
     MerkleContext,
-    CompressedAccountData,
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import {
@@ -632,9 +630,8 @@ function buildCompressedAccountWithMaybeTokenData(
  * Merge signatures from Solana RPC and compression indexer.
  * Deduplicates by signature, tracking sources in the `sources` array.
  * When a signature exists in both, uses Solana data (richer) but marks both sources.
- * @internal
  */
-function mergeSignatures(
+export function mergeSignatures(
     solanaSignatures: ConfirmedSignatureInfo[],
     compressedSignatures: SignatureWithMetadata[],
 ): UnifiedSignatureInfo[] {
@@ -2083,8 +2080,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * Fetch all the account info for the specified public key. Returns metadata
-     * to to load in case the account is cold.
+     * Fetch the account info for the specified public key. Returns metadata
+     * to load in case the account is cold.
      * @param address               The account address to fetch.
      * @param programId             The owner program ID.
      * @param commitmentOrConfig    Optional. The commitment or config to use
@@ -2110,9 +2107,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         loadContext?: MerkleContext;
     } | null> {
         if (!featureFlags.isV2()) {
-            throw new Error(
-                'getAccountInfoInterfacea requires feature flag V2',
-            );
+            throw new Error('getAccountInfoInterface requires feature flag V2');
         }
 
         addressSpace = addressSpace ?? getDefaultAddressSpace();
@@ -2190,7 +2185,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
     /**
      * Get signatures for an address from both Solana and compression indexer.
-     * Merges results by signature, tracking which sources each was found in.
      *
      * @param address               Address to fetch signatures for.
      * @param options               Options for the Solana getSignaturesForAddress call.
@@ -2228,8 +2222,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
     /**
      * Get signatures for an owner from both Solana and compression indexer.
-     * Combines Solana getSignaturesForAddress with compression getCompressionSignaturesForOwner.
-     * This is the recommended method for wallet-style signature lookups.
      *
      * @param owner                 Owner address to fetch signatures for.
      * @param options               Options for the Solana getSignaturesForAddress call.
@@ -2266,11 +2258,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * Get token account balance from both on-chain and compressed sources.
+     * Get token account balance for an address, regardless of whether the token
+     * account is hot or cold.
      *
-     * @param address       Token account address (for on-chain lookup).
-     * @param owner         Owner public key (for compressed token lookup).
-     * @param mint          Mint public key (for compressed token lookup).
+     * @param address       Token account address.
+     * @param owner         Owner public key.
+     * @param mint          Mint public key.
      * @param commitment    Commitment level for on-chain query.
      * @returns             Unified token balance from both sources.
      */
@@ -2310,24 +2303,20 @@ export class Rpc extends Connection implements CompressionApiInterface {
             }
         }
 
-        const total = onChainAmount.add(compressedAmount);
-
         return {
-            amount: total,
-            onChainAmount,
-            compressedAmount,
-            hasCompressedBalance: !compressedAmount.isZero(),
+            amount: onChainAmount.add(compressedAmount),
+            hasColdBalance: !compressedAmount.isZero(),
             decimals,
             solana: solanaTokenAmount,
         };
     }
 
     /**
-     * Get SOL balance from both on-chain and compressed sources.
+     * Get SOL balance for an address, regardless of whether the account is hot or cold.
      *
      * @param address       Address to fetch balance for.
      * @param commitment    Commitment level for on-chain query.
-     * @returns             Unified SOL balance from both sources.
+     * @returns             Unified SOL balance.
      */
     async getBalanceInterface(
         address: PublicKey,
@@ -2347,13 +2336,14 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 ? compressedResult.value
                 : bn(0);
 
-        const total = onChainBalance.add(compressedBalance);
+        const total = !onChainBalance.isZero()
+            ? onChainBalance
+            : compressedBalance;
 
         return {
             total,
-            onChain: onChainBalance,
-            compressed: compressedBalance,
-            hasCompressedBalance: !compressedBalance.isZero(),
+
+            hasColdBalance: !compressedBalance.isZero(),
         };
     }
 }

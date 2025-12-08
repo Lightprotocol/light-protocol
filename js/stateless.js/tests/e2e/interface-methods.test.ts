@@ -35,38 +35,22 @@ describe('interface-methods', () => {
     });
 
     describe('getBalanceInterface', () => {
-        it('should return unified balance with both on-chain and compressed', async () => {
+        it('should return unified balance', async () => {
             const result = await rpc.getBalanceInterface(payer.publicKey);
 
-            // Should have both on-chain and compressed components
             assert.isTrue(
                 result.total.gt(bn(0)),
                 'Total balance should be > 0',
             );
-            assert.isTrue(
-                result.onChain.gte(bn(0)),
-                'On-chain balance should be >= 0',
-            );
-            assert.isTrue(
-                result.compressed.gte(bn(0)),
-                'Compressed balance should be >= 0',
-            );
 
-            // Total should equal sum of parts
+            // After compress(), payer should have cold balance
             assert.isTrue(
-                result.total.eq(result.onChain.add(result.compressed)),
-                'Total should equal on-chain + compressed',
-            );
-
-            // After compress(), payer should have compressed balance
-            assert.isTrue(
-                result.hasCompressedBalance,
-                'Should have compressed balance after compress()',
+                result.hasColdBalance,
+                'Should have cold balance after compress()',
             );
         });
 
-        it('should work for address with only on-chain balance', async () => {
-            // Create fresh account with only on-chain lamports
+        it('should work for address with only hot balance', async () => {
             const freshAccount = await newAccountWithLamports(rpc, 1e9, 256);
 
             const result = await rpc.getBalanceInterface(
@@ -74,16 +58,12 @@ describe('interface-methods', () => {
             );
 
             assert.isTrue(result.total.gt(bn(0)));
-            assert.isTrue(result.onChain.gt(bn(0)));
-            assert.isTrue(result.compressed.eq(bn(0)));
-            assert.isFalse(result.hasCompressedBalance);
+            assert.isFalse(result.hasColdBalance);
         });
 
-        it('should work for address with only compressed balance', async () => {
-            // Bob received compressed SOL via transfer
+        it('should work for address with cold balance', async () => {
             const result = await rpc.getBalanceInterface(bob.publicKey);
 
-            // Bob has both on-chain (initial) and compressed (from transfer)
             assert.isTrue(result.total.gt(bn(0)));
         });
     });
@@ -283,11 +263,9 @@ describe('interface-methods', () => {
                 randomMint,
             );
 
-            // Both should be zero for non-existent accounts
+            // Should be zero for non-existent accounts
             assert.isTrue(result.amount.eq(bn(0)));
-            assert.isTrue(result.onChainAmount.eq(bn(0)));
-            assert.isTrue(result.compressedAmount.eq(bn(0)));
-            assert.isFalse(result.hasCompressedBalance);
+            assert.isFalse(result.hasColdBalance);
             assert.isNull(result.solana);
         });
 
@@ -303,17 +281,12 @@ describe('interface-methods', () => {
 
             // Verify structure
             assert.isDefined(result.amount);
-            assert.isDefined(result.onChainAmount);
-            assert.isDefined(result.compressedAmount);
-            assert.isDefined(result.hasCompressedBalance);
+            assert.isDefined(result.hasColdBalance);
             assert.isDefined(result.decimals);
-            // solana can be null
             assert.isTrue('solana' in result);
 
             // Amount should be BN
             assert.isTrue(result.amount instanceof bn(0).constructor);
-            assert.isTrue(result.onChainAmount instanceof bn(0).constructor);
-            assert.isTrue(result.compressedAmount instanceof bn(0).constructor);
         });
     });
 });
