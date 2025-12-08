@@ -37,3 +37,4 @@ light-batched-merkle-tree = { workspace = true }
 light-registry = { workspace = true }
 light-compressible = { workspace = true }
 anchor-lang = { workspace = true }
+light-ctoken-sdk = { workspace = true }

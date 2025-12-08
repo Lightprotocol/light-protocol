@@ -11936,6 +11936,7 @@ dependencies = [
  "light-compressed-account",
  "light-compressible",
  "light-concurrent-merkle-tree",
+ "light-ctoken-sdk",
  "light-hash-set",
  "light-hasher",
  "light-indexed-merkle-tree",
