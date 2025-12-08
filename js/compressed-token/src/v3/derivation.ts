@@ -9,12 +9,12 @@ import { Buffer } from 'buffer';
 /**
  * Returns the compressed mint address as bytes.
  */
-export function deriveCTokenMintAddress(
+export function deriveCMintAddress(
     mintSeed: PublicKey,
     addressTreeInfo: TreeInfo,
 ) {
-    // find_spl_mint_address returns [splMint, bump], we want splMint
-    // In JS, just use the mintSeed directly as the SPL mint address
+    // find_cmint_address returns [CMint, bump], we want CMint
+    // In JS, just use the mintSeed directly as the CMint address
     const address = deriveAddressV2(
         findMintAddress(mintSeed)[0].toBytes(),
         addressTreeInfo.tree,
