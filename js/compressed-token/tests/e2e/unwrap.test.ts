@@ -194,13 +194,13 @@ describe('unwrap action', () => {
         const result = await unwrap(
             rpc,
             payer,
+            splAta,
             owner,
             mint,
-            splAta,
             BigInt(500),
         );
 
-        expect(result.transactionSignature).toBeDefined();
+        expect(result).toBeDefined();
 
         // Check SPL ATA balance
         const splBalance = await getAccount(rpc, splAta);
@@ -259,13 +259,13 @@ describe('unwrap action', () => {
         const result = await unwrap(
             rpc,
             payer,
+            splAta,
             owner,
             mint,
-            splAta,
             BigInt(300),
         );
 
-        expect(result.transactionSignature).toBeDefined();
+        expect(result).toBeDefined();
 
         // Check SPL balance
         const splBalance = await getAccount(rpc, splAta);
@@ -302,9 +302,9 @@ describe('unwrap action', () => {
         );
 
         // Unwrap all (amount not specified)
-        const result = await unwrap(rpc, payer, owner, mint, splAta);
+        const result = await unwrap(rpc, payer, splAta, owner, mint);
 
-        expect(result.transactionSignature).toBeDefined();
+        expect(result).toBeDefined();
 
         // Check SPL balance
         const splBalance = await getAccount(rpc, splAta);
@@ -348,13 +348,13 @@ describe('unwrap action', () => {
         const result = await unwrap(
             rpc,
             payer,
+            splAta,
             owner,
             mint,
-            splAta,
             BigInt(200),
         );
 
-        expect(result.transactionSignature).toBeDefined();
+        expect(result).toBeDefined();
 
         const splBalance = await getAccount(rpc, splAta);
         expect(splBalance.amount).toBe(BigInt(200));
@@ -390,13 +390,13 @@ describe('unwrap action', () => {
         const result = await unwrap(
             rpc,
             separatePayer,
+            splAta,
             owner,
             mint,
-            splAta,
             BigInt(250),
         );
 
-        expect(result.transactionSignature).toBeDefined();
+        expect(result).toBeDefined();
 
         const splBalance = await getAccount(rpc, splAta);
         expect(splBalance.amount).toBe(BigInt(250));
@@ -429,7 +429,7 @@ describe('unwrap action', () => {
 
         // Try to unwrap more than available
         await expect(
-            unwrap(rpc, payer, owner, mint, splAta, BigInt(1000)),
+            unwrap(rpc, payer, splAta, owner, mint, BigInt(1000)),
         ).rejects.toThrow(/Insufficient/);
     }, 60_000);
 
@@ -458,7 +458,7 @@ describe('unwrap action', () => {
 
         // Try to unwrap to non-existent destination
         await expect(
-            unwrap(rpc, payer, owner, mint, splAta, BigInt(50)),
+            unwrap(rpc, payer, splAta, owner, mint, BigInt(50)),
         ).rejects.toThrow(/does not exist/);
     }, 60_000);
 });
@@ -519,13 +519,13 @@ describe('unwrap Token-2022', () => {
         const result = await unwrap(
             rpc,
             payer,
+            t22Ata,
             owner,
             t22Mint,
-            t22Ata,
             BigInt(500),
         );
 
-        expect(result.transactionSignature).toBeDefined();
+        expect(result).toBeDefined();
 
         // Check T22 ATA balance
         const t22Balance = await getAccount(

@@ -266,7 +266,7 @@ describe('wrap action', () => {
             tokenPoolInfo,
         );
 
-        expect(result.transactionSignature).toBeDefined();
+        expect(result).toBeDefined();
 
         // Check balances after
         const splBalanceAfter = await getAccount(rpc, splAta);
@@ -331,7 +331,7 @@ describe('wrap action', () => {
             tokenPoolInfo,
         );
 
-        expect(result.transactionSignature).toBeDefined();
+        expect(result).toBeDefined();
 
         // SPL should be empty
         const splBalanceAfter = await getAccount(rpc, splAta);
@@ -393,7 +393,7 @@ describe('wrap action', () => {
             // tokenPoolInfo not provided
         );
 
-        expect(result.transactionSignature).toBeDefined();
+        expect(result).toBeDefined();
 
         const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
         expect(ctokenBalance).toBe(BigInt(100));
@@ -467,7 +467,7 @@ describe('wrap action', () => {
             tokenPoolInfo,
         );
 
-        expect(result.transactionSignature).toBeDefined();
+        expect(result).toBeDefined();
 
         const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
         expect(ctokenBalance).toBe(BigInt(150));
@@ -561,7 +561,7 @@ describe('wrap with non-ATA accounts', () => {
             tokenPoolInfo,
         );
 
-        expect(result.transactionSignature).toBeDefined();
+        expect(result).toBeDefined();
 
         const destBalance = await getCTokenBalance(rpc, destination);
         expect(destBalance).toBe(BigInt(200));
@@ -669,7 +669,7 @@ describe('wrap Token-2022 to CToken', () => {
             tokenPoolInfo,
         );
 
-        expect(result.transactionSignature).toBeDefined();
+        expect(result).toBeDefined();
 
         // Check balances after
         const t22BalanceAfter = await getAccount(
@@ -760,7 +760,7 @@ describe('wrap Token-2022 to CToken', () => {
             // tokenPoolInfo not provided
         );
 
-        expect(result.transactionSignature).toBeDefined();
+        expect(result).toBeDefined();
 
         const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
         expect(ctokenBalance).toBe(BigInt(250));

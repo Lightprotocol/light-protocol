@@ -325,10 +325,6 @@ export {
     // Action types
     CreateAtaInterfaceParams,
     CreateAtaInterfaceResult,
-    WrapParams,
-    WrapResult,
-    UnwrapParams,
-    UnwrapResult,
     // Helpers
     getMintInterface,
     unpackMintInterface,

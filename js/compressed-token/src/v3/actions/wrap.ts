@@ -17,23 +17,6 @@ import {
     SplInterfaceInfo,
 } from '../../utils/get-token-pool-infos';
 
-// Keep old interface type for backwards compatibility export
-export interface WrapParams {
-    rpc: Rpc;
-    payer: Signer;
-    source: PublicKey;
-    destination: PublicKey;
-    owner: Signer;
-    mint: PublicKey;
-    amount: bigint;
-    splInterfaceInfo?: SplInterfaceInfo;
-    confirmOptions?: ConfirmOptions;
-}
-
-export interface WrapResult {
-    transactionSignature: TransactionSignature;
-}
-
 /**
  * Wrap tokens from an SPL/T22 account to a c-token account.
  *
@@ -76,7 +59,7 @@ export async function wrap(
     amount: bigint,
     splInterfaceInfo?: SplInterfaceInfo,
     confirmOptions?: ConfirmOptions,
-): Promise<WrapResult> {
+): Promise<TransactionSignature> {
     // Get SPL interface info if not provided
     let resolvedSplInterfaceInfo = splInterfaceInfo;
     if (!resolvedSplInterfaceInfo) {
@@ -118,5 +101,5 @@ export async function wrap(
 
     const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
 
-    return { transactionSignature: txId };
+    return txId;
 }

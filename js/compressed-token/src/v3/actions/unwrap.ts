@@ -20,21 +20,6 @@ import {
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import { loadAta as _loadAta } from './load-ata';
 
-export interface UnwrapParams {
-    rpc: Rpc;
-    payer: Signer;
-    owner: Signer;
-    mint: PublicKey;
-    destination: PublicKey;
-    amount?: number | bigint | BN;
-    splInterfaceInfo?: SplInterfaceInfo;
-    confirmOptions?: ConfirmOptions;
-}
-
-export interface UnwrapResult {
-    transactionSignature: TransactionSignature;
-}
-
 /**
  * Unwrap c-tokens to SPL tokens.
  *
@@ -47,30 +32,25 @@ export interface UnwrapResult {
  *
  * @param rpc                RPC connection
  * @param payer              Fee payer
+ * @param destination        Destination SPL/T22 token account (must exist)
  * @param owner              Owner of the c-token (signer)
  * @param mint               Mint address
- * @param destination        Destination SPL/T22 token account (must exist)
  * @param amount             Optional: specific amount to unwrap (defaults to all)
  * @param splInterfaceInfo   Optional: SPL interface info (will be fetched if not provided)
  * @param confirmOptions     Optional: confirm options
- *
- * @example
- * // Unwrap to existing SPL ATA
- * const splAta = getAssociatedTokenAddressSync(mint, owner.publicKey);
- * await unwrap(rpc, payer, owner, mint, splAta, 1000n);
  *
  * @returns Transaction signature
  */
 export async function unwrap(
     rpc: Rpc,
     payer: Signer,
+    destination: PublicKey,
     owner: Signer,
     mint: PublicKey,
-    destination: PublicKey,
     amount?: number | bigint | BN,
     splInterfaceInfo?: SplInterfaceInfo,
     confirmOptions?: ConfirmOptions,
-): Promise<UnwrapResult> {
+): Promise<TransactionSignature> {
     // 1. Get SPL interface info if not provided
     let resolvedSplInterfaceInfo = splInterfaceInfo;
     if (!resolvedSplInterfaceInfo) {
@@ -147,5 +127,5 @@ export async function unwrap(
 
     const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
 
-    return { transactionSignature: txId };
+    return txId;
 }

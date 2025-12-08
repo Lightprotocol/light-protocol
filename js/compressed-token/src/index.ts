@@ -94,8 +94,6 @@ export {
     InterfaceOptions,
     LoadOptions,
     TransferInterfaceOptions,
-    WrapParams,
-    WrapResult,
     // Helpers
     getMintInterface,
     unpackMintInterface,
