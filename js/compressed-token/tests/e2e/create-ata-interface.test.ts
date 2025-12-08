@@ -676,8 +676,8 @@ describe('createAtaInterface', () => {
             expect(successful.length).toBeGreaterThan(0);
 
             // All successful results should have same address
-            const addresses = successful.map(
-                r => (r as PromiseFulfilledResult<any>).value.address.toBase58(),
+            const addresses = successful.map(r =>
+                (r as PromiseFulfilledResult<any>).value.address.toBase58(),
             );
             const uniqueAddresses = [...new Set(addresses)];
             expect(uniqueAddresses.length).toBe(1);

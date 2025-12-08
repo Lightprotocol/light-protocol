@@ -177,7 +177,12 @@ describe('createMintInterface', () => {
 
             expect(mint.toBase58()).toBe(mintKeypair.publicKey.toBase58());
 
-            const fetchedMint = await getMint(rpc, mint, undefined, TOKEN_PROGRAM_ID);
+            const fetchedMint = await getMint(
+                rpc,
+                mint,
+                undefined,
+                TOKEN_PROGRAM_ID,
+            );
             expect(fetchedMint.mintAuthority?.toBase58()).toBe(
                 mintAuthority.publicKey.toBase58(),
             );
@@ -203,7 +208,12 @@ describe('createMintInterface', () => {
 
             await rpc.confirmTransaction(transactionSignature, 'confirmed');
 
-            const fetchedMint = await getMint(rpc, mint, undefined, TOKEN_PROGRAM_ID);
+            const fetchedMint = await getMint(
+                rpc,
+                mint,
+                undefined,
+                TOKEN_PROGRAM_ID,
+            );
             expect(fetchedMint.freezeAuthority?.toBase58()).toBe(
                 freezeAuthority.publicKey.toBase58(),
             );
@@ -226,7 +236,12 @@ describe('createMintInterface', () => {
 
             await rpc.confirmTransaction(transactionSignature, 'confirmed');
 
-            const fetchedMint = await getMint(rpc, mint, undefined, TOKEN_PROGRAM_ID);
+            const fetchedMint = await getMint(
+                rpc,
+                mint,
+                undefined,
+                TOKEN_PROGRAM_ID,
+            );
             expect(fetchedMint.decimals).toBe(0);
         });
     });
@@ -336,7 +351,12 @@ describe('createMintInterface', () => {
 
             await rpc.confirmTransaction(transactionSignature, 'confirmed');
 
-            const fetchedMint = await getMint(rpc, mint, undefined, TOKEN_PROGRAM_ID);
+            const fetchedMint = await getMint(
+                rpc,
+                mint,
+                undefined,
+                TOKEN_PROGRAM_ID,
+            );
             expect(fetchedMint.decimals).toBe(9);
         });
     });
@@ -392,8 +412,12 @@ describe('createMintInterface', () => {
             expect(ctokenMint.toBase58()).toBe(ctokenMintPda.toBase58());
 
             // SPL/T22 mints should be keypair pubkeys
-            expect(splMint.toBase58()).toBe(splMintKeypair.publicKey.toBase58());
-            expect(t22Mint.toBase58()).toBe(t22MintKeypair.publicKey.toBase58());
+            expect(splMint.toBase58()).toBe(
+                splMintKeypair.publicKey.toBase58(),
+            );
+            expect(t22Mint.toBase58()).toBe(
+                t22MintKeypair.publicKey.toBase58(),
+            );
         });
     });
 });
