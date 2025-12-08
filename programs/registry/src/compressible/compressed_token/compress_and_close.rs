@@ -84,7 +84,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
 
         let account_data = source_account
             .try_borrow_data()
-            .map_err(|_| RegistryError::InvalidSigner)?;
+            .map_err(|_| RegistryError::BorrowAccountDataFailed)?;
 
         let amount = CToken::amount_from_slice(&account_data).map_err(|e| {
             anchor_lang::prelude::msg!("Failed to read amount from CToken: {:?}", e);
@@ -143,7 +143,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
     // Serialize instruction data
     let serialized = instruction_data
         .try_to_vec()
-        .map_err(|_| RegistryError::InvalidSigner)?;
+        .map_err(|_| RegistryError::SerializationFailed)?;
 
     // Build instruction data with discriminator
     let mut data = Vec::with_capacity(1 + serialized.len());

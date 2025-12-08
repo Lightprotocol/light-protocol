@@ -36,4 +36,10 @@ pub enum RegistryError {
     InvalidConfigState,
     #[msg("Failed to deserialize token account data")]
     InvalidTokenAccountData,
+    #[msg("Indices array cannot be empty")]
+    EmptyIndices,
+    #[msg("Failed to borrow account data")]
+    BorrowAccountDataFailed,
+    #[msg("Failed to serialize instruction data")]
+    SerializationFailed,
 }

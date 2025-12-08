@@ -44,7 +44,7 @@ pub fn process_compress_and_close<'c: 'info, 'info>(
         .map_err(ProgramError::from)?;
 
     // Validate indices
-    require!(!indices.is_empty(), RegistryError::InvalidSigner);
+    require!(!indices.is_empty(), RegistryError::EmptyIndices);
 
     let fee_payer = ctx.accounts.authority.to_account_info();
 
