@@ -120,11 +120,16 @@ describe('deprecated aliases', () => {
         expect(result.mint.toBase58()).toBe(mint.toBase58());
         expect(result.isInitialized).toBe(true);
         expect(result.balance.eq(bn(0))).toBe(true);
-        // splInterfacePda should be accessible (type is aliased)
+        // Both tokenPoolPda (deprecated) and splInterfacePda should be accessible
+        expect(result.tokenPoolPda).toBeDefined();
         expect(result.splInterfacePda).toBeDefined();
+        // Both should point to the same value
+        expect(result.tokenPoolPda.toBase58()).toBe(
+            result.splInterfacePda.toBase58(),
+        );
     });
 
-    it('TokenPoolInfo type should be alias for SplInterfaceInfo', () => {
+    it('TokenPoolInfo type should be compatible with SplInterfaceInfo', () => {
         // Both types should work for the same result
         const newResult: SplInterfaceInfo = deriveSplInterfaceInfo(
             mint,
@@ -138,6 +143,10 @@ describe('deprecated aliases', () => {
         // Both should have same data
         expect(newResult.mint.toBase58()).toBe(oldResult.mint.toBase58());
         expect(newResult.splInterfacePda.toBase58()).toBe(
+            oldResult.splInterfacePda.toBase58(),
+        );
+        // TokenPoolInfo should have tokenPoolPda for backward compatibility
+        expect(oldResult.tokenPoolPda.toBase58()).toBe(
             oldResult.splInterfacePda.toBase58(),
         );
     });

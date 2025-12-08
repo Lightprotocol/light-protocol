@@ -5,6 +5,132 @@ import { bn, Rpc } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
 
 /**
+ * SPL interface PDA info.
+ */
+export type SplInterfaceInfo = {
+    /**
+     * The mint of the SPL interface
+     */
+    mint: PublicKey;
+    /**
+     * The SPL interface address
+     */
+    splInterfacePda: PublicKey;
+    /**
+     * The token program of the SPL interface
+     */
+    tokenProgram: PublicKey;
+    /**
+     * count of txs and volume in the past 60 seconds.
+     */
+    activity?: {
+        txs: number;
+        amountAdded: BN;
+        amountRemoved: BN;
+    };
+    /**
+     * Whether the SPL interface is initialized
+     */
+    isInitialized: boolean;
+    /**
+     * The balance of the SPL interface
+     */
+    balance: BN;
+    /**
+     * The index of the SPL interface
+     */
+    poolIndex: number;
+    /**
+     * The bump used to derive the SPL interface PDA
+     */
+    bump: number;
+};
+
+/**
+ * @deprecated Use {@link SplInterfaceInfo} instead.
+ * This type maintains backward compatibility by including both tokenPoolPda and splInterfacePda.
+ * Both properties point to the same PublicKey value.
+ */
+export type TokenPoolInfo = {
+    /**
+     * The mint of the SPL interface
+     */
+    mint: PublicKey;
+    /**
+     * @deprecated Use splInterfacePda instead.
+     */
+    tokenPoolPda: PublicKey;
+    /**
+     * The SPL interface address (new name).
+     * For backward compatibility, tokenPoolPda is also available.
+     */
+    splInterfacePda: PublicKey;
+    /**
+     * The token program of the SPL interface
+     */
+    tokenProgram: PublicKey;
+    /**
+     * count of txs and volume in the past 60 seconds.
+     */
+    activity?: {
+        txs: number;
+        amountAdded: BN;
+        amountRemoved: BN;
+    };
+    /**
+     * Whether the SPL interface is initialized
+     */
+    isInitialized: boolean;
+    /**
+     * The balance of the SPL interface
+     */
+    balance: BN;
+    /**
+     * The index of the SPL interface
+     */
+    poolIndex: number;
+    /**
+     * The bump used to derive the SPL interface PDA
+     */
+    bump: number;
+};
+
+/**
+ * Convert SplInterfaceInfo to TokenPoolInfo for backward compatibility.
+ * @internal
+ */
+export function toTokenPoolInfo(info: SplInterfaceInfo): TokenPoolInfo {
+    return {
+        mint: info.mint,
+        tokenPoolPda: info.splInterfacePda,
+        splInterfacePda: info.splInterfacePda,
+        tokenProgram: info.tokenProgram,
+        activity: info.activity,
+        isInitialized: info.isInitialized,
+        balance: info.balance,
+        poolIndex: info.poolIndex,
+        bump: info.bump,
+    };
+}
+
+/**
+ * Convert TokenPoolInfo to SplInterfaceInfo.
+ * @internal
+ */
+function toSplInterfaceInfo(info: TokenPoolInfo): SplInterfaceInfo {
+    return {
+        mint: info.mint,
+        splInterfacePda: info.tokenPoolPda ?? info.splInterfacePda,
+        tokenProgram: info.tokenProgram,
+        activity: info.activity,
+        isInitialized: info.isInitialized,
+        balance: info.balance,
+        poolIndex: info.poolIndex,
+        bump: info.bump,
+    };
+}
+
+/**
  * Derive SplInterfaceInfo for an SPL interface that will be initialized in the
  * same transaction. Use this when you need to create an SPL interface and
  * compress in a single transaction.
@@ -38,18 +164,25 @@ export function deriveSplInterfaceInfo(
 /**
  * Check if the SPL interface info is initialized and has a balance.
  * @param mint The mint of the SPL interface
- * @param splInterfaceInfo The SPL interface info
+ * @param splInterfaceInfo The SPL interface info (or TokenPoolInfo for backward compatibility)
  * @returns True if the SPL interface info is initialized and has a balance
  */
 export function checkSplInterfaceInfo(
-    splInterfaceInfo: SplInterfaceInfo,
+    splInterfaceInfo: SplInterfaceInfo | TokenPoolInfo,
     mint: PublicKey,
 ): boolean {
-    if (!splInterfaceInfo.mint.equals(mint)) {
+    // Handle backward compatibility with TokenPoolInfo
+    // TokenPoolInfo has both tokenPoolPda and splInterfacePda, so we can use either
+    const info: SplInterfaceInfo =
+        'tokenPoolPda' in splInterfaceInfo
+            ? toSplInterfaceInfo(splInterfaceInfo as TokenPoolInfo)
+            : (splInterfaceInfo as SplInterfaceInfo);
+
+    if (!info.mint.equals(mint)) {
         throw new Error(`SplInterface mint does not match the provided mint.`);
     }
 
-    if (!splInterfaceInfo.isInitialized) {
+    if (!info.isInitialized) {
         throw new Error(
             `SplInterface is not initialized. Please create an SPL interface for mint: ${mint.toBase58()} via createSplInterface().`,
         );
@@ -127,48 +260,6 @@ export type SplInterfaceActivity = {
     signature: string;
     amount: BN;
     action: Action;
-};
-
-/**
- * SPL interface PDA info.
- */
-export type SplInterfaceInfo = {
-    /**
-     * The mint of the SPL interface
-     */
-    mint: PublicKey;
-    /**
-     * The SPL interface address
-     */
-    splInterfacePda: PublicKey;
-    /**
-     * The token program of the SPL interface
-     */
-    tokenProgram: PublicKey;
-    /**
-     * count of txs and volume in the past 60 seconds.
-     */
-    activity?: {
-        txs: number;
-        amountAdded: BN;
-        amountRemoved: BN;
-    };
-    /**
-     * Whether the SPL interface is initialized
-     */
-    isInitialized: boolean;
-    /**
-     * The balance of the SPL interface
-     */
-    balance: BN;
-    /**
-     * The index of the SPL interface
-     */
-    poolIndex: number;
-    /**
-     * The bump used to derive the SPL interface PDA
-     */
-    bump: number;
 };
 
 /**
@@ -262,13 +353,8 @@ export function selectSplInterfaceInfosForDecompression(
 }
 
 // =============================================================================
-// DEPRECATED ALIASES - Use the new SplInterface* names instead
+// DEPRECATED TYPES AND FUNCTIONS - Use the new SplInterface* names instead
 // =============================================================================
-
-/**
- * @deprecated Use {@link SplInterfaceInfo} instead.
- */
-export type TokenPoolInfo = SplInterfaceInfo;
 
 /**
  * @deprecated Use {@link SplInterfaceActivity} instead.
@@ -278,25 +364,57 @@ export type TokenPoolActivity = SplInterfaceActivity;
 /**
  * @deprecated Use {@link deriveSplInterfaceInfo} instead.
  */
-export const deriveTokenPoolInfo = deriveSplInterfaceInfo;
+export function deriveTokenPoolInfo(
+    mint: PublicKey,
+    tokenProgramId: PublicKey,
+    poolIndex = 0,
+): TokenPoolInfo {
+    const info = deriveSplInterfaceInfo(mint, tokenProgramId, poolIndex);
+    return toTokenPoolInfo(info);
+}
 
 /**
  * @deprecated Use {@link checkSplInterfaceInfo} instead.
  */
-export const checkTokenPoolInfo = checkSplInterfaceInfo;
+export function checkTokenPoolInfo(
+    tokenPoolInfo: TokenPoolInfo,
+    mint: PublicKey,
+): boolean {
+    return checkSplInterfaceInfo(toSplInterfaceInfo(tokenPoolInfo), mint);
+}
 
 /**
  * @deprecated Use {@link getSplInterfaceInfos} instead.
  */
-export const getTokenPoolInfos = getSplInterfaceInfos;
+export async function getTokenPoolInfos(
+    rpc: Rpc,
+    mint: PublicKey,
+    commitment?: Commitment,
+): Promise<TokenPoolInfo[]> {
+    const infos = await getSplInterfaceInfos(rpc, mint, commitment);
+    return infos.map(toTokenPoolInfo);
+}
 
 /**
  * @deprecated Use {@link selectSplInterfaceInfo} instead.
  */
-export const selectTokenPoolInfo = selectSplInterfaceInfo;
+export function selectTokenPoolInfo(infos: TokenPoolInfo[]): TokenPoolInfo {
+    const splInfos = infos.map(toSplInterfaceInfo);
+    const selected = selectSplInterfaceInfo(splInfos);
+    return toTokenPoolInfo(selected);
+}
 
 /**
  * @deprecated Use {@link selectSplInterfaceInfosForDecompression} instead.
  */
-export const selectTokenPoolInfosForDecompression =
-    selectSplInterfaceInfosForDecompression;
+export function selectTokenPoolInfosForDecompression(
+    infos: TokenPoolInfo[],
+    decompressAmount: number | BN,
+): TokenPoolInfo[] {
+    const splInfos = infos.map(toSplInterfaceInfo);
+    const selected = selectSplInterfaceInfosForDecompression(
+        splInfos,
+        decompressAmount,
+    );
+    return selected.map(toTokenPoolInfo);
+}
