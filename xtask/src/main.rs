@@ -4,6 +4,7 @@ mod bench;
 mod create_batch_address_tree;
 mod create_batch_state_tree;
 mod create_compressible_config;
+mod create_ctoken_account;
 mod create_state_tree;
 mod create_update_protocol_config_ix;
 mod create_vkeyrs_from_gnark_key;
@@ -78,6 +79,10 @@ enum Command {
     /// Creates the config counter PDA and a compressible config with default RentConfig.
     /// Example: cargo xtask create-compressible-config --network devnet
     CreateCompressibleConfig(create_compressible_config::Options),
+    /// Create a compressible cToken account with default config
+    /// Example: cargo xtask create-ctoken-account --network devnet
+    /// Example with existing mint: cargo xtask create-ctoken-account --mint <MINT_PUBKEY> --network devnet
+    CreateCtokenAccount(create_ctoken_account::Options),
 }
 
 #[tokio::main]
@@ -115,6 +120,9 @@ async fn main() -> Result<(), anyhow::Error> {
         Command::FetchAccounts(opts) => fetch_accounts::fetch_accounts(opts).await,
         Command::CreateCompressibleConfig(opts) => {
             create_compressible_config::create_compressible_config(opts).await
+        }
+        Command::CreateCtokenAccount(opts) => {
+            create_ctoken_account::create_ctoken_account(opts).await
         }
     }
 }
