@@ -195,6 +195,12 @@ fn process_compressible_config<'info>(
     let custom_rent_payer =
         *rent_payer.key() != compressible_config_account.rent_sponsor.to_bytes();
 
+    // Prevents setting executable accounts as rent_sponsor
+    if custom_rent_payer && !rent_payer.is_signer() {
+        msg!("Custom rent payer must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
     let rent = compressible_config_account
         .rent_config
         .get_rent_with_compression_cost(
