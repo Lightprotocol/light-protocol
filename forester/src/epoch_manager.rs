@@ -80,8 +80,6 @@ use crate::{
     ForesterConfig, ForesterEpochInfo, Result,
 };
 
-/// Map of tree pubkey to (epoch, processor)
-/// Using Arc<Mutex> for interior mutability since processors need &mut for processing
 type StateBatchProcessorMap<R> =
     Arc<DashMap<Pubkey, (u64, Arc<Mutex<QueueProcessor<R, StateTreeStrategy>>>)>>;
 type AddressBatchProcessorMap<R> =
@@ -2194,20 +2192,32 @@ impl<R: Rpc> EpochManager<R> {
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
     ) -> Result<Arc<Mutex<QueueProcessor<R, StateTreeStrategy>>>> {
-        // First check if we already have a valid processor (quick path, no lock held across await)
+        // First check if we already have a processor for this tree
+        // We REUSE processors across epochs to preserve cached state for optimistic processing
         if let Some(entry) = self.state_processors.get(&tree_accounts.merkle_tree) {
             let (stored_epoch, processor_ref) = entry.value();
-            if *stored_epoch == epoch_info.epoch {
-                return Ok(processor_ref.clone());
+            let processor_clone = processor_ref.clone();
+            let old_epoch = *stored_epoch;
+            drop(entry); // Release read lock before any async operation
+
+            if old_epoch != epoch_info.epoch {
+                // Update epoch in the map (processor is reused with its cached state)
+                debug!(
+                    "Reusing StateBatchProcessor for tree {} across epoch transition ({} -> {})",
+                    tree_accounts.merkle_tree, old_epoch, epoch_info.epoch
+                );
+                self.state_processors
+                    .insert(tree_accounts.merkle_tree, (epoch_info.epoch, processor_clone.clone()));
+                // Update the processor's epoch context and phases
+                processor_clone
+                    .lock()
+                    .await
+                    .update_epoch(epoch_info.epoch, epoch_info.phases.clone());
             }
-            // Stale epoch - will create new processor below
-            info!(
-                "Found stale StateBatchProcessor for tree {} (epoch {} -> {})",
-                tree_accounts.merkle_tree, *stored_epoch, epoch_info.epoch
-            );
+            return Ok(processor_clone);
         }
 
-        // Create processor outside of any DashMap lock to avoid blocking other shards
+        // No existing processor - create new one
         let batch_context =
             self.build_batch_context(epoch_info, tree_accounts, None, None, None);
         let processor = Arc::new(Mutex::new(
@@ -2221,16 +2231,9 @@ impl<R: Rpc> EpochManager<R> {
 
         // Insert the new processor (or get existing if another task beat us to it)
         match self.state_processors.entry(tree_accounts.merkle_tree) {
-            Entry::Occupied(mut occupied) => {
-                let (stored_epoch, _) = occupied.get();
-                if *stored_epoch == epoch_info.epoch {
-                    // Another task already inserted for this epoch - use theirs
-                    Ok(occupied.get().1.clone())
-                } else {
-                    // Replace stale entry
-                    occupied.insert((epoch_info.epoch, processor.clone()));
-                    Ok(processor)
-                }
+            Entry::Occupied(occupied) => {
+                // Another task already inserted - use theirs (they may have cached state)
+                Ok(occupied.get().1.clone())
             }
             Entry::Vacant(vacant) => {
                 vacant.insert((epoch_info.epoch, processor.clone()));
@@ -2246,16 +2249,32 @@ impl<R: Rpc> EpochManager<R> {
     ) -> Result<Arc<Mutex<QueueProcessor<R, AddressTreeStrategy>>>> {
         use dashmap::mapref::entry::Entry;
 
-        // First check if we already have a valid processor (quick path, no lock held across await)
+        // First check if we already have a processor for this tree
+        // We REUSE processors across epochs to preserve cached state for optimistic processing
         if let Some(entry) = self.address_processors.get(&tree_accounts.merkle_tree) {
             let (stored_epoch, processor_ref) = entry.value();
-            if *stored_epoch == epoch_info.epoch {
-                return Ok(processor_ref.clone());
+            let processor_clone = processor_ref.clone();
+            let old_epoch = *stored_epoch;
+            drop(entry); // Release read lock before any async operation
+
+            if old_epoch != epoch_info.epoch {
+                // Update epoch in the map (processor is reused with its cached state)
+                debug!(
+                    "Reusing AddressBatchProcessor for tree {} across epoch transition ({} -> {})",
+                    tree_accounts.merkle_tree, old_epoch, epoch_info.epoch
+                );
+                self.address_processors
+                    .insert(tree_accounts.merkle_tree, (epoch_info.epoch, processor_clone.clone()));
+                // Update the processor's epoch context and phases
+                processor_clone
+                    .lock()
+                    .await
+                    .update_epoch(epoch_info.epoch, epoch_info.phases.clone());
             }
-            // Stale epoch - will create new processor below
+            return Ok(processor_clone);
         }
 
-        // Create processor outside of any DashMap lock to avoid blocking other shards
+        // No existing processor - create new one
         let batch_context =
             self.build_batch_context(epoch_info, tree_accounts, None, None, None);
         let processor = Arc::new(Mutex::new(
@@ -2269,16 +2288,9 @@ impl<R: Rpc> EpochManager<R> {
 
         // Insert the new processor (or get existing if another task beat us to it)
         match self.address_processors.entry(tree_accounts.merkle_tree) {
-            Entry::Occupied(mut occupied) => {
-                let (stored_epoch, _) = occupied.get();
-                if *stored_epoch == epoch_info.epoch {
-                    // Another task already inserted for this epoch - use theirs
-                    Ok(occupied.get().1.clone())
-                } else {
-                    // Replace stale entry
-                    occupied.insert((epoch_info.epoch, processor.clone()));
-                    Ok(processor)
-                }
+            Entry::Occupied(occupied) => {
+                // Another task already inserted - use theirs (they may have cached state)
+                Ok(occupied.get().1.clone())
             }
             Entry::Vacant(vacant) => {
                 vacant.insert((epoch_info.epoch, processor.clone()));
@@ -2301,9 +2313,17 @@ impl<R: Rpc> EpochManager<R> {
                         .get_or_create_state_processor(epoch_info, tree_accounts)
                         .await?;
 
+                    // Get or create proof cache for this tree
+                    let cache = self
+                        .proof_caches
+                        .entry(tree_accounts.merkle_tree)
+                        .or_insert_with(|| Arc::new(SharedProofCache::new(tree_accounts.merkle_tree)))
+                        .clone();
+
                     {
                         let mut proc = processor.lock().await;
                         proc.update_eligibility(consecutive_eligibility_end);
+                        proc.set_proof_cache(cache);
                     }
 
                     let work = QueueWork {
@@ -2325,6 +2345,13 @@ impl<R: Rpc> EpochManager<R> {
                                 self.state_processors.remove(&tree_accounts.merkle_tree);
                                 self.proof_caches.remove(&tree_accounts.merkle_tree);
                                 Err(e)
+                            } else if crate::processor::v2::is_hashchain_mismatch(&msg) {
+                                warn!(
+                                    "State processing hit hashchain mismatch for tree {}: {}. Clearing cache and retrying.",
+                                    tree_accounts.merkle_tree, msg
+                                );
+                                proc.clear_cache();
+                                Ok(ProcessingResult::default())
                             } else {
                                 warn!(
                                     "Failed to process state queue for tree {}: {}. Will retry next tick without dropping processor.",
@@ -2344,9 +2371,17 @@ impl<R: Rpc> EpochManager<R> {
                         .get_or_create_address_processor(epoch_info, tree_accounts)
                         .await?;
 
+                    // Get or create proof cache for this tree
+                    let cache = self
+                        .proof_caches
+                        .entry(tree_accounts.merkle_tree)
+                        .or_insert_with(|| Arc::new(SharedProofCache::new(tree_accounts.merkle_tree)))
+                        .clone();
+
                     {
                         let mut proc = processor.lock().await;
                         proc.update_eligibility(consecutive_eligibility_end);
+                        proc.set_proof_cache(cache);
                     }
 
                     let work = QueueWork {
@@ -2367,6 +2402,13 @@ impl<R: Rpc> EpochManager<R> {
                                 self.address_processors.remove(&tree_accounts.merkle_tree);
                                 self.proof_caches.remove(&tree_accounts.merkle_tree);
                                 Err(e)
+                            } else if crate::processor::v2::is_hashchain_mismatch(&msg) {
+                                warn!(
+                                    "Address processing hit hashchain mismatch for tree {}: {}. Clearing cache and retrying.",
+                                    tree_accounts.merkle_tree, msg
+                                );
+                                proc.clear_cache();
+                                Ok(ProcessingResult::default())
                             } else {
                                 warn!(
                                     "Failed to process address queue for tree {}: {}. Will retry next tick without dropping processor.",
@@ -2559,6 +2601,31 @@ impl<R: Rpc> EpochManager<R> {
                         .entry(tree_pubkey)
                         .or_insert_with(|| Arc::new(SharedProofCache::new(tree_pubkey)))
                         .clone();
+
+                    // Check if cache already has valid proofs from previous epoch
+                    // This avoids expensive indexer fetch + proof generation if proofs are reusable
+                    let cache_len = cache.len().await;
+                    if cache_len > 0 && !cache.is_warming().await {
+                        // Verify cached proofs are still valid by checking current on-chain root
+                        let mut rpc = match self_clone.rpc_pool.get_connection().await {
+                            Ok(r) => r,
+                            Err(e) => {
+                                warn!("Failed to get RPC for cache validation: {:?}", e);
+                                return;
+                            }
+                        };
+                        if let Ok(current_root) =
+                            self_clone.fetch_current_root(&mut *rpc, &tree_accounts).await
+                        {
+                            // Peek at cache to see if it has valid proofs for current root
+                            // We don't take them here, just check if they exist
+                            info!(
+                                "Tree {} has {} cached proofs from previous epoch (root: {:?}), skipping pre-warm",
+                                tree_pubkey, cache_len, &current_root[..4]
+                            );
+                            return;
+                        }
+                    }
 
                     // Get or create processor
                     let processor = match self_clone

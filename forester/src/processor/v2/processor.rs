@@ -16,13 +16,18 @@ use crate::{
     },
 };
 use anyhow::anyhow;
+use forester_utils::{forester_epoch::EpochPhases, utils::wait_for_indexer};
 use light_client::rpc::Rpc;
 use light_compressed_account::QueueType;
 use solana_sdk::pubkey::Pubkey;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
-const MAX_BATCHES_LIMIT: usize = 24;
+/// Max batches to process per iteration (keeps tx size reasonable)
+const MAX_BATCHES_PER_ITERATION: usize = 20;
+/// Max batches to fetch - fetch full queue in one go (parallel paginated)
+/// State: 60 batches max, Address: 120 batches max
+const MAX_FETCH_BATCHES: usize = 120;
 
 /// Tracks timing and counts per circuit type for accurate metrics
 #[derive(Debug, Default, Clone)]
@@ -56,6 +61,16 @@ impl BatchTimings {
     }
 }
 
+/// Cached queue state for optimistic processing - allows continuing without re-fetching from indexer
+struct CachedQueueState<T> {
+    /// The staging tree with state after last processed batch
+    staging_tree: T,
+    /// Number of batches already processed from this data
+    batches_processed: usize,
+    /// Total batches available in this queue data
+    total_batches: usize,
+}
+
 pub struct QueueProcessor<R: Rpc, S: TreeStrategy<R>> {
     context: BatchContext<R>,
     strategy: S,
@@ -63,6 +78,10 @@ pub struct QueueProcessor<R: Rpc, S: TreeStrategy<R>> {
     zkp_batch_size: u64,
     seq: u64,
     worker_pool: Option<WorkerPool>,
+    /// Cached queue state for optimistic processing - continue without waiting for indexer
+    cached_state: Option<CachedQueueState<S::StagingTree>>,
+    /// Optional proof cache for saving unused proofs when epoch ends
+    proof_cache: Option<Arc<SharedProofCache>>,
     _phantom: std::marker::PhantomData<R>,
 }
 
@@ -94,8 +113,15 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
             zkp_batch_size,
             seq: 0,
             worker_pool: None,
+            cached_state: None,
+            proof_cache: None,
             _phantom: std::marker::PhantomData,
         })
+    }
+
+    /// Set the proof cache for saving unused proofs when epoch ends
+    pub fn set_proof_cache(&mut self, cache: Arc<SharedProofCache>) {
+        self.proof_cache = Some(cache);
     }
 
     pub async fn process_queue_update(
@@ -106,49 +132,136 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
             return Ok(ProcessingResult::default());
         }
 
-        let max_batches =
-            ((queue_work.queue_size / self.zkp_batch_size) as usize).min(MAX_BATCHES_LIMIT);
-
-        if queue_work.queue_size / self.zkp_batch_size > MAX_BATCHES_LIMIT as u64 {
-            debug!(
-                "Queue size {} would produce {} batches, limiting to {}",
-                queue_work.queue_size,
-                queue_work.queue_size / self.zkp_batch_size,
-                MAX_BATCHES_LIMIT
-            );
-        }
-
         if self.worker_pool.is_none() {
             let job_tx = spawn_proof_workers(&self.context.prover_config);
             self.worker_pool = Some(WorkerPool { job_tx });
         }
 
-        // Fetch fresh queue data for each iteration
+        // OPTIMISTIC PATH: Check if we have cached state from previous iteration
+        // This allows us to continue processing without waiting for indexer to sync
+        if let Some(cached) = self.cached_state.take() {
+            let remaining = cached.total_batches.saturating_sub(cached.batches_processed);
+            if remaining > 0 {
+                info!(
+                    "Using cached state: {} remaining batches (processed {}/{})",
+                    remaining, cached.batches_processed, cached.total_batches
+                );
+
+                // Determine how many batches to process this iteration
+                let batches_to_process = remaining.min(MAX_BATCHES_PER_ITERATION);
+
+                // Build queue_data from cached state
+                let queue_data = QueueData {
+                    staging_tree: cached.staging_tree,
+                    initial_root: self.current_root,
+                    num_batches: cached.total_batches,
+                };
+
+                // batch_offset is where we left off
+                return self
+                    .process_batches(queue_data, cached.batches_processed, batches_to_process, cached.total_batches)
+                    .await;
+            }
+        }
+
+        // FETCH PATH: No cached state, need to fetch from indexer
+        // Fetch multiple iterations worth of batches - paginated fetch handles
+        // timeout by making multiple small requests internally
+        let available_batches = (queue_work.queue_size / self.zkp_batch_size) as usize;
+        let fetch_batches = available_batches.min(MAX_FETCH_BATCHES);
+
+        if available_batches > MAX_BATCHES_PER_ITERATION {
+            debug!(
+                "Queue has {} batches available, fetching {} for {} iterations",
+                available_batches,
+                fetch_batches,
+                (fetch_batches + MAX_BATCHES_PER_ITERATION - 1) / MAX_BATCHES_PER_ITERATION
+            );
+        }
+
+        // Wait for indexer to catch up with RPC before fetching
+        {
+            let rpc = self.context.rpc_pool.get_connection().await?;
+            if let Err(e) = wait_for_indexer(&*rpc).await {
+                warn!("wait_for_indexer error (proceeding anyway): {}", e);
+            }
+        }
+
+        // Fetch queue data - paginated internally to avoid timeout
         let queue_data = match self
             .strategy
-            .fetch_queue_data(&self.context, &queue_work, max_batches, self.zkp_batch_size)
+            .fetch_queue_data(&self.context, &queue_work, fetch_batches, self.zkp_batch_size)
             .await?
         {
             Some(data) => data,
             None => return Ok(ProcessingResult::default()),
         };
 
-        if self.current_root != [0u8; 32] && queue_data.initial_root != self.current_root {
+        // Check if indexer root matches our expected root
+        if self.current_root == [0u8; 32] || queue_data.initial_root == self.current_root {
+            // Roots match - process batches, caching remaining for next iteration
+            let total_batches = queue_data.num_batches;
+            let process_now = total_batches.min(MAX_BATCHES_PER_ITERATION);
+            return self
+                .process_batches(queue_data, 0, process_now, total_batches)
+                .await;
+        }
+
+        // Root mismatch - check on-chain to decide what to do
+        let onchain_root = self.strategy.fetch_onchain_root(&self.context).await?;
+        if onchain_root == self.current_root {
+            // On-chain matches our expected root - indexer is behind
             debug!(
-                "Indexer root {:?}[..4] doesn't match expected {:?}[..4], waiting for indexer sync",
+                "Indexer root {:?}[..4] doesn't match expected {:?}[..4], on-chain confirms we're ahead. Waiting for next slot.",
                 &queue_data.initial_root[..4],
                 &self.current_root[..4]
             );
             return Ok(ProcessingResult::default());
         }
 
-        self.process_batches(queue_data).await
+        // On-chain root differs - accept indexer data with on-chain root
+        if queue_data.initial_root == onchain_root {
+            debug!(
+                "Resetting to on-chain root {:?}[..4] (was expecting {:?}[..4])",
+                &onchain_root[..4],
+                &self.current_root[..4]
+            );
+            self.current_root = onchain_root;
+            self.cached_state = None;
+            let total_batches = queue_data.num_batches;
+            let process_now = total_batches.min(MAX_BATCHES_PER_ITERATION);
+            return self
+                .process_batches(queue_data, 0, process_now, total_batches)
+                .await;
+        }
+
+        // Neither matches - something is very wrong, reset and wait
+        warn!(
+            "Root divergence: expected {:?}[..4], indexer {:?}[..4], on-chain {:?}[..4]. Resetting.",
+            &self.current_root[..4],
+            &queue_data.initial_root[..4],
+            &onchain_root[..4]
+        );
+        self.current_root = onchain_root;
+        self.cached_state = None;
+        Ok(ProcessingResult::default())
+    }
+
+    /// Clear cached state - call this when root divergence is detected or on error
+    pub fn clear_cache(&mut self) {
+        self.cached_state = None;
     }
 
     pub fn update_eligibility(&mut self, end_slot: u64) {
         self.context
             .forester_eligibility_end_slot
             .store(end_slot, Ordering::Relaxed);
+    }
+
+    /// Update the epoch for this processor (called when reusing across epoch transitions)
+    pub fn update_epoch(&mut self, new_epoch: u64, new_phases: EpochPhases) {
+        self.context.epoch = new_epoch;
+        self.context.epoch_phases = new_phases;
     }
 
     pub fn merkle_tree(&self) -> &Pubkey {
@@ -163,12 +276,18 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
         self.zkp_batch_size
     }
 
+    /// Process batches from queue data.
+    /// `batch_offset`: starting batch index (for continuation from cached state)
+    /// `batches_to_process`: how many batches to process in this iteration
+    /// `total_batches`: total batches available in queue_data (for caching remaining)
     async fn process_batches(
         &mut self,
         queue_data: QueueData<S::StagingTree>,
+        batch_offset: usize,
+        batches_to_process: usize,
+        total_batches: usize,
     ) -> crate::Result<ProcessingResult> {
         self.current_root = queue_data.initial_root;
-        let num_batches = queue_data.num_batches;
         let num_workers = self.context.num_proof_workers.max(1);
         let (proof_tx, proof_rx) = mpsc::channel(num_workers * 2);
 
@@ -179,6 +298,7 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
             proof_rx,
             self.zkp_batch_size,
             self.current_root,
+            self.proof_cache.clone(),
         );
         let job_tx = self
             .worker_pool
@@ -187,9 +307,27 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
             .job_tx
             .clone();
 
-        let (jobs_sent, timings) = self
-            .enqueue_jobs(queue_data, num_batches, job_tx, proof_tx.clone())
+        let (jobs_sent, timings, staging_tree) = self
+            .enqueue_jobs(queue_data, batch_offset, batches_to_process, job_tx, proof_tx.clone())
             .await?;
+
+        // Cache remaining batches for optimistic continuation
+        let total_processed = batch_offset + batches_to_process;
+        let remaining_batches = total_batches.saturating_sub(total_processed);
+        if remaining_batches > 0 {
+            debug!(
+                "Caching {} remaining batches for optimistic continuation (processed {}/{})",
+                remaining_batches, total_processed, total_batches
+            );
+            self.cached_state = Some(CachedQueueState {
+                staging_tree,
+                batches_processed: total_processed,
+                total_batches,
+            });
+        } else {
+            // No remaining batches, clear cache
+            self.cached_state = None;
+        }
 
         drop(proof_tx);
 
@@ -269,15 +407,20 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
     }
 
     /// Enqueue proof generation jobs on a blocking thread pool.
-    /// Takes ownership of queue_data and returns it along with jobs_sent count.
+    /// Takes ownership of queue_data and returns the staging tree along with jobs_sent count.
     /// This allows the proof worker to process jobs concurrently while inputs are generated.
+    /// The staging tree is returned so it can be cached for optimistic continuation.
+    ///
+    /// `batch_offset`: starting batch index (for continuation from cached state)
+    /// `num_batches`: how many batches to process starting from batch_offset
     async fn enqueue_jobs(
         &mut self,
         queue_data: QueueData<S::StagingTree>,
+        batch_offset: usize,
         num_batches: usize,
         job_tx: async_channel::Sender<ProofJob>,
         result_tx: mpsc::Sender<ProofResult>,
-    ) -> crate::Result<(usize, BatchTimings)>
+    ) -> crate::Result<(usize, BatchTimings, S::StagingTree)>
     where
         S::StagingTree: 'static,
     {
@@ -297,7 +440,9 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
             let mut current_seq = initial_seq;
             let mut timings = BatchTimings::default();
 
-            for batch_idx in 0..num_batches {
+            // Process batches starting from batch_offset
+            for i in 0..num_batches {
+                let batch_idx = batch_offset + i;
                 let start = batch_idx * zkp_batch_size_usize;
 
                 // Track circuit type for this specific batch (accounts for combined APPEND+NULLIFY)
@@ -323,6 +468,7 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
                     seq: current_seq,
                     inputs,
                     result_tx: result_tx.clone(),
+                    tree_id: tree.clone(),
                 };
                 current_seq += 1;
 
@@ -333,17 +479,18 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
                 jobs_sent += 1;
             }
 
-            Ok::<_, anyhow::Error>((jobs_sent, final_root, current_seq, timings))
+            // Return staging_tree for optimistic caching
+            Ok::<_, anyhow::Error>((jobs_sent, final_root, current_seq, timings, staging_tree))
         })
         .await
         .map_err(|e| anyhow::anyhow!("Blocking task panicked: {}", e))??;
 
-        let (jobs_sent, final_root, final_seq, timings) = result;
+        let (jobs_sent, final_root, final_seq, timings, staging_tree) = result;
 
         self.current_root = final_root;
         self.seq = final_seq;
 
-        Ok((jobs_sent, timings))
+        Ok((jobs_sent, timings, staging_tree))
     }
 
     /// Pre-warm the proof cache by generating proofs without sending transactions.
@@ -359,7 +506,7 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
         }
 
         let max_batches =
-            ((queue_work.queue_size / self.zkp_batch_size) as usize).min(MAX_BATCHES_LIMIT);
+            ((queue_work.queue_size / self.zkp_batch_size) as usize).min(MAX_BATCHES_PER_ITERATION);
 
         if self.worker_pool.is_none() {
             let job_tx = spawn_proof_workers(&self.context.prover_config);
@@ -391,7 +538,7 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
             return Ok(0);
         }
 
-        let max_batches = max_batches.min(MAX_BATCHES_LIMIT);
+        let max_batches = max_batches.min(MAX_BATCHES_PER_ITERATION);
         let queue_size_hint = (self.zkp_batch_size as usize * max_batches) as u64;
 
         if self.worker_pool.is_none() {
@@ -447,8 +594,9 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
             &initial_root[..4]
         );
 
-        let (jobs_sent, _) = self
-            .enqueue_jobs(queue_data, num_batches, job_tx, proof_tx.clone())
+        // For prewarming, we always start from batch 0 and don't cache the result
+        let (jobs_sent, _, _staging_tree) = self
+            .enqueue_jobs(queue_data, 0, num_batches, job_tx, proof_tx.clone())
             .await?;
 
         drop(proof_tx);
@@ -506,4 +654,9 @@ pub fn is_constraint_error(msg: &str) -> bool {
         // ProofVerificationFailed (error code 13006 / 0x32ce) - staging tree is out of sync
         || lower.contains("0x32ce")
         || lower.contains("13006")
+}
+
+/// Check if an error is a hashchain mismatch - indicates stale cached data
+pub fn is_hashchain_mismatch(msg: &str) -> bool {
+    msg.contains("HASHCHAIN MISMATCH")
 }

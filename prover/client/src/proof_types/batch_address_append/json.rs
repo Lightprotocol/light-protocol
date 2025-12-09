@@ -35,6 +35,9 @@ pub struct BatchAddressAppendInputsJson {
     pub start_index: usize,
     #[serde(rename = "treeHeight")]
     pub tree_height: usize,
+    /// Tree pubkey for fair queuing - used to prevent starvation when multiple trees have proofs pending
+    #[serde(rename = "treeId", skip_serializing_if = "Option::is_none")]
+    pub tree_id: Option<String>,
 }
 
 impl BatchAddressAppendInputsJson {
@@ -78,7 +81,14 @@ impl BatchAddressAppendInputsJson {
             public_input_hash: big_uint_to_string(&inputs.public_input_hash),
             start_index: inputs.start_index,
             tree_height: inputs.tree_height,
+            tree_id: None,
         }
+    }
+
+    /// Set the tree ID for fair queuing across multiple trees
+    pub fn with_tree_id(mut self, tree_id: String) -> Self {
+        self.tree_id = Some(tree_id);
+        self
     }
 
     #[allow(clippy::inherent_to_string)]

@@ -1,6 +1,6 @@
 use crate::processor::v2::{
     common::{batch_range, get_leaves_hashchain},
-    helpers::{fetch_address_batches, fetch_address_zkp_batch_size, fetch_onchain_address_root},
+    helpers::{fetch_address_zkp_batch_size, fetch_onchain_address_root, fetch_paginated_address_batches},
     proof_worker::ProofInput,
     strategy::{CircuitType, QueueData, TreeStrategy},
     BatchContext, QueueWork,
@@ -51,8 +51,9 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
         let total_needed = max_batches.saturating_mul(zkp_batch_size_usize);
         let fetch_len = total_needed as u64;
 
+        // Use paginated fetch for parallel page fetching (similar to state trees)
         let address_queue =
-            match fetch_address_batches(context, None, fetch_len, zkp_batch_size).await? {
+            match fetch_paginated_address_batches(context, fetch_len, zkp_batch_size).await? {
                 Some(aq) if !aq.addresses.is_empty() => aq,
                 Some(_) => {
                     debug!("Address queue is empty");
@@ -130,7 +131,7 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
     fn build_proof_job(
         &self,
         queue_data: &mut Self::StagingTree,
-        batch_idx: usize,
+        _batch_idx: usize,
         start: usize,
         zkp_batch_size: u64,
         epoch: u64,
@@ -154,8 +155,25 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
             })
             .collect();
 
+        // Use start-based index like state strategy does, not batch_idx
+        // This handles cached state continuation correctly
+        let hashchain_idx = start / zkp_batch_size as usize;
 
-        let leaves_hashchain = get_leaves_hashchain(&address_queue.leaves_hash_chains, batch_idx)?;
+        // Also compute the expected batch from start_index (tree position)
+        let tree_batch = queue_data.staging_tree.next_index() / zkp_batch_size as usize;
+
+        tracing::debug!(
+            "Address build_proof_job: start={}, hashchain_idx={}, addresses_len={}, leaves_hash_chains_len={}, zkp_batch_size={}, tree_next_index={}, tree_batch={}",
+            start, hashchain_idx, address_queue.addresses.len(), address_queue.leaves_hash_chains.len(), zkp_batch_size,
+            queue_data.staging_tree.next_index(), tree_batch
+        );
+
+        // Log first 3 addresses for debugging
+        for (i, addr) in addresses.iter().take(3).enumerate() {
+            tracing::debug!("  addresses[{}] = {:?}[..8]", start + i, &addr[..8]);
+        }
+
+        let leaves_hashchain = get_leaves_hashchain(&address_queue.leaves_hash_chains, hashchain_idx)?;
 
         let result = queue_data
             .staging_tree

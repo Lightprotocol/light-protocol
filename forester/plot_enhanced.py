@@ -187,8 +187,13 @@ def plot_latency_distribution(proof_completions: list[ProofEvent], ax):
 
     latencies = [p.round_trip_ms for p in proof_completions]
 
-    # Histogram
-    bins = [0, 500, 1000, 2000, 5000, 10000, 20000, max(latencies) + 1000]
+    # Histogram - ensure bins are monotonically increasing
+    max_latency = max(latencies) if latencies else 1000
+    base_bins = [0, 500, 1000, 2000, 5000, 10000, 20000]
+    # Only keep bins smaller than max_latency, then add final bin
+    bins = [b for b in base_bins if b < max_latency] + [max_latency + 1000]
+    if len(bins) < 2:
+        bins = [0, max_latency + 1000]
     ax.hist(latencies, bins=bins, edgecolor='black', alpha=0.7, color='steelblue')
 
     # Percentile lines
@@ -363,53 +368,46 @@ def plot_tx_type_breakdown(tx_events: list[TxEvent], ax):
 
 
 def plot_time_breakdown_by_type(proof_completions: list[ProofEvent], ax):
-    """Stacked bar chart showing proof time vs queue wait by proof type, separating cache hits."""
-    proofs_with_timing = [p for p in proof_completions if p.proof_ms is not None and p.proof_type]
+    """Bar chart showing mean round-trip time by proof type."""
+    proofs_with_type = [p for p in proof_completions if p.proof_type]
 
-    if not proofs_with_timing:
+    if not proofs_with_type:
         ax.text(0.5, 0.5, "No timing data by type", ha='center', va='center')
         return
 
-    # Separate cache hits (negative queue wait = pre-warmed) from fresh proofs
-    fresh_proofs = [p for p in proofs_with_timing if p.queue_wait_ms >= 0]
-    cached_proofs = [p for p in proofs_with_timing if p.queue_wait_ms < 0]
-
-    # Aggregate fresh proofs by type
+    # Aggregate by type - use round_trip_ms which is the actual end-to-end time
     type_data = {}
-    for p in fresh_proofs:
+    for p in proofs_with_type:
         if p.proof_type not in type_data:
-            type_data[p.proof_type] = {'proof': [], 'queue': []}
-        type_data[p.proof_type]['proof'].append(p.proof_ms)
-        type_data[p.proof_type]['queue'].append(p.queue_wait_ms)
-
-    if not type_data:
-        ax.text(0.5, 0.5, f"All {len(cached_proofs)} proofs were cache hits", ha='center', va='center')
-        return
+            type_data[p.proof_type] = []
+        type_data[p.proof_type].append(p.round_trip_ms)
 
     types = sorted(type_data.keys())
-    proof_means = [np.mean(type_data[t]['proof']) for t in types]
-    queue_means = [np.mean(type_data[t]['queue']) for t in types]
-    counts = [len(type_data[t]['proof']) for t in types]
+    means = [np.mean(type_data[t]) for t in types]
+    medians = [np.median(type_data[t]) for t in types]
+    p95s = [np.percentile(type_data[t], 95) for t in types]
+    counts = [len(type_data[t]) for t in types]
 
     x = np.arange(len(types))
-    width = 0.6
+    width = 0.25
 
-    bars1 = ax.bar(x, proof_means, width, label='Proof Generation', color='steelblue')
-    bars2 = ax.bar(x, queue_means, width, bottom=proof_means, label='Queue Wait', color='orange')
+    bars1 = ax.bar(x - width, means, width, label='Mean', color='steelblue')
+    bars2 = ax.bar(x, medians, width, label='Median', color='green')
+    bars3 = ax.bar(x + width, p95s, width, label='p95', color='orange')
 
-    ax.set_ylabel('Time (ms)')
-    cache_pct = len(cached_proofs) / len(proofs_with_timing) * 100 if proofs_with_timing else 0
-    ax.set_title(f'Mean Time Breakdown (fresh only, {cache_pct:.0f}% cache hits excluded)')
+    ax.set_ylabel('Round-trip Time (ms)')
+    ax.set_title(f'Round-trip Time by Proof Type (n={len(proofs_with_type)})')
     ax.set_xticks(x)
     ax.set_xticklabels([f"{t}\n(n={c})" for t, c in zip(types, counts)])
     ax.legend()
 
-    # Add percentage labels
-    for i, (p, q) in enumerate(zip(proof_means, queue_means)):
-        total = p + q
-        if total > 0:
-            ax.text(i, total + 200, f'{p/total*100:.0f}%/{q/total*100:.0f}%',
-                   ha='center', va='bottom', fontsize=8)
+    # Add value labels on bars
+    for bars in [bars1, bars2, bars3]:
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height,
+                   f'{height:.0f}',
+                   ha='center', va='bottom', fontsize=7)
 
 
 def plot_latency_timeline_by_type(proof_completions: list[ProofEvent], ax):

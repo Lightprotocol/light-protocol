@@ -62,17 +62,34 @@ func (rq *RedisQueue) EnqueueProof(queueName string, job *ProofJob) error {
 		return fmt.Errorf("failed to marshal job: %w", err)
 	}
 
-	err = rq.Client.RPush(rq.Ctx, queueName, data).Err()
+	// Use tree-specific sub-queue for fair queuing if TreeID is set
+	actualQueueName := queueName
+	if job.TreeID != "" && isFairQueueEnabled(queueName) {
+		actualQueueName = fmt.Sprintf("%s:%s", queueName, job.TreeID)
+		// Track this tree in the trees set for round-robin
+		treesSetKey := fmt.Sprintf("%s:trees", queueName)
+		rq.Client.SAdd(rq.Ctx, treesSetKey, job.TreeID)
+	}
+
+	err = rq.Client.RPush(rq.Ctx, actualQueueName, data).Err()
 	if err != nil {
 		return fmt.Errorf("failed to enqueue job: %w", err)
 	}
 
 	logging.Logger().Info().
 		Str("job_id", job.ID).
-		Str("queue", queueName).
+		Str("queue", actualQueueName).
+		Str("tree_id", job.TreeID).
 		Str("redis_addr", rq.Client.Options().Addr).
 		Msg("Job enqueued successfully")
 	return nil
+}
+
+// isFairQueueEnabled returns true for queues that support fair queuing per tree
+func isFairQueueEnabled(queueName string) bool {
+	return queueName == "zk_update_queue" ||
+		queueName == "zk_append_queue" ||
+		queueName == "zk_address_append_queue"
 }
 
 // StoreJobMeta stores job metadata when a job is submitted to enable reliable status lookups.
@@ -133,6 +150,12 @@ func (rq *RedisQueue) DeleteJobMeta(jobID string) error {
 }
 
 func (rq *RedisQueue) DequeueProof(queueName string, timeout time.Duration) (*ProofJob, error) {
+	// Check if this queue supports fair queuing
+	if isFairQueueEnabled(queueName) {
+		return rq.dequeueWithFairQueuing(queueName, timeout)
+	}
+
+	// Standard dequeue for non-fair queues
 	result, err := rq.Client.BLPop(rq.Ctx, timeout, queueName).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -154,6 +177,118 @@ func (rq *RedisQueue) DequeueProof(queueName string, timeout time.Duration) (*Pr
 	return &job, nil
 }
 
+// dequeueWithFairQueuing implements round-robin dequeuing across tree-specific sub-queues
+func (rq *RedisQueue) dequeueWithFairQueuing(queueName string, timeout time.Duration) (*ProofJob, error) {
+	treesSetKey := fmt.Sprintf("%s:trees", queueName)
+	lastTreeKey := fmt.Sprintf("%s:last_tree", queueName)
+
+	// Get all trees with pending jobs
+	trees, err := rq.Client.SMembers(rq.Ctx, treesSetKey).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get trees set: %w", err)
+	}
+
+	// If no trees with jobs, fall back to main queue (for jobs without tree_id)
+	if len(trees) == 0 {
+		result, err := rq.Client.BLPop(rq.Ctx, timeout, queueName).Result()
+		if err != nil {
+			if err == redis.Nil {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("failed to dequeue job: %w", err)
+		}
+		if len(result) < 2 {
+			return nil, fmt.Errorf("invalid result from Redis")
+		}
+		var job ProofJob
+		err = json.Unmarshal([]byte(result[1]), &job)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal job: %w", err)
+		}
+		return &job, nil
+	}
+
+	// Get the last processed tree to start round-robin from next
+	lastTree, _ := rq.Client.Get(rq.Ctx, lastTreeKey).Result()
+
+	// Find starting index for round-robin
+	startIdx := 0
+	for i, tree := range trees {
+		if tree == lastTree {
+			startIdx = (i + 1) % len(trees)
+			break
+		}
+	}
+
+	// Try each tree in round-robin order
+	for i := range len(trees) {
+		idx := (startIdx + i) % len(trees)
+		tree := trees[idx]
+		subQueueName := fmt.Sprintf("%s:%s", queueName, tree)
+
+		// Non-blocking pop from this tree's queue
+		result, err := rq.Client.LPop(rq.Ctx, subQueueName).Result()
+		if err == redis.Nil {
+			// Queue empty, remove tree from set
+			rq.Client.SRem(rq.Ctx, treesSetKey, tree)
+			continue
+		}
+		if err != nil {
+			logging.Logger().Warn().
+				Err(err).
+				Str("queue", subQueueName).
+				Msg("Error popping from tree sub-queue")
+			continue
+		}
+
+		var job ProofJob
+		err = json.Unmarshal([]byte(result), &job)
+		if err != nil {
+			logging.Logger().Warn().
+				Err(err).
+				Str("queue", subQueueName).
+				Msg("Failed to unmarshal job from tree sub-queue")
+			continue
+		}
+
+		// Update last processed tree for next round-robin
+		rq.Client.Set(rq.Ctx, lastTreeKey, tree, 1*time.Hour)
+
+		// Check if queue is now empty and remove from trees set
+		queueLen, _ := rq.Client.LLen(rq.Ctx, subQueueName).Result()
+		if queueLen == 0 {
+			rq.Client.SRem(rq.Ctx, treesSetKey, tree)
+		}
+
+		logging.Logger().Debug().
+			Str("job_id", job.ID).
+			Str("tree_id", tree).
+			Str("queue", subQueueName).
+			Int("trees_count", len(trees)).
+			Msg("Dequeued job with fair queuing")
+
+		return &job, nil
+	}
+
+	// All tree queues were empty, try main queue as fallback
+	result, err := rq.Client.BLPop(rq.Ctx, timeout, queueName).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to dequeue job: %w", err)
+	}
+	if len(result) < 2 {
+		return nil, fmt.Errorf("invalid result from Redis")
+	}
+	var job ProofJob
+	err = json.Unmarshal([]byte(result[1]), &job)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal job: %w", err)
+	}
+	return &job, nil
+}
+
 func (rq *RedisQueue) GetQueueStats() (map[string]int64, error) {
 	stats := make(map[string]int64)
 
@@ -166,6 +301,22 @@ func (rq *RedisQueue) GetQueueStats() (map[string]int64, error) {
 			length = 0
 		}
 		stats[queue] = length
+
+		// For fair-queued queues, also count tree sub-queues
+		if isFairQueueEnabled(queue) {
+			treesSetKey := fmt.Sprintf("%s:trees", queue)
+			trees, err := rq.Client.SMembers(rq.Ctx, treesSetKey).Result()
+			if err == nil {
+				var totalTreeQueueLen int64
+				for _, tree := range trees {
+					subQueueName := fmt.Sprintf("%s:%s", queue, tree)
+					subLen, _ := rq.Client.LLen(rq.Ctx, subQueueName).Result()
+					totalTreeQueueLen += subLen
+				}
+				stats[queue+"_tree_subqueues"] = totalTreeQueueLen
+				stats[queue+"_tree_count"] = int64(len(trees))
+			}
+		}
 	}
 
 	return stats, nil
@@ -339,15 +490,42 @@ func (rq *RedisQueue) CleanupOldRequests() error {
 	totalRemoved := int64(0)
 
 	for _, queueName := range queuesToClean {
+		// Clean main queue
 		removed, err := rq.cleanupOldRequestsFromQueue(queueName, cutoffTime)
 		if err != nil {
 			logging.Logger().Error().
 				Err(err).
 				Str("queue", queueName).
 				Msg("Failed to cleanup old requests from queue")
-			continue
+		} else {
+			totalRemoved += removed
 		}
-		totalRemoved += removed
+
+		// Clean tree sub-queues for fair-queued queues
+		if isFairQueueEnabled(queueName) {
+			treesSetKey := fmt.Sprintf("%s:trees", queueName)
+			trees, err := rq.Client.SMembers(rq.Ctx, treesSetKey).Result()
+			if err == nil {
+				for _, tree := range trees {
+					subQueueName := fmt.Sprintf("%s:%s", queueName, tree)
+					subRemoved, err := rq.cleanupOldRequestsFromQueue(subQueueName, cutoffTime)
+					if err != nil {
+						logging.Logger().Error().
+							Err(err).
+							Str("queue", subQueueName).
+							Msg("Failed to cleanup old requests from tree sub-queue")
+						continue
+					}
+					totalRemoved += subRemoved
+
+					// If tree queue is now empty, remove from trees set
+					queueLen, _ := rq.Client.LLen(rq.Ctx, subQueueName).Result()
+					if queueLen == 0 {
+						rq.Client.SRem(rq.Ctx, treesSetKey, tree)
+					}
+				}
+			}
+		}
 	}
 
 	if totalRemoved > 0 {

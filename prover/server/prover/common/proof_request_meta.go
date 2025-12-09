@@ -14,6 +14,8 @@ type ProofRequestMeta struct {
 	TreeHeight        uint32
 	NumInputs         uint32
 	NumAddresses      uint32
+	// TreeID is the merkle tree pubkey - used for fair queuing across trees
+	TreeID string
 }
 
 // ParseProofRequestMeta parses a JSON input and extracts CircuitType, tree heights, and additional metrics.
@@ -73,6 +75,12 @@ func ParseProofRequestMeta(data []byte) (ProofRequestMeta, error) {
 		numAddresses = len(nonInclusionInputs)
 	}
 
+	// Extract TreeID for fair queuing
+	treeID := ""
+	if id, ok := rawInput["treeId"].(string); ok {
+		treeID = id
+	}
+
 	return ProofRequestMeta{
 		Version:           version,
 		CircuitType:       CircuitType(circuitType),
@@ -80,5 +88,6 @@ func ParseProofRequestMeta(data []byte) (ProofRequestMeta, error) {
 		AddressTreeHeight: addressTreeHeight,
 		NumInputs:         uint32(numInputs),
 		NumAddresses:      uint32(numAddresses),
+		TreeID:            treeID,
 	}, nil
 }

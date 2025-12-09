@@ -1,4 +1,5 @@
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use std::time::Duration;
 
 use borsh::BorshSerialize;
@@ -22,11 +23,14 @@ use light_registry::account_compression_cpi::sdk::{
 };
 use solana_sdk::{instruction::Instruction, signature::Signer};
 use tokio::{sync::mpsc, task::JoinHandle};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::{
     errors::ForesterError,
-    processor::v2::{common::send_transaction_batch, proof_worker::ProofResult, BatchContext},
+    processor::v2::{
+        common::send_transaction_batch, proof_cache::SharedProofCache, proof_worker::ProofResult,
+        BatchContext,
+    },
 };
 
 /// Aggregated proof times by circuit type
@@ -68,6 +72,8 @@ impl ProofTimings {
 pub struct TxSenderResult {
     pub items_processed: usize,
     pub proof_timings: ProofTimings,
+    /// Number of proofs saved to cache when epoch ended (for potential reuse)
+    pub proofs_saved_to_cache: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -146,6 +152,8 @@ pub struct TxSender<R: Rpc> {
     last_seen_root: [u8; 32],
     pending_batch: Vec<(BatchInstruction, u64)>, // (instruction, seq)
     proof_timings: ProofTimings,
+    /// Optional cache to save unused proofs when epoch ends (for reuse in next epoch)
+    proof_cache: Option<Arc<SharedProofCache>>,
 }
 
 impl<R: Rpc> TxSender<R> {
@@ -154,6 +162,7 @@ impl<R: Rpc> TxSender<R> {
         proof_rx: mpsc::Receiver<ProofResult>,
         zkp_batch_size: u64,
         last_seen_root: [u8; 32],
+        proof_cache: Option<Arc<SharedProofCache>>,
     ) -> JoinHandle<crate::Result<TxSenderResult>> {
         let sender = Self {
             context,
@@ -162,6 +171,7 @@ impl<R: Rpc> TxSender<R> {
             last_seen_root,
             pending_batch: Vec::with_capacity(V2_IXS_PER_TX),
             proof_timings: ProofTimings::default(),
+            proof_cache,
         };
 
         tokio::spawn(async move { sender.run(proof_rx).await })
@@ -204,14 +214,18 @@ impl<R: Rpc> TxSender<R> {
             let current_slot = self.context.slot_tracker.estimated_current_slot();
 
             if !self.is_still_eligible_at(current_slot) {
+                // Save current proof and any remaining proofs to cache for potential reuse
+                let proofs_saved = self
+                    .save_proofs_to_cache(&mut proof_rx, Some(result))
+                    .await;
                 info!(
-                    "Active phase ended for epoch {}, stopping tx sender (discarding {} buffered proofs)",
-                    self.context.epoch,
-                    self.buffer.len() + 1
+                    "Active phase ended for epoch {}, stopping tx sender (saved {} proofs to cache)",
+                    self.context.epoch, proofs_saved
                 );
                 return Ok(TxSenderResult {
                     items_processed: processed,
                     proof_timings: self.proof_timings,
+                    proofs_saved_to_cache: proofs_saved,
                 });
             }
 
@@ -299,7 +313,61 @@ impl<R: Rpc> TxSender<R> {
         Ok(TxSenderResult {
             items_processed: processed,
             proof_timings: self.proof_timings,
+            proofs_saved_to_cache: 0,
         })
+    }
+
+    /// Save remaining proofs to cache when epoch ends, for potential reuse in next epoch.
+    /// Returns the number of proofs saved.
+    async fn save_proofs_to_cache(
+        &self,
+        proof_rx: &mut mpsc::Receiver<ProofResult>,
+        current_result: Option<ProofResult>,
+    ) -> usize {
+        let cache = match &self.proof_cache {
+            Some(c) => c,
+            None => {
+                debug!("No proof cache available, discarding remaining proofs");
+                return 0;
+            }
+        };
+
+        let mut saved = 0;
+
+        // Start warming the cache with the current root
+        cache.start_warming(self.last_seen_root).await;
+
+        // Save current result if present
+        if let Some(result) = current_result {
+            if let Ok(instruction) = result.result {
+                cache
+                    .add_proof(result.seq, result.old_root, result.new_root, instruction)
+                    .await;
+                saved += 1;
+            }
+        }
+
+        // Drain remaining proofs from channel
+        while let Ok(result) = proof_rx.try_recv() {
+            if let Ok(instruction) = result.result {
+                cache
+                    .add_proof(result.seq, result.old_root, result.new_root, instruction)
+                    .await;
+                saved += 1;
+            }
+        }
+
+        cache.finish_warming().await;
+
+        if saved > 0 {
+            info!(
+                "Saved {} proofs to cache for potential reuse (root: {:?})",
+                saved,
+                &self.last_seen_root[..4]
+            );
+        }
+
+        saved
     }
 
     async fn send_pending_batch(&mut self) -> crate::Result<usize> {

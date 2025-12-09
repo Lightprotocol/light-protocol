@@ -714,6 +714,7 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, keyManager *com
 				Type:      "zk_proof",
 				Payload:   json.RawMessage(buf),
 				CreatedAt: time.Now(),
+				TreeID:    proofRequestMeta.TreeID,
 			}
 
 			// Store job metadata BEFORE enqueueing to prevent race condition where worker
@@ -939,6 +940,7 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 		Type:      "zk_proof",
 		Payload:   json.RawMessage(buf),
 		CreatedAt: time.Now(),
+		TreeID:    meta.TreeID,
 	}
 
 	// Store job metadata BEFORE enqueueing to prevent race condition where worker

@@ -89,24 +89,68 @@ impl ProofCache {
     }
 
     /// Take cached proofs if they form a valid root chain starting at `current_root`.
+    ///
+    /// The staging tree is always equal to or ahead of on-chain state (never behind,
+    /// unless another forester processed batches). This method:
+    /// 1. Skips proofs whose old_root we've already passed on-chain (stale proofs)
+    /// 2. Takes proofs starting from current_root forming a valid chain
+    /// 3. Only invalidates if we can't find current_root in the chain (tree is behind)
     pub fn take_if_valid(&mut self, current_root: &[u8; 32]) -> Option<Vec<CachedProof>> {
         if self.proofs.is_empty() || self.is_warming {
             return None;
         }
 
+        // Skip proofs until we find one that starts at current_root.
+        // These are proofs for roots that on-chain has already advanced past
+        // (e.g., another forester processed them, or we sent them last epoch).
+        let mut skipped = 0;
+        while let Some(proof) = self.proofs.front() {
+            if proof.old_root == *current_root {
+                break; // Found our starting point
+            }
+            // Check if current_root matches this proof's new_root (we're exactly at this state)
+            if proof.new_root == *current_root {
+                // On-chain is at the result of this proof, skip it and continue
+                self.proofs.pop_front();
+                skipped += 1;
+                continue;
+            }
+            // This proof's old_root doesn't match - it's for a past state, skip it
+            self.proofs.pop_front();
+            skipped += 1;
+        }
+
+        if skipped > 0 {
+            debug!(
+                "Skipped {} stale cached proofs for tree {} (on-chain already advanced)",
+                skipped, self.tree
+            );
+        }
+
+        if self.proofs.is_empty() {
+            // No proofs match current_root - cache is completely stale
+            debug!(
+                "Cache empty after skipping stale proofs for tree {} (current_root {:?})",
+                self.tree,
+                &current_root[..4]
+            );
+            return None;
+        }
+
+        // Now take the valid chain starting from current_root
         let mut expected = *current_root;
         let mut taken: Vec<CachedProof> = Vec::new();
 
         while let Some(proof) = self.proofs.pop_front() {
             if proof.old_root != expected {
-                let remaining = self.proofs.len();
-                info!(
-                    "Cache invalidated for tree {} at seq {}: expected root {:?}, got {:?}. Dropping remaining {} proofs.",
+                // Chain broken - this shouldn't happen if proofs were generated correctly
+                warn!(
+                    "Cache chain broken for tree {} at seq {}: expected root {:?}, got {:?}. Dropping remaining {} proofs.",
                     self.tree,
                     proof.seq,
                     &expected[..4],
                     &proof.old_root[..4],
-                    remaining
+                    self.proofs.len()
                 );
                 self.proofs.clear();
                 break;
@@ -120,11 +164,12 @@ impl ProofCache {
         }
 
         info!(
-            "Using {} cached proofs for tree {} starting at root {:?} ending at {:?}",
+            "Using {} cached proofs for tree {} starting at root {:?} ending at {:?}{}",
             taken.len(),
             self.tree,
             &current_root[..4],
-            &expected[..4]
+            &expected[..4],
+            if skipped > 0 { format!(" (skipped {} stale)", skipped) } else { String::new() }
         );
         Some(taken)
     }

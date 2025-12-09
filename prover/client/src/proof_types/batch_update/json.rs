@@ -31,6 +31,9 @@ pub struct BatchUpdateProofInputsJson {
     pub batch_size: u32,
     #[serde(rename(serialize = "txHashes"))]
     pub tx_hashes: Vec<String>,
+    /// Tree pubkey for fair queuing - used to prevent starvation when multiple trees have proofs pending
+    #[serde(rename = "treeId", skip_serializing_if = "Option::is_none")]
+    pub tree_id: Option<String>,
 }
 
 #[derive(Serialize, Debug)]
@@ -79,7 +82,14 @@ impl BatchUpdateProofInputsJson {
             height,
             batch_size,
             tx_hashes,
+            tree_id: None,
         }
+    }
+
+    /// Set the tree ID for fair queuing across multiple trees
+    pub fn with_tree_id(mut self, tree_id: String) -> Self {
+        self.tree_id = Some(tree_id);
+        self
     }
 
     #[allow(clippy::inherent_to_string)]

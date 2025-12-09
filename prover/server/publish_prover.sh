@@ -1,3 +1,5 @@
+# 2.0.19
+
 PROJECT_ID=$(gcloud config get-value project)
 REGION=europe-west1
 REPO_NAME=light

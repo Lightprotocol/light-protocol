@@ -1,6 +1,6 @@
 use crate::processor::v2::{
     common::{batch_range, get_leaves_hashchain},
-    helpers::{fetch_batches, fetch_onchain_state_root, fetch_zkp_batch_size},
+    helpers::{fetch_onchain_state_root, fetch_paginated_batches, fetch_zkp_batch_size},
     proof_worker::ProofInput,
     strategy::{CircuitType, QueueData, TreeStrategy},
     BatchContext, QueueWork,
@@ -109,7 +109,7 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
         let fetch_len = total_needed as u64;
 
         let state_queue =
-            match fetch_batches(context, None, None, fetch_len, zkp_batch_size).await? {
+            match fetch_paginated_batches(context, fetch_len, zkp_batch_size).await? {
                 Some(sq) => sq,
                 None => return Ok(None),
             };

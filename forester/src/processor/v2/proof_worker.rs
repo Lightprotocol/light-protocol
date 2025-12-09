@@ -9,9 +9,9 @@ use light_prover_client::{
     proof::ProofCompressedWithTiming,
     proof_client::{ProofClient, SubmitProofResult},
     proof_types::{
-        batch_address_append::{to_json as address_append_to_json, BatchAddressAppendInputs},
+        batch_address_append::BatchAddressAppendInputs,
         batch_append::{BatchAppendInputsJson, BatchAppendsCircuitInputs},
-        batch_update::{update_inputs_string, BatchUpdateCircuitInputs},
+        batch_update::BatchUpdateCircuitInputs,
     },
 };
 use tokio::sync::mpsc;
@@ -35,11 +35,23 @@ impl ProofInput {
         }
     }
 
-    fn to_json(&self) -> String {
+    fn to_json(&self, tree_id: &str) -> String {
         match self {
-            ProofInput::Append(inputs) => BatchAppendInputsJson::from_inputs(inputs).to_string(),
-            ProofInput::Nullify(inputs) => update_inputs_string(inputs),
-            ProofInput::AddressAppend(inputs) => address_append_to_json(inputs),
+            ProofInput::Append(inputs) => BatchAppendInputsJson::from_inputs(inputs)
+                .with_tree_id(tree_id.to_string())
+                .to_string(),
+            ProofInput::Nullify(inputs) => {
+                use light_prover_client::proof_types::batch_update::BatchUpdateProofInputsJson;
+                BatchUpdateProofInputsJson::from_update_inputs(inputs)
+                    .with_tree_id(tree_id.to_string())
+                    .to_string()
+            }
+            ProofInput::AddressAppend(inputs) => {
+                use light_prover_client::proof_types::batch_address_append::BatchAddressAppendInputsJson;
+                BatchAddressAppendInputsJson::from_inputs(inputs)
+                    .with_tree_id(tree_id.to_string())
+                    .to_string()
+            }
         }
     }
 
@@ -94,6 +106,8 @@ pub struct ProofJob {
     pub(crate) seq: u64,
     pub(crate) inputs: ProofInput,
     pub(crate) result_tx: mpsc::Sender<ProofResult>,
+    /// Tree pubkey for fair queuing - used to prevent starvation when multiple trees have proofs pending
+    pub(crate) tree_id: String,
 }
 
 #[derive(Debug)]
@@ -172,7 +186,7 @@ async fn run_proof_pipeline(
 
 async fn submit_and_poll_proof(clients: Arc<ProofClients>, job: ProofJob) {
     let client = clients.get_client(&job.inputs);
-    let inputs_json = job.inputs.to_json();
+    let inputs_json = job.inputs.to_json(&job.tree_id);
     let circuit_type = job.inputs.circuit_type();
 
     let round_trip_start = std::time::Instant::now();
@@ -184,7 +198,7 @@ async fn submit_and_poll_proof(clients: Arc<ProofClients>, job: ProofJob) {
                 job.seq, circuit_type, job_id
             );
 
-            poll_and_send_result(clients, job_id, job.seq, job.inputs, job.result_tx, round_trip_start).await;
+            poll_and_send_result(clients, job_id, job.seq, job.inputs, job.tree_id, job.result_tx, round_trip_start).await;
         }
         Ok(SubmitProofResult::Immediate(proof)) => {
             let round_trip_ms = round_trip_start.elapsed().as_millis() as u64;
@@ -220,6 +234,7 @@ async fn poll_and_send_result(
     job_id: String,
     seq: u64,
     inputs: ProofInput,
+    tree_id: String,
     result_tx: mpsc::Sender<ProofResult>,
     round_trip_start: std::time::Instant,
 ) {
@@ -238,7 +253,7 @@ async fn poll_and_send_result(
                 "Proof polling got job_not_found for seq={} job_id={}; retrying submit once",
                 seq, job_id
             );
-            let inputs_json = inputs.to_json();
+            let inputs_json = inputs.to_json(&tree_id);
             let circuit_type = inputs.circuit_type();
             match client.submit_proof_async(inputs_json, circuit_type).await {
                 Ok(SubmitProofResult::Queued(new_job_id)) => {
