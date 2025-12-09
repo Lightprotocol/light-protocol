@@ -184,6 +184,12 @@ pub fn process_create_token_account(
         let custom_rent_payer =
             *compressible.rent_payer.key() != config_account.rent_sponsor.to_bytes();
 
+        // Prevents setting executable accounts as rent_sponsor
+        if custom_rent_payer && !compressible.rent_payer.is_signer() {
+            msg!("Custom rent payer must be a signer");
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
         // Build fee_payer seeds (rent_sponsor PDA or None for custom keypair)
         let version_bytes = config_account.version.to_le_bytes();
         let bump_seed = [config_account.rent_sponsor_bump];

@@ -1,3 +1,5 @@
+use light_sdk::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
+
 use super::shared::*;
 
 #[tokio::test]
@@ -557,6 +559,44 @@ async fn test_create_ata_failing() {
 
         // Should fail with InvalidDiscriminator (20000) from account-checks
         light_program_test::utils::assert::assert_rpc_error(result, 0, 20000).unwrap();
+    }
+
+    // Test 9: Non-signer custom rent payer (DoS prevention)
+    // Custom rent payer must be a signer to prevent setting executable accounts as rent_sponsor.
+    // This prevents DoS attacks where an attacker sets an executable account as rent_sponsor,
+    // making the token account impossible to close (lamport transfers to executable accounts fail).
+    // Error: 8 (MissingRequiredSignature)
+    {
+        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+
+        // Use system program as custom rent payer (executable, cannot sign)
+        let executable_rent_payer = ACCOUNT_COMPRESSION_PROGRAM_ID.into();
+
+        let compressible_params = CompressibleParams {
+            compressible_config: context.compressible_config,
+            rent_sponsor: executable_rent_payer, // Executable account!
+            pre_pay_num_epochs: 2,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        };
+
+        let create_ata_ix = CreateAssociatedCTokenAccount::new(
+            payer_pubkey,
+            context.owner_keypair.pubkey(),
+            context.mint_pubkey,
+        )
+        .with_compressible(compressible_params)
+        .instruction()
+        .unwrap();
+
+        let result = context
+            .rpc
+            .create_and_send_transaction(&[create_ata_ix], &payer_pubkey, &[&context.payer])
+            .await;
+
+        // Should fail with MissingRequiredSignature (8)
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 8).unwrap();
     }
 }
 
