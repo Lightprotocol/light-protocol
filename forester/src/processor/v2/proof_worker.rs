@@ -120,6 +120,8 @@ pub struct ProofResult {
     pub(crate) proof_duration_ms: u64,
     /// Total round-trip time in milliseconds (submit to result, includes queue wait).
     pub(crate) round_trip_ms: u64,
+    /// When this proof job was submitted (for end-to-end latency tracking).
+    pub(crate) submitted_at: std::time::Instant,
 }
 
 struct ProofClients {
@@ -207,7 +209,7 @@ async fn submit_and_poll_proof(clients: Arc<ProofClients>, job: ProofJob) {
                 job.seq, circuit_type, round_trip_ms
             );
 
-            let result = build_proof_result(job.seq, &job.inputs, proof, round_trip_ms);
+            let result = build_proof_result(job.seq, &job.inputs, proof, round_trip_ms, round_trip_start);
             let _ = job.result_tx.send(result).await;
         }
         Err(e) => {
@@ -223,6 +225,7 @@ async fn submit_and_poll_proof(clients: Arc<ProofClients>, job: ProofJob) {
                 new_root: [0u8; 32],
                 proof_duration_ms: 0,
                 round_trip_ms: 0,
+                submitted_at: round_trip_start,
             };
             let _ = job.result_tx.send(result).await;
         }
@@ -246,7 +249,7 @@ async fn poll_and_send_result(
             let round_trip_ms = round_trip_start.elapsed().as_millis() as u64;
             debug!("Proof completed for seq={} job_id={} round_trip={}ms proof={}ms",
                    seq, job_id, round_trip_ms, proof.proof_duration_ms);
-            build_proof_result(seq, &inputs, proof, round_trip_ms)
+            build_proof_result(seq, &inputs, proof, round_trip_ms, round_trip_start)
         }
         Err(e) if is_job_not_found(&e) => {
             warn!(
@@ -268,7 +271,7 @@ async fn poll_and_send_result(
                                 "Proof completed after retry for seq={} job_id={} round_trip={}ms",
                                 seq, new_job_id, round_trip_ms
                             );
-                            build_proof_result(seq, &inputs, proof, round_trip_ms)
+                            build_proof_result(seq, &inputs, proof, round_trip_ms, round_trip_start)
                         }
                         Err(e2) => ProofResult {
                             seq,
@@ -280,6 +283,7 @@ async fn poll_and_send_result(
                             new_root: [0u8; 32],
                             proof_duration_ms: 0,
                             round_trip_ms: 0,
+                            submitted_at: round_trip_start,
                         },
                     }
                 }
@@ -289,7 +293,7 @@ async fn poll_and_send_result(
                         "Immediate proof after retry for seq={} type={} round_trip={}ms",
                         seq, circuit_type, round_trip_ms
                     );
-                    build_proof_result(seq, &inputs, proof, round_trip_ms)
+                    build_proof_result(seq, &inputs, proof, round_trip_ms, round_trip_start)
                 }
                 Err(e_submit) => ProofResult {
                     seq,
@@ -298,6 +302,7 @@ async fn poll_and_send_result(
                     new_root: [0u8; 32],
                     proof_duration_ms: 0,
                     round_trip_ms: 0,
+                    submitted_at: round_trip_start,
                 },
             }
         }
@@ -313,6 +318,7 @@ async fn poll_and_send_result(
                 new_root: [0u8; 32],
                 proof_duration_ms: 0,
                 round_trip_ms: 0,
+                submitted_at: round_trip_start,
             }
         }
     };
@@ -334,6 +340,7 @@ fn build_proof_result(
     inputs: &ProofInput,
     proof_with_timing: ProofCompressedWithTiming,
     round_trip_ms: u64,
+    submitted_at: std::time::Instant,
 ) -> ProofResult {
     let new_root = match inputs.new_root_bytes() {
         Ok(root) => root,
@@ -345,6 +352,7 @@ fn build_proof_result(
                 new_root: [0u8; 32],
                 proof_duration_ms: proof_with_timing.proof_duration_ms,
                 round_trip_ms,
+                submitted_at,
             };
         }
     };
@@ -358,6 +366,7 @@ fn build_proof_result(
                 new_root: [0u8; 32],
                 proof_duration_ms: proof_with_timing.proof_duration_ms,
                 round_trip_ms,
+                submitted_at,
             };
         }
     };
@@ -389,5 +398,6 @@ fn build_proof_result(
         result: Ok(instruction),
         proof_duration_ms: proof_with_timing.proof_duration_ms,
         round_trip_ms,
+        submitted_at,
     }
 }

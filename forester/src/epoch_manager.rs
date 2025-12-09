@@ -493,23 +493,13 @@ impl<R: Rpc> EpochManager<R> {
 
             if last_epoch.is_none_or(|last| current_epoch > last) {
                 debug!("New epoch detected: {}", current_epoch);
-                // Clear processors and caches when a new epoch is detected
-                let processor_count = self.state_processors.len();
-                if processor_count > 0 {
-                    self.state_processors.clear();
-                    info!(
-                        "Cleared {} state processors for new epoch {}",
-                        processor_count, current_epoch
-                    );
-                }
-                let address_processor_count = self.address_processors.len();
-                if address_processor_count > 0 {
-                    self.address_processors.clear();
-                    info!(
-                        "Cleared {} address processors for new epoch {}",
-                        address_processor_count, current_epoch
-                    );
-                }
+                // NOTE: We intentionally DON'T clear processors on epoch change.
+                // Processors are designed to be reused across epochs via get_or_create_*_processor()
+                // which calls update_epoch() to update the context. This preserves:
+                // - Cached proofs from previous epoch
+                // - Staging tree state
+                // - Worker pool connections
+                // Clearing would destroy prewarmed proofs and cause the ~15s epoch transition gap.
                 let phases = get_epoch_phases(&self.protocol_config, current_epoch);
                 if slot < phases.registration.end {
                     debug!("Sending current epoch {} for processing", current_epoch);
@@ -2535,12 +2525,76 @@ impl<R: Rpc> EpochManager<R> {
                 Ok(())
             }
             TreeType::AddressV2 => {
-                // DISABLED: Pre-warming for address trees is temporarily disabled
-                // to narrow down the source of constraint errors.
-                debug!(
-                    "Pre-warming disabled for address tree {}",
-                    tree_accounts.merkle_tree
+                let tree_pubkey = tree_accounts.merkle_tree;
+
+                let cache = self
+                    .proof_caches
+                    .entry(tree_pubkey)
+                    .or_insert_with(|| Arc::new(SharedProofCache::new(tree_pubkey)))
+                    .clone();
+
+                let update =
+                    match tokio::time::timeout(Duration::from_millis(100), queue_update_rx.recv())
+                        .await
+                    {
+                        Ok(Some(update)) if update.queue_size > 0 => update,
+                        Ok(Some(_)) => {
+                            trace!(
+                                "Empty queue update during pre-warm for address tree {}",
+                                tree_pubkey
+                            );
+                            return Ok(());
+                        }
+                        Ok(None) => {
+                            debug!(
+                                "Queue channel closed during pre-warm for address tree {}",
+                                tree_pubkey
+                            );
+                            return Ok(());
+                        }
+                        Err(_) => {
+                            trace!(
+                                "No queue update available for pre-warming address tree {}",
+                                tree_pubkey
+                            );
+                            return Ok(());
+                        }
+                    };
+
+                info!(
+                    "Pre-warming {} items for address tree {} (deadline slot: {})",
+                    update.queue_size, tree_pubkey, deadline_slot
                 );
+
+                let processor = self
+                    .get_or_create_address_processor(epoch_info, tree_accounts)
+                    .await?;
+                {
+                    let mut p = processor.lock().await;
+                    p.update_eligibility(consecutive_eligibility_end);
+                }
+
+                let work = QueueWork {
+                    queue_type: update.queue_type,
+                    queue_size: update.queue_size,
+                };
+
+                let mut p = processor.lock().await;
+                match p.prewarm_proofs(cache.clone(), work).await {
+                    Ok(count) => {
+                        info!(
+                            "Pre-warmed {} proofs for address tree {} before eligible slot",
+                            count, tree_pubkey
+                        );
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to pre-warm proofs for address tree {}: {:?}",
+                            tree_pubkey, e
+                        );
+                        cache.clear().await;
+                    }
+                }
                 Ok(())
             }
             _ => Ok(()),

@@ -56,6 +56,8 @@ class TxEvent:
     ixs: int
     tx_type: str
     tx_hash: str
+    tree: Optional[str] = None
+    e2e_ms: Optional[int] = None  # End-to-end latency: proof submit → tx sent
 
 
 @dataclass
@@ -126,11 +128,21 @@ def parse_log(path: Path) -> dict:
                     hash_start = line.find("tx sent:") + 9
                     hash_end = line.find(" ", hash_start)
                     tx_hash = line[hash_start:hash_end] if hash_end > hash_start else ""
+
+                    # Extract tree pubkey (new format)
+                    tree_m = re.search(r'tree=(\w+)', line)
+                    tree = tree_m.group(1) if tree_m else None
+
+                    # Extract timing info (new format: e2e=<ms>ms)
+                    tx_e2e_m = re.search(r'e2e=(\d+)ms', line)
+
                     tx_events.append(TxEvent(
                         timestamp=ts,
                         ixs=int(ixs_m.group(1)),
                         tx_type=type_m.group(1),
-                        tx_hash=tx_hash
+                        tx_hash=tx_hash,
+                        tree=tree,
+                        e2e_ms=int(tx_e2e_m.group(1)) if tx_e2e_m else None,
                     ))
 
             # Proof requests
@@ -365,6 +377,49 @@ def plot_tx_type_breakdown(tx_events: list[TxEvent], ax):
 
     ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
     ax.set_title('Transaction Type Distribution')
+
+
+def plot_tx_by_tree(tx_events: list[TxEvent], ax):
+    """Bar chart showing TX count and timing by tree."""
+    txs_with_tree = [t for t in tx_events if t.tree]
+
+    if not txs_with_tree:
+        ax.text(0.5, 0.5, "No tree data in TXs\n(old log format)", ha='center', va='center')
+        return
+
+    # Aggregate by tree
+    tree_data = {}
+    for t in txs_with_tree:
+        short_tree = t.tree[:8] + "..."
+        if short_tree not in tree_data:
+            tree_data[short_tree] = {'count': 0, 'e2e_ms': []}
+        tree_data[short_tree]['count'] += 1
+        if t.e2e_ms is not None:
+            tree_data[short_tree]['e2e_ms'].append(t.e2e_ms)
+
+    trees = sorted(tree_data.keys())
+    counts = [tree_data[t]['count'] for t in trees]
+
+    x = np.arange(len(trees))
+    bars = ax.bar(x, counts, color='steelblue', alpha=0.8)
+
+    ax.set_ylabel('TX Count')
+    ax.set_title(f'Transactions by Tree (n={len(txs_with_tree)})')
+    ax.set_xticks(x)
+    ax.set_xticklabels(trees, rotation=45, ha='right', fontsize=8)
+
+    # Add count labels on bars
+    for bar, count in zip(bars, counts):
+        ax.text(bar.get_x() + bar.get_width()/2., bar.get_height(),
+                f'{count}', ha='center', va='bottom', fontsize=8)
+
+    # Add avg e2e latency as secondary info
+    for i, tree in enumerate(trees):
+        e2e_times = tree_data[tree]['e2e_ms']
+        if e2e_times:
+            avg_e2e = np.mean(e2e_times)
+            ax.text(i, counts[i] * 0.5, f'{avg_e2e/1000:.1f}s e2e',
+                    ha='center', va='center', fontsize=7, color='white')
 
 
 def plot_time_breakdown_by_type(proof_completions: list[ProofEvent], ax):
@@ -637,6 +692,27 @@ def print_summary(data: dict):
             total_gap_time = sum(g for g, _ in large_gaps)
             print(f"    Time lost in gaps: {total_gap_time:.1f}s ({total_gap_time/duration*100:.1f}%)")
 
+        # Per-tree breakdown (new log format)
+        txs_with_tree = [t for t in tx_events if t.tree]
+        if txs_with_tree:
+            tree_counts = {}
+            tree_timing = {}
+            for t in txs_with_tree:
+                short = t.tree[:8]
+                tree_counts[short] = tree_counts.get(short, 0) + 1
+                if t.e2e_ms is not None:
+                    if short not in tree_timing:
+                        tree_timing[short] = []
+                    tree_timing[short].append(t.e2e_ms)
+
+            print(f"\n  Per-Tree Breakdown:")
+            print(f"    {'Tree':<12} {'TXs':>6} {'Avg E2E':>10}")
+            print("    " + "-"*30)
+            for tree in sorted(tree_counts.keys(), key=lambda x: -tree_counts[x]):
+                count = tree_counts[tree]
+                avg_e2e = f"{np.mean(tree_timing[tree])/1000:.1f}s" if tree in tree_timing else "N/A"
+                print(f"    {tree}...  {count:>6} {avg_e2e:>10}")
+
     if bottlenecks:
         print(f"\nBottleneck Events:")
         by_type = {}
@@ -667,35 +743,38 @@ def main():
     if args.summary_only:
         return
 
-    # Create figure with subplots (3x3 grid for more detailed analysis)
-    fig = plt.figure(figsize=(18, 14))
+    # Create figure with subplots (4x3 grid for detailed analysis)
+    fig = plt.figure(figsize=(18, 18))
 
-    ax1 = fig.add_subplot(3, 3, 1)
+    ax1 = fig.add_subplot(4, 3, 1)
     plot_latency_distribution(data["proof_completions"], ax1)
 
-    ax2 = fig.add_subplot(3, 3, 2)
+    ax2 = fig.add_subplot(4, 3, 2)
     plot_latency_timeline_by_type(data["proof_completions"], ax2)
 
-    ax3 = fig.add_subplot(3, 3, 3)
+    ax3 = fig.add_subplot(4, 3, 3)
     plot_time_breakdown_by_type(data["proof_completions"], ax3)
 
-    ax4 = fig.add_subplot(3, 3, 4)
+    ax4 = fig.add_subplot(4, 3, 4)
     plot_proof_vs_queue_scatter(data["proof_completions"], ax4)
 
-    ax5 = fig.add_subplot(3, 3, 5)
+    ax5 = fig.add_subplot(4, 3, 5)
     plot_throughput_gaps(data["tx_events"], ax5)
 
-    ax6 = fig.add_subplot(3, 3, 6)
+    ax6 = fig.add_subplot(4, 3, 6)
     plot_tx_type_breakdown(data["tx_events"], ax6)
 
-    ax7 = fig.add_subplot(3, 3, 7)
+    ax7 = fig.add_subplot(4, 3, 7)
     plot_pipeline_utilization(data["proof_requests"], data["proof_completions"], ax7)
 
-    ax8 = fig.add_subplot(3, 3, 8)
+    ax8 = fig.add_subplot(4, 3, 8)
     plot_bottleneck_timeline(data["bottlenecks"], ax8)
 
-    ax9 = fig.add_subplot(3, 3, 9)
+    ax9 = fig.add_subplot(4, 3, 9)
     plot_latency_timeline(data["proof_completions"], ax9)
+
+    ax10 = fig.add_subplot(4, 3, 10)
+    plot_tx_by_tree(data["tx_events"], ax10)
 
     plt.tight_layout()
 

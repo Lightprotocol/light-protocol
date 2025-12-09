@@ -99,10 +99,10 @@ pub async fn fetch_onchain_address_root<R: Rpc>(context: &BatchContext<R>) -> cr
     Ok(root)
 }
 
-/// Timeout for indexer fetch operations (10 seconds)
-/// Reduced from 30s to minimize blocking during epoch transitions.
+/// Timeout for indexer fetch operations (5 seconds)
+/// Reduced from 30s -> 10s -> 5s to minimize blocking during epoch transitions.
 /// Faster fail-and-retry is better than blocking other trees.
-const INDEXER_FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+const INDEXER_FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// Batches per page when doing paginated fetches
 /// State: 20 batches * 500 = 10k elements per page, 3 pages for full queue (60 batches)

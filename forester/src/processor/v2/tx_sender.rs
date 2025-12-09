@@ -83,8 +83,17 @@ pub enum BatchInstruction {
     AddressAppend(Vec<light_batched_merkle_tree::merkle_tree::InstructionDataAddressAppendInputs>),
 }
 
+/// Entry in the ordered proof buffer: instruction + timing info
+#[derive(Clone)]
+struct BufferEntry {
+    instruction: BatchInstruction,
+    round_trip_ms: u64,
+    proof_ms: u64,
+    submitted_at: std::time::Instant,
+}
+
 struct OrderedProofBuffer {
-    buffer: Vec<Option<BatchInstruction>>,
+    buffer: Vec<Option<BufferEntry>>,
     base_seq: u64,
     len: usize,
 }
@@ -106,7 +115,7 @@ impl OrderedProofBuffer {
         self.len
     }
 
-    fn insert(&mut self, seq: u64, instruction: BatchInstruction) -> bool {
+    fn insert(&mut self, seq: u64, instruction: BatchInstruction, round_trip_ms: u64, proof_ms: u64, submitted_at: std::time::Instant) -> bool {
         if seq < self.base_seq {
             return false;
         }
@@ -117,11 +126,11 @@ impl OrderedProofBuffer {
         if self.buffer[offset].is_none() {
             self.len += 1;
         }
-        self.buffer[offset] = Some(instruction);
+        self.buffer[offset] = Some(BufferEntry { instruction, round_trip_ms, proof_ms, submitted_at });
         true
     }
 
-    fn pop_next(&mut self) -> Option<BatchInstruction> {
+    fn pop_next(&mut self) -> Option<BufferEntry> {
         let item = self.buffer[0].take();
         if item.is_some() {
             self.len -= 1;
@@ -151,6 +160,10 @@ pub struct TxSender<R: Rpc> {
     zkp_batch_size: u64,
     last_seen_root: [u8; 32],
     pending_batch: Vec<(BatchInstruction, u64)>, // (instruction, seq)
+    pending_batch_round_trip_ms: u64,
+    pending_batch_proof_ms: u64,
+    /// Earliest submission time in the pending batch (for end-to-end latency)
+    pending_batch_earliest_submit: Option<std::time::Instant>,
     proof_timings: ProofTimings,
     /// Optional cache to save unused proofs when epoch ends (for reuse in next epoch)
     proof_cache: Option<Arc<SharedProofCache>>,
@@ -170,6 +183,9 @@ impl<R: Rpc> TxSender<R> {
             zkp_batch_size,
             last_seen_root,
             pending_batch: Vec::with_capacity(V2_IXS_PER_TX),
+            pending_batch_round_trip_ms: 0,
+            pending_batch_proof_ms: 0,
+            pending_batch_earliest_submit: None,
             proof_timings: ProofTimings::default(),
             proof_cache,
         };
@@ -280,7 +296,7 @@ impl<R: Rpc> TxSender<R> {
                 ));
             }
 
-            if !self.buffer.insert(result.seq, instruction) {
+            if !self.buffer.insert(result.seq, instruction, result.round_trip_ms, result.proof_duration_ms, result.submitted_at) {
                 warn!(
                     "Failed to insert proof seq={} (base={}, capacity={})",
                     result.seq,
@@ -289,9 +305,16 @@ impl<R: Rpc> TxSender<R> {
                 );
             }
 
-            while let Some(instr) = self.buffer.pop_next() {
+            while let Some(entry) = self.buffer.pop_next() {
                 let seq = self.buffer.expected_seq() - 1; // pop_next already incremented
-                self.pending_batch.push((instr, seq));
+                self.pending_batch.push((entry.instruction, seq));
+                self.pending_batch_round_trip_ms += entry.round_trip_ms;
+                self.pending_batch_proof_ms += entry.proof_ms;
+                // Track earliest submission time in batch
+                self.pending_batch_earliest_submit = Some(match self.pending_batch_earliest_submit {
+                    None => entry.submitted_at,
+                    Some(existing) => existing.min(entry.submitted_at),
+                });
 
                 // Send batch when:
                 // 1. We have enough instructions, OR
@@ -376,6 +399,9 @@ impl<R: Rpc> TxSender<R> {
         }
 
         let batch = std::mem::replace(&mut self.pending_batch, Vec::with_capacity(V2_IXS_PER_TX));
+        let _batch_round_trip_ms = std::mem::replace(&mut self.pending_batch_round_trip_ms, 0);
+        let _batch_proof_ms = std::mem::replace(&mut self.pending_batch_proof_ms, 0);
+        let batch_earliest_submit = self.pending_batch_earliest_submit.take();
 
         let batch_len = batch.len();
         let first_seq = batch.first().map(|(_, s)| *s).unwrap_or(0);
@@ -463,15 +489,21 @@ impl<R: Rpc> TxSender<R> {
                     self.last_seen_root = root;
                 }
                 let items_processed = batch_len * self.zkp_batch_size as usize;
+                // End-to-end latency: from earliest proof submission in batch to tx sent
+                let e2e_ms = batch_earliest_submit
+                    .map(|t| t.elapsed().as_millis() as u64)
+                    .unwrap_or(0);
                 info!(
-                    "tx sent: {} type={} ixs={} root={:?} seq={}..{} epoch={}",
+                    "tx sent: {} type={} ixs={} tree={} root={:?} seq={}..{} epoch={} e2e={}ms",
                     sig,
                     instr_type,
                     batch_len,
+                    self.context.merkle_tree,
                     &self.last_seen_root[..4],
                     first_seq,
                     last_seq,
-                    self.context.epoch
+                    self.context.epoch,
+                    e2e_ms,
                 );
                 Ok(items_processed)
             }
