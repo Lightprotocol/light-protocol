@@ -604,15 +604,15 @@ fn test16_single_output_account() -> TestCase {
     }
 }
 
-// Test 17: 10 output compressed accounts (max for v2 trees)
+// Test 17: 8 output compressed accounts (max for v2 trees)
 fn test17_ten_output_accounts() -> TestCase {
     // Note: v2 trees have a limit of 10 leaves per insert
     TestCase {
-        name: "10 output compressed accounts (max for v2 trees)".to_string(),
+        name: "8 output compressed accounts (max for v2 trees)".to_string(),
         actions: {
             let mut actions = vec![];
-            // Create one large input account to split into 10 outputs
-            let total_amount = 1000u64;
+            // Create one large input account to split into 8 outputs
+            let total_amount = 800u64;
             let amount_per_output = 100u64;
 
             // First transfer with input account, creates change for subsequent transfers

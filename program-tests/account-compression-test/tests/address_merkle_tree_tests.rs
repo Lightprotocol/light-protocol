@@ -1042,9 +1042,10 @@ async fn update_address_merkle_tree_wrap_around(
         .unwrap();
 
     // Wrap around the indexed changelog with conflicting elements.
+    // Note: address insertions are limited to 8 per instruction
     let mut rng = thread_rng();
-    for _ in (0..merkle_tree_config.address_changelog_size).step_by(10) {
-        let addresses: Vec<[u8; 32]> = (0..10)
+    for _ in (0..merkle_tree_config.address_changelog_size).step_by(8) {
+        let addresses: Vec<[u8; 32]> = (0..8)
             .map(|_| {
                 Fr::rand(&mut rng)
                     .into_bigint()
