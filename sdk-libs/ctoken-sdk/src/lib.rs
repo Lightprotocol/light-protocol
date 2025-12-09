@@ -60,6 +60,8 @@
 //! # Disclaimer
 //! This library is not audited and in a beta state. Use at your own risk and expect breaking changes.
 
+#[cfg(feature = "anchor")]
+pub mod anchor;
 pub mod compressed_token;
 pub mod compressible;
 pub mod ctoken;
