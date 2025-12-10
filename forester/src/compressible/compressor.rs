@@ -12,6 +12,7 @@ use light_registry::{
     instruction::CompressAndClose,
 };
 use light_sdk::instruction::PackedAccounts;
+use solana_pubkey::pubkey;
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
@@ -19,7 +20,6 @@ use solana_sdk::{
     signer::Signer,
 };
 use tracing::{debug, info};
-use solana_pubkey::pubkey;
 
 use super::{state::CompressibleAccountTracker, types::CompressibleAccountState};
 use crate::Result;
@@ -61,7 +61,6 @@ impl<R: Rpc> Compressor<R> {
         account_states: &[CompressibleAccountState],
         registered_forester_pda: Pubkey,
     ) -> Result<Signature> {
-
         let registry_program_id = Pubkey::from_str(REGISTRY_PROGRAM_ID_STR)?;
         let compressed_token_program_id = Pubkey::new_from_array(CTOKEN_PROGRAM_ID);
 
@@ -86,7 +85,7 @@ impl<R: Rpc> Compressor<R> {
 
         // Get output tree from RPC
         let mut rpc = self.rpc_pool.get_connection().await?;
-        
+
         // FIXME: Use latest active state tree after updating lookup tables
         // rpc.get_latest_active_state_trees()
         //     .await
@@ -95,7 +94,7 @@ impl<R: Rpc> Compressor<R> {
         //     .get_random_state_tree_info()
         //     .map_err(|e| anyhow::anyhow!("Failed to get state tree info: {}", e))?;
 
-         let output_tree_info = TreeInfo {
+        let output_tree_info = TreeInfo {
             tree: pubkey!("bmt1LryLZUMmF7ZtqESaw7wifBXLfXHQYoE4GAmrahU"),
             queue: pubkey!("oq1na8gojfdUhsfCpyjNt6h4JaDWtHf1yQj4koBWfto"),
             cpi_context: Some(pubkey!("cpi15BoVPKgEPw5o8wc2T816GE7b378nMXnhH3Xbq4y")),
@@ -232,7 +231,6 @@ impl<R: Rpc> Compressor<R> {
             account_states.iter().map(|a| a.pubkey.to_string()),
             signature
         );
-
 
         Ok(signature)
     }

@@ -996,8 +996,10 @@ impl<R: Rpc> EpochManager<R> {
             info!("Using QueueInfoPoller for {} V2 trees", v2_trees.len());
         }
 
-        let mut v2_receivers: std::collections::HashMap<Pubkey, mpsc::Receiver<QueueUpdateMessage>> =
-            std::collections::HashMap::new();
+        let mut v2_receivers: std::collections::HashMap<
+            Pubkey,
+            mpsc::Receiver<QueueUpdateMessage>,
+        > = std::collections::HashMap::new();
 
         if !v2_trees.is_empty() {
             if let Some(ref poller) = queue_poller {
@@ -1007,10 +1009,7 @@ impl<R: Rpc> EpochManager<R> {
                         let poller = poller.clone();
                         let tree_pubkey = tree.tree_accounts.merkle_tree;
                         async move {
-                            let result = poller
-                                .ask(RegisterTree { tree_pubkey })
-                                .send()
-                                .await;
+                            let result = poller.ask(RegisterTree { tree_pubkey }).send().await;
                             (tree_pubkey, result)
                         }
                     })
@@ -1582,8 +1581,12 @@ impl<R: Rpc> EpochManager<R> {
     ) -> Result<usize> {
         match tree_accounts.tree_type {
             TreeType::Unknown => {
-                self.dispatch_compression(epoch_info, forester_slot_details, consecutive_eligibility_end)
-                    .await
+                self.dispatch_compression(
+                    epoch_info,
+                    forester_slot_details,
+                    consecutive_eligibility_end,
+                )
+                .await
             }
             TreeType::StateV1 | TreeType::AddressV1 => {
                 self.process_v1(
@@ -1613,7 +1616,6 @@ impl<R: Rpc> EpochManager<R> {
         forester_slot_details: &ForesterSlot,
         consecutive_eligibility_end: u64,
     ) -> Result<usize> {
-
         let current_slot = self.slot_tracker.estimated_current_slot();
         if current_slot >= consecutive_eligibility_end {
             debug!(
