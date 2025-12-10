@@ -64,36 +64,15 @@ jobs:
           npx nx build @lightprotocol/zk-compression-cli
 
       - name: Run stateless.js tests with V2
-        run: |
-          echo "Running stateless.js tests with retry logic (max 2 attempts)..."
-          attempt=1
-          max_attempts=2
-          until npx nx test @lightprotocol/stateless.js; do
-            attempt=$((attempt + 1))
-            if [ $attempt -gt $max_attempts ]; then
-              echo "Tests failed after $max_attempts attempts"
-              exit 1
-            fi
-            echo "Attempt $attempt/$max_attempts failed, retrying..."
-            sleep 5
-          done
-          echo "Tests passed on attempt $attempt"
+        run: npx nx test @lightprotocol/stateless.js
 
-      - name: Run compressed-token tests with V2
+      - name: Run compressed-token legacy tests with V2
+        run: npx nx test @lightprotocol/compressed-token
+
+      - name: Run compressed-token ctoken tests with V2
         run: |
-          echo "Running compressed-token tests with retry logic (max 2 attempts)..."
-          attempt=1
-          max_attempts=2
-          until npx nx test @lightprotocol/compressed-token; do
-            attempt=$((attempt + 1))
-            if [ $attempt -gt $max_attempts ]; then
-              echo "Tests failed after $max_attempts attempts"
-              exit 1
-            fi
-            echo "Attempt $attempt/$max_attempts failed, retrying..."
-            sleep 5
-          done
-          echo "Tests passed on attempt $attempt"
+          cd js/compressed-token
+          LIGHT_PROTOCOL_VERSION=V2 pnpm test:e2e:ctoken:all
 
       - name: Run sdk-anchor-test TypeScript tests with V2
         run: |

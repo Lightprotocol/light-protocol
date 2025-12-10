@@ -10,6 +10,7 @@ import {
 import { exec } from "node:child_process";
 import * as util from "node:util";
 import { exit } from "node:process";
+import axios from "axios";
 
 const execAsync = util.promisify(exec);
 
@@ -34,6 +35,59 @@ function getPhotonInstallMessage(): string {
   } else {
     return `\nPhoton indexer ${PHOTON_VERSION} not found. Please install it by running: "cargo install photon-indexer --version ${PHOTON_VERSION} --locked --force"`;
   }
+}
+
+async function waitForIndexerSync(
+  rpcUrl: string,
+  indexerPort: number,
+  timeoutMs: number = 60000,
+): Promise<void> {
+  const startTime = Date.now();
+  const interval = 500;
+
+  while (Date.now() - startTime < timeoutMs) {
+    try {
+      const [validatorSlotRes, indexerSlotRes] = await Promise.all([
+        axios.post(
+          rpcUrl,
+          { jsonrpc: "2.0", id: 1, method: "getSlot", params: [] },
+          { timeout: 5000 },
+        ),
+        axios.post(
+          `http://127.0.0.1:${indexerPort}`,
+          { jsonrpc: "2.0", id: 1, method: "getIndexerSlot", params: [] },
+          { timeout: 5000 },
+        ),
+      ]);
+
+      const validatorSlot = validatorSlotRes.data?.result;
+      const indexerSlot = indexerSlotRes.data?.result;
+
+      if (
+        typeof validatorSlot === "number" &&
+        typeof indexerSlot === "number"
+      ) {
+        const slotDiff = validatorSlot - indexerSlot;
+        if (slotDiff <= 5) {
+          console.log(
+            `Indexer synced (validator: ${validatorSlot}, indexer: ${indexerSlot})`,
+          );
+          return;
+        }
+        console.log(
+          `Waiting for indexer sync... (validator: ${validatorSlot}, indexer: ${indexerSlot}, diff: ${slotDiff})`,
+        );
+      }
+    } catch {
+      // Ignore errors during sync check, just retry
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+
+  throw new Error(
+    `Indexer failed to sync with validator within ${timeoutMs / 1000}s`,
+  );
 }
 
 export async function startIndexer(
@@ -63,6 +117,7 @@ export async function startIndexer(
     }
     spawnBinary(INDEXER_PROCESS_NAME, args);
     await waitForServers([{ port: indexerPort, path: "/getIndexerHealth" }]);
+    await waitForIndexerSync(rpcUrl, indexerPort);
     console.log("Indexer started successfully!");
   }
 }
