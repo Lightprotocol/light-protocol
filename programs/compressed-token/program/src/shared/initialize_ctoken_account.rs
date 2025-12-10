@@ -139,6 +139,8 @@ fn configure_compressible_extension(
         .lamports_per_byte_per_epoch;
     compressible_extension.rent_config.max_funded_epochs =
         compressible_config_account.rent_config.max_funded_epochs;
+    compressible_extension.rent_config.max_top_up =
+        compressible_config_account.rent_config.max_top_up.into();
 
     // Set the compression_authority, rent_sponsor and lamports_per_write
     compressible_extension.compression_authority =
