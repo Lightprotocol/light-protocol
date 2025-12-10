@@ -54,7 +54,7 @@ pub enum AccountCompressionErrorCode {
     #[msg("RolloverNotConfigured")]
     RolloverNotConfigured,
     StateMerkleTreeAccountDiscriminatorMismatch,
-    #[msg("The maximum number of leaves is v1 30, v2 10")]
+    #[msg("The maximum number of leaves is 30 for v1 and 10 for v2")]
     TooManyLeaves,
     TxHashUndefined,
     UnsupportedAdditionalBytes,

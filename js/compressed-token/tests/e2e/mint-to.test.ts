@@ -135,8 +135,8 @@ describe('mintTo', () => {
         );
     });
 
-    // v2 trees have a limit of 8 leaves per insert
-    const maxRecipients = 8;
+    // v2 trees have a limit of 10 leaves per insert
+    const maxRecipients = 10;
     const recipients = Array.from(
         { length: maxRecipients },
         () => Keypair.generate().publicKey,
@@ -156,14 +156,14 @@ describe('mintTo', () => {
             tokenPoolInfo,
         );
 
-        /// Mint to 8 recipients (max for v2 trees)
+        /// Mint to 10 recipients (max for v2 trees)
         const tx = await mintTo(
             rpc,
             payer,
             mint,
-            recipients.slice(0, 8),
+            recipients.slice(0, 10),
             mintAuthority,
-            amounts.slice(0, 8),
+            amounts.slice(0, 10),
             stateTreeInfo,
             tokenPoolInfo,
         );

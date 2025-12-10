@@ -101,8 +101,8 @@ describe('compress', () => {
     let stateTreeInfo: TreeInfo;
     let tokenPoolInfo: TokenPoolInfo;
 
-    // v2 trees have a limit of 8 leaves per insert
-    const maxBatchSize = 8;
+    // v2 trees have a limit of 10 leaves per insert
+    const maxBatchSize = 10;
     const recipients = Array.from(
         { length: maxBatchSize },
         () => Keypair.generate().publicKey,
@@ -200,7 +200,7 @@ describe('compress', () => {
 
     const amounts = Array.from({ length: maxBatchSize }, (_, i) => bn(i + 1));
 
-    it('should compress to multiple (8 max for v2 trees) recipients with array of amounts and addresses', async () => {
+    it('should compress to multiple (10 max for v2 trees) recipients with array of amounts and addresses', async () => {
         const senderAtaBalanceBefore = await rpc.getTokenAccountBalance(bobAta);
 
         const recipientCompressedTokenBalancesBefore = await Promise.all(
@@ -209,15 +209,15 @@ describe('compress', () => {
             ),
         );
 
-        // compress to 8 recipients (max for v2 trees)
+        // compress to 10 recipients (max for v2 trees)
         await compress(
             rpc,
             payer,
             mint,
-            amounts.slice(0, 8),
+            amounts.slice(0, 10),
             bob,
             bobAta,
-            recipients.slice(0, 8),
+            recipients.slice(0, 10),
             stateTreeInfo,
             tokenPoolInfo,
         );
@@ -228,15 +228,15 @@ describe('compress', () => {
                 bn(senderAtaBalanceBefore.value.amount),
                 bobAta,
                 mint,
-                amounts.slice(0, 8),
-                recipients.slice(0, 8),
+                amounts.slice(0, 10),
+                recipients.slice(0, 10),
                 recipientCompressedTokenBalancesBefore.map(x => x.items),
             );
         }
 
         const senderAtaBalanceAfter = await rpc.getTokenAccountBalance(bobAta);
         const totalCompressed = amounts
-            .slice(0, 8)
+            .slice(0, 10)
             .reduce((sum, amount) => sum.add(amount), bn(0));
         expect(senderAtaBalanceAfter.value.amount).toEqual(
             bn(senderAtaBalanceBefore.value.amount)
