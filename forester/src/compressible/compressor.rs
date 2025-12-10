@@ -17,7 +17,7 @@ use solana_sdk::{
     signature::{Keypair, Signature},
     signer::Signer,
 };
-use tracing::{debug, warn};
+use tracing::debug;
 
 use super::{state::CompressibleAccountTracker, types::CompressibleAccountState};
 use crate::Result;
@@ -196,9 +196,6 @@ impl<R: Rpc> Compressor<R> {
             accounts.len()
         );
 
-        // Collect pubkeys for sync before creating instruction
-        let pubkeys: Vec<_> = account_states.iter().map(|state| state.pubkey).collect();
-
         let ix = Instruction {
             program_id: registry_program_id,
             accounts,
@@ -206,6 +203,8 @@ impl<R: Rpc> Compressor<R> {
         };
 
         // Send transaction
+        // Note: Account removal from tracker is handled by LogSubscriber which parses
+        // the "compress_and_close:<pubkey>" logs emitted by the registry program
         let signature = rpc
             .create_and_send_transaction(
                 &[ix],
@@ -214,11 +213,6 @@ impl<R: Rpc> Compressor<R> {
             )
             .await
             .map_err(|e| anyhow::anyhow!("Failed to send transaction: {}", e))?;
-
-        // Sync accounts to verify they're closed
-        if let Err(e) = self.tracker.sync_accounts(&*rpc, &pubkeys).await {
-            warn!("Failed to sync accounts after compression: {:?}. Tracker will update via subscriptions.", e);
-        }
 
         Ok(signature)
     }

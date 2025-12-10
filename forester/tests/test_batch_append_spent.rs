@@ -322,7 +322,8 @@ async fn test_batch_sequence() {
 
 async fn run_forester(config: &ForesterConfig, duration: Duration) {
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
-    let (shutdown_compressible_sender, shutdown_compressible_receiver) = oneshot::channel();
+    let (shutdown_compressible_sender, shutdown_compressible_receiver) =
+        tokio::sync::broadcast::channel(1);
     let (work_report_sender, _) = mpsc::channel(100);
 
     let service_handle = tokio::spawn(run_pipeline::<LightClient>(

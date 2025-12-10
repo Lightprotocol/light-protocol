@@ -205,7 +205,7 @@ async fn test_compressible_ctoken_compression() {
         .expect("Failed to airdrop lamports");
     // Setup tracker and subscriber
     let tracker = Arc::new(CompressibleAccountTracker::new());
-    let (shutdown_tx, shutdown_rx) = oneshot::channel();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::broadcast::channel(1);
     let mut subscriber = AccountSubscriber::new(
         "ws://localhost:8900".to_string(),
         tracker.clone(),

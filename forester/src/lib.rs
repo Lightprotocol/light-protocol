@@ -158,7 +158,7 @@ pub async fn run_pipeline<R: Rpc>(
     rpc_rate_limiter: Option<RateLimiter>,
     send_tx_rate_limiter: Option<RateLimiter>,
     shutdown_service: oneshot::Receiver<()>,
-    shutdown_compressible: Option<oneshot::Receiver<()>>,
+    shutdown_compressible: Option<tokio::sync::broadcast::Receiver<()>>,
     shutdown_bootstrap: Option<oneshot::Receiver<()>>,
     work_report_sender: mpsc::Sender<WorkReport>,
 ) -> Result<()> {
@@ -225,12 +225,30 @@ pub async fn run_pipeline<R: Rpc>(
             let tracker_clone = tracker.clone();
             let ws_url = compressible_config.ws_url.clone();
 
-            // Spawn subscriber
+            // Create a second receiver for the log subscriber
+            let shutdown_rx_log = shutdown_rx.resubscribe();
+
+            // Spawn account subscriber
             tokio::spawn(async move {
                 let mut subscriber =
                     compressible::AccountSubscriber::new(ws_url, tracker_clone, shutdown_rx);
                 if let Err(e) = subscriber.run().await {
                     tracing::error!("Compressible subscriber error: {:?}", e);
+                }
+            });
+
+            // Spawn log subscriber to detect compress_and_close operations
+            let tracker_clone_log = tracker.clone();
+            let ws_url_log = compressible_config.ws_url.clone();
+
+            tokio::spawn(async move {
+                let mut log_subscriber = compressible::LogSubscriber::new(
+                    ws_url_log,
+                    tracker_clone_log,
+                    shutdown_rx_log,
+                );
+                if let Err(e) = log_subscriber.run().await {
+                    tracing::error!("Log subscriber error: {:?}", e);
                 }
             });
 
