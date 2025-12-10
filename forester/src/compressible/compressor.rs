@@ -19,7 +19,7 @@ use solana_sdk::{
     signer::Signer,
 };
 use tracing::{debug, info, warn};
-use solana_pubkey::{pubkey, Pubkey};
+use solana_pubkey::pubkey;
 
 use super::{state::CompressibleAccountTracker, types::CompressibleAccountState};
 use crate::Result;
