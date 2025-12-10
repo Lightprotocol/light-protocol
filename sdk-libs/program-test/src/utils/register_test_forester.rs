@@ -1,10 +1,11 @@
 use light_client::rpc::{Rpc, RpcError};
-use light_registry::{
-    sdk::create_register_forester_instruction, utils::get_forester_pda, ForesterConfig, ForesterPda,
-};
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
+};
+
+use crate::forester::{
+    create_register_forester_instruction, get_forester_pda, ForesterConfig, ForesterPda,
 };
 
 /// Creates and asserts forester account creation.

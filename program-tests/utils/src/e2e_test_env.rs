@@ -984,7 +984,9 @@ where
                 &mut self.rpc,
                 &self.governance_keypair,
                 &forester.keypair.pubkey(),
-                forester_config,
+                light_program_test::forester::ForesterConfig {
+                    fee: forester_config.fee,
+                },
             )
             .await
             .unwrap();
