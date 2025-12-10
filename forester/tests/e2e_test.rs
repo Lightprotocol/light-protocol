@@ -759,12 +759,13 @@ async fn setup_forester_pipeline(
 ) -> (
     tokio::task::JoinHandle<anyhow::Result<()>>,
     oneshot::Sender<()>,
-    oneshot::Sender<()>,
+    tokio::sync::broadcast::Sender<()>,
     oneshot::Sender<()>,
     mpsc::Receiver<WorkReport>,
 ) {
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
-    let (shutdown_compressible_sender, shutdown_compressible_receiver) = oneshot::channel();
+    let (shutdown_compressible_sender, shutdown_compressible_receiver) =
+        tokio::sync::broadcast::channel(1);
     let (shutdown_bootstrap_sender, shutdown_bootstrap_receiver) = oneshot::channel();
     let (work_report_sender, work_report_receiver) = mpsc::channel(100);
 

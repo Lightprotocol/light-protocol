@@ -41,7 +41,7 @@ async fn main() -> Result<(), ForesterError> {
             let (shutdown_receiver_compressible, shutdown_receiver_bootstrap) =
                 if config.compressible_config.is_some() {
                     let (shutdown_sender_compressible, shutdown_receiver_compressible) =
-                        oneshot::channel();
+                        tokio::sync::broadcast::channel(1);
                     let (shutdown_sender_bootstrap, shutdown_receiver_bootstrap) =
                         oneshot::channel();
                     tokio::spawn(async move {

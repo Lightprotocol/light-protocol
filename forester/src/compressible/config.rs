@@ -13,7 +13,7 @@ pub struct CompressibleConfig {
 }
 
 fn default_batch_size() -> usize {
-    10
+    5
 }
 
 fn default_max_concurrent_batches() -> usize {

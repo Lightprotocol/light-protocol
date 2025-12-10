@@ -53,6 +53,16 @@ pub fn process_compress_and_close<'c: 'info, 'info>(
         Transfer2CpiAccounts::try_from_account_infos(fee_payer, ctx.remaining_accounts)
             .map_err(ProgramError::from)?;
 
+    // Emit logs for closed accounts (used by forester to track closures)
+    for idx in &indices {
+        if let Ok(source_account) = transfer2_accounts
+            .packed_accounts
+            .get_u8(idx.source_index, "source_account")
+        {
+            msg!("compress_and_close:{}", source_account.key);
+        }
+    }
+
     let instruction = compress_and_close_ctoken_accounts_with_indices(
         ctx.accounts.authority.key(),
         authority_index,

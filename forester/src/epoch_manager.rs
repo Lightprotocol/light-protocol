@@ -194,18 +194,6 @@ impl<R: Rpc> EpochManager<R> {
     }
 
     pub async fn run(self: Arc<Self>) -> Result<()> {
-        // Add synthetic compression tree if enabled
-        if self.compressible_tracker.is_some() && self.config.compressible_config.is_some() {
-            let compression_tree_accounts = TreeAccounts {
-                merkle_tree: solana_sdk::pubkey::Pubkey::default(),
-                queue: solana_sdk::pubkey::Pubkey::default(),
-                tree_type: TreeType::Unknown,
-                is_rolledover: false,
-            };
-            self.add_new_tree(compression_tree_accounts).await?;
-            info!("Added compression tree");
-        }
-
         let (tx, mut rx) = mpsc::channel(100);
         let tx = Arc::new(tx);
 
@@ -939,6 +927,24 @@ impl<R: Rpc> EpochManager<R> {
         let trees = self.trees.lock().await;
         trace!("Adding schedule for trees: {:?}", *trees);
         epoch_info.add_trees_with_schedule(&trees, slot)?;
+
+        if self.compressible_tracker.is_some() && self.config.compressible_config.is_some() {
+            let compression_tree_accounts = TreeAccounts {
+                merkle_tree: solana_sdk::pubkey::Pubkey::default(),
+                queue: solana_sdk::pubkey::Pubkey::default(),
+                tree_type: TreeType::Unknown,
+                is_rolledover: false,
+            };
+            let tree_schedule = TreeForesterSchedule::new_with_schedule(
+                &compression_tree_accounts,
+                slot,
+                &epoch_info.forester_epoch_pda,
+                &epoch_info.epoch_pda,
+            )?;
+            epoch_info.trees.insert(0, tree_schedule);
+            debug!("Added compression tree to epoch {}", epoch_info.epoch.epoch);
+        }
+
         info!("Finished waiting for active phase");
         Ok(epoch_info)
     }
@@ -963,66 +969,85 @@ impl<R: Rpc> EpochManager<R> {
 
         self.sync_slot().await?;
 
-        let (_, v2_trees): (Vec<_>, Vec<_>) = epoch_info
-            .trees
-            .iter()
-            .filter(|tree| !should_skip_tree(&self.config, &tree.tree_accounts.tree_type))
-            .partition(|tree| {
-                matches!(
-                    tree.tree_accounts.tree_type,
-                    TreeType::StateV1 | TreeType::AddressV1
-                )
-            });
-
         let queue_poller = self.queue_poller.clone();
-
-        if queue_poller.is_some() {
-            info!("Using QueueInfoPoller for {} V2 trees", v2_trees.len());
-        }
 
         let self_arc = Arc::new(self.clone());
         let epoch_info_arc = Arc::new(epoch_info.clone());
         let mut handles: Vec<JoinHandle<Result<()>>> = Vec::new();
 
-        for tree in epoch_info.trees.iter() {
-            if should_skip_tree(&self.config, &tree.tree_accounts.tree_type) {
-                continue;
-            }
+        let trees_to_process: Vec<_> = epoch_info
+            .trees
+            .iter()
+            .filter(|tree| !should_skip_tree(&self.config, &tree.tree_accounts.tree_type))
+            .cloned()
+            .collect();
 
+        let v2_trees: Vec<_> = trees_to_process
+            .iter()
+            .filter(|tree| {
+                matches!(
+                    tree.tree_accounts.tree_type,
+                    TreeType::StateV2 | TreeType::AddressV2
+                )
+            })
+            .collect();
+
+        if queue_poller.is_some() {
+            info!("Using QueueInfoPoller for {} V2 trees", v2_trees.len());
+        }
+
+        let mut v2_receivers: std::collections::HashMap<
+            Pubkey,
+            mpsc::Receiver<QueueUpdateMessage>,
+        > = std::collections::HashMap::new();
+
+        if !v2_trees.is_empty() {
+            if let Some(ref poller) = queue_poller {
+                let registration_futures: Vec<_> = v2_trees
+                    .iter()
+                    .map(|tree| {
+                        let poller = poller.clone();
+                        let tree_pubkey = tree.tree_accounts.merkle_tree;
+                        async move {
+                            let result = poller.ask(RegisterTree { tree_pubkey }).send().await;
+                            (tree_pubkey, result)
+                        }
+                    })
+                    .collect();
+
+                let results = join_all(registration_futures).await;
+
+                for (tree_pubkey, result) in results {
+                    match result {
+                        Ok(rx) => {
+                            v2_receivers.insert(tree_pubkey, rx);
+                        }
+                        Err(e) => {
+                            error!(
+                                "Failed to register V2 tree {} with queue poller: {:?}.",
+                                tree_pubkey, e
+                            );
+                            return Err(anyhow::anyhow!(
+                                "Failed to register V2 tree {} with queue poller: {}. Cannot process without queue updates.",
+                                tree_pubkey, e
+                            ));
+                        }
+                    }
+                }
+            } else {
+                error!("No queue poller available for V2 trees.");
+                return Err(anyhow::anyhow!(
+                    "No queue poller available for V2 trees. Cannot process without queue updates."
+                ));
+            }
+        }
+
+        for tree in trees_to_process {
             let queue_update_rx = if matches!(
                 tree.tree_accounts.tree_type,
                 TreeType::StateV2 | TreeType::AddressV2
             ) {
-                if let Some(ref poller) = queue_poller {
-                    match poller
-                        .ask(RegisterTree {
-                            tree_pubkey: tree.tree_accounts.merkle_tree,
-                        })
-                        .send()
-                        .await
-                    {
-                        Ok(rx) => Some(rx),
-                        Err(e) => {
-                            error!(
-                                "Failed to register V2 tree {} with queue poller: {:?}.",
-                                tree.tree_accounts.merkle_tree, e
-                            );
-                            return Err(anyhow::anyhow!(
-                                "Failed to register V2 tree {} with queue poller: {}. Cannot process without queue updates.",
-                                tree.tree_accounts.merkle_tree, e
-                            ));
-                        }
-                    }
-                } else {
-                    error!(
-                        "No queue poller available for V2 tree {}.",
-                        tree.tree_accounts.merkle_tree
-                    );
-                    return Err(anyhow::anyhow!(
-                        "No queue poller available for V2 tree {}. Cannot process without queue updates.",
-                        tree.tree_accounts.merkle_tree
-                    ));
-                }
+                v2_receivers.remove(&tree.tree_accounts.merkle_tree)
             } else {
                 None
             };
@@ -1035,7 +1060,6 @@ impl<R: Rpc> EpochManager<R> {
 
             let self_clone = self_arc.clone();
             let epoch_info_clone = epoch_info_arc.clone();
-            let tree = tree.clone();
 
             let handle = tokio::spawn(async move {
                 self_clone
@@ -1173,7 +1197,7 @@ impl<R: Rpc> EpochManager<R> {
 
             if let Some((slot_idx, light_slot_details)) = next_slot_to_process {
                 let result = match tree_type {
-                    TreeType::StateV1 | TreeType::AddressV1 => {
+                    TreeType::StateV1 | TreeType::AddressV1 | TreeType::Unknown => {
                         self.process_light_slot(
                             epoch_info,
                             epoch_pda,
@@ -1206,13 +1230,6 @@ impl<R: Rpc> EpochManager<R> {
                                 tree_schedule.tree_accounts.merkle_tree
                             ))
                         }
-                    }
-                    TreeType::Unknown => {
-                        warn!(
-                            "TreeType::Unknown not supported for light slot processing. \
-                            Compression is handled separately via dispatch_compression()"
-                        );
-                        Ok(())
                     }
                 };
 
@@ -1563,7 +1580,14 @@ impl<R: Rpc> EpochManager<R> {
         queue_update: Option<&QueueUpdateMessage>,
     ) -> Result<usize> {
         match tree_accounts.tree_type {
-            TreeType::Unknown => self.dispatch_compression(epoch_info.epoch).await,
+            TreeType::Unknown => {
+                self.dispatch_compression(
+                    epoch_info,
+                    forester_slot_details,
+                    consecutive_eligibility_end,
+                )
+                .await
+            }
             TreeType::StateV1 | TreeType::AddressV1 => {
                 self.process_v1(
                     epoch_info,
@@ -1586,8 +1610,30 @@ impl<R: Rpc> EpochManager<R> {
         }
     }
 
-    async fn dispatch_compression(&self, current_epoch: u64) -> Result<usize> {
-        trace!("Dispatching compression for epoch {}", current_epoch);
+    async fn dispatch_compression(
+        &self,
+        epoch_info: &Epoch,
+        forester_slot_details: &ForesterSlot,
+        consecutive_eligibility_end: u64,
+    ) -> Result<usize> {
+        let current_slot = self.slot_tracker.estimated_current_slot();
+        if current_slot >= consecutive_eligibility_end {
+            debug!(
+                "Skipping compression: forester no longer eligible (current_slot={}, eligibility_end={})",
+                current_slot, consecutive_eligibility_end
+            );
+            return Ok(0);
+        }
+
+        if current_slot >= forester_slot_details.end_solana_slot {
+            debug!(
+                "Skipping compression: forester slot ended (current_slot={}, slot_end={})",
+                current_slot, forester_slot_details.end_solana_slot
+            );
+            return Ok(0);
+        }
+
+        debug!("Dispatching compression for epoch {}", epoch_info.epoch);
 
         let tracker = self
             .compressible_tracker
@@ -1599,8 +1645,6 @@ impl<R: Rpc> EpochManager<R> {
             .compressible_config
             .as_ref()
             .ok_or_else(|| anyhow!("Compressible config not set"))?;
-
-        let current_slot = self.slot_tracker.estimated_current_slot();
         let accounts = tracker.get_ready_to_compress(current_slot);
 
         if accounts.is_empty() {
@@ -1626,7 +1670,7 @@ impl<R: Rpc> EpochManager<R> {
         let (registered_forester_pda, _) =
             light_registry::utils::get_forester_epoch_pda_from_authority(
                 &self.config.derivation_pubkey,
-                current_epoch,
+                epoch_info.epoch,
             );
 
         // Create parallel compression futures
@@ -1639,9 +1683,38 @@ impl<R: Rpc> EpochManager<R> {
             .map(|(idx, chunk)| (idx, chunk.to_vec()))
             .collect();
 
+        let slot_tracker = self.slot_tracker.clone();
+        // Shared cancellation flag - when set, all pending futures should skip processing
+        let cancelled = Arc::new(AtomicBool::new(false));
+
         let compression_futures = batches.into_iter().map(|(batch_idx, batch)| {
             let compressor = compressor.clone();
+            let slot_tracker = slot_tracker.clone();
+            let cancelled = cancelled.clone();
             async move {
+                // Check if already cancelled by another future
+                if cancelled.load(Ordering::Relaxed) {
+                    debug!(
+                        "Skipping compression batch {}/{}: cancelled",
+                        batch_idx + 1,
+                        num_batches
+                    );
+                    return Err((batch_idx, batch.len(), anyhow!("Cancelled")));
+                }
+
+                // Check forester is still eligible before processing this batch
+                let current_slot = slot_tracker.estimated_current_slot();
+                if current_slot >= consecutive_eligibility_end {
+                    // Signal cancellation to all other futures
+                    cancelled.store(true, Ordering::Relaxed);
+                    warn!(
+                        "Cancelling compression: forester no longer eligible (current_slot={}, eligibility_end={})",
+                        current_slot,
+                        consecutive_eligibility_end
+                    );
+                    return Err((batch_idx, batch.len(), anyhow!("Forester no longer eligible")));
+                }
+
                 debug!(
                     "Processing compression batch {}/{} with {} accounts",
                     batch_idx + 1,
@@ -1653,8 +1726,24 @@ impl<R: Rpc> EpochManager<R> {
                     .compress_batch(&batch, registered_forester_pda)
                     .await
                 {
-                    Ok(sig) => Ok((batch_idx, batch.len(), sig)),
-                    Err(e) => Err((batch_idx, batch.len(), e)),
+                    Ok(sig) => {
+                        debug!(
+                            "Compression batch {}/{} succeeded: {}",
+                            batch_idx + 1,
+                            num_batches,
+                            sig
+                        );
+                        Ok((batch_idx, batch.len(), sig))
+                    }
+                    Err(e) => {
+                        error!(
+                            "Compression batch {}/{} failed: {:?}",
+                            batch_idx + 1,
+                            num_batches,
+                            e
+                        );
+                        Err((batch_idx, batch.len(), e))
+                    }
                 }
             }
         });
@@ -1693,7 +1782,7 @@ impl<R: Rpc> EpochManager<R> {
 
         info!(
             "Completed compression for epoch {}: compressed {} accounts",
-            current_epoch, total_compressed
+            epoch_info.epoch, total_compressed
         );
         Ok(total_compressed)
     }

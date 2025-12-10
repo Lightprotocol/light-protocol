@@ -4,7 +4,10 @@ use clap::Parser;
 use dirs::home_dir;
 use light_client::rpc::{LightClient, LightClientConfig, Rpc};
 use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
-use solana_sdk::signature::{read_keypair_file, Keypair, Signer};
+use solana_sdk::{
+    signature::{read_keypair_file, Keypair, Signer},
+    transaction::Transaction,
+};
 
 #[derive(Debug, Parser)]
 pub struct Options {
@@ -82,9 +85,14 @@ pub async fn create_ctoken_account(options: Options) -> anyhow::Result<()> {
                 .with_compressible(compressible_params)
                 .instruction()?;
 
-        let signature = rpc
-            .create_and_send_transaction(&[create_ix], &payer.pubkey(), &[&payer, &account_keypair])
-            .await?;
+        let transaction = Transaction::new_signed_with_payer(
+            &[create_ix],
+            Some(&payer.pubkey()),
+            &[&payer, &account_keypair],
+            rpc.get_latest_blockhash().await?.0,
+        );
+
+        let signature = rpc.send_transaction(&transaction).await?;
 
         println!(
             "[{}/{}] Account: {} | Mint: {} | Sig: {:?}",
