@@ -18,7 +18,7 @@ use solana_sdk::{
     signature::{Keypair, Signature},
     signer::Signer,
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 use solana_pubkey::pubkey;
 
 use super::{state::CompressibleAccountTracker, types::CompressibleAccountState};
