@@ -1,6 +1,8 @@
 use std::{sync::Arc, time::Duration};
 
-use forester::compressible::{AccountSubscriber, CompressibleAccountTracker, Compressor};
+use forester::compressible::{
+    AccountSubscriber, CompressibleAccountTracker, Compressor, LogSubscriber,
+};
 use forester_utils::{
     forester_epoch::get_epoch_phases,
     rpc_pool::{SolanaRpcPool, SolanaRpcPoolBuilder},
@@ -203,16 +205,35 @@ async fn test_compressible_ctoken_compression() {
     rpc.airdrop_lamports(&payer.pubkey(), 10_000_000_000)
         .await
         .expect("Failed to airdrop lamports");
-    // Setup tracker and subscriber
+    // Setup tracker and subscribers
     let tracker = Arc::new(CompressibleAccountTracker::new());
     let (shutdown_tx, shutdown_rx) = tokio::sync::broadcast::channel(1);
-    let mut subscriber = AccountSubscriber::new(
+    let shutdown_rx_log = shutdown_tx.subscribe();
+
+    // Spawn account subscriber to track new/updated accounts
+    let mut account_subscriber = AccountSubscriber::new(
         "ws://localhost:8900".to_string(),
         tracker.clone(),
         shutdown_rx,
     );
-    let subscriber_handle = tokio::spawn(async move {
-        subscriber.run().await.expect("Subscriber failed to run");
+    let account_subscriber_handle = tokio::spawn(async move {
+        account_subscriber
+            .run()
+            .await
+            .expect("Account subscriber failed to run");
+    });
+
+    // Spawn log subscriber to detect compress_and_close operations
+    let mut log_subscriber = LogSubscriber::new(
+        "ws://localhost:8900".to_string(),
+        tracker.clone(),
+        shutdown_rx_log,
+    );
+    let log_subscriber_handle = tokio::spawn(async move {
+        log_subscriber
+            .run()
+            .await
+            .expect("Log subscriber failed to run");
     });
     sleep(Duration::from_secs(2)).await;
     // Create mint
@@ -332,7 +353,12 @@ async fn test_compressible_ctoken_compression() {
     shutdown_tx
         .send(())
         .expect("Failed to send shutdown signal");
-    subscriber_handle.await.expect("Subscriber task panicked");
+    account_subscriber_handle
+        .await
+        .expect("Account subscriber task panicked");
+    log_subscriber_handle
+        .await
+        .expect("Log subscriber task panicked");
 }
 
 /// Test that bootstrap process picks up existing compressible token accounts
