@@ -2,7 +2,8 @@ use std::{str::FromStr, sync::Arc};
 
 use anchor_lang::{InstructionData, ToAccountMetas};
 use forester_utils::rpc_pool::SolanaRpcPool;
-use light_client::rpc::Rpc;
+use light_client::{indexer::TreeInfo, rpc::Rpc};
+use light_compressed_account::TreeType;
 use light_compressible::config::CompressibleConfig;
 use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use light_ctoken_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenAccounts;
@@ -17,7 +18,8 @@ use solana_sdk::{
     signature::{Keypair, Signature},
     signer::Signer,
 };
-use tracing::debug;
+use tracing::{debug, info, warn};
+use solana_pubkey::{pubkey, Pubkey};
 
 use super::{state::CompressibleAccountTracker, types::CompressibleAccountState};
 use crate::Result;
@@ -59,6 +61,7 @@ impl<R: Rpc> Compressor<R> {
         account_states: &[CompressibleAccountState],
         registered_forester_pda: Pubkey,
     ) -> Result<Signature> {
+
         let registry_program_id = Pubkey::from_str(REGISTRY_PROGRAM_ID_STR)?;
         let compressed_token_program_id = Pubkey::new_from_array(CTOKEN_PROGRAM_ID);
 
@@ -83,13 +86,23 @@ impl<R: Rpc> Compressor<R> {
 
         // Get output tree from RPC
         let mut rpc = self.rpc_pool.get_connection().await?;
-        rpc.get_latest_active_state_trees()
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to get state tree info: {}", e))?;
+        
+        // FIXME: Use latest active state tree after updating lookup tables
+        // rpc.get_latest_active_state_trees()
+        //     .await
+        //     .map_err(|e| anyhow::anyhow!("Failed to get state tree info: {}", e))?;
+        // let output_tree_info = rpc
+        //     .get_random_state_tree_info()
+        //     .map_err(|e| anyhow::anyhow!("Failed to get state tree info: {}", e))?;
 
-        let output_tree_info = rpc
-            .get_random_state_tree_info()
-            .map_err(|e| anyhow::anyhow!("Failed to get state tree info: {}", e))?;
+         let output_tree_info = TreeInfo {
+            tree: pubkey!("bmt1LryLZUMmF7ZtqESaw7wifBXLfXHQYoE4GAmrahU"),
+            queue: pubkey!("oq1na8gojfdUhsfCpyjNt6h4JaDWtHf1yQj4koBWfto"),
+            cpi_context: Some(pubkey!("cpi15BoVPKgEPw5o8wc2T816GE7b378nMXnhH3Xbq4y")),
+            tree_type: TreeType::StateV2,
+            next_tree_info: None,
+        };
+
         let output_queue = output_tree_info
             .get_output_pubkey()
             .map_err(|e| anyhow::anyhow!("Failed to get output queue: {}", e))?;
@@ -213,6 +226,13 @@ impl<R: Rpc> Compressor<R> {
             )
             .await
             .map_err(|e| anyhow::anyhow!("Failed to send transaction: {}", e))?;
+
+        info!(
+            "compress_and_close tx with ({:?}) accounts sent {}",
+            account_states.iter().map(|a| a.pubkey.to_string()),
+            signature
+        );
+
 
         Ok(signature)
     }
