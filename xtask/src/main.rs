@@ -11,6 +11,7 @@ mod create_vkeyrs_from_gnark_key;
 mod export_photon_test_data;
 mod fee;
 mod fetch_accounts;
+mod fetch_failed_txs;
 mod hash_set;
 mod new_deployment;
 mod print_state_tree;
@@ -75,6 +76,11 @@ enum Command {
     ///   cargo xtask fetch-accounts rpc --lut --pubkeys <lut_pubkey> --network mainnet
     ///   cargo xtask fetch-accounts rpc --lut --pubkeys <lut_pubkey> --add-pubkeys <pk1>,<pk2> --network mainnet
     FetchAccounts(fetch_accounts::Options),
+    /// Fetch failed transactions from Light Registry program
+    /// Examples:
+    ///   cargo xtask fetch-failed-txs --minutes 10 --network mainnet
+    ///   cargo xtask fetch-failed-txs --minutes 30 --network devnet
+    FetchFailedTxs(fetch_failed_txs::Options),
     /// Create compressible config (config counter + compressible config)
     /// Creates the config counter PDA and a compressible config with default RentConfig.
     /// Example: cargo xtask create-compressible-config --network devnet
@@ -118,6 +124,7 @@ async fn main() -> Result<(), anyhow::Error> {
         Command::PrintStateTree(opts) => print_state_tree::print_state_tree(opts).await,
         Command::ReinitCpiAccounts(opts) => reinit_cpi_accounts::reinit_cpi_accounts(opts).await,
         Command::FetchAccounts(opts) => fetch_accounts::fetch_accounts(opts).await,
+        Command::FetchFailedTxs(opts) => fetch_failed_txs::fetch_failed_txs(opts).await,
         Command::CreateCompressibleConfig(opts) => {
             create_compressible_config::create_compressible_config(opts).await
         }
