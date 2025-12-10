@@ -333,6 +333,11 @@ impl PartialEq<CToken> for ZCToken<'_> {
                             {
                                 return false;
                             }
+                            if u16::from(zc_comp.rent_config.max_top_up)
+                                != regular_comp.rent_config.max_top_up
+                            {
+                                return false;
+                            }
                             // Compare compression_authority ([u8; 32])
                             if zc_comp.compression_authority != regular_comp.compression_authority {
                                 return false;
