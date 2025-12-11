@@ -966,4 +966,72 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             newAddresses.map(address => address.address),
         );
     }
+
+    async getValidityProofV2(
+        accountMerkleContexts: any[] = [],
+        newAddresses: any[] = [],
+        derivationMode?: any,
+    ): Promise<ValidityProofWithContext> {
+        const hashes = accountMerkleContexts
+            .filter(ctx => ctx !== undefined)
+            .map(ctx => ({
+                hash: ctx.hash,
+                tree: ctx.treeInfo.tree,
+                queue: ctx.treeInfo.queue,
+            }));
+
+        const addresses = newAddresses.map(addr => ({
+            address: addr.address,
+            tree: addr.treeInfo.tree,
+            queue: addr.treeInfo.queue,
+        }));
+
+        return this.getValidityProofV0(hashes, addresses);
+    }
+
+    async getAccountInfoInterface(
+        _address: PublicKey,
+        _programId: PublicKey,
+        _addressSpaceInfo: any,
+    ): Promise<any> {
+        throw new Error('getAccountInfoInterface not implemented in TestRpc');
+    }
+
+    async getSignaturesForAddressInterface(
+        _address: PublicKey,
+        _options?: any,
+        _compressedOptions?: PaginatedOptions,
+    ): Promise<any> {
+        throw new Error(
+            'getSignaturesForAddressInterface not implemented in TestRpc',
+        );
+    }
+
+    async getSignaturesForOwnerInterface(
+        _owner: PublicKey,
+        _options?: any,
+        _compressedOptions?: PaginatedOptions,
+    ): Promise<any> {
+        throw new Error(
+            'getSignaturesForOwnerInterface not implemented in TestRpc',
+        );
+    }
+
+    async getTokenAccountBalanceInterface(
+        _address: PublicKey,
+        _owner: PublicKey,
+        _mint: PublicKey,
+        _commitment?: any,
+    ): Promise<any> {
+        throw new Error(
+            'getTokenAccountBalanceInterface not implemented in TestRpc',
+        );
+    }
+
+    async getBalanceInterface(
+        _address: PublicKey,
+        _commitment?: any,
+    ): Promise<any> {
+        throw new Error('getBalanceInterface not implemented in TestRpc');
+    }
 }

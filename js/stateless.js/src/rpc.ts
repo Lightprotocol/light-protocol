@@ -1,8 +1,12 @@
 import {
+    AccountInfo,
+    Commitment,
     Connection,
     ConnectionConfig,
+    GetAccountInfoConfig,
     PublicKey,
     SolanaJSONRPCError,
+    SignaturesForAddressOptions,
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import {
@@ -51,6 +55,16 @@ import {
     PaginatedOptions,
     CompressedAccountResultV2,
     CompressedTokenAccountsByOwnerOrDelegateResultV2,
+    AddressWithTreeInfo,
+    HashWithTreeInfo,
+    DerivationMode,
+    AddressWithTreeInfoV2,
+    SignaturesForAddressInterfaceResult,
+    UnifiedSignatureInfo,
+    UnifiedTokenBalance,
+    UnifiedBalance,
+    SignatureSource,
+    SignatureSourceType,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -64,6 +78,7 @@ import {
     ValidityProof,
     TreeType,
     AddressTreeInfo,
+    MerkleContext,
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import {
@@ -74,9 +89,12 @@ import {
     versionedEndpoint,
     featureFlags,
     batchAddressTree,
+    CTOKEN_PROGRAM_ID,
+    getDefaultAddressSpace,
 } from './constants';
 import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
+import { ConfirmedSignatureInfo } from '@solana/web3.js';
 
 import {
     proofFromJsonStruct,
@@ -89,7 +107,7 @@ import {
     getTreeInfoByPubkey,
 } from './utils/get-state-tree-infos';
 import { TreeInfo } from './state/types';
-import { validateNumbersForProof } from './utils';
+import { deriveAddressV2, validateNumbersForProof } from './utils';
 
 /** @internal */
 export function parseAccountData({
@@ -608,6 +626,62 @@ function buildCompressedAccountWithMaybeTokenData(
 
     return { account: compressedAccount, maybeTokenData: parsed };
 }
+/**
+ * Merge signatures from Solana RPC and compression indexer.
+ * Deduplicates by signature, tracking sources in the `sources` array.
+ * When a signature exists in both, uses Solana data (richer) but marks both sources.
+ */
+export function mergeSignatures(
+    solanaSignatures: ConfirmedSignatureInfo[],
+    compressedSignatures: SignatureWithMetadata[],
+): UnifiedSignatureInfo[] {
+    const signatureMap = new Map<string, UnifiedSignatureInfo>();
+
+    // Process compressed signatures first
+    for (const sig of compressedSignatures) {
+        signatureMap.set(sig.signature, {
+            signature: sig.signature,
+            slot: sig.slot,
+            blockTime: sig.blockTime,
+            err: null,
+            memo: null,
+            confirmationStatus: undefined,
+            sources: [SignatureSource.Compressed],
+        });
+    }
+
+    // Process Solana signatures, merging sources if duplicate
+    for (const sig of solanaSignatures) {
+        const existing = signatureMap.get(sig.signature);
+        if (existing) {
+            // Found in both - use Solana data (richer), add both sources
+            signatureMap.set(sig.signature, {
+                signature: sig.signature,
+                slot: sig.slot,
+                blockTime: sig.blockTime ?? null,
+                err: sig.err,
+                memo: sig.memo ?? null,
+                confirmationStatus: sig.confirmationStatus,
+                sources: [SignatureSource.Solana, SignatureSource.Compressed],
+            });
+        } else {
+            // Only in Solana
+            signatureMap.set(sig.signature, {
+                signature: sig.signature,
+                slot: sig.slot,
+                blockTime: sig.blockTime ?? null,
+                err: sig.err,
+                memo: sig.memo ?? null,
+                confirmationStatus: sig.confirmationStatus,
+                sources: [SignatureSource.Solana],
+            });
+        }
+    }
+
+    // Sort by slot descending (most recent first)
+    return Array.from(signatureMap.values()).sort((a, b) => b.slot - a.slot);
+}
+
 /**
  *
  */
@@ -1832,6 +1906,59 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
     /**
      * Fetch the latest validity proof for (1) compressed accounts specified by
+     * an array of account Merkle contexts, and (2) new unique addresses specified by
+     * an array of address objects with tree info.
+     *
+     * Validity proofs prove the presence of compressed accounts in state trees
+     * and the non-existence of addresses in address trees, respectively. They
+     * enable verification without recomputing the merkle proof path, thus
+     * lowering verification and data costs.
+     */
+    async getValidityProofV2(
+        accountMerkleContexts: (MerkleContext | undefined)[] = [],
+        newAddresses: AddressWithTreeInfoV2[] = [],
+        derivationMode?: DerivationMode,
+    ): Promise<ValidityProofWithContext> {
+        const hashesWithTrees = accountMerkleContexts
+            .filter(ctx => ctx !== undefined)
+            .map(ctx => ({
+                hash: ctx.hash,
+                tree: ctx.treeInfo.tree,
+                queue: ctx.treeInfo.queue,
+            }));
+
+        const addressesWithTrees = newAddresses.map(address => {
+            let derivedAddress: BN;
+            if (
+                derivationMode === DerivationMode.compressible ||
+                derivationMode === undefined
+            ) {
+                const publicKey = deriveAddressV2(
+                    Uint8Array.from(address.address),
+                    address.treeInfo.tree,
+                    CTOKEN_PROGRAM_ID,
+                );
+                derivedAddress = bn(publicKey.toBytes());
+            } else {
+                derivedAddress = bn(address.address);
+            }
+
+            return {
+                address: derivedAddress,
+                tree: address.treeInfo.tree,
+                queue: address.treeInfo.queue,
+            };
+        });
+
+        const { value } = await this.getValidityProofAndRpcContext(
+            hashesWithTrees,
+            addressesWithTrees,
+        );
+        return value;
+    }
+
+    /**
+     * Fetch the latest validity proof for (1) compressed accounts specified by
      * an array of account hashes. (2) new unique addresses specified by an
      * array of addresses. Returns with context slot.
      *
@@ -1950,5 +2077,273 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 context: res.result.context,
             };
         }
+    }
+
+    /**
+     * Fetch the account info for the specified public key. Returns metadata
+     * to load in case the account is cold.
+     * @param address               The account address to fetch.
+     * @param programId             The owner program ID.
+     * @param commitmentOrConfig    Optional. The commitment or config to use
+     *                              for the onchain account fetch.
+     * @param addressSpace          Optional. The address space info that was
+     *                              used at init.
+     *
+     * @returns                     Account info with load info, or null if
+     *                              account doesn't exist. LoadContext is always
+     *                              some if the account is compressible. isCold
+     *                              indicates the current state of the account,
+     *                              if true the account must referenced in a
+     *                              load instruction before use.
+     */
+    async getAccountInfoInterface(
+        address: PublicKey,
+        programId: PublicKey,
+        commitmentOrConfig?: Commitment | GetAccountInfoConfig,
+        addressSpace?: TreeInfo,
+    ): Promise<{
+        accountInfo: AccountInfo<Buffer>;
+        isCold: boolean;
+        loadContext?: MerkleContext;
+    } | null> {
+        if (!featureFlags.isV2()) {
+            throw new Error('getAccountInfoInterface requires feature flag V2');
+        }
+
+        addressSpace = addressSpace ?? getDefaultAddressSpace();
+
+        const cAddress = deriveAddressV2(
+            address.toBytes(),
+            addressSpace.tree,
+            programId,
+        );
+
+        const [onchainResult, compressedResult] = await Promise.allSettled([
+            this.getAccountInfo(address, commitmentOrConfig),
+            this.getCompressedAccount(bn(cAddress.toBytes())),
+        ]);
+
+        const onchainAccount =
+            onchainResult.status === 'fulfilled' ? onchainResult.value : null;
+        const compressedAccount =
+            compressedResult.status === 'fulfilled'
+                ? compressedResult.value
+                : null;
+
+        if (onchainAccount) {
+            if (compressedAccount) {
+                return {
+                    accountInfo: onchainAccount,
+                    // it's compressible and currently hot.
+                    loadContext: {
+                        treeInfo: compressedAccount.treeInfo,
+                        hash: compressedAccount.hash,
+                        leafIndex: compressedAccount.leafIndex,
+                        proveByIndex: compressedAccount.proveByIndex,
+                    },
+                    isCold: false,
+                };
+            }
+            // it's not compressible.
+            return {
+                accountInfo: onchainAccount,
+                loadContext: undefined,
+                isCold: false,
+            };
+        }
+
+        // is cold.
+        if (
+            compressedAccount &&
+            compressedAccount.data &&
+            compressedAccount.data.data.length > 0
+        ) {
+            const accountInfo: AccountInfo<Buffer> = {
+                executable: false,
+                owner: compressedAccount.owner,
+                lamports: compressedAccount.lamports.toNumber(),
+                data: Buffer.concat([
+                    Buffer.from(compressedAccount.data!.discriminator),
+                    compressedAccount.data!.data,
+                ]),
+            };
+            return {
+                accountInfo,
+                loadContext: {
+                    treeInfo: compressedAccount.treeInfo,
+                    hash: compressedAccount.hash,
+                    leafIndex: compressedAccount.leafIndex,
+                    proveByIndex: compressedAccount.proveByIndex,
+                },
+                isCold: true,
+            };
+        }
+
+        // account does not exist.
+        return null;
+    }
+
+    /**
+     * Get signatures for an address from both Solana and compression indexer.
+     *
+     * @param address               Address to fetch signatures for.
+     * @param options               Options for the Solana getSignaturesForAddress call.
+     * @param compressedOptions     Options for the compression getCompressionSignaturesForAddress call.
+     * @returns                     Unified signatures from both sources.
+     */
+    async getSignaturesForAddressInterface(
+        address: PublicKey,
+        options?: SignaturesForAddressOptions,
+        compressedOptions?: PaginatedOptions,
+    ): Promise<SignaturesForAddressInterfaceResult> {
+        const [solanaResult, compressedResult] = await Promise.allSettled([
+            this.getSignaturesForAddress(address, options),
+            this.getCompressionSignaturesForAddress(address, compressedOptions),
+        ]);
+
+        const solanaSignatures =
+            solanaResult.status === 'fulfilled' ? solanaResult.value : [];
+        const compressedSignatures =
+            compressedResult.status === 'fulfilled'
+                ? compressedResult.value.items
+                : [];
+
+        const signatures = mergeSignatures(
+            solanaSignatures,
+            compressedSignatures,
+        );
+
+        return {
+            signatures,
+            solana: solanaSignatures,
+            compressed: compressedSignatures,
+        };
+    }
+
+    /**
+     * Get signatures for an owner from both Solana and compression indexer.
+     *
+     * @param owner                 Owner address to fetch signatures for.
+     * @param options               Options for the Solana getSignaturesForAddress call.
+     * @param compressedOptions     Options for the compression getCompressionSignaturesForOwner call.
+     * @returns                     Unified signatures from both sources.
+     */
+    async getSignaturesForOwnerInterface(
+        owner: PublicKey,
+        options?: SignaturesForAddressOptions,
+        compressedOptions?: PaginatedOptions,
+    ): Promise<SignaturesForAddressInterfaceResult> {
+        const [solanaResult, compressedResult] = await Promise.allSettled([
+            this.getSignaturesForAddress(owner, options),
+            this.getCompressionSignaturesForOwner(owner, compressedOptions),
+        ]);
+
+        const solanaSignatures =
+            solanaResult.status === 'fulfilled' ? solanaResult.value : [];
+        const compressedSignatures =
+            compressedResult.status === 'fulfilled'
+                ? compressedResult.value.items
+                : [];
+
+        const signatures = mergeSignatures(
+            solanaSignatures,
+            compressedSignatures,
+        );
+
+        return {
+            signatures,
+            solana: solanaSignatures,
+            compressed: compressedSignatures,
+        };
+    }
+
+    /**
+     * Get token account balance for an address, regardless of whether the token
+     * account is hot or cold.
+     *
+     * @param address       Token account address.
+     * @param owner         Owner public key.
+     * @param mint          Mint public key.
+     * @param commitment    Commitment level for on-chain query.
+     * @returns             Unified token balance from both sources.
+     */
+    async getTokenAccountBalanceInterface(
+        address: PublicKey,
+        owner: PublicKey,
+        mint: PublicKey,
+        commitment?: Commitment,
+    ): Promise<UnifiedTokenBalance> {
+        const [onChainResult, compressedResult] = await Promise.allSettled([
+            this.getTokenAccountBalance(address, commitment),
+            this.getCompressedTokenBalancesByOwner(owner, { mint }),
+        ]);
+
+        // Parse on-chain result
+        let onChainAmount = bn(0);
+        let decimals = 0;
+        let solanaTokenAmount = null;
+
+        if (onChainResult.status === 'fulfilled' && onChainResult.value) {
+            const value = onChainResult.value.value;
+            onChainAmount = bn(value.amount);
+            decimals = value.decimals;
+            solanaTokenAmount = value;
+        }
+
+        // Parse compressed result
+        let compressedAmount = bn(0);
+        if (compressedResult.status === 'fulfilled') {
+            const items = compressedResult.value.items;
+            // Filter by mint and sum up balances
+            const matchingBalances = items.filter(item =>
+                item.mint.equals(mint),
+            );
+            for (const balance of matchingBalances) {
+                compressedAmount = compressedAmount.add(balance.balance);
+            }
+        }
+
+        return {
+            amount: onChainAmount.add(compressedAmount),
+            hasColdBalance: !compressedAmount.isZero(),
+            decimals,
+            solana: solanaTokenAmount,
+        };
+    }
+
+    /**
+     * Get SOL balance for an address, regardless of whether the account is hot or cold.
+     *
+     * @param address       Address to fetch balance for.
+     * @param commitment    Commitment level for on-chain query.
+     * @returns             Unified SOL balance.
+     */
+    async getBalanceInterface(
+        address: PublicKey,
+        commitment?: Commitment,
+    ): Promise<UnifiedBalance> {
+        const [onChainResult, compressedResult] = await Promise.allSettled([
+            this.getBalance(address, commitment),
+            this.getCompressedBalanceByOwner(address),
+        ]);
+
+        const onChainBalance =
+            onChainResult.status === 'fulfilled'
+                ? bn(onChainResult.value)
+                : bn(0);
+        const compressedBalance =
+            compressedResult.status === 'fulfilled'
+                ? compressedResult.value
+                : bn(0);
+
+        const total = !onChainBalance.isZero()
+            ? onChainBalance
+            : compressedBalance;
+
+        return {
+            total,
+
+            hasColdBalance: !compressedBalance.isZero(),
+        };
     }
 }

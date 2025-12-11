@@ -19,7 +19,9 @@ import {
 } from '@lightprotocol/stateless.js';
 
 /**
- * Create and initialize a new compressed token mint
+ * Create and initialize a new SPL token mint
+ *
+ * @deprecated Use {@link createMintInterface} instead, which supports both SPL and compressed mints.
  *
  * @param rpc               RPC connection to use
  * @param payer             Fee payer
@@ -31,7 +33,6 @@ import {
  * @param tokenProgramId    Optional: Program ID for the token. Defaults to
  *                          TOKEN_PROGRAM_ID.
  * @param freezeAuthority   Optional: Account that will control freeze and thaw.
- *                          Defaults to none.
  *
  * @return Object with mint address and transaction signature
  */
@@ -40,10 +41,10 @@ export async function createMint(
     payer: Signer,
     mintAuthority: PublicKey | Signer,
     decimals: number,
-    keypair = Keypair.generate(),
+    keypair: Keypair = Keypair.generate(),
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey | boolean,
-    freezeAuthority?: PublicKey | Signer,
+    freezeAuthority?: PublicKey | Signer | null,
 ): Promise<{ mint: PublicKey; transactionSignature: TransactionSignature }> {
     const rentExemptBalance =
         await rpc.getMinimumBalanceForRentExemption(MINT_SIZE);
@@ -76,7 +77,7 @@ export async function createMint(
 
     const additionalSigners = dedupeSigner(
         payer,
-        [mintAuthority, freezeAuthority].filter(
+        [mintAuthority, freezeAuthority ?? null].filter(
             (signer): signer is Signer =>
                 signer != undefined && 'secretKey' in signer,
         ),

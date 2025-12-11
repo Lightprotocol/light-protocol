@@ -18,10 +18,10 @@ import BN from 'bn.js';
 import { CompressedTokenProgram } from '../program';
 import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
 import {
-    selectTokenPoolInfosForDecompression,
-    TokenPoolInfo,
+    selectSplInterfaceInfosForDecompression,
+    SplInterfaceInfo,
+    getSplInterfaceInfos,
 } from '../utils/get-token-pool-infos';
-import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
 
 /**
  * Decompress delegated compressed tokens. Remaining compressed tokens are
@@ -34,7 +34,7 @@ import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
  * @param owner                 Owner of the compressed tokens
  * @param toAddress             Destination **uncompressed** token account
  *                              address. (ATA)
- * @param tokenPoolInfos        Optional: Token pool infos.
+ * @param splInterfaceInfos     Optional: SPL interface infos.
  * @param confirmOptions        Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction
@@ -46,7 +46,7 @@ export async function decompressDelegated(
     amount: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    tokenPoolInfos?: TokenPoolInfo[],
+    splInterfaceInfos?: SplInterfaceInfo[],
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     amount = bn(amount);
@@ -69,10 +69,10 @@ export async function decompressDelegated(
         })),
     );
 
-    const tokenPoolInfosToUse =
-        tokenPoolInfos ??
-        selectTokenPoolInfosForDecompression(
-            await getTokenPoolInfos(rpc, mint),
+    const splInterfaceInfosToUse =
+        splInterfaceInfos ??
+        selectSplInterfaceInfosForDecompression(
+            await getSplInterfaceInfos(rpc, mint),
             amount,
         );
 
@@ -83,7 +83,7 @@ export async function decompressDelegated(
         amount,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.compressedProof,
-        tokenPoolInfos: tokenPoolInfosToUse,
+        tokenPoolInfos: splInterfaceInfosToUse,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

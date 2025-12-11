@@ -3,6 +3,15 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/shared.sh"
 
+# Cross-platform sed in-place (macOS vs Linux)
+sed_inplace() {
+    if [ "$OS" = "Darwin" ]; then
+        sed -i '' "$@"
+    else
+        sed -i "$@"
+    fi
+}
+
 install_photon() {
     local expected_version="${PHOTON_VERSION}"
     local expected_commit="${PHOTON_COMMIT}"
@@ -20,15 +29,6 @@ install_photon() {
     # Ensure directories and log file exist
     mkdir -p "${PREFIX}/cargo/bin"
     touch "$INSTALL_LOG"
-
-    # Portable sed -i (macOS vs Linux)
-    sed_inplace() {
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "$@"
-        else
-            sed -i "$@"
-        fi
-    }
 
     # Check if exact version+commit combo is already installed
     if grep -q "^${install_marker}$" "$INSTALL_LOG" 2>/dev/null; then

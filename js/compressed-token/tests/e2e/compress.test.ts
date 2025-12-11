@@ -23,8 +23,8 @@ import {
     createMint,
     createTokenProgramLookupTable,
     decompress,
-    mintTo,
 } from '../../src/actions';
+import { mintTo } from '../../src';
 import {
     createAssociatedTokenAccount,
     TOKEN_2022_PROGRAM_ID,

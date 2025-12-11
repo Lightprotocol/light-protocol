@@ -10,17 +10,21 @@ import terser from '@rollup/plugin-terser';
 import replace from '@rollup/plugin-replace';
 
 const rolls = (fmt, env) => ({
-    input: 'src/index.ts',
+    input: {
+        index: 'src/index.ts',
+        'unified/index': 'src/v3/unified/index.ts',
+    },
     output: {
         dir: `dist/${fmt}/${env}`,
         format: fmt,
         entryFileNames: `[name].${fmt === 'cjs' ? 'cjs' : 'js'}`,
+        chunkFileNames: `[name]-[hash].${fmt === 'cjs' ? 'cjs' : 'js'}`,
         sourcemap: true,
     },
     external: [
+        '@coral-xyz/borsh',
         '@solana/web3.js',
         '@solana/spl-token',
-        '@coral-xyz/borsh',
         '@lightprotocol/stateless.js',
     ],
     plugins: [
@@ -85,7 +89,35 @@ const rolls = (fmt, env) => ({
 const typesConfig = {
     input: 'src/index.ts',
     output: [{ file: 'dist/types/index.d.ts', format: 'es' }],
-    plugins: [dts()],
+    external: [
+        '@coral-xyz/borsh',
+        '@solana/web3.js',
+        '@solana/spl-token',
+        '@lightprotocol/stateless.js',
+    ],
+    plugins: [
+        dts({
+            respectExternal: true,
+            tsconfig: './tsconfig.json',
+        }),
+    ],
+};
+
+const typesConfigUnified = {
+    input: 'src/v3/unified/index.ts',
+    output: [{ file: 'dist/types/unified/index.d.ts', format: 'es' }],
+    external: [
+        '@coral-xyz/borsh',
+        '@solana/web3.js',
+        '@solana/spl-token',
+        '@lightprotocol/stateless.js',
+    ],
+    plugins: [
+        dts({
+            respectExternal: true,
+            tsconfig: './tsconfig.json',
+        }),
+    ],
 };
 
 export default [
@@ -93,4 +125,5 @@ export default [
     rolls('cjs', 'node'),
     rolls('es', 'browser'),
     typesConfig,
+    typesConfigUnified,
 ];

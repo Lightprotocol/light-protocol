@@ -61,6 +61,7 @@ export async function startIndexer(
     if (photonDatabaseUrl) {
       args.push("--db-url", photonDatabaseUrl);
     }
+
     spawnBinary(INDEXER_PROCESS_NAME, args);
     await waitForServers([{ port: indexerPort, path: "/getIndexerHealth" }]);
     console.log("Indexer started successfully!");

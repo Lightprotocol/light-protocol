@@ -152,7 +152,6 @@ describe('transfer', () => {
             bob,
             charlie.publicKey,
         );
-        console.log('txid transfer ', txid);
         await assertTransfer(
             rpc,
             bobPreCompressedTokenAccounts,
@@ -178,7 +177,6 @@ describe('transfer', () => {
             bob,
             charlie.publicKey,
         );
-        console.log('txid transfer 2 ', txid2);
         await assertTransfer(
             rpc,
             bobPreCompressedTokenAccounts2.items,
