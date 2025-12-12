@@ -556,8 +556,7 @@ export function convertToPublicTransactionEvent(
                                   convertByteArray(
                                       Buffer.from(
                                           new Uint8Array(
-                                              invokeData
-                                                  .outputCompressedAccounts[
+                                              invokeData.outputCompressedAccounts[
                                                   index
                                               ].compressedAccount.data.data,
                                           ),
