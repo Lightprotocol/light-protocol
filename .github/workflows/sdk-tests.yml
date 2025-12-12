@@ -79,6 +79,32 @@ jobs:
         run: |
           npx nx build @lightprotocol/zk-compression-cli
 
+      - name: Install bun
+        if: matrix.program == 'sdk-libs'
+        run: npm install -g bun
+
+      - name: Install CLI globally (npm, bun, yarn)
+        if: matrix.program == 'sdk-libs'
+        run: |
+          npm install -g @lightprotocol/zk-compression-cli
+          bun install -g @lightprotocol/zk-compression-cli
+          cd /tmp && yarn global add @lightprotocol/zk-compression-cli
+
+      - name: Test find_light_bin with npm
+        if: matrix.program == 'sdk-libs'
+        run: |
+          cargo test -p light-program-test --lib -- test_find_light_bin --nocapture
+
+      - name: Test find_light_bin with bun
+        if: matrix.program == 'sdk-libs'
+        run: |
+          PATH="$HOME/.bun/bin:$PATH" cargo test -p light-program-test --lib -- test_find_light_bin --nocapture
+
+      - name: Test find_light_bin with yarn
+        if: matrix.program == 'sdk-libs'
+        run: |
+          PATH="$(yarn global bin):$PATH" cargo test -p light-program-test --lib -- test_find_light_bin --nocapture
+
       - name: Run sub-tests for ${{ matrix.program }}
         if: matrix.sub-tests != null
         run: |
