@@ -4,8 +4,9 @@ import https from "https";
 import http from "http";
 import { pipeline } from "stream/promises";
 
-const PROVER_VERSION = "2.0.6";
-const GITHUB_RELEASES_BASE_URL = `https://github.com/Lightprotocol/light-protocol/releases/download/light-prover-v${PROVER_VERSION}`;
+const PROVER_RELEASE_TAG = "2.0.6";
+const PROVER_BINARY_VERSION = "2.0.0"; // Version string the binary actually reports
+const GITHUB_RELEASES_BASE_URL = `https://github.com/Lightprotocol/light-protocol/releases/download/light-prover-v${PROVER_RELEASE_TAG}`;
 const MAX_REDIRECTS = 10;
 
 interface DownloadOptions {
@@ -151,5 +152,5 @@ async function downloadFile(
 }
 
 export function getProverVersion(): string {
-  return PROVER_VERSION;
+  return PROVER_BINARY_VERSION;
 }
