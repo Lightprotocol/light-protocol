@@ -22,7 +22,7 @@ light-macros = { workspace = true }
 pinocchio = { workspace = true }
 solana-program-error = { workspace = true, optional = true }
 solana-msg = { workspace = true, optional = true }
-# Feature-gated dependencies
+´# Feature-gated dependencies - using published version to avoid cycle with anchor fork
 anchor-lang = { workspace = true, optional = true }
 bytemuck = { workspace = true, features = ["derive"] }
 borsh = { workspace = true }

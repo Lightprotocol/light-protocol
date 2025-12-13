@@ -61,4 +61,4 @@ light-compressible = { workspace = true }
 num-bigint = { workspace = true }
 light-compressed-account = { workspace = true, features = ["new-unique"] }
 light-hasher = { workspace = true, features = ["keccak"] }
-anchor-lang = { workspace = true }
+# anchor-lang removed to avoid cycle with anchor fork

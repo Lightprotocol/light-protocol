@@ -55,7 +55,7 @@ anchor-lang = { workspace = true, optional = true }
 
 [dev-dependencies]
 light-account-checks = { workspace = true, features = ["test-only", "pinocchio", "std"] }
-anchor-lang = { workspace = true }
+# anchor-lang removed to avoid cycle with anchor fork
 light-compressed-token = { workspace = true }
 pinocchio = { workspace = true }
 
