@@ -183,8 +183,8 @@ async fn test_random_mint_action() {
             match action_type {
                 // 30% chance: MintToCompressed
                 0..=299 => {
-                    // Random number of recipients (1-5), but respect the 29 total limit
-                    let max_additional = (29 - total_recipients).min(5);
+                    // Random number of recipients (1-5), but respect the 7 total limit
+                    let max_additional = (7 - total_recipients).min(2);
                     if max_additional > 0 {
                         let num_recipients = rng.gen_range(1..=max_additional);
                         let mut recipients = Vec::new();

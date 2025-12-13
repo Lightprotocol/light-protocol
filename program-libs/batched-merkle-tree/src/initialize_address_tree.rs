@@ -7,8 +7,9 @@ use light_merkle_tree_metadata::{
 
 use crate::{
     constants::{
+        ADDRESS_BLOOM_FILTER_CAPACITY, ADDRESS_BLOOM_FILTER_NUM_HASHES,
+        DEFAULT_ADDRESS_BATCH_ROOT_HISTORY_LEN, DEFAULT_ADDRESS_BATCH_SIZE,
         DEFAULT_ADDRESS_ZKP_BATCH_SIZE, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
-        DEFAULT_BATCH_ROOT_HISTORY_LEN, DEFAULT_BATCH_SIZE,
     },
     errors::BatchedMerkleTreeError,
     merkle_tree::{get_merkle_tree_account_size, BatchedMerkleTreeAccount},
@@ -38,12 +39,12 @@ impl Default for InitAddressTreeAccountsInstructionData {
             index: 0,
             program_owner: None,
             forester: None,
-            bloom_filter_num_iters: 3,
-            input_queue_batch_size: DEFAULT_BATCH_SIZE,
+            bloom_filter_num_iters: ADDRESS_BLOOM_FILTER_NUM_HASHES,
+            input_queue_batch_size: DEFAULT_ADDRESS_BATCH_SIZE,
             input_queue_zkp_batch_size: DEFAULT_ADDRESS_ZKP_BATCH_SIZE,
-            height: 40,
-            root_history_capacity: DEFAULT_BATCH_ROOT_HISTORY_LEN,
-            bloom_filter_capacity: DEFAULT_BATCH_SIZE * 8,
+            height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
+            root_history_capacity: DEFAULT_ADDRESS_BATCH_ROOT_HISTORY_LEN,
+            bloom_filter_capacity: ADDRESS_BLOOM_FILTER_CAPACITY,
             network_fee: Some(10000),
             rollover_threshold: Some(95),
             close_threshold: None,
