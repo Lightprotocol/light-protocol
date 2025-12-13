@@ -54,7 +54,7 @@ pub enum AccountCompressionErrorCode {
     #[msg("RolloverNotConfigured")]
     RolloverNotConfigured,
     StateMerkleTreeAccountDiscriminatorMismatch,
-    #[msg("The maximum number of leaves is 255")]
+    #[msg("The maximum number of leaves is 30 for v1 and 10 for v2")]
     TooManyLeaves,
     TxHashUndefined,
     UnsupportedAdditionalBytes,
@@ -66,4 +66,8 @@ pub enum AccountCompressionErrorCode {
     UnsupportedHeight,
     UnsupportedParameters,
     V1AccountMarkedAsProofByIndex,
+    #[msg("Too many addresses. The maximum is 8 per instruction.")]
+    TooManyAddresses,
+    #[msg("Too many nullifiers. The maximum is 10 per instruction.")]
+    TooManyNullifiers,
 }

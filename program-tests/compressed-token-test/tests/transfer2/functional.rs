@@ -129,11 +129,10 @@ async fn test_transfer2_functional() {
         test13_multiple_inputs_single_output(),
         test14_multiple_inputs_multiple_outputs(),
         test15_change_account_only(),
-        // Output Account Limits (16-19)
+        // Output Account Limits (16-17)
+        // Note: v2 trees have a limit of 10 leaves per insert, so tests 18-19 were removed
         test16_single_output_account(),
         test17_ten_output_accounts(),
-        test18_twenty_output_accounts(),
-        test19_maximum_output_accounts(),
         // Amount Edge Cases (20-25)
         test20_transfer_zero_tokens(),
         test21_transfer_one_token(),
@@ -262,18 +261,20 @@ fn test3_basic_transfer_sha_flat() -> TestCase {
 }
 
 fn test4_basic_transfer_sha_flat_8() -> TestCase {
+    // Note: v2 trees have a limit of 8 leaves per insert, so we use 4 transfers
+    // (4 transfers * 2 outputs each = 8 leaves, which is the max for v2 trees)
     TestCase {
-        name: "8 transfers from different signers using ShaFlat (max input limit)".to_string(),
-        actions: (0..8) // MAX_INPUT_ACCOUNTS is 8
+        name: "4 transfers from different signers using ShaFlat (max for v2 trees)".to_string(),
+        actions: (0..4) // v2 trees limit: 4 transfers * 2 outputs = 8 leaves
             .map(|i| {
                 MetaTransfer2InstructionType::Transfer(MetaTransferInput {
                     input_compressed_accounts: vec![300], // One account with 300 tokens
                     amount: 100, // Partial transfer to avoid 0-amount change accounts
                     is_delegate_transfer: false,
                     token_data_version: TokenDataVersion::ShaFlat,
-                    signer_index: i,        // Each transfer from keypair 0-7
+                    signer_index: i,        // Each transfer from keypair 0-3
                     delegate_index: None,   // Not a delegate transfer
-                    recipient_index: i + 8, // Transfer to keypair 8-15 (no overlap with signers)
+                    recipient_index: i + 8, // Transfer to keypair 8-11 (no overlap with signers)
                     change_amount: None,
                     mint_index: 0,
                 })
@@ -385,11 +386,13 @@ fn test10_basic_transfer_sha_flat_7_inputs() -> TestCase {
 }
 
 fn test11_basic_transfer_sha_flat_8_inputs() -> TestCase {
+    // Note: v2 trees have a limit of 10 leaves per insert, so we use 5 inputs
+    // (5 inputs * 2 outputs each = 10 leaves, which is the max for v2 trees)
     TestCase {
-        name: "8 transfers from different signers using ShaFlat (max input limit)".to_string(),
+        name: "5 transfers from different signers using ShaFlat (max for v2 trees)".to_string(),
         actions: vec![MetaTransfer2InstructionType::Transfer(MetaTransferInput {
-            input_compressed_accounts: vec![300, 300, 300, 300, 300, 300, 300, 300], // Eight accounts
-            amount: 2400,
+            input_compressed_accounts: vec![300, 300, 300, 300, 300], // Five accounts (max for v2)
+            amount: 1500,
             is_delegate_transfer: false,
             token_data_version: TokenDataVersion::ShaFlat,
             signer_index: 0,      // Owner (keypair[0]) signs the transfer
@@ -601,14 +604,15 @@ fn test16_single_output_account() -> TestCase {
     }
 }
 
-// Test 17: 10 output compressed accounts
+// Test 17: 8 output compressed accounts (max for v2 trees)
 fn test17_ten_output_accounts() -> TestCase {
+    // Note: v2 trees have a limit of 10 leaves per insert
     TestCase {
-        name: "10 output compressed accounts".to_string(),
+        name: "8 output compressed accounts (max for v2 trees)".to_string(),
         actions: {
             let mut actions = vec![];
-            // Create one large input account to split into 10 outputs
-            let total_amount = 1000u64;
+            // Create one large input account to split into 8 outputs
+            let total_amount = 800u64;
             let amount_per_output = 100u64;
 
             // First transfer with input account, creates change for subsequent transfers
@@ -620,12 +624,12 @@ fn test17_ten_output_accounts() -> TestCase {
                 signer_index: 0,
                 delegate_index: None,
                 recipient_index: 1,
-                change_amount: Some(0), // Keep remaining as change
+                change_amount: Some(0), // No change account (amount = 0)
                 mint_index: 0,
             }));
 
-            // 9 more transfers using the change from the first transfer
-            for i in 1..10 {
+            // 7 more transfers using the change from the first transfer (8 total outputs)
+            for i in 1..8 {
                 actions.push(MetaTransfer2InstructionType::Transfer(MetaTransferInput {
                     input_compressed_accounts: vec![], // Use change from previous
                     amount: amount_per_output,
@@ -633,92 +637,8 @@ fn test17_ten_output_accounts() -> TestCase {
                     token_data_version: TokenDataVersion::ShaFlat,
                     signer_index: 0,
                     delegate_index: None,
-                    recipient_index: i + 1, // Recipients 2-10
-                    change_amount: Some(0),
-                    mint_index: 0,
-                }));
-            }
-
-            actions
-        },
-    }
-}
-
-// Test 18: 20 output compressed accounts
-fn test18_twenty_output_accounts() -> TestCase {
-    TestCase {
-        name: "20 output compressed accounts".to_string(),
-        actions: {
-            let mut actions = vec![];
-            let total_amount = 2000u64;
-            let amount_per_output = 100u64;
-
-            // First transfer with input account
-            actions.push(MetaTransfer2InstructionType::Transfer(MetaTransferInput {
-                input_compressed_accounts: vec![total_amount],
-                amount: amount_per_output,
-                is_delegate_transfer: false,
-                token_data_version: TokenDataVersion::ShaFlat,
-                signer_index: 0,
-                delegate_index: None,
-                recipient_index: 1,
-                change_amount: Some(0),
-                mint_index: 0,
-            }));
-
-            // 19 more transfers using the change
-            for i in 1..20 {
-                actions.push(MetaTransfer2InstructionType::Transfer(MetaTransferInput {
-                    input_compressed_accounts: vec![],
-                    amount: amount_per_output,
-                    is_delegate_transfer: false,
-                    token_data_version: TokenDataVersion::ShaFlat,
-                    signer_index: 0,
-                    delegate_index: None,
-                    recipient_index: i + 1, // Recipients 2-20
-                    change_amount: Some(0),
-                    mint_index: 0,
-                }));
-            }
-
-            actions
-        },
-    }
-}
-
-// Test 19: 35 output compressed accounts (maximum per instruction)
-fn test19_maximum_output_accounts() -> TestCase {
-    TestCase {
-        name: "35 output compressed accounts (maximum)".to_string(),
-        actions: {
-            let mut actions = vec![];
-            let total_amount = 2900u64; // 35 * 100
-            let amount_per_output = 100u64;
-
-            // First transfer with input account
-            actions.push(MetaTransfer2InstructionType::Transfer(MetaTransferInput {
-                input_compressed_accounts: vec![total_amount],
-                amount: amount_per_output,
-                is_delegate_transfer: false,
-                token_data_version: TokenDataVersion::ShaFlat,
-                signer_index: 0,
-                delegate_index: None,
-                recipient_index: 1,
-                change_amount: Some(0),
-                mint_index: 0,
-            }));
-
-            // 34 more transfers to reach the maximum of 35 outputs
-            for i in 1..29 {
-                actions.push(MetaTransfer2InstructionType::Transfer(MetaTransferInput {
-                    input_compressed_accounts: vec![],
-                    amount: amount_per_output,
-                    is_delegate_transfer: false,
-                    token_data_version: TokenDataVersion::ShaFlat,
-                    signer_index: 0,
-                    delegate_index: None,
-                    recipient_index: i + 1, // Recipients 2-35
-                    change_amount: Some(0),
+                    recipient_index: i + 1, // Recipients 2-8
+                    change_amount: Some(0), // No change account
                     mint_index: 0,
                 }));
             }

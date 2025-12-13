@@ -92,7 +92,9 @@ async fn functional_read_only() {
         let payer = rpc.get_payer().insecure_clone();
         let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
         // Create a bunch of outputs that we can use as inputs.
-        for _ in 0..5 {
+        // v2 trees have a limit of 8 leaves per insert, so we need more transactions
+        let (leaves_per_tx, num_setup_txs) = if batched { (8, 19) } else { (30, 5) };
+        for _ in 0..num_setup_txs {
             let output_accounts = vec![
                 get_compressed_output_account(
                     true,
@@ -102,7 +104,7 @@ async fn functional_read_only() {
                         env.v1_state_trees[0].merkle_tree
                     }
                 );
-                30
+                leaves_per_tx
             ];
             local_sdk::perform_test_transaction(
                 &mut rpc,
@@ -389,7 +391,9 @@ async fn functional_account_infos() {
         let payer = rpc.get_payer().insecure_clone();
         let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
         // Create a bunch of outputs that we can use as inputs.
-        for _ in 0..5 {
+        // v2 trees have a limit of 8 leaves per insert, so we need more transactions
+        let (leaves_per_tx, num_setup_txs) = if batched { (8, 19) } else { (30, 5) };
+        for _ in 0..num_setup_txs {
             let output_accounts = vec![
                 get_compressed_output_account(
                     true,
@@ -399,7 +403,7 @@ async fn functional_account_infos() {
                         env.v1_state_trees[0].merkle_tree
                     }
                 );
-                30
+                leaves_per_tx
             ];
             local_sdk::perform_test_transaction(
                 &mut rpc,
