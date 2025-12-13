@@ -4,8 +4,19 @@
  * Import from `/unified` to get a single unified ATA for SPL/T22 and c-token
  * mints.
  */
-import { PublicKey, Signer, ConfirmOptions, Commitment } from '@solana/web3.js';
-import { Rpc, CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
+import {
+    PublicKey,
+    Signer,
+    ConfirmOptions,
+    Commitment,
+    ComputeBudgetProgram,
+} from '@solana/web3.js';
+import {
+    Rpc,
+    CTOKEN_PROGRAM_ID,
+    buildAndSignTx,
+    sendAndConfirmTx,
+} from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
 
 import {
@@ -17,6 +28,7 @@ import {
     createLoadAtaInstructions as _createLoadAtaInstructions,
     loadAta as _loadAta,
 } from '../actions/load-ata';
+import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-ata-interface';
 import { transferInterface as _transferInterface } from '../actions/transfer-interface';
 import { _getOrCreateAtaInterface } from '../actions/get-or-create-ata-interface';
 import { getAtaProgramId } from '../ata-utils';
@@ -113,7 +125,8 @@ export async function createLoadAtaInstructions(
  * Load all token balances into the c-token ATA.
  *
  * Wraps SPL/Token-2022 balances and decompresses compressed c-tokens
- * into the on-chain c-token ATA. Idempotent: returns null if nothing to load.
+ * into the on-chain c-token ATA. If no balances exist and the ATA doesn't
+ * exist, creates an empty ATA (idempotent).
  *
  * @param rpc               RPC connection
  * @param ata               Associated token address (c-token)
@@ -122,7 +135,7 @@ export async function createLoadAtaInstructions(
  * @param payer             Fee payer (signer, defaults to owner)
  * @param confirmOptions    Optional confirm options
  * @param interfaceOptions  Optional interface options
- * @returns Transaction signature, or null if nothing to load
+ * @returns Transaction signature, or null if ATA exists and nothing to load
  */
 export async function loadAta(
     rpc: Rpc,
@@ -133,7 +146,9 @@ export async function loadAta(
     confirmOptions?: ConfirmOptions,
     interfaceOptions?: InterfaceOptions,
 ) {
-    return _loadAta(
+    payer ??= owner;
+
+    const signature = await _loadAta(
         rpc,
         ata,
         owner,
@@ -143,6 +158,34 @@ export async function loadAta(
         interfaceOptions,
         true,
     );
+
+    // If nothing to load, ensure ATA exists (idempotent).
+    if (signature === null) {
+        const accountInfo = await rpc.getAccountInfo(ata);
+        if (!accountInfo) {
+            const ix =
+                createAssociatedTokenAccountInterfaceIdempotentInstruction(
+                    payer.publicKey,
+                    ata,
+                    owner.publicKey,
+                    mint,
+                    CTOKEN_PROGRAM_ID,
+                );
+            const { blockhash } = await rpc.getLatestBlockhash();
+            const tx = buildAndSignTx(
+                [
+                    ComputeBudgetProgram.setComputeUnitLimit({ units: 30_000 }),
+                    ix,
+                ],
+                payer,
+                blockhash,
+                payer.publicKey.equals(owner.publicKey) ? [] : [owner],
+            );
+            return sendAndConfirmTx(rpc, tx, confirmOptions);
+        }
+    }
+
+    return signature;
 }
 
 /**

@@ -4,6 +4,8 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     dedupeSigner,
+    bn,
+    ParsedTokenAccount,
 } from '@lightprotocol/stateless.js';
 import {
     PublicKey,
@@ -18,10 +20,13 @@ import {
     TOKEN_2022_PROGRAM_ID,
     getAssociatedTokenAddressSync,
     createAssociatedTokenAccountIdempotentInstruction,
+    TokenAccountNotFoundError,
 } from '@solana/spl-token';
 import {
     AccountInterface,
     getAtaInterface as _getAtaInterface,
+    TokenAccountSource,
+    TokenAccountSourceType,
 } from '../get-account-interface';
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-ata-interface';
@@ -33,6 +38,69 @@ import {
 } from '../../utils/get-token-pool-infos';
 import { getAtaProgramId, checkAtaAddress, AtaType } from '../ata-utils';
 import { InterfaceOptions } from './transfer-interface';
+
+function getCompressedTokenAccountsFromAtaSources(
+    sources: TokenAccountSource[],
+): ParsedTokenAccount[] {
+    const coldTypes = new Set<TokenAccountSource['type']>([
+        TokenAccountSourceType.CTokenCold,
+        TokenAccountSourceType.SplCold,
+        TokenAccountSourceType.Token2022Cold,
+    ]);
+
+    return sources
+        .filter(source => source.loadContext !== undefined)
+        .filter(source => coldTypes.has(source.type))
+        .map(source => {
+            const fullData = source.accountInfo.data;
+            const discriminatorBytes = fullData.subarray(
+                0,
+                Math.min(8, fullData.length),
+            );
+            const accountDataBytes =
+                fullData.length > 8 ? fullData.subarray(8) : Buffer.alloc(0);
+
+            const compressedAccount = {
+                treeInfo: source.loadContext!.treeInfo,
+                hash: source.loadContext!.hash,
+                leafIndex: source.loadContext!.leafIndex,
+                proveByIndex: source.loadContext!.proveByIndex,
+                owner: source.accountInfo.owner,
+                lamports: bn(source.accountInfo.lamports),
+                address: null,
+                data:
+                    fullData.length === 0
+                        ? null
+                        : {
+                              discriminator: Array.from(discriminatorBytes),
+                              data: Buffer.from(accountDataBytes),
+                              dataHash: new Array(32).fill(0),
+                          },
+                readOnly: false,
+            };
+
+            const state = !source.parsed.isInitialized
+                ? 0
+                : source.parsed.isFrozen
+                  ? 2
+                  : 1;
+
+            return {
+                compressedAccount: compressedAccount as any,
+                parsed: {
+                    mint: source.parsed.mint,
+                    owner: source.parsed.owner,
+                    amount: bn(source.parsed.amount.toString()),
+                    delegate: source.parsed.delegate,
+                    state,
+                    tlv:
+                        source.parsed.tlvData.length > 0
+                            ? source.parsed.tlvData
+                            : null,
+                },
+            } satisfies ParsedTokenAccount;
+        });
+}
 
 // Re-export types moved to instructions
 export {
@@ -77,23 +145,31 @@ export async function createLoadAtaInstructions(
     // Validation happens inside getAtaInterface via checkAtaAddress helper:
     // - Always validates ata matches mint+owner derivation
     // - For wrap=true, additionally requires c-token ATA
-    const ataInterface = await _getAtaInterface(
-        rpc,
-        ata,
-        owner,
-        mint,
-        undefined,
-        undefined,
-        wrap,
-    );
-    return createLoadAtaInstructionsFromInterface(
-        rpc,
-        payer,
-        ataInterface,
-        options,
-        wrap,
-        ata,
-    );
+    try {
+        const ataInterface = await _getAtaInterface(
+            rpc,
+            ata,
+            owner,
+            mint,
+            undefined,
+            undefined,
+            wrap,
+        );
+        return createLoadAtaInstructionsFromInterface(
+            rpc,
+            payer,
+            ataInterface,
+            options,
+            wrap,
+            ata,
+        );
+    } catch (error) {
+        // If account doesn't exist, there's nothing to load
+        if (error instanceof TokenAccountNotFoundError) {
+            return [];
+        }
+        throw error;
+    }
 }
 
 // Re-export AtaType for backwards compatibility
@@ -256,9 +332,8 @@ export async function createLoadAtaInstructionsFromInterface(
 
         // 4. Decompress compressed tokens to c-token ATA
         if (coldBalance > BigInt(0) && ctokenColdSource) {
-            const compressedResult =
-                await rpc.getCompressedTokenAccountsByOwner(owner, { mint });
-            const compressedAccounts = compressedResult.items;
+            const compressedAccounts =
+                getCompressedTokenAccountsFromAtaSources(sources);
 
             if (compressedAccounts.length > 0) {
                 const proof = await rpc.getValidityProofV0(
@@ -284,9 +359,8 @@ export async function createLoadAtaInstructionsFromInterface(
         // STANDARD MODE: Decompress to target ATA type
 
         if (coldBalance > BigInt(0) && ctokenColdSource) {
-            const compressedResult =
-                await rpc.getCompressedTokenAccountsByOwner(owner, { mint });
-            const compressedAccounts = compressedResult.items;
+            const compressedAccounts =
+                getCompressedTokenAccountsFromAtaSources(sources);
 
             if (compressedAccounts.length > 0) {
                 const proof = await rpc.getValidityProofV0(

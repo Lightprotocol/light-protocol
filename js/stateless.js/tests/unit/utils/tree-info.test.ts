@@ -9,6 +9,8 @@ import {
     merkletreePubkey,
     nullifierQueue2Pubkey,
     nullifierQueuePubkey,
+    localTestActiveStateTreeInfos,
+    featureFlags,
 } from '../../../src';
 
 describe('selectStateTreeInfo', () => {
@@ -126,4 +128,48 @@ describe('selectStateTreeInfo', () => {
             'Queue must not be null for state tree',
         );
     });
+
+    it.skipIf(!featureFlags.isV2())(
+        'should correctly set tree types for BMT (V2) trees',
+        () => {
+            const allTrees = localTestActiveStateTreeInfos();
+
+            // Check SMT trees have StateV1 type (always present)
+            const smtTrees = allTrees.filter((t: TreeInfo) =>
+                t.tree.toBase58().startsWith('smt'),
+            );
+            expect(smtTrees.length).toBeGreaterThan(0);
+
+            for (const tree of smtTrees) {
+                expect(tree.treeType).toBe(TreeType.StateV1);
+                // Verify the numeric value is 1 (StateV1)
+                expect(tree.treeType).toBe(1);
+            }
+
+            // Check BMT trees have StateV2 type
+            const bmtTrees = allTrees.filter((t: TreeInfo) =>
+                t.tree.toBase58().startsWith('bmt'),
+            );
+            expect(bmtTrees.length).toBeGreaterThan(0);
+
+            for (const tree of bmtTrees) {
+                expect(tree.treeType).toBe(TreeType.StateV2);
+                expect(tree.treeType).not.toBe(TreeType.StateV1);
+                // Verify the numeric value is 3 (StateV2)
+                expect(tree.treeType).toBe(3);
+            }
+
+            // Check V2 address tree has AddressV2 type
+            const amt2Trees = allTrees.filter((t: TreeInfo) =>
+                t.tree.toBase58().startsWith('amt2'),
+            );
+            expect(amt2Trees.length).toBe(1);
+
+            for (const tree of amt2Trees) {
+                expect(tree.treeType).toBe(TreeType.AddressV2);
+                // Verify the numeric value is 4 (AddressV2)
+                expect(tree.treeType).toBe(4);
+            }
+        },
+    );
 });

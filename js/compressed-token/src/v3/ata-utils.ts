@@ -34,24 +34,26 @@ export interface AtaValidationResult {
  *
  * Pass programId for fast path.
  *
- * @param ata       ATA address to check
- * @param mint      Mint address
- * @param owner     Owner address
- * @param programId Optional: if known, only check this program's ATA
- * @returns         Result with detected type, or throws on mismatch
+ * @param ata                ATA address to check
+ * @param mint               Mint address
+ * @param owner              Owner address
+ * @param programId          Optional: if known, only check this program's ATA
+ * @param allowOwnerOffCurve Allow the owner to be off-curve (PDA)
+ * @returns                  Result with detected type, or throws on mismatch
  */
 export function checkAtaAddress(
     ata: PublicKey,
     mint: PublicKey,
     owner: PublicKey,
     programId?: PublicKey,
+    allowOwnerOffCurve = false,
 ): AtaValidationResult {
     // fast path
     if (programId) {
         const expected = getAssociatedTokenAddressSync(
             mint,
             owner,
-            false,
+            allowOwnerOffCurve,
             programId,
             getAtaProgramId(programId),
         );
@@ -76,7 +78,7 @@ export function checkAtaAddress(
     ctokenExpected = getAssociatedTokenAddressSync(
         mint,
         owner,
-        false,
+        allowOwnerOffCurve,
         CTOKEN_PROGRAM_ID,
         getAtaProgramId(CTOKEN_PROGRAM_ID),
     );
@@ -92,7 +94,7 @@ export function checkAtaAddress(
     splExpected = getAssociatedTokenAddressSync(
         mint,
         owner,
-        false,
+        allowOwnerOffCurve,
         TOKEN_PROGRAM_ID,
         getAtaProgramId(TOKEN_PROGRAM_ID),
     );
@@ -104,7 +106,7 @@ export function checkAtaAddress(
     t22Expected = getAssociatedTokenAddressSync(
         mint,
         owner,
-        false,
+        allowOwnerOffCurve,
         TOKEN_2022_PROGRAM_ID,
         getAtaProgramId(TOKEN_2022_PROGRAM_ID),
     );
