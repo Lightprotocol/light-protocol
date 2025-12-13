@@ -7,3 +7,5 @@ export * from './constants';
 export * from './errors';
 export * from './rpc-interface';
 export * from './rpc';
+// TODO: Remove after devnet program update
+export { isDevnetCompat } from './devnet-compat';

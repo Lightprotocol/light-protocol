@@ -79,12 +79,12 @@ jobs:
           done
           echo "Tests passed on attempt $attempt"
 
-      - name: Run compressed-token legacy tests with V2
+      - name: Run compressed-token unit tests with V2
         run: |
-          echo "Running compressed-token legacy tests with retry logic (max 2 attempts)..."
+          echo "Running compressed-token unit tests with retry logic (max 2 attempts)..."
           attempt=1
           max_attempts=2
-          until npx nx test @lightprotocol/compressed-token; do
+          until npx nx run @lightprotocol/compressed-token:test:unit:all:v2; do
             attempt=$((attempt + 1))
             if [ $attempt -gt $max_attempts ]; then
               echo "Tests failed after $max_attempts attempts"

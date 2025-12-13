@@ -220,13 +220,14 @@ export async function getAccountInterface(
 /**
  * Retrieve associated token account for a given owner and mint.
  *
- * @param rpc         RPC connection
- * @param ata         Associated token address
- * @param owner       Owner public key
- * @param mint        Mint public key
- * @param commitment  Optional commitment level
- * @param programId   Optional program ID
- * @param wrap        Include SPL/T22 balances (default: false)
+ * @param rpc                RPC connection
+ * @param ata                Associated token address
+ * @param owner              Owner public key
+ * @param mint               Mint public key
+ * @param commitment         Optional commitment level
+ * @param programId          Optional program ID
+ * @param wrap               Include SPL/T22 balances (default: false)
+ * @param allowOwnerOffCurve Allow owner to be off-curve (PDA)
  * @returns AccountInterface with ATA metadata
  */
 export async function getAtaInterface(
@@ -237,11 +238,18 @@ export async function getAtaInterface(
     commitment?: Commitment,
     programId?: PublicKey,
     wrap = false,
+    allowOwnerOffCurve = false,
 ): Promise<AccountInterface> {
     // Invariant: ata MUST match a valid derivation from mint+owner.
     // Hot path: if programId provided, only validate against that program.
     // For wrap=true, additionally require c-token ATA.
-    const validation = checkAtaAddress(ata, mint, owner, programId);
+    const validation = checkAtaAddress(
+        ata,
+        mint,
+        owner,
+        programId,
+        allowOwnerOffCurve,
+    );
 
     if (wrap && validation.type !== 'ctoken') {
         throw new Error(
@@ -574,10 +582,7 @@ async function getUnifiedAccountInterface(
 
     // account not found
     if (sources.length === 0) {
-        const triedPrograms = wrap
-            ? 'TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, and CTOKEN_PROGRAM_ID (both onchain and compressed)'
-            : 'CTOKEN_PROGRAM_ID (both onchain and compressed)';
-        throw new Error(`Token account not found. Tried ${triedPrograms}.`);
+        throw new TokenAccountNotFoundError();
     }
 
     // priority order: c-token hot > c-token cold > SPL/T22
