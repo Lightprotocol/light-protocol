@@ -1,4 +1,5 @@
 import path from "path";
+import os from "os";
 import fs from "fs";
 import { execSync } from "child_process";
 import {
@@ -7,13 +8,15 @@ import {
   spawnBinary,
   waitForServers,
 } from "./process";
-import { LIGHT_PROVER_PROCESS_NAME, BASE_PATH } from "./constants";
+import { LIGHT_PROVER_PROCESS_NAME } from "./constants";
 import {
   downloadProverBinary,
   getProverVersion as getExpectedProverVersion,
 } from "./downloadProverBinary";
 
-const KEYS_DIR = "proving-keys/";
+const LIGHT_CONFIG_DIR = path.join(os.homedir(), ".config", "light");
+const PROVER_BIN_DIR = path.join(LIGHT_CONFIG_DIR, "bin");
+const KEYS_DIR = path.join(LIGHT_CONFIG_DIR, "proving-keys");
 
 export async function killProver() {
   await killProcess(getProverNameByArch());
@@ -32,11 +35,13 @@ function getInstalledProverVersion(): string | null {
   }
 
   try {
-    const version = execSync(`"${binaryPath}" version`, {
+    const output = execSync(`"${binaryPath}" version`, {
       encoding: "utf-8",
       timeout: 5000,
     }).trim();
-    return version;
+    // Extract version number (handles "v2.0.6", "light-prover v2.0.6", "2.0.6", etc.)
+    const match = output.match(/(\d+\.\d+\.\d+)/);
+    return match ? match[1] : null;
   } catch (error) {
     return null;
   }
@@ -85,10 +90,9 @@ export async function startProver(proverPort: number, redisUrl?: string) {
   await killProver();
   await killProcessByPort(proverPort);
 
-  const keysDir = path.join(path.resolve(__dirname, BASE_PATH), KEYS_DIR);
   const args = ["start"];
 
-  args.push("--keys-dir", keysDir);
+  args.push("--keys-dir", KEYS_DIR + "/");
   args.push("--prover-address", `0.0.0.0:${proverPort}`);
   args.push("--auto-download", "true");
 
@@ -128,11 +132,8 @@ export function getProverNameByArch(): string {
 }
 
 export function getProverPathByArch(): string {
-  let binaryName = getProverNameByArch();
-  const binDir = path.resolve(__dirname, BASE_PATH);
-  binaryName = path.join(binDir, binaryName);
-
-  return binaryName;
+  const binaryName = getProverNameByArch();
+  return path.join(PROVER_BIN_DIR, binaryName);
 }
 
 export async function healthCheck(

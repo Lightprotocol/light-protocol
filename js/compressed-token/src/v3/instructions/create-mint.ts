@@ -203,6 +203,25 @@ export function createMintInstruction(
         metadata,
     });
 
+    return buildCreateMintIx(
+        mintSigner,
+        mintAuthority,
+        payer,
+        outputStateTreeInfo,
+        addressTreeInfo,
+        data,
+    );
+}
+
+/** @internal */
+function buildCreateMintIx(
+    mintSigner: PublicKey,
+    mintAuthority: PublicKey,
+    payer: PublicKey,
+    outputStateTreeInfo: TreeInfo,
+    addressTreeInfo: AddressTreeInfo,
+    data: Buffer,
+): TransactionInstruction {
     const sys = defaultStaticAccountsStruct();
     const keys = [
         {

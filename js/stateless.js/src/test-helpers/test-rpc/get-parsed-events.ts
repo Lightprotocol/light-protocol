@@ -49,10 +49,22 @@ export async function getParsedEvents(
             'confirmed',
         )
     ).map(s => s.signature);
-    const txs = await rpc.getParsedTransactions(signatures, {
-        maxSupportedTransactionVersion: 0,
-        commitment: 'confirmed',
-    });
+    const txs: (ParsedTransactionWithMeta | null)[] = [];
+
+    // `getParsedTransactions` uses a JSON-RPC batch request under the hood.
+    // On some RPC servers (including local validators with strict limits),
+    // batching too many signatures can exceed the max request body size (413).
+    const maxSupportedTransactionVersion = 0;
+    const commitment = 'confirmed' as const;
+    const chunkSize = 100;
+    for (let i = 0; i < signatures.length; i += chunkSize) {
+        const chunk = signatures.slice(i, i + chunkSize);
+        const chunkTxs = await rpc.getParsedTransactions(chunk, {
+            maxSupportedTransactionVersion,
+            commitment,
+        });
+        txs.push(...chunkTxs);
+    }
 
     for (const txParsed of txs) {
         if (!txParsed || !txParsed.transaction || !txParsed.meta) continue;

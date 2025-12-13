@@ -115,7 +115,7 @@ test.describe('RPC in browser', () => {
             //@ts-ignore
             const sdk = window.stateless;
             const rpc: Rpc = sdk.createRpc();
-            const health = await rpc.getHealth();
+            const health = await rpc.getIndexerHealth();
             if (!health) throw new Error('Health check failed');
             return health;
         });

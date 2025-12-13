@@ -1463,8 +1463,11 @@ export class CompressedTokenProgram {
         recentValidityProof,
         recentInputStateRootIndices,
     }: MergeTokenAccountsParams): Promise<TransactionInstruction[]> {
-        if (inputCompressedTokenAccounts.length > 4) {
-            throw new Error('Cannot merge more than 4 token accounts at once');
+        const maxAccounts = featureFlags.isV2() ? 8 : 4;
+        if (inputCompressedTokenAccounts.length > maxAccounts) {
+            throw new Error(
+                `Cannot merge more than ${maxAccounts} token accounts at once`,
+            );
         }
 
         checkMint(inputCompressedTokenAccounts, mint);
