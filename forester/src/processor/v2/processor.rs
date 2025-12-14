@@ -23,11 +23,7 @@ use solana_sdk::pubkey::Pubkey;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
-/// Max batches to process per iteration (keeps tx size reasonable)
-const MAX_BATCHES_PER_ITERATION: usize = 20;
-/// Max batches to fetch - fetch full queue in one go (parallel paginated)
-/// State: 60 batches max, Address: 120 batches max
-const MAX_FETCH_BATCHES: usize = 120;
+const MAX_BATCHES_PER_TREE: usize = 20;
 
 /// Tracks timing and counts per circuit type for accurate metrics
 #[derive(Debug, Default, Clone)]
@@ -148,7 +144,7 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
                 );
 
                 // Determine how many batches to process this iteration
-                let batches_to_process = remaining.min(MAX_BATCHES_PER_ITERATION);
+                let batches_to_process = remaining.min(MAX_BATCHES_PER_TREE);
 
                 // Build queue_data from cached state
                 let queue_data = QueueData {
@@ -168,14 +164,14 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
         // Fetch multiple iterations worth of batches - paginated fetch handles
         // timeout by making multiple small requests internally
         let available_batches = (queue_work.queue_size / self.zkp_batch_size) as usize;
-        let fetch_batches = available_batches.min(MAX_FETCH_BATCHES);
+        let fetch_batches = available_batches.min(MAX_BATCHES_PER_TREE);
 
-        if available_batches > MAX_BATCHES_PER_ITERATION {
+        if available_batches > MAX_BATCHES_PER_TREE {
             debug!(
                 "Queue has {} batches available, fetching {} for {} iterations",
                 available_batches,
                 fetch_batches,
-                (fetch_batches + MAX_BATCHES_PER_ITERATION - 1) / MAX_BATCHES_PER_ITERATION
+                fetch_batches.div_ceil(MAX_BATCHES_PER_TREE)
             );
         }
 
@@ -201,7 +197,7 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
         if self.current_root == [0u8; 32] || queue_data.initial_root == self.current_root {
             // Roots match - process batches, caching remaining for next iteration
             let total_batches = queue_data.num_batches;
-            let process_now = total_batches.min(MAX_BATCHES_PER_ITERATION);
+            let process_now = total_batches.min(MAX_BATCHES_PER_TREE);
             return self
                 .process_batches(queue_data, 0, process_now, total_batches)
                 .await;
@@ -229,7 +225,7 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
             self.current_root = onchain_root;
             self.cached_state = None;
             let total_batches = queue_data.num_batches;
-            let process_now = total_batches.min(MAX_BATCHES_PER_ITERATION);
+            let process_now = total_batches.min(MAX_BATCHES_PER_TREE);
             return self
                 .process_batches(queue_data, 0, process_now, total_batches)
                 .await;
@@ -506,7 +502,7 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
         }
 
         let max_batches =
-            ((queue_work.queue_size / self.zkp_batch_size) as usize).min(MAX_BATCHES_PER_ITERATION);
+            ((queue_work.queue_size / self.zkp_batch_size) as usize).min(MAX_BATCHES_PER_TREE);
 
         if self.worker_pool.is_none() {
             let job_tx = spawn_proof_workers(&self.context.prover_config);
@@ -538,7 +534,7 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
             return Ok(0);
         }
 
-        let max_batches = max_batches.min(MAX_BATCHES_PER_ITERATION);
+        let max_batches = max_batches.min(MAX_BATCHES_PER_TREE);
         let queue_size_hint = (self.zkp_batch_size as usize * max_batches) as u64;
 
         if self.worker_pool.is_none() {
