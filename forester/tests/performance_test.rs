@@ -697,6 +697,7 @@ async fn performance_test_prefilled_queues() {
         .ok();
 
     println!("prover url: {}", get_prover_url());
+    println!("indexer url: {}", get_indexer_url());
     println!("prover append url: {}", get_prover_append_url());
     println!("prover update url: {}", get_prover_update_url());
     println!("prover address append url: {}", get_prover_address_append_url());
