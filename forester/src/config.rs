@@ -6,7 +6,6 @@ use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeForesterSchedule};
 use light_client::rpc::RetryConfig;
 use light_registry::{EpochPda, ForesterEpochPda};
 use solana_sdk::{pubkey::Pubkey, signature::Keypair};
-
 use crate::{
     cli::{ProcessorMode, StartArgs, StatusArgs},
     errors::ConfigError,
@@ -311,13 +310,7 @@ impl ForesterConfig {
             derivation_pubkey: derivation,
             address_tree_data: vec![],
             state_tree_data: vec![],
-            compressible_config: if args.enable_compressible {
-                args.ws_rpc_url
-                    .clone()
-                    .map(crate::compressible::config::CompressibleConfig::new)
-            } else {
-                None
-            },
+            compressible_config: args.ws_rpc_url.clone().map(crate::compressible::config::CompressibleConfig::new)
         })
     }
 
