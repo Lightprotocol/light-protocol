@@ -240,7 +240,7 @@ pub struct StartArgs {
         long,
         env = "FORESTER_ENABLE_COMPRESSIBLE",
         help = "Enable compressible account tracking and compression using ws_rpc_url",
-        default_value = "false"
+        default_value = "true"
     )]
     pub enable_compressible: bool,
 }
