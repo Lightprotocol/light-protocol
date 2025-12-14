@@ -719,20 +719,38 @@ func runCli() {
 
 						logging.Logger().Info().Msg("Starting queue workers")
 
-						updateWorker := server.NewUpdateQueueWorker(redisQueue, keyManager)
-						workers = append(workers, updateWorker)
-						go updateWorker.Start()
+						enabledCircuits := context.StringSlice("circuit")
+						enabledCircuitsMap := make(map[string]bool)
+						for _, c := range enabledCircuits {
+							enabledCircuitsMap[c] = true
+						}
 
-						appendWorker := server.NewAppendQueueWorker(redisQueue, keyManager)
-						workers = append(workers, appendWorker)
-						go appendWorker.Start()
+						startAll := len(enabledCircuits) == 0
+						var workersStarted []string
 
-						addressAppendWorker := server.NewAddressAppendQueueWorker(redisQueue, keyManager)
-						workers = append(workers, addressAppendWorker)
-						go addressAppendWorker.Start()
+						if startAll || enabledCircuitsMap["update"] || enabledCircuitsMap["update-test"] {
+							updateWorker := server.NewUpdateQueueWorker(redisQueue, keyManager)
+							workers = append(workers, updateWorker)
+							go updateWorker.Start()
+							workersStarted = append(workersStarted, "update")
+						}
+
+						if startAll || enabledCircuitsMap["append"] || enabledCircuitsMap["append-test"] {
+							appendWorker := server.NewAppendQueueWorker(redisQueue, keyManager)
+							workers = append(workers, appendWorker)
+							go appendWorker.Start()
+							workersStarted = append(workersStarted, "append")
+						}
+
+						if startAll || enabledCircuitsMap["address-append"] || enabledCircuitsMap["address-append-test"] {
+							addressAppendWorker := server.NewAddressAppendQueueWorker(redisQueue, keyManager)
+							workers = append(workers, addressAppendWorker)
+							go addressAppendWorker.Start()
+							workersStarted = append(workersStarted, "address-append")
+						}
 
 						logging.Logger().Info().
-							Strs("workers_started", []string{"update", "append", "address-append"}).
+							Strs("workers_started", workersStarted).
 							Msg("Queue workers started")
 					}
 
