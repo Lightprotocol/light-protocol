@@ -34,6 +34,9 @@ pub struct BatchUpdateProofInputsJson {
     /// Tree pubkey for fair queuing - used to prevent starvation when multiple trees have proofs pending
     #[serde(rename = "treeId", skip_serializing_if = "Option::is_none")]
     pub tree_id: Option<String>,
+    /// Batch index for ordering - ensures batches are processed in sequence within a tree
+    #[serde(rename = "batchIndex", skip_serializing_if = "Option::is_none")]
+    pub batch_index: Option<u64>,
 }
 
 #[derive(Serialize, Debug)]
@@ -83,12 +86,19 @@ impl BatchUpdateProofInputsJson {
             batch_size,
             tx_hashes,
             tree_id: None,
+            batch_index: None,
         }
     }
 
     /// Set the tree ID for fair queuing across multiple trees
     pub fn with_tree_id(mut self, tree_id: String) -> Self {
         self.tree_id = Some(tree_id);
+        self
+    }
+
+    /// Set the batch index for ordering within a tree
+    pub fn with_batch_index(mut self, batch_index: u64) -> Self {
+        self.batch_index = Some(batch_index);
         self
     }
 
