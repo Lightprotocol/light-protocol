@@ -35,21 +35,24 @@ impl ProofInput {
         }
     }
 
-    fn to_json(&self, tree_id: &str) -> String {
+    fn to_json(&self, tree_id: &str, batch_index: u64) -> String {
         match self {
             ProofInput::Append(inputs) => BatchAppendInputsJson::from_inputs(inputs)
                 .with_tree_id(tree_id.to_string())
+                .with_batch_index(batch_index)
                 .to_string(),
             ProofInput::Nullify(inputs) => {
                 use light_prover_client::proof_types::batch_update::BatchUpdateProofInputsJson;
                 BatchUpdateProofInputsJson::from_update_inputs(inputs)
                     .with_tree_id(tree_id.to_string())
+                    .with_batch_index(batch_index)
                     .to_string()
             }
             ProofInput::AddressAppend(inputs) => {
                 use light_prover_client::proof_types::batch_address_append::BatchAddressAppendInputsJson;
                 BatchAddressAppendInputsJson::from_inputs(inputs)
                     .with_tree_id(tree_id.to_string())
+                    .with_batch_index(batch_index)
                     .to_string()
             }
         }
@@ -188,7 +191,8 @@ async fn run_proof_pipeline(
 
 async fn submit_and_poll_proof(clients: Arc<ProofClients>, job: ProofJob) {
     let client = clients.get_client(&job.inputs);
-    let inputs_json = job.inputs.to_json(&job.tree_id);
+    // Use seq as batch_index for ordering in the prover queue
+    let inputs_json = job.inputs.to_json(&job.tree_id, job.seq);
     let circuit_type = job.inputs.circuit_type();
 
     let round_trip_start = std::time::Instant::now();
@@ -256,7 +260,7 @@ async fn poll_and_send_result(
                 "Proof polling got job_not_found for seq={} job_id={}; retrying submit once",
                 seq, job_id
             );
-            let inputs_json = inputs.to_json(&tree_id);
+            let inputs_json = inputs.to_json(&tree_id, seq);
             let circuit_type = inputs.circuit_type();
             match client.submit_proof_async(inputs_json, circuit_type).await {
                 Ok(SubmitProofResult::Queued(new_job_id)) => {
