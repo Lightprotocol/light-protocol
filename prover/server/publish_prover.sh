@@ -1,4 +1,4 @@
-# 2.0.19
+# 2.0.23
 
 PROJECT_ID=$(gcloud config get-value project)
 REGION=europe-west1
