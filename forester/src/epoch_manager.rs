@@ -1424,7 +1424,7 @@ impl<R: Rpc> EpochManager<R> {
 
             if let Some((slot_idx, light_slot_details)) = next_slot_to_process {
                 let result = match tree_type {
-                    TreeType::StateV1 | TreeType::AddressV1 => {
+                    TreeType::StateV1 | TreeType::AddressV1 | TreeType::Unknown => {
                         self.process_light_slot(
                             epoch_info,
                             epoch_pda,
@@ -1457,13 +1457,6 @@ impl<R: Rpc> EpochManager<R> {
                                 tree_schedule.tree_accounts.merkle_tree
                             ))
                         }
-                    }
-                    TreeType::Unknown => {
-                        warn!(
-                            "TreeType::Unknown not supported for light slot processing. \
-                            Compression is handled separately via dispatch_compression()"
-                        );
-                        Ok(())
                     }
                 };
 
@@ -1944,7 +1937,7 @@ impl<R: Rpc> EpochManager<R> {
     }
 
     async fn dispatch_compression(&self, current_epoch: u64) -> Result<usize> {
-        trace!("Dispatching compression for epoch {}", current_epoch);
+        debug!("Dispatching compression for epoch {}", current_epoch);
 
         let tracker = self
             .compressible_tracker
