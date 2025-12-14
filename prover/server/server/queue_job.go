@@ -244,6 +244,10 @@ type ProofJob struct {
 	// TreeID is the merkle tree pubkey - used for fair queuing across trees
 	// If empty, job goes to the default queue (backwards compatible)
 	TreeID string `json:"tree_id,omitempty"`
+	// BatchIndex is the batch sequence number within a tree - used to process batches in order
+	// Lower batch indices should be processed first to enable sequential transaction submission
+	// -1 means no batch index (legacy requests, FIFO)
+	BatchIndex int64 `json:"batch_index"`
 }
 
 type QueueWorker interface {
