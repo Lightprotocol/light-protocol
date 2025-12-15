@@ -15,10 +15,6 @@ use forester_utils::{
     rpc_pool::SolanaRpcPool,
 };
 use futures::future::join_all;
-use kameo::actor::Spawn;
-use light_batched_merkle_tree::constants::{
-    DEFAULT_ADDRESS_ZKP_BATCH_SIZE, DEFAULT_ZKP_BATCH_SIZE,
-};
 use light_client::{
     indexer::{MerkleProof, NewAddressProofWithContext},
     rpc::{LightClient, LightClientConfig, RetryConfig, Rpc, RpcError},
@@ -49,14 +45,12 @@ use tokio::{
 use tracing::{debug, error, info, info_span, instrument, trace, warn};
 
 use crate::{
-    cli::QueuePollingMode,
     compressible::{CompressibleAccountTracker, Compressor},
     errors::{
         ChannelError, ForesterError, InitializationError, RegistrationError, WorkReportError,
     },
     metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
     pagerduty::send_pagerduty_alert,
-    polling::{OnChainQueuePoller, QueueInfoPoller, QueuePollerRef, QueueUpdateMessage},
     processor::{
         tx_cache::ProcessedHashCache,
         v1::{
@@ -67,7 +61,7 @@ use crate::{
         v2::{
             strategy::{AddressTreeStrategy, StateTreeStrategy},
             BatchContext, BatchInstruction, ProcessingResult, ProverConfig, QueueProcessor,
-            QueueWork, SharedProofCache,
+            SharedProofCache,
         },
     },
     queue_helpers::QueueItemData,
@@ -77,7 +71,6 @@ use crate::{
     },
     slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker},
     tree_data_sync::fetch_trees,
-    tree_finder::TreeFinder,
     ForesterConfig, ForesterEpochInfo, Result,
 };
 
@@ -85,7 +78,6 @@ type StateBatchProcessorMap<R> =
     Arc<DashMap<Pubkey, (u64, Arc<Mutex<QueueProcessor<R, StateTreeStrategy>>>)>>;
 type AddressBatchProcessorMap<R> =
     Arc<DashMap<Pubkey, (u64, Arc<Mutex<QueueProcessor<R, AddressTreeStrategy>>>)>>;
-type TreeReceivers = Arc<Mutex<HashMap<(u64, Pubkey), mpsc::Receiver<QueueUpdateMessage>>>>;
 
 /// Timing for a single circuit type (circuit inputs + proof generation)
 #[derive(Copy, Clone, Debug, Default)]
@@ -205,10 +197,6 @@ pub struct EpochManager<R: Rpc> {
     new_tree_sender: broadcast::Sender<TreeAccounts>,
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
-    queue_poller: Option<QueuePollerRef<R>>,
-    /// Pre-registered tree receivers keyed by (epoch, tree_pubkey)
-    /// Receivers are registered during wait_for_active_phase so queue data is available immediately
-    tree_receivers: TreeReceivers,
     /// Proof caches for pre-warming during idle slots
     proof_caches: Arc<DashMap<Pubkey, Arc<SharedProofCache>>>,
     state_processors: StateBatchProcessorMap<R>,
@@ -234,8 +222,6 @@ impl<R: Rpc> Clone for EpochManager<R> {
             new_tree_sender: self.new_tree_sender.clone(),
             tx_cache: self.tx_cache.clone(),
             ops_cache: self.ops_cache.clone(),
-            queue_poller: self.queue_poller.clone(),
-            tree_receivers: self.tree_receivers.clone(),
             proof_caches: self.proof_caches.clone(),
             state_processors: self.state_processors.clone(),
             address_processors: self.address_processors.clone(),
@@ -259,36 +245,6 @@ impl<R: Rpc> EpochManager<R> {
         ops_cache: Arc<Mutex<ProcessedHashCache>>,
         compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
     ) -> Result<Self> {
-        let queue_poller = match config.general_config.queue_polling_mode {
-            QueuePollingMode::Indexer => {
-                if let Some(indexer_url) = &config.external_services.indexer_url {
-                    info!(
-                        "Spawning QueueInfoPoller actor for indexer at {}",
-                        indexer_url
-                    );
-
-                    let poller = QueueInfoPoller::new(
-                        indexer_url.clone(),
-                        config.external_services.photon_api_key.clone(),
-                    );
-
-                    let actor_ref = QueueInfoPoller::spawn(poller);
-                    info!("QueueInfoPoller actor spawn initiated");
-                    Some(QueuePollerRef::Indexer(actor_ref))
-                } else {
-                    info!("indexer_url not configured, V2 trees will not have queue updates");
-                    None
-                }
-            }
-            QueuePollingMode::OnChain => {
-                info!("Spawning OnChainQueuePoller actor for direct on-chain queue reading");
-                let poller = OnChainQueuePoller::new(rpc_pool.clone());
-                let actor_ref = OnChainQueuePoller::spawn(poller);
-                info!("OnChainQueuePoller actor spawn initiated");
-                Some(QueuePollerRef::OnChain(actor_ref))
-            }
-        };
-
         let authority = Arc::new(config.payer_keypair.insecure_clone());
         Ok(Self {
             config,
@@ -304,8 +260,6 @@ impl<R: Rpc> EpochManager<R> {
             new_tree_sender,
             tx_cache,
             ops_cache,
-            queue_poller,
-            tree_receivers: Arc::new(Mutex::new(HashMap::new())),
             proof_caches: Arc::new(DashMap::new()),
             state_processors: Arc::new(DashMap::new()),
             address_processors: Arc::new(DashMap::new()),
@@ -345,6 +299,22 @@ impl<R: Rpc> EpochManager<R> {
             async move { self_clone.check_sol_balance_periodically().await }
         });
 
+        let _guard = scopeguard::guard(
+            (
+                monitor_handle,
+                current_previous_handle,
+                new_tree_handle,
+                balance_check_handle,
+            ),
+            |(h1, h2, h3, h4)| {
+                info!("Aborting EpochManager background tasks");
+                h1.abort();
+                h2.abort();
+                h3.abort();
+                h4.abort();
+            },
+        );
+
         while let Some(epoch) = rx.recv().await {
             debug!("Received new epoch: {}", epoch);
 
@@ -355,11 +325,6 @@ impl<R: Rpc> EpochManager<R> {
                 }
             });
         }
-
-        monitor_handle.await??;
-        current_previous_handle.await??;
-        new_tree_handle.await??;
-        balance_check_handle.await??;
 
         Ok(())
     }
@@ -393,7 +358,10 @@ impl<R: Rpc> EpochManager<R> {
             match receiver.recv().await {
                 Ok(new_tree) => {
                     info!("Received new tree: {:?}", new_tree);
-                    self.add_new_tree(new_tree).await?;
+                    if let Err(e) = self.add_new_tree(new_tree).await {
+                        error!("Failed to add new tree: {:?}", e);
+                        // Continue processing other trees instead of crashing
+                    }
                 }
                 Err(e) => match e {
                     RecvError::Lagged(lag) => {
@@ -435,43 +403,6 @@ impl<R: Rpc> EpochManager<R> {
                     )?;
                     epoch_info.trees.push(tree_schedule.clone());
 
-                    // For V2 trees, register with queue poller to get update channel
-                    let queue_update_rx =
-                        if matches!(new_tree.tree_type, TreeType::StateV2 | TreeType::AddressV2) {
-                            let min_queue_size = match new_tree.tree_type {
-                                TreeType::AddressV2 => DEFAULT_ADDRESS_ZKP_BATCH_SIZE,
-                                _ => DEFAULT_ZKP_BATCH_SIZE,
-                            };
-                            if let Some(ref poller) = self.queue_poller {
-                                match poller
-                                    .register_tree(
-                                        new_tree.merkle_tree,
-                                        new_tree.queue,
-                                        new_tree.tree_type,
-                                        min_queue_size,
-                                    )
-                                    .await
-                                {
-                                    Ok(rx) => Some(rx),
-                                    Err(e) => {
-                                        error!(
-                                            "Failed to register V2 tree {} with queue poller: {:?}",
-                                            new_tree.merkle_tree, e
-                                        );
-                                        None
-                                    }
-                                }
-                            } else {
-                                warn!(
-                                    "No queue poller available for V2 tree {}",
-                                    new_tree.merkle_tree
-                                );
-                                None
-                            }
-                        } else {
-                            None
-                        };
-
                     let self_clone = Arc::new(self.clone());
 
                     info!("Spawning task to process new tree in current epoch");
@@ -481,7 +412,6 @@ impl<R: Rpc> EpochManager<R> {
                                 &epoch_info.epoch,
                                 &epoch_info.forester_epoch_pda,
                                 tree_schedule,
-                                queue_update_rx,
                             )
                             .await
                         {
@@ -535,7 +465,13 @@ impl<R: Rpc> EpochManager<R> {
                 let phases = get_epoch_phases(&self.protocol_config, current_epoch);
                 if slot < phases.registration.end {
                     debug!("Sending current epoch {} for processing", current_epoch);
-                    tx.send(current_epoch).await?;
+                    if let Err(e) = tx.send(current_epoch).await {
+                        error!(
+                            "Failed to send current epoch {} for processing: {:?}",
+                            current_epoch, e
+                        );
+                        return Ok(());
+                    }
                     last_epoch = Some(current_epoch);
                 }
             }
@@ -550,7 +486,14 @@ impl<R: Rpc> EpochManager<R> {
 
                     // If registration hasn't started yet, wait for it
                     if slot < target_phases.registration.start {
-                        let mut rpc = self.rpc_pool.get_connection().await?;
+                        let mut rpc = match self.rpc_pool.get_connection().await {
+                            Ok(rpc) => rpc,
+                            Err(e) => {
+                                warn!("Failed to get RPC connection for slot waiting: {:?}", e);
+                                tokio::time::sleep(Duration::from_secs(1)).await;
+                                break;
+                            }
+                        };
                         let slots_to_wait = target_phases.registration.start.saturating_sub(slot);
                         debug!(
                             "Waiting for epoch {} registration phase to start. Current slot: {}, Registration phase start slot: {}, Slots to wait: {}",
@@ -589,7 +532,13 @@ impl<R: Rpc> EpochManager<R> {
                             "Epoch {} registration phase is open (slot {} < end {}), sending for processing",
                             target_epoch, slot, target_phases.registration.end
                         );
-                        tx.send(target_epoch).await?;
+                        if let Err(e) = tx.send(target_epoch).await {
+                            error!(
+                                "Failed to send epoch {} for processing: {:?}",
+                                target_epoch, e
+                            );
+                            break;
+                        }
                         last_epoch = Some(target_epoch);
                         break;
                     }
@@ -664,7 +613,10 @@ impl<R: Rpc> EpochManager<R> {
         // Process the previous epoch if still in active or later phase
         if slot > current_phases.registration.start {
             debug!("Processing previous epoch: {}", previous_epoch);
-            tx.send(previous_epoch).await?;
+            if let Err(e) = tx.send(previous_epoch).await {
+                error!("Failed to send previous epoch for processing: {:?}", e);
+                return Ok(());
+            }
         }
 
         // Only process current epoch if we can still register or are already registered
@@ -674,7 +626,10 @@ impl<R: Rpc> EpochManager<R> {
                 "Processing current epoch: {} (registration still open)",
                 current_epoch
             );
-            tx.send(current_epoch).await?;
+            if let Err(e) = tx.send(current_epoch).await {
+                error!("Failed to send current epoch for processing: {:?}", e);
+                return Ok(()); // Channel closed, exit gracefully
+            }
         } else {
             // Check if we're already registered for this epoch
             let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
@@ -682,21 +637,33 @@ impl<R: Rpc> EpochManager<R> {
                 current_epoch,
             )
             .0;
-            let rpc = self.rpc_pool.get_connection().await?;
-            if let Ok(Some(_)) = rpc
-                .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
-                .await
-            {
-                debug!(
-                    "Processing current epoch: {} (already registered)",
-                    current_epoch
-                );
-                tx.send(current_epoch).await?;
-            } else {
-                warn!(
-                    "Skipping current epoch {} - registration ended at slot {} (current slot: {})",
-                    current_epoch, current_phases.registration.end, slot
-                );
+            match self.rpc_pool.get_connection().await {
+                Ok(rpc) => {
+                    if let Ok(Some(_)) = rpc
+                        .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
+                        .await
+                    {
+                        debug!(
+                            "Processing current epoch: {} (already registered)",
+                            current_epoch
+                        );
+                        if let Err(e) = tx.send(current_epoch).await {
+                            error!("Failed to send current epoch for processing: {:?}", e);
+                            return Ok(()); // Channel closed, exit gracefully
+                        }
+                    } else {
+                        warn!(
+                            "Skipping current epoch {} - registration ended at slot {} (current slot: {})",
+                            current_epoch, current_phases.registration.end, slot
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to get RPC connection to check registration, skipping: {:?}",
+                        e
+                    );
+                }
             }
         }
 
@@ -1062,67 +1029,6 @@ impl<R: Rpc> EpochManager<R> {
                 waiting_secs);
         }
 
-        // Pre-register V2 trees with the queue poller before waiting for active phase.
-        // This allows queue data to accumulate during the wait so processors have data immediately.
-        if let Some(ref poller) = self.queue_poller {
-            let trees = self.trees.lock().await;
-            let v2_trees: Vec<_> = trees
-                .iter()
-                .filter(|t| {
-                    matches!(t.tree_type, TreeType::StateV2 | TreeType::AddressV2)
-                        && !t.is_rolledover
-                })
-                .collect();
-
-            if !v2_trees.is_empty() {
-                info!(
-                    "Pre-registering {} V2 trees with queue poller before active phase",
-                    v2_trees.len()
-                );
-
-                let epoch = epoch_info.epoch.epoch;
-                let registration_futures: Vec<_> = v2_trees
-                    .iter()
-                    .map(|tree| {
-                        let poller = poller.clone();
-                        let tree_pubkey = tree.merkle_tree;
-                        let queue_pubkey = tree.queue;
-                        let tree_type = tree.tree_type;
-                        let min_queue_size = match tree.tree_type {
-                            TreeType::AddressV2 => DEFAULT_ADDRESS_ZKP_BATCH_SIZE,
-                            _ => DEFAULT_ZKP_BATCH_SIZE,
-                        };
-                        async move {
-                            let result = poller
-                                .register_tree(tree_pubkey, queue_pubkey, tree_type, min_queue_size)
-                                .await;
-                            (tree_pubkey, result)
-                        }
-                    })
-                    .collect();
-
-                let results = futures::future::join_all(registration_futures).await;
-
-                let mut tree_receivers = self.tree_receivers.lock().await;
-                for (tree_pubkey, result) in results {
-                    match result {
-                        Ok(rx) => {
-                            tree_receivers.insert((epoch, tree_pubkey), rx);
-                            debug!("Pre-registered tree {} for epoch {}", tree_pubkey, epoch);
-                        }
-                        Err(e) => {
-                            error!(
-                                "Failed to pre-register V2 tree {} with queue poller: {:?}",
-                                tree_pubkey, e
-                            );
-                        }
-                    }
-                }
-            }
-        }
-
-        // Pre-warm proofs for all V2 state trees while waiting for active phase
-        // This gives proofs a head start, reducing latency when active phase begins
         self.prewarm_all_trees_during_wait(epoch_info, active_phase_start_slot)
             .await;
 
@@ -1139,6 +1045,18 @@ impl<R: Rpc> EpochManager<R> {
 
         if let Some(registration) = existing_registration {
             if registration.total_epoch_weight.is_none() {
+                let current_slot = rpc.get_slot().await?;
+                if current_slot > epoch_info.epoch.phases.active.end {
+                    info!(
+                        "Skipping FinalizeRegistration for epoch {}: active phase ended (current slot: {}, end: {})",
+                        epoch_info.epoch.epoch, current_slot, epoch_info.epoch.phases.active.end
+                    );
+                    return Err(anyhow::anyhow!(
+                        "Epoch {} active phase has ended, cannot finalize registration",
+                        epoch_info.epoch.epoch
+                    ));
+                }
+
                 // TODO: we can put this ix into every tx of the first batch of the current active phase
                 let ix = create_finalize_registration_instruction(
                     &self.config.payer_keypair.pubkey(),
@@ -1215,146 +1133,22 @@ impl<R: Rpc> EpochManager<R> {
 
         self.sync_slot().await?;
 
-        let queue_poller = self.queue_poller.clone();
-
         let trees_to_process: Vec<_> = epoch_info
             .trees
             .iter()
             .filter(|tree| !should_skip_tree(&self.config, &tree.tree_accounts.tree_type))
             .cloned()
             .collect();
-
-        let v2_trees: Vec<_> = trees_to_process
-            .iter()
-            .filter(|tree| {
-                matches!(
-                    tree.tree_accounts.tree_type,
-                    TreeType::StateV2 | TreeType::AddressV2
-                )
-            })
-            .collect();
-
-        if queue_poller.is_some() {
-            info!("Using QueueInfoPoller for {} V2 trees", v2_trees.len());
-        }
 
         let self_arc = Arc::new(self.clone());
         let epoch_info_arc = Arc::new(epoch_info.clone());
 
-        let trees_to_process: Vec<_> = epoch_info
-            .trees
-            .iter()
-            .filter(|tree| !should_skip_tree(&self.config, &tree.tree_accounts.tree_type))
-            .cloned()
-            .collect();
-
-        let v2_trees_for_processing: Vec<_> = trees_to_process
-            .iter()
-            .filter(|tree| {
-                matches!(
-                    tree.tree_accounts.tree_type,
-                    TreeType::StateV2 | TreeType::AddressV2
-                ) && !tree.tree_accounts.is_rolledover
-            })
-            .collect();
-
-        let epoch = epoch_info.epoch.epoch;
-        let mut local_tree_receivers: std::collections::HashMap<_, _> = {
-            let mut tree_receivers = self.tree_receivers.lock().await;
-            let mut receivers = std::collections::HashMap::new();
-
-            for tree in &v2_trees_for_processing {
-                let tree_pubkey = tree.tree_accounts.merkle_tree;
-                if let Some(rx) = tree_receivers.remove(&(epoch, tree_pubkey)) {
-                    receivers.insert(tree_pubkey, rx);
-                    debug!(
-                        "Retrieved pre-registered receiver for tree {} epoch {}",
-                        tree_pubkey, epoch
-                    );
-                } else if queue_poller.is_some() {
-                    warn!(
-                        "Tree {} was not pre-registered for epoch {}, registering now",
-                        tree_pubkey, epoch
-                    );
-                }
-            }
-            receivers
-        };
-
-        if let Some(ref poller) = queue_poller {
-            let missing_trees: Vec<_> = v2_trees_for_processing
-                .iter()
-                .filter(|tree| !local_tree_receivers.contains_key(&tree.tree_accounts.merkle_tree))
-                .collect();
-
-            if !missing_trees.is_empty() {
-                let registration_futures: Vec<_> = missing_trees
-                    .iter()
-                    .map(|tree| {
-                        let poller = poller.clone();
-                        let tree_pubkey = tree.tree_accounts.merkle_tree;
-                        let queue_pubkey = tree.tree_accounts.queue;
-                        let tree_type = tree.tree_accounts.tree_type;
-                        let min_queue_size = match tree.tree_accounts.tree_type {
-                            TreeType::AddressV2 => DEFAULT_ADDRESS_ZKP_BATCH_SIZE,
-                            _ => DEFAULT_ZKP_BATCH_SIZE,
-                        };
-                        async move {
-                            let result = poller
-                                .register_tree(tree_pubkey, queue_pubkey, tree_type, min_queue_size)
-                                .await;
-                            (tree_pubkey, result)
-                        }
-                    })
-                    .collect();
-
-                let results = futures::future::join_all(registration_futures).await;
-
-                for (tree_pubkey, result) in results {
-                    match result {
-                        Ok(rx) => {
-                            local_tree_receivers.insert(tree_pubkey, rx);
-                        }
-                        Err(e) => {
-                            error!(
-                                "Failed to register V2 tree {} with queue poller: {:?}.",
-                                tree_pubkey, e
-                            );
-                            return Err(anyhow::anyhow!(
-                                "Failed to register V2 tree {} with queue poller: {}. Cannot process without queue updates.",
-                                tree_pubkey, e
-                            ));
-                        }
-                    }
-                }
-            }
-        } else if !v2_trees_for_processing.is_empty() && local_tree_receivers.is_empty() {
-            let first_tree = v2_trees_for_processing[0].tree_accounts.merkle_tree;
-            error!("No queue poller available for V2 tree {}.", first_tree);
-            return Err(anyhow::anyhow!(
-                "No queue poller available for V2 tree {}. Cannot process without queue updates.",
-                first_tree
-            ));
-        }
-
         let mut handles: Vec<JoinHandle<Result<()>>> = Vec::with_capacity(trees_to_process.len());
 
         for tree in trees_to_process {
-            let is_v2 = matches!(
-                tree.tree_accounts.tree_type,
-                TreeType::StateV2 | TreeType::AddressV2
-            );
-
-            let queue_update_rx = if is_v2 {
-                local_tree_receivers.remove(&tree.tree_accounts.merkle_tree)
-            } else {
-                None
-            };
-
-            let has_channel = queue_update_rx.is_some();
             info!(
-                "Creating thread for tree {} (type: {:?}, event: {})",
-                tree.tree_accounts.merkle_tree, tree.tree_accounts.tree_type, has_channel
+                "Creating thread for tree {} (type: {:?})",
+                tree.tree_accounts.merkle_tree, tree.tree_accounts.tree_type
             );
 
             let self_clone = self_arc.clone();
@@ -1366,7 +1160,6 @@ impl<R: Rpc> EpochManager<R> {
                         &epoch_info_clone.epoch,
                         &epoch_info_clone.forester_epoch_pda,
                         tree,
-                        queue_update_rx,
                     )
                     .await
             });
@@ -1399,7 +1192,7 @@ impl<R: Rpc> EpochManager<R> {
 
     #[instrument(
         level = "debug",
-        skip(self, epoch_info, epoch_pda, tree_schedule, queue_update_rx),
+        skip(self, epoch_info, epoch_pda, tree_schedule),
         fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch,
         tree = %tree_schedule.tree_accounts.merkle_tree)
     )]
@@ -1408,7 +1201,6 @@ impl<R: Rpc> EpochManager<R> {
         epoch_info: &Epoch,
         epoch_pda: &ForesterEpochPda,
         mut tree_schedule: TreeForesterSchedule,
-        mut queue_update_rx: Option<mpsc::Receiver<QueueUpdateMessage>>,
     ) -> Result<()> {
         let mut current_slot = self.slot_tracker.estimated_current_slot();
 
@@ -1444,29 +1236,17 @@ impl<R: Rpc> EpochManager<R> {
                         .await
                     }
                     TreeType::StateV2 | TreeType::AddressV2 => {
-                        if let Some(ref mut rx) = queue_update_rx {
-                            let consecutive_end = tree_schedule
-                                .get_consecutive_eligibility_end(slot_idx)
-                                .unwrap_or(light_slot_details.end_solana_slot);
-                            self.process_light_slot_v2(
-                                epoch_info,
-                                epoch_pda,
-                                &tree_schedule.tree_accounts,
-                                &light_slot_details,
-                                consecutive_end,
-                                rx,
-                            )
-                            .await
-                        } else {
-                            error!(
-                                "No queue update channel available for V2 tree {}.",
-                                tree_schedule.tree_accounts.merkle_tree
-                            );
-                            Err(anyhow::anyhow!(
-                                "No queue update channel for V2 tree {}",
-                                tree_schedule.tree_accounts.merkle_tree
-                            ))
-                        }
+                        let consecutive_end = tree_schedule
+                            .get_consecutive_eligibility_end(slot_idx)
+                            .unwrap_or(light_slot_details.end_solana_slot);
+                        self.process_light_slot_v2(
+                            epoch_info,
+                            epoch_pda,
+                            &tree_schedule.tree_accounts,
+                            &light_slot_details,
+                            consecutive_end,
+                        )
+                        .await
                     }
                 };
 
@@ -1485,52 +1265,6 @@ impl<R: Rpc> EpochManager<R> {
                     }
                 }
                 tree_schedule.slots[slot_idx] = None;
-
-                // After processing a slot, check if there's a gap before the next eligible slot
-                // If so, use that time to pre-warm proofs for the next slot
-                if matches!(tree_type, TreeType::StateV2 | TreeType::AddressV2) {
-                    if let Some(ref mut rx) = queue_update_rx {
-                        let next_slot = tree_schedule
-                            .slots
-                            .iter()
-                            .enumerate()
-                            .find_map(|(idx, opt)| opt.as_ref().map(|s| (idx, s.clone())));
-
-                        if let Some((next_idx, next_slot_details)) = next_slot {
-                            let current = self.slot_tracker.estimated_current_slot();
-                            let slots_until_next =
-                                next_slot_details.start_solana_slot.saturating_sub(current);
-
-                            // Pre-warm if we have at least 2 seconds (4 slots) gap
-                            if slots_until_next > 4 {
-                                let consecutive_end = tree_schedule
-                                    .get_consecutive_eligibility_end(next_idx)
-                                    .unwrap_or(next_slot_details.end_solana_slot);
-
-                                info!(
-                                    "Pre-warming proofs for tree {} during {} slot gap before next eligible slot",
-                                    tree_schedule.tree_accounts.merkle_tree, slots_until_next
-                                );
-
-                                if let Err(e) = self
-                                    .prewarm_proofs_during_wait(
-                                        epoch_info,
-                                        &tree_schedule.tree_accounts,
-                                        consecutive_end,
-                                        next_slot_details.start_solana_slot,
-                                        rx,
-                                    )
-                                    .await
-                                {
-                                    warn!(
-                                        "Pre-warming between slots failed for tree {}: {:?}",
-                                        tree_schedule.tree_accounts.merkle_tree, e
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
             } else {
                 info!(
                     "No further eligible slots in schedule for tree {}",
@@ -1616,7 +1350,6 @@ impl<R: Rpc> EpochManager<R> {
                     forester_slot_details,
                     forester_slot_details.end_solana_slot,
                     estimated_slot,
-                    None,
                 )
                 .await
             {
@@ -1659,7 +1392,7 @@ impl<R: Rpc> EpochManager<R> {
 
     #[instrument(
         level = "debug",
-        skip(self, epoch_info, epoch_pda, tree_accounts, forester_slot_details, consecutive_eligibility_end, queue_update_rx),
+        skip(self, epoch_info, epoch_pda, tree_accounts, forester_slot_details, consecutive_eligibility_end),
         fields(tree = %tree_accounts.merkle_tree)
     )]
     async fn process_light_slot_v2(
@@ -1669,7 +1402,6 @@ impl<R: Rpc> EpochManager<R> {
         tree_accounts: &TreeAccounts,
         forester_slot_details: &ForesterSlot,
         consecutive_eligibility_end: u64,
-        queue_update_rx: &mut mpsc::Receiver<QueueUpdateMessage>,
     ) -> Result<()> {
         info!(
             "Processing V2 light slot {} ({}-{}, consecutive_end={})",
@@ -1680,30 +1412,6 @@ impl<R: Rpc> EpochManager<R> {
         );
 
         let tree_pubkey = tree_accounts.merkle_tree;
-        let current_slot = self.slot_tracker.estimated_current_slot();
-        let slots_until_eligible = forester_slot_details
-            .start_solana_slot
-            .saturating_sub(current_slot);
-
-        // Pre-warm proofs during idle time
-        if slots_until_eligible > 4 {
-            info!(
-                "Pre-warming proofs for tree {} during {} slot wait",
-                tree_pubkey, slots_until_eligible
-            );
-            if let Err(e) = self
-                .prewarm_proofs_during_wait(
-                    epoch_info,
-                    tree_accounts,
-                    consecutive_eligibility_end,
-                    forester_slot_details.start_solana_slot,
-                    queue_update_rx,
-                )
-                .await
-            {
-                warn!("Pre-warming failed for tree {}: {:?}", tree_pubkey, e);
-            }
-        }
 
         let mut rpc = self.rpc_pool.get_connection().await?;
         wait_until_slot_reached(
@@ -1713,6 +1421,7 @@ impl<R: Rpc> EpochManager<R> {
         )
         .await?;
 
+        // Try to send any cached proofs first
         if let Some(items_sent) = self
             .try_send_cached_proofs(epoch_info, tree_accounts, consecutive_eligibility_end)
             .await?
@@ -1730,9 +1439,11 @@ impl<R: Rpc> EpochManager<R> {
                 .await;
             }
         }
+
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
 
-        const QUEUE_UPDATE_TIMEOUT: Duration = Duration::from_millis(150);
+        // Polling interval for checking queue
+        const POLL_INTERVAL: Duration = Duration::from_millis(200);
 
         'inner_processing_loop: loop {
             if estimated_slot >= forester_slot_details.end_solana_slot {
@@ -1763,63 +1474,37 @@ impl<R: Rpc> EpochManager<R> {
                 break 'inner_processing_loop;
             }
 
-            match tokio::time::timeout(QUEUE_UPDATE_TIMEOUT, queue_update_rx.recv()).await {
-                Ok(Some(update)) => {
-                    // Check cached batch size to skip processing when queue is below threshold
-                    let min_batch_size = self
-                        .zkp_batch_sizes
-                        .get(&tree_pubkey)
-                        .map(|v| *v)
-                        .unwrap_or(1);
-
-                    if update.queue_size >= min_batch_size {
-                        info!(
-                            "V2 Queue update received for tree {}: {} items (type: {:?})",
-                            tree_pubkey, update.queue_size, update.queue_type
-                        );
-
-                        let processing_start_time = Instant::now();
-                        match self
-                            .dispatch_tree_processing(
-                                epoch_info,
-                                epoch_pda,
-                                tree_accounts,
-                                forester_slot_details,
-                                consecutive_eligibility_end,
-                                estimated_slot,
-                                Some(&update),
-                            )
-                            .await
-                        {
-                            Ok(count) => {
-                                if count > 0 {
-                                    info!("V2 processed {} items", count);
-                                    self.update_metrics_and_counts(
-                                        epoch_info.epoch,
-                                        count,
-                                        processing_start_time.elapsed(),
-                                    )
-                                    .await;
-                                }
-                            }
-                            Err(e) => {
-                                error!("V2 processing failed: {:?}", e);
-                            }
-                        }
-                    } else if update.queue_size > 0 {
-                        trace!(
-                            "V2 Queue update for tree {} below batch threshold ({} < {})",
-                            tree_pubkey,
-                            update.queue_size,
-                            min_batch_size
-                        );
+            // Process directly - the processor fetches queue data from the indexer
+            let processing_start_time = Instant::now();
+            match self
+                .dispatch_tree_processing(
+                    epoch_info,
+                    epoch_pda,
+                    tree_accounts,
+                    forester_slot_details,
+                    consecutive_eligibility_end,
+                    estimated_slot,
+                )
+                .await
+            {
+                Ok(count) => {
+                    if count > 0 {
+                        info!("V2 processed {} items for tree {}", count, tree_pubkey);
+                        self.update_metrics_and_counts(
+                            epoch_info.epoch,
+                            count,
+                            processing_start_time.elapsed(),
+                        )
+                        .await;
+                    } else {
+                        // No items to process, wait before polling again
+                        tokio::time::sleep(POLL_INTERVAL).await;
                     }
                 }
-                Ok(None) => {
-                    info!("Queue update channel closed for tree {}.", tree_pubkey);
-                    break 'inner_processing_loop;
+                Err(e) => {
+                    error!("V2 processing failed for tree {}: {:?}", tree_pubkey, e);
+                    tokio::time::sleep(POLL_INTERVAL).await;
                 }
-                Err(_elapsed) => {}
             }
 
             push_metrics(&self.config.external_services.pushgateway_url).await?;
@@ -1888,7 +1573,6 @@ impl<R: Rpc> EpochManager<R> {
         forester_slot_details: &ForesterSlot,
         consecutive_eligibility_end: u64,
         current_solana_slot: u64,
-        queue_update: Option<&QueueUpdateMessage>,
     ) -> Result<usize> {
         match tree_accounts.tree_type {
             TreeType::Unknown => {
@@ -1911,12 +1595,7 @@ impl<R: Rpc> EpochManager<R> {
             }
             TreeType::StateV2 | TreeType::AddressV2 => {
                 let result = self
-                    .process_v2(
-                        epoch_info,
-                        tree_accounts,
-                        queue_update,
-                        consecutive_eligibility_end,
-                    )
+                    .process_v2(epoch_info, tree_accounts, consecutive_eligibility_end)
                     .await?;
                 // Accumulate processing metrics for this epoch
                 self.add_processing_metrics(epoch_info.epoch, result.metrics)
@@ -2286,18 +1965,13 @@ impl<R: Rpc> EpochManager<R> {
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
     ) -> Result<Arc<Mutex<QueueProcessor<R, AddressTreeStrategy>>>> {
-        use dashmap::mapref::entry::Entry;
-
-        // First check if we already have a processor for this tree
-        // We REUSE processors across epochs to preserve cached state for optimistic processing
         if let Some(entry) = self.address_processors.get(&tree_accounts.merkle_tree) {
             let (stored_epoch, processor_ref) = entry.value();
             let processor_clone = processor_ref.clone();
             let old_epoch = *stored_epoch;
-            drop(entry); // Release read lock before any async operation
+            drop(entry);
 
             if old_epoch != epoch_info.epoch {
-                // Update epoch in the map (processor is reused with its cached state)
                 debug!(
                     "Reusing AddressBatchProcessor for tree {} across epoch transition ({} -> {})",
                     tree_accounts.merkle_tree, old_epoch, epoch_info.epoch
@@ -2306,7 +1980,6 @@ impl<R: Rpc> EpochManager<R> {
                     tree_accounts.merkle_tree,
                     (epoch_info.epoch, processor_clone.clone()),
                 );
-                // Update the processor's epoch context and phases
                 processor_clone
                     .lock()
                     .await
@@ -2328,10 +2001,7 @@ impl<R: Rpc> EpochManager<R> {
 
         // Insert the new processor (or get existing if another task beat us to it)
         match self.address_processors.entry(tree_accounts.merkle_tree) {
-            Entry::Occupied(occupied) => {
-                // Another task already inserted - use theirs (they may have cached state)
-                Ok(occupied.get().1.clone())
-            }
+            Entry::Occupied(occupied) => Ok(occupied.get().1.clone()),
             Entry::Vacant(vacant) => {
                 vacant.insert((epoch_info.epoch, processor.clone()));
                 Ok(processor)
@@ -2343,125 +2013,102 @@ impl<R: Rpc> EpochManager<R> {
         &self,
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
-        queue_update: Option<&QueueUpdateMessage>,
         consecutive_eligibility_end: u64,
     ) -> Result<ProcessingResult> {
         match tree_accounts.tree_type {
             TreeType::StateV2 => {
-                if let Some(update) = queue_update {
-                    let processor = self
-                        .get_or_create_state_processor(epoch_info, tree_accounts)
-                        .await?;
+                let processor = self
+                    .get_or_create_state_processor(epoch_info, tree_accounts)
+                    .await?;
 
-                    let cache = self
-                        .proof_caches
-                        .entry(tree_accounts.merkle_tree)
-                        .or_insert_with(|| {
-                            Arc::new(SharedProofCache::new(tree_accounts.merkle_tree))
-                        })
-                        .clone();
+                let cache = self
+                    .proof_caches
+                    .entry(tree_accounts.merkle_tree)
+                    .or_insert_with(|| Arc::new(SharedProofCache::new(tree_accounts.merkle_tree)))
+                    .clone();
 
-                    {
-                        let mut proc = processor.lock().await;
-                        proc.update_eligibility(consecutive_eligibility_end);
-                        proc.set_proof_cache(cache);
-                    }
-
-                    let work = QueueWork {
-                        queue_type: update.queue_type,
-                        queue_size: update.queue_size,
-                    };
-
+                {
                     let mut proc = processor.lock().await;
-                    match proc.process_queue_update(work).await {
-                        Ok(res) => Ok(res),
-                        Err(e) => {
-                            let msg = e.to_string();
-                            if crate::processor::v2::is_constraint_error(&msg) {
-                                warn!(
-                                    "State processing hit constraint error for tree {}: {}. Dropping processor to flush cache.",
-                                    tree_accounts.merkle_tree, msg
-                                );
-                                drop(proc); // Release lock before removing
-                                self.state_processors.remove(&tree_accounts.merkle_tree);
-                                self.proof_caches.remove(&tree_accounts.merkle_tree);
-                                Err(e)
-                            } else if crate::processor::v2::is_hashchain_mismatch(&msg) {
-                                warn!(
-                                    "State processing hit hashchain mismatch for tree {}: {}. Clearing cache and retrying.",
-                                    tree_accounts.merkle_tree, msg
-                                );
-                                proc.clear_cache();
-                                Ok(ProcessingResult::default())
-                            } else {
-                                warn!(
-                                    "Failed to process state queue for tree {}: {}. Will retry next tick without dropping processor.",
-                                    tree_accounts.merkle_tree, msg
-                                );
-                                Ok(ProcessingResult::default())
-                            }
+                    proc.update_eligibility(consecutive_eligibility_end);
+                    proc.set_proof_cache(cache);
+                }
+
+                let mut proc = processor.lock().await;
+                match proc.process().await {
+                    Ok(res) => Ok(res),
+                    Err(e) => {
+                        let msg = e.to_string();
+                        if crate::processor::v2::is_constraint_error(&msg) {
+                            warn!(
+                                "State processing hit constraint error for tree {}: {}. Dropping processor to flush cache.",
+                                tree_accounts.merkle_tree, msg
+                            );
+                            drop(proc); // Release lock before removing
+                            self.state_processors.remove(&tree_accounts.merkle_tree);
+                            self.proof_caches.remove(&tree_accounts.merkle_tree);
+                            Err(e)
+                        } else if crate::processor::v2::is_hashchain_mismatch(&msg) {
+                            warn!(
+                                "State processing hit hashchain mismatch for tree {}: {}. Clearing cache and retrying.",
+                                tree_accounts.merkle_tree, msg
+                            );
+                            proc.clear_cache();
+                            Ok(ProcessingResult::default())
+                        } else {
+                            warn!(
+                                "Failed to process state queue for tree {}: {}. Will retry next tick without dropping processor.",
+                                tree_accounts.merkle_tree, msg
+                            );
+                            Ok(ProcessingResult::default())
                         }
                     }
-                } else {
-                    Ok(ProcessingResult::default())
                 }
             }
             TreeType::AddressV2 => {
-                if let Some(update) = queue_update {
-                    let processor = self
-                        .get_or_create_address_processor(epoch_info, tree_accounts)
-                        .await?;
+                let processor = self
+                    .get_or_create_address_processor(epoch_info, tree_accounts)
+                    .await?;
 
-                    let cache = self
-                        .proof_caches
-                        .entry(tree_accounts.merkle_tree)
-                        .or_insert_with(|| {
-                            Arc::new(SharedProofCache::new(tree_accounts.merkle_tree))
-                        })
-                        .clone();
+                let cache = self
+                    .proof_caches
+                    .entry(tree_accounts.merkle_tree)
+                    .or_insert_with(|| Arc::new(SharedProofCache::new(tree_accounts.merkle_tree)))
+                    .clone();
 
-                    {
-                        let mut proc = processor.lock().await;
-                        proc.update_eligibility(consecutive_eligibility_end);
-                        proc.set_proof_cache(cache);
-                    }
-
-                    let work = QueueWork {
-                        queue_type: update.queue_type,
-                        queue_size: update.queue_size,
-                    };
-
+                {
                     let mut proc = processor.lock().await;
-                    match proc.process_queue_update(work).await {
-                        Ok(res) => Ok(res),
-                        Err(e) => {
-                            let msg = e.to_string();
-                            if crate::processor::v2::is_constraint_error(&msg) {
-                                warn!(
-                                    "Address processing hit constraint error for tree {}: {}. Dropping processor to flush cache.",
-                                    tree_accounts.merkle_tree, msg
-                                );
-                                self.address_processors.remove(&tree_accounts.merkle_tree);
-                                self.proof_caches.remove(&tree_accounts.merkle_tree);
-                                Err(e)
-                            } else if crate::processor::v2::is_hashchain_mismatch(&msg) {
-                                warn!(
-                                    "Address processing hit hashchain mismatch for tree {}: {}. Clearing cache and retrying.",
-                                    tree_accounts.merkle_tree, msg
-                                );
-                                proc.clear_cache();
-                                Ok(ProcessingResult::default())
-                            } else {
-                                warn!(
-                                    "Failed to process address queue for tree {}: {}. Will retry next tick without dropping processor.",
-                                    tree_accounts.merkle_tree, msg
-                                );
-                                Ok(ProcessingResult::default())
-                            }
+                    proc.update_eligibility(consecutive_eligibility_end);
+                    proc.set_proof_cache(cache);
+                }
+
+                let mut proc = processor.lock().await;
+                match proc.process().await {
+                    Ok(res) => Ok(res),
+                    Err(e) => {
+                        let msg = e.to_string();
+                        if crate::processor::v2::is_constraint_error(&msg) {
+                            warn!(
+                                "Address processing hit constraint error for tree {}: {}. Dropping processor to flush cache.",
+                                tree_accounts.merkle_tree, msg
+                            );
+                            self.address_processors.remove(&tree_accounts.merkle_tree);
+                            self.proof_caches.remove(&tree_accounts.merkle_tree);
+                            Err(e)
+                        } else if crate::processor::v2::is_hashchain_mismatch(&msg) {
+                            warn!(
+                                "Address processing hit hashchain mismatch for tree {}: {}. Clearing cache and retrying.",
+                                tree_accounts.merkle_tree, msg
+                            );
+                            proc.clear_cache();
+                            Ok(ProcessingResult::default())
+                        } else {
+                            warn!(
+                                "Failed to process address queue for tree {}: {}. Will retry next tick without dropping processor.",
+                                tree_accounts.merkle_tree, msg
+                            );
+                            Ok(ProcessingResult::default())
                         }
                     }
-                } else {
-                    Ok(ProcessingResult::default())
                 }
             }
             _ => {
@@ -2492,165 +2139,6 @@ impl<R: Rpc> EpochManager<R> {
         }
     }
 
-    async fn prewarm_proofs_during_wait(
-        &self,
-        epoch_info: &Epoch,
-        tree_accounts: &TreeAccounts,
-        consecutive_eligibility_end: u64,
-        deadline_slot: u64,
-        queue_update_rx: &mut mpsc::Receiver<QueueUpdateMessage>,
-    ) -> Result<()> {
-        match tree_accounts.tree_type {
-            TreeType::StateV2 => {
-                let tree_pubkey = tree_accounts.merkle_tree;
-
-                let cache = self
-                    .proof_caches
-                    .entry(tree_pubkey)
-                    .or_insert_with(|| Arc::new(SharedProofCache::new(tree_pubkey)))
-                    .clone();
-
-                let update =
-                    match tokio::time::timeout(Duration::from_millis(100), queue_update_rx.recv())
-                        .await
-                    {
-                        Ok(Some(update)) if update.queue_size > 0 => update,
-                        Ok(Some(_)) => {
-                            trace!(
-                                "Empty queue update during pre-warm for tree {}",
-                                tree_pubkey
-                            );
-                            return Ok(());
-                        }
-                        Ok(None) => {
-                            debug!(
-                                "Queue channel closed during pre-warm for tree {}",
-                                tree_pubkey
-                            );
-                            return Ok(());
-                        }
-                        Err(_) => {
-                            trace!(
-                                "No queue update available for pre-warming tree {}",
-                                tree_pubkey
-                            );
-                            return Ok(());
-                        }
-                    };
-
-                info!(
-                    "Pre-warming {} items for tree {} (deadline slot: {})",
-                    update.queue_size, tree_pubkey, deadline_slot
-                );
-
-                let processor = self
-                    .get_or_create_state_processor(epoch_info, tree_accounts)
-                    .await?;
-                {
-                    let mut p = processor.lock().await;
-                    p.update_eligibility(consecutive_eligibility_end);
-                }
-
-                let work = QueueWork {
-                    queue_type: update.queue_type,
-                    queue_size: update.queue_size,
-                };
-
-                let mut p = processor.lock().await;
-                match p.prewarm_proofs(cache.clone(), work).await {
-                    Ok(count) => {
-                        info!(
-                            "Pre-warmed {} proofs for tree {} before eligible slot",
-                            count, tree_pubkey
-                        );
-                    }
-                    Err(e) => {
-                        warn!(
-                            "Failed to pre-warm proofs for tree {}: {:?}",
-                            tree_pubkey, e
-                        );
-                        cache.clear().await;
-                    }
-                }
-                Ok(())
-            }
-            TreeType::AddressV2 => {
-                let tree_pubkey = tree_accounts.merkle_tree;
-
-                let cache = self
-                    .proof_caches
-                    .entry(tree_pubkey)
-                    .or_insert_with(|| Arc::new(SharedProofCache::new(tree_pubkey)))
-                    .clone();
-
-                let update =
-                    match tokio::time::timeout(Duration::from_millis(100), queue_update_rx.recv())
-                        .await
-                    {
-                        Ok(Some(update)) if update.queue_size > 0 => update,
-                        Ok(Some(_)) => {
-                            trace!(
-                                "Empty queue update during pre-warm for address tree {}",
-                                tree_pubkey
-                            );
-                            return Ok(());
-                        }
-                        Ok(None) => {
-                            debug!(
-                                "Queue channel closed during pre-warm for address tree {}",
-                                tree_pubkey
-                            );
-                            return Ok(());
-                        }
-                        Err(_) => {
-                            trace!(
-                                "No queue update available for pre-warming address tree {}",
-                                tree_pubkey
-                            );
-                            return Ok(());
-                        }
-                    };
-
-                info!(
-                    "Pre-warming {} items for address tree {} (deadline slot: {})",
-                    update.queue_size, tree_pubkey, deadline_slot
-                );
-
-                let processor = self
-                    .get_or_create_address_processor(epoch_info, tree_accounts)
-                    .await?;
-                {
-                    let mut p = processor.lock().await;
-                    p.update_eligibility(consecutive_eligibility_end);
-                }
-
-                let work = QueueWork {
-                    queue_type: update.queue_type,
-                    queue_size: update.queue_size,
-                };
-
-                let mut p = processor.lock().await;
-                match p.prewarm_proofs(cache.clone(), work).await {
-                    Ok(count) => {
-                        info!(
-                            "Pre-warmed {} proofs for address tree {} before eligible slot",
-                            count, tree_pubkey
-                        );
-                    }
-                    Err(e) => {
-                        warn!(
-                            "Failed to pre-warm proofs for address tree {}: {:?}",
-                            tree_pubkey, e
-                        );
-                        cache.clear().await;
-                    }
-                }
-                Ok(())
-            }
-            _ => Ok(()),
-        }
-    }
-
     async fn prewarm_all_trees_during_wait(
         &self,
         epoch_info: &ForesterEpochInfo,
@@ -2668,6 +2156,14 @@ impl<R: Rpc> EpochManager<R> {
         drop(trees);
 
         if v2_state_trees.is_empty() {
+            return;
+        }
+
+        if slots_until_active < 15 {
+            info!(
+                "Skipping pre-warming: only {} slots until active phase, not enough time",
+                slots_until_active
+            );
             return;
         }
 
@@ -2750,17 +2246,23 @@ impl<R: Rpc> EpochManager<R> {
             })
             .collect();
 
-        let timeout_slots = slots_until_active.saturating_sub(5); // Leave 5 slots buffer
-        let timeout_duration = Duration::from_millis(timeout_slots * 400); // ~400ms per slot
+        let timeout_slots = slots_until_active.saturating_sub(5);
+        let timeout_duration = Duration::from_millis((timeout_slots * 400).min(30_000));
+
+        info!(
+            "Starting pre-warming for {} trees with {}ms timeout",
+            v2_state_trees.len(),
+            timeout_duration.as_millis()
+        );
 
         match tokio::time::timeout(timeout_duration, futures::future::join_all(prewarm_futures))
             .await
         {
             Ok(_) => {
-                info!("Completed pre-warming for all trees before active phase");
+                info!("Completed pre-warming for all trees");
             }
             Err(_) => {
-                info!("Pre-warming timed out, proceeding to active phase");
+                info!("Pre-warming timed out after {:?}", timeout_duration);
             }
         }
     }
@@ -3177,7 +2679,7 @@ pub async fn run_service<R: Rpc>(
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,
-    shutdown: oneshot::Receiver<()>,
+    mut shutdown: oneshot::Receiver<()>,
     work_report_sender: mpsc::Sender<WorkReport>,
     slot_tracker: Arc<SlotTracker>,
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
@@ -3207,44 +2709,98 @@ pub async fn run_service<R: Rpc>(
             let start_time = Instant::now();
 
             let trees = {
-                let rpc = rpc_pool.get_connection().await?;
-                let mut fetched_trees = fetch_trees(&*rpc).await?;
-                if !config.general_config.tree_ids.is_empty() {
-                    let tree_ids = &config.general_config.tree_ids;
-                    fetched_trees.retain(|tree| tree_ids.contains(&tree.merkle_tree));
-                    if fetched_trees.is_empty() {
-                        error!("None of the specified trees found: {:?}", tree_ids);
-                        return Err(anyhow::anyhow!(
-                            "None of the specified trees found: {:?}",
-                            tree_ids
-                        ));
+                let max_attempts = 10;
+                let mut attempts = 0;
+                let mut delay = Duration::from_secs(2);
+
+                loop {
+                    tokio::select! {
+                        biased;
+                        _ = &mut shutdown => {
+                            info!("Received shutdown signal during tree fetch. Stopping.");
+                            return Ok(());
+                        }
+                        result = rpc_pool.get_connection() => {
+                            match result {
+                                Ok(rpc) => {
+                                    tokio::select! {
+                                        biased;
+                                        _ = &mut shutdown => {
+                                            info!("Received shutdown signal during tree fetch. Stopping.");
+                                            return Ok(());
+                                        }
+                                        fetch_result = fetch_trees(&*rpc) => {
+                                            match fetch_result {
+                                                Ok(mut fetched_trees) => {
+                                                    if !config.general_config.tree_ids.is_empty() {
+                                                        let tree_ids = &config.general_config.tree_ids;
+                                                        fetched_trees.retain(|tree| tree_ids.contains(&tree.merkle_tree));
+                                                        if fetched_trees.is_empty() {
+                                                            error!("None of the specified trees found: {:?}", tree_ids);
+                                                            return Err(anyhow::anyhow!(
+                                                                "None of the specified trees found: {:?}",
+                                                                tree_ids
+                                                            ));
+                                                        }
+                                                        info!("Processing only trees: {:?}", tree_ids);
+                                                    }
+                                                    break fetched_trees;
+                                                }
+                                                Err(e) => {
+                                                    attempts += 1;
+                                                    if attempts >= max_attempts {
+                                                        return Err(anyhow::anyhow!(
+                                                            "Failed to fetch trees after {} attempts: {:?}",
+                                                            max_attempts,
+                                                            e
+                                                        ));
+                                                    }
+                                                    warn!(
+                                                        "Failed to fetch trees (attempt {}/{}), retrying in {:?}: {:?}",
+                                                        attempts, max_attempts, delay, e
+                                                    );
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    attempts += 1;
+                                    if attempts >= max_attempts {
+                                        return Err(anyhow::anyhow!(
+                                            "Failed to get RPC connection for trees after {} attempts: {:?}",
+                                            max_attempts,
+                                            e
+                                        ));
+                                    }
+                                    warn!(
+                                        "Failed to get RPC connection (attempt {}/{}), retrying in {:?}: {:?}",
+                                        attempts, max_attempts, delay, e
+                                    );
+                                }
+                            }
+                        }
                     }
-                    info!("Processing only trees: {:?}", tree_ids);
+
+                    tokio::select! {
+                        biased;
+                        _ = &mut shutdown => {
+                            info!("Received shutdown signal during retry wait. Stopping.");
+                            return Ok(());
+                        }
+                        _ = sleep(delay) => {
+                            delay = std::cmp::min(delay * 2, Duration::from_secs(30));
+                        }
+                    }
                 }
-                fetched_trees
             };
             trace!("Fetched initial trees: {:?}", trees);
 
             let (new_tree_sender, _) = broadcast::channel(100);
 
-            // Only run tree finder if not filtering by specific trees
-            let _tree_finder_handle = if config.general_config.tree_ids.is_empty() {
-                let mut tree_finder = TreeFinder::new(
-                    rpc_pool.clone(),
-                    trees.clone(),
-                    new_tree_sender.clone(),
-                    Duration::from_secs(config.general_config.tree_discovery_interval_seconds),
-                );
-
-                Some(tokio::spawn(async move {
-                    if let Err(e) = tree_finder.run().await {
-                        error!("Tree finder error: {:?}", e);
-                    }
-                }))
-            } else {
-                info!("Tree discovery disabled when processing single tree");
-                None
-            };
+            if !config.general_config.tree_ids.is_empty() {
+                info!("Processing specific trees, tree discovery will be limited");
+            }
 
             while retry_count < config.retry_config.max_retries {
                 debug!("Creating EpochManager (attempt {})", retry_count + 1);
@@ -3269,13 +2825,15 @@ pub async fn run_service<R: Rpc>(
                             retry_count + 1
                         );
 
-                        return tokio::select! {
+                        let result = tokio::select! {
                             result = epoch_manager.run() => result,
                             _ = shutdown => {
                                 info!("Received shutdown signal. Stopping the service.");
                                 Ok(())
                             }
                         };
+
+                        return result;
                     }
                     Err(e) => {
                         warn!(
@@ -3364,6 +2922,7 @@ mod tests {
                 tree_ids: vec![],
                 sleep_after_processing_ms: 50,
                 sleep_when_idle_ms: 100,
+                queue_polling_mode: crate::cli::QueuePollingMode::Indexer,
             },
             rpc_pool_config: Default::default(),
             registry_pubkey: Pubkey::default(),

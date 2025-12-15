@@ -9,6 +9,7 @@ use anchor_lang::Discriminator;
 use borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use forester::{
+    cli::QueuePollingMode,
     config::{ExternalServicesConfig, GeneralConfig, RpcPoolConfig, TransactionConfig},
     epoch_manager::{ProcessingMetrics, WorkReport},
     run_pipeline,
@@ -52,7 +53,6 @@ use tokio::{
     sync::{mpsc, oneshot},
     time::timeout,
 };
-use forester::cli::QueuePollingMode;
 
 mod test_utils;
 use test_utils::*;

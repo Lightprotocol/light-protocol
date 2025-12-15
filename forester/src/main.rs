@@ -46,11 +46,17 @@ async fn main() -> Result<(), ForesterError> {
                         oneshot::channel();
                     tokio::spawn(async move {
                         ctrl_c().await.expect("Failed to listen for Ctrl+C");
+                        tracing::info!("Received Ctrl+C, initiating graceful shutdown...");
                         shutdown_sender_service
                             .send(())
                             .expect("Failed to send shutdown signal to service");
                         let _ = shutdown_sender_compressible.send(());
                         let _ = shutdown_sender_bootstrap.send(());
+
+                        // Wait for second Ctrl+C to force exit
+                        ctrl_c().await.expect("Failed to listen for Ctrl+C");
+                        tracing::warn!("Received second Ctrl+C, forcing exit!");
+                        std::process::exit(1);
                     });
                     (
                         Some(shutdown_receiver_compressible),
@@ -59,9 +65,15 @@ async fn main() -> Result<(), ForesterError> {
                 } else {
                     tokio::spawn(async move {
                         ctrl_c().await.expect("Failed to listen for Ctrl+C");
+                        tracing::info!("Received Ctrl+C, initiating graceful shutdown...");
                         shutdown_sender_service
                             .send(())
                             .expect("Failed to send shutdown signal to service");
+
+                        // Wait for second Ctrl+C to force exit
+                        ctrl_c().await.expect("Failed to listen for Ctrl+C");
+                        tracing::warn!("Received second Ctrl+C, forcing exit!");
+                        std::process::exit(1);
                     });
                     (None, None)
                 };

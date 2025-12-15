@@ -54,7 +54,6 @@ warp = "0.4"
 dashmap = { workspace = true }
 scopeguard = "1.2"
 itertools = "0.14"
-kameo = "0.19.2"
 async-channel = "2.5"
 solana-pubkey = { workspace = true }
 

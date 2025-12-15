@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::anyhow;
 use async_trait::async_trait;
 use forester_utils::address_staging_tree::AddressStagingTree;
@@ -6,9 +8,10 @@ use light_client::rpc::Rpc;
 use tracing::{debug, info};
 
 use crate::processor::v2::{
-    common::{batch_range, get_leaves_hashchain},
+    common::get_leaves_hashchain,
     helpers::{
-        fetch_address_zkp_batch_size, fetch_onchain_address_root, fetch_paginated_address_batches,
+        fetch_address_zkp_batch_size, fetch_onchain_address_root, fetch_streaming_address_batches,
+        StreamingAddressQueue,
     },
     proof_worker::ProofInput,
     strategy::{CircuitType, QueueData, TreeStrategy},
@@ -17,11 +20,94 @@ use crate::processor::v2::{
 #[derive(Debug, Clone)]
 pub struct AddressTreeStrategy;
 
-#[derive(Debug)]
+/// Address queue data with streaming support.
+/// Data is fetched in the background while processing can start immediately.
 pub struct AddressQueueData {
     pub staging_tree: AddressStagingTree,
-    pub address_queue: light_client::indexer::AddressQueueData,
+    /// Streaming queue for fetching data in background
+    pub streaming_queue: Arc<StreamingAddressQueue>,
+    /// Start index from indexer (where fetched data begins)
+    pub data_start_index: u64,
+    /// ZKP batch size for alignment calculations
+    pub zkp_batch_size: usize,
 }
+
+impl AddressQueueData {
+    /// Check alignment between staging tree and fetched data.
+    /// Returns the number of elements to skip (overlap) or an error if stale.
+    pub fn check_alignment(&self) -> Result<usize, AddressAlignmentError> {
+        let tree_next = self.staging_tree.next_index() as u64;
+        let data_start = self.data_start_index;
+
+        if data_start > tree_next {
+            // Tree is stale - indexer has more elements than we know about
+            Err(AddressAlignmentError::TreeStale {
+                tree_next_index: tree_next,
+                data_start_index: data_start,
+            })
+        } else if data_start == tree_next {
+            // Perfect alignment
+            Ok(0)
+        } else {
+            // Overlap - we've already processed some elements
+            let overlap = (tree_next - data_start) as usize;
+            Ok(overlap)
+        }
+    }
+
+    /// Get the batch index to start processing from, accounting for overlap.
+    /// Returns None if tree is stale.
+    pub fn first_processable_batch(&self) -> Option<usize> {
+        match self.check_alignment() {
+            Ok(overlap) => {
+                let batch_idx = overlap / self.zkp_batch_size;
+                Some(batch_idx)
+            }
+            Err(_) => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum AddressAlignmentError {
+    TreeStale {
+        tree_next_index: u64,
+        data_start_index: u64,
+    },
+}
+
+impl std::fmt::Display for AddressAlignmentError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AddressAlignmentError::TreeStale {
+                tree_next_index,
+                data_start_index,
+            } => write!(
+                f,
+                "Address staging tree is stale: tree_next_index={}, data_start_index={}",
+                tree_next_index, data_start_index
+            ),
+        }
+    }
+}
+
+impl std::error::Error for AddressAlignmentError {}
+
+impl std::fmt::Debug for AddressQueueData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AddressQueueData")
+            .field("staging_tree", &self.staging_tree)
+            .field("data_start_index", &self.data_start_index)
+            .field(
+                "available_batches",
+                &self.streaming_queue.available_batches(),
+            )
+            .field("alignment", &self.check_alignment())
+            .finish()
+    }
+}
+
+use light_compressed_account::QueueType;
 
 #[async_trait]
 impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
@@ -29,6 +115,10 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
 
     fn name(&self) -> &'static str {
         "Address"
+    }
+
+    fn queue_type() -> QueueType {
+        QueueType::AddressV2
     }
 
     fn circuit_type(&self, _queue_data: &Self::StagingTree) -> CircuitType {
@@ -54,51 +144,36 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
         let total_needed = max_batches.saturating_mul(zkp_batch_size_usize);
         let fetch_len = total_needed as u64;
 
-        // Use paginated fetch for parallel page fetching (similar to state trees)
-        let address_queue =
-            match fetch_paginated_address_batches(context, fetch_len, zkp_batch_size).await? {
-                Some(aq) if !aq.addresses.is_empty() => aq,
-                Some(_) => {
-                    debug!("Address queue is empty");
-                    return Ok(None);
-                }
+        // Use streaming fetch - returns immediately after first page, fetches rest in background
+        let streaming_queue =
+            match fetch_streaming_address_batches(context, fetch_len, zkp_batch_size).await? {
+                Some(sq) => Arc::new(sq),
                 None => {
                     debug!("No address queue data available");
                     return Ok(None);
                 }
             };
 
-        if address_queue.subtrees.is_empty() {
+        let subtrees = streaming_queue.subtrees();
+        if subtrees.is_empty() {
             return Err(anyhow!("Address queue missing subtrees data"));
         }
 
-        let available = address_queue.addresses.len();
-        let num_batches = (available / zkp_batch_size_usize).min(max_batches);
-
-        if num_batches == 0 {
+        // Check initial batch count from first page
+        let initial_batches = streaming_queue.available_batches();
+        if initial_batches == 0 {
             debug!(
-                "Not enough addresses for a complete batch: have {}, need {}",
-                available, zkp_batch_size_usize
+                "Not enough addresses for a complete batch in first page, need {}",
+                zkp_batch_size_usize
             );
             return Ok(None);
         }
 
-        if address_queue.leaves_hash_chains.len() < num_batches {
-            return Err(anyhow!(
-                "Insufficient leaves_hash_chains: have {}, need {}",
-                address_queue.leaves_hash_chains.len(),
-                num_batches
-            ));
-        }
+        let initial_root = streaming_queue.initial_root();
+        let start_index = streaming_queue.start_index();
 
-        let initial_root = address_queue.initial_root;
-        let start_index = address_queue.start_index;
-
-        let subtrees: [[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize] = address_queue
-            .subtrees
-            .clone()
-            .try_into()
-            .map_err(|v: Vec<[u8; 32]>| {
+        let subtrees_arr: [[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize] =
+            subtrees.try_into().map_err(|v: Vec<[u8; 32]>| {
                 anyhow!(
                     "Subtrees length mismatch: expected {}, got {}",
                     DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
@@ -106,9 +181,10 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
                 )
             })?;
 
+        // Initialize staging tree immediately with first page data
         let staging_tree = tokio::task::spawn_blocking(move || {
             let start = std::time::Instant::now();
-            let tree = AddressStagingTree::new(subtrees, initial_root, start_index as usize);
+            let tree = AddressStagingTree::new(subtrees_arr, initial_root, start_index as usize);
             info!(
                 "AddressStagingTree init took {:?}, start_index={}",
                 start.elapsed(),
@@ -119,14 +195,30 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
         .await
         .map_err(|e| anyhow!("spawn_blocking join error: {}", e))??;
 
+        // Use initially available batches as num_batches
+        // The processor will process these, and if more become available via streaming,
+        // subsequent iterations will pick them up
+        let num_batches = initial_batches.min(max_batches);
+
+        info!(
+            "Address queue ready: {} batches available, processing {} (streaming in background), start_index={}",
+            initial_batches, num_batches, start_index
+        );
+
         Ok(Some(QueueData {
             staging_tree: AddressQueueData {
                 staging_tree,
-                address_queue,
+                streaming_queue,
+                data_start_index: start_index,
+                zkp_batch_size: zkp_batch_size as usize,
             },
             initial_root,
             num_batches,
         }))
+    }
+
+    fn available_batches(&self, queue_data: &Self::StagingTree, _zkp_batch_size: u64) -> usize {
+        queue_data.streaming_queue.available_batches()
     }
 
     fn build_proof_job(
@@ -137,38 +229,102 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
         zkp_batch_size: u64,
         epoch: u64,
         tree: &str,
-    ) -> crate::Result<(ProofInput, [u8; 32])> {
-        let address_queue = &queue_data.address_queue;
-        let range = batch_range(zkp_batch_size, address_queue.addresses.len(), start);
-        let addresses = &address_queue.addresses[range.clone()];
-        let zkp_batch_size_actual = addresses.len();
+    ) -> crate::Result<Option<(ProofInput, [u8; 32])>> {
+        let zkp_batch_size_usize = zkp_batch_size as usize;
 
-        let low_element_values = &address_queue.low_element_values[range.clone()];
-        let low_element_next_values = &address_queue.low_element_next_values[range.clone()];
-        let low_element_indices = &address_queue.low_element_indices[range.clone()];
-        let low_element_next_indices = &address_queue.low_element_next_indices[range.clone()];
+        // Check alignment between staging tree and fetched data
+        let alignment = queue_data.check_alignment();
+        let tree_next_index = queue_data.staging_tree.next_index();
+        let data_start = queue_data.data_start_index as usize;
 
-        let low_element_proofs: Vec<Vec<[u8; 32]>> = range
-            .clone()
-            .map(|i| address_queue.reconstruct_proof(i, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as u8))
-            .collect::<Result<Vec<_>, _>>()?;
+        // Calculate the actual data index accounting for alignment
+        // `start` is the batch index * batch_size (relative to fetched data)
+        // We need to map this to the absolute index
+        let absolute_index = data_start + start;
 
-        let hashchain_idx = start / zkp_batch_size as usize;
-
-        let tree_batch = queue_data.staging_tree.next_index() / zkp_batch_size as usize;
-
-        tracing::debug!(
-            "Address build_proof_job: start={}, hashchain_idx={}, addresses_len={}, leaves_hash_chains_len={}, zkp_batch_size={}, tree_next_index={}, tree_batch={}",
-            start, hashchain_idx, address_queue.addresses.len(), address_queue.leaves_hash_chains.len(), zkp_batch_size,
-            queue_data.staging_tree.next_index(), tree_batch
-        );
-
-        for (i, addr) in addresses.iter().take(3).enumerate() {
-            tracing::debug!("  addresses[{}] = {:?}[..8]", start + i, &addr[..8]);
+        match &alignment {
+            Err(AddressAlignmentError::TreeStale { .. }) => {
+                return Err(anyhow!(
+                    "Address staging tree is stale: tree_next_index={}, data_start_index={}. Need to invalidate cache.",
+                    tree_next_index, data_start
+                ));
+            }
+            Ok(overlap) if *overlap > 0 => {
+                // Check if this batch is in the overlap region
+                if absolute_index + zkp_batch_size_usize <= tree_next_index {
+                    // This entire batch is already in the tree - skip it
+                    tracing::debug!(
+                        "Skipping address batch (overlap): absolute_index={}, tree_next_index={}",
+                        absolute_index,
+                        tree_next_index
+                    );
+                    return Ok(None);
+                } else if absolute_index < tree_next_index {
+                    // Partial overlap - skip this batch (can't process partial)
+                    tracing::debug!(
+                        "Skipping address batch (partial overlap): absolute_index={}, tree_next_index={}, batch_size={}",
+                        absolute_index, tree_next_index, zkp_batch_size_usize
+                    );
+                    return Ok(None);
+                }
+                // else: absolute_index >= tree_next_index, proceed normally
+            }
+            _ => {
+                // Perfect alignment or no overlap for this batch
+            }
         }
 
-        let leaves_hashchain =
-            get_leaves_hashchain(&address_queue.leaves_hash_chains, hashchain_idx)?;
+        let batch_end = start + zkp_batch_size_usize;
+
+        // Wait for batch data to be available (streaming fetch)
+        let batch_data = queue_data
+            .streaming_queue
+            .get_batch_data(start, batch_end)
+            .ok_or_else(|| {
+                anyhow!(
+                    "Batch data not available: start={}, end={}, available={}",
+                    start,
+                    batch_end,
+                    queue_data.streaming_queue.available_batches() * zkp_batch_size_usize
+                )
+            })?;
+
+        let addresses = &batch_data.addresses;
+        let zkp_batch_size_actual = addresses.len();
+
+        if zkp_batch_size_actual == 0 {
+            return Err(anyhow!("Empty batch at start={}", start));
+        }
+
+        let low_element_values = &batch_data.low_element_values;
+        let low_element_next_values = &batch_data.low_element_next_values;
+        let low_element_indices = &batch_data.low_element_indices;
+        let low_element_next_indices = &batch_data.low_element_next_indices;
+
+        // Get proofs from the streaming queue's data
+        let low_element_proofs: Vec<Vec<[u8; 32]>> = {
+            let data = queue_data.streaming_queue.data.lock().unwrap();
+            (start..start + zkp_batch_size_actual)
+                .map(|i| data.reconstruct_proof(i, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as u8))
+                .collect::<Result<Vec<_>, _>>()?
+        };
+
+        let hashchain_idx = start / zkp_batch_size_usize;
+
+        // Get leaves_hash_chains from the streaming queue
+        let leaves_hashchain = {
+            let data = queue_data.streaming_queue.data.lock().unwrap();
+            get_leaves_hashchain(&data.leaves_hash_chains, hashchain_idx)?
+        };
+
+        let tree_batch = tree_next_index / zkp_batch_size_usize;
+
+        tracing::debug!(
+            "Address build_proof_job: start={}, absolute_index={}, hashchain_idx={}, batch_size={}, tree_next_index={}, tree_batch={}, streaming_complete={}",
+            start, absolute_index, hashchain_idx, zkp_batch_size_actual,
+            tree_next_index, tree_batch,
+            queue_data.streaming_queue.is_complete()
+        );
 
         let result = queue_data
             .staging_tree
@@ -186,6 +342,9 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
             )
             .map_err(|e| anyhow!("Failed to process address batch: {}", e))?;
         let new_root = result.new_root;
-        Ok((ProofInput::AddressAppend(result.circuit_inputs), new_root))
+        Ok(Some((
+            ProofInput::AddressAppend(result.circuit_inputs),
+            new_root,
+        )))
     }
 }

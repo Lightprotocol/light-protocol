@@ -39,7 +39,55 @@ pub struct StateQueueData {
     pub next_index: Option<u64>,
     pub append_batches_before_nullify: usize,
     pub interleaved_ops: Option<Vec<BatchOp>>,
+    /// First queue index for output queue data (where this batch starts)
+    pub output_first_queue_index: u64,
+    /// First queue index for input queue data (where this batch starts)
+    pub input_first_queue_index: u64,
+    /// Number of output queue elements processed (for alignment tracking)
+    pub output_processed: usize,
+    /// Number of input queue elements processed (for alignment tracking)
+    pub input_processed: usize,
+    /// ZKP batch size for alignment calculations
+    pub zkp_batch_size: usize,
 }
+
+impl StateQueueData {
+    /// Get number of remaining output batches
+    pub fn remaining_output_batches(&self) -> usize {
+        let total_output = self
+            .state_queue
+            .output_queue
+            .as_ref()
+            .map(|oq| oq.leaf_indices.len())
+            .unwrap_or(0);
+        let remaining = total_output.saturating_sub(self.output_processed);
+        remaining / self.zkp_batch_size
+    }
+
+    /// Get number of remaining input batches
+    pub fn remaining_input_batches(&self) -> usize {
+        let total_input = self
+            .state_queue
+            .input_queue
+            .as_ref()
+            .map(|iq| iq.leaf_indices.len())
+            .unwrap_or(0);
+        let remaining = total_input.saturating_sub(self.input_processed);
+        remaining / self.zkp_batch_size
+    }
+
+    /// Get expected next output queue index (for alignment validation when re-fetching)
+    pub fn expected_output_queue_index(&self) -> u64 {
+        self.output_first_queue_index + self.output_processed as u64
+    }
+
+    /// Get expected next input queue index (for alignment validation when re-fetching)
+    pub fn expected_input_queue_index(&self) -> u64 {
+        self.input_first_queue_index + self.input_processed as u64
+    }
+}
+
+use light_compressed_account::QueueType;
 
 #[async_trait]
 impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
@@ -54,6 +102,10 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
             StatePhase::Append => CircuitType::Append,
             StatePhase::Nullify => CircuitType::Nullify,
         }
+    }
+
+    fn queue_type() -> QueueType {
+        QueueType::OutputStateV2
     }
 
     fn circuit_type_for_batch(
@@ -269,6 +321,22 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
             );
         }
 
+        let output_first_queue_index = state_queue
+            .output_queue
+            .as_ref()
+            .map(|oq| oq.first_queue_index)
+            .unwrap_or(0);
+        let input_first_queue_index = state_queue
+            .input_queue
+            .as_ref()
+            .map(|iq| iq.first_queue_index)
+            .unwrap_or(0);
+
+        tracing::info!(
+            "State queue ready: output_first_queue_index={}, input_first_queue_index={}, batches={}",
+            output_first_queue_index, input_first_queue_index, interleaved_total
+        );
+
         Ok(Some(QueueData {
             staging_tree: StateQueueData {
                 staging_tree,
@@ -277,6 +345,11 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
                 next_index,
                 append_batches_before_nullify,
                 interleaved_ops,
+                output_first_queue_index,
+                input_first_queue_index,
+                output_processed: 0,
+                input_processed: 0,
+                zkp_batch_size: zkp_batch_size_usize,
             },
             initial_root,
             num_batches: interleaved_total,
@@ -291,7 +364,7 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
         zkp_batch_size: u64,
         epoch: u64,
         tree: &str,
-    ) -> crate::Result<(ProofInput, [u8; 32])> {
+    ) -> crate::Result<Option<(ProofInput, [u8; 32])>> {
         if let Some(ref ops) = queue_data.interleaved_ops {
             if let Some(op) = ops.get(batch_idx) {
                 return match op {
@@ -352,7 +425,27 @@ impl StateTreeStrategy {
         zkp_batch_size: u64,
         epoch: u64,
         tree: &str,
-    ) -> crate::Result<(ProofInput, [u8; 32])> {
+    ) -> crate::Result<Option<(ProofInput, [u8; 32])>> {
+        let zkp_batch_size_usize = zkp_batch_size as usize;
+        let absolute_queue_index = queue_data.output_first_queue_index as usize + start;
+        let expected_queue_index =
+            queue_data.output_first_queue_index as usize + queue_data.output_processed;
+
+        if absolute_queue_index < expected_queue_index {
+            tracing::debug!(
+                "Skipping output queue batch (overlap): absolute_index={}, expected_start={}",
+                absolute_queue_index,
+                expected_queue_index
+            );
+            return Ok(None);
+        } else if absolute_queue_index > expected_queue_index {
+            return Err(anyhow!(
+                "Output queue stale: expected start {}, got {}. Need to invalidate cache.",
+                expected_queue_index,
+                absolute_queue_index
+            ));
+        }
+
         let batch = queue_data
             .state_queue
             .output_queue
@@ -363,7 +456,7 @@ impl StateTreeStrategy {
         let leaves = &batch.account_hashes[range.clone()];
         let leaf_indices = &batch.leaf_indices[range];
 
-        let hashchain_idx = start / zkp_batch_size as usize;
+        let hashchain_idx = start / zkp_batch_size_usize;
         let batch_seq = queue_data.state_queue.root_seq + (batch_idx as u64) + 1;
 
         let result = queue_data.staging_tree.process_batch_updates(
@@ -375,6 +468,8 @@ impl StateTreeStrategy {
             epoch,
             tree,
         )?;
+
+        queue_data.output_processed += zkp_batch_size_usize;
 
         let new_root = result.new_root;
         let leaves_hashchain = get_leaves_hashchain(&batch.leaves_hash_chains, hashchain_idx)?;
@@ -390,7 +485,7 @@ impl StateTreeStrategy {
             )
             .map_err(|e| anyhow!("Failed to build append inputs: {}", e))?;
 
-        Ok((ProofInput::Append(circuit_inputs), new_root))
+        Ok(Some((ProofInput::Append(circuit_inputs), new_root)))
     }
 
     fn build_nullify_job(
@@ -401,7 +496,28 @@ impl StateTreeStrategy {
         zkp_batch_size: u64,
         epoch: u64,
         tree: &str,
-    ) -> crate::Result<(ProofInput, [u8; 32])> {
+    ) -> crate::Result<Option<(ProofInput, [u8; 32])>> {
+        let zkp_batch_size_usize = zkp_batch_size as usize;
+
+        let absolute_queue_index = queue_data.input_first_queue_index as usize + start;
+        let expected_queue_index =
+            queue_data.input_first_queue_index as usize + queue_data.input_processed;
+
+        if absolute_queue_index < expected_queue_index {
+            tracing::debug!(
+                "Skipping input queue batch (overlap): absolute_index={}, expected_start={}",
+                absolute_queue_index,
+                expected_queue_index
+            );
+            return Ok(None);
+        } else if absolute_queue_index > expected_queue_index {
+            return Err(anyhow!(
+                "Input queue stale: expected start {}, got {}. Need to invalidate cache.",
+                expected_queue_index,
+                absolute_queue_index
+            ));
+        }
+
         let batch = queue_data
             .state_queue
             .input_queue
@@ -414,7 +530,7 @@ impl StateTreeStrategy {
         let nullifiers = &batch.nullifiers[range.clone()];
         let leaf_indices = &batch.leaf_indices[range];
 
-        let hashchain_idx = start / zkp_batch_size as usize;
+        let hashchain_idx = start / zkp_batch_size_usize;
         let batch_seq = queue_data.state_queue.root_seq + (batch_idx as u64) + 1;
 
         let result = queue_data.staging_tree.process_batch_updates(
@@ -426,6 +542,8 @@ impl StateTreeStrategy {
             epoch,
             tree,
         )?;
+
+        queue_data.input_processed += zkp_batch_size_usize;
 
         let new_root = result.new_root;
         let leaves_hashchain = get_leaves_hashchain(&batch.leaves_hash_chains, hashchain_idx)?;
@@ -442,7 +560,7 @@ impl StateTreeStrategy {
             )
             .map_err(|e| anyhow!("Failed to build nullify inputs: {}", e))?;
 
-        Ok((ProofInput::Nullify(circuit_inputs), new_root))
+        Ok(Some((ProofInput::Nullify(circuit_inputs), new_root)))
     }
 }
 

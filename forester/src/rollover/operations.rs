@@ -105,10 +105,12 @@ pub async fn get_tree_fullness<R: Rpc>(
             })
         }
         TreeType::StateV2 => {
-            let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
+            let mut account = rpc.get_account(tree_pubkey).await?.ok_or_else(|| {
+                anyhow::anyhow!("StateV2 tree account not found: {}", tree_pubkey)
+            })?;
             let merkle_tree =
                 BatchedMerkleTreeAccount::state_from_bytes(&mut account.data, &tree_pubkey.into())
-                    .unwrap();
+                    .map_err(|e| anyhow::anyhow!("Failed to parse StateV2 tree: {:?}", e))?;
 
             let height = merkle_tree.height as u64;
             let capacity = 1u64 << height;
@@ -126,12 +128,14 @@ pub async fn get_tree_fullness<R: Rpc>(
         }
 
         TreeType::AddressV2 => {
-            let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
+            let mut account = rpc.get_account(tree_pubkey).await?.ok_or_else(|| {
+                anyhow::anyhow!("AddressV2 tree account not found: {}", tree_pubkey)
+            })?;
             let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
                 &mut account.data,
                 &tree_pubkey.into(),
             )
-            .unwrap();
+            .map_err(|e| anyhow::anyhow!("Failed to parse AddressV2 tree: {:?}", e))?;
 
             let height = merkle_tree.height as u64;
             let capacity = 1u64 << height;
