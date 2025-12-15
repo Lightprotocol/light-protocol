@@ -14,9 +14,6 @@ pub mod rpc_pool;
 pub mod staging_tree;
 pub mod utils;
 
-#[cfg(test)]
-mod bench_circuit_inputs;
-
 /// Parsed merkle tree data extracted from account
 #[derive(Debug, Clone)]
 pub struct ParsedMerkleTreeData {
