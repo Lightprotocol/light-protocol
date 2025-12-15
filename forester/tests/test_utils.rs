@@ -24,6 +24,7 @@ use solana_sdk::{
 };
 use tokio::time::sleep;
 use tracing::debug;
+use forester::cli::QueuePollingMode;
 
 #[allow(dead_code)]
 pub async fn init(config: Option<LightValidatorConfig>) {
@@ -113,6 +114,7 @@ pub fn forester_config() -> ForesterConfig {
             tree_ids: vec![],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
+            queue_polling_mode: QueuePollingMode::OnChain,
         },
         rpc_pool_config: RpcPoolConfig {
             max_size: 50,
