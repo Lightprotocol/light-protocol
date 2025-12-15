@@ -2175,7 +2175,7 @@ impl<R: Rpc> EpochManager<R> {
             epoch: epoch_info.epoch,
             merkle_tree: tree_accounts.merkle_tree,
             output_queue: tree_accounts.queue,
-            prover_config: ProverConfig {
+            prover_config: Arc::new(ProverConfig {
                 append_url: self
                     .config
                     .external_services
@@ -2205,7 +2205,7 @@ impl<R: Rpc> EpochManager<R> {
                     .external_services
                     .prover_max_wait_time
                     .unwrap_or(Duration::from_secs(600)),
-            },
+            }),
             ops_cache: self.ops_cache.clone(),
             epoch_phases: epoch_info.phases.clone(),
             slot_tracker: self.slot_tracker.clone(),

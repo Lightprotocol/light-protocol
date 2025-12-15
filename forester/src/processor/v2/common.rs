@@ -84,7 +84,7 @@ pub struct BatchContext<R: Rpc> {
     pub epoch: u64,
     pub merkle_tree: Pubkey,
     pub output_queue: Pubkey,
-    pub prover_config: ProverConfig,
+    pub prover_config: Arc<ProverConfig>,
     pub ops_cache: Arc<Mutex<ProcessedHashCache>>,
     pub epoch_phases: EpochPhases,
     pub slot_tracker: Arc<SlotTracker>,

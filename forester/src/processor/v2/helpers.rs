@@ -367,13 +367,13 @@ pub async fn fetch_paginated_address_batches<R: Rpc>(
     let mut root_seq = 0u64;
     let mut subtrees: Option<Vec<[u8; 32]>> = None;
 
-    let mut addresses: Vec<[u8; 32]> = Vec::new();
-    let mut low_element_values: Vec<[u8; 32]> = Vec::new();
-    let mut low_element_next_values: Vec<[u8; 32]> = Vec::new();
-    let mut low_element_indices: Vec<u64> = Vec::new();
-    let mut low_element_next_indices: Vec<u64> = Vec::new();
-    let mut leaves_hash_chains: Vec<[u8; 32]> = Vec::new();
-    let mut nodes_map: HashMap<u64, [u8; 32]> = HashMap::new();
+    let mut addresses: Vec<[u8; 32]> = Vec::with_capacity(total_elements as usize);
+    let mut low_element_values: Vec<[u8; 32]> = Vec::with_capacity(total_elements as usize);
+    let mut low_element_next_values: Vec<[u8; 32]> = Vec::with_capacity(total_elements as usize);
+    let mut low_element_indices: Vec<u64> = Vec::with_capacity(total_elements as usize);
+    let mut low_element_next_indices: Vec<u64> = Vec::with_capacity(total_elements as usize);
+    let mut leaves_hash_chains: Vec<[u8; 32]> = Vec::with_capacity(num_pages * 2); // heuristic
+    let mut nodes_map: HashMap<u64, [u8; 32]> = HashMap::with_capacity(total_elements as usize);
 
     for (page_idx, result) in results.into_iter().enumerate() {
         let page = match result? {

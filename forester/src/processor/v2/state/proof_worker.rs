@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use async_channel::Receiver;
 use light_batched_merkle_tree::merkle_tree::{
     InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
@@ -33,7 +34,7 @@ pub struct ProofResult {
 
 pub fn spawn_proof_workers(
     num_workers: usize,
-    config: ProverConfig,
+    config: Arc<ProverConfig>,
 ) -> async_channel::Sender<ProofJob> {
     // Enforce minimum of 1 worker to prevent zero-capacity channels and no workers
     let num_workers = if num_workers == 0 {
@@ -59,19 +60,19 @@ pub fn spawn_proof_workers(
 async fn run_proof_worker(
     worker_id: usize,
     job_rx: Receiver<ProofJob>,
-    config: ProverConfig,
+    config: Arc<ProverConfig>,
 ) -> crate::Result<()> {
     let append_client = ProofClient::with_config(
-        config.append_url,
+        config.append_url.clone(),
         config.polling_interval,
         config.max_wait_time,
         config.api_key.clone(),
     );
     let nullify_client = ProofClient::with_config(
-        config.update_url,
+        config.update_url.clone(),
         config.polling_interval,
         config.max_wait_time,
-        config.api_key,
+        config.api_key.clone(),
     );
 
     trace!("ProofWorker {} started", worker_id);
