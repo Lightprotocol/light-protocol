@@ -37,8 +37,9 @@
 
 3. authority
    - (signer)
-   - Must be the account owner
-   - For compressible accounts: only owner can close (compression_authority uses Transfer2 CompressAndClose instead)
+   - Must be the account's close_authority (if set) or owner (if close_authority is None)
+   - Follows SPL Token behavior: close_authority takes precedence over owner
+   - For compressible accounts: only owner/close_authority can close (compression_authority uses Transfer2 CompressAndClose instead)
 
 4. rent_sponsor (required for compressible accounts)
    - (mutable)
@@ -75,9 +76,11 @@
       - If account has extensions vector with `ZExtensionStructMut::Compressible`:
         - Get rent_sponsor from accounts (returns error if missing)
         - Verify compressible_ext.rent_sponsor == rent_sponsor.key()
-        - Fall through to owner check (compression_authority cannot use this instruction)
-      - Verify authority.key() == compressed_token.owner (returns `ErrorCode::OwnerMismatch` if not)
-      - **Note:** For CompressAndClose mode in Transfer2, compression_authority validation is done separately
+        - Fall through to close_authority/owner check (compression_authority cannot use this instruction)
+      - Check close_authority field (SPL Token compatible behavior):
+        - If close_authority is Some: verify authority.key() == close_authority (returns `ErrorCode::OwnerMismatch` if not)
+        - If close_authority is None: verify authority.key() == compressed_token.owner (returns `ErrorCode::OwnerMismatch` if not)
+      - **Note:** For CompressAndClose mode in Transfer2, compression_authority validation is done separately (close_authority check does not apply)
 
 4. **Distribute lamports** (`close_token_account_inner`):
    4.1. **Setup**:
@@ -133,7 +136,9 @@
 - `ProgramError::InsufficientFunds` (error code: 6) - Insufficient funds for lamport transfer during rent calculation
 
 **Edge Cases and Considerations:**
-- Only the owner can use this instruction (CloseTokenAccount)
+- Only the close_authority (if set) or owner (if close_authority is None) can use this instruction (CloseTokenAccount)
+- This matches SPL Token behavior where close_authority takes precedence over owner
+- **Note:** SetAuthority instruction to set close_authority is currently unimplemented; close_authority is always None on newly created accounts
 - For compression_authority to close accounts, use CompressAndClose mode in Transfer2
 - Compressible accounts require 4 accounts, non-compressible require only 3
 - Balance must be zero for this instruction (use Transfer2 CompressAndClose to compress non-zero balances)
