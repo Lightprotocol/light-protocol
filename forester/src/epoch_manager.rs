@@ -1,35 +1,34 @@
-use crate::processor::v2::BatchInstruction;
-use light_batched_merkle_tree::constants::{
-    DEFAULT_ADDRESS_ZKP_BATCH_SIZE, DEFAULT_ZKP_BATCH_SIZE,
-};
 use std::{
     collections::HashMap,
     sync::{
-        Arc, atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering}
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+        Arc,
     },
     time::Duration,
 };
 
 use anyhow::{anyhow, Context};
 use borsh::BorshSerialize;
-use dashmap::mapref::entry::Entry;
-use dashmap::DashMap;
+use dashmap::{mapref::entry::Entry, DashMap};
 use forester_utils::{
     forester_epoch::{get_epoch_phases, Epoch, ForesterSlot, TreeAccounts, TreeForesterSchedule},
     rpc_pool::SolanaRpcPool,
 };
 use futures::future::join_all;
 use kameo::actor::{ActorRef, Spawn};
+use light_batched_merkle_tree::constants::{
+    DEFAULT_ADDRESS_ZKP_BATCH_SIZE, DEFAULT_ZKP_BATCH_SIZE,
+};
 use light_client::{
     indexer::{MerkleProof, NewAddressProofWithContext},
     rpc::{LightClient, LightClientConfig, RetryConfig, Rpc, RpcError},
 };
 use light_compressed_account::TreeType;
-use light_registry::account_compression_cpi::sdk::{
-    create_batch_append_instruction, create_batch_nullify_instruction,
-    create_batch_update_address_tree_instruction,
-};
 use light_registry::{
+    account_compression_cpi::sdk::{
+        create_batch_append_instruction, create_batch_nullify_instruction,
+        create_batch_update_address_tree_instruction,
+    },
     protocol_config::state::{EpochState, ProtocolConfig},
     sdk::{create_finalize_registration_instruction, create_report_work_instruction},
     utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority},
@@ -64,11 +63,10 @@ use crate::{
             send_transaction::send_batched_transactions,
             tx_builder::EpochManagerTransactions,
         },
-        v2::strategy::AddressTreeStrategy,
-        v2::strategy::StateTreeStrategy,
         v2::{
-            BatchContext, ProcessingResult, ProverConfig, QueueProcessor, QueueWork,
-            SharedProofCache,
+            strategy::{AddressTreeStrategy, StateTreeStrategy},
+            BatchContext, BatchInstruction, ProcessingResult, ProverConfig, QueueProcessor,
+            QueueWork, SharedProofCache,
         },
     },
     queue_helpers::QueueItemData,
@@ -86,6 +84,7 @@ type StateBatchProcessorMap<R> =
     Arc<DashMap<Pubkey, (u64, Arc<Mutex<QueueProcessor<R, StateTreeStrategy>>>)>>;
 type AddressBatchProcessorMap<R> =
     Arc<DashMap<Pubkey, (u64, Arc<Mutex<QueueProcessor<R, AddressTreeStrategy>>>)>>;
+type TreeReceivers = Arc<Mutex<HashMap<(u64, Pubkey), mpsc::Receiver<QueueUpdateMessage>>>>;
 
 /// Timing for a single circuit type (circuit inputs + proof generation)
 #[derive(Copy, Clone, Debug, Default)]
@@ -208,7 +207,7 @@ pub struct EpochManager<R: Rpc> {
     queue_poller: Option<ActorRef<QueueInfoPoller>>,
     /// Pre-registered tree receivers keyed by (epoch, tree_pubkey)
     /// Receivers are registered during wait_for_active_phase so queue data is available immediately
-    tree_receivers: Arc<Mutex<HashMap<(u64, Pubkey), mpsc::Receiver<QueueUpdateMessage>>>>,
+    tree_receivers: TreeReceivers,
     /// Proof caches for pre-warming during idle slots
     proof_caches: Arc<DashMap<Pubkey, Arc<SharedProofCache>>>,
     state_processors: StateBatchProcessorMap<R>,
@@ -425,42 +424,40 @@ impl<R: Rpc> EpochManager<R> {
                     epoch_info.trees.push(tree_schedule.clone());
 
                     // For V2 trees, register with queue poller to get update channel
-                    let queue_update_rx = if matches!(
-                        new_tree.tree_type,
-                        TreeType::StateV2 | TreeType::AddressV2
-                    ) {
-                        let min_queue_size = match new_tree.tree_type {
-                            TreeType::AddressV2 => DEFAULT_ADDRESS_ZKP_BATCH_SIZE,
-                            _ => DEFAULT_ZKP_BATCH_SIZE,
-                        };
-                        if let Some(ref poller) = self.queue_poller {
-                            match poller
-                                .ask(RegisterTree {
-                                    tree_pubkey: new_tree.merkle_tree,
-                                    min_queue_size,
-                                })
-                                .send()
-                                .await
-                            {
-                                Ok(rx) => Some(rx),
-                                Err(e) => {
-                                    error!(
-                                        "Failed to register V2 tree {} with queue poller: {:?}",
-                                        new_tree.merkle_tree, e
-                                    );
-                                    None
+                    let queue_update_rx =
+                        if matches!(new_tree.tree_type, TreeType::StateV2 | TreeType::AddressV2) {
+                            let min_queue_size = match new_tree.tree_type {
+                                TreeType::AddressV2 => DEFAULT_ADDRESS_ZKP_BATCH_SIZE,
+                                _ => DEFAULT_ZKP_BATCH_SIZE,
+                            };
+                            if let Some(ref poller) = self.queue_poller {
+                                match poller
+                                    .ask(RegisterTree {
+                                        tree_pubkey: new_tree.merkle_tree,
+                                        min_queue_size,
+                                    })
+                                    .send()
+                                    .await
+                                {
+                                    Ok(rx) => Some(rx),
+                                    Err(e) => {
+                                        error!(
+                                            "Failed to register V2 tree {} with queue poller: {:?}",
+                                            new_tree.merkle_tree, e
+                                        );
+                                        None
+                                    }
                                 }
+                            } else {
+                                warn!(
+                                    "No queue poller available for V2 tree {}",
+                                    new_tree.merkle_tree
+                                );
+                                None
                             }
                         } else {
-                            warn!(
-                                "No queue poller available for V2 tree {}",
-                                new_tree.merkle_tree
-                            );
                             None
-                        }
-                    } else {
-                        None
-                    };
+                        };
 
                     let self_clone = Arc::new(self.clone());
 
@@ -1492,9 +1489,8 @@ impl<R: Rpc> EpochManager<R> {
 
                         if let Some((next_idx, next_slot_details)) = next_slot {
                             let current = self.slot_tracker.estimated_current_slot();
-                            let slots_until_next = next_slot_details
-                                .start_solana_slot
-                                .saturating_sub(current);
+                            let slots_until_next =
+                                next_slot_details.start_solana_slot.saturating_sub(current);
 
                             // Pre-warm if we have at least 2 seconds (4 slots) gap
                             if slots_until_next > 4 {
@@ -1804,7 +1800,9 @@ impl<R: Rpc> EpochManager<R> {
                     } else if update.queue_size > 0 {
                         trace!(
                             "V2 Queue update for tree {} below batch threshold ({} < {})",
-                            tree_pubkey, update.queue_size, min_batch_size
+                            tree_pubkey,
+                            update.queue_size,
+                            min_batch_size
                         );
                     }
                 }
@@ -1812,8 +1810,7 @@ impl<R: Rpc> EpochManager<R> {
                     info!("Queue update channel closed for tree {}.", tree_pubkey);
                     break 'inner_processing_loop;
                 }
-                Err(_elapsed) => {
-                }
+                Err(_elapsed) => {}
             }
 
             push_metrics(&self.config.external_services.pushgateway_url).await?;
@@ -2238,8 +2235,10 @@ impl<R: Rpc> EpochManager<R> {
                     "Reusing StateBatchProcessor for tree {} across epoch transition ({} -> {})",
                     tree_accounts.merkle_tree, old_epoch, epoch_info.epoch
                 );
-                self.state_processors
-                    .insert(tree_accounts.merkle_tree, (epoch_info.epoch, processor_clone.clone()));
+                self.state_processors.insert(
+                    tree_accounts.merkle_tree,
+                    (epoch_info.epoch, processor_clone.clone()),
+                );
                 // Update the processor's epoch context and phases
                 processor_clone
                     .lock()
@@ -2250,8 +2249,7 @@ impl<R: Rpc> EpochManager<R> {
         }
 
         // No existing processor - create new one
-        let batch_context =
-            self.build_batch_context(epoch_info, tree_accounts, None, None, None);
+        let batch_context = self.build_batch_context(epoch_info, tree_accounts, None, None, None);
         let processor = Arc::new(Mutex::new(
             QueueProcessor::new(batch_context, StateTreeStrategy).await?,
         ));
@@ -2295,8 +2293,10 @@ impl<R: Rpc> EpochManager<R> {
                     "Reusing AddressBatchProcessor for tree {} across epoch transition ({} -> {})",
                     tree_accounts.merkle_tree, old_epoch, epoch_info.epoch
                 );
-                self.address_processors
-                    .insert(tree_accounts.merkle_tree, (epoch_info.epoch, processor_clone.clone()));
+                self.address_processors.insert(
+                    tree_accounts.merkle_tree,
+                    (epoch_info.epoch, processor_clone.clone()),
+                );
                 // Update the processor's epoch context and phases
                 processor_clone
                     .lock()
@@ -2307,8 +2307,7 @@ impl<R: Rpc> EpochManager<R> {
         }
 
         // No existing processor - create new one
-        let batch_context =
-            self.build_batch_context(epoch_info, tree_accounts, None, None, None);
+        let batch_context = self.build_batch_context(epoch_info, tree_accounts, None, None, None);
         let processor = Arc::new(Mutex::new(
             QueueProcessor::new(batch_context, AddressTreeStrategy).await?,
         ));
@@ -2348,7 +2347,9 @@ impl<R: Rpc> EpochManager<R> {
                     let cache = self
                         .proof_caches
                         .entry(tree_accounts.merkle_tree)
-                        .or_insert_with(|| Arc::new(SharedProofCache::new(tree_accounts.merkle_tree)))
+                        .or_insert_with(|| {
+                            Arc::new(SharedProofCache::new(tree_accounts.merkle_tree))
+                        })
                         .clone();
 
                     {
@@ -2405,7 +2406,9 @@ impl<R: Rpc> EpochManager<R> {
                     let cache = self
                         .proof_caches
                         .entry(tree_accounts.merkle_tree)
-                        .or_insert_with(|| Arc::new(SharedProofCache::new(tree_accounts.merkle_tree)))
+                        .or_insert_with(|| {
+                            Arc::new(SharedProofCache::new(tree_accounts.merkle_tree))
+                        })
                         .clone();
 
                     {
@@ -2664,7 +2667,7 @@ impl<R: Rpc> EpochManager<R> {
             .map(|tree_accounts| {
                 let tree_pubkey = tree_accounts.merkle_tree;
                 let epoch_info = epoch_info.clone();
-                let tree_accounts = tree_accounts.clone();
+                let tree_accounts = *tree_accounts;
                 let self_clone = self.clone();
 
                 async move {

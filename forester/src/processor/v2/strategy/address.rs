@@ -1,16 +1,19 @@
-use crate::processor::v2::{
-    common::{batch_range, get_leaves_hashchain},
-    helpers::{fetch_address_zkp_batch_size, fetch_onchain_address_root, fetch_paginated_address_batches},
-    proof_worker::ProofInput,
-    strategy::{CircuitType, QueueData, TreeStrategy},
-    BatchContext, QueueWork,
-};
 use anyhow::anyhow;
 use async_trait::async_trait;
 use forester_utils::address_staging_tree::AddressStagingTree;
 use light_batched_merkle_tree::constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT;
 use light_client::rpc::Rpc;
 use tracing::{debug, info};
+
+use crate::processor::v2::{
+    common::{batch_range, get_leaves_hashchain},
+    helpers::{
+        fetch_address_zkp_batch_size, fetch_onchain_address_root, fetch_paginated_address_batches,
+    },
+    proof_worker::ProofInput,
+    strategy::{CircuitType, QueueData, TreeStrategy},
+    BatchContext, QueueWork,
+};
 #[derive(Debug, Clone)]
 pub struct AddressTreeStrategy;
 
@@ -147,9 +150,7 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
 
         let low_element_proofs: Vec<Vec<[u8; 32]>> = range
             .clone()
-            .map(|i| {
-                address_queue.reconstruct_proof(i, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as u8)
-            })
+            .map(|i| address_queue.reconstruct_proof(i, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as u8))
             .collect::<Result<Vec<_>, _>>()?;
 
         let hashchain_idx = start / zkp_batch_size as usize;
@@ -166,7 +167,8 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
             tracing::debug!("  addresses[{}] = {:?}[..8]", start + i, &addr[..8]);
         }
 
-        let leaves_hashchain = get_leaves_hashchain(&address_queue.leaves_hash_chains, hashchain_idx)?;
+        let leaves_hashchain =
+            get_leaves_hashchain(&address_queue.leaves_hash_chains, hashchain_idx)?;
 
         let result = queue_data
             .staging_tree

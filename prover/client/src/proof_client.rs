@@ -4,6 +4,7 @@ use reqwest::Client;
 use serde::Deserialize;
 use tokio::time::sleep;
 use tracing::{debug, error, info, trace, warn};
+
 use crate::{
     constants::PROVE_PATH,
     errors::ProverClientError,
@@ -154,8 +155,7 @@ impl ProofClient {
                 let proof = self.parse_proof_from_json(&response_text)?;
                 Ok(SubmitProofResult::Immediate(proof))
             }
-            _ => self
-                .handle_error_response::<SubmitProofResult>(&response_text),
+            _ => self.handle_error_response::<SubmitProofResult>(&response_text),
         }
     }
 
@@ -258,8 +258,10 @@ impl ProofClient {
 
     fn log_response(&self, status_code: reqwest::StatusCode, response_text: &str) {
         if !status_code.is_success() {
-            error!("HTTP error: status={}, body={}, url={}", status_code, response_text,
-                   self.server_address);
+            error!(
+                "HTTP error: status={}, body={}, url={}",
+                status_code, response_text, self.server_address
+            );
         }
     }
 
@@ -299,10 +301,7 @@ impl ProofClient {
         }
     }
 
-    fn handle_error_response<T>(
-        &self,
-        response_text: &str,
-    ) -> Result<T, ProverClientError> {
+    fn handle_error_response<T>(&self, response_text: &str) -> Result<T, ProverClientError> {
         if let Ok(error_response) = serde_json::from_str::<ErrorResponse>(response_text) {
             error!(
                 "Prover server error: {} - {}",
@@ -329,7 +328,6 @@ impl ProofClient {
         if is_constraint_error {
             return false;
         }
-
 
         let is_constraint_error =
             error_str.contains("constraint") || error_str.contains("is not satisfied");
@@ -575,7 +573,7 @@ impl ProofClient {
                     status_response.status,
                     elapsed,
                     poll_count,
-                    self.polling_interval                    
+                    self.polling_interval
                 );
                 Ok(None)
             }
@@ -622,10 +620,7 @@ impl ProofClient {
         error_str.contains("503") || error_str.contains("502") || error_str.contains("500")
     }
 
-    fn parse_proof_from_json(
-        &self,
-        json_str: &str,
-    ) -> Result<ProofResult, ProverClientError> {
+    fn parse_proof_from_json(&self, json_str: &str) -> Result<ProofResult, ProverClientError> {
         // Try parsing as ProofWithTiming format (new format with timing)
         #[derive(Deserialize)]
         struct ProofWithTimingJson {
@@ -633,19 +628,17 @@ impl ProofClient {
             proof_duration_ms: u64,
         }
 
-        let (proof_json_value, proof_duration_ms) =
-            if let Ok(proof_with_timing) = serde_json::from_str::<ProofWithTimingJson>(json_str) {
-                (proof_with_timing.proof, proof_with_timing.proof_duration_ms)
-            } else {
-                // Fall back to plain proof format (old format without timing)
-                let proof_value: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
-                    ProverClientError::ProverServerError(format!(
-                        "Failed to parse proof JSON: {}",
-                        e
-                    ))
-                })?;
-                (proof_value, 0)
-            };
+        let (proof_json_value, proof_duration_ms) = if let Ok(proof_with_timing) =
+            serde_json::from_str::<ProofWithTimingJson>(json_str)
+        {
+            (proof_with_timing.proof, proof_with_timing.proof_duration_ms)
+        } else {
+            // Fall back to plain proof format (old format without timing)
+            let proof_value: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
+                ProverClientError::ProverServerError(format!("Failed to parse proof JSON: {}", e))
+            })?;
+            (proof_value, 0)
+        };
 
         // Check if proof is null - this indicates the prover failed to generate a proof
         if proof_json_value.is_null() {

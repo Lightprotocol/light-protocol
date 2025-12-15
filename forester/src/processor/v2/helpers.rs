@@ -1,15 +1,14 @@
-use crate::processor::v2::common::clamp_to_u16;
+use std::collections::HashMap;
+
 use anyhow::anyhow;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::{
-    indexer::{Indexer, QueueElementsV2Options},
+    indexer::{AddressQueueData, Indexer, QueueElementsV2Options, StateQueueData},
     rpc::Rpc,
 };
 use light_compressed_account::Pubkey;
-use light_client::indexer::AddressQueueData;
-use std::collections::HashMap;
-use crate::processor::v2::BatchContext;
-use light_client::indexer::StateQueueData;
+
+use crate::processor::v2::{common::clamp_to_u16, BatchContext};
 
 pub async fn fetch_zkp_batch_size<R: Rpc>(context: &BatchContext<R>) -> crate::Result<u64> {
     let rpc = context.rpc_pool.get_connection().await?;
@@ -33,7 +32,9 @@ pub async fn fetch_zkp_batch_size<R: Rpc>(context: &BatchContext<R>) -> crate::R
     Ok(batch.zkp_batch_size)
 }
 
-pub async fn fetch_onchain_state_root<R: Rpc>(context: &BatchContext<R>) -> crate::Result<[u8; 32]> {
+pub async fn fetch_onchain_state_root<R: Rpc>(
+    context: &BatchContext<R>,
+) -> crate::Result<[u8; 32]> {
     let rpc = context.rpc_pool.get_connection().await?;
     let mut account = rpc
         .get_account(context.merkle_tree)
@@ -76,7 +77,9 @@ pub async fn fetch_address_zkp_batch_size<R: Rpc>(context: &BatchContext<R>) -> 
     Ok(batch.zkp_batch_size)
 }
 
-pub async fn fetch_onchain_address_root<R: Rpc>(context: &BatchContext<R>) -> crate::Result<[u8; 32]> {
+pub async fn fetch_onchain_address_root<R: Rpc>(
+    context: &BatchContext<R>,
+) -> crate::Result<[u8; 32]> {
     let rpc = context.rpc_pool.get_connection().await?;
     let mut account = rpc
         .get_account(context.merkle_tree)
@@ -104,7 +107,6 @@ pub async fn fetch_paginated_batches<R: Rpc>(
     total_elements: u64,
     zkp_batch_size: u64,
 ) -> crate::Result<Option<light_client::indexer::StateQueueData>> {
-    
     if total_elements == 0 {
         return Ok(None);
     }
@@ -140,7 +142,7 @@ pub async fn fetch_paginated_batches<R: Rpc>(
     }
 
     let results = futures::future::join_all(fetch_futures).await;
-    let mut initial_root = None;
+    let mut initial_root: Option<[u8; 32]> = None;
     let mut root_seq = 0u64;
     let mut nodes_map: HashMap<u64, [u8; 32]> = HashMap::new();
     let mut output_queue: Option<light_client::indexer::OutputQueueData> = None;
@@ -157,17 +159,19 @@ pub async fn fetch_paginated_batches<R: Rpc>(
             }
         };
 
-        if initial_root.is_none() {
+        if let Some(root) = initial_root {
+            if page.initial_root != root {
+                tracing::warn!(
+                    "Page {} has different root ({:?} vs {:?}), skipping",
+                    page_idx,
+                    &page.initial_root[..4],
+                    &initial_root.unwrap()[..4]
+                );
+                continue;
+            }
+        } else {
             initial_root = Some(page.initial_root);
             root_seq = page.root_seq;
-        } else if page.initial_root != initial_root.unwrap() {
-            tracing::warn!(
-                "Page {} has different root ({:?} vs {:?}), skipping",
-                page_idx,
-                &page.initial_root[..4],
-                &initial_root.unwrap()[..4]
-            );
-            continue;
         }
 
         for (&idx, &hash) in page.nodes.iter().zip(page.node_hashes.iter()) {
@@ -211,8 +215,14 @@ pub async fn fetch_paginated_batches<R: Rpc>(
     tracing::debug!(
         "Parallel fetch complete: {} nodes, output={}, input={}",
         nodes.len(),
-        output_queue.as_ref().map(|oq| oq.leaf_indices.len()).unwrap_or(0),
-        input_queue.as_ref().map(|iq| iq.leaf_indices.len()).unwrap_or(0)
+        output_queue
+            .as_ref()
+            .map(|oq| oq.leaf_indices.len())
+            .unwrap_or(0),
+        input_queue
+            .as_ref()
+            .map(|iq| iq.leaf_indices.len())
+            .unwrap_or(0)
     );
 
     Ok(Some(StateQueueData {
@@ -270,7 +280,6 @@ pub async fn fetch_address_batches<R: Rpc>(
     fetch_len: u64,
     zkp_batch_size: u64,
 ) -> crate::Result<Option<light_client::indexer::AddressQueueData>> {
-
     let fetch_len_u16 = clamp_to_u16(fetch_len, "fetch_len");
     let zkp_batch_size_u16 = clamp_to_u16(zkp_batch_size, "zkp_batch_size");
 
@@ -327,7 +336,6 @@ pub async fn fetch_paginated_address_batches<R: Rpc>(
     total_elements: u64,
     zkp_batch_size: u64,
 ) -> crate::Result<Option<light_client::indexer::AddressQueueData>> {
-    
     if total_elements == 0 {
         return Ok(None);
     }
@@ -362,7 +370,7 @@ pub async fn fetch_paginated_address_batches<R: Rpc>(
 
     let results = futures::future::join_all(fetch_futures).await;
 
-    let mut initial_root = None;
+    let mut initial_root: Option<[u8; 32]> = None;
     let mut start_index = 0u64;
     let mut root_seq = 0u64;
     let mut subtrees: Option<Vec<[u8; 32]>> = None;
@@ -386,19 +394,21 @@ pub async fn fetch_paginated_address_batches<R: Rpc>(
             }
         };
 
-        if initial_root.is_none() {
+        if let Some(root) = initial_root {
+            if page.initial_root != root {
+                tracing::warn!(
+                    "Address page {} has different root ({:?} vs {:?}), skipping",
+                    page_idx,
+                    &page.initial_root[..4],
+                    &initial_root.unwrap()[..4]
+                );
+                continue;
+            }
+        } else {
             initial_root = Some(page.initial_root);
             start_index = page.start_index;
             root_seq = page.root_seq;
             subtrees = Some(page.subtrees.clone());
-        } else if page.initial_root != initial_root.unwrap() {
-            tracing::warn!(
-                "Address page {} has different root ({:?} vs {:?}), skipping",
-                page_idx,
-                &page.initial_root[..4],
-                &initial_root.unwrap()[..4]
-            );
-            continue;
         }
 
         addresses.extend(page.addresses);
@@ -418,7 +428,8 @@ pub async fn fetch_paginated_address_batches<R: Rpc>(
         None => return Ok(None),
     };
 
-    let subtrees = subtrees.ok_or_else(|| anyhow::anyhow!("No subtrees found in address queue data"))?;
+    let subtrees =
+        subtrees.ok_or_else(|| anyhow::anyhow!("No subtrees found in address queue data"))?;
 
     let mut nodes_vec: Vec<_> = nodes_map.into_iter().collect();
     nodes_vec.sort_by_key(|(idx, _)| *idx);

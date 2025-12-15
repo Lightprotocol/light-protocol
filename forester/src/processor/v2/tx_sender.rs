@@ -1,6 +1,7 @@
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
-use std::time::Duration;
+use std::{
+    sync::{atomic::Ordering, Arc},
+    time::Duration,
+};
 
 use borsh::BorshSerialize;
 
@@ -23,8 +24,8 @@ use tracing::{debug, info, warn};
 use crate::{
     errors::ForesterError,
     processor::v2::{
-        common::send_transaction_batch, proof_cache::SharedProofCache, proof_worker::ProofJobResult,
-        BatchContext,
+        common::send_transaction_batch, proof_cache::SharedProofCache,
+        proof_worker::ProofJobResult, BatchContext,
     },
 };
 
@@ -107,7 +108,14 @@ impl OrderedProofBuffer {
         self.len
     }
 
-    fn insert(&mut self, seq: u64, instruction: BatchInstruction, round_trip_ms: u64, proof_ms: u64, submitted_at: std::time::Instant) -> bool {
+    fn insert(
+        &mut self,
+        seq: u64,
+        instruction: BatchInstruction,
+        round_trip_ms: u64,
+        proof_ms: u64,
+        submitted_at: std::time::Instant,
+    ) -> bool {
         if seq < self.base_seq {
             return false;
         }
@@ -118,7 +126,12 @@ impl OrderedProofBuffer {
         if self.buffer[offset].is_none() {
             self.len += 1;
         }
-        self.buffer[offset] = Some(BufferEntry { instruction, round_trip_ms, proof_ms, submitted_at });
+        self.buffer[offset] = Some(BufferEntry {
+            instruction,
+            round_trip_ms,
+            proof_ms,
+            submitted_at,
+        });
         true
     }
 
@@ -135,8 +148,6 @@ impl OrderedProofBuffer {
     fn expected_seq(&self) -> u64 {
         self.base_seq
     }
-
-
 }
 
 pub struct TxSender<R: Rpc> {
@@ -207,16 +218,26 @@ impl<R: Rpc> TxSender<R> {
         current_slot + 2 < eligibility_end_slot
     }
 
-    async fn run(mut self, mut proof_rx: mpsc::Receiver<ProofJobResult>) -> crate::Result<TxSenderResult> {
-        let (batch_tx, mut batch_rx) = mpsc::unbounded_channel::<(Vec<(BatchInstruction, u64)>, u64, u64, Option<std::time::Instant>)>();
+    async fn run(
+        mut self,
+        mut proof_rx: mpsc::Receiver<ProofJobResult>,
+    ) -> crate::Result<TxSenderResult> {
+        let (batch_tx, mut batch_rx) = mpsc::unbounded_channel::<(
+            Vec<(BatchInstruction, u64)>,
+            u64,
+            u64,
+            Option<std::time::Instant>,
+        )>();
 
         let sender_context = self.context.clone();
         let mut sender_last_root = self.last_seen_root;
         let zkp_batch_size_val = self.zkp_batch_size;
-        
+
         let sender_handle = tokio::spawn(async move {
             let mut sender_processed = 0usize;
-            while let Some((batch, batch_len, _batch_round_trip, batch_earliest_submit)) = batch_rx.recv().await {
+            while let Some((batch, batch_len, _batch_round_trip, batch_earliest_submit)) =
+                batch_rx.recv().await
+            {
                 let items_count = batch.len();
                 let first_seq = batch.first().map(|(_, s)| *s).unwrap_or(0);
                 let last_seq = batch.last().map(|(_, s)| *s).unwrap_or(0);
@@ -260,7 +281,7 @@ impl<R: Rpc> TxSender<R> {
                                     ))
                                 })
                                 .collect::<anyhow::Result<Vec<_>>>()?;
-                             (ix_res, proofs.last().map(|p| p.new_root))
+                            (ix_res, proofs.last().map(|p| p.new_root))
                         }
                         BatchInstruction::AddressAppend(proofs) => {
                             _address_append_count += 1;
@@ -276,7 +297,7 @@ impl<R: Rpc> TxSender<R> {
                                     ))
                                 })
                                 .collect::<anyhow::Result<Vec<_>>>()?;
-                             (ix_res, proofs.last().map(|p| p.new_root))
+                            (ix_res, proofs.last().map(|p| p.new_root))
                         }
                     };
                     all_instructions.extend(res.0);
@@ -319,8 +340,10 @@ impl<R: Rpc> TxSender<R> {
                         );
                     }
                     Err(e) => {
-                         warn!("tx error {} epoch {}", e, sender_context.epoch);
-                        if let Some(ForesterError::NotInActivePhase) = e.downcast_ref::<ForesterError>() {
+                        warn!("tx error {} epoch {}", e, sender_context.epoch);
+                        if let Some(ForesterError::NotInActivePhase) =
+                            e.downcast_ref::<ForesterError>()
+                        {
                             warn!("Active phase ended while sending tx, stopping sender loop");
                             return Ok::<_, anyhow::Error>(sender_processed);
                         } else {
@@ -334,7 +357,7 @@ impl<R: Rpc> TxSender<R> {
 
         loop {
             if sender_handle.is_finished() {
-                 break;
+                break;
             }
 
             let result = match proof_rx.recv().await {
@@ -342,43 +365,40 @@ impl<R: Rpc> TxSender<R> {
                 None => break,
             };
 
-             let current_slot = self.context.slot_tracker.estimated_current_slot();
+            let current_slot = self.context.slot_tracker.estimated_current_slot();
 
             if !self.is_still_eligible_at(current_slot) {
-                 let proofs_saved = self
-                    .save_proofs_to_cache(&mut proof_rx, Some(result))
-                    .await;
+                let proofs_saved = self.save_proofs_to_cache(&mut proof_rx, Some(result)).await;
                 info!(
                     "Active phase ended for epoch {}, stopping tx sender (saved {} proofs to cache)",
                     self.context.epoch, proofs_saved
                 );
                 drop(batch_tx);
-                let sender_res = sender_handle.await.map_err(|e| anyhow::anyhow!("Sender panic: {}", e))??;
+                let sender_res = sender_handle
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Sender panic: {}", e))??;
                 return Ok(TxSenderResult {
                     items_processed: sender_res,
                     proof_timings: self.proof_timings,
                     proofs_saved_to_cache: proofs_saved,
                 });
             }
-            
-             match &result.result {
-                Ok(instr) => {
-                    match instr {
-                        BatchInstruction::Append(_) => {
-                            self.proof_timings.append_proof_ms += result.proof_duration_ms;
-                            self.proof_timings.append_round_trip_ms += result.round_trip_ms;
-                        }
-                        BatchInstruction::Nullify(_) => {
-                            self.proof_timings.nullify_proof_ms += result.proof_duration_ms;
-                            self.proof_timings.nullify_round_trip_ms += result.round_trip_ms;
-                        }
-                        BatchInstruction::AddressAppend(_) => {
-                            self.proof_timings.address_append_proof_ms += result.proof_duration_ms;
-                            self.proof_timings.address_append_round_trip_ms += result.round_trip_ms;
-                        }
+
+            if let Ok(instr) = &result.result {
+                match instr {
+                    BatchInstruction::Append(_) => {
+                        self.proof_timings.append_proof_ms += result.proof_duration_ms;
+                        self.proof_timings.append_round_trip_ms += result.round_trip_ms;
+                    }
+                    BatchInstruction::Nullify(_) => {
+                        self.proof_timings.nullify_proof_ms += result.proof_duration_ms;
+                        self.proof_timings.nullify_round_trip_ms += result.round_trip_ms;
+                    }
+                    BatchInstruction::AddressAppend(_) => {
+                        self.proof_timings.address_append_proof_ms += result.proof_duration_ms;
+                        self.proof_timings.address_append_round_trip_ms += result.round_trip_ms;
                     }
                 }
-                Err(_) => {} 
             }
 
             let instruction = match result.result {
@@ -389,52 +409,68 @@ impl<R: Rpc> TxSender<R> {
                 }
             };
 
-             if self.buffer.len() >= self.buffer.capacity() {
+            if self.buffer.len() >= self.buffer.capacity() {
                 return Err(anyhow::anyhow!("Proof buffer overflow"));
             }
-             if !self.buffer.insert(result.seq, instruction, result.round_trip_ms, result.proof_duration_ms, result.submitted_at) {
-                 warn!("Failed to insert proof seq={}", result.seq);
-             }
+            if !self.buffer.insert(
+                result.seq,
+                instruction,
+                result.round_trip_ms,
+                result.proof_duration_ms,
+                result.submitted_at,
+            ) {
+                warn!("Failed to insert proof seq={}", result.seq);
+            }
 
             while let Some(entry) = self.buffer.pop_next() {
                 let seq = self.buffer.expected_seq() - 1;
                 self.pending_batch.push((entry.instruction, seq));
                 self.pending_batch_round_trip_ms += entry.round_trip_ms;
                 self.pending_batch_proof_ms += entry.proof_ms;
-                 self.pending_batch_earliest_submit = Some(match self.pending_batch_earliest_submit {
-                    None => entry.submitted_at,
-                    Some(existing) => existing.min(entry.submitted_at),
-                });
+                self.pending_batch_earliest_submit =
+                    Some(match self.pending_batch_earliest_submit {
+                        None => entry.submitted_at,
+                        Some(existing) => existing.min(entry.submitted_at),
+                    });
 
                 let should_send = self.pending_batch.len() >= V2_IXS_PER_TX
                     || (!self.pending_batch.is_empty()
                         && self.should_flush_due_to_time_at(current_slot));
 
                 if should_send {
-                    let batch = std::mem::replace(&mut self.pending_batch, Vec::with_capacity(V2_IXS_PER_TX));
+                    let batch = std::mem::replace(
+                        &mut self.pending_batch,
+                        Vec::with_capacity(V2_IXS_PER_TX),
+                    );
                     let round_trip = std::mem::replace(&mut self.pending_batch_round_trip_ms, 0);
                     let _proof_ms = std::mem::replace(&mut self.pending_batch_proof_ms, 0);
                     let earliest = self.pending_batch_earliest_submit.take();
                     let batch_len = batch.len() as u64;
 
-                    if let Err(_) = batch_tx.send((batch, batch_len, round_trip, earliest)) {
-                         break;
+                    if batch_tx
+                        .send((batch, batch_len, round_trip, earliest))
+                        .is_err()
+                    {
+                        break;
                     }
                 }
             }
         }
-        
+
         if !self.pending_batch.is_empty() {
-             let batch = std::mem::replace(&mut self.pending_batch, Vec::with_capacity(V2_IXS_PER_TX));
-             let round_trip = std::mem::replace(&mut self.pending_batch_round_trip_ms, 0);
-             let earliest = self.pending_batch_earliest_submit.take();
-             let batch_len = batch.len() as u64;
-             let _ = batch_tx.send((batch, batch_len, round_trip, earliest));
+            let batch =
+                std::mem::replace(&mut self.pending_batch, Vec::with_capacity(V2_IXS_PER_TX));
+            let round_trip = std::mem::replace(&mut self.pending_batch_round_trip_ms, 0);
+            let earliest = self.pending_batch_earliest_submit.take();
+            let batch_len = batch.len() as u64;
+            let _ = batch_tx.send((batch, batch_len, round_trip, earliest));
         }
-        
+
         drop(batch_tx);
-        let sender_res = sender_handle.await.map_err(|e| anyhow::anyhow!("Sender panic: {}", e))??;
-        
+        let sender_res = sender_handle
+            .await
+            .map_err(|e| anyhow::anyhow!("Sender panic: {}", e))??;
+
         Ok(TxSenderResult {
             items_processed: sender_res,
             proof_timings: self.proof_timings,
@@ -490,4 +526,3 @@ impl<R: Rpc> TxSender<R> {
         saved
     }
 }
-

@@ -19,9 +19,8 @@ use forester_utils::forester_epoch::get_epoch_phases;
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
-use light_client::indexer::GetCompressedTokenAccountsByOwnerOrDelegateOptions;
 use light_client::{
-    indexer::{AddressWithTree, Indexer},
+    indexer::{AddressWithTree, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer},
     rpc::{LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::{
@@ -697,7 +696,10 @@ async fn performance_test_prefilled_queues() {
     println!("indexer url: {}", get_indexer_url());
     println!("prover append url: {}", get_prover_append_url());
     println!("prover update url: {}", get_prover_update_url());
-    println!("prover address append url: {}", get_prover_address_append_url());
+    println!(
+        "prover address append url: {}",
+        get_prover_address_append_url()
+    );
 
     let env = TestAccounts::get_local_test_validator_accounts();
     // // Initialize local validator

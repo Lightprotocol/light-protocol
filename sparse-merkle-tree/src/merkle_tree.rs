@@ -42,7 +42,7 @@ where
         let mut current_hash = H::zero_bytes()[0];
 
         for (subtree, zero_byte) in subtrees.iter().zip(H::zero_bytes().iter()) {
-            let (left, right) = if current_index % 2 == 0 {
+            let (left, right) = if current_index.is_multiple_of(2) {
                 (current_hash, *zero_byte)
             } else {
                 (*subtree, current_hash)

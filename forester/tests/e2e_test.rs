@@ -593,7 +593,12 @@ async fn get_initial_merkle_tree_state(
                 .get_anchor_account::<StateMerkleTreeAccount>(merkle_tree_pubkey)
                 .await
                 .unwrap()
-                .unwrap_or_else(|| panic!("StateV1 merkle tree account not found: {}", merkle_tree_pubkey));
+                .unwrap_or_else(|| {
+                    panic!(
+                        "StateV1 merkle tree account not found: {}",
+                        merkle_tree_pubkey
+                    )
+                });
 
             let merkle_tree =
                 get_concurrent_merkle_tree::<StateMerkleTreeAccount, LightClient, Poseidon, 26>(
@@ -609,12 +614,20 @@ async fn get_initial_merkle_tree_state(
             (next_index, sequence_number, root)
         }
         TreeType::AddressV1 => {
-            println!("Fetching initial state for V1 address tree: {:?}", merkle_tree_pubkey);
+            println!(
+                "Fetching initial state for V1 address tree: {:?}",
+                merkle_tree_pubkey
+            );
             let account = rpc
                 .get_anchor_account::<AddressMerkleTreeAccount>(merkle_tree_pubkey)
                 .await
                 .unwrap()
-                .unwrap_or_else(|| panic!("AddressV1 merkle tree account not found: {}", merkle_tree_pubkey));
+                .unwrap_or_else(|| {
+                    panic!(
+                        "AddressV1 merkle tree account not found: {}",
+                        merkle_tree_pubkey
+                    )
+                });
 
             let merkle_tree = get_indexed_merkle_tree::<
                 AddressMerkleTreeAccount,

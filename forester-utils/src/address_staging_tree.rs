@@ -69,7 +69,9 @@ impl AddressStagingTree {
     ) -> Result<Self, ForesterUtilsError> {
         match subtrees {
             Some(st) => Self::new(st, initial_root, start_index),
-            None => Err(ForesterUtilsError::AddressStagingTree("Subtrees are required for address staging tree.".to_string(), )),
+            None => Err(ForesterUtilsError::AddressStagingTree(
+                "Subtrees are required for address staging tree.".to_string(),
+            )),
         }
     }
 

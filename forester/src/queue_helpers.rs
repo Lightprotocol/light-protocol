@@ -46,8 +46,7 @@ pub async fn fetch_queue_item_data<R: Rpc>(
         );
         return Ok(Vec::new());
     }
-    let queue: HashSet =
-        unsafe { HashSet::from_bytes_copy(&mut account.data[offset..])? };
+    let queue: HashSet = unsafe { HashSet::from_bytes_copy(&mut account.data[offset..])? };
     let end_index = (start_index + processing_length).min(queue_length);
 
     let filtered_queue = queue

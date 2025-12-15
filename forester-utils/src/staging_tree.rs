@@ -108,6 +108,7 @@ impl StagingTree {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn process_batch_updates(
         &mut self,
         leaf_indices: &[u64],

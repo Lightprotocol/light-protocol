@@ -152,7 +152,11 @@ impl ProofCache {
             self.tree,
             &current_root[..4],
             &expected[..4],
-            if skipped > 0 { format!(" (skipped {} stale)", skipped) } else { String::new() }
+            if skipped > 0 {
+                format!(" (skipped {} stale)", skipped)
+            } else {
+                String::new()
+            }
         );
         Some(taken)
     }
@@ -227,6 +231,10 @@ impl SharedProofCache {
 
     pub async fn len(&self) -> usize {
         self.inner.lock().await.len()
+    }
+
+    pub async fn is_empty(&self) -> bool {
+        self.inner.lock().await.is_empty()
     }
 
     pub async fn clear(&self) {

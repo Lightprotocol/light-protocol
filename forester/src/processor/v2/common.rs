@@ -1,9 +1,3 @@
-use super::proof_worker::ProofJob;
-use forester_utils::{forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool};
-pub use forester_utils::{ParsedMerkleTreeData, ParsedQueueData};
-use light_client::rpc::Rpc;
-use light_registry::protocol_config::state::EpochState;
-use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
 use std::{
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -11,9 +5,16 @@ use std::{
     },
     time::Duration,
 };
+
+use forester_utils::{forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool};
+pub use forester_utils::{ParsedMerkleTreeData, ParsedQueueData};
+use light_client::rpc::Rpc;
+use light_registry::protocol_config::state::EpochState;
+use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
 use tokio::sync::Mutex;
 use tracing::{debug, info};
 
+use super::proof_worker::ProofJob;
 use crate::{
     errors::ForesterError, processor::tx_cache::ProcessedHashCache, slot_tracker::SlotTracker,
     Result,

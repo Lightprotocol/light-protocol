@@ -1,8 +1,15 @@
 use std::{
-    sync::atomic::Ordering,
-    sync::Arc,
+    sync::{atomic::Ordering, Arc},
     time::{Duration, Instant},
 };
+
+use anyhow::anyhow;
+use forester_utils::{forester_epoch::EpochPhases, utils::wait_for_indexer};
+use light_client::rpc::Rpc;
+use light_compressed_account::QueueType;
+use solana_sdk::pubkey::Pubkey;
+use tokio::sync::mpsc;
+use tracing::{debug, info, warn};
 
 use crate::{
     epoch_manager::{CircuitMetrics, ProcessingMetrics},
@@ -15,13 +22,6 @@ use crate::{
         BatchContext, ProcessingResult, QueueWork,
     },
 };
-use anyhow::anyhow;
-use forester_utils::{forester_epoch::EpochPhases, utils::wait_for_indexer};
-use light_client::rpc::Rpc;
-use light_compressed_account::QueueType;
-use solana_sdk::pubkey::Pubkey;
-use tokio::sync::mpsc;
-use tracing::{debug, info, warn};
 
 const MAX_BATCHES_PER_TREE: usize = 20;
 
@@ -136,7 +136,9 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
         // OPTIMISTIC PATH: Check if we have cached state from previous iteration
         // This allows us to continue processing without waiting for indexer to sync
         if let Some(cached) = self.cached_state.take() {
-            let remaining = cached.total_batches.saturating_sub(cached.batches_processed);
+            let remaining = cached
+                .total_batches
+                .saturating_sub(cached.batches_processed);
             if remaining > 0 {
                 info!(
                     "Using cached state: {} remaining batches (processed {}/{})",
@@ -155,7 +157,12 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
 
                 // batch_offset is where we left off
                 return self
-                    .process_batches(queue_data, cached.batches_processed, batches_to_process, cached.total_batches)
+                    .process_batches(
+                        queue_data,
+                        cached.batches_processed,
+                        batches_to_process,
+                        cached.total_batches,
+                    )
                     .await;
             }
         }
@@ -186,7 +193,12 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
         // Fetch queue data - paginated internally to avoid timeout
         let queue_data = match self
             .strategy
-            .fetch_queue_data(&self.context, &queue_work, fetch_batches, self.zkp_batch_size)
+            .fetch_queue_data(
+                &self.context,
+                &queue_work,
+                fetch_batches,
+                self.zkp_batch_size,
+            )
             .await?
         {
             Some(data) => data,
@@ -304,7 +316,13 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
             .clone();
 
         let (jobs_sent, timings, staging_tree) = self
-            .enqueue_jobs(queue_data, batch_offset, batches_to_process, job_tx, proof_tx.clone())
+            .enqueue_jobs(
+                queue_data,
+                batch_offset,
+                batches_to_process,
+                job_tx,
+                proof_tx.clone(),
+            )
             .await?;
 
         // Cache remaining batches for optimistic continuation

@@ -1719,7 +1719,7 @@ impl Indexer for PhotonIndexer {
                         .map(|h| Hash::from_base58(h))
                         .collect();
 
-                        Some(super::AddressQueueData {
+                    Some(super::AddressQueueData {
                         addresses: addresses?,
                         low_element_values: low_element_values?,
                         low_element_next_values: low_element_next_values?,

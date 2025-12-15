@@ -61,17 +61,15 @@ impl ProofInput {
     fn new_root_bytes(&self) -> crate::Result<[u8; 32]> {
         match self {
             ProofInput::Append(inputs) => {
-                let biguint = inputs
-                    .new_root
-                    .to_biguint()
-                    .ok_or_else(|| anyhow::anyhow!("Failed to convert append new_root to biguint"))?;
+                let biguint = inputs.new_root.to_biguint().ok_or_else(|| {
+                    anyhow::anyhow!("Failed to convert append new_root to biguint")
+                })?;
                 light_hasher::bigint::bigint_to_be_bytes_array::<32>(&biguint).map_err(Into::into)
             }
             ProofInput::Nullify(inputs) => {
-                let biguint = inputs
-                    .new_root
-                    .to_biguint()
-                    .ok_or_else(|| anyhow::anyhow!("Failed to convert nullify new_root to biguint"))?;
+                let biguint = inputs.new_root.to_biguint().ok_or_else(|| {
+                    anyhow::anyhow!("Failed to convert nullify new_root to biguint")
+                })?;
                 light_hasher::bigint::bigint_to_be_bytes_array::<32>(&biguint).map_err(Into::into)
             }
             ProofInput::AddressAppend(inputs) => {
@@ -84,17 +82,15 @@ impl ProofInput {
     fn old_root_bytes(&self) -> crate::Result<[u8; 32]> {
         match self {
             ProofInput::Append(inputs) => {
-                let biguint = inputs
-                    .old_root
-                    .to_biguint()
-                    .ok_or_else(|| anyhow::anyhow!("Failed to convert append old_root to biguint"))?;
+                let biguint = inputs.old_root.to_biguint().ok_or_else(|| {
+                    anyhow::anyhow!("Failed to convert append old_root to biguint")
+                })?;
                 light_hasher::bigint::bigint_to_be_bytes_array::<32>(&biguint).map_err(Into::into)
             }
             ProofInput::Nullify(inputs) => {
-                let biguint = inputs
-                    .old_root
-                    .to_biguint()
-                    .ok_or_else(|| anyhow::anyhow!("Failed to convert nullify old_root to biguint"))?;
+                let biguint = inputs.old_root.to_biguint().ok_or_else(|| {
+                    anyhow::anyhow!("Failed to convert nullify old_root to biguint")
+                })?;
                 light_hasher::bigint::bigint_to_be_bytes_array::<32>(&biguint).map_err(Into::into)
             }
             ProofInput::AddressAppend(inputs) => {
@@ -204,7 +200,16 @@ async fn submit_and_poll_proof(clients: Arc<ProofClients>, job: ProofJob) {
                 job.seq, circuit_type, job_id
             );
 
-            poll_and_send_result(clients, job_id, job.seq, job.inputs, job.tree_id, job.result_tx, round_trip_start).await;
+            poll_and_send_result(
+                clients,
+                job_id,
+                job.seq,
+                job.inputs,
+                job.tree_id,
+                job.result_tx,
+                round_trip_start,
+            )
+            .await;
         }
         Ok(SubmitProofResult::Immediate(proof)) => {
             let round_trip_ms = round_trip_start.elapsed().as_millis() as u64;
@@ -213,7 +218,8 @@ async fn submit_and_poll_proof(clients: Arc<ProofClients>, job: ProofJob) {
                 job.seq, circuit_type, round_trip_ms
             );
 
-            let result = build_proof_result(job.seq, &job.inputs, proof, round_trip_ms, round_trip_start);
+            let result =
+                build_proof_result(job.seq, &job.inputs, proof, round_trip_ms, round_trip_start);
             let _ = job.result_tx.send(result).await;
         }
         Err(e) => {
@@ -251,8 +257,10 @@ async fn poll_and_send_result(
     let result = match client.poll_proof_completion(job_id.clone()).await {
         Ok(proof) => {
             let round_trip_ms = round_trip_start.elapsed().as_millis() as u64;
-            debug!("Proof completed for seq={} job_id={} round_trip={}ms proof={}ms",
-                   seq, job_id, round_trip_ms, proof.proof_duration_ms);
+            debug!(
+                "Proof completed for seq={} job_id={} round_trip={}ms proof={}ms",
+                seq, job_id, round_trip_ms, proof.proof_duration_ms
+            );
             build_proof_result(seq, &inputs, proof, round_trip_ms, round_trip_start)
         }
         Err(e) if is_job_not_found(&e) => {

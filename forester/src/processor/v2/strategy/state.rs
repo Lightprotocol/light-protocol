@@ -1,10 +1,3 @@
-use crate::processor::v2::{
-    common::{batch_range, get_leaves_hashchain},
-    helpers::{fetch_onchain_state_root, fetch_paginated_batches, fetch_zkp_batch_size},
-    proof_worker::ProofInput,
-    strategy::{CircuitType, QueueData, TreeStrategy},
-    BatchContext, QueueWork,
-};
 use anyhow::anyhow;
 use async_trait::async_trait;
 use forester_utils::staging_tree::{BatchType, StagingTree};
@@ -14,6 +7,14 @@ use light_prover_client::proof_types::{
     batch_append::BatchAppendsCircuitInputs, batch_update::BatchUpdateCircuitInputs,
 };
 use tracing::debug;
+
+use crate::processor::v2::{
+    common::{batch_range, get_leaves_hashchain},
+    helpers::{fetch_onchain_state_root, fetch_paginated_batches, fetch_zkp_batch_size},
+    proof_worker::ProofInput,
+    strategy::{CircuitType, QueueData, TreeStrategy},
+    BatchContext, QueueWork,
+};
 
 #[derive(Debug, Clone)]
 pub struct StateTreeStrategy;
@@ -55,7 +56,11 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
         }
     }
 
-    fn circuit_type_for_batch(&self, queue_data: &Self::StagingTree, batch_idx: usize) -> CircuitType {
+    fn circuit_type_for_batch(
+        &self,
+        queue_data: &Self::StagingTree,
+        batch_idx: usize,
+    ) -> CircuitType {
         if let Some(ref ops) = queue_data.interleaved_ops {
             if let Some(op) = ops.get(batch_idx) {
                 return match op {
@@ -95,11 +100,10 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
         let total_needed = max_batches.saturating_mul(zkp_batch_size_usize);
         let fetch_len = total_needed as u64;
 
-        let state_queue =
-            match fetch_paginated_batches(context, fetch_len, zkp_batch_size).await? {
-                Some(sq) => sq,
-                None => return Ok(None),
-            };
+        let state_queue = match fetch_paginated_batches(context, fetch_len, zkp_batch_size).await? {
+            Some(sq) => sq,
+            None => return Ok(None),
+        };
 
         let _ = queue_work.queue_type;
 
@@ -135,13 +139,12 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
                 let total = (append_batches + nullify_batches).min(max_batches);
                 let half_batches = max_batches / 2;
                 let appends_to_process = append_batches.min(half_batches).max(1);
-                let nullifies_to_process = nullify_batches.min(total.saturating_sub(appends_to_process));
+                let nullifies_to_process =
+                    nullify_batches.min(total.saturating_sub(appends_to_process));
                 let actual_total = appends_to_process + nullifies_to_process;
                 debug!(
                     "Processing {} APPEND batches then {} NULLIFY batches (total: {})",
-                    appends_to_process,
-                    nullifies_to_process,
-                    actual_total
+                    appends_to_process, nullifies_to_process, actual_total
                 );
                 (appends_to_process, actual_total, StatePhase::Append)
             } else if append_batches > 0 {
@@ -162,7 +165,11 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
             combined_indices.extend(input_batch.leaf_indices.iter().copied());
             combined_leaves.extend(input_batch.current_leaves.iter().copied());
 
-            (combined_indices, combined_leaves, Some(output_batch.next_index))
+            (
+                combined_indices,
+                combined_leaves,
+                Some(output_batch.next_index),
+            )
         } else {
             match effective_phase {
                 StatePhase::Append => {
@@ -175,7 +182,11 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
                 }
                 StatePhase::Nullify => {
                     let batch = state_queue.input_queue.as_ref().unwrap();
-                    (batch.leaf_indices.clone(), batch.current_leaves.clone(), None)
+                    (
+                        batch.leaf_indices.clone(),
+                        batch.current_leaves.clone(),
+                        None,
+                    )
                 }
             }
         };
@@ -235,13 +246,26 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
             None
         };
 
-        let interleaved_total = interleaved_ops.as_ref().map(|ops| ops.len()).unwrap_or(total_batches);
+        let interleaved_total = interleaved_ops
+            .as_ref()
+            .map(|ops| ops.len())
+            .unwrap_or(total_batches);
         if interleaved_ops.is_some() {
             tracing::info!(
                 "Interleaved ops: {} total ({} append, {} nullify)",
                 interleaved_total,
-                interleaved_ops.as_ref().unwrap().iter().filter(|op| matches!(op, BatchOp::Append(_))).count(),
-                interleaved_ops.as_ref().unwrap().iter().filter(|op| matches!(op, BatchOp::Nullify(_))).count(),
+                interleaved_ops
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .filter(|op| matches!(op, BatchOp::Append(_)))
+                    .count(),
+                interleaved_ops
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .filter(|op| matches!(op, BatchOp::Nullify(_)))
+                    .count(),
             );
         }
 
@@ -273,11 +297,25 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
                 return match op {
                     BatchOp::Append(append_idx) => {
                         let start = append_idx * zkp_batch_size as usize;
-                        self.build_append_job(queue_data, *append_idx, start, zkp_batch_size, epoch, tree)
+                        self.build_append_job(
+                            queue_data,
+                            *append_idx,
+                            start,
+                            zkp_batch_size,
+                            epoch,
+                            tree,
+                        )
                     }
                     BatchOp::Nullify(nullify_idx) => {
                         let start = nullify_idx * zkp_batch_size as usize;
-                        self.build_nullify_job(queue_data, *nullify_idx, start, zkp_batch_size, epoch, tree)
+                        self.build_nullify_job(
+                            queue_data,
+                            *nullify_idx,
+                            start,
+                            zkp_batch_size,
+                            epoch,
+                            tree,
+                        )
                     }
                 };
             }
@@ -293,7 +331,14 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
         } else {
             let nullify_batch_idx = batch_idx - queue_data.append_batches_before_nullify;
             let nullify_start = nullify_batch_idx * zkp_batch_size as usize;
-            self.build_nullify_job(queue_data, nullify_batch_idx, nullify_start, zkp_batch_size, epoch, tree)
+            self.build_nullify_job(
+                queue_data,
+                nullify_batch_idx,
+                nullify_start,
+                zkp_batch_size,
+                epoch,
+                tree,
+            )
         }
     }
 }
@@ -322,8 +367,8 @@ impl StateTreeStrategy {
         let batch_seq = queue_data.state_queue.root_seq + (batch_idx as u64) + 1;
 
         let result = queue_data.staging_tree.process_batch_updates(
-            &leaf_indices,
-            &leaves,
+            leaf_indices,
+            leaves,
             BatchType::Append,
             batch_idx,
             batch_seq,
@@ -401,7 +446,6 @@ impl StateTreeStrategy {
     }
 }
 
-
 fn compute_interleaved_ops(
     num_appends: usize,
     num_nullifies: usize,
@@ -461,7 +505,9 @@ fn compute_interleaved_ops(
         if scheduled_this_round > 0 && appends_scheduled <= 2 {
             tracing::info!(
                 "After append {}: scheduled {} nullifies (boundary={})",
-                appends_scheduled - 1, scheduled_this_round, boundary
+                appends_scheduled - 1,
+                scheduled_this_round,
+                boundary
             );
         }
 

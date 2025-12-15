@@ -30,7 +30,11 @@ pub trait TreeStrategy<R: Rpc>: Send + Sync + Clone + std::fmt::Debug + 'static 
     fn name(&self) -> &'static str;
     fn circuit_type(&self, queue_data: &Self::StagingTree) -> CircuitType;
 
-    fn circuit_type_for_batch(&self, queue_data: &Self::StagingTree, batch_idx: usize) -> CircuitType {
+    fn circuit_type_for_batch(
+        &self,
+        queue_data: &Self::StagingTree,
+        batch_idx: usize,
+    ) -> CircuitType {
         let _ = batch_idx;
         self.circuit_type(queue_data)
     }

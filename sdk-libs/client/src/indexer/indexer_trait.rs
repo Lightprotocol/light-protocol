@@ -1,18 +1,17 @@
 use async_trait::async_trait;
 use solana_pubkey::Pubkey;
 
-use crate::indexer::QueueElementsResult;
-
 use super::{
     response::{Items, ItemsWithCursor, Response},
     types::{
-        CompressedAccount, CompressedTokenAccount, OwnerBalance,
-        QueueInfoResult, SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
+        CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueInfoResult,
+        SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
     },
     Address, AddressWithTree, GetCompressedAccountsByOwnerConfig,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, IndexerError, IndexerRpcConfig,
     MerkleProof, NewAddressProofWithContext, PaginatedOptions, QueueElementsV2Options, RetryConfig,
 };
+use crate::indexer::QueueElementsResult;
 // TODO: remove all references in input types.
 #[async_trait]
 pub trait Indexer: std::marker::Send + std::marker::Sync {
@@ -173,7 +172,6 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<ValidityProofWithContext>, IndexerError>;
 
-  
     /// Returns queue elements with deduplicated nodes for efficient staging tree construction.
     /// Supports output queue, input queue, and address queue.
     async fn get_queue_elements(

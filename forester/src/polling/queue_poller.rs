@@ -147,16 +147,11 @@ impl QueueInfoPoller {
                         Ok(()) => {
                             debug!(
                                 "Routed update to tree {}: {} items (type: {:?})",
-                                info.tree,
-                                message.queue_size,
-                                info.queue_type
+                                info.tree, message.queue_size, info.queue_type
                             );
                         }
                         Err(mpsc::error::TrySendError::Full(_)) => {
-                            debug!(
-                                "Tree {} channel full, dropping update",
-                                info.tree
-                            );
+                            debug!("Tree {} channel full, dropping update", info.tree);
                         }
                         Err(mpsc::error::TrySendError::Closed(_)) => {
                             trace!("Tree {} channel {} closed", info.tree, idx);
@@ -319,10 +314,7 @@ impl Message<PollNow> for QueueInfoPoller {
         }
 
         let num_registered = self.tree_notifiers.len();
-        debug!(
-            "Polling queue info for {} registered trees",
-            num_registered
-        );
+        debug!("Polling queue info for {} registered trees", num_registered);
 
         match self.poll_queue_info().await {
             Ok(queue_infos) => {

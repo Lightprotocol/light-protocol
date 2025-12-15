@@ -2,10 +2,11 @@
 //!
 //! Run with: cargo test -p forester-utils --release bench_circuit_inputs -- --nocapture
 
+use std::time::Instant;
+
 use light_batched_merkle_tree::constants::DEFAULT_BATCH_STATE_TREE_HEIGHT;
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::MerkleTree;
-use std::time::Instant;
 
 use crate::staging_tree::{BatchType, StagingTree};
 
@@ -16,7 +17,7 @@ fn hash_from_index(index: u64) -> [u8; 32] {
     let mut hash = [0u8; 32];
     let bytes = index.to_le_bytes();
     hash[24..].copy_from_slice(&bytes); // Put index in the last 8 bytes
-    // Add some variation in middle bytes, keeping values small
+                                        // Add some variation in middle bytes, keeping values small
     for i in 8..24 {
         hash[i] = ((index as usize * 7 + i * 11) % 200) as u8;
     }
@@ -26,10 +27,7 @@ fn hash_from_index(index: u64) -> [u8; 32] {
 }
 
 /// Create a synthetic staging tree with pre-populated leaves
-fn create_synthetic_staging_tree(
-    num_existing_leaves: usize,
-    height: usize,
-) -> StagingTree {
+fn create_synthetic_staging_tree(num_existing_leaves: usize, height: usize) -> StagingTree {
     // Create leaf indices and hashes for existing leaves
     let leaf_indices: Vec<u64> = (0..num_existing_leaves as u64).collect();
     let leaves: Vec<[u8; 32]> = leaf_indices.iter().map(|&i| hash_from_index(i)).collect();
@@ -46,10 +44,10 @@ fn create_synthetic_staging_tree(
     StagingTree::new(
         &leaf_indices,
         &leaves,
-        &[],  // no intermediate nodes needed for fresh tree
+        &[], // no intermediate nodes needed for fresh tree
         &[],
         initial_root,
-        0,    // root_seq
+        0, // root_seq
         height,
     )
     .expect("Failed to create staging tree")
@@ -274,9 +272,21 @@ fn bench_circuit_inputs_detailed_profiling() {
 
     println!("Batch size: {}", BATCH_SIZE);
     println!();
-    println!("get_leaf:   {:>10.2?} ({:>5.1}%)", total_get_leaf, 100.0 * total_get_leaf.as_secs_f64() / total.as_secs_f64());
-    println!("get_proof:  {:>10.2?} ({:>5.1}%)", total_get_proof, 100.0 * total_get_proof.as_secs_f64() / total.as_secs_f64());
-    println!("update:     {:>10.2?} ({:>5.1}%)", total_update, 100.0 * total_update.as_secs_f64() / total.as_secs_f64());
+    println!(
+        "get_leaf:   {:>10.2?} ({:>5.1}%)",
+        total_get_leaf,
+        100.0 * total_get_leaf.as_secs_f64() / total.as_secs_f64()
+    );
+    println!(
+        "get_proof:  {:>10.2?} ({:>5.1}%)",
+        total_get_proof,
+        100.0 * total_get_proof.as_secs_f64() / total.as_secs_f64()
+    );
+    println!(
+        "update:     {:>10.2?} ({:>5.1}%)",
+        total_update,
+        100.0 * total_update.as_secs_f64() / total.as_secs_f64()
+    );
     println!("─────────────────────────────");
     println!("Total:      {:>10.2?}", total);
     println!();
@@ -582,7 +592,10 @@ fn test_optimized_correctness() {
     const EXISTING_LEAVES: usize = 2;
 
     println!("\n=== CORRECTNESS TEST ===");
-    println!("Height: {}, Batch size: {}, Existing: {}", HEIGHT, BATCH_SIZE, EXISTING_LEAVES);
+    println!(
+        "Height: {}, Batch size: {}, Existing: {}",
+        HEIGHT, BATCH_SIZE, EXISTING_LEAVES
+    );
 
     // Create two identical trees WITH proper intermediate nodes
     let mut tree_orig = create_proper_staging_tree(EXISTING_LEAVES, HEIGHT);
@@ -615,8 +628,14 @@ fn test_optimized_correctness() {
     println!("Old root (orig): {:?}", &result_orig.old_root[..8]);
     println!("Old root (opt):  {:?}", &result_opt.old_root[..8]);
 
-    assert_eq!(result_orig.old_root, result_opt.old_root, "Old roots should match");
-    assert_eq!(result_orig.new_root, result_opt.new_root, "New roots should match");
+    assert_eq!(
+        result_orig.old_root, result_opt.old_root,
+        "Old roots should match"
+    );
+    assert_eq!(
+        result_orig.new_root, result_opt.new_root,
+        "New roots should match"
+    );
     println!("PASSED: Roots match!");
 }
 
@@ -694,7 +713,8 @@ fn bench_optimized_vs_original() {
         assert_eq!(
             staging_tree_orig.current_root(),
             staging_tree_opt.current_root(),
-            "Roots should match for batch_size={}", batch_size
+            "Roots should match for batch_size={}",
+            batch_size
         );
 
         let original_total: std::time::Duration = original_times.iter().sum();
