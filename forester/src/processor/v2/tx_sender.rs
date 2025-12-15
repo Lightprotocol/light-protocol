@@ -234,16 +234,16 @@ impl<R: Rpc> TxSender<R> {
                             let ix_res = proofs
                                 .iter()
                                 .map(|data| {
-                                    create_batch_append_instruction(
+                                    Ok(create_batch_append_instruction(
                                         sender_context.authority.pubkey(),
                                         sender_context.derivation,
                                         sender_context.merkle_tree,
                                         sender_context.output_queue,
                                         sender_context.epoch,
-                                        data.try_to_vec().unwrap(),
-                                    )
+                                        data.try_to_vec()?,
+                                    ))
                                 })
-                                .collect::<Vec<_>>();
+                                .collect::<anyhow::Result<Vec<_>>>()?;
                             (ix_res, proofs.last().map(|p| p.new_root))
                         }
                         BatchInstruction::Nullify(proofs) => {
@@ -251,15 +251,15 @@ impl<R: Rpc> TxSender<R> {
                             let ix_res = proofs
                                 .iter()
                                 .map(|data| {
-                                    create_batch_nullify_instruction(
+                                    Ok(create_batch_nullify_instruction(
                                         sender_context.authority.pubkey(),
                                         sender_context.derivation,
                                         sender_context.merkle_tree,
                                         sender_context.epoch,
-                                        data.try_to_vec().unwrap(),
-                                    )
+                                        data.try_to_vec()?,
+                                    ))
                                 })
-                                .collect::<Vec<_>>();
+                                .collect::<anyhow::Result<Vec<_>>>()?;
                              (ix_res, proofs.last().map(|p| p.new_root))
                         }
                         BatchInstruction::AddressAppend(proofs) => {
@@ -267,15 +267,15 @@ impl<R: Rpc> TxSender<R> {
                             let ix_res = proofs
                                 .iter()
                                 .map(|data| {
-                                    create_batch_update_address_tree_instruction(
+                                    Ok(create_batch_update_address_tree_instruction(
                                         sender_context.authority.pubkey(),
                                         sender_context.derivation,
                                         sender_context.merkle_tree,
                                         sender_context.epoch,
-                                        data.try_to_vec().unwrap(), 
-                                    )
+                                        data.try_to_vec()?,
+                                    ))
                                 })
-                                .collect::<Vec<_>>();
+                                .collect::<anyhow::Result<Vec<_>>>()?;
                              (ix_res, proofs.last().map(|p| p.new_root))
                         }
                     };

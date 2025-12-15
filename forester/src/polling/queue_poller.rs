@@ -31,9 +31,14 @@ pub struct QueueUpdateMessage {
     pub slot: u64,
 }
 
+struct TreeNotifierEntry {
+    senders: Vec<mpsc::Sender<QueueUpdateMessage>>,
+    min_queue_size: u64,
+}
+
 pub struct QueueInfoPoller {
     indexer: PhotonIndexer,
-    tree_notifiers: HashMap<Pubkey, Vec<mpsc::Sender<QueueUpdateMessage>>>,
+    tree_notifiers: HashMap<Pubkey, TreeNotifierEntry>,
     polling_active: Arc<AtomicBool>,
 }
 
@@ -114,8 +119,19 @@ impl QueueInfoPoller {
         let mut unmatched_trees = Vec::new();
 
         for info in queue_infos {
-            if let Some(senders) = self.tree_notifiers.get_mut(&info.tree) {
+            if let Some(entry) = self.tree_notifiers.get_mut(&info.tree) {
                 matched_count += 1;
+
+                if info.queue_size < entry.min_queue_size {
+                    trace!(
+                        "Skipping update for tree {}: {} items < min_queue_size {}",
+                        info.tree,
+                        info.queue_size,
+                        entry.min_queue_size
+                    );
+                    continue;
+                }
+
                 let message = QueueUpdateMessage {
                     tree: info.tree,
                     queue: info.queue,
@@ -124,10 +140,9 @@ impl QueueInfoPoller {
                     slot: info.slot,
                 };
 
-                // Track which senders to remove (closed channels)
                 let mut closed_indices = Vec::new();
 
-                for (idx, tx) in senders.iter().enumerate() {
+                for (idx, tx) in entry.senders.iter().enumerate() {
                     match tx.try_send(message.clone()) {
                         Ok(()) => {
                             debug!(
@@ -151,7 +166,7 @@ impl QueueInfoPoller {
                 }
 
                 for idx in closed_indices.into_iter().rev() {
-                    senders.swap_remove(idx);
+                    entry.senders.swap_remove(idx);
                 }
             } else {
                 unmatched_trees.push((info.tree, info.queue_size));
@@ -188,6 +203,7 @@ struct QueueInfo {
 #[derive(Debug, Clone)]
 pub struct RegisterTree {
     pub tree_pubkey: Pubkey,
+    pub min_queue_size: u64,
 }
 
 impl Message<RegisterTree> for QueueInfoPoller {
@@ -200,18 +216,37 @@ impl Message<RegisterTree> for QueueInfoPoller {
     ) -> Self::Reply {
         let (tx, rx) = mpsc::channel(1000);
 
-        let senders = self.tree_notifiers.entry(msg.tree_pubkey).or_default();
-        let sender_count = senders.len();
-        senders.push(tx);
+        let entry = self
+            .tree_notifiers
+            .entry(msg.tree_pubkey)
+            .or_insert_with(|| TreeNotifierEntry {
+                senders: Vec::new(),
+                min_queue_size: msg.min_queue_size,
+            });
+
+        if entry.min_queue_size != msg.min_queue_size {
+            debug!(
+                "Updating min_queue_size for tree {} from {} to {}",
+                msg.tree_pubkey, entry.min_queue_size, msg.min_queue_size
+            );
+            entry.min_queue_size = msg.min_queue_size;
+        }
+
+        let sender_count = entry.senders.len();
+        entry.senders.push(tx);
 
         if sender_count > 0 {
             debug!(
-                "Added concurrent registration for tree {} (now {} receivers)",
+                "Added concurrent registration for tree {} (now {} receivers, min_queue_size={})",
                 msg.tree_pubkey,
-                sender_count + 1
+                sender_count + 1,
+                entry.min_queue_size
             );
         } else {
-            debug!("Registered tree {} for queue updates", msg.tree_pubkey);
+            debug!(
+                "Registered tree {} for queue updates (min_queue_size={})",
+                msg.tree_pubkey, entry.min_queue_size
+            );
         }
 
         rx
@@ -231,13 +266,13 @@ impl Message<UnregisterTree> for QueueInfoPoller {
         msg: UnregisterTree,
         _ctx: &mut kameo::message::Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        if let Some(senders) = self.tree_notifiers.remove(&msg.tree_pubkey) {
+        if let Some(entry) = self.tree_notifiers.remove(&msg.tree_pubkey) {
             debug!(
                 "Unregistered tree {} ({} senders removed)",
                 msg.tree_pubkey,
-                senders.len()
+                entry.senders.len()
             );
-            drop(senders);
+            drop(entry);
         } else {
             warn!(
                 "Attempted to unregister non-existent tree {}",
@@ -260,7 +295,7 @@ impl Message<RegisteredTreeCount> for QueueInfoPoller {
     ) -> Self::Reply {
         self.tree_notifiers
             .values()
-            .filter(|senders| !senders.is_empty())
+            .filter(|entry| !entry.senders.is_empty())
             .count()
     }
 }
@@ -276,7 +311,8 @@ impl Message<PollNow> for QueueInfoPoller {
         _msg: PollNow,
         _ctx: &mut kameo::message::Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        self.tree_notifiers.retain(|_, senders| !senders.is_empty());
+        self.tree_notifiers
+            .retain(|_, entry| !entry.senders.is_empty());
 
         if self.tree_notifiers.is_empty() {
             return;

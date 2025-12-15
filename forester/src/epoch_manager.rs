@@ -1,4 +1,7 @@
 use crate::processor::v2::BatchInstruction;
+use light_batched_merkle_tree::constants::{
+    DEFAULT_ADDRESS_ZKP_BATCH_SIZE, DEFAULT_ZKP_BATCH_SIZE,
+};
 use std::{
     collections::HashMap,
     sync::{
@@ -426,10 +429,15 @@ impl<R: Rpc> EpochManager<R> {
                         new_tree.tree_type,
                         TreeType::StateV2 | TreeType::AddressV2
                     ) {
+                        let min_queue_size = match new_tree.tree_type {
+                            TreeType::AddressV2 => DEFAULT_ADDRESS_ZKP_BATCH_SIZE,
+                            _ => DEFAULT_ZKP_BATCH_SIZE,
+                        };
                         if let Some(ref poller) = self.queue_poller {
                             match poller
                                 .ask(RegisterTree {
                                     tree_pubkey: new_tree.merkle_tree,
+                                    min_queue_size,
                                 })
                                 .send()
                                 .await
@@ -1068,8 +1076,18 @@ impl<R: Rpc> EpochManager<R> {
                     .map(|tree| {
                         let poller = poller.clone();
                         let tree_pubkey = tree.merkle_tree;
+                        let min_queue_size = match tree.tree_type {
+                            TreeType::AddressV2 => DEFAULT_ADDRESS_ZKP_BATCH_SIZE,
+                            _ => DEFAULT_ZKP_BATCH_SIZE,
+                        };
                         async move {
-                            let result = poller.ask(RegisterTree { tree_pubkey }).send().await;
+                            let result = poller
+                                .ask(RegisterTree {
+                                    tree_pubkey,
+                                    min_queue_size,
+                                })
+                                .send()
+                                .await;
                             (tree_pubkey, result)
                         }
                     })
@@ -1267,8 +1285,18 @@ impl<R: Rpc> EpochManager<R> {
                     .map(|tree| {
                         let poller = poller.clone();
                         let tree_pubkey = tree.tree_accounts.merkle_tree;
+                        let min_queue_size = match tree.tree_accounts.tree_type {
+                            TreeType::AddressV2 => DEFAULT_ADDRESS_ZKP_BATCH_SIZE,
+                            _ => DEFAULT_ZKP_BATCH_SIZE,
+                        };
                         async move {
-                            let result = poller.ask(RegisterTree { tree_pubkey }).send().await;
+                            let result = poller
+                                .ask(RegisterTree {
+                                    tree_pubkey,
+                                    min_queue_size,
+                                })
+                                .send()
+                                .await;
                             (tree_pubkey, result)
                         }
                     })
@@ -1699,8 +1727,6 @@ impl<R: Rpc> EpochManager<R> {
         }
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
 
-        let mut timeouts = 0u32;
-        const MAX_TIMEOUTS: u32 = 100;
         const QUEUE_UPDATE_TIMEOUT: Duration = Duration::from_millis(150);
 
         'inner_processing_loop: loop {
@@ -1734,8 +1760,6 @@ impl<R: Rpc> EpochManager<R> {
 
             match tokio::time::timeout(QUEUE_UPDATE_TIMEOUT, queue_update_rx.recv()).await {
                 Ok(Some(update)) => {
-                    timeouts = 0;
-
                     // Check cached batch size to skip processing when queue is below threshold
                     let min_batch_size = self
                         .zkp_batch_sizes
@@ -1789,27 +1813,6 @@ impl<R: Rpc> EpochManager<R> {
                     break 'inner_processing_loop;
                 }
                 Err(_elapsed) => {
-                    timeouts += 1;
-
-                    if timeouts >= MAX_TIMEOUTS {
-                        error!(
-                            "Queue poller has not sent updates for tree {} after {} timeouts ({} total).",
-                            tree_pubkey,
-                            timeouts,
-                            timeouts as u64 * QUEUE_UPDATE_TIMEOUT.as_millis() as u64
-                        );
-                        return Err(anyhow::anyhow!(
-                            "Queue poller health check failed: {} consecutive timeouts for tree {}",
-                            timeouts,
-                            tree_pubkey
-                        ));
-                    } else {
-                        trace!(
-                            "Queue update timeout for tree {} (timeout #{}, continuing to check slot window)",
-                            tree_pubkey,
-                            timeouts
-                        );
-                    }
                 }
             }
 

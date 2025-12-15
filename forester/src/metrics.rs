@@ -146,8 +146,10 @@ pub fn update_forester_sol_balance(pubkey: &str, balance: f64) {
 }
 
 pub fn update_registered_foresters(epoch: u64, authority: &str) {
+    let epoch_str = epoch.to_string();
+    let authority_str = authority.to_string();
     REGISTERED_FORESTERS
-        .with_label_values(&[&epoch.to_string(), authority])
+        .with_label_values(&[epoch_str.as_str(), authority_str.as_str()])
         .set(1.0);
 }
 
