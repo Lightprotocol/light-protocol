@@ -9,7 +9,7 @@ use crate::{
     processor::v2::{
         common::WorkerPool,
         proof_cache::SharedProofCache,
-        proof_worker::{spawn_proof_workers, ProofJob, ProofResult},
+        proof_worker::{spawn_proof_workers, ProofJob, ProofJobResult},
         strategy::{CircuitType, QueueData, TreeStrategy},
         tx_sender::TxSender,
         BatchContext, ProcessingResult, QueueWork,
@@ -415,7 +415,7 @@ impl<R: Rpc, S: TreeStrategy<R> + 'static> QueueProcessor<R, S> {
         batch_offset: usize,
         num_batches: usize,
         job_tx: async_channel::Sender<ProofJob>,
-        result_tx: mpsc::Sender<ProofResult>,
+        result_tx: mpsc::Sender<ProofJobResult>,
     ) -> crate::Result<(usize, BatchTimings, S::StagingTree)>
     where
         S::StagingTree: 'static,

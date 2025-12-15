@@ -28,7 +28,7 @@ use tracing::{debug, info, warn};
 use crate::{
     errors::ForesterError,
     processor::v2::{
-        common::send_transaction_batch, proof_cache::SharedProofCache, proof_worker::ProofResult,
+        common::send_transaction_batch, proof_cache::SharedProofCache, proof_worker::ProofJobResult,
         BatchContext,
     },
 };
@@ -172,7 +172,7 @@ pub struct TxSender<R: Rpc> {
 impl<R: Rpc> TxSender<R> {
     pub(crate) fn spawn(
         context: BatchContext<R>,
-        proof_rx: mpsc::Receiver<ProofResult>,
+        proof_rx: mpsc::Receiver<ProofJobResult>,
         zkp_batch_size: u64,
         last_seen_root: [u8; 32],
         proof_cache: Option<Arc<SharedProofCache>>,
@@ -223,7 +223,7 @@ impl<R: Rpc> TxSender<R> {
         current_slot + 2 < eligibility_end_slot
     }
 
-    async fn run(mut self, mut proof_rx: mpsc::Receiver<ProofResult>) -> crate::Result<TxSenderResult> {
+    async fn run(mut self, mut proof_rx: mpsc::Receiver<ProofJobResult>) -> crate::Result<TxSenderResult> {
         let mut processed = 0usize;
 
         while let Some(result) = proof_rx.recv().await {
@@ -344,8 +344,8 @@ impl<R: Rpc> TxSender<R> {
     /// Returns the number of proofs saved.
     async fn save_proofs_to_cache(
         &self,
-        proof_rx: &mut mpsc::Receiver<ProofResult>,
-        current_result: Option<ProofResult>,
+        proof_rx: &mut mpsc::Receiver<ProofJobResult>,
+        current_result: Option<ProofJobResult>,
     ) -> usize {
         let cache = match &self.proof_cache {
             Some(c) => c,

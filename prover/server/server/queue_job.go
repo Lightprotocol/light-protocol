@@ -433,61 +433,56 @@ func (w *BaseQueueWorker) processJobs() {
 		return
 	}
 
-	// Check if we already have a failure for this input
-	// Avoid reusing cached failures for address append to give the forester a chance
-	// to recover from transient witness issues and redis inconsistencies.
-	if w.queueName != "zk_address_append_queue" {
-		cachedFailure, cachedFailedJobID, err := w.queue.FindCachedFailure(inputHash)
-		if err != nil {
-			logging.Logger().Warn().
-				Err(err).
-				Str("job_id", job.ID).
-				Str("input_hash", inputHash).
-				Msg("Error searching for cached failure, continuing with processing")
-		} else if cachedFailure != nil {
-			// Found a cached failure, return it immediately
-			logging.Logger().Info().
-				Str("job_id", job.ID).
-				Str("cached_job_id", cachedFailedJobID).
-				Str("input_hash", inputHash).
-				Msg("Returning cached failure without re-processing")
+	cachedFailure, cachedFailedJobID, err := w.queue.FindCachedFailure(inputHash)
+	if err != nil {
+		logging.Logger().Warn().
+			Err(err).
+			Str("job_id", job.ID).
+			Str("input_hash", inputHash).
+			Msg("Error searching for cached failure, continuing with processing")
+	} else if cachedFailure != nil {
+		// Found a cached failure, return it immediately
+		logging.Logger().Info().
+			Str("job_id", job.ID).
+			Str("cached_job_id", cachedFailedJobID).
+			Str("input_hash", inputHash).
+			Msg("Returning cached failure without re-processing")
 
-			// Extract error message from cached failure
-			var errorMsg string
-			if errMsg, ok := cachedFailure["error"].(string); ok {
-				errorMsg = errMsg
-			} else {
-				errorMsg = "Proof generation failed (cached failure)"
-			}
-
-			// Add to failed queue with new job ID (without full payload to save memory)
-			failedJob := map[string]interface{}{
-				"original_job": map[string]interface{}{
-					"id":           job.ID,
-					"type":         job.Type,
-					"payload_size": len(job.Payload),
-					"created_at":   job.CreatedAt,
-				},
-				"error":       errorMsg,
-				"failed_at":   time.Now(),
-				"cached_from": cachedFailedJobID,
-			}
-
-			failedData, _ := json.Marshal(failedJob)
-			failedJobStruct := &ProofJob{
-				ID:        job.ID + "_failed",
-				Type:      "failed",
-				Payload:   json.RawMessage(failedData),
-				CreatedAt: time.Now(),
-			}
-
-			err = w.queue.EnqueueProof("zk_failed_queue", failedJobStruct)
-			if err != nil {
-				logging.Logger().Error().Err(err).Str("job_id", job.ID).Msg("Failed to enqueue cached failure")
-			}
-			w.queue.StoreInputHash(job.ID, inputHash)
-			return
+		// Extract error message from cached failure
+		var errorMsg string
+		if errMsg, ok := cachedFailure["error"].(string); ok {
+			errorMsg = errMsg
+		} else {
+			errorMsg = "Proof generation failed (cached failure)"
 		}
+
+		// Add to failed queue with new job ID (without full payload to save memory)
+		failedJob := map[string]interface{}{
+			"original_job": map[string]interface{}{
+				"id":           job.ID,
+				"type":         job.Type,
+				"payload_size": len(job.Payload),
+				"created_at":   job.CreatedAt,
+			},
+			"error":       errorMsg,
+			"failed_at":   time.Now(),
+			"cached_from": cachedFailedJobID,
+		}
+
+		failedData, _ := json.Marshal(failedJob)
+		failedJobStruct := &ProofJob{
+			ID:        job.ID + "_failed",
+			Type:      "failed",
+			Payload:   json.RawMessage(failedData),
+			CreatedAt: time.Now(),
+		}
+
+		err = w.queue.EnqueueProof("zk_failed_queue", failedJobStruct)
+		if err != nil {
+			logging.Logger().Error().Err(err).Str("job_id", job.ID).Msg("Failed to enqueue cached failure")
+		}
+		w.queue.StoreInputHash(job.ID, inputHash)
+		return
 	}
 
 	// No cached result found, proceed with normal processing

@@ -6,7 +6,7 @@ use light_batched_merkle_tree::merkle_tree::{
 };
 use light_prover_client::{
     errors::ProverClientError,
-    proof::ProofCompressedWithTiming,
+    proof::ProofResult,
     proof_client::{ProofClient, SubmitProofResult},
     proof_types::{
         batch_address_append::BatchAddressAppendInputs,
@@ -108,13 +108,13 @@ impl ProofInput {
 pub struct ProofJob {
     pub(crate) seq: u64,
     pub(crate) inputs: ProofInput,
-    pub(crate) result_tx: mpsc::Sender<ProofResult>,
+    pub(crate) result_tx: mpsc::Sender<ProofJobResult>,
     /// Tree pubkey for fair queuing - used to prevent starvation when multiple trees have proofs pending
     pub(crate) tree_id: String,
 }
 
 #[derive(Debug)]
-pub struct ProofResult {
+pub struct ProofJobResult {
     pub(crate) seq: u64,
     pub(crate) result: Result<BatchInstruction, String>,
     pub(crate) old_root: [u8; 32],
@@ -222,7 +222,7 @@ async fn submit_and_poll_proof(clients: Arc<ProofClients>, job: ProofJob) {
                 job.seq, circuit_type, e
             );
 
-            let result = ProofResult {
+            let result = ProofJobResult {
                 seq: job.seq,
                 result: Err(format!("Submit failed: {}", e)),
                 old_root: [0u8; 32],
@@ -242,7 +242,7 @@ async fn poll_and_send_result(
     seq: u64,
     inputs: ProofInput,
     tree_id: String,
-    result_tx: mpsc::Sender<ProofResult>,
+    result_tx: mpsc::Sender<ProofJobResult>,
     round_trip_start: std::time::Instant,
 ) {
     let client = clients.get_client(&inputs);
@@ -277,7 +277,7 @@ async fn poll_and_send_result(
                             );
                             build_proof_result(seq, &inputs, proof, round_trip_ms, round_trip_start)
                         }
-                        Err(e2) => ProofResult {
+                        Err(e2) => ProofJobResult {
                             seq,
                             result: Err(format!(
                                 "Proof failed after retry job_id={}: {}",
@@ -299,7 +299,7 @@ async fn poll_and_send_result(
                     );
                     build_proof_result(seq, &inputs, proof, round_trip_ms, round_trip_start)
                 }
-                Err(e_submit) => ProofResult {
+                Err(e_submit) => ProofJobResult {
                     seq,
                     result: Err(format!("Proof retry submit failed: {}", e_submit)),
                     old_root: [0u8; 32],
@@ -315,7 +315,7 @@ async fn poll_and_send_result(
                 "Proof polling failed for seq={} job_id={}: {}",
                 seq, job_id, e
             );
-            ProofResult {
+            ProofJobResult {
                 seq,
                 result: Err(format!("Proof failed: {}", e)),
                 old_root: [0u8; 32],
@@ -342,14 +342,14 @@ fn is_job_not_found(err: &ProverClientError) -> bool {
 fn build_proof_result(
     seq: u64,
     inputs: &ProofInput,
-    proof_with_timing: ProofCompressedWithTiming,
+    proof_with_timing: ProofResult,
     round_trip_ms: u64,
     submitted_at: std::time::Instant,
-) -> ProofResult {
+) -> ProofJobResult {
     let new_root = match inputs.new_root_bytes() {
         Ok(root) => root,
         Err(e) => {
-            return ProofResult {
+            return ProofJobResult {
                 seq,
                 result: Err(format!("Failed to get new root: {}", e)),
                 old_root: [0u8; 32],
@@ -363,7 +363,7 @@ fn build_proof_result(
     let old_root = match inputs.old_root_bytes() {
         Ok(root) => root,
         Err(e) => {
-            return ProofResult {
+            return ProofJobResult {
                 seq,
                 result: Err(format!("Failed to get old root: {}", e)),
                 old_root: [0u8; 32],
@@ -395,7 +395,7 @@ fn build_proof_result(
         ]),
     };
 
-    ProofResult {
+    ProofJobResult {
         seq,
         old_root,
         new_root,
