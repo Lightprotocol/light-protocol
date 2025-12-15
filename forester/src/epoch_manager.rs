@@ -15,7 +15,7 @@ use forester_utils::{
     rpc_pool::SolanaRpcPool,
 };
 use futures::future::join_all;
-use kameo::actor::{ActorRef, Spawn};
+use kameo::actor::Spawn;
 use light_batched_merkle_tree::constants::{
     DEFAULT_ADDRESS_ZKP_BATCH_SIZE, DEFAULT_ZKP_BATCH_SIZE,
 };
@@ -49,13 +49,14 @@ use tokio::{
 use tracing::{debug, error, info, info_span, instrument, trace, warn};
 
 use crate::{
+    cli::QueuePollingMode,
     compressible::{CompressibleAccountTracker, Compressor},
     errors::{
         ChannelError, ForesterError, InitializationError, RegistrationError, WorkReportError,
     },
     metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
     pagerduty::send_pagerduty_alert,
-    polling::{QueueInfoPoller, QueueUpdateMessage, RegisterTree},
+    polling::{OnChainQueuePoller, QueueInfoPoller, QueuePollerRef, QueueUpdateMessage},
     processor::{
         tx_cache::ProcessedHashCache,
         v1::{
@@ -204,7 +205,7 @@ pub struct EpochManager<R: Rpc> {
     new_tree_sender: broadcast::Sender<TreeAccounts>,
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
-    queue_poller: Option<ActorRef<QueueInfoPoller>>,
+    queue_poller: Option<QueuePollerRef<R>>,
     /// Pre-registered tree receivers keyed by (epoch, tree_pubkey)
     /// Receivers are registered during wait_for_active_phase so queue data is available immediately
     tree_receivers: TreeReceivers,
@@ -258,23 +259,34 @@ impl<R: Rpc> EpochManager<R> {
         ops_cache: Arc<Mutex<ProcessedHashCache>>,
         compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
     ) -> Result<Self> {
-        let queue_poller = if let Some(indexer_url) = &config.external_services.indexer_url {
-            info!(
-                "Spawning QueueInfoPoller actor for indexer at {}",
-                indexer_url
-            );
+        let queue_poller = match config.general_config.queue_polling_mode {
+            QueuePollingMode::Indexer => {
+                if let Some(indexer_url) = &config.external_services.indexer_url {
+                    info!(
+                        "Spawning QueueInfoPoller actor for indexer at {}",
+                        indexer_url
+                    );
 
-            let poller = QueueInfoPoller::new(
-                indexer_url.clone(),
-                config.external_services.photon_api_key.clone(),
-            );
+                    let poller = QueueInfoPoller::new(
+                        indexer_url.clone(),
+                        config.external_services.photon_api_key.clone(),
+                    );
 
-            let actor_ref = QueueInfoPoller::spawn(poller);
-            info!("QueueInfoPoller actor spawn initiated");
-            Some(actor_ref)
-        } else {
-            info!("indexer_url not configured, V2 trees will not have queue updates");
-            None
+                    let actor_ref = QueueInfoPoller::spawn(poller);
+                    info!("QueueInfoPoller actor spawn initiated");
+                    Some(QueuePollerRef::Indexer(actor_ref))
+                } else {
+                    info!("indexer_url not configured, V2 trees will not have queue updates");
+                    None
+                }
+            }
+            QueuePollingMode::OnChain => {
+                info!("Spawning OnChainQueuePoller actor for direct on-chain queue reading");
+                let poller = OnChainQueuePoller::new(rpc_pool.clone());
+                let actor_ref = OnChainQueuePoller::spawn(poller);
+                info!("OnChainQueuePoller actor spawn initiated");
+                Some(QueuePollerRef::OnChain(actor_ref))
+            }
         };
 
         let authority = Arc::new(config.payer_keypair.insecure_clone());
@@ -432,11 +444,12 @@ impl<R: Rpc> EpochManager<R> {
                             };
                             if let Some(ref poller) = self.queue_poller {
                                 match poller
-                                    .ask(RegisterTree {
-                                        tree_pubkey: new_tree.merkle_tree,
+                                    .register_tree(
+                                        new_tree.merkle_tree,
+                                        new_tree.queue,
+                                        new_tree.tree_type,
                                         min_queue_size,
-                                    })
-                                    .send()
+                                    )
                                     .await
                                 {
                                     Ok(rx) => Some(rx),
@@ -1073,17 +1086,15 @@ impl<R: Rpc> EpochManager<R> {
                     .map(|tree| {
                         let poller = poller.clone();
                         let tree_pubkey = tree.merkle_tree;
+                        let queue_pubkey = tree.queue;
+                        let tree_type = tree.tree_type;
                         let min_queue_size = match tree.tree_type {
                             TreeType::AddressV2 => DEFAULT_ADDRESS_ZKP_BATCH_SIZE,
                             _ => DEFAULT_ZKP_BATCH_SIZE,
                         };
                         async move {
                             let result = poller
-                                .ask(RegisterTree {
-                                    tree_pubkey,
-                                    min_queue_size,
-                                })
-                                .send()
+                                .register_tree(tree_pubkey, queue_pubkey, tree_type, min_queue_size)
                                 .await;
                             (tree_pubkey, result)
                         }
@@ -1282,17 +1293,15 @@ impl<R: Rpc> EpochManager<R> {
                     .map(|tree| {
                         let poller = poller.clone();
                         let tree_pubkey = tree.tree_accounts.merkle_tree;
+                        let queue_pubkey = tree.tree_accounts.queue;
+                        let tree_type = tree.tree_accounts.tree_type;
                         let min_queue_size = match tree.tree_accounts.tree_type {
                             TreeType::AddressV2 => DEFAULT_ADDRESS_ZKP_BATCH_SIZE,
                             _ => DEFAULT_ZKP_BATCH_SIZE,
                         };
                         async move {
                             let result = poller
-                                .ask(RegisterTree {
-                                    tree_pubkey,
-                                    min_queue_size,
-                                })
-                                .send()
+                                .register_tree(tree_pubkey, queue_pubkey, tree_type, min_queue_size)
                                 .await;
                             (tree_pubkey, result)
                         }

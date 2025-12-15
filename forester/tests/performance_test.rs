@@ -52,6 +52,7 @@ use tokio::{
     sync::{mpsc, oneshot},
     time::timeout,
 };
+use forester::cli::QueuePollingMode;
 
 mod test_utils;
 use test_utils::*;
@@ -60,11 +61,11 @@ const MINT_TO_NUM: u64 = 5;
 const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 20;
 const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
 
-// const TARGET_STATE_QUEUE_SIZE: usize = 100;
-// const TARGET_ADDRESS_QUEUE_SIZE: usize = 100;
+const TARGET_STATE_QUEUE_SIZE: usize = 100;
+const TARGET_ADDRESS_QUEUE_SIZE: usize = 100;
 
-// const NUM_STATE_TRANSACTIONS: usize = TARGET_STATE_QUEUE_SIZE / MINT_TO_NUM as usize;
-// const NUM_ADDRESS_TRANSACTIONS: usize = TARGET_ADDRESS_QUEUE_SIZE / 10;
+const NUM_STATE_TRANSACTIONS: usize = TARGET_STATE_QUEUE_SIZE / MINT_TO_NUM as usize;
+const NUM_ADDRESS_TRANSACTIONS: usize = TARGET_ADDRESS_QUEUE_SIZE / 10;
 
 fn get_rpc_url() -> String {
     "http://localhost:8899".to_string()
@@ -887,6 +888,7 @@ async fn performance_test_prefilled_queues() {
             ],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
+            queue_polling_mode: QueuePollingMode::Indexer,
         },
         rpc_pool_config: RpcPoolConfig {
             max_size: 50,

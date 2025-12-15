@@ -229,6 +229,14 @@ pub struct StartArgs {
     pub processor_mode: ProcessorMode,
 
     #[arg(
+        long,
+        env = "FORESTER_QUEUE_POLLING_MODE",
+        default_value_t = QueuePollingMode::Indexer,
+        help = "Queue polling mode: indexer (poll indexer API, requires indexer_url), onchain (read queue status directly from RPC)"
+    )]
+    pub queue_polling_mode: QueuePollingMode,
+
+    #[arg(
         long = "tree-id",
         env = "FORESTER_TREE_IDS",
         help = "Process only the specified trees (Pubkeys). Can be specified multiple times. If specified, forester will process only these trees and ignore all others",
@@ -321,12 +329,33 @@ pub enum ProcessorMode {
     All,
 }
 
+/// Queue polling mode determines how the forester discovers pending queue items.
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum QueuePollingMode {
+    /// Poll the indexer API for queue status (requires indexer_url)
+    #[clap(name = "indexer")]
+    #[default]
+    Indexer,
+    /// Read queue status directly from on-chain accounts via RPC
+    #[clap(name = "onchain")]
+    OnChain,
+}
+
 impl std::fmt::Display for ProcessorMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ProcessorMode::V1 => write!(f, "v1"),
             ProcessorMode::V2 => write!(f, "v2"),
             ProcessorMode::All => write!(f, "all"),
+        }
+    }
+}
+
+impl std::fmt::Display for QueuePollingMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QueuePollingMode::Indexer => write!(f, "indexer"),
+            QueuePollingMode::OnChain => write!(f, "onchain"),
         }
     }
 }

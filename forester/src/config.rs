@@ -8,7 +8,7 @@ use light_registry::{EpochPda, ForesterEpochPda};
 use solana_sdk::{pubkey::Pubkey, signature::Keypair};
 
 use crate::{
-    cli::{ProcessorMode, StartArgs, StatusArgs},
+    cli::{ProcessorMode, QueuePollingMode, StartArgs, StatusArgs},
     errors::ConfigError,
     Result,
 };
@@ -88,6 +88,7 @@ pub struct GeneralConfig {
     pub tree_ids: Vec<Pubkey>,
     pub sleep_after_processing_ms: u64,
     pub sleep_when_idle_ms: u64,
+    pub queue_polling_mode: QueuePollingMode,
 }
 
 impl Default for GeneralConfig {
@@ -103,6 +104,7 @@ impl Default for GeneralConfig {
             tree_ids: vec![],
             sleep_after_processing_ms: 10_000,
             sleep_when_idle_ms: 45_000,
+            queue_polling_mode: QueuePollingMode::Indexer,
         }
     }
 }
@@ -120,6 +122,7 @@ impl GeneralConfig {
             tree_ids: vec![],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
+            queue_polling_mode: QueuePollingMode::Indexer,
         }
     }
 
@@ -135,6 +138,7 @@ impl GeneralConfig {
             tree_ids: vec![],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
+            queue_polling_mode: QueuePollingMode::Indexer,
         }
     }
 }
@@ -292,6 +296,7 @@ impl ForesterConfig {
                     .collect(),
                 sleep_after_processing_ms: 10_000,
                 sleep_when_idle_ms: 45_000,
+                queue_polling_mode: args.queue_polling_mode,
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: args.rpc_pool_size,
@@ -356,6 +361,7 @@ impl ForesterConfig {
                 tree_ids: vec![],
                 sleep_after_processing_ms: 10_000,
                 sleep_when_idle_ms: 45_000,
+                queue_polling_mode: QueuePollingMode::OnChain, // Status uses on-chain reads
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: 10,
