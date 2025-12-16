@@ -135,6 +135,18 @@ pub enum CTokenError {
 
     #[error("Calculated top-up exceeds sender's max_top_up limit")]
     MaxTopUpExceeded,
+
+    #[error("CMint account has invalid owner")]
+    InvalidCMintOwner,
+
+    #[error("CMint account is not initialized")]
+    CMintNotInitialized,
+
+    #[error("Failed to borrow CMint account data")]
+    CMintBorrowFailed,
+
+    #[error("Failed to deserialize CMint account data")]
+    CMintDeserializationFailed,
 }
 
 impl From<CTokenError> for u32 {
@@ -183,6 +195,10 @@ impl From<CTokenError> for u32 {
             CTokenError::TooManySeeds(_) => 18041,
             CTokenError::WriteTopUpExceedsMaximum => 18042,
             CTokenError::MaxTopUpExceeded => 18043,
+            CTokenError::InvalidCMintOwner => 18044,
+            CTokenError::CMintNotInitialized => 18045,
+            CTokenError::CMintBorrowFailed => 18046,
+            CTokenError::CMintDeserializationFailed => 18047,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

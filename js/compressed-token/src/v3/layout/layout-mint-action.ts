@@ -62,6 +62,14 @@ export const RemoveMetadataKeyActionLayout = struct([
     u8('idempotent'),
 ]);
 
+export const DecompressMintActionLayout = struct([
+    u8('cmintBump'),
+    u8('rentPayment'),
+    u32('writeTopUp'),
+]);
+
+export const CompressAndCloseCMintActionLayout = struct([u8('idempotent')]);
+
 export const ActionLayout = rustEnum([
     MintToCompressedActionLayout.replicate('mintToCompressed'),
     UpdateAuthorityLayout.replicate('updateMintAuthority'),
@@ -71,6 +79,8 @@ export const ActionLayout = rustEnum([
     UpdateMetadataFieldActionLayout.replicate('updateMetadataField'),
     UpdateMetadataAuthorityActionLayout.replicate('updateMetadataAuthority'),
     RemoveMetadataKeyActionLayout.replicate('removeMetadataKey'),
+    DecompressMintActionLayout.replicate('decompressMint'),
+    CompressAndCloseCMintActionLayout.replicate('compressAndCloseCMint'),
 ]);
 
 export const CompressedProofLayout = struct([
@@ -133,7 +143,7 @@ export const ExtensionInstructionDataLayout = rustEnum([
 
 export const CompressedMintMetadataLayout = struct([
     u8('version'),
-    bool('splMintInitialized'),
+    bool('cmintDecompressed'),
     publicKey('mint'),
 ]);
 
@@ -158,7 +168,7 @@ export const MintActionCompressedInstructionDataLayout = struct([
     vec(ActionLayout, 'actions'),
     option(CompressedProofLayout, 'proof'),
     option(CpiContextLayout, 'cpiContext'),
-    CompressedMintInstructionDataLayout.replicate('mint'),
+    option(CompressedMintInstructionDataLayout, 'mint'),
 ]);
 
 export interface ValidityProof {
@@ -208,6 +218,16 @@ export interface RemoveMetadataKeyAction {
     idempotent: number;
 }
 
+export interface DecompressMintAction {
+    cmintBump: number;
+    rentPayment: number;
+    writeTopUp: number;
+}
+
+export interface CompressAndCloseCMintAction {
+    idempotent: number;
+}
+
 export type Action =
     | { mintToCompressed: MintToCompressedAction }
     | { updateMintAuthority: UpdateAuthority }
@@ -216,7 +236,9 @@ export type Action =
     | { mintToCToken: MintToCTokenAction }
     | { updateMetadataField: UpdateMetadataFieldAction }
     | { updateMetadataAuthority: UpdateMetadataAuthorityAction }
-    | { removeMetadataKey: RemoveMetadataKeyAction };
+    | { removeMetadataKey: RemoveMetadataKeyAction }
+    | { decompressMint: DecompressMintAction }
+    | { compressAndCloseCMint: CompressAndCloseCMintAction };
 
 export interface CpiContext {
     setContext: boolean;
@@ -254,7 +276,7 @@ export type ExtensionInstructionData = {
 
 export interface CompressedMintMetadata {
     version: number;
-    splMintInitialized: boolean;
+    cmintDecompressed: boolean;
     mint: PublicKey;
 }
 
@@ -279,7 +301,7 @@ export interface MintActionCompressedInstructionData {
     actions: Action[];
     proof: ValidityProof | null;
     cpiContext: CpiContext | null;
-    mint: CompressedMintInstructionData;
+    mint: CompressedMintInstructionData | null;
 }
 
 /**
@@ -294,10 +316,12 @@ export function encodeMintActionInstructionData(
     // Convert bigint fields to BN for Borsh encoding
     const encodableData = {
         ...data,
-        mint: {
-            ...data.mint,
-            supply: bn(data.mint.supply.toString()),
-        },
+        mint: data.mint
+            ? {
+                  ...data.mint,
+                  supply: bn(data.mint.supply.toString()),
+              }
+            : null,
         actions: data.actions.map(action => {
             // Handle MintToCompressed action with recipients
             if ('mintToCompressed' in action && action.mintToCompressed) {

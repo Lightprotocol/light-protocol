@@ -30,7 +30,7 @@ describe('layout-mint-action', () => {
                     decimals: 9,
                     metadata: {
                         version: 1,
-                        splMintInitialized: true,
+                        cmintDecompressed: true,
                         mint,
                     },
                     mintAuthority: mint,
@@ -87,7 +87,7 @@ describe('layout-mint-action', () => {
                     decimals: 6,
                     metadata: {
                         version: 1,
-                        splMintInitialized: false,
+                        cmintDecompressed: false,
                         mint,
                     },
                     mintAuthority: mint,
@@ -139,7 +139,7 @@ describe('layout-mint-action', () => {
                     decimals: 9,
                     metadata: {
                         version: 1,
-                        splMintInitialized: true,
+                        cmintDecompressed: true,
                         mint,
                     },
                     mintAuthority: mint,
@@ -187,7 +187,7 @@ describe('layout-mint-action', () => {
                     decimals: 6,
                     metadata: {
                         version: 1,
-                        splMintInitialized: true,
+                        cmintDecompressed: true,
                         mint,
                     },
                     mintAuthority: mint,
@@ -236,7 +236,7 @@ describe('layout-mint-action', () => {
                     decimals: 9,
                     metadata: {
                         version: 1,
-                        splMintInitialized: false,
+                        cmintDecompressed: false,
                         mint,
                     },
                     mintAuthority: mint,
@@ -294,7 +294,7 @@ describe('layout-mint-action', () => {
                     decimals: 9,
                     metadata: {
                         version: 1,
-                        splMintInitialized: true,
+                        cmintDecompressed: true,
                         mint,
                     },
                     mintAuthority: mint,
@@ -330,7 +330,7 @@ describe('layout-mint-action', () => {
                     decimals: 9,
                     metadata: {
                         version: 1,
-                        splMintInitialized: true,
+                        cmintDecompressed: true,
                         mint,
                     },
                     mintAuthority: mint,
@@ -376,7 +376,7 @@ describe('layout-mint-action', () => {
                     decimals: 9,
                     metadata: {
                         version: 1,
-                        splMintInitialized: true,
+                        cmintDecompressed: true,
                         mint,
                     },
                     mintAuthority: mint,

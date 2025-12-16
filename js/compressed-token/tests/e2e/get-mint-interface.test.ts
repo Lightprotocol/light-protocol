@@ -378,7 +378,7 @@ describe('getMintInterface', () => {
 
             expect(result.mintContext).toBeDefined();
             expect(result.mintContext!.version).toBeDefined();
-            expect(typeof result.mintContext!.splMintInitialized).toBe(
+            expect(typeof result.mintContext!.cmintDecompressed).toBe(
                 'boolean',
             );
             expect(result.mintContext!.splMint).toBeInstanceOf(PublicKey);
@@ -561,7 +561,7 @@ describe('unpackMintInterface', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: true,
+                    cmintDecompressed: true,
                     splMint,
                 },
                 extensions: null,
@@ -587,7 +587,7 @@ describe('unpackMintInterface', () => {
             );
             expect(result.mintContext).toBeDefined();
             expect(result.mintContext!.version).toBe(1);
-            expect(result.mintContext!.splMintInitialized).toBe(true);
+            expect(result.mintContext!.cmintDecompressed).toBe(true);
             expect(result.mintContext!.splMint.toBase58()).toBe(
                 splMint.toBase58(),
             );
@@ -618,7 +618,7 @@ describe('unpackMintInterface', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint,
                 },
                 extensions: [
@@ -663,7 +663,7 @@ describe('unpackMintInterface', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint: PublicKey.default,
                 },
                 extensions: null,
@@ -693,7 +693,7 @@ describe('unpackMintInterface', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint: PublicKey.default,
                 },
                 extensions: null,
@@ -760,7 +760,7 @@ describe('unpackMintData', () => {
             },
             mintContext: {
                 version: 1,
-                splMintInitialized: true,
+                cmintDecompressed: true,
                 splMint,
             },
             extensions: null,
@@ -771,7 +771,7 @@ describe('unpackMintData', () => {
 
         expect(result.mintContext).toBeDefined();
         expect(result.mintContext.version).toBe(1);
-        expect(result.mintContext.splMintInitialized).toBe(true);
+        expect(result.mintContext.cmintDecompressed).toBe(true);
         expect(result.mintContext.splMint.toBase58()).toBe(splMint.toBase58());
         expect(result.tokenMetadata).toBeUndefined();
         expect(result.extensions).toBeUndefined();
@@ -800,7 +800,7 @@ describe('unpackMintData', () => {
             },
             mintContext: {
                 version: 1,
-                splMintInitialized: false,
+                cmintDecompressed: false,
                 splMint: PublicKey.default,
             },
             extensions: [
@@ -851,7 +851,7 @@ describe('unpackMintData', () => {
             },
             mintContext: {
                 version: 1,
-                splMintInitialized: false,
+                cmintDecompressed: false,
                 splMint: PublicKey.default,
             },
             extensions: [
@@ -883,7 +883,7 @@ describe('unpackMintData', () => {
             },
             mintContext: {
                 version: 2,
-                splMintInitialized: false,
+                cmintDecompressed: false,
                 splMint: PublicKey.default,
             },
             extensions: null,
@@ -910,7 +910,7 @@ describe('unpackMintData', () => {
                 },
                 mintContext: {
                     version,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint: PublicKey.default,
                 },
                 extensions: null,
@@ -923,7 +923,7 @@ describe('unpackMintData', () => {
         });
     });
 
-    it('should handle splMintInitialized boolean correctly', () => {
+    it('should handle cmintDecompressed boolean correctly', () => {
         [true, false].forEach(initialized => {
             const compressedMint: CompressedMint = {
                 base: {
@@ -935,7 +935,7 @@ describe('unpackMintData', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: initialized,
+                    cmintDecompressed: initialized,
                     splMint: PublicKey.default,
                 },
                 extensions: null,
@@ -944,7 +944,7 @@ describe('unpackMintData', () => {
             const buffer = serializeMint(compressedMint);
             const result = unpackMintData(buffer);
 
-            expect(result.mintContext.splMintInitialized).toBe(initialized);
+            expect(result.mintContext.cmintDecompressed).toBe(initialized);
         });
     });
 
@@ -968,7 +968,7 @@ describe('unpackMintData', () => {
             },
             mintContext: {
                 version: 1,
-                splMintInitialized: false,
+                cmintDecompressed: false,
                 splMint: PublicKey.default,
             },
             extensions: [

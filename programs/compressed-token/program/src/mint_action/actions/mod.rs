@@ -1,9 +1,12 @@
 pub mod authority;
+pub mod compress_and_close_cmint;
 pub mod create_mint;
-pub mod create_spl_mint;
+pub mod decompress_mint;
 pub mod mint_to;
 pub mod mint_to_ctoken;
 mod process_actions;
 pub mod update_metadata;
 pub use authority::check_authority;
+pub use compress_and_close_cmint::process_compress_and_close_cmint_action;
+pub use decompress_mint::process_decompress_mint_action;
 pub use process_actions::process_actions;

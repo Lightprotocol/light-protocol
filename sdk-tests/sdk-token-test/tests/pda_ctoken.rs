@@ -267,18 +267,18 @@ pub async fn create_mint(
         prove_by_index: false,
         root_index: rpc_result.addresses[0].root_index,
         address: compressed_mint_address,
-        mint: CompressedMintInstructionData {
+        mint: Some(CompressedMintInstructionData {
             supply: 0,
             decimals,
             metadata: CompressedMintMetadata {
                 version: 3,
                 mint: mint.into(),
-                spl_mint_initialized: false,
+                cmint_decompressed: false,
             },
             mint_authority: Some(mint_authority.pubkey().into()),
             freeze_authority: freeze_authority.map(|fa| fa.into()),
             extensions: metadata.map(|m| vec![light_ctoken_interface::instructions::extensions::ExtensionInstructionData::TokenMetadata(m)]),
-        },
+        }),
     };
 
     let token_recipients = vec![Recipient::new(

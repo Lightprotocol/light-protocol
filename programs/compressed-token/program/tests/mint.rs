@@ -6,7 +6,8 @@ use light_compressed_account::{
 use light_compressed_token::{
     constants::COMPRESSED_MINT_DISCRIMINATOR,
     mint_action::{
-        mint_input::create_input_compressed_mint_account, zero_copy_config::get_zero_copy_configs,
+        accounts::AccountsConfig, mint_input::create_input_compressed_mint_account,
+        zero_copy_config::get_zero_copy_configs,
     },
 };
 use light_ctoken_interface::{
@@ -51,7 +52,7 @@ fn test_rnd_create_compressed_mint_account() {
         // Generate random supplies
         let input_supply = rng.gen_range(0..=u64::MAX);
         let _output_supply = rng.gen_range(0..=u64::MAX);
-        let spl_mint_initialized = rng.gen_bool(0.1);
+        let cmint_decompressed = rng.gen_bool(0.1);
 
         // Generate random merkle context
         let merkle_tree_pubkey_index = rng.gen_range(0..=255u8);
@@ -116,7 +117,7 @@ fn test_rnd_create_compressed_mint_account() {
             metadata: CompressedMintMetadata {
                 version,
                 mint: mint_pda,
-                spl_mint_initialized,
+                cmint_decompressed,
             },
             mint_authority: Some(mint_authority),
             freeze_authority,
@@ -131,7 +132,7 @@ fn test_rnd_create_compressed_mint_account() {
             prove_by_index,
             root_index,
             compressed_address: compressed_account_address,
-            mint: mint_instruction_data,
+            mint: Some(mint_instruction_data.clone()),
             token_pool_bump: 0,
             token_pool_index: 0,
             actions: vec![], // No actions for basic test
@@ -142,12 +143,19 @@ fn test_rnd_create_compressed_mint_account() {
 
         // Step 4: Serialize instruction data to test zero-copy
         let serialized_data = borsh::to_vec(&mint_action_data).unwrap();
-        let (mut parsed_instruction_data, _) =
+        let (parsed_instruction_data, _) =
             MintActionCompressedInstructionData::zero_copy_at(&serialized_data).unwrap();
 
         // Step 5: Use current get_zero_copy_configs API
+        // Derive AccountsConfig from parsed instruction data (same as processor)
+        let accounts_config = AccountsConfig::new(&parsed_instruction_data).unwrap();
+
+        // Derive CompressedMint from instruction data (same as processor)
+        let mint_data = parsed_instruction_data.mint.as_ref().unwrap();
+        let cmint = CompressedMint::try_from(mint_data).unwrap();
+
         let (config, mut cpi_bytes, output_mint_config) =
-            get_zero_copy_configs(&mut parsed_instruction_data).unwrap();
+            get_zero_copy_configs(&parsed_instruction_data, &accounts_config, &cmint).unwrap();
 
         let (mut cpi_instruction_struct, _) =
             InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
@@ -169,6 +177,7 @@ fn test_rnd_create_compressed_mint_account() {
                 input_account,
                 &parsed_instruction_data,
                 merkle_context,
+                &accounts_config,
             )
             .unwrap();
 
@@ -179,7 +188,7 @@ fn test_rnd_create_compressed_mint_account() {
         let output_supply = input_supply + rng.gen_range(0..=1000);
 
         // Create a modified mint with updated supply for output using original data
-        let mut output_mint_data = mint_action_data.mint.clone();
+        let mut output_mint_data = mint_instruction_data.clone();
         output_mint_data.supply = output_supply;
 
         // Test 1: Serialize with Borsh
@@ -200,8 +209,8 @@ fn test_rnd_create_compressed_mint_account() {
         assert_eq!(zc_mint.supply.get(), output_mint_data.supply);
         assert_eq!(zc_mint.decimals, output_mint_data.decimals);
         assert_eq!(
-            zc_mint.metadata.spl_mint_initialized != 0,
-            output_mint_data.metadata.spl_mint_initialized
+            zc_mint.metadata.cmint_decompressed != 0,
+            output_mint_data.metadata.cmint_decompressed
         );
 
         if let (Some(zc_mint_auth), Some(orig_mint_auth)) = (
@@ -368,7 +377,7 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
         metadata: CompressedMintMetadata {
             version: 3u8,
             mint: Pubkey::new_from_array([3; 32]),
-            spl_mint_initialized: false,
+            cmint_decompressed: false,
         },
         extensions: Some(vec![ExtensionStruct::TokenMetadata(token_metadata)]),
     };
@@ -396,7 +405,7 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
             metadata: CompressedMintMetadata {
                 version: zc_mint.metadata.version,
                 mint: zc_mint.metadata.mint,
-                spl_mint_initialized: zc_mint.metadata.spl_mint_initialized != 0,
+                cmint_decompressed: zc_mint.metadata.cmint_decompressed != 0,
             },
             extensions: zc_mint.extensions.as_ref().map(|zc_exts| {
                 zc_exts

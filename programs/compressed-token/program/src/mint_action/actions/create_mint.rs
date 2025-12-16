@@ -18,6 +18,12 @@ pub fn process_create_mint_action(
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut<'_>,
     address_merkle_tree_account_index: u8,
 ) -> Result<(), ProgramError> {
+    // Mint data is required for create mint action
+    let mint = parsed_instruction_data
+        .mint
+        .as_ref()
+        .ok_or(ErrorCode::MintDataRequired)?;
+
     // 1. Derive compressed mint address without bump to ensure
     //      that only one mint per seed can be created.
     let spl_mint_pda = solana_pubkey::Pubkey::find_program_address(
@@ -32,10 +38,7 @@ pub fn process_create_mint_action(
         .as_ref()
         .ok_or(ProgramError::InvalidInstructionData)?;
 
-    if !pubkey_eq(
-        &spl_mint_pda,
-        parsed_instruction_data.mint.metadata.mint.array_ref(),
-    ) {
+    if !pubkey_eq(&spl_mint_pda, mint.metadata.mint.array_ref()) {
         msg!("Invalid mint PDA derivation");
         return Err(ErrorCode::MintActionInvalidMintPda.into());
     }
@@ -77,7 +80,7 @@ pub fn process_create_mint_action(
         address_merkle_tree_account_index,
     );
     // Validate mint parameters
-    if parsed_instruction_data.mint.supply != 0 {
+    if mint.supply != 0 {
         msg!("Initial supply must be 0 for new mint creation");
         return Err(ErrorCode::MintActionInvalidInitialSupply.into());
     }
@@ -86,22 +89,19 @@ pub fn process_create_mint_action(
     // Version 3 (ShaFlat) is required for new mints because:
     // 1. Only SHA256 hashing is implemented for compressed mints
     // 2. Version 3 is consistent with TokenDataVersion::ShaFlat used for compressed token accounts
-    if parsed_instruction_data.mint.metadata.version != 3 {
-        msg!(
-            "Unsupported mint version {}",
-            parsed_instruction_data.mint.metadata.version
-        );
+    if mint.metadata.version != 3 {
+        msg!("Unsupported mint version {}", mint.metadata.version);
         return Err(ErrorCode::MintActionUnsupportedVersion.into());
     }
 
-    // Validate spl_mint_initialized is false for new mint creation
-    if parsed_instruction_data.mint.metadata.spl_mint_initialized != 0 {
-        msg!("New mint must start without SPL mint initialized");
+    // Validate cmint_decompressed is false for new mint creation
+    if mint.metadata.cmint_decompressed != 0 {
+        msg!("New mint must start without CMint decompressed");
         return Err(ErrorCode::MintActionInvalidCompressionState.into());
     }
 
     // Validate extensions - only TokenMetadata is supported and at most one extension allowed
-    if let Some(extensions) = &parsed_instruction_data.mint.extensions {
+    if let Some(extensions) = &mint.extensions {
         if extensions.len() != 1 {
             msg!(
                 "Only one extension allowed for compressed mints, found {}",

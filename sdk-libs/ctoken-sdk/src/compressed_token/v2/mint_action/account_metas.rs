@@ -15,6 +15,10 @@ pub struct MintActionMetaConfig {
     pub tokens_out_queue: Option<Pubkey>, // Output queue for new token accounts
     pub cpi_context: Option<Pubkey>,
     pub ctoken_accounts: Vec<Pubkey>, // For mint_to_ctoken actions
+    pub cmint: Option<Pubkey>,        // CMint PDA account for DecompressMint action
+    pub compressible_config: Option<Pubkey>, // CompressibleConfig account (when creating CMint)
+    pub rent_sponsor: Option<Pubkey>, // Rent sponsor PDA (when creating CMint)
+    pub mint_signer_must_sign: bool,  // true for create_mint, false for decompress_mint
 }
 
 impl MintActionMetaConfig {
@@ -36,6 +40,10 @@ impl MintActionMetaConfig {
             tokens_out_queue: None,
             cpi_context: None,
             ctoken_accounts: Vec::new(),
+            cmint: None,
+            compressible_config: None,
+            rent_sponsor: None,
+            mint_signer_must_sign: true,
         }
     }
 
@@ -57,6 +65,10 @@ impl MintActionMetaConfig {
             tokens_out_queue: None,
             cpi_context: None,
             ctoken_accounts: Vec::new(),
+            cmint: None,
+            compressible_config: None,
+            rent_sponsor: None,
+            mint_signer_must_sign: false,
         }
     }
 
@@ -81,6 +93,10 @@ impl MintActionMetaConfig {
             tokens_out_queue: None,
             cpi_context: Some(cpi_context_pubkey),
             ctoken_accounts: Vec::new(),
+            cmint: None,
+            compressible_config: None,
+            rent_sponsor: None,
+            mint_signer_must_sign: false,
         })
     }
 
@@ -91,6 +107,41 @@ impl MintActionMetaConfig {
 
     pub fn with_ctoken_accounts(mut self, accounts: Vec<Pubkey>) -> Self {
         self.ctoken_accounts = accounts;
+        self
+    }
+
+    pub fn with_cmint(mut self, cmint: Pubkey) -> Self {
+        self.cmint = Some(cmint);
+        self
+    }
+
+    /// Set the mint_signer account with signing required.
+    /// Use for create_mint and create_spl_mint actions.
+    pub fn with_mint_signer(mut self, mint_signer: Pubkey) -> Self {
+        self.mint_signer = Some(mint_signer);
+        self.mint_signer_must_sign = true;
+        self
+    }
+
+    /// Set the mint_signer account without requiring signature.
+    /// Use for decompress_mint where only PDA derivation is needed.
+    pub fn with_mint_signer_no_sign(mut self, mint_signer: Pubkey) -> Self {
+        self.mint_signer = Some(mint_signer);
+        self.mint_signer_must_sign = false;
+        self
+    }
+
+    /// Configure compressible CMint with config and rent sponsor.
+    /// CMint is always compressible - this sets all required accounts.
+    pub fn with_compressible_cmint(
+        mut self,
+        cmint: Pubkey,
+        compressible_config: Pubkey,
+        rent_sponsor: Pubkey,
+    ) -> Self {
+        self.cmint = Some(cmint);
+        self.compressible_config = Some(compressible_config);
+        self.rent_sponsor = Some(rent_sponsor);
         self
     }
 
@@ -105,13 +156,31 @@ impl MintActionMetaConfig {
             false,
         ));
 
-        // mint_signer is present when creating a new mint
+        // mint_signer is present when creating a new mint or decompressing
         if let Some(mint_signer) = self.mint_signer {
-            // mint signer always needs to sign when present
-            metas.push(AccountMeta::new_readonly(mint_signer, true));
+            // mint_signer needs to sign for create_mint/create_spl_mint, not for decompress_mint
+            metas.push(AccountMeta::new_readonly(
+                mint_signer,
+                self.mint_signer_must_sign,
+            ));
         }
 
         metas.push(AccountMeta::new_readonly(self.authority, true));
+
+        // CompressibleConfig account (when creating compressible CMint)
+        if let Some(config) = self.compressible_config {
+            metas.push(AccountMeta::new_readonly(config, false));
+        }
+
+        // CMint account is present when decompressing the mint (DecompressMint action) or syncing
+        if let Some(cmint) = self.cmint {
+            metas.push(AccountMeta::new(cmint, false));
+        }
+
+        // Rent sponsor PDA (when creating compressible CMint)
+        if let Some(rent_sponsor) = self.rent_sponsor {
+            metas.push(AccountMeta::new(rent_sponsor, false));
+        }
 
         metas.push(AccountMeta::new(self.fee_payer, true));
 
@@ -148,11 +217,10 @@ impl MintActionMetaConfig {
 
         metas.push(AccountMeta::new(self.tree_pubkey, false));
 
-        // input_queue is present when NOT creating a new mint (mint_signer.is_none())
-        if self.mint_signer.is_none() {
-            if let Some(input_queue) = self.input_queue {
-                metas.push(AccountMeta::new(input_queue, false));
-            }
+        // input_queue is present when operating on an existing compressed mint
+        // (input_queue is set via new() for existing mints, None via new_create_mint() for new mints)
+        if let Some(input_queue) = self.input_queue {
+            metas.push(AccountMeta::new(input_queue, false));
         }
 
         // tokens_out_queue is present when there are MintToCompressed actions

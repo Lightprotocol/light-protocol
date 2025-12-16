@@ -189,7 +189,7 @@ pub mod csdk_anchor_full_derived_test {
             compression_params.mint_with_context.address,
             0, // root_index for new addresses
             proof,
-            compression_params.mint_with_context.mint.clone(),
+            compression_params.mint_with_context.mint.clone().unwrap(),
         )
         .with_mint_to_compressed(MintToCompressedAction {
             token_account_version: 3,

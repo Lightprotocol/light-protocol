@@ -113,8 +113,7 @@ function encodeUpdateMetadataInstructionData(
             decimals: mintInterface.mint.decimals,
             metadata: {
                 version: mintInterface.mintContext!.version,
-                splMintInitialized:
-                    mintInterface.mintContext!.splMintInitialized,
+                cmintDecompressed: mintInterface.mintContext!.cmintDecompressed,
                 mint: mintInterface.mintContext!.splMint,
             },
             mintAuthority: mintInterface.mint.mintAuthority,

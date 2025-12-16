@@ -1,5 +1,6 @@
 use anchor_lang::{prelude::borsh::BorshDeserialize, solana_program::program_pack::Pack};
 use light_client::indexer::Indexer;
+use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_ctoken_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData, mint_action::Recipient,
@@ -16,9 +17,10 @@ use light_ctoken_sdk::{
     },
     ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
 };
-use light_program_test::{LightProgramTest, ProgramTestConfig};
+use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_ctoken_transfer::assert_ctoken_transfer,
+    assert_mint_action::assert_mint_action,
     assert_mint_to_compressed::{assert_mint_to_compressed, assert_mint_to_compressed_one},
     assert_transfer2::{
         assert_transfer2, assert_transfer2_compress, assert_transfer2_decompress,
@@ -29,9 +31,12 @@ use light_test_utils::{
 };
 use light_token_client::{
     actions::{create_mint, mint_to_compressed, transfer2, transfer_ctoken},
-    instructions::transfer2::{
-        create_decompress_instruction, create_generic_transfer2_instruction, CompressInput,
-        DecompressInput, Transfer2InstructionType, TransferInput,
+    instructions::{
+        mint_action::{DecompressMintParams, MintActionType},
+        transfer2::{
+            create_decompress_instruction, create_generic_transfer2_instruction, CompressInput,
+            DecompressInput, Transfer2InstructionType, TransferInput,
+        },
     },
 };
 use serial_test::serial;
@@ -737,6 +742,8 @@ async fn test_ctoken_transfer() {
         &mint_seed,
         &mint_authority,
         &payer,
+        None,                    // decompress_mint
+        false,                   // compress_and_close_cmint
         vec![],                  // no compressed recipients
         decompressed_recipients, // mint to decompressed recipients
         None,                    // no mint authority update
@@ -754,7 +761,7 @@ async fn test_ctoken_transfer() {
     .unwrap();
 
     println!(
-        "✅ Mint creation and decompressed minting signature: {}",
+        "Mint creation and decompressed minting signature: {}",
         signature
     );
 
@@ -1186,13 +1193,15 @@ async fn test_mint_actions() {
         &mint_seed,
         &mint_authority,
         &payer,
+        None,                                // decompress_mint
+        false,                               // compress_and_close_cmint
         recipients.clone(),                  // mint_to_recipients
         vec![],                              // mint_to_decompressed_recipients
         Some(new_mint_authority.pubkey()),   // update_mint_authority
-       None,// Some(new_freeze_authority.pubkey()), // update_freeze_authority
+        None,                                // update_freeze_authority
         Some(light_token_client::instructions::mint_action::NewMint {
             decimals,
-            supply:0,
+            supply: 0,
             mint_authority: mint_authority.pubkey(),
             freeze_authority: Some(freeze_authority.pubkey()),
             metadata: Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
@@ -1227,7 +1236,7 @@ async fn test_mint_actions() {
         metadata: CompressedMintMetadata {
             version: 3, // With metadata
             mint: spl_mint_pda.into(),
-            spl_mint_initialized: false, // Should be true after CreateSplMint action
+            cmint_decompressed: false, // Should be true after CreateSplMint action
         },
         extensions: Some(vec![
             light_ctoken_interface::state::extensions::ExtensionStruct::TokenMetadata(
@@ -1280,7 +1289,7 @@ async fn test_mint_actions() {
         "Supply should match minted amount"
     );
     assert!(
-        !updated_compressed_mint.metadata.spl_mint_initialized,
+        !updated_compressed_mint.metadata.cmint_decompressed,
         "Mint should not be decompressed "
     );
 
@@ -1333,6 +1342,8 @@ async fn test_mint_actions() {
         &mint_seed,
         &new_mint_authority, // Current authority from first test (now the authority for this mint)
         &payer,
+        None,                                // decompress_mint
+        false,                               // compress_and_close_cmint
         additional_recipients.clone(),       // mint_to_recipients
         vec![],                              // mint_to_decompressed_recipients
         Some(newer_mint_authority.pubkey()), // update_mint_authority to newer authority
@@ -1386,7 +1397,266 @@ async fn test_mint_actions() {
         "Supply should include both mintings"
     );
     assert!(
-        !final_compressed_mint.metadata.spl_mint_initialized,
+        !final_compressed_mint.metadata.cmint_decompressed,
         "Mint should remain compressed"
     );
+}
+
+/// Test creating compressed mint and CMint (decompressed) in same instruction
+#[tokio::test]
+#[serial]
+async fn test_create_compressed_mint_with_cmint() {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Test parameters
+    let decimals = 8u8;
+    let mint_seed = Keypair::new();
+    let mint_authority = Keypair::new();
+    let freeze_authority = Keypair::new();
+
+    // Fund authority
+    rpc.airdrop_lamports(&mint_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    // Derive addresses
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
+    let compressed_mint_address =
+        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (cmint_pda, _cmint_bump) = find_cmint_address(&mint_seed.pubkey());
+
+    // Create mint + decompress in single instruction
+    let signature = light_token_client::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        Some(DecompressMintParams::default()), // decompress_mint = true (creates CMint)
+        false,                                 // compress_and_close_cmint = false
+        vec![],                                // no compressed recipients
+        vec![],                                // no decompressed recipients
+        None,                                  // no mint authority update
+        None,                                  // no freeze authority update
+        Some(light_token_client::instructions::mint_action::NewMint {
+            decimals,
+            supply: 0,
+            mint_authority: mint_authority.pubkey(),
+            freeze_authority: Some(freeze_authority.pubkey()),
+            metadata: None,
+            version: 3,
+        }),
+    )
+    .await
+    .unwrap();
+
+    println!("Create mint + CMint signature: {}", signature);
+
+    // Build pre-state for DecompressMint assertion (state before DecompressMint was applied)
+    let pre_decompress_mint = CompressedMint {
+        base: BaseMint {
+            mint_authority: Some(mint_authority.pubkey().into()),
+            supply: 0,
+            decimals,
+            is_initialized: true,
+            freeze_authority: Some(freeze_authority.pubkey().into()),
+        },
+        metadata: CompressedMintMetadata {
+            version: 3,
+            cmint_decompressed: false, // Before DecompressMint
+            mint: cmint_pda.to_bytes().into(),
+        },
+        extensions: None,
+    };
+
+    // Verify DecompressMint action results using assert_mint_action
+    assert_mint_action(
+        &mut rpc,
+        compressed_mint_address,
+        pre_decompress_mint,
+        vec![MintActionType::DecompressMint {
+            cmint_bump: _cmint_bump,
+            rent_payment: 2, // Default rent payment
+            write_top_up: 0, // Default write top-up
+        }],
+    )
+    .await;
+
+    println!("Create compressed mint with CMint completed, now testing CompressAndCloseCMint...");
+
+    // === COMPRESS AND CLOSE CMINT ===
+    // Warp to epoch 2 so that rent expires (CMint created with rent_payment: 2)
+    rpc.warp_to_slot(SLOTS_PER_EPOCH * 2).unwrap();
+
+    // Fetch pre-close state from CMint BEFORE closing (CMint will be closed after transaction)
+    let cmint_account_data = rpc
+        .get_account(cmint_pda)
+        .await
+        .expect("Failed to get CMint account")
+        .expect("CMint account should exist before close");
+    let pre_close_mint: CompressedMint =
+        BorshDeserialize::deserialize(&mut cmint_account_data.data.as_slice())
+            .expect("Failed to deserialize CMint data");
+
+    // Compress and close CMint (permissionless when rent expired)
+    let close_signature = light_token_client::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        None,   // no decompress_mint
+        true,   // compress_and_close_cmint = true
+        vec![], // no compressed recipients
+        vec![], // no decompressed recipients
+        None,   // no mint authority update
+        None,   // no freeze authority update
+        None,   // no new_mint
+    )
+    .await
+    .unwrap();
+
+    println!("CompressAndCloseCMint signature: {}", close_signature);
+
+    // Verify CompressAndCloseCMint action results using assert_mint_action
+    assert_mint_action(
+        &mut rpc,
+        compressed_mint_address,
+        pre_close_mint,
+        vec![MintActionType::CompressAndCloseCMint { idempotent: false }],
+    )
+    .await;
+
+    println!("CompressAndCloseCMint test completed successfully!");
+}
+
+/// Test decompressing an existing compressed mint to CMint
+/// 1. Create compressed mint without CMint
+/// 2. Mint tokens to recipients
+/// 3. Decompress existing mint to CMint
+/// 4. Verify CMint matches compressed mint state (including supply)
+#[tokio::test]
+#[serial]
+async fn test_decompress_existing_mint_to_cmint() {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Test parameters
+    let decimals = 8u8;
+    let mint_seed = Keypair::new();
+    let mint_authority = Keypair::new();
+    let freeze_authority = Keypair::new();
+    let recipient = Keypair::new();
+    let mint_amount = 1_000_000u64;
+
+    // Fund authority
+    rpc.airdrop_lamports(&mint_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    // Derive addresses
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
+    let compressed_mint_address =
+        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (cmint_pda, cmint_bump) = find_cmint_address(&mint_seed.pubkey());
+
+    // === STEP 1: Create compressed mint WITHOUT CMint ===
+    create_mint(
+        &mut rpc,
+        &mint_seed,
+        decimals,
+        &mint_authority,
+        Some(freeze_authority.pubkey()),
+        None, // No metadata
+        &payer,
+    )
+    .await
+    .unwrap();
+
+    // Verify CMint does NOT exist yet
+    let cmint_account = rpc.get_account(cmint_pda).await.unwrap();
+    assert!(cmint_account.is_none(), "CMint should NOT exist yet");
+
+    // Verify compressed mint exists with cmint_decompressed = false
+    let compressed_mint_account = rpc
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap();
+    let compressed_mint: CompressedMint =
+        BorshDeserialize::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
+            .unwrap();
+    assert!(
+        !compressed_mint.metadata.cmint_decompressed,
+        "cmint_decompressed should be false before DecompressMint"
+    );
+
+    // === STEP 2: Mint tokens to recipient ===
+    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+    mint_to_compressed(
+        &mut rpc,
+        spl_mint_pda,
+        vec![Recipient {
+            recipient: recipient.pubkey().into(),
+            amount: mint_amount,
+        }],
+        TokenDataVersion::V2,
+        &mint_authority,
+        &payer,
+    )
+    .await
+    .unwrap();
+
+    // Verify supply updated
+    let compressed_mint_account = rpc
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap();
+    let compressed_mint_after_mint: CompressedMint =
+        BorshDeserialize::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
+            .unwrap();
+    assert_eq!(
+        compressed_mint_after_mint.base.supply, mint_amount,
+        "Supply should be updated after minting"
+    );
+
+    // === STEP 3: Decompress existing mint to CMint ===
+    let signature = light_token_client::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        Some(DecompressMintParams::default()), // decompress_mint = true (creates CMint)
+        false,                                 // compress_and_close_cmint
+        vec![],                                // no new compressed recipients
+        vec![],                                // no decompressed recipients
+        None,                                  // no mint authority update
+        None,                                  // no freeze authority update
+        None,                                  // NO new mint - using existing
+    )
+    .await
+    .unwrap();
+
+    println!("Decompress existing mint to CMint signature: {}", signature);
+
+    // Verify DecompressMint action results using assert_mint_action
+    assert_mint_action(
+        &mut rpc,
+        compressed_mint_address,
+        compressed_mint_after_mint,
+        vec![MintActionType::DecompressMint {
+            cmint_bump,
+            rent_payment: 2, // Default rent payment
+            write_top_up: 0, // Default write top-up
+        }],
+    )
+    .await;
+
+    println!("Decompress existing mint to CMint test completed successfully!");
 }

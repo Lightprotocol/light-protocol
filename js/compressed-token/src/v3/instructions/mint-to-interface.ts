@@ -67,7 +67,7 @@ export function createMintToInterfaceInstruction(
         mintAuthority: mintInterface.mint.mintAuthority,
         freezeAuthority: mintInterface.mint.freezeAuthority,
         splMint: mintInterface.mintContext.splMint,
-        splMintInitialized: mintInterface.mintContext.splMintInitialized,
+        cmintDecompressed: mintInterface.mintContext.cmintDecompressed,
         version: mintInterface.mintContext.version,
         metadata: mintInterface.tokenMetadata
             ? {

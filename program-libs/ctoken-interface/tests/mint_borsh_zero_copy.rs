@@ -96,7 +96,7 @@ fn generate_random_mint() -> CompressedMint {
         },
         metadata: CompressedMintMetadata {
             version: 3,
-            spl_mint_initialized: rng.gen_bool(0.5),
+            cmint_decompressed: rng.gen_bool(0.5),
             mint: {
                 let mut bytes = [0u8; 32];
                 rng.fill(&mut bytes);
@@ -159,7 +159,7 @@ fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]
         },
         metadata: CompressedMintMetadata {
             version: zc_mint.metadata.version,
-            spl_mint_initialized: zc_mint.metadata.spl_mint_initialized != 0,
+            cmint_decompressed: zc_mint.metadata.cmint_decompressed != 0,
             mint: zc_mint.metadata.mint,
         },
         extensions: zc_extensions.clone(),
@@ -180,7 +180,7 @@ fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]
         },
         metadata: CompressedMintMetadata {
             version: zc_mint_mut.metadata.version,
-            spl_mint_initialized: zc_mint_mut.metadata.spl_mint_initialized != 0,
+            cmint_decompressed: zc_mint_mut.metadata.cmint_decompressed != 0,
             mint: zc_mint_mut.metadata.mint,
         },
         extensions: zc_extensions, // Extensions handling for mut is same as read-only

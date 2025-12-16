@@ -2,9 +2,9 @@ use light_compressed_account::{instruction_data::compressed_proof::CompressedPro
 use light_zero_copy::ZeroCopy;
 
 use super::{
-    CpiContext, CreateSplMintAction, MintToCTokenAction, MintToCompressedAction,
-    RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
-    UpdateMetadataFieldAction,
+    CompressAndCloseCMintAction, CpiContext, CreateSplMintAction, DecompressMintAction,
+    MintToCTokenAction, MintToCompressedAction, RemoveMetadataKeyAction, UpdateAuthority,
+    UpdateMetadataAuthorityAction, UpdateMetadataFieldAction,
 };
 use crate::{
     instructions::extensions::{ExtensionInstructionData, ZExtensionInstructionData},
@@ -35,6 +35,12 @@ pub enum Action {
     UpdateMetadataField(UpdateMetadataFieldAction),
     UpdateMetadataAuthority(UpdateMetadataAuthorityAction),
     RemoveMetadataKey(RemoveMetadataKeyAction),
+    /// Decompress a compressed mint to a CMint Solana account.
+    /// Creates a CMint PDA that becomes the source of truth.
+    DecompressMint(DecompressMintAction),
+    /// Compress and close a CMint Solana account. The compressed mint state is preserved.
+    /// Permissionless - anyone can call if is_compressible() returns true (rent expired).
+    CompressAndCloseCMint(CompressAndCloseCMintAction),
 }
 
 #[repr(C)]
@@ -63,7 +69,7 @@ pub struct MintActionCompressedInstructionData {
     pub actions: Vec<Action>,
     pub proof: Option<CompressedProof>,
     pub cpi_context: Option<CpiContext>,
-    pub mint: CompressedMintInstructionData,
+    pub mint: Option<CompressedMintInstructionData>,
 }
 
 #[repr(C)]
@@ -84,7 +90,7 @@ pub struct CompressedMintWithContext {
     pub prove_by_index: bool,
     pub root_index: u16,
     pub address: [u8; 32],
-    pub mint: CompressedMintInstructionData,
+    pub mint: Option<CompressedMintInstructionData>,
 }
 
 #[repr(C)]
@@ -124,9 +130,11 @@ impl TryFrom<CompressedMint> for CompressedMintInstructionData {
                                     symbol: token_metadata.symbol,
                                     uri: token_metadata.uri,
                                     additional_metadata: Some(token_metadata.additional_metadata),
-
                                 },
                             ))
+                        }
+                        ExtensionStruct::Compressible(compression_info) => {
+                            Ok(ExtensionInstructionData::Compressible(compression_info))
                         }
                         _ => {
                             Err(CTokenError::UnsupportedExtension)
@@ -184,6 +192,36 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
                                     .unwrap_or_else(Vec::new),
                             }))
                         }
+                        ZExtensionInstructionData::Compressible(compression_info) => {
+                            // Convert zero-copy CompressionInfo to owned CompressionInfo
+                            Ok(ExtensionStruct::Compressible(
+                                light_compressible::compression_info::CompressionInfo {
+                                    config_account_version: compression_info
+                                        .config_account_version
+                                        .into(),
+                                    compress_to_pubkey: compression_info.compress_to_pubkey,
+                                    account_version: compression_info.account_version,
+                                    lamports_per_write: compression_info.lamports_per_write.into(),
+                                    compression_authority: compression_info.compression_authority,
+                                    rent_sponsor: compression_info.rent_sponsor,
+                                    last_claimed_slot: compression_info.last_claimed_slot.into(),
+                                    rent_config: light_compressible::rent::RentConfig {
+                                        base_rent: compression_info.rent_config.base_rent.into(),
+                                        compression_cost: compression_info
+                                            .rent_config
+                                            .compression_cost
+                                            .into(),
+                                        lamports_per_byte_per_epoch: compression_info
+                                            .rent_config
+                                            .lamports_per_byte_per_epoch,
+                                        max_funded_epochs: compression_info
+                                            .rent_config
+                                            .max_funded_epochs,
+                                        max_top_up: compression_info.rent_config.max_top_up.into(),
+                                    },
+                                },
+                            ))
+                        }
                         _ => Err(CTokenError::UnsupportedExtension),
                     })
                     .collect();
@@ -202,7 +240,7 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
             },
             metadata: CompressedMintMetadata {
                 version: instruction_data.metadata.version,
-                spl_mint_initialized: instruction_data.metadata.spl_mint_initialized(),
+                cmint_decompressed: instruction_data.metadata.cmint_decompressed(),
                 mint: instruction_data.metadata.mint,
             },
             extensions,

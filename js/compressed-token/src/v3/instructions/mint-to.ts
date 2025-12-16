@@ -71,7 +71,7 @@ function encodeMintToCTokenInstructionData(
             decimals: params.mintData.decimals,
             metadata: {
                 version: params.mintData.version,
-                splMintInitialized: params.mintData.splMintInitialized,
+                cmintDecompressed: params.mintData.cmintDecompressed,
                 mint: params.mintData.splMint,
             },
             mintAuthority: params.mintData.mintAuthority,

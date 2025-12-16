@@ -40,7 +40,7 @@ fn random_optional_pubkey(rng: &mut StdRng, probability: f64) -> Option<Pubkey> 
 fn random_compressed_mint_metadata(rng: &mut StdRng) -> CompressedMintMetadata {
     CompressedMintMetadata {
         version: rng.gen_range(1..=3) as u8,
-        spl_mint_initialized: rng.gen_bool(0.5),
+        cmint_decompressed: rng.gen_bool(0.5),
         mint: random_pubkey(rng),
     }
 }
@@ -167,7 +167,7 @@ fn generate_random_instruction_data(
 
     let mut mint_metadata = random_compressed_mint_metadata(rng);
     if let Some(spl_init) = force_spl_initialized {
-        mint_metadata.spl_mint_initialized = spl_init && create_mint.is_none();
+        mint_metadata.cmint_decompressed = spl_init && create_mint.is_none();
     }
 
     // Generate actions
@@ -197,7 +197,7 @@ fn generate_random_instruction_data(
         } else {
             None
         },
-        mint: CompressedMintInstructionData {
+        mint: Some(CompressedMintInstructionData {
             supply: rng.gen_range(0..=1_000_000_000),
             decimals: rng.gen_range(0..=9),
             metadata: mint_metadata,
@@ -208,7 +208,7 @@ fn generate_random_instruction_data(
             } else {
                 None
             },
-        },
+        }),
     }
 }
 
@@ -230,14 +230,14 @@ fn compute_expected_config(data: &MintActionCompressedInstructionData) -> Accoun
         .iter()
         .any(|action| matches!(action, Action::MintToCompressed(_)));
 
-    // 4. create_spl_mint
+    // 4. create_spl_mint (for with_mint_signer only)
     let create_spl_mint = data
         .actions
         .iter()
         .any(|action| matches!(action, Action::CreateSplMint(_)));
 
-    // 5. spl_mint_initialized
-    let spl_mint_initialized = data.mint.metadata.spl_mint_initialized || create_spl_mint;
+    // 5. cmint_decompressed - only based on metadata flag (matches AccountsConfig::new)
+    let cmint_decompressed = data.mint.as_ref().unwrap().metadata.cmint_decompressed;
 
     // 6. with_mint_signer
     let with_mint_signer = data.create_mint.is_some() || create_spl_mint;
@@ -245,10 +245,24 @@ fn compute_expected_config(data: &MintActionCompressedInstructionData) -> Accoun
     // 7. create_mint
     let create_mint = data.create_mint.is_some();
 
+    // 8. has_decompress_mint_action
+    let has_decompress_mint_action = data
+        .actions
+        .iter()
+        .any(|action| matches!(action, Action::DecompressMint(_)));
+
+    // 9. has_compress_and_close_cmint_action
+    let has_compress_and_close_cmint_action = data
+        .actions
+        .iter()
+        .any(|action| matches!(action, Action::CompressAndCloseCMint(_)));
+
     AccountsConfig {
         with_cpi_context,
+        has_decompress_mint_action,
+        has_compress_and_close_cmint_action,
         write_to_cpi_context,
-        spl_mint_initialized,
+        cmint_decompressed,
         has_mint_to_actions,
         with_mint_signer,
         create_mint,
@@ -337,12 +351,25 @@ fn check_if_config_should_error(instruction_data: &MintActionCompressedInstructi
             .iter()
             .any(|action| matches!(action, Action::CreateSplMint(_)));
 
-        // Check if SPL mint is initialized
-        let spl_mint_initialized =
-            instruction_data.mint.metadata.spl_mint_initialized || create_spl_mint;
+        // Check for MintToCompressed actions
+        let has_mint_to_actions = instruction_data
+            .actions
+            .iter()
+            .any(|action| matches!(action, Action::MintToCompressed(_)));
 
-        // Return true if any of these conditions are met
-        has_mint_to_ctoken || create_spl_mint || spl_mint_initialized
+        // cmint_decompressed is only from metadata flag (matches AccountsConfig::new)
+        let cmint_decompressed = instruction_data
+            .mint
+            .as_ref()
+            .unwrap()
+            .metadata
+            .cmint_decompressed;
+
+        // Error conditions matching AccountsConfig::new:
+        // 1. has_mint_to_ctoken (MintToCToken actions not allowed)
+        // 2. create_spl_mint (CreateSplMint actions not allowed)
+        // 3. cmint_decompressed && has_mint_to_actions (mint decompressed + MintToCompressed not allowed)
+        has_mint_to_ctoken || create_spl_mint || (cmint_decompressed && has_mint_to_actions)
     } else {
         false
     }

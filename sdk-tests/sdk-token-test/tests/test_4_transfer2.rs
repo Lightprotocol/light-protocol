@@ -239,7 +239,7 @@ async fn mint_compressed_tokens(
         metadata: CompressedMintMetadata {
             version: 3,
             mint: mint_pda.into(),
-            spl_mint_initialized: false,
+            cmint_decompressed: false,
         },
         extensions: None,
     };
@@ -252,7 +252,7 @@ async fn mint_compressed_tokens(
                 leaf_index: compressed_mint_account.leaf_index,
                 root_index: 0,
                 address: compressed_mint_account.address.unwrap(),
-                mint: expected_compressed_mint.try_into().unwrap(),
+                mint: Some(expected_compressed_mint.try_into().unwrap()),
             },
             proof: None,
             recipients: vec![Recipient {

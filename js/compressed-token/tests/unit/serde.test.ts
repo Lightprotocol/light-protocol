@@ -46,7 +46,7 @@ describe('serde', () => {
                     },
                     mintContext: {
                         version: 1,
-                        splMintInitialized: false,
+                        cmintDecompressed: false,
                         splMint: PublicKey.default,
                     },
                     extensions: null,
@@ -64,7 +64,7 @@ describe('serde', () => {
                     },
                     mintContext: {
                         version: 1,
-                        splMintInitialized: true,
+                        cmintDecompressed: true,
                         splMint: Keypair.generate().publicKey,
                     },
                     extensions: null,
@@ -82,7 +82,7 @@ describe('serde', () => {
                     },
                     mintContext: {
                         version: 0,
-                        splMintInitialized: false,
+                        cmintDecompressed: false,
                         splMint: PublicKey.default,
                     },
                     extensions: null,
@@ -100,7 +100,7 @@ describe('serde', () => {
                     },
                     mintContext: {
                         version: 255,
-                        splMintInitialized: true,
+                        cmintDecompressed: true,
                         splMint: Keypair.generate().publicKey,
                     },
                     extensions: null,
@@ -118,7 +118,7 @@ describe('serde', () => {
                     },
                     mintContext: {
                         version: 0,
-                        splMintInitialized: false,
+                        cmintDecompressed: false,
                         splMint: PublicKey.default,
                     },
                     extensions: null,
@@ -158,8 +158,8 @@ describe('serde', () => {
                 expect(deserialized.mintContext.version).toBe(
                     mint.mintContext.version,
                 );
-                expect(deserialized.mintContext.splMintInitialized).toBe(
-                    mint.mintContext.splMintInitialized,
+                expect(deserialized.mintContext.cmintDecompressed).toBe(
+                    mint.mintContext.cmintDecompressed,
                 );
                 expect(deserialized.mintContext.splMint.toBase58()).toBe(
                     mint.mintContext.splMint.toBase58(),
@@ -181,7 +181,7 @@ describe('serde', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint: PublicKey.default,
                 },
                 extensions: null,
@@ -206,7 +206,7 @@ describe('serde', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint: PublicKey.default,
                 },
                 extensions: [
@@ -239,7 +239,7 @@ describe('serde', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint: PublicKey.default,
                 },
                 extensions: [
@@ -268,7 +268,7 @@ describe('serde', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint: PublicKey.default,
                 },
                 extensions: [],
@@ -497,7 +497,7 @@ describe('serde', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint: PublicKey.default,
                 },
                 extensions: null,
@@ -525,7 +525,7 @@ describe('serde', () => {
                     },
                     mintContext: {
                         version,
-                        splMintInitialized: false,
+                        cmintDecompressed: false,
                         splMint: PublicKey.default,
                     },
                     extensions: null,
@@ -538,7 +538,7 @@ describe('serde', () => {
             });
         });
 
-        it('should correctly parse splMintInitialized boolean', () => {
+        it('should correctly parse cmintDecompressed boolean', () => {
             [true, false].forEach(initialized => {
                 const mint: CompressedMint = {
                     base: {
@@ -550,7 +550,7 @@ describe('serde', () => {
                     },
                     mintContext: {
                         version: 1,
-                        splMintInitialized: initialized,
+                        cmintDecompressed: initialized,
                         splMint: PublicKey.default,
                     },
                     extensions: null,
@@ -559,7 +559,7 @@ describe('serde', () => {
                 const serialized = serializeMint(mint);
                 const deserialized = deserializeMint(serialized);
 
-                expect(deserialized.mintContext.splMintInitialized).toBe(
+                expect(deserialized.mintContext.cmintDecompressed).toBe(
                     initialized,
                 );
             });
@@ -586,7 +586,7 @@ describe('serde', () => {
                     },
                     mintContext: {
                         version: 1,
-                        splMintInitialized: true,
+                        cmintDecompressed: true,
                         splMint: pubkey,
                     },
                     extensions: null,
@@ -620,7 +620,7 @@ describe('serde', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint: PublicKey.default,
                 },
                 extensions: null,
@@ -650,7 +650,7 @@ describe('serde', () => {
                     },
                     mintContext: {
                         version: 1,
-                        splMintInitialized: false,
+                        cmintDecompressed: false,
                         splMint: PublicKey.default,
                     },
                     extensions: null,
@@ -677,7 +677,7 @@ describe('serde', () => {
                     },
                     mintContext: {
                         version: 1,
-                        splMintInitialized: false,
+                        cmintDecompressed: false,
                         splMint: PublicKey.default,
                     },
                     extensions: null,
@@ -712,7 +712,7 @@ describe('serde', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: true,
+                    cmintDecompressed: true,
                     splMint: Keypair.generate().publicKey,
                 },
                 extensions: [
@@ -758,7 +758,7 @@ describe('serde', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint: PublicKey.default,
                 },
                 extensions: null,
@@ -841,7 +841,7 @@ describe('serde', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint: PublicKey.default,
                 },
                 extensions: [
@@ -1040,7 +1040,7 @@ describe('serde', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: true,
+                    cmintDecompressed: true,
                     splMint,
                 },
                 extensions: null,
@@ -1055,7 +1055,7 @@ describe('serde', () => {
             );
             expect(result.freezeAuthority).toBeNull();
             expect(result.splMint.toBase58()).toBe(splMint.toBase58());
-            expect(result.splMintInitialized).toBe(true);
+            expect(result.cmintDecompressed).toBe(true);
             expect(result.version).toBe(1);
             expect(result.metadata).toBeUndefined();
         });
@@ -1082,7 +1082,7 @@ describe('serde', () => {
                 },
                 mintContext: {
                     version: 2,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint,
                 },
                 extensions: [
@@ -1120,7 +1120,7 @@ describe('serde', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint: PublicKey.default,
                 },
                 extensions: [],
@@ -1148,7 +1148,7 @@ describe('serde', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint: PublicKey.default,
                 },
                 extensions: [
@@ -1185,7 +1185,7 @@ describe('serde', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: true,
+                    cmintDecompressed: true,
                     splMint: Keypair.generate().publicKey,
                 },
                 extensions: [
@@ -1215,7 +1215,7 @@ describe('serde', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint: PublicKey.default,
                 },
                 extensions: null,
@@ -1237,7 +1237,7 @@ describe('serde', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint: PublicKey.default,
                 },
                 extensions: [],
@@ -1257,7 +1257,7 @@ describe('serde', () => {
                 mintAuthority: null,
                 freezeAuthority: null,
                 splMint: PublicKey.default,
-                splMintInitialized: false,
+                cmintDecompressed: false,
                 version: 1,
             };
 
@@ -1273,7 +1273,7 @@ describe('serde', () => {
                 mintAuthority: null,
                 freezeAuthority: null,
                 splMint: PublicKey.default,
-                splMintInitialized: false,
+                cmintDecompressed: false,
                 version: 1,
                 metadata: {
                     updateAuthority: null,

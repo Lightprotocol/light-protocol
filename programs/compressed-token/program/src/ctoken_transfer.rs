@@ -49,7 +49,7 @@ pub fn process_ctoken_transfer(
     };
 
     // Only pass the first 8 bytes (amount) to the SPL transfer processor
-    process_transfer(accounts, &instruction_data[..8])
+    process_transfer(accounts, &instruction_data[..8], false)
         .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
     calculate_and_execute_top_up_transfers(accounts, max_top_up)
 }

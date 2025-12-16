@@ -9,10 +9,7 @@ use light_program_profiler::profile;
 use light_sdk_pinocchio::instruction::ZOutputCompressedAccountWithPackedContextMut;
 
 use crate::{
-    mint_action::{
-        accounts::MintActionAccounts, check_authority,
-        mint_to_ctoken::handle_spl_mint_initialized_token_pool,
-    },
+    mint_action::{accounts::MintActionAccounts, check_authority},
     shared::token_output::set_output_compressed_account,
 };
 
@@ -27,8 +24,8 @@ use crate::{
 /// 6. **Compressed Account Creation**: Create new compressed token account for each recipient
 ///
 /// ## SPL Mint Synchronization
-/// When `accounts_config.spl_mint_initialized` is true, an SPL mint exists for this compressed mint.
-/// The function maintains consistency between the compressed token supply and the underlying SPL mint supply
+/// When `compressed_mint.metadata.cmint_decompressed` is true and an SPL mint exists for this compressed mint,
+/// the function maintains consistency between the compressed token supply and the underlying SPL mint supply
 /// by minting equivalent tokens to a program-controlled token pool account via CPI to SPL Token 2022.
 #[allow(clippy::too_many_arguments)]
 #[profile]
@@ -59,14 +56,6 @@ pub fn process_mint_to_compressed_action<'a>(
     compressed_mint.base.supply = sum_amounts
         .checked_add(compressed_mint.base.supply)
         .ok_or(ErrorCode::MintActionAmountTooLarge)?;
-
-    // Check SPL mint initialization from compressed mint state, not config
-    handle_spl_mint_initialized_token_pool(
-        validated_accounts,
-        compressed_mint.metadata.spl_mint_initialized,
-        sum_amounts,
-        mint,
-    )?;
 
     // Create output token accounts
     create_output_compressed_token_accounts(

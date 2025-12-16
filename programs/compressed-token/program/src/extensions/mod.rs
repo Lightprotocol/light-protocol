@@ -3,13 +3,10 @@ pub mod token_metadata;
 
 // Import from ctoken-types instead of local modules
 use light_ctoken_interface::{
-    instructions::{
-        extensions::{ZExtensionInstructionData, ZTokenMetadataInstructionData},
-        mint_action::ZAction,
-    },
+    instructions::mint_action::ZAction,
     state::{
-        AdditionalMetadataConfig, ExtensionStructConfig, TokenMetadata, TokenMetadataConfig,
-        ZAdditionalMetadata,
+        AdditionalMetadata, AdditionalMetadataConfig, ExtensionStruct, ExtensionStructConfig,
+        TokenMetadata, TokenMetadataConfig,
     },
     CTokenError,
 };
@@ -17,24 +14,36 @@ use light_program_profiler::profile;
 use light_zero_copy::ZeroCopyNew;
 use spl_pod::solana_msg::msg;
 
+/// Returns true if extension should be included in compressed account output.
+#[inline(always)]
+pub fn should_include_in_compressed_output(extension: &ExtensionStruct) -> bool {
+    matches!(extension, ExtensionStruct::TokenMetadata(_))
+}
+
 /// Action-aware version that calculates maximum sizes needed for field updates
 /// Returns: (has_extensions, extension_configs, additional_data_len)
 #[profile]
 pub fn process_extensions_config_with_actions(
-    extensions: Option<&Vec<ZExtensionInstructionData>>,
+    extensions: Option<&Vec<ExtensionStruct>>,
     actions: &[ZAction],
 ) -> Result<(bool, Vec<ExtensionStructConfig>, usize), CTokenError> {
-    if let Some(extensions) = extensions {
-        let mut additional_mint_data_len = 0;
-        let mut config_vec = Vec::new();
+    let mut additional_mint_data_len = 0;
+    let mut config_vec = Vec::new();
 
+    // Process existing extensions from state
+    // NOTE: Compressible extension is NOT included in compressed account output.
+    // It only lives in the CMint Solana account.
+    if let Some(extensions) = extensions {
         for (extension_index, extension) in extensions.iter().enumerate() {
+            if !should_include_in_compressed_output(extension) {
+                continue;
+            }
             match extension {
-                ZExtensionInstructionData::TokenMetadata(token_metadata_data) => {
+                ExtensionStruct::TokenMetadata(token_metadata) => {
                     process_token_metadata_config_with_actions(
                         &mut additional_mint_data_len,
                         &mut config_vec,
-                        token_metadata_data,
+                        token_metadata,
                         actions,
                         extension_index,
                     )?
@@ -42,44 +51,48 @@ pub fn process_extensions_config_with_actions(
                 _ => return Err(CTokenError::UnsupportedExtension),
             }
         }
-        Ok((true, config_vec, additional_mint_data_len))
-    } else {
-        Ok((false, Vec::new(), 0))
     }
+
+    // NOTE: DecompressMint does NOT add Compressible to compressed account output.
+    // Compressible extension only lives in the CMint Solana account, not in the compressed account.
+    // The CMint sync logic handles adding Compressible when writing to CMint.
+
+    let has_extensions = !config_vec.is_empty();
+    Ok((has_extensions, config_vec, additional_mint_data_len))
 }
 
 fn process_token_metadata_config_with_actions(
     additional_mint_data_len: &mut usize,
     config_vec: &mut Vec<ExtensionStructConfig>,
-    token_metadata_data: &ZTokenMetadataInstructionData<'_>,
+    token_metadata: &TokenMetadata,
     actions: &[ZAction],
     extension_index: usize,
 ) -> Result<(), CTokenError> {
     // Early validation - no allocations needed
-    if let Some(ref additional_metadata) = token_metadata_data.additional_metadata {
-        if additional_metadata.len() > 20 {
-            msg!(
-                "Too many additional metadata elements: {} (max 20)",
-                additional_metadata.len()
-            );
-            return Err(CTokenError::TooManyAdditionalMetadata);
-        }
+    if token_metadata.additional_metadata.len() > 20 {
+        msg!(
+            "Too many additional metadata elements: {} (max 20)",
+            token_metadata.additional_metadata.len()
+        );
+        return Err(CTokenError::TooManyAdditionalMetadata);
+    }
 
-        // Check for duplicate keys (O(n²) but acceptable for max 20 items)
-        for i in 0..additional_metadata.len() {
-            for j in (i + 1)..additional_metadata.len() {
-                if additional_metadata[i].key == additional_metadata[j].key {
-                    msg!("Duplicate metadata key found at positions {} and {}", i, j);
-                    return Err(CTokenError::DuplicateMetadataKey);
-                }
+    // Check for duplicate keys (O(n^2) but acceptable for max 20 items)
+    for i in 0..token_metadata.additional_metadata.len() {
+        for j in (i + 1)..token_metadata.additional_metadata.len() {
+            if token_metadata.additional_metadata[i].key
+                == token_metadata.additional_metadata[j].key
+            {
+                msg!("Duplicate metadata key found at positions {} and {}", i, j);
+                return Err(CTokenError::DuplicateMetadataKey);
             }
         }
     }
 
     // Single-pass state accumulator - track final sizes directly
-    let mut final_name_len = token_metadata_data.name.len();
-    let mut final_symbol_len = token_metadata_data.symbol.len();
-    let mut final_uri_len = token_metadata_data.uri.len();
+    let mut final_name_len = token_metadata.name.len();
+    let mut final_symbol_len = token_metadata.symbol.len();
+    let mut final_uri_len = token_metadata.uri.len();
 
     // Apply actions sequentially to determine final field sizes (last action wins)
     for action in actions.iter() {
@@ -97,7 +110,7 @@ fn process_token_metadata_config_with_actions(
 
     // Build metadata config directly without intermediate collections
     let additional_metadata_configs = build_metadata_config(
-        token_metadata_data.additional_metadata.as_ref(),
+        &token_metadata.additional_metadata,
         actions,
         extension_index,
     );
@@ -118,7 +131,7 @@ fn process_token_metadata_config_with_actions(
 /// Processes all possible keys and determines final state (SPL Token-2022 compatible)
 #[inline(always)]
 fn build_metadata_config(
-    metadata: Option<&Vec<ZAdditionalMetadata<'_>>>,
+    metadata: &[AdditionalMetadata],
     actions: &[ZAction],
     extension_index: usize,
 ) -> Vec<AdditionalMetadataConfig> {
@@ -127,8 +140,7 @@ fn build_metadata_config(
 
     let should_add_key = |key: &[u8]| -> bool {
         // Key exists if it's in original metadata OR added via UpdateMetadataField
-        let exists_in_original =
-            metadata.is_some_and(|items| items.iter().any(|item| item.key == key));
+        let exists_in_original = metadata.iter().any(|item| item.key == key);
         let added_via_update = actions.iter().any(|action| {
             matches!(action, ZAction::UpdateMetadataField(update)
                 if update.extension_index as usize == extension_index
@@ -148,30 +160,28 @@ fn build_metadata_config(
     };
 
     // Process all original metadata keys
-    if let Some(items) = metadata {
-        for item in items.iter() {
-            if should_add_key(item.key) {
-                let final_value_len = actions
-                    .iter()
-                    .rev()
-                    .find_map(|action| match action {
-                        ZAction::UpdateMetadataField(update)
-                            if update.extension_index as usize == extension_index
-                                && update.field_type == 3
-                                && update.key == item.key =>
-                        {
-                            Some(update.value.len())
-                        }
-                        _ => None,
-                    })
-                    .unwrap_or(item.value.len());
+    for item in metadata.iter() {
+        if should_add_key(&item.key) {
+            let final_value_len = actions
+                .iter()
+                .rev()
+                .find_map(|action| match action {
+                    ZAction::UpdateMetadataField(update)
+                        if update.extension_index as usize == extension_index
+                            && update.field_type == 3
+                            && update.key == item.key =>
+                    {
+                        Some(update.value.len())
+                    }
+                    _ => None,
+                })
+                .unwrap_or(item.value.len());
 
-                configs.push(AdditionalMetadataConfig {
-                    key: item.key.len() as u32,
-                    value: final_value_len as u32,
-                });
-                processed_keys.push(item.key);
-            }
+            configs.push(AdditionalMetadataConfig {
+                key: item.key.len() as u32,
+                value: final_value_len as u32,
+            });
+            processed_keys.push(&item.key);
         }
     }
 

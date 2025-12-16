@@ -145,7 +145,7 @@ pub async fn setup_create_compressed_mint(
                 .root_index
                 .root_index()
                 .unwrap_or_default(),
-            mint: compressed_mint.try_into().unwrap(),
+            mint: Some(compressed_mint.try_into().unwrap()),
         };
 
         // Build mint params with first recipient

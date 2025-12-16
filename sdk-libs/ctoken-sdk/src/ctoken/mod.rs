@@ -65,11 +65,13 @@
 //! ```
 //!
 
+mod burn;
 mod close;
 mod compressible;
 mod create;
 mod create_ata;
 mod create_cmint;
+mod ctoken_mint_to;
 mod decompress;
 mod mint_to;
 mod transfer_ctoken;
@@ -77,11 +79,13 @@ mod transfer_ctoken_spl;
 mod transfer_interface;
 mod transfer_spl_ctoken;
 
+pub use burn::*;
 pub use close::*;
 pub use compressible::{CompressibleParams, CompressibleParamsCpi};
 pub use create::*;
 pub use create_ata::*;
 pub use create_cmint::*;
+pub use ctoken_mint_to::*;
 pub use decompress::DecompressToCtoken;
 use light_compressible::config::CompressibleConfig;
 pub use light_ctoken_interface::{

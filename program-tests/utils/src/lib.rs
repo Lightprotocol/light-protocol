@@ -22,6 +22,8 @@ pub mod assert_claim;
 pub mod assert_close_token_account;
 pub mod assert_compressed_tx;
 pub mod assert_create_token_account;
+pub mod assert_ctoken_burn;
+pub mod assert_ctoken_mint_to;
 pub mod assert_ctoken_transfer;
 pub mod assert_epoch;
 pub mod assert_merkle_tree;

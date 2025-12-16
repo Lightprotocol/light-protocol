@@ -76,18 +76,18 @@ async fn test_setup() -> TestSetup {
         prove_by_index: false,
         root_index: 0,
         address: compressed_mint_address,
-        mint: CompressedMintInstructionData {
+        mint: Some(CompressedMintInstructionData {
             supply: 0,
             decimals,
             metadata: CompressedMintMetadata {
                 version: 3,
-                spl_mint_initialized: false,
+                cmint_decompressed: false,
                 mint: spl_mint_pda.into(),
             },
             mint_authority: Some(mint_authority.pubkey().into()),
             freeze_authority: Some(freeze_authority.into()),
             extensions: None,
-        },
+        }),
     };
 
     TestSetup {
@@ -127,7 +127,7 @@ async fn test_write_to_cpi_context_create_mint() {
         compressed_mint_inputs.address,
         compressed_mint_inputs.root_index,
         CompressedProof::default(),
-        compressed_mint_inputs.mint.clone(),
+        compressed_mint_inputs.mint.clone().unwrap(),
     )
     .with_cpi_context(CpiContext {
         set_context: false,
@@ -248,7 +248,7 @@ async fn test_write_to_cpi_context_invalid_address_tree() {
         compressed_mint_inputs.address,
         compressed_mint_inputs.root_index,
         CompressedProof::default(),
-        compressed_mint_inputs.mint.clone(),
+        compressed_mint_inputs.mint.clone().unwrap(),
     )
     .with_cpi_context(CpiContext {
         set_context: false,
@@ -340,7 +340,7 @@ async fn test_write_to_cpi_context_invalid_compressed_address() {
         invalid_compressed_address,
         compressed_mint_inputs.root_index,
         CompressedProof::default(),
-        compressed_mint_inputs.mint.clone(),
+        compressed_mint_inputs.mint.clone().unwrap(),
     )
     .with_cpi_context(CpiContext {
         set_context: false,
@@ -441,7 +441,7 @@ async fn test_execute_cpi_context_invalid_tree_index() {
         compressed_mint_inputs.address,
         compressed_mint_inputs.root_index,
         CompressedProof::default(),
-        compressed_mint_inputs.mint.clone(),
+        compressed_mint_inputs.mint.clone().unwrap(),
     )
     .with_cpi_context(execute_cpi_context);
 

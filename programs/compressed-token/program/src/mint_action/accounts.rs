@@ -1,4 +1,4 @@
-use anchor_compressed_token::{check_spl_token_pool_derivation_with_index, ErrorCode};
+use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_ctoken_interface::{
@@ -38,15 +38,16 @@ pub struct MintActionAccounts<'info> {
     pub packed_accounts: ProgramPackedAccounts<'info, AccountInfo>,
 }
 
-/// Reqired accounts to execute an instruction
+/// Required accounts to execute an instruction
 /// with or without cpi context.
 pub struct ExecutingAccounts<'info> {
-    /// Spl mint acccount.
-    pub mint: Option<&'info AccountInfo>,
-    /// Ctoken pool pda, spl token account.
-    pub token_pool_pda: Option<&'info AccountInfo>,
-    /// Spl token 2022 program.
-    pub token_program: Option<&'info AccountInfo>,
+    /// CompressibleConfig account - required when creating CMint (always compressible).
+    pub compressible_config: Option<&'info AccountInfo>,
+    /// CMint Solana account (decompressed compressed mint).
+    /// Required for DecompressMint action and when syncing with existing CMint.
+    pub cmint: Option<&'info AccountInfo>,
+    /// Rent sponsor PDA - required when creating CMint (pays for account).
+    pub rent_sponsor: Option<&'info AccountInfo>,
     pub system: LightSystemAccounts<'info>,
     /// Out output queue for the compressed mint account.
     pub out_output_queue: &'info AccountInfo,
@@ -64,17 +65,23 @@ pub struct ExecutingAccounts<'info> {
 
 impl<'info> MintActionAccounts<'info> {
     #[profile]
+    #[track_caller]
     pub fn validate_and_parse(
         accounts: &'info [AccountInfo],
         config: &AccountsConfig,
-        cmint_pubkey: &solana_pubkey::Pubkey,
+        cmint_pubkey: Option<&solana_pubkey::Pubkey>,
         token_pool_index: u8,
         token_pool_bump: u8,
     ) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
         let light_system_program = iter.next_account("light_system_program")?;
 
-        let mint_signer = iter.next_option_signer("mint_signer", config.with_mint_signer)?;
+        // mint_signer needs to sign for create_mint/create_spl_mint, but not for decompress_mint
+        let mint_signer = if config.mint_signer_must_sign() {
+            iter.next_option_signer("mint_signer", config.with_mint_signer)?
+        } else {
+            iter.next_option("mint_signer", config.with_mint_signer)?
+        };
         // Static non-CPI accounts first
         // Authority is always required to sign
         let authority = iter.next_signer("authority")?;
@@ -94,10 +101,17 @@ impl<'info> MintActionAccounts<'info> {
                 packed_accounts: ProgramPackedAccounts { accounts: &[] },
             })
         } else {
-            let mint = iter.next_option_mut("mint", config.spl_mint_initialized)?;
-            let token_pool_pda =
-                iter.next_option_mut("token_pool_pda", config.spl_mint_initialized)?;
-            let token_program = iter.next_option("token_program", config.spl_mint_initialized)?;
+            // Parse compressible config when creating or closing CMint
+            let compressible_config =
+                iter.next_option("compressible_config", config.needs_compressible_accounts())?;
+
+            // CMint account required if already decompressed (for sync) OR being decompressed/closed
+            let cmint = iter.next_option_mut("cmint", config.needs_cmint_account())?;
+
+            // Parse rent_sponsor when creating or closing CMint
+            let rent_sponsor =
+                iter.next_option_mut("rent_sponsor", config.needs_compressible_accounts())?;
+
             let system = LightSystemAccounts::validate_and_parse(
                 &mut iter,
                 false,
@@ -121,14 +135,15 @@ impl<'info> MintActionAccounts<'info> {
             // Only needed for minting to compressed token accounts
             let tokens_out_queue =
                 iter.next_option("tokens_out_queue", config.has_mint_to_actions)?;
+
             let mint_accounts = MintActionAccounts {
                 mint_signer,
                 light_system_program,
                 authority,
                 executing: Some(ExecutingAccounts {
-                    mint,
-                    token_pool_pda,
-                    token_program,
+                    compressible_config,
+                    cmint,
+                    rent_sponsor,
                     system,
                     in_merkle_tree,
                     address_merkle_tree,
@@ -196,23 +211,19 @@ impl<'info> MintActionAccounts<'info> {
         }
 
         if let Some(executing) = &self.executing {
-            // mint (optional)
-            if executing.mint.is_some() {
+            // compressible_config (optional) - when creating CMint
+            if executing.compressible_config.is_some() {
                 offset += 1;
             }
-
-            // token_pool_pda (optional)
-            if executing.token_pool_pda.is_some() {
+            // cmint (optional) - comes before rent_sponsor
+            if executing.cmint.is_some() {
                 offset += 1;
             }
-
-            // token_program (optional)
-            if executing.token_program.is_some() {
+            // rent_sponsor (optional) - when creating CMint
+            if executing.rent_sponsor.is_some() {
                 offset += 1;
             }
-
-            // LightSystemAccounts - these are the CPI accounts that start here
-            // We don't add them to offset since this is where CPI accounts begin
+            // LightSystemAccounts - CPI accounts start here
         }
         // write_to_cpi_context_system - these are the CPI accounts that start here
         // We don't add them to offset since this is where CPI accounts begin
@@ -285,54 +296,26 @@ impl<'info> MintActionAccounts<'info> {
         false
     }
 
+    /// Get CMint account if present in executing accounts.
+    pub fn get_cmint(&self) -> Option<&'info AccountInfo> {
+        self.executing.as_ref().and_then(|exec| exec.cmint)
+    }
+
     pub fn validate_accounts(
         &self,
-        cmint_pubkey: &solana_pubkey::Pubkey,
-        token_pool_index: u8,
-        token_pool_bump: u8,
+        cmint_pubkey: Option<&solana_pubkey::Pubkey>,
+        _token_pool_index: u8, //TODO: remove
+        _token_pool_bump: u8,
     ) -> Result<(), ProgramError> {
         let accounts = self
             .executing
             .as_ref()
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
-        // Validate token program is SPL Token 2022
-        if let Some(token_program) = accounts.token_program.as_ref() {
-            if *token_program.key() != spl_token_2022::ID.to_bytes() {
-                msg!(
-                    "invalid token program {:?} expected {:?}",
-                    solana_pubkey::Pubkey::new_from_array(*token_program.key()),
-                    spl_token_2022::ID
-                );
-                return Err(ProgramError::InvalidAccountData);
-            }
-        }
 
-        // Validate token pool PDA is correct using provided bump and index
-        if let Some(token_pool_pda) = accounts.token_pool_pda {
-            let token_pool_pubkey_solana =
-                solana_pubkey::Pubkey::new_from_array(*token_pool_pda.key());
-
-            check_spl_token_pool_derivation_with_index(
-                &token_pool_pubkey_solana,
-                cmint_pubkey,
-                token_pool_index,
-                Some(token_pool_bump),
-            )
-            .map_err(|_| {
-                msg!(
-                    "invalid token pool PDA {:?} for mint {:?} with index {} and bump {}",
-                    token_pool_pubkey_solana,
-                    cmint_pubkey,
-                    token_pool_index,
-                    token_pool_bump
-                );
-                ProgramError::InvalidAccountData
-            })?;
-        }
-
-        if let Some(mint_account) = accounts.mint {
-            // Verify mint account matches expected mint
-            if cmint_pubkey.to_bytes() != *mint_account.key() {
+        // When cmint_pubkey is provided, verify CMint account matches
+        // When None (mint data from CMint), skip - CMint is validated when reading its data
+        if let (Some(cmint_account), Some(expected_pubkey)) = (accounts.cmint, cmint_pubkey) {
+            if expected_pubkey.to_bytes() != *cmint_account.key() {
                 return Err(ErrorCode::MintAccountMismatch.into());
             }
         }
@@ -361,24 +344,55 @@ pub struct AccountsConfig {
     pub with_cpi_context: bool,
     /// 2. cpi context.first_set() || cpi context.set()
     pub write_to_cpi_context: bool,
-    /// 4. SPL mint is either:
-    ///    4.1. already initialized
-    ///    4.2. or is initialized in this instruction
-    // TODO: SPL token accounts (mint, token_pool_pda, token_program) are required when
-    // spl_mint_initialized is true, but they are only actually used for MintToCompressed,
-    // MintToCToken, or CreateSplMint actions. For authority/metadata update actions
-    // (UpdateMintAuthority, UpdateFreezeAuthority, UpdateMetadataField, etc.), the SPL
-    // accounts are not needed. This cannot be tested until associated SPL mint is supported.
-    pub spl_mint_initialized: bool,
+    /// 4. Whether the compressed mint has been decompressed to a CMint Solana account.
+    ///    When true, the CMint account is the source of truth and must be synced.
+    pub cmint_decompressed: bool,
     /// 5. Mint
     pub has_mint_to_actions: bool,
     /// 6. Either compressed mint and/or spl mint is created.
     pub with_mint_signer: bool,
     /// 7. Compressed mint is created.
     pub create_mint: bool,
+    /// 8. Has DecompressMint action
+    pub has_decompress_mint_action: bool,
+    /// 9. Has CompressAndCloseCMint action
+    pub has_compress_and_close_cmint_action: bool,
 }
 
 impl AccountsConfig {
+    /// Returns true when CMint Solana account is the source of truth for mint data.
+    /// This is the case when the mint is decompressed (or being decompressed) and not being closed.
+    /// When true, compressed account uses zero sentinel values (discriminator=[0;8], data_hash=[0;32]).
+    #[inline(always)]
+    pub fn cmint_is_source_of_truth(&self) -> bool {
+        (self.has_decompress_mint_action || self.cmint_decompressed)
+            && !self.has_compress_and_close_cmint_action
+    }
+
+    /// Returns true if compressible extension accounts are needed.
+    /// Required for DecompressMint and CompressAndCloseCMint actions.
+    #[inline(always)]
+    pub fn needs_compressible_accounts(&self) -> bool {
+        self.has_decompress_mint_action || self.has_compress_and_close_cmint_action
+    }
+
+    /// Returns true if CMint account is needed in the transaction.
+    /// Required when: already decompressed, decompressing, or compressing and closing CMint.
+    #[inline(always)]
+    pub fn needs_cmint_account(&self) -> bool {
+        self.cmint_decompressed
+            || self.has_decompress_mint_action
+            || self.has_compress_and_close_cmint_action
+    }
+
+    /// Returns true if mint_signer must be a signer.
+    /// Required for create_mint and create_spl_mint, but NOT for decompress_mint.
+    /// decompress_mint only needs mint_signer.key() for PDA derivation.
+    #[inline(always)]
+    pub fn mint_signer_must_sign(&self) -> bool {
+        self.with_mint_signer && !self.has_decompress_mint_action
+    }
+
     /// Initialize AccountsConfig based in instruction data.  -
     #[profile]
     pub fn new(
@@ -410,15 +424,34 @@ impl AccountsConfig {
             .iter()
             .any(|action| matches!(action, ZAction::CreateSplMint(_)));
 
-        // We need mint signer if create mint, and create spl mint.
-        let with_mint_signer = parsed_instruction_data.create_mint.is_some() || create_spl_mint;
-        // Scenarios:
-        // 1. mint is already decompressed
-        // 2. mint is decompressed in this instruction
-        let spl_mint_initialized =
-            parsed_instruction_data.mint.metadata.spl_mint_initialized() || create_spl_mint;
+        // Check if DecompressMint action is present
+        let has_decompress_mint_action = parsed_instruction_data
+            .actions
+            .iter()
+            .any(|action| matches!(action, ZAction::DecompressMint(_)));
 
-        if parsed_instruction_data.mint.metadata.spl_mint_initialized() && create_spl_mint {
+        // Check if CompressAndCloseCMint action is present
+        let has_compress_and_close_cmint_action = parsed_instruction_data
+            .actions
+            .iter()
+            .any(|action| matches!(action, ZAction::CompressAndCloseCMint(_)));
+
+        // Validation: Cannot combine DecompressMint and CompressAndCloseCMint in the same instruction
+        if has_decompress_mint_action && has_compress_and_close_cmint_action {
+            msg!("Cannot combine DecompressMint and CompressAndCloseCMint in the same instruction");
+            return Err(ErrorCode::CannotDecompressAndCloseInSameInstruction.into());
+        }
+
+        // We need mint signer if create mint, create spl mint, or decompress mint.
+        // CompressAndCloseCMint does NOT need mint_signer - it verifies CMint by compressed_mint.metadata.mint
+        let with_mint_signer = parsed_instruction_data.create_mint.is_some()
+            || create_spl_mint
+            || has_decompress_mint_action;
+        // CMint account needed for sync when mint is already decompressed (metadata flag)
+        // When mint is None, it means CMint is decompressed (data lives in CMint account)
+        let cmint_decompressed = parsed_instruction_data.mint.is_none();
+
+        if cmint_decompressed && create_spl_mint {
             return Err(ProgramError::InvalidInstructionData);
         }
 
@@ -436,22 +469,28 @@ impl AccountsConfig {
                 msg!("Create spl mint not allowed when writing to cpi context");
                 return Err(ErrorCode::CpiContextSetNotUsable.into());
             }
+            if has_decompress_mint_action || cmint_decompressed {
+                msg!("Decompress mint not allowed when writing to cpi context");
+                return Err(ErrorCode::CpiContextSetNotUsable.into());
+            }
             let has_mint_to_actions = parsed_instruction_data
                 .actions
                 .iter()
                 .any(|action| matches!(action, ZAction::MintToCompressed(_)));
-            if spl_mint_initialized && has_mint_to_actions {
-                msg!("Mint to compressed not allowed if associated spl mint exists when writing to cpi context");
+            if cmint_decompressed && has_mint_to_actions {
+                msg!("Mint to compressed not allowed if cmint decompressed when writing to cpi context");
                 return Err(ErrorCode::CpiContextSetNotUsable.into());
             }
 
             Ok(AccountsConfig {
                 with_cpi_context,
                 write_to_cpi_context,
-                spl_mint_initialized,
+                cmint_decompressed,
                 has_mint_to_actions,
                 with_mint_signer,
                 create_mint: parsed_instruction_data.create_mint.is_some(),
+                has_decompress_mint_action,
+                has_compress_and_close_cmint_action,
             })
         } else {
             // For MintToCompressed actions
@@ -465,10 +504,12 @@ impl AccountsConfig {
             Ok(AccountsConfig {
                 with_cpi_context,
                 write_to_cpi_context,
-                spl_mint_initialized,
+                cmint_decompressed,
                 has_mint_to_actions,
                 with_mint_signer,
                 create_mint: parsed_instruction_data.create_mint.is_some(),
+                has_decompress_mint_action,
+                has_compress_and_close_cmint_action,
             })
         }
     }

@@ -10,6 +10,8 @@ pub mod close_token_account;
 pub mod convert_account_infos;
 pub mod create_associated_token_account;
 pub mod create_token_account;
+pub mod ctoken_burn;
+pub mod ctoken_mint_to;
 pub mod ctoken_transfer;
 pub mod extensions;
 pub mod mint_action;
@@ -25,11 +27,13 @@ use create_associated_token_account::{
     process_create_associated_token_account, process_create_associated_token_account_idempotent,
 };
 use create_token_account::process_create_token_account;
+use ctoken_mint_to::process_ctoken_mint_to;
 use ctoken_transfer::process_ctoken_transfer;
 use withdraw_funding_pool::process_withdraw_funding_pool;
 
 use crate::{
-    convert_account_infos::convert_account_infos, mint_action::processor::process_mint_action,
+    convert_account_infos::convert_account_infos, ctoken_burn::process_ctoken_burn,
+    mint_action::processor::process_mint_action,
 };
 
 pub const LIGHT_CPI_SIGNER: CpiSigner =
@@ -44,6 +48,10 @@ pub(crate) const MAX_PACKED_ACCOUNTS: usize = 40;
 pub enum InstructionType {
     /// CToken transfer
     CTokenTransfer = 3,
+    /// CToken mint_to - mint from decompressed CMint to CToken with top-ups
+    CTokenMintTo = 7,
+    /// CToken burn - burn from CToken, update CMint supply, with top-ups
+    CTokenBurn = 8,
     /// CToken CloseAccount
     CloseTokenAccount = 9,
     /// Create CToken, equivalent to SPL Token InitializeAccount3
@@ -79,6 +87,8 @@ impl From<u8> for InstructionType {
     fn from(value: u8) -> Self {
         match value {
             3 => InstructionType::CTokenTransfer,
+            7 => InstructionType::CTokenMintTo,
+            8 => InstructionType::CTokenBurn,
             9 => InstructionType::CloseTokenAccount,
             18 => InstructionType::CreateTokenAccount,
             100 => InstructionType::CreateAssociatedCTokenAccount,
@@ -114,25 +124,33 @@ pub fn process_instruction(
             // msg!("CTokenTransfer");
             process_ctoken_transfer(accounts, &instruction_data[1..])?;
         }
-        InstructionType::CreateAssociatedCTokenAccount => {
-            msg!("CreateAssociatedCTokenAccount");
-            process_create_associated_token_account(accounts, &instruction_data[1..])?;
+        InstructionType::CTokenMintTo => {
+            msg!("CTokenMintTo");
+            process_ctoken_mint_to(accounts, &instruction_data[1..])?;
         }
-        InstructionType::CreateAssociatedTokenAccountIdempotent => {
-            msg!("CreateAssociatedTokenAccountIdempotent");
-            process_create_associated_token_account_idempotent(accounts, &instruction_data[1..])?;
-        }
-        InstructionType::CreateTokenAccount => {
-            msg!("CreateTokenAccount");
-            process_create_token_account(accounts, &instruction_data[1..])?;
+        InstructionType::CTokenBurn => {
+            msg!("CTokenBurn");
+            process_ctoken_burn(accounts, &instruction_data[1..])?;
         }
         InstructionType::CloseTokenAccount => {
             msg!("CloseTokenAccount");
             process_close_token_account(accounts, &instruction_data[1..])?;
         }
+        InstructionType::CreateTokenAccount => {
+            msg!("CreateTokenAccount");
+            process_create_token_account(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::CreateAssociatedCTokenAccount => {
+            msg!("CreateAssociatedCTokenAccount");
+            process_create_associated_token_account(accounts, &instruction_data[1..])?;
+        }
         InstructionType::Transfer2 => {
             msg!("Transfer2");
             process_transfer2(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::CreateAssociatedTokenAccountIdempotent => {
+            msg!("CreateAssociatedTokenAccountIdempotent");
+            process_create_associated_token_account_idempotent(accounts, &instruction_data[1..])?;
         }
         InstructionType::MintAction => {
             msg!("MintAction");

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
+use light_compressed_account::compressed_account::CompressedAccountData;
 use light_ctoken_interface::state::{
     extensions::{AdditionalMetadata, ExtensionStruct},
     CToken, CompressedMint,
@@ -109,29 +110,128 @@ pub async fn assert_mint_action(
                     }
                 }
             }
+            MintActionType::DecompressMint { .. } => {
+                expected_mint.metadata.cmint_decompressed = true;
+            }
+            MintActionType::CompressAndCloseCMint { .. } => {
+                expected_mint.metadata.cmint_decompressed = false;
+                // Remove Compressible extension
+                if let Some(ref mut extensions) = expected_mint.extensions {
+                    extensions.retain(|e| !matches!(e, ExtensionStruct::Compressible(_)));
+                    if extensions.is_empty() {
+                        expected_mint.extensions = None;
+                    }
+                }
+            }
+        }
+    }
+    // Determine pre and post decompression states
+    let post_decompressed = expected_mint.metadata.cmint_decompressed;
+
+    // Check for CompressAndCloseCMint action
+    let has_compress_and_close_cmint = actions
+        .iter()
+        .any(|a| matches!(a, MintActionType::CompressAndCloseCMint { .. }));
+
+    if post_decompressed {
+        // === CASE 1 & 2: CMint is source of truth after actions ===
+        // (Either DecompressMint happened OR was already decompressed)
+        let cmint_pda = Pubkey::from(expected_mint.metadata.mint);
+
+        let cmint_account = rpc
+            .get_account(cmint_pda)
+            .await
+            .expect("Failed to fetch CMint account")
+            .expect("CMint PDA account should exist when decompressed");
+
+        let cmint: CompressedMint =
+            BorshDeserialize::deserialize(&mut cmint_account.data.as_slice())
+                .expect("Failed to deserialize CMint account");
+
+        // CMint base and metadata should match expected
+        assert_eq!(
+            cmint.base, expected_mint.base,
+            "CMint base should match expected mint base"
+        );
+        assert_eq!(
+            cmint.metadata, expected_mint.metadata,
+            "CMint metadata should match expected mint metadata"
+        );
+
+        // CMint should have Compressible extension
+        assert!(
+            cmint
+                .extensions
+                .as_ref()
+                .map(|exts| exts
+                    .iter()
+                    .any(|e| matches!(e, ExtensionStruct::Compressible(_))))
+                .unwrap_or(false),
+            "CMint should have Compressible extension when decompressed"
+        );
+
+        // Compressed account should have zero sentinel values
+        let actual_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value
+            .expect("Compressed mint account not found");
+        assert_eq!(
+            *actual_mint_account.data.as_ref().unwrap(),
+            CompressedAccountData::default(),
+            "Compressed mint should have zero sentinel values when CMint is source of truth"
+        );
+    } else {
+        // === CASE 3 & 4: Compressed account is source of truth after actions ===
+        // (Either CompressAndCloseCMint happened OR was never decompressed)
+        let actual_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value
+            .expect("Compressed mint account not found");
+
+        let actual_mint: CompressedMint =
+            BorshDeserialize::deserialize(&mut actual_mint_account.data.unwrap().data.as_slice())
+                .expect("Failed to deserialize compressed mint");
+
+        // Compressed mint state should match expected
+        assert_eq!(
+            actual_mint, expected_mint,
+            "Compressed mint state after mint_action should match expected"
+        );
+
+        // Compressed mint should NEVER have Compressible extension
+        // (Compressible only lives in CMint Solana account, not in compressed account)
+        if let Some(ref extensions) = actual_mint.extensions {
+            assert!(
+                !extensions
+                    .iter()
+                    .any(|e| matches!(e, ExtensionStruct::Compressible(_))),
+                "Compressed mint should NEVER have Compressible extension"
+            );
         }
     }
 
-    // Get actual post-transaction state
-    let actual_mint_account = rpc
-        .indexer()
-        .unwrap()
-        .get_compressed_account(compressed_mint_address, None)
-        .await
-        .unwrap()
-        .value
-        .expect("Compressed mint account not found");
+    // If CompressAndCloseCMint, verify CMint Solana account is closed
+    if has_compress_and_close_cmint {
+        let cmint_pda = Pubkey::from(pre_compressed_mint.metadata.mint);
 
-    let actual_mint: CompressedMint =
-        BorshDeserialize::deserialize(&mut actual_mint_account.data.unwrap().data.as_slice())
-            .unwrap();
+        let cmint_account = rpc
+            .get_account(cmint_pda)
+            .await
+            .expect("Failed to fetch CMint account");
 
-    // Single assertion
-    assert_eq!(
-        actual_mint, expected_mint,
-        "Compressed mint state after mint_action should match expected"
-    );
-
+        assert!(
+            cmint_account.is_none(),
+            "CMint PDA account should not exist after CompressAndCloseCMint action"
+        );
+    }
     // Verify CToken accounts for MintToCToken actions
     for (account_pubkey, total_minted_amount) in ctoken_mints {
         // Get pre-transaction account state

@@ -663,18 +663,18 @@ pub async fn create_user_record_and_game_session(
                 prove_by_index: false,
                 root_index: mint_address_tree_info.root_index,
                 address: compressed_mint_address,
-                mint: CompressedMintInstructionData {
+                mint: Some(CompressedMintInstructionData {
                     supply: 0,
                     decimals,
                     metadata: CompressedMintMetadata {
                         version: 3,
                         mint: spl_mint.into(),
-                        spl_mint_initialized: false,
+                        cmint_decompressed: false,
                     },
                     mint_authority: Some(mint_authority.into()),
                     freeze_authority: Some(freeze_authority.into()),
                     extensions: None,
-                },
+                }),
             },
         },
     };

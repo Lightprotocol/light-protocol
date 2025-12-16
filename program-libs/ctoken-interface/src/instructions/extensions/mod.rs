@@ -1,5 +1,7 @@
 pub mod compressible;
 pub mod token_metadata;
+pub use compressible::{CompressToPubkey, CompressibleExtensionInstructionData};
+use light_compressible::compression_info::CompressionInfo;
 use light_zero_copy::ZeroCopy;
 pub use token_metadata::{TokenMetadataInstructionData, ZTokenMetadataInstructionData};
 
@@ -43,4 +45,7 @@ pub enum ExtensionInstructionData {
     Placeholder30,
     /// Reserved for CompressedOnly extension
     Placeholder31,
+    /// Compressible extension - reuses CompressionInfo from light_compressible
+    /// Position 32 matches ExtensionStruct::Compressible
+    Compressible(CompressionInfo),
 }

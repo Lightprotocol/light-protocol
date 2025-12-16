@@ -3,23 +3,28 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig;
 use light_ctoken_interface::{
     instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
-    state::CompressedMintConfig,
+    state::{CompressedMint, CompressedMintConfig},
 };
 use light_program_profiler::profile;
 use spl_pod::solana_msg::msg;
 use tinyvec::ArrayVec;
 
-use crate::shared::{
-    convert_program_error,
-    cpi_bytes_size::{
-        allocate_invoke_with_read_only_cpi_bytes, compressed_token_data_len, cpi_bytes_config,
-        mint_data_len, CpiConfigInput,
+use crate::{
+    mint_action::accounts::AccountsConfig,
+    shared::{
+        convert_program_error,
+        cpi_bytes_size::{
+            allocate_invoke_with_read_only_cpi_bytes, compressed_token_data_len, cpi_bytes_config,
+            mint_data_len, CpiConfigInput,
+        },
     },
 };
 
 #[profile]
 pub fn get_zero_copy_configs(
-    parsed_instruction_data: &mut ZMintActionCompressedInstructionData<'_>,
+    parsed_instruction_data: &ZMintActionCompressedInstructionData<'_>,
+    accounts_config: &AccountsConfig,
+    cmint: &CompressedMint,
 ) -> Result<
     (
         InstructionDataInvokeCpiWithReadOnlyConfig,
@@ -28,10 +33,11 @@ pub fn get_zero_copy_configs(
     ),
     ProgramError,
 > {
-    // Generate output config based on final state after all actions (without modifying instruction data)
+    // Generate output config based on final state after all actions
+    // Get extensions from instruction data or CMint account
     let (_, output_extensions_config, _) =
         crate::extensions::process_extensions_config_with_actions(
-            parsed_instruction_data.mint.extensions.as_ref(),
+            cmint.extensions.as_ref(),
             &parsed_instruction_data.actions,
         )?;
     // Process actions to determine final output state (no instruction data modification)
@@ -80,6 +86,9 @@ pub fn get_zero_copy_configs(
         msg!("Max allowed is 29 compressed token recipients");
         return Err(ErrorCode::TooManyMintToRecipients.into());
     }
+    // CMint is source of truth when decompressed and not closing
+    let cmint_is_source_of_truth = accounts_config.cmint_is_source_of_truth();
+
     let input = CpiConfigInput {
         input_accounts: {
             let mut inputs = ArrayVec::new();
@@ -92,7 +101,13 @@ pub fn get_zero_copy_configs(
         output_accounts: {
             let mut outputs = ArrayVec::new();
             // First output is always the mint account
-            outputs.push((true, mint_data_len(&output_mint_config)));
+            // When CMint is source of truth, use data_len=0 (zero discriminator/hash)
+            let mint_data_len = if cmint_is_source_of_truth {
+                0
+            } else {
+                mint_data_len(&output_mint_config)
+            };
+            outputs.push((true, mint_data_len));
 
             // Add token accounts for recipients
             for _ in 0..num_recipients {

@@ -75,16 +75,16 @@ Optional accounts (based on configuration):
 
 For execution (when not writing to CPI context):
 4. mint
-   - (mutable) - optional, required if spl_mint_initialized=true
+   - (mutable) - optional, required for SPL mint supply synchronization
    - SPL Token 2022 mint account for supply synchronization
 
 5. token_pool_pda
-   - (mutable) - optional, required if spl_mint_initialized=true
+   - (mutable) - optional, required for SPL mint supply synchronization
    - Token pool PDA that holds SPL tokens backing compressed supply
    - Derivation: [mint, token_pool_index] with token_pool_bump
 
 6. token_program
-   - non-mutable - optional, required if spl_mint_initialized=true
+   - non-mutable - optional, required for SPL mint supply synchronization
    - Must be SPL Token 2022 program (validated in accounts.rs:126)
 
 7-12. Light system accounts (standard set):

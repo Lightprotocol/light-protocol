@@ -1,4 +1,5 @@
 pub mod accounts;
+pub mod compressible_top_up;
 mod convert_program_error;
 pub mod cpi;
 pub mod cpi_bytes_size;
