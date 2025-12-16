@@ -10,9 +10,12 @@ use forester_utils::{forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool};
 pub use forester_utils::{ParsedMerkleTreeData, ParsedQueueData};
 use light_client::rpc::Rpc;
 use light_registry::protocol_config::state::EpochState;
-use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
+use solana_sdk::{
+    address_lookup_table::AddressLookupTableAccount, instruction::Instruction, pubkey::Pubkey,
+    signature::Keypair, signer::Signer,
+};
 use tokio::sync::Mutex;
-use tracing::{debug, info};
+use tracing::{debug, error, info, warn};
 
 use super::proof_worker::ProofJob;
 use crate::{
@@ -93,6 +96,7 @@ pub struct BatchContext<R: Rpc> {
     pub output_queue_hint: Option<u64>,
     pub num_proof_workers: usize,
     pub forester_eligibility_end_slot: Arc<AtomicU64>,
+    pub address_lookup_tables: Arc<Vec<AddressLookupTableAccount>>,
 }
 
 impl<R: Rpc> Clone for BatchContext<R> {
@@ -112,6 +116,7 @@ impl<R: Rpc> Clone for BatchContext<R> {
             output_queue_hint: self.output_queue_hint,
             num_proof_workers: self.num_proof_workers,
             forester_eligibility_end_slot: self.forester_eligibility_end_slot.clone(),
+            address_lookup_tables: self.address_lookup_tables.clone(),
         }
     }
 }
@@ -154,29 +159,87 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
         context.merkle_tree
     );
     let mut rpc = context.rpc_pool.get_connection().await?;
-    let signature = rpc
-        .create_and_send_transaction(
+
+    let signature = if !context.address_lookup_tables.is_empty() {
+        debug!(
+            "Using versioned transaction with {} lookup tables",
+            context.address_lookup_tables.len()
+        );
+        rpc.create_and_send_versioned_transaction(
+            &instructions,
+            &context.authority.pubkey(),
+            &[context.authority.as_ref()],
+            &context.address_lookup_tables,
+        )
+        .await?
+    } else {
+        rpc.create_and_send_transaction(
             &instructions,
             &context.authority.pubkey(),
             &[context.authority.as_ref()],
         )
-        .await?;
+        .await?
+    };
 
-    // Ensure transaction is confirmed before returning
     debug!("Waiting for transaction confirmation: {}", signature);
-    let confirmed = rpc.confirm_transaction(signature).await?;
-    if !confirmed {
-        return Err(anyhow::anyhow!(
-            "Transaction {} failed to confirm for tree {}",
-            signature,
-            context.merkle_tree
-        ));
+
+    const MAX_CONFIRMATION_ATTEMPTS: u32 = 30;
+    const CONFIRMATION_POLL_INTERVAL: Duration = Duration::from_millis(500);
+
+    for attempt in 0..MAX_CONFIRMATION_ATTEMPTS {
+        let statuses = rpc.get_signature_statuses(&[signature]).await?;
+
+        if let Some(Some(status)) = statuses.first() {
+            if let Some(err) = &status.err {
+                error!(
+                    "Transaction {} FAILED for tree {}: {:?}",
+                    signature, context.merkle_tree, err
+                );
+                return Err(anyhow::anyhow!(
+                    "Transaction {} failed for tree {}: {:?}",
+                    signature,
+                    context.merkle_tree,
+                    err
+                ));
+            }
+
+            // Transaction succeeded - check confirmation status
+            // confirmations == None means finalized, Some(n) means n confirmations
+            let is_confirmed = status.confirmations.is_none() || status.confirmations >= Some(1);
+            if is_confirmed {
+                info!(
+                    "Transaction confirmed successfully: {} for tree: {} (slot: {}, confirmations: {:?})",
+                    signature, context.merkle_tree, status.slot, status.confirmations
+                );
+                return Ok(signature.to_string());
+            }
+
+            debug!(
+                "Transaction {} pending confirmation (attempt {}/{}, confirmations: {:?})",
+                signature,
+                attempt + 1,
+                MAX_CONFIRMATION_ATTEMPTS,
+                status.confirmations
+            );
+        } else {
+            debug!(
+                "Transaction {} not yet visible (attempt {}/{})",
+                signature,
+                attempt + 1,
+                MAX_CONFIRMATION_ATTEMPTS
+            );
+        }
+
+        tokio::time::sleep(CONFIRMATION_POLL_INTERVAL).await;
     }
 
-    info!(
-        "Transaction confirmed successfully: {} for tree: {}",
+    warn!(
+        "Transaction {} timed out waiting for confirmation for tree {}",
         signature, context.merkle_tree
     );
-
-    Ok(signature.to_string())
+    Err(anyhow::anyhow!(
+        "Transaction {} timed out waiting for confirmation for tree {}",
+        signature,
+        context.merkle_tree
+    ))
 }

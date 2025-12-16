@@ -6,7 +6,7 @@ use std::{
 use borsh::BorshSerialize;
 
 const MAX_BUFFER_SIZE: usize = 1000;
-pub const V2_IXS_PER_TX: usize = 8;
+pub const V2_IXS_PER_TX: usize = 5;
 const MIN_SLOTS_FOR_BATCHING: u64 = 10;
 
 use light_batched_merkle_tree::merkle_tree::{

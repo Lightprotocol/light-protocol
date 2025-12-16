@@ -33,7 +33,9 @@ use light_registry::{
 use solana_program::{
     instruction::InstructionError, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey,
 };
+use solana_pubkey::pubkey;
 use solana_sdk::{
+    address_lookup_table::AddressLookupTableAccount,
     signature::{Keypair, Signer},
     transaction::TransactionError,
 };
@@ -73,6 +75,8 @@ use crate::{
     tree_data_sync::fetch_trees,
     ForesterConfig, ForesterEpochInfo, Result,
 };
+
+pub const LOOKUP_TABLE_ADDRESS: Pubkey = pubkey!("3zjBapEbu8usyEmtCMhEL2i2xPLoNkq6A4kquwwZKUiE");
 
 type StateBatchProcessorMap<R> =
     Arc<DashMap<Pubkey, (u64, Arc<Mutex<QueueProcessor<R, StateTreeStrategy>>>)>>;
@@ -204,6 +208,7 @@ pub struct EpochManager<R: Rpc> {
     compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
     /// Cached zkp_batch_size per tree to filter queue updates below threshold
     zkp_batch_sizes: Arc<DashMap<Pubkey, u64>>,
+    address_lookup_tables: Arc<Vec<AddressLookupTableAccount>>,
 }
 
 impl<R: Rpc> Clone for EpochManager<R> {
@@ -227,6 +232,7 @@ impl<R: Rpc> Clone for EpochManager<R> {
             address_processors: self.address_processors.clone(),
             compressible_tracker: self.compressible_tracker.clone(),
             zkp_batch_sizes: self.zkp_batch_sizes.clone(),
+            address_lookup_tables: self.address_lookup_tables.clone(),
         }
     }
 }
@@ -244,6 +250,7 @@ impl<R: Rpc> EpochManager<R> {
         tx_cache: Arc<Mutex<ProcessedHashCache>>,
         ops_cache: Arc<Mutex<ProcessedHashCache>>,
         compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
+        address_lookup_tables: Arc<Vec<AddressLookupTableAccount>>,
     ) -> Result<Self> {
         let authority = Arc::new(config.payer_keypair.insecure_clone());
         Ok(Self {
@@ -265,6 +272,7 @@ impl<R: Rpc> EpochManager<R> {
             address_processors: Arc::new(DashMap::new()),
             compressible_tracker,
             zkp_batch_sizes: Arc::new(DashMap::new()),
+            address_lookup_tables,
         })
     }
 
@@ -494,26 +502,40 @@ impl<R: Rpc> EpochManager<R> {
                                 break;
                             }
                         };
-                        let slots_to_wait = target_phases.registration.start.saturating_sub(slot);
+                        
+                        const REGISTRATION_BUFFER_SLOTS: u64 = 30;
+                        let wait_target = target_phases
+                            .registration
+                            .start
+                            .saturating_sub(REGISTRATION_BUFFER_SLOTS);
+                        let slots_to_wait = wait_target.saturating_sub(slot);
+
                         debug!(
-                            "Waiting for epoch {} registration phase to start. Current slot: {}, Registration phase start slot: {}, Slots to wait: {}",
-                            target_epoch, slot, target_phases.registration.start, slots_to_wait
+                            "Waiting for epoch {} registration phase. Current slot: {}, Wait target: {} (registration starts at {}), Slots to wait: {}",
+                            target_epoch, slot, wait_target, target_phases.registration.start, slots_to_wait
                         );
 
-                        if let Err(e) = wait_until_slot_reached(
-                            &mut *rpc,
-                            &self.slot_tracker,
-                            target_phases.registration.start,
-                        )
-                        .await
+                        if let Err(e) =
+                            wait_until_slot_reached(&mut *rpc, &self.slot_tracker, wait_target)
+                                .await
                         {
                             error!("Error waiting for registration phase: {:?}", e);
                             break;
                         }
 
+                        let current_slot = self.slot_tracker.estimated_current_slot();
+                        if current_slot >= target_phases.registration.end {
+                            debug!(
+                                "Epoch {} registration ended while waiting (current slot {} >= end {}), trying next epoch",
+                                target_epoch, current_slot, target_phases.registration.end
+                            );
+                            target_epoch += 1;
+                            continue;
+                        }
+
                         debug!(
-                            "Epoch {} registration phase started, sending for processing",
-                            target_epoch
+                            "Epoch {} registration phase ready, sending for processing (current slot: {}, registration end: {})",
+                            target_epoch, current_slot, target_phases.registration.end
                         );
                         if let Err(e) = tx.send(target_epoch).await {
                             error!(
@@ -1901,6 +1923,7 @@ impl<R: Rpc> EpochManager<R> {
             output_queue_hint,
             num_proof_workers: self.config.transaction_config.max_concurrent_batches,
             forester_eligibility_end_slot: Arc::new(AtomicU64::new(eligibility_end)),
+            address_lookup_tables: self.address_lookup_tables.clone(),
         }
     }
 
@@ -2804,6 +2827,29 @@ pub async fn run_service<R: Rpc>(
 
             while retry_count < config.retry_config.max_retries {
                 debug!("Creating EpochManager (attempt {})", retry_count + 1);
+
+                let address_lookup_tables = {
+                    let rpc = rpc_pool.get_connection().await?;
+                    match load_lookup_table_async(&*rpc, LOOKUP_TABLE_ADDRESS).await
+                    {
+                        Ok(lut) => {
+                            info!(
+                                "Loaded lookup table {} with {} addresses",
+                                LOOKUP_TABLE_ADDRESS,
+                                lut.addresses.len()
+                            );
+                            Arc::new(vec![lut])
+                        }
+                        Err(e) => {
+                            warn!(
+                                "Failed to load lookup table {}: {:?}. Falling back to legacy transactions.",
+                                LOOKUP_TABLE_ADDRESS, e
+                            );
+                            Arc::new(Vec::new())
+                        }
+                    }
+                };
+
                 match EpochManager::new(
                     config.clone(),
                     protocol_config.clone(),
@@ -2815,6 +2861,7 @@ pub async fn run_service<R: Rpc>(
                     tx_cache.clone(),
                     ops_cache.clone(),
                     compressible_tracker.clone(),
+                    address_lookup_tables,
                 )
                 .await
                 {
@@ -2868,6 +2915,27 @@ pub async fn run_service<R: Rpc>(
             )
         })
         .await
+}
+
+/// Async version of load_lookup_table that works with the Rpc trait
+async fn load_lookup_table_async<R: Rpc>(
+    rpc: &R,
+    lookup_table_address: Pubkey,
+) -> anyhow::Result<AddressLookupTableAccount> {
+    use light_client::rpc::lut::AddressLookupTable;
+
+    let account = rpc
+        .get_account(lookup_table_address)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Lookup table account not found: {}", lookup_table_address))?;
+
+    let address_lookup_table = AddressLookupTable::deserialize(&account.data)
+        .map_err(|e| anyhow::anyhow!("Failed to deserialize AddressLookupTable: {:?}", e))?;
+
+    Ok(AddressLookupTableAccount {
+        key: lookup_table_address,
+        addresses: address_lookup_table.addresses.to_vec(),
+    })
 }
 
 #[cfg(test)]

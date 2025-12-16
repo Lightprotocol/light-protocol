@@ -17,24 +17,19 @@ use crate::processor::v2::{
     strategy::{CircuitType, QueueData, TreeStrategy},
     BatchContext, QueueWork,
 };
+use light_compressed_account::QueueType;
+
 #[derive(Debug, Clone)]
 pub struct AddressTreeStrategy;
 
-/// Address queue data with streaming support.
-/// Data is fetched in the background while processing can start immediately.
 pub struct AddressQueueData {
     pub staging_tree: AddressStagingTree,
-    /// Streaming queue for fetching data in background
     pub streaming_queue: Arc<StreamingAddressQueue>,
-    /// Start index from indexer (where fetched data begins)
     pub data_start_index: u64,
-    /// ZKP batch size for alignment calculations
     pub zkp_batch_size: usize,
 }
 
 impl AddressQueueData {
-    /// Check alignment between staging tree and fetched data.
-    /// Returns the number of elements to skip (overlap) or an error if stale.
     pub fn check_alignment(&self) -> Result<usize, AddressAlignmentError> {
         let tree_next = self.staging_tree.next_index() as u64;
         let data_start = self.data_start_index;
@@ -107,7 +102,6 @@ impl std::fmt::Debug for AddressQueueData {
     }
 }
 
-use light_compressed_account::QueueType;
 
 #[async_trait]
 impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
@@ -117,12 +111,12 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
         "Address"
     }
 
-    fn queue_type() -> QueueType {
-        QueueType::AddressV2
-    }
-
     fn circuit_type(&self, _queue_data: &Self::StagingTree) -> CircuitType {
         CircuitType::AddressAppend
+    }
+
+    fn queue_type() -> QueueType {
+        QueueType::AddressV2
     }
 
     async fn fetch_zkp_batch_size(&self, context: &BatchContext<R>) -> crate::Result<u64> {
@@ -144,7 +138,6 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
         let total_needed = max_batches.saturating_mul(zkp_batch_size_usize);
         let fetch_len = total_needed as u64;
 
-        // Use streaming fetch - returns immediately after first page, fetches rest in background
         let streaming_queue =
             match fetch_streaming_address_batches(context, fetch_len, zkp_batch_size).await? {
                 Some(sq) => Arc::new(sq),
@@ -159,7 +152,6 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
             return Err(anyhow!("Address queue missing subtrees data"));
         }
 
-        // Check initial batch count from first page
         let initial_batches = streaming_queue.available_batches();
         if initial_batches == 0 {
             debug!(
@@ -181,7 +173,6 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
                 )
             })?;
 
-        // Initialize staging tree immediately with first page data
         let staging_tree = tokio::task::spawn_blocking(move || {
             let start = std::time::Instant::now();
             let tree = AddressStagingTree::new(subtrees_arr, initial_root, start_index as usize);
@@ -195,9 +186,6 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
         .await
         .map_err(|e| anyhow!("spawn_blocking join error: {}", e))??;
 
-        // Use initially available batches as num_batches
-        // The processor will process these, and if more become available via streaming,
-        // subsequent iterations will pick them up
         let num_batches = initial_batches.min(max_batches);
 
         info!(
@@ -217,10 +205,6 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
         }))
     }
 
-    fn available_batches(&self, queue_data: &Self::StagingTree, _zkp_batch_size: u64) -> usize {
-        queue_data.streaming_queue.available_batches()
-    }
-
     fn build_proof_job(
         &self,
         queue_data: &mut Self::StagingTree,
@@ -232,14 +216,10 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
     ) -> crate::Result<Option<(ProofInput, [u8; 32])>> {
         let zkp_batch_size_usize = zkp_batch_size as usize;
 
-        // Check alignment between staging tree and fetched data
         let alignment = queue_data.check_alignment();
         let tree_next_index = queue_data.staging_tree.next_index();
         let data_start = queue_data.data_start_index as usize;
 
-        // Calculate the actual data index accounting for alignment
-        // `start` is the batch index * batch_size (relative to fetched data)
-        // We need to map this to the absolute index
         let absolute_index = data_start + start;
 
         match &alignment {
@@ -250,9 +230,7 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
                 ));
             }
             Ok(overlap) if *overlap > 0 => {
-                // Check if this batch is in the overlap region
                 if absolute_index + zkp_batch_size_usize <= tree_next_index {
-                    // This entire batch is already in the tree - skip it
                     tracing::debug!(
                         "Skipping address batch (overlap): absolute_index={}, tree_next_index={}",
                         absolute_index,
@@ -260,23 +238,20 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
                     );
                     return Ok(None);
                 } else if absolute_index < tree_next_index {
-                    // Partial overlap - skip this batch (can't process partial)
                     tracing::debug!(
                         "Skipping address batch (partial overlap): absolute_index={}, tree_next_index={}, batch_size={}",
                         absolute_index, tree_next_index, zkp_batch_size_usize
                     );
                     return Ok(None);
                 }
-                // else: absolute_index >= tree_next_index, proceed normally
             }
             _ => {
-                // Perfect alignment or no overlap for this batch
+                // no overlap for this batch
             }
         }
 
         let batch_end = start + zkp_batch_size_usize;
 
-        // Wait for batch data to be available (streaming fetch)
         let batch_data = queue_data
             .streaming_queue
             .get_batch_data(start, batch_end)
@@ -346,5 +321,9 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
             ProofInput::AddressAppend(result.circuit_inputs),
             new_root,
         )))
+    }
+
+    fn available_batches(&self, queue_data: &Self::StagingTree, _zkp_batch_size: u64) -> usize {
+        queue_data.streaming_queue.available_batches()
     }
 }

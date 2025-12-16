@@ -9,6 +9,7 @@ use solana_commitment_config::CommitmentConfig;
 use solana_hash::Hash;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
+use solana_message::AddressLookupTableAccount;
 use solana_pubkey::Pubkey;
 use solana_rpc_client_api::config::RpcSendTransactionConfig;
 use solana_signature::Signature;
@@ -181,6 +182,14 @@ pub trait Rpc: Send + Sync + Debug + 'static {
             .map_err(|e| RpcError::SigningError(e.to_string()))?;
         self.process_transaction(transaction).await
     }
+
+    async fn create_and_send_versioned_transaction<'a>(
+        &'a mut self,
+        instructions: &'a [Instruction],
+        payer: &'a Pubkey,
+        signers: &'a [&'a Keypair],
+        address_lookup_tables: &'a [AddressLookupTableAccount],
+    ) -> Result<Signature, RpcError>;
 
     async fn create_and_send_transaction_with_public_event(
         &mut self,
