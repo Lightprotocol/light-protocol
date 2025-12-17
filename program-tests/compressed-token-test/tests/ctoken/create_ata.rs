@@ -598,6 +598,68 @@ async fn test_create_ata_failing() {
         // Should fail with MissingRequiredSignature (8)
         light_program_test::utils::assert::assert_rpc_error(result, 0, 8).unwrap();
     }
+
+    // Test 10: Arbitrary keypair address instead of correct PDA (non-IDEMPOTENT)
+    // Tests that providing an arbitrary address (not the correct PDA) fails.
+    // Currently fails with PrivilegeEscalation (19) at CreateAccount CPI because
+    // the program tries to sign for a PDA but the account address doesn't match.
+    // With proper validation (calling validate_ata_derivation in non-IDEMPOTENT mode),
+    // this would fail earlier with InvalidAccountData (17).
+    // Error: 19 (PrivilegeEscalation - CPI tries to sign for wrong address)
+    {
+        use anchor_lang::prelude::borsh::BorshSerialize;
+        use light_ctoken_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
+        use solana_sdk::instruction::Instruction;
+
+        // Use different mint for this test
+        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+
+        // Get the correct PDA and bump
+        let (_correct_ata_pubkey, correct_bump) =
+            derive_ctoken_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
+
+        // Create an arbitrary keypair (NOT the correct PDA)
+        let fake_ata_keypair = solana_sdk::signature::Keypair::new();
+        let fake_ata_pubkey = fake_ata_keypair.pubkey();
+
+        // Build instruction with correct bump but WRONG address (arbitrary keypair)
+        let instruction_data = CreateAssociatedTokenAccountInstructionData {
+            bump: correct_bump, // Correct bump for the real PDA
+            compressible_config: None,
+        };
+
+        let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
+        instruction_data.serialize(&mut data).unwrap();
+
+        // Account order: owner, mint, payer, ata (fake!), system_program
+        let ix = Instruction {
+            program_id: light_compressed_token::ID,
+            accounts: vec![
+                solana_sdk::instruction::AccountMeta::new_readonly(
+                    context.owner_keypair.pubkey(),
+                    false,
+                ),
+                solana_sdk::instruction::AccountMeta::new_readonly(context.mint_pubkey, false),
+                solana_sdk::instruction::AccountMeta::new(payer_pubkey, true),
+                solana_sdk::instruction::AccountMeta::new(fake_ata_pubkey, false), // Fake ATA address
+                solana_sdk::instruction::AccountMeta::new_readonly(
+                    solana_sdk::pubkey::Pubkey::default(),
+                    false,
+                ),
+            ],
+            data,
+        };
+
+        let result = context
+            .rpc
+            .create_and_send_transaction(&[ix], &payer_pubkey, &[&context.payer])
+            .await;
+
+        // Fails with PrivilegeEscalation (19) - program tries to invoke_signed with
+        // seeds that derive to the correct PDA, but the account passed is a different address.
+        // Solana runtime rejects this as unauthorized signer privilege escalation.
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 19).unwrap();
+    }
 }
 
 #[tokio::test]

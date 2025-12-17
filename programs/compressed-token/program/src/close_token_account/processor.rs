@@ -129,14 +129,28 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    // For regular close: verify authority matches owner
-    if !pubkey_eq(ctoken.owner.array_ref(), accounts.authority.key()) {
-        msg!(
-            "owner mismatch: ctoken.owner {:?} != {:?} authority",
-            solana_pubkey::Pubkey::from(ctoken.owner.to_bytes()),
-            solana_pubkey::Pubkey::from(*accounts.authority.key())
-        );
-        return Err(ErrorCode::OwnerMismatch.into());
+    // For regular close: check close_authority first, then fall back to owner
+    // This matches SPL Token behavior where close_authority takes precedence over owner
+    if let Some(close_authority) = ctoken.close_authority.as_ref() {
+        // close_authority is set - only close_authority can close
+        if !pubkey_eq(close_authority.array_ref(), accounts.authority.key()) {
+            msg!(
+                "close authority mismatch: close_authority {:?} != {:?} authority",
+                solana_pubkey::Pubkey::from(close_authority.to_bytes()),
+                solana_pubkey::Pubkey::from(*accounts.authority.key())
+            );
+            return Err(ErrorCode::OwnerMismatch.into());
+        }
+    } else {
+        // close_authority is None - owner can close
+        if !pubkey_eq(ctoken.owner.array_ref(), accounts.authority.key()) {
+            msg!(
+                "owner mismatch: ctoken.owner {:?} != {:?} authority",
+                solana_pubkey::Pubkey::from(ctoken.owner.to_bytes()),
+                solana_pubkey::Pubkey::from(*accounts.authority.key())
+            );
+            return Err(ErrorCode::OwnerMismatch.into());
+        }
     }
     Ok(false)
 }
