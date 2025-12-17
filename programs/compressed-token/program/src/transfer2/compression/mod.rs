@@ -3,13 +3,13 @@ use anchor_lang::prelude::ProgramError;
 use arrayvec::ArrayVec;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::pubkey::AsPubkey;
-use light_ctoken_interface::{
+use light_program_profiler::profile;
+use light_token_interface::{
     instructions::transfer2::{
         ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode,
     },
-    CTokenError,
+    TokenError,
 };
-use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 
@@ -21,12 +21,15 @@ use crate::{
     LIGHT_CPI_SIGNER, MAX_PACKED_ACCOUNTS,
 };
 
-pub mod ctoken;
+pub mod light_token;
 pub mod spl;
 
-pub use ctoken::{
-    close_for_compress_and_close, compress_or_decompress_ctokens, CTokenCompressionInputs,
+pub use light_token::{
+    close_for_compress_and_close, compress_or_decompress_tokens, TokenCompressionInputs,
 };
+
+// Re-export under old name for backward compatibility during transition
+pub use light_token::compress_or_decompress_tokens as compress_or_decompress_light_tokens;
 
 const SPL_TOKEN_ID: &[u8; 32] = &spl_token::ID.to_bytes();
 const SPL_TOKEN_2022_ID: &[u8; 32] = &spl_token_2022::ID.to_bytes();
@@ -66,7 +69,7 @@ pub fn process_token_compression(
             )?;
 
             match source_or_recipient.owner() {
-                ID => ctoken::process_ctoken_compressions(
+                ID => light_token::process_light_token_compressions(
                     inputs,
                     compression,
                     source_or_recipient,
@@ -127,7 +130,7 @@ pub fn process_token_compression(
         if !transfers.is_empty() {
             // Check budget wasn't exhausted (0 means exceeded max_top_up)
             if max_top_up != 0 && lamports_budget == 0 {
-                return Err(CTokenError::MaxTopUpExceeded.into());
+                return Err(TokenError::MaxTopUpExceeded.into());
             }
             multi_transfer_lamports(fee_payer, &transfers).map_err(convert_program_error)?
         }

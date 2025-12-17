@@ -1,5 +1,5 @@
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
-use light_ctoken_interface::instructions::transfer2::{
+use light_token_interface::instructions::transfer2::{
     ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode,
     ZMultiTokenTransferOutputData,
 };
@@ -12,8 +12,8 @@ pub struct CompressAndCloseInputs<'a> {
     pub compressed_token_account: Option<&'a ZMultiTokenTransferOutputData<'a>>,
 }
 
-/// Input struct for ctoken compression/decompression operations
-pub struct CTokenCompressionInputs<'a> {
+/// Input struct for light token compression/decompression operations
+pub struct TokenCompressionInputs<'a> {
     pub authority: Option<&'a AccountInfo>,
     pub compress_and_close_inputs: Option<CompressAndCloseInputs<'a>>,
     pub amount: u64,
@@ -23,7 +23,7 @@ pub struct CTokenCompressionInputs<'a> {
     pub packed_accounts: &'a ProgramPackedAccounts<'a, AccountInfo>,
 }
 
-impl<'a> CTokenCompressionInputs<'a> {
+impl<'a> TokenCompressionInputs<'a> {
     /// Constructor for compression operations from Transfer2 instruction
     pub fn from_compression(
         compression: &ZCompression,
@@ -74,7 +74,7 @@ impl<'a> CTokenCompressionInputs<'a> {
         })
     }
 
-    pub fn mint_ctokens(
+    pub fn mint_tokens(
         amount: u64,
         mint: Pubkey,
         token_account_info: &'a AccountInfo,

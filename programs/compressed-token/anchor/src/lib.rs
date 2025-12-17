@@ -10,7 +10,7 @@ pub mod process_mint;
 pub mod process_transfer;
 use process_compress_spl_token_account::process_compress_spl_token_account;
 pub mod spl_compression;
-pub use light_ctoken_interface::state::TokenData;
+pub use light_token_interface::state::TokenData;
 pub use process_mint::*;
 pub mod delegation;
 pub mod freeze;

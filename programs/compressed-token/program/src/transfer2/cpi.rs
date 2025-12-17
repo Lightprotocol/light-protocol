@@ -1,6 +1,6 @@
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig;
-use light_ctoken_interface::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
 use light_program_profiler::profile;
+use light_token_interface::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
 use pinocchio::program_error::ProgramError;
 use tinyvec::ArrayVec;
 

@@ -1,11 +1,11 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountInfoTrait;
 use light_compressible::{compression_info::ZCompressionInfoMut, config::CompressibleConfig};
-use light_ctoken_interface::{
-    instructions::extensions::compressible::CompressibleExtensionInstructionData,
-    state::CompressionInfo, CTokenError, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-};
 use light_program_profiler::profile;
+use light_token_interface::{
+    instructions::extensions::compressible::CompressibleExtensionInstructionData,
+    state::CompressionInfo, TokenError, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+};
 use light_zero_copy::traits::ZeroCopyAtMut;
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::{clock::Clock, Sysvar};
@@ -15,7 +15,7 @@ use crate::ErrorCode;
 
 /// Initialize a token account using spl-pod with zero balance and default settings
 #[profile]
-pub fn initialize_ctoken_account(
+pub fn initialize_light_token_account(
     token_account_info: &AccountInfo,
     mint_pubkey: &[u8; 32],
     owner_pubkey: &[u8; 32],
@@ -163,7 +163,7 @@ fn configure_compressible_extension(
             compressible_config.write_top_up,
             compressible_config_account.rent_config.max_top_up
         );
-        return Err(CTokenError::WriteTopUpExceedsMaximum.into());
+        return Err(TokenError::WriteTopUpExceedsMaximum.into());
     }
     compressible_extension
         .lamports_per_write

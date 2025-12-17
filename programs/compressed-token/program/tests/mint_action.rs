@@ -5,7 +5,7 @@
 use borsh::BorshSerialize;
 use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
 use light_compressed_token::mint_action::accounts::AccountsConfig;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
         mint_action::{

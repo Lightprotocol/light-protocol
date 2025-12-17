@@ -1,5 +1,5 @@
 use anchor_lang::prelude::ProgramError;
-use light_ctoken_interface::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
+use light_token_interface::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
 
 /// Configuration for Transfer2 account validation
 /// Replaces complex boolean parameters with clean single config object

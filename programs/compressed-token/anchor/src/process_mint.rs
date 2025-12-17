@@ -534,7 +534,7 @@ mod test {
             data::OutputCompressedAccountWithPackedContext, invoke_cpi::InstructionDataInvokeCpi,
         },
     };
-    use light_ctoken_interface::state::{CompressedTokenAccountState, TokenData};
+    use light_token_interface::state::{CompressedTokenAccountState, TokenData};
 
     use super::*;
     use crate::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;

@@ -1,13 +1,13 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::Pubkey;
-use light_ctoken_interface::{
+use light_program_profiler::profile;
+use light_token_interface::{
     instructions::mint_action::{
         ZRemoveMetadataKeyAction, ZUpdateMetadataAuthorityAction, ZUpdateMetadataFieldAction,
     },
     state::{CompressedMint, ExtensionStruct, TokenMetadata},
 };
-use light_program_profiler::profile;
 use spl_pod::solana_msg::msg;
 
 use crate::mint_action::check_authority;
@@ -87,7 +87,7 @@ pub fn process_update_metadata_field_action(
             } else {
                 // TODO: Enable adding new keys for SPL Token-2022 compatibility
                 // metadata.additional_metadata.push(
-                //     light_ctoken_interface::state::AdditionalMetadata {
+                //     light_token_interface::state::AdditionalMetadata {
                 //         key: action.key.to_vec(),
                 //         value: action.value.to_vec(),
                 //     }

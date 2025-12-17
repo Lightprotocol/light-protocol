@@ -2,11 +2,11 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use bitvec::prelude::*;
 use light_account_checks::{checks::check_signer, packed_accounts::ProgramPackedAccounts};
-use light_ctoken_interface::{
-    instructions::transfer2::{ZCompression, ZCompressionMode, ZMultiTokenTransferOutputData},
-    state::{ZCompressedTokenMut, ZExtensionStructMut},
-};
 use light_program_profiler::profile;
+use light_token_interface::{
+    instructions::transfer2::{ZCompression, ZCompressionMode, ZMultiTokenTransferOutputData},
+    state::{ZTokenMut, ZExtensionStructMut},
+};
 use pinocchio::{
     account_info::AccountInfo,
     pubkey::{pubkey_eq, Pubkey},
@@ -28,7 +28,7 @@ pub fn process_compress_and_close(
     compress_and_close_inputs: Option<CompressAndCloseInputs>,
     amount: u64,
     token_account_info: &AccountInfo,
-    ctoken: &mut ZCompressedTokenMut,
+    ctoken: &mut ZTokenMut,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
 ) -> Result<(), ProgramError> {
     let authority = authority.ok_or(ErrorCode::CompressAndCloseAuthorityMissing)?;
@@ -73,7 +73,7 @@ fn validate_compressed_token_account(
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     compression_amount: u64,
     compressed_token_account: &ZMultiTokenTransferOutputData<'_>,
-    ctoken: &ZCompressedTokenMut,
+    ctoken: &ZTokenMut,
     compress_to_pubkey: bool,
     token_account_pubkey: &Pubkey,
 ) -> Result<(), ProgramError> {

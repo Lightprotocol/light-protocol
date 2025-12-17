@@ -22,13 +22,13 @@ bench-sbf = []
 profile-program = [
     "light-program-profiler/profile-program",
     "light-compressed-account/profile-program",
-    "light-ctoken-interface/profile-program",
+    "light-token-interface/profile-program",
     "light-compressible/profile-program",
 ]
 profile-heap = [
     "light-program-profiler/profile-heap",
     "light-compressed-account/profile-heap",
-    "light-ctoken-interface/profile-heap",
+    "light-token-interface/profile-heap",
 ]
 cpi-context = []
 cpi-without-program-ids = []
@@ -62,7 +62,7 @@ arrayvec = { workspace = true }
 tinyvec = { workspace = true }
 pinocchio = { workspace = true, features = ["std"] }
 light-sdk-pinocchio = { workspace = true }
-light-ctoken-interface = { workspace = true, features = ["anchor"] }
+light-token-interface = { workspace = true, features = ["anchor"] }
 light-array-map = { workspace = true }
 pinocchio-pubkey = { workspace = true }
 pinocchio-system = { workspace = true }

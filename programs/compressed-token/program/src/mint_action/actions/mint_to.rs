@@ -1,17 +1,17 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::Pubkey;
-use light_ctoken_interface::{
+use light_program_profiler::profile;
+use light_sdk_pinocchio::instruction::ZOutputCompressedAccountWithPackedContextMut;
+use light_token_interface::{
     hash_cache::HashCache, instructions::mint_action::ZMintToCompressedAction,
     state::CompressedMint,
 };
-use light_program_profiler::profile;
-use light_sdk_pinocchio::instruction::ZOutputCompressedAccountWithPackedContextMut;
 
 use crate::{
     mint_action::{
         accounts::MintActionAccounts, check_authority,
-        mint_to_ctoken::handle_spl_mint_initialized_token_pool,
+        mint_to_light_token::handle_spl_mint_initialized_token_pool,
     },
     shared::token_output::set_output_compressed_account,
 };

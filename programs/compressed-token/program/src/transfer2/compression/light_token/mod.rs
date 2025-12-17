@@ -1,23 +1,23 @@
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
-use light_ctoken_interface::instructions::transfer2::{
+use light_program_profiler::profile;
+use light_token_interface::instructions::transfer2::{
     ZCompressedTokenInstructionDataTransfer2, ZCompression,
 };
-use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 
 use super::validate_compression_mode_fields;
 
 mod compress_and_close;
-mod compress_or_decompress_ctokens;
+mod compress_or_decompress_tokens;
 mod inputs;
 
 pub use compress_and_close::close_for_compress_and_close;
-pub use compress_or_decompress_ctokens::compress_or_decompress_ctokens;
-pub use inputs::{CTokenCompressionInputs, CompressAndCloseInputs};
+pub use compress_or_decompress_tokens::compress_or_decompress_tokens;
+pub use inputs::{TokenCompressionInputs, CompressAndCloseInputs};
 
-/// Process compression/decompression for ctoken accounts.
+/// Process compression/decompression for light token accounts.
 #[profile]
-pub(super) fn process_ctoken_compressions(
+pub(super) fn process_light_token_compressions(
     inputs: &ZCompressedTokenInstructionDataTransfer2,
     compression: &ZCompression,
     token_account_info: &AccountInfo,
@@ -29,12 +29,12 @@ pub(super) fn process_ctoken_compressions(
     validate_compression_mode_fields(compression)?;
 
     // Create inputs struct with all required accounts extracted
-    let compression_inputs = CTokenCompressionInputs::from_compression(
+    let compression_inputs = TokenCompressionInputs::from_compression(
         compression,
         token_account_info,
         inputs,
         packed_accounts,
     )?;
 
-    compress_or_decompress_ctokens(compression_inputs, transfer_amount, lamports_budget)
+    compress_or_decompress_tokens(compression_inputs, transfer_amount, lamports_budget)
 }

@@ -1,12 +1,12 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::checks::check_owner;
-use light_ctoken_interface::{
-    instructions::transfer2::ZCompressionMode,
-    state::{CToken, ZExtensionStructMut},
-    CTokenError,
-};
 use light_program_profiler::profile;
+use light_token_interface::{
+    instructions::transfer2::ZCompressionMode,
+    state::{Token, ZExtensionStructMut},
+    TokenError,
+};
 use pinocchio::{
     account_info::AccountInfo,
     pubkey::pubkey_eq,
@@ -14,20 +14,20 @@ use pinocchio::{
 };
 use spl_pod::solana_msg::msg;
 
-use super::{compress_and_close::process_compress_and_close, inputs::CTokenCompressionInputs};
-use crate::shared::owner_validation::check_ctoken_owner;
+use super::{compress_and_close::process_compress_and_close, inputs::TokenCompressionInputs};
+use crate::shared::owner_validation::check_light_token_account_owner;
 
-/// Perform compression/decompression on a ctoken account.
+/// Perform compression/decompression on a light token account.
 ///
 /// # Arguments
 /// * `lamports_budget` - Mutable budget to decrement when transfer amounts are calculated.
 #[profile]
-pub fn compress_or_decompress_ctokens(
-    inputs: CTokenCompressionInputs,
+pub fn compress_or_decompress_tokens(
+    inputs: TokenCompressionInputs,
     transfer_amount: &mut u64,
     lamports_budget: &mut u64,
 ) -> Result<(), ProgramError> {
-    let CTokenCompressionInputs {
+    let TokenCompressionInputs {
         authority,
         compress_and_close_inputs,
         amount,
@@ -42,7 +42,7 @@ pub fn compress_or_decompress_ctokens(
         .try_borrow_mut_data()
         .map_err(|_| ProgramError::AccountBorrowFailed)?;
 
-    let (mut ctoken, _) = CToken::zero_copy_at_mut_checked(&mut token_account_data)?;
+    let (mut ctoken, _) = Token::zero_copy_at_mut_checked(&mut token_account_data)?;
 
     if !pubkey_eq(ctoken.mint.array_ref(), &mint) {
         msg!(
@@ -71,7 +71,7 @@ pub fn compress_or_decompress_ctokens(
         ZCompressionMode::Compress => {
             // Verify authority for compression operations and update delegated amount if needed
             let authority_account = authority.ok_or(ErrorCode::InvalidCompressAuthority)?;
-            check_ctoken_owner(&mut ctoken, authority_account)?;
+            check_light_token_account_owner(&mut ctoken, authority_account)?;
 
             // Compress: subtract from solana account
             // Update the balance in the ctoken solana account
@@ -132,7 +132,7 @@ fn process_compressible_extension(
             if let ZExtensionStructMut::Compressible(compressible_extension) = extension {
                 if *current_slot == 0 {
                     *current_slot = Clock::get()
-                        .map_err(|_| CTokenError::SysvarAccessError)?
+                        .map_err(|_| TokenError::SysvarAccessError)?
                         .slot;
                 }
                 *transfer_amount = compressible_extension
@@ -140,9 +140,9 @@ fn process_compressible_extension(
                         token_account_info.data_len() as u64,
                         *current_slot,
                         token_account_info.lamports(),
-                        light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                        light_token_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                     )
-                    .map_err(|_| CTokenError::InvalidAccountData)?;
+                    .map_err(|_| TokenError::InvalidAccountData)?;
 
                 *lamports_budget = lamports_budget.saturating_sub(*transfer_amount);
 

@@ -1,10 +1,10 @@
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::Pubkey;
-use light_ctoken_interface::{
+use light_program_profiler::profile;
+use light_token_interface::{
     instructions::extensions::token_metadata::ZTokenMetadataInstructionData,
     state::ZTokenMetadataMut,
 };
-use light_program_profiler::profile;
 
 #[inline(always)]
 #[profile]

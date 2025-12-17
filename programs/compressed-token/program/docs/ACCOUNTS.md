@@ -29,7 +29,7 @@
   borsh and zero copy deserialization deserialize the compressible extension, spl serialization only deserialize the base token data.
   zero copy: (always use in programs)
   ```rust
-  use light_ctoken_interface::state::ctoken::CToken;
+  use light_token_interface::state::ctoken::CToken;
   use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 
   let (token, _) = CToken::zero_copy_at(&account_data)?;
@@ -39,7 +39,7 @@
   borsh: (always use in client non solana program code)
   ```rust
   use borsh::BorshDeserialize;
-  use light_ctoken_interface::state::ctoken::CToken;
+  use light_token_interface::state::ctoken::CToken;
 
   let token = CToken::deserialize(&mut &account_data[..])?;
   ```

@@ -2,14 +2,14 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_array_map::ArrayMap;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
-use light_ctoken_interface::{
+use light_program_profiler::profile;
+use light_token_interface::{
     hash_cache::HashCache,
     instructions::transfer2::{
         CompressedTokenInstructionDataTransfer2, ZCompressedTokenInstructionDataTransfer2,
     },
-    CTokenError,
+    TokenError,
 };
-use light_program_profiler::profile;
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
@@ -67,7 +67,7 @@ pub fn process_transfer2(
 #[inline(always)]
 pub fn validate_instruction_data(
     inputs: &ZCompressedTokenInstructionDataTransfer2,
-) -> Result<(), CTokenError> {
+) -> Result<(), TokenError> {
     // Check maximum input accounts limit
     if inputs.in_token_data.len() > crate::shared::cpi_bytes_size::MAX_INPUT_ACCOUNTS {
         msg!(
@@ -75,22 +75,22 @@ pub fn validate_instruction_data(
             inputs.in_token_data.len(),
             crate::shared::cpi_bytes_size::MAX_INPUT_ACCOUNTS
         );
-        return Err(CTokenError::TooManyInputAccounts);
+        return Err(TokenError::TooManyInputAccounts);
     }
 
     if inputs.in_lamports.is_some() {
         msg!("in_lamports are unimplemented",);
-        return Err(CTokenError::TokenDataTlvUnimplemented);
+        return Err(TokenError::TokenDataTlvUnimplemented);
     }
     if inputs.out_lamports.is_some() {
         msg!("outlamports are unimplemented",);
-        return Err(CTokenError::TokenDataTlvUnimplemented);
+        return Err(TokenError::TokenDataTlvUnimplemented);
     }
     if inputs.in_tlv.is_some() {
-        return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
+        return Err(TokenError::CompressedTokenAccountTlvUnimplemented);
     }
     if inputs.out_tlv.is_some() {
-        return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
+        return Err(TokenError::CompressedTokenAccountTlvUnimplemented);
     }
 
     // Check CPI context write mode doesn't have compressions.
@@ -101,7 +101,7 @@ pub fn validate_instruction_data(
             && inputs.compressions.is_some()
         {
             msg!("Compressions not allowed when writing to CPI context");
-            return Err(CTokenError::InvalidInstructionData);
+            return Err(TokenError::InvalidInstructionData);
         }
     }
 

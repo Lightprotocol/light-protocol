@@ -2,11 +2,11 @@ use anchor_lang::prelude::ProgramError;
 use borsh::BorshDeserialize;
 use light_account_checks::AccountIterator;
 use light_compressible::config::CompressibleConfig;
-use light_ctoken_interface::instructions::{
+use light_program_profiler::profile;
+use light_token_interface::instructions::{
     create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
     extensions::compressible::CompressibleExtensionInstructionData,
 };
-use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, instruction::Seed, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
 
@@ -14,7 +14,7 @@ use crate::{
     create_token_account::next_config_account,
     shared::{
         convert_program_error, create_pda_account,
-        initialize_ctoken_account::initialize_ctoken_account, transfer_lamports_via_cpi,
+        initialize_token_account::initialize_light_token_account, transfer_lamports_via_cpi,
         validate_ata_derivation,
     },
 };
@@ -112,9 +112,9 @@ pub(crate) fn process_create_associated_token_account_inner<const IDEMPOTENT: bo
     }
 
     let token_account_size = if compressible_config.is_some() {
-        light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
+        light_token_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
     } else {
-        light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE as usize
+        light_token_interface::BASE_TOKEN_ACCOUNT_SIZE as usize
     };
 
     let (compressible_config_account, custom_rent_payer) =
@@ -151,7 +151,7 @@ pub(crate) fn process_create_associated_token_account_inner<const IDEMPOTENT: bo
             (None, None)
         };
 
-    initialize_ctoken_account(
+    initialize_light_token_account(
         associated_token_account,
         mint_bytes,
         owner_bytes,

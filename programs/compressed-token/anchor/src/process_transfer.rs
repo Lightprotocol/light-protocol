@@ -13,12 +13,12 @@ use light_compressed_account::{
     },
     pubkey::AsPubkey,
 };
-use light_ctoken_interface::state::{CompressedTokenAccountState, TokenData};
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_system_program::{
     account_traits::{InvokeAccounts, SignerAccounts},
     errors::SystemProgramError,
 };
+use light_token_interface::state::{CompressedTokenAccountState, TokenData};
 use light_zero_copy::num_trait::ZeroCopyNumTrait;
 
 use crate::{
@@ -1137,7 +1137,7 @@ pub mod transfer_sdk {
 
 #[cfg(test)]
 mod test {
-    use light_ctoken_interface::state::CompressedTokenAccountState;
+    use light_token_interface::state::CompressedTokenAccountState;
 
     use super::*;
 

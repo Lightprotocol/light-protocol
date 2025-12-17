@@ -2,8 +2,8 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{checks::check_signer, AccountInfoTrait};
 use light_compressible::rent::{get_rent_exemption_lamports, AccountRentState};
-use light_ctoken_interface::state::{CToken, ZCompressedTokenMut, ZExtensionStructMut};
 use light_program_profiler::profile;
+use light_token_interface::state::{Token, ZTokenMut, ZExtensionStructMut};
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::Sysvar;
 use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
@@ -25,7 +25,7 @@ pub fn process_close_token_account(
         // Try to parse as CToken using zero-copy deserialization
         let token_account_data =
             &mut AccountInfoTrait::try_borrow_mut_data(accounts.token_account)?;
-        let (ctoken, _) = CToken::zero_copy_at_mut_checked(token_account_data)?;
+        let (ctoken, _) = Token::zero_copy_at_mut_checked(token_account_data)?;
         validate_token_account_close_instruction(&accounts, &ctoken)?;
     }
     close_token_account(&accounts)?;
@@ -37,7 +37,7 @@ pub fn process_close_token_account(
 #[profile]
 pub fn validate_token_account_close_instruction(
     accounts: &CloseTokenAccountAccounts,
-    ctoken: &ZCompressedTokenMut<'_>,
+    ctoken: &ZTokenMut<'_>,
 ) -> Result<(), ProgramError> {
     validate_token_account::<false>(accounts, ctoken)?;
     Ok(())
@@ -48,7 +48,7 @@ pub fn validate_token_account_close_instruction(
 #[profile]
 pub fn validate_token_account_for_close_transfer2(
     accounts: &CloseTokenAccountAccounts,
-    ctoken: &ZCompressedTokenMut<'_>,
+    ctoken: &ZTokenMut<'_>,
 ) -> Result<bool, ProgramError> {
     validate_token_account::<true>(accounts, ctoken)
 }
@@ -56,7 +56,7 @@ pub fn validate_token_account_for_close_transfer2(
 #[inline(always)]
 fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
     accounts: &CloseTokenAccountAccounts,
-    ctoken: &ZCompressedTokenMut<'_>,
+    ctoken: &ZTokenMut<'_>,
 ) -> Result<bool, ProgramError> {
     if accounts.token_account.key() == accounts.destination.key() {
         return Err(ProgramError::InvalidAccountData);
@@ -171,11 +171,11 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
     // Check for compressible extension and handle lamport distribution
 
     let token_account_data = AccountInfoTrait::try_borrow_data(accounts.token_account)?;
-    let (ctoken, _) = CToken::zero_copy_at_checked(&token_account_data)?;
+    let (ctoken, _) = Token::zero_copy_at_checked(&token_account_data)?;
 
     if let Some(extensions) = ctoken.extensions.as_ref() {
         for extension in extensions {
-            if let light_ctoken_interface::state::ZExtensionStruct::Compressible(compressible_ext) =
+            if let light_token_interface::state::ZExtensionStruct::Compressible(compressible_ext) =
                 extension
             {
                 // Calculate distribution based on rent and write_top_up

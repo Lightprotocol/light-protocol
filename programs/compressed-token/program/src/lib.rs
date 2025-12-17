@@ -1,8 +1,8 @@
 use std::mem::ManuallyDrop;
 
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
+use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use pinocchio::{account_info::AccountInfo, msg};
 
 pub mod claim;
@@ -10,7 +10,7 @@ pub mod close_token_account;
 pub mod convert_account_infos;
 pub mod create_associated_token_account;
 pub mod create_token_account;
-pub mod ctoken_transfer;
+pub mod transfer;
 pub mod extensions;
 pub mod mint_action;
 pub mod shared;
@@ -25,7 +25,7 @@ use create_associated_token_account::{
     process_create_associated_token_account, process_create_associated_token_account_idempotent,
 };
 use create_token_account::process_create_token_account;
-use ctoken_transfer::process_ctoken_transfer;
+use transfer::process_light_token_transfer;
 use withdraw_funding_pool::process_withdraw_funding_pool;
 
 use crate::{
@@ -106,13 +106,13 @@ pub fn process_instruction(
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     let discriminator = InstructionType::from(instruction_data[0]);
-    if *program_id != CTOKEN_PROGRAM_ID {
+    if *program_id != LIGHT_TOKEN_PROGRAM_ID {
         return Err(ProgramError::IncorrectProgramId);
     }
     match discriminator {
         InstructionType::CTokenTransfer => {
             // msg!("CTokenTransfer");
-            process_ctoken_transfer(accounts, &instruction_data[1..])?;
+            process_light_token_transfer(accounts, &instruction_data[1..])?;
         }
         InstructionType::CreateAssociatedCTokenAccount => {
             msg!("CreateAssociatedCTokenAccount");

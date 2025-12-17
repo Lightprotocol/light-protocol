@@ -1,7 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
-use light_ctoken_interface::state::ZExtensionStructMut;
 use light_program_profiler::profile;
+use light_token_interface::state::ZExtensionStructMut;
 
 use crate::extensions::{token_metadata::create_output_token_metadata, ZExtensionInstructionData};
 

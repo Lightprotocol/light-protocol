@@ -1,9 +1,9 @@
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
-use light_ctoken_interface::{
-    state::{CToken, ZExtensionStruct},
-    CTokenError,
-};
 use light_program_profiler::profile;
+use light_token_interface::{
+    state::{Token, ZExtensionStruct},
+    TokenError,
+};
 use pinocchio::account_info::AccountInfo;
 use pinocchio_token_program::processor::transfer::process_transfer;
 
@@ -12,14 +12,14 @@ use crate::shared::{
     transfer_lamports::{multi_transfer_lamports, Transfer},
 };
 
-/// Process ctoken transfer instruction
+/// Process light token transfer instruction
 ///
 /// Instruction data format (backwards compatible):
 /// - 8 bytes: amount (legacy, no max_top_up enforcement)
 /// - 10 bytes: amount + max_top_up (u16, 0 = no limit)
 #[profile]
 #[inline(always)]
-pub fn process_ctoken_transfer(
+pub fn process_light_token_transfer(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
@@ -84,19 +84,19 @@ fn calculate_and_execute_top_up_transfers(
 
     // Calculate transfer amounts for accounts with compressible extensions
     for transfer in transfers.iter_mut() {
-        if transfer.account.data_len() > light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE as usize {
+        if transfer.account.data_len() > light_token_interface::BASE_TOKEN_ACCOUNT_SIZE as usize {
             let account_data = transfer
                 .account
                 .try_borrow_data()
                 .map_err(convert_program_error)?;
-            let (token, _) = CToken::zero_copy_at_checked(&account_data)?;
+            let (token, _) = Token::zero_copy_at_checked(&account_data)?;
             if let Some(extensions) = token.extensions.as_ref() {
                 for extension in extensions.iter() {
                     if let ZExtensionStruct::Compressible(compressible_extension) = extension {
                         if current_slot == 0 {
                             use pinocchio::sysvars::{clock::Clock, Sysvar};
                             current_slot = Clock::get()
-                                .map_err(|_| CTokenError::SysvarAccessError)?
+                                .map_err(|_| TokenError::SysvarAccessError)?
                                 .slot;
                         }
 
@@ -105,16 +105,16 @@ fn calculate_and_execute_top_up_transfers(
                                 transfer.account.data_len() as u64,
                                 current_slot,
                                 transfer.account.lamports(),
-                                light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                                light_token_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                             )
-                            .map_err(|_| CTokenError::InvalidAccountData)?;
+                            .map_err(|_| TokenError::InvalidAccountData)?;
 
                         lamports_budget = lamports_budget.saturating_sub(transfer.amount);
                     }
                 }
             } else {
                 // Only Compressible extensions are implemented for ctoken accounts.
-                return Err(CTokenError::InvalidAccountData.into());
+                return Err(TokenError::InvalidAccountData.into());
             }
         }
     }
@@ -129,7 +129,7 @@ fn calculate_and_execute_top_up_transfers(
 
     // Check budget wasn't exhausted (0 means exceeded max_top_up)
     if max_top_up != 0 && lamports_budget == 0 {
-        return Err(CTokenError::MaxTopUpExceeded.into());
+        return Err(TokenError::MaxTopUpExceeded.into());
     }
 
     let payer = accounts.get(2).ok_or(ProgramError::NotEnoughAccountKeys)?;

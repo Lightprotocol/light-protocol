@@ -2,23 +2,23 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::Pubkey;
-use light_ctoken_interface::{
-    instructions::mint_action::ZMintToCTokenAction, state::CompressedMint,
-};
 use light_program_profiler::profile;
+use light_token_interface::{
+    instructions::mint_action::ZMintToAction, state::CompressedMint,
+};
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 
 use crate::{
     mint_action::{accounts::MintActionAccounts, check_authority},
     shared::mint_to_token_pool,
-    transfer2::compression::{compress_or_decompress_ctokens, CTokenCompressionInputs},
+    transfer2::compression::{compress_or_decompress_tokens, TokenCompressionInputs},
 };
 
 #[allow(clippy::too_many_arguments)]
 #[profile]
-pub fn process_mint_to_ctoken_action(
-    action: &ZMintToCTokenAction,
+pub fn process_mint_to_light_token_action(
+    action: &ZMintToAction,
     compressed_mint: &mut CompressedMint,
     validated_accounts: &MintActionAccounts,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
@@ -51,15 +51,15 @@ pub fn process_mint_to_ctoken_action(
         packed_accounts.get_u8(action.account_index, "ctoken mint to recipient")?;
 
     // Authority check now performed above - safe to proceed with decompression
-    // Use the mint_ctokens constructor for simple decompression operations
-    let inputs = CTokenCompressionInputs::mint_ctokens(
+    // Use the mint_tokens constructor for simple decompression operations
+    let inputs = TokenCompressionInputs::mint_tokens(
         amount,
         mint.to_bytes(),
         token_account_info,
         packed_accounts,
     );
 
-    compress_or_decompress_ctokens(inputs, transfer_amount, lamports_budget)
+    compress_or_decompress_tokens(inputs, transfer_amount, lamports_budget)
 }
 
 #[profile]

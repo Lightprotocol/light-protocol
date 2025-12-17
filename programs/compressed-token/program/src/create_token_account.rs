@@ -6,21 +6,21 @@ use light_account_checks::{
 };
 use light_compressed_account::Pubkey;
 use light_compressible::config::CompressibleConfig;
-use light_ctoken_interface::{
-    instructions::create_ctoken_account::CreateTokenAccountInstructionData,
+use light_program_profiler::profile;
+use light_token_interface::{
+    instructions::create_token_account::CreateTokenAccountInstructionData,
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
-use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, instruction::Seed};
 use spl_pod::{bytemuck, solana_msg::msg};
 
 use crate::shared::{
     convert_program_error, create_pda_account,
-    initialize_ctoken_account::initialize_ctoken_account, transfer_lamports_via_cpi,
+    initialize_token_account::initialize_light_token_account, transfer_lamports_via_cpi,
 };
 
 /// Validated accounts for the create token account instruction
-pub struct CreateCTokenAccounts<'info> {
+pub struct CreateTokenAccounts<'info> {
     /// The token account being created (signer, mutable)
     pub token_account: &'info AccountInfo,
     /// The mint for the token account (only used for pubkey not checked)
@@ -41,7 +41,7 @@ pub struct CompressibleAccounts<'info> {
     pub parsed_config: &'info CompressibleConfig,
 }
 
-impl<'info> CreateCTokenAccounts<'info> {
+impl<'info> CreateTokenAccounts<'info> {
     /// Parse and validate accounts from the provided account infos
     #[profile]
     #[inline(always)]
@@ -145,7 +145,7 @@ pub fn process_create_token_account(
     };
 
     // Parse and validate accounts
-    let accounts = CreateCTokenAccounts::parse(account_infos, &inputs)?;
+    let accounts = CreateTokenAccounts::parse(account_infos, &inputs)?;
 
     // Create account via cpi
     let (compressible_config_account, custom_rent_payer) = if let Some(compressible) =
@@ -231,7 +231,7 @@ pub fn process_create_token_account(
     };
 
     // Initialize the token account (assumes account already exists and is owned by our program)
-    initialize_ctoken_account(
+    initialize_light_token_account(
         accounts.token_account,
         accounts.mint.key(),
         &inputs.owner.to_bytes(),

@@ -1,10 +1,10 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_ctoken_interface::{
-    instructions::mint_action::{ZCompressedMintInstructionData, ZCreateSplMintAction},
-    CTokenError,
-};
 use light_program_profiler::profile;
+use light_token_interface::{
+    instructions::mint_action::{ZCompressedMintInstructionData, ZCreateSplMintAction},
+    TokenError,
+};
 
 use super::{
     create_mint_account, create_token_pool_account_manual, initialize_mint_account_for_action,
@@ -46,7 +46,7 @@ pub fn process_create_spl_mint_action(
     // 1. Create the mint account manually (PDA derived from our program, owned by token program)
     let mint_signer = validated_accounts
         .mint_signer
-        .ok_or(CTokenError::ExpectedMintSignerAccount)?;
+        .ok_or(TokenError::ExpectedMintSignerAccount)?;
     create_mint_account(
         executing_accounts,
         &crate::LIGHT_CPI_SIGNER.program_id,

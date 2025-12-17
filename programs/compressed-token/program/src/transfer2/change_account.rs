@@ -3,7 +3,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut;
-use light_ctoken_interface::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
+use light_token_interface::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
 use pinocchio::account_info::AccountInfo;
 
 use crate::transfer2::config::Transfer2Config;

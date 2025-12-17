@@ -3,13 +3,13 @@ use anchor_lang::prelude::ProgramError;
 use arrayvec::ArrayVec;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::instruction_data::data::ZOutputCompressedAccountWithPackedContextMut;
-use light_ctoken_interface::{
+use light_program_profiler::profile;
+use light_token_interface::{
     hash_cache::HashCache,
     instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
     state::CompressedMint,
-    CTokenError,
+    TokenError,
 };
-use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 
@@ -18,7 +18,7 @@ use crate::{
         accounts::MintActionAccounts,
         check_authority,
         mint_to::process_mint_to_compressed_action,
-        mint_to_ctoken::process_mint_to_ctoken_action,
+        mint_to_light_token::process_mint_to_light_token_action,
         queue_indices::QueueIndices,
         update_metadata::{
             process_remove_metadata_key_action, process_update_metadata_authority_action,
@@ -95,7 +95,7 @@ pub fn process_actions<'a>(
                 // )?;
                 // compressed_mint.metadata.spl_mint_initialized = true;
             }
-            ZAction::MintToCToken(mint_to_ctoken_action) => {
+            ZAction::MintTo(mint_to_ctoken_action) => {
                 let account_index = mint_to_ctoken_action.account_index as usize;
                 if account_index >= MAX_PACKED_ACCOUNTS {
                     msg!(
@@ -105,7 +105,7 @@ pub fn process_actions<'a>(
                     );
                     return Err(ErrorCode::TooManyCompressionTransfers.into());
                 }
-                process_mint_to_ctoken_action(
+                process_mint_to_light_token_action(
                     mint_to_ctoken_action,
                     compressed_mint,
                     validated_accounts,
@@ -162,7 +162,7 @@ pub fn process_actions<'a>(
     if !transfers.is_empty() {
         // Check budget wasn't exhausted (0 means exceeded max_top_up)
         if max_top_up != 0 && lamports_budget == 0 {
-            return Err(CTokenError::MaxTopUpExceeded.into());
+            return Err(TokenError::MaxTopUpExceeded.into());
         }
 
         let fee_payer = validated_accounts
