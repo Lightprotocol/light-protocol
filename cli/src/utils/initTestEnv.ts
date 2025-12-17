@@ -177,11 +177,15 @@ export async function initTestEnv({
     const config = getConfig();
     config.indexerUrl = `http://127.0.0.1:${indexerPort}`;
     setConfig(config);
+    const proverUrlForIndexer = prover
+      ? `http://127.0.0.1:${proverPort}`
+      : undefined;
     await startIndexer(
       `http://127.0.0.1:${rpcPort}`,
       indexerPort,
       checkPhotonVersion,
       photonDatabaseUrl,
+      proverUrlForIndexer,
     );
   }
 
