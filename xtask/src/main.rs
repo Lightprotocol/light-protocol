@@ -1,6 +1,7 @@
 use clap::{Parser, ValueEnum};
 
 mod bench;
+mod close_buffer_ix;
 mod create_batch_address_tree;
 mod create_batch_state_tree;
 mod create_state_tree;
@@ -66,6 +67,9 @@ enum Command {
     /// Reinitialize legacy CPI context accounts to new format
     /// Example: cargo xtask reinit-cpi-accounts --network devnet
     ReinitCpiAccounts(reinit_cpi_accounts::Options),
+    /// Create a serialized Close buffer instruction for Squads
+    /// Example: cargo xtask close-buffer-ix --buffer <BUFFER_PUBKEY>
+    CloseBufferIx(close_buffer_ix::Options),
 }
 
 #[tokio::main]
@@ -100,5 +104,6 @@ async fn main() -> Result<(), anyhow::Error> {
         }
         Command::PrintStateTree(opts) => print_state_tree::print_state_tree(opts).await,
         Command::ReinitCpiAccounts(opts) => reinit_cpi_accounts::reinit_cpi_accounts(opts).await,
+        Command::CloseBufferIx(opts) => close_buffer_ix::close_buffer_ix(opts),
     }
 }

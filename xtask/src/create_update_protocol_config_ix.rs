@@ -1,5 +1,6 @@
 use account_compression::processor::initialize_address_merkle_tree::AnchorDeserialize;
 use clap::Parser;
+use light_batched_merkle_tree::constants::DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE_V2;
 use light_client::rpc::{LightClient, LightClientConfig, Rpc};
 use light_registry::{
     protocol_config::state::ProtocolConfigPda, sdk::create_update_protocol_config_instruction,
@@ -11,6 +12,7 @@ use solana_sdk::{bs58, message::Message, pubkey};
 /// 1. slot_length
 /// 2. cpi_context_size
 /// 3. min_weight
+/// 4. address_network_fee
 #[derive(Debug, Parser)]
 pub struct Options {
     #[clap(long)]
@@ -19,6 +21,11 @@ pub struct Options {
     cpi_context_size: Option<u64>,
     #[clap(long)]
     min_weight: Option<u64>,
+    /// Update cpi_context_size to v2 default (14020)
+    #[clap(long)]
+    cpi_context_v2: bool,
+    #[clap(long)]
+    address_network_fee: Option<u64>,
 }
 
 /// Steps:
@@ -51,11 +58,16 @@ pub async fn create_update_protocol_config_ix(options: Options) -> anyhow::Resul
     if let Some(slot_length) = options.slot_length {
         deserialized_account.config.slot_length = slot_length;
     }
-    if let Some(cpi_context_size) = options.cpi_context_size {
+    if options.cpi_context_v2 {
+        deserialized_account.config.cpi_context_size = DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE_V2;
+    } else if let Some(cpi_context_size) = options.cpi_context_size {
         deserialized_account.config.cpi_context_size = cpi_context_size;
     }
     if let Some(min_weight) = options.min_weight {
         deserialized_account.config.min_weight = min_weight;
+    }
+    if let Some(address_network_fee) = options.address_network_fee {
+        deserialized_account.config.address_network_fee = address_network_fee;
     }
     println!("updated protocol config: {:?}", deserialized_account.config);
     let authority = pubkey!("7PeqkcCXeqgsp5Mi15gjJh8qvSLk7n3dgNuyfPhJJgqY");

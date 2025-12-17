@@ -1,32 +1,32 @@
 #!/bin/bash
 
 # Base directory for keypairs
-KEYPAIR_DIR="./target/tree-keypairs"
+KEYPAIR_DIR="../light-keypairs/batched-tree-keypairs"
 
 # Command template
-CMD_TEMPLATE="cargo xtask create-state-tree --mt-pubkey {SMT} --nfq-pubkey {NFQ} --cpi-pubkey {CPI} --index {INDEX} --network devnet"
+CMD_TEMPLATE="cargo run --bin xtask create-batch-state-tree --mt-pubkey {BMT} --nfq-pubkey {OQ} --cpi-pubkey {CPI} --index {INDEX} --network mainnet"
 
 # Collect sorted key files for each type
-SMT_KEYS=($(ls $KEYPAIR_DIR/smt*.json | sort))
-NFQ_KEYS=($(ls $KEYPAIR_DIR/nfq*.json | sort))
+BMT_KEYS=($(ls $KEYPAIR_DIR/bmt*.json | sort))
+OQ_KEYS=($(ls $KEYPAIR_DIR/oq*.json | sort))
 CPI_KEYS=($(ls $KEYPAIR_DIR/cpi*.json | sort))
 
 # Ensure equal number of keys for each type
-if [[ ${#SMT_KEYS[@]} -ne ${#NFQ_KEYS[@]} || ${#NFQ_KEYS[@]} -ne ${#CPI_KEYS[@]} ]]; then
-    echo "Error: Mismatched number of SMT, NFQ, and CPI key files."
+if [[ ${#BMT_KEYS[@]} -ne ${#OQ_KEYS[@]} || ${#OQ_KEYS[@]} -ne ${#CPI_KEYS[@]} ]]; then
+    echo "Error: Mismatched number of BMT, OQ, and CPI key files."
     exit 1
 fi
 
 # Execute the command for each triple
-for i in "${!SMT_KEYS[@]}"; do
-    SMT_KEY="${SMT_KEYS[i]}"
-    NFQ_KEY="${NFQ_KEYS[i]}"
+for i in "${!BMT_KEYS[@]}"; do
+    BMT_KEY="${BMT_KEYS[i]}"
+    OQ_KEY="${OQ_KEYS[i]}"
     CPI_KEY="${CPI_KEYS[i]}"
-    INDEX=$((i + 2))
+    INDEX=$((i + 1))
 
     # Replace placeholders in the command template
-    CMD=${CMD_TEMPLATE//\{SMT\}/"$SMT_KEY"}
-    CMD=${CMD//\{NFQ\}/"$NFQ_KEY"}
+    CMD=${CMD_TEMPLATE//\{BMT\}/"$BMT_KEY"}
+    CMD=${CMD//\{OQ\}/"$OQ_KEY"}
     CMD=${CMD//\{CPI\}/"$CPI_KEY"}
     CMD=${CMD//\{INDEX\}/"$INDEX"}
 

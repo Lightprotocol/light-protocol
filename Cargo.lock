@@ -11540,6 +11540,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "solana-client",
+ "solana-loader-v3-interface",
  "solana-program",
  "solana-sdk",
  "solana-transaction-status",

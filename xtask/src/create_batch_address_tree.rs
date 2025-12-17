@@ -76,16 +76,8 @@ pub async fn create_batch_address_tree(options: Options) -> anyhow::Result<()> {
     };
     println!("read payer: {:?}", payer.pubkey());
 
-    let config = if let Some(config) = options.config {
-        if config == "testnet" {
-            InitAddressTreeAccountsInstructionData::testnet_default()
-        } else {
-            unimplemented!()
-        }
-    } else {
-        InitAddressTreeAccountsInstructionData::default()
-    };
-
+    let config = InitAddressTreeAccountsInstructionData::default();
+    println!("config {:?}", config);
     for merkle_tree_keypair in mt_keypairs.iter() {
         println!(
             "creating address Merkle tree: \n\tmt {:?}",
