@@ -83,14 +83,14 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
                 let rent_sponsor = accounts
                     .rent_sponsor
                     .ok_or(ProgramError::NotEnoughAccountKeys)?;
-                if compressible_ext.rent_sponsor != *rent_sponsor.key() {
+                if compressible_ext.info.rent_sponsor != *rent_sponsor.key() {
                     msg!("rent recipient mismatch");
                     return Err(ProgramError::InvalidAccountData);
                 }
 
                 if COMPRESS_AND_CLOSE {
                     // For CompressAndClose: ONLY compression_authority can compress and close
-                    if compressible_ext.compression_authority != *accounts.authority.key() {
+                    if compressible_ext.info.compression_authority != *accounts.authority.key() {
                         msg!("compress and close requires compression authority");
                         return Err(ProgramError::InvalidAccountData);
                     }
@@ -103,6 +103,7 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
                     #[cfg(target_os = "solana")]
                     {
                         let is_compressible = compressible_ext
+                            .info
                             .is_compressible(
                                 accounts.token_account.data_len() as u64,
                                 current_slot,
@@ -116,7 +117,7 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
                         }
                     }
 
-                    return Ok(compressible_ext.compress_to_pubkey());
+                    return Ok(compressible_ext.info.compress_to_pubkey());
                 }
                 // For regular close (!COMPRESS_AND_CLOSE): fall through to owner check
             }
@@ -185,7 +186,8 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                     .slot;
                 #[cfg(not(target_os = "solana"))]
                 let current_slot = 0;
-                let compression_cost: u64 = compressible_ext.rent_config.compression_cost.into();
+                let compression_cost: u64 =
+                    compressible_ext.info.rent_config.compression_cost.into();
 
                 let (mut lamports_to_rent_sponsor, mut lamports_to_destination) = {
                     let base_lamports =
@@ -196,11 +198,13 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                         num_bytes: accounts.token_account.data_len() as u64,
                         current_slot,
                         current_lamports: token_account_lamports,
-                        last_claimed_slot: compressible_ext.last_claimed_slot.into(),
+                        last_claimed_slot: compressible_ext.info.last_claimed_slot.into(),
                     };
 
-                    let distribution = state
-                        .calculate_close_distribution(&compressible_ext.rent_config, base_lamports);
+                    let distribution = state.calculate_close_distribution(
+                        &compressible_ext.info.rent_config,
+                        base_lamports,
+                    );
                     (distribution.to_rent_sponsor, distribution.to_user)
                 };
 
@@ -208,7 +212,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                     .rent_sponsor
                     .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-                if accounts.authority.key() == &compressible_ext.compression_authority {
+                if accounts.authority.key() == &compressible_ext.info.compression_authority {
                     // When compressing via compression_authority:
                     // Extract compression incentive from rent_sponsor portion to give to forester
                     // The compression incentive is included in lamports_to_rent_sponsor

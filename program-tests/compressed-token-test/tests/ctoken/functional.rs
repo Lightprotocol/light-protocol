@@ -215,11 +215,12 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
 
     // Calculate transaction fee from the transaction result
     let tx_fee = 10_000; // Standard transaction fee
-                         // With 3 prepaid epochs: compression_cost (11000) + 3 * rent_per_epoch (388) = 12164
+                         // With 3 prepaid epochs: compression_cost (11000) + 3 * rent_per_epoch (389) = 12167
+                         // rent_per_epoch = 261 bytes * 1 lamport/byte/epoch + base_rent (128) = 389
     assert_eq!(
         payer_balance_before - payer_balance_after,
-        12_164 + tx_fee,
-        "Payer should have paid 12,164 lamports for additional rent (3 epochs) plus {} tx fee",
+        12_167 + tx_fee,
+        "Payer should have paid 12,167 lamports for additional rent (3 epochs) plus {} tx fee",
         tx_fee
     );
 

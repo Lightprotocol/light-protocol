@@ -39,11 +39,17 @@ fn create_compressible_ctoken_data(
         if let Some(light_ctoken_interface::state::ZExtensionStructMut::Compressible(comp_ext)) =
             extensions.first_mut()
         {
-            comp_ext.config_account_version.set(1);
-            comp_ext.account_version = 3; // ShaFlat
-            comp_ext.compression_authority.copy_from_slice(owner_pubkey);
-            comp_ext.rent_sponsor.copy_from_slice(rent_sponsor_pubkey);
-            comp_ext.last_claimed_slot.set(0);
+            comp_ext.info.config_account_version.set(1);
+            comp_ext.info.account_version = 3; // ShaFlat
+            comp_ext
+                .info
+                .compression_authority
+                .copy_from_slice(owner_pubkey);
+            comp_ext
+                .info
+                .rent_sponsor
+                .copy_from_slice(rent_sponsor_pubkey);
+            comp_ext.info.last_claimed_slot.set(0);
         }
     }
 

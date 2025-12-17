@@ -1,11 +1,9 @@
-use light_zero_copy::ZeroCopy;
+use aligned_sized::aligned_sized;
+use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    state::{
-        extensions::{CompressionInfo, TokenMetadata, TokenMetadataConfig, ZTokenMetadataMut},
-        CompressionInfoConfig,
-    },
+    state::extensions::{CompressionInfo, TokenMetadata, TokenMetadataConfig, ZTokenMetadataMut},
     AnchorDeserialize, AnchorSerialize,
 };
 
@@ -48,7 +46,26 @@ pub enum ExtensionStruct {
     Placeholder30,
     Placeholder31,
     /// Account contains compressible timing data and rent authority
-    Compressible(CompressionInfo),
+    Compressible(CompressibleExtension),
+}
+
+#[derive(
+    Debug,
+    ZeroCopy,
+    ZeroCopyMut,
+    Clone,
+    Copy,
+    PartialEq,
+    Hash,
+    Eq,
+    AnchorSerialize,
+    AnchorDeserialize,
+)]
+#[repr(C)]
+#[aligned_sized]
+pub struct CompressibleExtension {
+    pub compression_only: bool,
+    pub info: CompressionInfo,
 }
 
 #[derive(Debug)]
@@ -89,7 +106,9 @@ pub enum ZExtensionStructMut<'a> {
     Placeholder30,
     Placeholder31,
     /// Account contains compressible timing data and rent authority
-    Compressible(<CompressionInfo as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut),
+    Compressible(
+        <CompressibleExtension as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut,
+    ),
 }
 
 impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
@@ -120,7 +139,7 @@ impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
             32 => {
                 // Compressible variant (index 32 to avoid Token-2022 overlap)
                 let (compressible_ext, remaining_bytes) =
-                    CompressionInfo::zero_copy_at_mut(remaining_data)?;
+                    CompressibleExtension::zero_copy_at_mut(remaining_data)?;
                 Ok((
                     ZExtensionStructMut::Compressible(compressible_ext),
                     remaining_bytes,
@@ -145,7 +164,7 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
             }
             ExtensionStructConfig::Compressible(config) => {
                 // 1 byte for discriminant + CompressionInfo size
-                1 + CompressionInfo::byte_len(config)?
+                1 + CompressibleExtension::byte_len(config)?
             }
             _ => {
                 msg!("Invalid extension type returning");
@@ -187,7 +206,7 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                 bytes[0] = 32u8;
 
                 let (compressible_ext, remaining_bytes) =
-                    CompressionInfo::new_zero_copy(&mut bytes[1..], config)?;
+                    CompressibleExtension::new_zero_copy(&mut bytes[1..], config)?;
                 Ok((
                     ZExtensionStructMut::Compressible(compressible_ext),
                     remaining_bytes,
@@ -235,5 +254,5 @@ pub enum ExtensionStructConfig {
     Placeholder29,
     Placeholder30,
     Placeholder31,
-    Compressible(CompressionInfoConfig),
+    Compressible(CompressibleExtensionConfig),
 }

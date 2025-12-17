@@ -399,7 +399,7 @@ pub async fn assert_transfer2_with_delegate(
                             .iter()
                             .find_map(|ext| match ext {
                                 ZExtensionStruct::Compressible(comp) => {
-                                    Some(comp.compress_to_pubkey == 1)
+                                    Some(comp.info.compress_to_pubkey == 1)
                                 }
                                 _ => None,
                             })

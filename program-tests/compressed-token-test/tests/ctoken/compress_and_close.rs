@@ -441,7 +441,7 @@ async fn test_compress_and_close_compress_to_pubkey() {
         if let Some(extensions) = ctoken.extensions.as_mut() {
             for ext in extensions.iter_mut() {
                 if let ZExtensionStructMut::Compressible(ref mut comp) = ext {
-                    comp.compress_to_pubkey = 1;
+                    comp.info.compress_to_pubkey = 1;
                     break;
                 }
             }
@@ -778,7 +778,7 @@ async fn test_compress_and_close_output_validation_errors() {
         if let Some(extensions) = ctoken.extensions.as_mut() {
             for ext in extensions.iter_mut() {
                 if let ZExtensionStructMut::Compressible(ref mut comp) = ext {
-                    comp.compress_to_pubkey = 1;
+                    comp.info.compress_to_pubkey = 1;
                     break;
                 }
             }

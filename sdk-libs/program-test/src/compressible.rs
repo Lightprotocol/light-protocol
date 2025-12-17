@@ -107,6 +107,7 @@ pub async fn claim_and_compress(
                         .await
                         .unwrap();
                     let last_funded_epoch = e
+                        .info
                         .get_last_funded_epoch(
                             account.1.data.len() as u64,
                             account.1.lamports,
@@ -150,11 +151,12 @@ pub async fn claim_and_compress(
                         num_bytes: account.data.len() as u64,
                         current_slot,
                         current_lamports: account.lamports,
-                        last_claimed_slot: comp_ext.last_claimed_slot,
+                        last_claimed_slot: comp_ext.info.last_claimed_slot,
                     };
 
                     // Check what action is needed
-                    match state.calculate_claimable_rent(&comp_ext.rent_config, rent_exemption) {
+                    match state.calculate_claimable_rent(&comp_ext.info.rent_config, rent_exemption)
+                    {
                         None => {
                             // Account is compressible (has rent deficit)
                             compress_accounts.push(*pubkey);

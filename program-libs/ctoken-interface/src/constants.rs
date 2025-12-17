@@ -1,6 +1,6 @@
 use light_macros::pubkey_array;
 
-use crate::state::CompressionInfo;
+use crate::state::extensions::CompressibleExtension;
 
 pub const CPI_AUTHORITY: [u8; 32] = pubkey_array!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
 pub const CTOKEN_PROGRAM_ID: [u8; 32] =
@@ -13,13 +13,15 @@ pub const BASE_TOKEN_ACCOUNT_SIZE: u64 = 165;
 /// Extension metadata overhead: AccountType (1) + Option discriminator (1) + Vec length (4) + Extension enum variant (1)
 pub const EXTENSION_METADATA: u64 = 7;
 
-/// Size of a token account with compressible extension 260 bytes.
+/// Size of a token account with compressible extension 261 bytes.
+/// CompressibleExtension = compression_only (1 byte) + CompressionInfo (88 bytes) = 89 bytes
 pub const COMPRESSIBLE_TOKEN_ACCOUNT_SIZE: u64 =
-    BASE_TOKEN_ACCOUNT_SIZE + CompressionInfo::LEN as u64 + EXTENSION_METADATA;
+    BASE_TOKEN_ACCOUNT_SIZE + CompressibleExtension::LEN as u64 + EXTENSION_METADATA;
 
 /// Rent exemption threshold for compressible token accounts (in lamports)
 /// This value determines when an account has sufficient rent to be considered not compressible
-pub const COMPRESSIBLE_TOKEN_RENT_EXEMPTION: u64 = 2700480;
+/// Calculation: (account_size + 128) * 3480 * 2 = (261 + 128) * 6960 = 2707440
+pub const COMPRESSIBLE_TOKEN_RENT_EXEMPTION: u64 = 2707440;
 
 /// Size of a Token-2022 mint account
 pub const MINT_ACCOUNT_SIZE: u64 = 82;

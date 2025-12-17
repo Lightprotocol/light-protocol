@@ -168,7 +168,7 @@ async fn test_create_ata_idempotent() {
         // Verify the account still has the same properties (unchanged by second creation)
         let account = context.rpc.get_account(ata_pubkey).await.unwrap().unwrap();
 
-        // Should still be 260 bytes (compressible)
+        // Should still be compressible size (COMPRESSIBLE_TOKEN_ACCOUNT_SIZE bytes)
         assert_eq!(
             account.data.len(),
             light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize,

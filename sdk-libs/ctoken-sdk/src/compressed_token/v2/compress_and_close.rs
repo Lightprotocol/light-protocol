@@ -59,12 +59,12 @@ pub fn pack_for_compress_and_close(
                 for extension in extensions {
                     if let ZExtensionStruct::Compressible(e) = extension {
                         authority_index = packed_accounts.insert_or_get_config(
-                            Pubkey::from(e.compression_authority),
+                            Pubkey::from(e.info.compression_authority),
                             true,
                             true,
                         );
                         recipient_index =
-                            packed_accounts.insert_or_get(Pubkey::from(e.rent_sponsor));
+                            packed_accounts.insert_or_get(Pubkey::from(e.info.rent_sponsor));
 
                         break;
                     }
@@ -80,7 +80,7 @@ pub fn pack_for_compress_and_close(
                 for extension in extensions {
                     if let ZExtensionStruct::Compressible(e) = extension {
                         recipient_index =
-                            packed_accounts.insert_or_get(Pubkey::from(e.rent_sponsor));
+                            packed_accounts.insert_or_get(Pubkey::from(e.info.rent_sponsor));
 
                         break;
                     }
@@ -326,8 +326,9 @@ pub fn compress_and_close_ctoken_accounts<'info>(
                 for extension in extensions {
                     if let ZExtensionStruct::Compressible(extension) = extension {
                         // Check if compression_authority is set (non-zero)
-                        if extension.compression_authority != [0u8; 32] {
-                            compression_authority = Pubkey::from(extension.compression_authority);
+                        if extension.info.compression_authority != [0u8; 32] {
+                            compression_authority =
+                                Pubkey::from(extension.info.compression_authority);
                         }
                         break;
                     }
@@ -348,8 +349,8 @@ pub fn compress_and_close_ctoken_accounts<'info>(
                 for extension in extensions {
                     if let ZExtensionStruct::Compressible(ext) = extension {
                         // Check if rent_sponsor is set (non-zero)
-                        if ext.rent_sponsor != [0u8; 32] {
-                            rent_sponsor_pubkey = Some(Pubkey::from(ext.rent_sponsor));
+                        if ext.info.rent_sponsor != [0u8; 32] {
+                            rent_sponsor_pubkey = Some(Pubkey::from(ext.info.rent_sponsor));
                         }
                         break;
                     }
