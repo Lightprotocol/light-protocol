@@ -11,6 +11,7 @@ import (
 	v1 "light/light-prover/prover/v1"
 	v2 "light/light-prover/prover/v2"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -290,9 +291,18 @@ func (handler proofStatusHandler) checkJobExistsDetailed(jobID string) (bool, st
 				return true, "queued", job
 			}
 			// Check processing queue for this circuit type
-			processingQueue := queueName[:len(queueName)-6] + "_processing_queue"
-			if job, found := handler.findJobInQueue(processingQueue, jobID); found {
-				return true, "processing", job
+			// Validate queueName before slicing to avoid panic
+			if len(queueName) >= 6 && strings.HasSuffix(queueName, "_queue") {
+				base := queueName[:len(queueName)-6]
+				processingQueue := base + "_processing_queue"
+				if job, found := handler.findJobInQueue(processingQueue, jobID); found {
+					return true, "processing", job
+				}
+			} else {
+				logging.Logger().Warn().
+					Str("job_id", jobID).
+					Str("queue_name", queueName).
+					Msg("Malformed queue name in job metadata - skipping processing queue check")
 			}
 		}
 		// Job has metadata but not found in expected queues - may be in results or failed
