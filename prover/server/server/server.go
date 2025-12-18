@@ -114,7 +114,13 @@ func (handler proofStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusAccepted)
-			json.NewEncoder(w).Encode(response)
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				logging.Logger().Error().
+					Err(err).
+					Str("job_id", jobID).
+					Str("response_type", "queued_status").
+					Msg("Failed to encode JSON response")
+			}
 			return
 		}
 
@@ -882,7 +888,13 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusAccepted)
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			logging.Logger().Error().
+				Err(err).
+				Str("job_id", dedupResult.JobID).
+				Str("response_type", "deduplicated_async_response").
+				Msg("Failed to encode JSON response")
+		}
 		return
 	}
 
