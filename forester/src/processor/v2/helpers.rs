@@ -537,6 +537,14 @@ impl StreamingAddressQueue {
     }
 
     pub fn available_batches(&self) -> usize {
+        debug_assert!(
+            self.zkp_batch_size != 0,
+            "zkp_batch_size must be non-zero"
+        );
+        if self.zkp_batch_size == 0 {
+            tracing::error!("zkp_batch_size is zero, returning 0 batches to avoid panic");
+            return 0;
+        }
         let available = *lock_recover(
             &self.available_elements,
             "streaming_address_queue.available_elements",
