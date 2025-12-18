@@ -217,6 +217,15 @@ async fn test_decompress_full_cpi() {
             .map(|acc| acc.token.clone())
             .collect();
 
+        let versions: Vec<_> = compressed_accounts
+            .iter()
+            .map(|acc| {
+                let discriminator = acc.account.data.as_ref().unwrap().discriminator;
+                light_ctoken_interface::state::TokenDataVersion::from_discriminator(discriminator)
+                    .unwrap() as u8
+            })
+            .collect();
+
         let indices: Vec<_> = token_data
             .iter()
             .zip(
@@ -228,14 +237,15 @@ async fn test_decompress_full_cpi() {
                     .iter(),
             )
             .zip(ctx.destination_accounts.iter())
-            .map(|((token, tree_info), &dest_pubkey)| {
+            .zip(versions.iter())
+            .map(|(((token, tree_info), &dest_pubkey), &version)| {
                 light_ctoken_sdk::compressed_token::decompress_full::pack_for_decompress_full(
                     token,
                     tree_info,
                     dest_pubkey,
                     &mut remaining_accounts,
                     None, // No TLV extensions
-                    light_ctoken_interface::state::TokenDataVersion::ShaFlat as u8,
+                    version,
                 )
             })
             .collect();
@@ -412,6 +422,15 @@ async fn test_decompress_full_cpi_with_context() {
             .map(|acc| acc.token.clone())
             .collect();
 
+        let versions: Vec<_> = initial_compressed_accounts
+            .iter()
+            .map(|acc| {
+                let discriminator = acc.account.data.as_ref().unwrap().discriminator;
+                light_ctoken_interface::state::TokenDataVersion::from_discriminator(discriminator)
+                    .unwrap() as u8
+            })
+            .collect();
+
         let indices: Vec<_> = token_data
             .iter()
             .zip(
@@ -423,14 +442,15 @@ async fn test_decompress_full_cpi_with_context() {
                     .iter(),
             )
             .zip(ctx.destination_accounts.iter())
-            .map(|((token, tree_info), &dest_pubkey)| {
+            .zip(versions.iter())
+            .map(|(((token, tree_info), &dest_pubkey), &version)| {
                 light_ctoken_sdk::compressed_token::decompress_full::pack_for_decompress_full(
                     token,
                     tree_info,
                     dest_pubkey,
                     &mut remaining_accounts,
                     None, // No TLV extensions
-                    light_ctoken_interface::state::TokenDataVersion::ShaFlat as u8,
+                    version,
                 )
             })
             .collect();
