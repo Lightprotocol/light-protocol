@@ -9,7 +9,6 @@ import (
 	v2 "light/light-prover/prover/v2"
 	"log"
 	"os"
-	"runtime"
 	"strconv"
 	"time"
 )
@@ -41,199 +40,60 @@ const (
 	MaxConcurrencyPerWorker = 100
 )
 
-// getMaxConcurrency calculates optimal concurrency based on available system memory.
-// Falls back to PROVER_MAX_CONCURRENCY env var if set, otherwise auto-calculates.
+// getMaxConcurrency returns the max concurrency per worker.
+// Configuration priority:
+//  1. PROVER_MAX_CONCURRENCY env var
+//  2. Auto-calculate from PROVER_TOTAL_MEMORY_GB env var
+//  3. Default to MinConcurrencyPerWorker
 func getMaxConcurrency() int {
-	// First check for explicit override
+	// Check for explicit concurrency override
 	if val := os.Getenv("PROVER_MAX_CONCURRENCY"); val != "" {
 		if concurrency, err := strconv.Atoi(val); err == nil && concurrency > 0 {
 			logging.Logger().Info().
 				Int("max_concurrency", concurrency).
-				Msg("Using custom max concurrency from PROVER_MAX_CONCURRENCY")
+				Msg("Using PROVER_MAX_CONCURRENCY")
 			return concurrency
 		}
 	}
 
-	// Auto-calculate based on system memory
-	concurrency := calculateConcurrencyFromMemory()
+	// Check for memory-based configuration
+	if val := os.Getenv("PROVER_TOTAL_MEMORY_GB"); val != "" {
+		if totalMemGB, err := strconv.Atoi(val); err == nil && totalMemGB > 0 {
+			concurrency := calculateConcurrency(totalMemGB)
+			logging.Logger().Info().
+				Int("total_memory_gb", totalMemGB).
+				Int("max_concurrency", concurrency).
+				Msg("Calculated concurrency from PROVER_TOTAL_MEMORY_GB")
+			return concurrency
+		}
+	}
 
+	// Default fallback
 	logging.Logger().Info().
-		Int("max_concurrency", concurrency).
-		Msg("Using auto-calculated max concurrency based on system memory")
-
-	return concurrency
+		Int("max_concurrency", MinConcurrencyPerWorker).
+		Msg("Using default min concurrency (set PROVER_MAX_CONCURRENCY or PROVER_TOTAL_MEMORY_GB to configure)")
+	return MinConcurrencyPerWorker
 }
 
-// calculateConcurrencyFromMemory determines optimal per-worker concurrency based on RAM.
+// calculateConcurrency computes per-worker concurrency from total memory.
 // Formula: (TotalRAM - Reserve) / (MemoryPerProof * NumWorkers)
-func calculateConcurrencyFromMemory() int {
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
-
-	// Get total system memory (Sys includes all memory obtained from OS)
-	// Note: This is Go's view of memory, for more accurate system total we read from OS
-	totalMemGB := getTotalSystemMemoryGB()
-
+func calculateConcurrency(totalMemGB int) int {
 	availableMemGB := totalMemGB - MemoryReserveGB
 	if availableMemGB < MemoryPerProofGB {
-		logging.Logger().Warn().
-			Int("total_mem_gb", totalMemGB).
-			Int("reserve_gb", MemoryReserveGB).
-			Int("available_gb", availableMemGB).
-			Msg("Very low memory available, using minimum concurrency")
 		return MinConcurrencyPerWorker
 	}
 
-	// Total concurrent proofs across all workers
 	totalConcurrentProofs := availableMemGB / MemoryPerProofGB
-
-	// Divide by number of workers to get per-worker concurrency
 	perWorkerConcurrency := totalConcurrentProofs / NumQueueWorkers
 
-	// Apply bounds
 	if perWorkerConcurrency < MinConcurrencyPerWorker {
-		perWorkerConcurrency = MinConcurrencyPerWorker
+		return MinConcurrencyPerWorker
 	}
 	if perWorkerConcurrency > MaxConcurrencyPerWorker {
-		perWorkerConcurrency = MaxConcurrencyPerWorker
+		return MaxConcurrencyPerWorker
 	}
-
-	logging.Logger().Info().
-		Int("total_system_mem_gb", totalMemGB).
-		Int("reserve_gb", MemoryReserveGB).
-		Int("available_gb", availableMemGB).
-		Int("mem_per_proof_gb", MemoryPerProofGB).
-		Int("num_workers", NumQueueWorkers).
-		Int("total_concurrent_proofs", totalConcurrentProofs).
-		Int("per_worker_concurrency", perWorkerConcurrency).
-		Msg("Calculated concurrency from system memory")
 
 	return perWorkerConcurrency
-}
-
-// getTotalSystemMemoryGB returns total system memory in GB.
-// Uses OS-specific methods to get accurate total RAM.
-func getTotalSystemMemoryGB() int {
-	// Try to read from cgroup (for containerized environments like k8s)
-	if memLimit := readCgroupMemoryLimit(); memLimit > 0 {
-		memGB := int(memLimit / (1024 * 1024 * 1024))
-		logging.Logger().Debug().
-			Int64("cgroup_limit_bytes", memLimit).
-			Int("cgroup_limit_gb", memGB).
-			Msg("Using cgroup memory limit")
-		return memGB
-	}
-
-	// Fall back to reading from /proc/meminfo (Linux)
-	if memTotal := readProcMeminfo(); memTotal > 0 {
-		memGB := int(memTotal / (1024 * 1024 * 1024))
-		logging.Logger().Debug().
-			Int64("proc_meminfo_bytes", memTotal).
-			Int("proc_meminfo_gb", memGB).
-			Msg("Using /proc/meminfo total")
-		return memGB
-	}
-
-	// Last resort: use Go's runtime stats (less accurate)
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
-	memGB := int(memStats.Sys / (1024 * 1024 * 1024))
-	if memGB < 1 {
-		memGB = 8 // Assume at least 8GB if we can't detect
-	}
-
-	logging.Logger().Debug().
-		Uint64("runtime_sys_bytes", memStats.Sys).
-		Int("estimated_gb", memGB).
-		Msg("Using Go runtime memory estimate")
-
-	return memGB
-}
-
-// readCgroupMemoryLimit reads memory limit from cgroup v2 or v1
-func readCgroupMemoryLimit() int64 {
-	// Try cgroup v2 first
-	if data, err := os.ReadFile("/sys/fs/cgroup/memory.max"); err == nil {
-		s := string(data)
-		s = s[:len(s)-1] // trim newline
-		if s != "max" {
-			if limit, err := strconv.ParseInt(s, 10, 64); err == nil {
-				return limit
-			}
-		}
-	}
-
-	// Try cgroup v1
-	if data, err := os.ReadFile("/sys/fs/cgroup/memory/memory.limit_in_bytes"); err == nil {
-		s := string(data)
-		s = s[:len(s)-1] // trim newline
-		if limit, err := strconv.ParseInt(s, 10, 64); err == nil {
-			// Ignore very large values (effectively unlimited)
-			if limit < 1<<62 {
-				return limit
-			}
-		}
-	}
-
-	return 0
-}
-
-// readProcMeminfo reads total memory from /proc/meminfo
-func readProcMeminfo() int64 {
-	data, err := os.ReadFile("/proc/meminfo")
-	if err != nil {
-		return 0
-	}
-
-	lines := string(data)
-	for _, line := range splitLines(lines) {
-		if len(line) > 9 && line[:9] == "MemTotal:" {
-			// Format: "MemTotal:       16384000 kB"
-			fields := splitFields(line)
-			if len(fields) >= 2 {
-				if kb, err := strconv.ParseInt(fields[1], 10, 64); err == nil {
-					return kb * 1024 // Convert KB to bytes
-				}
-			}
-		}
-	}
-
-	return 0
-}
-
-// splitLines splits string by newlines without importing strings package
-func splitLines(s string) []string {
-	var lines []string
-	start := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\n' {
-			lines = append(lines, s[start:i])
-			start = i + 1
-		}
-	}
-	if start < len(s) {
-		lines = append(lines, s[start:])
-	}
-	return lines
-}
-
-// splitFields splits string by whitespace without importing strings package
-func splitFields(s string) []string {
-	var fields []string
-	start := -1
-	for i := 0; i < len(s); i++ {
-		isSpace := s[i] == ' ' || s[i] == '\t'
-		if !isSpace && start == -1 {
-			start = i
-		} else if isSpace && start != -1 {
-			fields = append(fields, s[start:i])
-			start = -1
-		}
-	}
-	if start != -1 {
-		fields = append(fields, s[start:])
-	}
-	return fields
 }
 
 type ProofJob struct {
