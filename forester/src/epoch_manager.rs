@@ -2125,6 +2125,7 @@ impl<R: Rpc> EpochManager<R> {
                                 tree_accounts.merkle_tree,
                                 e
                             );
+                            drop(proc);
                             self.address_processors.remove(&tree_accounts.merkle_tree);
                             self.proof_caches.remove(&tree_accounts.merkle_tree);
                             Err(e)
