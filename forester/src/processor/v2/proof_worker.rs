@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use async_channel::Receiver;
 use light_batched_merkle_tree::merkle_tree::{
@@ -268,6 +268,8 @@ async fn poll_and_send_result(
                 "Proof polling got job_not_found for seq={} job_id={}; retrying submit once",
                 seq, job_id
             );
+            tokio::time::sleep(Duration::from_millis(200)).await;
+
             let inputs_json = inputs.to_json(&tree_id, seq);
             let circuit_type = inputs.circuit_type();
             match client.submit_proof_async(inputs_json, circuit_type).await {
