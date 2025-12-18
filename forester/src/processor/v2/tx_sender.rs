@@ -76,6 +76,17 @@ pub enum BatchInstruction {
     AddressAppend(Vec<light_batched_merkle_tree::merkle_tree::InstructionDataAddressAppendInputs>),
 }
 
+impl BatchInstruction {
+    /// Returns the number of ZKP batch instructions contained in this batch.
+    pub fn items_count(&self) -> usize {
+        match self {
+            BatchInstruction::Append(v) => v.len(),
+            BatchInstruction::Nullify(v) => v.len(),
+            BatchInstruction::AddressAppend(v) => v.len(),
+        }
+    }
+}
+
 /// Entry in the ordered proof buffer: instruction + timing info
 #[derive(Clone)]
 struct BufferEntry {

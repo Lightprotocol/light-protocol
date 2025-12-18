@@ -2447,7 +2447,7 @@ impl<R: Rpc> EpochManager<R> {
                         }
                     }
                 }
-                total_items += 1;
+                total_items += proof.items;
             }
 
             if !instructions.is_empty() {

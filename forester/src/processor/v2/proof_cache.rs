@@ -14,6 +14,8 @@ pub struct CachedProof {
     pub old_root: [u8; 32],
     pub new_root: [u8; 32],
     pub instruction: BatchInstruction,
+    /// Number of ZKP batch instructions represented by this proof.
+    pub items: usize,
 }
 
 #[derive(Debug)]
@@ -69,6 +71,7 @@ impl ProofCache {
             return;
         }
 
+        let items = instruction.items_count();
         self.warming_proofs.insert(
             seq,
             CachedProof {
@@ -76,6 +79,7 @@ impl ProofCache {
                 old_root,
                 new_root,
                 instruction,
+                items,
             },
         );
 
