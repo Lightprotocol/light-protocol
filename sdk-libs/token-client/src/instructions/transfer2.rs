@@ -523,10 +523,11 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         let mut found_compress_to_pubkey = false;
                         for extension in extensions {
                             if let ZExtensionStruct::Compressible(compressible_ext) = extension {
-                                found_rent_sponsor = Some(compressible_ext.rent_sponsor);
+                                found_rent_sponsor = Some(compressible_ext.info.rent_sponsor);
                                 found_compression_authority =
-                                    Some(compressible_ext.compression_authority);
-                                found_compress_to_pubkey = compressible_ext.compress_to_pubkey == 1;
+                                    Some(compressible_ext.info.compression_authority);
+                                found_compress_to_pubkey =
+                                    compressible_ext.info.compress_to_pubkey == 1;
                                 break;
                             }
                         }

@@ -127,14 +127,14 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
         if let Some(extensions) = &ctoken_account.extensions {
             for extension in extensions {
                 if let ZExtensionStruct::Compressible(e) = extension {
-                    let current_authority = Pubkey::from(e.compression_authority);
-                    rent_sponsor_pubkey = Pubkey::from(e.rent_sponsor);
+                    let current_authority = Pubkey::from(e.info.compression_authority);
+                    rent_sponsor_pubkey = Pubkey::from(e.info.rent_sponsor);
 
                     if compression_authority_pubkey.is_none() {
                         compression_authority_pubkey = Some(current_authority);
                     }
 
-                    if e.compress_to_pubkey() {
+                    if e.info.compress_to_pubkey() {
                         compressed_token_owner = *solana_ctoken_account_pubkey;
                     }
                     break;

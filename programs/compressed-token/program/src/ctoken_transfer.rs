@@ -101,6 +101,7 @@ fn calculate_and_execute_top_up_transfers(
                         }
 
                         transfer.amount = compressible_extension
+                            .info
                             .calculate_top_up_lamports(
                                 transfer.account.data_len() as u64,
                                 current_slot,

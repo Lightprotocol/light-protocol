@@ -2,7 +2,11 @@ use anchor_spl::token_2022::spl_token_2022;
 use light_client::rpc::Rpc;
 use light_compressible::rent::RentConfig;
 use light_ctoken_interface::{
-    state::{ctoken::CToken, extensions::CompressionInfo, AccountState},
+    state::{
+        ctoken::CToken,
+        extensions::{CompressibleExtension, CompressionInfo},
+        AccountState,
+    },
     BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_ctoken_sdk::ctoken::derive_ctoken_ata;
@@ -91,17 +95,22 @@ pub async fn assert_create_token_account_internal(
                 close_authority: None,
                 extensions: Some(vec![
                     light_ctoken_interface::state::extensions::ExtensionStruct::Compressible(
-                        CompressionInfo {
-                            config_account_version: 1,
-                            last_claimed_slot: current_slot,
-                            rent_config: RentConfig::default(),
-                            lamports_per_write: compressible_info.lamports_per_write.unwrap_or(0),
-                            compression_authority: compressible_info
-                                .compression_authority
-                                .to_bytes(),
-                            rent_sponsor: compressible_info.rent_sponsor.to_bytes(),
-                            compress_to_pubkey: compressible_info.compress_to_pubkey as u8,
-                            account_version: compressible_info.account_version as u8,
+                        CompressibleExtension {
+                            compression_only: false,
+                            info: CompressionInfo {
+                                config_account_version: 1,
+                                last_claimed_slot: current_slot,
+                                rent_config: RentConfig::default(),
+                                lamports_per_write: compressible_info
+                                    .lamports_per_write
+                                    .unwrap_or(0),
+                                compression_authority: compressible_info
+                                    .compression_authority
+                                    .to_bytes(),
+                                rent_sponsor: compressible_info.rent_sponsor.to_bytes(),
+                                compress_to_pubkey: compressible_info.compress_to_pubkey as u8,
+                                account_version: compressible_info.account_version as u8,
+                            },
                         },
                     ),
                 ]),

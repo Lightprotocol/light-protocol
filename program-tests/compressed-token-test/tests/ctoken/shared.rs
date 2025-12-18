@@ -312,7 +312,9 @@ pub async fn close_and_assert_token_account(
             extensions
                 .iter()
                 .find_map(|ext| match ext {
-                    ZExtensionStruct::Compressible(comp) => Some(Pubkey::from(comp.rent_sponsor)),
+                    ZExtensionStruct::Compressible(comp) => {
+                        Some(Pubkey::from(comp.info.rent_sponsor))
+                    }
                     _ => None,
                 })
                 .unwrap()
@@ -728,7 +730,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
         })
         .unwrap();
 
-    let rent_sponsor = Pubkey::from(compressible_ext.rent_sponsor);
+    let rent_sponsor = Pubkey::from(compressible_ext.info.rent_sponsor);
 
     // Get output queue for compression
     let output_queue = context

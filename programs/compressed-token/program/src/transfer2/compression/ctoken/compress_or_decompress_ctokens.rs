@@ -136,6 +136,7 @@ fn process_compressible_extension(
                         .slot;
                 }
                 *transfer_amount = compressible_extension
+                    .info
                     .calculate_top_up_lamports(
                         token_account_info.data_len() as u64,
                         *current_slot,

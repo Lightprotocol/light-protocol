@@ -3,7 +3,7 @@ use light_account_checks::AccountInfoTrait;
 use light_compressible::{compression_info::ZCompressionInfoMut, config::CompressibleConfig};
 use light_ctoken_interface::{
     instructions::extensions::compressible::CompressibleExtensionInstructionData,
-    state::CompressionInfo, CTokenError, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+    state::extensions::CompressibleExtension, CTokenError, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
@@ -86,18 +86,21 @@ pub fn initialize_ctoken_account(
         // Byte 6: Compressible enum discriminator = 32 (avoids Token-2022 overlap)
         extension_bytes[6] = 32;
 
-        // Create zero-copy mutable reference to CompressionInfo
-        let (mut compressible_extension, _) = CompressionInfo::zero_copy_at_mut(compressible_data)
-            .map_err(|e| {
+        // Create zero-copy mutable reference to CompressibleExtension
+        let (mut compressible_extension, _) =
+            CompressibleExtension::zero_copy_at_mut(compressible_data).map_err(|e| {
                 msg!(
-                    "Failed to create CompressionInfo zero-copy reference: {:?}",
+                    "Failed to create CompressibleExtension zero-copy reference: {:?}",
                     e
                 );
                 ProgramError::InvalidAccountData
             })?;
 
+        // Set compression_only field (false = 0 by default, accounts are compressible)
+        compressible_extension.compression_only = 0;
+
         configure_compressible_extension(
-            &mut compressible_extension,
+            &mut compressible_extension.info,
             compressible_config,
             compressible_config_account,
             custom_rent_payer,

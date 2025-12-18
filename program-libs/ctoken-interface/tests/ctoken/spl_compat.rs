@@ -8,7 +8,7 @@
 use light_compressed_account::Pubkey;
 use light_ctoken_interface::state::{
     ctoken::{CToken, CompressedTokenConfig, ZCToken},
-    CompressionInfoConfig, ExtensionStructConfig,
+    CompressibleExtensionConfig, CompressionInfoConfig, ExtensionStructConfig,
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
 use rand::Rng;
@@ -390,9 +390,11 @@ fn test_compressed_token_with_compressible_extension() {
         delegate: false,
         is_native: false,
         close_authority: false,
-        extensions: vec![ExtensionStructConfig::Compressible(CompressionInfoConfig {
-            rent_config: (),
-        })],
+        extensions: vec![ExtensionStructConfig::Compressible(
+            CompressibleExtensionConfig {
+                info: CompressionInfoConfig { rent_config: () },
+            },
+        )],
     };
 
     // Calculate required buffer size (165 base + 1 AccountType + 1 Option + extension data)
@@ -451,9 +453,11 @@ fn test_account_type_compatibility_with_spl_parsing() {
         delegate: false,
         is_native: false,
         close_authority: false,
-        extensions: vec![ExtensionStructConfig::Compressible(CompressionInfoConfig {
-            rent_config: (),
-        })],
+        extensions: vec![ExtensionStructConfig::Compressible(
+            CompressibleExtensionConfig {
+                info: CompressionInfoConfig { rent_config: () },
+            },
+        )],
     };
 
     let mut buffer = vec![0u8; CToken::byte_len(&config).unwrap()];
@@ -491,16 +495,19 @@ fn test_account_type_compatibility_with_spl_parsing() {
 fn test_compressible_extension_partial_eq() {
     use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
     use light_ctoken_interface::state::{
-        ctoken::AccountState as CtokenAccountState, extensions::ExtensionStruct,
+        ctoken::AccountState as CtokenAccountState,
+        extensions::{CompressibleExtension, ExtensionStruct},
     };
 
     let config = CompressedTokenConfig {
         delegate: false,
         is_native: false,
         close_authority: false,
-        extensions: vec![ExtensionStructConfig::Compressible(CompressionInfoConfig {
-            rent_config: (),
-        })],
+        extensions: vec![ExtensionStructConfig::Compressible(
+            CompressibleExtensionConfig {
+                info: CompressionInfoConfig { rent_config: () },
+            },
+        )],
     };
 
     let mut buffer = vec![0u8; CToken::byte_len(&config).unwrap()];
@@ -514,13 +521,13 @@ fn test_compressible_extension_partial_eq() {
                     ref mut comp,
                 ) = ext
                 {
-                    comp.config_account_version = 1.into();
-                    comp.compress_to_pubkey = 1;
-                    comp.account_version = 2;
-                    comp.lamports_per_write = 100.into();
-                    comp.compression_authority = [1u8; 32];
-                    comp.rent_sponsor = [2u8; 32];
-                    comp.last_claimed_slot = 1000.into();
+                    comp.info.config_account_version = 1.into();
+                    comp.info.compress_to_pubkey = 1;
+                    comp.info.account_version = 2;
+                    comp.info.lamports_per_write = 100.into();
+                    comp.info.compression_authority = [1u8; 32];
+                    comp.info.rent_sponsor = [2u8; 32];
+                    comp.info.last_claimed_slot = 1000.into();
                 }
             }
         }
@@ -553,7 +560,10 @@ fn test_compressible_extension_partial_eq() {
         is_native: None,
         delegated_amount: 0,
         close_authority: None,
-        extensions: Some(vec![ExtensionStruct::Compressible(compression_info)]),
+        extensions: Some(vec![ExtensionStruct::Compressible(CompressibleExtension {
+            compression_only: false,
+            info: compression_info,
+        })]),
     };
 
     // Parse zero-copy view
@@ -565,9 +575,12 @@ fn test_compressible_extension_partial_eq() {
 
     // Test compress_to_pubkey mismatch
     let ctoken_diff_compress = CToken {
-        extensions: Some(vec![ExtensionStruct::Compressible(CompressionInfo {
-            compress_to_pubkey: 0,
-            ..compression_info
+        extensions: Some(vec![ExtensionStruct::Compressible(CompressibleExtension {
+            compression_only: false,
+            info: CompressionInfo {
+                compress_to_pubkey: 0,
+                ..compression_info
+            },
         })]),
         ..ctoken.clone()
     };
@@ -576,9 +589,12 @@ fn test_compressible_extension_partial_eq() {
 
     // Test account_version mismatch
     let ctoken_diff_version = CToken {
-        extensions: Some(vec![ExtensionStruct::Compressible(CompressionInfo {
-            account_version: 0,
-            ..compression_info
+        extensions: Some(vec![ExtensionStruct::Compressible(CompressibleExtension {
+            compression_only: false,
+            info: CompressionInfo {
+                account_version: 0,
+                ..compression_info
+            },
         })]),
         ..ctoken.clone()
     };

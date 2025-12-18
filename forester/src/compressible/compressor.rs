@@ -140,7 +140,7 @@ impl<R: Rpc> Compressor<R> {
                 .ok_or_else(|| anyhow::anyhow!("Account missing compressible extension"))?;
 
             // Determine owner based on compress_to_pubkey flag
-            let compressed_token_owner = if compressible_ext.compress_to_pubkey != 0 {
+            let compressed_token_owner = if compressible_ext.info.compress_to_pubkey != 0 {
                 account_state.pubkey // Use account pubkey for PDAs
             } else {
                 Pubkey::new_from_array(account_state.account.owner.to_bytes()) // Use original owner
@@ -149,7 +149,7 @@ impl<R: Rpc> Compressor<R> {
             let owner_index = packed_accounts.insert_or_get(compressed_token_owner);
 
             // Extract rent_sponsor from extension
-            let rent_sponsor = Pubkey::new_from_array(compressible_ext.rent_sponsor);
+            let rent_sponsor = Pubkey::new_from_array(compressible_ext.info.rent_sponsor);
             let rent_sponsor_index = packed_accounts.insert_or_get(rent_sponsor);
 
             indices_vec.push(CompressAndCloseIndices {

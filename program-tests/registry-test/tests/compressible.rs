@@ -1143,10 +1143,10 @@ async fn assert_not_compressible<R: Rpc>(
                     num_bytes: account.data.len() as u64,
                     current_slot,
                     current_lamports: account.lamports,
-                    last_claimed_slot: compressible_ext.last_claimed_slot,
+                    last_claimed_slot: compressible_ext.info.last_claimed_slot,
                 };
                 let is_compressible = state.is_compressible(
-                    &compressible_ext.rent_config,
+                    &compressible_ext.info.rent_config,
                     light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                 );
 
@@ -1159,6 +1159,7 @@ async fn assert_not_compressible<R: Rpc>(
 
                 // Also verify last_funded_epoch is ahead of current
                 let last_funded_epoch = compressible_ext
+                    .info
                     .get_last_funded_epoch(
                         account.data.len() as u64,
                         account.lamports,
@@ -1270,7 +1271,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
         .and_then(|exts| {
             exts.iter().find_map(|ext| {
                 if let ExtensionStruct::Compressible(comp) = ext {
-                    Some(comp.rent_config)
+                    Some(comp.info.rent_config)
                 } else {
                     None
                 }
@@ -1299,7 +1300,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
         if let Some(extensions) = ctoken.extensions.as_ref() {
             for ext in extensions.iter() {
                 if let ExtensionStruct::Compressible(comp) = ext {
-                    return Ok(comp.last_claimed_slot);
+                    return Ok(comp.info.last_claimed_slot);
                 }
             }
         }
