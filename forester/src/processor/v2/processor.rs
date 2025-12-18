@@ -21,7 +21,7 @@ use crate::{
         proof_worker::{spawn_proof_workers, ProofJob, ProofJobResult},
         root_guard::{reconcile_roots, RootReconcileDecision},
         strategy::{CircuitType, QueueData, TreeStrategy},
-        tx_sender::TxSender,
+        tx_sender::{BatchInstruction, ProofTimings, TxSender},
         BatchContext, ProcessingResult, QueueWork,
     },
 };
@@ -503,9 +503,9 @@ where
         &mut self,
         cache: Arc<SharedProofCache>,
         queue_work: QueueWork,
-    ) -> crate::Result<usize> {
+    ) -> crate::Result<ProcessingResult> {
         if queue_work.queue_size < self.zkp_batch_size {
-            return Ok(0);
+            return Ok(ProcessingResult::default());
         }
 
         let max_batches =
@@ -522,7 +522,7 @@ where
             .await?
         {
             Some(data) => data,
-            None => return Ok(0),
+            None => return Ok(ProcessingResult::default()),
         };
 
         self.prewarm_batches(cache, queue_data).await
@@ -533,9 +533,9 @@ where
         cache: Arc<SharedProofCache>,
         queue_type: QueueType,
         max_batches: usize,
-    ) -> crate::Result<usize> {
+    ) -> crate::Result<ProcessingResult> {
         if max_batches == 0 {
-            return Ok(0);
+            return Ok(ProcessingResult::default());
         }
 
         let max_batches = max_batches.min(MAX_BATCHES_PER_TREE);
@@ -557,7 +557,7 @@ where
             .await?
         {
             Some(data) => data,
-            None => return Ok(0),
+            None => return Ok(ProcessingResult::default()),
         };
 
         self.prewarm_batches(cache, queue_data).await
@@ -567,7 +567,7 @@ where
         &mut self,
         cache: Arc<SharedProofCache>,
         queue_data: QueueData<S::StagingTree>,
-    ) -> crate::Result<usize> {
+    ) -> crate::Result<ProcessingResult> {
         let initial_root = queue_data.initial_root;
         self.current_root = initial_root;
         let num_batches = queue_data.num_batches;
@@ -592,16 +592,33 @@ where
             &initial_root[..4]
         );
 
-        let (jobs_sent, _, _staging_tree) = self
+        let (jobs_sent, timings, _staging_tree) = self
             .enqueue_jobs(queue_data, 0, num_batches, job_tx, proof_tx.clone())
             .await?;
 
         drop(proof_tx);
 
         let mut proofs_cached = 0;
+        let mut proof_timings = ProofTimings::default();
+
         while let Some(result) = proof_rx.recv().await {
             match result.result {
                 Ok(instruction) => {
+                    match &instruction {
+                        BatchInstruction::Append(_) => {
+                            proof_timings.append_proof_ms += result.proof_duration_ms;
+                            proof_timings.append_round_trip_ms += result.round_trip_ms;
+                        }
+                        BatchInstruction::Nullify(_) => {
+                            proof_timings.nullify_proof_ms += result.proof_duration_ms;
+                            proof_timings.nullify_round_trip_ms += result.round_trip_ms;
+                        }
+                        BatchInstruction::AddressAppend(_) => {
+                            proof_timings.address_append_proof_ms += result.proof_duration_ms;
+                            proof_timings.address_append_round_trip_ms += result.round_trip_ms;
+                        }
+                    }
+
                     cache
                         .add_proof(result.seq, result.old_root, result.new_root, instruction)
                         .await;
@@ -633,7 +650,33 @@ where
             );
         }
 
-        Ok(proofs_cached)
+        let mut metrics = ProcessingMetrics::default();
+        if timings.append_count > 0 {
+            metrics.append = CircuitMetrics {
+                circuit_inputs_duration: timings.append_circuit_inputs,
+                proof_generation_duration: proof_timings.append_proof_duration(),
+                round_trip_duration: proof_timings.append_round_trip_duration(),
+            };
+        }
+        if timings.nullify_count > 0 {
+            metrics.nullify = CircuitMetrics {
+                circuit_inputs_duration: timings.nullify_circuit_inputs,
+                proof_generation_duration: proof_timings.nullify_proof_duration(),
+                round_trip_duration: proof_timings.nullify_round_trip_duration(),
+            };
+        }
+        if timings.address_append_count > 0 {
+            metrics.address_append = CircuitMetrics {
+                circuit_inputs_duration: timings.address_append_circuit_inputs,
+                proof_generation_duration: proof_timings.address_append_proof_duration(),
+                round_trip_duration: proof_timings.address_append_round_trip_duration(),
+            };
+        }
+
+        Ok(ProcessingResult {
+            items_processed: proofs_cached * self.zkp_batch_size as usize,
+            metrics,
+        })
     }
 
     pub fn current_root(&self) -> &[u8; 32] {

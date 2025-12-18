@@ -2262,11 +2262,11 @@ impl<R: Rpc> EpochManager<R> {
                         )
                         .await
                     {
-                        Ok(count) => {
-                            if count > 0 {
+                        Ok(result) => {
+                            if result.items_processed > 0 {
                                 info!(
-                                    "Pre-warmed {} proofs for tree {} during wait",
-                                    count, tree_pubkey
+                                    "Pre-warmed {} items for tree {} during wait (metrics: {:?})",
+                                    result.items_processed, tree_pubkey, result.metrics
                                 );
                             }
                         }
