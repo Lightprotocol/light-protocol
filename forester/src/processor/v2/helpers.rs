@@ -22,38 +22,6 @@ pub(crate) fn lock_recover<'a, T>(mutex: &'a Mutex<T>, name: &'static str) -> Mu
     }
 }
 
-fn wait_recover<'a, T>(
-    condvar: &Condvar,
-    guard: MutexGuard<'a, T>,
-    name: &'static str,
-) -> MutexGuard<'a, T> {
-    match condvar.wait(guard) {
-        Ok(guard) => guard,
-        Err(poisoned) => {
-            tracing::warn!("Poisoned mutex while waiting (recovering): {}", name);
-            poisoned.into_inner()
-        }
-    }
-}
-
-fn wait_while_recover<'a, T, F>(
-    condvar: &Condvar,
-    guard: MutexGuard<'a, T>,
-    condition: F,
-    name: &'static str,
-) -> MutexGuard<'a, T>
-where
-    F: FnMut(&mut T) -> bool,
-{
-    match condvar.wait_while(guard, condition) {
-        Ok(guard) => guard,
-        Err(poisoned) => {
-            tracing::warn!("Poisoned mutex while waiting (recovering): {}", name);
-            poisoned.into_inner()
-        }
-    }
-}
-
 pub async fn fetch_zkp_batch_size<R: Rpc>(context: &BatchContext<R>) -> crate::Result<u64> {
     let rpc = context.rpc_pool.get_connection().await?;
     let mut account = rpc
@@ -469,11 +437,13 @@ impl StreamingAddressQueue {
             if complete {
                 break;
             }
-            available = wait_recover(
-                &self.data_ready,
-                available,
-                "streaming_address_queue.available_elements",
-            );
+            available = match self.data_ready.wait(available) {
+                Ok(guard) => guard,
+                Err(poisoned) => {
+                    tracing::warn!("Poisoned mutex while waiting (recovering): streaming_address_queue.available_elements");
+                    poisoned.into_inner()
+                }
+            };
         }
         *available
     }
@@ -500,12 +470,13 @@ impl StreamingAddressQueue {
             "streaming_address_queue.fetch_complete",
         );
         while !*complete {
-            complete = wait_while_recover(
-                &self.fetch_complete_condvar,
-                complete,
-                |c| !*c,
-                "streaming_address_queue.fetch_complete",
-            );
+            complete = match self.fetch_complete_condvar.wait_while(complete, |c| !*c) {
+                Ok(guard) => guard,
+                Err(poisoned) => {
+                    tracing::warn!("Poisoned mutex while waiting (recovering): streaming_address_queue.fetch_complete");
+                    poisoned.into_inner()
+                }
+            };
         }
         drop(complete);
         match Arc::try_unwrap(self.data) {
