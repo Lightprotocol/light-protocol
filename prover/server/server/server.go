@@ -695,7 +695,13 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, keyManager *com
 
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusAccepted)
-				json.NewEncoder(w).Encode(response)
+				if err := json.NewEncoder(w).Encode(response); err != nil {
+					logging.Logger().Error().
+						Err(err).
+						Str("job_id", dedupResult.JobID).
+						Str("response_type", "deduplicated_queue_add_response").
+						Msg("Failed to encode JSON response")
+				}
 				return
 			}
 
@@ -877,17 +883,13 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 
 	// If deduplicated to an existing job, return early
 	if dedupResult.IsDeduplicated {
-		estimatedTime := handler.getEstimatedTime(meta.CircuitType)
-
 		response := map[string]interface{}{
-			"job_id":         dedupResult.JobID,
-			"status":         "already_queued",
-			"circuit_type":   string(meta.CircuitType),
-			"queue":          queueName,
-			"estimated_time": estimatedTime,
-			"status_url":     fmt.Sprintf("/prove/status?job_id=%s", dedupResult.JobID),
-			"message":        "Proof request with identical input already in queue. Returning existing job ID.",
-			"deduplicated":   true,
+			"job_id":       dedupResult.JobID,
+			"status":       "already_queued",
+			"circuit_type": string(meta.CircuitType),
+			"queue":        queueName,
+			"message":      "Proof request with identical input already in queue. Returning existing job ID.",
+			"deduplicated": true,
 		}
 
 		logging.Logger().Info().
