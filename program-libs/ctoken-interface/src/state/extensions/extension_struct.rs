@@ -46,15 +46,6 @@ pub enum ExtensionStruct {
     Placeholder25,
     /// Reserved for Token-2022 Pausable compatibility
     Placeholder26,
-    /// Reserved for Token-2022 PausableAccount compatibility
-    Placeholder27,
-    /// Reserved for Token-2022 extensions
-    Placeholder28,
-    Placeholder29,
-    Placeholder30,
-    Placeholder31,
-    /// Account contains compressible timing data and rent authority
-    Compressible(CompressibleExtension),
     /// Marker extension indicating the account belongs to a pausable mint
     PausableAccount(PausableAccountExtension),
     /// Marker extension indicating the account belongs to a mint with permanent delegate
@@ -65,6 +56,8 @@ pub enum ExtensionStruct {
     TransferHookAccount(TransferHookAccountExtension),
     /// CompressedOnly extension for compressed token accounts (stores delegated amount)
     CompressedOnly(CompressedOnlyExtension),
+    /// Account contains compressible timing data and rent authority
+    Compressible(CompressibleExtension),
 }
 
 #[derive(
@@ -116,17 +109,6 @@ pub enum ZExtensionStructMut<'a> {
     Placeholder25,
     /// Reserved for Token-2022 Pausable compatibility
     Placeholder26,
-    /// Reserved for Token-2022 PausableAccount compatibility
-    Placeholder27,
-    /// Reserved for Token-2022 extensions
-    Placeholder28,
-    Placeholder29,
-    Placeholder30,
-    Placeholder31,
-    /// Account contains compressible timing data and rent authority
-    Compressible(
-        <CompressibleExtension as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut,
-    ),
     /// Marker extension indicating the account belongs to a pausable mint
     PausableAccount(ZPausableAccountExtensionMut<'a>),
     /// Marker extension indicating the account belongs to a mint with permanent delegate
@@ -138,6 +120,10 @@ pub enum ZExtensionStructMut<'a> {
     /// CompressedOnly extension for compressed token accounts
     CompressedOnly(
         <CompressedOnlyExtension as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut,
+    ),
+    /// Account contains compressible timing data and rent authority
+    Compressible(
+        <CompressibleExtension as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut,
     ),
 }
 

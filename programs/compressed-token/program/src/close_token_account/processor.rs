@@ -63,12 +63,6 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    // Check account state - reject frozen and uninitialized
-    match *ctoken.state {
-        state if state == AccountState::Initialized as u8 => {} // OK to proceed
-        state if state == AccountState::Frozen as u8 => return Err(ErrorCode::AccountFrozen.into()),
-        _ => return Err(ProgramError::UninitializedAccount),
-    }
     // For compress and close we compress the balance and close.
     if !COMPRESS_AND_CLOSE {
         // Check that the account has zero balance
@@ -128,6 +122,13 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
     if COMPRESS_AND_CLOSE {
         msg!("compress and close requires compressible extension");
         return Err(ProgramError::InvalidAccountData);
+    }
+
+    // Check account state - reject frozen and uninitialized (only for regular close)
+    match *ctoken.state {
+        state if state == AccountState::Initialized as u8 => {} // OK to proceed
+        state if state == AccountState::Frozen as u8 => return Err(ErrorCode::AccountFrozen.into()),
+        _ => return Err(ProgramError::UninitializedAccount),
     }
 
     // For regular close: check close_authority first, then fall back to owner

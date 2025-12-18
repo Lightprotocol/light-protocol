@@ -863,9 +863,8 @@ async fn test_compress_and_close_output_validation_errors() {
         light_program_test::utils::assert::assert_rpc_error(result, 0, 6092).unwrap();
     }
 
-    // Test 9: Frozen account handling differs between authority and forester
-    // - Authority (owner) CANNOT compress and close frozen accounts
-    // - Forester CAN compress and close frozen accounts (skips state validation)
+    // Test 9: Forester CAN compress and close frozen accounts
+    // Note: Owner compress_and_close is already tested in test_compress_and_close_owner_scenarios
     {
         let mut context = setup_compress_and_close_test(
             2,       // 2 prepaid epochs
@@ -899,19 +898,9 @@ async fn test_compress_and_close_output_validation_errors() {
             .unwrap();
         context.rpc.set_account(token_account_pubkey, token_account);
 
-        // Test 9a: Authority (owner) CANNOT close frozen accounts
-        // Error: CannotModifyFrozenAccount (76 = 0x4c)
-        let owner_keypair = context.owner_keypair.insecure_clone();
-        compress_and_close_and_assert_fails(
-            &mut context,
-            &owner_keypair,
-            None, // Default destination
-            "authority_frozen_account",
-            6076, // CannotModifyFrozenAccount
-        )
-        .await;
-
-        // Test 9b: Forester CAN close frozen accounts (skips state validation)
+        // Test 9: Forester CAN close frozen accounts
+        // Note: Owners can't compress_and_close at all (they fail compression_authority check
+        // in test_compress_and_close_owner_scenarios), so frozen account test for owners is redundant
         let forester_keypair = context.rpc.test_accounts.protocol.forester.insecure_clone();
 
         // Create destination for compression incentive

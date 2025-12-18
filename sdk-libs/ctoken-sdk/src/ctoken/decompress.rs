@@ -1,11 +1,15 @@
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
+use light_ctoken_interface::{
+    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
+    state::{ExtensionStruct, TokenDataVersion},
+};
 use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
 use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
 use crate::{
-    compat::TokenData,
+    compat::{AccountState, TokenData},
     compressed_token::{
         decompress_full::pack_for_decompress_full,
         transfer2::{
@@ -84,12 +88,42 @@ impl DecompressToCtoken {
             root_index: self.root_index,
             prove_by_index,
         };
+        // Extract version from discriminator
+        let version = TokenDataVersion::from_discriminator(self.discriminator)
+            .map_err(|_| ProgramError::InvalidAccountData)?
+            as u8;
+
+        // Convert TLV extensions from state format to instruction format
+        let is_frozen = self.token_data.state == AccountState::Frozen;
+        let tlv: Option<Vec<ExtensionInstructionData>> =
+            self.token_data.tlv.as_ref().map(|extensions| {
+                extensions
+                    .iter()
+                    .filter_map(|ext| match ext {
+                        ExtensionStruct::CompressedOnly(compressed_only) => {
+                            Some(ExtensionInstructionData::CompressedOnly(
+                                CompressedOnlyExtensionInstructionData {
+                                    delegated_amount: compressed_only.delegated_amount,
+                                    withheld_transfer_fee: compressed_only.withheld_transfer_fee,
+                                    is_frozen,
+                                },
+                            ))
+                        }
+                        _ => None,
+                    })
+                    .collect()
+            });
+
+        // Clone tlv for passing to Transfer2Inputs.in_tlv
+        let in_tlv = tlv.clone().map(|t| vec![t]);
+
         let indices = pack_for_decompress_full(
             &self.token_data,
             &tree_info,
             self.destination_ctoken_account,
             &mut packed_accounts,
-            None, // No TLV extensions
+            tlv,
+            version,
         );
         // Build CTokenAccount2 with decompress operation
         let mut token_account = CTokenAccount2::new(vec![indices.source])
@@ -108,6 +142,7 @@ impl DecompressToCtoken {
             token_accounts: vec![token_account],
             transfer_config,
             validity_proof: self.validity_proof,
+            in_tlv,
             ..Default::default()
         };
 

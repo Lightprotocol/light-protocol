@@ -151,6 +151,7 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
 /// * `destination_indices` - Destination account indices for each decompression
 /// * `packed_accounts` - PackedAccounts that will be used to insert/get indices
 /// * `tlv` - Optional TLV extensions for the compressed account
+/// * `version` - TokenDataVersion (1=V1, 2=V2, 3=ShaFlat) for hash computation
 ///
 /// # Returns
 /// Vec of DecompressFullIndices ready to use with decompress_full_ctoken_accounts_with_indices
@@ -161,6 +162,7 @@ pub fn pack_for_decompress_full(
     destination: Pubkey,
     packed_accounts: &mut PackedAccounts,
     tlv: Option<Vec<ExtensionInstructionData>>,
+    version: u8,
 ) -> DecompressFullIndices {
     let source = MultiInputTokenDataWithContext {
         owner: packed_accounts.insert_or_get_config(token.owner, true, false),
@@ -171,7 +173,7 @@ pub fn pack_for_decompress_full(
             .map(|d| packed_accounts.insert_or_get(d))
             .unwrap_or(0),
         mint: packed_accounts.insert_or_get(token.mint),
-        version: if tlv.is_some() { 3 } else { 2 },
+        version,
         merkle_context: PackedMerkleContext {
             merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
             queue_pubkey_index: tree_info.queue_pubkey_index,

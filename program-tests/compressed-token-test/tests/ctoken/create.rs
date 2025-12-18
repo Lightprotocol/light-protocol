@@ -206,7 +206,7 @@ async fn test_create_compressible_token_account_failing() {
             &mut context,
             compressible_data,
             "account_already_initialized",
-            78, // AlreadyInitialized (our program checks this after Assign+realloc pattern)
+            6078, // AlreadyInitialized (anchor_compressed_token::ErrorCode::AlreadyInitialized)
         )
         .await;
     }

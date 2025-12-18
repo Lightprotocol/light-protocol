@@ -235,6 +235,7 @@ async fn test_decompress_full_cpi() {
                     dest_pubkey,
                     &mut remaining_accounts,
                     None, // No TLV extensions
+                    light_ctoken_interface::state::TokenDataVersion::ShaFlat as u8,
                 )
             })
             .collect();
@@ -429,6 +430,7 @@ async fn test_decompress_full_cpi_with_context() {
                     dest_pubkey,
                     &mut remaining_accounts,
                     None, // No TLV extensions
+                    light_ctoken_interface::state::TokenDataVersion::ShaFlat as u8,
                 )
             })
             .collect();

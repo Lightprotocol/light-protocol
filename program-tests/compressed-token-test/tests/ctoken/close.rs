@@ -317,7 +317,7 @@ async fn test_close_token_account_fails() {
             &owner_keypair,
             Some(rent_sponsor),
             "frozen_account",
-            18036, // CTokenError::InvalidAccountState
+            6076, // anchor_compressed_token::ErrorCode::AccountFrozen
         )
         .await;
     }

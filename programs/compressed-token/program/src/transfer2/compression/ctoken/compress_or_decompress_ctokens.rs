@@ -63,17 +63,11 @@ pub fn compress_or_decompress_ctokens(
 
     // Check if account is frozen (SPL Token-2022 compatibility)
     // Frozen accounts cannot have their balance modified except for CompressAndClose
-    // with rent authority (compression authority can compress expired frozen accounts)
-    let is_compress_and_close_with_rent_sponsor = mode == ZCompressionMode::CompressAndClose
-        && compress_and_close_inputs
-            .as_ref()
-            .map(|inputs| inputs.rent_sponsor_is_signer_flag)
-            .unwrap_or(false);
-    if *ctoken.state == 2 && !is_compress_and_close_with_rent_sponsor {
+    // (only foresters can call CompressAndClose via registry program)
+    if *ctoken.state == 2 && mode != ZCompressionMode::CompressAndClose {
         msg!("Cannot modify frozen account");
         return Err(ErrorCode::AccountFrozen.into());
     }
-
     // Get current balance
     let current_balance: u64 = u64::from(*ctoken.amount);
     let mut current_slot = 0;

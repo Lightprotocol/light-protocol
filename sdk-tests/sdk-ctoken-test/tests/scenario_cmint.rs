@@ -205,6 +205,9 @@ async fn test_cmint_to_ctoken_scenario() {
         "cToken ATA should exist after recreation"
     );
     println!("  - cToken ATA recreated: {}", ctoken_ata2);
+    let deserialized_ata =
+        CToken::try_from_slice(&mut ctoken_account_data.data.as_slice()).unwrap();
+    println!("deserialized ata {:?}", deserialized_ata);
 
     // 10. Get validity proof for the compressed account
     let compressed_hashes: Vec<_> = compressed_accounts
@@ -232,6 +235,8 @@ async fn test_cmint_to_ctoken_scenario() {
 
     // 11. Decompress compressed tokens to cToken account
     println!("Decompressing tokens to cToken account...");
+    println!("discriminator {:?}", discriminator);
+    println!("token_data {:?}", token_data);
     let decompress_instruction = DecompressToCtoken {
         token_data,
         discriminator,
