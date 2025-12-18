@@ -229,7 +229,7 @@ groth16-solana = { version = "0.2.0" }
 bytemuck = { version = "1.19.0" }
 arrayvec = "0.7"
 tinyvec = "1.10.0"
-pinocchio-token-program = { git= "https://github.com/Lightprotocol/token", rev="fc39a485cf1b214e16a0f13fd6ddea0cd87aaa87" }
+pinocchio-token-program = { git= "https://github.com/Lightprotocol/token", rev="5d2768b98075ba03dfc5d6e6dd8567ba065c84ba" }
 # Math and crypto
 num-bigint = "0.4.6"
 tabled = "0.20"

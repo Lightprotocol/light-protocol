@@ -12,7 +12,9 @@ use crate::{
 };
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq, Clone, BorshSerialize, BorshDeserialize, ZeroCopyMut, ZeroCopy)]
+#[derive(
+    Debug, PartialEq, Default, Eq, Clone, BorshSerialize, BorshDeserialize, ZeroCopyMut, ZeroCopy,
+)]
 pub struct CompressedMint {
     pub base: BaseMint,
     pub metadata: CompressedMintMetadata,
@@ -22,7 +24,7 @@ pub struct CompressedMint {
 // and subsequent deserialization for remaining data (compression metadata + extensions)
 /// SPL-compatible base mint structure with padding for COption alignment
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct BaseMint {
     /// Optional authority used to mint new tokens. The mint authority may only
     /// be provided during mint creation. If no mint authority is present
@@ -42,13 +44,14 @@ pub struct BaseMint {
 /// Light Protocol-specific metadata for compressed mints
 #[repr(C)]
 #[derive(
-    Debug, PartialEq, Eq, Clone, AnchorDeserialize, AnchorSerialize, ZeroCopyMut, ZeroCopy,
+    Debug, Default, PartialEq, Eq, Clone, AnchorDeserialize, AnchorSerialize, ZeroCopyMut, ZeroCopy,
 )]
 pub struct CompressedMintMetadata {
     /// Version for upgradability
     pub version: u8,
-    /// Extension, necessary for mint to.
-    pub spl_mint_initialized: bool,
+    /// Whether the compressed mint has been decompressed to a CMint Solana account.
+    /// When true, the CMint account is the source of truth.
+    pub cmint_decompressed: bool,
     /// Pda with seed address of compressed mint
     pub mint: Pubkey,
 }
@@ -64,6 +67,43 @@ impl CompressedMint {
             _ => Err(CTokenError::InvalidTokenDataVersion),
         }
     }
+
+    /// Deserialize a CompressedMint from a CMint Solana account with validation.
+    ///
+    /// Checks:
+    /// 1. Account is owned by the specified program
+    /// 2. Account is initialized (BaseMint.is_initialized == true)
+    ///
+    /// Note: CMint accounts follow SPL token mint pattern (no discriminator).
+    /// Validation is done via owner check + PDA derivation (caller responsibility).
+    pub fn from_account_info_checked(
+        program_id: &[u8; 32],
+        account_info: &pinocchio::account_info::AccountInfo,
+    ) -> Result<Self, CTokenError> {
+        // 1. Check program ownership
+        if !account_info.is_owned_by(program_id) {
+            #[cfg(feature = "solana")]
+            msg!("CMint account has invalid owner");
+            return Err(CTokenError::InvalidCMintOwner);
+        }
+
+        // 2. Borrow and deserialize account data
+        let data = account_info
+            .try_borrow_data()
+            .map_err(|_| CTokenError::CMintBorrowFailed)?;
+
+        let mint =
+            Self::try_from_slice(&data).map_err(|_| CTokenError::CMintDeserializationFailed)?;
+
+        // 3. Check is_initialized
+        if !mint.base.is_initialized {
+            #[cfg(feature = "solana")]
+            msg!("CMint account is not initialized");
+            return Err(CTokenError::CMintNotInitialized);
+        }
+
+        Ok(mint)
+    }
 }
 
 // Implementation for zero-copy mutable CompressedMint
@@ -74,7 +114,7 @@ impl ZCompressedMintMut<'_> {
     pub fn set(
         &mut self,
         ix_data: &<CompressedMintInstructionData as light_zero_copy::traits::ZeroCopyAt<'_>>::ZeroCopyAt,
-        spl_mint_initialized: bool,
+        cmint_decompressed: bool,
     ) -> Result<(), CTokenError> {
         if ix_data.metadata.version != 3 {
             #[cfg(feature = "solana")]
@@ -87,7 +127,7 @@ impl ZCompressedMintMut<'_> {
         // Set metadata fields from instruction data
         self.metadata.version = ix_data.metadata.version;
         self.metadata.mint = ix_data.metadata.mint;
-        self.metadata.spl_mint_initialized = if spl_mint_initialized { 1 } else { 0 };
+        self.metadata.cmint_decompressed = if cmint_decompressed { 1 } else { 0 };
 
         // Set base fields
         *self.base.supply = ix_data.supply;

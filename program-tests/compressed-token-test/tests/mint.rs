@@ -16,3 +16,9 @@ mod functional;
 
 #[path = "mint/random.rs"]
 mod random;
+
+#[path = "mint/burn.rs"]
+mod burn;
+
+#[path = "mint/ctoken_mint_to.rs"]
+mod ctoken_mint_to;

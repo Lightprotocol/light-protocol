@@ -111,7 +111,7 @@ async fn test_mint_to_ctoken() {
                     .root_index
                     .root_index()
                     .unwrap_or_default(), // Will be updated with validity proof
-                mint: compressed_mint.try_into().unwrap(),
+                mint: Some(compressed_mint.try_into().unwrap()),
             };
         // Build instruction data for wrapper program
         let mint_to_data = MintToCTokenData {
@@ -346,7 +346,7 @@ async fn test_mint_to_ctoken_invoke_signed() {
                     .root_index
                     .root_index()
                     .unwrap_or_default(),
-                mint: compressed_mint.try_into().unwrap(),
+                mint: Some(compressed_mint.try_into().unwrap()),
             };
 
         // Build instruction data for wrapper program

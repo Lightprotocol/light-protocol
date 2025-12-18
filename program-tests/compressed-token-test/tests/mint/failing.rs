@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
@@ -421,6 +421,8 @@ async fn functional_and_failing_tests() {
             &mint_seed,
             &invalid_mint_authority, // Invalid authority
             &payer,
+            None,   // decompress_mint
+            false,  // compress_and_close_cmint
             vec![], // No compressed recipients
             vec![
                 light_ctoken_interface::instructions::mint_action::Recipient::new(
@@ -478,6 +480,8 @@ async fn functional_and_failing_tests() {
             &mint_seed,
             &new_mint_authority, // Valid NEW authority after update
             &payer,
+            None,   // decompress_mint
+            false,  // compress_and_close_cmint
             vec![], // No compressed recipients
             vec![
                 light_ctoken_interface::instructions::mint_action::Recipient::new(
@@ -913,7 +917,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
             .root_index()
             .unwrap_or_default(),
         address: compressed_mint_address,
-        mint: compressed_mint.try_into().unwrap(),
+        mint: Some(compressed_mint.try_into().unwrap()),
     };
 
     // Build instruction data with max_top_up = 1 (too low to cover rent top-up)

@@ -32,7 +32,7 @@ describe('layout-mint', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: true,
+                    cmintDecompressed: true,
                     splMint,
                 },
                 extensions: null,
@@ -49,7 +49,7 @@ describe('layout-mint', () => {
             expect(deserialized.base.isInitialized).toBe(true);
             expect(deserialized.base.freezeAuthority).toBe(null);
             expect(deserialized.mintContext.version).toBe(1);
-            expect(deserialized.mintContext.splMintInitialized).toBe(true);
+            expect(deserialized.mintContext.cmintDecompressed).toBe(true);
             expect(deserialized.mintContext.splMint.toBase58()).toBe(
                 splMint.toBase58(),
             );
@@ -71,7 +71,7 @@ describe('layout-mint', () => {
                 },
                 mintContext: {
                     version: 0,
-                    splMintInitialized: false,
+                    cmintDecompressed: false,
                     splMint,
                 },
                 extensions: null,
@@ -83,7 +83,7 @@ describe('layout-mint', () => {
             expect(deserialized.base.freezeAuthority?.toBase58()).toBe(
                 freezeAuthority.toBase58(),
             );
-            expect(deserialized.mintContext.splMintInitialized).toBe(false);
+            expect(deserialized.mintContext.cmintDecompressed).toBe(false);
         });
 
         it('should handle null mintAuthority', () => {
@@ -99,7 +99,7 @@ describe('layout-mint', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: true,
+                    cmintDecompressed: true,
                     splMint,
                 },
                 extensions: null,
@@ -138,7 +138,7 @@ describe('layout-mint', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: true,
+                    cmintDecompressed: true,
                     splMint,
                 },
                 extensions: [
@@ -173,7 +173,7 @@ describe('layout-mint', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: true,
+                    cmintDecompressed: true,
                     splMint,
                 },
                 extensions: null,
@@ -353,7 +353,7 @@ describe('layout-mint', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: true,
+                    cmintDecompressed: true,
                     splMint,
                 },
                 extensions: null,
@@ -368,7 +368,7 @@ describe('layout-mint', () => {
             );
             expect(instructionData.freezeAuthority).toBe(null);
             expect(instructionData.splMint.toBase58()).toBe(splMint.toBase58());
-            expect(instructionData.splMintInitialized).toBe(true);
+            expect(instructionData.cmintDecompressed).toBe(true);
             expect(instructionData.version).toBe(1);
             expect(instructionData.metadata).toBeUndefined();
         });
@@ -396,7 +396,7 @@ describe('layout-mint', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: true,
+                    cmintDecompressed: true,
                     splMint,
                 },
                 extensions: [
@@ -442,7 +442,7 @@ describe('layout-mint', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: true,
+                    cmintDecompressed: true,
                     splMint,
                 },
                 extensions: [
@@ -474,7 +474,7 @@ describe('layout-mint', () => {
                 },
                 mintContext: {
                     version: 1,
-                    splMintInitialized: true,
+                    cmintDecompressed: true,
                     splMint,
                 },
                 extensions: null,

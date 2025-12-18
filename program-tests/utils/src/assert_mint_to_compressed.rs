@@ -105,7 +105,7 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
     );
 
     // If mint is decompressed and pre_token_pool_account is provided, validate SPL mint and token pool
-    if actual_compressed_mint.metadata.spl_mint_initialized {
+    if actual_compressed_mint.metadata.cmint_decompressed {
         if let Some(pre_pool_account) = pre_token_pool_account {
             // Validate SPL mint supply
             let spl_mint_data = rpc

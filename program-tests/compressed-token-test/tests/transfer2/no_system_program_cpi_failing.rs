@@ -135,6 +135,8 @@ async fn setup_no_system_program_cpi_test(
         &mint_seed,
         &mint_authority,
         &payer,
+        None,                    // no decompress mint
+        false,                   // no close cmint
         vec![],                  // no compressed recipients
         decompressed_recipients, // mint to source CToken ATA (empty if token_amount is 0)
         None,
@@ -744,6 +746,8 @@ async fn test_too_many_mints() {
             &mint_seed,
             &mint_authority,
             &context.payer,
+            None,                    // no decompress mint
+            false,                   // no close cmint
             vec![],                  // no compressed recipients
             decompressed_recipients, // mint to source CToken ATA
             None,

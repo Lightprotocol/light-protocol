@@ -428,6 +428,45 @@ pub enum ErrorCode {
         "CompressAndClose by compression authority requires compressed token account in outputs"
     )]
     CompressAndCloseOutputMissing,
+    // CMint (decompressed compressed mint) specific errors
+    #[msg("Missing mint signer account for mint action")]
+    MintActionMissingMintSigner,
+    #[msg("Missing CMint account for decompress mint action")]
+    MintActionMissingCMintAccount,
+    #[msg("CMint account already exists")]
+    CMintAlreadyExists,
+    #[msg("Invalid CMint account owner")]
+    InvalidCMintOwner,
+    #[msg("Failed to deserialize CMint account data")]
+    CMintDeserializationFailed,
+    #[msg("Failed to resize CMint account")]
+    CMintResizeFailed,
+    // CMint Compressibility errors
+    #[msg("Invalid rent payment - must be >= 2 (CMint is always compressible)")]
+    InvalidRentPayment,
+    #[msg("Missing compressible config account for CMint")]
+    MissingCompressibleConfig,
+    #[msg("Missing rent sponsor account for CMint")]
+    MissingRentSponsor,
+    #[msg("Rent payment exceeds max funded epochs")]
+    RentPaymentExceedsMax,
+    #[msg("Write top-up exceeds maximum allowed")]
+    WriteTopUpExceedsMaximum,
+    #[msg("Failed to calculate CMint top-up amount")]
+    CMintTopUpCalculationFailed,
+    // CompressAndCloseCMint specific errors
+    #[msg("CMint is not decompressed")]
+    CMintNotDecompressed,
+    #[msg("CMint is missing Compressible extension")]
+    CMintMissingCompressibleExtension,
+    #[msg("CMint is not compressible (rent not expired)")]
+    CMintNotCompressible,
+    #[msg("Cannot combine DecompressMint and CompressAndCloseCMint in same instruction")]
+    CannotDecompressAndCloseInSameInstruction,
+    #[msg("CMint account does not match compressed_mint.metadata.mint")]
+    InvalidCMintAccount,
+    #[msg("Mint data required in instruction when not decompressed")]
+    MintDataRequired,
 }
 
 impl From<ErrorCode> for ProgramError {

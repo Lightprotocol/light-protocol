@@ -4,10 +4,10 @@ use light_compressed_account::instruction_data::{
 };
 
 use crate::instructions::mint_action::{
-    Action, CompressedMintInstructionData, CompressedMintWithContext, CpiContext, CreateMint,
-    MintActionCompressedInstructionData, MintToCTokenAction, MintToCompressedAction,
-    RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
-    UpdateMetadataFieldAction,
+    Action, CompressAndCloseCMintAction, CompressedMintInstructionData, CompressedMintWithContext,
+    CpiContext, CreateMint, DecompressMintAction, MintActionCompressedInstructionData,
+    MintToCTokenAction, MintToCompressedAction, RemoveMetadataKeyAction, UpdateAuthority,
+    UpdateMetadataAuthorityAction, UpdateMetadataFieldAction,
 };
 
 /// Discriminator for MintAction instruction
@@ -60,7 +60,7 @@ impl MintActionCompressedInstructionData {
             actions: Vec::new(),
             proof: Some(proof),
             cpi_context: None,
-            mint,
+            mint: Some(mint),
         }
     }
 
@@ -82,7 +82,7 @@ impl MintActionCompressedInstructionData {
             actions: Vec::new(),
             proof: None, // Proof is verified with execution not write
             cpi_context: Some(cpi_context),
-            mint,
+            mint: Some(mint),
         }
     }
 
@@ -125,6 +125,18 @@ impl MintActionCompressedInstructionData {
     #[must_use = "with_remove_metadata_key returns a new value"]
     pub fn with_remove_metadata_key(mut self, action: RemoveMetadataKeyAction) -> Self {
         self.actions.push(Action::RemoveMetadataKey(action));
+        self
+    }
+
+    #[must_use = "with_decompress_mint returns a new value"]
+    pub fn with_decompress_mint(mut self, action: DecompressMintAction) -> Self {
+        self.actions.push(Action::DecompressMint(action));
+        self
+    }
+
+    #[must_use = "with_compress_and_close_cmint returns a new value"]
+    pub fn with_compress_and_close_cmint(mut self, action: CompressAndCloseCMintAction) -> Self {
+        self.actions.push(Action::CompressAndCloseCMint(action));
         self
     }
 

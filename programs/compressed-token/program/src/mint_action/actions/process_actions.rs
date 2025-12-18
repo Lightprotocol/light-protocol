@@ -17,6 +17,8 @@ use crate::{
     mint_action::{
         accounts::MintActionAccounts,
         check_authority,
+        compress_and_close_cmint::process_compress_and_close_cmint_action,
+        decompress_mint::process_decompress_mint_action,
         mint_to::process_mint_to_compressed_action,
         mint_to_ctoken::process_mint_to_ctoken_action,
         queue_indices::QueueIndices,
@@ -61,7 +63,7 @@ pub fn process_actions<'a>(
                     validated_accounts,
                     output_accounts_iter,
                     hash_cache,
-                    parsed_instruction_data.mint.metadata.mint,
+                    compressed_mint.metadata.mint,
                     queue_indices.out_token_queue_index,
                 )?;
             }
@@ -93,7 +95,7 @@ pub fn process_actions<'a>(
                 //     &parsed_instruction_data.mint,
                 //     parsed_instruction_data.token_pool_bump,
                 // )?;
-                // compressed_mint.metadata.spl_mint_initialized = true;
+                // compressed_mint.metadata.cmint_decompressed = true;
             }
             ZAction::MintToCToken(mint_to_ctoken_action) => {
                 let account_index = mint_to_ctoken_action.account_index as usize;
@@ -110,7 +112,7 @@ pub fn process_actions<'a>(
                     compressed_mint,
                     validated_accounts,
                     packed_accounts,
-                    parsed_instruction_data.mint.metadata.mint,
+                    compressed_mint.metadata.mint,
                     &mut transfer_map[account_index],
                     &mut lamports_budget,
                 )?;
@@ -134,6 +136,33 @@ pub fn process_actions<'a>(
                     remove_metadata_key_action,
                     compressed_mint,
                     validated_accounts.authority.key(),
+                )?;
+            }
+            ZAction::DecompressMint(decompress_action) => {
+                let mint_signer = validated_accounts
+                    .mint_signer
+                    .ok_or(ErrorCode::MintActionMissingMintSigner)?;
+                let fee_payer = validated_accounts
+                    .executing
+                    .as_ref()
+                    .map(|exec| exec.system.fee_payer)
+                    .ok_or_else(|| {
+                        msg!("Fee payer required for DecompressMint action");
+                        ProgramError::NotEnoughAccountKeys
+                    })?;
+                process_decompress_mint_action(
+                    decompress_action,
+                    compressed_mint,
+                    validated_accounts,
+                    mint_signer,
+                    fee_payer,
+                )?;
+            }
+            ZAction::CompressAndCloseCMint(action) => {
+                process_compress_and_close_cmint_action(
+                    action,
+                    compressed_mint,
+                    validated_accounts,
                 )?;
             }
         }

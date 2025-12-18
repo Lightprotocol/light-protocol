@@ -115,6 +115,8 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
         &mint_seed,
         &payer,
         &payer,
+        None,  // decompress_mint
+        false, // compress_and_close_cmint
         compressed_recipients,
         Vec::new(),
         None,
@@ -390,7 +392,7 @@ async fn test_decompress_full_cpi_with_context() {
             leaf_index: compressed_mint_account.leaf_index,
             root_index: 0,
             address: compressed_mint_address,
-            mint: compressed_mint.try_into().unwrap(),
+            mint: Some(compressed_mint.try_into().unwrap()),
         };
         let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
         let mint_params = MintCompressedTokensCpiWriteParams {

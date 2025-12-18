@@ -5,7 +5,7 @@ use light_ctoken_interface::{
     self,
     instructions::{
         extensions::ExtensionInstructionData,
-        mint_action::{CompressedMintInstructionData, CompressedMintWithContext, CpiContext},
+        mint_action::{CompressedMintInstructionData, CpiContext},
     },
     COMPRESSED_MINT_SEED,
 };
@@ -51,26 +51,18 @@ pub fn create_compressed_mint_cpi(
         metadata: light_ctoken_interface::state::CompressedMintMetadata {
             version: input.version,
             mint: find_cmint_address(&input.mint_signer).0.to_bytes().into(),
-            spl_mint_initialized: false,
+            cmint_decompressed: false,
         },
         mint_authority: Some(input.mint_authority.to_bytes().into()),
         freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
         extensions: input.extensions,
     };
 
-    let compressed_mint_with_context = CompressedMintWithContext {
-        address: mint_address,
-        mint: compressed_mint_instruction_data,
-        leaf_index: 0,
-        prove_by_index: false,
-        root_index: input.address_merkle_tree_root_index,
-    };
-
     let mut instruction_data = light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
         mint_address,
         input.address_merkle_tree_root_index,
         input.proof,
-        compressed_mint_with_context.mint.clone(),
+        compressed_mint_instruction_data,
     );
 
     if let Some(ctx) = cpi_context {
@@ -141,7 +133,7 @@ pub fn create_compressed_mint_cpi_write(
         metadata: light_ctoken_interface::state::CompressedMintMetadata {
             version: input.version,
             mint: find_cmint_address(&input.mint_signer).0.to_bytes().into(),
-            spl_mint_initialized: false,
+            cmint_decompressed: false,
         },
         mint_authority: Some(input.mint_authority.to_bytes().into()),
         freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),

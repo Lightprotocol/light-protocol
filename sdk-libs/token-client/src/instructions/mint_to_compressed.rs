@@ -7,14 +7,11 @@ use light_ctoken_interface::{
     instructions::mint_action::{CompressedMintWithContext, Recipient},
     state::{CompressedMint, TokenDataVersion},
 };
-use light_ctoken_sdk::{
-    compressed_token::{
-        create_compressed_mint::derive_cmint_from_spl_mint,
-        mint_to_compressed::{
-            create_mint_to_compressed_instruction, DecompressedMintConfig, MintToCompressedInputs,
-        },
+use light_ctoken_sdk::compressed_token::{
+    create_compressed_mint::derive_cmint_from_spl_mint,
+    mint_to_compressed::{
+        create_mint_to_compressed_instruction, DecompressedMintConfig, MintToCompressedInputs,
     },
-    spl_interface::{derive_spl_interface_pda, find_spl_interface_pda_with_index},
 };
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
@@ -42,12 +39,11 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
             compressed_mint_address
         )))?;
 
-    // Deserialize the compressed mint
-    let compressed_mint: CompressedMint =
-        BorshDeserialize::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
-            .map_err(|e| {
-            RpcError::CustomError(format!("Failed to deserialize compressed mint: {}", e))
-        })?;
+    // Try to deserialize the compressed mint - may be None if CMint is source of truth
+    let compressed_mint: Option<CompressedMint> = compressed_mint_account
+        .data
+        .as_ref()
+        .and_then(|d| BorshDeserialize::deserialize(&mut d.data.as_slice()).ok());
 
     let rpc_proof_result = rpc
         .get_validity_proof(vec![compressed_mint_account.hash], vec![], None)
@@ -57,24 +53,17 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
     // Get state tree info for outputs
     let state_tree_info = rpc.get_random_state_tree_info()?;
 
-    // Create decompressed mint config and token pool if mint is decompressed
-    let decompressed_mint_config = if compressed_mint.metadata.spl_mint_initialized {
-        let (spl_interface_pda, _) = find_spl_interface_pda_with_index(&spl_mint_pda, 0);
-        Some(DecompressedMintConfig {
-            mint_pda: spl_mint_pda,
-            token_pool_pda: spl_interface_pda,
-            token_program: spl_token_2022::ID,
-        })
-    } else {
-        None
-    };
+    // Check if CMint is decompressed (source of truth)
+    let cmint_decompressed = compressed_mint
+        .as_ref()
+        .map(|m| m.metadata.cmint_decompressed)
+        .unwrap_or(true); // If no data, assume CMint is source of truth
 
-    // Derive spl interface pda if needed for decompressed mints
-    let spl_interface_pda = if compressed_mint.metadata.spl_mint_initialized {
-        Some(derive_spl_interface_pda(&spl_mint_pda, 0))
-    } else {
-        None
-    };
+    if cmint_decompressed {
+        unimplemented!("SPL mint synchronization for decompressed CMint not yet implemented");
+    }
+    let decompressed_mint_config: Option<DecompressedMintConfig<Pubkey>> = None;
+    let spl_interface_pda: Option<light_ctoken_sdk::spl_interface::SplInterfacePda> = None;
 
     // Prepare compressed mint inputs
     let compressed_mint_inputs = CompressedMintWithContext {
@@ -85,7 +74,7 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
             .root_index()
             .unwrap_or_default(),
         address: compressed_mint_address,
-        mint: compressed_mint.try_into().unwrap(),
+        mint: compressed_mint.map(|m| m.try_into().unwrap()),
     };
 
     // Create the instruction

@@ -7,11 +7,9 @@ use light_ctoken_interface::{
 };
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
-use spl_pod::solana_msg::msg;
 
 use crate::{
     mint_action::{accounts::MintActionAccounts, check_authority},
-    shared::mint_to_token_pool,
     transfer2::compression::{compress_or_decompress_ctokens, CTokenCompressionInputs},
 };
 
@@ -39,13 +37,6 @@ pub fn process_mint_to_ctoken_action(
         .checked_add(amount)
         .ok_or(ErrorCode::MintActionAmountTooLarge)?;
 
-    handle_spl_mint_initialized_token_pool(
-        validated_accounts,
-        compressed_mint.metadata.spl_mint_initialized,
-        amount,
-        mint,
-    )?;
-
     // Get the recipient token account from packed accounts using the index
     let token_account_info =
         packed_accounts.get_u8(action.account_index, "ctoken mint to recipient")?;
@@ -60,43 +51,4 @@ pub fn process_mint_to_ctoken_action(
     );
 
     compress_or_decompress_ctokens(inputs, transfer_amount, lamports_budget)
-}
-
-#[profile]
-pub fn handle_spl_mint_initialized_token_pool(
-    validated_accounts: &MintActionAccounts,
-    spl_mint_initialized: bool,
-    amount: u64,
-    mint: Pubkey,
-) -> Result<(), ProgramError> {
-    if let Some(system_accounts) = validated_accounts.executing.as_ref() {
-        // If SPL mint is initialized, mint tokens to the token pool to maintain SPL mint supply consistency
-        if spl_mint_initialized {
-            let mint_account = system_accounts
-                .mint
-                .ok_or(ErrorCode::MintActionMissingMintAccount)?;
-            if mint.to_bytes() != *mint_account.key() {
-                msg!("Mint account mismatch");
-                return Err(ErrorCode::MintAccountMismatch.into());
-            }
-            let token_pool_account = system_accounts
-                .token_pool_pda
-                .ok_or(ErrorCode::MintActionMissingTokenPoolAccount)?;
-            let token_program = system_accounts
-                .token_program
-                .ok_or(ErrorCode::MintActionMissingTokenProgram)?;
-
-            mint_to_token_pool(
-                mint_account,
-                token_pool_account,
-                token_program,
-                validated_accounts.cpi_authority()?,
-                amount,
-            )?;
-        }
-    } else if spl_mint_initialized {
-        msg!("if SPL mint is initialized, executing accounts must be present");
-        return Err(ErrorCode::Transfer2CpiContextWriteInvalidAccess.into());
-    }
-    Ok(())
 }

@@ -81,7 +81,7 @@ export async function mintToCompressed(
             mintAuthority: mintInfo.mint.mintAuthority,
             freezeAuthority: mintInfo.mint.freezeAuthority,
             splMint: mintInfo.mintContext!.splMint,
-            splMintInitialized: mintInfo.mintContext!.splMintInitialized,
+            cmintDecompressed: mintInfo.mintContext!.cmintDecompressed,
             version: mintInfo.mintContext!.version,
             metadata: mintInfo.tokenMetadata
                 ? {

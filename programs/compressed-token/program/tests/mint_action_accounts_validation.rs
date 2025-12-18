@@ -503,7 +503,7 @@
 //                 .unwrap_or(false);
 
 //         // Check if SPL mint is initialized based on mint/token_pool_pda/token_program presence
-//         let spl_mint_initialized = self
+//         let cmint_decompressed = self
 //             .executing
 //             .as_ref()
 //             .map(|e| {
@@ -537,7 +537,7 @@
 //         AccountsConfig {
 //             with_cpi_context,
 //             write_to_cpi_context,
-//             spl_mint_initialized,
+//             cmint_decompressed,
 //             has_mint_to_actions,
 //             with_mint_signer,
 //             create_mint,

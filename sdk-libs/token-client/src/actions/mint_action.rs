@@ -3,14 +3,17 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_ctoken_interface::instructions::mint_action::Recipient;
-use light_ctoken_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address;
+use light_ctoken_sdk::compressed_token::create_compressed_mint::{
+    derive_cmint_compressed_address, find_cmint_address,
+};
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 use solana_signer::Signer;
 
 use crate::instructions::mint_action::{
-    create_mint_action_instruction, MintActionParams, MintActionType, MintToRecipient,
+    create_mint_action_instruction, DecompressMintParams, MintActionParams, MintActionType,
+    MintToRecipient,
 };
 
 /// Executes a mint action that can perform multiple operations in a single instruction
@@ -58,7 +61,6 @@ pub async fn mint_action<R: Rpc + Indexer>(
         .await
 }
 
-// TODO: remove
 /// Convenience function to execute a comprehensive mint action
 ///
 /// This function simplifies calling mint_action by handling common patterns
@@ -68,11 +70,15 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     mint_seed: &Keypair,
     authority: &Keypair,
     payer: &Keypair,
+    // Whether to decompress the mint to a CMint Solana account (with rent params)
+    decompress_mint: Option<DecompressMintParams>,
+    // Whether to compress and close the CMint Solana account
+    compress_and_close_cmint: bool,
     mint_to_recipients: Vec<Recipient>,
     mint_to_decompressed_recipients: Vec<Recipient>,
     update_mint_authority: Option<Pubkey>,
     update_freeze_authority: Option<Pubkey>,
-    // Parameters for mint creation (required if create_spl_mint is true)
+    // Parameters for mint creation (required when creating a new mint)
     new_mint: Option<crate::instructions::mint_action::NewMint>,
 ) -> Result<Signature, RpcError> {
     // Derive addresses
@@ -99,9 +105,7 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     }
 
     if !mint_to_decompressed_recipients.is_empty() {
-        use light_ctoken_sdk::{
-            compressed_token::create_compressed_mint::find_cmint_address, ctoken::derive_ctoken_ata,
-        };
+        use light_ctoken_sdk::ctoken::derive_ctoken_ata;
 
         let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
 
@@ -128,9 +132,26 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
         });
     }
 
+    // Add DecompressMint action if requested
+    // Check before moving to use later for mint_signer determination
+    let has_decompress_mint = decompress_mint.is_some();
+    if let Some(decompress_params) = decompress_mint {
+        let (_, cmint_bump) = find_cmint_address(&mint_seed.pubkey());
+        actions.push(MintActionType::DecompressMint {
+            cmint_bump,
+            rent_payment: decompress_params.rent_payment,
+            write_top_up: decompress_params.write_top_up,
+        });
+    }
+
+    // Add CompressAndCloseCMint action if requested
+    if compress_and_close_cmint {
+        actions.push(MintActionType::CompressAndCloseCMint { idempotent: false });
+    }
+
     // Determine if mint_signer is needed - matches onchain logic:
-    // with_mint_signer = create_mint() | has_CreateSplMint_action
-    let mint_signer = if new_mint.is_some() {
+    // with_mint_signer = create_mint() | has_DecompressMint_action
+    let mint_signer = if new_mint.is_some() || has_decompress_mint {
         Some(mint_seed)
     } else {
         None

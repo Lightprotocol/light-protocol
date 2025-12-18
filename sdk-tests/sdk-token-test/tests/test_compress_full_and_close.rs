@@ -126,7 +126,7 @@ async fn test_compress_full_and_close() {
         metadata: CompressedMintMetadata {
             version: 3,
             mint: mint_pda.into(),
-            spl_mint_initialized: false,
+            cmint_decompressed: false,
         },
         extensions: None,
     };
@@ -136,7 +136,7 @@ async fn test_compress_full_and_close() {
         leaf_index: compressed_mint_account.leaf_index,
         root_index: 0,
         address: compressed_mint_address,
-        mint: expected_compressed_mint.try_into().unwrap(),
+        mint: Some(expected_compressed_mint.try_into().unwrap()),
     };
 
     let mint_instruction = create_mint_to_compressed_instruction(

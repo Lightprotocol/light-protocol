@@ -33,8 +33,8 @@ export interface BaseMint {
 export interface MintContext {
     /** Protocol version for upgradability */
     version: number;
-    /** Whether the associated SPL mint is initialized */
-    splMintInitialized: boolean;
+    /** Whether the compressed mint is decompressed to a CMint Solana account */
+    cmintDecompressed: boolean;
     /** PDA of the associated SPL mint */
     splMint: PublicKey;
 }
@@ -91,14 +91,14 @@ export interface CompressedMint {
 /** MintContext as stored by the program */
 export interface RawMintContext {
     version: number;
-    splMintInitialized: number; // bool as u8
+    cmintDecompressed: number; // bool as u8
     splMint: PublicKey;
 }
 
 /** Buffer layout for de/serializing MintContext */
 export const MintContextLayout = struct<RawMintContext>([
     u8('version'),
-    u8('splMintInitialized'),
+    u8('cmintDecompressed'),
     publicKey('splMint'),
 ]);
 
@@ -231,7 +231,7 @@ export function deserializeMint(data: Buffer | Uint8Array): CompressedMint {
 
     const mintContext: MintContext = {
         version: rawContext.version,
-        splMintInitialized: rawContext.splMintInitialized !== 0,
+        cmintDecompressed: rawContext.cmintDecompressed !== 0,
         splMint: rawContext.splMint,
     };
 
@@ -275,7 +275,7 @@ export function serializeMint(mint: CompressedMint): Buffer {
     MintContextLayout.encode(
         {
             version: mint.mintContext.version,
-            splMintInitialized: mint.mintContext.splMintInitialized ? 1 : 0,
+            cmintDecompressed: mint.mintContext.cmintDecompressed ? 1 : 0,
             splMint: mint.mintContext.splMint,
         },
         contextBuffer,
@@ -441,7 +441,7 @@ export interface MintInstructionData {
     mintAuthority: PublicKey | null;
     freezeAuthority: PublicKey | null;
     splMint: PublicKey;
-    splMintInitialized: boolean;
+    cmintDecompressed: boolean;
     version: number;
     metadata?: MintMetadataField;
 }
@@ -483,7 +483,7 @@ export function toMintInstructionData(
         mintAuthority: base.mintAuthority,
         freezeAuthority: base.freezeAuthority,
         splMint: mintContext.splMint,
-        splMintInitialized: mintContext.splMintInitialized,
+        cmintDecompressed: mintContext.cmintDecompressed,
         version: mintContext.version,
         metadata,
     };

@@ -4295,6 +4295,7 @@ dependencies = [
  "borsh 0.10.4",
  "light-client",
  "light-compressed-account",
+ "light-compressible",
  "light-ctoken-interface",
  "light-ctoken-sdk",
  "light-ctoken-types",
@@ -5097,7 +5098,7 @@ dependencies = [
 [[package]]
 name = "pinocchio-token-interface"
 version = "0.0.0"
-source = "git+https://github.com/Lightprotocol/token?rev=fc39a485cf1b214e16a0f13fd6ddea0cd87aaa87#fc39a485cf1b214e16a0f13fd6ddea0cd87aaa87"
+source = "git+https://github.com/Lightprotocol/token?rev=5d2768b98075ba03dfc5d6e6dd8567ba065c84ba#5d2768b98075ba03dfc5d6e6dd8567ba065c84ba"
 dependencies = [
  "pinocchio",
  "pinocchio-pubkey",
@@ -5106,7 +5107,7 @@ dependencies = [
 [[package]]
 name = "pinocchio-token-program"
 version = "0.1.0"
-source = "git+https://github.com/Lightprotocol/token?rev=fc39a485cf1b214e16a0f13fd6ddea0cd87aaa87#fc39a485cf1b214e16a0f13fd6ddea0cd87aaa87"
+source = "git+https://github.com/Lightprotocol/token?rev=5d2768b98075ba03dfc5d6e6dd8567ba065c84ba#5d2768b98075ba03dfc5d6e6dd8567ba065c84ba"
 dependencies = [
  "pinocchio",
  "pinocchio-log",

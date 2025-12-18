@@ -120,7 +120,7 @@ impl CreateCMint {
             metadata: light_ctoken_interface::state::CompressedMintMetadata {
                 version: 3,
                 mint: self.params.mint.to_bytes().into(),
-                spl_mint_initialized: false,
+                cmint_decompressed: false,
             },
             mint_authority: Some(self.params.mint_authority.to_bytes().into()),
             freeze_authority: self
@@ -261,7 +261,7 @@ impl CreateCompressedMintCpiWrite {
             metadata: light_ctoken_interface::state::CompressedMintMetadata {
                 version: self.params.version,
                 mint: self.params.mint.to_bytes().into(),
-                spl_mint_initialized: false,
+                cmint_decompressed: false,
             },
             mint_authority: Some(self.params.mint_authority.to_bytes().into()),
             freeze_authority: self

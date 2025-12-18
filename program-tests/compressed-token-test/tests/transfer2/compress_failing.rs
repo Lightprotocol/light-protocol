@@ -117,6 +117,8 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
         &mint_seed,
         &mint_authority,
         &payer,
+        None,                    // no decompress mint
+        false,                   // compress_and_close_cmint
         vec![],                  // no compressed recipients
         decompressed_recipients, // mint to decompressed CToken ATA
         None,                    // no mint authority update
@@ -640,6 +642,8 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
         &mint_seed,
         &mint_authority,
         &payer,
+        None,                    // no decompress mint
+        false,                   // no close cmint
         vec![],                  // no compressed recipients
         decompressed_recipients, // mint to decompressed CToken ATA
         None,

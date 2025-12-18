@@ -142,7 +142,7 @@ export function encodeCreateMintInstructionData(
             decimals: params.decimals,
             metadata: {
                 version: TokenDataVersion.ShaFlat,
-                splMintInitialized: false,
+                cmintDecompressed: false,
                 mint: splMintPda,
             },
             mintAuthority: params.mintAuthority,

@@ -22,7 +22,7 @@ pub fn process_mint_action<'a, 'info>(
         input.compressed_mint_with_context.address,
         input.compressed_mint_with_context.root_index,
         compressed_proof,
-        input.compressed_mint_with_context.mint.clone(),
+        input.compressed_mint_with_context.mint.clone().unwrap(),
     )
     .with_mint_to_compressed(MintToCompressedAction {
         token_account_version: 2,

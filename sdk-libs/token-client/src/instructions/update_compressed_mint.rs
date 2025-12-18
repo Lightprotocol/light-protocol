@@ -88,7 +88,7 @@ pub async fn update_compressed_mint_instruction<R: Rpc + Indexer>(
         prove_by_index: true, // Use index-based proof like mint_to_compressed
         root_index: 0,        // Use 0 like mint_to_compressed
         address: compressed_mint_account.address.unwrap_or([0u8; 32]),
-        mint: compressed_mint_instruction_data,
+        mint: Some(compressed_mint_instruction_data),
     };
 
     // Create instruction using the existing SDK function
