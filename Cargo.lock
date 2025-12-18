@@ -3592,7 +3592,7 @@ name = "light-client"
 version = "0.17.2"
 dependencies = [
  "async-trait",
- "base64 0.13.1",
+ "base64 0.22.1",
  "borsh 0.10.4",
  "bs58",
  "lazy_static",
