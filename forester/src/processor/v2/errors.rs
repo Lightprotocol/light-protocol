@@ -3,6 +3,9 @@ use std::fmt;
 use solana_sdk::{instruction::InstructionError, pubkey::Pubkey, transaction::TransactionError};
 use thiserror::Error;
 
+/// Matches `light_verifier::VerifierError::ProofVerificationFailed`.
+const PROOF_VERIFICATION_FAILED_ERROR_CODE: u32 = 13006;
+
 fn fmt_root_prefix(root: &[u8; 32]) -> String {
     format!(
         "{:02x}{:02x}{:02x}{:02x}",
@@ -46,7 +49,7 @@ impl V2Error {
             _ => None,
         };
 
-        if matches!(custom_code, Some(13006)) {
+        if matches!(custom_code, Some(PROOF_VERIFICATION_FAILED_ERROR_CODE)) {
             return V2Error::CircuitConstraint {
                 tree,
                 code: custom_code,
