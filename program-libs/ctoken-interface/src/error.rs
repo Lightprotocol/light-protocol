@@ -147,6 +147,12 @@ pub enum CTokenError {
 
     #[error("Failed to deserialize CMint account data")]
     CMintDeserializationFailed,
+
+    #[error("CompressedOnly tokens cannot have compressed outputs - must decompress only")]
+    CompressedOnlyBlocksTransfer,
+
+    #[error("out_tlv output count must match compressions count")]
+    OutTlvOutputCountMismatch,
 }
 
 impl From<CTokenError> for u32 {
@@ -199,6 +205,8 @@ impl From<CTokenError> for u32 {
             CTokenError::CMintNotInitialized => 18045,
             CTokenError::CMintBorrowFailed => 18046,
             CTokenError::CMintDeserializationFailed => 18047,
+            CTokenError::CompressedOnlyBlocksTransfer => 18048,
+            CTokenError::OutTlvOutputCountMismatch => 18049,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

@@ -227,6 +227,7 @@ fn create_transfer2_inputs(
         in_lamports: None,
         out_lamports: None,
         output_queue: output_merkle_tree_index,
+        in_tlv: None,
     })
 }
 
@@ -297,8 +298,8 @@ async fn test_owner_not_signer() -> Result<(), RpcError> {
         .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
         .await;
 
-    // Should fail with InvalidSigner
-    assert_rpc_error(result, 0, 20009).unwrap();
+    // Should fail with OwnerMismatch (6075 = 6000 + 75)
+    assert_rpc_error(result, 0, 6075).unwrap();
 
     Ok(())
 }
@@ -921,8 +922,8 @@ async fn test_has_delegate_flag_mismatch() -> Result<(), RpcError> {
             .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
             .await;
 
-        // Should fail with InvalidSigner (20009) because no valid authority signed
-        assert_rpc_error(result, 0, 20009).unwrap();
+        // Should fail with OwnerMismatch (6075) because no valid authority signed
+        assert_rpc_error(result, 0, 6075).unwrap();
     }
 
     // 11.5. Valid delegate signing (should succeed)

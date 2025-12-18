@@ -33,13 +33,20 @@ pub enum ExtensionType {
     Placeholder25,
     /// Reserved for Token-2022 Pausable compatibility
     Placeholder26,
-    /// Reserved for Token-2022 PausableAccount compatibility
-    Placeholder27,
-    /// Reserved for Token-2022 extensions
-    Placeholder28,
-    Placeholder29,
-    Placeholder30,
-    Placeholder31,
+    /// Marker extension indicating the account belongs to a pausable mint.
+    /// When the SPL mint has PausableConfig and is paused, token operations are blocked.
+    PausableAccount = 27,
+    /// Marker extension indicating the account belongs to a mint with permanent delegate.
+    /// When the SPL mint has PermanentDelegate extension, the delegate can transfer/burn any tokens.
+    PermanentDelegateAccount = 28,
+    /// Transfer fee extension storing withheld fees from transfers.
+    TransferFeeAccount = 29,
+    /// Marker extension indicating the account belongs to a mint with transfer hook.
+    /// We only support mints where program_id is nil (no hook invoked).
+    TransferHookAccount = 30,
+    /// CompressedOnly extension for compressed token accounts.
+    /// Marks account as decompress-only (cannot be transferred) and stores delegated amount.
+    CompressedOnly = 31,
     /// Account contains compressible timing data and rent authority
     Compressible = 32,
 }
@@ -50,6 +57,11 @@ impl TryFrom<u8> for ExtensionType {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             19 => Ok(ExtensionType::TokenMetadata),
+            27 => Ok(ExtensionType::PausableAccount),
+            28 => Ok(ExtensionType::PermanentDelegateAccount),
+            29 => Ok(ExtensionType::TransferFeeAccount),
+            30 => Ok(ExtensionType::TransferHookAccount),
+            31 => Ok(ExtensionType::CompressedOnly),
             32 => Ok(ExtensionType::Compressible),
             _ => Err(crate::CTokenError::UnsupportedExtension),
         }

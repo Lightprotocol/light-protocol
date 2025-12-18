@@ -96,6 +96,7 @@ pub async fn create_and_assert_token_account(
         lamports_per_write: compressible_data.lamports_per_write,
         compress_to_account_pubkey: None,
         token_account_version: compressible_data.account_version,
+        compression_only: false,
     };
 
     let create_token_account_ix = CreateCTokenAccount::new(
@@ -150,6 +151,7 @@ pub async fn create_and_assert_token_account_fails(
         lamports_per_write: compressible_data.lamports_per_write,
         compress_to_account_pubkey: None,
         token_account_version: compressible_data.account_version,
+        compression_only: false,
     };
 
     let create_token_account_ix = CreateCTokenAccount::new(
@@ -424,6 +426,7 @@ pub async fn create_and_assert_ata(
             lamports_per_write: compressible.lamports_per_write,
             compress_to_account_pubkey: None,
             token_account_version: compressible.account_version,
+            compression_only: false,
         };
 
         let mut builder =
@@ -494,6 +497,7 @@ pub async fn create_and_assert_ata_fails(
             lamports_per_write: compressible.lamports_per_write,
             compress_to_account_pubkey: None,
             token_account_version: compressible.account_version,
+            compression_only: false,
         }
     } else {
         CompressibleParams::default()
@@ -764,6 +768,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
         mint_index,
         owner_index,
         rent_sponsor_index,
+        delegate_index: 0, // No delegate in validation tests
     };
 
     // Add system accounts

@@ -289,6 +289,11 @@ impl PartialEq<CToken> for ZCToken<'_> {
                             crate::state::extensions::ZExtensionStruct::Compressible(zc_comp),
                             crate::state::extensions::ExtensionStruct::Compressible(regular_comp),
                         ) => {
+                            // Compare compression_only
+                            if (zc_comp.compression_only != 0) != regular_comp.compression_only {
+                                return false;
+                            }
+
                             // Compare config_account_version
                             if zc_comp.info.config_account_version
                                 != regular_comp.info.config_account_version
@@ -500,6 +505,7 @@ impl CToken {
     ) -> Result<(ZCompressedTokenMut<'_>, &mut [u8]), crate::error::CTokenError> {
         // Check minimum size for state field at byte 108
         if bytes.len() < 109 {
+            msg!("zero_copy_at_mut_checked bytes.len() < 109 {}", bytes.len());
             return Err(crate::error::CTokenError::InvalidAccountData);
         }
 

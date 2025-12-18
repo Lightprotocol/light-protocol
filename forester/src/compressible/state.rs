@@ -2,11 +2,8 @@ use std::sync::Arc;
 
 use borsh::BorshDeserialize;
 use dashmap::DashMap;
-use light_ctoken_interface::{
-    state::{extensions::ExtensionStruct, CToken},
-    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
-};
-use solana_sdk::pubkey::Pubkey;
+use light_ctoken_interface::state::{extensions::ExtensionStruct, CToken};
+use solana_sdk::{pubkey::Pubkey, rent::Rent};
 use tracing::{debug, warn};
 
 use super::types::CompressibleAccountState;
@@ -14,7 +11,11 @@ use crate::Result;
 
 /// Calculate the slot at which an account becomes compressible
 /// Returns the last funded slot; accounts are compressible when current_slot > this value
-fn calculate_compressible_slot(account: &CToken, lamports: u64) -> Result<u64> {
+fn calculate_compressible_slot(
+    account: &CToken,
+    lamports: u64,
+    account_size: usize,
+) -> Result<u64> {
     use light_compressible::rent::SLOTS_PER_EPOCH;
 
     // Find the Compressible extension
@@ -29,14 +30,13 @@ fn calculate_compressible_slot(account: &CToken, lamports: u64) -> Result<u64> {
         })
         .ok_or_else(|| anyhow::anyhow!("Account missing Compressible extension"))?;
 
+    // Calculate rent exemption dynamically
+    let rent_exemption = Rent::default().minimum_balance(account_size);
+
     // Calculate last funded epoch
     let last_funded_epoch = compressible_ext
         .info
-        .get_last_funded_epoch(
-            COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-            lamports,
-            COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
-        )
+        .get_last_funded_epoch(account_size as u64, lamports, rent_exemption)
         .map_err(|e| {
             anyhow::anyhow!(
                 "Failed to calculate last funded epoch for account with {} lamports: {:?}",
@@ -124,16 +124,17 @@ impl CompressibleAccountTracker {
             .map_err(|e| anyhow::anyhow!("Failed to deserialize CToken with borsh: {:?}", e))?;
 
         // Calculate compressible slot
-        let compressible_slot = match calculate_compressible_slot(&ctoken, lamports) {
-            Ok(slot) => slot,
-            Err(e) => {
-                warn!(
+        let compressible_slot =
+            match calculate_compressible_slot(&ctoken, lamports, account_data.len()) {
+                Ok(slot) => slot,
+                Err(e) => {
+                    warn!(
                     "Failed to calculate compressible slot for account {}: {}. Skipping account.",
                     pubkey, e
                 );
-                return Ok(());
-            }
-        };
+                    return Ok(());
+                }
+            };
 
         // Create state with full CToken account
         let state = CompressibleAccountState {
@@ -155,6 +156,90 @@ impl CompressibleAccountTracker {
         // Store in DashMap
         self.insert(state);
 
+        Ok(())
+    }
+
+    /// Query accounts and update tracker: remove non-existent accounts, update lamports for existing ones
+    pub async fn sync_accounts<R: light_client::rpc::Rpc>(
+        &self,
+        rpc: &R,
+        pubkeys: &[Pubkey],
+    ) -> Result<()> {
+        // Query all accounts at once using get_multiple_accounts
+        let accounts = rpc.get_multiple_accounts(pubkeys).await?;
+
+        for (pubkey, account_opt) in pubkeys.iter().zip(accounts.iter()) {
+            match account_opt {
+                Some(account) => {
+                    // Check if account is closed (lamports == 0)
+                    if account.lamports == 0 {
+                        self.remove(pubkey);
+                        debug!("Removed closed account {} (lamports == 0)", pubkey);
+                        continue;
+                    }
+
+                    // Re-deserialize account data to verify it's still valid
+                    let ctoken = match CToken::try_from_slice(&account.data) {
+                        Ok(ct) => ct,
+                        Err(e) => {
+                            self.remove(pubkey);
+                            debug!(
+                                "Removed account {} (deserialization failed: {:?})",
+                                pubkey, e
+                            );
+                            continue;
+                        }
+                    };
+
+                    // Verify Compressible extension still exists
+                    let has_compressible_ext = ctoken.extensions.as_ref().is_some_and(|exts| {
+                        exts.iter()
+                            .any(|ext| matches!(ext, ExtensionStruct::Compressible(_)))
+                    });
+
+                    if !has_compressible_ext {
+                        self.remove(pubkey);
+                        debug!(
+                            "Removed account {} (missing Compressible extension)",
+                            pubkey
+                        );
+                        continue;
+                    }
+
+                    // Account is valid - update state
+                    if let Some(mut state) = self.accounts.get_mut(pubkey) {
+                        match calculate_compressible_slot(
+                            &ctoken,
+                            account.lamports,
+                            account.data.len(),
+                        ) {
+                            Ok(compressible_slot) => {
+                                state.account = ctoken;
+                                state.lamports = account.lamports;
+                                state.compressible_slot = compressible_slot;
+                                debug!(
+                                    "Updated account {}: lamports={}, compressible_slot={}",
+                                    pubkey, account.lamports, compressible_slot
+                                );
+                            }
+                            Err(e) => {
+                                warn!(
+                                    "Failed to calculate compressible slot for account {}: {}. Removing from tracker.",
+                                    pubkey, e
+                                );
+                                drop(state);
+                                self.remove(pubkey);
+                            }
+                        }
+                    }
+                }
+                None => {
+                    // Account doesn't exist - remove from tracker
+                    self.remove(pubkey);
+                    debug!("Removed non-existent account {}", pubkey);
+                }
+            }
+        }
         Ok(())
     }
 }

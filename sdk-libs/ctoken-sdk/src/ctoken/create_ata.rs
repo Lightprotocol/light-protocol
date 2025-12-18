@@ -97,7 +97,8 @@ impl CreateAssociatedCTokenAccount {
                 .map(|config| CompressibleExtensionInstructionData {
                     token_account_version: config.token_account_version as u8,
                     rent_payment: config.pre_pay_num_epochs,
-                    compression_only: 0,
+                    has_top_up: 1,
+                    compression_only: if config.compression_only { 1 } else { 0 },
                     write_top_up: config.lamports_per_write.unwrap_or(0),
                     compress_to_account_pubkey: None,
                 });
@@ -249,6 +250,7 @@ impl<'info> From<&CreateAssociatedCTokenAccountCpi<'info>> for CreateAssociatedC
                     lamports_per_write: config.lamports_per_write,
                     compress_to_account_pubkey: None,
                     token_account_version: config.token_account_version,
+                    compression_only: config.compression_only,
                 }),
             idempotent: account_infos.idempotent,
         }

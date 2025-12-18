@@ -13,6 +13,7 @@ use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 
+use super::check_extensions::MintExtensionCache;
 use crate::{
     shared::{
         convert_program_error,
@@ -37,12 +38,13 @@ const ID: &[u8; 32] = &LIGHT_CPI_SIGNER.program_id;
 /// # Arguments
 /// * `max_top_up` - Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
 #[profile]
-pub fn process_token_compression(
+pub fn process_token_compression<'a>(
     fee_payer: &AccountInfo,
-    inputs: &ZCompressedTokenInstructionDataTransfer2,
-    packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
+    inputs: &'a ZCompressedTokenInstructionDataTransfer2<'a>,
+    packed_accounts: &'a ProgramPackedAccounts<'a, AccountInfo>,
     cpi_authority: &AccountInfo,
     max_top_up: u16,
+    mint_cache: &'a MintExtensionCache,
 ) -> Result<(), ProgramError> {
     if let Some(compressions) = inputs.compressions.as_ref() {
         let mut transfer_map = [0u64; MAX_PACKED_ACCOUNTS];
@@ -65,12 +67,16 @@ pub fn process_token_compression(
                 "compression source or recipient",
             )?;
 
+            // Lookup cached mint extension checks (cache was built with skip logic already applied)
+            let mint_checks = mint_cache.get_by_key(&compression.mint).cloned();
+
             match source_or_recipient.owner() {
                 ID => ctoken::process_ctoken_compressions(
                     inputs,
                     compression,
                     source_or_recipient,
                     packed_accounts,
+                    mint_checks,
                     &mut transfer_map[account_index],
                     &mut lamports_budget,
                 )?,

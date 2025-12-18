@@ -6,17 +6,18 @@ use light_account_checks::{
 };
 use light_compressed_account::Pubkey;
 use light_compressible::config::CompressibleConfig;
-use light_ctoken_interface::{
-    instructions::create_ctoken_account::CreateTokenAccountInstructionData,
-    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-};
+use light_ctoken_interface::instructions::create_ctoken_account::CreateTokenAccountInstructionData;
 use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, instruction::Seed};
 use spl_pod::{bytemuck, solana_msg::msg};
 
-use crate::shared::{
-    convert_program_error, create_pda_account,
-    initialize_ctoken_account::initialize_ctoken_account, transfer_lamports_via_cpi,
+use crate::{
+    extensions::{has_mint_extensions, MintExtensionFlags},
+    shared::{
+        convert_program_error, create_pda_account,
+        initialize_ctoken_account::{initialize_ctoken_account, CTokenInitConfig},
+        transfer_lamports_via_cpi,
+    },
 };
 
 /// Validated accounts for the create token account instruction
@@ -148,7 +149,9 @@ pub fn process_create_token_account(
     let accounts = CreateCTokenAccounts::parse(account_infos, &inputs)?;
 
     // Create account via cpi
-    let (compressible_config_account, custom_rent_payer) = if let Some(compressible) =
+    let (compressible_config_account, custom_rent_payer, mint_extensions) = if let Some(
+        compressible,
+    ) =
         accounts.compressible.as_ref()
     {
         let compressible_config = inputs
@@ -171,15 +174,30 @@ pub fn process_create_token_account(
             compress_to_pubkey.check_seeds(accounts.token_account.key())?;
         }
 
+        // Check which extensions the mint has (single deserialization)
+        let mint_extensions = has_mint_extensions(accounts.mint)?;
+
+        // Check if mint has restricted extensions that require compression_only mode
+        let has_restricted_extensions = mint_extensions.has_pausable
+            || mint_extensions.has_permanent_delegate
+            || mint_extensions.has_transfer_fee
+            || mint_extensions.has_transfer_hook;
+
+        // If restricted extensions exist, compression_only must be set
+        if has_restricted_extensions && compressible_config.compression_only == 0 {
+            msg!("Mint has restricted extensions - compression_only must be set");
+            return Err(anchor_compressed_token::ErrorCode::CompressionOnlyRequired.into());
+        }
+
+        // Calculate account size based on extensions
+        let account_size = mint_extensions.calculate_account_size(true /* has_compressible */);
+
         let config_account = &compressible.parsed_config;
         let rent = compressible
             .parsed_config
             .rent_config
-            .get_rent_with_compression_cost(
-                COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-                compressible_config.rent_payment as u64,
-            );
-        let account_size = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize;
+            .get_rent_with_compression_cost(account_size, compressible_config.rent_payment as u64);
+        let account_size = account_size as usize;
 
         let custom_rent_payer =
             *compressible.rent_payer.key() != config_account.rent_sponsor.to_bytes();
@@ -222,21 +240,28 @@ pub fn process_create_token_account(
             .map_err(convert_program_error)?;
 
         if custom_rent_payer {
-            (Some(*config_account), Some(*compressible.rent_payer.key()))
+            (
+                Some(*config_account),
+                Some(*compressible.rent_payer.key()),
+                mint_extensions,
+            )
         } else {
-            (Some(*config_account), None)
+            (Some(*config_account), None, mint_extensions)
         }
     } else {
-        (None, None)
+        (None, None, MintExtensionFlags::default())
     };
 
     // Initialize the token account (assumes account already exists and is owned by our program)
     initialize_ctoken_account(
         accounts.token_account,
-        accounts.mint.key(),
-        &inputs.owner.to_bytes(),
-        inputs.compressible_config,
-        compressible_config_account,
-        custom_rent_payer,
+        CTokenInitConfig {
+            mint: accounts.mint.key(),
+            owner: &inputs.owner.to_bytes(),
+            compressible: inputs.compressible_config,
+            compressible_config_account,
+            custom_rent_payer,
+            mint_extensions,
+        },
     )
 }

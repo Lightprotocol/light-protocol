@@ -268,6 +268,7 @@ async fn test_create_compressed_mint() {
         decompress_amount,
         ctoken_ata_pubkey,
         payer.pubkey(),
+        9, // decimals
     )
     .await
     .unwrap();
@@ -292,6 +293,8 @@ async fn test_create_compressed_mint() {
                     decompress_amount,
                     solana_token_account: ctoken_ata_pubkey,
                     amount: decompress_amount,
+                    decimals: 9,
+                    in_tlv: None,
                 },
             )
             .await;
@@ -322,6 +325,7 @@ async fn test_create_compressed_mint() {
             authority: new_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
             pool_index: None,
+            decimals: 9,
         })],
         payer.pubkey(),
         true,
@@ -350,6 +354,7 @@ async fn test_create_compressed_mint() {
             authority: new_recipient_keypair.pubkey(),
             output_queue,
             pool_index: None,
+            decimals: 9,
         },
     )
     .await;
@@ -368,6 +373,7 @@ async fn test_create_compressed_mint() {
             authority: new_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
             pool_index: None,
+            decimals: 9,
         })],
         payer.pubkey(),
         true,
@@ -406,6 +412,7 @@ async fn test_create_compressed_mint() {
             authority: new_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
             pool_index: None,
+            decimals: 9,
         })],
         payer.pubkey(),
         true,
@@ -489,6 +496,8 @@ async fn test_create_compressed_mint() {
                 solana_token_account: decompress_dest_ata,
                 amount: decompress_amount,
                 pool_index: None,
+                decimals: 9,
+                in_tlv: None,
             }),
             // 3. Compress SPL tokens to compressed tokens
             Transfer2InstructionType::Compress(CompressInput {
@@ -500,6 +509,7 @@ async fn test_create_compressed_mint() {
                 authority: new_recipient_keypair.pubkey(), // Authority for compression
                 output_queue: multi_output_queue,
                 pool_index: None,
+                decimals: 9,
             }),
         ];
         // Create the combined multi-transfer instruction
@@ -715,6 +725,7 @@ async fn test_ctoken_transfer() {
         lamports_per_write: Some(1000),
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let create_ata_instruction = CreateAssociatedCTokenAccount::new(
@@ -907,6 +918,7 @@ async fn test_ctoken_transfer() {
             authority: second_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
             pool_index: None,
+            decimals: 9,
         })],
         payer.pubkey(),
         true,
@@ -954,6 +966,7 @@ async fn test_ctoken_transfer() {
             amount: compress_amount,
             authority: second_recipient_keypair.pubkey(),
             output_queue,
+            decimals: 9,
         },
     )
     .await;

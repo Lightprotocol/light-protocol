@@ -1,16 +1,26 @@
+use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
 use light_ctoken_interface::{
-    state::{CToken, ZExtensionStruct},
+    state::{CToken, ZExtensionStructMut},
     CTokenError,
 };
 use light_program_profiler::profile;
-use pinocchio::account_info::AccountInfo;
+use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
 use pinocchio_token_program::processor::transfer::process_transfer;
 
-use crate::shared::{
-    convert_program_error,
-    transfer_lamports::{multi_transfer_lamports, Transfer},
+use crate::{
+    extensions::{check_mint_extensions, MintExtensionChecks},
+    shared::{
+        convert_program_error,
+        transfer_lamports::{multi_transfer_lamports, Transfer},
+    },
 };
+
+/// Account indices for CToken transfer instruction
+const ACCOUNT_SOURCE: usize = 0;
+const ACCOUNT_DESTINATION: usize = 1;
+const ACCOUNT_AUTHORITY: usize = 2;
+const ACCOUNT_MINT: usize = 3;
 
 /// Process ctoken transfer instruction
 ///
@@ -48,92 +58,253 @@ pub fn process_ctoken_transfer(
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
+    let signer_is_validated = process_extensions(accounts, max_top_up)?;
+
     // Only pass the first 8 bytes (amount) to the SPL transfer processor
-    process_transfer(accounts, &instruction_data[..8], false)
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
-    calculate_and_execute_top_up_transfers(accounts, max_top_up)
+    process_transfer(accounts, &instruction_data[..8], signer_is_validated)
+        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))
 }
 
-/// Calculate and execute top-up transfers for compressible accounts
+/// Extension information detected from a single account deserialization
+#[derive(Debug, Default)]
+struct AccountExtensionInfo {
+    has_compressible: bool,
+    has_pausable: bool,
+    has_permanent_delegate: bool,
+    has_transfer_fee: bool,
+    has_transfer_hook: bool,
+    top_up_amount: u64,
+}
+impl AccountExtensionInfo {
+    fn t22_extensions_eq(&self, other: &Self) -> bool {
+        self.has_pausable == other.has_pausable
+            && self.has_permanent_delegate == other.has_permanent_delegate
+            && self.has_transfer_fee == other.has_transfer_fee
+            && self.has_transfer_hook == other.has_transfer_hook
+    }
+
+    fn check_t22_extensions(&self, other: &Self) -> Result<(), ProgramError> {
+        if !self.t22_extensions_eq(other) {
+            Err(ProgramError::InvalidInstructionData)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+/// Process extensions (pausable check, permanent delegate validation, transfer fee withholding)
+/// and calculate/execute top-up transfers.
+/// Each account is deserialized exactly once. Mint is checked once if any account has extensions.
 ///
 /// # Arguments
-/// * `accounts` - The account infos (source, dest, authority/payer)
+/// * `accounts` - The account infos (source, dest, authority/payer, optional mint)
 /// * `max_top_up` - Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
+///
+/// Returns:
+/// - `Ok(true)` - Permanent delegate is validated as authority/signer, skip pinocchio validation
+/// - `Ok(false)` - Use normal pinocchio owner/delegate validation
 #[inline(always)]
 #[profile]
-fn calculate_and_execute_top_up_transfers(
+fn process_extensions(
     accounts: &[pinocchio::account_info::AccountInfo],
     max_top_up: u16,
-) -> Result<(), ProgramError> {
-    // Initialize transfers array with account references, amounts will be updated
-    let account0 = accounts.first().ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let account1 = accounts.get(1).ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let mut transfers = [
-        Transfer {
-            account: account0,
-            amount: 0,
-        },
-        Transfer {
-            account: account1,
-            amount: 0,
-        },
-    ];
+) -> Result<bool, ProgramError> {
+    let account0 = accounts
+        .get(ACCOUNT_SOURCE)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let account1 = accounts
+        .get(ACCOUNT_DESTINATION)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
     let mut current_slot = 0;
-    // Initialize budget: +1 allows exact match (total == max_top_up)
-    let mut lamports_budget = (max_top_up as u64).saturating_add(1);
 
-    // Calculate transfer amounts for accounts with compressible extensions
-    for transfer in transfers.iter_mut() {
-        if transfer.account.data_len() > light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE as usize {
-            let account_data = transfer
-                .account
-                .try_borrow_data()
-                .map_err(convert_program_error)?;
-            let (token, _) = CToken::zero_copy_at_checked(&account_data)?;
-            if let Some(extensions) = token.extensions.as_ref() {
-                for extension in extensions.iter() {
-                    if let ZExtensionStruct::Compressible(compressible_extension) = extension {
-                        if current_slot == 0 {
-                            use pinocchio::sysvars::{clock::Clock, Sysvar};
-                            current_slot = Clock::get()
-                                .map_err(|_| CTokenError::SysvarAccessError)?
-                                .slot;
-                        }
+    let (sender_info, signer_is_validated) = validate_sender(accounts, &mut current_slot)?;
 
-                        transfer.amount = compressible_extension
-                            .info
-                            .calculate_top_up_lamports(
-                                transfer.account.data_len() as u64,
-                                current_slot,
-                                transfer.account.lamports(),
-                                light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
-                            )
-                            .map_err(|_| CTokenError::InvalidAccountData)?;
+    // Process recipient
+    let recipient_info = validate_recipient(account1, &mut current_slot)?;
+    // Sender and recipient must have matching T22 extension markers
+    sender_info.check_t22_extensions(&recipient_info)?;
 
-                        lamports_budget = lamports_budget.saturating_sub(transfer.amount);
-                    }
+    // Perform compressible top-up if needed
+    transfer_top_up(
+        accounts,
+        account0,
+        account1,
+        sender_info.top_up_amount,
+        recipient_info.top_up_amount,
+        max_top_up,
+    )?;
+
+    Ok(signer_is_validated)
+}
+
+fn transfer_top_up(
+    accounts: &[AccountInfo],
+    account0: &AccountInfo,
+    account1: &AccountInfo,
+    sender_top_up: u64,
+    recipient_top_up: u64,
+    max_top_up: u16,
+) -> Result<(), ProgramError> {
+    if sender_top_up > 0 || recipient_top_up > 0 {
+        // Check budget if max_top_up is set (non-zero)
+        let total_top_up = sender_top_up.saturating_add(recipient_top_up);
+        if max_top_up != 0 && total_top_up > max_top_up as u64 {
+            return Err(CTokenError::MaxTopUpExceeded.into());
+        }
+
+        let payer = accounts
+            .get(ACCOUNT_AUTHORITY)
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        let transfers = [
+            Transfer {
+                account: account0,
+                amount: sender_top_up,
+            },
+            Transfer {
+                account: account1,
+                amount: recipient_top_up,
+            },
+        ];
+        multi_transfer_lamports(payer, &transfers).map_err(convert_program_error)
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_sender(
+    accounts: &[AccountInfo],
+    current_slot: &mut u64,
+) -> Result<(AccountExtensionInfo, bool), ProgramError> {
+    let account0 = accounts
+        .get(ACCOUNT_SOURCE)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+
+    // Process sender once
+    let sender_info = process_account_extensions(account0, current_slot)?;
+
+    // Get mint checks if any account has extensions (single mint deserialization)
+    let mint_checks = if sender_info.has_pausable
+        || sender_info.has_permanent_delegate
+        || sender_info.has_transfer_fee
+        || sender_info.has_transfer_hook
+    {
+        let mint_account = accounts
+            .get(ACCOUNT_MINT)
+            .ok_or(ErrorCode::MintRequiredForTransfer)?;
+        Some(check_mint_extensions(mint_account, false)?)
+    } else {
+        None
+    };
+
+    // Validate permanent delegate for sender
+    let signer_is_validated = validate_permanent_delegate(mint_checks.as_ref(), accounts)?;
+
+    Ok((sender_info, signer_is_validated))
+}
+
+#[inline(always)]
+fn validate_recipient(
+    account: &AccountInfo,
+    current_slot: &mut u64,
+) -> Result<AccountExtensionInfo, ProgramError> {
+    process_account_extensions(account, current_slot)
+}
+
+/// Validate permanent delegate authority.
+/// Returns true if authority is the permanent delegate and is a signer.
+#[inline(always)]
+fn validate_permanent_delegate(
+    mint_checks: Option<&MintExtensionChecks>,
+    accounts: &[AccountInfo],
+) -> Result<bool, ProgramError> {
+    if let Some(checks) = mint_checks {
+        if let Some(permanent_delegate_pubkey) = checks.permanent_delegate {
+            let authority = accounts
+                .get(ACCOUNT_AUTHORITY)
+                .ok_or(ProgramError::NotEnoughAccountKeys)?;
+            if pubkey_eq(authority.key(), &permanent_delegate_pubkey) {
+                if !authority.is_signer() {
+                    return Err(ProgramError::MissingRequiredSignature);
                 }
-            } else {
-                // Only Compressible extensions are implemented for ctoken accounts.
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+
+/// Process account extensions with mutable access.
+/// Performs extension detection and compressible top-up calculation.
+#[inline(always)]
+#[profile]
+fn process_account_extensions(
+    account: &AccountInfo,
+    current_slot: &mut u64,
+) -> Result<AccountExtensionInfo, ProgramError> {
+    // Fast path: base account with no extensions
+    if account.data_len() == light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE as usize {
+        return Ok(AccountExtensionInfo::default());
+    }
+
+    let mut account_data = account
+        .try_borrow_mut_data()
+        .map_err(convert_program_error)?;
+    let (token, remaining) = CToken::zero_copy_at_mut_checked(&mut account_data)?;
+    if !remaining.is_empty() {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    let extensions = token.extensions.ok_or(CTokenError::InvalidAccountData)?;
+
+    let mut info = AccountExtensionInfo::default();
+
+    for extension in extensions {
+        match extension {
+            ZExtensionStructMut::Compressible(compressible_extension) => {
+                info.has_compressible = true;
+                // Get current slot for compressible top-up calculation
+                use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
+                if *current_slot == 0 {
+                    *current_slot = Clock::get()
+                        .map_err(|_| CTokenError::SysvarAccessError)?
+                        .slot;
+                }
+
+                let rent_exemption = Rent::get()
+                    .map_err(|_| CTokenError::SysvarAccessError)?
+                    .minimum_balance(account.data_len());
+
+                info.top_up_amount = compressible_extension
+                    .info
+                    .calculate_top_up_lamports(
+                        account.data_len() as u64,
+                        *current_slot,
+                        account.lamports(),
+                        rent_exemption,
+                    )
+                    .map_err(|_| CTokenError::InvalidAccountData)?;
+            }
+            ZExtensionStructMut::PausableAccount(_) => {
+                info.has_pausable = true;
+            }
+            ZExtensionStructMut::PermanentDelegateAccount(_) => {
+                info.has_permanent_delegate = true;
+            }
+            ZExtensionStructMut::TransferFeeAccount(_transfer_fee_ext) => {
+                info.has_transfer_fee = true;
+                // Note: Non-zero transfer fees are rejected by check_mint_extensions,
+                // so no fee withholding is needed here.
+            }
+            ZExtensionStructMut::TransferHookAccount(_) => {
+                info.has_transfer_hook = true;
+                // No runtime logic needed - we only support nil program_id
+            }
+            // Placeholder and TokenMetadata variants are not valid for CToken accounts
+            _ => {
                 return Err(CTokenError::InvalidAccountData.into());
             }
         }
     }
-    // Exit early in case none of the accounts is compressible.
-    if current_slot == 0 {
-        return Ok(());
-    }
 
-    if transfers[0].amount == 0 && transfers[1].amount == 0 {
-        return Ok(());
-    }
-
-    // Check budget wasn't exhausted (0 means exceeded max_top_up)
-    if max_top_up != 0 && lamports_budget == 0 {
-        return Err(CTokenError::MaxTopUpExceeded.into());
-    }
-
-    let payer = accounts.get(2).ok_or(ProgramError::NotEnoughAccountKeys)?;
-    multi_transfer_lamports(payer, &transfers).map_err(convert_program_error)?;
-    Ok(())
+    Ok(info)
 }

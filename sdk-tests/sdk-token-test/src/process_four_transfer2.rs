@@ -240,6 +240,7 @@ pub fn process_four_transfer2<'info>(
                 transfer_recipient3,
             ],
             output_queue: output_tree_index,
+            in_tlv: None,
         };
         let instruction = create_transfer2_instruction(inputs).map_err(ProgramError::from)?;
 

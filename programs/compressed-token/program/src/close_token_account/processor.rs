@@ -2,13 +2,14 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{checks::check_signer, AccountInfoTrait};
 use light_compressible::rent::{get_rent_exemption_lamports, AccountRentState};
-use light_ctoken_interface::state::{CToken, ZCompressedTokenMut, ZExtensionStructMut};
+use light_ctoken_interface::state::{
+    AccountState, CToken, ZCompressedTokenMut, ZExtensionStructMut,
+};
 use light_program_profiler::profile;
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::Sysvar;
 use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
 use spl_pod::solana_msg::msg;
-use spl_token_2022::state::AccountState;
 
 use super::accounts::CloseTokenAccountAccounts;
 use crate::shared::{convert_program_error, transfer_lamports};
@@ -123,7 +124,6 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
             }
         }
     }
-
     // CompressAndClose requires Compressible extension - if we reach here without returning, reject
     if COMPRESS_AND_CLOSE {
         msg!("compress and close requires compressible extension");

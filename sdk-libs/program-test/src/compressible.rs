@@ -14,10 +14,7 @@ use light_compressible::rent::RentConfig;
 #[cfg(feature = "devenv")]
 use light_compressible::rent::SLOTS_PER_EPOCH;
 #[cfg(feature = "devenv")]
-use light_ctoken_interface::{
-    state::{CToken, ExtensionStruct},
-    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-};
+use light_ctoken_interface::state::{CToken, ExtensionStruct};
 #[cfg(feature = "devenv")]
 use light_sdk::compressible::CompressibleConfig as CpdaCompressibleConfig;
 #[cfg(feature = "devenv")]
@@ -101,9 +98,7 @@ pub async fn claim_and_compress(
             for extension in extensions.iter() {
                 if let ExtensionStruct::Compressible(e) = extension {
                     let base_lamports = rpc
-                        .get_minimum_balance_for_rent_exemption(
-                            COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize,
-                        )
+                        .get_minimum_balance_for_rent_exemption(account.1.data.len())
                         .await
                         .unwrap();
                     let last_funded_epoch = e
@@ -129,9 +124,6 @@ pub async fn claim_and_compress(
     }
 
     let current_slot = rpc.get_slot().await?;
-    let rent_exemption = rpc
-        .get_minimum_balance_for_rent_exemption(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize)
-        .await?;
 
     let mut compress_accounts = Vec::new();
     let mut claim_accounts = Vec::new();
@@ -139,6 +131,9 @@ pub async fn claim_and_compress(
     // For each stored account, determine action using AccountRentState
     for (pubkey, stored_account) in stored_compressible_accounts.iter() {
         let account = rpc.get_account(*pubkey).await?.unwrap();
+        let rent_exemption = rpc
+            .get_minimum_balance_for_rent_exemption(account.data.len())
+            .await?;
 
         // Get compressible extension
         if let Some(extensions) = stored_account.account.extensions.as_ref() {
@@ -177,18 +172,12 @@ pub async fn claim_and_compress(
 
     // Process claimable accounts in batches
     for token_accounts in claim_accounts.as_slice().chunks(20) {
-        println!(
-            "Claim from {} accounts: {:?}",
-            token_accounts.len(),
-            token_accounts
-        );
         claim_forester(rpc, token_accounts, &forester_keypair, &payer).await?;
     }
 
     // Process compressible accounts in batches
     const BATCH_SIZE: usize = 10;
     for chunk in compress_accounts.chunks(BATCH_SIZE) {
-        println!("Compress and close {} accounts: {:?}", chunk.len(), chunk);
         compress_and_close_forester(rpc, chunk, &forester_keypair, &payer, None).await?;
 
         // Remove compressed accounts from HashMap

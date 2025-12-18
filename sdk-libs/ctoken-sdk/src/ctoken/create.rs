@@ -56,7 +56,12 @@ impl CreateCTokenAccount {
                 .map(|config| CompressibleExtensionInstructionData {
                     token_account_version: config.token_account_version as u8,
                     rent_payment: config.pre_pay_num_epochs,
-                    compression_only: 0,
+                    has_top_up: if config.lamports_per_write.is_some() {
+                        1
+                    } else {
+                        0
+                    },
+                    compression_only: config.compression_only as u8,
                     write_top_up: config.lamports_per_write.unwrap_or(0),
                     compress_to_account_pubkey: config.compress_to_account_pubkey.clone(),
                 });
@@ -201,6 +206,7 @@ impl<'info> From<&CreateCTokenAccountCpi<'info>> for CreateCTokenAccount {
                     lamports_per_write: config.lamports_per_write,
                     compress_to_account_pubkey: config.compress_to_account_pubkey.clone(),
                     token_account_version: config.token_account_version,
+                    compression_only: config.compression_only,
                 }),
         }
     }

@@ -40,6 +40,7 @@ use crate::compressed_token::{
 pub struct TransferSplToCtoken {
     pub amount: u64,
     pub spl_interface_pda_bump: u8,
+    pub decimals: u8,
     pub source_spl_token_account: Pubkey,
     /// Destination ctoken account (writable)
     pub destination_ctoken_account: Pubkey,
@@ -80,6 +81,7 @@ pub struct TransferSplToCtoken {
 pub struct TransferSplToCtokenCpi<'info> {
     pub amount: u64,
     pub spl_interface_pda_bump: u8,
+    pub decimals: u8,
     pub source_spl_token_account: AccountInfo<'info>,
     /// Destination ctoken account (writable)
     pub destination_ctoken_account: AccountInfo<'info>,
@@ -89,6 +91,8 @@ pub struct TransferSplToCtokenCpi<'info> {
     pub spl_interface_pda: AccountInfo<'info>,
     pub spl_token_program: AccountInfo<'info>,
     pub compressed_token_program_authority: AccountInfo<'info>,
+    /// System program - required for compressible account lamport top-ups
+    pub system_program: AccountInfo<'info>,
 }
 
 impl<'info> TransferSplToCtokenCpi<'info> {
@@ -108,6 +112,7 @@ impl<'info> TransferSplToCtokenCpi<'info> {
             self.source_spl_token_account,           // Index 3: Source SPL token account
             self.spl_interface_pda,                  // Index 4: SPL interface PDA
             self.spl_token_program,                  // Index 5: SPL Token program
+            self.system_program,                     // Index 6: System program
         ];
         invoke(&instruction, &account_infos)
     }
@@ -124,6 +129,7 @@ impl<'info> TransferSplToCtokenCpi<'info> {
             self.source_spl_token_account,           // Index 3: Source SPL token account
             self.spl_interface_pda,                  // Index 4: SPL interface PDA
             self.spl_token_program,                  // Index 5: SPL Token program
+            self.system_program,                     // Index 6: System program
         ];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
@@ -140,6 +146,7 @@ impl<'info> From<&TransferSplToCtokenCpi<'info>> for TransferSplToCtoken {
             payer: *account_infos.payer.key,
             spl_interface_pda: *account_infos.spl_interface_pda.key,
             spl_interface_pda_bump: account_infos.spl_interface_pda_bump,
+            decimals: account_infos.decimals,
             spl_token_program: *account_infos.spl_token_program.key,
         }
     }
@@ -160,6 +167,8 @@ impl TransferSplToCtoken {
             AccountMeta::new(self.spl_interface_pda, false),
             // SPL Token program (index 5) - needed for CPI
             AccountMeta::new_readonly(self.spl_token_program, false),
+            // System program (index 6) - needed for compressible account lamport top-ups
+            AccountMeta::new_readonly(Pubkey::default(), false),
         ];
 
         let wrap_spl_to_ctoken_account = CTokenAccount2 {
@@ -173,6 +182,7 @@ impl TransferSplToCtoken {
                 4, // pool_account_index:
                 0, // pool_index
                 self.spl_interface_pda_bump,
+                self.decimals,
             )),
             delegate_is_set: false,
             method_used: true,
@@ -197,6 +207,7 @@ impl TransferSplToCtoken {
             out_lamports: None,
             token_accounts: vec![wrap_spl_to_ctoken_account, ctoken_account],
             output_queue: 0, // Decompressed accounts only, no output queue needed
+            in_tlv: None,
         };
 
         create_transfer2_instruction(inputs).map_err(ProgramError::from)

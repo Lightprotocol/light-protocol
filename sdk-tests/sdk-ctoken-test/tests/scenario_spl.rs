@@ -150,6 +150,7 @@ async fn test_spl_to_ctoken_scenario() {
     let transfer_instruction = TransferSplToCtoken {
         amount: transfer_amount,
         spl_interface_pda_bump,
+        decimals,
         source_spl_token_account: spl_token_account_keypair.pubkey(),
         destination_ctoken_account: ctoken_ata,
         authority: token_owner.pubkey(),

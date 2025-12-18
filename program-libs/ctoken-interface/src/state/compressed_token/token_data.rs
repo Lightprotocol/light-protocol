@@ -2,7 +2,11 @@ use light_compressed_account::Pubkey;
 use light_program_profiler::profile;
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopy, ZeroCopyMut};
 
-use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
+use crate::{
+    instructions::extensions::ZExtensionInstructionData,
+    state::extensions::{ExtensionStruct, ZExtensionStructMut},
+    AnchorDeserialize, AnchorSerialize, CTokenError,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 #[repr(u8)]
@@ -41,8 +45,8 @@ pub struct TokenData {
     pub delegate: Option<Pubkey>,
     /// The account's state
     pub state: u8,
-    /// Placeholder for TokenExtension tlv data (unimplemented)
-    pub tlv: Option<Vec<u8>>,
+    /// Extensions for the compressed token account
+    pub tlv: Option<Vec<ExtensionStruct>>,
 }
 
 impl TokenData {
@@ -52,8 +56,9 @@ impl TokenData {
 }
 
 // Implementation for zero-copy mutable TokenData
-impl ZTokenDataMut<'_> {
-    /// Set all fields of the TokenData struct at once
+impl<'a> ZTokenDataMut<'a> {
+    /// Set all fields of the TokenData struct at once.
+    /// All data must be allocated before calling this function.
     #[inline]
     #[profile]
     pub fn set(
@@ -63,6 +68,7 @@ impl ZTokenDataMut<'_> {
         amount: impl ZeroCopyNumTrait,
         delegate: Option<Pubkey>,
         state: CompressedTokenAccountState,
+        tlv_data: Option<&[ZExtensionInstructionData<'_>]>,
     ) -> Result<(), CTokenError> {
         self.mint = mint;
         self.owner = owner;
@@ -76,9 +82,20 @@ impl ZTokenDataMut<'_> {
 
         *self.state = state as u8;
 
-        if self.tlv.is_some() {
-            return Err(CTokenError::TokenDataTlvUnimplemented);
+        // Set TLV extension values (space was pre-allocated via new_zero_copy)
+        if let (Some(tlv_vec), Some(exts)) = (self.tlv.as_mut(), tlv_data) {
+            for (tlv_ext, instruction_ext) in tlv_vec.iter_mut().zip(exts.iter()) {
+                if let (
+                    ZExtensionStructMut::CompressedOnly(compressed_only),
+                    ZExtensionInstructionData::CompressedOnly(data),
+                ) = (tlv_ext, instruction_ext)
+                {
+                    compressed_only.delegated_amount = data.delegated_amount;
+                    compressed_only.withheld_transfer_fee = data.withheld_transfer_fee;
+                }
+            }
         }
+
         Ok(())
     }
 }

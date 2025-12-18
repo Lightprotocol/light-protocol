@@ -522,6 +522,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
         lamports_per_write,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let create_token_account_ix = CreateCTokenAccount::new(
@@ -739,7 +740,7 @@ async fn test_compress_and_close_output_validation_errors() {
             &mut context,
             CompressAndCloseValidationError::OwnerMismatch(wrong_owner.pubkey()),
             None, // Default destination
-            89,   // CompressAndCloseInvalidOwner
+            6089, // CompressAndCloseInvalidOwner
         )
         .await;
     }
@@ -793,7 +794,7 @@ async fn test_compress_and_close_output_validation_errors() {
             &mut context,
             CompressAndCloseValidationError::OwnerNotAccountPubkey(owner_pubkey),
             None, // Default destination
-            89,   // CompressAndCloseInvalidOwner
+            6089, // CompressAndCloseInvalidOwner
         )
         .await;
     }
@@ -859,11 +860,12 @@ async fn test_compress_and_close_output_validation_errors() {
         .await;
 
         // Assert that the transaction failed with delegate not allowed error
-        light_program_test::utils::assert::assert_rpc_error(result, 0, 92).unwrap();
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 6092).unwrap();
     }
 
-    // Test 9: Frozen account cannot be closed
-    // The validation checks that account state must be Initialized, not Frozen
+    // Test 9: Frozen account handling differs between authority and forester
+    // - Authority (owner) CANNOT compress and close frozen accounts
+    // - Forester CAN compress and close frozen accounts (skips state validation)
     {
         let mut context = setup_compress_and_close_test(
             2,       // 2 prepaid epochs
@@ -897,7 +899,19 @@ async fn test_compress_and_close_output_validation_errors() {
             .unwrap();
         context.rpc.set_account(token_account_pubkey, token_account);
 
-        // Get forester keypair and setup for compress_and_close
+        // Test 9a: Authority (owner) CANNOT close frozen accounts
+        // Error: CannotModifyFrozenAccount (76 = 0x4c)
+        let owner_keypair = context.owner_keypair.insecure_clone();
+        compress_and_close_and_assert_fails(
+            &mut context,
+            &owner_keypair,
+            None, // Default destination
+            "authority_frozen_account",
+            6076, // CannotModifyFrozenAccount
+        )
+        .await;
+
+        // Test 9b: Forester CAN close frozen accounts (skips state validation)
         let forester_keypair = context.rpc.test_accounts.protocol.forester.insecure_clone();
 
         // Create destination for compression incentive
@@ -908,19 +922,32 @@ async fn test_compress_and_close_output_validation_errors() {
             .await
             .unwrap();
 
-        // Try to compress and close via forester (should fail because account is frozen)
-        // Error: AccountFrozen
-        let result = compress_and_close_forester(
+        // Compress and close via forester (should succeed)
+        compress_and_close_forester(
             &mut context.rpc,
             &[token_account_pubkey],
             &forester_keypair,
             &context.payer,
             Some(destination.pubkey()),
         )
-        .await;
+        .await
+        .unwrap();
 
-        // Assert that the transaction failed with account frozen error
-        // Error: InvalidAccountState (18036)
-        light_program_test::utils::assert::assert_rpc_error(result, 0, 18036).unwrap();
+        // Assert compress and close succeeded
+        use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
+        use light_token_client::instructions::transfer2::CompressAndCloseInput;
+
+        let output_queue = context.rpc.get_random_state_tree_info().unwrap().queue;
+        assert_transfer2_compress_and_close(
+            &mut context.rpc,
+            CompressAndCloseInput {
+                solana_ctoken_account: token_account_pubkey,
+                authority: context.compression_authority,
+                output_queue,
+                destination: Some(destination.pubkey()),
+                is_compressible: true,
+            },
+        )
+        .await;
     }
 }

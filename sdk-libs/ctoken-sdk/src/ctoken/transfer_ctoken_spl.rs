@@ -47,6 +47,7 @@ pub struct TransferCTokenToSpl {
     pub payer: Pubkey,
     pub spl_interface_pda: Pubkey,
     pub spl_interface_pda_bump: u8,
+    pub decimals: u8,
     pub spl_token_program: Pubkey,
 }
 
@@ -86,6 +87,7 @@ pub struct TransferCTokenToSplCpi<'info> {
     pub payer: AccountInfo<'info>,
     pub spl_interface_pda: AccountInfo<'info>,
     pub spl_interface_pda_bump: u8,
+    pub decimals: u8,
     pub spl_token_program: AccountInfo<'info>,
     pub compressed_token_program_authority: AccountInfo<'info>,
 }
@@ -139,6 +141,7 @@ impl<'info> From<&TransferCTokenToSplCpi<'info>> for TransferCTokenToSpl {
             payer: *account_infos.payer.key,
             spl_interface_pda: *account_infos.spl_interface_pda.key,
             spl_interface_pda_bump: account_infos.spl_interface_pda_bump,
+            decimals: account_infos.decimals,
             spl_token_program: *account_infos.spl_token_program.key,
         }
     }
@@ -187,6 +190,7 @@ impl TransferCTokenToSpl {
                 4, // pool_account_index
                 0, // pool_index (TODO: make dynamic)
                 self.spl_interface_pda_bump,
+                self.decimals,
             )),
             delegate_is_set: false,
             method_used: true,
@@ -203,6 +207,7 @@ impl TransferCTokenToSpl {
             out_lamports: None,
             token_accounts: vec![compress_to_pool, decompress_to_spl],
             output_queue: 0, // Decompressed accounts only, no output queue needed
+            in_tlv: None,
         };
 
         create_transfer2_instruction(inputs).map_err(ProgramError::from)
