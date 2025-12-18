@@ -288,7 +288,6 @@ where
         let (proof_tx, proof_rx) = mpsc::channel(num_workers * 2);
 
         self.seq = 0;
-        let proof_gen_start = Instant::now();
         let tx_sender_handle = TxSender::spawn(
             self.context.clone(),
             proof_rx,
@@ -354,8 +353,6 @@ where
                 (0, Default::default())
             }
         };
-
-        let _total_time = proof_gen_start.elapsed();
 
         if tx_processed < jobs_sent * self.zkp_batch_size as usize {
             debug!(
