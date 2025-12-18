@@ -84,7 +84,7 @@ pub fn process_compress_and_close_cmint_action(
         })?;
 
     // 5. Verify rent_sponsor matches extension
-    if rent_sponsor.key() != &compression_info.rent_sponsor {
+    if rent_sponsor.key() != &compression_info.info.rent_sponsor {
         msg!("Rent sponsor does not match extension");
         return Err(ErrorCode::InvalidRentSponsor.into());
     }
@@ -100,6 +100,7 @@ pub fn process_compress_and_close_cmint_action(
     #[cfg(target_os = "solana")]
     {
         let is_compressible = compression_info
+            .info
             .is_compressible(cmint.data_len() as u64, current_slot, cmint.lamports())
             .map_err(|_| ProgramError::InvalidAccountData)?;
 

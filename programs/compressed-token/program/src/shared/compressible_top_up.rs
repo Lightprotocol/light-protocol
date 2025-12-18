@@ -61,6 +61,7 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
                     let rent_exemption = get_rent_exemption_lamports(cmint.data_len() as u64)
                         .map_err(|_| CTokenError::InvalidAccountData)?;
                     transfers[0].amount = compression_info
+                        .info
                         .calculate_top_up_lamports(
                             cmint.data_len() as u64,
                             current_slot,
@@ -89,6 +90,7 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
                             .slot;
                     }
                     transfers[1].amount = compressible_ext
+                        .info
                         .calculate_top_up_lamports(
                             ctoken.data_len() as u64,
                             current_slot,

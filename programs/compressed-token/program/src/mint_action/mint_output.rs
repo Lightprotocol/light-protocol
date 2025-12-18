@@ -68,6 +68,7 @@ pub fn process_output_compressed_account<'a>(
 
                     // Calculate top-up amount
                     let top_up = compression_info
+                        .info
                         .calculate_top_up_lamports(
                             num_bytes,
                             current_slot,
@@ -87,7 +88,7 @@ pub fn process_output_compressed_account<'a>(
                     }
 
                     // Update last_claimed_slot to current slot
-                    compression_info.last_claimed_slot = current_slot;
+                    compression_info.info.last_claimed_slot = current_slot;
                 }
             }
 

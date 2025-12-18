@@ -9,8 +9,8 @@ use super::{
 use crate::{
     instructions::extensions::{ExtensionInstructionData, ZExtensionInstructionData},
     state::{
-        AdditionalMetadata, BaseMint, CompressedMint, CompressedMintMetadata, ExtensionStruct,
-        TokenMetadata,
+        AdditionalMetadata, BaseMint, CompressedMint, CompressedMintMetadata,
+        CompressibleExtension, ExtensionStruct, TokenMetadata,
     },
     AnchorDeserialize, AnchorSerialize, CTokenError,
 };
@@ -133,8 +133,8 @@ impl TryFrom<CompressedMint> for CompressedMintInstructionData {
                                 },
                             ))
                         }
-                        ExtensionStruct::Compressible(compression_info) => {
-                            Ok(ExtensionInstructionData::Compressible(compression_info))
+                        ExtensionStruct::Compressible(compressible_ext) => {
+                            Ok(ExtensionInstructionData::Compressible(compressible_ext.info))
                         }
                         _ => {
                             Err(CTokenError::UnsupportedExtension)
@@ -193,9 +193,10 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
                             }))
                         }
                         ZExtensionInstructionData::Compressible(compression_info) => {
-                            // Convert zero-copy CompressionInfo to owned CompressionInfo
-                            Ok(ExtensionStruct::Compressible(
-                                light_compressible::compression_info::CompressionInfo {
+                            // Convert zero-copy CompressionInfo to owned CompressibleExtension
+                            Ok(ExtensionStruct::Compressible(CompressibleExtension {
+                                compression_only: false,
+                                info: light_compressible::compression_info::CompressionInfo {
                                     config_account_version: compression_info
                                         .config_account_version
                                         .into(),
@@ -220,7 +221,7 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
                                         max_top_up: compression_info.rent_config.max_top_up.into(),
                                     },
                                 },
-                            ))
+                            }))
                         }
                         _ => Err(CTokenError::UnsupportedExtension),
                     })

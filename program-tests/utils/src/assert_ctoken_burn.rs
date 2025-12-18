@@ -137,6 +137,7 @@ async fn calculate_expected_lamport_change(
                 .await
                 .unwrap();
             return comp
+                .info
                 .calculate_top_up_lamports(
                     data_len as u64,
                     current_slot,

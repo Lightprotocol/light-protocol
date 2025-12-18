@@ -3,7 +3,7 @@ use anchor_lang::prelude::ProgramError;
 use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
 use light_ctoken_interface::{
     instructions::mint_action::ZDecompressMintAction,
-    state::{CompressedMint, ExtensionStruct},
+    state::{CompressedMint, CompressibleExtension, ExtensionStruct},
     COMPRESSED_MINT_SEED,
 };
 use light_program_profiler::profile;
@@ -147,7 +147,10 @@ pub fn process_decompress_mint_action(
     };
 
     // Add Compressible extension to compressed_mint
-    let extension = ExtensionStruct::Compressible(compression_info);
+    let extension = ExtensionStruct::Compressible(CompressibleExtension {
+        compression_only: false,
+        info: compression_info,
+    });
     if let Some(ref mut extensions) = compressed_mint.extensions {
         extensions.push(extension);
     } else {
