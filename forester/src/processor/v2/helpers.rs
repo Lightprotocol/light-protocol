@@ -228,12 +228,12 @@ pub async fn fetch_paginated_batches<R: Rpc>(
 
         if page.initial_root != initial_root {
             tracing::warn!(
-                "Page {} has different root ({:?} vs {:?}), skipping",
+                "Page {} has different root ({:?} vs {:?}), stopping merge",
                 page_idx + 1,
                 &page.initial_root[..4],
                 &initial_root[..4]
             );
-            continue;
+            break;
         }
 
         for (&idx, &hash) in page.nodes.iter().zip(page.node_hashes.iter()) {
