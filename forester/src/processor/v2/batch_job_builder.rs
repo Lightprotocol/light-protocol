@@ -8,7 +8,6 @@ pub trait BatchJobBuilder {
     fn build_proof_job(
         &mut self,
         batch_idx: usize,
-        start: usize,
         zkp_batch_size: u64,
         epoch: u64,
         tree: &str,

@@ -220,13 +220,13 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
 impl BatchJobBuilder for AddressQueueData {
     fn build_proof_job(
         &mut self,
-        _batch_idx: usize,
-        start: usize,
+        batch_idx: usize,
         zkp_batch_size: u64,
         epoch: u64,
         tree: &str,
     ) -> crate::Result<Option<(ProofInput, [u8; 32])>> {
         let zkp_batch_size_usize = zkp_batch_size as usize;
+        let start = batch_idx * zkp_batch_size_usize;
 
         let tree_next_index = self.staging_tree.next_index();
         let data_start = self.data_start_index as usize;

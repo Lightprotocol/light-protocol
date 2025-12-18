@@ -526,13 +526,10 @@ impl BatchJobBuilder for StateQueueData {
     fn build_proof_job(
         &mut self,
         batch_idx: usize,
-        start: usize,
         zkp_batch_size: u64,
         epoch: u64,
         tree: &str,
     ) -> crate::Result<Option<(ProofInput, [u8; 32])>> {
-        let _ = start;
-
         if let Some(ref ops) = self.interleaved_ops {
             if let Some(op) = ops.get(batch_idx) {
                 return match op {

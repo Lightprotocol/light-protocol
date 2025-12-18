@@ -66,7 +66,6 @@ pub trait TreeStrategy<R: Rpc>: Send + Sync + Clone + std::fmt::Debug + 'static 
         &self,
         queue_data: &mut Self::StagingTree,
         batch_idx: usize,
-        start: usize,
         zkp_batch_size: u64,
         epoch: u64,
         tree: &str,
@@ -74,7 +73,7 @@ pub trait TreeStrategy<R: Rpc>: Send + Sync + Clone + std::fmt::Debug + 'static 
     where
         Self::StagingTree: BatchJobBuilder,
     {
-        BatchJobBuilder::build_proof_job(queue_data, batch_idx, start, zkp_batch_size, epoch, tree)
+        BatchJobBuilder::build_proof_job(queue_data, batch_idx, zkp_batch_size, epoch, tree)
     }
 
     /// Returns the number of batches currently available in the staging tree.

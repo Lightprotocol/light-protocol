@@ -422,7 +422,6 @@ where
         S::StagingTree: 'static,
     {
         let zkp_batch_size = self.zkp_batch_size;
-        let zkp_batch_size_usize = zkp_batch_size as usize;
         let strategy = self.strategy.clone();
         let initial_seq = self.seq;
         let epoch = self.context.epoch;
@@ -438,7 +437,6 @@ where
             let mut skipped_batches = 0usize;
             for i in 0..num_batches {
                 let batch_idx = batch_offset + i;
-                let start = batch_idx * zkp_batch_size_usize;
 
                 let circuit_type = strategy.circuit_type_for_batch(&staging_tree, batch_idx);
 
@@ -446,7 +444,6 @@ where
                 let proof_result = strategy.build_proof_job(
                     &mut staging_tree,
                     batch_idx,
-                    start,
                     zkp_batch_size,
                     epoch,
                     &tree,
