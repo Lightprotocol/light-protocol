@@ -37,9 +37,7 @@ pub enum ProverClientError {
     #[error("Invalid proof data: {0}")]
     InvalidProofData(String),
 
-    #[error(
-        "Hashchain mismatch: computed {computed:?}[..4] != expected {expected:?}[..4] (batch_size={batch_size}, next_index={next_index})"
-    )]
+    #[error("Hashchain mismatch: computed {computed:?} != expected {expected:?} (batch_size={batch_size}, next_index={next_index})")]
     HashchainMismatch {
         computed: [u8; 32],
         expected: [u8; 32],
