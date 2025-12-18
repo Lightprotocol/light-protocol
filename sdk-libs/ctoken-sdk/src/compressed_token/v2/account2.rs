@@ -337,7 +337,6 @@ impl CTokenAccount2 {
         self.output.amount += amount;
 
         // Use the compress_and_close method from Compression
-        // rent_sponsor_is_signer is always false in SDK - only registry program CPI uses true
         self.compression = Some(Compression::compress_and_close_ctoken(
             amount,
             self.output.mint,
@@ -346,7 +345,6 @@ impl CTokenAccount2 {
             rent_sponsor_index,
             compressed_account_index,
             destination_index,
-            false, // rent_sponsor_is_signer: only true when registry program CPIs
         ));
         self.method_used = true;
 

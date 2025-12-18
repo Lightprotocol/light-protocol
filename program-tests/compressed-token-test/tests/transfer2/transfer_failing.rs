@@ -1068,8 +1068,8 @@ async fn test_has_delegate_flag_mismatch() -> Result<(), RpcError> {
 // ============================================================================
 //
 // These fields must be None - testing they properly reject Some values:
-// 1. in_lamports = Some(vec![100]) → TokenDataTlvUnimplemented (18035)
-// 2. out_lamports = Some(vec![100]) → TokenDataTlvUnimplemented (18035)
+// 1. in_lamports = Some(vec![100]) → InLamportsUnimplemented (18050)
+// 2. out_lamports = Some(vec![100]) → OutLamportsUnimplemented (18051)
 // 3. in_tlv = Some(vec![vec![1,2,3]]) → CompressedTokenAccountTlvUnimplemented (18021)
 // 4. out_tlv = Some(vec![vec![1,2,3]]) → CompressedTokenAccountTlvUnimplemented (18021)
 //

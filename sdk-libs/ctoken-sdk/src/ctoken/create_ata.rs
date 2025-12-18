@@ -97,7 +97,6 @@ impl CreateAssociatedCTokenAccount {
                 .map(|config| CompressibleExtensionInstructionData {
                     token_account_version: config.token_account_version as u8,
                     rent_payment: config.pre_pay_num_epochs,
-                    has_top_up: 1,
                     compression_only: if config.compression_only { 1 } else { 0 },
                     write_top_up: config.lamports_per_write.unwrap_or(0),
                     compress_to_account_pubkey: None,

@@ -189,8 +189,8 @@ fn main() {
             ErrorCode::ZeroCopyExpectedDelegate,
         ),
         (
-            "TokenDataTlvUnimplemented",
-            ErrorCode::TokenDataTlvUnimplemented,
+            "UnsupportedTlvExtensionType",
+            ErrorCode::UnsupportedTlvExtensionType,
         ),
         (
             "MintActionNoActionsProvided",
