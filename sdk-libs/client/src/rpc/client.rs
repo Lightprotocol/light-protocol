@@ -682,6 +682,14 @@ impl Rpc for LightClient {
             .await
     }
 
+    /// Creates and sends a versioned transaction with address lookup tables.
+    ///
+    /// `address_lookup_tables` must contain pre-fetched `AddressLookupTableAccount` values
+    /// loaded from the chain. Callers are responsible for resolving these accounts before
+    /// calling this method. Unresolved or missing lookup tables will cause compilation to fail.
+    ///
+    /// Returns `RpcError::CustomError` on message compilation failure,
+    /// `RpcError::SigningError` on signing failure.
     async fn create_and_send_versioned_transaction<'a>(
         &'a mut self,
         instructions: &'a [Instruction],
