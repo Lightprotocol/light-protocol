@@ -199,8 +199,12 @@ impl ForesterConfig {
             }
             None => return Err(ConfigError::MissingField { field: "payer" })?,
         };
-        let payer = Keypair::try_from(payer.as_slice())
-            .map_err(|e| ConfigError::InvalidKeypair(e.to_string()))?;
+        let payer = Keypair::try_from(payer.as_slice()).map_err(|e| {
+            ConfigError::InvalidArguments {
+                field: "payer",
+                invalid_values: vec![e.to_string()],
+            }
+        })?;
 
         let derivation: Vec<u8> = match &args.derivation {
             Some(derivation_str) => {
@@ -218,8 +222,9 @@ impl ForesterConfig {
         let derivation_array: [u8; 32] =
             derivation
                 .try_into()
-                .map_err(|_| ConfigError::InvalidDerivation {
-                    reason: "must be exactly 32 bytes".to_string(),
+                .map_err(|_| ConfigError::InvalidArguments {
+                    field: "derivation",
+                    invalid_values: vec!["must be exactly 32 bytes".to_string()],
                 })?;
         let derivation = Pubkey::from(derivation_array);
 
@@ -289,11 +294,25 @@ impl ForesterConfig {
                 skip_v2_state_trees: args.processor_mode == ProcessorMode::V1,
                 skip_v1_address_trees: args.processor_mode == ProcessorMode::V2,
                 skip_v2_address_trees: args.processor_mode == ProcessorMode::V1,
-                tree_ids: args
-                    .tree_ids
-                    .iter()
-                    .filter_map(|id| Pubkey::from_str(id).ok())
-                    .collect(),
+                tree_ids: {
+                    let (valid, invalid): (Vec<_>, Vec<_>) = args
+                        .tree_ids
+                        .iter()
+                        .map(|id| Pubkey::from_str(id).map_err(|_| id.clone()))
+                        .partition(Result::is_ok);
+
+                    if !invalid.is_empty() {
+                        let invalid_values: Vec<String> =
+                            invalid.into_iter().map(|r| r.unwrap_err()).collect();
+                        return Err(ConfigError::InvalidArguments {
+                            field: "tree_ids",
+                            invalid_values,
+                        }
+                        .into());
+                    }
+
+                    valid.into_iter().map(|r| r.unwrap()).collect()
+                },
                 sleep_after_processing_ms: 10_000,
                 sleep_when_idle_ms: 45_000,
                 queue_polling_mode: args.queue_polling_mode,
@@ -307,9 +326,9 @@ impl ForesterConfig {
                 max_retry_delay_ms: args.rpc_pool_max_retry_delay_ms,
             },
             registry_pubkey: Pubkey::from_str(&registry_pubkey).map_err(|e| {
-                ConfigError::InvalidPubkey {
+                ConfigError::InvalidArguments {
                     field: "registry_pubkey",
-                    error: e.to_string(),
+                    invalid_values: vec![e.to_string()],
                 }
             })?,
             payer_keypair: payer,
