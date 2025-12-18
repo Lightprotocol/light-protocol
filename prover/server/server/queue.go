@@ -289,14 +289,20 @@ func (rq *RedisQueue) dequeueWithFairQueuing(queueName string, timeout time.Dura
 	return &job, nil
 }
 
+// BatchIndexScanLimit is the maximum number of items to scan when looking for the lowest batch_index.
+const BatchIndexScanLimit = 100
+
 // dequeueLowestBatchIndex finds and removes the job with the lowest batch_index from the queue.
 // This ensures that batches are processed in order within each tree, enabling the forester
 // to send transactions sequentially as proofs complete.
 // Jobs with batch_index -1 (legacy) are treated as having the highest priority among themselves
 // but after jobs with explicit batch indices.
+//
+// Scans up to BatchIndexScanLimit items for performance. If the item was removed by another
+// worker between find and remove, retries automatically.
 func (rq *RedisQueue) dequeueLowestBatchIndex(queueName string) (*ProofJob, error) {
-	// Get all items from the queue
-	items, err := rq.Client.LRange(rq.Ctx, queueName, 0, -1).Result()
+	// Scan up to BatchIndexScanLimit items instead of the entire queue
+	items, err := rq.Client.LRange(rq.Ctx, queueName, 0, BatchIndexScanLimit-1).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -317,7 +323,6 @@ func (rq *RedisQueue) dequeueLowestBatchIndex(queueName string) (*ProofJob, erro
 		return &job, nil
 	}
 
-	// Find job with lowest batch_index
 	var lowestJob *ProofJob
 	lowestIdx := -1
 	lowestBatchIndex := int64(^uint64(0) >> 1)
@@ -362,7 +367,8 @@ func (rq *RedisQueue) dequeueLowestBatchIndex(queueName string) (*ProofJob, erro
 	}
 
 	if removed == 0 {
-		logging.Logger().Warn().
+		// Item was already removed by another worker, retry
+		logging.Logger().Debug().
 			Str("job_id", lowestJob.ID).
 			Str("queue", queueName).
 			Msg("Job was already removed from queue, retrying")
@@ -373,7 +379,7 @@ func (rq *RedisQueue) dequeueLowestBatchIndex(queueName string) (*ProofJob, erro
 		Str("job_id", lowestJob.ID).
 		Int64("batch_index", lowestJob.BatchIndex).
 		Int("queue_position", lowestIdx).
-		Int("queue_length", len(items)).
+		Int("scanned", len(items)).
 		Str("queue", queueName).
 		Msg("Dequeued job with lowest batch_index")
 
