@@ -342,10 +342,13 @@ impl ForesterConfig {
             derivation_pubkey: derivation,
             address_tree_data: vec![],
             state_tree_data: vec![],
-            compressible_config: args
-                .ws_rpc_url
-                .clone()
-                .map(crate::compressible::config::CompressibleConfig::new),
+            compressible_config: if args.enable_compressible {
+                args.ws_rpc_url
+                    .clone()
+                    .map(crate::compressible::config::CompressibleConfig::new)
+            } else {
+                None
+            },
         })
     }
 
