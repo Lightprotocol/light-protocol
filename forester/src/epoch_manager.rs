@@ -1929,6 +1929,10 @@ impl<R: Rpc> EpochManager<R> {
             num_proof_workers: self.config.transaction_config.max_concurrent_batches,
             forester_eligibility_end_slot: Arc::new(AtomicU64::new(eligibility_end)),
             address_lookup_tables: self.address_lookup_tables.clone(),
+            confirmation_max_attempts: self.config.transaction_config.confirmation_max_attempts,
+            confirmation_poll_interval: Duration::from_millis(
+                self.config.transaction_config.confirmation_poll_interval_ms,
+            ),
         }
     }
 

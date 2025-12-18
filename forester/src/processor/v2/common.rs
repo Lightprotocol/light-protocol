@@ -97,6 +97,10 @@ pub struct BatchContext<R: Rpc> {
     pub num_proof_workers: usize,
     pub forester_eligibility_end_slot: Arc<AtomicU64>,
     pub address_lookup_tables: Arc<Vec<AddressLookupTableAccount>>,
+    /// Maximum attempts to confirm a transaction before timing out.
+    pub confirmation_max_attempts: u32,
+    /// Interval between confirmation polling attempts.
+    pub confirmation_poll_interval: Duration,
 }
 
 impl<R: Rpc> Clone for BatchContext<R> {
@@ -117,6 +121,8 @@ impl<R: Rpc> Clone for BatchContext<R> {
             num_proof_workers: self.num_proof_workers,
             forester_eligibility_end_slot: self.forester_eligibility_end_slot.clone(),
             address_lookup_tables: self.address_lookup_tables.clone(),
+            confirmation_max_attempts: self.confirmation_max_attempts,
+            confirmation_poll_interval: self.confirmation_poll_interval,
         }
     }
 }
@@ -183,10 +189,10 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
 
     debug!("Waiting for transaction confirmation: {}", signature);
 
-    const MAX_CONFIRMATION_ATTEMPTS: u32 = 30;
-    const CONFIRMATION_POLL_INTERVAL: Duration = Duration::from_millis(500);
+    let max_attempts = context.confirmation_max_attempts;
+    let poll_interval = context.confirmation_poll_interval;
 
-    for attempt in 0..MAX_CONFIRMATION_ATTEMPTS {
+    for attempt in 0..max_attempts {
         let statuses = rpc.get_signature_statuses(&[signature]).await?;
 
         if let Some(Some(status)) = statuses.first() {
@@ -213,7 +219,7 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
                 "Transaction {} pending confirmation (attempt {}/{}, confirmations: {:?})",
                 signature,
                 attempt + 1,
-                MAX_CONFIRMATION_ATTEMPTS,
+                max_attempts,
                 status.confirmations
             );
         } else {
@@ -221,11 +227,11 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
                 "Transaction {} not yet visible (attempt {}/{})",
                 signature,
                 attempt + 1,
-                MAX_CONFIRMATION_ATTEMPTS
+                max_attempts
             );
         }
 
-        tokio::time::sleep(CONFIRMATION_POLL_INTERVAL).await;
+        tokio::time::sleep(poll_interval).await;
     }
 
     warn!(

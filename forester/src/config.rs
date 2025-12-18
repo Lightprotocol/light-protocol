@@ -74,6 +74,10 @@ pub struct TransactionConfig {
     pub enable_priority_fees: bool,
     pub tx_cache_ttl_seconds: u64,
     pub ops_cache_ttl_seconds: u64,
+    /// Maximum attempts to confirm a transaction before timing out.
+    pub confirmation_max_attempts: u32,
+    /// Interval between confirmation polling attempts in milliseconds.
+    pub confirmation_poll_interval_ms: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -183,6 +187,8 @@ impl Default for TransactionConfig {
             enable_priority_fees: false,
             tx_cache_ttl_seconds: 15,
             ops_cache_ttl_seconds: 180,
+            confirmation_max_attempts: 60,
+            confirmation_poll_interval_ms: 500,
         }
     }
 }
@@ -285,6 +291,8 @@ impl ForesterConfig {
                 enable_priority_fees: args.enable_priority_fees,
                 tx_cache_ttl_seconds: args.tx_cache_ttl_seconds,
                 ops_cache_ttl_seconds: args.ops_cache_ttl_seconds,
+                confirmation_max_attempts: args.confirmation_max_attempts,
+                confirmation_poll_interval_ms: args.confirmation_poll_interval_ms,
             },
             general_config: GeneralConfig {
                 slot_update_interval_seconds: args.slot_update_interval_seconds,

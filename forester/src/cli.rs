@@ -128,6 +128,22 @@ pub struct StartArgs {
     )]
     pub ops_cache_ttl_seconds: u64,
 
+    #[arg(
+        long,
+        env = "FORESTER_CONFIRMATION_MAX_ATTEMPTS",
+        default_value = "60",
+        help = "Maximum attempts to confirm a transaction before timing out"
+    )]
+    pub confirmation_max_attempts: u32,
+
+    #[arg(
+        long,
+        env = "FORESTER_CONFIRMATION_POLL_INTERVAL_MS",
+        default_value = "500",
+        help = "Interval between confirmation polling attempts in milliseconds"
+    )]
+    pub confirmation_poll_interval_ms: u64,
+
     #[arg(long, env = "FORESTER_CU_LIMIT", default_value = "1000000")]
     pub cu_limit: u32,
 
