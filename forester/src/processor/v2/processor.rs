@@ -335,8 +335,12 @@ where
             .map_err(|e| anyhow!("Tx sender join error: {}", e))
             .and_then(|res| res);
 
-        let (tx_processed, proof_timings) = match &tx_result {
-            Ok(result) => (result.items_processed, result.proof_timings.clone()),
+        let (tx_processed, proof_timings, tx_sending_duration) = match &tx_result {
+            Ok(result) => (
+                result.items_processed,
+                result.proof_timings.clone(),
+                result.tx_sending_duration,
+            ),
             Err(e) => {
                 let err_str = e.to_string();
                 warn!(
@@ -350,7 +354,7 @@ where
                     }
                 }
 
-                (0, Default::default())
+                (0, Default::default(), Duration::ZERO)
             }
         };
 
@@ -385,6 +389,7 @@ where
                 round_trip_duration: proof_timings.address_append_round_trip_duration(),
             };
         }
+        metrics.tx_sending_duration = tx_sending_duration;
 
         if let Err(e) = tx_result {
             warn!(

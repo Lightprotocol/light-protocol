@@ -67,6 +67,8 @@ pub struct TxSenderResult {
     pub proof_timings: ProofTimings,
     /// Number of proofs saved to cache when epoch ended (for potential reuse)
     pub proofs_saved_to_cache: usize,
+    /// Total time spent sending transactions
+    pub tx_sending_duration: Duration,
 }
 
 #[derive(Debug, Clone)]
@@ -249,6 +251,7 @@ impl<R: Rpc> TxSender<R> {
 
         let sender_handle = tokio::spawn(async move {
             let mut sender_processed = 0usize;
+            let mut total_tx_sending_duration = Duration::ZERO;
             while let Some((batch, batch_len, _batch_round_trip, batch_earliest_submit)) =
                 batch_rx.recv().await
             {
@@ -330,8 +333,10 @@ impl<R: Rpc> TxSender<R> {
                     "AddressAppend".to_string()
                 };
 
+                let send_start = std::time::Instant::now();
                 match send_transaction_batch(&sender_context, all_instructions).await {
                     Ok(sig) => {
+                        total_tx_sending_duration += send_start.elapsed();
                         if let Some(root) = last_root {
                             sender_last_root = root;
                         }
@@ -354,19 +359,20 @@ impl<R: Rpc> TxSender<R> {
                         );
                     }
                     Err(e) => {
+                        total_tx_sending_duration += send_start.elapsed();
                         warn!("tx error {} epoch {}", e, sender_context.epoch);
                         if let Some(ForesterError::NotInActivePhase) =
                             e.downcast_ref::<ForesterError>()
                         {
                             warn!("Active phase ended while sending tx, stopping sender loop");
-                            return Ok::<_, anyhow::Error>(sender_processed);
+                            return Ok::<_, anyhow::Error>((sender_processed, total_tx_sending_duration));
                         } else {
                             return Err(e);
                         }
                     }
                 }
             }
-            Ok(sender_processed)
+            Ok((sender_processed, total_tx_sending_duration))
         });
 
         loop {
@@ -388,13 +394,14 @@ impl<R: Rpc> TxSender<R> {
                     self.context.epoch, proofs_saved
                 );
                 drop(batch_tx);
-                let sender_res = sender_handle
+                let (items_processed, tx_sending_duration) = sender_handle
                     .await
                     .map_err(|e| anyhow::anyhow!("Sender panic: {}", e))??;
                 return Ok(TxSenderResult {
-                    items_processed: sender_res,
+                    items_processed,
                     proof_timings: self.proof_timings,
                     proofs_saved_to_cache: proofs_saved,
+                    tx_sending_duration,
                 });
             }
 
@@ -481,14 +488,15 @@ impl<R: Rpc> TxSender<R> {
         }
 
         drop(batch_tx);
-        let sender_res = sender_handle
+        let (items_processed, tx_sending_duration) = sender_handle
             .await
             .map_err(|e| anyhow::anyhow!("Sender panic: {}", e))??;
 
         Ok(TxSenderResult {
-            items_processed: sender_res,
+            items_processed,
             proof_timings: self.proof_timings,
             proofs_saved_to_cache: 0,
+            tx_sending_duration,
         })
     }
 
