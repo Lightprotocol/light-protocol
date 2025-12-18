@@ -175,7 +175,7 @@ where
                 "Queue has {} batches available, fetching {} for {} iterations",
                 available_batches,
                 fetch_batches,
-                fetch_batches.div_ceil(MAX_BATCHES_PER_TREE)
+                available_batches.div_ceil(fetch_batches)
             );
         }
 
