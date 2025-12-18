@@ -72,7 +72,6 @@ pub struct QueueProcessor<R: Rpc, S: TreeStrategy<R>> {
     worker_pool: Option<WorkerPool>,
     cached_state: Option<CachedQueueState<S::StagingTree>>,
     proof_cache: Option<Arc<SharedProofCache>>,
-    _phantom: std::marker::PhantomData<R>,
 }
 
 impl<R: Rpc, S: TreeStrategy<R>> std::fmt::Debug for QueueProcessor<R, S> {
@@ -107,7 +106,6 @@ where
             worker_pool: None,
             cached_state: None,
             proof_cache: None,
-            _phantom: std::marker::PhantomData,
         })
     }
 
