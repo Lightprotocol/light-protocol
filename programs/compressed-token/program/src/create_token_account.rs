@@ -12,7 +12,7 @@ use pinocchio::{account_info::AccountInfo, instruction::Seed};
 use spl_pod::{bytemuck, solana_msg::msg};
 
 use crate::{
-    extensions::{has_mint_extensions, MintExtensionFlags},
+    extensions::has_mint_extensions,
     shared::{
         convert_program_error, create_pda_account,
         initialize_ctoken_account::{initialize_ctoken_account, CTokenInitConfig},
@@ -177,14 +177,9 @@ pub fn process_create_token_account(
         // Check which extensions the mint has (single deserialization)
         let mint_extensions = has_mint_extensions(accounts.mint)?;
 
-        // Check if mint has restricted extensions that require compression_only mode
-        let has_restricted_extensions = mint_extensions.has_pausable
-            || mint_extensions.has_permanent_delegate
-            || mint_extensions.has_transfer_fee
-            || mint_extensions.has_transfer_hook;
-
         // If restricted extensions exist, compression_only must be set
-        if has_restricted_extensions && compressible_config.compression_only == 0 {
+        if mint_extensions.has_restricted_extensions() && compressible_config.compression_only == 0
+        {
             msg!("Mint has restricted extensions - compression_only must be set");
             return Err(anchor_compressed_token::ErrorCode::CompressionOnlyRequired.into());
         }
@@ -249,7 +244,13 @@ pub fn process_create_token_account(
             (Some(*config_account), None, mint_extensions)
         }
     } else {
-        (None, None, MintExtensionFlags::default())
+        // Non-compressible accounts cannot be created for mints with restricted extensions
+        let mint_extensions = has_mint_extensions(accounts.mint)?;
+        if mint_extensions.has_restricted_extensions() {
+            msg!("Mints with restricted extensions require compressible accounts");
+            return Err(anchor_compressed_token::ErrorCode::CompressibleRequired.into());
+        }
+        (None, None, mint_extensions)
     };
 
     // Initialize the token account (assumes account already exists and is owned by our program)

@@ -20,8 +20,12 @@ use crate::{
     transfer2::check_extensions::MintExtensionCache,
 };
 
-#[inline(always)]
+/// Creates an input compressed account using zero-copy patterns and index-based account lookup.
+///
+/// Validates signer authorization (owner, delegate, or permanent delegate), populates the
+/// zero-copy account structure, and computes the appropriate token data hash based on frozen state.
 #[allow(clippy::too_many_arguments)]
+#[inline(always)]
 pub fn set_input_compressed_account<'a>(
     input_compressed_account: &mut ZInAccountMut,
     hash_cache: &mut HashCache,
@@ -30,48 +34,8 @@ pub fn set_input_compressed_account<'a>(
     all_accounts: &[AccountInfo],
     lamports: u64,
     tlv_data: Option<&'a [ZExtensionInstructionData<'a>]>,
+    mint_cache: &MintExtensionCache,
     is_frozen: bool,
-    mint_cache: &MintExtensionCache,
-) -> std::result::Result<(), ProgramError> {
-    if is_frozen {
-        set_input_compressed_account_inner::<true>(
-            input_compressed_account,
-            hash_cache,
-            input_token_data,
-            packed_accounts,
-            all_accounts,
-            lamports,
-            tlv_data,
-            mint_cache,
-        )
-    } else {
-        set_input_compressed_account_inner::<false>(
-            input_compressed_account,
-            hash_cache,
-            input_token_data,
-            packed_accounts,
-            all_accounts,
-            lamports,
-            tlv_data,
-            mint_cache,
-        )
-    }
-}
-
-/// Creates an input compressed account using zero-copy patterns and index-based account lookup.
-///
-/// Validates signer authorization (owner, delegate, or permanent delegate), populates the
-/// zero-copy account structure, and computes the appropriate token data hash based on frozen state.
-#[allow(clippy::too_many_arguments)]
-fn set_input_compressed_account_inner<'a, const IS_FROZEN: bool>(
-    input_compressed_account: &mut ZInAccountMut,
-    hash_cache: &mut HashCache,
-    input_token_data: &ZMultiInputTokenDataWithContext,
-    packed_accounts: &[AccountInfo],
-    all_accounts: &[AccountInfo],
-    lamports: u64,
-    tlv_data: Option<&'a [ZExtensionInstructionData<'a>]>,
-    mint_cache: &MintExtensionCache,
 ) -> std::result::Result<(), ProgramError> {
     // Get owner from packed accounts using the owner index
     let owner_account = packed_accounts
@@ -123,7 +87,7 @@ fn set_input_compressed_account_inner<'a, const IS_FROZEN: bool>(
     let data_hash = {
         match token_version {
             TokenDataVersion::ShaFlat => {
-                let state = if IS_FROZEN {
+                let state = if is_frozen {
                     CompressedTokenAccountState::Frozen as u8
                 } else {
                     CompressedTokenAccountState::Initialized as u8
@@ -162,7 +126,7 @@ fn set_input_compressed_account_inner<'a, const IS_FROZEN: bool>(
                 let hashed_delegate =
                     delegate_account.map(|delegate| hash_cache.get_or_hash_pubkey(delegate.key()));
 
-                if !IS_FROZEN {
+                if !is_frozen {
                     TokenData::hash_with_hashed_values(
                         &hashed_mint,
                         &hashed_owner,
