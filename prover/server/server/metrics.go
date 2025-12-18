@@ -98,7 +98,7 @@ var (
 		prometheus.HistogramOpts{
 			Name:    "prover_proof_memory_usage_bytes",
 			Help:    "Memory allocated during proof generation (heap alloc delta)",
-			Buckets: prometheus.ExponentialBuckets(1024*1024*100, 2, 12), // 100MB to 400GB
+			Buckets: prometheus.ExponentialBuckets(1024*1024*100, 2, 12), // 100MB to ~200GB
 		},
 		[]string{"circuit_type"},
 	)
