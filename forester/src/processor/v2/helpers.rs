@@ -9,7 +9,6 @@ use light_client::{
     indexer::{AddressQueueData, Indexer, QueueElementsV2Options, StateQueueData},
     rpc::Rpc,
 };
-use light_compressed_account::Pubkey;
 
 use crate::processor::v2::{common::clamp_to_u16, BatchContext};
 
@@ -157,7 +156,7 @@ pub async fn fetch_paginated_batches<R: Rpc>(
     context: &BatchContext<R>,
     total_elements: u64,
     zkp_batch_size: u64,
-) -> crate::Result<Option<light_client::indexer::StateQueueData>> {
+) -> crate::Result<Option<StateQueueData>> {
     if total_elements == 0 {
         return Ok(None);
     }
@@ -331,7 +330,7 @@ pub async fn fetch_batches<R: Rpc>(
     input_start_index: Option<u64>,
     fetch_len: u64,
     zkp_batch_size: u64,
-) -> crate::Result<Option<light_client::indexer::StateQueueData>> {
+) -> crate::Result<Option<StateQueueData>> {
     tracing::info!(
         "fetch_batches: tree={}, output_start={:?}, input_start={:?}, fetch_len={}, zkp_batch_size={}",
         context.merkle_tree, output_start_index, input_start_index, fetch_len, zkp_batch_size
@@ -374,7 +373,7 @@ pub async fn fetch_address_batches<R: Rpc>(
     output_start_index: Option<u64>,
     fetch_len: u64,
     zkp_batch_size: u64,
-) -> crate::Result<Option<light_client::indexer::AddressQueueData>> {
+) -> crate::Result<Option<AddressQueueData>> {
     let fetch_len_u16 = clamp_to_u16(fetch_len, "fetch_len");
     let zkp_batch_size_u16 = clamp_to_u16(zkp_batch_size, "zkp_batch_size");
 
@@ -537,10 +536,7 @@ impl StreamingAddressQueue {
     }
 
     pub fn available_batches(&self) -> usize {
-        debug_assert!(
-            self.zkp_batch_size != 0,
-            "zkp_batch_size must be non-zero"
-        );
+        debug_assert!(self.zkp_batch_size != 0, "zkp_batch_size must be non-zero");
         if self.zkp_batch_size == 0 {
             tracing::error!("zkp_batch_size is zero, returning 0 batches to avoid panic");
             return 0;
@@ -683,8 +679,7 @@ pub async fn fetch_streaming_address_batches<R: Rpc + 'static>(
                         data_guard
                             .leaves_hash_chains
                             .extend(page.leaves_hash_chains);
-                        let mut seen: HashSet<u64> =
-                            data_guard.nodes.iter().copied().collect();
+                        let mut seen: HashSet<u64> = data_guard.nodes.iter().copied().collect();
                         for (&idx, &hash) in page.nodes.iter().zip(page.node_hashes.iter()) {
                             if seen.insert(idx) {
                                 data_guard.nodes.push(idx);

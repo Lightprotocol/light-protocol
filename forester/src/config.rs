@@ -205,12 +205,11 @@ impl ForesterConfig {
             }
             None => return Err(ConfigError::MissingField { field: "payer" })?,
         };
-        let payer = Keypair::try_from(payer.as_slice()).map_err(|e| {
-            ConfigError::InvalidArguments {
+        let payer =
+            Keypair::try_from(payer.as_slice()).map_err(|e| ConfigError::InvalidArguments {
                 field: "payer",
                 invalid_values: vec![e.to_string()],
-            }
-        })?;
+            })?;
 
         let derivation: Vec<u8> = match &args.derivation {
             Some(derivation_str) => {

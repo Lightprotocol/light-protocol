@@ -496,8 +496,7 @@ where
             return Ok(ProcessingResult::default());
         }
 
-        let max_batches =
-            ((queue_size / self.zkp_batch_size) as usize).min(MAX_BATCHES_PER_TREE);
+        let max_batches = ((queue_size / self.zkp_batch_size) as usize).min(MAX_BATCHES_PER_TREE);
 
         if self.worker_pool.is_none() {
             let job_tx = spawn_proof_workers(&self.context.prover_config);

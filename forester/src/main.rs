@@ -70,25 +70,27 @@ async fn main() -> Result<(), ForesterError> {
             let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
             // Create compressible shutdown channels if compressible is enabled
-            let (shutdown_receiver_compressible, shutdown_receiver_bootstrap) = if config
-                .compressible_config
-                .is_some()
-            {
-                let (shutdown_sender_compressible, shutdown_receiver_compressible) =
-                    tokio::sync::broadcast::channel(1);
-                let (shutdown_sender_bootstrap, shutdown_receiver_bootstrap) = oneshot::channel();
-                spawn_shutdown_handler(shutdown_sender_service, Some(move || {
-                    let _ = shutdown_sender_compressible.send(());
-                    let _ = shutdown_sender_bootstrap.send(());
-                }));
-                (
-                    Some(shutdown_receiver_compressible),
-                    Some(shutdown_receiver_bootstrap),
-                )
-            } else {
-                spawn_shutdown_handler::<fn()>(shutdown_sender_service, None);
-                (None, None)
-            };
+            let (shutdown_receiver_compressible, shutdown_receiver_bootstrap) =
+                if config.compressible_config.is_some() {
+                    let (shutdown_sender_compressible, shutdown_receiver_compressible) =
+                        tokio::sync::broadcast::channel(1);
+                    let (shutdown_sender_bootstrap, shutdown_receiver_bootstrap) =
+                        oneshot::channel();
+                    spawn_shutdown_handler(
+                        shutdown_sender_service,
+                        Some(move || {
+                            let _ = shutdown_sender_compressible.send(());
+                            let _ = shutdown_sender_bootstrap.send(());
+                        }),
+                    );
+                    (
+                        Some(shutdown_receiver_compressible),
+                        Some(shutdown_receiver_bootstrap),
+                    )
+                } else {
+                    spawn_shutdown_handler::<fn()>(shutdown_sender_service, None);
+                    (None, None)
+                };
 
             tokio::spawn(async move {
                 while let Some(report) = work_report_receiver.recv().await {
