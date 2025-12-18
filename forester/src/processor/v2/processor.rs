@@ -248,8 +248,11 @@ where
         }
     }
 
-    pub fn clear_cache(&mut self) {
+    pub async fn clear_cache(&mut self) {
         self.cached_state = None;
+        if let Some(proof_cache) = &self.proof_cache {
+            proof_cache.clear().await;
+        }
     }
 
     pub fn update_eligibility(&mut self, end_slot: u64) {

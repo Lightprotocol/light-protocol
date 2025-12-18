@@ -2085,7 +2085,7 @@ impl<R: Rpc> EpochManager<R> {
                                 tree_accounts.merkle_tree,
                                 e
                             );
-                            proc.clear_cache();
+                            proc.clear_cache().await;
                             Ok(ProcessingResult::default())
                         } else {
                             warn!(
@@ -2134,7 +2134,7 @@ impl<R: Rpc> EpochManager<R> {
                                 tree_accounts.merkle_tree,
                                 e
                             );
-                            proc.clear_cache();
+                            proc.clear_cache().await;
                             Ok(ProcessingResult::default())
                         } else {
                             warn!(
