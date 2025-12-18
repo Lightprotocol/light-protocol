@@ -179,113 +179,14 @@ pub async fn run_pipeline<R: Rpc>(
         builder = builder.send_tx_rate_limiter(limiter);
     }
 
-    let rpc_pool = builder.build().await?;
-
-    // Retry initial RPC calls with exponential backoff
-    let protocol_config = {
-        let mut attempts = 0;
-        let max_attempts = 5;
-        let mut delay = std::time::Duration::from_millis(500);
-        loop {
-            match rpc_pool.get_connection().await {
-                Ok(mut rpc) => match get_protocol_config(&mut *rpc).await {
-                    Ok(cfg) => break cfg,
-                    Err(e) => {
-                        attempts += 1;
-                        if attempts >= max_attempts {
-                            return Err(anyhow::anyhow!(
-                                "Failed to fetch protocol config after {} attempts: {}",
-                                max_attempts,
-                                e
-                            ));
-                        }
-                        tracing::warn!(
-                            "Failed to fetch protocol config (attempt {}/{}), retrying in {:?}: {}",
-                            attempts,
-                            max_attempts,
-                            delay,
-                            e
-                        );
-                        tokio::time::sleep(delay).await;
-                        delay = std::cmp::min(delay * 2, std::time::Duration::from_secs(10));
-                    }
-                },
-                Err(e) => {
-                    attempts += 1;
-                    if attempts >= max_attempts {
-                        return Err(anyhow::anyhow!(
-                            "Failed to get RPC connection for protocol config after {} attempts: {:?}",
-                            max_attempts,
-                            e
-                        ));
-                    }
-                    tracing::warn!(
-                        "Failed to get RPC connection (attempt {}/{}), retrying in {:?}: {:?}",
-                        attempts,
-                        max_attempts,
-                        delay,
-                        e
-                    );
-                    tokio::time::sleep(delay).await;
-                    delay = std::cmp::min(delay * 2, std::time::Duration::from_secs(10));
-                }
-            }
-        }
-    };
-
-    let arc_pool = Arc::new(rpc_pool);
+    let arc_pool = Arc::new(builder.build().await?);
     let arc_pool_clone = Arc::clone(&arc_pool);
 
-    // Retry initial slot fetch with exponential backoff
-    let slot = {
-        let mut attempts = 0;
-        let max_attempts = 5;
-        let mut delay = std::time::Duration::from_millis(500);
-        loop {
-            match arc_pool.get_connection().await {
-                Ok(rpc) => match rpc.get_slot().await {
-                    Ok(slot) => break slot,
-                    Err(e) => {
-                        attempts += 1;
-                        if attempts >= max_attempts {
-                            return Err(anyhow::anyhow!(
-                                "Failed to get slot after {} attempts: {:?}",
-                                max_attempts,
-                                e
-                            ));
-                        }
-                        tracing::warn!(
-                            "Failed to get slot (attempt {}/{}), retrying in {:?}: {:?}",
-                            attempts,
-                            max_attempts,
-                            delay,
-                            e
-                        );
-                        tokio::time::sleep(delay).await;
-                        delay = std::cmp::min(delay * 2, std::time::Duration::from_secs(10));
-                    }
-                },
-                Err(e) => {
-                    attempts += 1;
-                    if attempts >= max_attempts {
-                        return Err(anyhow::anyhow!(
-                            "Failed to get RPC connection for slot after {} attempts: {:?}",
-                            max_attempts,
-                            e
-                        ));
-                    }
-                    tracing::warn!(
-                        "Failed to get RPC connection (attempt {}/{}), retrying in {:?}: {:?}",
-                        attempts,
-                        max_attempts,
-                        delay,
-                        e
-                    );
-                    tokio::time::sleep(delay).await;
-                    delay = std::cmp::min(delay * 2, std::time::Duration::from_secs(10));
-                }
-            }
-        }
+    let (protocol_config, slot) = {
+        let mut rpc = arc_pool.get_connection().await?;
+        let protocol_config = get_protocol_config(&mut *rpc).await?;
+        let slot = rpc.get_slot().await?;
+        (protocol_config, slot)
     };
     let slot_tracker = SlotTracker::new(
         slot,

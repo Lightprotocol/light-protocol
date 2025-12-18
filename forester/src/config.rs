@@ -299,7 +299,7 @@ impl ForesterConfig {
                         .tree_ids
                         .iter()
                         .map(|id| Pubkey::from_str(id).map_err(|_| id.clone()))
-                        .partition(Result::is_ok);
+                        .partition(|r| r.is_ok());
 
                     if !invalid.is_empty() {
                         let invalid_values: Vec<String> =
