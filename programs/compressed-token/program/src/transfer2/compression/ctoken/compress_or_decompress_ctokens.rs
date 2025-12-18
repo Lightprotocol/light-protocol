@@ -194,9 +194,7 @@ fn apply_decompress_extension_state(
         if let Some(extensions) = ctoken.extensions.as_deref_mut() {
             for extension in extensions.iter_mut() {
                 if let ZExtensionStructMut::TransferFeeAccount(ref mut fee_ext) = extension {
-                    fee_ext
-                        .add_withheld_amount(withheld_transfer_fee)
-                        .map_err(|_| ProgramError::ArithmeticOverflow)?;
+                    fee_ext.add_withheld_amount(withheld_transfer_fee)?;
                     fee_applied = true;
                     break;
                 }

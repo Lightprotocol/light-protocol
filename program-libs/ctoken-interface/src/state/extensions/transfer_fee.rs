@@ -1,6 +1,6 @@
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
-use crate::{AnchorDeserialize, AnchorSerialize};
+use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
 
 /// Transfer fee extension for CToken accounts.
 /// Stores withheld fees that accumulate during transfers.
@@ -24,16 +24,14 @@ pub struct TransferFeeAccountExtension {
     pub withheld_amount: u64,
 }
 
-/// Error returned when arithmetic operation overflows.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ArithmeticOverflow;
-
 impl<'a> ZTransferFeeAccountExtensionMut<'a> {
     /// Add fee to withheld amount (used during transfers).
     /// Returns error if addition would overflow.
-    pub fn add_withheld_amount(&mut self, fee: u64) -> Result<(), ArithmeticOverflow> {
+    pub fn add_withheld_amount(&mut self, fee: u64) -> Result<(), CTokenError> {
         let current: u64 = self.withheld_amount.get();
-        let new_amount = current.checked_add(fee).ok_or(ArithmeticOverflow)?;
+        let new_amount = current
+            .checked_add(fee)
+            .ok_or(CTokenError::ArithmeticOverflow)?;
         self.withheld_amount.set(new_amount);
         Ok(())
     }

@@ -1,4 +1,3 @@
-use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut;
@@ -10,8 +9,8 @@ use light_ctoken_interface::{
 };
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
-use spl_pod::solana_msg::msg;
 
+use super::check_extensions::validate_tlv_and_get_frozen;
 use crate::shared::token_output::set_output_compressed_account;
 
 /// Process output compressed accounts and return total output lamports
@@ -61,25 +60,7 @@ pub fn set_output_compressed_accounts<'a>(
             .as_ref()
             .and_then(|tlvs| tlvs.get(i).map(|ext_vec| ext_vec.as_slice()));
 
-        // Validate TLV is only used with version 3 (ShaFlat)
-        if tlv_data.is_some_and(|v| !v.is_empty() && output_data.version != 3) {
-            msg!("TLV extensions only supported with version 3 (ShaFlat)");
-            return Err(ErrorCode::TlvRequiresVersion3.into());
-        }
-
-        // Check if output should be frozen based on CompressedOnly extension is_frozen field
-        // ZeroCopy converts bool to u8: 0 = false, non-zero = true
-        let is_frozen = tlv_data
-            .and_then(|exts| {
-                exts.iter().find_map(|ext| {
-                    if let ZExtensionInstructionData::CompressedOnly(data) = ext {
-                        Some(data.is_frozen != 0)
-                    } else {
-                        None
-                    }
-                })
-            })
-            .unwrap_or(false);
+        let is_frozen = validate_tlv_and_get_frozen(tlv_data, output_data.version)?;
 
         set_output_compressed_account(
             cpi_instruction_struct

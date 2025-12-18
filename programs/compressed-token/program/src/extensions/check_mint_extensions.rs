@@ -15,6 +15,28 @@ use spl_token_2022::{
 
 const SPL_TOKEN_2022_ID: [u8; 32] = spl_token_2022::ID.to_bytes();
 
+/// Restricted extension types that require compression_only mode.
+/// These extensions have special behaviors (pausable, permanent delegate, fees, hooks)
+/// that are incompatible with standard compressed token transfers.
+pub const RESTRICTED_EXTENSION_TYPES: [ExtensionType; 4] = [
+    ExtensionType::Pausable,
+    ExtensionType::PermanentDelegate,
+    ExtensionType::TransferFeeConfig,
+    ExtensionType::TransferHook,
+];
+
+/// Check if an extension type is a restricted extension.
+#[inline(always)]
+pub const fn is_restricted_extension(ext: &ExtensionType) -> bool {
+    matches!(
+        ext,
+        ExtensionType::Pausable
+            | ExtensionType::PermanentDelegate
+            | ExtensionType::TransferFeeConfig
+            | ExtensionType::TransferHook
+    )
+}
+
 /// Result of checking mint extensions (runtime validation)
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct MintExtensionChecks {
@@ -57,6 +79,16 @@ impl MintExtensionFlags {
             self.has_transfer_hook,
         )
     }
+
+    /// Returns true if mint has any restricted extensions.
+    /// Restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook)
+    /// require compression_only mode when compressing tokens.
+    pub const fn has_restricted_extensions(&self) -> bool {
+        self.has_pausable
+            || self.has_permanent_delegate
+            || self.has_transfer_fee
+            || self.has_transfer_hook
+    }
 }
 
 /// Check mint extensions in a single pass with zero-copy deserialization.
@@ -89,15 +121,7 @@ pub fn check_mint_extensions(
 
     // Always compute has_restricted_extensions (needed for CompressAndClose validation)
     let extension_types = mint_state.get_extension_types().unwrap_or_default();
-    let has_restricted_extensions = extension_types.iter().any(|ext| {
-        matches!(
-            ext,
-            ExtensionType::Pausable
-                | ExtensionType::PermanentDelegate
-                | ExtensionType::TransferFeeConfig
-                | ExtensionType::TransferHook
-        )
-    });
+    let has_restricted_extensions = extension_types.iter().any(is_restricted_extension);
 
     // When there are output compressed accounts, mint must not contain restricted extensions.
     // Restricted extensions require compression_only mode (no compressed outputs).
@@ -182,31 +206,38 @@ pub fn has_mint_extensions(mint_account: &AccountInfo) -> Result<MintExtensionFl
     // Get all extension types in a single call
     let extension_types = mint_state.get_extension_types().unwrap_or_default();
 
-    // Check for unsupported extensions
+    // Check for unsupported extensions and collect flags in a single pass
+    let mut has_pausable = false;
+    let mut has_permanent_delegate = false;
+    let mut has_transfer_fee = false;
+    let mut has_transfer_hook = false;
+    let mut has_default_account_state = false;
+
     for ext in &extension_types {
         if !ALLOWED_EXTENSION_TYPES.contains(ext) {
             msg!("Unsupported mint extension: {:?}", ext);
             return Err(ErrorCode::MintWithInvalidExtension.into());
         }
+        match ext {
+            ExtensionType::Pausable => has_pausable = true,
+            ExtensionType::PermanentDelegate => has_permanent_delegate = true,
+            ExtensionType::TransferFeeConfig => has_transfer_fee = true,
+            ExtensionType::TransferHook => has_transfer_hook = true,
+            ExtensionType::DefaultAccountState => has_default_account_state = true,
+            _ => {}
+        }
     }
-
-    // Check which extensions exist using the extension_types list
-    let has_pausable = extension_types.contains(&ExtensionType::Pausable);
-    let has_permanent_delegate = extension_types.contains(&ExtensionType::PermanentDelegate);
-    let has_transfer_fee = extension_types.contains(&ExtensionType::TransferFeeConfig);
-    let has_transfer_hook = extension_types.contains(&ExtensionType::TransferHook);
 
     // Check if DefaultAccountState is set to Frozen
     // AccountState::Frozen as u8 = 2, ext.state is PodAccountState (u8)
-    let default_account_state_frozen =
-        if extension_types.contains(&ExtensionType::DefaultAccountState) {
-            mint_state
-                .get_extension::<DefaultAccountState>()
-                .map(|ext| ext.state == AccountState::Frozen as u8)
-                .unwrap_or(false)
-        } else {
-            false
-        };
+    let default_account_state_frozen = if has_default_account_state {
+        mint_state
+            .get_extension::<DefaultAccountState>()
+            .map(|ext| ext.state == AccountState::Frozen as u8)
+            .unwrap_or(false)
+    } else {
+        false
+    };
 
     Ok(MintExtensionFlags {
         has_pausable,

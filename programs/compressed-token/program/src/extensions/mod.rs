@@ -4,7 +4,8 @@ pub mod token_metadata;
 
 // Re-export extension checking functions
 pub use check_mint_extensions::{
-    check_mint_extensions, has_mint_extensions, MintExtensionChecks, MintExtensionFlags,
+    check_mint_extensions, has_mint_extensions, is_restricted_extension, MintExtensionChecks,
+    MintExtensionFlags, RESTRICTED_EXTENSION_TYPES,
 };
 // Import from ctoken-types instead of local modules
 use light_ctoken_interface::{

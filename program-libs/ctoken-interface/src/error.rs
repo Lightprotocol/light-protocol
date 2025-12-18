@@ -159,6 +159,9 @@ pub enum CTokenError {
 
     #[error("out_lamports field is not yet implemented")]
     OutLamportsUnimplemented,
+
+    #[error("TLV extension length mismatch - exactly one extension required")]
+    TlvExtensionLengthMismatch,
 }
 
 impl From<CTokenError> for u32 {
@@ -215,6 +218,7 @@ impl From<CTokenError> for u32 {
             CTokenError::OutTlvOutputCountMismatch => 18049,
             CTokenError::InLamportsUnimplemented => 18050,
             CTokenError::OutLamportsUnimplemented => 18051,
+            CTokenError::TlvExtensionLengthMismatch => 18052,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

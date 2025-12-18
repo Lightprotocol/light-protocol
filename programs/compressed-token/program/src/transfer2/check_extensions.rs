@@ -12,6 +12,37 @@ use spl_pod::solana_msg::msg;
 
 use crate::extensions::{check_mint_extensions, MintExtensionChecks};
 
+/// Validate TLV data and extract is_frozen flag from CompressedOnly extension.
+///
+/// Returns error if TLV data is present but version is not 3 (ShaFlat).
+/// Returns the is_frozen flag from CompressedOnly extension, or false if not present.
+#[inline(always)]
+pub fn validate_tlv_and_get_frozen(
+    tlv_data: Option<&[ZExtensionInstructionData]>,
+    version: u8,
+) -> Result<bool, ProgramError> {
+    // Validate TLV is only used with version 3 (ShaFlat)
+    if tlv_data.is_some_and(|v| !v.is_empty() && version != 3) {
+        msg!("TLV extensions only supported with version 3 (ShaFlat)");
+        return Err(ErrorCode::TlvRequiresVersion3.into());
+    }
+
+    // Extract is_frozen from CompressedOnly extension (0 = false, non-zero = true)
+    let is_frozen = tlv_data
+        .and_then(|exts| {
+            exts.iter().find_map(|ext| {
+                if let ZExtensionInstructionData::CompressedOnly(data) = ext {
+                    Some(data.is_frozen != 0)
+                } else {
+                    None
+                }
+            })
+        })
+        .unwrap_or(false);
+
+    Ok(is_frozen)
+}
+
 /// Cache for mint extension checks to avoid deserializing the same mint multiple times.
 pub type MintExtensionCache = ArrayMap<u8, MintExtensionChecks, 5>;
 

@@ -83,19 +83,28 @@ impl<'a> ZTokenDataMut<'a> {
         *self.state = state as u8;
 
         // Set TLV extension values (space was pre-allocated via new_zero_copy)
-        if let (Some(tlv_vec), Some(exts)) = (self.tlv.as_mut(), tlv_data) {
-            for (tlv_ext, instruction_ext) in tlv_vec.iter_mut().zip(exts.iter()) {
-                match (tlv_ext, instruction_ext) {
-                    (
-                        ZExtensionStructMut::CompressedOnly(compressed_only),
-                        ZExtensionInstructionData::CompressedOnly(data),
-                    ) => {
-                        compressed_only.delegated_amount = data.delegated_amount;
-                        compressed_only.withheld_transfer_fee = data.withheld_transfer_fee;
+        match (self.tlv.as_mut(), tlv_data) {
+            (Some(tlv_vec), Some(exts)) => {
+                if tlv_vec.len() != 1 || exts.len() != 1 {
+                    return Err(CTokenError::TlvExtensionLengthMismatch);
+                }
+                for (tlv_ext, instruction_ext) in tlv_vec.iter_mut().zip(exts.iter()) {
+                    match (tlv_ext, instruction_ext) {
+                        (
+                            ZExtensionStructMut::CompressedOnly(compressed_only),
+                            ZExtensionInstructionData::CompressedOnly(data),
+                        ) => {
+                            compressed_only.delegated_amount = data.delegated_amount;
+                            compressed_only.withheld_transfer_fee = data.withheld_transfer_fee;
+                        }
+                        _ => return Err(CTokenError::UnsupportedTlvExtensionType),
                     }
-                    _ => return Err(CTokenError::UnsupportedTlvExtensionType),
                 }
             }
+            (Some(_), None) | (None, Some(_)) => {
+                return Err(CTokenError::TlvExtensionLengthMismatch);
+            }
+            (None, None) => {}
         }
 
         Ok(())

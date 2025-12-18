@@ -127,8 +127,8 @@ fn test_rnd_create_input_compressed_account() {
                 remaining_accounts.as_slice(),
                 lamports,
                 None, // No TLV data in test
-                is_frozen,
                 &mint_cache,
+                is_frozen,
             );
 
             assert!(result.is_ok(), "Function failed: {:?}", result.err());

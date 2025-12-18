@@ -527,6 +527,8 @@ pub enum ErrorCode {
     InLamportsUnimplemented,
     #[msg("out_lamports field is not yet implemented")]
     OutLamportsUnimplemented,
+    #[msg("Mints with restricted extensions require compressible accounts")]
+    CompressibleRequired,
 }
 
 /// Anchor error code offset - error codes start at 6000

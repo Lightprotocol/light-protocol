@@ -18,9 +18,9 @@ use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyNew};
 /// 1. Set token account data
 /// 2. Create token account data hash
 /// 3. Set output compressed account
-#[inline(always)]
 #[allow(clippy::too_many_arguments)]
 #[profile]
+#[inline(always)]
 pub fn set_output_compressed_account<'a>(
     output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
     hash_cache: &mut HashCache,
@@ -33,48 +33,6 @@ pub fn set_output_compressed_account<'a>(
     version: u8,
     tlv_data: Option<&'a [ZExtensionInstructionData<'a>]>,
     is_frozen: bool,
-) -> Result<(), ProgramError> {
-    if is_frozen {
-        set_output_compressed_account_inner::<true>(
-            output_compressed_account,
-            hash_cache,
-            owner,
-            delegate,
-            amount,
-            lamports,
-            mint_pubkey,
-            merkle_tree_index,
-            version,
-            tlv_data,
-        )
-    } else {
-        set_output_compressed_account_inner::<false>(
-            output_compressed_account,
-            hash_cache,
-            owner,
-            delegate,
-            amount,
-            lamports,
-            mint_pubkey,
-            merkle_tree_index,
-            version,
-            tlv_data,
-        )
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn set_output_compressed_account_inner<'a, const IS_FROZEN: bool>(
-    output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
-    hash_cache: &mut HashCache,
-    owner: Pubkey,
-    delegate: Option<Pubkey>,
-    amount: impl ZeroCopyNumTrait,
-    lamports: Option<impl ZeroCopyNumTrait>,
-    mint_pubkey: Pubkey,
-    merkle_tree_index: u8,
-    version: u8,
-    tlv_data: Option<&'a [ZExtensionInstructionData<'a>]>,
 ) -> Result<(), ProgramError> {
     // Get compressed account data from CPI struct to temporarily create TokenData
     let compressed_account_data = output_compressed_account
@@ -109,7 +67,7 @@ fn set_output_compressed_account_inner<'a, const IS_FROZEN: bool>(
             TokenData::new_zero_copy(compressed_account_data.data, token_config)
                 .map_err(ProgramError::from)?;
 
-        let state = if IS_FROZEN {
+        let state = if is_frozen {
             CompressedTokenAccountState::Frozen
         } else {
             CompressedTokenAccountState::Initialized
@@ -130,7 +88,7 @@ fn set_output_compressed_account_inner<'a, const IS_FROZEN: bool>(
                 let hashed_delegate = delegate
                     .map(|delegate_pubkey| hash_cache.get_or_hash_pubkey(&delegate_pubkey.into()));
 
-                if !IS_FROZEN {
+                if !is_frozen {
                     TokenData::hash_with_hashed_values(
                         &hashed_mint,
                         &hashed_owner,
