@@ -16,7 +16,7 @@ mod shared;
 use borsh::BorshDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_ctoken_sdk::ctoken::{
-    CompressibleParams, CToken, CreateAssociatedCTokenAccount, DecompressToCtoken, TransferCToken,
+    CToken, CompressibleParams, CreateAssociatedCTokenAccount, DecompressToCtoken, TransferCToken,
 };
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use solana_sdk::{signature::Keypair, signer::Signer};
@@ -191,8 +191,10 @@ async fn test_cmint_to_ctoken_scenario_compression_only() {
 
     // 9. Recreate cToken ATA for decompression (idempotent) with compression_only: true
     println!("\nRecreating cToken ATA for decompression...");
-    let mut compressible_params = CompressibleParams::default();
-    compressible_params.compression_only = true;
+    let compressible_params = CompressibleParams {
+        compression_only: true,
+        ..Default::default()
+    };
     let create_ata_instruction =
         CreateAssociatedCTokenAccount::new(payer.pubkey(), owner2.pubkey(), mint)
             .with_compressible(compressible_params)
@@ -211,8 +213,7 @@ async fn test_cmint_to_ctoken_scenario_compression_only() {
         "cToken ATA should exist after recreation"
     );
     println!("  - cToken ATA recreated: {}", ctoken_ata2);
-    let deserialized_ata =
-        CToken::try_from_slice(&mut ctoken_account_data.data.as_slice()).unwrap();
+    let deserialized_ata = CToken::try_from_slice(ctoken_account_data.data.as_slice()).unwrap();
     println!("deserialized ata {:?}", deserialized_ata);
 
     // 10. Get validity proof for the compressed account

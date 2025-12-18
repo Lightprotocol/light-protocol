@@ -274,8 +274,10 @@ pub async fn setup_create_compressed_mint_with_compression_only(
     let mut ata_pubkeys = Vec::with_capacity(recipients.len());
 
     // Build custom CompressibleParams with compression_only flag
-    let mut compressible_params = CompressibleParams::default();
-    compressible_params.compression_only = compression_only;
+    let compressible_params = CompressibleParams {
+        compression_only,
+        ..Default::default()
+    };
 
     for (_amount, owner) in &recipients {
         let (ata_address, _bump) = derive_ctoken_ata(owner, &mint);
