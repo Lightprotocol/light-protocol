@@ -55,9 +55,7 @@ pub fn build_mint_extension_cache<'a>(
 
             if cache.get_by_key(&mint_index).is_none() {
                 let mint_account = packed_accounts.get_u8(mint_index, "mint cache: compression")?;
-                let checks = if compression.rent_sponsor_is_signer()
-                    && compression.mode == ZCompressionMode::CompressAndClose
-                {
+                let checks = if compression.mode == ZCompressionMode::CompressAndClose {
                     check_mint_extensions(
                         mint_account,
                         false, // Allow restricted extensions, also if instruction has has_output_compressed_accounts
@@ -67,7 +65,7 @@ pub fn build_mint_extension_cache<'a>(
                 };
 
                 // Validate mints with restricted extensions:
-                // - CompressAndClose with rent_sponsor_is_signer: OK if output has CompressedOnly
+                // - CompressAndClose: OK if output has CompressedOnly
                 // - Compress: NOT allowed (mints with restricted extensions must not be compressed)
                 // - Decompress: OK (no output compressed accounts, handled by check_restricted)
                 if checks.has_restricted_extensions {

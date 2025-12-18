@@ -92,10 +92,6 @@ impl ZCompression<'_> {
             _ => Err(CTokenError::InvalidCompressionMode),
         }
     }
-    /// For CompressAndClose: returns true if rent sponsor is the signer (skip mint checks)
-    pub fn rent_sponsor_is_signer(&self) -> bool {
-        self.mode == ZCompressionMode::CompressAndClose && self.decimals != 0
-    }
 }
 
 impl Compression {
@@ -108,7 +104,6 @@ impl Compression {
         rent_sponsor_index: u8,
         compressed_account_index: u8,
         destination_index: u8,
-        rent_sponsor_is_signer: bool,
     ) -> Self {
         Compression {
             amount, // the full balance of the ctoken account to be compressed
@@ -119,7 +114,7 @@ impl Compression {
             pool_account_index: rent_sponsor_index,
             pool_index: compressed_account_index,
             bump: destination_index,
-            decimals: rent_sponsor_is_signer as u8,
+            decimals: 0,
         }
     }
 

@@ -8,6 +8,7 @@ use light_ctoken_interface::{
         extensions::ZExtensionInstructionData,
         transfer2::{
             CompressedTokenInstructionDataTransfer2, ZCompressedTokenInstructionDataTransfer2,
+            ZCompressionMode,
         },
     },
     CTokenError,
@@ -95,12 +96,10 @@ pub fn validate_instruction_data(
     }
 
     if inputs.in_lamports.is_some() {
-        msg!("in_lamports are unimplemented",);
-        return Err(CTokenError::TokenDataTlvUnimplemented);
+        return Err(CTokenError::InLamportsUnimplemented);
     }
     if inputs.out_lamports.is_some() {
-        msg!("outlamports are unimplemented",);
-        return Err(CTokenError::TokenDataTlvUnimplemented);
+        return Err(CTokenError::OutLamportsUnimplemented);
     }
     // Validate in_tlv length matches in_token_data if provided
     if let Some(in_tlv) = inputs.in_tlv.as_ref() {
@@ -137,11 +136,12 @@ pub fn validate_instruction_data(
             return Err(CTokenError::InvalidInstructionData);
         }
 
-        // All compressions must be CompressAndClose with rent_sponsor_is_signer
-        let allowed = inputs
-            .compressions
-            .as_ref()
-            .is_some_and(|compressions| compressions.iter().all(|c| c.rent_sponsor_is_signer()));
+        // All compressions must be CompressAndClose
+        let allowed = inputs.compressions.as_ref().is_some_and(|compressions| {
+            compressions
+                .iter()
+                .all(|c| c.mode == ZCompressionMode::CompressAndClose)
+        });
         if !allowed {
             return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
         }

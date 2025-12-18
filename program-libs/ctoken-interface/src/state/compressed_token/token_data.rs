@@ -85,13 +85,15 @@ impl<'a> ZTokenDataMut<'a> {
         // Set TLV extension values (space was pre-allocated via new_zero_copy)
         if let (Some(tlv_vec), Some(exts)) = (self.tlv.as_mut(), tlv_data) {
             for (tlv_ext, instruction_ext) in tlv_vec.iter_mut().zip(exts.iter()) {
-                if let (
-                    ZExtensionStructMut::CompressedOnly(compressed_only),
-                    ZExtensionInstructionData::CompressedOnly(data),
-                ) = (tlv_ext, instruction_ext)
-                {
-                    compressed_only.delegated_amount = data.delegated_amount;
-                    compressed_only.withheld_transfer_fee = data.withheld_transfer_fee;
+                match (tlv_ext, instruction_ext) {
+                    (
+                        ZExtensionStructMut::CompressedOnly(compressed_only),
+                        ZExtensionInstructionData::CompressedOnly(data),
+                    ) => {
+                        compressed_only.delegated_amount = data.delegated_amount;
+                        compressed_only.withheld_transfer_fee = data.withheld_transfer_fee;
+                    }
+                    _ => return Err(CTokenError::UnsupportedTlvExtensionType),
                 }
             }
         }

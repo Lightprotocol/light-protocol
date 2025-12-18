@@ -176,7 +176,6 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
             Some(CompressibleExtensionInstructionData {
                 token_account_version: token_account_version as u8,
                 rent_payment: pre_pay_num_epochs,
-                has_top_up: if lamports_per_write.is_some() { 1 } else { 0 },
                 compression_only: 0,
                 write_top_up: lamports_per_write.unwrap_or(0),
                 compress_to_account_pubkey: None, // Not used for ATA creation
@@ -357,7 +356,6 @@ fn create_ata2_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: b
             Some(CompressibleExtensionInstructionData {
                 token_account_version: token_account_version as u8,
                 rent_payment: pre_pay_num_epochs,
-                has_top_up: if lamports_per_write.is_some() { 1 } else { 0 },
                 compression_only: 0,
                 write_top_up: lamports_per_write.unwrap_or(0),
                 compress_to_account_pubkey: None,

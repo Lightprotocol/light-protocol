@@ -361,7 +361,6 @@ impl CtokenToSplTransferAndClose {
                 0, // no rent sponsor
                 0, // no compressed account
                 3, // destination is authority
-                false,
             )),
             delegate_is_set: false,
             method_used: true,

@@ -308,7 +308,8 @@ pub enum ErrorCode {
     InvalidExtensionType,
     InstructionDataExpectedDelegate,
     ZeroCopyExpectedDelegate,
-    TokenDataTlvUnimplemented,
+    #[msg("Unsupported TLV extension type - only CompressedOnly is currently implemented")]
+    UnsupportedTlvExtensionType,
     // Mint Action specific errors
     #[msg("Mint action requires at least one action")]
     MintActionNoActionsProvided,
@@ -522,6 +523,10 @@ pub enum ErrorCode {
     DecompressDelegateMismatch,
     #[msg("Mint cache capacity exceeded (max 5 unique mints)")]
     MintCacheCapacityExceeded,
+    #[msg("in_lamports field is not yet implemented")]
+    InLamportsUnimplemented,
+    #[msg("out_lamports field is not yet implemented")]
+    OutLamportsUnimplemented,
 }
 
 /// Anchor error code offset - error codes start at 6000
