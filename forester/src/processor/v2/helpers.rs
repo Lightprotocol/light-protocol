@@ -426,12 +426,33 @@ pub async fn fetch_address_batches<R: Rpc>(
     Ok(res.value.address_queue)
 }
 
+/// Streams address queue data by fetching pages in the background.
+///
+/// The first page is fetched synchronously, then subsequent pages are fetched
+/// in a background task. Consumers can access data as it becomes available
+/// without waiting for the entire fetch to complete.
 #[derive(Debug)]
 pub struct StreamingAddressQueue {
+    /// The accumulated address queue data from all fetched pages.
     pub data: Arc<Mutex<AddressQueueData>>,
+
+    /// Number of elements currently available for processing.
+    /// Paired with `data_ready` condvar for signaling new data.
     available_elements: Arc<Mutex<usize>>,
+
+    /// Signaled when new elements become available.
+    /// Paired with `available_elements` mutex.
     data_ready: Arc<Condvar>,
+
+    /// Whether the background fetch has completed (all pages fetched or error).
+    /// Paired with `fetch_complete_condvar` for signaling completion.
     fetch_complete: Arc<Mutex<bool>>,
+
+    /// Signaled when background fetch completes.
+    /// Paired with `fetch_complete` mutex.
+    fetch_complete_condvar: Arc<Condvar>,
+
+    /// Number of elements per ZKP batch, used for batch boundary calculations.
     zkp_batch_size: usize,
 }
 
@@ -481,7 +502,7 @@ impl StreamingAddressQueue {
         );
         while !*complete {
             complete = wait_while_recover(
-                &self.data_ready,
+                &self.fetch_complete_condvar,
                 complete,
                 |c| !*c,
                 "streaming_address_queue.fetch_complete",
@@ -585,6 +606,7 @@ pub async fn fetch_streaming_address_batches<R: Rpc + 'static>(
         available_elements: Arc::new(Mutex::new(initial_elements)),
         data_ready: Arc::new(Condvar::new()),
         fetch_complete: Arc::new(Mutex::new(num_pages == 1 || queue_exhausted)),
+        fetch_complete_condvar: Arc::new(Condvar::new()),
         zkp_batch_size: zkp_batch_size as usize,
     };
 
@@ -596,6 +618,7 @@ pub async fn fetch_streaming_address_batches<R: Rpc + 'static>(
     let available = Arc::clone(&streaming.available_elements);
     let ready = Arc::clone(&streaming.data_ready);
     let complete = Arc::clone(&streaming.fetch_complete);
+    let complete_condvar = Arc::clone(&streaming.fetch_complete_condvar);
     let ctx = context.clone();
     let initial_root = streaming.initial_root();
 
@@ -703,6 +726,7 @@ pub async fn fetch_streaming_address_batches<R: Rpc + 'static>(
             *complete_guard = true;
         }
         ready.notify_all();
+        complete_condvar.notify_all();
         tracing::debug!("Background address fetch complete");
     });
 
