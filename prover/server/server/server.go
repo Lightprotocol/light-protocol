@@ -314,14 +314,7 @@ func (handler proofStatusHandler) checkJobExistsDetailed(jobID string) (bool, st
 		}
 		// Check results queue
 		if job, found := handler.findJobInQueue("zk_results_queue", jobID); found {
-			if payloadRaw, ok := job["payload"]; ok {
-				if payloadStr, ok := payloadRaw.(string); ok {
-					var payloadData map[string]interface{}
-					if json.Unmarshal([]byte(payloadStr), &payloadData) == nil {
-						job["result"] = payloadData
-					}
-				}
-			}
+			handler.extractResultFromPayload(job)
 			return true, "completed", job
 		}
 		// Return metadata-based status even if not found in queues
@@ -344,18 +337,22 @@ func (handler proofStatusHandler) checkJobExistsDetailed(jobID string) (bool, st
 	}
 
 	if job, found := handler.findJobInQueue("zk_results_queue", jobID); found {
-		if payloadRaw, ok := job["payload"]; ok {
-			if payloadStr, ok := payloadRaw.(string); ok {
-				var payloadData map[string]interface{}
-				if json.Unmarshal([]byte(payloadStr), &payloadData) == nil {
-					job["result"] = payloadData
-				}
-			}
-		}
+		handler.extractResultFromPayload(job)
 		return true, "completed", job
 	}
 
 	return false, "", nil
+}
+
+func (handler proofStatusHandler) extractResultFromPayload(job map[string]interface{}) {
+	if payloadRaw, ok := job["payload"]; ok {
+		if payloadStr, ok := payloadRaw.(string); ok {
+			var payloadData map[string]interface{}
+			if json.Unmarshal([]byte(payloadStr), &payloadData) == nil {
+				job["result"] = payloadData
+			}
+		}
+	}
 }
 
 func (handler proofStatusHandler) findJobInQueue(queueName, jobID string) (map[string]interface{}, bool) {
@@ -736,8 +733,12 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, keyManager *com
 			err = redisQueue.EnqueueProof(queueName, job)
 			if err != nil {
 				// Clean up in-flight marker and metadata since we failed to enqueue
-				redisQueue.DeleteInFlightJob(inputHash, jobID)
-				redisQueue.DeleteJobMeta(jobID)
+				if delErr := redisQueue.DeleteInFlightJob(inputHash, jobID); delErr != nil {
+					logging.Logger().Error().Err(delErr).Str("job_id", jobID).Msg("Failed to cleanup in-flight marker after enqueue failure - may cause stale deduplication")
+				}
+				if delErr := redisQueue.DeleteJobMeta(jobID); delErr != nil {
+					logging.Logger().Error().Err(delErr).Str("job_id", jobID).Msg("Failed to cleanup job metadata after enqueue failure")
+				}
 				unexpectedError(err).send(w)
 				return
 			}
