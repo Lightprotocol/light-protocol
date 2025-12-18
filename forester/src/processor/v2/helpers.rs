@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{Arc, Condvar, Mutex, MutexGuard},
 };
 
@@ -683,8 +683,10 @@ pub async fn fetch_streaming_address_batches<R: Rpc + 'static>(
                         data_guard
                             .leaves_hash_chains
                             .extend(page.leaves_hash_chains);
+                        let mut seen: HashSet<u64> =
+                            data_guard.nodes.iter().copied().collect();
                         for (&idx, &hash) in page.nodes.iter().zip(page.node_hashes.iter()) {
-                            if !data_guard.nodes.contains(&idx) {
+                            if seen.insert(idx) {
                                 data_guard.nodes.push(idx);
                                 data_guard.node_hashes.push(hash);
                             }
