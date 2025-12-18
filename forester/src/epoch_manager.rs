@@ -1449,21 +1449,19 @@ impl<R: Rpc> EpochManager<R> {
         .await?;
 
         // Try to send any cached proofs first
+        let cached_send_start = Instant::now();
         if let Some(items_sent) = self
             .try_send_cached_proofs(epoch_info, tree_accounts, consecutive_eligibility_end)
             .await?
         {
             if items_sent > 0 {
+                let cached_send_duration = cached_send_start.elapsed();
                 info!(
-                    "Sent {} items from cache for tree {}",
-                    items_sent, tree_pubkey
+                    "Sent {} items from cache for tree {} in {:?}",
+                    items_sent, tree_pubkey, cached_send_duration
                 );
-                self.update_metrics_and_counts(
-                    epoch_info.epoch,
-                    items_sent,
-                    Duration::from_millis(1),
-                )
-                .await;
+                self.update_metrics_and_counts(epoch_info.epoch, items_sent, cached_send_duration)
+                    .await;
             }
         }
 
@@ -2185,14 +2183,28 @@ impl<R: Rpc> EpochManager<R> {
         let slots_until_active = deadline_slot.saturating_sub(current_slot);
 
         let trees = self.trees.lock().await;
-        let v2_state_trees: Vec<_> = trees
+        let total_v2_state = trees
             .iter()
             .filter(|t| matches!(t.tree_type, TreeType::StateV2))
+            .count();
+        let v2_state_trees: Vec<_> = trees
+            .iter()
+            .filter(|t| {
+                matches!(t.tree_type, TreeType::StateV2)
+                    && !should_skip_tree(&self.config, &t.tree_type)
+            })
             .cloned()
             .collect();
+        let skipped_count = total_v2_state - v2_state_trees.len();
         drop(trees);
 
         if v2_state_trees.is_empty() {
+            if skipped_count > 0 {
+                info!(
+                    "No trees to pre-warm: {} StateV2 trees skipped by config",
+                    skipped_count
+                );
+            }
             return;
         }
 
@@ -2290,8 +2302,9 @@ impl<R: Rpc> EpochManager<R> {
         let timeout_duration = Duration::from_millis((timeout_slots * 400).min(30_000));
 
         info!(
-            "Starting pre-warming for {} trees with {}ms timeout",
+            "Starting pre-warming for {} trees ({} skipped by config) with {}ms timeout",
             v2_state_trees.len(),
+            skipped_count,
             timeout_duration.as_millis()
         );
 
@@ -2311,9 +2324,19 @@ impl<R: Rpc> EpochManager<R> {
         &self,
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
-        _consecutive_eligibility_end: u64,
+        consecutive_eligibility_end: u64,
     ) -> Result<Option<usize>> {
         let tree_pubkey = tree_accounts.merkle_tree;
+
+        // Check eligibility window before attempting to send cached proofs
+        let current_slot = self.slot_tracker.estimated_current_slot();
+        if current_slot >= consecutive_eligibility_end {
+            debug!(
+                "Skipping cached proof send for tree {}: past eligibility window (slot {} >= {})",
+                tree_pubkey, current_slot, consecutive_eligibility_end
+            );
+            return Ok(None);
+        }
 
         let cache = match self.proof_caches.get(&tree_pubkey) {
             Some(c) => c.clone(),

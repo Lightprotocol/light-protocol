@@ -125,6 +125,9 @@ pub async fn fetch_paginated_batches<R: Rpc>(
     total_elements: u64,
     zkp_batch_size: u64,
 ) -> crate::Result<Option<StateQueueData>> {
+    if zkp_batch_size == 0 {
+        return Err(anyhow::anyhow!("zkp_batch_size cannot be zero"));
+    }
     if total_elements == 0 {
         return Ok(None);
     }
@@ -424,28 +427,32 @@ pub struct StreamingAddressQueue {
 }
 
 impl StreamingAddressQueue {
+    /// Waits until at least `batch_end` elements are available or fetch completes.
+    ///
+    /// Uses a polling loop to avoid race conditions between the available_elements
+    /// and fetch_complete mutexes. Returns the number of available elements.
     pub fn wait_for_batch(&self, batch_end: usize) -> usize {
-        let mut available = lock_recover(
-            &self.available_elements,
-            "streaming_address_queue.available_elements",
-        );
-        while *available < batch_end {
+        const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(5);
+
+        loop {
+            let available = *lock_recover(
+                &self.available_elements,
+                "streaming_address_queue.available_elements",
+            );
+            if available >= batch_end {
+                return available;
+            }
+
             let complete = *lock_recover(
                 &self.fetch_complete,
                 "streaming_address_queue.fetch_complete",
             );
             if complete {
-                break;
+                return available;
             }
-            available = match self.data_ready.wait(available) {
-                Ok(guard) => guard,
-                Err(poisoned) => {
-                    tracing::warn!("Poisoned mutex while waiting (recovering): streaming_address_queue.available_elements");
-                    poisoned.into_inner()
-                }
-            };
+
+            std::thread::sleep(POLL_INTERVAL);
         }
-        *available
     }
 
     pub fn get_batch_data(&self, start: usize, end: usize) -> Option<BatchDataSlice> {
