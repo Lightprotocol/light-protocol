@@ -19,6 +19,38 @@ use tokio::{
 };
 use tracing::debug;
 
+/// Spawns a task that handles graceful shutdown on Ctrl+C.
+///
+/// First Ctrl+C triggers graceful shutdown by sending to `service_sender`
+/// and calling the optional `additional_shutdown` closure.
+/// Second Ctrl+C forces immediate exit.
+fn spawn_shutdown_handler<F>(service_sender: oneshot::Sender<()>, additional_shutdown: Option<F>)
+where
+    F: FnOnce() + Send + 'static,
+{
+    tokio::spawn(async move {
+        if let Err(e) = ctrl_c().await {
+            tracing::error!("Failed to listen for Ctrl+C: {}", e);
+            return;
+        }
+        tracing::info!("Received Ctrl+C, initiating graceful shutdown...");
+        if service_sender.send(()).is_err() {
+            tracing::warn!("Shutdown signal to service already sent or receiver dropped");
+        }
+        if let Some(shutdown_fn) = additional_shutdown {
+            shutdown_fn();
+        }
+
+        // Wait for second Ctrl+C to force exit
+        if let Err(e) = ctrl_c().await {
+            tracing::warn!("Failed to listen for second Ctrl+C (forcing exit): {}", e);
+            std::process::exit(1);
+        }
+        tracing::warn!("Received second Ctrl+C, forcing exit!");
+        std::process::exit(1);
+    });
+}
+
 #[tokio::main]
 #[allow(clippy::result_large_err)]
 async fn main() -> Result<(), ForesterError> {
@@ -45,53 +77,16 @@ async fn main() -> Result<(), ForesterError> {
                 let (shutdown_sender_compressible, shutdown_receiver_compressible) =
                     tokio::sync::broadcast::channel(1);
                 let (shutdown_sender_bootstrap, shutdown_receiver_bootstrap) = oneshot::channel();
-                tokio::spawn(async move {
-                    if let Err(e) = ctrl_c().await {
-                        tracing::error!("Failed to listen for Ctrl+C: {}", e);
-                        return;
-                    }
-                    tracing::info!("Received Ctrl+C, initiating graceful shutdown...");
-                    if shutdown_sender_service.send(()).is_err() {
-                        tracing::warn!(
-                            "Shutdown signal to service already sent or receiver dropped"
-                        );
-                    }
+                spawn_shutdown_handler(shutdown_sender_service, Some(move || {
                     let _ = shutdown_sender_compressible.send(());
                     let _ = shutdown_sender_bootstrap.send(());
-
-                    // Wait for second Ctrl+C to force exit
-                    if let Err(e) = ctrl_c().await {
-                        tracing::warn!("Failed to listen for second Ctrl+C (forcing exit): {}", e);
-                        std::process::exit(1);
-                    }
-                    tracing::warn!("Received second Ctrl+C, forcing exit!");
-                    std::process::exit(1);
-                });
+                }));
                 (
                     Some(shutdown_receiver_compressible),
                     Some(shutdown_receiver_bootstrap),
                 )
             } else {
-                tokio::spawn(async move {
-                    if let Err(e) = ctrl_c().await {
-                        tracing::error!("Failed to listen for Ctrl+C: {}", e);
-                        return;
-                    }
-                    tracing::info!("Received Ctrl+C, initiating graceful shutdown...");
-                    if shutdown_sender_service.send(()).is_err() {
-                        tracing::warn!(
-                            "Shutdown signal to service already sent or receiver dropped"
-                        );
-                    }
-
-                    // Wait for second Ctrl+C to force exit
-                    if let Err(e) = ctrl_c().await {
-                        tracing::warn!("Failed to listen for second Ctrl+C (forcing exit): {}", e);
-                        std::process::exit(1);
-                    }
-                    tracing::warn!("Received second Ctrl+C, forcing exit!");
-                    std::process::exit(1);
-                });
+                spawn_shutdown_handler::<fn()>(shutdown_sender_service, None);
                 (None, None)
             };
 
