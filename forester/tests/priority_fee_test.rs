@@ -62,6 +62,8 @@ async fn test_priority_fee_request() {
         max_concurrent_sends: 50,
         tx_cache_ttl_seconds: 15,
         ops_cache_ttl_seconds: 180,
+        confirmation_max_attempts: 30,
+        confirmation_poll_interval_ms: 1000,
         cu_limit: 1_000_000,
         enable_priority_fees: true,
         rpc_pool_size: 20,
