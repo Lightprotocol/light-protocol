@@ -90,8 +90,7 @@ impl DecompressToCtoken {
         };
         // Extract version from discriminator
         let version = TokenDataVersion::from_discriminator(self.discriminator)
-            .map_err(|_| ProgramError::InvalidAccountData)?
-            as u8;
+            .map_err(|_| ProgramError::InvalidAccountData)? as u8;
 
         // Convert TLV extensions from state format to instruction format
         let is_frozen = self.token_data.state == AccountState::Frozen;

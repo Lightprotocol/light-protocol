@@ -205,8 +205,7 @@ async fn test_cmint_to_ctoken_scenario() {
         "cToken ATA should exist after recreation"
     );
     println!("  - cToken ATA recreated: {}", ctoken_ata2);
-    let deserialized_ata =
-        CToken::try_from_slice(&mut ctoken_account_data.data.as_slice()).unwrap();
+    let deserialized_ata = CToken::try_from_slice(ctoken_account_data.data.as_slice()).unwrap();
     println!("deserialized ata {:?}", deserialized_ata);
 
     // 10. Get validity proof for the compressed account

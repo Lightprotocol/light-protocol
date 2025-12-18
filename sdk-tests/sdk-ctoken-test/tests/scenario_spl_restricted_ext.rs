@@ -76,8 +76,10 @@ async fn test_t22_restricted_to_ctoken_scenario() {
         .unwrap();
 
     let (ctoken_ata, _bump) = derive_ctoken_ata(&ctoken_recipient.pubkey(), &mint);
-    let mut compressible_params = CompressibleParams::default();
-    compressible_params.compression_only = true;
+    let compressible_params = CompressibleParams {
+        compression_only: true,
+        ..Default::default()
+    };
     let create_ata_instruction =
         CreateAssociatedCTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
             .with_compressible(compressible_params)
@@ -214,8 +216,10 @@ async fn test_t22_restricted_to_ctoken_scenario() {
 
     // 10. Recreate cToken ATA for decompression with compression_only: true
     println!("\nRecreating cToken ATA for decompression...");
-    let mut compressible_params = CompressibleParams::default();
-    compressible_params.compression_only = true;
+    let compressible_params = CompressibleParams {
+        compression_only: true,
+        ..Default::default()
+    };
     let create_ata_instruction =
         CreateAssociatedCTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
             .with_compressible(compressible_params)
