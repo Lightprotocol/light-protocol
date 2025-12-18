@@ -74,9 +74,12 @@ func (handler proofStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		err := json.NewEncoder(w).Encode(response)
-		if err != nil {
-			return
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			logging.Logger().Error().
+				Err(err).
+				Str("job_id", jobID).
+				Str("response_type", "completed_result").
+				Msg("Failed to encode JSON response")
 		}
 		return
 	}
