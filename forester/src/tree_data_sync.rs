@@ -77,50 +77,64 @@ pub async fn fetch_trees_filtered(rpc_url: &str) -> Result<Vec<TreeAccounts>> {
     );
 
     let mut all_trees = Vec::new();
+    let mut errors = Vec::new();
 
     // Process batched trees (V2) - need to distinguish state vs address
-    if let Ok(accounts) = batched_result {
-        debug!("Fetched {} batched tree accounts", accounts.len());
-        for (pubkey, mut account) in accounts {
-            // Try state first, then address
-            if let Ok(tree) = process_batch_state_account(&mut account, pubkey) {
-                all_trees.push(tree);
-            } else if let Ok(tree) = process_batch_address_account(&mut account, pubkey) {
-                all_trees.push(tree);
+    match batched_result {
+        Ok(accounts) => {
+            debug!("Fetched {} batched tree accounts", accounts.len());
+            for (pubkey, mut account) in accounts {
+                // Try state first, then address
+                if let Ok(tree) = process_batch_state_account(&mut account, pubkey) {
+                    all_trees.push(tree);
+                } else if let Ok(tree) = process_batch_address_account(&mut account, pubkey) {
+                    all_trees.push(tree);
+                }
             }
         }
-    } else if let Err(e) = batched_result {
-        warn!("Failed to fetch batched trees: {:?}", e);
+        Err(e) => {
+            warn!("Failed to fetch batched trees: {:?}", e);
+            errors.push(format!("batched: {}", e));
+        }
     }
 
     // Process state V1 trees
-    if let Ok(accounts) = state_v1_result {
-        debug!("Fetched {} state V1 tree accounts", accounts.len());
-        for (pubkey, account) in accounts {
-            if let Ok(tree) = process_state_account(&account, pubkey) {
-                all_trees.push(tree);
+    match state_v1_result {
+        Ok(accounts) => {
+            debug!("Fetched {} state V1 tree accounts", accounts.len());
+            for (pubkey, account) in accounts {
+                if let Ok(tree) = process_state_account(&account, pubkey) {
+                    all_trees.push(tree);
+                }
             }
         }
-    } else if let Err(e) = state_v1_result {
-        warn!("Failed to fetch state V1 trees: {:?}", e);
+        Err(e) => {
+            warn!("Failed to fetch state V1 trees: {:?}", e);
+            errors.push(format!("state_v1: {}", e));
+        }
     }
 
     // Process address V1 trees
-    if let Ok(accounts) = address_v1_result {
-        debug!("Fetched {} address V1 tree accounts", accounts.len());
-        for (pubkey, account) in accounts {
-            if let Ok(tree) = process_address_account(&account, pubkey) {
-                all_trees.push(tree);
+    match address_v1_result {
+        Ok(accounts) => {
+            debug!("Fetched {} address V1 tree accounts", accounts.len());
+            for (pubkey, account) in accounts {
+                if let Ok(tree) = process_address_account(&account, pubkey) {
+                    all_trees.push(tree);
+                }
             }
         }
-    } else if let Err(e) = address_v1_result {
-        warn!("Failed to fetch address V1 trees: {:?}", e);
+        Err(e) => {
+            warn!("Failed to fetch address V1 trees: {:?}", e);
+            errors.push(format!("address_v1: {}", e));
+        }
     }
 
-    if all_trees.is_empty() {
-        // If all filtered queries failed, return an error to trigger fallback
+    // Only return error if all queries failed; empty-but-successful is Ok
+    if !errors.is_empty() && all_trees.is_empty() {
         return Err(anyhow::anyhow!(
-            "All filtered queries returned empty results"
+            "All filtered queries failed: {}",
+            errors.join(", ")
         ));
     }
 
