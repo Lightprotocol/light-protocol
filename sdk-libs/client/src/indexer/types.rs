@@ -92,12 +92,10 @@ pub struct StateQueueData {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct AddressQueueData {
     pub addresses: Vec<[u8; 32]>,
-    // pub queue_indices: Vec<u64>,
     pub low_element_values: Vec<[u8; 32]>,
     pub low_element_next_values: Vec<[u8; 32]>,
     pub low_element_indices: Vec<u64>,
     pub low_element_next_indices: Vec<u64>,
-    // pub low_element_proofs: Vec<Vec<[u8; 32]>>,
     /// Deduplicated node indices - encoding: (level << 56) | position
     pub nodes: Vec<u64>,
     /// Hashes corresponding to each node index
