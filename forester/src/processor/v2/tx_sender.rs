@@ -6,8 +6,8 @@ use std::{
 use borsh::BorshSerialize;
 
 const MAX_BUFFER_SIZE: usize = 1000;
-pub const V2_IXS_PER_TX: usize = 5;
-const MIN_SLOTS_FOR_BATCHING: u64 = 2;
+const V2_IXS_PER_TX: usize = 5;
+const MIN_SLOTS_BEFORE_ELIGIBILITY_END: u64 = 2;
 
 use light_batched_merkle_tree::merkle_tree::{
     InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
@@ -212,7 +212,7 @@ impl<R: Rpc> TxSender<R> {
             self.context.epoch_phases.active.end
         };
         let slots_remaining = eligibility_end_slot.saturating_sub(current_slot);
-        slots_remaining < MIN_SLOTS_FOR_BATCHING
+        slots_remaining < MIN_SLOTS_BEFORE_ELIGIBILITY_END
     }
 
     #[inline]
@@ -226,7 +226,7 @@ impl<R: Rpc> TxSender<R> {
         } else {
             self.context.epoch_phases.active.end
         };
-        current_slot + 2 < eligibility_end_slot
+        current_slot + MIN_SLOTS_BEFORE_ELIGIBILITY_END < eligibility_end_slot
     }
 
     async fn run(
