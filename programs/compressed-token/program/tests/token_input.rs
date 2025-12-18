@@ -2,6 +2,7 @@ use anchor_compressed_token::TokenData as AnchorTokenData;
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
+use light_array_map::ArrayMap;
 use light_compressed_account::instruction_data::with_readonly::{
     InAccount, InstructionDataInvokeCpiWithReadOnly,
 };
@@ -10,11 +11,12 @@ use light_compressed_token::{
         TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR,
         TOKEN_COMPRESSED_ACCOUNT_V3_DISCRIMINATOR,
     },
+    extensions::MintExtensionChecks,
     shared::{
         cpi_bytes_size::{
             allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
         },
-        token_input::{set_input_compressed_account, set_input_compressed_account_frozen},
+        token_input::set_input_compressed_account,
     },
 };
 use light_ctoken_interface::{
@@ -110,24 +112,24 @@ fn test_rnd_create_input_compressed_account() {
 
             let mut hash_cache = HashCache::new();
 
+            // Create mint extension cache with default checks for mint at index 0
+            let mut mint_cache: ArrayMap<u8, MintExtensionChecks, 5> = ArrayMap::new();
+            mint_cache
+                .insert(0, MintExtensionChecks::default(), ())
+                .unwrap();
+
             // Call the function under test
-            let result = if is_frozen {
-                set_input_compressed_account_frozen(
-                    input_account,
-                    &mut hash_cache,
-                    &z_input_data,
-                    remaining_accounts.as_slice(),
-                    lamports,
-                )
-            } else {
-                set_input_compressed_account(
-                    input_account,
-                    &mut hash_cache,
-                    &z_input_data,
-                    remaining_accounts.as_slice(),
-                    lamports,
-                )
-            };
+            let result = set_input_compressed_account(
+                input_account,
+                &mut hash_cache,
+                &z_input_data,
+                remaining_accounts.as_slice(),
+                remaining_accounts.as_slice(),
+                lamports,
+                None, // No TLV data in test
+                is_frozen,
+                &mint_cache,
+            );
 
             assert!(result.is_ok(), "Function failed: {:?}", result.err());
 

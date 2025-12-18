@@ -177,7 +177,7 @@ async fn test_create_compressible_token_account_failing() {
             &mut context,
             compressible_data,
             "one_epoch_prefunding_forbidden",
-            101, // OneEpochPrefundingNotAllowed (0x65 hex = 101 decimal)
+            6101, // OneEpochPrefundingNotAllowed
         )
         .await;
     }
@@ -234,6 +234,7 @@ async fn test_create_compressible_token_account_failing() {
             lamports_per_write: Some(1000),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
         };
 
         let create_token_account_ix = CreateCTokenAccount::new(
@@ -345,8 +346,8 @@ async fn test_create_compressible_token_account_failing() {
             )
             .await;
 
-        // Should fail with AlreadyInitialized (78) from our program
-        light_program_test::utils::assert::assert_rpc_error(result, 0, 78).unwrap();
+        // Should fail with AlreadyInitialized (6078) from our program
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 6078).unwrap();
     }
 
     // Test 5: Invalid PDA seeds for compress_to_account_pubkey
@@ -373,6 +374,7 @@ async fn test_create_compressible_token_account_failing() {
             lamports_per_write: Some(100),
             compress_to_account_pubkey: Some(invalid_compress_to_pubkey),
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
         };
 
         let create_token_account_ix = CreateCTokenAccount::new(
@@ -423,6 +425,7 @@ async fn test_create_compressible_token_account_failing() {
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
         };
 
         let create_token_account_ix = CreateCTokenAccount::new(
@@ -494,6 +497,7 @@ async fn test_create_compressible_token_account_failing() {
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
         };
 
         let create_token_account_ix = CreateCTokenAccount::new(
@@ -537,6 +541,7 @@ async fn test_create_compressible_token_account_failing() {
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
         };
 
         let create_token_account_ix = CreateCTokenAccount::new(

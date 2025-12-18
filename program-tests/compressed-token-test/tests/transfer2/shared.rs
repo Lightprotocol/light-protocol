@@ -16,6 +16,7 @@ use light_test_utils::{
     assert_transfer2::assert_transfer2,
     spl::{
         create_additional_token_pools, create_mint_helper, create_token_account, mint_spl_tokens,
+        CREATE_MINT_HELPER_DECIMALS,
     },
 };
 use light_token_client::{
@@ -457,6 +458,7 @@ impl TestContext {
                     lamports_per_write: None,
                     compress_to_account_pubkey: None,
                     token_account_version: TokenDataVersion::ShaFlat, // CompressAndClose requires ShaFlat
+                    compression_only: false,
                 };
                 CreateAssociatedCTokenAccount::new(payer.pubkey(), signer.pubkey(), mint)
                     .with_compressible(compressible_params)
@@ -656,6 +658,7 @@ impl TestContext {
                                 authority: signer.pubkey(),
                                 output_queue,
                                 pool_index: None,
+                                decimals: CREATE_MINT_HELPER_DECIMALS,
                             };
 
                             // Create and execute the compress instruction
@@ -713,6 +716,7 @@ impl TestContext {
                             authority: signer.pubkey(),
                             output_queue,
                             pool_index: None,
+                            decimals: CREATE_MINT_HELPER_DECIMALS,
                         };
 
                         let ix = create_generic_transfer2_instruction(
@@ -1204,6 +1208,7 @@ impl TestContext {
             authority: self.keypairs[meta.signer_index].pubkey(),
             output_queue,
             pool_index: meta.pool_index,
+            decimals: CREATE_MINT_HELPER_DECIMALS,
         })
     }
 
@@ -1257,6 +1262,8 @@ impl TestContext {
             solana_token_account: recipient_account,
             amount: meta.amount,
             pool_index: meta.pool_index,
+            decimals: CREATE_MINT_HELPER_DECIMALS,
+            in_tlv: None,
         })
     }
 

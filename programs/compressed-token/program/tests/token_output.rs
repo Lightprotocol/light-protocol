@@ -9,19 +9,26 @@ use light_compressed_account::{
     Pubkey,
 };
 use light_compressed_token::{
-    constants::TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR,
+    constants::{
+        TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR, TOKEN_COMPRESSED_ACCOUNT_V3_DISCRIMINATOR,
+    },
     shared::{
         cpi_bytes_size::{
-            allocate_invoke_with_read_only_cpi_bytes, compressed_token_data_len, cpi_bytes_config,
-            CpiConfigInput,
+            allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
         },
         token_output::set_output_compressed_account,
     },
 };
 use light_ctoken_interface::{
-    hash_cache::HashCache, state::CompressedTokenAccountState as AccountState,
+    hash_cache::HashCache,
+    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
+    state::{
+        CompressedOnlyExtension, CompressedTokenAccountState as AccountState, ExtensionStruct,
+        ExtensionStructConfig, TokenData, TokenDataConfig,
+    },
 };
-use light_zero_copy::ZeroCopyNew;
+use light_hasher::Hasher;
+use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 
 #[test]
 fn test_rnd_create_output_compressed_accounts() {
@@ -41,6 +48,9 @@ fn test_rnd_create_output_compressed_accounts() {
         let mut delegate_flags = Vec::new();
         let mut lamports_vec = Vec::new();
         let mut merkle_tree_indices = Vec::new();
+        let mut tlv_flags = Vec::new();
+        let mut tlv_delegated_amounts = Vec::new();
+        let mut tlv_withheld_fees = Vec::new();
 
         for _ in 0..num_outputs {
             owner_pubkeys.push(Pubkey::new_from_array(rng.gen::<[u8; 32]>()));
@@ -52,6 +62,9 @@ fn test_rnd_create_output_compressed_accounts() {
                 None
             });
             merkle_tree_indices.push(rng.gen_range(0..=255u8));
+            tlv_flags.push(rng.gen_bool(0.3)); // 30% chance of having TLV
+            tlv_delegated_amounts.push(rng.gen_range(0..=u64::MAX));
+            tlv_withheld_fees.push(rng.gen_range(0..=u64::MAX));
         }
 
         // Random delegate
@@ -67,10 +80,20 @@ fn test_rnd_create_output_compressed_accounts() {
             None
         };
 
-        // Create output config
+        // Create output config with proper TLV sizes
         let mut outputs = tinyvec::ArrayVec::<[(bool, u32); 35]>::new();
-        for &has_delegate in &delegate_flags {
-            outputs.push((false, compressed_token_data_len(has_delegate))); // Token accounts don't have addresses
+        for i in 0..num_outputs {
+            let tlv_config = if tlv_flags[i] {
+                vec![ExtensionStructConfig::CompressedOnly(())]
+            } else {
+                vec![]
+            };
+            let token_config = TokenDataConfig {
+                delegate: (delegate_flags[i], ()),
+                tlv: (!tlv_config.is_empty(), tlv_config),
+            };
+            let data_len = TokenData::byte_len(&token_config).unwrap() as u32;
+            outputs.push((false, data_len)); // Token accounts don't have addresses
         }
 
         let config_input = CpiConfigInput {
@@ -88,6 +111,39 @@ fn test_rnd_create_output_compressed_accounts() {
         )
         .unwrap();
 
+        // Create TLV instruction data for each output
+        let mut tlv_instruction_data_vecs: Vec<Vec<ExtensionInstructionData>> = Vec::new();
+        let mut tlv_bytes_vecs: Vec<Vec<u8>> = Vec::new();
+
+        for i in 0..num_outputs {
+            if tlv_flags[i] {
+                let ext = ExtensionInstructionData::CompressedOnly(
+                    CompressedOnlyExtensionInstructionData {
+                        delegated_amount: tlv_delegated_amounts[i],
+                        withheld_transfer_fee: tlv_withheld_fees[i],
+                        is_frozen: false, // TODO: make random
+                    },
+                );
+                tlv_instruction_data_vecs.push(vec![ext.clone()]);
+                tlv_bytes_vecs.push(vec![ext].try_to_vec().unwrap());
+            } else {
+                tlv_instruction_data_vecs.push(vec![]);
+                // Empty vec needs explicit type annotation and borsh serialization
+                let empty_vec: Vec<ExtensionInstructionData> = vec![];
+                tlv_bytes_vecs.push(empty_vec.try_to_vec().unwrap());
+            }
+        }
+
+        // Parse TLV bytes to zero-copy for set_output_compressed_account calls
+        let tlv_zero_copy_vecs: Vec<_> = tlv_bytes_vecs
+            .iter()
+            .map(|bytes| {
+                Vec::<ExtensionInstructionData>::zero_copy_at(bytes.as_slice())
+                    .unwrap()
+                    .0
+            })
+            .collect();
+
         let mut hash_cache = HashCache::new();
         for (index, output_account) in cpi_instruction_struct
             .output_compressed_accounts
@@ -96,6 +152,16 @@ fn test_rnd_create_output_compressed_accounts() {
         {
             let output_delegate = if delegate_flags[index] {
                 delegate
+            } else {
+                None
+            };
+
+            // Use version 3 when TLV is present, version 2 otherwise
+            let version = if tlv_flags[index] { 3 } else { 2 };
+
+            // Get TLV data slice (empty slice if no TLV)
+            let tlv_slice = if tlv_flags[index] && !tlv_zero_copy_vecs[index].is_empty() {
+                Some(tlv_zero_copy_vecs[index].as_slice())
             } else {
                 None
             };
@@ -109,7 +175,9 @@ fn test_rnd_create_output_compressed_accounts() {
                 lamports.as_ref().and_then(|l| l[index]),
                 mint_pubkey,
                 merkle_tree_indices[index],
-                2,
+                version,
+                tlv_slice,
+                false, // Not frozen in tests
             )
             .unwrap();
         }
@@ -124,15 +192,38 @@ fn test_rnd_create_output_compressed_accounts() {
             let token_delegate = if delegate_flags[i] { delegate } else { None };
             let account_lamports = lamports_vec[i].unwrap_or(0);
 
+            // Build TLV if flag is set
+            let tlv = if tlv_flags[i] {
+                Some(vec![ExtensionStruct::CompressedOnly(
+                    CompressedOnlyExtension {
+                        delegated_amount: tlv_delegated_amounts[i],
+                        withheld_transfer_fee: tlv_withheld_fees[i],
+                    },
+                )])
+            } else {
+                None
+            };
+
             let token_data = AnchorTokenData {
                 mint: mint_pubkey,
                 owner: owner_pubkeys[i],
                 amount: amounts[i],
                 delegate: token_delegate,
                 state: AccountState::Initialized as u8,
-                tlv: None,
+                tlv: tlv.clone(),
             };
-            let data_hash = token_data.hash_v2().unwrap();
+
+            // Use V3 hash (SHA256 of serialized data) when TLV present, V2 hash otherwise
+            let (data_hash, discriminator) = if tlv_flags[i] {
+                let serialized = token_data.try_to_vec().unwrap();
+                let hash = light_hasher::sha256::Sha256BE::hash(&serialized).unwrap();
+                (hash, TOKEN_COMPRESSED_ACCOUNT_V3_DISCRIMINATOR)
+            } else {
+                (
+                    token_data.hash_v2().unwrap(),
+                    TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR,
+                )
+            };
 
             expected_accounts.push(OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
@@ -141,7 +232,7 @@ fn test_rnd_create_output_compressed_accounts() {
                     lamports: account_lamports,
                     data: Some(CompressedAccountData {
                         data: token_data.try_to_vec().unwrap(),
-                        discriminator: TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR,
+                        discriminator,
                         data_hash,
                     }),
                 },

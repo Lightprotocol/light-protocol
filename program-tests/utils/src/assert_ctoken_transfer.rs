@@ -11,7 +11,6 @@ pub async fn assert_compressible_for_account(
     name: &str,
     account_pubkey: Pubkey,
 ) {
-    println!("account_pubkey {:?}", account_pubkey);
     // Get pre-transaction state from cache
     let pre_account = rpc
         .get_pre_transaction_account(&account_pubkey)
@@ -30,17 +29,12 @@ pub async fn assert_compressible_for_account(
     let data_after = post_account.data.as_slice();
     let lamports_after = post_account.lamports;
 
-    // Get current slot
-    let current_slot = rpc.get_slot().await.unwrap();
-
-    println!("{} current_slot", current_slot);
     // Parse tokens
     let token_before = if data_before.len() > 165 {
         CToken::zero_copy_at(data_before).ok()
     } else {
         None
     };
-    println!("{:?} token_before", token_before);
 
     let token_after = if data_after.len() > 165 {
         CToken::zero_copy_at(data_after).ok()
@@ -101,13 +95,17 @@ pub async fn assert_compressible_for_account(
                     name
                 );
                 let current_slot = rpc.get_slot().await.unwrap();
+                let rent_exemption = rpc
+                    .get_minimum_balance_for_rent_exemption(data_before.len())
+                    .await
+                    .unwrap();
                 let top_up = compressible_before
                     .info
                     .calculate_top_up_lamports(
-                        light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+                        data_before.len() as u64,
                         current_slot,
                         lamports_before,
-                        light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                        rent_exemption,
                     )
                     .unwrap();
                 // Check if top-up was applied
@@ -126,8 +124,6 @@ pub async fn assert_compressible_for_account(
                         name
                     );
                 }
-                println!("{:?} compressible_before", compressible_before);
-                println!("{:?} compressible_after", compressible_after);
             }
         }
     }

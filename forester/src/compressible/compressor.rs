@@ -152,11 +152,22 @@ impl<R: Rpc> Compressor<R> {
             let rent_sponsor = Pubkey::new_from_array(compressible_ext.info.rent_sponsor);
             let rent_sponsor_index = packed_accounts.insert_or_get(rent_sponsor);
 
+            // Handle delegate if present
+            let delegate_index = account_state
+                .account
+                .delegate
+                .map(|delegate| {
+                    let delegate_pubkey = Pubkey::new_from_array(delegate.to_bytes());
+                    packed_accounts.insert_or_get(delegate_pubkey)
+                })
+                .unwrap_or(0);
+
             indices_vec.push(CompressAndCloseIndices {
                 source_index,
                 mint_index,
                 owner_index,
                 rent_sponsor_index,
+                delegate_index,
             });
         }
 

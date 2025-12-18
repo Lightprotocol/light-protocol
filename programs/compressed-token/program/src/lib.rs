@@ -10,7 +10,9 @@ pub mod close_token_account;
 pub mod convert_account_infos;
 pub mod create_associated_token_account;
 pub mod create_token_account;
+pub mod ctoken_approve_revoke;
 pub mod ctoken_burn;
+pub mod ctoken_freeze_thaw;
 pub mod ctoken_mint_to;
 pub mod ctoken_transfer;
 pub mod extensions;
@@ -27,6 +29,8 @@ use create_associated_token_account::{
     process_create_associated_token_account, process_create_associated_token_account_idempotent,
 };
 use create_token_account::process_create_token_account;
+use ctoken_approve_revoke::{process_ctoken_approve, process_ctoken_revoke};
+use ctoken_freeze_thaw::{process_ctoken_freeze_account, process_ctoken_thaw_account};
 use ctoken_mint_to::process_ctoken_mint_to;
 use ctoken_transfer::process_ctoken_transfer;
 use withdraw_funding_pool::process_withdraw_funding_pool;
@@ -48,12 +52,20 @@ pub(crate) const MAX_PACKED_ACCOUNTS: usize = 40;
 pub enum InstructionType {
     /// CToken transfer
     CTokenTransfer = 3,
+    /// CToken Approve
+    CTokenApprove = 4,
+    /// CToken Revoke
+    CTokenRevoke = 5,
     /// CToken mint_to - mint from decompressed CMint to CToken with top-ups
     CTokenMintTo = 7,
     /// CToken burn - burn from CToken, update CMint supply, with top-ups
     CTokenBurn = 8,
     /// CToken CloseAccount
     CloseTokenAccount = 9,
+    /// CToken FreezeAccount
+    CTokenFreezeAccount = 10,
+    /// CToken ThawAccount
+    CTokenThawAccount = 11,
     /// Create CToken, equivalent to SPL Token InitializeAccount3
     CreateTokenAccount = 18,
     CreateAssociatedCTokenAccount = 100,
@@ -87,9 +99,13 @@ impl From<u8> for InstructionType {
     fn from(value: u8) -> Self {
         match value {
             3 => InstructionType::CTokenTransfer,
+            4 => InstructionType::CTokenApprove,
+            5 => InstructionType::CTokenRevoke,
             7 => InstructionType::CTokenMintTo,
             8 => InstructionType::CTokenBurn,
             9 => InstructionType::CloseTokenAccount,
+            10 => InstructionType::CTokenFreezeAccount,
+            11 => InstructionType::CTokenThawAccount,
             18 => InstructionType::CreateTokenAccount,
             100 => InstructionType::CreateAssociatedCTokenAccount,
             101 => InstructionType::Transfer2,
@@ -124,6 +140,14 @@ pub fn process_instruction(
             // msg!("CTokenTransfer");
             process_ctoken_transfer(accounts, &instruction_data[1..])?;
         }
+        InstructionType::CTokenApprove => {
+            msg!("CTokenApprove");
+            process_ctoken_approve(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::CTokenRevoke => {
+            msg!("CTokenRevoke");
+            process_ctoken_revoke(accounts, &instruction_data[1..])?;
+        }
         InstructionType::CTokenMintTo => {
             msg!("CTokenMintTo");
             process_ctoken_mint_to(accounts, &instruction_data[1..])?;
@@ -135,6 +159,14 @@ pub fn process_instruction(
         InstructionType::CloseTokenAccount => {
             msg!("CloseTokenAccount");
             process_close_token_account(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::CTokenFreezeAccount => {
+            msg!("CTokenFreezeAccount");
+            process_ctoken_freeze_account(accounts)?;
+        }
+        InstructionType::CTokenThawAccount => {
+            msg!("CTokenThawAccount");
+            process_ctoken_thaw_account(accounts)?;
         }
         InstructionType::CreateTokenAccount => {
             msg!("CreateTokenAccount");

@@ -1,12 +1,14 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_compressible::rent::get_rent_exemption_lamports;
 use light_ctoken_interface::{
     state::{CToken, CompressedMint, ZExtensionStruct},
-    CTokenError, BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+    CTokenError, BASE_TOKEN_ACCOUNT_SIZE,
 };
 use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAt;
-use pinocchio::account_info::AccountInfo;
+use pinocchio::{
+    account_info::AccountInfo,
+    sysvars::{clock::Clock, rent::Rent, Sysvar},
+};
 
 use super::{
     convert_program_error,
@@ -41,6 +43,7 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
     ];
 
     let mut current_slot = 0;
+    let mut rent: Option<Rent> = None;
     // Initialize budget: +1 allows exact match (total == max_top_up)
     let mut lamports_budget = (max_top_up as u64).saturating_add(1);
 
@@ -53,13 +56,12 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
             for extension in extensions.iter() {
                 if let ZExtensionStruct::Compressible(ref compression_info) = extension {
                     if current_slot == 0 {
-                        use pinocchio::sysvars::{clock::Clock, Sysvar};
                         current_slot = Clock::get()
                             .map_err(|_| CTokenError::SysvarAccessError)?
                             .slot;
+                        rent = Some(Rent::get().map_err(|_| CTokenError::SysvarAccessError)?);
                     }
-                    let rent_exemption = get_rent_exemption_lamports(cmint.data_len() as u64)
-                        .map_err(|_| CTokenError::InvalidAccountData)?;
+                    let rent_exemption = rent.as_ref().unwrap().minimum_balance(cmint.data_len());
                     transfers[0].amount = compression_info
                         .info
                         .calculate_top_up_lamports(
@@ -84,18 +86,19 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
             for extension in extensions.iter() {
                 if let ZExtensionStruct::Compressible(compressible_ext) = extension {
                     if current_slot == 0 {
-                        use pinocchio::sysvars::{clock::Clock, Sysvar};
                         current_slot = Clock::get()
                             .map_err(|_| CTokenError::SysvarAccessError)?
                             .slot;
+                        rent = Some(Rent::get().map_err(|_| CTokenError::SysvarAccessError)?);
                     }
+                    let rent_exemption = rent.as_ref().unwrap().minimum_balance(ctoken.data_len());
                     transfers[1].amount = compressible_ext
                         .info
                         .calculate_top_up_lamports(
                             ctoken.data_len() as u64,
                             current_slot,
                             ctoken.lamports(),
-                            COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                            rent_exemption,
                         )
                         .map_err(|_| CTokenError::InvalidAccountData)?;
                     lamports_budget = lamports_budget.saturating_sub(transfers[1].amount);

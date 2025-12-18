@@ -33,11 +33,11 @@
 // 9. Decompress with nonzero authority → InvalidInstructionData (string match, not error code)
 //
 // Multi-Mint Validation:
-// 10. Too many mints (>5) → TooManyMints (6039)
+// 10. Too many mints (>5) → MintCacheCapacityExceeded (6126)
 // 11. Duplicate mint validation → DuplicateMint (6102)
 //
 // Index Out of Bounds:
-// 12. Mint index out of bounds → DuplicateMint (6102) - out of bounds masked in validate_mint_uniqueness
+// 12. Mint index out of bounds → NotEnoughAccountKeys (20014) - mint extension cache validates bounds
 // 13. Account index out of bounds → NotEnoughAccountKeys (20014)
 // 14. Authority index out of bounds → SigningError - client-side error, can't send transaction
 //
@@ -229,8 +229,9 @@ fn build_compressions_only_instruction(
     packed_account_metas: Vec<solana_sdk::instruction::AccountMeta>,
 ) -> Result<solana_sdk::instruction::Instruction, RpcError> {
     use anchor_lang::AnchorSerialize;
-    use light_ctoken_interface::instructions::transfer2::CompressedTokenInstructionDataTransfer2;
-    use light_ctoken_types::{CPI_AUTHORITY_PDA, TRANSFER2};
+    use light_ctoken_interface::{
+        instructions::transfer2::CompressedTokenInstructionDataTransfer2, CPI_AUTHORITY, TRANSFER2,
+    };
     use solana_sdk::instruction::AccountMeta;
 
     // For compressions-only mode (decompressed_accounts_only), the account order is:
@@ -238,7 +239,7 @@ fn build_compressions_only_instruction(
     // 2. fee_payer (signer, not writable)
     // 3. ...packed accounts
     let mut account_metas = vec![
-        AccountMeta::new_readonly(Pubkey::new_from_array(CPI_AUTHORITY_PDA), false),
+        AccountMeta::new_readonly(Pubkey::new_from_array(CPI_AUTHORITY), false),
         AccountMeta::new_readonly(fee_payer, true),
     ];
     account_metas.extend(packed_account_metas);
@@ -332,9 +333,9 @@ async fn test_empty_compressions_array() -> Result<(), RpcError> {
         .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer, &owner])
         .await;
 
-    // Should fail with NoInputsProvided (error code 25, which is 6025 - 6000)
+    // Should fail with NoInputsProvided (error code 6025)
     assert_rpc_error(
-        result, 0, 25, // NoInputsProvided
+        result, 0, 6025, // NoInputsProvided
     )?;
 
     Ok(())
@@ -545,8 +546,8 @@ async fn test_invalid_authority_compress() {
         .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer, &wrong_authority])
         .await;
 
-    // Should fail with OwnerMismatch (error code 75, which is 6075 - 6000)
-    assert_rpc_error(result, 0, 75).unwrap();
+    // Should fail with OwnerMismatch (error code 6075)
+    assert_rpc_error(result, 0, 6075).unwrap();
 }
 
 #[tokio::test]
@@ -829,8 +830,8 @@ async fn test_too_many_mints() {
         )
         .await;
 
-    // Should fail with TooManyMints
-    assert_rpc_error(result, 0, 6039).unwrap();
+    // Should fail with MintCacheCapacityExceeded (6126 = 6000 + 126)
+    assert_rpc_error(result, 0, 6126).unwrap();
 }
 
 /// Test 13: Duplicate mint validation
@@ -897,7 +898,7 @@ async fn test_duplicate_mint_validation() {
 }
 
 /// Test 14: Mint index out of bounds
-/// Expected: DuplicateMint (6102) - out of bounds is masked as DuplicateMint in validate_mint_uniqueness
+/// Expected: NotEnoughAccountKeys (20014) - mint extension cache validates account bounds
 #[tokio::test]
 async fn test_mint_index_out_of_bounds() {
     let mut context = setup_no_system_program_cpi_test(1000).await.unwrap();
@@ -937,8 +938,8 @@ async fn test_mint_index_out_of_bounds() {
         )
         .await;
 
-    // Should fail with DuplicateMint (out of bounds is masked)
-    assert_rpc_error(result, 0, 6102).unwrap();
+    // Should fail with NotEnoughAccountKeys - mint extension cache validates bounds first
+    assert_rpc_error(result, 0, 20014).unwrap();
 }
 
 /// Test 15: Account index out of bounds

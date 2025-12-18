@@ -1,4 +1,5 @@
 pub mod accounts;
+pub mod check_extensions;
 pub mod compression;
 pub mod config;
 pub mod cpi;

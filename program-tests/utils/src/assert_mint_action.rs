@@ -280,6 +280,10 @@ pub async fn assert_mint_action(
                 // Account has compressible extension - calculate expected top-up
                 let current_slot = rpc.get_slot().await.unwrap();
                 let account_size = pre_account.data.len() as u64;
+                let rent_exemption = rpc
+                    .get_minimum_balance_for_rent_exemption(pre_account.data.len())
+                    .await
+                    .unwrap();
 
                 let expected_top_up = compressible
                     .info
@@ -287,7 +291,7 @@ pub async fn assert_mint_action(
                         account_size,
                         current_slot,
                         pre_lamports,
-                        light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                        rent_exemption,
                     )
                     .unwrap();
 

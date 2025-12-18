@@ -27,6 +27,7 @@ pub fn process_create_ctoken_with_compress_to_pubkey<'info>(
         lamports_per_write: None,
         compress_to_account_pubkey: Some(compress_to_pubkey),
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let instruction = CreateCTokenAccount::new(

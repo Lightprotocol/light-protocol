@@ -4,10 +4,13 @@ use light_compressed_account::{
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
 use super::compression::Compression;
-use crate::{instructions::transfer2::CompressedCpiContext, AnchorDeserialize, AnchorSerialize};
+use crate::{
+    instructions::{extensions::ExtensionInstructionData, transfer2::CompressedCpiContext},
+    AnchorDeserialize, AnchorSerialize,
+};
 
 #[repr(C)]
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct CompressedTokenInstructionDataTransfer2 {
     pub with_transaction_hash: bool,
     /// Placeholder currently unimplemented.
@@ -28,10 +31,10 @@ pub struct CompressedTokenInstructionDataTransfer2 {
     pub in_lamports: Option<Vec<u64>>,
     /// Placeholder currently unimplemented.
     pub out_lamports: Option<Vec<u64>>,
-    /// Placeholder currently unimplemented.
-    pub in_tlv: Option<Vec<Vec<u8>>>,
-    /// Placeholder currently unimplemented.
-    pub out_tlv: Option<Vec<Vec<u8>>>,
+    /// Extensions for input compressed token accounts (one Vec per input account)
+    pub in_tlv: Option<Vec<Vec<ExtensionInstructionData>>>,
+    /// Extensions for output compressed token accounts (one Vec per output account)
+    pub out_tlv: Option<Vec<Vec<ExtensionInstructionData>>>,
 }
 
 #[repr(C)]

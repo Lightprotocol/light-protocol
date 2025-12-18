@@ -455,20 +455,56 @@ pub async fn assert_transfer2_with_delegate(
 
                 let compressed_account = mint_accounts[0];
 
-                // Verify the compressed account has the correct data
+                // Determine expected state - frozen state should be preserved
+                let is_frozen =
+                    pre_token_account.state == spl_token_2022::state::AccountState::Frozen;
+                let expected_state = if is_frozen {
+                    light_ctoken_sdk::compat::AccountState::Frozen
+                } else {
+                    light_ctoken_sdk::compat::AccountState::Initialized
+                };
+
+                // Delegate is preserved from the original account
+                use spl_token_2022::solana_program::program_option::COption;
+                let expected_delegate: Option<Pubkey> = match pre_token_account.delegate {
+                    COption::Some(d) => Some(d),
+                    COption::None => None,
+                };
+
+                // Build expected TLV based on account state
+                // TLV contains CompressedOnly extension when:
+                // - Account is frozen (is_frozen=true)
+                // - Account has delegated_amount > 0
+                // - Account has withheld_transfer_fee > 0 (from TransferFeeAccount extension)
+                let has_delegated_amount = pre_token_account.delegated_amount > 0;
+                let needs_tlv = is_frozen || has_delegated_amount;
+
+                let expected_tlv = if needs_tlv {
+                    Some(vec![
+                        light_ctoken_interface::state::ExtensionStruct::CompressedOnly(
+                            light_ctoken_interface::state::CompressedOnlyExtension {
+                                delegated_amount: pre_token_account.delegated_amount,
+                                withheld_transfer_fee: 0, // TODO: extract from TransferFeeAccount if present
+                            },
+                        ),
+                    ])
+                } else {
+                    None
+                };
+
+                // Build expected token data for single assert comparison
+                let expected_token = light_ctoken_sdk::compat::TokenData {
+                    mint: expected_mint,
+                    owner: expected_owner,
+                    amount: expected_amount,
+                    delegate: expected_delegate,
+                    state: expected_state,
+                    tlv: expected_tlv,
+                };
+
                 assert_eq!(
-                    compressed_account.token.amount, expected_amount,
-                    "CompressAndClose compressed amount should match original balance"
-                );
-                assert_eq!(
-                    compressed_account.token.owner,
-                    expected_owner,
-                    "CompressAndClose owner should be {} (compress_to_pubkey={})",
-                    if compress_to_pubkey {
-                        "account pubkey"
-                    } else {
-                        "original owner"
-                    },
+                    compressed_account.token, expected_token,
+                    "CompressAndClose compressed token should match expected (compress_to_pubkey={})",
                     compress_to_pubkey
                 );
                 assert_eq!(

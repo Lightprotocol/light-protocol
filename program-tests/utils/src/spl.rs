@@ -1,4 +1,7 @@
 use anchor_spl::token::{Mint, TokenAccount};
+
+/// Default decimals used by `create_mint_helper` and related functions
+pub const CREATE_MINT_HELPER_DECIMALS: u8 = 2;
 use forester_utils::instructions::create_account::create_account_instruction;
 use light_client::{
     fee::TransactionParams,
@@ -273,8 +276,13 @@ pub async fn create_mint_helper_with_keypair<R: Rpc>(
         .await
         .unwrap();
 
-    let (instructions, pool) =
-        create_initialize_mint_instructions(&payer_pubkey, &payer_pubkey, rent, 2, mint);
+    let (instructions, pool) = create_initialize_mint_instructions(
+        &payer_pubkey,
+        &payer_pubkey,
+        rent,
+        CREATE_MINT_HELPER_DECIMALS,
+        mint,
+    );
 
     let _ = rpc
         .create_and_send_transaction(&instructions, &payer_pubkey, &[payer, mint])

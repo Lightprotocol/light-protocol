@@ -83,6 +83,7 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
             lamports_per_write: None,
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
         };
 
         let create_token_account_ix =
@@ -216,15 +217,6 @@ async fn test_decompress_full_cpi() {
             .map(|acc| acc.token.clone())
             .collect();
 
-        let versions: Vec<_> = compressed_accounts
-            .iter()
-            .map(|acc| {
-                let discriminator = acc.account.data.as_ref().unwrap().discriminator;
-                light_ctoken_interface::state::TokenDataVersion::from_discriminator(discriminator)
-                    .unwrap() as u8
-            })
-            .collect();
-
         let indices: Vec<_> = token_data
             .iter()
             .zip(
@@ -236,14 +228,13 @@ async fn test_decompress_full_cpi() {
                     .iter(),
             )
             .zip(ctx.destination_accounts.iter())
-            .zip(versions.iter())
-            .map(|(((token, tree_info), &dest_pubkey), &version)| {
+            .map(|((token, tree_info), &dest_pubkey)| {
                 light_ctoken_sdk::compressed_token::decompress_full::pack_for_decompress_full(
                     token,
                     tree_info,
                     dest_pubkey,
                     &mut remaining_accounts,
-                    version,
+                    None, // No TLV extensions
                 )
             })
             .collect();
@@ -420,15 +411,6 @@ async fn test_decompress_full_cpi_with_context() {
             .map(|acc| acc.token.clone())
             .collect();
 
-        let versions: Vec<_> = initial_compressed_accounts
-            .iter()
-            .map(|acc| {
-                let discriminator = acc.account.data.as_ref().unwrap().discriminator;
-                light_ctoken_interface::state::TokenDataVersion::from_discriminator(discriminator)
-                    .unwrap() as u8
-            })
-            .collect();
-
         let indices: Vec<_> = token_data
             .iter()
             .zip(
@@ -440,14 +422,13 @@ async fn test_decompress_full_cpi_with_context() {
                     .iter(),
             )
             .zip(ctx.destination_accounts.iter())
-            .zip(versions.iter())
-            .map(|(((token, tree_info), &dest_pubkey), &version)| {
+            .map(|((token, tree_info), &dest_pubkey)| {
                 light_ctoken_sdk::compressed_token::decompress_full::pack_for_decompress_full(
                     token,
                     tree_info,
                     dest_pubkey,
                     &mut remaining_accounts,
-                    version,
+                    None, // No TLV extensions
                 )
             })
             .collect();

@@ -102,6 +102,7 @@ async fn setup_decompression_test(
         lamports_per_write: Some(1000),
         compress_to_account_pubkey: None,
         token_account_version: TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let create_ata_instruction =
@@ -266,6 +267,7 @@ async fn create_decompression_inputs(
         in_lamports: None,
         out_lamports: None,
         output_queue: queue_index,
+        in_tlv: None,
     })
 }
 
@@ -532,8 +534,8 @@ async fn test_decompression_has_delegate_false_but_delegate_nonzero() -> Result<
         .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
         .await;
 
-    // Should fail with InvalidSigner (20009) since owner must sign                                                                                                  ╎│
-    light_program_test::utils::assert::assert_rpc_error(result, 0, 20009).unwrap();
+    // Should fail with OwnerMismatch (6075 = 6000 + 75) since owner must sign
+    light_program_test::utils::assert::assert_rpc_error(result, 0, 6075).unwrap();
 
     Ok(())
 }

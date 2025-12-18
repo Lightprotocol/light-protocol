@@ -127,6 +127,7 @@ async fn create_compressed_mints_and_tokens(
             decompress_amount,
             token_account1_pubkey,
             payer.pubkey(),
+            9,
         )
         .await
         .unwrap();

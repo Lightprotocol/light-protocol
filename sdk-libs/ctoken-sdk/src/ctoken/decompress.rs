@@ -1,5 +1,4 @@
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-use light_ctoken_interface::state::TokenDataVersion;
 use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
 use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
@@ -85,16 +84,12 @@ impl DecompressToCtoken {
             root_index: self.root_index,
             prove_by_index,
         };
-
-        let version = TokenDataVersion::from_discriminator(self.discriminator)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
         let indices = pack_for_decompress_full(
             &self.token_data,
             &tree_info,
             self.destination_ctoken_account,
             &mut packed_accounts,
-            version as u8,
+            None, // No TLV extensions
         );
         // Build CTokenAccount2 with decompress operation
         let mut token_account = CTokenAccount2::new(vec![indices.source])
