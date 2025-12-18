@@ -649,73 +649,42 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, keyManager *com
 			// Compute input hash for deduplication
 			inputHash := ComputeInputHash(json.RawMessage(buf))
 
-			// Check if there's already an in-flight job with the same input
-			jobID := uuid.New().String()
-			existingJobID, isNew, err := redisQueue.GetOrSetInFlightJob(inputHash, jobID)
+			// Check for existing in-flight job with same input
+			dedupResult, err := redisQueue.DeduplicateJob(inputHash)
 			if err != nil {
-				logging.Logger().Warn().
+				logging.Logger().Error().
 					Err(err).
 					Str("input_hash", inputHash).
-					Msg("Failed to check for in-flight job, proceeding with new job")
-				existingJobID = jobID
-				isNew = true
+					Msg("Failed to deduplicate job")
+				http.Error(w, "Failed to register job", http.StatusInternalServerError)
+				return
 			}
 
-			// If there's already an in-flight job, verify it exists before returning its ID
-			if !isNew {
-				// Verify the deduplicated job actually exists (has result, metadata, or is in queue)
-				jobExists := false
-				if result, _ := redisQueue.GetResult(existingJobID); result != nil {
-					jobExists = true
-				} else if meta, _ := redisQueue.GetJobMeta(existingJobID); meta != nil {
-					jobExists = true
+			// If deduplicated to an existing job, return early
+			if dedupResult.IsDeduplicated {
+				response := map[string]interface{}{
+					"job_id":       dedupResult.JobID,
+					"status":       "already_queued",
+					"queue":        queueName,
+					"circuit_type": string(proofRequestMeta.CircuitType),
+					"message":      "Proof request with identical input already in queue. Returning existing job ID.",
+					"deduplicated": true,
 				}
 
-				if jobExists {
-					response := map[string]interface{}{
-						"job_id":       existingJobID,
-						"status":       "already_queued",
-						"queue":        queueName,
-						"circuit_type": string(proofRequestMeta.CircuitType),
-						"message":      "Proof request with identical input already in queue. Returning existing job ID.",
-						"deduplicated": true,
-					}
-
-					logging.Logger().Info().
-						Str("existing_job_id", existingJobID).
-						Str("input_hash", inputHash).
-						Str("circuit_type", string(proofRequestMeta.CircuitType)).
-						Msg("Deduplicated proof request via /queue/add")
-
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusAccepted)
-					json.NewEncoder(w).Encode(response)
-					return
-				}
-
-				// Job doesn't exist - clean up stale marker and create new job
-				logging.Logger().Warn().
-					Str("stale_job_id", existingJobID).
+				logging.Logger().Info().
+					Str("existing_job_id", dedupResult.JobID).
 					Str("input_hash", inputHash).
-					Msg("Deduplication found stale job ID - cleaning up and creating new job")
-				redisQueue.CleanupStaleInFlightMarker(existingJobID)
-				// Generate new job ID and set in-flight marker
-				newJobID := uuid.New().String()
-				if err := redisQueue.SetInFlightJob(inputHash, newJobID, 10*time.Minute); err != nil {
-					logging.Logger().Error().
-						Err(err).
-						Str("job_id", newJobID).
-						Str("input_hash", inputHash).
-						Msg("Failed to set in-flight marker for new job")
-					http.Error(w, "Failed to register job", http.StatusInternalServerError)
-					return
-				}
-				existingJobID = newJobID // Update so line below assigns correct ID
-				isNew = true
+					Str("circuit_type", string(proofRequestMeta.CircuitType)).
+					Msg("Deduplicated proof request via /queue/add")
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusAccepted)
+				json.NewEncoder(w).Encode(response)
+				return
 			}
 
 			// This is a new job
-			jobID = existingJobID
+			jobID := dedupResult.JobID
 
 			job := &ProofJob{
 				ID:         jobID,
@@ -879,78 +848,46 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 	// Compute input hash for deduplication
 	inputHash := ComputeInputHash(json.RawMessage(buf))
 
-	// Check if there's already an in-flight job with the same input
-	jobID := uuid.New().String()
-	existingJobID, isNew, err := handler.redisQueue.GetOrSetInFlightJob(inputHash, jobID)
+	// Check for existing in-flight job with same input
+	dedupResult, err := handler.redisQueue.DeduplicateJob(inputHash)
 	if err != nil {
-		logging.Logger().Warn().
+		logging.Logger().Error().
 			Err(err).
 			Str("input_hash", inputHash).
-			Msg("Failed to check for in-flight job, proceeding with new job")
-		// Continue with new job on error
-		existingJobID = jobID
-		isNew = true
+			Msg("Failed to deduplicate job")
+		http.Error(w, "Failed to register job", http.StatusInternalServerError)
+		return
 	}
 
-	// If there's already an in-flight job, verify it exists before returning its ID
-	if !isNew {
-		// Verify the deduplicated job actually exists (has result, metadata, or is in queue)
-		jobExists := false
-		if result, _ := handler.redisQueue.GetResult(existingJobID); result != nil {
-			jobExists = true
-		} else if jobMeta, _ := handler.redisQueue.GetJobMeta(existingJobID); jobMeta != nil {
-			jobExists = true
+	// If deduplicated to an existing job, return early
+	if dedupResult.IsDeduplicated {
+		estimatedTime := handler.getEstimatedTime(meta.CircuitType)
+
+		response := map[string]interface{}{
+			"job_id":         dedupResult.JobID,
+			"status":         "already_queued",
+			"circuit_type":   string(meta.CircuitType),
+			"queue":          queueName,
+			"estimated_time": estimatedTime,
+			"status_url":     fmt.Sprintf("/prove/status?job_id=%s", dedupResult.JobID),
+			"message":        "Proof request with identical input already in queue. Returning existing job ID.",
+			"deduplicated":   true,
 		}
 
-		if jobExists {
-			estimatedTime := handler.getEstimatedTime(meta.CircuitType)
-
-			response := map[string]interface{}{
-				"job_id":         existingJobID,
-				"status":         "already_queued",
-				"circuit_type":   string(meta.CircuitType),
-				"queue":          queueName,
-				"estimated_time": estimatedTime,
-				"status_url":     fmt.Sprintf("/prove/status?job_id=%s", existingJobID),
-				"message":        "Proof request with identical input already in queue. Returning existing job ID.",
-				"deduplicated":   true,
-			}
-
-			logging.Logger().Info().
-				Str("existing_job_id", existingJobID).
-				Str("input_hash", inputHash).
-				Str("circuit_type", string(meta.CircuitType)).
-				Msg("Deduplicated proof request - returning existing job")
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusAccepted)
-			json.NewEncoder(w).Encode(response)
-			return
-		}
-
-		// Job doesn't exist - clean up stale marker and create new job
-		logging.Logger().Warn().
-			Str("stale_job_id", existingJobID).
+		logging.Logger().Info().
+			Str("existing_job_id", dedupResult.JobID).
 			Str("input_hash", inputHash).
-			Msg("Deduplication found stale job ID - cleaning up and creating new job")
-		handler.redisQueue.CleanupStaleInFlightMarker(existingJobID)
-		// Generate new job ID and set in-flight marker
-		newJobID := uuid.New().String()
-		if err := handler.redisQueue.SetInFlightJob(inputHash, newJobID, 10*time.Minute); err != nil {
-			logging.Logger().Error().
-				Err(err).
-				Str("job_id", newJobID).
-				Str("input_hash", inputHash).
-				Msg("Failed to set in-flight marker for new job")
-			http.Error(w, "Failed to register job", http.StatusInternalServerError)
-			return
-		}
-		existingJobID = newJobID // Update so line below assigns correct ID
-		isNew = true
+			Str("circuit_type", string(meta.CircuitType)).
+			Msg("Deduplicated proof request - returning existing job")
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(response)
+		return
 	}
 
-	// This is a new job - use the job ID we registered
-	jobID = existingJobID
+	// This is a new job
+	jobID := dedupResult.JobID
 
 	job := &ProofJob{
 		ID:         jobID,

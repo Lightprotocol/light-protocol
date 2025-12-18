@@ -10,6 +10,7 @@ import (
 	"light/light-prover/prover/common"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -1262,4 +1263,93 @@ func (rq *RedisQueue) CleanupStaleInFlightMarker(jobID string) {
 
 	// Also clean up the input hash mapping
 	rq.Client.Del(rq.Ctx, inputHashKey)
+}
+
+// DeduplicationResult contains the result of a job deduplication check.
+type DeduplicationResult struct {
+	// JobID is the resolved job ID to use (either new or existing).
+	JobID string
+	// IsNew indicates this is a new job that needs to be enqueued.
+	IsNew bool
+	// IsDeduplicated indicates the request was deduplicated to an existing job.
+	IsDeduplicated bool
+	// StaleJobID is set when a stale job was found and cleaned up.
+	StaleJobID string
+}
+
+// DeduplicateJob checks for an existing in-flight job with the same input hash.
+// If an existing job is found and still valid (has result or metadata), it returns
+// that job's ID with IsDeduplicated=true. If an existing marker points to a stale
+// job (no result/metadata), it cleans up the stale marker and creates a new job.
+// Returns the resolved job ID and flags indicating the deduplication outcome.
+//
+// The TTL for in-flight markers is 10 minutes to match the forester's max wait time.
+func (rq *RedisQueue) DeduplicateJob(inputHash string) (*DeduplicationResult, error) {
+	// Generate a new job ID
+	newJobID := uuid.New().String()
+
+	// Try to atomically set our job as in-flight
+	existingJobID, isNew, err := rq.GetOrSetInFlightJob(inputHash, newJobID)
+	if err != nil {
+		logging.Logger().Warn().
+			Err(err).
+			Str("input_hash", inputHash).
+			Msg("Failed to check for in-flight job, proceeding with new job")
+		// On error, proceed with the new job
+		return &DeduplicationResult{
+			JobID: newJobID,
+			IsNew: true,
+		}, nil
+	}
+
+	// If we successfully set a new job, we're done
+	if isNew {
+		return &DeduplicationResult{
+			JobID: existingJobID, // This is our newJobID
+			IsNew: true,
+		}, nil
+	}
+
+	// An existing job was found - verify it actually exists
+	jobExists := false
+	if result, _ := rq.GetResult(existingJobID); result != nil {
+		jobExists = true
+	} else if jobMeta, _ := rq.GetJobMeta(existingJobID); jobMeta != nil {
+		jobExists = true
+	}
+
+	if jobExists {
+		// Valid existing job found - deduplicate to it
+		logging.Logger().Info().
+			Str("existing_job_id", existingJobID).
+			Str("input_hash", inputHash).
+			Msg("Deduplicated proof request to existing job")
+
+		return &DeduplicationResult{
+			JobID:          existingJobID,
+			IsNew:          false,
+			IsDeduplicated: true,
+		}, nil
+	}
+
+	// Job doesn't exist - stale marker found
+	logging.Logger().Warn().
+		Str("stale_job_id", existingJobID).
+		Str("input_hash", inputHash).
+		Msg("Deduplication found stale job ID - cleaning up and creating new job")
+
+	// Clean up the stale marker
+	rq.CleanupStaleInFlightMarker(existingJobID)
+
+	// Generate a fresh job ID and set new in-flight marker
+	freshJobID := uuid.New().String()
+	if err := rq.SetInFlightJob(inputHash, freshJobID, 10*time.Minute); err != nil {
+		return nil, fmt.Errorf("failed to set in-flight marker after stale cleanup: %w", err)
+	}
+
+	return &DeduplicationResult{
+		JobID:      freshJobID,
+		IsNew:      true,
+		StaleJobID: existingJobID,
+	}, nil
 }
