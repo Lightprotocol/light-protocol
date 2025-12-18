@@ -100,6 +100,7 @@ struct OrderedProofBuffer {
     buffer: Vec<Option<BufferEntry>>,
     base_seq: u64,
     len: usize,
+    head: usize,
 }
 
 impl OrderedProofBuffer {
@@ -108,6 +109,7 @@ impl OrderedProofBuffer {
             buffer: (0..capacity).map(|_| None).collect(),
             base_seq: 0,
             len: 0,
+            head: 0,
         }
     }
 
@@ -134,10 +136,11 @@ impl OrderedProofBuffer {
         if offset >= self.buffer.len() {
             return false;
         }
-        if self.buffer[offset].is_none() {
+        let idx = (self.head + offset) % self.buffer.len();
+        if self.buffer[idx].is_none() {
             self.len += 1;
         }
-        self.buffer[offset] = Some(BufferEntry {
+        self.buffer[idx] = Some(BufferEntry {
             instruction,
             round_trip_ms,
             proof_ms,
@@ -147,11 +150,11 @@ impl OrderedProofBuffer {
     }
 
     fn pop_next(&mut self) -> Option<BufferEntry> {
-        let item = self.buffer[0].take();
+        let item = self.buffer[self.head].take();
         if item.is_some() {
             self.len -= 1;
             self.base_seq += 1;
-            self.buffer.rotate_left(1);
+            self.head = (self.head + 1) % self.buffer.len();
         }
         item
     }
