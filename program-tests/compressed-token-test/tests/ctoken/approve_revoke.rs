@@ -38,6 +38,7 @@ fn build_approve_instruction(
             AccountMeta::new(*token_account, false),
             AccountMeta::new_readonly(*delegate, false),
             AccountMeta::new(*owner, true), // owner is signer and payer for top-up
+            AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // System program for compressible top-up
         ],
         data,
     }
@@ -53,6 +54,7 @@ fn build_revoke_instruction(
         accounts: vec![
             AccountMeta::new(*token_account, false),
             AccountMeta::new(*owner, true), // owner is signer and payer for top-up
+            AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // System program for compressible top-up
         ],
         data: vec![5], // CTokenRevoke discriminator
     }
@@ -144,6 +146,12 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
             })
         })
         .expect("Should have Compressible extension");
+
+    // Fund the owner for compressible top-up
+    context
+        .rpc
+        .airdrop_lamports(&owner.pubkey(), 1_000_000_000)
+        .await?;
 
     // 3. Approve 10 tokens to delegate
     let approve_amount = 10u64;

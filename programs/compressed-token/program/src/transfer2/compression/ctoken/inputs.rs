@@ -16,9 +16,6 @@ pub struct CompressAndCloseInputs<'a> {
     pub rent_sponsor: &'a AccountInfo,
     pub compressed_token_account: Option<&'a ZMultiTokenTransferOutputData<'a>>,
     pub tlv: Option<&'a [ZExtensionInstructionData<'a>]>,
-    /// Flag from instruction data indicating rent sponsor is signer.
-    /// Must be verified against actual signer in compress_and_close.rs.
-    pub rent_sponsor_is_signer_flag: bool,
 }
 
 /// Input struct for ctoken compression/decompression operations
@@ -82,7 +79,6 @@ impl<'a> CTokenCompressionInputs<'a> {
                         v.get(compression.get_compressed_token_account_index().ok()? as usize)
                     })
                     .map(|data| data.as_slice()),
-                rent_sponsor_is_signer_flag: compression.rent_sponsor_is_signer(),
             })
         } else {
             None

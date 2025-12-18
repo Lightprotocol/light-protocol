@@ -23,7 +23,9 @@ use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, CompressInput, Transfer2InstructionType,
 };
 use serial_test::serial;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
+use solana_sdk::{
+    native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, signature::Keypair, signer::Signer,
+};
 
 /// Test context for extension-related tests
 pub struct ExtensionsTestContext {
@@ -492,6 +494,7 @@ async fn test_transfer_with_permanent_delegate() {
             AccountMeta::new(account_b_pubkey, false),
             AccountMeta::new(permanent_delegate, true), // Permanent delegate must sign
             AccountMeta::new_readonly(mint_pubkey, false), // Mint required for extension check
+            AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // System program for compressible top-up
         ],
         data,
     };
@@ -682,6 +685,11 @@ async fn test_transfer_with_owner_authority() {
 
     // Step 2: Create two compressible CToken accounts (A and B) with all extensions
     let owner = Keypair::new();
+    context
+        .rpc
+        .airdrop_lamports(&owner.pubkey(), LAMPORTS_PER_SOL)
+        .await
+        .unwrap();
     let account_a_keypair = Keypair::new();
     let account_a_pubkey = account_a_keypair.pubkey();
 
@@ -813,6 +821,7 @@ async fn test_transfer_with_owner_authority() {
             AccountMeta::new(account_b_pubkey, false),
             AccountMeta::new(owner.pubkey(), true), // Owner must sign
             AccountMeta::new_readonly(mint_pubkey, false), // Mint required for extension check
+            AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // System program for compressible top-up
         ],
         data,
     };
@@ -978,8 +987,9 @@ async fn test_compress_with_restricted_extensions_fails() {
         .rpc
         .create_and_send_transaction(&[compress_ix], &payer.pubkey(), &[&payer])
         .await;
-    // Mint has restricted extensions - hot path required (error code 6124)
-    assert_rpc_error(result, 0, 6124).unwrap();
+    // MintHasRestrictedExtensions: mints with Pausable, PermanentDelegate, TransferFee,
+    // or TransferHook cannot create compressed token outputs (error code 6142)
+    assert_rpc_error(result, 0, 6142).unwrap();
 
     println!("Correctly rejected compress operation for mint with restricted extensions");
 }

@@ -46,7 +46,7 @@ impl Default for CompressibleParams {
             lamports_per_write: Some(766),
             compress_to_account_pubkey: None,
             token_account_version: TokenDataVersion::ShaFlat,
-            compression_only: true,
+            compression_only: false,
         }
     }
 }
@@ -110,8 +110,8 @@ impl<'info> CompressibleParamsCpi<'info> {
             pre_pay_num_epochs: defaults.pre_pay_num_epochs,
             lamports_per_write: defaults.lamports_per_write,
             compress_to_account_pubkey: None,
-            token_account_version: TokenDataVersion::ShaFlat,
-            compression_only: true,
+            token_account_version: defaults.token_account_version,
+            compression_only: defaults.compression_only,
         }
     }
 

@@ -475,9 +475,11 @@ pub async fn assert_transfer2_with_delegate(
                 // TLV contains CompressedOnly extension when:
                 // - Account is frozen (is_frozen=true)
                 // - Account has delegated_amount > 0
+                // - Account has extensions beyond base + Compressible (size > 261)
                 // - Account has withheld_transfer_fee > 0 (from TransferFeeAccount extension)
                 let has_delegated_amount = pre_token_account.delegated_amount > 0;
-                let needs_tlv = is_frozen || has_delegated_amount;
+                let has_extra_extensions = pre_account_data.data.len() > 261;
+                let needs_tlv = is_frozen || has_delegated_amount || has_extra_extensions;
 
                 let expected_tlv = if needs_tlv {
                     Some(vec![
@@ -506,23 +508,6 @@ pub async fn assert_transfer2_with_delegate(
                     compressed_account.token, expected_token,
                     "CompressAndClose compressed token should match expected (compress_to_pubkey={})",
                     compress_to_pubkey
-                );
-                assert_eq!(
-                    compressed_account.token.mint, expected_mint,
-                    "CompressAndClose mint should match original mint"
-                );
-                assert_eq!(
-                    compressed_account.token.delegate, None,
-                    "CompressAndClose compressed account should have no delegate"
-                );
-                assert_eq!(
-                    compressed_account.token.state,
-                    light_ctoken_sdk::compat::AccountState::Initialized,
-                    "CompressAndClose compressed account should be initialized"
-                );
-                assert_eq!(
-                    compressed_account.token.tlv, None,
-                    "CompressAndClose compressed account should have no TLV data"
                 );
 
                 // Verify compressed account metadata

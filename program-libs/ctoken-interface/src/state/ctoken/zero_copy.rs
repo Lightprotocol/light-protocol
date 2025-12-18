@@ -478,7 +478,8 @@ impl<'a> ZeroCopyAt<'a> for CToken {
 
 impl CToken {
     /// Zero-copy deserialization with initialization check.
-    /// Returns an error if the account is not initialized (byte 108 must be 1).
+    /// Returns an error if the account is uninitialized (byte 108 == 0).
+    /// Allows both Initialized (1) and Frozen (2) states.
     #[profile]
     pub fn zero_copy_at_checked(
         bytes: &[u8],
@@ -488,8 +489,9 @@ impl CToken {
             return Err(crate::error::CTokenError::InvalidAccountData);
         }
 
-        // Verify account is initialized (state byte at offset 108 must be 1)
-        if bytes[108] != 1 {
+        // Verify account is not uninitialized (state byte at offset 108 must be non-zero)
+        // State values: 0 = Uninitialized, 1 = Initialized, 2 = Frozen
+        if bytes[108] == 0 {
             return Err(crate::error::CTokenError::InvalidAccountState);
         }
 
@@ -498,7 +500,8 @@ impl CToken {
     }
 
     /// Mutable zero-copy deserialization with initialization check.
-    /// Returns an error if the account is not initialized (byte 108 must be 1).
+    /// Returns an error if the account is uninitialized (byte 108 == 0).
+    /// Allows both Initialized (1) and Frozen (2) states.
     #[profile]
     pub fn zero_copy_at_mut_checked(
         bytes: &mut [u8],
@@ -509,8 +512,9 @@ impl CToken {
             return Err(crate::error::CTokenError::InvalidAccountData);
         }
 
-        // Verify account is initialized (state byte at offset 108 must be 1)
-        if bytes[108] != 1 {
+        // Verify account is not uninitialized (state byte at offset 108 must be non-zero)
+        // State values: 0 = Uninitialized, 1 = Initialized, 2 = Frozen
+        if bytes[108] == 0 {
             return Err(crate::error::CTokenError::InvalidAccountState);
         }
 

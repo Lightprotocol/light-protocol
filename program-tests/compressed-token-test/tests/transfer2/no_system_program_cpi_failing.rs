@@ -830,8 +830,8 @@ async fn test_too_many_mints() {
         )
         .await;
 
-    // Should fail with MintCacheCapacityExceeded (6126 = 6000 + 126)
-    assert_rpc_error(result, 0, 6126).unwrap();
+    // Should fail with TooManyMints (6144 = 6000 + 144)
+    assert_rpc_error(result, 0, 6144).unwrap();
 }
 
 /// Test 13: Duplicate mint validation
@@ -982,8 +982,8 @@ async fn test_account_index_out_of_bounds() {
         )
         .await;
 
-    // Should fail with TooManyCompressionTransfers (account index 99 >= 40)
-    assert_rpc_error(result, 0, 95).unwrap();
+    // Should fail with AccountIndexOutOfBounds (account index 99 >= 40)
+    assert_rpc_error(result, 0, 6095).unwrap();
 }
 
 /// Test 16: Authority index out of bounds
