@@ -39,6 +39,9 @@ pub enum V2Error {
 
     #[error("transaction failed for tree {tree}: {message}")]
     TransactionFailed { tree: Pubkey, message: String },
+
+    #[error("transaction {signature} timed out: {context}")]
+    TransactionTimeout { signature: String, context: String },
 }
 
 impl V2Error {

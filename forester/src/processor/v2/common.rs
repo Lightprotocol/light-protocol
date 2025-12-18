@@ -232,9 +232,9 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
         "Transaction {} timed out waiting for confirmation for tree {}",
         signature, context.merkle_tree
     );
-    Err(anyhow::anyhow!(
-        "Transaction {} timed out waiting for confirmation for tree {}",
-        signature,
-        context.merkle_tree
-    ))
+    Err(V2Error::TransactionTimeout {
+        signature: signature.to_string(),
+        context: format!("waiting for confirmation for tree {}", context.merkle_tree),
+    }
+    .into())
 }
