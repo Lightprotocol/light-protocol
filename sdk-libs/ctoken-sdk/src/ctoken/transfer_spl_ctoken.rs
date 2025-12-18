@@ -27,6 +27,7 @@ use crate::compressed_token::{
 /// let instruction = TransferSplToCtoken {
 ///     amount: 100,
 ///     spl_interface_pda_bump: 255,
+///     decimals: 9,
 ///     source_spl_token_account,
 ///     destination_ctoken_account,
 ///     authority,
@@ -63,9 +64,11 @@ pub struct TransferSplToCtoken {
 /// # let spl_interface_pda: AccountInfo = todo!();
 /// # let spl_token_program: AccountInfo = todo!();
 /// # let compressed_token_program_authority: AccountInfo = todo!();
+/// # let system_program: AccountInfo = todo!();
 /// TransferSplToCtokenCpi {
 ///     amount: 100,
 ///     spl_interface_pda_bump: 255,
+///     decimals: 9,
 ///     source_spl_token_account,
 ///     destination_ctoken_account,
 ///     authority,
@@ -74,6 +77,7 @@ pub struct TransferSplToCtoken {
 ///     spl_interface_pda,
 ///     spl_token_program,
 ///     compressed_token_program_authority,
+///     system_program,
 /// }
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())

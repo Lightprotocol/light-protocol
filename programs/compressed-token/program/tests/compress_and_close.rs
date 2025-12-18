@@ -14,6 +14,9 @@ use light_ctoken_interface::{
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
 use pinocchio::pubkey::Pubkey;
 
+// Anchor custom error codes start at offset 6000
+const ANCHOR_ERROR_OFFSET: u32 = 6000;
+
 /// Helper to create valid compressible CToken account data
 fn create_compressible_ctoken_data(
     owner_pubkey: &[u8; 32],
@@ -145,7 +148,7 @@ fn test_close_for_compress_and_close_duplicate_detection() {
         Err(anchor_lang::prelude::ProgramError::Custom(code)) => {
             assert_eq!(
                 code,
-                ErrorCode::CompressAndCloseDuplicateOutput as u32,
+                ANCHOR_ERROR_OFFSET + ErrorCode::CompressAndCloseDuplicateOutput as u32,
                 "Expected CompressAndCloseDuplicateOutput error, got error code: {}",
                 code
             );

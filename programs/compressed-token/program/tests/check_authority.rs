@@ -3,6 +3,9 @@ use light_account_checks::account_info::test_account_info::pinocchio::get_accoun
 use light_compressed_token::mint_action::check_authority;
 use pinocchio::pubkey::Pubkey;
 
+// Anchor custom error codes start at offset 6000
+const ANCHOR_ERROR_OFFSET: u32 = 6000;
+
 // Helper function to create test account info
 fn create_test_account_info(
     pubkey: Pubkey,
@@ -43,7 +46,7 @@ fn test_check_authority_essential_cases() {
             anchor_lang::prelude::ProgramError::Custom(code) => {
                 assert_eq!(
                     code,
-                    ErrorCode::InvalidAuthorityMint as u32,
+                    ANCHOR_ERROR_OFFSET + ErrorCode::InvalidAuthorityMint as u32,
                     "Should return InvalidAuthorityMint for None authority"
                 );
             }
@@ -75,7 +78,7 @@ fn test_check_authority_essential_cases() {
             anchor_lang::prelude::ProgramError::Custom(code) => {
                 assert_eq!(
                     code,
-                    ErrorCode::InvalidAuthorityMint as u32,
+                    ANCHOR_ERROR_OFFSET + ErrorCode::InvalidAuthorityMint as u32,
                     "Should return InvalidAuthorityMint for wrong signer"
                 );
             }
@@ -95,7 +98,7 @@ fn test_check_authority_essential_cases() {
             anchor_lang::prelude::ProgramError::Custom(code) => {
                 assert_eq!(
                     code,
-                    ErrorCode::InvalidAuthorityMint as u32,
+                    ANCHOR_ERROR_OFFSET + ErrorCode::InvalidAuthorityMint as u32,
                     "Should return InvalidAuthorityMint for revoked authority"
                 );
             }
@@ -126,7 +129,7 @@ fn test_check_authority_revoked_edge_case() {
         anchor_lang::prelude::ProgramError::Custom(code) => {
             assert_eq!(
                 code,
-                ErrorCode::InvalidAuthorityMint as u32,
+                ANCHOR_ERROR_OFFSET + ErrorCode::InvalidAuthorityMint as u32,
                 "Should return InvalidAuthorityMint for revoked authority"
             );
         }

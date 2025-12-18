@@ -20,6 +20,7 @@ import {
  * @param mint              Mint address
  * @param amount            Amount to wrap,
  * @param splInterfaceInfo  SPL interface info for the compression
+ * @param decimals          Mint decimals (required for transfer_checked)
  * @param payer             Fee payer (defaults to owner)
  * @returns Instruction to wrap tokens
  */
@@ -30,6 +31,7 @@ export function createWrapInstruction(
     mint: PublicKey,
     amount: bigint,
     splInterfaceInfo: SplInterfaceInfo,
+    decimals: number,
     payer: PublicKey = owner,
 ): TransactionInstruction {
     const MINT_INDEX = 0;
@@ -49,6 +51,7 @@ export function createWrapInstruction(
             POOL_INDEX,
             splInterfaceInfo.poolIndex,
             splInterfaceInfo.bump,
+            decimals,
         ),
         createDecompressCtoken(
             amount,
