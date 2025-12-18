@@ -13,6 +13,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const (
+	// ResultsIndexKey is the Redis hash that maps inputHash → jobID
+	ResultsIndexKey = "zk_results_index"
+	// FailedIndexKey is the Redis hash that maps inputHash → jobID
+	FailedIndexKey = "zk_failed_index"
+)
+
 type RedisQueue struct {
 	Client *redis.Client
 	Ctx    context.Context
@@ -538,6 +545,44 @@ func (rq *RedisQueue) StoreResult(jobID string, result interface{}) error {
 	return nil
 }
 
+// IndexResultByHash atomically adds inputHash → jobID to the results index hash.
+func (rq *RedisQueue) IndexResultByHash(inputHash, jobID string) error {
+	err := rq.Client.HSet(rq.Ctx, ResultsIndexKey, inputHash, jobID).Err()
+	if err != nil {
+		return fmt.Errorf("failed to index result: %w", err)
+	}
+	logging.Logger().Debug().
+		Str("input_hash", inputHash).
+		Str("job_id", jobID).
+		Msg("Indexed result by input hash")
+	return nil
+}
+
+// IndexFailureByHash atomically adds inputHash → jobID to the failed index hash.
+func (rq *RedisQueue) IndexFailureByHash(inputHash, jobID string) error {
+	err := rq.Client.HSet(rq.Ctx, FailedIndexKey, inputHash, jobID).Err()
+	if err != nil {
+		return fmt.Errorf("failed to index failure: %w", err)
+	}
+	logging.Logger().Debug().
+		Str("input_hash", inputHash).
+		Str("job_id", jobID).
+		Msg("Indexed failure by input hash")
+	return nil
+}
+
+// RemoveResultIndex removes inputHash from the results index hash.
+// Called during cleanup to keep the index in sync with the queue.
+func (rq *RedisQueue) RemoveResultIndex(inputHash string) error {
+	return rq.Client.HDel(rq.Ctx, ResultsIndexKey, inputHash).Err()
+}
+
+// RemoveFailureIndex removes inputHash from the failed index hash.
+// Called during cleanup to keep the index in sync with the queue.
+func (rq *RedisQueue) RemoveFailureIndex(inputHash string) error {
+	return rq.Client.HDel(rq.Ctx, FailedIndexKey, inputHash).Err()
+}
+
 func (rq *RedisQueue) CleanupOldResults() error {
 	// Remove successful results older than 1 hour
 	cutoffTime := time.Now().Add(-1 * time.Hour)
@@ -871,6 +916,10 @@ func (rq *RedisQueue) cleanupOldRequestsFromQueue(queueName string, cutoffTime t
 				}
 				if count > 0 {
 					removedCount++
+
+					// Also clean up the index entry if this is a results/failed queue
+					rq.cleanupIndexEntry(queueName, job.ID)
+
 					logging.Logger().Debug().
 						Str("job_id", job.ID).
 						Str("queue", queueName).
@@ -884,15 +933,68 @@ func (rq *RedisQueue) cleanupOldRequestsFromQueue(queueName string, cutoffTime t
 	return removedCount, nil
 }
 
+// cleanupIndexEntry removes the hash index entry for a job being cleaned up.
+// Looks up the inputHash from zk_input_hash_{jobID} and removes from the appropriate index.
+func (rq *RedisQueue) cleanupIndexEntry(queueName string, jobID string) {
+	// Extract original job ID (remove _failed suffix if present)
+	originalJobID := jobID
+	if len(jobID) > 7 && jobID[len(jobID)-7:] == "_failed" {
+		originalJobID = jobID[:len(jobID)-7]
+	}
+
+	// Look up the input hash for this job
+	inputHash, err := rq.Client.Get(rq.Ctx, fmt.Sprintf("zk_input_hash_%s", originalJobID)).Result()
+	if err != nil {
+		// Input hash not found or expired - nothing to clean up
+		return
+	}
+
+	// Remove from the appropriate index based on queue type
+	switch queueName {
+	case "zk_results_queue":
+		rq.RemoveResultIndex(inputHash)
+	case "zk_failed_queue":
+		rq.RemoveFailureIndex(inputHash)
+	}
+}
+
 // ComputeInputHash computes a SHA256 hash of the proof input payload
 func ComputeInputHash(payload json.RawMessage) string {
 	hash := sha256.Sum256(payload)
 	return hex.EncodeToString(hash[:])
 }
 
-// FindCachedResult searches for a cached result by input hash in the results queue
-// Returns the proof result (as ProofWithTiming) and job ID if found, otherwise returns nil
+// FindCachedResult searches for a cached result by input hash.
+// Returns the proof result (as ProofWithTiming) and job ID if found, otherwise returns nil.
 func (rq *RedisQueue) FindCachedResult(inputHash string) (*common.ProofWithTiming, string, error) {
+	jobID, err := rq.Client.HGet(rq.Ctx, ResultsIndexKey, inputHash).Result()
+	if err == nil && jobID != "" {
+		result, fetchErr := rq.Client.Get(rq.Ctx, fmt.Sprintf("zk_result_%s", jobID)).Result()
+		if fetchErr == nil {
+			var proofWithTiming common.ProofWithTiming
+			if json.Unmarshal([]byte(result), &proofWithTiming) == nil {
+				logging.Logger().Info().
+					Str("input_hash", inputHash).
+					Str("cached_job_id", jobID).
+					Int64("proof_duration_ms", proofWithTiming.ProofDurationMs).
+					Msg("Found cached successful proof result via index")
+				return &proofWithTiming, jobID, nil
+			}
+		}
+		// Index entry exists but result is missing/invalid - clean up stale index entry
+		logging.Logger().Debug().
+			Str("input_hash", inputHash).
+			Str("job_id", jobID).
+			Msg("Stale index entry, removing and falling back to queue scan")
+		rq.RemoveResultIndex(inputHash)
+	} else if err != nil && err != redis.Nil {
+		logging.Logger().Warn().
+			Err(err).
+			Str("input_hash", inputHash).
+			Msg("Error querying results index, falling back to queue scan")
+	}
+
+	// Fallback: O(n) queue scan for backward compatibility with unindexed results
 	items, err := rq.Client.LRange(rq.Ctx, "zk_results_queue", 0, -1).Result()
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to search results queue: %w", err)
@@ -919,7 +1021,9 @@ func (rq *RedisQueue) FindCachedResult(inputHash string) (*common.ProofWithTimin
 					Str("input_hash", inputHash).
 					Str("cached_job_id", resultJob.ID).
 					Int64("proof_duration_ms", proofWithTiming.ProofDurationMs).
-					Msg("Found cached successful proof result")
+					Msg("Found cached successful proof result via queue scan")
+
+				rq.IndexResultByHash(inputHash, resultJob.ID)
 
 				return &proofWithTiming, resultJob.ID, nil
 			}
@@ -929,9 +1033,43 @@ func (rq *RedisQueue) FindCachedResult(inputHash string) (*common.ProofWithTimin
 	return nil, "", nil
 }
 
-// FindCachedFailure searches for a cached failure by input hash in the failed queue
-// Returns the failure details and job ID if found, otherwise returns nil
+// FindCachedFailure searches for a cached failure by input hash.
+// Returns the failure details and job ID if found, otherwise returns nil.
 func (rq *RedisQueue) FindCachedFailure(inputHash string) (map[string]interface{}, string, error) {
+	jobID, err := rq.Client.HGet(rq.Ctx, FailedIndexKey, inputHash).Result()
+	if err == nil && jobID != "" {
+		// Found in index, search for the job in failed queue by ID
+		items, err := rq.Client.LRange(rq.Ctx, "zk_failed_queue", 0, -1).Result()
+		if err == nil {
+			failedJobID := jobID + "_failed"
+			for _, item := range items {
+				var failedJob ProofJob
+				if json.Unmarshal([]byte(item), &failedJob) == nil && failedJob.ID == failedJobID {
+					var failureDetails map[string]interface{}
+					if json.Unmarshal(failedJob.Payload, &failureDetails) == nil {
+						logging.Logger().Info().
+							Str("input_hash", inputHash).
+							Str("cached_job_id", jobID).
+							Msg("Found cached failed proof result via index")
+						return failureDetails, jobID, nil
+					}
+				}
+			}
+		}
+		// Index entry exists but failure job not found - clean up stale index entry
+		logging.Logger().Debug().
+			Str("input_hash", inputHash).
+			Str("job_id", jobID).
+			Msg("Stale failure index entry, removing and falling back to queue scan")
+		rq.RemoveFailureIndex(inputHash)
+	} else if err != nil && err != redis.Nil {
+		logging.Logger().Warn().
+			Err(err).
+			Str("input_hash", inputHash).
+			Msg("Error querying failed index, falling back to queue scan")
+	}
+
+	// Fallback: O(n) queue scan for backward compatibility with unindexed failures
 	items, err := rq.Client.LRange(rq.Ctx, "zk_failed_queue", 0, -1).Result()
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to search failed queue: %w", err)
@@ -959,7 +1097,10 @@ func (rq *RedisQueue) FindCachedFailure(inputHash string) (map[string]interface{
 				logging.Logger().Info().
 					Str("input_hash", inputHash).
 					Str("cached_job_id", originalJobID).
-					Msg("Found cached failed proof result")
+					Msg("Found cached failed proof result via queue scan")
+
+				// Backfill the index for future O(1) lookups
+				rq.IndexFailureByHash(inputHash, originalJobID)
 
 				return failureDetails, originalJobID, nil
 			}

@@ -234,7 +234,8 @@ func (w *BaseQueueWorker) processJobs() {
 
 			// Add to failed queue with expiration reason
 			expirationErr := fmt.Errorf("job expired after %v (max: %v)", jobAge, JobExpirationTimeout)
-			w.addToFailedQueue(job, expirationErr)
+			expiredInputHash := ComputeInputHash(job.Payload)
+			w.addToFailedQueue(job, expiredInputHash, expirationErr)
 			return
 		}
 
@@ -290,6 +291,7 @@ func (w *BaseQueueWorker) processJobs() {
 		}
 		w.queue.StoreResult(job.ID, cachedProof)
 		w.queue.StoreInputHash(job.ID, inputHash)
+		w.queue.IndexResultByHash(inputHash, job.ID)
 		return
 	}
 
@@ -342,6 +344,7 @@ func (w *BaseQueueWorker) processJobs() {
 			logging.Logger().Error().Err(err).Str("job_id", job.ID).Msg("Failed to enqueue cached failure")
 		}
 		w.queue.StoreInputHash(job.ID, inputHash)
+		w.queue.IndexFailureByHash(inputHash, job.ID)
 		return
 	}
 
@@ -392,7 +395,7 @@ func (w *BaseQueueWorker) processJobs() {
 				Dur("duration", proofDuration).
 				Msg("Failed to process proof job")
 
-			w.addToFailedQueue(job, err)
+			w.addToFailedQueue(job, inputHash, err)
 
 			// On failure: clean up in-flight marker to allow retry with new job
 			if delErr := w.queue.DeleteInFlightJob(inputHash, job.ID); delErr != nil {
@@ -434,6 +437,13 @@ func (w *BaseQueueWorker) processJobs() {
 					Err(storeErr).
 					Str("job_id", job.ID).
 					Msg("Failed to store result")
+			}
+
+			if indexErr := w.queue.IndexResultByHash(inputHash, job.ID); indexErr != nil {
+				logging.Logger().Warn().
+					Err(indexErr).
+					Str("job_id", job.ID).
+					Msg("Failed to index result (non-critical)")
 			}
 
 			logging.Logger().Info().
@@ -692,7 +702,7 @@ func (w *BaseQueueWorker) removeFromProcessingQueue(jobID string) {
 	}
 }
 
-func (w *BaseQueueWorker) addToFailedQueue(job *ProofJob, err error) {
+func (w *BaseQueueWorker) addToFailedQueue(job *ProofJob, inputHash string, err error) {
 	// Extract circuit type from payload for debugging, but don't store full payload
 	// to prevent memory issues (payloads can be hundreds of KB)
 	var circuitType string
@@ -729,5 +739,15 @@ func (w *BaseQueueWorker) addToFailedQueue(job *ProofJob, err error) {
 			Err(enqueueErr).
 			Str("job_id", job.ID).
 			Msg("Failed to add job to failed queue")
+	}
+
+	// Index the failure for O(1) cached lookups
+	if inputHash != "" {
+		if indexErr := w.queue.IndexFailureByHash(inputHash, job.ID); indexErr != nil {
+			logging.Logger().Warn().
+				Err(indexErr).
+				Str("job_id", job.ID).
+				Msg("Failed to index failure (non-critical)")
+		}
 	}
 }
