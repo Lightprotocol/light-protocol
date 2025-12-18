@@ -1163,14 +1163,21 @@ func (rq *RedisQueue) GetOrSetInFlightJob(inputHash, jobID string) (existingJobI
 	// Key already exists - get the existing job ID
 	existing, err := rq.Client.Get(rq.Ctx, key).Result()
 	if err != nil {
-		// Key might have expired between SetNX and Get - treat as new
+		// Key might have expired between SetNX and Get - retry
 		if err == redis.Nil {
-			// Retry setting the key
-			_, err = rq.Client.SetNX(rq.Ctx, key, jobID, 10*time.Minute).Result()
+			ok, err := rq.Client.SetNX(rq.Ctx, key, jobID, 10*time.Minute).Result()
 			if err != nil {
 				return "", false, fmt.Errorf("failed to set in-flight job on retry: %w", err)
 			}
-			// Store reverse mapping for cleanup
+			if !ok {
+				// Another worker won the race - fetch their job ID
+				existing, err := rq.Client.Get(rq.Ctx, key).Result()
+				if err != nil {
+					return "", false, fmt.Errorf("failed to get winning job after retry race: %w", err)
+				}
+				return existing, false, nil
+			}
+			// We won the retry - store reverse mapping for cleanup
 			reverseKey := fmt.Sprintf("zk_input_hash_%s", jobID)
 			rq.Client.Set(rq.Ctx, reverseKey, inputHash, 10*time.Minute)
 			return jobID, true, nil
