@@ -34,6 +34,7 @@ use crate::compressed_token::{
 ///     payer,
 ///     spl_interface_pda,
 ///     spl_interface_pda_bump: 255,
+///     decimals: 9,
 ///     spl_token_program,
 /// }.instruction()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
@@ -72,6 +73,7 @@ pub struct TransferCTokenToSpl {
 ///     payer,
 ///     spl_interface_pda,
 ///     spl_interface_pda_bump: 255,
+///     decimals: 9,
 ///     spl_token_program,
 ///     compressed_token_program_authority,
 /// }

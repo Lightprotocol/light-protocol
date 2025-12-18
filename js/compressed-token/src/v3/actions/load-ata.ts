@@ -18,6 +18,7 @@ import {
     TOKEN_2022_PROGRAM_ID,
     getAssociatedTokenAddressSync,
     createAssociatedTokenAccountIdempotentInstruction,
+    getMint,
 } from '@solana/spl-token';
 import {
     AccountInterface,
@@ -195,6 +196,7 @@ export async function createLoadAtaInstructionsFromInterface(
         splBalance > BigInt(0) ||
         t22Balance > BigInt(0);
 
+    let decimals = 0;
     if (needsSplInfo) {
         try {
             const splInterfaceInfos =
@@ -203,6 +205,15 @@ export async function createLoadAtaInstructionsFromInterface(
             splInterfaceInfo = splInterfaceInfos.find(
                 (info: SplInterfaceInfo) => info.isInitialized,
             );
+            if (splInterfaceInfo) {
+                const mintInfo = await getMint(
+                    rpc,
+                    mint,
+                    undefined,
+                    splInterfaceInfo.tokenProgram,
+                );
+                decimals = mintInfo.decimals;
+            }
         } catch {
             // No SPL interface exists
         }
@@ -234,6 +245,7 @@ export async function createLoadAtaInstructionsFromInterface(
                     mint,
                     splBalance,
                     splInterfaceInfo,
+                    decimals,
                     payer,
                 ),
             );
@@ -249,6 +261,7 @@ export async function createLoadAtaInstructionsFromInterface(
                     mint,
                     t22Balance,
                     splInterfaceInfo,
+                    decimals,
                     payer,
                 ),
             );
@@ -276,6 +289,8 @@ export async function createLoadAtaInstructionsFromInterface(
                         ctokenAtaAddress,
                         coldBalance,
                         proof,
+                        undefined,
+                        decimals,
                     ),
                 );
             }
@@ -317,6 +332,8 @@ export async function createLoadAtaInstructionsFromInterface(
                             ctokenAtaAddress,
                             coldBalance,
                             proof,
+                            undefined,
+                            decimals,
                         ),
                     );
                 } else if (ataType === 'spl' && splInterfaceInfo) {
@@ -341,6 +358,7 @@ export async function createLoadAtaInstructionsFromInterface(
                             coldBalance,
                             proof,
                             splInterfaceInfo,
+                            decimals,
                         ),
                     );
                 } else if (ataType === 'token2022' && splInterfaceInfo) {
@@ -365,6 +383,7 @@ export async function createLoadAtaInstructionsFromInterface(
                             coldBalance,
                             proof,
                             splInterfaceInfo,
+                            decimals,
                         ),
                     );
                 }

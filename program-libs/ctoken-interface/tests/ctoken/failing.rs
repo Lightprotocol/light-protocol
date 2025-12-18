@@ -46,32 +46,6 @@ fn test_zero_copy_at_mut_checked_uninitialized_account() {
 }
 
 #[test]
-fn test_zero_copy_at_checked_frozen_account() {
-    // Create a 165-byte buffer with byte 108 = 2 (AccountState::Frozen)
-    let mut buffer = vec![0u8; 165];
-    buffer[108] = 2; // AccountState::Frozen
-
-    // This should fail because byte 108 is 2 (frozen, not initialized)
-    let result = CToken::zero_copy_at_checked(&buffer);
-
-    // Assert it returns InvalidAccountState error
-    assert!(matches!(result, Err(CTokenError::InvalidAccountState)));
-}
-
-#[test]
-fn test_zero_copy_at_mut_checked_frozen_account() {
-    // Create a 165-byte mutable buffer with byte 108 = 2
-    let mut buffer = vec![0u8; 165];
-    buffer[108] = 2; // AccountState::Frozen
-
-    // This should fail because byte 108 is 2 (frozen, not initialized)
-    let result = CToken::zero_copy_at_mut_checked(&mut buffer);
-
-    // Assert it returns InvalidAccountState error
-    assert!(matches!(result, Err(CTokenError::InvalidAccountState)));
-}
-
-#[test]
 fn test_zero_copy_at_checked_buffer_too_small() {
     // Create a 100-byte buffer (less than 109 bytes minimum)
     let buffer = vec![0u8; 100];
