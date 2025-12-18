@@ -1201,6 +1201,34 @@ func (rq *RedisQueue) DeleteInFlightJob(inputHash, jobID string) error {
 	return nil
 }
 
+// SetInFlightJob sets the in-flight marker for a job, replacing any existing marker.
+// This is used when recovering from a stale marker to register a new job.
+// Also sets the reverse mapping (jobID → inputHash) for cleanup.
+func (rq *RedisQueue) SetInFlightJob(inputHash, jobID string, ttl time.Duration) error {
+	key := fmt.Sprintf("zk_inflight_%s", inputHash)
+	err := rq.Client.Set(rq.Ctx, key, jobID, ttl).Err()
+	if err != nil {
+		return fmt.Errorf("failed to set in-flight job marker: %w", err)
+	}
+
+	// Also store reverse mapping so we can find the input hash from job ID
+	reverseKey := fmt.Sprintf("zk_input_hash_%s", jobID)
+	if reverseErr := rq.Client.Set(rq.Ctx, reverseKey, inputHash, ttl).Err(); reverseErr != nil {
+		logging.Logger().Warn().
+			Err(reverseErr).
+			Str("job_id", jobID).
+			Msg("Failed to set reverse mapping (non-critical)")
+	}
+
+	logging.Logger().Debug().
+		Str("input_hash", inputHash).
+		Str("job_id", jobID).
+		Dur("ttl", ttl).
+		Msg("Set in-flight job marker")
+
+	return nil
+}
+
 // CleanupStaleInFlightMarker removes a stale in-flight marker for a job that no longer exists.
 // This is called when a status check returns job_not_found, indicating the job was lost
 // (e.g., due to prover restart) but the in-flight marker still exists.

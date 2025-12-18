@@ -701,7 +701,15 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, keyManager *com
 				redisQueue.CleanupStaleInFlightMarker(existingJobID)
 				// Generate new job ID and set in-flight marker
 				newJobID := uuid.New().String()
-				redisQueue.Client.Set(redisQueue.Ctx, fmt.Sprintf("zk_inflight_%s", inputHash), newJobID, 10*time.Minute)
+				if err := redisQueue.SetInFlightJob(inputHash, newJobID, 10*time.Minute); err != nil {
+					logging.Logger().Error().
+						Err(err).
+						Str("job_id", newJobID).
+						Str("input_hash", inputHash).
+						Msg("Failed to set in-flight marker for new job")
+					http.Error(w, "Failed to register job", http.StatusInternalServerError)
+					return
+				}
 				existingJobID = newJobID // Update so line below assigns correct ID
 				isNew = true
 			}
@@ -928,7 +936,15 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 		handler.redisQueue.CleanupStaleInFlightMarker(existingJobID)
 		// Generate new job ID and set in-flight marker
 		newJobID := uuid.New().String()
-		handler.redisQueue.Client.Set(handler.redisQueue.Ctx, fmt.Sprintf("zk_inflight_%s", inputHash), newJobID, 10*time.Minute)
+		if err := handler.redisQueue.SetInFlightJob(inputHash, newJobID, 10*time.Minute); err != nil {
+			logging.Logger().Error().
+				Err(err).
+				Str("job_id", newJobID).
+				Str("input_hash", inputHash).
+				Msg("Failed to set in-flight marker for new job")
+			http.Error(w, "Failed to register job", http.StatusInternalServerError)
+			return
+		}
 		existingJobID = newJobID // Update so line below assigns correct ID
 		isNew = true
 	}
