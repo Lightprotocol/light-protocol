@@ -35,6 +35,14 @@ var (
 		[]string{"circuit_type", "error_type"},
 	)
 
+	ProofPanicsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "prover_proof_panics_total",
+			Help: "Total number of panics recovered during proof processing",
+		},
+		[]string{"circuit_type"},
+	)
+
 	QueueWaitTime = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "prover_queue_wait_time_seconds",

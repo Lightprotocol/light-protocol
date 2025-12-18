@@ -1020,6 +1020,7 @@ func (handler proveHandler) handleSyncProof(w http.ResponseWriter, r *http.Reque
 		// Recover from panics to prevent server crash from malformed input
 		defer func() {
 			if r := recover(); r != nil {
+				ProofPanicsTotal.WithLabelValues(string(meta.CircuitType)).Inc()
 				logging.Logger().Error().
 					Interface("panic", r).
 					Str("circuit_type", string(meta.CircuitType)).
