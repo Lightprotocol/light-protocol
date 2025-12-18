@@ -25,12 +25,6 @@ use crate::{
 
 const SLOTS_STOP_THRESHOLD: u64 = 3;
 
-#[derive(Debug, Clone)]
-pub struct QueueWork {
-    pub queue_type: light_compressed_account::QueueType,
-    pub queue_size: u64,
-}
-
 #[derive(Debug)]
 pub struct WorkerPool {
     pub job_tx: async_channel::Sender<ProofJob>,

@@ -15,7 +15,7 @@ use crate::processor::v2::{
     proof_worker::ProofInput,
     root_guard::{reconcile_alignment, AlignmentDecision},
     strategy::{CircuitType, QueueData, TreeStrategy},
-    BatchContext, QueueWork,
+    BatchContext,
 };
 
 #[derive(Debug, Clone)]
@@ -143,11 +143,10 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
         fetch_onchain_state_root(context).await
     }
 
-    #[instrument(level = "debug", skip(self, context, queue_work), fields(tree = %context.merkle_tree))]
+    #[instrument(level = "debug", skip(self, context), fields(tree = %context.merkle_tree))]
     async fn fetch_queue_data(
         &self,
         context: &BatchContext<R>,
-        queue_work: &QueueWork,
         max_batches: usize,
         zkp_batch_size: u64,
     ) -> crate::Result<Option<QueueData<Self::StagingTree>>> {
@@ -159,8 +158,6 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
             Some(sq) => sq,
             None => return Ok(None),
         };
-
-        let _ = queue_work.queue_type;
 
         let initial_root = state_queue.initial_root;
         let root_seq = state_queue.root_seq;

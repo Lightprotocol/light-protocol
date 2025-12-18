@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use light_client::rpc::Rpc;
 
 use crate::processor::v2::{
-    batch_job_builder::BatchJobBuilder, proof_worker::ProofInput, BatchContext, QueueWork,
+    batch_job_builder::BatchJobBuilder, proof_worker::ProofInput, BatchContext,
 };
 
 mod address;
@@ -53,7 +53,6 @@ pub trait TreeStrategy<R: Rpc>: Send + Sync + Clone + std::fmt::Debug + 'static 
     async fn fetch_queue_data(
         &self,
         context: &BatchContext<R>,
-        queue_work: &QueueWork,
         max_batches: usize,
         zkp_batch_size: u64,
     ) -> crate::Result<Option<QueueData<Self::StagingTree>>>;

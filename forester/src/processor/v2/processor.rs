@@ -22,7 +22,7 @@ use crate::{
         root_guard::{reconcile_roots, RootReconcileDecision},
         strategy::{CircuitType, QueueData, TreeStrategy},
         tx_sender::{BatchInstruction, ProofTimings, TxSender},
-        BatchContext, ProcessingResult, QueueWork,
+        BatchContext, ProcessingResult,
     },
 };
 
@@ -116,19 +116,15 @@ where
     }
 
     pub async fn process(&mut self) -> crate::Result<ProcessingResult> {
-        let queue_size_hint = self.zkp_batch_size * MAX_BATCHES_PER_TREE as u64;
-        let queue_work = QueueWork {
-            queue_type: S::queue_type(),
-            queue_size: queue_size_hint,
-        };
-        self.process_queue_update(queue_work).await
+        let queue_size = self.zkp_batch_size * MAX_BATCHES_PER_TREE as u64;
+        self.process_queue_update(queue_size).await
     }
 
     pub async fn process_queue_update(
         &mut self,
-        queue_work: QueueWork,
+        queue_size: u64,
     ) -> crate::Result<ProcessingResult> {
-        if queue_work.queue_size < self.zkp_batch_size {
+        if queue_size < self.zkp_batch_size {
             return Ok(ProcessingResult::default());
         }
 
@@ -173,7 +169,7 @@ where
             }
         }
 
-        let available_batches = (queue_work.queue_size / self.zkp_batch_size) as usize;
+        let available_batches = (queue_size / self.zkp_batch_size) as usize;
         let fetch_batches = available_batches.min(MAX_BATCHES_PER_TREE);
 
         if available_batches > MAX_BATCHES_PER_TREE {
@@ -194,12 +190,7 @@ where
 
         let queue_data = match self
             .strategy
-            .fetch_queue_data(
-                &self.context,
-                &queue_work,
-                fetch_batches,
-                self.zkp_batch_size,
-            )
+            .fetch_queue_data(&self.context, fetch_batches, self.zkp_batch_size)
             .await?
         {
             Some(data) => data,
@@ -499,14 +490,14 @@ where
     pub async fn prewarm_proofs(
         &mut self,
         cache: Arc<SharedProofCache>,
-        queue_work: QueueWork,
+        queue_size: u64,
     ) -> crate::Result<ProcessingResult> {
-        if queue_work.queue_size < self.zkp_batch_size {
+        if queue_size < self.zkp_batch_size {
             return Ok(ProcessingResult::default());
         }
 
         let max_batches =
-            ((queue_work.queue_size / self.zkp_batch_size) as usize).min(MAX_BATCHES_PER_TREE);
+            ((queue_size / self.zkp_batch_size) as usize).min(MAX_BATCHES_PER_TREE);
 
         if self.worker_pool.is_none() {
             let job_tx = spawn_proof_workers(&self.context.prover_config);
@@ -515,7 +506,7 @@ where
 
         let queue_data = match self
             .strategy
-            .fetch_queue_data(&self.context, &queue_work, max_batches, self.zkp_batch_size)
+            .fetch_queue_data(&self.context, max_batches, self.zkp_batch_size)
             .await?
         {
             Some(data) => data,
@@ -528,7 +519,7 @@ where
     pub async fn prewarm_from_indexer(
         &mut self,
         cache: Arc<SharedProofCache>,
-        queue_type: QueueType,
+        _queue_type: QueueType,
         max_batches: usize,
     ) -> crate::Result<ProcessingResult> {
         if max_batches == 0 {
@@ -536,21 +527,15 @@ where
         }
 
         let max_batches = max_batches.min(MAX_BATCHES_PER_TREE);
-        let queue_size_hint = (self.zkp_batch_size as usize * max_batches) as u64;
 
         if self.worker_pool.is_none() {
             let job_tx = spawn_proof_workers(&self.context.prover_config);
             self.worker_pool = Some(WorkerPool { job_tx });
         }
 
-        let queue_work = QueueWork {
-            queue_type,
-            queue_size: queue_size_hint,
-        };
-
         let queue_data = match self
             .strategy
-            .fetch_queue_data(&self.context, &queue_work, max_batches, self.zkp_batch_size)
+            .fetch_queue_data(&self.context, max_batches, self.zkp_batch_size)
             .await?
         {
             Some(data) => data,

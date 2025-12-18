@@ -9,7 +9,7 @@ mod root_guard;
 pub mod strategy;
 mod tx_sender;
 
-pub use common::{BatchContext, ProverConfig, QueueWork};
+pub use common::{BatchContext, ProverConfig};
 pub use processor::QueueProcessor;
 pub use proof_cache::{CachedProof, SharedProofCache};
 pub use tx_sender::{BatchInstruction, ProofTimings, TxSenderResult};
