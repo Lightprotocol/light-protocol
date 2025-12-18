@@ -2268,6 +2268,9 @@ impl<R: Rpc> EpochManager<R> {
                                     "Pre-warmed {} items for tree {} during wait (metrics: {:?})",
                                     result.items_processed, tree_pubkey, result.metrics
                                 );
+                                self_clone
+                                    .add_processing_metrics(epoch_info.epoch.epoch, result.metrics)
+                                    .await;
                             }
                         }
                         Err(e) => {
