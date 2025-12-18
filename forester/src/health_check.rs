@@ -124,7 +124,7 @@ pub async fn run_health_check(args: &HealthArgs) -> Result<bool, ForesterError> 
             if !all_passed {
                 println!("\nHealth check failed");
             } else {
-                println!("\nHealth check PASSED");
+                println!("\nHealth check passed");
             }
         }
     }
