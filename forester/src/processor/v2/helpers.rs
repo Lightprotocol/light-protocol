@@ -108,9 +108,11 @@ pub async fn fetch_address_zkp_batch_size<R: Rpc>(context: &BatchContext<R>) -> 
         .await?
         .ok_or_else(|| anyhow!("Merkle tree account not found"))?;
 
-    let merkle_tree_pubkey = Pubkey::from(context.merkle_tree.to_bytes());
-    let tree = BatchedMerkleTreeAccount::address_from_bytes(&mut account.data, &merkle_tree_pubkey)
-        .map_err(|e| anyhow!("Failed to deserialize address tree: {}", e))?;
+    let tree = BatchedMerkleTreeAccount::address_from_bytes(
+        account.data.as_mut_slice(),
+        &context.merkle_tree.into(),
+    )
+    .map_err(|e| anyhow!("Failed to deserialize address tree: {}", e))?;
 
     let batch_index = tree.queue_batches.pending_batch_index;
     let batch = tree
@@ -131,9 +133,11 @@ pub async fn fetch_onchain_address_root<R: Rpc>(
         .await?
         .ok_or_else(|| anyhow!("Merkle tree account not found"))?;
 
-    let merkle_tree_pubkey = Pubkey::from(context.merkle_tree.to_bytes());
-    let tree = BatchedMerkleTreeAccount::address_from_bytes(&mut account.data, &merkle_tree_pubkey)
-        .map_err(|e| anyhow!("Failed to deserialize address tree: {}", e))?;
+    let tree = BatchedMerkleTreeAccount::address_from_bytes(
+        account.data.as_mut_slice(),
+        &context.merkle_tree.into(),
+    )
+    .map_err(|e| anyhow!("Failed to deserialize address tree: {}", e))?;
 
     let root = tree
         .root_history
