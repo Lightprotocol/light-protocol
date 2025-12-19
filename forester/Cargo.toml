@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 anchor-lang = { workspace = true }
-clap = { version = "4.5.27", features = ["derive", "env"] }
+clap = { version = "4.5.53", features = ["derive", "env"] }
 solana-sdk = { workspace = true }
 solana-client = { workspace = true }
 solana-account-decoder = { workspace = true }
@@ -18,14 +18,12 @@ light-compressed-account = { workspace = true, features = ["std"] }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 light-hash-set = { workspace = true, features = ["solana"] }
 light-hasher = { workspace = true, features = ["poseidon"] }
-light-merkle-tree-reference = { workspace = true }
 light-prover-client = { workspace = true }
 light-registry = { workspace = true }
 photon-api = { workspace = true }
 forester-utils = { workspace = true }
 light-client = { workspace = true, features = ["v2"] }
 light-merkle-tree-metadata = { workspace = true }
-light-sparse-merkle-tree = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-program-test = { workspace = true }
 light-compressible = { workspace = true }
@@ -34,17 +32,15 @@ light-ctoken-sdk = { workspace = true }
 solana-rpc-client-api = { workspace = true }
 solana-transaction-status = { workspace = true }
 bb8 = { workspace = true }
-base64 = "0.22" # make workspace dep
-
-serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-tokio = { version = "1", features = ["full"] }
+base64 = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 reqwest = { workspace = true, features = ["json", "rustls-tls", "blocking"] }
-futures = "0.3.31"
-async-stream = "0.3"
+futures = { workspace = true }
 thiserror = { workspace = true }
 borsh = { workspace = true }
-bs58 = "0.5.1"
+bs58 = { workspace = true }
 env_logger = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
@@ -52,16 +48,13 @@ tracing-subscriber = { workspace = true }
 tracing-appender = { workspace = true }
 anyhow = { workspace = true }
 
-prometheus = "0.13"
-lazy_static = "1.4"
-warp = "0.3"
-dashmap = "6.1.0"
-scopeguard = "1.2.0"
-itertools = "0.14.0"
-num-bigint = { workspace = true }
-kameo = "0.19"
-once_cell = "1.21.3"
-async-channel = "2.3"
+prometheus = "0.14"
+lazy_static = { workspace = true }
+warp = "0.4"
+dashmap = { workspace = true }
+scopeguard = "1.2"
+itertools = "0.14"
+async-channel = "2.5"
 solana-pubkey = { workspace = true }
 
 [dev-dependencies]
@@ -69,10 +62,8 @@ serial_test = { workspace = true }
 light-prover-client = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
-light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
 light-token-client = { workspace = true }
 dotenvy = "0.15"
 light-compressed-token = { workspace = true }
-light-ctoken-sdk = { workspace = true }
 rand = { workspace = true }
 create-address-test-program = { workspace = true }

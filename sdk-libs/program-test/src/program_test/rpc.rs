@@ -16,6 +16,7 @@ use light_event::{
 use solana_rpc_client_api::config::RpcSendTransactionConfig;
 use solana_sdk::{
     account::Account,
+    address_lookup_table::AddressLookupTableAccount,
     clock::{Clock, Slot},
     hash::Hash,
     instruction::Instruction,
@@ -337,6 +338,18 @@ impl Rpc for LightProgramTest {
             next_tree_info: None,
             tree_type: TreeType::AddressV2,
         }
+    }
+
+    async fn create_and_send_versioned_transaction<'a>(
+        &'a mut self,
+        _instructions: &'a [Instruction],
+        _payer: &'a Pubkey,
+        _signers: &'a [&'a Keypair],
+        _address_lookup_tables: &'a [AddressLookupTableAccount],
+    ) -> Result<Signature, RpcError> {
+        unimplemented!(
+            "create_and_send_versioned_transaction is unimplemented for LightProgramTest"
+        );
     }
 }
 

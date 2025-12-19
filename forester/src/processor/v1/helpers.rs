@@ -348,11 +348,15 @@ pub fn calculate_compute_unit_price(target_lamports: u64, compute_units: u64) ->
 #[allow(dead_code)]
 pub fn get_capped_priority_fee(cap_config: CapConfig) -> u64 {
     if cap_config.max_fee_lamports < cap_config.min_fee_lamports {
-        panic!("Max fee is less than min fee");
+        warn!(
+            "Invalid priority fee cap config: max_fee_lamports ({}) < min_fee_lamports ({}); clamping max to min",
+            cap_config.max_fee_lamports, cap_config.min_fee_lamports
+        );
     }
+    let max_fee_lamports = cap_config.max_fee_lamports.max(cap_config.min_fee_lamports);
 
     let priority_fee_max =
-        calculate_compute_unit_price(cap_config.max_fee_lamports, cap_config.compute_unit_limit);
+        calculate_compute_unit_price(max_fee_lamports, cap_config.compute_unit_limit);
     let priority_fee_min =
         calculate_compute_unit_price(cap_config.min_fee_lamports, cap_config.compute_unit_limit);
     let capped_fee = std::cmp::min(cap_config.rec_fee_microlamports_per_cu, priority_fee_max);

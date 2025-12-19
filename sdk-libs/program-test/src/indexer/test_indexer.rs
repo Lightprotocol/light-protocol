@@ -677,7 +677,6 @@ impl Indexer for TestIndexer {
                     let mut low_element_next_values = Vec::with_capacity(addresses.len());
                     let mut low_element_indices = Vec::with_capacity(addresses.len());
                     let mut low_element_next_indices = Vec::with_capacity(addresses.len());
-                    let mut low_element_proofs = Vec::with_capacity(addresses.len());
 
                     // Collect all nodes for deduplication
                     let mut node_map: HashMap<u64, [u8; 32]> = HashMap::new();
@@ -697,7 +696,6 @@ impl Indexer for TestIndexer {
                             .push(bigint_to_be_bytes_array(&old_low_next_value).unwrap());
                         low_element_indices.push(old_low_element.index as u64);
                         low_element_next_indices.push(old_low_element.next_index as u64);
-                        low_element_proofs.push(proof);
                     }
 
                     // Convert node map to sorted vectors
@@ -705,12 +703,8 @@ impl Indexer for TestIndexer {
                     nodes.sort();
                     let node_hashes: Vec<[u8; 32]> = nodes.iter().map(|k| node_map[k]).collect();
 
-                    let queue_indices: Vec<u64> =
-                        (start as u64..(start + addresses.len()) as u64).collect();
-
                     Some(AddressQueueData {
                         addresses,
-                        queue_indices,
                         low_element_values,
                         low_element_next_values,
                         low_element_indices,
@@ -722,7 +716,6 @@ impl Indexer for TestIndexer {
                         subtrees: address_tree_bundle.get_subtrees(),
                         start_index: start as u64,
                         root_seq: address_tree_bundle.sequence_number(),
-                        low_element_proofs,
                     })
                 } else {
                     None

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anchor_lang::{AccountDeserialize, Discriminator};
+use anyhow::Context;
 use forester_utils::forester_epoch::{get_epoch_phases, TreeAccounts};
 use itertools::Itertools;
 use light_client::rpc::{LightClient, LightClientConfig, Rpc};
@@ -28,45 +29,47 @@ pub async fn fetch_forester_status(args: &StatusArgs) -> crate::Result<()> {
     );
     let registry_accounts = client
         .get_program_accounts(&light_registry::ID)
-        .expect("Failed to fetch accounts for registry program.");
+        .context("Failed to fetch accounts for registry program")?;
 
     let mut forester_epoch_pdas = vec![];
     let mut epoch_pdas = vec![];
     let mut protocol_config_pdas = vec![];
     for (_, account) in registry_accounts {
-        match account.data()[0..8].try_into()? {
-            ForesterEpochPda::DISCRIMINATOR => {
-                let forester_epoch_pda =
-                    ForesterEpochPda::try_deserialize_unchecked(&mut account.data())
-                        .expect("Failed to deserialize ForesterEpochPda");
-                forester_epoch_pdas.push(forester_epoch_pda);
-            }
-            EpochPda::DISCRIMINATOR => {
-                let epoch_pda = EpochPda::try_deserialize_unchecked(&mut account.data())
-                    .expect("Failed to deserialize EpochPda");
-                epoch_pdas.push(epoch_pda);
-            }
-            ProtocolConfigPda::DISCRIMINATOR => {
-                let protocol_config_pda =
-                    ProtocolConfigPda::try_deserialize_unchecked(&mut account.data())
-                        .expect("Failed to deserialize ProtocolConfigPda");
-                protocol_config_pdas.push(protocol_config_pda);
-            }
-            _ => (),
+        let discriminator_bytes = match account.data().get(0..8) {
+            Some(d) => d,
+            None => continue,
+        };
+
+        if discriminator_bytes == ForesterEpochPda::DISCRIMINATOR {
+            let mut data: &[u8] = account.data();
+            let forester_epoch_pda = ForesterEpochPda::try_deserialize_unchecked(&mut data)
+                .context("Failed to deserialize ForesterEpochPda")?;
+            forester_epoch_pdas.push(forester_epoch_pda);
+        } else if discriminator_bytes == EpochPda::DISCRIMINATOR {
+            let mut data: &[u8] = account.data();
+            let epoch_pda = EpochPda::try_deserialize_unchecked(&mut data)
+                .context("Failed to deserialize EpochPda")?;
+            epoch_pdas.push(epoch_pda);
+        } else if discriminator_bytes == ProtocolConfigPda::DISCRIMINATOR {
+            let mut data: &[u8] = account.data();
+            let protocol_config_pda = ProtocolConfigPda::try_deserialize_unchecked(&mut data)
+                .context("Failed to deserialize ProtocolConfigPda")?;
+            protocol_config_pdas.push(protocol_config_pda);
         }
     }
     forester_epoch_pdas.sort_by(|a, b| a.epoch.cmp(&b.epoch));
     epoch_pdas.sort_by(|a, b| a.epoch.cmp(&b.epoch));
-    let slot = client.get_slot().expect("Failed to fetch slot.");
+    let slot = client.get_slot().context("Failed to fetch slot")?;
+
+    let protocol_config_pda = protocol_config_pdas
+        .first()
+        .cloned()
+        .context("No ProtocolConfigPda found in registry program accounts")?;
 
     println!("Current Solana Slot: {}", slot);
 
-    let current_active_epoch = protocol_config_pdas[0]
-        .config
-        .get_current_active_epoch(slot)?;
-    let current_registration_epoch = protocol_config_pdas[0]
-        .config
-        .get_latest_register_epoch(slot)?;
+    let current_active_epoch = protocol_config_pda.config.get_current_active_epoch(slot)?;
+    let current_registration_epoch = protocol_config_pda.config.get_latest_register_epoch(slot)?;
     println!("Current active epoch: {:?}", current_active_epoch);
 
     println!(
@@ -104,26 +107,26 @@ pub async fn fetch_forester_status(args: &StatusArgs) -> crate::Result<()> {
     );
     println!(
         "current active epoch progress {:?} / {}",
-        protocol_config_pdas[0]
+        protocol_config_pda
             .config
             .get_current_active_epoch_progress(slot),
-        protocol_config_pdas[0].config.active_phase_length
+        protocol_config_pda.config.active_phase_length
     );
     println!(
         "current active epoch progress {:.2?}%",
-        protocol_config_pdas[0]
+        protocol_config_pda
             .config
             .get_current_active_epoch_progress(slot) as f64
-            / protocol_config_pdas[0].config.active_phase_length as f64
+            / protocol_config_pda.config.active_phase_length as f64
             * 100f64
     );
     println!("Hours until next epoch : {:?} hours", {
         // slotduration is 460ms and 1000ms is 1 second and 3600 seconds is 1 hour
-        protocol_config_pdas[0]
+        protocol_config_pda
             .config
             .active_phase_length
             .saturating_sub(
-                protocol_config_pdas[0]
+                protocol_config_pda
                     .config
                     .get_current_active_epoch_progress(slot),
             )
@@ -131,11 +134,11 @@ pub async fn fetch_forester_status(args: &StatusArgs) -> crate::Result<()> {
             / 1000
             / 3600
     });
-    let slots_until_next_registration = protocol_config_pdas[0]
+    let slots_until_next_registration = protocol_config_pda
         .config
         .registration_phase_length
         .saturating_sub(
-            protocol_config_pdas[0]
+            protocol_config_pda
                 .config
                 .get_current_active_epoch_progress(slot),
         );
@@ -160,7 +163,7 @@ pub async fn fetch_forester_status(args: &StatusArgs) -> crate::Result<()> {
         }
     }
     if args.protocol_config {
-        println!("protocol config: {:?}", protocol_config_pdas[0]);
+        println!("protocol config: {:?}", protocol_config_pda);
     }
 
     let config = Arc::new(ForesterConfig::new_for_status(args)?);
@@ -226,8 +229,6 @@ pub async fn fetch_forester_status(args: &StatusArgs) -> crate::Result<()> {
                 .iter()
                 .find(|pda| pda.epoch == current_active_epoch);
 
-            let protocol_config = protocol_config_pdas[0].clone();
-
             print_tree_schedule_by_forester(
                 slot,
                 current_active_epoch,
@@ -235,7 +236,7 @@ pub async fn fetch_forester_status(args: &StatusArgs) -> crate::Result<()> {
                 tree.merkle_tree,
                 tree.queue,
                 current_epoch_pda_entry,
-                &protocol_config,
+                &protocol_config_pda,
             );
         }
     }
@@ -251,8 +252,6 @@ pub async fn fetch_forester_status(args: &StatusArgs) -> crate::Result<()> {
         .iter()
         .find(|pda| pda.epoch == current_active_epoch);
 
-    let protocol_config = protocol_config_pdas[0].clone();
-
     // Filter out rolled-over trees
     let active_trees: Vec<TreeAccounts> =
         trees.iter().filter(|t| !t.is_rolledover).cloned().collect();
@@ -264,7 +263,7 @@ pub async fn fetch_forester_status(args: &StatusArgs) -> crate::Result<()> {
             active_epoch_foresters,
             &active_trees,
             current_epoch_pda_entry,
-            &protocol_config,
+            &protocol_config_pda,
         );
     } else {
         println!("No active foresters found for the current epoch.");
@@ -286,17 +285,20 @@ fn print_current_forester_assignments(
     if let Some(_current_epoch_pda) = current_epoch_pda_entry {
         if active_epoch_foresters.is_empty() {
             println!(
-                "ERROR: No foresters registered for active epoch {}",
+                "error: no foresters registered for active epoch {}",
                 current_active_epoch
             );
             return;
         }
 
-        let total_epoch_weight = match active_epoch_foresters[0].total_epoch_weight {
+        let total_epoch_weight = match active_epoch_foresters
+            .first()
+            .and_then(|pda| pda.total_epoch_weight)
+        {
             Some(w) if w > 0 => w,
             _ => {
                 println!(
-                    "ERROR: Registration not finalized (total_epoch_weight is None or 0) for epoch {}.",
+                    "error: registration not finalized (total_epoch_weight is none or 0) for epoch {}",
                     current_active_epoch
                 );
                 return;
@@ -314,7 +316,7 @@ fn print_current_forester_assignments(
         }
 
         if protocol_config.config.slot_length == 0 {
-            println!("ERROR: ProtocolConfig slot_length is zero. Cannot calculate light slots.");
+            println!("error: protocol config slot_length is zero; cannot calculate light slots");
             return;
         }
 
@@ -350,7 +352,7 @@ fn print_current_forester_assignments(
                 Ok(idx) => idx,
                 Err(e) => {
                     println!(
-                        "{:12}\t\t{}\tERROR: {:?}",
+                        "{:12}\t\t{}\terror: {:?}",
                         tree.tree_type, tree.merkle_tree, e
                     );
                     continue;
@@ -375,7 +377,7 @@ fn print_current_forester_assignments(
         }
     } else {
         println!(
-            "ERROR: Could not find EpochPda for active epoch {}. Cannot determine forester assignments.",
+            "error: could not find EpochPda for active epoch {}; cannot determine forester assignments",
             current_active_epoch
         );
     }
@@ -393,15 +395,18 @@ fn print_tree_schedule_by_forester(
     if let Some(_current_epoch_pda) = current_epoch_pda_entry {
         if active_epoch_foresters.is_empty() {
             println!(
-                "ERROR: No foresters registered for tree {} in active epoch {}",
+                "error: no foresters registered for tree {} in active epoch {}",
                 tree, current_active_epoch
             );
         } else {
-            let total_epoch_weight = match active_epoch_foresters[0].total_epoch_weight {
+            let total_epoch_weight = match active_epoch_foresters
+                .first()
+                .and_then(|pda| pda.total_epoch_weight)
+            {
                 Some(w) if w > 0 => w,
                 _ => {
                     println!(
-                        "ERROR: Registration not finalized (total_epoch_weight is None or 0) for epoch {}. Cannot check assignments.",
+                        "error: registration not finalized (total_epoch_weight is none or 0) for epoch {}; cannot check assignments",
                         current_active_epoch
                     );
                     0
@@ -443,7 +448,7 @@ fn print_tree_schedule_by_forester(
                     epoch_phases.active.length() / protocol_config.config.slot_length
                 } else {
                     println!(
-                        "ERROR: ProtocolConfig slot_length is zero. Cannot calculate light slots."
+                        "error: protocol config slot_length is zero; cannot calculate light slots"
                     );
                     0
                 };
@@ -469,7 +474,7 @@ fn print_tree_schedule_by_forester(
                             Ok(idx) => idx,
                             Err(e) => {
                                 println!(
-                                    "ERROR calculating eligible index for light slot {}: {:?}",
+                                    "error calculating eligible index for light slot {}: {:?}",
                                     i, e
                                 );
                                 all_slots_checked = false;
@@ -505,7 +510,13 @@ fn print_tree_schedule_by_forester(
                     let current_light_slot_index = if slot >= epoch_phases.active.start
                         && slot < epoch_phases.active.end
                     {
-                        match active_epoch_foresters[0].get_current_light_slot(slot) {
+                        match active_epoch_foresters
+                            .first()
+                            .context("No foresters registered for active epoch")
+                            .and_then(|pda| {
+                                pda.get_current_light_slot(slot)
+                                    .context("get_current_light_slot failed")
+                            }) {
                             Ok(ls) => ls,
                             Err(e) => {
                                 println!("WARN: Could not calculate current light slot from PDA (using approximation): {:?}", e);
@@ -582,7 +593,7 @@ fn print_tree_schedule_by_forester(
                     }
                 } else {
                     println!(
-                        "Check FAILED: Tree {} is missing forester assignment starting at least at light slot index {} in epoch {}.",
+                        "check failed: tree {} is missing forester assignment starting at least at light slot index {} in epoch {}",
                         tree, first_missing_slot, current_active_epoch
                     );
                 }
@@ -590,7 +601,7 @@ fn print_tree_schedule_by_forester(
         }
     } else if current_epoch_pda_entry.is_none() {
         println!(
-            "ERROR: Could not find EpochPda for active epoch {}. Cannot check forester assignments.",
+            "error: could not find EpochPda for active epoch {}; cannot check forester assignments",
             current_active_epoch
         );
     }

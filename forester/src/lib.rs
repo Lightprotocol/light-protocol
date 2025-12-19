@@ -10,7 +10,6 @@ pub mod health_check;
 pub mod helius_priority_fee_types;
 pub mod metrics;
 pub mod pagerduty;
-pub mod polling;
 pub mod processor;
 pub mod pubsub_client;
 pub mod queue_helpers;
@@ -19,7 +18,6 @@ pub mod slot_tracker;
 pub mod smart_transaction;
 pub mod telemetry;
 pub mod tree_data_sync;
-pub mod tree_finder;
 pub mod utils;
 
 use std::{sync::Arc, time::Duration};
@@ -60,8 +58,7 @@ pub async fn run_queue_info(
         commitment_config: None,
         fetch_active_tree: false,
     })
-    .await
-    .unwrap();
+    .await?;
     let trees: Vec<_> = trees
         .iter()
         .filter(|t| t.tree_type == queue_type && !t.is_rolledover)
@@ -182,19 +179,14 @@ pub async fn run_pipeline<R: Rpc>(
         builder = builder.send_tx_rate_limiter(limiter);
     }
 
-    let rpc_pool = builder.build().await?;
-
-    let protocol_config = {
-        let mut rpc = rpc_pool.get_connection().await?;
-        get_protocol_config(&mut *rpc).await
-    };
-
-    let arc_pool = Arc::new(rpc_pool);
+    let arc_pool = Arc::new(builder.build().await?);
     let arc_pool_clone = Arc::clone(&arc_pool);
 
-    let slot = {
-        let rpc = arc_pool.get_connection().await?;
-        rpc.get_slot().await?
+    let (protocol_config, slot) = {
+        let mut rpc = arc_pool.get_connection().await?;
+        let protocol_config = get_protocol_config(&mut *rpc).await?;
+        let slot = rpc.get_slot().await?;
+        (protocol_config, slot)
     };
     let slot_tracker = SlotTracker::new(
         slot,
@@ -202,12 +194,21 @@ pub async fn run_pipeline<R: Rpc>(
     );
     let arc_slot_tracker = Arc::new(slot_tracker);
     let arc_slot_tracker_clone = arc_slot_tracker.clone();
-    tokio::spawn(async move {
-        let mut rpc = arc_pool_clone
-            .get_connection()
-            .await
-            .expect("Failed to get RPC connection");
-        SlotTracker::run(arc_slot_tracker_clone, &mut *rpc).await;
+    let slot_tracker_handle = tokio::spawn(async move {
+        loop {
+            match arc_pool_clone.get_connection().await {
+                Ok(mut rpc) => {
+                    SlotTracker::run(arc_slot_tracker_clone.clone(), &mut *rpc).await;
+                    // If SlotTracker::run returns, the connection likely failed
+                    tracing::warn!("SlotTracker connection lost, reconnecting...");
+                }
+                Err(e) => {
+                    tracing::error!("Failed to get RPC connection for SlotTracker: {:?}", e);
+                }
+            }
+            // Wait before retrying
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        }
     });
 
     let tx_cache = Arc::new(Mutex::new(ProcessedHashCache::new(
@@ -218,7 +219,6 @@ pub async fn run_pipeline<R: Rpc>(
         config.transaction_config.ops_cache_ttl_seconds,
     )));
 
-    // Start compressible subscriber if enabled and get tracker
     let compressible_tracker = if let Some(compressible_config) = &config.compressible_config {
         if let Some(shutdown_rx) = shutdown_compressible {
             let tracker = Arc::new(compressible::CompressibleAccountTracker::new());
@@ -282,7 +282,7 @@ pub async fn run_pipeline<R: Rpc>(
     };
 
     debug!("Starting Forester pipeline");
-    run_service(
+    let result = run_service(
         config,
         Arc::new(protocol_config),
         arc_pool,
@@ -293,6 +293,11 @@ pub async fn run_pipeline<R: Rpc>(
         ops_cache,
         compressible_tracker,
     )
-    .await?;
-    Ok(())
+    .await;
+
+    // Stop the SlotTracker task to prevent panic during shutdown
+    tracing::debug!("Stopping SlotTracker task");
+    slot_tracker_handle.abort();
+
+    result
 }

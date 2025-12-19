@@ -32,7 +32,7 @@ impl BatchAppendsCircuitInputs {
     pub fn new<const HEIGHT: usize>(
         tree_result: BatchTreeUpdateResult,
         start_index: u32,
-        leaves: Vec<[u8; 32]>,
+        leaves: &[[u8; 32]],
         leaves_hashchain: [u8; 32],
         batch_size: u32,
     ) -> Result<Self, ProverClientError> {

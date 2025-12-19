@@ -41,6 +41,7 @@ pub async fn setup_forester_and_advance_to_epoch<R: Rpc + TestRpc>(
         protocol_config,
         &test_keypairs.forester,
         &test_keypairs.forester.pubkey(),
+        None,
     )
     .await?
     .ok_or_else(|| RpcError::CustomError("Failed to register epoch".to_string()))?;

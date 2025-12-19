@@ -2,6 +2,7 @@ use account_compression::{
     AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig,
     QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
+use anyhow::Context;
 use forester_utils::{
     account_zero_copy::{get_concurrent_merkle_tree, get_indexed_merkle_tree},
     address_merkle_tree_config::{get_address_bundle_config, get_state_bundle_config},
@@ -11,7 +12,7 @@ use forester_utils::{
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    rpc::{Rpc, RpcError},
+    rpc::Rpc,
 };
 use light_compressed_account::TreeType;
 use light_hasher::Poseidon;
@@ -52,7 +53,12 @@ pub async fn get_tree_fullness<R: Rpc>(
             let account = rpc
                 .get_anchor_account::<StateMerkleTreeAccount>(&tree_pubkey)
                 .await?
-                .unwrap();
+                .ok_or_else(|| {
+                    ForesterError::Other(anyhow::anyhow!(
+                        "StateV1 merkle tree account not found: {}",
+                        tree_pubkey
+                    ))
+                })?;
 
             let merkle_tree =
                 get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
@@ -78,11 +84,21 @@ pub async fn get_tree_fullness<R: Rpc>(
             let account = rpc
                 .get_anchor_account::<AddressMerkleTreeAccount>(&tree_pubkey)
                 .await?
-                .unwrap();
+                .ok_or_else(|| {
+                    ForesterError::Other(anyhow::anyhow!(
+                        "AddressV1 merkle tree account not found: {}",
+                        tree_pubkey
+                    ))
+                })?;
             let queue_account = rpc
                 .get_anchor_account::<QueueAccount>(&account.metadata.associated_queue.into())
                 .await?
-                .unwrap();
+                .ok_or_else(|| {
+                    ForesterError::Other(anyhow::anyhow!(
+                        "AddressV1 queue account not found: {:?}",
+                        account.metadata.associated_queue
+                    ))
+                })?;
             let merkle_tree =
                 get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
                     rpc,
@@ -105,10 +121,12 @@ pub async fn get_tree_fullness<R: Rpc>(
             })
         }
         TreeType::StateV2 => {
-            let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
+            let mut account = rpc.get_account(tree_pubkey).await?.ok_or_else(|| {
+                anyhow::anyhow!("StateV2 tree account not found: {}", tree_pubkey)
+            })?;
             let merkle_tree =
                 BatchedMerkleTreeAccount::state_from_bytes(&mut account.data, &tree_pubkey.into())
-                    .unwrap();
+                    .map_err(|e| anyhow::anyhow!("Failed to parse StateV2 tree: {:?}", e))?;
 
             let height = merkle_tree.height as u64;
             let capacity = 1u64 << height;
@@ -126,12 +144,14 @@ pub async fn get_tree_fullness<R: Rpc>(
         }
 
         TreeType::AddressV2 => {
-            let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
+            let mut account = rpc.get_account(tree_pubkey).await?.ok_or_else(|| {
+                anyhow::anyhow!("AddressV2 tree account not found: {}", tree_pubkey)
+            })?;
             let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
                 &mut account.data,
                 &tree_pubkey.into(),
             )
-            .unwrap();
+            .map_err(|e| anyhow::anyhow!("Failed to parse AddressV2 tree: {:?}", e))?;
 
             let height = merkle_tree.height as u64;
             let capacity = 1u64 << height;
@@ -172,12 +192,22 @@ pub async fn is_tree_ready_for_rollover<R: Rpc>(
         TreeType::StateV1 => TreeAccount::State(
             rpc.get_anchor_account::<StateMerkleTreeAccount>(&tree_pubkey)
                 .await?
-                .unwrap(),
+                .ok_or_else(|| {
+                    ForesterError::Other(anyhow::anyhow!(
+                        "StateV1 merkle tree account not found: {}",
+                        tree_pubkey
+                    ))
+                })?,
         ),
         TreeType::AddressV1 => TreeAccount::Address(
             rpc.get_anchor_account::<AddressMerkleTreeAccount>(&tree_pubkey)
                 .await?
-                .unwrap(),
+                .ok_or_else(|| {
+                    ForesterError::Other(anyhow::anyhow!(
+                        "AddressV1 merkle tree account not found: {}",
+                        tree_pubkey
+                    ))
+                })?,
         ),
         _ => return Err(ForesterError::InvalidTreeType(tree_type)),
     };
@@ -217,7 +247,7 @@ pub async fn perform_state_merkle_tree_rollover_forester<R: Rpc>(
     old_queue_pubkey: &Pubkey,
     old_cpi_context_pubkey: &Pubkey,
     epoch: u64,
-) -> Result<solana_sdk::signature::Signature, RpcError> {
+) -> Result<solana_sdk::signature::Signature, ForesterError> {
     let instructions = create_rollover_state_merkle_tree_instructions(
         context,
         &payer.pubkey(),
@@ -230,7 +260,7 @@ pub async fn perform_state_merkle_tree_rollover_forester<R: Rpc>(
         old_cpi_context_pubkey,
         epoch,
     )
-    .await;
+    .await?;
     let blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
@@ -243,7 +273,10 @@ pub async fn perform_state_merkle_tree_rollover_forester<R: Rpc>(
         ],
         blockhash.0,
     );
-    context.process_transaction(transaction).await
+    context
+        .process_transaction(transaction)
+        .await
+        .map_err(Into::into)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -256,7 +289,7 @@ pub async fn perform_address_merkle_tree_rollover<R: Rpc>(
     old_merkle_tree_pubkey: &Pubkey,
     old_queue_pubkey: &Pubkey,
     epoch: u64,
-) -> Result<solana_sdk::signature::Signature, RpcError> {
+) -> Result<solana_sdk::signature::Signature, ForesterError> {
     let mut instructions = create_rollover_address_merkle_tree_instructions(
         context,
         &payer.pubkey(),
@@ -267,7 +300,7 @@ pub async fn perform_address_merkle_tree_rollover<R: Rpc>(
         old_queue_pubkey,
         epoch,
     )
-    .await;
+    .await?;
     let compute_budget_instruction = ComputeBudgetInstruction::set_compute_unit_limit(500_000);
     instructions.insert(0, compute_budget_instruction);
     let blockhash = context.get_latest_blockhash().await?;
@@ -277,7 +310,10 @@ pub async fn perform_address_merkle_tree_rollover<R: Rpc>(
         &vec![&payer, &new_queue_keypair, &new_address_merkle_tree_keypair],
         blockhash.0,
     );
-    context.process_transaction(transaction).await
+    context
+        .process_transaction(transaction)
+        .await
+        .map_err(Into::into)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -290,7 +326,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: Rpc>(
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
     epoch: u64,
-) -> Vec<Instruction> {
+) -> Result<Vec<Instruction>, ForesterError> {
     let (merkle_tree_config, queue_config) = get_address_bundle_config(
         rpc,
         AddressMerkleTreeAccounts {
@@ -305,7 +341,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: Rpc>(
             &merkle_tree_config,
             &queue_config,
         )
-        .await;
+        .await?;
     let create_nullifier_queue_instruction = create_account_instruction(
         authority,
         queue_rent_exemption.size,
@@ -334,11 +370,11 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: Rpc>(
         },
         epoch,
     );
-    vec![
+    Ok(vec![
         create_nullifier_queue_instruction,
         create_state_merkle_tree_instruction,
         instruction,
-    ]
+    ])
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -353,7 +389,7 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: Rpc>(
     nullifier_queue_pubkey: &Pubkey,
     old_cpi_context_pubkey: &Pubkey,
     epoch: u64,
-) -> Vec<Instruction> {
+) -> Result<Vec<Instruction>, ForesterError> {
     let (merkle_tree_config, queue_config) = get_state_bundle_config(
         rpc,
         StateMerkleTreeAccounts {
@@ -366,7 +402,7 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: Rpc>(
     .await;
     let (state_merkle_tree_rent_exemption, queue_rent_exemption) =
         get_rent_exemption_for_state_merkle_tree_and_queue(rpc, &merkle_tree_config, &queue_config)
-            .await;
+            .await?;
     let create_nullifier_queue_instruction = create_account_instruction(
         authority,
         queue_rent_exemption.size,
@@ -385,7 +421,7 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: Rpc>(
     let rent_cpi_config = rpc
         .get_minimum_balance_for_rent_exemption(ProtocolConfig::default().cpi_context_size as usize)
         .await
-        .unwrap();
+        .context("Failed to fetch rent exemption for CPI context")?;
     let create_cpi_context_instruction = create_account_instruction(
         authority,
         ProtocolConfig::default().cpi_context_size as usize,
@@ -407,25 +443,26 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: Rpc>(
         },
         epoch,
     );
-    vec![
+    Ok(vec![
         create_cpi_context_instruction,
         create_nullifier_queue_instruction,
         create_state_merkle_tree_instruction,
         instruction,
-    ]
+    ])
 }
 
 pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: Rpc>(
     rpc: &mut R,
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
-) -> (RentExemption, RentExemption) {
-    let queue_size = QueueAccount::size(queue_config.capacity as usize).unwrap();
+) -> Result<(RentExemption, RentExemption), ForesterError> {
+    let queue_size = QueueAccount::size(queue_config.capacity as usize)
+        .context("Failed to compute StateV1 queue account size")?;
 
     let queue_rent_exempt_lamports = rpc
         .get_minimum_balance_for_rent_exemption(queue_size)
         .await
-        .unwrap();
+        .context("Failed to fetch rent exemption for StateV1 queue account")?;
     let tree_size = StateMerkleTreeAccount::size(
         merkle_tree_config.height as usize,
         merkle_tree_config.changelog_size as usize,
@@ -435,8 +472,8 @@ pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: Rpc>(
     let merkle_tree_rent_exempt_lamports = rpc
         .get_minimum_balance_for_rent_exemption(tree_size)
         .await
-        .unwrap();
-    (
+        .context("Failed to fetch rent exemption for StateV1 merkle tree account")?;
+    Ok((
         RentExemption {
             lamports: merkle_tree_rent_exempt_lamports,
             size: tree_size,
@@ -445,20 +482,21 @@ pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: Rpc>(
             lamports: queue_rent_exempt_lamports,
             size: queue_size,
         },
-    )
+    ))
 }
 
 pub async fn get_rent_exemption_for_address_merkle_tree_and_queue<R: Rpc>(
     rpc: &mut R,
     address_merkle_tree_config: &AddressMerkleTreeConfig,
     address_queue_config: &AddressQueueConfig,
-) -> (RentExemption, RentExemption) {
-    let queue_size = QueueAccount::size(address_queue_config.capacity as usize).unwrap();
+) -> Result<(RentExemption, RentExemption), ForesterError> {
+    let queue_size = QueueAccount::size(address_queue_config.capacity as usize)
+        .context("Failed to compute AddressV1 queue account size")?;
 
     let queue_rent_exempt_lamports = rpc
         .get_minimum_balance_for_rent_exemption(queue_size)
         .await
-        .unwrap();
+        .context("Failed to fetch rent exemption for AddressV1 queue account")?;
     let tree_size = AddressMerkleTreeAccount::size(
         address_merkle_tree_config.height as usize,
         address_merkle_tree_config.changelog_size as usize,
@@ -469,8 +507,8 @@ pub async fn get_rent_exemption_for_address_merkle_tree_and_queue<R: Rpc>(
     let merkle_tree_rent_exempt_lamports = rpc
         .get_minimum_balance_for_rent_exemption(tree_size)
         .await
-        .unwrap();
-    (
+        .context("Failed to fetch rent exemption for AddressV1 merkle tree account")?;
+    Ok((
         RentExemption {
             lamports: merkle_tree_rent_exempt_lamports,
             size: tree_size,
@@ -479,5 +517,5 @@ pub async fn get_rent_exemption_for_address_merkle_tree_and_queue<R: Rpc>(
             lamports: queue_rent_exempt_lamports,
             size: queue_size,
         },
-    )
+    ))
 }

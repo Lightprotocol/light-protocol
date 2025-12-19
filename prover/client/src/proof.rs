@@ -12,16 +12,17 @@ use solana_bn254::compression::prelude::{
     convert_endianness,
 };
 
-pub struct ProofResult {
-    pub proof: ProofCompressed,
-    pub public_inputs: Vec<[u8; 32]>,
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct ProofCompressed {
     pub a: [u8; 32],
     pub b: [u8; 64],
     pub c: [u8; 32],
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ProofResult {
+    pub proof: ProofCompressed,
+    pub proof_duration_ms: u64,
 }
 
 impl From<ProofCompressed> for CompressedProof {

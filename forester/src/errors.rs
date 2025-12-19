@@ -102,17 +102,14 @@ pub enum ConfigError {
     #[error("Missing required field: {field}")]
     MissingField { field: &'static str },
 
-    #[error("Invalid keypair data: {0}")]
-    InvalidKeypair(String),
-
-    #[error("Invalid pubkey: {field} - {error}")]
-    InvalidPubkey { field: &'static str, error: String },
-
-    #[error("Invalid derivation: {reason}")]
-    InvalidDerivation { reason: String },
-
-    #[error("JSON parsing error: {field} - {error}")]
+    #[error("JSON parsing error for {field}: {error}")]
     JsonParse { field: &'static str, error: String },
+
+    #[error("Invalid {field}: {}", .invalid_values.join(", "))]
+    InvalidArguments {
+        field: &'static str,
+        invalid_values: Vec<String>,
+    },
 }
 
 #[derive(Error, Debug)]

@@ -128,6 +128,22 @@ pub struct StartArgs {
     )]
     pub ops_cache_ttl_seconds: u64,
 
+    #[arg(
+        long,
+        env = "FORESTER_CONFIRMATION_MAX_ATTEMPTS",
+        default_value = "60",
+        help = "Maximum attempts to confirm a transaction before timing out"
+    )]
+    pub confirmation_max_attempts: u32,
+
+    #[arg(
+        long,
+        env = "FORESTER_CONFIRMATION_POLL_INTERVAL_MS",
+        default_value = "500",
+        help = "Interval between confirmation polling attempts in milliseconds"
+    )]
+    pub confirmation_poll_interval_ms: u64,
+
     #[arg(long, env = "FORESTER_CU_LIMIT", default_value = "1000000")]
     pub cu_limit: u32,
 
@@ -230,18 +246,34 @@ pub struct StartArgs {
 
     #[arg(
         long,
-        env = "FORESTER_TREE_ID",
-        help = "Process only the specified tree (Pubkey). If specified, forester will process only this tree and ignore all others"
+        env = "FORESTER_QUEUE_POLLING_MODE",
+        default_value_t = QueuePollingMode::Indexer,
+        help = "Queue polling mode: indexer (poll indexer API, requires indexer_url), onchain (read queue status directly from RPC)"
     )]
-    pub tree_id: Option<String>,
+    pub queue_polling_mode: QueuePollingMode,
+
+    #[arg(
+        long = "tree-id",
+        env = "FORESTER_TREE_IDS",
+        help = "Process only the specified trees (Pubkeys). Can be specified multiple times. If specified, forester will process only these trees and ignore all others",
+        value_delimiter = ','
+    )]
+    pub tree_ids: Vec<String>,
 
     #[arg(
         long,
         env = "FORESTER_ENABLE_COMPRESSIBLE",
-        help = "Enable compressible account tracking and compression using ws_rpc_url",
+        help = "Enable compressible account tracking and compression using ws_rpc_url (requires --ws-rpc-url)",
         default_value = "false"
     )]
     pub enable_compressible: bool,
+
+    #[arg(
+        long,
+        env = "FORESTER_LOOKUP_TABLE_ADDRESS",
+        help = "Address lookup table pubkey for versioned transactions. If not provided, legacy transactions will be used."
+    )]
+    pub lookup_table_address: Option<String>,
 }
 
 #[derive(Parser, Clone, Debug)]
@@ -320,12 +352,33 @@ pub enum ProcessorMode {
     All,
 }
 
+/// Queue polling mode determines how the forester discovers pending queue items.
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum QueuePollingMode {
+    /// Poll the indexer API for queue status (requires indexer_url)
+    #[clap(name = "indexer")]
+    #[default]
+    Indexer,
+    /// Read queue status directly from on-chain accounts via RPC
+    #[clap(name = "onchain")]
+    OnChain,
+}
+
 impl std::fmt::Display for ProcessorMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ProcessorMode::V1 => write!(f, "v1"),
             ProcessorMode::V2 => write!(f, "v2"),
             ProcessorMode::All => write!(f, "all"),
+        }
+    }
+}
+
+impl std::fmt::Display for QueuePollingMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QueuePollingMode::Indexer => write!(f, "indexer"),
+            QueuePollingMode::OnChain => write!(f, "onchain"),
         }
     }
 }

@@ -17,21 +17,15 @@ pub struct AddressQueueDataV2 {
     pub addresses: Vec<String>,
     pub queue_indices: Vec<u64>,
     /// Deduplicated tree nodes for address tree non-inclusion proofs
-    #[serde(default)]
     pub nodes: Vec<models::Node>,
     pub low_element_indices: Vec<u64>,
     pub low_element_values: Vec<String>,
     pub low_element_next_indices: Vec<u64>,
     pub low_element_next_values: Vec<String>,
-    #[serde(default)]
-    pub low_element_proofs: Vec<Vec<String>>,
-    #[serde(default)]
     pub leaves_hash_chains: Vec<String>,
     pub initial_root: String,
     pub start_index: u64,
-    #[serde(default)]
     pub subtrees: Vec<String>,
-    #[serde(default)]
     pub root_seq: u64,
 }
 
@@ -45,7 +39,6 @@ impl AddressQueueDataV2 {
         low_element_values: Vec<String>,
         low_element_next_indices: Vec<u64>,
         low_element_next_values: Vec<String>,
-        low_element_proofs: Vec<Vec<String>>,
         leaves_hash_chains: Vec<String>,
         initial_root: String,
         start_index: u64,
@@ -60,7 +53,6 @@ impl AddressQueueDataV2 {
             low_element_values,
             low_element_next_indices,
             low_element_next_values,
-            low_element_proofs,
             leaves_hash_chains,
             initial_root,
             start_index,

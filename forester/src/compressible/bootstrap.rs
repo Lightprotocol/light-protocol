@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use base64::{engine::general_purpose, Engine as _};
 use borsh::BorshDeserialize;
 use light_ctoken_interface::{
     state::{extensions::ExtensionStruct, CToken},
@@ -97,7 +96,7 @@ fn process_account(
         }
     };
 
-    let data_bytes = match general_purpose::STANDARD.decode(data_str) {
+    let data_bytes = match base64::decode(data_str) {
         Ok(bytes) => bytes,
         Err(e) => {
             debug!("Failed to decode base64 for account {}: {:?}", pubkey, e);

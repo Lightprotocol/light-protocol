@@ -62,6 +62,8 @@ async fn test_priority_fee_request() {
         max_concurrent_sends: 50,
         tx_cache_ttl_seconds: 15,
         ops_cache_ttl_seconds: 180,
+        confirmation_max_attempts: 30,
+        confirmation_poll_interval_ms: 1000,
         cu_limit: 1_000_000,
         enable_priority_fees: true,
         rpc_pool_size: 20,
@@ -83,8 +85,10 @@ async fn test_priority_fee_request() {
         photon_rate_limit: None,
         send_tx_rate_limit: None,
         processor_mode: ProcessorMode::All,
-        tree_id: None,
+        queue_polling_mode: Default::default(),
+        tree_ids: vec![],
         enable_compressible: true,
+        lookup_table_address: None,
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");

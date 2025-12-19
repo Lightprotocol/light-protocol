@@ -113,6 +113,12 @@ func (p *BatchUpdateParameters) UpdateWithJSON(params BatchUpdateProofInputsJSON
 		return err
 	}
 
+	// Validate array lengths match to prevent index out of range panic
+	if len(params.Leaves) != len(params.TxHashes) || len(params.Leaves) != len(params.OldLeaves) {
+		return fmt.Errorf("array length mismatch: leaves=%d, txHashes=%d, oldLeaves=%d",
+			len(params.Leaves), len(params.TxHashes), len(params.OldLeaves))
+	}
+
 	p.TxHashes = make([]*big.Int, len(params.TxHashes))
 	p.Leaves = make([]*big.Int, len(params.Leaves))
 	p.OldLeaves = make([]*big.Int, len(params.OldLeaves))

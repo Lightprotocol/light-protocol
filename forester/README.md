@@ -70,6 +70,7 @@ Control transaction batching and concurrency:
 | `--transaction-max-concurrent-batches` | 20 | Maximum concurrent transaction batches |
 | `--cu-limit` | 1000000 | Compute unit limit per transaction |
 | `--enable-priority-fees` | false | Enable dynamic priority fee calculation |
+| `--enable-compressible` | false | Enable compressible account tracking and compression (requires `--ws-rpc-url`) |
 
 #### Example
 

@@ -17,12 +17,18 @@ lazy_static! {
         prometheus::opts!("queue_length", "Length of the queue"),
         &["tree_type", "tree_pubkey"]
     )
-    .expect("metric can be created");
+    .unwrap_or_else(|e| {
+        error!("Failed to create metric QUEUE_LENGTH: {:?}", e);
+        std::process::exit(1);
+    });
     pub static ref LAST_RUN_TIMESTAMP: IntGauge = IntGauge::new(
         "forester_last_run_timestamp",
         "Timestamp of the last Forester run"
     )
-    .expect("metric can be created");
+    .unwrap_or_else(|e| {
+        error!("Failed to create metric LAST_RUN_TIMESTAMP: {:?}", e);
+        std::process::exit(1);
+    });
     pub static ref TRANSACTIONS_PROCESSED: IntCounterVec = IntCounterVec::new(
         prometheus::opts!(
             "forester_transactions_processed_total",
@@ -30,7 +36,10 @@ lazy_static! {
         ),
         &["epoch"]
     )
-    .expect("metric can be created");
+    .unwrap_or_else(|e| {
+        error!("Failed to create metric TRANSACTIONS_PROCESSED: {:?}", e);
+        std::process::exit(1);
+    });
     pub static ref TRANSACTION_TIMESTAMP: GaugeVec = GaugeVec::new(
         prometheus::opts!(
             "forester_transaction_timestamp",
@@ -38,7 +47,10 @@ lazy_static! {
         ),
         &["epoch"]
     )
-    .expect("metric can be created");
+    .unwrap_or_else(|e| {
+        error!("Failed to create metric TRANSACTION_TIMESTAMP: {:?}", e);
+        std::process::exit(1);
+    });
     pub static ref TRANSACTION_RATE: GaugeVec = GaugeVec::new(
         prometheus::opts!(
             "forester_transaction_rate",
@@ -46,7 +58,10 @@ lazy_static! {
         ),
         &["epoch"]
     )
-    .expect("metric can be created");
+    .unwrap_or_else(|e| {
+        error!("Failed to create metric TRANSACTION_RATE: {:?}", e);
+        std::process::exit(1);
+    });
     pub static ref FORESTER_SOL_BALANCE: GaugeVec = GaugeVec::new(
         prometheus::opts!(
             "forester_sol_balance",
@@ -54,12 +69,18 @@ lazy_static! {
         ),
         &["pubkey"]
     )
-    .expect("metric can be created");
+    .unwrap_or_else(|e| {
+        error!("Failed to create metric FORESTER_SOL_BALANCE: {:?}", e);
+        std::process::exit(1);
+    });
     pub static ref REGISTERED_FORESTERS: GaugeVec = GaugeVec::new(
         prometheus::opts!("registered_foresters", "Foresters registered per epoch"),
         &["epoch", "authority"]
     )
-    .expect("metric can be created");
+    .unwrap_or_else(|e| {
+        error!("Failed to create metric REGISTERED_FORESTERS: {:?}", e);
+        std::process::exit(1);
+    });
     static ref METRIC_UPDATES: Mutex<Vec<(u64, usize, std::time::Duration)>> =
         Mutex::new(Vec::new());
 }
@@ -67,43 +88,49 @@ lazy_static! {
 static INIT: Once = Once::new();
 pub fn register_metrics() {
     INIT.call_once(|| {
-        REGISTRY
-            .register(Box::new(QUEUE_LENGTH.clone()))
-            .expect("collector can be registered");
-        REGISTRY
-            .register(Box::new(LAST_RUN_TIMESTAMP.clone()))
-            .expect("collector can be registered");
-        REGISTRY
-            .register(Box::new(TRANSACTIONS_PROCESSED.clone()))
-            .expect("collector can be registered");
-        REGISTRY
-            .register(Box::new(TRANSACTION_TIMESTAMP.clone()))
-            .expect("collector can be registered");
-        REGISTRY
-            .register(Box::new(TRANSACTION_RATE.clone()))
-            .expect("collector can be registered");
-        REGISTRY
-            .register(Box::new(FORESTER_SOL_BALANCE.clone()))
-            .expect("collector can be registered");
-        REGISTRY
-            .register(Box::new(REGISTERED_FORESTERS.clone()))
-            .expect("collector can be registered");
+        if let Err(e) = REGISTRY.register(Box::new(QUEUE_LENGTH.clone())) {
+            error!("Failed to register metric QUEUE_LENGTH: {:?}", e);
+        }
+        if let Err(e) = REGISTRY.register(Box::new(LAST_RUN_TIMESTAMP.clone())) {
+            error!("Failed to register metric LAST_RUN_TIMESTAMP: {:?}", e);
+        }
+        if let Err(e) = REGISTRY.register(Box::new(TRANSACTIONS_PROCESSED.clone())) {
+            error!("Failed to register metric TRANSACTIONS_PROCESSED: {:?}", e);
+        }
+        if let Err(e) = REGISTRY.register(Box::new(TRANSACTION_TIMESTAMP.clone())) {
+            error!("Failed to register metric TRANSACTION_TIMESTAMP: {:?}", e);
+        }
+        if let Err(e) = REGISTRY.register(Box::new(TRANSACTION_RATE.clone())) {
+            error!("Failed to register metric TRANSACTION_RATE: {:?}", e);
+        }
+        if let Err(e) = REGISTRY.register(Box::new(FORESTER_SOL_BALANCE.clone())) {
+            error!("Failed to register metric FORESTER_SOL_BALANCE: {:?}", e);
+        }
+        if let Err(e) = REGISTRY.register(Box::new(REGISTERED_FORESTERS.clone())) {
+            error!("Failed to register metric REGISTERED_FORESTERS: {:?}", e);
+        }
     });
 }
 
 pub fn update_last_run_timestamp() {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards")
-        .as_secs() as i64;
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or_else(|e| {
+            error!("Failed to compute last run timestamp: {}", e);
+            0
+        });
     LAST_RUN_TIMESTAMP.set(now);
 }
 
 pub fn update_transactions_processed(epoch: u64, count: usize, duration: std::time::Duration) {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards")
-        .as_secs_f64();
+        .map(|d| d.as_secs_f64())
+        .unwrap_or_else(|e| {
+            error!("Failed to compute transaction timestamp: {}", e);
+            0.0
+        });
 
     TRANSACTIONS_PROCESSED
         .with_label_values(&[&epoch.to_string()])
@@ -146,8 +173,10 @@ pub fn update_forester_sol_balance(pubkey: &str, balance: f64) {
 }
 
 pub fn update_registered_foresters(epoch: u64, authority: &str) {
+    let epoch_str = epoch.to_string();
+    let authority_str = authority.to_string();
     REGISTERED_FORESTERS
-        .with_label_values(&[&epoch.to_string(), authority])
+        .with_label_values(&[epoch_str.as_str(), authority_str.as_str()])
         .set(1.0);
 }
 

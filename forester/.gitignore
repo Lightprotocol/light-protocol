@@ -2,5 +2,6 @@ logs
 /target
 .idea
 .env
+.env.devnet
 *.json
 !package.json

@@ -3,7 +3,7 @@ use light_client::rpc::RpcError;
 use light_hasher::HasherError;
 use thiserror::Error;
 
-use crate::rpc_pool::PoolError;
+use crate::{address_staging_tree::AddressStagingTreeError, rpc_pool::PoolError};
 
 #[derive(Error, Debug)]
 pub enum ForesterUtilsError {
@@ -31,4 +31,7 @@ pub enum ForesterUtilsError {
 
     #[error("error: {0}")]
     StagingTree(String),
+
+    #[error(transparent)]
+    AddressStagingTree(#[from] AddressStagingTreeError),
 }

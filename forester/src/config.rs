@@ -8,7 +8,7 @@ use light_registry::{EpochPda, ForesterEpochPda};
 use solana_sdk::{pubkey::Pubkey, signature::Keypair};
 
 use crate::{
-    cli::{ProcessorMode, StartArgs, StatusArgs},
+    cli::{ProcessorMode, QueuePollingMode, StartArgs, StatusArgs},
     errors::ConfigError,
     Result,
 };
@@ -28,6 +28,8 @@ pub struct ForesterConfig {
     pub address_tree_data: Vec<TreeAccounts>,
     pub state_tree_data: Vec<TreeAccounts>,
     pub compressible_config: Option<crate::compressible::config::CompressibleConfig>,
+    /// Address lookup table for versioned transactions. If None, legacy transactions are used.
+    pub lookup_table_address: Option<Pubkey>,
 }
 
 #[derive(Debug, Clone)]
@@ -74,6 +76,10 @@ pub struct TransactionConfig {
     pub enable_priority_fees: bool,
     pub tx_cache_ttl_seconds: u64,
     pub ops_cache_ttl_seconds: u64,
+    /// Maximum attempts to confirm a transaction before timing out.
+    pub confirmation_max_attempts: u32,
+    /// Interval between confirmation polling attempts in milliseconds.
+    pub confirmation_poll_interval_ms: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -85,9 +91,10 @@ pub struct GeneralConfig {
     pub skip_v1_address_trees: bool,
     pub skip_v2_state_trees: bool,
     pub skip_v2_address_trees: bool,
-    pub tree_id: Option<Pubkey>,
+    pub tree_ids: Vec<Pubkey>,
     pub sleep_after_processing_ms: u64,
     pub sleep_when_idle_ms: u64,
+    pub queue_polling_mode: QueuePollingMode,
 }
 
 impl Default for GeneralConfig {
@@ -100,9 +107,10 @@ impl Default for GeneralConfig {
             skip_v1_address_trees: false,
             skip_v2_state_trees: false,
             skip_v2_address_trees: false,
-            tree_id: None,
+            tree_ids: vec![],
             sleep_after_processing_ms: 10_000,
             sleep_when_idle_ms: 45_000,
+            queue_polling_mode: QueuePollingMode::Indexer,
         }
     }
 }
@@ -117,9 +125,10 @@ impl GeneralConfig {
             skip_v1_address_trees: true,
             skip_v2_state_trees: true,
             skip_v2_address_trees: false,
-            tree_id: None,
+            tree_ids: vec![],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
+            queue_polling_mode: QueuePollingMode::Indexer,
         }
     }
 
@@ -132,9 +141,10 @@ impl GeneralConfig {
             skip_v1_address_trees: true,
             skip_v2_state_trees: false,
             skip_v2_address_trees: true,
-            tree_id: None,
+            tree_ids: vec![],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
+            queue_polling_mode: QueuePollingMode::Indexer,
         }
     }
 }
@@ -179,6 +189,8 @@ impl Default for TransactionConfig {
             enable_priority_fees: false,
             tx_cache_ttl_seconds: 15,
             ops_cache_ttl_seconds: 180,
+            confirmation_max_attempts: 60,
+            confirmation_poll_interval_ms: 500,
         }
     }
 }
@@ -195,8 +207,11 @@ impl ForesterConfig {
             }
             None => return Err(ConfigError::MissingField { field: "payer" })?,
         };
-        let payer = Keypair::try_from(payer.as_slice())
-            .map_err(|e| ConfigError::InvalidKeypair(e.to_string()))?;
+        let payer =
+            Keypair::try_from(payer.as_slice()).map_err(|e| ConfigError::InvalidArguments {
+                field: "payer",
+                invalid_values: vec![e.to_string()],
+            })?;
 
         let derivation: Vec<u8> = match &args.derivation {
             Some(derivation_str) => {
@@ -214,8 +229,9 @@ impl ForesterConfig {
         let derivation_array: [u8; 32] =
             derivation
                 .try_into()
-                .map_err(|_| ConfigError::InvalidDerivation {
-                    reason: "must be exactly 32 bytes".to_string(),
+                .map_err(|_| ConfigError::InvalidArguments {
+                    field: "derivation",
+                    invalid_values: vec!["must be exactly 32 bytes".to_string()],
                 })?;
         let derivation = Pubkey::from(derivation_array);
 
@@ -276,6 +292,8 @@ impl ForesterConfig {
                 enable_priority_fees: args.enable_priority_fees,
                 tx_cache_ttl_seconds: args.tx_cache_ttl_seconds,
                 ops_cache_ttl_seconds: args.ops_cache_ttl_seconds,
+                confirmation_max_attempts: args.confirmation_max_attempts,
+                confirmation_poll_interval_ms: args.confirmation_poll_interval_ms,
             },
             general_config: GeneralConfig {
                 slot_update_interval_seconds: args.slot_update_interval_seconds,
@@ -285,12 +303,28 @@ impl ForesterConfig {
                 skip_v2_state_trees: args.processor_mode == ProcessorMode::V1,
                 skip_v1_address_trees: args.processor_mode == ProcessorMode::V2,
                 skip_v2_address_trees: args.processor_mode == ProcessorMode::V1,
-                tree_id: args
-                    .tree_id
-                    .as_ref()
-                    .and_then(|id| Pubkey::from_str(id).ok()),
+                tree_ids: {
+                    let (valid, invalid): (Vec<_>, Vec<_>) = args
+                        .tree_ids
+                        .iter()
+                        .map(|id| Pubkey::from_str(id).map_err(|_| id.clone()))
+                        .partition(|r| r.is_ok());
+
+                    if !invalid.is_empty() {
+                        let invalid_values: Vec<String> =
+                            invalid.into_iter().map(|r| r.unwrap_err()).collect();
+                        return Err(ConfigError::InvalidArguments {
+                            field: "tree_ids",
+                            invalid_values,
+                        }
+                        .into());
+                    }
+
+                    valid.into_iter().map(|r| r.unwrap()).collect()
+                },
                 sleep_after_processing_ms: 10_000,
                 sleep_when_idle_ms: 45_000,
+                queue_polling_mode: args.queue_polling_mode,
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: args.rpc_pool_size,
@@ -301,9 +335,9 @@ impl ForesterConfig {
                 max_retry_delay_ms: args.rpc_pool_max_retry_delay_ms,
             },
             registry_pubkey: Pubkey::from_str(&registry_pubkey).map_err(|e| {
-                ConfigError::InvalidPubkey {
+                ConfigError::InvalidArguments {
                     field: "registry_pubkey",
-                    error: e.to_string(),
+                    invalid_values: vec![e.to_string()],
                 }
             })?,
             payer_keypair: payer,
@@ -311,12 +345,34 @@ impl ForesterConfig {
             address_tree_data: vec![],
             state_tree_data: vec![],
             compressible_config: if args.enable_compressible {
-                args.ws_rpc_url
-                    .clone()
-                    .map(crate::compressible::config::CompressibleConfig::new)
+                match &args.ws_rpc_url {
+                    Some(ws_url) => Some(crate::compressible::config::CompressibleConfig::new(
+                        ws_url.clone(),
+                    )),
+                    None => {
+                        return Err(ConfigError::InvalidArguments {
+                            field: "enable_compressible",
+                            invalid_values: vec![
+                                "--ws-rpc-url is required when --enable-compressible is true"
+                                    .to_string(),
+                            ],
+                        }
+                        .into())
+                    }
+                }
             } else {
                 None
             },
+            lookup_table_address: args
+                .lookup_table_address
+                .as_ref()
+                .map(|s| {
+                    Pubkey::from_str(s).map_err(|e| ConfigError::InvalidArguments {
+                        field: "lookup_table_address",
+                        invalid_values: vec![e.to_string()],
+                    })
+                })
+                .transpose()?,
         })
     }
 
@@ -355,9 +411,10 @@ impl ForesterConfig {
                 skip_v2_state_trees: false,
                 skip_v1_address_trees: false,
                 skip_v2_address_trees: false,
-                tree_id: None,
+                tree_ids: vec![],
                 sleep_after_processing_ms: 10_000,
                 sleep_when_idle_ms: 45_000,
+                queue_polling_mode: QueuePollingMode::OnChain, // Status uses on-chain reads
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: 10,
@@ -373,6 +430,7 @@ impl ForesterConfig {
             address_tree_data: vec![],
             state_tree_data: vec![],
             compressible_config: None,
+            lookup_table_address: None,
         })
     }
 }
@@ -392,6 +450,7 @@ impl Clone for ForesterConfig {
             address_tree_data: self.address_tree_data.clone(),
             state_tree_data: self.state_tree_data.clone(),
             compressible_config: self.compressible_config.clone(),
+            lookup_table_address: self.lookup_table_address,
         }
     }
 }

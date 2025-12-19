@@ -36,8 +36,17 @@ pub async fn fetch_queue_item_data<R: Rpc>(
             return Ok(Vec::new());
         }
     };
-    let queue: HashSet =
-        unsafe { HashSet::from_bytes_copy(&mut account.data[8 + size_of::<QueueAccount>()..])? };
+    let offset = 8 + std::mem::size_of::<QueueAccount>();
+    if account.data.len() < offset {
+        tracing::warn!(
+            "Queue account {} data too short ({} < {})",
+            queue_pubkey,
+            account.data.len(),
+            offset
+        );
+        return Ok(Vec::new());
+    }
+    let queue: HashSet = unsafe { HashSet::from_bytes_copy(&mut account.data[offset..])? };
     let end_index = (start_index + processing_length).min(queue_length);
 
     let filtered_queue = queue

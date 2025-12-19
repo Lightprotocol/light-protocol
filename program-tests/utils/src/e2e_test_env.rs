@@ -835,10 +835,8 @@ where
                                 if response_result.status().is_success() {
                                     let body = response_result.text().await.unwrap();
                                     let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-                                    let (proof_a, proof_b, proof_c) =
-                                        proof_from_json_struct(proof_json);
-                                    let (proof_a, proof_b, proof_c) =
-                                        compress_proof(&proof_a, &proof_b, &proof_c);
+                                    let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
+                                    let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
                                     let instruction_data = InstructionDataBatchNullifyInputs {
                                         new_root: circuit_inputs_new_root,
                                         compressed_proof: CompressedProof {
@@ -1035,6 +1033,7 @@ where
                         &self.protocol_config,
                         &forester.keypair,
                         &forester.keypair.pubkey(),
+                        None,
                     )
                     .await
                     .unwrap()

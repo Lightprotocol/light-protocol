@@ -1575,6 +1575,20 @@ impl Indexer for PhotonIndexer {
                     ..Default::default()
                 };
 
+                tracing::info!(
+                    "get_queue_elements request: output_queue={:?}, input_queue={:?}",
+                    request.params.output_queue.as_ref().map(|q| (
+                        q.limit,
+                        q.start_index,
+                        q.zkp_batch_size
+                    )),
+                    request.params.input_queue.as_ref().map(|q| (
+                        q.limit,
+                        q.start_index,
+                        q.zkp_batch_size
+                    )),
+                );
+
                 let result = photon_api::apis::default_api::get_queue_elements_post(
                     &self.configuration,
                     request,
@@ -1719,22 +1733,8 @@ impl Indexer for PhotonIndexer {
                         .map(|h| Hash::from_base58(h))
                         .collect();
 
-                    // Parse low_element_proofs for debugging/validation
-                    let low_element_proofs: Result<Vec<Vec<[u8; 32]>>, IndexerError> = address
-                        .low_element_proofs
-                        .iter()
-                        .map(|proof| {
-                            proof.iter().map(|h| Hash::from_base58(h)).collect::<Result<
-                                Vec<[u8; 32]>,
-                                IndexerError,
-                            >>(
-                            )
-                        })
-                        .collect();
-
                     Some(super::AddressQueueData {
                         addresses: addresses?,
-                        queue_indices: address.queue_indices,
                         low_element_values: low_element_values?,
                         low_element_next_values: low_element_next_values?,
                         low_element_indices: address.low_element_indices,
@@ -1746,7 +1746,6 @@ impl Indexer for PhotonIndexer {
                         subtrees: subtrees?,
                         start_index: address.start_index,
                         root_seq: address.root_seq,
-                        low_element_proofs: low_element_proofs?,
                     })
                 } else {
                     None

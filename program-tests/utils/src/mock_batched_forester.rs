@@ -145,9 +145,9 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             }
         };
         let proof = CompressedProof {
-            a: proof_result.0.a,
-            b: proof_result.0.b,
-            c: proof_result.0.c,
+            a: proof_result.0.proof.a,
+            b: proof_result.0.proof.b,
+            c: proof_result.0.proof.c,
         };
         Ok((proof, proof_result.1))
     }
@@ -211,9 +211,9 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             .await?;
         let new_root = self.merkle_tree.root();
         let proof = CompressedProof {
-            a: proof_result.0.a,
-            b: proof_result.0.b,
-            c: proof_result.0.c,
+            a: proof_result.0.proof.a,
+            b: proof_result.0.proof.b,
+            c: proof_result.0.proof.c,
         };
         Ok((proof, new_root))
     }
@@ -319,9 +319,9 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
             }
         };
         let proof = CompressedProof {
-            a: proof_result.0.a,
-            b: proof_result.0.b,
-            c: proof_result.0.c,
+            a: proof_result.0.proof.a,
+            b: proof_result.0.proof.b,
+            c: proof_result.0.proof.c,
         };
         Ok((proof, proof_result.1))
     }

@@ -482,7 +482,9 @@ async fn test_epoch_double_registration() {
     }
 
     let mut rpc = pool.get_connection().await.unwrap();
-    let protocol_config = get_protocol_config(&mut *rpc).await;
+    let protocol_config = get_protocol_config(&mut *rpc)
+        .await
+        .expect("Failed to fetch protocol config");
     let solana_slot = rpc.get_slot().await.unwrap();
     let current_epoch = protocol_config.get_current_epoch(solana_slot);
 

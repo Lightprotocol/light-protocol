@@ -111,12 +111,9 @@ pub fn load_all_accounts_from_dir() -> Result<HashMap<Pubkey, Account>, RpcError
 
             // Decode base64 data
             let data = if account_data.account.data.1 == "base64" {
-                use base64::{engine::general_purpose, Engine as _};
-                general_purpose::STANDARD
-                    .decode(&account_data.account.data.0)
-                    .map_err(|e| {
-                        RpcError::CustomError(format!("Failed to decode base64 data: {}", e))
-                    })?
+                base64::decode(&account_data.account.data.0).map_err(|e| {
+                    RpcError::CustomError(format!("Failed to decode base64 data: {}", e))
+                })?
             } else {
                 return Err(RpcError::CustomError(format!(
                     "Unsupported encoding: {}",
@@ -174,9 +171,7 @@ pub fn load_account_from_dir(pubkey: &Pubkey, prefix: Option<&str>) -> Result<Ac
 
     // Decode base64 data
     let data = if account_data.account.data.1 == "base64" {
-        use base64::{engine::general_purpose, Engine as _};
-        general_purpose::STANDARD
-            .decode(&account_data.account.data.0)
+        base64::decode(&account_data.account.data.0)
             .map_err(|e| RpcError::CustomError(format!("Failed to decode base64 data: {}", e)))?
     } else {
         return Err(RpcError::CustomError(format!(
