@@ -7,18 +7,6 @@ use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned, Zero};
 
 use crate::{errors::IndexedMerkleTreeError, HIGHEST_ADDRESS_PLUS_ONE};
 
-/// Hash schema for indexed merkle tree leaves.
-/// - `V1`: 3-input hash: `H(value, next_index, next_value)` - legacy schema
-/// - `V2`: 2-input hash: `H(value, next_value)` - circuit-compatible schema
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum HashSchema {
-    /// Legacy 3-input hash: `H(value, next_index, next_value)`
-    #[default]
-    V1,
-    /// Circuit-compatible 2-input hash: `H(value, next_value)`
-    V2,
-}
-
 #[derive(Clone, Debug, Default)]
 pub struct IndexedElement<I>
 where
@@ -96,46 +84,19 @@ where
         self.next_index.into()
     }
 
-    /// Hashes the indexed element using the V1 (3-input) schema.
-    /// This is the legacy method for backwards compatibility.
     pub fn hash<H>(&self, next_value: &BigUint) -> Result<[u8; 32], IndexedMerkleTreeError>
     where
         H: Hasher,
     {
-        self.hash_with_schema::<H>(next_value, HashSchema::V1)
-    }
-
-    /// Hashes the indexed element using the specified schema.
-    /// - V1: `H(value, next_index, next_value)` - 3 inputs
-    /// - V2: `H(value, next_value)` - 2 inputs (circuit-compatible)
-    pub fn hash_with_schema<H>(
-        &self,
-        next_value: &BigUint,
-        schema: HashSchema,
-    ) -> Result<[u8; 32], IndexedMerkleTreeError>
-    where
-        H: Hasher,
-    {
-        match schema {
-            HashSchema::V1 => {
-                let mut bytes = [0u8; 32];
-                let len = std::mem::size_of::<I>();
-                bytes[32 - len..].copy_from_slice(self.next_index.to_be_bytes().as_ref());
-                let hash = H::hashv(&[
-                    bigint_to_be_bytes_array::<32>(&self.value)?.as_ref(),
-                    &bytes,
-                    bigint_to_be_bytes_array::<32>(next_value)?.as_ref(),
-                ])?;
-                Ok(hash)
-            }
-            HashSchema::V2 => {
-                let hash = H::hashv(&[
-                    bigint_to_be_bytes_array::<32>(&self.value)?.as_ref(),
-                    bigint_to_be_bytes_array::<32>(next_value)?.as_ref(),
-                ])?;
-                Ok(hash)
-            }
-        }
+        let mut bytes = [0u8; 32];
+        let len = std::mem::size_of::<I>();
+        bytes[32 - len..].copy_from_slice(self.next_index.to_be_bytes().as_ref());
+        let hash = H::hashv(&[
+            bigint_to_be_bytes_array::<32>(&self.value)?.as_ref(),
+            &bytes,
+            bigint_to_be_bytes_array::<32>(next_value)?.as_ref(),
+        ])?;
+        Ok(hash)
     }
 
     pub fn update_from_raw_element(&mut self, raw_element: &RawIndexedElement<I>) {
