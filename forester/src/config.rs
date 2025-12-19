@@ -345,9 +345,23 @@ impl ForesterConfig {
             address_tree_data: vec![],
             state_tree_data: vec![],
             compressible_config: if args.enable_compressible {
-                args.ws_rpc_url
-                    .clone()
-                    .map(crate::compressible::config::CompressibleConfig::new)
+                match &args.ws_rpc_url {
+                    Some(ws_url) => {
+                        Some(crate::compressible::config::CompressibleConfig::new(
+                            ws_url.clone(),
+                        ))
+                    }
+                    None => {
+                        return Err(ConfigError::InvalidArguments {
+                            field: "enable_compressible",
+                            invalid_values: vec![
+                                "--ws-rpc-url is required when --enable-compressible is true"
+                                    .to_string(),
+                            ],
+                        }
+                        .into())
+                    }
+                }
             } else {
                 None
             },

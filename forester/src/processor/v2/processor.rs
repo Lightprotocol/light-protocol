@@ -334,6 +334,18 @@ where
             .map_err(|e| anyhow!("Tx sender join error: {}", e))
             .and_then(|res| res);
 
+        if let Err(ref e) = tx_result {
+            if let Some(v2) = e.downcast_ref::<V2Error>() {
+                if v2.is_constraint() {
+                    warn!(
+                        "Tx sender constraint error for tree {}: {}",
+                        self.context.merkle_tree, e
+                    );
+                    return Err(tx_result.unwrap_err());
+                }
+            }
+        }
+
         let (tx_processed, proof_timings, tx_sending_duration) = match &tx_result {
             Ok(result) => (
                 result.items_processed,
@@ -341,18 +353,10 @@ where
                 result.tx_sending_duration,
             ),
             Err(e) => {
-                let err_str = e.to_string();
                 warn!(
                     "Tx sender error for tree {}: {}",
-                    self.context.merkle_tree, err_str
+                    self.context.merkle_tree, e
                 );
-
-                if let Some(v2) = e.downcast_ref::<V2Error>() {
-                    if v2.is_constraint() {
-                        return Err(anyhow!("Constraint error during tx send: {}", v2));
-                    }
-                }
-
                 (0, Default::default(), Duration::ZERO)
             }
         };

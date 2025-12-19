@@ -2439,6 +2439,7 @@ impl<R: Rpc> EpochManager<R> {
         const PROOFS_PER_TX: usize = 4;
         for chunk in cached_proofs.chunks(PROOFS_PER_TX) {
             let mut instructions = Vec::new();
+            let mut chunk_items = 0;
 
             for proof in chunk {
                 match &proof.instruction {
@@ -2486,7 +2487,7 @@ impl<R: Rpc> EpochManager<R> {
                         }
                     }
                 }
-                total_items += proof.items;
+                chunk_items += proof.items;
             }
 
             if !instructions.is_empty() {
@@ -2505,6 +2506,7 @@ impl<R: Rpc> EpochManager<R> {
                             sig,
                             instructions.len()
                         );
+                        total_items += chunk_items;
                     }
                     Err(e) => {
                         warn!("Failed to send cached proofs tx: {:?}", e);
