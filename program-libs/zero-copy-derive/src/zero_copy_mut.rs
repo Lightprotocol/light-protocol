@@ -23,6 +23,77 @@ pub fn derive_zero_copy_mut_impl(fn_input: TokenStream) -> syn::Result<proc_macr
     // Process the input to extract struct information
     let (name, z_struct_name, z_struct_meta_name, fields) = utils::process_input(&input)?;
 
+    // Handle unit structs (no fields)
+    let Some(fields) = fields else {
+        // Unit struct - generate minimal mutable implementations
+        let z_struct_name_mut = format_ident!("{}Mut", z_struct_name);
+
+        let zero_copy_struct_inner_impl_mut =
+            zero_copy::generate_zero_copy_struct_inner::<true>(name, &z_struct_name_mut)?;
+
+        // Generate a simple unit ZStruct type alias for mut
+        let z_struct_def_mut = quote::quote! {
+            /// Zero-copy mutable reference type for unit struct #name
+            pub type #z_struct_name_mut<'a> = &'a mut #name;
+        };
+
+        // Generate minimal deserialize impl for unit struct
+        let deserialize_impl_mut = quote::quote! {
+            impl<'a> ::light_zero_copy::traits::ZeroCopyAtMut<'a> for #name {
+                type ZeroCopyAtMut = #z_struct_name_mut<'a>;
+                fn zero_copy_at_mut(bytes: &'a mut [u8]) -> ::core::result::Result<(Self::ZeroCopyAtMut, &'a mut [u8]), ::light_zero_copy::errors::ZeroCopyError> {
+                    // For zero-sized types (ZSTs), Box::new does not allocate heap memory;
+                    // it returns a dangling-but-aligned pointer, so leaking it is safe and
+                    // does not cause a memory leak. This pattern avoids returning a mutable
+                    // reference to a static for ZSTs, which would be unsound.
+                    let unit: &'a mut #name = Box::leak(Box::new(#name));
+                    Ok((unit, bytes))
+                }
+            }
+        };
+
+        // Generate unit type config
+        let config_name = quote::format_ident!("{}Config", name);
+        let config_struct = quote::quote! {
+            pub type #config_name = ();
+        };
+
+        // Generate ZeroCopyNew impl for unit struct (specialized version)
+        let init_mut_impl = quote::quote! {
+            impl<'a> ::light_zero_copy::traits::ZeroCopyNew<'a> for #name {
+                type ZeroCopyConfig = #config_name;
+                type Output = #z_struct_name_mut<'a>;
+
+                fn byte_len(_config: &Self::ZeroCopyConfig) -> Result<usize, ::light_zero_copy::errors::ZeroCopyError> {
+                    // Unit struct has 0 bytes
+                    Ok(0)
+                }
+
+                fn new_zero_copy(
+                    bytes: &'a mut [u8],
+                    _config: Self::ZeroCopyConfig,
+                ) -> Result<(Self::Output, &'a mut [u8]), ::light_zero_copy::errors::ZeroCopyError> {
+                    // For zero-sized types (ZSTs), Box::new does not allocate heap memory;
+                    // it returns a dangling-but-aligned pointer, so leaking it is safe and
+                    // does not cause a memory leak.
+                    let unit: &'a mut #name = Box::leak(Box::new(#name));
+                    Ok((unit, bytes))
+                }
+            }
+        };
+
+        return Ok(quote::quote! {
+            #config_struct
+            #z_struct_def_mut
+
+            const _: () = {
+                #zero_copy_struct_inner_impl_mut
+                #deserialize_impl_mut
+                #init_mut_impl
+            };
+        });
+    };
+
     // Process the fields to separate meta fields and struct fields
     let (meta_fields, struct_fields) = utils::process_fields(fields);
 
