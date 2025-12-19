@@ -22,6 +22,7 @@ import {
     createAssociatedTokenAccount,
     getOrCreateAssociatedTokenAccount,
     getAccount,
+    TokenAccountNotFoundError,
 } from '@solana/spl-token';
 import { createMint, mintTo, decompress } from '../../src/actions';
 import {
@@ -361,7 +362,7 @@ describe('loadAta - Unified Path (wrap=true)', () => {
                     owner as unknown as Signer,
                     mint,
                 ),
-            ).rejects.toThrow('Token account not found');
+            ).rejects.toThrow(TokenAccountNotFoundError);
         });
 
         it('should return null when only hot balance exists', async () => {

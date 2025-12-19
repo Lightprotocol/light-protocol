@@ -582,10 +582,7 @@ async function getUnifiedAccountInterface(
 
     // account not found
     if (sources.length === 0) {
-        const triedPrograms = wrap
-            ? 'TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, and CTOKEN_PROGRAM_ID (both onchain and compressed)'
-            : 'CTOKEN_PROGRAM_ID (both onchain and compressed)';
-        throw new Error(`Token account not found. Tried ${triedPrograms}.`);
+        throw new TokenAccountNotFoundError();
     }
 
     // priority order: c-token hot > c-token cold > SPL/T22
