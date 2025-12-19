@@ -140,6 +140,7 @@ export async function _getOrCreateAtaInterface(
             commitment,
             confirmOptions,
             wrap,
+            allowOwnerOffCurve,
         );
     }
 
@@ -179,6 +180,7 @@ async function getOrCreateCTokenAta(
     commitment?: Commitment,
     confirmOptions?: ConfirmOptions,
     wrap = false,
+    allowOwnerOffCurve = false,
 ): Promise<AccountInterface> {
     const ownerPubkey = getOwnerPublicKey(owner);
     const ownerIsSigner = isSigner(owner);
@@ -197,6 +199,7 @@ async function getOrCreateCTokenAta(
             commitment,
             CTOKEN_PROGRAM_ID,
             wrap,
+            allowOwnerOffCurve,
         );
 
         // Check if we have a hot account
@@ -228,6 +231,7 @@ async function getOrCreateCTokenAta(
                 commitment,
                 CTOKEN_PROGRAM_ID,
                 wrap,
+                allowOwnerOffCurve,
             );
             hasHotAccount = true;
         } else {
@@ -300,6 +304,7 @@ async function getOrCreateCTokenAta(
                 commitment,
                 CTOKEN_PROGRAM_ID,
                 wrap,
+                allowOwnerOffCurve,
             );
         }
     }
