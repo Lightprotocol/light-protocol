@@ -33,7 +33,6 @@ use light_registry::{
 use solana_program::{
     instruction::InstructionError, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey,
 };
-use solana_pubkey::pubkey;
 use solana_sdk::{
     address_lookup_table::AddressLookupTableAccount,
     signature::{Keypair, Signer},
