@@ -27,8 +27,8 @@ export const featureFlags = {
         ) {
             return process.env.LIGHT_PROTOCOL_VERSION as VERSION;
         }
-        // Default to V1
-        return VERSION.V1;
+        // Default to V2
+        return VERSION.V2;
     })(),
     isV2: () =>
         featureFlags.version.replace(/['"]/g, '').toUpperCase() === 'V2',
