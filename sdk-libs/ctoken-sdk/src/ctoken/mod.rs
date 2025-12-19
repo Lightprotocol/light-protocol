@@ -65,6 +65,7 @@
 //! ```
 //!
 
+mod approve;
 mod burn;
 mod close;
 mod compressible;
@@ -73,12 +74,16 @@ mod create_ata;
 mod create_cmint;
 mod ctoken_mint_to;
 mod decompress;
+mod freeze;
 mod mint_to;
+mod revoke;
+mod thaw;
 mod transfer_ctoken;
 mod transfer_ctoken_spl;
 mod transfer_interface;
 mod transfer_spl_ctoken;
 
+pub use approve::*;
 pub use burn::*;
 pub use close::*;
 pub use compressible::{CompressibleParams, CompressibleParamsCpi};
@@ -87,6 +92,7 @@ pub use create_ata::*;
 pub use create_cmint::*;
 pub use ctoken_mint_to::*;
 pub use decompress::DecompressToCtoken;
+pub use freeze::*;
 use light_compressible::config::CompressibleConfig;
 pub use light_ctoken_interface::{
     instructions::{
@@ -97,6 +103,8 @@ pub use light_ctoken_interface::{
 };
 use light_ctoken_types::POOL_SEED;
 pub use mint_to::*;
+pub use revoke::*;
+pub use thaw::*;
 use solana_account_info::AccountInfo;
 use solana_pubkey::{pubkey, Pubkey};
 pub use transfer_ctoken::*;

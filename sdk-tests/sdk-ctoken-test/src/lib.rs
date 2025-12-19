@@ -1,17 +1,21 @@
 #![allow(unexpected_cfgs)]
 
+mod approve;
 mod close;
 mod create_ata;
 mod create_ata2;
 mod create_cmint;
 mod create_token_account;
 mod mint_to_ctoken;
+mod revoke;
 mod transfer;
 mod transfer_interface;
 mod transfer_spl_ctoken;
 
 // Re-export all instruction data types
+pub use approve::{process_approve_invoke, process_approve_invoke_signed, ApproveData};
 pub use close::{process_close_account_invoke, process_close_account_invoke_signed};
+pub use revoke::{process_revoke_invoke, process_revoke_invoke_signed};
 pub use create_ata::{process_create_ata_invoke, process_create_ata_invoke_signed, CreateAtaData};
 pub use create_ata2::{
     process_create_ata2_invoke, process_create_ata2_invoke_signed, CreateAta2Data,
@@ -97,6 +101,14 @@ pub enum InstructionType {
     TransferInterfaceInvoke = 19,
     /// Unified transfer interface with PDA authority (invoke_signed)
     TransferInterfaceInvokeSigned = 20,
+    /// Approve delegate for CToken account (invoke)
+    ApproveInvoke = 21,
+    /// Approve delegate for PDA-owned CToken account (invoke_signed)
+    ApproveInvokeSigned = 22,
+    /// Revoke delegation for CToken account (invoke)
+    RevokeInvoke = 23,
+    /// Revoke delegation for PDA-owned CToken account (invoke_signed)
+    RevokeInvokeSigned = 24,
 }
 
 impl TryFrom<u8> for InstructionType {
@@ -125,6 +137,10 @@ impl TryFrom<u8> for InstructionType {
             18 => Ok(InstructionType::CtokenToSplInvokeSigned),
             19 => Ok(InstructionType::TransferInterfaceInvoke),
             20 => Ok(InstructionType::TransferInterfaceInvokeSigned),
+            21 => Ok(InstructionType::ApproveInvoke),
+            22 => Ok(InstructionType::ApproveInvokeSigned),
+            23 => Ok(InstructionType::RevokeInvoke),
+            24 => Ok(InstructionType::RevokeInvokeSigned),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -246,6 +262,18 @@ pub fn process_instruction(
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_transfer_interface_invoke_signed(accounts, data)
         }
+        InstructionType::ApproveInvoke => {
+            let data = ApproveData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_approve_invoke(accounts, data)
+        }
+        InstructionType::ApproveInvokeSigned => {
+            let data = ApproveData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_approve_invoke_signed(accounts, data)
+        }
+        InstructionType::RevokeInvoke => process_revoke_invoke(accounts),
+        InstructionType::RevokeInvokeSigned => process_revoke_invoke_signed(accounts),
     }
 }
 
@@ -276,6 +304,10 @@ mod tests {
         assert_eq!(InstructionType::CtokenToSplInvokeSigned as u8, 18);
         assert_eq!(InstructionType::TransferInterfaceInvoke as u8, 19);
         assert_eq!(InstructionType::TransferInterfaceInvokeSigned as u8, 20);
+        assert_eq!(InstructionType::ApproveInvoke as u8, 21);
+        assert_eq!(InstructionType::ApproveInvokeSigned as u8, 22);
+        assert_eq!(InstructionType::RevokeInvoke as u8, 23);
+        assert_eq!(InstructionType::RevokeInvokeSigned as u8, 24);
     }
 
     #[test]
@@ -364,6 +396,22 @@ mod tests {
             InstructionType::try_from(20).unwrap(),
             InstructionType::TransferInterfaceInvokeSigned
         );
-        assert!(InstructionType::try_from(21).is_err());
+        assert_eq!(
+            InstructionType::try_from(21).unwrap(),
+            InstructionType::ApproveInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(22).unwrap(),
+            InstructionType::ApproveInvokeSigned
+        );
+        assert_eq!(
+            InstructionType::try_from(23).unwrap(),
+            InstructionType::RevokeInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(24).unwrap(),
+            InstructionType::RevokeInvokeSigned
+        );
+        assert!(InstructionType::try_from(25).is_err());
     }
 }
