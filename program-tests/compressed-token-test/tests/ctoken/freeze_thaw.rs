@@ -12,7 +12,7 @@ use light_ctoken_interface::{
         TransferHookAccountExtension,
     },
 };
-use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
+use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount, FreezeCToken, ThawCToken};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{spl::create_mint_helper, Rpc, RpcError};
 use serial_test::serial;
@@ -51,40 +51,6 @@ fn create_token_account(
         ],
         data,
     })
-}
-
-/// Helper to build a freeze instruction
-fn build_freeze_instruction(
-    token_account: &solana_sdk::pubkey::Pubkey,
-    mint: &solana_sdk::pubkey::Pubkey,
-    freeze_authority: &solana_sdk::pubkey::Pubkey,
-) -> Instruction {
-    Instruction {
-        program_id: light_compressed_token::ID,
-        accounts: vec![
-            AccountMeta::new(*token_account, false),
-            AccountMeta::new_readonly(*mint, false),
-            AccountMeta::new_readonly(*freeze_authority, true),
-        ],
-        data: vec![10], // CTokenFreezeAccount discriminator
-    }
-}
-
-/// Helper to build a thaw instruction
-fn build_thaw_instruction(
-    token_account: &solana_sdk::pubkey::Pubkey,
-    mint: &solana_sdk::pubkey::Pubkey,
-    freeze_authority: &solana_sdk::pubkey::Pubkey,
-) -> Instruction {
-    Instruction {
-        program_id: light_compressed_token::ID,
-        accounts: vec![
-            AccountMeta::new(*token_account, false),
-            AccountMeta::new_readonly(*mint, false),
-            AccountMeta::new_readonly(*freeze_authority, true),
-        ],
-        data: vec![11], // CTokenThawAccount discriminator
-    }
 }
 
 /// Test freeze and thaw with a basic SPL Token mint (not Token-2022)
@@ -137,7 +103,13 @@ async fn test_freeze_thaw_with_basic_mint() -> Result<(), RpcError> {
     );
 
     // 3. Freeze the account
-    let freeze_ix = build_freeze_instruction(&token_account_pubkey, &mint_pubkey, &payer.pubkey());
+    let freeze_ix = FreezeCToken {
+        token_account: token_account_pubkey,
+        mint: mint_pubkey,
+        freeze_authority: payer.pubkey(),
+    }
+    .instruction()
+    .map_err(|e| RpcError::AssertRpcError(format!("Failed to create freeze instruction: {}", e)))?;
 
     rpc.create_and_send_transaction(&[freeze_ix], &payer.pubkey(), &[&payer])
         .await?;
@@ -165,7 +137,13 @@ async fn test_freeze_thaw_with_basic_mint() -> Result<(), RpcError> {
     );
 
     // 5. Thaw the account
-    let thaw_ix = build_thaw_instruction(&token_account_pubkey, &mint_pubkey, &payer.pubkey());
+    let thaw_ix = ThawCToken {
+        token_account: token_account_pubkey,
+        mint: mint_pubkey,
+        freeze_authority: payer.pubkey(),
+    }
+    .instruction()
+    .map_err(|e| RpcError::AssertRpcError(format!("Failed to create thaw instruction: {}", e)))?;
 
     rpc.create_and_send_transaction(&[thaw_ix], &payer.pubkey(), &[&payer])
         .await?;
@@ -269,7 +247,13 @@ async fn test_freeze_thaw_with_extensions() -> Result<(), RpcError> {
         .expect("Should have Compressible extension");
 
     // 2. Freeze the account
-    let freeze_ix = build_freeze_instruction(&account_pubkey, &mint_pubkey, &payer.pubkey());
+    let freeze_ix = FreezeCToken {
+        token_account: account_pubkey,
+        mint: mint_pubkey,
+        freeze_authority: payer.pubkey(),
+    }
+    .instruction()
+    .map_err(|e| RpcError::AssertRpcError(format!("Failed to create freeze instruction: {}", e)))?;
 
     context
         .rpc
@@ -305,7 +289,13 @@ async fn test_freeze_thaw_with_extensions() -> Result<(), RpcError> {
     );
 
     // 4. Thaw the account
-    let thaw_ix = build_thaw_instruction(&account_pubkey, &mint_pubkey, &payer.pubkey());
+    let thaw_ix = ThawCToken {
+        token_account: account_pubkey,
+        mint: mint_pubkey,
+        freeze_authority: payer.pubkey(),
+    }
+    .instruction()
+    .map_err(|e| RpcError::AssertRpcError(format!("Failed to create thaw instruction: {}", e)))?;
 
     context
         .rpc

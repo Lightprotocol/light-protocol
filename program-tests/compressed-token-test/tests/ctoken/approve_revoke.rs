@@ -9,56 +9,15 @@ use light_ctoken_interface::state::{
     PermanentDelegateAccountExtension, TokenDataVersion, TransferFeeAccountExtension,
     TransferHookAccountExtension,
 };
-use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
+use light_ctoken_sdk::ctoken::{
+    ApproveCToken, CompressibleParams, CreateCTokenAccount, RevokeCToken,
+};
 use light_program_test::program_test::TestRpc;
 use light_test_utils::{Rpc, RpcError};
 use serial_test::serial;
-use solana_sdk::{
-    instruction::{AccountMeta, Instruction},
-    program_pack::Pack,
-    signature::Keypair,
-    signer::Signer,
-};
+use solana_sdk::{program_pack::Pack, signature::Keypair, signer::Signer};
 
 use super::extensions::setup_extensions_test;
-
-/// Helper to build an approve instruction
-fn build_approve_instruction(
-    token_account: &solana_sdk::pubkey::Pubkey,
-    delegate: &solana_sdk::pubkey::Pubkey,
-    owner: &solana_sdk::pubkey::Pubkey,
-    amount: u64,
-) -> Instruction {
-    let mut data = vec![4]; // CTokenApprove discriminator
-    data.extend_from_slice(&amount.to_le_bytes());
-
-    Instruction {
-        program_id: light_compressed_token::ID,
-        accounts: vec![
-            AccountMeta::new(*token_account, false),
-            AccountMeta::new_readonly(*delegate, false),
-            AccountMeta::new(*owner, true), // owner is signer and payer for top-up
-            AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // System program for compressible top-up
-        ],
-        data,
-    }
-}
-
-/// Helper to build a revoke instruction
-fn build_revoke_instruction(
-    token_account: &solana_sdk::pubkey::Pubkey,
-    owner: &solana_sdk::pubkey::Pubkey,
-) -> Instruction {
-    Instruction {
-        program_id: light_compressed_token::ID,
-        accounts: vec![
-            AccountMeta::new(*token_account, false),
-            AccountMeta::new(*owner, true), // owner is signer and payer for top-up
-            AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // System program for compressible top-up
-        ],
-        data: vec![5], // CTokenRevoke discriminator
-    }
-}
 
 /// Test approve and revoke with a compressible CToken account with extensions.
 /// 1. Create compressible CToken account with all extensions
@@ -155,12 +114,16 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
 
     // 3. Approve 10 tokens to delegate
     let approve_amount = 10u64;
-    let approve_ix = build_approve_instruction(
-        &account_pubkey,
-        &delegate.pubkey(),
-        &owner.pubkey(),
-        approve_amount,
-    );
+    let approve_ix = ApproveCToken {
+        token_account: account_pubkey,
+        delegate: delegate.pubkey(),
+        owner: owner.pubkey(),
+        amount: approve_amount,
+    }
+    .instruction()
+    .map_err(|e| {
+        RpcError::AssertRpcError(format!("Failed to create approve instruction: {}", e))
+    })?;
 
     context
         .rpc
@@ -196,7 +159,12 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
     );
 
     // 5. Revoke delegation
-    let revoke_ix = build_revoke_instruction(&account_pubkey, &owner.pubkey());
+    let revoke_ix = RevokeCToken {
+        token_account: account_pubkey,
+        owner: owner.pubkey(),
+    }
+    .instruction()
+    .map_err(|e| RpcError::AssertRpcError(format!("Failed to create revoke instruction: {}", e)))?;
 
     context
         .rpc
