@@ -287,7 +287,6 @@ where
         let num_workers = self.context.num_proof_workers.max(1);
         let (proof_tx, proof_rx) = mpsc::channel(num_workers * 2);
 
-        self.seq = 0;
         let tx_sender_handle = TxSender::spawn(
             self.context.clone(),
             proof_rx,
