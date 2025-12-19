@@ -30,7 +30,7 @@ fn test_insert() {
     assert_eq!(idx, 0);
     assert_eq!(map.len(), 1);
     assert_eq!(map.last_updated_index(), Some(0));
-    assert_eq!(map.get(0).unwrap().1, "one");
+    assert_eq!(map.get_by_index(0).unwrap().1, "one");
 }
 
 #[test]
@@ -118,11 +118,11 @@ fn test_get_mut_direct() {
 
     map.insert(1, 100, TestError::Custom).unwrap();
 
-    if let Some(entry) = map.get_mut(0) {
+    if let Some(entry) = map.get_by_index_mut(0) {
         entry.1 += 50;
     }
 
-    assert_eq!(map.get(0).unwrap().1, 150);
+    assert_eq!(map.get_by_index(0).unwrap().1, 150);
 }
 
 #[test]
@@ -165,13 +165,13 @@ fn test_get_u8() {
         .unwrap();
 
     // Test valid indices
-    assert_eq!(map.get_u8(0).unwrap().1, "one");
-    assert_eq!(map.get_u8(1).unwrap().1, "two");
-    assert_eq!(map.get_u8(2).unwrap().1, "three");
+    assert_eq!(map.get_by_index_u8(0).unwrap().1, "one");
+    assert_eq!(map.get_by_index_u8(1).unwrap().1, "two");
+    assert_eq!(map.get_by_index_u8(2).unwrap().1, "three");
 
     // Test out of bounds
-    assert!(map.get_u8(3).is_none());
-    assert!(map.get_u8(255).is_none());
+    assert!(map.get_by_index_u8(3).is_none());
+    assert!(map.get_by_index_u8(255).is_none());
 }
 
 #[test]
@@ -182,17 +182,17 @@ fn test_get_mut_u8() {
     map.insert(2, 200, TestError::Custom).unwrap();
     map.insert(3, 300, TestError::Custom).unwrap();
 
-    // Modify via get_mut_u8
-    if let Some(entry) = map.get_mut_u8(1) {
+    // Modify via get_by_index_mut_u8
+    if let Some(entry) = map.get_by_index_mut_u8(1) {
         entry.1 += 50;
     }
 
     // Verify modification
-    assert_eq!(map.get_u8(1).unwrap().1, 250);
-    assert_eq!(map.get_u8(0).unwrap().1, 100);
-    assert_eq!(map.get_u8(2).unwrap().1, 300);
+    assert_eq!(map.get_by_index_u8(1).unwrap().1, 250);
+    assert_eq!(map.get_by_index_u8(0).unwrap().1, 100);
+    assert_eq!(map.get_by_index_u8(2).unwrap().1, 300);
 
     // Test out of bounds
-    assert!(map.get_mut_u8(3).is_none());
-    assert!(map.get_mut_u8(255).is_none());
+    assert!(map.get_by_index_mut_u8(3).is_none());
+    assert!(map.get_by_index_mut_u8(255).is_none());
 }
