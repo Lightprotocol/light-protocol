@@ -162,7 +162,7 @@ describe('transfer-interface', () => {
             const ixs = await createLoadAtaInstructions(
                 rpc,
                 ata,
-                payer.publicKey,
+                owner.publicKey,
                 mint,
             );
 
@@ -201,7 +201,7 @@ describe('transfer-interface', () => {
             const ixs = await createLoadAtaInstructions(
                 rpc,
                 ata,
-                payer.publicKey,
+                owner.publicKey,
                 mint,
             );
 

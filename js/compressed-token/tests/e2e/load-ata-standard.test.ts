@@ -22,6 +22,7 @@ import {
     TOKEN_PROGRAM_ID,
     createAssociatedTokenAccount,
     getAccount,
+    TokenAccountNotFoundError,
 } from '@solana/spl-token';
 import { createMint, mintTo, decompress } from '../../src/actions';
 import {
@@ -301,7 +302,7 @@ describe('loadAta - Standard Path (wrap=false)', () => {
                     mint,
                     payer.publicKey,
                 ),
-            ).rejects.toThrow('Token account not found');
+            ).rejects.toThrow(TokenAccountNotFoundError);
         });
 
         it('should return empty when hot exists but no cold', async () => {
