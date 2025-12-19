@@ -57,7 +57,7 @@ describe('mergeTokenAccounts', () => {
         }
     });
 
-    it.only('should merge all token accounts', async () => {
+    it('should merge all token accounts', async () => {
         const preAccounts = await rpc.getCompressedTokenAccountsByOwner(
             owner.publicKey,
             { mint },
