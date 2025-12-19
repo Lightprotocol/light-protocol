@@ -8,7 +8,7 @@ use borsh::BorshSerialize;
 const MAX_BUFFER_SIZE: usize = 1000;
 const V2_IXS_PER_TX_WITH_LUT: usize = 5;
 const V2_IXS_PER_TX_WITHOUT_LUT: usize = 4;
-const MIN_SLOTS_BEFORE_ELIGIBILITY_END: u64 = 2;
+const FLUSH_MARGIN_SLOTS: u64 = 2;
 
 use light_batched_merkle_tree::merkle_tree::{
     InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
@@ -216,32 +216,27 @@ impl<R: Rpc> TxSender<R> {
     }
 
     #[inline]
-    fn should_flush_due_to_time_at(&self, current_slot: u64) -> bool {
+    fn eligibility_end_slot(&self) -> u64 {
         let forester_end = self
             .context
             .forester_eligibility_end_slot
             .load(Ordering::Relaxed);
-        let eligibility_end_slot = if forester_end > 0 {
+        if forester_end > 0 {
             forester_end
         } else {
             self.context.epoch_phases.active.end
-        };
-        let slots_remaining = eligibility_end_slot.saturating_sub(current_slot);
-        slots_remaining < MIN_SLOTS_BEFORE_ELIGIBILITY_END
+        }
+    }
+
+    #[inline]
+    fn should_flush_due_to_time_at(&self, current_slot: u64) -> bool {
+        let slots_remaining = self.eligibility_end_slot().saturating_sub(current_slot);
+        slots_remaining <= FLUSH_MARGIN_SLOTS
     }
 
     #[inline]
     fn is_still_eligible_at(&self, current_slot: u64) -> bool {
-        let forester_end = self
-            .context
-            .forester_eligibility_end_slot
-            .load(Ordering::Relaxed);
-        let eligibility_end_slot = if forester_end > 0 {
-            forester_end
-        } else {
-            self.context.epoch_phases.active.end
-        };
-        current_slot + MIN_SLOTS_BEFORE_ELIGIBILITY_END < eligibility_end_slot
+        current_slot < self.eligibility_end_slot()
     }
 
     async fn run(
@@ -250,7 +245,6 @@ impl<R: Rpc> TxSender<R> {
     ) -> crate::Result<TxSenderResult> {
         let (batch_tx, mut batch_rx) = mpsc::unbounded_channel::<(
             Vec<(BatchInstruction, u64)>,
-            u64,
             u64,
             Option<std::time::Instant>,
         )>();
@@ -262,10 +256,10 @@ impl<R: Rpc> TxSender<R> {
         let sender_handle = tokio::spawn(async move {
             let mut sender_processed = 0usize;
             let mut total_tx_sending_duration = Duration::ZERO;
-            while let Some((batch, batch_len, _batch_round_trip, batch_earliest_submit)) =
+            while let Some((batch, _batch_round_trip, batch_earliest_submit)) =
                 batch_rx.recv().await
             {
-                let items_count = batch.len();
+                let items_count: usize = batch.iter().map(|(instr, _)| instr.items_count()).sum();
                 let first_seq = batch.first().map(|(_, s)| *s).unwrap_or(0);
                 let last_seq = batch.last().map(|(_, s)| *s).unwrap_or(0);
 
@@ -350,7 +344,7 @@ impl<R: Rpc> TxSender<R> {
                         if let Some(root) = last_root {
                             sender_last_root = root;
                         }
-                        let items_processed = batch_len as usize * zkp_batch_size_val as usize;
+                        let items_processed = items_count * zkp_batch_size_val as usize;
                         sender_processed += items_processed;
                         let e2e_ms = batch_earliest_submit
                             .map(|t| t.elapsed().as_millis() as u64)
@@ -479,11 +473,8 @@ impl<R: Rpc> TxSender<R> {
                     let round_trip = std::mem::replace(&mut self.pending_batch_round_trip_ms, 0);
                     let _proof_ms = std::mem::replace(&mut self.pending_batch_proof_ms, 0);
                     let earliest = self.pending_batch_earliest_submit.take();
-                    let batch_len = batch.len() as u64;
 
-                    if batch_tx
-                        .send((batch, batch_len, round_trip, earliest))
-                        .is_err()
+                    if batch_tx.send((batch, round_trip, earliest)).is_err()
                     {
                         break;
                     }
@@ -496,8 +487,7 @@ impl<R: Rpc> TxSender<R> {
                 std::mem::replace(&mut self.pending_batch, Vec::with_capacity(self.ixs_per_tx));
             let round_trip = std::mem::replace(&mut self.pending_batch_round_trip_ms, 0);
             let earliest = self.pending_batch_earliest_submit.take();
-            let batch_len = batch.len() as u64;
-            let _ = batch_tx.send((batch, batch_len, round_trip, earliest));
+            let _ = batch_tx.send((batch, round_trip, earliest));
         }
 
         drop(batch_tx);
