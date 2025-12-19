@@ -1,5 +1,5 @@
 use anchor_lang::prelude::AccountMeta;
-use light_ctoken_interface::instructions::create_ctoken_account::CreateTokenAccountInstructionData;
+use light_token_interface::instructions::create_token_account::CreateTokenAccountInstructionData;
 use rand::{
     rngs::{StdRng, ThreadRng},
     Rng, RngCore, SeedableRng,
@@ -20,7 +20,7 @@ async fn test_create_compressible_token_account_instruction() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 0,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -37,7 +37,7 @@ async fn test_create_compressible_token_account_instruction() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -54,7 +54,7 @@ async fn test_create_compressible_token_account_instruction() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 10,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -71,7 +71,7 @@ async fn test_create_compressible_token_account_instruction() {
             rent_sponsor: payer_pubkey,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -85,7 +85,7 @@ async fn test_create_compressible_token_account_instruction() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 0,
             lamports_per_write: None,
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -131,7 +131,7 @@ async fn test_create_account_random() {
             } else {
                 None
             },
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat, // Only V3 supported
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat, // Only V3 supported
             compress_to_pubkey: false, // Can only be tested with cpi
             payer: payer_pubkey,
         };
@@ -168,7 +168,7 @@ async fn test_create_compressible_token_account_failing() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 1, // Forbidden value
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -192,7 +192,7 @@ async fn test_create_compressible_token_account_failing() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -233,10 +233,10 @@ async fn test_create_compressible_token_account_failing() {
             pre_pay_num_epochs: 10, // High number to require more lamports
             lamports_per_write: Some(1000),
             compress_to_account_pubkey: None,
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         };
 
-        let create_token_account_ix = CreateCTokenAccount::new(
+        let create_token_account_ix = CreateTokenAccount::new(
             poor_payer_pubkey,
             token_account_pubkey.pubkey(),
             context.mint_pubkey,
@@ -354,7 +354,7 @@ async fn test_create_compressible_token_account_failing() {
     // Providing invalid seeds should fail the PDA validation.
     // Error: 18002 (InvalidAccountData from CTokenError)
     {
-        use light_ctoken_interface::instructions::extensions::compressible::CompressToPubkey;
+        use light_token_interface::instructions::extensions::compressible::CompressToPubkey;
 
         context.token_account_keypair = Keypair::new();
         let token_account_pubkey = context.token_account_keypair.pubkey();
@@ -372,10 +372,10 @@ async fn test_create_compressible_token_account_failing() {
             pre_pay_num_epochs: 2,
             lamports_per_write: Some(100),
             compress_to_account_pubkey: Some(invalid_compress_to_pubkey),
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         };
 
-        let create_token_account_ix = CreateCTokenAccount::new(
+        let create_token_account_ix = CreateTokenAccount::new(
             payer_pubkey,
             token_account_pubkey,
             context.mint_pubkey,
@@ -422,10 +422,10 @@ async fn test_create_compressible_token_account_failing() {
             pre_pay_num_epochs: 2,
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         };
 
-        let create_token_account_ix = CreateCTokenAccount::new(
+        let create_token_account_ix = CreateTokenAccount::new(
             payer_pubkey,
             context.token_account_keypair.pubkey(),
             context.mint_pubkey,
@@ -463,7 +463,7 @@ async fn test_create_compressible_token_account_failing() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(excessive_lamports_per_write),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -493,10 +493,10 @@ async fn test_create_compressible_token_account_failing() {
             pre_pay_num_epochs: 2,
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         };
 
-        let create_token_account_ix = CreateCTokenAccount::new(
+        let create_token_account_ix = CreateTokenAccount::new(
             payer_pubkey,
             context.token_account_keypair.pubkey(),
             context.mint_pubkey,
@@ -536,10 +536,10 @@ async fn test_create_compressible_token_account_failing() {
             pre_pay_num_epochs: 2,
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         };
 
-        let create_token_account_ix = CreateCTokenAccount::new(
+        let create_token_account_ix = CreateTokenAccount::new(
             payer_pubkey,
             context.token_account_keypair.pubkey(),
             context.mint_pubkey,

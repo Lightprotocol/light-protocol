@@ -1220,7 +1220,7 @@ impl TransactionFormatter {
         if pubkey_bytes == light_sdk_types::constants::NOOP_PROGRAM_ID {
             return "noop program".to_string();
         }
-        if pubkey_bytes == light_sdk_types::constants::C_TOKEN_PROGRAM_ID {
+        if pubkey_bytes == light_sdk_types::constants::LIGHT_TOKEN_PROGRAM_ID {
             return "compressed token program".to_string();
         }
         if pubkey_bytes == light_sdk_types::constants::ADDRESS_TREE_V1 {

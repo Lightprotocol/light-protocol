@@ -6,10 +6,6 @@ use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_compressible::{
     config::CompressibleConfig, error::CompressibleError, rent::SLOTS_PER_EPOCH,
 };
-use light_ctoken_interface::state::{CToken, ExtensionStruct};
-use light_ctoken_sdk::ctoken::{
-    derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount,
-};
 use light_program_test::{
     forester::claim_forester, program_test::TestRpc, utils::assert::assert_rpc_error,
     LightProgramTest, ProgramTestConfig,
@@ -24,6 +20,8 @@ use light_test_utils::{
 use light_token_client::actions::{
     create_compressible_token_account, transfer_ctoken, CreateCompressibleTokenAccountInputs,
 };
+use light_token_interface::state::{CToken, ExtensionStruct};
+use light_token_sdk::token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount};
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
@@ -111,7 +109,7 @@ async fn test_claim_rent_for_completed_epochs() -> Result<(), RpcError> {
             payer: &payer,
             token_account_keypair: None,
             lamports_per_write,
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         },
     )
     .await
@@ -170,7 +168,7 @@ async fn test_claim_multiple_accounts_different_epochs() {
                 payer: &payer,
                 token_account_keypair: None,
                 lamports_per_write: Some(100),
-                token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+                token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             },
         )
         .await
@@ -492,11 +490,11 @@ async fn test_pause_compressible_config_with_valid_authority() -> Result<(), Rpc
         pre_pay_num_epochs: 2,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let compressible_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
+        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| {
@@ -625,11 +623,11 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
         pre_pay_num_epochs: 2,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let compressible_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
+        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| {
@@ -671,11 +669,11 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
         pre_pay_num_epochs: 2,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let compressible_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
+        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| {
@@ -760,11 +758,11 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
         pre_pay_num_epochs: 10,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let compressible_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), token_account_keypair.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), token_account_keypair.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| {
@@ -807,11 +805,11 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
         pre_pay_num_epochs: 2,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
     };
 
     let compressible_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), token_account_keypair2.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), token_account_keypair2.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| {
@@ -856,7 +854,7 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
     // Test 3: CAN claim rent with deprecated config
 
     let forester_keypair = rpc.test_accounts.protocol.forester.insecure_clone();
-    let (ata_pubkey, _) = derive_ctoken_ata(&token_account_keypair.pubkey(), &mint);
+    let (ata_pubkey, _) = derive_token_ata(&token_account_keypair.pubkey(), &mint);
 
     // Claim from the account we created earlier
     let claim_result = claim_forester(&mut rpc, &[ata_pubkey], &forester_keypair, &payer).await;
@@ -1123,14 +1121,14 @@ async fn assert_not_compressible<R: Rpc>(
     name: &str,
 ) -> Result<(), RpcError> {
     use borsh::BorshDeserialize;
-    use light_ctoken_interface::state::{CToken, ExtensionStruct};
+    use light_token_interface::state::{CToken, ExtensionStruct};
 
     let account = rpc
         .get_account(account_pubkey)
         .await?
         .ok_or_else(|| RpcError::AssertRpcError(format!("{} account not found", name)))?;
 
-    let ctoken = CToken::deserialize(&mut account.data.as_slice())
+    let ctoken = Token::deserialize(&mut account.data.as_slice())
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to deserialize CToken: {:?}", e)))?;
 
     if let Some(extensions) = ctoken.extensions.as_ref() {
@@ -1147,7 +1145,7 @@ async fn assert_not_compressible<R: Rpc>(
                 };
                 let is_compressible = state.is_compressible(
                     &compressible_ext.rent_config,
-                    light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                    light_token_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                 );
 
                 assert!(
@@ -1162,7 +1160,7 @@ async fn assert_not_compressible<R: Rpc>(
                     .get_last_funded_epoch(
                         account.data.len() as u64,
                         account.lamports,
-                        light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                        light_token_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                     )
                     .map_err(|e| {
                         RpcError::AssertRpcError(format!(
@@ -1225,7 +1223,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
             payer: &payer,
             token_account_keypair: None,
             lamports_per_write: Some(100),
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         },
     )
     .await
@@ -1241,7 +1239,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
             payer: &payer,
             token_account_keypair: None,
             lamports_per_write: Some(100),
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         },
     )
     .await
@@ -1250,18 +1248,18 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     // Mint 1,000,000 tokens to Account A
     let transfer_amount = 1_000_000u64;
     {
-        use light_ctoken_interface::state::CToken;
+        use light_token_interface::state::Token;
         use light_zero_copy::traits::ZeroCopyAtMut;
 
         let mut account_data = rpc.get_account(account_a).await?.unwrap();
-        let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut account_data.data)
+        let (mut ctoken, _) = Token::zero_copy_at_mut(&mut account_data.data)
             .map_err(|e| RpcError::AssertRpcError(format!("Failed to parse CToken: {:?}", e)))?;
         *ctoken.amount = transfer_amount.into();
         rpc.set_account(account_a, account_data);
     }
 
     let account_a_data = rpc.get_account(account_a).await?.unwrap();
-    let ctoken_a = CToken::deserialize(&mut account_a_data.data.as_slice())
+    let ctoken_a = Token::deserialize(&mut account_a_data.data.as_slice())
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to deserialize CToken: {:?}", e)))?;
 
     let rent_config = ctoken_a
@@ -1292,7 +1290,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     let initial_slot = rpc.get_slot().await?;
 
     let get_last_claimed_slot = |account_data: &[u8]| -> Result<u64, RpcError> {
-        let ctoken = CToken::deserialize(&mut &account_data[..]).map_err(|e| {
+        let ctoken = Token::deserialize(&mut &account_data[..]).map_err(|e| {
             RpcError::AssertRpcError(format!("Failed to deserialize CToken: {:?}", e))
         })?;
 

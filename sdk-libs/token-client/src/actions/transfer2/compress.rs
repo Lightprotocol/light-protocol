@@ -24,7 +24,7 @@ use crate::instructions::transfer2::{
 /// * `payer` - Transaction fee payer
 ///
 /// # Returns
-/// `Result<Instruction, CTokenSdkError>` - The compression instruction
+/// `Result<Instruction, TokenSdkError>` - The compression instruction
 pub async fn compress<R: Rpc + Indexer>(
     rpc: &mut R,
     solana_token_account: Pubkey,

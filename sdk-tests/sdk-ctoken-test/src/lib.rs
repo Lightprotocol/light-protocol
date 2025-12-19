@@ -25,8 +25,7 @@ pub use create_token_account::{
     CreateTokenAccountData,
 };
 pub use mint_to_ctoken::{
-    process_mint_to_ctoken, process_mint_to_ctoken_invoke_signed, MintToCTokenData,
-    MINT_AUTHORITY_SEED,
+    process_mint_to_ctoken, process_mint_to_ctoken_invoke_signed, MintToData, MINT_AUTHORITY_SEED,
 };
 use solana_program::{
     account_info::AccountInfo, entrypoint, program_error::ProgramError, pubkey, pubkey::Pubkey,
@@ -38,8 +37,8 @@ pub use transfer_interface::{
 };
 pub use transfer_spl_ctoken::{
     process_ctoken_to_spl_invoke, process_ctoken_to_spl_invoke_signed,
-    process_spl_to_ctoken_invoke, process_spl_to_ctoken_invoke_signed, TransferCTokenToSplData,
-    TransferSplToCtokenData, TRANSFER_AUTHORITY_SEED,
+    process_spl_to_ctoken_invoke, process_spl_to_ctoken_invoke_signed, TransferSplToLightTokenData,
+    TransferToSplData, TRANSFER_AUTHORITY_SEED,
 };
 
 /// Program ID - replace with actual program ID after deployment
@@ -155,7 +154,7 @@ pub fn process_instruction(
             process_create_cmint(accounts, data)
         }
         InstructionType::MintToCtoken => {
-            let data = MintToCTokenData::try_from_slice(&instruction_data[1..])
+            let data = MintToData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_mint_to_ctoken(accounts, data)
         }
@@ -207,7 +206,7 @@ pub fn process_instruction(
             process_create_cmint_invoke_signed(accounts, data)
         }
         InstructionType::MintToCtokenInvokeSigned => {
-            let data = MintToCTokenData::try_from_slice(&instruction_data[1..])
+            let data = MintToData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_mint_to_ctoken_invoke_signed(accounts, data)
         }
@@ -217,22 +216,22 @@ pub fn process_instruction(
             process_create_cmint_with_pda_authority(accounts, data)
         }
         InstructionType::SplToCtokenInvoke => {
-            let data = TransferSplToCtokenData::try_from_slice(&instruction_data[1..])
+            let data = TransferSplToLightTokenData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_spl_to_ctoken_invoke(accounts, data)
         }
         InstructionType::SplToCtokenInvokeSigned => {
-            let data = TransferSplToCtokenData::try_from_slice(&instruction_data[1..])
+            let data = TransferSplToLightTokenData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_spl_to_ctoken_invoke_signed(accounts, data)
         }
         InstructionType::CtokenToSplInvoke => {
-            let data = TransferCTokenToSplData::try_from_slice(&instruction_data[1..])
+            let data = TransferToSplData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_ctoken_to_spl_invoke(accounts, data)
         }
         InstructionType::CtokenToSplInvokeSigned => {
-            let data = TransferCTokenToSplData::try_from_slice(&instruction_data[1..])
+            let data = TransferToSplData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_ctoken_to_spl_invoke_signed(accounts, data)
         }

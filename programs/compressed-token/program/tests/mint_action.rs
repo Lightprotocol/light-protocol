@@ -10,8 +10,8 @@ use light_token_interface::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
         mint_action::{
             Action, CompressedMintInstructionData, CpiContext, CreateMint, CreateSplMintAction,
-            MintActionCompressedInstructionData, MintToCTokenAction, MintToCompressedAction,
-            Recipient, RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
+            MintActionCompressedInstructionData, MintToAction, MintToCompressedAction, Recipient,
+            RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
             UpdateMetadataFieldAction,
         },
     },
@@ -70,8 +70,8 @@ fn random_mint_to_action(rng: &mut StdRng) -> MintToCompressedAction {
     }
 }
 
-fn random_mint_to_decompressed_action(rng: &mut StdRng) -> MintToCTokenAction {
-    MintToCTokenAction {
+fn random_mint_to_decompressed_action(rng: &mut StdRng) -> MintToAction {
+    MintToAction {
         amount: rng.gen_range(1..=1_000_000),
         account_index: rng.gen_range(1..=255),
     }
@@ -119,7 +119,7 @@ fn random_action(rng: &mut StdRng) -> Action {
         1 => Action::UpdateMintAuthority(random_update_authority_action(rng)),
         2 => Action::UpdateFreezeAuthority(random_update_authority_action(rng)),
         3 => Action::CreateSplMint(random_create_spl_mint_action(rng)),
-        4 => Action::MintToCToken(random_mint_to_decompressed_action(rng)),
+        4 => Action::MintTo(random_mint_to_decompressed_action(rng)),
         5 => Action::UpdateMetadataField(random_update_metadata_field_action(rng)),
         6 => Action::UpdateMetadataAuthority(random_update_metadata_authority_action(rng)),
         7 => Action::RemoveMetadataKey(random_remove_metadata_key_action(rng)),
@@ -224,7 +224,7 @@ fn compute_expected_config(data: &MintActionCompressedInstructionData) -> Accoun
         .map(|ctx| ctx.first_set_context || ctx.set_context)
         .unwrap_or(false);
 
-    // 3. has_mint_to_actions (only MintToCompressed needs tokens_out_queue, not MintToCToken)
+    // 3. has_mint_to_actions (only MintToCompressed needs tokens_out_queue, not MintTo)
     let has_mint_to_actions = data
         .actions
         .iter()
@@ -325,11 +325,11 @@ fn check_if_config_should_error(instruction_data: &MintActionCompressedInstructi
         .unwrap_or_default();
 
     if write_to_cpi_context {
-        // Check for MintToCToken actions
+        // Check for MintTo actions
         let has_mint_to_ctoken = instruction_data
             .actions
             .iter()
-            .any(|action| matches!(action, Action::MintToCToken(_)));
+            .any(|action| matches!(action, Action::MintTo(_)));
 
         // Check for CreateSplMint actions
         let create_spl_mint = instruction_data

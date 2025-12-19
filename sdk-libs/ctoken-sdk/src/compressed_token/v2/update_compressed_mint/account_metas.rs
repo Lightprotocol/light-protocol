@@ -1,7 +1,7 @@
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 
-use crate::utils::CTokenDefaultAccounts;
+use crate::utils::TokenDefaultAccounts;
 
 /// Configuration for generating account metas for update compressed mint instruction
 #[derive(Debug, Clone)]
@@ -18,7 +18,7 @@ pub struct UpdateCompressedMintMetaConfig {
 pub fn get_update_compressed_mint_instruction_account_metas(
     config: UpdateCompressedMintMetaConfig,
 ) -> Vec<AccountMeta> {
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
 
     let mut metas = Vec::new();
 

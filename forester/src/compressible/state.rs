@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use borsh::BorshDeserialize;
 use dashmap::DashMap;
-use light_ctoken_interface::{
-    state::{extensions::ExtensionStruct, CToken},
+use light_token_interface::{
+    state::{extensions::ExtensionStruct, Token},
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
 };
 use solana_sdk::pubkey::Pubkey;
@@ -14,7 +14,7 @@ use crate::Result;
 
 /// Calculate the slot at which an account becomes compressible
 /// Returns the last funded slot; accounts are compressible when current_slot > this value
-fn calculate_compressible_slot(account: &CToken, lamports: u64) -> Result<u64> {
+fn calculate_compressible_slot(account: &Token, lamports: u64) -> Result<u64> {
     use light_compressible::rent::SLOTS_PER_EPOCH;
 
     // Find the Compressible extension
@@ -48,7 +48,7 @@ fn calculate_compressible_slot(account: &CToken, lamports: u64) -> Result<u64> {
     Ok(last_funded_epoch * SLOTS_PER_EPOCH)
 }
 
-/// Tracker for compressible CToken accounts
+/// Tracker for compressible Token accounts
 #[derive(Debug)]
 pub struct CompressibleAccountTracker {
     accounts: Arc<DashMap<Pubkey, CompressibleAccountState>>,
@@ -118,9 +118,9 @@ impl CompressibleAccountTracker {
         account_data: &[u8],
         lamports: u64,
     ) -> Result<()> {
-        // Deserialize CToken using borsh
-        let ctoken = CToken::try_from_slice(account_data)
-            .map_err(|e| anyhow::anyhow!("Failed to deserialize CToken with borsh: {:?}", e))?;
+        // Deserialize Token using borsh
+        let ctoken = Token::try_from_slice(account_data)
+            .map_err(|e| anyhow::anyhow!("Failed to deserialize Token with borsh: {:?}", e))?;
 
         // Calculate compressible slot
         let compressible_slot = match calculate_compressible_slot(&ctoken, lamports) {
@@ -134,7 +134,7 @@ impl CompressibleAccountTracker {
             }
         };
 
-        // Create state with full CToken account
+        // Create state with full Token account
         let state = CompressibleAccountState {
             pubkey,
             account: ctoken,

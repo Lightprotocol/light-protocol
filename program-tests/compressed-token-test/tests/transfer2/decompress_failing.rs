@@ -32,11 +32,16 @@
 //
 
 use light_client::indexer::{CompressedTokenAccount, Indexer};
-use light_ctoken_interface::{
+use light_program_test::{
+    utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
+};
+use light_sdk::instruction::PackedAccounts;
+use light_test_utils::RpcError;
+use light_token_interface::{
     instructions::{mint_action::Recipient, transfer2::MultiInputTokenDataWithContext},
     state::TokenDataVersion,
 };
-use light_ctoken_sdk::{
+use light_token_sdk::{
     compressed_token::{
         create_compressed_mint::find_cmint_address,
         transfer2::{
@@ -45,14 +50,9 @@ use light_ctoken_sdk::{
         },
         CTokenAccount2,
     },
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
+    ctoken::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
     ValidityProof,
 };
-use light_program_test::{
-    utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
-};
-use light_sdk::instruction::PackedAccounts;
-use light_test_utils::RpcError;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 // ============================================================================
@@ -89,7 +89,7 @@ async fn setup_decompression_test(
 
     // Derive mint and ATA addresses
     let (mint, _) = find_cmint_address(&mint_seed.pubkey());
-    let (ctoken_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
+    let (ctoken_ata, _) = derive_token_ata(&owner.pubkey(), &mint);
 
     // Create compressible CToken ATA for owner (recipient of decompression)
     let compressible_params = CompressibleParams {
@@ -105,7 +105,7 @@ async fn setup_decompression_test(
     };
 
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA: {:?}", e)))?;
@@ -250,7 +250,7 @@ async fn create_decompression_inputs(
 
     // Add decompression
     token_account
-        .decompress_ctoken(decompress_amount, ctoken_ata_index)
+        .decompress_light_token(decompress_amount, ctoken_ata_index)
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to decompress: {:?}", e)))?;
 
     // Get account metas

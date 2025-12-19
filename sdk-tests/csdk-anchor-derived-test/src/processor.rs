@@ -1,12 +1,12 @@
 use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo;
-use light_ctoken_sdk::compat::PackedCTokenData;
 use light_sdk::{
     compressible::{compress_account::prepare_account_for_compression, CompressibleConfig},
     cpi::v2::CpiAccounts,
     instruction::{account_meta::CompressedAccountMetaNoLamportsNoAddress, ValidityProof},
     LightDiscriminator,
 };
+use light_token_sdk::compat::PackedTokenDataWithVariant;
 
 use crate::{
     instruction_accounts::{CompressAccountsIdempotent, DecompressAccountsIdempotent},
@@ -29,7 +29,7 @@ impl<'info> light_sdk::compressible::DecompressContext<'info>
     for DecompressAccountsIdempotent<'info>
 {
     type CompressedData = CompressedAccountData;
-    type PackedTokenData = PackedCTokenData<CTokenAccountVariant>;
+    type PackedTokenData = PackedTokenDataWithVariant<CTokenAccountVariant>;
     type CompressedMeta = CompressedAccountMetaNoLamportsNoAddress;
     type SeedParams = SeedParams;
 
@@ -183,7 +183,7 @@ impl<'info> light_sdk::compressible::DecompressContext<'info>
             return Ok(());
         }
 
-        light_ctoken_sdk::compressible::process_decompress_tokens_runtime::<CTokenAccountVariant, _>(
+        light_token_sdk::compressible::process_decompress_tokens_runtime::<CTokenAccountVariant, _>(
             self,
             _remaining_accounts,
             _fee_payer,

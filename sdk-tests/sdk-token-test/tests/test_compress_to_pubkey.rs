@@ -1,10 +1,10 @@
 use anchor_lang::InstructionData;
-use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use light_program_test::{
     program_test::TestRpc, Indexer, LightProgramTest, ProgramTestConfig, Rpc,
 };
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::spl::create_mint_helper;
+use light_token_sdk::token::CTOKEN_PROGRAM_ID;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,

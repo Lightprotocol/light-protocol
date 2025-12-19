@@ -1,5 +1,5 @@
 use light_client::rpc::Rpc;
-use light_ctoken_interface::state::ZExtensionStructMut;
+use light_token_interface::state::ZExtensionStructMut;
 use light_zero_copy::traits::ZeroCopyAtMut;
 use solana_sdk::signer::Signer;
 
@@ -150,7 +150,7 @@ async fn test_compress_and_close_owner_scenarios() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -164,9 +164,9 @@ async fn test_compress_and_close_owner_scenarios() {
         .await;
 
         // Set token balance on ATA
-        use light_ctoken_sdk::ctoken::derive_ctoken_ata;
+        use light_token_sdk::token::derive_token_ata;
         let (ata_pubkey, _bump) =
-            derive_ctoken_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
+            derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
         let mut ata_account = context.rpc.get_account(ata_pubkey).await.unwrap().unwrap();
 
@@ -431,10 +431,10 @@ async fn test_compress_and_close_compress_to_pubkey() {
             .unwrap()
             .unwrap();
 
-        use light_ctoken_interface::state::ctoken::CToken;
+        use light_token_interface::state::Token;
 
         // Parse the CToken account
-        let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut token_account.data)
+        let (mut ctoken, _) = Token::zero_copy_at_mut(&mut token_account.data)
             .expect("Failed to deserialize ctoken account");
 
         // Modify compress_to_pubkey in the compressible extension
@@ -521,10 +521,10 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
         pre_pay_num_epochs: num_prepaid_epochs,
         lamports_per_write,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
     };
 
-    let create_token_account_ix = CreateCTokenAccount::new(
+    let create_token_account_ix = CreateTokenAccount::new(
         payer_pubkey,
         token_account_pubkey,
         context.mint_pubkey,
@@ -564,7 +564,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
             num_prepaid_epochs,
             lamports_per_write,
             compress_to_pubkey: false,
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
     )
@@ -768,10 +768,10 @@ async fn test_compress_and_close_output_validation_errors() {
             .unwrap()
             .unwrap();
 
-        use light_ctoken_interface::state::ctoken::CToken;
+        use light_token_interface::state::Token;
 
         // Parse and modify the CToken account
-        let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut token_account.data)
+        let (mut ctoken, _) = Token::zero_copy_at_mut(&mut token_account.data)
             .expect("Failed to deserialize ctoken account");
 
         // Set compress_to_pubkey=true in the compressible extension

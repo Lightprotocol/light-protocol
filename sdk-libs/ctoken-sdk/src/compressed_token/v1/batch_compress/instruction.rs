@@ -1,13 +1,13 @@
-use light_ctoken_interface;
 use light_ctoken_types::{
     instruction::batch_compress::BatchCompressInstructionData, BATCH_COMPRESS,
 };
+use light_token_interface;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
 use super::account_metas::{get_batch_compress_instruction_account_metas, BatchCompressMetaConfig};
 use crate::{
-    error::{CTokenSdkError, Result},
+    error::{Result, TokenSdkError},
     AnchorDeserialize, AnchorSerialize,
 };
 
@@ -54,7 +54,7 @@ pub fn create_batch_compress_instruction(inputs: BatchCompressInputs) -> Result<
     // Serialize instruction data
     let data_vec = instruction_data
         .try_to_vec()
-        .map_err(|_| CTokenSdkError::SerializationError)?;
+        .map_err(|_| TokenSdkError::SerializationError)?;
     let mut data = Vec::with_capacity(data_vec.len() + 8 + 4);
     data.extend_from_slice(BATCH_COMPRESS.as_slice());
     data.extend_from_slice(
@@ -78,7 +78,7 @@ pub fn create_batch_compress_instruction(inputs: BatchCompressInputs) -> Result<
     let account_metas = get_batch_compress_instruction_account_metas(meta_config);
 
     Ok(Instruction {
-        program_id: Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+        program_id: Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
         accounts: account_metas,
         data,
     })

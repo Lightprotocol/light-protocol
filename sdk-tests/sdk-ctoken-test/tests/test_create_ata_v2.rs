@@ -4,10 +4,8 @@ mod shared;
 
 use borsh::BorshSerialize;
 use light_client::rpc::Rpc;
-use light_ctoken_sdk::ctoken::{
-    config_pda, derive_ctoken_ata, rent_sponsor_pda, CTOKEN_PROGRAM_ID,
-};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
+use light_token_sdk::token::{config_pda, derive_token_ata, rent_sponsor_pda, CTOKEN_PROGRAM_ID};
 use native_ctoken_examples::{CreateAta2Data, InstructionType, ATA_SEED, ID};
 use shared::*;
 use solana_sdk::{
@@ -29,7 +27,7 @@ async fn test_create_ata2_invoke() {
 
     // Derive the ATA address
     let owner = payer.pubkey();
-    let (ata_address, bump) = derive_ctoken_ata(&owner, &mint_pda);
+    let (ata_address, bump) = derive_token_ata(&owner, &mint_pda);
 
     // Verify ATA doesn't exist yet
     let ata_account_before = rpc.get_account(ata_address).await.unwrap();
@@ -110,7 +108,7 @@ async fn test_create_ata2_invoke_signed() {
 
     // The owner will be the regular payer (not the PDA)
     let owner = payer.pubkey();
-    let (ata_address, bump) = derive_ctoken_ata(&owner, &mint_pda);
+    let (ata_address, bump) = derive_token_ata(&owner, &mint_pda);
 
     // Verify ATA doesn't exist yet
     let ata_account_before = rpc.get_account(ata_address).await.unwrap();

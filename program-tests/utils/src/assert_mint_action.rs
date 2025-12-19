@@ -2,12 +2,12 @@ use std::collections::HashMap;
 
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
-use light_ctoken_interface::state::{
-    extensions::{AdditionalMetadata, ExtensionStruct},
-    CToken, CompressedMint,
-};
 use light_program_test::{LightProgramTest, Rpc};
 use light_token_client::instructions::mint_action::MintActionType;
+use light_token_interface::state::{
+    extensions::{AdditionalMetadata, ExtensionStruct},
+    CompressedMint, Token,
+};
 use solana_sdk::pubkey::Pubkey;
 
 /// Assert that mint actions produce the expected state changes
@@ -20,7 +20,7 @@ use solana_sdk::pubkey::Pubkey;
 ///
 /// # Assertions
 /// * Single assert_eq! comparing actual vs expected mint state
-/// * Validates CToken account balances for MintToCToken actions
+/// * Validates CToken account balances for MintTo actions
 pub async fn assert_mint_action(
     rpc: &mut LightProgramTest,
     compressed_mint_address: [u8; 32],
@@ -36,13 +36,11 @@ pub async fn assert_mint_action(
     for action in actions.iter() {
         match action {
             MintActionType::MintTo { recipients, .. } => {
-                let total_amount: u64 = recipients.iter().map(|r| r.amount).sum();
-                expected_mint.base.supply += total_amount;
-            }
-            MintActionType::MintToCToken { account, amount } => {
-                expected_mint.base.supply += *amount;
-                // Track this mint for later balance verification (accumulate amounts)
-                *ctoken_mints.entry(*account).or_insert(0) += *amount;
+                for recipient in recipients {
+                    expected_mint.base.supply += recipient.amount;
+                    // Track this mint for later balance verification (accumulate amounts)
+                    *ctoken_mints.entry(recipient.recipient).or_insert(0) += recipient.amount;
+                }
             }
             MintActionType::UpdateMintAuthority { new_authority } => {
                 expected_mint.base.mint_authority = new_authority.map(Into::into);
@@ -109,6 +107,11 @@ pub async fn assert_mint_action(
                     }
                 }
             }
+            MintActionType::MintToTokenAccount { account, amount } => {
+                expected_mint.base.supply += *amount;
+                // Track this mint for later balance verification (accumulate amounts)
+                *ctoken_mints.entry(*account).or_insert(0) += *amount;
+            }
         }
     }
 
@@ -132,7 +135,7 @@ pub async fn assert_mint_action(
         "Compressed mint state after mint_action should match expected"
     );
 
-    // Verify CToken accounts for MintToCToken actions
+    // Verify CToken accounts for MintTo actions
     for (account_pubkey, total_minted_amount) in ctoken_mints {
         // Get pre-transaction account state
         let pre_account = rpc
@@ -140,7 +143,7 @@ pub async fn assert_mint_action(
             .expect("CToken account should exist before minting");
 
         // Parse pre-transaction CToken state
-        let mut pre_ctoken: CToken =
+        let mut pre_ctoken: Token =
             BorshDeserialize::deserialize(&mut &pre_account.data[..]).unwrap();
 
         // Apply the total minted amount (handles multiple mints to same account)
@@ -151,7 +154,7 @@ pub async fn assert_mint_action(
 
         // Get actual post-transaction account
         let account_data = rpc.context.get_account(&account_pubkey).unwrap();
-        let post_ctoken: CToken =
+        let post_ctoken: Token =
             BorshDeserialize::deserialize(&mut &account_data.data[..]).unwrap();
 
         // Assert token amount matches expected
@@ -186,7 +189,7 @@ pub async fn assert_mint_action(
                         account_size,
                         current_slot,
                         pre_lamports,
-                        light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                        light_token_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                     )
                     .unwrap();
 

@@ -2,21 +2,21 @@ use anchor_lang::{
     prelude::{AccountMeta, Pubkey},
     InstructionData,
 };
-use light_ctoken_interface::{
+use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
+use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+use light_token_client::instructions::transfer2::create_decompress_instruction;
+use light_token_interface::{
     instructions::mint_action::{CompressedMintWithContext, Recipient},
     state::{BaseMint, CompressedMint, CompressedMintMetadata},
     COMPRESSED_MINT_SEED, CTOKEN_PROGRAM_ID,
 };
-use light_ctoken_sdk::{
+use light_token_sdk::{
     compressed_token::{
         create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
         mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
     },
-    ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount},
+    ctoken::{derive_token_ata, CreateAssociatedTokenAccount},
 };
-use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
-use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
-use light_token_client::instructions::transfer2::create_decompress_instruction;
 use sdk_token_test::instruction;
 use serial_test::serial;
 use solana_sdk::{
@@ -46,8 +46,7 @@ async fn test_compress_full_and_close() {
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
-    let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+    let compressed_token_program_id = light_token_sdk::token::CTOKEN_PROGRAM_ID;
     let (mint_pda, _) = Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_signer.pubkey().as_ref()],
         &compressed_token_program_id,
@@ -170,9 +169,9 @@ async fn test_compress_full_and_close() {
     println!("✅ Minted {} compressed tokens to recipient", mint_amount);
 
     // Step 4: Create associated token account for decompression
-    let (ctoken_ata_pubkey, bump) = derive_ctoken_ata(&recipient, &mint_pda);
+    let (ctoken_ata_pubkey, bump) = derive_token_ata(&recipient, &mint_pda);
     // Create a non-compressible token account by setting compressible to None
-    let create_ata_instruction = CreateAssociatedCTokenAccount {
+    let create_ata_instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump,
         payer: payer.pubkey(),

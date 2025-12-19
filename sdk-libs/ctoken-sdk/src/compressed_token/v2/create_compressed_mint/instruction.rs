@@ -1,7 +1,7 @@
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, traits::LightInstructionData,
 };
-use light_ctoken_interface::{
+use light_token_interface::{
     self,
     instructions::{
         extensions::ExtensionInstructionData,
@@ -18,7 +18,7 @@ use crate::{
         get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
         MintActionMetaConfigCpiWrite,
     },
-    error::{CTokenSdkError, Result},
+    error::{Result, TokenSdkError},
     AnchorDeserialize, AnchorSerialize,
 };
 
@@ -48,7 +48,7 @@ pub fn create_compressed_mint_cpi(
     let compressed_mint_instruction_data = CompressedMintInstructionData {
         supply: 0,
         decimals: input.decimals,
-        metadata: light_ctoken_interface::state::CompressedMintMetadata {
+        metadata: light_token_interface::state::CompressedMintMetadata {
             version: input.version,
             mint: find_cmint_address(&input.mint_signer).0.to_bytes().into(),
             spl_mint_initialized: false,
@@ -66,7 +66,7 @@ pub fn create_compressed_mint_cpi(
         root_index: input.address_merkle_tree_root_index,
     };
 
-    let mut instruction_data = light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
+    let mut instruction_data = light_token_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
         mint_address,
         input.address_merkle_tree_root_index,
         input.proof,
@@ -98,11 +98,11 @@ pub fn create_compressed_mint_cpi(
 
     let data = instruction_data
         .data()
-        .map_err(|_| CTokenSdkError::SerializationError)?;
+        .map_err(|_| TokenSdkError::SerializationError)?;
 
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
-            light_ctoken_interface::CTOKEN_PROGRAM_ID,
+            light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
         ),
         accounts: account_metas,
         data,
@@ -132,13 +132,13 @@ pub fn create_compressed_mint_cpi_write(
             "Invalid CPI context first cpi set or set context must be true {:?}",
             input.cpi_context
         );
-        return Err(CTokenSdkError::InvalidAccountData);
+        return Err(TokenSdkError::InvalidAccountData);
     }
 
     let compressed_mint_instruction_data = CompressedMintInstructionData {
         supply: 0,
         decimals: input.decimals,
-        metadata: light_ctoken_interface::state::CompressedMintMetadata {
+        metadata: light_token_interface::state::CompressedMintMetadata {
             version: input.version,
             mint: find_cmint_address(&input.mint_signer).0.to_bytes().into(),
             spl_mint_initialized: false,
@@ -148,7 +148,7 @@ pub fn create_compressed_mint_cpi_write(
         extensions: input.extensions,
     };
 
-    let instruction_data = light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint_write_to_cpi_context(
+    let instruction_data = light_token_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint_write_to_cpi_context(
         input.mint_address,
         input.address_merkle_tree_root_index,
         compressed_mint_instruction_data,input.cpi_context
@@ -165,11 +165,11 @@ pub fn create_compressed_mint_cpi_write(
 
     let data = instruction_data
         .data()
-        .map_err(|_| CTokenSdkError::SerializationError)?;
+        .map_err(|_| TokenSdkError::SerializationError)?;
 
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
-            light_ctoken_interface::CTOKEN_PROGRAM_ID,
+            light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
         ),
         accounts: account_metas,
         data,
@@ -191,7 +191,7 @@ pub fn derive_cmint_compressed_address(
     light_compressed_account::address::derive_address(
         &find_cmint_address(mint_seed).0.to_bytes(),
         &address_tree_pubkey.to_bytes(),
-        &light_ctoken_interface::CTOKEN_PROGRAM_ID,
+        &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
     )
 }
 
@@ -199,13 +199,13 @@ pub fn derive_cmint_from_spl_mint(mint: &Pubkey, address_tree_pubkey: &Pubkey) -
     light_compressed_account::address::derive_address(
         &mint.to_bytes(),
         &address_tree_pubkey.to_bytes(),
-        &light_ctoken_interface::CTOKEN_PROGRAM_ID,
+        &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
     )
 }
 
 pub fn find_cmint_address(mint_seed: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_seed.as_ref()],
-        &Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+        &Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
     )
 }

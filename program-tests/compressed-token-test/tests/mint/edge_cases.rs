@@ -1,14 +1,5 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
-use light_ctoken_interface::state::{
-    extensions::AdditionalMetadata, CompressedMint, TokenDataVersion,
-};
-use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::{
-        derive_cmint_compressed_address, find_cmint_address,
-    },
-    ctoken::{CompressibleParams, CreateAssociatedCTokenAccount},
-};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
@@ -17,12 +8,21 @@ use light_token_client::{
     actions::create_mint,
     instructions::mint_action::{MintActionType, MintToRecipient},
 };
+use light_token_interface::state::{
+    extensions::AdditionalMetadata, CompressedMint, TokenDataVersion,
+};
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::{
+        derive_cmint_compressed_address, find_cmint_address,
+    },
+    ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
+};
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
 
 /// Functional test that uses multiple mint actions in a single instruction:
 /// 1. MintToCompressed - mint to compressed account
-/// 2. MintToCToken - mint to decompressed account
+/// 2. MintTo - mint to decompressed account
 /// 3. UpdateMintAuthority
 /// 4. UpdateFreezeAuthority
 /// 5-8. UpdateMetadataField (Name, Symbol, URI, and add custom field)
@@ -58,7 +58,7 @@ async fn functional_all_in_one_instruction() {
         8, // decimals
         &authority,
         Some(authority.pubkey()),
-        Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+        Some(light_token_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
             update_authority: Some(authority.pubkey().into()),
             name: "Test Token".as_bytes().to_vec(),
             symbol: "TEST".as_bytes().to_vec(),
@@ -106,7 +106,7 @@ async fn functional_all_in_one_instruction() {
         8,
         authority.pubkey(),
         authority.pubkey(),
-        Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+        Some(light_token_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
             update_authority: Some(authority.pubkey().into()),
             name: "Test Token".as_bytes().to_vec(),
             symbol: "TEST".as_bytes().to_vec(),
@@ -147,7 +147,7 @@ async fn functional_all_in_one_instruction() {
     let new_freeze_authority = Keypair::new();
     let new_metadata_authority = Keypair::new();
 
-    // Create a compressible ctoken account for MintToCToken
+    // Create a compressible ctoken account for MintTo
     let recipient = Keypair::new();
     let compressible_params = CompressibleParams {
         compressible_config: rpc
@@ -162,7 +162,7 @@ async fn functional_all_in_one_instruction() {
     };
 
     let create_compressible_ata_ix =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
             .with_compressible(compressible_params)
             .instruction()
             .unwrap();
@@ -181,13 +181,9 @@ async fn functional_all_in_one_instruction() {
             }],
             token_account_version: 2,
         },
-        // 2. MintToCToken - mint to decompressed account
-        MintActionType::MintToCToken {
-            account: light_ctoken_sdk::ctoken::derive_ctoken_ata(
-                &recipient.pubkey(),
-                &spl_mint_pda,
-            )
-            .0,
+        // 2. MintTo - mint to decompressed account
+        MintActionType::MintTo {
+            account: light_token_sdk::token::derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0,
             amount: 2000u64,
         },
         // 3. UpdateMintAuthority

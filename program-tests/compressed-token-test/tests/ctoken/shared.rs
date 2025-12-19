@@ -1,10 +1,5 @@
 // Re-export all necessary imports for test modules
 pub use light_compressible::rent::{RentConfig, SLOTS_PER_EPOCH};
-pub use light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
-pub use light_ctoken_sdk::ctoken::{
-    derive_ctoken_ata, CloseCTokenAccount, CompressibleParams, CreateAssociatedCTokenAccount,
-    CreateCTokenAccount,
-};
 pub use light_program_test::{
     forester::compress_and_close_forester, program_test::TestRpc, LightProgramTest,
     ProgramTestConfig,
@@ -20,6 +15,11 @@ pub use light_test_utils::{
 };
 pub use light_token_client::{
     actions::transfer2::compress, instructions::transfer2::CompressInput,
+};
+pub use light_token_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
+pub use light_token_sdk::token::{
+    derive_token_ata, CloseAccount, CompressibleParams, CreateAssociatedTokenAccount,
+    CreateTokenAccount,
 };
 pub use serial_test::serial;
 pub use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -98,7 +98,7 @@ pub async fn create_and_assert_token_account(
         token_account_version: compressible_data.account_version,
     };
 
-    let create_token_account_ix = CreateCTokenAccount::new(
+    let create_token_account_ix = CreateTokenAccount::new(
         payer_pubkey,
         token_account_pubkey,
         context.mint_pubkey,
@@ -152,7 +152,7 @@ pub async fn create_and_assert_token_account_fails(
         token_account_version: compressible_data.account_version,
     };
 
-    let create_token_account_ix = CreateCTokenAccount::new(
+    let create_token_account_ix = CreateTokenAccount::new(
         payer_pubkey,
         token_account_pubkey,
         context.mint_pubkey,
@@ -197,7 +197,7 @@ pub async fn setup_account_test_with_created_account(
             rent_sponsor,
             num_prepaid_epochs: epochs,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: context.payer.pubkey(),
         };
@@ -216,7 +216,7 @@ pub async fn create_non_compressible_token_account(
     token_keypair: Option<&Keypair>,
 ) {
     use anchor_lang::prelude::{borsh::BorshSerialize, AccountMeta};
-    use light_ctoken_interface::instructions::create_ctoken_account::CreateTokenAccountInstructionData;
+    use light_token_interface::instructions::create_token_account::CreateTokenAccountInstructionData;
     use solana_sdk::instruction::Instruction;
     let token_keypair = token_keypair.unwrap_or(&context.token_account_keypair);
     let payer_pubkey = context.payer.pubkey();
@@ -304,10 +304,10 @@ pub async fn close_and_assert_token_account(
 
     let close_ix = if is_compressible {
         // Read rent_sponsor from the account's compressible extension
-        use light_ctoken_interface::state::{CToken, ZExtensionStruct};
+        use light_token_interface::state::{CToken, ZExtensionStruct};
         use light_zero_copy::traits::ZeroCopyAt;
 
-        let (ctoken, _) = CToken::zero_copy_at(&account_info.data).unwrap();
+        let (ctoken, _) = Token::zero_copy_at(&account_info.data).unwrap();
         let rent_sponsor = if let Some(extensions) = ctoken.extensions.as_ref() {
             extensions
                 .iter()
@@ -320,7 +320,7 @@ pub async fn close_and_assert_token_account(
             panic!("Compressible account must have compressible extension");
         };
 
-        CloseCTokenAccount {
+        CloseAccount {
             token_program: light_compressed_token::ID,
             account: token_account_pubkey,
             destination,
@@ -330,7 +330,7 @@ pub async fn close_and_assert_token_account(
         .instruction()
         .unwrap()
     } else {
-        CloseCTokenAccount {
+        CloseAccount {
             token_program: light_compressed_token::ID,
             account: token_account_pubkey,
             destination,
@@ -378,7 +378,7 @@ pub async fn close_and_assert_token_account_fails(
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
-    let close_ix = CloseCTokenAccount {
+    let close_ix = CloseAccount {
         token_program: light_compressed_token::ID,
         account: token_account_pubkey,
         destination,
@@ -411,7 +411,7 @@ pub async fn create_and_assert_ata(
     let owner_pubkey = context.owner_keypair.pubkey();
 
     // Derive ATA address
-    let (ata_pubkey, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
+    let (ata_pubkey, bump) = derive_token_ata(&owner_pubkey, &context.mint_pubkey);
 
     // Build instruction based on whether it's compressible
     let create_ata_ix = if let Some(compressible) = compressible_data.as_ref() {
@@ -425,7 +425,7 @@ pub async fn create_and_assert_ata(
         };
 
         let mut builder =
-            CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+            CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
                 .with_compressible(compressible_params);
 
         if idempotent {
@@ -435,7 +435,7 @@ pub async fn create_and_assert_ata(
         builder.instruction().unwrap()
     } else {
         // Create non-compressible account
-        let mut builder = CreateAssociatedCTokenAccount {
+        let mut builder = CreateAssociatedTokenAccount {
             idempotent: false,
             bump,
             payer: payer_pubkey,
@@ -498,7 +498,7 @@ pub async fn create_and_assert_ata_fails(
     };
 
     let mut builder =
-        CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+        CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
             .with_compressible(compressible_params);
 
     if idempotent {
@@ -677,12 +677,12 @@ pub async fn compress_and_close_forester_with_invalid_output(
 
     use anchor_lang::{InstructionData, ToAccountMetas};
     use light_compressible::config::CompressibleConfig;
-    use light_ctoken_interface::state::{CToken, ZExtensionStruct};
     use light_registry::{
         accounts::CompressAndCloseContext as CompressAndCloseAccounts,
         instruction::CompressAndClose, utils::get_forester_epoch_pda_from_authority,
     };
     use light_sdk::instruction::PackedAccounts;
+    use light_token_interface::state::{CToken, ZExtensionStruct};
     use light_zero_copy::traits::ZeroCopyAt;
     use solana_sdk::instruction::Instruction;
 
@@ -715,7 +715,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
         .unwrap()
         .unwrap();
 
-    let (ctoken, _) = CToken::zero_copy_at(&token_account_info.data).unwrap();
+    let (ctoken, _) = Token::zero_copy_at(&token_account_info.data).unwrap();
     let mint_pubkey = Pubkey::from(ctoken.mint.to_bytes());
 
     // Extract compressible extension data
@@ -765,7 +765,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
     };
 
     // Add system accounts
-    use light_ctoken_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
+    use light_token_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
     let config = CTokenCompressAndCloseAccounts {
         compressed_token_program: compressed_token_program_id,
         cpi_authority_pda: Pubkey::find_program_address(

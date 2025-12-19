@@ -2,7 +2,7 @@ use light_program_profiler::profile;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 
-use crate::utils::CTokenDefaultAccounts;
+use crate::utils::TokenDefaultAccounts;
 
 #[derive(Debug, Clone)]
 pub struct MintActionMetaConfig {
@@ -62,13 +62,13 @@ impl MintActionMetaConfig {
 
     /// Create a new MintActionMetaConfig for CPI context operations.
     pub fn new_cpi_context(
-        instruction_data: &light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData,
+        instruction_data: &light_token_interface::instructions::mint_action::MintActionCompressedInstructionData,
         fee_payer: Pubkey,
         authority: Pubkey,
         cpi_context_pubkey: Pubkey,
     ) -> crate::error::Result<Self> {
         if instruction_data.cpi_context.is_none() {
-            return Err(crate::error::CTokenSdkError::CpiContextRequired);
+            return Err(crate::error::TokenSdkError::CpiContextRequired);
         }
 
         Ok(Self {
@@ -97,7 +97,7 @@ impl MintActionMetaConfig {
     /// Get the account metas for a mint action instruction
     #[profile]
     pub fn to_account_metas(self) -> Vec<AccountMeta> {
-        let default_pubkeys = CTokenDefaultAccounts::default();
+        let default_pubkeys = TokenDefaultAccounts::default();
         let mut metas = Vec::new();
 
         metas.push(AccountMeta::new_readonly(
@@ -181,7 +181,7 @@ pub struct MintActionMetaConfigCpiWrite {
 pub fn get_mint_action_instruction_account_metas_cpi_write(
     config: MintActionMetaConfigCpiWrite,
 ) -> Vec<AccountMeta> {
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
     let mut metas = Vec::new();
 
     metas.push(AccountMeta::new_readonly(

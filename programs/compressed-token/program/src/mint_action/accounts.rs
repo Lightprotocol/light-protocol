@@ -366,7 +366,7 @@ pub struct AccountsConfig {
     ///    4.2. or is initialized in this instruction
     // TODO: SPL token accounts (mint, token_pool_pda, token_program) are required when
     // spl_mint_initialized is true, but they are only actually used for MintToCompressed,
-    // MintToCToken, or CreateSplMint actions. For authority/metadata update actions
+    // MintTo, or CreateSplMint actions. For authority/metadata update actions
     // (UpdateMintAuthority, UpdateFreezeAuthority, UpdateMetadataField, etc.), the SPL
     // accounts are not needed. This cannot be tested until associated SPL mint is supported.
     pub spl_mint_initialized: bool,
@@ -423,7 +423,7 @@ impl AccountsConfig {
         }
 
         if write_to_cpi_context {
-            // Must not have any MintToCToken actions
+            // Must not have any MintTo actions
             let has_mint_to_ctoken_actions = parsed_instruction_data
                 .actions
                 .iter()
@@ -456,7 +456,7 @@ impl AccountsConfig {
         } else {
             // For MintToCompressed actions
             // - needed for tokens_out_queue (only MintToCompressed creates new compressed outputs)
-            // - MintToCToken mints to existing decompressed accounts, doesn't need tokens_out_queue
+            // - MintTo mints to existing decompressed accounts, doesn't need tokens_out_queue
             let has_mint_to_actions = parsed_instruction_data
                 .actions
                 .iter()

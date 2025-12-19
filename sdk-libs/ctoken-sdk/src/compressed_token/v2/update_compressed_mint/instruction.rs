@@ -1,11 +1,11 @@
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, traits::LightInstructionData,
 };
-use light_ctoken_interface::{
+use light_ctoken_types::CompressedMintAuthorityType;
+use light_token_interface::{
     self,
     instructions::mint_action::{CompressedMintWithContext, CpiContext},
 };
-use light_ctoken_types::CompressedMintAuthorityType;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
@@ -14,7 +14,7 @@ use crate::{
         get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
         MintActionMetaConfigCpiWrite,
     },
-    error::{CTokenSdkError, Result},
+    error::{Result, TokenSdkError},
     AnchorDeserialize, AnchorSerialize,
 };
 
@@ -41,12 +41,12 @@ pub fn update_compressed_mint_cpi(
     cpi_context: Option<CpiContext>,
 ) -> Result<Instruction> {
     let mut instruction_data =
-        light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new(
+        light_token_interface::instructions::mint_action::MintActionCompressedInstructionData::new(
             input.compressed_mint_inputs.clone(),
             input.proof,
         );
 
-    let update_authority = light_ctoken_interface::instructions::mint_action::UpdateAuthority {
+    let update_authority = light_token_interface::instructions::mint_action::UpdateAuthority {
         new_authority: input.new_authority.map(|auth| auth.to_bytes().into()),
     };
 
@@ -75,11 +75,11 @@ pub fn update_compressed_mint_cpi(
 
     let data = instruction_data
         .data()
-        .map_err(|_| CTokenSdkError::SerializationError)?;
+        .map_err(|_| TokenSdkError::SerializationError)?;
 
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
-            light_ctoken_interface::CTOKEN_PROGRAM_ID,
+            light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
         ),
         accounts: account_metas,
         data,
@@ -108,16 +108,16 @@ pub fn create_update_compressed_mint_cpi_write(
     inputs: UpdateCompressedMintInputsCpiWrite,
 ) -> Result<Instruction> {
     if !inputs.cpi_context.first_set_context && !inputs.cpi_context.set_context {
-        return Err(CTokenSdkError::InvalidCpiContext);
+        return Err(TokenSdkError::InvalidCpiContext);
     }
 
     let mut instruction_data =
-        light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new(
+        light_token_interface::instructions::mint_action::MintActionCompressedInstructionData::new(
             inputs.compressed_mint_inputs.clone(),
             None, // No proof for CPI write
         );
 
-    let update_authority = light_ctoken_interface::instructions::mint_action::UpdateAuthority {
+    let update_authority = light_token_interface::instructions::mint_action::UpdateAuthority {
         new_authority: inputs.new_authority.map(|auth| auth.to_bytes().into()),
     };
 
@@ -143,11 +143,11 @@ pub fn create_update_compressed_mint_cpi_write(
 
     let data = instruction_data
         .data()
-        .map_err(|_| CTokenSdkError::SerializationError)?;
+        .map_err(|_| TokenSdkError::SerializationError)?;
 
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
-            light_ctoken_interface::CTOKEN_PROGRAM_ID,
+            light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
         ),
         accounts: account_metas,
         data,

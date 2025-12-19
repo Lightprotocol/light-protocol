@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_ctoken_interface::instructions::mint_action::CompressedMintWithContext;
-use light_ctoken_sdk::ctoken::{MintToCTokenCpi, MintToCTokenParams, SystemAccountInfos};
 use light_sdk::instruction::ValidityProof;
+use light_token_interface::instructions::mint_action::CompressedMintWithContext;
+use light_token_sdk::token::{MintToCpi, MintToParams, SystemAccountInfos};
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::ID;
@@ -11,7 +11,7 @@ pub const MINT_AUTHORITY_SEED: &[u8] = b"mint_authority";
 
 /// Instruction data for mint_to_ctoken operations
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct MintToCTokenData {
+pub struct MintToData {
     pub compressed_mint_inputs: CompressedMintWithContext,
     pub amount: u64,
     pub mint_authority: Pubkey,
@@ -20,9 +20,9 @@ pub struct MintToCTokenData {
 
 /// Handler for minting tokens to compressed token accounts
 ///
-/// Uses the MintToCTokenCpi builder pattern. This demonstrates how to:
-/// 1. Build MintToCTokenParams using the constructor
-/// 2. Build MintToCTokenCpi with accounts and params
+/// Uses the MintToCpi builder pattern. This demonstrates how to:
+/// 1. Build MintToParams using the constructor
+/// 2. Build MintToCpi with accounts and params
 /// 3. Call invoke() which handles instruction building and CPI
 ///
 /// Account order (all accounts from SDK-generated instruction):
@@ -41,14 +41,14 @@ pub struct MintToCTokenData {
 /// - accounts[12..]: ctoken_accounts (variable length - destination accounts)
 pub fn process_mint_to_ctoken(
     accounts: &[AccountInfo],
-    data: MintToCTokenData,
+    data: MintToData,
 ) -> Result<(), ProgramError> {
     if accounts.len() < 13 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
     // Build params using the constructor
-    let params = MintToCTokenParams::new(
+    let params = MintToParams::new(
         data.compressed_mint_inputs,
         data.amount,
         data.mint_authority,
@@ -66,18 +66,18 @@ pub fn process_mint_to_ctoken(
     };
 
     // Collect ctoken accounts from remaining accounts (index 12 onwards)
-    let ctoken_accounts: Vec<AccountInfo> = accounts[12..].to_vec();
+    let token_accounts: Vec<AccountInfo> = accounts[12..].to_vec();
 
     // Build the account infos struct and invoke
     // SDK account order: output_queue (9), tree (10), input_queue (11), ctoken_accounts (12+)
     // In this case, payer == authority (accounts[3])
-    MintToCTokenCpi {
+    MintToCpi {
         authority: accounts[2].clone(),    // authority from SDK accounts
         payer: accounts[3].clone(),        // fee_payer from SDK accounts
         state_tree: accounts[10].clone(),  // tree at index 10
         input_queue: accounts[11].clone(), // input_queue at index 11
         output_queue: accounts[9].clone(), // output_queue at index 9
-        ctoken_accounts,
+        token_accounts,
         system_accounts,
         cpi_context: None,
         cpi_context_account: None,
@@ -90,7 +90,7 @@ pub fn process_mint_to_ctoken(
 
 /// Handler for minting tokens with PDA mint authority (invoke_signed)
 ///
-/// Uses the MintToCTokenCpi builder pattern with invoke_signed.
+/// Uses the MintToCpi builder pattern with invoke_signed.
 /// The mint authority is a PDA derived from this program.
 ///
 /// Account order (all accounts from SDK-generated instruction):
@@ -109,7 +109,7 @@ pub fn process_mint_to_ctoken(
 /// - accounts[12..]: ctoken_accounts (variable length - destination accounts)
 pub fn process_mint_to_ctoken_invoke_signed(
     accounts: &[AccountInfo],
-    data: MintToCTokenData,
+    data: MintToData,
 ) -> Result<(), ProgramError> {
     if accounts.len() < 13 {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -124,7 +124,7 @@ pub fn process_mint_to_ctoken_invoke_signed(
     }
 
     // Build params using the constructor
-    let params = MintToCTokenParams::new(
+    let params = MintToParams::new(
         data.compressed_mint_inputs,
         data.amount,
         data.mint_authority,
@@ -142,17 +142,17 @@ pub fn process_mint_to_ctoken_invoke_signed(
     };
 
     // Collect ctoken accounts from remaining accounts (index 12 onwards)
-    let ctoken_accounts: Vec<AccountInfo> = accounts[12..].to_vec();
+    let token_accounts: Vec<AccountInfo> = accounts[12..].to_vec();
 
     // Build the account infos struct
     // authority is the PDA (accounts[2])
-    let account_infos = MintToCTokenCpi {
+    let account_infos = MintToCpi {
         authority: accounts[2].clone(),    // authority PDA
         payer: accounts[3].clone(),        // fee_payer from SDK accounts
         state_tree: accounts[10].clone(),  // tree at index 10
         input_queue: accounts[11].clone(), // input_queue at index 11
         output_queue: accounts[9].clone(), // output_queue at index 9
-        ctoken_accounts,
+        token_accounts,
         system_accounts,
         cpi_context: None,
         cpi_context_account: None,

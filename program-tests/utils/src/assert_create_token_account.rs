@@ -1,12 +1,12 @@
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::rpc::Rpc;
 use light_compressible::rent::RentConfig;
-use light_ctoken_interface::{
-    state::{ctoken::CToken, extensions::CompressionInfo, AccountState},
+use light_program_test::LightProgramTest;
+use light_token_interface::{
+    state::{extensions::CompressionInfo, AccountState, Token},
     BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
-use light_ctoken_sdk::ctoken::derive_ctoken_ata;
-use light_program_test::LightProgramTest;
+use light_token_sdk::token::derive_token_ata;
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
@@ -17,7 +17,7 @@ pub struct CompressibleData {
     pub num_prepaid_epochs: u8,
     pub lamports_per_write: Option<u32>,
     pub compress_to_pubkey: bool,
-    pub account_version: light_ctoken_interface::state::TokenDataVersion,
+    pub account_version: light_token_interface::state::TokenDataVersion,
     pub payer: Pubkey,
 }
 
@@ -73,14 +73,14 @@ pub async fn assert_create_token_account_internal(
             );
 
             // Use zero-copy deserialization for compressible account
-            let (actual_token_account, _) = CToken::zero_copy_at(&account_info.data)
+            let (actual_token_account, _) = Token::zero_copy_at(&account_info.data)
                 .expect("Failed to deserialize compressible token account with zero-copy");
 
             // Get current slot for validation (program sets this to current slot)
             let current_slot = rpc.get_slot().await.expect("Failed to get current slot");
 
             // Create expected compressible token account
-            let expected_token_account = CToken {
+            let expected_token_account = Token {
                 mint: mint_pubkey.into(),
                 owner: owner_pubkey.into(),
                 amount: 0,
@@ -90,7 +90,7 @@ pub async fn assert_create_token_account_internal(
                 delegated_amount: 0,
                 close_authority: None,
                 extensions: Some(vec![
-                    light_ctoken_interface::state::extensions::ExtensionStruct::Compressible(
+                    light_token_interface::state::extensions::ExtensionStruct::Compressible(
                         CompressionInfo {
                             config_account_version: 1,
                             last_claimed_slot: current_slot,
@@ -272,7 +272,7 @@ pub async fn assert_create_associated_token_account(
     compressible_data: Option<CompressibleData>,
 ) {
     // Derive the associated token account address
-    let (ata_pubkey, _bump) = derive_ctoken_ata(&owner_pubkey, &mint_pubkey);
+    let (ata_pubkey, _bump) = derive_token_ata(&owner_pubkey, &mint_pubkey);
 
     // Verify the account exists at the derived address
     let account = rpc

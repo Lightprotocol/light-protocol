@@ -1,27 +1,27 @@
-//! # cToken SDK
+//! # Light Token SDK
 //!
-//! The base library to use cToken Accounts, cMints, and compressed token accounts.
+//! The base library to use Light Token Accounts, Compressed Mints, and compressed token accounts.
 //!
-//! ## cToken Accounts
+//! ## Light Token Accounts
 //! - are on Solana devnet.
 //! - are Solana accounts.
-//! - can hold cMint and spl Mint tokens.
+//! - can hold Compressed Mint and SPL Mint tokens.
 //! - cost 17,288 lamports to create with 24 hours rent.
 //! - are compressible:
 //!     - rent exemption is sponsored by the protocol.
 //!     - rent is 388 lamports per rent epoch (1.5 hours).
 //!     - once the account's lamports balance is insufficient, it is compressed to a compressed token account.
-//!     - compressed tokens can be decompressed to a cToken account.
-//!     - configurable lamports per write (eg transfer) keep the cToken account perpetually funded when used. So you don't have to worry about funding rent.
+//!     - compressed tokens can be decompressed to a Light Token account.
+//!     - configurable lamports per write (eg transfer) keep the Light Token account perpetually funded when used. So you don't have to worry about funding rent.
 //!
 //! ## Compressed Token Accounts
 //! - are on Solana mainnet.
 //! - are compressed accounts.
-//! - can hold cMint and spl Mint tokens.
+//! - can hold Compressed Mint and SPL Mint tokens.
 //! - cost 5,000 lamports to create.
 //! - are well suited for airdrops and reward distribution.
 //!
-//! ## cMints:
+//! ## Compressed Mints:
 //! - are on Solana devnet.
 //! - are Compressed accounts.
 //! - cost 15,000 lamports to create.
@@ -45,16 +45,16 @@
 //!
 //! | Operation | Instruction Builder | CPI Builder |
 //! |-----------|----------------|-------------|
-//! | Create Associated cToken Account | [`CreateAssociatedCTokenAccount`](ctoken::CreateAssociatedCTokenAccount) | [`CreateAssociatedCTokenAccountCpi`](ctoken::CreateAssociatedCTokenAccountCpi) |
-//! | Create cToken Account | [`CreateCTokenAccount`](ctoken::CreateCTokenAccount) | [`CreateCTokenAccountCpi`](ctoken::CreateCTokenAccountCpi) |
-//! | Transfer cToken | [`TransferCToken`](ctoken::TransferCToken) | [`TransferCTokenCpi`](ctoken::TransferCTokenCpi) |
-//! | Transfer cToken → SPL | [`TransferCTokenToSpl`](ctoken::TransferCTokenToSpl) | [`TransferCTokenToSplCpi`](ctoken::TransferCTokenToSplCpi) |
-//! | Transfer SPL → cToken | [`TransferSplToCtoken`](ctoken::TransferSplToCtoken) | [`TransferSplToCtokenCpi`](ctoken::TransferSplToCtokenCpi) |
-//! | Transfer (auto-detect) | - | [`TransferInterfaceCpi`](ctoken::TransferInterfaceCpi) |
-//! | Decompress to cToken account | [`DecompressToCtoken`](ctoken::DecompressToCtoken) | - |
-//! | Close cToken account | [`CloseCTokenAccount`](ctoken::CloseCTokenAccount) | [`CloseCTokenAccountCpi`](ctoken::CloseCTokenAccountCpi) |
-//! | Create cMint | [`CreateCMint`](ctoken::CreateCMint) | [`CreateCMintCpi`](ctoken::CreateCMintCpi) |
-//! | MintTo cToken account from cMint | [`MintToCToken`](ctoken::MintToCToken) | [`MintToCTokenCpi`](ctoken::MintToCTokenCpi) |
+//! | Create Associated Token Account | [`CreateAssociatedTokenAccount`](token::CreateAssociatedTokenAccount) | [`CreateAssociatedTokenAccountCpi`](token::CreateAssociatedTokenAccountCpi) |
+//! | Create Token Account | [`CreateTokenAccount`](token::CreateTokenAccount) | [`CreateTokenAccountCpi`](token::CreateTokenAccountCpi) |
+//! | Transfer Token | [`Transfer`](token::Transfer) | [`TransferCpi`](token::TransferCpi) |
+//! | Transfer Token → SPL | [`TransferToSpl`](token::TransferToSpl) | [`TransferToSplCpi`](token::TransferToSplCpi) |
+//! | Transfer SPL → Token | [`TransferSplToLightToken`](token::TransferSplToLightToken) | [`TransferSplToLightTokenCpi`](token::TransferSplToLightTokenCpi) |
+//! | Transfer (auto-detect) | - | [`TransferInterfaceCpi`](token::TransferInterfaceCpi) |
+//! | Decompress to Token account | [`Decompress`](token::Decompress) | - |
+//! | Close Token account | [`CloseAccount`](token::CloseAccount) | [`CloseAccountCpi`](token::CloseAccountCpi) |
+//! | Create Compressed Mint | [`CreateCMint`](token::CreateCMint) | [`CreateCMintCpi`](token::CreateCMintCpi) |
+//! | MintTo Token account from Compressed Mint | [`MintTo`](token::MintTo) | [`MintToCpi`](token::MintToCpi) |
 //!
 //!
 //! # Disclaimer
@@ -62,7 +62,7 @@
 
 pub mod compressed_token;
 pub mod compressible;
-pub mod ctoken;
+pub mod token;
 
 pub mod constants;
 pub mod error;

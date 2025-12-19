@@ -1,28 +1,28 @@
 //! Utility functions and default account configurations.
 
-use light_ctoken_interface::instructions::transfer2::MultiInputTokenDataWithContext;
-use light_sdk_types::C_TOKEN_PROGRAM_ID;
+use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
+use light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext;
 use solana_account_info::AccountInfo;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 use spl_pod::bytemuck::pod_from_bytes;
 use spl_token_2022::pod::PodAccount;
 
-use crate::{error::CTokenSdkError, AnchorDeserialize, AnchorSerialize};
+use crate::{error::TokenSdkError, AnchorDeserialize, AnchorSerialize};
 
-pub fn get_token_account_balance(token_account_info: &AccountInfo) -> Result<u64, CTokenSdkError> {
+pub fn get_token_account_balance(token_account_info: &AccountInfo) -> Result<u64, TokenSdkError> {
     let token_account_data = token_account_info
         .try_borrow_data()
-        .map_err(|_| CTokenSdkError::AccountBorrowFailed)?;
+        .map_err(|_| TokenSdkError::AccountBorrowFailed)?;
 
     let pod_account = pod_from_bytes::<PodAccount>(&token_account_data)
-        .map_err(|_| CTokenSdkError::InvalidAccountData)?;
+        .map_err(|_| TokenSdkError::InvalidAccountData)?;
 
     Ok(pod_account.amount.into())
 }
 
-pub fn is_ctoken_account(account_info: &AccountInfo) -> Result<bool, CTokenSdkError> {
-    let ctoken_program_id = Pubkey::from(C_TOKEN_PROGRAM_ID);
+pub fn is_token_account(account_info: &AccountInfo) -> Result<bool, TokenSdkError> {
+    let ctoken_program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
 
     if account_info.owner == &ctoken_program_id {
         return Ok(true);
@@ -35,7 +35,7 @@ pub fn is_ctoken_account(account_info: &AccountInfo) -> Result<bool, CTokenSdkEr
         return Ok(false);
     }
 
-    Err(CTokenSdkError::CannotDetermineAccountType)
+    Err(TokenSdkError::CannotDetermineAccountType)
 }
 
 pub const CLOSE_TOKEN_ACCOUNT_DISCRIMINATOR: u8 = 9;
@@ -68,7 +68,7 @@ use light_sdk::constants::REGISTERED_PROGRAM_PDA;
 
 /// Standard pubkeys for compressed token instructions
 #[derive(Debug, Copy, Clone)]
-pub struct CTokenDefaultAccounts {
+pub struct TokenDefaultAccounts {
     pub light_system_program: Pubkey,
     pub registered_program_pda: Pubkey,
     pub noop_program: Pubkey,
@@ -80,7 +80,7 @@ pub struct CTokenDefaultAccounts {
     pub compressed_token_program: Pubkey,
 }
 
-impl Default for CTokenDefaultAccounts {
+impl Default for TokenDefaultAccounts {
     fn default() -> Self {
         Self {
             light_system_program: Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),
@@ -91,7 +91,7 @@ impl Default for CTokenDefaultAccounts {
             self_program: Pubkey::from(LIGHT_COMPRESSED_TOKEN_PROGRAM_ID),
             cpi_authority_pda: Pubkey::from(CPI_AUTHORITY_PDA),
             system_program: Pubkey::default(),
-            compressed_token_program: Pubkey::from(C_TOKEN_PROGRAM_ID),
+            compressed_token_program: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
         }
     }
 }

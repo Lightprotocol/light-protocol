@@ -1,5 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_ctoken_sdk::{
+use light_sdk_types::cpi_accounts::{v2::CpiAccounts, CpiAccountsConfig};
+use light_token_sdk::{
     compressed_token::{
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
@@ -7,9 +8,8 @@ use light_ctoken_sdk::{
         },
         CTokenAccount2,
     },
-    ctoken::CloseCTokenAccount,
+    token::CloseAccount,
 };
-use light_sdk_types::cpi_accounts::{v2::CpiAccounts, CpiAccountsConfig};
 
 use crate::Generic;
 
@@ -86,10 +86,9 @@ pub fn process_compress_full_and_close<'info>(
     .concat();
     invoke(&instruction, account_infos.as_slice())?;
 
-    let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+    let compressed_token_program_id = light_token_sdk::token::CTOKEN_PROGRAM_ID;
     // Create close instruction without rent_sponsor for non-compressible accounts
-    let close_instruction = CloseCTokenAccount {
+    let close_instruction = CloseAccount {
         token_program: compressed_token_program_id,
         account: *token_account_info.key,
         destination: *close_recipient_info.key,

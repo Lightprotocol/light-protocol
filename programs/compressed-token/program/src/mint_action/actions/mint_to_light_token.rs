@@ -3,9 +3,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::Pubkey;
 use light_program_profiler::profile;
-use light_token_interface::{
-    instructions::mint_action::ZMintToAction, state::CompressedMint,
-};
+use light_token_interface::{instructions::mint_action::ZMintToAction, state::CompressedMint};
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 

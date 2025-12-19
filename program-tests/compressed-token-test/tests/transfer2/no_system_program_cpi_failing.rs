@@ -43,17 +43,17 @@
 //
 // ============================================================================
 
-use light_ctoken_interface::instructions::{mint_action::Recipient, transfer2::Compression};
-use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::find_cmint_address,
-    ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount},
-    ValidityProof,
-};
 use light_program_test::{
     utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
 };
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::{airdrop_lamports, RpcError};
+use light_token_interface::instructions::{mint_action::Recipient, transfer2::Compression};
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::find_cmint_address,
+    ctoken::{derive_token_ata, CreateAssociatedTokenAccount},
+    ValidityProof,
+};
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 // ============================================================================
@@ -102,11 +102,11 @@ async fn setup_no_system_program_cpi_test(
     // Create compressed mint seed
     let mint_seed = Keypair::new();
     let (mint, _) = find_cmint_address(&mint_seed.pubkey());
-    let (source_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
-    let (recipient_ata, _) = derive_ctoken_ata(&recipient.pubkey(), &mint);
+    let (source_ata, _) = derive_token_ata(&owner.pubkey(), &mint);
+    let (recipient_ata, _) = derive_token_ata(&recipient.pubkey(), &mint);
 
     // Create CToken ATA for owner (source)
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
         .instruction()
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to create source ATA: {}", e)))
         .unwrap();
@@ -115,7 +115,7 @@ async fn setup_no_system_program_cpi_test(
         .unwrap();
 
     // Create CToken ATA for recipient
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to create recipient ATA: {}", e)))
         .unwrap();
@@ -194,7 +194,7 @@ fn create_compressions_and_packed_accounts(
     // Create compressions
     let mut compressions = Vec::new();
     if compress_amount > 0 {
-        compressions.push(Compression::compress_ctoken(
+        compressions.push(Compression::compress_light_token(
             compress_amount,
             mint_index,
             source_ata_index,
@@ -202,7 +202,7 @@ fn create_compressions_and_packed_accounts(
         ));
     }
     if decompress_amount > 0 {
-        compressions.push(Compression::decompress_ctoken(
+        compressions.push(Compression::decompress_light_token(
             decompress_amount,
             mint_index,
             recipient_ata_index,
@@ -223,12 +223,12 @@ fn create_compressions_and_packed_accounts(
 /// without any compressed-to-compressed token transfers.
 fn build_compressions_only_instruction(
     fee_payer: Pubkey,
-    compressions: Option<Vec<light_ctoken_interface::instructions::transfer2::Compression>>,
+    compressions: Option<Vec<light_token_interface::instructions::transfer2::Compression>>,
     packed_account_metas: Vec<solana_sdk::instruction::AccountMeta>,
 ) -> Result<solana_sdk::instruction::Instruction, RpcError> {
     use anchor_lang::AnchorSerialize;
-    use light_ctoken_interface::instructions::transfer2::CompressedTokenInstructionDataTransfer2;
     use light_ctoken_types::{CPI_AUTHORITY_PDA, TRANSFER2};
+    use light_token_interface::instructions::transfer2::CompressedTokenInstructionDataTransfer2;
     use solana_sdk::instruction::AccountMeta;
 
     // For compressions-only mode (decompressed_accounts_only), the account order is:
@@ -271,7 +271,7 @@ fn build_compressions_only_instruction(
     data.extend(serialized);
 
     Ok(solana_sdk::instruction::Instruction {
-        program_id: light_ctoken_interface::CTOKEN_PROGRAM_ID.into(),
+        program_id: light_token_interface::LIGHT_TOKEN_PROGRAM_ID.into(),
         accounts: account_metas,
         data,
     })
@@ -530,8 +530,8 @@ async fn test_invalid_authority_compress() {
     let recipient_ata_index = packed_accounts.insert_or_get_config(recipient_ata, false, true);
 
     let compressions = vec![
-        Compression::compress_ctoken(500, mint_index, source_ata_index, wrong_authority_index),
-        Compression::decompress_ctoken(500, mint_index, recipient_ata_index),
+        Compression::compress_light_token(500, mint_index, source_ata_index, wrong_authority_index),
+        Compression::decompress_light_token(500, mint_index, recipient_ata_index),
     ];
 
     let (account_metas, _, _) = packed_accounts.to_account_metas();
@@ -571,8 +571,8 @@ async fn test_authority_not_signer_compress() {
     let recipient_ata_index = packed_accounts.insert_or_get_config(recipient_ata, false, true);
 
     let compressions = vec![
-        Compression::compress_ctoken(500, mint_index, source_ata_index, owner_index),
-        Compression::decompress_ctoken(500, mint_index, recipient_ata_index),
+        Compression::compress_light_token(500, mint_index, source_ata_index, owner_index),
+        Compression::decompress_light_token(500, mint_index, recipient_ata_index),
     ];
 
     let (account_metas, _, _) = packed_accounts.to_account_metas();
@@ -648,11 +648,11 @@ async fn test_decompress_with_nonzero_authority() {
 
     // Create compress with valid authority using helper
     let compress_compression =
-        Compression::compress_ctoken(500, mint_index, source_ata_index, owner_index);
+        Compression::compress_light_token(500, mint_index, source_ata_index, owner_index);
 
     // Create decompress but manually set authority to non-zero (should be 0)
     let mut decompress_compression =
-        Compression::decompress_ctoken(500, mint_index, recipient_ata_index);
+        Compression::decompress_light_token(500, mint_index, recipient_ata_index);
     decompress_compression.authority = owner_index; // Invalid: should be 0 for decompress
 
     let compressions = vec![compress_compression, decompress_compression];
@@ -705,17 +705,14 @@ async fn test_too_many_mints() {
         // Create new mint seed
         let mint_seed = Keypair::new();
         let (mint, _) = find_cmint_address(&mint_seed.pubkey());
-        let (source_ata, _) = derive_ctoken_ata(&context.owner.pubkey(), &mint);
-        let (recipient_ata, _) = derive_ctoken_ata(&context.recipient.pubkey(), &mint);
+        let (source_ata, _) = derive_token_ata(&context.owner.pubkey(), &mint);
+        let (recipient_ata, _) = derive_token_ata(&context.recipient.pubkey(), &mint);
 
         // Create source ATA
-        let instruction = CreateAssociatedCTokenAccount::new(
-            context.payer.pubkey(),
-            context.owner.pubkey(),
-            mint,
-        )
-        .instruction()
-        .unwrap();
+        let instruction =
+            CreateAssociatedTokenAccount::new(context.payer.pubkey(), context.owner.pubkey(), mint)
+                .instruction()
+                .unwrap();
         context
             .rpc
             .create_and_send_transaction(&[instruction], &context.payer.pubkey(), &[&context.payer])
@@ -723,7 +720,7 @@ async fn test_too_many_mints() {
             .unwrap();
 
         // Create recipient ATA
-        let instruction = CreateAssociatedCTokenAccount::new(
+        let instruction = CreateAssociatedTokenAccount::new(
             context.payer.pubkey(),
             context.recipient.pubkey(),
             mint,
@@ -774,13 +771,13 @@ async fn test_too_many_mints() {
     let source_index = packed_accounts.insert_or_get_config(context.source_ata, false, true);
     let recipient_index = packed_accounts.insert_or_get_config(context.recipient_ata, false, true);
 
-    compressions.push(Compression::compress_ctoken(
+    compressions.push(Compression::compress_light_token(
         100,
         mint_index,
         source_index,
         owner_index,
     ));
-    compressions.push(Compression::decompress_ctoken(
+    compressions.push(Compression::decompress_light_token(
         100,
         mint_index,
         recipient_index,
@@ -792,13 +789,13 @@ async fn test_too_many_mints() {
         let source_index = packed_accounts.insert_or_get_config(*source_ata, false, true);
         let recipient_index = packed_accounts.insert_or_get_config(*recipient_ata, false, true);
 
-        compressions.push(Compression::compress_ctoken(
+        compressions.push(Compression::compress_light_token(
             100,
             mint_index,
             source_index,
             owner_index,
         ));
-        compressions.push(Compression::decompress_ctoken(
+        compressions.push(Compression::decompress_light_token(
             100,
             mint_index,
             recipient_index,
@@ -852,19 +849,19 @@ async fn test_duplicate_mint_validation() {
 
     // Create compression and decompress for first mint index (balanced)
     let mut compressions = vec![
-        Compression::compress_ctoken(500, mint_index_1, source_index, owner_index),
-        Compression::decompress_ctoken(500, mint_index_1, recipient_index),
+        Compression::compress_light_token(500, mint_index_1, source_index, owner_index),
+        Compression::decompress_light_token(500, mint_index_1, recipient_index),
     ];
 
     // Create compression and decompress for second mint index (balanced)
     // This is the duplicate - same pubkey as mint_index_1 but different index
-    compressions.push(Compression::compress_ctoken(
+    compressions.push(Compression::compress_light_token(
         1,
         mint_index_2,
         source_index,
         owner_index,
     ));
-    compressions.push(Compression::decompress_ctoken(
+    compressions.push(Compression::decompress_light_token(
         1,
         mint_index_2,
         recipient_index,
@@ -911,8 +908,8 @@ async fn test_mint_index_out_of_bounds() {
     let invalid_mint_index = 99u8;
 
     let compressions = vec![
-        Compression::compress_ctoken(500, invalid_mint_index, source_index, owner_index),
-        Compression::decompress_ctoken(500, invalid_mint_index, recipient_index),
+        Compression::compress_light_token(500, invalid_mint_index, source_index, owner_index),
+        Compression::decompress_light_token(500, invalid_mint_index, recipient_index),
     ];
 
     // Build instruction
@@ -955,8 +952,8 @@ async fn test_account_index_out_of_bounds() {
     let invalid_account_index = 99u8;
 
     let compressions = vec![
-        Compression::compress_ctoken(500, mint_index, invalid_account_index, owner_index),
-        Compression::decompress_ctoken(500, mint_index, invalid_account_index),
+        Compression::compress_light_token(500, mint_index, invalid_account_index, owner_index),
+        Compression::decompress_light_token(500, mint_index, invalid_account_index),
     ];
 
     // Build instruction
@@ -1001,8 +998,8 @@ async fn test_authority_index_out_of_bounds() {
     let invalid_authority_index = 99u8;
 
     let compressions = vec![
-        Compression::compress_ctoken(500, mint_index, source_index, invalid_authority_index),
-        Compression::decompress_ctoken(500, mint_index, recipient_index),
+        Compression::compress_light_token(500, mint_index, source_index, invalid_authority_index),
+        Compression::decompress_light_token(500, mint_index, recipient_index),
     ];
 
     // Build instruction

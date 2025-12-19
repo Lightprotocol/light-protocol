@@ -92,7 +92,7 @@ pub struct CreateUserRecordAndGameSession<'info> {
     pub mint_authority: Signer<'info>,
 
     /// Compressed token program
-    /// CHECK: Program ID validated using C_TOKEN_PROGRAM_ID constant
+    /// CHECK: Program ID validated using LIGHT_TOKEN_PROGRAM_ID constant
     pub ctoken_program: UncheckedAccount<'info>,
 
     /// CHECK: CPI authority of the compressed token program

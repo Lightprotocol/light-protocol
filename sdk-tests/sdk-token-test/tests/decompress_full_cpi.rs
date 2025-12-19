@@ -4,14 +4,14 @@ use anchor_lang::{AnchorDeserialize, InstructionData};
 /// Test input range for multi-input tests
 const TEST_INPUT_RANGE: [usize; 4] = [1, 2, 3, 4];
 
-use light_ctoken_interface::instructions::mint_action::{CompressedMintWithContext, Recipient};
-use light_ctoken_sdk::compressed_token::{
-    create_compressed_mint::find_cmint_address, decompress_full::DecompressFullAccounts,
-};
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::airdrop_lamports;
 use light_token_client::{actions::mint_action_comprehensive, instructions::mint_action::NewMint};
+use light_token_interface::instructions::mint_action::{CompressedMintWithContext, Recipient};
+use light_token_sdk::compressed_token::{
+    create_compressed_mint::find_cmint_address, decompress_full::DecompressFullAccounts,
+};
 use sdk_token_test::mint_compressed_tokens_cpi_write::MintCompressedTokensCpiWriteParams;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -54,8 +54,8 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
         .await
         .unwrap();
 
-    use light_ctoken_sdk::ctoken::{
-        derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount,
+    use light_token_sdk::token::{
+        derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
     };
 
     let mut destination_accounts = Vec::with_capacity(num_inputs);
@@ -71,7 +71,7 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
             additional_owner.pubkey()
         };
 
-        let (destination_account, _) = derive_ctoken_ata(&destination_owner, &mint_pubkey);
+        let (destination_account, _) = derive_token_ata(&destination_owner, &mint_pubkey);
 
         let compressible_params = CompressibleParams {
             compressible_config: rpc
@@ -82,11 +82,11 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
             pre_pay_num_epochs: 0,
             lamports_per_write: None,
             compress_to_account_pubkey: None,
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         };
 
         let create_token_account_ix =
-            CreateAssociatedCTokenAccount::new(payer.pubkey(), destination_owner, mint_pubkey)
+            CreateAssociatedTokenAccount::new(payer.pubkey(), destination_owner, mint_pubkey)
                 .with_compressible(compressible_params)
                 .instruction()
                 .unwrap();
@@ -183,9 +183,9 @@ async fn test_decompress_full_cpi() {
                 .await
                 .unwrap()
                 .unwrap();
-            use light_ctoken_interface::state::CToken;
+            use light_token_interface::state::Token;
             use light_zero_copy::traits::ZeroCopyAt;
-            let (dest_token, _) = CToken::zero_copy_at(&dest_account.data).unwrap();
+            let (dest_token, _) = Token::zero_copy_at(&dest_account.data).unwrap();
             assert_eq!(
                 *dest_token.amount, 0,
                 "Destination should be empty initially"
@@ -218,7 +218,7 @@ async fn test_decompress_full_cpi() {
             .iter()
             .map(|acc| {
                 let discriminator = acc.account.data.as_ref().unwrap().discriminator;
-                light_ctoken_interface::state::TokenDataVersion::from_discriminator(discriminator)
+                light_token_interface::state::TokenDataVersion::from_discriminator(discriminator)
                     .unwrap() as u8
             })
             .collect();
@@ -236,7 +236,7 @@ async fn test_decompress_full_cpi() {
             .zip(ctx.destination_accounts.iter())
             .zip(versions.iter())
             .map(|(((token, tree_info), &dest_pubkey), &version)| {
-                light_ctoken_sdk::compressed_token::decompress_full::pack_for_decompress_full(
+                light_token_sdk::compressed_token::decompress_full::pack_for_decompress_full(
                     token,
                     tree_info,
                     dest_pubkey,
@@ -282,9 +282,9 @@ async fn test_decompress_full_cpi() {
                 .await
                 .unwrap()
                 .unwrap();
-            use light_ctoken_interface::state::CToken;
+            use light_token_interface::state::Token;
             use light_zero_copy::traits::ZeroCopyAt;
-            let (dest_token_after, _) = CToken::zero_copy_at(&dest_account_after.data).unwrap();
+            let (dest_token_after, _) = Token::zero_copy_at(&dest_account_after.data).unwrap();
             assert_eq!(
                 *dest_token_after.amount, ctx.compressed_amount_per_account,
                 "Each destination should have its decompressed amount"
@@ -327,9 +327,9 @@ async fn test_decompress_full_cpi_with_context() {
                 .await
                 .unwrap()
                 .unwrap();
-            use light_ctoken_interface::state::CToken;
+            use light_token_interface::state::Token;
             use light_zero_copy::traits::ZeroCopyAt;
-            let (dest_token_before, _) = CToken::zero_copy_at(&dest_account_before.data).unwrap();
+            let (dest_token_before, _) = Token::zero_copy_at(&dest_account_before.data).unwrap();
             assert_eq!(
                 *dest_token_before.amount, 0,
                 "Destination should be empty initially"
@@ -343,7 +343,7 @@ async fn test_decompress_full_cpi_with_context() {
 
         let address_tree_info = rpc.get_address_tree_v2();
         let compressed_mint_address =
-            light_ctoken_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address(
+            light_token_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address(
                 &ctx.mint_seed.pubkey(),
                 &address_tree_info.tree,
             );
@@ -380,7 +380,7 @@ async fn test_decompress_full_cpi_with_context() {
             .unwrap()
             .value;
 
-        use light_ctoken_interface::state::CompressedMint;
+        use light_token_interface::state::CompressedMint;
         let compressed_mint =
             CompressedMint::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
                 .unwrap();
@@ -396,7 +396,7 @@ async fn test_decompress_full_cpi_with_context() {
         let mint_params = MintCompressedTokensCpiWriteParams {
             compressed_mint_with_context,
             recipients: mint_recipients,
-            cpi_context: light_ctoken_interface::instructions::mint_action::CpiContext {
+            cpi_context: light_token_interface::instructions::mint_action::CpiContext {
                 set_context: false,
                 first_set_context: true, // First operation sets the context
                 in_tree_index: remaining_accounts
@@ -422,7 +422,7 @@ async fn test_decompress_full_cpi_with_context() {
             .iter()
             .map(|acc| {
                 let discriminator = acc.account.data.as_ref().unwrap().discriminator;
-                light_ctoken_interface::state::TokenDataVersion::from_discriminator(discriminator)
+                light_token_interface::state::TokenDataVersion::from_discriminator(discriminator)
                     .unwrap() as u8
             })
             .collect();
@@ -440,7 +440,7 @@ async fn test_decompress_full_cpi_with_context() {
             .zip(ctx.destination_accounts.iter())
             .zip(versions.iter())
             .map(|(((token, tree_info), &dest_pubkey), &version)| {
-                light_ctoken_sdk::compressed_token::decompress_full::pack_for_decompress_full(
+                light_token_sdk::compressed_token::decompress_full::pack_for_decompress_full(
                     token,
                     tree_info,
                     dest_pubkey,
@@ -508,9 +508,9 @@ async fn test_decompress_full_cpi_with_context() {
                 .await
                 .unwrap()
                 .unwrap();
-            use light_ctoken_interface::state::CToken;
+            use light_token_interface::state::Token;
             use light_zero_copy::traits::ZeroCopyAt;
-            let (dest_token_after, _) = CToken::zero_copy_at(&dest_account_after.data).unwrap();
+            let (dest_token_after, _) = Token::zero_copy_at(&dest_account_after.data).unwrap();
             assert_eq!(
                 *dest_token_after.amount, ctx.compressed_amount_per_account,
                 "Each destination should have received its decompressed amount"

@@ -6,7 +6,7 @@ use light_token_interface::{
         CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,
         MultiTokenTransferOutputData,
     },
-    state::CToken,
+    state::Token,
 };
 use solana_account_info::AccountInfo;
 use solana_instruction::{AccountMeta, Instruction};
@@ -86,8 +86,8 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             .try_borrow_data()
             .map_err(|_| RegistryError::BorrowAccountDataFailed)?;
 
-        let amount = CToken::amount_from_slice(&account_data).map_err(|e| {
-            anchor_lang::prelude::msg!("Failed to read amount from CToken: {:?}", e);
+        let amount = Token::amount_from_slice(&account_data).map_err(|e| {
+            anchor_lang::prelude::msg!("Failed to read amount from Token: {:?}", e);
             RegistryError::InvalidTokenAccountData
         })?;
 

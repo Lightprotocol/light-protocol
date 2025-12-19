@@ -563,7 +563,7 @@ pub fn add_compressible_instructions(
                 }
             }
 
-            impl light_ctoken_sdk::compressible::CTokenSeedProvider for CTokenAccountVariant {
+            impl light_token_sdk::compressible::CTokenSeedProvider for CTokenAccountVariant {
                 type Accounts<'info> = DecompressAccountsIdempotent<'info>;
 
                 fn get_seeds<'a, 'info>(
@@ -660,7 +660,7 @@ pub fn add_compressible_instructions(
                 ) -> std::result::Result<(
                     Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
                     Vec<(
-                        light_ctoken_sdk::compat::PackedCTokenData<CTokenAccountVariant>,
+                        light_token_sdk::compat::PackedTokenDataWithVariant<CTokenAccountVariant>,
                         light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                     )>,
                 ), solana_program_error::ProgramError> {
@@ -670,7 +670,7 @@ pub fn add_compressible_instructions(
                     let estimated_capacity = compressed_accounts.len();
                     let mut compressed_pda_infos = Vec::with_capacity(estimated_capacity);
                     let mut compressed_token_accounts: Vec<(
-                        light_ctoken_sdk::compat::PackedCTokenData<CTokenAccountVariant>,
+                        light_token_sdk::compat::PackedTokenDataWithVariant<CTokenAccountVariant>,
                         light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                     )> = Vec::with_capacity(estimated_capacity);
 

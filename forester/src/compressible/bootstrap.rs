@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use base64::{engine::general_purpose, Engine as _};
 use borsh::BorshDeserialize;
-use light_ctoken_interface::{
-    state::{extensions::ExtensionStruct, CToken},
-    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, CTOKEN_PROGRAM_ID,
+use light_token_interface::{
+    state::{extensions::ExtensionStruct, Token},
+    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, LIGHT_TOKEN_PROGRAM_ID,
 };
 use serde_json::json;
 use solana_sdk::pubkey::Pubkey;
@@ -105,12 +105,12 @@ fn process_account(
         }
     };
 
-    // Deserialize CToken
-    let ctoken = match CToken::try_from_slice(&data_bytes) {
+    // Deserialize Token
+    let ctoken = match Token::try_from_slice(&data_bytes) {
         Ok(token) => token,
         Err(e) => {
             debug!(
-                "Failed to deserialize CToken for account {}: {:?}",
+                "Failed to deserialize Token for account {}: {:?}",
                 pubkey, e
             );
             return Ok(false);
@@ -191,7 +191,7 @@ async fn bootstrap_with_v2_api(
     mut shutdown_rx: oneshot::Receiver<()>,
 ) -> Result<()> {
     let client = reqwest::Client::new();
-    let program_id = Pubkey::new_from_array(CTOKEN_PROGRAM_ID);
+    let program_id = Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID);
 
     let mut total_fetched = 0;
     let mut total_inserted = 0;
@@ -314,7 +314,7 @@ async fn bootstrap_with_standard_api(
     mut shutdown_rx: oneshot::Receiver<()>,
 ) -> Result<()> {
     let client = reqwest::Client::new();
-    let program_id = Pubkey::new_from_array(CTOKEN_PROGRAM_ID);
+    let program_id = Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID);
 
     let payload = json!({
         "jsonrpc": "2.0",

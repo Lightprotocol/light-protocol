@@ -1,5 +1,4 @@
 use light_account_checks::{AccountError, AccountInfoTrait, AccountIterator};
-use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use light_ctoken_types::CPI_AUTHORITY_PDA;
 use light_program_profiler::profile;
 use light_sdk_types::{
@@ -9,7 +8,7 @@ use light_sdk_types::{
 use solana_instruction::AccountMeta;
 use solana_msg::msg;
 
-use crate::error::CTokenSdkError;
+use crate::{error::TokenSdkError, token::CTOKEN_PROGRAM_ID};
 
 /// Parsed Transfer2 CPI accounts for structured access
 #[derive(Debug)]
@@ -51,11 +50,11 @@ impl<'a, A: AccountInfoTrait + Clone> Transfer2CpiAccounts<'a, A> {
         with_sol_decompression: bool,
         with_cpi_context: bool,
         light_system_cpi_authority: bool,
-    ) -> Result<Self, CTokenSdkError> {
+    ) -> Result<Self, TokenSdkError> {
         let mut iter = AccountIterator::new(accounts);
 
         let compressed_token_program =
-            iter.next_checked_pubkey("compressed_token_program", CTOKEN_PROGRAM_ID)?;
+            iter.next_checked_pubkey("compressed_token_program", CTOKEN_PROGRAM_ID.to_bytes())?;
 
         let invoking_program_cpi_authority =
             iter.next_option("CPI_SIGNER.cpi_authority", light_system_cpi_authority)?;
@@ -116,7 +115,7 @@ impl<'a, A: AccountInfoTrait + Clone> Transfer2CpiAccounts<'a, A> {
     pub fn try_from_account_infos(
         fee_payer: &'a A,
         accounts: &'a [A],
-    ) -> Result<Self, CTokenSdkError> {
+    ) -> Result<Self, TokenSdkError> {
         Self::try_from_account_infos_full(fee_payer, accounts, false, false, false, false)
     }
 
@@ -125,7 +124,7 @@ impl<'a, A: AccountInfoTrait + Clone> Transfer2CpiAccounts<'a, A> {
     pub fn try_from_account_infos_cpi_context(
         fee_payer: &'a A,
         accounts: &'a [A],
-    ) -> Result<Self, CTokenSdkError> {
+    ) -> Result<Self, TokenSdkError> {
         Self::try_from_account_infos_full(fee_payer, accounts, false, false, true, false)
     }
 

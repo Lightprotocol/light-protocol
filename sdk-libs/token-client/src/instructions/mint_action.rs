@@ -4,19 +4,19 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_account::instruction_data::traits::LightInstructionData;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
         mint_action::{
-            CompressedMintWithContext, MintActionCompressedInstructionData, MintToCTokenAction,
+            CompressedMintWithContext, MintActionCompressedInstructionData, MintToAction,
             MintToCompressedAction, Recipient, RemoveMetadataKeyAction, UpdateAuthority,
             UpdateMetadataAuthorityAction, UpdateMetadataFieldAction,
         },
     },
     state::CompressedMint,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
 };
-use light_ctoken_sdk::compressed_token::{
+use light_token_sdk::compressed_token::{
     create_compressed_mint::{derive_cmint_compressed_address, find_cmint_address},
     mint_action::MintActionMetaConfig,
 };
@@ -45,7 +45,7 @@ pub enum MintActionType {
     UpdateFreezeAuthority {
         new_authority: Option<Pubkey>,
     },
-    MintToCToken {
+    MintToTokenAccount {
         account: Pubkey,
         amount: u64,
     },
@@ -121,10 +121,10 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         })?;
 
         let mint_data =
-            light_ctoken_interface::instructions::mint_action::CompressedMintInstructionData {
+            light_token_interface::instructions::mint_action::CompressedMintInstructionData {
                 supply: new_mint.supply,
                 decimals: new_mint.decimals,
-                metadata: light_ctoken_interface::state::CompressedMintMetadata {
+                metadata: light_token_interface::state::CompressedMintMetadata {
                     version: new_mint.version,
                     mint: find_cmint_address(&params.mint_seed).0.to_bytes().into(),
                     spl_mint_initialized: false, // Will be set to true if CreateSplMint action is present
@@ -207,7 +207,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
     };
 
     // Convert and add actions using builder pattern
-    // Collect decompressed token accounts for MintToCToken actions
+    // Collect decompressed token accounts for MintTo actions
     let mut ctoken_accounts = Vec::new();
     let mut ctoken_account_index = 0u8;
     let mut has_mint_to_compressed = false;
@@ -229,13 +229,13 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                     recipients: ctoken_recipients,
                 })
             }
-            MintActionType::MintToCToken { account, amount } => {
+            MintActionType::MintToTokenAccount { account, amount } => {
                 // Add account to the list and use its index
                 ctoken_accounts.push(account);
                 let current_index = ctoken_account_index;
                 ctoken_account_index += 1;
 
-                instruction_data.with_mint_to_ctoken(MintToCTokenAction {
+                instruction_data.with_mint_to(MintToAction {
                     account_index: current_index,
                     amount,
                 })
@@ -302,7 +302,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         config = config.with_mint_compressed_tokens();
     }
 
-    // Add ctoken accounts if any MintToCToken actions were present
+    // Add ctoken accounts if any MintTo actions were present
     if !ctoken_accounts.is_empty() {
         config = config.with_ctoken_accounts(ctoken_accounts);
     }
@@ -317,7 +317,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
 
     // Build final instruction
     Ok(Instruction {
-        program_id: CTOKEN_PROGRAM_ID.into(),
+        program_id: LIGHT_TOKEN_PROGRAM_ID.into(),
         accounts: account_metas,
         data,
     })

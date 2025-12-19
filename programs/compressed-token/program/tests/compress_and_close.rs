@@ -5,11 +5,11 @@ use light_account_checks::{
     packed_accounts::ProgramPackedAccounts,
 };
 use light_compressed_token::transfer2::{
-    accounts::Transfer2Accounts, compression::ctoken::close_for_compress_and_close,
+    accounts::Transfer2Accounts, compression::light_token::close_for_compress_and_close,
 };
 use light_token_interface::{
     instructions::transfer2::{Compression, CompressionMode},
-    state::{CToken, CompressedTokenConfig},
+    state::{Token, TokenConfig},
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
 use pinocchio::pubkey::Pubkey;
@@ -20,14 +20,14 @@ fn create_compressible_ctoken_data(
     rent_sponsor_pubkey: &[u8; 32],
 ) -> Vec<u8> {
     // Create config for compressible CToken (no delegate, not native, no close_authority)
-    let config = CompressedTokenConfig::new_compressible(false, false, false);
+    let config = TokenConfig::new_compressible(false, false, false);
 
     // Calculate required size
-    let size = CToken::byte_len(&config).unwrap();
+    let size = Token::byte_len(&config).unwrap();
     let mut data = vec![0u8; size];
 
     // Initialize using zero-copy new
-    let (mut ctoken, _) = CToken::new_zero_copy(&mut data, config).unwrap();
+    let (mut ctoken, _) = Token::new_zero_copy(&mut data, config).unwrap();
 
     // Set required fields using to_bytes/to_bytes_mut methods
     *ctoken.mint = light_compressed_account::Pubkey::from([0u8; 32]);

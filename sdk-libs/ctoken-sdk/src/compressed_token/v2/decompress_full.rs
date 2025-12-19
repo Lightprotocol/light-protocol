@@ -1,11 +1,11 @@
 use light_compressed_account::compressed_account::PackedMerkleContext;
-use light_ctoken_interface::instructions::transfer2::{
-    CompressedCpiContext, MultiInputTokenDataWithContext,
-};
 use light_program_profiler::profile;
 use light_sdk::{
     error::LightSdkError,
     instruction::{AccountMetasVec, PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig},
+};
+use light_token_interface::instructions::transfer2::{
+    CompressedCpiContext, MultiInputTokenDataWithContext,
 };
 use solana_account_info::AccountInfo;
 use solana_instruction::{AccountMeta, Instruction};
@@ -18,9 +18,7 @@ use super::{
         Transfer2Inputs,
     },
 };
-use crate::{
-    compat::TokenData, error::CTokenSdkError, utils::CTokenDefaultAccounts, ValidityProof,
-};
+use crate::{compat::TokenData, error::TokenSdkError, utils::TokenDefaultAccounts, ValidityProof};
 
 /// Struct to hold all the data needed for DecompressFull operation
 /// Contains the complete compressed account data and destination index
@@ -42,15 +40,15 @@ pub struct DecompressFullIndices {
 /// # Returns
 /// An instruction that decompresses the full balance of all provided token accounts
 #[profile]
-pub fn decompress_full_ctoken_accounts_with_indices<'info>(
+pub fn decompress_full_token_accounts_with_indices<'info>(
     fee_payer: Pubkey,
     validity_proof: ValidityProof,
     cpi_context_pubkey: Option<Pubkey>,
     indices: &[DecompressFullIndices],
     packed_accounts: &[AccountInfo<'info>],
-) -> Result<Instruction, CTokenSdkError> {
+) -> Result<Instruction, TokenSdkError> {
     if indices.is_empty() {
-        return Err(CTokenSdkError::InvalidAccountData);
+        return Err(TokenSdkError::InvalidAccountData);
     }
 
     // Process each set of indices
@@ -68,12 +66,12 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
         let mut token_account = CTokenAccount2::new(vec![idx.source])?;
 
         // Set up decompress_full - decompress entire balance to destination ctoken account
-        token_account.decompress_ctoken(idx.source.amount, idx.destination_index)?;
+        token_account.decompress_light_token(idx.source.amount, idx.destination_index)?;
         token_accounts.push(token_account);
 
         let owner_idx = idx.source.owner as usize;
         if owner_idx >= signer_flags.len() {
-            return Err(CTokenSdkError::InvalidAccountData);
+            return Err(TokenSdkError::InvalidAccountData);
         }
         signer_flags[owner_idx] = true;
     }
@@ -137,7 +135,7 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
 /// * `version` - Token data version (from TokenDataVersion enum)
 ///
 /// # Returns
-/// Vec of DecompressFullIndices ready to use with decompress_full_ctoken_accounts_with_indices
+/// Vec of DecompressFullIndices ready to use with decompress_full_token_accounts_with_indices
 #[profile]
 pub fn pack_for_decompress_full(
     token: &TokenData,
@@ -181,16 +179,16 @@ pub struct DecompressFullAccounts {
 impl DecompressFullAccounts {
     pub fn new(cpi_context: Option<Pubkey>) -> Self {
         Self {
-            compressed_token_program: CTokenDefaultAccounts::default().compressed_token_program,
-            cpi_authority_pda: CTokenDefaultAccounts::default().cpi_authority_pda,
+            compressed_token_program: TokenDefaultAccounts::default().compressed_token_program,
+            cpi_authority_pda: TokenDefaultAccounts::default().cpi_authority_pda,
             cpi_context,
             self_program: None,
         }
     }
     pub fn new_with_cpi_context(cpi_context: Option<Pubkey>, self_program: Option<Pubkey>) -> Self {
         Self {
-            compressed_token_program: CTokenDefaultAccounts::default().compressed_token_program,
-            cpi_authority_pda: CTokenDefaultAccounts::default().cpi_authority_pda,
+            compressed_token_program: TokenDefaultAccounts::default().compressed_token_program,
+            cpi_authority_pda: TokenDefaultAccounts::default().cpi_authority_pda,
             cpi_context,
             self_program,
         }

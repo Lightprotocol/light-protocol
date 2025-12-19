@@ -1,6 +1,6 @@
 use light_client::rpc::{Rpc, RpcError};
-use light_ctoken_interface::state::TokenDataVersion;
-use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
+use light_token_interface::state::TokenDataVersion;
+use light_token_sdk::token::{CompressibleParams, CreateTokenAccount};
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
@@ -64,7 +64,7 @@ pub async fn create_compressible_token_account<R: Rpc>(
     };
 
     let create_token_account_ix =
-        CreateCTokenAccount::new(payer.pubkey(), token_account_pubkey, mint, owner)
+        CreateTokenAccount::new(payer.pubkey(), token_account_pubkey, mint, owner)
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;

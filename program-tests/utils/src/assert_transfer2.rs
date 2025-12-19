@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use light_program_test::LightProgramTest;
 use light_token_client::instructions::transfer2::{
     CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
 };
+use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
 use crate::{
@@ -88,12 +88,12 @@ pub async fn assert_transfer2_with_delegate(
                 };
 
                 // Get mint from the source compressed token account
-                let expected_recipient_token_data = light_ctoken_sdk::compat::TokenData {
+                let expected_recipient_token_data = light_token_sdk::compat::TokenData {
                     mint: source_mint,
                     owner: transfer_input.to,
                     amount: transfer_input.amount,
                     delegate: None,
-                    state: light_ctoken_sdk::compat::AccountState::Initialized,
+                    state: light_token_sdk::compat::AccountState::Initialized,
                     tlv: None,
                 };
 
@@ -107,7 +107,7 @@ pub async fn assert_transfer2_with_delegate(
                 assert!(
                     recipient_accounts
                         .iter()
-                        .any(|account| account.account.owner.to_bytes() == CTOKEN_PROGRAM_ID),
+                        .any(|account| account.account.owner.to_bytes() == LIGHT_TOKEN_PROGRAM_ID),
                     "Transfer change token account should match expected"
                 );
                 recipient_accounts.iter().for_each(|account| {
@@ -156,12 +156,12 @@ pub async fn assert_transfer2_with_delegate(
                             None // No delegate to preserve
                         };
 
-                    let expected_change_token = light_ctoken_sdk::compat::TokenData {
+                    let expected_change_token = light_token_sdk::compat::TokenData {
                         mint: source_mint,
                         owner: source_owner,
                         amount: change_amount,
                         delegate: expected_delegate,
-                        state: light_ctoken_sdk::compat::AccountState::Initialized,
+                        state: light_token_sdk::compat::AccountState::Initialized,
                         tlv: None,
                     };
 
@@ -178,7 +178,7 @@ pub async fn assert_transfer2_with_delegate(
                     );
                     assert_eq!(
                         matching_change_account.account.owner.to_bytes(),
-                        CTOKEN_PROGRAM_ID,
+                        LIGHT_TOKEN_PROGRAM_ID,
                         "Transfer change token account should match expected"
                     );
                 }
@@ -215,12 +215,12 @@ pub async fn assert_transfer2_with_delegate(
                         None // Default to None if no authority specified
                     };
 
-                    let expected_change_token = light_ctoken_sdk::compat::TokenData {
+                    let expected_change_token = light_token_sdk::compat::TokenData {
                         mint: source_mint,
                         owner: source_owner,
                         amount: change_amount,
                         delegate: expected_delegate,
-                        state: light_ctoken_sdk::compat::AccountState::Initialized,
+                        state: light_token_sdk::compat::AccountState::Initialized,
                         tlv: None,
                     };
 
@@ -248,7 +248,7 @@ pub async fn assert_transfer2_with_delegate(
                     );
                     assert_eq!(
                         matching_change_account.account.owner.to_bytes(),
-                        CTOKEN_PROGRAM_ID,
+                        LIGHT_TOKEN_PROGRAM_ID,
                         "Decompress change token account should match expected"
                     );
                 }
@@ -277,12 +277,12 @@ pub async fn assert_transfer2_with_delegate(
                         .value
                         .items;
 
-                    let expected_change_token = light_ctoken_sdk::compat::TokenData {
+                    let expected_change_token = light_token_sdk::compat::TokenData {
                         mint: source_mint,
                         owner: source_owner,
                         amount: change_amount,
                         delegate: Some(approve_input.delegate),
-                        state: light_ctoken_sdk::compat::AccountState::Initialized,
+                        state: light_token_sdk::compat::AccountState::Initialized,
                         tlv: None,
                     };
 
@@ -299,7 +299,7 @@ pub async fn assert_transfer2_with_delegate(
                     );
                     assert_eq!(
                         matching_change_account.account.owner.to_bytes(),
-                        CTOKEN_PROGRAM_ID,
+                        LIGHT_TOKEN_PROGRAM_ID,
                         "Transfer change token account should match expected"
                     );
                     change_accounts.iter().for_each(|account| {
@@ -335,12 +335,12 @@ pub async fn assert_transfer2_with_delegate(
                     .map(|accounts| accounts.iter().map(|a| a.token.amount).sum::<u64>())
                     .unwrap_or(0);
 
-                let expected_recipient_token_data = light_ctoken_sdk::compat::TokenData {
+                let expected_recipient_token_data = light_token_sdk::compat::TokenData {
                     mint: compress_input.mint,
                     owner: compress_input.to,
                     amount: compress_input.amount + compressed_input_amount,
                     delegate: None,
-                    state: light_ctoken_sdk::compat::AccountState::Initialized,
+                    state: light_token_sdk::compat::AccountState::Initialized,
                     tlv: None,
                 };
                 recipient_accounts.iter().for_each(|account| {
@@ -371,7 +371,7 @@ pub async fn assert_transfer2_with_delegate(
                 );
                 assert_eq!(
                     matching_account.account.owner.to_bytes(),
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                     "Compress recipient token account should match expected"
                 );
             }
@@ -386,12 +386,12 @@ pub async fn assert_transfer2_with_delegate(
                     .expect("Failed to unpack SPL token account");
 
                 // Check if compress_to_pubkey is set in the compressible extension
-                use light_ctoken_interface::state::{ctoken::CToken, ZExtensionStruct};
+                use light_token_interface::state::{Token, ZExtensionStruct};
                 use light_zero_copy::traits::ZeroCopyAt;
 
                 let compress_to_pubkey = if pre_account_data.data.len() > 165 {
                     // Has extensions, check for compressible extension
-                    let (ctoken, _) = CToken::zero_copy_at(&pre_account_data.data)
+                    let (ctoken, _) = Token::zero_copy_at(&pre_account_data.data)
                         .expect("Failed to deserialize ctoken account");
 
                     if let Some(extensions) = ctoken.extensions.as_ref() {
@@ -481,7 +481,7 @@ pub async fn assert_transfer2_with_delegate(
                 );
                 assert_eq!(
                     compressed_account.token.state,
-                    light_ctoken_sdk::compat::AccountState::Initialized,
+                    light_token_sdk::compat::AccountState::Initialized,
                     "CompressAndClose compressed account should be initialized"
                 );
                 assert_eq!(
@@ -492,7 +492,7 @@ pub async fn assert_transfer2_with_delegate(
                 // Verify compressed account metadata
                 assert_eq!(
                     compressed_account.account.owner.to_bytes(),
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                     "CompressAndClose compressed account should be owned by compressed token program"
                 );
                 assert_eq!(

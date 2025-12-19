@@ -1,13 +1,13 @@
 //! Runtime helpers for token decompression.
-use light_ctoken_interface::instructions::transfer2::MultiInputTokenDataWithContext;
 use light_sdk::{cpi::v2::CpiAccounts, instruction::ValidityProof};
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
+use light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext;
 use solana_account_info::AccountInfo;
 use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::compat::PackedCTokenData;
+use crate::pack::compat::PackedTokenData;
 
 /// Trait for getting token account seeds.
 pub trait CTokenSeedProvider: Copy {
@@ -43,10 +43,7 @@ pub fn process_decompress_tokens_runtime<'info, 'a, 'b, V, A>(
     ctoken_cpi_authority: &AccountInfo<'info>,
     ctoken_config: &AccountInfo<'info>,
     config: &AccountInfo<'info>,
-    ctoken_accounts: Vec<(
-        PackedCTokenData<V>,
-        CompressedAccountMetaNoLamportsNoAddress,
-    )>,
+    ctoken_accounts: Vec<(PackedTokenData<V>, CompressedAccountMetaNoLamportsNoAddress)>,
     proof: ValidityProof,
     cpi_accounts: &CpiAccounts<'b, 'info>,
     post_system_accounts: &[AccountInfo<'info>],
@@ -131,19 +128,19 @@ where
                     .take(ctoken_signer_seeds.len().saturating_sub(1))
                     .cloned()
                     .collect();
-                light_ctoken_interface::instructions::extensions::compressible::CompressToPubkey {
+                light_token_interface::instructions::extensions::compressible::CompressToPubkey {
                     bump,
                     program_id: program_id.to_bytes(),
                     seeds: seeds_without_bump,
                 }
             });
 
-        crate::ctoken::CreateCTokenAccountCpi {
+        crate::token::CreateTokenAccountCpi {
             payer: fee_payer.clone(),
             account: (*owner_info).clone(),
             mint: (*mint_info).clone(),
             owner: *authority.key,
-            compressible: Some(crate::ctoken::CompressibleParamsCpi {
+            compressible: Some(crate::token::CompressibleParamsCpi {
                 compressible_config: ctoken_config.clone(),
                 rent_sponsor: ctoken_rent_sponsor.clone(),
                 system_program: cpi_accounts
@@ -153,7 +150,7 @@ where
                 pre_pay_num_epochs: 2,
                 lamports_per_write: None,
                 compress_to_account_pubkey: compress_to_pubkey,
-                token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+                token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             }),
         }
         .invoke_signed(&[seeds_slice])?;
@@ -177,7 +174,7 @@ where
     }
 
     let ctoken_ix =
-        crate::compressed_token::decompress_full::decompress_full_ctoken_accounts_with_indices(
+        crate::compressed_token::decompress_full::decompress_full_token_accounts_with_indices(
             *fee_payer.key,
             proof,
             cpi_context_pubkey,

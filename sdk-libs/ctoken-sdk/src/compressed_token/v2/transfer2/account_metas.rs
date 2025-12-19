@@ -3,7 +3,7 @@ use light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 
-use crate::utils::CTokenDefaultAccounts;
+use crate::utils::TokenDefaultAccounts;
 
 /// Account metadata configuration for compressed token multi-transfer instructions
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -50,7 +50,7 @@ impl Transfer2AccountsMetaConfig {
 pub fn get_transfer2_instruction_account_metas(
     config: Transfer2AccountsMetaConfig,
 ) -> Vec<AccountMeta> {
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
     let packed_accounts_len = if let Some(packed_accounts) = config.packed_accounts.as_ref() {
         packed_accounts.len()
     } else {

@@ -1,7 +1,7 @@
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 
-use crate::utils::CTokenDefaultAccounts;
+use crate::utils::TokenDefaultAccounts;
 
 /// Account metadata configuration for mint_to_compressed instruction
 #[derive(Debug, Copy, Clone)]
@@ -116,7 +116,7 @@ pub struct MintToCompressedMetaConfigCpiWrite {
 pub fn get_mint_to_compressed_instruction_account_metas_cpi_write(
     config: MintToCompressedMetaConfigCpiWrite,
 ) -> [AccountMeta; 5] {
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
     [
         AccountMeta::new_readonly(default_pubkeys.light_system_program, false),
         AccountMeta::new_readonly(config.mint_authority, true),
@@ -130,7 +130,7 @@ pub fn get_mint_to_compressed_instruction_account_metas_cpi_write(
 pub fn get_mint_to_compressed_instruction_account_metas(
     config: MintToCompressedMetaConfig,
 ) -> Vec<AccountMeta> {
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
 
     // Calculate capacity based on configuration
     // Optional accounts: authority + payer + optional decompressed accounts (3) + light_system_program +

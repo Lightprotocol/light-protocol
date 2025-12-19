@@ -10,10 +10,10 @@ pub mod close_token_account;
 pub mod convert_account_infos;
 pub mod create_associated_token_account;
 pub mod create_token_account;
-pub mod transfer;
 pub mod extensions;
 pub mod mint_action;
 pub mod shared;
+pub mod transfer;
 pub mod transfer2;
 pub mod withdraw_funding_pool;
 
@@ -48,7 +48,7 @@ pub enum InstructionType {
     CloseTokenAccount = 9,
     /// Create CToken, equivalent to SPL Token InitializeAccount3
     CreateTokenAccount = 18,
-    CreateAssociatedCTokenAccount = 100,
+    CreateAssociatedTokenAccount = 100,
     /// Batch instruction for ctoken transfers:
     ///     1. transfer compressed tokens
     ///     2. compress ctokens/spl tokens
@@ -62,7 +62,7 @@ pub enum InstructionType {
     ///     3. UpdateMintAuthority
     ///     4. UpdateFreezeAuthority
     ///     5. CreateSplMint
-    ///     6. MintToCToken
+    ///     6. MintTo
     ///     7. UpdateMetadataField
     ///     8. UpdateMetadataAuthority
     ///     9. RemoveMetadataKey
@@ -81,7 +81,7 @@ impl From<u8> for InstructionType {
             3 => InstructionType::CTokenTransfer,
             9 => InstructionType::CloseTokenAccount,
             18 => InstructionType::CreateTokenAccount,
-            100 => InstructionType::CreateAssociatedCTokenAccount,
+            100 => InstructionType::CreateAssociatedTokenAccount,
             101 => InstructionType::Transfer2,
             102 => InstructionType::CreateAssociatedTokenAccountIdempotent,
             103 => InstructionType::MintAction,
@@ -114,8 +114,8 @@ pub fn process_instruction(
             // msg!("CTokenTransfer");
             process_light_token_transfer(accounts, &instruction_data[1..])?;
         }
-        InstructionType::CreateAssociatedCTokenAccount => {
-            msg!("CreateAssociatedCTokenAccount");
+        InstructionType::CreateAssociatedTokenAccount => {
+            msg!("CreateAssociatedTokenAccount");
             process_create_associated_token_account(accounts, &instruction_data[1..])?;
         }
         InstructionType::CreateAssociatedTokenAccountIdempotent => {

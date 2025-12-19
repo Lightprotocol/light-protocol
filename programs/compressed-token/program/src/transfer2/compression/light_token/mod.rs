@@ -13,7 +13,7 @@ mod inputs;
 
 pub use compress_and_close::close_for_compress_and_close;
 pub use compress_or_decompress_tokens::compress_or_decompress_tokens;
-pub use inputs::{TokenCompressionInputs, CompressAndCloseInputs};
+pub use inputs::{CompressAndCloseInputs, TokenCompressionInputs};
 
 /// Process compression/decompression for light token accounts.
 #[profile]

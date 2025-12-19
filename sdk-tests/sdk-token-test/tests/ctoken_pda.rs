@@ -1,7 +1,10 @@
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_client::indexer::Indexer;
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
-use light_ctoken_interface::{
+use light_ctoken_types::CPI_AUTHORITY_PDA;
+use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
+use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+use light_token_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData,
         mint_action::{CompressedMintInstructionData, CompressedMintWithContext, Recipient},
@@ -9,12 +12,9 @@ use light_ctoken_interface::{
     state::{extensions::AdditionalMetadata, CompressedMintMetadata},
     CTOKEN_PROGRAM_ID,
 };
-use light_ctoken_sdk::compressed_token::create_compressed_mint::{
+use light_token_sdk::compressed_token::create_compressed_mint::{
     derive_cmint_compressed_address, find_cmint_address,
 };
-use light_ctoken_types::CPI_AUTHORITY_PDA;
-use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
-use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use sdk_token_test::{ChainedCtokenInstructionData, PdaCreationData, ID};
 use solana_sdk::{
     pubkey::Pubkey,
@@ -91,7 +91,7 @@ async fn test_ctoken_pda() {
     println!("🧪 Verifying chained CPI results...");
 
     // 1. Verify compressed mint was created and mint authority was revoked
-    let compressed_mint = light_ctoken_interface::state::CompressedMint::deserialize(
+    let compressed_mint = light_token_interface::state::CompressedMint::deserialize(
         &mut &mint_account.data.as_ref().unwrap().data[..],
     )
     .unwrap();
@@ -205,7 +205,7 @@ pub async fn create_mint<R: Rpc + Indexer>(
             },
             mint_authority: Some(mint_authority.pubkey().into()),
             freeze_authority: freeze_authority.map(|fa| fa.into()),
-            extensions: metadata.map(|m| vec![light_ctoken_interface::instructions::extensions::ExtensionInstructionData::TokenMetadata(m)]),
+            extensions: metadata.map(|m| vec![light_token_interface::instructions::extensions::ExtensionInstructionData::TokenMetadata(m)]),
         },
     };
 

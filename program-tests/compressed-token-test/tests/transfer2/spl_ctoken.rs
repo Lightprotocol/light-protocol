@@ -1,9 +1,17 @@
 use anchor_lang::prelude::{AccountMeta, ProgramError};
 // Re-export all necessary imports for test modules
 pub use anchor_spl::token_2022::spl_token_2022;
-use light_ctoken_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
-pub use light_ctoken_sdk::ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount};
-use light_ctoken_sdk::{
+use light_program_test::utils::assert::assert_rpc_error;
+pub use light_program_test::{LightProgramTest, ProgramTestConfig};
+pub use light_test_utils::{
+    airdrop_lamports,
+    spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens},
+    Rpc, RpcError,
+};
+pub use light_token_client::actions::transfer2::{self};
+use light_token_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
+pub use light_token_sdk::token::{derive_token_ata, CreateAssociatedTokenAccount};
+use light_token_sdk::{
     compressed_token::{
         transfer2::{
             create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config,
@@ -14,14 +22,6 @@ use light_ctoken_sdk::{
     spl_interface::find_spl_interface_pda_with_index,
     ValidityProof,
 };
-use light_program_test::utils::assert::assert_rpc_error;
-pub use light_program_test::{LightProgramTest, ProgramTestConfig};
-pub use light_test_utils::{
-    airdrop_lamports,
-    spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens},
-    Rpc, RpcError,
-};
-pub use light_token_client::actions::transfer2::{self};
 use solana_sdk::pubkey::Pubkey;
 pub use solana_sdk::{instruction::Instruction, signature::Keypair, signer::Signer};
 pub use spl_token_2022::pod::PodAccount;
@@ -67,14 +67,14 @@ async fn test_spl_to_ctoken_transfer() {
         .unwrap();
 
     // Create compressed token ATA for recipient
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e)))
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let associated_token_account = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
+    let associated_token_account = derive_token_ata(&recipient.pubkey(), &mint).0;
 
     // Get initial SPL token balance
     let spl_account_data = rpc
@@ -236,8 +236,8 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         .unwrap();
 
     // Create non-compressible token ATA for recipient (required for CompressAndClose without rent_sponsor)
-    let (associated_token_account, bump) = derive_ctoken_ata(&recipient.pubkey(), &mint);
-    let instruction = CreateAssociatedCTokenAccount {
+    let (associated_token_account, bump) = derive_token_ata(&recipient.pubkey(), &mint);
+    let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump,
         payer: payer.pubkey(),
@@ -345,7 +345,7 @@ impl CtokenToSplTransferAndClose {
         let compress_to_pool = CTokenAccount2 {
             inputs: vec![],
             output: MultiTokenTransferOutputData::default(),
-            compression: Some(Compression::compress_and_close_ctoken(
+            compression: Some(Compression::compress_and_close_token(
                 self.amount,
                 0, // mint index
                 1, // source ctoken account index

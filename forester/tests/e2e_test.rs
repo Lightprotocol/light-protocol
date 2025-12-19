@@ -35,8 +35,6 @@ use light_compressed_token::process_transfer::{
     transfer_sdk::{create_transfer_instruction, to_account_metas},
     TokenTransferOutputData,
 };
-use light_ctoken_interface::state::TokenDataVersion;
-use light_ctoken_sdk::compat::TokenDataWithMerkleContext;
 use light_hasher::Poseidon;
 use light_program_test::accounts::test_accounts::TestAccounts;
 use light_prover_client::prover::spawn_prover;
@@ -48,6 +46,8 @@ use light_test_utils::{
 use light_token_client::actions::{
     create_compressible_token_account, CreateCompressibleTokenAccountInputs,
 };
+use light_token_interface::state::TokenDataVersion;
+use light_token_sdk::compat::TokenDataWithMerkleContext;
 use rand::{prelude::SliceRandom, rngs::StdRng, Rng, SeedableRng};
 use serial_test::serial;
 use solana_program::{native_token::LAMPORTS_PER_SOL, pubkey::Pubkey};

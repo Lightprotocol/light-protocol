@@ -15,10 +15,9 @@ mod shared;
 
 use borsh::BorshDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_ctoken_sdk::ctoken::{
-    CToken, CreateAssociatedCTokenAccount, DecompressToCtoken, TransferCToken,
-};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
+use light_token_interface::state::Token;
+use light_token_sdk::token::{CreateAssociatedTokenAccount, Decompress, Transfer};
 use solana_sdk::{signature::Keypair, signer::Signer};
 
 /// Test the complete cMint to cToken flow using direct SDK calls
@@ -65,12 +64,12 @@ async fn test_cmint_to_ctoken_scenario() {
 
     // 4. Verify initial balances
     let ctoken_account_data = rpc.get_account(ctoken_ata1).await.unwrap().unwrap();
-    let ctoken_account = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
+    let ctoken_account = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     let balance1 = ctoken_account.amount;
     assert_eq!(balance1, mint_amount1, "cToken account 1 initial balance");
 
     let ctoken_account_data = rpc.get_account(ctoken_ata2).await.unwrap().unwrap();
-    let ctoken_account = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
+    let ctoken_account = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     let balance2 = ctoken_account.amount;
     assert_eq!(balance2, mint_amount2, "cToken account 2 initial balance");
 
@@ -86,7 +85,7 @@ async fn test_cmint_to_ctoken_scenario() {
     );
 
     // 5. Transfer cTokens from account 1 to account 2
-    let transfer_instruction = TransferCToken {
+    let transfer_instruction = Transfer {
         source: ctoken_ata1,
         destination: ctoken_ata2,
         amount: transfer_amount,
@@ -102,7 +101,7 @@ async fn test_cmint_to_ctoken_scenario() {
 
     // 6. Verify balances after transfer
     let ctoken_account_data = rpc.get_account(ctoken_ata1).await.unwrap().unwrap();
-    let ctoken_account = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
+    let ctoken_account = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     let balance1_after = ctoken_account.amount;
     assert_eq!(
         balance1_after,
@@ -111,7 +110,7 @@ async fn test_cmint_to_ctoken_scenario() {
     );
 
     let ctoken_account_data = rpc.get_account(ctoken_ata2).await.unwrap().unwrap();
-    let ctoken_account = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
+    let ctoken_account = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     let balance2_after = ctoken_account.amount;
     assert_eq!(
         balance2_after,
@@ -189,7 +188,7 @@ async fn test_cmint_to_ctoken_scenario() {
     // 9. Recreate cToken ATA for decompression (idempotent)
     println!("\nRecreating cToken ATA for decompression...");
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner2.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner2.pubkey(), mint)
             .idempotent()
             .instruction()
             .unwrap();
@@ -232,14 +231,14 @@ async fn test_cmint_to_ctoken_scenario() {
 
     // 11. Decompress compressed tokens to cToken account
     println!("Decompressing tokens to cToken account...");
-    let decompress_instruction = DecompressToCtoken {
+    let decompress_instruction = Decompress {
         token_data,
         discriminator,
         merkle_tree: account_proof.tree_info.tree,
         queue: account_proof.tree_info.queue,
         leaf_index: account_proof.leaf_index as u32,
         root_index: account_proof.root_index.root_index().unwrap_or(0),
-        destination_ctoken_account: ctoken_ata2,
+        destination_token_account: ctoken_ata2,
         payer: payer.pubkey(),
         validity_proof: rpc_result.proof,
     }
@@ -271,7 +270,7 @@ async fn test_cmint_to_ctoken_scenario() {
 
     // 13. Verify cToken account has tokens again
     let ctoken_account_data = rpc.get_account(ctoken_ata2).await.unwrap().unwrap();
-    let ctoken_account = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
+    let ctoken_account = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     let decompressed_balance = ctoken_account.amount;
     assert_eq!(
         decompressed_balance,

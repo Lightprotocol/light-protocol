@@ -2,14 +2,6 @@ use std::collections::HashMap;
 
 use anchor_lang::AnchorDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_ctoken_interface::{
-    instructions::{mint_action::Recipient, transfer2::CompressedTokenInstructionDataTransfer2},
-    state::TokenDataVersion,
-};
-use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::find_cmint_address,
-    ctoken::{CompressibleParams, CreateAssociatedCTokenAccount},
-};
 use light_program_test::{indexer::TestIndexerExtensions, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     airdrop_lamports,
@@ -27,6 +19,14 @@ use light_token_client::{
             CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
         },
     },
+};
+use light_token_interface::{
+    instructions::{mint_action::Recipient, transfer2::CompressedTokenInstructionDataTransfer2},
+    state::TokenDataVersion,
+};
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::find_cmint_address,
+    ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
@@ -443,7 +443,7 @@ impl TestContext {
                 .unwrap_or(&false);
 
             // Create CToken ATA (compressible or regular based on requirements)
-            let (ata, bump) = light_ctoken_sdk::ctoken::derive_ctoken_ata(&signer.pubkey(), &mint);
+            let (ata, bump) = light_token_sdk::token::derive_token_ata(&signer.pubkey(), &mint);
 
             let create_ata_ix = if is_compressible {
                 println!(
@@ -458,13 +458,13 @@ impl TestContext {
                     compress_to_account_pubkey: None,
                     token_account_version: TokenDataVersion::ShaFlat, // CompressAndClose requires ShaFlat
                 };
-                CreateAssociatedCTokenAccount::new(payer.pubkey(), signer.pubkey(), mint)
+                CreateAssociatedTokenAccount::new(payer.pubkey(), signer.pubkey(), mint)
                     .with_compressible(compressible_params)
                     .instruction()
                     .unwrap()
             } else {
                 // Create non-compressible CToken ATA
-                CreateAssociatedCTokenAccount {
+                CreateAssociatedTokenAccount {
                     idempotent: false,
                     bump,
                     payer: payer.pubkey(),
@@ -488,11 +488,11 @@ impl TestContext {
                     amount, signer_index, mint_index, mint
                 );
 
-                // Use MintToCToken action to mint to the ATA
+                // Use MintTo action to mint to the ATA
                 // Get the compressed mint address
                 let address_tree_pubkey = rpc.get_address_tree_v2().tree;
                 let compressed_mint_address =
-                    light_ctoken_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address(
+                    light_token_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address(
                         &mint_seed.pubkey(),
                         &address_tree_pubkey,
                     );
@@ -504,7 +504,7 @@ impl TestContext {
                         mint_seed: mint_seed.pubkey(),
                         authority: mint_authority.pubkey(),
                         payer: payer.pubkey(),
-                        actions: vec![MintActionType::MintToCToken {
+                        actions: vec![MintActionType::MintTo {
                             account: ata,
                             amount,
                         }],

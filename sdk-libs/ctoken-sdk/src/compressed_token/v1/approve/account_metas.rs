@@ -1,7 +1,7 @@
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 
-use crate::utils::CTokenDefaultAccounts;
+use crate::utils::TokenDefaultAccounts;
 
 /// Account metadata configuration for approve instruction
 #[derive(Debug, Copy, Clone)]
@@ -45,7 +45,7 @@ impl ApproveMetaConfig {
 /// Get the standard account metas for an approve instruction
 /// Uses the GenericInstruction account structure for delegation operations
 pub fn get_approve_instruction_account_metas(config: ApproveMetaConfig) -> Vec<AccountMeta> {
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
 
     // Calculate capacity based on whether fee_payer is provided
     // Base accounts: cpi_authority_pda + light_system_program + registered_program_pda +

@@ -1,18 +1,18 @@
-// Tests for TransferSplToCtokenCpi and TransferCTokenToSplCpi
+// Tests for TransferSplToLightTokenCpi and TransferToSplCpi
 
 mod shared;
 
 use borsh::BorshSerialize;
 use light_client::rpc::Rpc;
-use light_ctoken_sdk::{
-    ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount},
-    spl_interface::find_spl_interface_pda_with_index,
-};
 use light_ctoken_types::CPI_AUTHORITY_PDA;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens};
+use light_token_sdk::{
+    ctoken::{derive_token_ata, CreateAssociatedTokenAccount},
+    spl_interface::find_spl_interface_pda_with_index,
+};
 use native_ctoken_examples::{
-    TransferCTokenToSplData, TransferSplToCtokenData, ID, TRANSFER_AUTHORITY_SEED,
+    TransferSplToLightTokenData, TransferToSplData, ID, TRANSFER_AUTHORITY_SEED,
 };
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -21,7 +21,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test transferring SPL tokens to CToken using TransferSplToCtokenCpi::invoke()
+/// Test transferring SPL tokens to CToken using TransferSplToLightTokenCpi::invoke()
 #[tokio::test]
 async fn test_spl_to_ctoken_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -65,13 +65,13 @@ async fn test_spl_to_ctoken_invoke() {
         .await
         .unwrap();
 
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let ctoken_account = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
+    let ctoken_account = derive_token_ata(&recipient.pubkey(), &mint).0;
 
     // Get initial balances
     use spl_token_2022::pod::PodAccount;
@@ -87,12 +87,11 @@ async fn test_spl_to_ctoken_invoke() {
 
     // Get token pool PDA
     let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
-    let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+    let compressed_token_program_id = light_token_sdk::token::CTOKEN_PROGRAM_ID;
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
     // Build wrapper instruction for SPL to CToken transfer
-    let data = TransferSplToCtokenData {
+    let data = TransferSplToLightTokenData {
         amount: transfer_amount,
         spl_interface_pda_bump,
     };
@@ -155,7 +154,7 @@ async fn test_spl_to_ctoken_invoke() {
     println!("SPL to CToken invoke test passed");
 }
 
-/// Test transferring CToken to SPL tokens using TransferCTokenToSplCpi::invoke()
+/// Test transferring CToken to SPL tokens using TransferToSplCpi::invoke()
 #[tokio::test]
 async fn test_ctoken_to_spl_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -183,13 +182,13 @@ async fn test_ctoken_to_spl_invoke() {
         .unwrap();
 
     // Create ctoken ATA and fund it via SPL transfer first
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let ctoken_account = derive_ctoken_ata(&owner.pubkey(), &mint).0;
+    let ctoken_account = derive_token_ata(&owner.pubkey(), &mint).0;
 
     // Create a temporary SPL account to mint tokens then transfer to ctoken
     let temp_spl_account_keypair = Keypair::new();
@@ -210,12 +209,11 @@ async fn test_ctoken_to_spl_invoke() {
 
     // Transfer from temp SPL to ctoken to fund it
     let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
-    let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+    let compressed_token_program_id = light_token_sdk::token::CTOKEN_PROGRAM_ID;
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
     {
-        let data = TransferSplToCtokenData {
+        let data = TransferSplToLightTokenData {
             amount,
             spl_interface_pda_bump,
         };
@@ -251,7 +249,7 @@ async fn test_ctoken_to_spl_invoke() {
     assert_eq!(u64::from(ctoken_state.amount), amount);
 
     // Now test CToken to SPL transfer
-    let data = TransferCTokenToSplData {
+    let data = TransferToSplData {
         amount: transfer_amount,
         spl_interface_pda_bump,
     };
@@ -369,22 +367,21 @@ async fn test_spl_to_ctoken_invoke_signed() {
         .await
         .unwrap();
 
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let ctoken_account = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
+    let ctoken_account = derive_token_ata(&recipient.pubkey(), &mint).0;
 
     // Get SPL interface PDA
     let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
-    let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+    let compressed_token_program_id = light_token_sdk::token::CTOKEN_PROGRAM_ID;
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
     // Build wrapper instruction for SPL to CToken transfer with PDA authority
-    let data = TransferSplToCtokenData {
+    let data = TransferSplToLightTokenData {
         amount: transfer_amount,
         spl_interface_pda_bump,
     };
@@ -472,8 +469,8 @@ async fn test_ctoken_to_spl_invoke_signed() {
 
     // Create ctoken ATA owned by the PDA
     // We need to use a non-compressible ATA so it can be owned by a PDA
-    let (ctoken_account, bump) = derive_ctoken_ata(&authority_pda, &mint);
-    let instruction = CreateAssociatedCTokenAccount {
+    let (ctoken_account, bump) = derive_token_ata(&authority_pda, &mint);
+    let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump,
         payer: payer.pubkey(),
@@ -517,12 +514,11 @@ async fn test_ctoken_to_spl_invoke_signed() {
 
     // Transfer from temp SPL to ctoken to fund it
     let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
-    let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+    let compressed_token_program_id = light_token_sdk::token::CTOKEN_PROGRAM_ID;
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
     {
-        let data = TransferSplToCtokenData {
+        let data = TransferSplToLightTokenData {
             amount,
             spl_interface_pda_bump,
         };
@@ -558,7 +554,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
     assert_eq!(u64::from(ctoken_state.amount), amount);
 
     // Now test CToken to SPL transfer with PDA authority
-    let data = TransferCTokenToSplData {
+    let data = TransferToSplData {
         amount: transfer_amount,
         spl_interface_pda_bump,
     };

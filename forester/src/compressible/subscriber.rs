@@ -1,7 +1,7 @@
 use std::{str::FromStr, sync::Arc};
 
 use futures::StreamExt;
-use light_ctoken_interface::{COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, CTOKEN_PROGRAM_ID};
+use light_token_interface::{COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, LIGHT_TOKEN_PROGRAM_ID};
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::{
     nonblocking::pubsub_client::PubsubClient,
@@ -25,7 +25,7 @@ const REGISTRY_PROGRAM_ID_STR: &str = "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEm
 /// Log prefix emitted by registry program when closing accounts
 const COMPRESS_AND_CLOSE_LOG_PREFIX: &str = "compress_and_close:";
 
-/// Subscribes to account changes for all compressible CToken accounts
+/// Subscribes to account changes for all compressible Token accounts
 pub struct AccountSubscriber {
     ws_url: String,
     tracker: Arc<CompressibleAccountTracker>,
@@ -53,7 +53,7 @@ impl AccountSubscriber {
             .await
             .map_err(|e| anyhow::anyhow!("Failed to connect to WebSocket: {}", e))?;
 
-        let program_id = Pubkey::new_from_array(CTOKEN_PROGRAM_ID);
+        let program_id = Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID);
         // Subscribe to compressed token program accounts with filter for compressible account size
         let (mut subscription, unsubscribe) = pubsub_client
             .program_subscribe(

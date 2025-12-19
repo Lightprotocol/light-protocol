@@ -1,7 +1,7 @@
 use light_client::rpc::Rpc;
 use light_compressible::rent::AccountRentState;
-use light_ctoken_interface::state::{ctoken::CToken, ZExtensionStruct};
 use light_program_test::LightProgramTest;
+use light_token_interface::state::{Token, ZExtensionStruct};
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_sdk::{pubkey::Pubkey, signer::Signer};
 
@@ -35,7 +35,7 @@ pub async fn assert_close_token_account(
     }
 
     // Parse to find destination (rent_sponsor) from compressible extension
-    let (compressed_token, _) = CToken::zero_copy_at(account_data_before_close)
+    let (compressed_token, _) = Token::zero_copy_at(account_data_before_close)
         .expect("Failed to deserialize compressible token account");
 
     // Get initial authority balance from pre-transaction context
@@ -123,7 +123,7 @@ async fn assert_compressible_extension(
     let compressible_extension = extension
         .iter()
         .find_map(|ext| match ext {
-            light_ctoken_interface::state::extensions::ZExtensionStruct::Compressible(comp) => {
+            light_token_interface::state::extensions::ZExtensionStruct::Compressible(comp) => {
                 Some(comp)
             }
             _ => None,

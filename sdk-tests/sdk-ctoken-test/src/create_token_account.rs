@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_ctoken_sdk::ctoken::{CompressibleParamsCpi, CreateCTokenAccountCpi};
+use light_token_sdk::token::{CompressibleParamsCpi, CreateTokenAccountCpi};
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{ID, TOKEN_ACCOUNT_SEED};
@@ -41,7 +41,7 @@ pub fn process_create_token_account_invoke(
     );
 
     // Build the account infos struct
-    CreateCTokenAccountCpi {
+    CreateTokenAccountCpi {
         payer: accounts[0].clone(),
         account: accounts[1].clone(),
         mint: accounts[2].clone(),
@@ -86,7 +86,7 @@ pub fn process_create_token_account_invoke_signed(
     );
 
     // Build the account infos struct
-    let account_infos = CreateCTokenAccountCpi {
+    let account_infos = CreateTokenAccountCpi {
         payer: accounts[0].clone(),
         account: accounts[1].clone(),
         mint: accounts[2].clone(),

@@ -1,11 +1,11 @@
-use light_ctoken_interface::{
-    instructions::transfer2::CompressedCpiContext,
-    state::{CToken, ZExtensionStruct},
-};
 use light_program_profiler::profile;
 use light_sdk::{
     error::LightSdkError,
     instruction::{AccountMetasVec, PackedAccounts, SystemAccountMetaConfig},
+};
+use light_token_interface::{
+    instructions::transfer2::CompressedCpiContext,
+    state::{Token, ZExtensionStruct},
 };
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_account_info::AccountInfo;
@@ -22,8 +22,8 @@ use super::{
     },
 };
 use crate::{
-    error::CTokenSdkError,
-    utils::{AccountInfoToCompress, CTokenDefaultAccounts},
+    error::TokenSdkError,
+    utils::{AccountInfoToCompress, TokenDefaultAccounts},
 };
 
 /// Struct to hold all the indices needed for CompressAndClose operation
@@ -44,8 +44,8 @@ pub fn pack_for_compress_and_close(
     ctoken_account_data: &[u8],
     packed_accounts: &mut PackedAccounts,
     signer_is_compression_authority: bool, // if yes rent authority must be signer
-) -> Result<CompressAndCloseIndices, CTokenSdkError> {
-    let (ctoken_account, _) = CToken::zero_copy_at(ctoken_account_data)?;
+) -> Result<CompressAndCloseIndices, TokenSdkError> {
+    let (ctoken_account, _) = Token::zero_copy_at(ctoken_account_data)?;
     let source_index = packed_accounts.insert_or_get(ctoken_account_pubkey);
     let mint_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
     let owner_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.owner.to_bytes()));
@@ -118,35 +118,35 @@ fn find_account_indices(
     rent_sponsor_pubkey: &Pubkey,
     destination_pubkey: &Pubkey,
     // output_tree_pubkey: &Pubkey,
-) -> Result<CompressAndCloseIndices, CTokenSdkError> {
+) -> Result<CompressAndCloseIndices, TokenSdkError> {
     let source_index = find_index(ctoken_account_key).ok_or_else(|| {
         msg!("Source ctoken account not found in packed_accounts");
-        CTokenSdkError::InvalidAccountData
+        TokenSdkError::InvalidAccountData
     })?;
 
     let mint_index = find_index(mint_pubkey).ok_or_else(|| {
         msg!("Mint {} not found in packed_accounts", mint_pubkey);
-        CTokenSdkError::InvalidAccountData
+        TokenSdkError::InvalidAccountData
     })?;
 
     let owner_index = find_index(owner_pubkey).ok_or_else(|| {
         msg!("Owner {} not found in packed_accounts", owner_pubkey);
-        CTokenSdkError::InvalidAccountData
+        TokenSdkError::InvalidAccountData
     })?;
 
     let authority_index = find_index(authority).ok_or_else(|| {
         msg!("Authority not found in packed_accounts");
-        CTokenSdkError::InvalidAccountData
+        TokenSdkError::InvalidAccountData
     })?;
 
     let rent_sponsor_index = find_index(rent_sponsor_pubkey).ok_or_else(|| {
         msg!("Rent recipient not found in packed_accounts");
-        CTokenSdkError::InvalidAccountData
+        TokenSdkError::InvalidAccountData
     })?;
 
     let destination_index = find_index(destination_pubkey).ok_or_else(|| {
         msg!("Destination not found in packed_accounts");
-        CTokenSdkError::InvalidAccountData
+        TokenSdkError::InvalidAccountData
     })?;
 
     Ok(CompressAndCloseIndices {
@@ -170,16 +170,16 @@ fn find_account_indices(
 /// # Returns
 /// An instruction that compresses and closes all provided token accounts
 #[profile]
-pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
+pub fn compress_and_close_token_accounts_with_indices<'info>(
     fee_payer: Pubkey,
     rent_sponsor_is_signer: bool,
     cpi_context_pubkey: Option<Pubkey>,
     indices: &[CompressAndCloseIndices],
     packed_accounts: &[AccountInfo<'info>],
-) -> Result<Instruction, CTokenSdkError> {
+) -> Result<Instruction, TokenSdkError> {
     if indices.is_empty() {
         msg!("indices empty");
-        return Err(CTokenSdkError::InvalidAccountData);
+        return Err(TokenSdkError::InvalidAccountData);
     }
     // Convert packed_accounts to AccountMetas using ArrayVec to avoid heap allocation
     let mut packed_account_metas = arrayvec::ArrayVec::<AccountMeta, 32>::new();
@@ -197,13 +197,13 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         // Get the amount from the source token account
         let source_account = packed_accounts
             .get(idx.source_index as usize)
-            .ok_or(CTokenSdkError::InvalidAccountData)?;
+            .ok_or(TokenSdkError::InvalidAccountData)?;
 
         let account_data = source_account
             .try_borrow_data()
-            .map_err(|_| CTokenSdkError::AccountBorrowFailed)?;
+            .map_err(|_| TokenSdkError::AccountBorrowFailed)?;
 
-        let amount = light_ctoken_interface::state::CToken::amount_from_slice(&account_data)?;
+        let amount = light_token_interface::state::Token::amount_from_slice(&account_data)?;
 
         // Create CTokenAccount2 for CompressAndClose operation
         let mut token_account = CTokenAccount2::new_empty(idx.owner_index, idx.mint_index);
@@ -277,16 +277,16 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
 /// # Returns
 /// An instruction that compresses and closes all provided token accounts
 #[profile]
-pub fn compress_and_close_ctoken_accounts<'info>(
+pub fn compress_and_close_token_accounts<'info>(
     fee_payer: Pubkey,
     with_compression_authority: bool,
     output_queue: AccountInfo<'info>,
     ctoken_solana_accounts: &[&AccountInfo<'info>],
     packed_accounts: &[AccountInfo<'info>],
-) -> Result<Instruction, CTokenSdkError> {
+) -> Result<Instruction, TokenSdkError> {
     if ctoken_solana_accounts.is_empty() {
         msg!("ctoken_solana_accounts empty");
-        return Err(CTokenSdkError::InvalidAccountData);
+        return Err(TokenSdkError::InvalidAccountData);
     }
 
     // Helper function to find index of a pubkey in packed_accounts using linear search
@@ -307,12 +307,12 @@ pub fn compress_and_close_ctoken_accounts<'info>(
         // Deserialize the ctoken Solana account using light zero copy
         let account_data = ctoken_account_info
             .try_borrow_data()
-            .map_err(|_| CTokenSdkError::AccountBorrowFailed)?;
+            .map_err(|_| TokenSdkError::AccountBorrowFailed)?;
 
         // Deserialize the full CToken including extensions
         let (compressed_token, _) =
-            light_ctoken_interface::state::CToken::zero_copy_at(&account_data)
-                .map_err(|_| CTokenSdkError::InvalidAccountData)?;
+            light_token_interface::state::Token::zero_copy_at(&account_data)
+                .map_err(|_| TokenSdkError::InvalidAccountData)?;
 
         // Extract pubkeys from the deserialized account
         let mint_pubkey = Pubkey::from(compressed_token.mint.to_bytes());
@@ -365,7 +365,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
                     }
                 }
             }
-            rent_sponsor_pubkey.ok_or(CTokenSdkError::InvalidAccountData)?
+            rent_sponsor_pubkey.ok_or(TokenSdkError::InvalidAccountData)?
         };
 
         let destination_pubkey = if with_compression_authority {
@@ -389,7 +389,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
     packed_accounts_vec.push(output_queue);
     packed_accounts_vec.extend_from_slice(packed_accounts);
 
-    compress_and_close_ctoken_accounts_with_indices(
+    compress_and_close_token_accounts_with_indices(
         fee_payer,
         with_compression_authority,
         None,
@@ -400,7 +400,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
 
 /// Compress and close ctoken accounts, and invoke cpi.
 ///
-/// Wraps `compress_and_close_ctoken_accounts`, builds the instruction, and
+/// Wraps `compress_and_close_token_accounts`, builds the instruction, and
 /// calls `invoke_signed` with provided seeds.
 ///
 /// `remaining_accounts` must include required Light system accounts for
@@ -409,7 +409,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
 #[allow(clippy::too_many_arguments)]
 #[profile]
 #[allow(clippy::extra_unused_lifetimes)]
-pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
+pub fn compress_and_close_token_accounts_signed<'b, 'info>(
     token_accounts_to_compress: &[AccountInfoToCompress<'info>],
     fee_payer: AccountInfo<'info>,
     output_queue: AccountInfo<'info>,
@@ -419,7 +419,7 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
     post_system: &[AccountInfo<'info>],
     remaining_accounts: &[AccountInfo<'info>],
     with_compression_authority: bool,
-) -> Result<(), CTokenSdkError> {
+) -> Result<(), TokenSdkError> {
     let mut packed_accounts = Vec::with_capacity(post_system.len() + 4);
     packed_accounts.extend_from_slice(post_system);
     packed_accounts.push(cpi_authority);
@@ -430,7 +430,7 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
         .map(|t| t.account_info.as_ref())
         .collect();
 
-    let instruction = compress_and_close_ctoken_accounts(
+    let instruction = compress_and_close_token_accounts(
         *fee_payer.key,
         with_compression_authority,
         output_queue,
@@ -454,7 +454,7 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
     }
 
     invoke_signed(&instruction, &account_infos, &all_signer_seeds)
-        .map_err(|e| CTokenSdkError::CpiError(e.to_string()))?;
+        .map_err(|e| TokenSdkError::CpiError(e.to_string()))?;
     Ok(())
 }
 
@@ -468,8 +468,8 @@ pub struct CompressAndCloseAccounts {
 impl Default for CompressAndCloseAccounts {
     fn default() -> Self {
         Self {
-            compressed_token_program: CTokenDefaultAccounts::default().compressed_token_program,
-            cpi_authority_pda: CTokenDefaultAccounts::default().cpi_authority_pda,
+            compressed_token_program: TokenDefaultAccounts::default().compressed_token_program,
+            cpi_authority_pda: TokenDefaultAccounts::default().cpi_authority_pda,
             cpi_context: None,
             self_program: None,
         }
@@ -479,8 +479,8 @@ impl Default for CompressAndCloseAccounts {
 impl CompressAndCloseAccounts {
     pub fn new_with_cpi_context(cpi_context: Option<Pubkey>, self_program: Option<Pubkey>) -> Self {
         Self {
-            compressed_token_program: CTokenDefaultAccounts::default().compressed_token_program,
-            cpi_authority_pda: CTokenDefaultAccounts::default().cpi_authority_pda,
+            compressed_token_program: TokenDefaultAccounts::default().compressed_token_program,
+            cpi_authority_pda: TokenDefaultAccounts::default().cpi_authority_pda,
             cpi_context,
             self_program,
         }

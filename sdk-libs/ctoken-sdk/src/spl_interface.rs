@@ -1,11 +1,10 @@
 //! SPL interface PDA derivation utilities.
 
-use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use light_ctoken_types::constants::{CPI_AUTHORITY_PDA, CREATE_TOKEN_POOL, POOL_SEED};
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
-use crate::{AnchorDeserialize, AnchorSerialize};
+use crate::{token::CTOKEN_PROGRAM_ID, AnchorDeserialize, AnchorSerialize};
 
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
 pub struct SplInterfacePda {
@@ -27,7 +26,7 @@ pub fn find_spl_interface_pda_with_index(mint: &Pubkey, spl_interface_index: u8)
     } else {
         &seeds[..]
     };
-    Pubkey::find_program_address(seeds, &Pubkey::from(CTOKEN_PROGRAM_ID))
+    Pubkey::find_program_address(seeds, &CTOKEN_PROGRAM_ID)
 }
 
 /// Get the spl interface pda for a given mint and index
@@ -48,12 +47,12 @@ pub fn derive_spl_interface_pda(mint: &solana_pubkey::Pubkey, index: u8) -> SplI
 /// # Create SPL interface PDA (token pool) instruction builder
 ///
 /// Creates the spl interface pda for an SPL mint with index 0.
-/// Spl interface pdas store spl tokens that are wrapped in ctoken or compressed token accounts.
+/// Spl interface pdas store spl tokens that are wrapped in light token or compressed token accounts.
 ///
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_ctoken_sdk::spl_interface::CreateSplInterfacePda;
-/// # use light_ctoken_sdk::constants::SPL_TOKEN_PROGRAM_ID;
+/// # use light_token_sdk::spl_interface::CreateSplInterfacePda;
+/// # use light_token_sdk::constants::SPL_TOKEN_PROGRAM_ID;
 /// # let fee_payer = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
 /// # let token_program = SPL_TOKEN_PROGRAM_ID;
@@ -81,7 +80,7 @@ impl CreateSplInterfacePda {
 
     pub fn instruction(self) -> Instruction {
         Instruction {
-            program_id: Pubkey::from(CTOKEN_PROGRAM_ID),
+            program_id: CTOKEN_PROGRAM_ID,
             accounts: vec![
                 AccountMeta::new(self.fee_payer, true),
                 AccountMeta::new(self.spl_interface_pda, false),

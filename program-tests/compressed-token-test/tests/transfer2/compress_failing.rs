@@ -35,8 +35,11 @@
 // 1. create and mint to one ctoken compressed account
 //
 
-use light_ctoken_interface::{instructions::mint_action::Recipient, state::TokenDataVersion};
-use light_ctoken_sdk::{
+use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc};
+use light_sdk::instruction::PackedAccounts;
+use light_test_utils::RpcError;
+use light_token_interface::{instructions::mint_action::Recipient, state::TokenDataVersion};
+use light_token_sdk::{
     compressed_token::{
         create_compressed_mint::find_cmint_address,
         transfer2::{
@@ -45,12 +48,9 @@ use light_ctoken_sdk::{
         },
         CTokenAccount2,
     },
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
+    ctoken::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
     ValidityProof,
 };
-use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc};
-use light_sdk::instruction::PackedAccounts;
-use light_test_utils::RpcError;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 // ============================================================================
 // Test Setup
@@ -85,7 +85,7 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
 
     // Derive mint and ATA addresses
     let (mint, _) = find_cmint_address(&mint_seed.pubkey());
-    let (ctoken_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
+    let (ctoken_ata, _) = derive_token_ata(&owner.pubkey(), &mint);
 
     // Create compressible CToken ATA for owner
     let compressible_params = CompressibleParams {
@@ -101,7 +101,7 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
     };
 
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA: {:?}", e)))?;
@@ -216,7 +216,7 @@ fn create_compression_inputs(
 
     // Compress tokens from CToken ATA
     compression_account
-        .compress_ctoken(compress_amount, ctoken_ata_index, authority_index)
+        .compress_light_token(compress_amount, ctoken_ata_index, authority_index)
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to compress: {:?}", e)))?;
 
     // Get account metas from PackedAccounts
@@ -606,7 +606,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
 
     // Derive mint and ATA addresses
     let (mint, _) = find_cmint_address(&mint_seed.pubkey());
-    let (ctoken_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
+    let (ctoken_ata, _) = derive_token_ata(&owner.pubkey(), &mint);
 
     // Create compressible CToken ATA with pre_pay_num_epochs = 0 (NO prepaid rent)
     // This means any write operation will require immediate rent top-up
@@ -623,7 +623,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
     };
 
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA: {:?}", e)))?;
@@ -677,7 +677,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
 
     let mut compression_account = CTokenAccount2::new_empty(recipient_index, mint_index);
     compression_account
-        .compress_ctoken(token_amount, ctoken_ata_index, authority_index)
+        .compress_light_token(token_amount, ctoken_ata_index, authority_index)
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to compress: {:?}", e)))?;
 
     let (account_metas, _, _) = packed_accounts.to_account_metas();

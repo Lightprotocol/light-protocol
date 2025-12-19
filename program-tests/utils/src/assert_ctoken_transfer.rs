@@ -1,7 +1,7 @@
 use anchor_spl::token_2022::spl_token_2022::{self, solana_program::program_pack::Pack};
 use light_client::rpc::Rpc;
-use light_ctoken_interface::state::CToken;
 use light_program_test::LightProgramTest;
+use light_token_interface::state::Token;
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_sdk::pubkey::Pubkey;
 
@@ -36,14 +36,14 @@ pub async fn assert_compressible_for_account(
     println!("{} current_slot", current_slot);
     // Parse tokens
     let token_before = if data_before.len() > 165 {
-        CToken::zero_copy_at(data_before).ok()
+        Token::zero_copy_at(data_before).ok()
     } else {
         None
     };
     println!("{:?} token_before", token_before);
 
     let token_after = if data_after.len() > 165 {
-        CToken::zero_copy_at(data_after).ok()
+        Token::zero_copy_at(data_after).ok()
     } else {
         None
     };
@@ -51,7 +51,7 @@ pub async fn assert_compressible_for_account(
     if let (Some((token_before, _)), Some((token_after, _))) = (&token_before, &token_after) {
         if let Some(extensions_before) = &token_before.extensions {
             if let Some(compressible_before) = extensions_before.iter().find_map(|ext| {
-                if let light_ctoken_interface::state::ZExtensionStruct::Compressible(comp) = ext {
+                if let light_token_interface::state::ZExtensionStruct::Compressible(comp) = ext {
                     Some(comp)
                 } else {
                     None
@@ -62,7 +62,7 @@ pub async fn assert_compressible_for_account(
                     .as_ref()
                     .and_then(|extensions| {
                         extensions.iter().find_map(|ext| {
-                            if let light_ctoken_interface::state::ZExtensionStruct::Compressible(
+                            if let light_token_interface::state::ZExtensionStruct::Compressible(
                                 comp,
                             ) = ext
                             {
@@ -106,7 +106,7 @@ pub async fn assert_compressible_for_account(
                         260,
                         current_slot,
                         lamports_before,
-                        light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                        light_token_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                     )
                     .unwrap();
                 // Check if top-up was applied

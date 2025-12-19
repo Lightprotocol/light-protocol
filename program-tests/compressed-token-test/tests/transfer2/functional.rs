@@ -1,4 +1,4 @@
-use light_ctoken_interface::state::TokenDataVersion;
+use light_token_interface::state::TokenDataVersion;
 use serial_test::serial;
 
 use crate::transfer2::shared::{
@@ -168,7 +168,7 @@ async fn test_transfer2_functional() {
         test48_transfer_compress_spl(),
         test49_transfer_decompress_spl(),
         test50_transfer_compress_ctoken(),
-        test51_transfer_decompress_ctoken(),
+        test51_transfer_decompress_light_token(),
         test52_transfer_multiple_compressions(),
         test53_transfer_multiple_decompressions(),
         test54_transfer_compress_decompress_balanced(),
@@ -1685,7 +1685,7 @@ fn test50_transfer_compress_ctoken() -> TestCase {
 }
 
 // Test 51: Transfer + decompress to CToken in same transaction
-fn test51_transfer_decompress_ctoken() -> TestCase {
+fn test51_transfer_decompress_light_token() -> TestCase {
     TestCase {
         name: "Transfer + decompress to CToken in same transaction".to_string(),
         actions: vec![

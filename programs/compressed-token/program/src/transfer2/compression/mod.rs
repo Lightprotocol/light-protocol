@@ -24,12 +24,12 @@ use crate::{
 pub mod light_token;
 pub mod spl;
 
-pub use light_token::{
-    close_for_compress_and_close, compress_or_decompress_tokens, TokenCompressionInputs,
-};
-
 // Re-export under old name for backward compatibility during transition
-pub use light_token::compress_or_decompress_tokens as compress_or_decompress_light_tokens;
+pub use light_token::{
+    close_for_compress_and_close,
+    compress_or_decompress_tokens as compress_or_decompress_light_tokens,
+    compress_or_decompress_tokens, TokenCompressionInputs,
+};
 
 const SPL_TOKEN_ID: &[u8; 32] = &spl_token::ID.to_bytes();
 const SPL_TOKEN_2022_ID: &[u8; 32] = &spl_token_2022::ID.to_bytes();

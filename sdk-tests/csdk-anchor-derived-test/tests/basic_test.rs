@@ -1,13 +1,6 @@
 use anchor_lang::{AccountDeserialize, AnchorDeserialize, InstructionData, ToAccountMetas};
 use csdk_anchor_derived_test::{AccountCreationData, CompressionParams, GameSession, UserRecord};
 use light_compressed_account::address::derive_address;
-use light_ctoken_interface::{
-    instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
-    state::CompressedMintMetadata,
-};
-use light_ctoken_sdk::compressed_token::create_compressed_mint::{
-    derive_cmint_compressed_address, find_cmint_address,
-};
 use light_macros::pubkey;
 use light_program_test::{
     program_test::{
@@ -19,7 +12,14 @@ use light_sdk::{
     compressible::CompressibleConfig,
     instruction::{PackedAccounts, SystemAccountMetaConfig},
 };
-use light_sdk_types::C_TOKEN_PROGRAM_ID;
+use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
+use light_token_interface::{
+    instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
+    state::CompressedMintMetadata,
+};
+use light_token_sdk::compressed_token::create_compressed_mint::{
+    derive_cmint_compressed_address, find_cmint_address,
+};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -581,7 +581,7 @@ pub async fn create_user_record_and_game_session(
         user_record: *user_record_pda,
         game_session: *game_session_pda,
         mint_signer: mint_signer.pubkey(),
-        ctoken_program: C_TOKEN_PROGRAM_ID.into(),
+        ctoken_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
         config: *config_pda,
         rent_sponsor: RENT_SPONSOR,

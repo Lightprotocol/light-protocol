@@ -1,7 +1,5 @@
-use light_ctoken_sdk::ctoken::{
-    CloseCTokenAccount, CompressibleParams, CreateAssociatedCTokenAccount,
-};
 use light_test_utils::assert_create_token_account::assert_create_associated_token_account;
+use light_token_sdk::token::{CloseAccount, CompressibleParams, CreateAssociatedTokenAccount};
 
 use super::shared::*;
 
@@ -20,8 +18,8 @@ async fn test_associated_token_account_operations() {
     let owner_pubkey = context.owner_keypair.pubkey();
 
     // Create basic (non-compressible) ATA using SDK function
-    let (ata, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
-    let instruction = CreateAssociatedCTokenAccount {
+    let (ata, bump) = derive_token_ata(&owner_pubkey, &context.mint_pubkey);
+    let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump,
         payer: payer_pubkey,
@@ -61,10 +59,10 @@ async fn test_associated_token_account_operations() {
         pre_pay_num_epochs: num_prepaid_epochs,
         lamports_per_write,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
     };
 
-    let compressible_instruction = CreateAssociatedCTokenAccount::new(
+    let compressible_instruction = CreateAssociatedTokenAccount::new(
         payer_pubkey,
         compressible_owner_pubkey,
         context.mint_pubkey,
@@ -94,7 +92,7 @@ async fn test_associated_token_account_operations() {
             num_prepaid_epochs, // Use actual balance with rent
             lamports_per_write,
             compress_to_pubkey: false,
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
     )
@@ -102,7 +100,7 @@ async fn test_associated_token_account_operations() {
 
     // Test closing compressible ATA
     let (compressible_ata_pubkey, _) =
-        derive_ctoken_ata(&compressible_owner_pubkey, &context.mint_pubkey);
+        derive_token_ata(&compressible_owner_pubkey, &context.mint_pubkey);
 
     // Create a separate destination account
     let destination = Keypair::new();
@@ -113,7 +111,7 @@ async fn test_associated_token_account_operations() {
         .unwrap();
 
     // Close compressible ATA
-    let close_account_ix = CloseCTokenAccount::new(
+    let close_account_ix = CloseAccount::new(
         light_compressed_token::ID,
         compressible_ata_pubkey,
         destination.pubkey(),                // destination for user funds
@@ -152,9 +150,9 @@ async fn test_create_ata_idempotent() {
     let mut context = setup_account_test().await.unwrap();
     let payer_pubkey = context.payer.pubkey();
     let owner_pubkey = context.owner_keypair.pubkey();
-    let (ata, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
+    let (ata, bump) = derive_token_ata(&owner_pubkey, &context.mint_pubkey);
     // Create ATA using non-idempotent instruction (first creation)
-    let instruction = CreateAssociatedCTokenAccount {
+    let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump,
         payer: payer_pubkey,
@@ -183,7 +181,7 @@ async fn test_create_ata_idempotent() {
 
     // Attempt to create the same ATA again using non-idempotent instruction (should fail)
     let instruction =
-        CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+        CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
             .instruction()
             .unwrap();
 
@@ -200,7 +198,7 @@ async fn test_create_ata_idempotent() {
 
     // Now try with idempotent instruction (should succeed)
     let instruction =
-        CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+        CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
             .idempotent()
             .instruction()
             .unwrap();
@@ -233,7 +231,7 @@ async fn test_create_ata_with_prefunded_lamports() {
     let owner_pubkey = context.owner_keypair.pubkey();
 
     // Derive ATA address
-    let (ata, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
+    let (ata, bump) = derive_token_ata(&owner_pubkey, &context.mint_pubkey);
 
     // Pre-fund the ATA address with lamports (simulating attacker donation DoS attempt)
     let prefund_amount = 1_000; // 1000 lamports
@@ -258,7 +256,7 @@ async fn test_create_ata_with_prefunded_lamports() {
     );
 
     // Now create the ATA - this should succeed despite pre-funded lamports
-    let instruction = CreateAssociatedCTokenAccount {
+    let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump,
         payer: payer_pubkey,
@@ -337,10 +335,10 @@ async fn test_create_token_account_with_prefunded_lamports() {
         pre_pay_num_epochs: 0,
         lamports_per_write: Some(100),
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
     };
 
-    let create_token_account_ix = CreateCTokenAccount::new(
+    let create_token_account_ix = CreateTokenAccount::new(
         payer_pubkey,
         token_account_pubkey,
         context.mint_pubkey,
@@ -372,7 +370,7 @@ async fn test_create_token_account_with_prefunded_lamports() {
             num_prepaid_epochs: 0,
             lamports_per_write: Some(100),
             compress_to_pubkey: false,
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
     )

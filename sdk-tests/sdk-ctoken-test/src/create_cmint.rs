@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_ctoken_sdk::{
-    ctoken::{CreateCMintCpi, CreateCMintParams, ExtensionInstructionData, SystemAccountInfos},
+use light_token_sdk::{
+    token::{CreateCMintCpi, CreateCMintParams, ExtensionInstructionData, SystemAccountInfos},
     CompressedProof,
 };
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};

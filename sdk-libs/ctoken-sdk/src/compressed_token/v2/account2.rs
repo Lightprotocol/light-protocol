@@ -1,13 +1,13 @@
 use std::ops::Deref;
 
-use light_ctoken_interface::instructions::transfer2::{
+use light_program_profiler::profile;
+use light_token_interface::instructions::transfer2::{
     Compression, CompressionMode, MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
 };
-use light_program_profiler::profile;
 use solana_account_info::AccountInfo;
 use solana_pubkey::Pubkey;
 
-use crate::{error::CTokenSdkError, utils::get_token_account_balance};
+use crate::{error::TokenSdkError, utils::get_token_account_balance};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CTokenAccount2 {
@@ -20,13 +20,13 @@ pub struct CTokenAccount2 {
 
 impl CTokenAccount2 {
     #[profile]
-    pub fn new(token_data: Vec<MultiInputTokenDataWithContext>) -> Result<Self, CTokenSdkError> {
+    pub fn new(token_data: Vec<MultiInputTokenDataWithContext>) -> Result<Self, TokenSdkError> {
         // all mint indices must be the same
         // all owners must be the same
         let amount = token_data.iter().map(|data| data.amount).sum();
         // Check if token_data is empty
         if token_data.is_empty() {
-            return Err(CTokenSdkError::NoInputAccounts);
+            return Err(TokenSdkError::NoInputAccounts);
         }
 
         // Use the indices from the first token data (assuming they're all the same mint/owner)
@@ -56,13 +56,13 @@ impl CTokenAccount2 {
     #[profile]
     pub fn new_delegated(
         token_data: Vec<MultiInputTokenDataWithContext>,
-    ) -> Result<Self, CTokenSdkError> {
+    ) -> Result<Self, TokenSdkError> {
         // all mint indices must be the same
         // all owners must be the same
         let amount = token_data.iter().map(|data| data.amount).sum();
         // Check if token_data is empty
         if token_data.is_empty() {
-            return Err(CTokenSdkError::NoInputAccounts);
+            return Err(TokenSdkError::NoInputAccounts);
         }
 
         // Use the indices from the first token data (assuming they're all the same mint/owner)
@@ -107,9 +107,9 @@ impl CTokenAccount2 {
     // TODO: consider this might be confusing because it must not be used in combination with fn transfer()
     //     could mark the struct as transferred and throw in fn transfer
     #[profile]
-    pub fn transfer(&mut self, recipient_index: u8, amount: u64) -> Result<Self, CTokenSdkError> {
+    pub fn transfer(&mut self, recipient_index: u8, amount: u64) -> Result<Self, TokenSdkError> {
         if amount > self.output.amount {
-            return Err(CTokenSdkError::InsufficientBalance);
+            return Err(TokenSdkError::InsufficientBalance);
         }
         // TODO: skip outputs with zero amount when creating the instruction data.
         self.output.amount -= amount;
@@ -136,9 +136,9 @@ impl CTokenAccount2 {
     /// and returns a new CTokenAccount that represents the delegated portion.
     /// The original account balance is reduced by the delegated amount.
     #[profile]
-    pub fn approve(&mut self, delegate_index: u8, amount: u64) -> Result<Self, CTokenSdkError> {
+    pub fn approve(&mut self, delegate_index: u8, amount: u64) -> Result<Self, TokenSdkError> {
         if amount > self.output.amount {
-            return Err(CTokenSdkError::InsufficientBalance);
+            return Err(TokenSdkError::InsufficientBalance);
         }
 
         // Deduct the delegated amount from current account
@@ -166,19 +166,19 @@ impl CTokenAccount2 {
 
     // TODO: consider this might be confusing because it must not be used in combination with fn compress()
     #[profile]
-    pub fn compress_ctoken(
+    pub fn compress_light_token(
         &mut self,
         amount: u64,
         source_or_recipient_index: u8,
         authority: u8,
-    ) -> Result<(), CTokenSdkError> {
+    ) -> Result<(), TokenSdkError> {
         // Check if there's already a compression set
         if self.compression.is_some() {
-            return Err(CTokenSdkError::CompressionCannotBeSetTwice);
+            return Err(TokenSdkError::CompressionCannotBeSetTwice);
         }
 
         self.output.amount += amount;
-        self.compression = Some(Compression::compress_ctoken(
+        self.compression = Some(Compression::compress_light_token(
             amount,
             self.output.mint,
             source_or_recipient_index,
@@ -198,10 +198,10 @@ impl CTokenAccount2 {
         pool_account_index: u8,
         pool_index: u8,
         bump: u8,
-    ) -> Result<(), CTokenSdkError> {
+    ) -> Result<(), TokenSdkError> {
         // Check if there's already a compression set
         if self.compression.is_some() {
-            return Err(CTokenSdkError::CompressionCannotBeSetTwice);
+            return Err(TokenSdkError::CompressionCannotBeSetTwice);
         }
 
         self.output.amount += amount;
@@ -221,22 +221,22 @@ impl CTokenAccount2 {
 
     // TODO: consider this might be confusing because it must not be used in combination with fn decompress()
     #[profile]
-    pub fn decompress_ctoken(
+    pub fn decompress_light_token(
         &mut self,
         amount: u64,
         source_index: u8,
-    ) -> Result<(), CTokenSdkError> {
+    ) -> Result<(), TokenSdkError> {
         // Check if there's already a compression set
         if self.compression.is_some() {
-            return Err(CTokenSdkError::CompressionCannotBeSetTwice);
+            return Err(TokenSdkError::CompressionCannotBeSetTwice);
         }
 
         if self.output.amount < amount {
-            return Err(CTokenSdkError::InsufficientBalance);
+            return Err(TokenSdkError::InsufficientBalance);
         }
         self.output.amount -= amount;
 
-        self.compression = Some(Compression::decompress_ctoken(
+        self.compression = Some(Compression::decompress_light_token(
             amount,
             self.output.mint,
             source_index,
@@ -254,14 +254,14 @@ impl CTokenAccount2 {
         pool_account_index: u8,
         pool_index: u8,
         bump: u8,
-    ) -> Result<(), CTokenSdkError> {
+    ) -> Result<(), TokenSdkError> {
         // Check if there's already a compression set
         if self.compression.is_some() {
-            return Err(CTokenSdkError::CompressionCannotBeSetTwice);
+            return Err(TokenSdkError::CompressionCannotBeSetTwice);
         }
 
         if self.output.amount < amount {
-            return Err(CTokenSdkError::InsufficientBalance);
+            return Err(TokenSdkError::InsufficientBalance);
         }
         self.output.amount -= amount;
 
@@ -284,10 +284,10 @@ impl CTokenAccount2 {
         source_or_recipient_index: u8,
         authority: u8,
         token_account_info: &AccountInfo,
-    ) -> Result<(), CTokenSdkError> {
+    ) -> Result<(), TokenSdkError> {
         // Check if there's already a compression set
         if self.compression.is_some() {
-            return Err(CTokenSdkError::CompressionCannotBeSetTwice);
+            return Err(TokenSdkError::CompressionCannotBeSetTwice);
         }
 
         // Get the actual token account balance to add to output
@@ -322,17 +322,17 @@ impl CTokenAccount2 {
         rent_sponsor_index: u8,
         compressed_account_index: u8,
         destination_index: u8,
-    ) -> Result<(), CTokenSdkError> {
+    ) -> Result<(), TokenSdkError> {
         // Check if there's already a compression set
         if self.compression.is_some() {
-            return Err(CTokenSdkError::CompressionCannotBeSetTwice);
+            return Err(TokenSdkError::CompressionCannotBeSetTwice);
         }
 
         // Add the full balance to the output amount
         self.output.amount += amount;
 
         // Use the compress_and_close method from Compression
-        self.compression = Some(Compression::compress_and_close_ctoken(
+        self.compression = Some(Compression::compress_and_close_token(
             amount,
             self.output.mint,
             source_or_recipient_index,

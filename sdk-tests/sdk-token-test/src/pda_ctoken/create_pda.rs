@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use light_ctoken_sdk::ValidityProof;
 use light_sdk::{
     account::LightAccount,
     cpi::{
@@ -8,6 +7,7 @@ use light_sdk::{
     },
 };
 use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
+use light_token_sdk::ValidityProof;
 
 use crate::{process_update_deposit::CompressedEscrowPda, LIGHT_CPI_SIGNER};
 

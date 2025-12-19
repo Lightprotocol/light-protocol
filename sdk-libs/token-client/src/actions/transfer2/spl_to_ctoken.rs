@@ -2,9 +2,9 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_ctoken_sdk::{
-    constants::SPL_TOKEN_PROGRAM_ID, ctoken::TransferSplToCtoken,
-    spl_interface::find_spl_interface_pda_with_index,
+use light_token_sdk::{
+    constants::SPL_TOKEN_PROGRAM_ID, spl_interface::find_spl_interface_pda_with_index,
+    token::TransferSplToLightToken,
 };
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -34,7 +34,7 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
 
     let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
 
-    let ix = TransferSplToCtoken {
+    let ix = TransferSplToLightToken {
         amount,
         spl_interface_pda_bump,
         source_spl_token_account,

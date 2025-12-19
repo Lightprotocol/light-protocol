@@ -5,13 +5,13 @@ use forester_utils::rpc_pool::SolanaRpcPool;
 use light_client::{indexer::TreeInfo, rpc::Rpc};
 use light_compressed_account::TreeType;
 use light_compressible::config::CompressibleConfig;
-use light_ctoken_interface::CTOKEN_PROGRAM_ID;
-use light_ctoken_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenAccounts;
 use light_registry::{
     accounts::CompressAndCloseContext, compressible::compressed_token::CompressAndCloseIndices,
     instruction::CompressAndClose,
 };
 use light_sdk::instruction::PackedAccounts;
+use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
+use light_token_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as TokenAccounts;
 use solana_pubkey::pubkey;
 use solana_sdk::{
     instruction::Instruction,
@@ -62,7 +62,7 @@ impl<R: Rpc> Compressor<R> {
         registered_forester_pda: Pubkey,
     ) -> Result<Signature> {
         let registry_program_id = Pubkey::from_str(REGISTRY_PROGRAM_ID_STR)?;
-        let compressed_token_program_id = Pubkey::new_from_array(CTOKEN_PROGRAM_ID);
+        let compressed_token_program_id = Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID);
 
         // Derive compression_authority PDA deterministically (version = 1)
         let compression_authority_seeds = CompressibleConfig::get_compression_authority_seeds(1);
@@ -128,7 +128,7 @@ impl<R: Rpc> Compressor<R> {
                 .as_ref()
                 .and_then(|exts| {
                     exts.iter().find_map(|ext| {
-                        if let light_ctoken_interface::state::ExtensionStruct::Compressible(comp) =
+                        if let light_token_interface::state::ExtensionStruct::Compressible(comp) =
                             ext
                         {
                             Some(comp)
@@ -169,7 +169,7 @@ impl<R: Rpc> Compressor<R> {
             packed_accounts.insert_or_get_config(compression_authority, false, true);
 
         // Add system accounts
-        let ctoken_config = CTokenAccounts {
+        let ctoken_config = TokenAccounts {
             compressed_token_program: compressed_token_program_id,
             cpi_authority_pda: Pubkey::find_program_address(
                 &[b"cpi_authority"],

@@ -1,4 +1,3 @@
-use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use light_ctoken_types::{
     constants::TRANSFER, instruction::transfer::CompressedTokenInstructionDataTransfer,
     CompressedCpiContext, ValidityProof,
@@ -9,7 +8,8 @@ use solana_pubkey::Pubkey;
 use super::account_metas::{get_transfer_instruction_account_metas, TokenAccountsMetaConfig};
 use crate::{
     compressed_token::v1::account::CTokenAccount,
-    error::{CTokenSdkError, Result},
+    error::{Result, TokenSdkError},
+    token::CTOKEN_PROGRAM_ID,
     AnchorSerialize,
 };
 // CTokenAccount abstraction to bundle inputs and create outputs.
@@ -65,17 +65,17 @@ pub fn create_transfer_instruction_raw(
 
     // Check 1: cpi accounts must be decompress or compress consistent with accounts
     if (is_compress && !meta_config.is_compress) || (is_decompress && !meta_config.is_decompress) {
-        return Err(CTokenSdkError::InconsistentCompressDecompressState);
+        return Err(TokenSdkError::InconsistentCompressDecompressState);
     }
 
     // Check 2: there can only be compress or decompress not both
     if is_compress && is_decompress {
-        return Err(CTokenSdkError::BothCompressAndDecompress);
+        return Err(TokenSdkError::BothCompressAndDecompress);
     }
 
     // Check 3: compress_or_decompress_amount must be Some
     if compress_or_decompress_amount.is_none() && meta_config.is_compress_or_decompress() {
-        return Err(CTokenSdkError::InvalidCompressDecompressAmount);
+        return Err(TokenSdkError::InvalidCompressDecompressAmount);
     }
 
     // Extract input and output data from token accounts
@@ -110,7 +110,7 @@ pub fn create_transfer_instruction_raw(
     // TODO: calculate exact len.
     let serialized = instruction_data
         .try_to_vec()
-        .map_err(|_| CTokenSdkError::SerializationError)?;
+        .map_err(|_| TokenSdkError::SerializationError)?;
 
     // Serialize instruction data
     let mut data = Vec::with_capacity(8 + 4 + serialized.len()); // rough estimate
@@ -132,7 +132,7 @@ pub fn create_transfer_instruction_raw(
         account_metas.push(AccountMeta::new(tree_pubkey, false));
     }
     Ok(Instruction {
-        program_id: Pubkey::from(CTOKEN_PROGRAM_ID),
+        program_id: CTOKEN_PROGRAM_ID,
         accounts: account_metas,
         data,
     })
@@ -214,7 +214,7 @@ pub fn transfer(inputs: TransferInputs) -> Result<Instruction> {
     } = inputs;
     // Sanity check.
     if sender_account.method_used {
-        return Err(CTokenSdkError::MethodUsed);
+        return Err(TokenSdkError::MethodUsed);
     }
     let account_meta_config = TokenAccountsMetaConfig::new(fee_payer, sender_account.owner());
     // None is the same output_tree_index as token account
@@ -257,7 +257,7 @@ pub fn decompress(inputs: DecompressInputs) -> Result<Instruction> {
     } = inputs;
     // Sanity check.
     if sender_account.method_used {
-        return Err(CTokenSdkError::MethodUsed);
+        return Err(TokenSdkError::MethodUsed);
     }
     let account_meta_config = TokenAccountsMetaConfig::decompress(
         fee_payer,

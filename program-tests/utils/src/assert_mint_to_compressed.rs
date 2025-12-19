@@ -5,10 +5,10 @@ use light_client::{
     rpc::Rpc,
 };
 use light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index;
-use light_ctoken_interface::{
-    instructions::mint_action::Recipient, state::CompressedMint, CTOKEN_PROGRAM_ID,
+use light_token_interface::{
+    instructions::mint_action::Recipient, state::CompressedMint, LIGHT_TOKEN_PROGRAM_ID,
 };
-use light_ctoken_sdk::compressed_token::create_compressed_mint::derive_cmint_from_spl_mint;
+use light_token_sdk::compressed_token::create_compressed_mint::derive_cmint_from_spl_mint;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
 pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
@@ -51,12 +51,12 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
             });
 
         // Create expected token data
-        let expected_token_data = light_ctoken_sdk::compat::TokenData {
+        let expected_token_data = light_token_sdk::compat::TokenData {
             mint: spl_mint_pda,
             owner: recipient_pubkey,
             amount: recipient.amount,
             delegate: None,
-            state: light_ctoken_sdk::compat::AccountState::Initialized,
+            state: light_token_sdk::compat::AccountState::Initialized,
             tlv: None,
         };
 
@@ -67,7 +67,7 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
         );
         assert_eq!(
             matching_account.account.owner.to_bytes(),
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
             "Recipient token account should have correct program owner"
         );
 

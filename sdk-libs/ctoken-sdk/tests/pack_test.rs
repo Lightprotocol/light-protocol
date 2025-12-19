@@ -1,10 +1,10 @@
 #![cfg(feature = "compressible")]
 
-use light_ctoken_sdk::{
-    compat::{PackedCTokenDataWithVariant, TokenData, TokenDataWithVariant},
+use light_sdk::instruction::PackedAccounts;
+use light_token_sdk::{
+    compat::{PackedTokenDataWithVariant, TokenData, TokenDataWithVariant},
     pack::Pack,
 };
-use light_sdk::instruction::PackedAccounts;
 use solana_pubkey::Pubkey;
 
 #[test]
@@ -67,7 +67,7 @@ fn test_token_data_with_variant_packing() {
     };
 
     // Pack the wrapper
-    let packed: PackedCTokenDataWithVariant<MyVariant> =
+    let packed: PackedTokenDataWithVariant<MyVariant> =
         token_with_variant.pack(&mut remaining_accounts);
 
     // Verify variant is unchanged

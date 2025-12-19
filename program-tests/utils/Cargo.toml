@@ -21,7 +21,7 @@ solana-sdk = { workspace = true }
 thiserror = { workspace = true }
 account-compression = { workspace = true, features = ["cpi"] }
 light-compressed-token = { workspace = true, features = ["cpi"] }
-light-ctoken-interface = { workspace = true, features = ["test-only"] }
+light-token-interface = { workspace = true, features = ["test-only"] }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 light-registry = { workspace = true, features = ["cpi"] }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
@@ -49,6 +49,6 @@ light-sparse-merkle-tree = { workspace = true }
 solana-banks-client = { workspace = true }
 light-zero-copy = { workspace = true }
 base64 = { workspace = true }
-light-ctoken-sdk = { workspace = true }
+light-token-sdk = { workspace = true }
 light-token-client = { workspace = true }
 light-compressible = { workspace = true }

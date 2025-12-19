@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_ctoken_sdk::ctoken::{TransferCTokenToSplCpi, TransferSplToCtokenCpi};
+use light_token_sdk::token::{TransferSplToLightTokenCpi, TransferToSplCpi};
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::ID;
@@ -9,14 +9,14 @@ pub const TRANSFER_AUTHORITY_SEED: &[u8] = b"transfer_authority";
 
 /// Instruction data for SPL to CToken transfer
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct TransferSplToCtokenData {
+pub struct TransferSplToLightTokenData {
     pub amount: u64,
     pub spl_interface_pda_bump: u8,
 }
 
 /// Instruction data for CToken to SPL transfer
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct TransferCTokenToSplData {
+pub struct TransferToSplData {
     pub amount: u64,
     pub spl_interface_pda_bump: u8,
 }
@@ -35,13 +35,13 @@ pub struct TransferCTokenToSplData {
 /// - accounts[8]: compressed_token_program_authority
 pub fn process_spl_to_ctoken_invoke(
     accounts: &[AccountInfo],
-    data: TransferSplToCtokenData,
+    data: TransferSplToLightTokenData,
 ) -> Result<(), ProgramError> {
     if accounts.len() < 9 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    TransferSplToCtokenCpi {
+    TransferSplToLightTokenCpi {
         source_spl_token_account: accounts[1].clone(),
         destination_ctoken_account: accounts[2].clone(),
         amount: data.amount,
@@ -74,7 +74,7 @@ pub fn process_spl_to_ctoken_invoke(
 /// - accounts[8]: compressed_token_program_authority
 pub fn process_spl_to_ctoken_invoke_signed(
     accounts: &[AccountInfo],
-    data: TransferSplToCtokenData,
+    data: TransferSplToLightTokenData,
 ) -> Result<(), ProgramError> {
     if accounts.len() < 9 {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -89,7 +89,7 @@ pub fn process_spl_to_ctoken_invoke_signed(
         return Err(ProgramError::InvalidSeeds);
     }
 
-    let account_infos = TransferSplToCtokenCpi {
+    let account_infos = TransferSplToLightTokenCpi {
         source_spl_token_account: accounts[1].clone(),
         destination_ctoken_account: accounts[2].clone(),
         amount: data.amount,
@@ -123,13 +123,13 @@ pub fn process_spl_to_ctoken_invoke_signed(
 /// - accounts[8]: compressed_token_program_authority
 pub fn process_ctoken_to_spl_invoke(
     accounts: &[AccountInfo],
-    data: TransferCTokenToSplData,
+    data: TransferToSplData,
 ) -> Result<(), ProgramError> {
     if accounts.len() < 9 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    TransferCTokenToSplCpi {
+    TransferToSplCpi {
         source_ctoken_account: accounts[1].clone(),
         destination_spl_token_account: accounts[2].clone(),
         amount: data.amount,
@@ -162,7 +162,7 @@ pub fn process_ctoken_to_spl_invoke(
 /// - accounts[8]: compressed_token_program_authority
 pub fn process_ctoken_to_spl_invoke_signed(
     accounts: &[AccountInfo],
-    data: TransferCTokenToSplData,
+    data: TransferToSplData,
 ) -> Result<(), ProgramError> {
     if accounts.len() < 9 {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -177,7 +177,7 @@ pub fn process_ctoken_to_spl_invoke_signed(
         return Err(ProgramError::InvalidSeeds);
     }
 
-    let account_infos = TransferCTokenToSplCpi {
+    let account_infos = TransferToSplCpi {
         source_ctoken_account: accounts[1].clone(),
         destination_spl_token_account: accounts[2].clone(),
         amount: data.amount,

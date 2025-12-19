@@ -1,11 +1,11 @@
-// Tests for CreateCTokenAccountCpi (CreateTokenAccount instructions)
+// Tests for CreateTokenAccountCpi (CreateTokenAccount instructions)
 
 mod shared;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
-use light_ctoken_sdk::ctoken::CTOKEN_PROGRAM_ID;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
+use light_token_sdk::token::CTOKEN_PROGRAM_ID;
 use native_ctoken_examples::{CreateTokenAccountData, ID};
 use shared::setup_create_compressed_mint;
 use solana_sdk::{
@@ -15,7 +15,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test creating a token account using CreateCTokenAccountCpi::invoke()
+/// Test creating a token account using CreateTokenAccountCpi::invoke()
 #[tokio::test]
 async fn test_create_token_account_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -43,7 +43,7 @@ async fn test_create_token_account_invoke() {
     };
     let instruction_data = [vec![2u8], create_token_account_data.try_to_vec().unwrap()].concat();
 
-    use light_ctoken_sdk::ctoken::{config_pda, rent_sponsor_pda};
+    use light_token_sdk::token::{config_pda, rent_sponsor_pda};
     let config = config_pda();
     let rent_sponsor = rent_sponsor_pda();
 
@@ -73,8 +73,8 @@ async fn test_create_token_account_invoke() {
         .unwrap();
 
     // Parse and verify account data
-    use light_ctoken_interface::state::CToken;
-    let account_state = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
+    use light_token_interface::state::Token;
+    let account_state = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     assert_eq!(
         account_state.mint.to_bytes(),
         mint_pda.to_bytes(),
@@ -88,7 +88,7 @@ async fn test_create_token_account_invoke() {
     assert_eq!(account_state.amount, 0, "Initial amount should be 0");
 }
 
-/// Test creating a PDA-owned token account using CreateCTokenAccountCpi::invoke_signed()
+/// Test creating a PDA-owned token account using CreateTokenAccountCpi::invoke_signed()
 #[tokio::test]
 async fn test_create_token_account_invoke_signed() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -119,7 +119,7 @@ async fn test_create_token_account_invoke_signed() {
     // Discriminator 3 = CreateTokenAccountInvokeSigned
     let instruction_data = [vec![3u8], create_token_account_data.try_to_vec().unwrap()].concat();
 
-    use light_ctoken_sdk::ctoken::{config_pda, rent_sponsor_pda};
+    use light_token_sdk::token::{config_pda, rent_sponsor_pda};
     let config = config_pda();
     let rent_sponsor = rent_sponsor_pda();
 
@@ -146,8 +146,8 @@ async fn test_create_token_account_invoke_signed() {
     let ctoken_account_data = rpc.get_account(ctoken_account_pda).await.unwrap().unwrap();
 
     // Parse and verify account data
-    use light_ctoken_interface::state::CToken;
-    let account_state = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
+    use light_token_interface::state::Token;
+    let account_state = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     assert_eq!(
         account_state.mint.to_bytes(),
         mint_pda.to_bytes(),

@@ -11,8 +11,6 @@ use light_client::{
     local_test_validator::{spawn_validator, LightValidatorConfig},
     rpc::{LightClient, LightClientConfig, Rpc},
 };
-use light_ctoken_interface::state::TokenDataVersion;
-use light_ctoken_sdk::compressed_token::create_compressed_mint;
 use light_registry::{
     protocol_config::state::ProtocolConfigPda,
     sdk::{
@@ -25,6 +23,8 @@ use light_registry::{
 use light_token_client::actions::{
     create_compressible_token_account, CreateCompressibleTokenAccountInputs,
 };
+use light_token_interface::state::TokenDataVersion;
+use light_token_sdk::compressed_token::create_compressed_mint;
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 use tokio::{sync::oneshot, time::sleep};
@@ -547,7 +547,9 @@ async fn run_bootstrap_test(
                     exts.iter().any(|ext| {
                         matches!(
                             ext,
-                            light_ctoken_interface::state::extensions::ExtensionStruct::Compressible(_)
+                            light_token_interface::state::extensions::ExtensionStruct::Compressible(
+                                _
+                            )
                         )
                     })
                 });

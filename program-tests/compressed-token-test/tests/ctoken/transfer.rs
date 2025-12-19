@@ -35,7 +35,7 @@ async fn setup_transfer_test(
             rent_sponsor,
             num_prepaid_epochs: epochs,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -53,7 +53,7 @@ async fn setup_transfer_test(
             rent_sponsor,
             num_prepaid_epochs: epochs,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -484,7 +484,7 @@ async fn test_ctoken_transfer_mixed_compressible_non_compressible() {
         rent_sponsor: context.rent_sponsor,
         num_prepaid_epochs: 3, // 3 epochs for no top-up: epochs_funded_ahead = 3 - 1 = 2 >= 2
         lamports_per_write: Some(100),
-        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compress_to_pubkey: false,
         payer: payer_pubkey,
     };

@@ -1,7 +1,7 @@
 use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
 
-pub trait CTokenInstruction: Sized {
+pub trait TokenInstruction: Sized {
     type ExecuteAccounts<'info, A: light_account_checks::AccountInfoTrait + Clone + 'info>;
 
     type CpiWriteAccounts<'info, A: light_account_checks::AccountInfoTrait + Clone + 'info>;

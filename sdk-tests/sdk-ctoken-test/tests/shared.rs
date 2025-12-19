@@ -15,9 +15,8 @@ pub async fn setup_create_compressed_mint(
     decimals: u8,
     recipients: Vec<(u64, Pubkey)>,
 ) -> (Pubkey, [u8; 32], Vec<Pubkey>) {
-    use light_ctoken_sdk::ctoken::{
-        CreateAssociatedCTokenAccount, CreateCMint, CreateCMintParams, MintToCToken,
-        MintToCTokenParams,
+    use light_token_sdk::token::{
+        CreateAssociatedTokenAccount, CreateCMint, CreateCMintParams, MintTo, MintToParams,
     };
 
     let mint_seed = Keypair::new();
@@ -25,12 +24,12 @@ pub async fn setup_create_compressed_mint(
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     // Derive compression address using SDK helpers
-    let compression_address = light_ctoken_sdk::ctoken::derive_cmint_compressed_address(
+    let compression_address = light_token_sdk::token::derive_cmint_compressed_address(
         &mint_seed.pubkey(),
         &address_tree.tree,
     );
 
-    let mint = light_ctoken_sdk::ctoken::find_cmint_address(&mint_seed.pubkey()).0;
+    let mint = light_token_sdk::token::find_cmint_address(&mint_seed.pubkey()).0;
 
     // Get validity proof for the address
     let rpc_result = rpc
@@ -91,15 +90,15 @@ pub async fn setup_create_compressed_mint(
     }
 
     // Create ATAs for each recipient
-    use light_ctoken_sdk::ctoken::derive_ctoken_ata;
+    use light_token_sdk::token::derive_token_ata;
 
     let mut ata_pubkeys = Vec::with_capacity(recipients.len());
 
     for (_amount, owner) in &recipients {
-        let (ata_address, _bump) = derive_ctoken_ata(owner, &mint);
+        let (ata_address, _bump) = derive_token_ata(owner, &mint);
         ata_pubkeys.push(ata_address);
 
-        let create_ata = CreateAssociatedCTokenAccount::new(payer.pubkey(), *owner, mint);
+        let create_ata = CreateAssociatedTokenAccount::new(payer.pubkey(), *owner, mint);
         let ata_instruction = create_ata.instruction().unwrap();
 
         rpc.create_and_send_transaction(&[ata_instruction], &payer.pubkey(), &[payer])
@@ -123,7 +122,7 @@ pub async fn setup_create_compressed_mint(
             .value
             .expect("Compressed mint should exist");
 
-        use light_ctoken_interface::state::CompressedMint;
+        use light_token_interface::state::CompressedMint;
         let compressed_mint =
             CompressedMint::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
                 .unwrap();
@@ -136,7 +135,7 @@ pub async fn setup_create_compressed_mint(
             .value;
 
         // Build CompressedMintWithContext
-        use light_ctoken_interface::instructions::mint_action::CompressedMintWithContext;
+        use light_token_interface::instructions::mint_action::CompressedMintWithContext;
         let compressed_mint_with_context = CompressedMintWithContext {
             address: compression_address,
             leaf_index: compressed_mint_account.leaf_index,
@@ -150,7 +149,7 @@ pub async fn setup_create_compressed_mint(
 
         // Build mint params with first recipient
         let (first_idx, (first_amount, _)) = recipients_with_amount[0];
-        let mut mint_params = MintToCTokenParams::new(
+        let mut mint_params = MintToParams::new(
             compressed_mint_with_context,
             *first_amount,
             mint_authority,
@@ -164,8 +163,8 @@ pub async fn setup_create_compressed_mint(
             mint_params = mint_params.add_mint_to_action(*idx as u8, *amount);
         }
 
-        // Build MintToCToken instruction
-        let mint_to_ctoken = MintToCToken::new(
+        // Build MintTo instruction
+        let mint_to_ctoken = MintTo::new(
             mint_params,
             payer.pubkey(),
             compressed_mint_account.tree_info.tree,

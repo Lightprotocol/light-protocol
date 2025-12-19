@@ -1,15 +1,16 @@
 use light_compressed_account::instruction_data::traits::LightInstructionData;
-use light_ctoken_interface::{
-    instructions::mint_action::MintActionCompressedInstructionData, CTOKEN_PROGRAM_ID,
-};
+use light_token_interface::instructions::mint_action::MintActionCompressedInstructionData;
 use solana_instruction::Instruction;
 use solana_msg::msg;
 use solana_program_error::ProgramError;
 
 use super::{cpi_accounts::MintActionCpiAccounts, MintActionCpiWriteAccounts};
-use crate::{compressed_token::ctoken_instruction::CTokenInstruction, error::CTokenSdkError};
+use crate::{
+    compressed_token::ctoken_instruction::TokenInstruction, error::TokenSdkError,
+    token::CTOKEN_PROGRAM_ID,
+};
 
-impl CTokenInstruction for MintActionCompressedInstructionData {
+impl TokenInstruction for MintActionCompressedInstructionData {
     type ExecuteAccounts<'info, A: light_account_checks::AccountInfoTrait + Clone + 'info> =
         MintActionCpiAccounts<'info, A>;
     type CpiWriteAccounts<'info, A: light_account_checks::AccountInfoTrait + Clone + 'info> =
@@ -24,14 +25,14 @@ impl CTokenInstruction for MintActionCompressedInstructionData {
                 msg!(
                     "CPI context write operations not supported in instruction(). Use instruction_write_to_cpi_context_first() or instruction_write_to_cpi_context_set() instead"
                 );
-                return Err(ProgramError::from(CTokenSdkError::InvalidAccountData));
+                return Err(ProgramError::from(TokenSdkError::InvalidAccountData));
             }
         }
 
         let data = self.data().map_err(ProgramError::from)?;
 
         Ok(Instruction {
-            program_id: CTOKEN_PROGRAM_ID.into(),
+            program_id: CTOKEN_PROGRAM_ID,
             accounts: accounts.to_account_metas(),
             data,
         })
@@ -47,7 +48,7 @@ impl CTokenInstruction for MintActionCompressedInstructionData {
             cpi_ctx.set_context = false;
         } else {
             instruction_data.cpi_context = Some(
-                light_ctoken_interface::instructions::mint_action::CpiContext {
+                light_token_interface::instructions::mint_action::CpiContext {
                     first_set_context: true,
                     ..Default::default()
                 },
@@ -67,7 +68,7 @@ impl CTokenInstruction for MintActionCompressedInstructionData {
             cpi_ctx.first_set_context = false;
         } else {
             instruction_data.cpi_context = Some(
-                light_ctoken_interface::instructions::mint_action::CpiContext {
+                light_token_interface::instructions::mint_action::CpiContext {
                     set_context: true,
                     ..Default::default()
                 },
@@ -86,7 +87,7 @@ fn build_cpi_write_instruction<A: light_account_checks::AccountInfoTrait + Clone
 ) -> Result<Instruction, ProgramError> {
     let data = instruction_data.data().map_err(ProgramError::from)?;
     Ok(Instruction {
-        program_id: CTOKEN_PROGRAM_ID.into(),
+        program_id: CTOKEN_PROGRAM_ID,
         accounts: {
             let mut account_metas = Vec::with_capacity(
                 6 + accounts.recipient_token_accounts.len()

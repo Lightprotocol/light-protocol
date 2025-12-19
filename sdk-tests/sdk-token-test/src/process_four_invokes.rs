@@ -1,14 +1,14 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
-use light_ctoken_sdk::compressed_token::{
-    transfer::instruction::{compress, transfer, CompressInputs, TransferConfig, TransferInputs},
-    CTokenAccount, TokenAccountMeta,
-};
 use light_sdk::{
     cpi::v2::CpiAccounts, instruction::ValidityProof as LightValidityProof,
     light_account_checks::AccountInfoTrait,
 };
 use light_sdk_types::cpi_accounts::CpiAccountsConfig;
+use light_token_sdk::compressed_token::{
+    transfer::instruction::{compress, transfer, CompressInputs, TransferConfig, TransferInputs},
+    CTokenAccount, TokenAccountMeta,
+};
 
 use crate::{process_update_deposit::process_update_escrow_pda, PdaParams};
 

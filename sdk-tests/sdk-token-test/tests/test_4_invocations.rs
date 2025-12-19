@@ -1,14 +1,4 @@
 use anchor_lang::{prelude::AccountMeta, AccountDeserialize, InstructionData};
-use light_ctoken_sdk::{
-    compressed_token::{
-        transfer::account_metas::{
-            get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
-        },
-        TokenAccountMeta,
-    },
-    spl_interface::get_spl_interface_pda,
-    utils::CTokenDefaultAccounts,
-};
 use light_ctoken_types::SPL_TOKEN_PROGRAM_ID;
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::{
@@ -18,6 +8,16 @@ use light_sdk::{
 use light_test_utils::{
     spl::{create_mint_helper, create_token_account, mint_spl_tokens},
     RpcError,
+};
+use light_token_sdk::{
+    compressed_token::{
+        transfer::account_metas::{
+            get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
+        },
+        TokenAccountMeta,
+    },
+    spl_interface::get_spl_interface_pda,
+    utils::TokenDefaultAccounts,
 };
 use solana_sdk::{
     instruction::Instruction,
@@ -428,7 +428,7 @@ async fn test_four_invokes_instruction(
     initial_escrow_amount: u64,
     compression_token_account: Pubkey,
 ) -> Result<(), RpcError> {
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
     let mut remaining_accounts = PackedAccounts::default();
     let spl_interface_pda1 = get_spl_interface_pda(&mint1);
     // Remaining accounts 0

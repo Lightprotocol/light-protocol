@@ -1,10 +1,10 @@
-// Tests for CloseCTokenAccountCpi invoke() and invoke_signed()
+// Tests for CloseAccountCpi invoke() and invoke_signed()
 
 mod shared;
 
 use light_client::rpc::Rpc;
-use light_ctoken_sdk::ctoken::{rent_sponsor_pda, CTOKEN_PROGRAM_ID};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
+use light_token_sdk::token::{rent_sponsor_pda, CTOKEN_PROGRAM_ID};
 use native_ctoken_examples::{InstructionType, ID, TOKEN_ACCOUNT_SEED};
 use shared::*;
 use solana_sdk::{
@@ -13,7 +13,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test closing a compressible token account using CloseCTokenAccountCpi::invoke()
+/// Test closing a compressible token account using CloseAccountCpi::invoke()
 #[tokio::test]
 async fn test_close_invoke() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
@@ -67,7 +67,7 @@ async fn test_close_invoke() {
     );
 }
 
-/// Test closing a PDA-owned compressible token account using CloseCTokenAccountCpi::invoke_signed()
+/// Test closing a PDA-owned compressible token account using CloseAccountCpi::invoke_signed()
 #[tokio::test]
 async fn test_close_invoke_signed() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));

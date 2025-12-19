@@ -4,13 +4,13 @@ mod shared;
 
 use borsh::BorshSerialize;
 use light_client::rpc::Rpc;
-use light_ctoken_sdk::{
-    ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount},
-    spl_interface::find_spl_interface_pda_with_index,
-};
 use light_ctoken_types::CPI_AUTHORITY_PDA;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens};
+use light_token_sdk::{
+    ctoken::{derive_token_ata, CreateAssociatedTokenAccount},
+    spl_interface::find_spl_interface_pda_with_index,
+};
 use native_ctoken_examples::{TransferInterfaceData, ID, TRANSFER_INTERFACE_AUTHORITY_SEED};
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -66,18 +66,17 @@ async fn test_transfer_interface_spl_to_ctoken_invoke() {
         .await
         .unwrap();
 
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let ctoken_account = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
+    let ctoken_account = derive_token_ata(&recipient.pubkey(), &mint).0;
 
     // Get token pool PDA
     let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
-    let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+    let compressed_token_program_id = light_token_sdk::token::CTOKEN_PROGRAM_ID;
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
     // Build wrapper instruction
@@ -156,13 +155,13 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
         .unwrap();
 
     // Create and fund CToken ATA
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let ctoken_account = derive_ctoken_ata(&owner.pubkey(), &mint).0;
+    let ctoken_account = derive_token_ata(&owner.pubkey(), &mint).0;
 
     // Fund CToken via temporary SPL account
     let temp_spl_keypair = Keypair::new();
@@ -182,8 +181,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
     .unwrap();
 
     let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
-    let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+    let compressed_token_program_id = light_token_sdk::token::CTOKEN_PROGRAM_ID;
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
     // Transfer SPL to CToken to fund it
@@ -287,22 +285,22 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
     let transfer_amount = 5000u64;
 
     // Create sender CToken ATA
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), sender.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), sender.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let sender_ctoken = derive_ctoken_ata(&sender.pubkey(), &mint).0;
+    let sender_ctoken = derive_token_ata(&sender.pubkey(), &mint).0;
 
     // Create recipient CToken ATA
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let recipient_ctoken = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
+    let recipient_ctoken = derive_token_ata(&recipient.pubkey(), &mint).0;
 
     // Fund sender CToken via SPL
     let temp_spl_keypair = Keypair::new();
@@ -322,8 +320,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
     .unwrap();
 
     let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
-    let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+    let compressed_token_program_id = light_token_sdk::token::CTOKEN_PROGRAM_ID;
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
     // Fund sender CToken
@@ -456,17 +453,16 @@ async fn test_transfer_interface_spl_to_ctoken_invoke_signed() {
         .await
         .unwrap();
 
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let ctoken_account = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
+    let ctoken_account = derive_token_ata(&recipient.pubkey(), &mint).0;
 
     let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
-    let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+    let compressed_token_program_id = light_token_sdk::token::CTOKEN_PROGRAM_ID;
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
     let data = TransferInterfaceData {
@@ -550,8 +546,8 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
     .unwrap();
 
     // Create CToken ATA owned by PDA
-    let (ctoken_account, bump) = derive_ctoken_ata(&authority_pda, &mint);
-    let instruction = CreateAssociatedCTokenAccount {
+    let (ctoken_account, bump) = derive_token_ata(&authority_pda, &mint);
+    let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump,
         payer: payer.pubkey(),
@@ -588,8 +584,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
     .unwrap();
 
     let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
-    let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+    let compressed_token_program_id = light_token_sdk::token::CTOKEN_PROGRAM_ID;
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
     // Fund PDA's CToken
@@ -690,8 +685,8 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
     let transfer_amount = 5000u64;
 
     // Create source CToken ATA owned by PDA
-    let (source_ctoken, bump) = derive_ctoken_ata(&authority_pda, &mint);
-    let instruction = CreateAssociatedCTokenAccount {
+    let (source_ctoken, bump) = derive_token_ata(&authority_pda, &mint);
+    let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump,
         payer: payer.pubkey(),
@@ -711,13 +706,13 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
     light_test_utils::airdrop_lamports(&mut rpc, &recipient.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let dest_ctoken = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
+    let dest_ctoken = derive_token_ata(&recipient.pubkey(), &mint).0;
 
     // Fund source CToken via temporary SPL account
     let temp_spl_keypair = Keypair::new();
@@ -741,8 +736,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
     .unwrap();
 
     let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
-    let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+    let compressed_token_program_id = light_token_sdk::token::CTOKEN_PROGRAM_ID;
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
     // Fund source CToken

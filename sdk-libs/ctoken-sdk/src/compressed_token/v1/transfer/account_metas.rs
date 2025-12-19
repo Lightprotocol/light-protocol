@@ -1,7 +1,7 @@
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 
-use crate::utils::CTokenDefaultAccounts;
+use crate::utils::TokenDefaultAccounts;
 
 /// Account metadata configuration for compressed token instructions
 #[derive(Debug, Default, Copy, Clone)]
@@ -136,7 +136,7 @@ impl TokenAccountsMetaConfig {
 
 /// Get the standard account metas for a compressed token transfer instruction
 pub fn get_transfer_instruction_account_metas(config: TokenAccountsMetaConfig) -> Vec<AccountMeta> {
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
     // Direct invoke adds fee_payer, and authority
     let mut metas = if let Some(fee_payer) = config.fee_payer {
         let authority = if let Some(authority) = config.authority {

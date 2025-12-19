@@ -5,7 +5,7 @@ use light_account_checks::{checks::check_signer, packed_accounts::ProgramPackedA
 use light_program_profiler::profile;
 use light_token_interface::{
     instructions::transfer2::{ZCompression, ZCompressionMode, ZMultiTokenTransferOutputData},
-    state::{ZTokenMut, ZExtensionStructMut},
+    state::{ZExtensionStructMut, ZTokenMut},
 };
 use pinocchio::{
     account_info::AccountInfo,

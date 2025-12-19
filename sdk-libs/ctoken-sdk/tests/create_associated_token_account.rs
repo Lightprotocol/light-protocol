@@ -1,4 +1,4 @@
-use light_ctoken_sdk::ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount};
+use light_token_sdk::token::{derive_token_ata, CreateAssociatedTokenAccount};
 use solana_pubkey::Pubkey;
 
 const CREATE_ATA_DISCRIMINATOR: u8 = 100;
@@ -10,12 +10,12 @@ fn test_discriminator_selection() {
     let owner = Pubkey::new_unique();
     let mint = Pubkey::new_unique();
 
-    let ix_regular = CreateAssociatedCTokenAccount::new(payer, owner, mint)
+    let ix_regular = CreateAssociatedTokenAccount::new(payer, owner, mint)
         .instruction()
         .unwrap();
     assert_eq!(ix_regular.data[0], CREATE_ATA_DISCRIMINATOR);
 
-    let ix_idempotent = CreateAssociatedCTokenAccount::new(payer, owner, mint)
+    let ix_idempotent = CreateAssociatedTokenAccount::new(payer, owner, mint)
         .idempotent()
         .instruction()
         .unwrap();
@@ -28,10 +28,10 @@ fn test_instruction_data_consistency() {
     let owner = Pubkey::new_unique();
     let mint = Pubkey::new_unique();
 
-    let ix_regular = CreateAssociatedCTokenAccount::new(payer, owner, mint)
+    let ix_regular = CreateAssociatedTokenAccount::new(payer, owner, mint)
         .instruction()
         .unwrap();
-    let ix_idempotent = CreateAssociatedCTokenAccount::new(payer, owner, mint)
+    let ix_idempotent = CreateAssociatedTokenAccount::new(payer, owner, mint)
         .idempotent()
         .instruction()
         .unwrap();
@@ -48,16 +48,16 @@ fn test_with_bump_functions() {
     let payer = Pubkey::new_unique();
     let owner = Pubkey::new_unique();
     let mint = Pubkey::new_unique();
-    let (ata_pubkey, bump) = derive_ctoken_ata(&owner, &mint);
+    let (ata_pubkey, bump) = derive_token_ata(&owner, &mint);
 
     let ix_with_bump =
-        CreateAssociatedCTokenAccount::new_with_bump(payer, owner, mint, ata_pubkey, bump)
+        CreateAssociatedTokenAccount::new_with_bump(payer, owner, mint, ata_pubkey, bump)
             .instruction()
             .unwrap();
     assert_eq!(ix_with_bump.data[0], CREATE_ATA_DISCRIMINATOR);
 
     let ix_with_bump_idempotent =
-        CreateAssociatedCTokenAccount::new_with_bump(payer, owner, mint, ata_pubkey, bump)
+        CreateAssociatedTokenAccount::new_with_bump(payer, owner, mint, ata_pubkey, bump)
             .idempotent()
             .instruction()
             .unwrap();
@@ -73,7 +73,7 @@ fn test_account_count() {
     let owner = Pubkey::new_unique();
     let mint = Pubkey::new_unique();
 
-    let ix_compressible = CreateAssociatedCTokenAccount::new(payer, owner, mint)
+    let ix_compressible = CreateAssociatedTokenAccount::new(payer, owner, mint)
         .instruction()
         .unwrap();
 

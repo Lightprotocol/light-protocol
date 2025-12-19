@@ -1,13 +1,6 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_client::indexer::Indexer;
-use light_ctoken_interface::state::{extensions::AdditionalMetadata, CompressedMint};
-use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::{
-        derive_cmint_compressed_address, find_cmint_address,
-    },
-    ctoken::CreateAssociatedCTokenAccount,
-};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
@@ -16,12 +9,19 @@ use light_token_client::{
     actions::create_mint,
     instructions::mint_action::{MintActionType, MintToRecipient},
 };
+use light_token_interface::state::{extensions::AdditionalMetadata, CompressedMint};
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::{
+        derive_cmint_compressed_address, find_cmint_address,
+    },
+    ctoken::CreateAssociatedTokenAccount,
+};
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
 
 /// Functional test that uses multiple mint actions in a single instruction:
 /// - MintToCompressed - mint to compressed account
-/// - MintToCToken - mint to decompressed account
+/// - MintTo - mint to decompressed account
 /// - UpdateMetadataField (Name, Symbol, URI, and add custom field)
 /// Any number, in any order, no authority updates, no key removal.
 #[tokio::test]
@@ -84,7 +84,7 @@ async fn test_random_mint_action() {
         8, // decimals
         &authority,
         Some(authority.pubkey()),
-        Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+        Some(light_token_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
             update_authority: Some(authority.pubkey().into()),
             name: "Test Token".as_bytes().to_vec(),
             symbol: "TEST".as_bytes().to_vec(),
@@ -111,7 +111,7 @@ async fn test_random_mint_action() {
         8,
         authority.pubkey(),
         authority.pubkey(),
-        Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+        Some(light_token_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
             update_authority: Some(authority.pubkey().into()),
             name: "Test Token".as_bytes().to_vec(),
             symbol: "TEST".as_bytes().to_vec(),
@@ -125,13 +125,13 @@ async fn test_random_mint_action() {
         .await
         .unwrap();
 
-    // Create 5 CToken ATAs upfront for MintToCToken actions
+    // Create 5 CToken ATAs upfront for MintTo actions
     let mut ctoken_atas = Vec::new();
 
     for _ in 0..5 {
         let recipient = Keypair::new();
         let create_ata_ix =
-            CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+            CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
                 .instruction()
                 .unwrap();
 
@@ -139,7 +139,7 @@ async fn test_random_mint_action() {
             .await
             .unwrap();
 
-        let ata = light_ctoken_sdk::ctoken::derive_ctoken_ata(&recipient.pubkey(), &spl_mint_pda).0;
+        let ata = light_token_sdk::token::derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0;
 
         ctoken_atas.push(ata);
     }
@@ -203,11 +203,11 @@ async fn test_random_mint_action() {
                         });
                     }
                 }
-                // 30% chance: MintToCToken
+                // 30% chance: MintTo
                 300..=599 => {
                     // Randomly select one of the 5 pre-created ATAs
                     let ata_index = rng.gen_range(0..ctoken_atas.len());
-                    actions.push(MintActionType::MintToCToken {
+                    actions.push(MintActionType::MintTo {
                         account: ctoken_atas[ata_index],
                         amount: rng.gen_range(1..=100000),
                     });

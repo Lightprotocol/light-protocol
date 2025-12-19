@@ -14,7 +14,7 @@ async fn test_create_compressible_ata() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 0,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -38,7 +38,7 @@ async fn test_create_compressible_ata() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -62,7 +62,7 @@ async fn test_create_compressible_ata() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 10,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -86,7 +86,7 @@ async fn test_create_compressible_ata() {
             rent_sponsor: payer_pubkey,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -110,7 +110,7 @@ async fn test_create_compressible_ata() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 0,
             lamports_per_write: None,
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -137,7 +137,7 @@ async fn test_create_ata_idempotent() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -171,7 +171,7 @@ async fn test_create_ata_idempotent() {
         // Should still be 260 bytes (compressible)
         assert_eq!(
             account.data.len(),
-            light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize,
+            light_token_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize,
             "Account should still be compressible size after idempotent recreation"
         );
     }
@@ -207,7 +207,7 @@ async fn test_create_ata_failing() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 1, // Forbidden value
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -234,7 +234,7 @@ async fn test_create_ata_failing() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -283,10 +283,10 @@ async fn test_create_ata_failing() {
             pre_pay_num_epochs: 10, // High number to require more lamports
             lamports_per_write: Some(1000),
             compress_to_account_pubkey: None,
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         };
 
-        let create_ata_ix = CreateAssociatedCTokenAccount::new(
+        let create_ata_ix = CreateAssociatedTokenAccount::new(
             poor_payer_pubkey,
             new_owner.pubkey(),
             context.mint_pubkey,
@@ -309,7 +309,7 @@ async fn test_create_ata_failing() {
     // Error: 2 (InvalidInstructionData)
     {
         use anchor_lang::prelude::borsh::BorshSerialize;
-        use light_ctoken_interface::instructions::{
+        use light_token_interface::instructions::{
             create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
             extensions::compressible::{CompressToPubkey, CompressibleExtensionInstructionData},
         };
@@ -318,7 +318,7 @@ async fn test_create_ata_failing() {
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
         let (ata_pubkey, bump) =
-            derive_ctoken_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
+            derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
         // Manually build instruction data with compress_to_account_pubkey (forbidden)
         let compress_to_pubkey = CompressToPubkey {
@@ -331,7 +331,7 @@ async fn test_create_ata_failing() {
             bump,
             compressible_config: Some(CompressibleExtensionInstructionData {
                 compression_only: 0,
-                token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat
+                token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat
                     as u8,
                 rent_payment: 2,
                 write_top_up: 100,
@@ -339,7 +339,7 @@ async fn test_create_ata_failing() {
             }),
         };
 
-        let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
+        let mut data = vec![100]; // CreateAssociatedTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
         // Account order: mint, payer, ata, system_program, config, rent_sponsor
@@ -380,7 +380,7 @@ async fn test_create_ata_failing() {
     // Error: 21 (ProgramFailedToComplete - provided seeds do not result in valid address)
     {
         use anchor_lang::prelude::borsh::BorshSerialize;
-        use light_ctoken_interface::instructions::{
+        use light_token_interface::instructions::{
             create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
             extensions::compressible::CompressibleExtensionInstructionData,
         };
@@ -389,7 +389,7 @@ async fn test_create_ata_failing() {
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
         let (ata_pubkey, correct_bump) =
-            derive_ctoken_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
+            derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
         // Manually build instruction data with WRONG bump
         let wrong_bump = if correct_bump == 255 {
@@ -403,7 +403,7 @@ async fn test_create_ata_failing() {
             bump: wrong_bump, // Wrong bump!
             compressible_config: Some(CompressibleExtensionInstructionData {
                 compression_only: 0,
-                token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat
+                token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat
                     as u8,
                 rent_payment: 2,
                 write_top_up: 100,
@@ -411,7 +411,7 @@ async fn test_create_ata_failing() {
             }),
         };
 
-        let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
+        let mut data = vec![100]; // CreateAssociatedTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
         // Account order: owner, mint, payer, ata, system_program, config, rent_sponsor
@@ -471,10 +471,10 @@ async fn test_create_ata_failing() {
             pre_pay_num_epochs: 2,
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         };
 
-        let create_ata_ix = CreateAssociatedCTokenAccount::new(
+        let create_ata_ix = CreateAssociatedTokenAccount::new(
             payer_pubkey,
             context.owner_keypair.pubkey(),
             context.mint_pubkey,
@@ -508,7 +508,7 @@ async fn test_create_ata_failing() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(excessive_lamports_per_write),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -540,10 +540,10 @@ async fn test_create_ata_failing() {
             pre_pay_num_epochs: 2,
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         };
 
-        let create_ata_ix = CreateAssociatedCTokenAccount::new(
+        let create_ata_ix = CreateAssociatedTokenAccount::new(
             payer_pubkey,
             context.owner_keypair.pubkey(),
             context.mint_pubkey,
@@ -578,10 +578,10 @@ async fn test_create_ata_failing() {
             pre_pay_num_epochs: 2,
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         };
 
-        let create_ata_ix = CreateAssociatedCTokenAccount::new(
+        let create_ata_ix = CreateAssociatedTokenAccount::new(
             payer_pubkey,
             context.owner_keypair.pubkey(),
             context.mint_pubkey,
@@ -608,7 +608,7 @@ async fn test_create_ata_failing() {
     // Error: 19 (PrivilegeEscalation - CPI tries to sign for wrong address)
     {
         use anchor_lang::prelude::borsh::BorshSerialize;
-        use light_ctoken_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
+        use light_token_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
         use solana_sdk::instruction::Instruction;
 
         // Use different mint for this test
@@ -616,7 +616,7 @@ async fn test_create_ata_failing() {
 
         // Get the correct PDA and bump
         let (_correct_ata_pubkey, correct_bump) =
-            derive_ctoken_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
+            derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
         // Create an arbitrary keypair (NOT the correct PDA)
         let fake_ata_keypair = solana_sdk::signature::Keypair::new();
@@ -628,7 +628,7 @@ async fn test_create_ata_failing() {
             compressible_config: None,
         };
 
-        let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
+        let mut data = vec![100]; // CreateAssociatedTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
         // Account order: owner, mint, payer, ata (fake!), system_program
@@ -678,7 +678,7 @@ async fn test_ata_multiple_mints_same_owner() {
         rent_sponsor: context.rent_sponsor,
         num_prepaid_epochs: 2,
         lamports_per_write: Some(100),
-        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compress_to_pubkey: false,
         payer: payer_pubkey,
     };
@@ -719,9 +719,9 @@ async fn test_ata_multiple_mints_same_owner() {
     assert_ne!(ata2, ata3, "ATA for mint2 and mint3 should be different");
 
     // Verify each ATA is derived correctly for its mint
-    let (expected_ata1, _) = derive_ctoken_ata(&owner, &mint1);
-    let (expected_ata2, _) = derive_ctoken_ata(&owner, &mint2);
-    let (expected_ata3, _) = derive_ctoken_ata(&owner, &mint3);
+    let (expected_ata1, _) = derive_token_ata(&owner, &mint1);
+    let (expected_ata2, _) = derive_token_ata(&owner, &mint2);
+    let (expected_ata3, _) = derive_token_ata(&owner, &mint3);
 
     assert_eq!(ata1, expected_ata1, "ATA1 should match expected derivation");
     assert_eq!(ata2, expected_ata2, "ATA2 should match expected derivation");
@@ -747,7 +747,7 @@ async fn test_ata_multiple_owners_same_mint() {
         rent_sponsor: context.rent_sponsor,
         num_prepaid_epochs: 2,
         lamports_per_write: Some(100),
-        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compress_to_pubkey: false,
         payer: payer_pubkey,
     };
@@ -759,10 +759,10 @@ async fn test_ata_multiple_owners_same_mint() {
         pre_pay_num_epochs: 2,
         lamports_per_write: Some(100),
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
     };
 
-    let create_ata_ix1 = CreateAssociatedCTokenAccount::new(payer_pubkey, owner1, mint)
+    let create_ata_ix1 = CreateAssociatedTokenAccount::new(payer_pubkey, owner1, mint)
         .with_compressible(compressible_params.clone())
         .instruction()
         .unwrap();
@@ -773,7 +773,7 @@ async fn test_ata_multiple_owners_same_mint() {
         .await
         .unwrap();
 
-    let (ata1, _) = derive_ctoken_ata(&owner1, &mint);
+    let (ata1, _) = derive_token_ata(&owner1, &mint);
 
     // Assert ATA1 was created correctly
     assert_create_associated_token_account(
@@ -784,7 +784,7 @@ async fn test_ata_multiple_owners_same_mint() {
     )
     .await;
 
-    let create_ata_ix2 = CreateAssociatedCTokenAccount::new(payer_pubkey, owner2, mint)
+    let create_ata_ix2 = CreateAssociatedTokenAccount::new(payer_pubkey, owner2, mint)
         .with_compressible(compressible_params.clone())
         .instruction()
         .unwrap();
@@ -795,7 +795,7 @@ async fn test_ata_multiple_owners_same_mint() {
         .await
         .unwrap();
 
-    let (ata2, _) = derive_ctoken_ata(&owner2, &mint);
+    let (ata2, _) = derive_token_ata(&owner2, &mint);
 
     // Assert ATA2 was created correctly
     assert_create_associated_token_account(
@@ -806,7 +806,7 @@ async fn test_ata_multiple_owners_same_mint() {
     )
     .await;
 
-    let create_ata_ix3 = CreateAssociatedCTokenAccount::new(payer_pubkey, owner3, mint)
+    let create_ata_ix3 = CreateAssociatedTokenAccount::new(payer_pubkey, owner3, mint)
         .with_compressible(compressible_params)
         .instruction()
         .unwrap();
@@ -817,7 +817,7 @@ async fn test_ata_multiple_owners_same_mint() {
         .await
         .unwrap();
 
-    let (ata3, _) = derive_ctoken_ata(&owner3, &mint);
+    let (ata3, _) = derive_token_ata(&owner3, &mint);
 
     // Assert ATA3 was created correctly
     assert_create_associated_token_account(
@@ -834,9 +834,9 @@ async fn test_ata_multiple_owners_same_mint() {
     assert_ne!(ata2, ata3, "ATA for owner2 and owner3 should be different");
 
     // Verify each ATA is derived correctly for its owner
-    let (expected_ata1, _) = derive_ctoken_ata(&owner1, &mint);
-    let (expected_ata2, _) = derive_ctoken_ata(&owner2, &mint);
-    let (expected_ata3, _) = derive_ctoken_ata(&owner3, &mint);
+    let (expected_ata1, _) = derive_token_ata(&owner1, &mint);
+    let (expected_ata2, _) = derive_token_ata(&owner2, &mint);
+    let (expected_ata3, _) = derive_token_ata(&owner3, &mint);
 
     assert_eq!(ata1, expected_ata1, "ATA1 should match expected derivation");
     assert_eq!(ata2, expected_ata2, "ATA2 should match expected derivation");
@@ -898,7 +898,7 @@ async fn test_create_ata_random() {
             } else {
                 None
             },
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat, // Only V3 supported
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat, // Only V3 supported
             compress_to_pubkey: false, // Cannot be used with ATAs
             payer: payer_pubkey,
         };

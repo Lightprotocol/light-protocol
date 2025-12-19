@@ -1,5 +1,11 @@
 use anchor_lang::{prelude::AccountMeta, InstructionData};
-use light_ctoken_interface::{
+use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
+use light_sdk::{
+    address::v1::derive_address,
+    instruction::{PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig},
+};
+use light_test_utils::RpcError;
+use light_token_interface::{
     instructions::{
         mint_action::{CompressedMintWithContext, Recipient},
         transfer2::MultiInputTokenDataWithContext,
@@ -7,20 +13,14 @@ use light_ctoken_interface::{
     state::{BaseMint, CompressedMintMetadata},
     COMPRESSED_MINT_SEED,
 };
-use light_ctoken_sdk::{
+use light_token_sdk::{
     compressed_token::{
         create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
         mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
     },
-    ctoken::CreateAssociatedCTokenAccount,
-    utils::CTokenDefaultAccounts,
+    ctoken::CreateAssociatedTokenAccount,
+    utils::TokenDefaultAccounts,
 };
-use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
-use light_sdk::{
-    address::v1::derive_address,
-    instruction::{PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig},
-};
-use light_test_utils::RpcError;
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
@@ -95,9 +95,9 @@ async fn create_compressed_mints_and_tokens(
 
     // Create associated token account for mint1 decompression
     let (token_account1_pubkey, _bump) =
-        light_ctoken_sdk::ctoken::derive_ctoken_ata(&payer.pubkey(), &mint1_pda);
+        light_token_sdk::token::derive_token_ata(&payer.pubkey(), &mint1_pda);
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), payer.pubkey(), mint1_pda)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), mint1_pda)
             .instruction()
             .unwrap();
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[payer])
@@ -154,8 +154,7 @@ async fn create_compressed_mint_helper(
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     // Find mint PDA
-    let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+    let compressed_token_program_id = light_token_sdk::token::CTOKEN_PROGRAM_ID;
     let (mint_pda, _) = Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_signer.pubkey().as_ref()],
         &compressed_token_program_id,
@@ -228,7 +227,7 @@ async fn mint_compressed_tokens(
         .unwrap();
 
     // Create expected compressed mint for the input
-    let expected_compressed_mint = light_ctoken_interface::state::CompressedMint {
+    let expected_compressed_mint = light_token_interface::state::CompressedMint {
         base: BaseMint {
             mint_authority: Some(payer.pubkey().into()),
             supply: 0,
@@ -352,7 +351,7 @@ async fn test_four_transfer2_instruction(
     initial_escrow_amount: u64,
     token_account_1: Pubkey,
 ) -> Result<(), RpcError> {
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
     let mut remaining_accounts = PackedAccounts::default();
     // We don't need SPL token accounts for this test since we're using compressed tokens
     // Just add the compressed token program and CPI authority PDA

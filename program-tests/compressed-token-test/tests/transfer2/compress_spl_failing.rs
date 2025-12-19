@@ -29,7 +29,14 @@
 // 5.3. recipient out of bounds
 
 use anchor_spl::token_2022::spl_token_2022;
-use light_ctoken_sdk::{
+use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
+use light_sdk::instruction::PackedAccounts;
+use light_test_utils::{
+    airdrop_lamports,
+    spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens},
+    Rpc, RpcError,
+};
+use light_token_sdk::{
     compressed_token::{
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
@@ -37,16 +44,9 @@ use light_ctoken_sdk::{
         },
         CTokenAccount2,
     },
-    ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount},
+    ctoken::{derive_token_ata, CreateAssociatedTokenAccount},
     spl_interface::find_spl_interface_pda_with_index,
     ValidityProof,
-};
-use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
-use light_sdk::instruction::PackedAccounts;
-use light_test_utils::{
-    airdrop_lamports,
-    spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens},
-    Rpc, RpcError,
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 use spl_pod::bytemuck::pod_from_bytes;
@@ -100,7 +100,7 @@ async fn setup_spl_compression_test(
     airdrop_lamports(&mut rpc, &recipient.pubkey(), 1_000_000_000).await?;
 
     // Create compressed token ATA for recipient
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .map_err(|e| {
             RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e))
@@ -109,7 +109,7 @@ async fn setup_spl_compression_test(
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await?;
 
-    let ctoken_ata = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
+    let ctoken_ata = derive_token_ata(&recipient.pubkey(), &mint).0;
 
     // Get output queue for compression (for system_accounts_offset calculation only)
     let output_queue = rpc

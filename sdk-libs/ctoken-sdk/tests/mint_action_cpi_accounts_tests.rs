@@ -1,14 +1,14 @@
 #![cfg(test)]
 
 use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
-use light_ctoken_interface::CTOKEN_PROGRAM_ID;
-use light_ctoken_sdk::compressed_token::mint_action::{
-    cpi_accounts::MintActionCpiAccountsConfig, MintActionCpiAccounts,
-};
 use light_ctoken_types::CPI_AUTHORITY_PDA;
 use light_sdk_types::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
     REGISTERED_PROGRAM_PDA,
+};
+use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
+use light_token_sdk::compressed_token::mint_action::{
+    cpi_accounts::MintActionCpiAccountsConfig, MintActionCpiAccounts,
 };
 use pinocchio::account_info::AccountInfo;
 
@@ -57,7 +57,7 @@ fn test_successful_parsing_minimal() {
     // Create minimal set of accounts required for parsing
     let accounts = vec![
         // Programs
-        create_test_account(CTOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
+        create_test_account(LIGHT_TOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
         create_test_account(
             LIGHT_SYSTEM_PROGRAM_ID,
             [0u8; 32],
@@ -129,7 +129,7 @@ fn test_successful_parsing_minimal() {
     assert!(result.is_ok());
 
     let parsed = result.unwrap();
-    assert_eq!(*parsed.compressed_token_program.key(), CTOKEN_PROGRAM_ID);
+    assert_eq!(*parsed.compressed_token_program.key(), LIGHT_TOKEN_PROGRAM_ID);
     assert_eq!(*parsed.light_system_program.key(), LIGHT_SYSTEM_PROGRAM_ID);
     assert!(parsed.mint_signer.is_none());
     assert!(parsed.authority.is_signer());
@@ -145,7 +145,7 @@ fn test_successful_parsing_with_all_options() {
 
     let accounts = vec![
         // Programs
-        create_test_account(CTOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
+        create_test_account(LIGHT_TOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
         create_test_account(
             LIGHT_SYSTEM_PROGRAM_ID,
             [0u8; 32],
@@ -249,7 +249,7 @@ fn test_successful_create_mint() {
 
     let accounts = vec![
         // Programs
-        create_test_account(CTOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
+        create_test_account(LIGHT_TOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
         create_test_account(
             LIGHT_SYSTEM_PROGRAM_ID,
             [0u8; 32],
@@ -325,7 +325,7 @@ fn test_successful_create_mint() {
 fn test_successful_update_mint() {
     let accounts = vec![
         // Programs
-        create_test_account(CTOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
+        create_test_account(LIGHT_TOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
         create_test_account(
             LIGHT_SYSTEM_PROGRAM_ID,
             [0u8; 32],
@@ -479,7 +479,7 @@ fn test_invalid_light_system_program_id() {
     let wrong_program_id = pubkey_unique();
 
     let accounts = vec![
-        create_test_account(CTOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
+        create_test_account(LIGHT_TOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
         // Wrong light system program ID
         create_test_account(wrong_program_id, [0u8; 32], false, false, true, vec![]),
         // Rest of minimal accounts...
@@ -537,7 +537,7 @@ fn test_invalid_light_system_program_id() {
 #[test]
 fn test_authority_not_signer() {
     let accounts = vec![
-        create_test_account(CTOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
+        create_test_account(LIGHT_TOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
         create_test_account(
             LIGHT_SYSTEM_PROGRAM_ID,
             [0u8; 32],
@@ -602,7 +602,7 @@ fn test_authority_not_signer() {
 #[test]
 fn test_fee_payer_not_signer() {
     let accounts = vec![
-        create_test_account(CTOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
+        create_test_account(LIGHT_TOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
         create_test_account(
             LIGHT_SYSTEM_PROGRAM_ID,
             [0u8; 32],
@@ -669,7 +669,7 @@ fn test_invalid_tree_ownership() {
     let wrong_owner = pubkey_unique();
 
     let accounts = vec![
-        create_test_account(CTOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
+        create_test_account(LIGHT_TOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
         create_test_account(
             LIGHT_SYSTEM_PROGRAM_ID,
             [0u8; 32],
@@ -728,7 +728,7 @@ fn test_invalid_queue_ownership() {
     let wrong_owner = pubkey_unique();
 
     let accounts = vec![
-        create_test_account(CTOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
+        create_test_account(LIGHT_TOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
         create_test_account(
             LIGHT_SYSTEM_PROGRAM_ID,
             [0u8; 32],
@@ -801,7 +801,7 @@ fn test_invalid_queue_ownership() {
 fn test_helper_methods() {
     // Create accounts for testing helper methods
     let accounts = vec![
-        create_test_account(CTOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
+        create_test_account(LIGHT_TOKEN_PROGRAM_ID, [0u8; 32], false, false, true, vec![]),
         create_test_account(
             LIGHT_SYSTEM_PROGRAM_ID,
             [0u8; 32],

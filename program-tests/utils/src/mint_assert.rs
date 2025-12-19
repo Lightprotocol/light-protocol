@@ -1,5 +1,5 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::extensions::TokenMetadataInstructionData,
     state::{BaseMint, CompressedMint, CompressedMintMetadata, ExtensionStruct},
 };
@@ -20,7 +20,7 @@ pub fn assert_compressed_mint_account(
     // Create expected extensions if metadata is provided
     let expected_extensions = metadata.map(|meta| {
         vec![ExtensionStruct::TokenMetadata(
-            light_ctoken_interface::state::extensions::TokenMetadata {
+            light_token_interface::state::extensions::TokenMetadata {
                 update_authority: meta
                     .update_authority
                     .unwrap_or_else(|| Pubkey::from([0u8; 32]).into()),

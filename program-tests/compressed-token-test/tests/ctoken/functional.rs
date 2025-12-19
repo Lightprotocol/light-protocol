@@ -27,7 +27,7 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
     );
 
     // Initialize token account using SPL SDK compatible instruction (non-compressible)
-    let mut initialize_account_ix = CreateCTokenAccount {
+    let mut initialize_account_ix = CreateTokenAccount {
         payer: payer_pubkey,
         account: token_account_pubkey,
         mint: context.mint_pubkey,
@@ -65,7 +65,7 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
     let destination_pubkey = destination_keypair.pubkey();
 
     // Close account using SPL SDK compatible instruction
-    let close_account_ix = CloseCTokenAccount::new(
+    let close_account_ix = CloseAccount::new(
         light_compressed_token::ID,
         token_account_pubkey,
         destination_pubkey,
@@ -133,10 +133,10 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         pre_pay_num_epochs: num_prepaid_epochs,
         lamports_per_write,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
     };
 
-    let create_token_account_ix = CreateCTokenAccount::new(
+    let create_token_account_ix = CreateTokenAccount::new(
         payer_pubkey,
         token_account_pubkey,
         context.mint_pubkey,
@@ -182,7 +182,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
             num_prepaid_epochs,
             lamports_per_write,
             compress_to_pubkey: false,
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
     )
@@ -272,7 +272,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         .unwrap();
 
     // Close compressible account using owner
-    let close_account_ix = CloseCTokenAccount::new(
+    let close_account_ix = CloseAccount::new(
         light_compressed_token::ID,
         token_account_pubkey,
         destination.pubkey(),           // destination for user funds

@@ -3,7 +3,7 @@ use anchor_lang::prelude::ProgramError;
 use light_account_checks::{checks::check_signer, AccountInfoTrait};
 use light_compressible::rent::{get_rent_exemption_lamports, AccountRentState};
 use light_program_profiler::profile;
-use light_token_interface::state::{Token, ZTokenMut, ZExtensionStructMut};
+use light_token_interface::state::{Token, ZExtensionStructMut, ZTokenMut};
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::Sysvar;
 use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};

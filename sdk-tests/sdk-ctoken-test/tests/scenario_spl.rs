@@ -15,14 +15,12 @@
 
 use anchor_spl::token::{spl_token, Mint};
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_ctoken_sdk::{
-    ctoken::{
-        derive_ctoken_ata, CreateAssociatedCTokenAccount, DecompressToCtoken, TransferSplToCtoken,
-    },
-    spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
-};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::spl::{create_token_account, mint_spl_tokens};
+use light_token_sdk::{
+    ctoken::{derive_token_ata, CreateAssociatedTokenAccount, Decompress, TransferSplToLightToken},
+    spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
+};
 use solana_sdk::{signature::Keypair, signer::Signer};
 use spl_token_2022::pod::PodAccount;
 
@@ -127,9 +125,9 @@ async fn test_spl_to_ctoken_scenario() {
         .await
         .unwrap();
 
-    let (ctoken_ata, _bump) = derive_ctoken_ata(&ctoken_recipient.pubkey(), &mint);
+    let (ctoken_ata, _bump) = derive_token_ata(&ctoken_recipient.pubkey(), &mint);
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
             .instruction()
             .unwrap();
 
@@ -147,11 +145,11 @@ async fn test_spl_to_ctoken_scenario() {
     // 7. Transfer SPL tokens to cToken account
     let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
 
-    let transfer_instruction = TransferSplToCtoken {
+    let transfer_instruction = TransferSplToLightToken {
         amount: transfer_amount,
         spl_interface_pda_bump,
         source_spl_token_account: spl_token_account_keypair.pubkey(),
-        destination_ctoken_account: ctoken_ata,
+        destination_token_account: ctoken_ata,
         authority: token_owner.pubkey(),
         mint,
         payer: payer.pubkey(),
@@ -267,7 +265,7 @@ async fn test_spl_to_ctoken_scenario() {
     // 10. Recreate cToken ATA for decompression (idempotent)
     println!("\nRecreating cToken ATA for decompression...");
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
             .idempotent()
             .instruction()
             .unwrap();
@@ -310,14 +308,14 @@ async fn test_spl_to_ctoken_scenario() {
 
     // 12. Decompress compressed tokens to cToken account
     println!("Decompressing tokens to cToken account...");
-    let decompress_instruction = DecompressToCtoken {
+    let decompress_instruction = Decompress {
         token_data,
         discriminator,
         merkle_tree: account_proof.tree_info.tree,
         queue: account_proof.tree_info.queue,
         leaf_index: account_proof.leaf_index as u32,
         root_index: account_proof.root_index.root_index().unwrap_or(0),
-        destination_ctoken_account: ctoken_ata,
+        destination_token_account: ctoken_ata,
         payer: payer.pubkey(),
         validity_proof: rpc_result.proof,
     }

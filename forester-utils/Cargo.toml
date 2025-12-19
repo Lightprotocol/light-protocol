@@ -30,7 +30,7 @@ light-client = { workspace = true }
 light-prover-client = { workspace = true }
 light-registry = { workspace = true, features = ["cpi"] }
 account-compression = { workspace = true, features = ["cpi"] }
-light-ctoken-interface = { workspace = true }
+light-token-interface = { workspace = true }
 
 solana-instruction = { workspace = true }
 solana-pubkey = { workspace = true }

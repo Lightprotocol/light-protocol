@@ -3,11 +3,11 @@ use light_client::{
     indexer::{CompressedAccount, Indexer},
     rpc::{Rpc, RpcError},
 };
-use light_ctoken_interface::state::{
+use light_hasher::{sha256::Sha256BE, Hasher, HasherError};
+use light_token_interface::state::{
     extensions::{AdditionalMetadata, ExtensionStruct, TokenMetadata},
     CompressedMint,
 };
-use light_hasher::{sha256::Sha256BE, Hasher, HasherError};
 use solana_sdk::{pubkey::Pubkey, signature::Signature};
 
 /// Expected metadata state for comprehensive testing

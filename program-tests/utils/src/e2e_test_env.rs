@@ -120,7 +120,6 @@ use light_compressed_account::{
     TreeType,
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use light_ctoken_sdk::compat::{AccountState, TokenDataWithMerkleContext};
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
@@ -155,6 +154,7 @@ use light_sdk::{
 use light_sparse_merkle_tree::{
     changelog::ChangelogEntry, indexed_changelog::IndexedChangelogEntry, SparseMerkleTree,
 };
+use light_token_sdk::compat::{AccountState, TokenDataWithMerkleContext};
 use log::info;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;
