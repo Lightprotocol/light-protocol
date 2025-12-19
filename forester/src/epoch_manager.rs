@@ -3053,6 +3053,7 @@ mod tests {
             address_tree_data: vec![],
             state_tree_data: vec![],
             compressible_config: None,
+            lookup_table_address: None,
         }
     }
 

@@ -130,6 +130,7 @@ pub fn forester_config() -> ForesterConfig {
         address_tree_data: vec![],
         state_tree_data: vec![],
         compressible_config: None,
+        lookup_table_address: None,
     }
 }
 
