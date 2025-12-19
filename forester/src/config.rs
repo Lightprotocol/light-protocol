@@ -346,11 +346,9 @@ impl ForesterConfig {
             state_tree_data: vec![],
             compressible_config: if args.enable_compressible {
                 match &args.ws_rpc_url {
-                    Some(ws_url) => {
-                        Some(crate::compressible::config::CompressibleConfig::new(
-                            ws_url.clone(),
-                        ))
-                    }
+                    Some(ws_url) => Some(crate::compressible::config::CompressibleConfig::new(
+                        ws_url.clone(),
+                    )),
                     None => {
                         return Err(ConfigError::InvalidArguments {
                             field: "enable_compressible",
