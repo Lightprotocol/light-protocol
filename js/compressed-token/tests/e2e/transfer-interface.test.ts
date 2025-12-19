@@ -84,26 +84,7 @@ describe('transfer-interface', () => {
             expect(ix.keys[2].pubkey.equals(owner)).toBe(true);
         });
 
-        it('should add payer as 4th account when different from owner', () => {
-            const source = Keypair.generate().publicKey;
-            const destination = Keypair.generate().publicKey;
-            const owner = Keypair.generate().publicKey;
-            const payerPk = Keypair.generate().publicKey;
-            const amount = BigInt(1000);
-
-            const ix = createCTokenTransferInstruction(
-                source,
-                destination,
-                owner,
-                amount,
-                payerPk,
-            );
-
-            expect(ix.keys.length).toBe(4);
-            expect(ix.keys[3].pubkey.equals(payerPk)).toBe(true);
-        });
-
-        it('should not add payer when same as owner', () => {
+        it('should have owner as writable (pays for top-ups)', () => {
             const source = Keypair.generate().publicKey;
             const destination = Keypair.generate().publicKey;
             const owner = Keypair.generate().publicKey;
@@ -114,10 +95,12 @@ describe('transfer-interface', () => {
                 destination,
                 owner,
                 amount,
-                owner, // payer same as owner
             );
 
             expect(ix.keys.length).toBe(3);
+            expect(ix.keys[2].pubkey.equals(owner)).toBe(true);
+            expect(ix.keys[2].isSigner).toBe(true);
+            expect(ix.keys[2].isWritable).toBe(true); // owner pays for top-ups
         });
     });
 

@@ -67,7 +67,7 @@ export async function getOrCreateAtaInterface(
     allowOwnerOffCurve = false,
     commitment?: Commitment,
     confirmOptions?: ConfirmOptions,
-    programId = TOKEN_PROGRAM_ID,
+    programId = CTOKEN_PROGRAM_ID,
     associatedTokenProgramId = getAtaProgramId(programId),
 ): Promise<AccountInterface> {
     return _getOrCreateAtaInterface(

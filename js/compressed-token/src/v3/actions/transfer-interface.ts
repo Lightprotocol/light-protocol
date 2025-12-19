@@ -327,7 +327,6 @@ export async function transferInterface(
             destination,
             owner.publicKey,
             amountBigInt,
-            payer.publicKey,
         ),
     );
 
