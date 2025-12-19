@@ -11,13 +11,18 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     bn,
+    featureFlags,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 
+/** Max input accounts per merge: V1 supports 4, V2 supports 8 */
+const getMaxMergeAccounts = () => (featureFlags.isV2() ? 8 : 4);
+
 /**
  * Merge multiple compressed token accounts for a given mint into fewer
- * accounts. Each call merges up to 4 accounts at a time. Call repeatedly
- * until only 1 account remains if full consolidation is needed.
+ * accounts. Each call merges up to 4 accounts (V1) or 8 accounts (V2) at a
+ * time. Call repeatedly until only 1 account remains if full consolidation
+ * is needed.
  *
  * @param rpc                   RPC connection to use
  * @param payer                 Fee payer
@@ -49,8 +54,9 @@ export async function mergeTokenAccounts(
         throw new Error('Only one token account exists, nothing to merge');
     }
 
-    // Take up to 4 accounts to merge in this transaction
-    const batch = compressedTokenAccounts.items.slice(0, 4);
+    const maxAccounts = getMaxMergeAccounts();
+    // Take up to maxAccounts to merge in this transaction
+    const batch = compressedTokenAccounts.items.slice(0, maxAccounts);
 
     const proof = await rpc.getValidityProof(
         batch.map(account => bn(account.compressedAccount.hash)),
