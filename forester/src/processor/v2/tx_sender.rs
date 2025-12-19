@@ -474,8 +474,7 @@ impl<R: Rpc> TxSender<R> {
                     let _proof_ms = std::mem::replace(&mut self.pending_batch_proof_ms, 0);
                     let earliest = self.pending_batch_earliest_submit.take();
 
-                    if batch_tx.send((batch, round_trip, earliest)).is_err()
-                    {
+                    if batch_tx.send((batch, round_trip, earliest)).is_err() {
                         break;
                     }
                 }
