@@ -342,9 +342,9 @@ impl Rpc for LightProgramTest {
 
     async fn create_and_send_versioned_transaction<'a>(
         &'a mut self,
-        instructions: &'a [Instruction],
-        payer: &'a Pubkey,
-        signers: &'a [&'a Keypair],
+        _instructions: &'a [Instruction],
+        _payer: &'a Pubkey,
+        _signers: &'a [&'a Keypair],
         _address_lookup_tables: &'a [AddressLookupTableAccount],
     ) -> Result<Signature, RpcError> {
         unimplemented!("create_and_send_versioned_transaction is unimplemented for LightProgramTest");
