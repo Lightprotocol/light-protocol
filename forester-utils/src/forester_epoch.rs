@@ -341,37 +341,47 @@ impl Epoch {
         })
     }
 
-    /// creates forester account and fetches epoch account
+    /// Creates forester account and fetches epoch account.
+    /// If `epoch` is provided, registers for that specific epoch.
+    /// If `epoch` is None, determines the next registerable epoch automatically.
     pub async fn register<R: Rpc>(
         rpc: &mut R,
         protocol_config: &ProtocolConfig,
         authority: &Keypair,
         derivation: &Pubkey,
+        epoch: Option<u64>,
     ) -> Result<Option<Epoch>, RpcError> {
-        let epoch_registration =
-            Self::slots_until_next_epoch_registration(rpc, protocol_config).await?;
-        if epoch_registration.slots_until_registration_starts > 0
-            || epoch_registration.slots_until_registration_ends == 0
-        {
-            return Ok(None);
-        }
+        let target_epoch = match epoch {
+            Some(e) => e,
+            None => {
+                // Auto-detect which epoch to register for
+                let epoch_registration =
+                    Self::slots_until_next_epoch_registration(rpc, protocol_config).await?;
+                if epoch_registration.slots_until_registration_starts > 0
+                    || epoch_registration.slots_until_registration_ends == 0
+                {
+                    return Ok(None);
+                }
+                epoch_registration.epoch
+            }
+        };
 
         let instruction = create_register_forester_epoch_pda_instruction(
             &authority.pubkey(),
             derivation,
-            epoch_registration.epoch,
+            target_epoch,
         );
         let signature = rpc
             .create_and_send_transaction(&[instruction], &authority.pubkey(), &[authority])
             .await?;
         rpc.confirm_transaction(signature).await?;
-        let epoch_pda_pubkey = get_epoch_pda_address(epoch_registration.epoch);
+        let epoch_pda_pubkey = get_epoch_pda_address(target_epoch);
         let epoch_pda = rpc
             .get_anchor_account::<EpochPda>(&epoch_pda_pubkey)
             .await?
             .unwrap();
         let forester_epoch_pda_pubkey =
-            get_forester_epoch_pda_from_authority(derivation, epoch_registration.epoch).0;
+            get_forester_epoch_pda_from_authority(derivation, target_epoch).0;
 
         let phases = get_epoch_phases(protocol_config, epoch_pda.epoch);
         Ok(Some(Self {

@@ -890,6 +890,7 @@ async fn test_register_and_update_forester_pda() {
         &protocol_config,
         &forester_keypair,
         &forester_keypair.pubkey(),
+        None,
     )
     .await
     .unwrap();
@@ -990,6 +991,7 @@ async fn test_register_and_update_forester_pda() {
         &protocol_config,
         &forester_keypair,
         &forester_keypair.pubkey(),
+        None,
     )
     .await
     .unwrap();

@@ -934,6 +934,7 @@ impl<R: Rpc> EpochManager<R> {
                     &self.protocol_config,
                     &self.config.payer_keypair,
                     &self.config.derivation_pubkey,
+                    Some(epoch),
                 )
                 .await
                 .with_context(|| {
