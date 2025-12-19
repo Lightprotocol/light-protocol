@@ -88,6 +88,7 @@ async fn test_priority_fee_request() {
         queue_polling_mode: Default::default(),
         tree_ids: vec![],
         enable_compressible: true,
+        lookup_table_address: None,
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");

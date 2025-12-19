@@ -222,6 +222,7 @@ async fn e2e_test() {
             photon_rate_limit: None,
             send_tx_rate_limit: None,
         },
+        lookup_table_address: None,
         retry_config: Default::default(),
         queue_config: Default::default(),
         indexer_config: Default::default(),

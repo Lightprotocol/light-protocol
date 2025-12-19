@@ -347,8 +347,7 @@ impl Rpc for LightProgramTest {
         signers: &'a [&'a Keypair],
         _address_lookup_tables: &'a [AddressLookupTableAccount],
     ) -> Result<Signature, RpcError> {
-        self.create_and_send_transaction(instructions, payer, signers)
-            .await
+        unimplemented!("create_and_send_versioned_transaction is unimplemented for LightProgramTest");
     }
 }
 
