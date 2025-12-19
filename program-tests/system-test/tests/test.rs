@@ -1648,7 +1648,7 @@ async fn test_with_compression() {
 // #[serial]
 #[tokio::test]
 async fn regenerate_accounts() {
-    let output_dir = "../../cli/mainnet_accounts/";
+    let output_dir = "../../cli/accounts/";
 
     let protocol_config = ProtocolConfig {
         genesis_slot: 0,
