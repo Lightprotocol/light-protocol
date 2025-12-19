@@ -15,8 +15,9 @@ import {
 import { CompressedTokenProgram } from '../program';
 
 /**
- * Merge multiple compressed token accounts for a given mint into a single
- * account
+ * Merge multiple compressed token accounts for a given mint into fewer
+ * accounts. Each call merges up to 4 accounts at a time. Call repeatedly
+ * until only 1 account remains if full consolidation is needed.
  *
  * @param rpc                   RPC connection to use
  * @param payer                 Fee payer
@@ -44,33 +45,30 @@ export async function mergeTokenAccounts(
         );
     }
 
+    if (compressedTokenAccounts.items.length === 1) {
+        throw new Error('Only one token account exists, nothing to merge');
+    }
+
+    // Take up to 4 accounts to merge in this transaction
+    const batch = compressedTokenAccounts.items.slice(0, 4);
+
+    const proof = await rpc.getValidityProof(
+        batch.map(account => bn(account.compressedAccount.hash)),
+    );
+
+    const mergeInstructions = await CompressedTokenProgram.mergeTokenAccounts({
+        payer: payer.publicKey,
+        owner: owner.publicKey,
+        inputCompressedTokenAccounts: batch,
+        mint,
+        recentValidityProof: proof.compressedProof,
+        recentInputStateRootIndices: proof.rootIndices,
+    });
+
     const instructions = [
         ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
+        ...mergeInstructions,
     ];
-
-    for (
-        let i = 0;
-        i < compressedTokenAccounts.items.slice(0, 8).length;
-        i += 4
-    ) {
-        const batch = compressedTokenAccounts.items.slice(i, i + 4);
-
-        const proof = await rpc.getValidityProof(
-            batch.map(account => bn(account.compressedAccount.hash)),
-        );
-
-        const batchInstructions =
-            await CompressedTokenProgram.mergeTokenAccounts({
-                payer: payer.publicKey,
-                owner: owner.publicKey,
-                inputCompressedTokenAccounts: batch,
-                mint,
-                recentValidityProof: proof.compressedProof,
-                recentInputStateRootIndices: proof.rootIndices,
-            });
-
-        instructions.push(...batchInstructions);
-    }
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [owner]);
