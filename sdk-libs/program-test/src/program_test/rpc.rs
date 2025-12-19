@@ -347,7 +347,9 @@ impl Rpc for LightProgramTest {
         _signers: &'a [&'a Keypair],
         _address_lookup_tables: &'a [AddressLookupTableAccount],
     ) -> Result<Signature, RpcError> {
-        unimplemented!("create_and_send_versioned_transaction is unimplemented for LightProgramTest");
+        unimplemented!(
+            "create_and_send_versioned_transaction is unimplemented for LightProgramTest"
+        );
     }
 }
 
