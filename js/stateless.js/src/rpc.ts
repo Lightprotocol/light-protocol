@@ -715,6 +715,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     /**
      * Get a list of all state tree infos. If not already cached, fetches from
      * the cluster.
+     * if featureFlags.isV2(), returns v2 trees too.
      */
     async getStateTreeInfos(): Promise<TreeInfo[]> {
         if (isLocalTest(this.rpcEndpoint)) {
