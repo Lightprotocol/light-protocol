@@ -814,7 +814,7 @@ describe('getOrCreateAtaInterface', () => {
             const result = await createMintInterface(
                 rpc,
                 payer,
-                mintAuthority.publicKey,
+                mintAuthority,
                 null,
                 9,
             );
@@ -829,7 +829,7 @@ describe('getOrCreateAtaInterface', () => {
                 owner.publicKey,
                 false,
                 CTOKEN_PROGRAM_ID,
-                ASSOCIATED_TOKEN_PROGRAM_ID,
+                CTOKEN_PROGRAM_ID, // c-token uses CTOKEN_PROGRAM_ID as ATA program
             );
 
             // Call without specifying programId
