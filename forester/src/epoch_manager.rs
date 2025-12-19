@@ -838,6 +838,16 @@ impl<R: Rpc> EpochManager<R> {
             .into());
         }
 
+        if slot < phases.registration.start {
+            let slots_to_wait = phases.registration.start.saturating_sub(slot);
+            info!(
+                "Registration for epoch {} hasn't started yet (current slot: {}, starts at: {}). Waiting {} slots...",
+                epoch, slot, phases.registration.start, slots_to_wait
+            );
+            let wait_duration = Duration::from_millis(slots_to_wait * 400);
+            sleep(wait_duration).await;
+        }
+
         for attempt in 0..max_retries {
             match self.register_for_epoch(epoch).await {
                 Ok(registration_info) => return Ok(registration_info),
@@ -2881,8 +2891,8 @@ pub async fn run_service<R: Rpc>(
                             Arc::new(vec![lut])
                         }
                         Err(e) => {
-                            warn!(
-                                "Failed to load lookup table {}: {:?}. Falling back to legacy transactions.",
+                            debug!(
+                                "Lookup table {} not available: {}. Using legacy transactions.",
                                 LOOKUP_TABLE_ADDRESS, e
                             );
                             Arc::new(Vec::new())

@@ -6,7 +6,8 @@ use std::{
 use borsh::BorshSerialize;
 
 const MAX_BUFFER_SIZE: usize = 1000;
-const V2_IXS_PER_TX: usize = 5;
+const V2_IXS_PER_TX_WITH_LUT: usize = 5;
+const V2_IXS_PER_TX_WITHOUT_LUT: usize = 4;
 const MIN_SLOTS_BEFORE_ELIGIBILITY_END: u64 = 2;
 
 use light_batched_merkle_tree::merkle_tree::{
@@ -179,6 +180,8 @@ pub struct TxSender<R: Rpc> {
     proof_timings: ProofTimings,
     /// Optional cache to save unused proofs when epoch ends (for reuse in next epoch)
     proof_cache: Option<Arc<SharedProofCache>>,
+    /// Maximum instructions per transaction
+    ixs_per_tx: usize,
 }
 
 impl<R: Rpc> TxSender<R> {
@@ -189,17 +192,24 @@ impl<R: Rpc> TxSender<R> {
         last_seen_root: [u8; 32],
         proof_cache: Option<Arc<SharedProofCache>>,
     ) -> JoinHandle<crate::Result<TxSenderResult>> {
+        let ixs_per_tx = if context.address_lookup_tables.is_empty() {
+            V2_IXS_PER_TX_WITHOUT_LUT
+        } else {
+            V2_IXS_PER_TX_WITH_LUT
+        };
+
         let sender = Self {
             context,
             buffer: OrderedProofBuffer::new(MAX_BUFFER_SIZE),
             zkp_batch_size,
             last_seen_root,
-            pending_batch: Vec::with_capacity(V2_IXS_PER_TX),
+            pending_batch: Vec::with_capacity(ixs_per_tx),
             pending_batch_round_trip_ms: 0,
             pending_batch_proof_ms: 0,
             pending_batch_earliest_submit: None,
             proof_timings: ProofTimings::default(),
             proof_cache,
+            ixs_per_tx,
         };
 
         tokio::spawn(async move { sender.run(proof_rx).await })
@@ -365,7 +375,10 @@ impl<R: Rpc> TxSender<R> {
                             e.downcast_ref::<ForesterError>()
                         {
                             warn!("Active phase ended while sending tx, stopping sender loop");
-                            return Ok::<_, anyhow::Error>((sender_processed, total_tx_sending_duration));
+                            return Ok::<_, anyhow::Error>((
+                                sender_processed,
+                                total_tx_sending_duration,
+                            ));
                         } else {
                             return Err(e);
                         }
@@ -454,14 +467,14 @@ impl<R: Rpc> TxSender<R> {
                         Some(existing) => existing.min(entry.submitted_at),
                     });
 
-                let should_send = self.pending_batch.len() >= V2_IXS_PER_TX
+                let should_send = self.pending_batch.len() >= self.ixs_per_tx
                     || (!self.pending_batch.is_empty()
                         && self.should_flush_due_to_time_at(current_slot));
 
                 if should_send {
                     let batch = std::mem::replace(
                         &mut self.pending_batch,
-                        Vec::with_capacity(V2_IXS_PER_TX),
+                        Vec::with_capacity(self.ixs_per_tx),
                     );
                     let round_trip = std::mem::replace(&mut self.pending_batch_round_trip_ms, 0);
                     let _proof_ms = std::mem::replace(&mut self.pending_batch_proof_ms, 0);
@@ -480,7 +493,7 @@ impl<R: Rpc> TxSender<R> {
 
         if !self.pending_batch.is_empty() {
             let batch =
-                std::mem::replace(&mut self.pending_batch, Vec::with_capacity(V2_IXS_PER_TX));
+                std::mem::replace(&mut self.pending_batch, Vec::with_capacity(self.ixs_per_tx));
             let round_trip = std::mem::replace(&mut self.pending_batch_round_trip_ms, 0);
             let earliest = self.pending_batch_earliest_submit.take();
             let batch_len = batch.len() as u64;
