@@ -28,6 +28,8 @@ pub struct ForesterConfig {
     pub address_tree_data: Vec<TreeAccounts>,
     pub state_tree_data: Vec<TreeAccounts>,
     pub compressible_config: Option<crate::compressible::config::CompressibleConfig>,
+    /// Address lookup table for versioned transactions. If None, legacy transactions are used.
+    pub lookup_table_address: Option<Pubkey>,
 }
 
 #[derive(Debug, Clone)]
@@ -349,6 +351,16 @@ impl ForesterConfig {
             } else {
                 None
             },
+            lookup_table_address: args
+                .lookup_table_address
+                .as_ref()
+                .map(|s| {
+                    Pubkey::from_str(s).map_err(|e| ConfigError::InvalidArguments {
+                        field: "lookup_table_address",
+                        invalid_values: vec![e.to_string()],
+                    })
+                })
+                .transpose()?,
         })
     }
 
@@ -406,6 +418,7 @@ impl ForesterConfig {
             address_tree_data: vec![],
             state_tree_data: vec![],
             compressible_config: None,
+            lookup_table_address: None,
         })
     }
 }
@@ -425,6 +438,7 @@ impl Clone for ForesterConfig {
             address_tree_data: self.address_tree_data.clone(),
             state_tree_data: self.state_tree_data.clone(),
             compressible_config: self.compressible_config.clone(),
+            lookup_table_address: self.lookup_table_address,
         }
     }
 }

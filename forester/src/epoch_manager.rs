@@ -77,8 +77,6 @@ use crate::{
     ForesterConfig, ForesterEpochInfo, Result,
 };
 
-pub const LOOKUP_TABLE_ADDRESS: Pubkey = pubkey!("3zjBapEbu8usyEmtCMhEL2i2xPLoNkq6A4kquwwZKUiE");
-
 fn is_v2_error(err: &anyhow::Error, predicate: impl FnOnce(&V2Error) -> bool) -> bool {
     err.downcast_ref::<V2Error>().is_some_and(predicate)
 }
@@ -2880,24 +2878,28 @@ pub async fn run_service<R: Rpc>(
                 debug!("Creating EpochManager (attempt {})", retry_count + 1);
 
                 let address_lookup_tables = {
-                    let rpc = rpc_pool.get_connection().await?;
-                    match load_lookup_table_async(&*rpc, LOOKUP_TABLE_ADDRESS).await
-                    {
-                        Ok(lut) => {
-                            info!(
-                                "Loaded lookup table {} with {} addresses",
-                                LOOKUP_TABLE_ADDRESS,
-                                lut.addresses.len()
-                            );
-                            Arc::new(vec![lut])
+                    if let Some(lut_address) = config.lookup_table_address {
+                        let rpc = rpc_pool.get_connection().await?;
+                        match load_lookup_table_async(&*rpc, lut_address).await {
+                            Ok(lut) => {
+                                info!(
+                                    "Loaded lookup table {} with {} addresses",
+                                    lut_address,
+                                    lut.addresses.len()
+                                );
+                                Arc::new(vec![lut])
+                            }
+                            Err(e) => {
+                                debug!(
+                                    "Lookup table {} not available: {}. Using legacy transactions.",
+                                    lut_address, e
+                                );
+                                Arc::new(Vec::new())
+                            }
                         }
-                        Err(e) => {
-                            debug!(
-                                "Lookup table {} not available: {}. Using legacy transactions.",
-                                LOOKUP_TABLE_ADDRESS, e
-                            );
-                            Arc::new(Vec::new())
-                        }
+                    } else {
+                        debug!("No lookup table address configured. Using legacy transactions.");
+                        Arc::new(Vec::new())
                     }
                 };
 

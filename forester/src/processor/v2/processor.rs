@@ -560,7 +560,6 @@ where
 
         let (proof_tx, mut proof_rx) = mpsc::channel(num_workers * 2);
 
-        self.seq = 0;
         let job_tx = self
             .worker_pool
             .as_ref()

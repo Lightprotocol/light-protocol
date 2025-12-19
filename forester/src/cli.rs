@@ -267,6 +267,13 @@ pub struct StartArgs {
         default_value = "true"
     )]
     pub enable_compressible: bool,
+
+    #[arg(
+        long,
+        env = "FORESTER_LOOKUP_TABLE_ADDRESS",
+        help = "Address lookup table pubkey for versioned transactions. If not provided, legacy transactions will be used."
+    )]
+    pub lookup_table_address: Option<String>,
 }
 
 #[derive(Parser, Clone, Debug)]
