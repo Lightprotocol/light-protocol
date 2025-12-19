@@ -68,7 +68,9 @@ function calculateComputeUnits(
     // SPL/T22 wrap operations
     cu += splWrapCount * 5_000;
 
-    return cu;
+    // TODO: dynamic
+    // return cu;
+    return 200_000;
 }
 
 /**
