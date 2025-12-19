@@ -1,4 +1,3 @@
-use base64::{engine::general_purpose::STANDARD, Engine};
 use photon_api::models::{FilterSelector, Memcmp};
 use solana_account_decoder_client_types::UiDataSliceConfig;
 use solana_pubkey::Pubkey;
@@ -47,7 +46,7 @@ impl Into<FilterSelector> for GetCompressedAccountsFilter {
         FilterSelector {
             memcmp: Some(Box::new(Memcmp {
                 offset: self.offset,
-                bytes: STANDARD.encode(&self.bytes), // TODO: double check
+                bytes: base64::encode(&self.bytes), // TODO: double check
             })),
         }
     }

@@ -1,7 +1,6 @@
 use std::{fs::File, io::Write, str::FromStr};
 
 use anyhow::Context;
-use base64::{engine::general_purpose, Engine as _};
 use clap::Parser;
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc};
 use serde_json::json;
@@ -162,7 +161,7 @@ fn fetch_and_process_lut(
     let modified_data = decode_and_modify_lut(&account.data, add_pubkeys)?;
     let filename = format!("modified_lut_{}.json", pubkey);
 
-    let data_base64 = general_purpose::STANDARD.encode(&modified_data);
+    let data_base64 = base64::encode(&modified_data);
     let json_obj = json!({
         "pubkey": pubkey.to_string(),
         "account": {
@@ -245,7 +244,7 @@ fn decode_and_modify_lut(data: &[u8], add_pubkeys: &Option<String>) -> anyhow::R
 }
 
 fn write_account_json(account: &Account, pubkey: &Pubkey, filename: &str) -> anyhow::Result<()> {
-    let data_base64 = general_purpose::STANDARD.encode(&account.data);
+    let data_base64 = base64::encode(&account.data);
     let json_obj = json!({
         "pubkey": pubkey.to_string(),
         "account": {

@@ -2,7 +2,6 @@ use account_compression::{
     utils::check_discriminator::check_discriminator, AddressMerkleTreeAccount,
     StateMerkleTreeAccount,
 };
-use base64::{engine::general_purpose, Engine as _};
 use borsh::BorshDeserialize;
 use forester_utils::forester_epoch::TreeAccounts;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
@@ -213,7 +212,7 @@ fn parse_account_from_json(value: &serde_json::Value) -> Option<(Pubkey, Account
 
     let data_array = account_obj.get("data")?.as_array()?;
     let data_str = data_array.first()?.as_str()?;
-    let data = general_purpose::STANDARD.decode(data_str).ok()?;
+    let data = base64::decode(data_str).ok()?;
 
     Some((
         pubkey,

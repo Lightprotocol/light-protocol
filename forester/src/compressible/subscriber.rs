@@ -122,10 +122,7 @@ impl AccountSubscriber {
         let account_data = match &response.value.account.data {
             UiAccountData::Binary(data, encoding) => match encoding {
                 solana_account_decoder::UiAccountEncoding::Base64 => {
-                    match base64::engine::Engine::decode(
-                        &base64::engine::general_purpose::STANDARD,
-                        data,
-                    ) {
+                    match base64::decode(data) {
                         Ok(decoded) => decoded,
                         Err(e) => {
                             error!("Failed to decode base64 for {}: {}", pubkey, e);
