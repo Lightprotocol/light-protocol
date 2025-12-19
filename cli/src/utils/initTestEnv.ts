@@ -11,6 +11,7 @@ import {
 import path from "path";
 import { downloadBinIfNotExists } from "../psp-utils";
 import {
+  confirmRpcReadiness,
   confirmServerStability,
   executeCommand,
   killProcess,
@@ -172,6 +173,7 @@ export async function initTestEnv({
   });
   await waitForServers([{ port: rpcPort, path: "/health" }]);
   await confirmServerStability(`http://127.0.0.1:${rpcPort}/health`);
+  await confirmRpcReadiness(`http://127.0.0.1:${rpcPort}`);
 
   if (indexer) {
     const config = getConfig();
