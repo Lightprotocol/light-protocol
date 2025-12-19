@@ -1292,3 +1292,62 @@ impl PartialEq<InstructionDataInvokeCpi> for ZInstructionDataInvokeCpi<'_> {
         other.eq(self)
     }
 }
+
+/// Unit struct for testing ZeroCopyNew derive on empty structs
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[repr(C)]
+#[derive(ZeroCopy, ZeroCopyMut)]
+pub struct UnitStruct;
+
+#[test]
+fn test_unit_struct_zero_copy_new() {
+    use light_zero_copy::traits::ZeroCopyNew;
+
+    // Test byte_len returns 0 for unit struct
+    let byte_len = UnitStruct::byte_len(&()).unwrap();
+    assert_eq!(byte_len, 0, "Unit struct should have byte_len of 0");
+
+    // Test new_zero_copy works with empty buffer
+    let mut bytes: [u8; 0] = [];
+    let (result, remaining) = UnitStruct::new_zero_copy(&mut bytes, ()).unwrap();
+
+    // Verify remaining bytes is empty (we consumed nothing)
+    assert_eq!(remaining.len(), 0, "Should have no remaining bytes");
+
+    // Verify we got a valid reference to the unit struct
+    assert_eq!(*result, UnitStruct, "Should get UnitStruct reference");
+
+    // Test new_zero_copy also works with non-empty buffer (should leave all bytes)
+    let mut bytes_with_extra = [1u8, 2, 3, 4];
+    let (result2, remaining2) = UnitStruct::new_zero_copy(&mut bytes_with_extra, ()).unwrap();
+
+    // Verify all bytes remain (unit struct consumes 0 bytes)
+    assert_eq!(
+        remaining2.len(),
+        4,
+        "Should have all 4 bytes remaining after unit struct"
+    );
+    assert_eq!(*result2, UnitStruct, "Should get UnitStruct reference");
+}
+
+#[test]
+fn test_unit_struct_zero_copy_at() {
+    // Test ZeroCopyAt for unit struct
+    let bytes: [u8; 4] = [1, 2, 3, 4];
+    let (result, remaining) = UnitStruct::zero_copy_at(&bytes).unwrap();
+
+    // Unit struct consumes 0 bytes
+    assert_eq!(remaining.len(), 4, "Should have all bytes remaining");
+    assert_eq!(*result, UnitStruct, "Should get UnitStruct reference");
+}
+
+#[test]
+fn test_unit_struct_zero_copy_at_mut() {
+    // Test ZeroCopyAtMut for unit struct
+    let mut bytes: [u8; 4] = [1, 2, 3, 4];
+    let (result, remaining) = UnitStruct::zero_copy_at_mut(&mut bytes).unwrap();
+
+    // Unit struct consumes 0 bytes
+    assert_eq!(remaining.len(), 4, "Should have all bytes remaining");
+    assert_eq!(*result, UnitStruct, "Should get UnitStruct reference");
+}
