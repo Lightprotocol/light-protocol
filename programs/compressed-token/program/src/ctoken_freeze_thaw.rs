@@ -4,16 +4,24 @@ use pinocchio_token_program::processor::{
     freeze_account::process_freeze_account, thaw_account::process_thaw_account,
 };
 
+use crate::shared::owner_validation::check_token_program_owner;
+
 /// Process CToken freeze account instruction.
-/// Direct passthrough to pinocchio-token-program - no extension processing needed.
+/// Validates mint ownership before calling pinocchio-token-program.
 #[inline(always)]
 pub fn process_ctoken_freeze_account(accounts: &[AccountInfo]) -> Result<(), ProgramError> {
+    // accounts[1] is the mint
+    let mint_info = accounts.get(1).ok_or(ProgramError::NotEnoughAccountKeys)?;
+    check_token_program_owner(mint_info)?;
     process_freeze_account(accounts).map_err(|e| ProgramError::Custom(u64::from(e) as u32))
 }
 
 /// Process CToken thaw account instruction.
-/// Direct passthrough to pinocchio-token-program - no extension processing needed.
+/// Validates mint ownership before calling pinocchio-token-program.
 #[inline(always)]
 pub fn process_ctoken_thaw_account(accounts: &[AccountInfo]) -> Result<(), ProgramError> {
+    // accounts[1] is the mint
+    let mint_info = accounts.get(1).ok_or(ProgramError::NotEnoughAccountKeys)?;
+    check_token_program_owner(mint_info)?;
     process_thaw_account(accounts).map_err(|e| ProgramError::Custom(u64::from(e) as u32))
 }

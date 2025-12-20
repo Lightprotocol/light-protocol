@@ -1,11 +1,28 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::check_signer;
-use light_ctoken_interface::state::ZCompressedTokenMut;
+use light_ctoken_interface::{state::ZCompressedTokenMut, CTOKEN_PROGRAM_ID};
 use light_program_profiler::profile;
-use pinocchio::account_info::AccountInfo;
+use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
 
 use crate::extensions::MintExtensionChecks;
+
+const SPL_TOKEN_ID: [u8; 32] = spl_token::ID.to_bytes();
+const SPL_TOKEN_2022_ID: [u8; 32] = spl_token_2022::ID.to_bytes();
+
+/// Check that an account is owned by a valid token program (SPL Token, Token-2022, or cToken).
+#[inline(always)]
+pub fn check_token_program_owner(account: &AccountInfo) -> Result<(), ProgramError> {
+    let owner = account.owner();
+    if pubkey_eq(owner, &SPL_TOKEN_ID)
+        || pubkey_eq(owner, &SPL_TOKEN_2022_ID)
+        || pubkey_eq(owner, &CTOKEN_PROGRAM_ID)
+    {
+        Ok(())
+    } else {
+        Err(ProgramError::IncorrectProgramId)
+    }
+}
 
 /// Verify owner, delegate, or permanent delegate signer authorization for token operations.
 /// Accepts optional permanent delegate pubkey from mint extension for additional authorization.
