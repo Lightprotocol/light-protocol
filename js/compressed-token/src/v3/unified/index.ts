@@ -7,6 +7,7 @@
 import { PublicKey, Signer, ConfirmOptions, Commitment } from '@solana/web3.js';
 import { Rpc, CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
+import { TokenAccountNotFoundError } from '@solana/spl-token';
 
 import {
     getAtaInterface as _getAtaInterface,
@@ -133,7 +134,7 @@ export async function loadAta(
     confirmOptions?: ConfirmOptions,
     interfaceOptions?: InterfaceOptions,
 ) {
-    return _loadAta(
+    const signature = await _loadAta(
         rpc,
         ata,
         owner,
@@ -143,6 +144,17 @@ export async function loadAta(
         interfaceOptions,
         true,
     );
+
+    // Unified semantics: if the canonical c-token ATA does not exist at all,
+    // treat this as an error (caller has no balances to load and no ATA).
+    if (signature === null) {
+        const accountInfo = await rpc.getAccountInfo(ata);
+        if (!accountInfo) {
+            throw new TokenAccountNotFoundError();
+        }
+    }
+
+    return signature;
 }
 
 /**
