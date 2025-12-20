@@ -62,7 +62,7 @@ pub fn process_decompress_mint_action(
 
     // rent_payment == 1 is rejected - epoch boundary edge case
     if action.rent_payment == 1 {
-        msg!("Prefunding for exactly 1 epoch is not allowed. Use 2+ epochs.");
+        msg!("Prefunding for exactly 1 epoch is not allowed. Use 0 or 2+ epochs.");
         return Err(ErrorCode::OneEpochPrefundingNotAllowed.into());
     }
 
@@ -111,8 +111,6 @@ pub fn process_decompress_mint_action(
     let current_slot = 1u64;
 
     // 8. Build Compressible extension and add to compressed_mint
-    // NOTE: Compressible will be stripped when writing to compressed account,
-    // but kept when writing to CMint (sync in mint_output.rs)
     let compression_info = CompressionInfo {
         config_account_version: config.version,
         compress_to_pubkey: 0, // Not applicable for CMint
@@ -198,11 +196,8 @@ pub fn process_decompress_mint_action(
     .invoke()
     .map_err(convert_program_error)?;
 
-    // 16. Set the cmint_decompressed flag (will be persisted in sync)
+    // 16. Set the cmint_decompressed flag
     compressed_mint.metadata.cmint_decompressed = true;
-
-    // NOTE: Don't serialize here - the sync logic at the end of MintAction
-    // processor will write the output compressed mint to CMint account
 
     Ok(())
 }

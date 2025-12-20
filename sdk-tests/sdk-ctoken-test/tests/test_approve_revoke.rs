@@ -24,7 +24,7 @@ async fn test_approve_invoke() {
     let payer = rpc.get_payer().insecure_clone();
 
     // Create a compressed mint with an ATA for the payer with 1000 tokens
-    let (_mint_pda, _compression_address, ata_pubkeys) = setup_create_compressed_mint(
+    let (_mint_pda, _compression_address, ata_pubkeys, _mint_seed) = setup_create_compressed_mint(
         &mut rpc,
         &payer,
         payer.pubkey(),
@@ -88,7 +88,7 @@ async fn test_approve_invoke_signed() {
     let (pda_owner, _bump) = Pubkey::find_program_address(&[TOKEN_ACCOUNT_SEED], &ID);
 
     // Create a compressed mint with an ATA for the PDA owner with 1000 tokens
-    let (_mint_pda, _compression_address, ata_pubkeys) =
+    let (_mint_pda, _compression_address, ata_pubkeys, _mint_seed) =
         setup_create_compressed_mint(&mut rpc, &payer, payer.pubkey(), 9, vec![(1000, pda_owner)])
             .await;
 
@@ -144,7 +144,7 @@ async fn test_revoke_invoke() {
     let payer = rpc.get_payer().insecure_clone();
 
     // Create a compressed mint with an ATA for the payer with 1000 tokens
-    let (_mint_pda, _compression_address, ata_pubkeys) = setup_create_compressed_mint(
+    let (_mint_pda, _compression_address, ata_pubkeys, _mint_seed) = setup_create_compressed_mint(
         &mut rpc,
         &payer,
         payer.pubkey(),
@@ -235,7 +235,7 @@ async fn test_revoke_invoke_signed() {
     let (pda_owner, _bump) = Pubkey::find_program_address(&[TOKEN_ACCOUNT_SEED], &ID);
 
     // Create a compressed mint with an ATA for the PDA owner with 1000 tokens
-    let (_mint_pda, _compression_address, ata_pubkeys) =
+    let (_mint_pda, _compression_address, ata_pubkeys, _mint_seed) =
         setup_create_compressed_mint(&mut rpc, &payer, payer.pubkey(), 9, vec![(1000, pda_owner)])
             .await;
 

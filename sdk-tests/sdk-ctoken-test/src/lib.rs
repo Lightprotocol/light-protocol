@@ -3,7 +3,6 @@
 mod approve;
 mod close;
 mod create_ata;
-mod create_ata2;
 mod create_cmint;
 mod create_token_account;
 mod freeze;
@@ -17,13 +16,7 @@ mod transfer_spl_ctoken;
 // Re-export all instruction data types
 pub use approve::{process_approve_invoke, process_approve_invoke_signed, ApproveData};
 pub use close::{process_close_account_invoke, process_close_account_invoke_signed};
-pub use freeze::{process_freeze_invoke, process_freeze_invoke_signed};
-pub use revoke::{process_revoke_invoke, process_revoke_invoke_signed};
-pub use thaw::{process_thaw_invoke, process_thaw_invoke_signed};
 pub use create_ata::{process_create_ata_invoke, process_create_ata_invoke_signed, CreateAtaData};
-pub use create_ata2::{
-    process_create_ata2_invoke, process_create_ata2_invoke_signed, CreateAta2Data,
-};
 pub use create_cmint::{
     process_create_cmint, process_create_cmint_invoke_signed,
     process_create_cmint_with_pda_authority, CreateCmintData, MINT_SIGNER_SEED,
@@ -32,13 +25,16 @@ pub use create_token_account::{
     process_create_token_account_invoke, process_create_token_account_invoke_signed,
     CreateTokenAccountData,
 };
+pub use freeze::{process_freeze_invoke, process_freeze_invoke_signed};
 pub use mint_to_ctoken::{
     process_mint_to_ctoken, process_mint_to_ctoken_invoke_signed, MintToCTokenData,
     MINT_AUTHORITY_SEED,
 };
+pub use revoke::{process_revoke_invoke, process_revoke_invoke_signed};
 use solana_program::{
     account_info::AccountInfo, entrypoint, program_error::ProgramError, pubkey, pubkey::Pubkey,
 };
+pub use thaw::{process_thaw_invoke, process_thaw_invoke_signed};
 pub use transfer::{process_transfer_invoke, process_transfer_invoke_signed, TransferData};
 pub use transfer_interface::{
     process_transfer_interface_invoke, process_transfer_interface_invoke_signed,
@@ -224,16 +220,6 @@ pub fn process_instruction(
         }
         InstructionType::CloseAccountInvoke => process_close_account_invoke(accounts),
         InstructionType::CloseAccountInvokeSigned => process_close_account_invoke_signed(accounts),
-        InstructionType::CreateAta2Invoke => {
-            let data = CreateAta2Data::try_from_slice(&instruction_data[1..])
-                .map_err(|_| ProgramError::InvalidInstructionData)?;
-            process_create_ata2_invoke(accounts, data)
-        }
-        InstructionType::CreateAta2InvokeSigned => {
-            let data = CreateAta2Data::try_from_slice(&instruction_data[1..])
-                .map_err(|_| ProgramError::InvalidInstructionData)?;
-            process_create_ata2_invoke_signed(accounts, data)
-        }
         InstructionType::CreateCmintInvokeSigned => {
             let data = CreateCmintData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
@@ -295,6 +281,7 @@ pub fn process_instruction(
         InstructionType::FreezeInvokeSigned => process_freeze_invoke_signed(accounts),
         InstructionType::ThawInvoke => process_thaw_invoke(accounts),
         InstructionType::ThawInvokeSigned => process_thaw_invoke_signed(accounts),
+        _ => Err(ProgramError::InvalidInstructionData),
     }
 }
 

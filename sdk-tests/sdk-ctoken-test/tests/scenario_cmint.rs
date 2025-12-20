@@ -48,7 +48,7 @@ async fn test_cmint_to_ctoken_scenario() {
     let mint_amount2 = 5_000u64;
     let transfer_amount = 3_000u64;
 
-    let (mint, _compression_address, ata_pubkeys) = shared::setup_create_compressed_mint(
+    let (mint, _compression_address, ata_pubkeys, _mint_seed) = shared::setup_create_compressed_mint(
         &mut rpc,
         &payer,
         payer.pubkey(), // mint_authority

@@ -74,6 +74,7 @@ mod create_ata;
 mod create_cmint;
 mod ctoken_mint_to;
 mod decompress;
+mod decompress_cmint;
 mod freeze;
 mod mint_to;
 mod revoke;
@@ -92,6 +93,7 @@ pub use create_ata::*;
 pub use create_cmint::*;
 pub use ctoken_mint_to::*;
 pub use decompress::DecompressToCtoken;
+pub use decompress_cmint::*;
 pub use freeze::*;
 use light_compressible::config::CompressibleConfig;
 pub use light_ctoken_interface::{
