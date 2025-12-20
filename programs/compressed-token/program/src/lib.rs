@@ -14,10 +14,10 @@ pub mod ctoken_approve_revoke;
 pub mod ctoken_burn;
 pub mod ctoken_freeze_thaw;
 pub mod ctoken_mint_to;
-pub mod ctoken_transfer;
 pub mod extensions;
 pub mod mint_action;
 pub mod shared;
+pub mod transfer;
 pub mod transfer2;
 pub mod withdraw_funding_pool;
 
@@ -32,7 +32,8 @@ use create_token_account::process_create_token_account;
 use ctoken_approve_revoke::{process_ctoken_approve, process_ctoken_revoke};
 use ctoken_freeze_thaw::{process_ctoken_freeze_account, process_ctoken_thaw_account};
 use ctoken_mint_to::process_ctoken_mint_to;
-use ctoken_transfer::process_ctoken_transfer;
+use transfer::process_ctoken_transfer;
+use transfer::process_ctoken_transfer_checked;
 use withdraw_funding_pool::process_withdraw_funding_pool;
 
 use crate::{
@@ -56,6 +57,8 @@ pub enum InstructionType {
     CTokenApprove = 4,
     /// CToken Revoke
     CTokenRevoke = 5,
+    /// CToken TransferChecked - transfer with decimals validation
+    CTokenTransferChecked = 6,
     /// CToken mint_to - mint from decompressed CMint to CToken with top-ups
     CTokenMintTo = 7,
     /// CToken burn - burn from CToken, update CMint supply, with top-ups
@@ -101,6 +104,7 @@ impl From<u8> for InstructionType {
             3 => InstructionType::CTokenTransfer,
             4 => InstructionType::CTokenApprove,
             5 => InstructionType::CTokenRevoke,
+            6 => InstructionType::CTokenTransferChecked,
             7 => InstructionType::CTokenMintTo,
             8 => InstructionType::CTokenBurn,
             9 => InstructionType::CloseTokenAccount,
@@ -147,6 +151,10 @@ pub fn process_instruction(
         InstructionType::CTokenRevoke => {
             msg!("CTokenRevoke");
             process_ctoken_revoke(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::CTokenTransferChecked => {
+            msg!("CTokenTransferChecked");
+            process_ctoken_transfer_checked(accounts, &instruction_data[1..])?;
         }
         InstructionType::CTokenMintTo => {
             msg!("CTokenMintTo");
