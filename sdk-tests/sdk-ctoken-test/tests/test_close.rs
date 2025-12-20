@@ -21,7 +21,7 @@ async fn test_close_invoke() {
     let payer = rpc.get_payer().insecure_clone();
 
     // Create a compressed mint with an ATA for the payer
-    let (_mint_pda, _compression_address, ata_pubkeys) = setup_create_compressed_mint(
+    let (_mint_pda, _compression_address, ata_pubkeys, _mint_seed) = setup_create_compressed_mint(
         &mut rpc,
         &payer,
         payer.pubkey(),
@@ -78,7 +78,7 @@ async fn test_close_invoke_signed() {
     let (pda_owner, _bump) = Pubkey::find_program_address(&[TOKEN_ACCOUNT_SEED], &ID);
 
     // Create a compressed mint with an ATA for the PDA owner
-    let (_mint_pda, _compression_address, ata_pubkeys) = setup_create_compressed_mint(
+    let (_mint_pda, _compression_address, ata_pubkeys, _mint_seed) = setup_create_compressed_mint(
         &mut rpc,
         &payer,
         payer.pubkey(),

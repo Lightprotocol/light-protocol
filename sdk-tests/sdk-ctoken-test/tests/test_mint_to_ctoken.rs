@@ -34,7 +34,7 @@ async fn test_mint_to_ctoken() {
     let mint_authority = payer.pubkey();
 
     // Setup: Create compressed mint directly (not via wrapper program)
-    let (mint_pda, compression_address, _) =
+    let (mint_pda, compression_address, _, _mint_seed) =
         setup_create_compressed_mint(&mut rpc, &payer, mint_authority, 9, vec![]).await;
 
     let ctoken_account = Keypair::new();
