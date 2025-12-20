@@ -89,7 +89,7 @@
         "vitest": "^2.1.1"
     },
     "scripts": {
-        "test": "vitest run tests/unit && pnpm test:e2e:all",
+        "test": "vitest run tests/unit && if [ \"$LIGHT_PROTOCOL_VERSION\" = \"V1\" ]; then pnpm test:e2e:legacy:all; else pnpm test:e2e:all; fi",
         "test-ci": "pnpm test:v1 && pnpm test:v2",
         "test:v1": "pnpm build:v1 && LIGHT_PROTOCOL_VERSION=V1 vitest run tests/unit && LIGHT_PROTOCOL_VERSION=V1 pnpm test:e2e:legacy:all",
         "test:v2": "pnpm build:v2 && LIGHT_PROTOCOL_VERSION=V2 vitest run tests/unit && LIGHT_PROTOCOL_VERSION=V2 pnpm test:e2e:all",
