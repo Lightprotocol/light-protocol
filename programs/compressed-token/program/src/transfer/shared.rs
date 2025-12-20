@@ -1,12 +1,11 @@
 use anchor_compressed_token::ErrorCode;
-use anchor_lang::solana_program::{msg, program_error::ProgramError};
+use anchor_lang::solana_program::program_error::ProgramError;
 use light_ctoken_interface::{
     state::{CToken, ZExtensionStructMut},
     CTokenError,
 };
 use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
-use pinocchio_token_program::processor::transfer::process_transfer;
 
 use crate::{
     extensions::{check_mint_extensions, MintExtensionChecks},
@@ -15,55 +14,6 @@ use crate::{
         transfer_lamports::{multi_transfer_lamports, Transfer},
     },
 };
-
-/// Account indices for CToken transfer instruction
-const ACCOUNT_SOURCE: usize = 0;
-const ACCOUNT_DESTINATION: usize = 1;
-const ACCOUNT_AUTHORITY: usize = 2;
-const ACCOUNT_MINT: usize = 3;
-
-/// Process ctoken transfer instruction
-///
-/// Instruction data format (backwards compatible):
-/// - 8 bytes: amount (legacy, no max_top_up enforcement)
-/// - 10 bytes: amount + max_top_up (u16, 0 = no limit)
-#[profile]
-#[inline(always)]
-pub fn process_ctoken_transfer(
-    accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> Result<(), ProgramError> {
-    if accounts.len() < 3 {
-        msg!(
-            "CToken transfer: expected at least 3 accounts received {}",
-            accounts.len()
-        );
-        return Err(ProgramError::NotEnoughAccountKeys);
-    }
-
-    // Validate minimum instruction data length
-    if instruction_data.len() < 8 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-
-    // Parse max_top_up based on instruction data length
-    // 0 means no limit
-    let max_top_up = match instruction_data.len() {
-        8 => 0u16, // Legacy: no max_top_up
-        10 => u16::from_le_bytes(
-            instruction_data[8..10]
-                .try_into()
-                .map_err(|_| ProgramError::InvalidInstructionData)?,
-        ),
-        _ => return Err(ProgramError::InvalidInstructionData),
-    };
-
-    let signer_is_validated = process_extensions(accounts, max_top_up)?;
-
-    // Only pass the first 8 bytes (amount) to the SPL transfer processor
-    process_transfer(accounts, &instruction_data[..8], signer_is_validated)
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))
-}
 
 /// Extension information detected from a single account deserialization
 #[derive(Debug, Default)]
@@ -75,6 +25,7 @@ struct AccountExtensionInfo {
     has_transfer_hook: bool,
     top_up_amount: u64,
 }
+
 impl AccountExtensionInfo {
     fn t22_extensions_eq(&self, other: &Self) -> bool {
         self.has_pausable == other.has_pausable
@@ -92,12 +43,20 @@ impl AccountExtensionInfo {
     }
 }
 
+/// Account references for transfer operations
+pub struct TransferAccounts<'a> {
+    pub source: &'a AccountInfo,
+    pub destination: &'a AccountInfo,
+    pub authority: &'a AccountInfo,
+    pub mint: Option<&'a AccountInfo>,
+}
+
 /// Process extensions (pausable check, permanent delegate validation, transfer fee withholding)
 /// and calculate/execute top-up transfers.
 /// Each account is deserialized exactly once. Mint is checked once if any account has extensions.
 ///
 /// # Arguments
-/// * `accounts` - The account infos (source, dest, authority/payer, optional mint)
+/// * `transfer_accounts` - Account references for source, destination, authority, and optional mint
 /// * `max_top_up` - Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
 ///
 /// Returns:
@@ -105,30 +64,23 @@ impl AccountExtensionInfo {
 /// - `Ok(false)` - Use normal pinocchio owner/delegate validation
 #[inline(always)]
 #[profile]
-fn process_extensions(
-    accounts: &[pinocchio::account_info::AccountInfo],
+pub fn process_transfer_extensions(
+    transfer_accounts: TransferAccounts,
     max_top_up: u16,
 ) -> Result<bool, ProgramError> {
-    let account0 = accounts
-        .get(ACCOUNT_SOURCE)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let account1 = accounts
-        .get(ACCOUNT_DESTINATION)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
     let mut current_slot = 0;
 
-    let (sender_info, signer_is_validated) = validate_sender(accounts, &mut current_slot)?;
+    let (sender_info, signer_is_validated) =
+        validate_sender(&transfer_accounts, &mut current_slot)?;
 
     // Process recipient
-    let recipient_info = validate_recipient(account1, &mut current_slot)?;
+    let recipient_info = validate_recipient(transfer_accounts.destination, &mut current_slot)?;
     // Sender and recipient must have matching T22 extension markers
     sender_info.check_t22_extensions(&recipient_info)?;
 
     // Perform compressible top-up if needed
     transfer_top_up(
-        accounts,
-        account0,
-        account1,
+        &transfer_accounts,
         sender_info.top_up_amount,
         recipient_info.top_up_amount,
         max_top_up,
@@ -136,11 +88,8 @@ fn process_extensions(
 
     Ok(signer_is_validated)
 }
-
 fn transfer_top_up(
-    accounts: &[AccountInfo],
-    account0: &AccountInfo,
-    account1: &AccountInfo,
+    transfer_accounts: &TransferAccounts,
     sender_top_up: u64,
     recipient_top_up: u64,
     max_top_up: u16,
@@ -152,35 +101,29 @@ fn transfer_top_up(
             return Err(CTokenError::MaxTopUpExceeded.into());
         }
 
-        let payer = accounts
-            .get(ACCOUNT_AUTHORITY)
-            .ok_or(ProgramError::NotEnoughAccountKeys)?;
         let transfers = [
             Transfer {
-                account: account0,
+                account: transfer_accounts.source,
                 amount: sender_top_up,
             },
             Transfer {
-                account: account1,
+                account: transfer_accounts.destination,
                 amount: recipient_top_up,
             },
         ];
-        multi_transfer_lamports(payer, &transfers).map_err(convert_program_error)
+        multi_transfer_lamports(transfer_accounts.authority, &transfers)
+            .map_err(convert_program_error)
     } else {
         Ok(())
     }
 }
 
 fn validate_sender(
-    accounts: &[AccountInfo],
+    transfer_accounts: &TransferAccounts,
     current_slot: &mut u64,
 ) -> Result<(AccountExtensionInfo, bool), ProgramError> {
-    let account0 = accounts
-        .get(ACCOUNT_SOURCE)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-
     // Process sender once
-    let sender_info = process_account_extensions(account0, current_slot)?;
+    let sender_info = process_account_extensions(transfer_accounts.source, current_slot)?;
 
     // Get mint checks if any account has extensions (single mint deserialization)
     let mint_checks = if sender_info.has_pausable
@@ -188,8 +131,8 @@ fn validate_sender(
         || sender_info.has_transfer_fee
         || sender_info.has_transfer_hook
     {
-        let mint_account = accounts
-            .get(ACCOUNT_MINT)
+        let mint_account = transfer_accounts
+            .mint
             .ok_or(ErrorCode::MintRequiredForTransfer)?;
         Some(check_mint_extensions(mint_account, false)?)
     } else {
@@ -197,7 +140,8 @@ fn validate_sender(
     };
 
     // Validate permanent delegate for sender
-    let signer_is_validated = validate_permanent_delegate(mint_checks.as_ref(), accounts)?;
+    let signer_is_validated =
+        validate_permanent_delegate(mint_checks.as_ref(), transfer_accounts.authority)?;
 
     Ok((sender_info, signer_is_validated))
 }
@@ -215,13 +159,10 @@ fn validate_recipient(
 #[inline(always)]
 fn validate_permanent_delegate(
     mint_checks: Option<&MintExtensionChecks>,
-    accounts: &[AccountInfo],
+    authority: &AccountInfo,
 ) -> Result<bool, ProgramError> {
     if let Some(checks) = mint_checks {
         if let Some(permanent_delegate_pubkey) = checks.permanent_delegate {
-            let authority = accounts
-                .get(ACCOUNT_AUTHORITY)
-                .ok_or(ProgramError::NotEnoughAccountKeys)?;
             if pubkey_eq(authority.key(), &permanent_delegate_pubkey) {
                 if !authority.is_signer() {
                     return Err(ProgramError::MissingRequiredSignature);
