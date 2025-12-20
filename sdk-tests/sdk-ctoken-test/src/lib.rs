@@ -1,6 +1,7 @@
 #![allow(unexpected_cfgs)]
 
 mod approve;
+mod burn;
 mod close;
 mod create_ata;
 mod create_cmint;
@@ -15,6 +16,7 @@ mod transfer_spl_ctoken;
 
 // Re-export all instruction data types
 pub use approve::{process_approve_invoke, process_approve_invoke_signed, ApproveData};
+pub use burn::{process_burn_invoke, process_burn_invoke_signed, BurnData};
 pub use close::{process_close_account_invoke, process_close_account_invoke_signed};
 pub use create_ata::{process_create_ata_invoke, process_create_ata_invoke_signed, CreateAtaData};
 pub use create_cmint::{
@@ -118,6 +120,10 @@ pub enum InstructionType {
     ThawInvoke = 27,
     /// Thaw frozen CToken account with PDA freeze authority (invoke_signed)
     ThawInvokeSigned = 28,
+    /// Burn CTokens (invoke)
+    BurnInvoke = 29,
+    /// Burn CTokens with PDA authority (invoke_signed)
+    BurnInvokeSigned = 30,
 }
 
 impl TryFrom<u8> for InstructionType {
@@ -154,6 +160,8 @@ impl TryFrom<u8> for InstructionType {
             26 => Ok(InstructionType::FreezeInvokeSigned),
             27 => Ok(InstructionType::ThawInvoke),
             28 => Ok(InstructionType::ThawInvokeSigned),
+            29 => Ok(InstructionType::BurnInvoke),
+            30 => Ok(InstructionType::BurnInvokeSigned),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -281,6 +289,16 @@ pub fn process_instruction(
         InstructionType::FreezeInvokeSigned => process_freeze_invoke_signed(accounts),
         InstructionType::ThawInvoke => process_thaw_invoke(accounts),
         InstructionType::ThawInvokeSigned => process_thaw_invoke_signed(accounts),
+        InstructionType::BurnInvoke => {
+            let data = BurnData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_burn_invoke(accounts, data.amount)
+        }
+        InstructionType::BurnInvokeSigned => {
+            let data = BurnData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_burn_invoke_signed(accounts, data.amount)
+        }
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }
@@ -320,6 +338,8 @@ mod tests {
         assert_eq!(InstructionType::FreezeInvokeSigned as u8, 26);
         assert_eq!(InstructionType::ThawInvoke as u8, 27);
         assert_eq!(InstructionType::ThawInvokeSigned as u8, 28);
+        assert_eq!(InstructionType::BurnInvoke as u8, 29);
+        assert_eq!(InstructionType::BurnInvokeSigned as u8, 30);
     }
 
     #[test]
@@ -440,6 +460,14 @@ mod tests {
             InstructionType::try_from(28).unwrap(),
             InstructionType::ThawInvokeSigned
         );
-        assert!(InstructionType::try_from(29).is_err());
+        assert_eq!(
+            InstructionType::try_from(29).unwrap(),
+            InstructionType::BurnInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(30).unwrap(),
+            InstructionType::BurnInvokeSigned
+        );
+        assert!(InstructionType::try_from(31).is_err());
     }
 }
