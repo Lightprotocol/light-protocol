@@ -1,10 +1,10 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountInfoTrait;
-use light_compressible::{compression_info::ZCompressionInfoMut, config::CompressibleConfig};
+use light_compressible::config::CompressibleConfig;
 use light_ctoken_interface::{
     instructions::extensions::compressible::CompressibleExtensionInstructionData,
-    state::{calculate_ctoken_account_size, CompressibleExtension},
-    CTokenError,
+    state::{calculate_ctoken_account_size, CompressibleExtension, ZCompressibleExtensionMut},
+    CTokenError, CTOKEN_PROGRAM_ID,
 };
 use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
@@ -13,6 +13,18 @@ use pinocchio::sysvars::{clock::Clock, Sysvar};
 use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
 
 use crate::{extensions::MintExtensionFlags, ErrorCode};
+
+const SPL_TOKEN_ID: [u8; 32] = spl_token::ID.to_bytes();
+const SPL_TOKEN_2022_ID: [u8; 32] = spl_token_2022::ID.to_bytes();
+
+/// SPL Token Mint account length (82 bytes)
+const SPL_MINT_LEN: usize = 82;
+/// Token-2022 AccountType byte position
+/// Token-2022 pads mints to BASE_ACCOUNT_LENGTH (165 bytes) before AccountType
+/// Layout: 82 bytes mint data + 83 bytes padding + 1 byte AccountType
+const T22_ACCOUNT_TYPE_OFFSET: usize = 165;
+/// AccountType::Mint discriminator value
+const ACCOUNT_TYPE_MINT: u8 = 1;
 
 /// Configuration for initializing a CToken account
 pub struct CTokenInitConfig<'a> {
@@ -28,6 +40,8 @@ pub struct CTokenInitConfig<'a> {
     pub custom_rent_payer: Option<Pubkey>,
     /// Mint extension flags
     pub mint_extensions: MintExtensionFlags,
+    /// Mint account for caching decimals in compressible extension
+    pub mint_account: &'a AccountInfo,
 }
 
 /// Initialize a token account using spl-pod with zero balance and default settings
@@ -50,6 +64,7 @@ pub fn initialize_ctoken_account(
                 has_transfer_fee,
                 has_transfer_hook,
             },
+        mint_account,
     } = config;
 
     let has_compressible = compressible.is_some();
@@ -146,10 +161,11 @@ pub fn initialize_ctoken_account(
         compressible_extension.compression_only = compressible_ix_data.compression_only;
 
         configure_compressible_extension(
-            &mut compressible_extension.info,
+            &mut compressible_extension,
             compressible_ix_data,
             compressible_config_account,
             custom_rent_payer,
+            mint_account,
         )?;
 
         // Add PausableAccount and PermanentDelegateAccount extensions if needed
@@ -206,13 +222,14 @@ pub fn initialize_ctoken_account(
 #[profile]
 #[inline(always)]
 fn configure_compressible_extension(
-    compressible_extension: &mut ZCompressionInfoMut<'_>,
+    compressible_extension: &mut ZCompressibleExtensionMut<'_>,
     compressible_ix_data: CompressibleExtensionInstructionData,
     compressible_config_account: &CompressibleConfig,
     custom_rent_payer: Option<Pubkey>,
+    mint_account: &AccountInfo,
 ) -> Result<(), ProgramError> {
     // Set config_account_version
-    compressible_extension.config_account_version = compressible_config_account.version.into();
+    compressible_extension.info.config_account_version = compressible_config_account.version.into();
 
     #[cfg(target_os = "solana")]
     let current_slot = Clock::get()
@@ -220,35 +237,37 @@ fn configure_compressible_extension(
         .slot;
     #[cfg(not(target_os = "solana"))]
     let current_slot = 1;
-    compressible_extension.last_claimed_slot = current_slot.into();
+    compressible_extension.info.last_claimed_slot = current_slot.into();
     // Initialize RentConfig with default values
-    compressible_extension.rent_config.base_rent =
+    compressible_extension.info.rent_config.base_rent =
         compressible_config_account.rent_config.base_rent.into();
-    compressible_extension.rent_config.compression_cost = compressible_config_account
+    compressible_extension.info.rent_config.compression_cost = compressible_config_account
         .rent_config
         .compression_cost
         .into();
     compressible_extension
+        .info
         .rent_config
         .lamports_per_byte_per_epoch = compressible_config_account
         .rent_config
         .lamports_per_byte_per_epoch;
-    compressible_extension.rent_config.max_funded_epochs =
+    compressible_extension.info.rent_config.max_funded_epochs =
         compressible_config_account.rent_config.max_funded_epochs;
-    compressible_extension.rent_config.max_top_up =
+    compressible_extension.info.rent_config.max_top_up =
         compressible_config_account.rent_config.max_top_up.into();
 
     // Set the compression_authority, rent_sponsor and lamports_per_write
-    compressible_extension.compression_authority =
+    compressible_extension.info.compression_authority =
         compressible_config_account.compression_authority.to_bytes();
     if let Some(custom_rent_payer) = custom_rent_payer {
         // The custom rent payer is the rent recipient.
         // In this case the rent mechanism stay the same,
         // the account can be compressed and closed by a forester,
         // rent rewards cannot be claimed by the forester.
-        compressible_extension.rent_sponsor = custom_rent_payer;
+        compressible_extension.info.rent_sponsor = custom_rent_payer;
     } else {
-        compressible_extension.rent_sponsor = compressible_config_account.rent_sponsor.to_bytes();
+        compressible_extension.info.rent_sponsor =
+            compressible_config_account.rent_sponsor.to_bytes();
     }
 
     // Validate write_top_up doesn't exceed max_top_up
@@ -262,9 +281,10 @@ fn configure_compressible_extension(
         return Err(CTokenError::WriteTopUpExceedsMaximum.into());
     }
     compressible_extension
+        .info
         .lamports_per_write
         .set(compressible_ix_data.write_top_up);
-    compressible_extension.compress_to_pubkey =
+    compressible_extension.info.compress_to_pubkey =
         compressible_ix_data.compress_to_account_pubkey.is_some() as u8;
     // Validate token_account_version is ShaFlat (3)
     if compressible_ix_data.token_account_version != 3 {
@@ -274,6 +294,37 @@ fn configure_compressible_extension(
         );
         return Err(ProgramError::InvalidInstructionData);
     }
-    compressible_extension.account_version = compressible_ix_data.token_account_version;
+    compressible_extension.info.account_version = compressible_ix_data.token_account_version;
+
+    let mint_data = AccountInfoTrait::try_borrow_data(mint_account)?;
+    // Only try to read decimals if mint has data (is initialized)
+    if !mint_data.is_empty() {
+        let owner = mint_account.owner();
+
+        // Validate mint account based on owner program
+        let is_valid_mint = if *owner == SPL_TOKEN_ID {
+            // SPL Token: mint must be exactly 82 bytes
+            mint_data.len() == SPL_MINT_LEN
+        } else if *owner == SPL_TOKEN_2022_ID || *owner == CTOKEN_PROGRAM_ID {
+            // Token-2022/CToken: check AccountType marker at offset 165
+            // Layout: 82 bytes mint + 83 bytes padding + AccountType
+            mint_data.len() > T22_ACCOUNT_TYPE_OFFSET
+                && mint_data[T22_ACCOUNT_TYPE_OFFSET] == ACCOUNT_TYPE_MINT
+        } else {
+            msg!("Invalid mint owner");
+            return Err(ProgramError::IncorrectProgramId);
+        };
+
+        if !is_valid_mint {
+            msg!("Invalid mint account: not a valid mint");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Mint layout: decimals at byte 44 for all token programs
+        // (mint_authority option: 36, supply: 8) = 44
+        // Already validated length above (SPL is 82 bytes, T22/CToken > 82 bytes)
+        compressible_extension.set_decimals(mint_data[44]);
+    }
+
     Ok(())
 }

@@ -24,6 +24,8 @@ struct AccountExtensionInfo {
     has_transfer_fee: bool,
     has_transfer_hook: bool,
     top_up_amount: u64,
+    /// Cached decimals from compressible extension (if has_decimals was set)
+    decimals: Option<u8>,
 }
 
 impl AccountExtensionInfo {
@@ -60,14 +62,15 @@ pub struct TransferAccounts<'a> {
 /// * `max_top_up` - Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
 ///
 /// Returns:
-/// - `Ok(true)` - Permanent delegate is validated as authority/signer, skip pinocchio validation
-/// - `Ok(false)` - Use normal pinocchio owner/delegate validation
+/// - `Ok((true, decimals))` - Permanent delegate is validated as authority/signer, skip pinocchio validation
+/// - `Ok((false, decimals))` - Use normal pinocchio owner/delegate validation
+/// - `decimals` is Some(u8) if source account has cached decimals in compressible extension
 #[inline(always)]
 #[profile]
 pub fn process_transfer_extensions(
     transfer_accounts: TransferAccounts,
     max_top_up: u16,
-) -> Result<bool, ProgramError> {
+) -> Result<(bool, Option<u8>), ProgramError> {
     let mut current_slot = 0;
 
     let (sender_info, signer_is_validated) =
@@ -86,7 +89,8 @@ pub fn process_transfer_extensions(
         max_top_up,
     )?;
 
-    Ok(signer_is_validated)
+    // Return decimals from sender (source account has the cached decimals)
+    Ok((signer_is_validated, sender_info.decimals))
 }
 fn transfer_top_up(
     transfer_accounts: &TransferAccounts,
@@ -224,6 +228,9 @@ fn process_account_extensions(
                         rent_exemption,
                     )
                     .map_err(|_| CTokenError::InvalidAccountData)?;
+
+                // Extract cached decimals if set
+                info.decimals = compressible_extension.get_decimals();
             }
             ZExtensionStructMut::PausableAccount(_) => {
                 info.has_pausable = true;

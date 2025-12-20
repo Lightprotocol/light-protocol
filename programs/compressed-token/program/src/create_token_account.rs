@@ -263,6 +263,7 @@ pub fn process_create_token_account(
             compressible_config_account,
             custom_rent_payer,
             mint_extensions,
+            mint_account: accounts.mint,
         },
     )
 }

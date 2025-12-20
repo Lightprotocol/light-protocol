@@ -131,6 +131,8 @@ pub fn process_decompress_mint_action(
     // Add Compressible extension to compressed_mint
     let extension = ExtensionStruct::Compressible(CompressibleExtension {
         compression_only: false,
+        decimals: 0,     // Not used for CMint
+        has_decimals: 0, // Decimals not set for CMint
         info: compression_info,
     });
     if let Some(ref mut extensions) = compressed_mint.extensions {
