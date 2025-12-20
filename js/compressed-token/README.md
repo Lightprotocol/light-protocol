@@ -29,6 +29,23 @@ npm install --save \
     @lightprotocol/stateless.js \
 ```
 
+### Testing
+
+```bash
+# Start validator
+pnpm test-validator
+
+# Run all tests
+pnpm test:e2e:all
+
+# Run by category
+pnpm test:e2e:legacy    # V1-only
+pnpm test:e2e:ctoken    # V2-only
+
+# Run single file
+vitest run tests/e2e/ctoken/decompress2.test.ts
+```
+
 ### Documentation and examples
 
 - [Latest Source code](https://github.com/lightprotocol/light-protocol/tree/main/js/compressed-token)
