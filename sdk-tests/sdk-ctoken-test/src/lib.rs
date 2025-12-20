@@ -13,6 +13,7 @@ mod mint_to_ctoken;
 mod revoke;
 mod thaw;
 mod transfer;
+mod transfer_checked;
 mod transfer_interface;
 mod transfer_spl_ctoken;
 
@@ -44,6 +45,9 @@ use solana_program::{
 };
 pub use thaw::{process_thaw_invoke, process_thaw_invoke_signed};
 pub use transfer::{process_transfer_invoke, process_transfer_invoke_signed, TransferData};
+pub use transfer_checked::{
+    process_transfer_checked_invoke, process_transfer_checked_invoke_signed, TransferCheckedData,
+};
 pub use transfer_interface::{
     process_transfer_interface_invoke, process_transfer_interface_invoke_signed,
     TransferInterfaceData, TRANSFER_INTERFACE_AUTHORITY_SEED,
@@ -136,6 +140,10 @@ pub enum InstructionType {
     CTokenMintToInvokeSigned = 32,
     /// Decompress CMint with PDA authority (invoke_signed)
     DecompressCmintInvokeSigned = 33,
+    /// Transfer cTokens with checked decimals (invoke)
+    CTokenTransferCheckedInvoke = 34,
+    /// Transfer cTokens with checked decimals from PDA-owned account (invoke_signed)
+    CTokenTransferCheckedInvokeSigned = 35,
 }
 
 impl TryFrom<u8> for InstructionType {
@@ -177,6 +185,8 @@ impl TryFrom<u8> for InstructionType {
             31 => Ok(InstructionType::CTokenMintToInvoke),
             32 => Ok(InstructionType::CTokenMintToInvokeSigned),
             33 => Ok(InstructionType::DecompressCmintInvokeSigned),
+            34 => Ok(InstructionType::CTokenTransferCheckedInvoke),
+            35 => Ok(InstructionType::CTokenTransferCheckedInvokeSigned),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -329,6 +339,16 @@ pub fn process_instruction(
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_decompress_cmint_invoke_signed(accounts, data)
         }
+        InstructionType::CTokenTransferCheckedInvoke => {
+            let data = TransferCheckedData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_transfer_checked_invoke(accounts, data)
+        }
+        InstructionType::CTokenTransferCheckedInvokeSigned => {
+            let data = TransferCheckedData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_transfer_checked_invoke_signed(accounts, data)
+        }
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }
@@ -373,6 +393,8 @@ mod tests {
         assert_eq!(InstructionType::CTokenMintToInvoke as u8, 31);
         assert_eq!(InstructionType::CTokenMintToInvokeSigned as u8, 32);
         assert_eq!(InstructionType::DecompressCmintInvokeSigned as u8, 33);
+        assert_eq!(InstructionType::CTokenTransferCheckedInvoke as u8, 34);
+        assert_eq!(InstructionType::CTokenTransferCheckedInvokeSigned as u8, 35);
     }
 
     #[test]
@@ -513,6 +535,14 @@ mod tests {
             InstructionType::try_from(33).unwrap(),
             InstructionType::DecompressCmintInvokeSigned
         );
-        assert!(InstructionType::try_from(34).is_err());
+        assert_eq!(
+            InstructionType::try_from(34).unwrap(),
+            InstructionType::CTokenTransferCheckedInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(35).unwrap(),
+            InstructionType::CTokenTransferCheckedInvokeSigned
+        );
+        assert!(InstructionType::try_from(36).is_err());
     }
 }
