@@ -6,6 +6,8 @@ mod close;
 mod create_ata;
 mod create_cmint;
 mod create_token_account;
+mod ctoken_mint_to;
+mod decompress_cmint;
 mod freeze;
 mod mint_to_ctoken;
 mod revoke;
@@ -27,6 +29,10 @@ pub use create_token_account::{
     process_create_token_account_invoke, process_create_token_account_invoke_signed,
     CreateTokenAccountData,
 };
+pub use ctoken_mint_to::{
+    process_ctoken_mint_to_invoke, process_ctoken_mint_to_invoke_signed, MintToData,
+};
+pub use decompress_cmint::{process_decompress_cmint_invoke_signed, DecompressCmintData};
 pub use freeze::{process_freeze_invoke, process_freeze_invoke_signed};
 pub use mint_to_ctoken::{
     process_mint_to_ctoken, process_mint_to_ctoken_invoke_signed, MintToCTokenData,
@@ -124,6 +130,12 @@ pub enum InstructionType {
     BurnInvoke = 29,
     /// Burn CTokens with PDA authority (invoke_signed)
     BurnInvokeSigned = 30,
+    /// Mint to CToken from decompressed CMint (invoke)
+    CTokenMintToInvoke = 31,
+    /// Mint to CToken from decompressed CMint with PDA authority (invoke_signed)
+    CTokenMintToInvokeSigned = 32,
+    /// Decompress CMint with PDA authority (invoke_signed)
+    DecompressCmintInvokeSigned = 33,
 }
 
 impl TryFrom<u8> for InstructionType {
@@ -162,6 +174,9 @@ impl TryFrom<u8> for InstructionType {
             28 => Ok(InstructionType::ThawInvokeSigned),
             29 => Ok(InstructionType::BurnInvoke),
             30 => Ok(InstructionType::BurnInvokeSigned),
+            31 => Ok(InstructionType::CTokenMintToInvoke),
+            32 => Ok(InstructionType::CTokenMintToInvokeSigned),
+            33 => Ok(InstructionType::DecompressCmintInvokeSigned),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -299,6 +314,21 @@ pub fn process_instruction(
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_burn_invoke_signed(accounts, data.amount)
         }
+        InstructionType::CTokenMintToInvoke => {
+            let data = MintToData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_ctoken_mint_to_invoke(accounts, data.amount)
+        }
+        InstructionType::CTokenMintToInvokeSigned => {
+            let data = MintToData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_ctoken_mint_to_invoke_signed(accounts, data.amount)
+        }
+        InstructionType::DecompressCmintInvokeSigned => {
+            let data = DecompressCmintData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_decompress_cmint_invoke_signed(accounts, data)
+        }
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }
@@ -340,6 +370,9 @@ mod tests {
         assert_eq!(InstructionType::ThawInvokeSigned as u8, 28);
         assert_eq!(InstructionType::BurnInvoke as u8, 29);
         assert_eq!(InstructionType::BurnInvokeSigned as u8, 30);
+        assert_eq!(InstructionType::CTokenMintToInvoke as u8, 31);
+        assert_eq!(InstructionType::CTokenMintToInvokeSigned as u8, 32);
+        assert_eq!(InstructionType::DecompressCmintInvokeSigned as u8, 33);
     }
 
     #[test]
@@ -468,6 +501,18 @@ mod tests {
             InstructionType::try_from(30).unwrap(),
             InstructionType::BurnInvokeSigned
         );
-        assert!(InstructionType::try_from(31).is_err());
+        assert_eq!(
+            InstructionType::try_from(31).unwrap(),
+            InstructionType::CTokenMintToInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(32).unwrap(),
+            InstructionType::CTokenMintToInvokeSigned
+        );
+        assert_eq!(
+            InstructionType::try_from(33).unwrap(),
+            InstructionType::DecompressCmintInvokeSigned
+        );
+        assert!(InstructionType::try_from(34).is_err());
     }
 }
