@@ -6,8 +6,10 @@ mod create_ata;
 mod create_ata2;
 mod create_cmint;
 mod create_token_account;
+mod freeze;
 mod mint_to_ctoken;
 mod revoke;
+mod thaw;
 mod transfer;
 mod transfer_interface;
 mod transfer_spl_ctoken;
@@ -15,7 +17,9 @@ mod transfer_spl_ctoken;
 // Re-export all instruction data types
 pub use approve::{process_approve_invoke, process_approve_invoke_signed, ApproveData};
 pub use close::{process_close_account_invoke, process_close_account_invoke_signed};
+pub use freeze::{process_freeze_invoke, process_freeze_invoke_signed};
 pub use revoke::{process_revoke_invoke, process_revoke_invoke_signed};
+pub use thaw::{process_thaw_invoke, process_thaw_invoke_signed};
 pub use create_ata::{process_create_ata_invoke, process_create_ata_invoke_signed, CreateAtaData};
 pub use create_ata2::{
     process_create_ata2_invoke, process_create_ata2_invoke_signed, CreateAta2Data,
@@ -52,6 +56,7 @@ pub const ID: Pubkey = pubkey!("CToknNtvExmp1eProgram11111111111111111111112");
 /// PDA seeds for invoke_signed instructions
 pub const TOKEN_ACCOUNT_SEED: &[u8] = b"token_account";
 pub const ATA_SEED: &[u8] = b"ata";
+pub const FREEZE_AUTHORITY_SEED: &[u8] = b"freeze_authority";
 
 entrypoint!(process_instruction);
 
@@ -109,6 +114,14 @@ pub enum InstructionType {
     RevokeInvoke = 23,
     /// Revoke delegation for PDA-owned CToken account (invoke_signed)
     RevokeInvokeSigned = 24,
+    /// Freeze CToken account (invoke)
+    FreezeInvoke = 25,
+    /// Freeze CToken account with PDA freeze authority (invoke_signed)
+    FreezeInvokeSigned = 26,
+    /// Thaw frozen CToken account (invoke)
+    ThawInvoke = 27,
+    /// Thaw frozen CToken account with PDA freeze authority (invoke_signed)
+    ThawInvokeSigned = 28,
 }
 
 impl TryFrom<u8> for InstructionType {
@@ -141,6 +154,10 @@ impl TryFrom<u8> for InstructionType {
             22 => Ok(InstructionType::ApproveInvokeSigned),
             23 => Ok(InstructionType::RevokeInvoke),
             24 => Ok(InstructionType::RevokeInvokeSigned),
+            25 => Ok(InstructionType::FreezeInvoke),
+            26 => Ok(InstructionType::FreezeInvokeSigned),
+            27 => Ok(InstructionType::ThawInvoke),
+            28 => Ok(InstructionType::ThawInvokeSigned),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -274,6 +291,10 @@ pub fn process_instruction(
         }
         InstructionType::RevokeInvoke => process_revoke_invoke(accounts),
         InstructionType::RevokeInvokeSigned => process_revoke_invoke_signed(accounts),
+        InstructionType::FreezeInvoke => process_freeze_invoke(accounts),
+        InstructionType::FreezeInvokeSigned => process_freeze_invoke_signed(accounts),
+        InstructionType::ThawInvoke => process_thaw_invoke(accounts),
+        InstructionType::ThawInvokeSigned => process_thaw_invoke_signed(accounts),
     }
 }
 
@@ -308,6 +329,10 @@ mod tests {
         assert_eq!(InstructionType::ApproveInvokeSigned as u8, 22);
         assert_eq!(InstructionType::RevokeInvoke as u8, 23);
         assert_eq!(InstructionType::RevokeInvokeSigned as u8, 24);
+        assert_eq!(InstructionType::FreezeInvoke as u8, 25);
+        assert_eq!(InstructionType::FreezeInvokeSigned as u8, 26);
+        assert_eq!(InstructionType::ThawInvoke as u8, 27);
+        assert_eq!(InstructionType::ThawInvokeSigned as u8, 28);
     }
 
     #[test]
@@ -412,6 +437,22 @@ mod tests {
             InstructionType::try_from(24).unwrap(),
             InstructionType::RevokeInvokeSigned
         );
-        assert!(InstructionType::try_from(25).is_err());
+        assert_eq!(
+            InstructionType::try_from(25).unwrap(),
+            InstructionType::FreezeInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(26).unwrap(),
+            InstructionType::FreezeInvokeSigned
+        );
+        assert_eq!(
+            InstructionType::try_from(27).unwrap(),
+            InstructionType::ThawInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(28).unwrap(),
+            InstructionType::ThawInvokeSigned
+        );
+        assert!(InstructionType::try_from(29).is_err());
     }
 }
