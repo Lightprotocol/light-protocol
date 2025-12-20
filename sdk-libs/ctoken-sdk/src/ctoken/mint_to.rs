@@ -14,7 +14,7 @@ use crate::compressed_token::mint_action::{
     get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
     MintActionMetaConfigCpiWrite,
 };
-
+// TODO: move to compressed_token.
 /// Parameters for minting tokens to a ctoken account.
 #[derive(Debug, Clone)]
 pub struct MintToCTokenParams {

@@ -526,3 +526,214 @@ async fn setup_create_compressed_mint_with_extensions(
 
     (mint, compression_address, mint_seed)
 }
+
+/// Test decompressing a compressed mint via CPI with PDA authority using invoke_signed
+#[tokio::test]
+async fn test_decompress_cmint_cpi_invoke_signed() {
+    use borsh::BorshSerialize;
+    use native_ctoken_examples::{
+        CreateCmintData, DecompressCmintData, InstructionType, ID, MINT_AUTHORITY_SEED,
+        MINT_SIGNER_SEED,
+    };
+    use solana_sdk::instruction::{AccountMeta, Instruction};
+
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Derive the PDAs from our wrapper program
+    let (mint_signer_pda, _) = Pubkey::find_program_address(&[MINT_SIGNER_SEED], &ID);
+    let (pda_mint_authority, _) = Pubkey::find_program_address(&[MINT_AUTHORITY_SEED], &ID);
+
+    let decimals = 9u8;
+    let address_tree = rpc.get_address_tree_v2();
+    let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
+
+    // Derive compression address using the PDA mint_signer
+    let compression_address = light_ctoken_sdk::ctoken::derive_cmint_compressed_address(
+        &mint_signer_pda,
+        &address_tree.tree,
+    );
+
+    let mint_pda = find_cmint_address(&mint_signer_pda).0;
+
+    // Step 1: Create compressed mint with PDA authority using wrapper program (discriminator 14)
+    {
+        let rpc_result = rpc
+            .get_validity_proof(
+                vec![],
+                vec![light_client::indexer::AddressWithTree {
+                    address: compression_address,
+                    tree: address_tree.tree,
+                }],
+                None,
+            )
+            .await
+            .unwrap()
+            .value;
+
+        let compressed_token_program_id =
+            Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+        let default_pubkeys = light_ctoken_sdk::utils::CTokenDefaultAccounts::default();
+
+        let create_cmint_data = CreateCmintData {
+            decimals,
+            address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
+            mint_authority: pda_mint_authority,
+            proof: rpc_result.proof.0.unwrap(),
+            compression_address,
+            mint: mint_pda,
+            freeze_authority: None,
+            extensions: None,
+        };
+        // Discriminator 14 = CreateCmintWithPdaAuthority
+        let wrapper_instruction_data =
+            [vec![14u8], create_cmint_data.try_to_vec().unwrap()].concat();
+
+        let wrapper_accounts = vec![
+            AccountMeta::new_readonly(compressed_token_program_id, false),
+            AccountMeta::new_readonly(default_pubkeys.light_system_program, false),
+            AccountMeta::new_readonly(mint_signer_pda, false),
+            AccountMeta::new(pda_mint_authority, false),
+            AccountMeta::new(payer.pubkey(), true),
+            AccountMeta::new_readonly(default_pubkeys.cpi_authority_pda, false),
+            AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
+            AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
+            AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
+            AccountMeta::new_readonly(default_pubkeys.system_program, false),
+            AccountMeta::new(output_queue, false),
+            AccountMeta::new(address_tree.tree, false),
+        ];
+
+        let create_mint_ix = Instruction {
+            program_id: ID,
+            accounts: wrapper_accounts,
+            data: wrapper_instruction_data,
+        };
+
+        rpc.create_and_send_transaction(&[create_mint_ix], &payer.pubkey(), &[&payer])
+            .await
+            .unwrap();
+    }
+
+    // Verify CMint account does NOT exist on-chain yet
+    let cmint_account_before = rpc.get_account(mint_pda).await.unwrap();
+    assert!(
+        cmint_account_before.is_none(),
+        "CMint should not exist before decompression"
+    );
+
+    // Step 2: Decompress the mint via wrapper program (PDA authority requires CPI)
+    let compressed_mint = {
+        let compressed_mint_account = rpc
+            .get_compressed_account(compression_address, None)
+            .await
+            .unwrap()
+            .value
+            .expect("Compressed mint should exist");
+
+        let compressed_mint = CompressedMint::deserialize(
+            &mut compressed_mint_account
+                .data
+                .as_ref()
+                .unwrap()
+                .data
+                .as_slice(),
+        )
+        .unwrap();
+
+        let rpc_result = rpc
+            .get_validity_proof(vec![compressed_mint_account.hash], vec![], None)
+            .await
+            .unwrap()
+            .value;
+
+        let compressed_mint_with_context = CompressedMintWithContext {
+            address: compression_address,
+            leaf_index: compressed_mint_account.leaf_index,
+            prove_by_index: true,
+            root_index: rpc_result.accounts[0]
+                .root_index
+                .root_index()
+                .unwrap_or_default(),
+            mint: Some(compressed_mint.clone().try_into().unwrap()),
+        };
+
+        let default_pubkeys = light_ctoken_sdk::utils::CTokenDefaultAccounts::default();
+        let compressible_config = light_ctoken_sdk::ctoken::config_pda();
+        let rent_sponsor = light_ctoken_sdk::ctoken::rent_sponsor_pda();
+
+        let decompress_data = DecompressCmintData {
+            compressed_mint_with_context,
+            proof: rpc_result.proof,
+            rent_payment: 16,
+            write_top_up: 766,
+        };
+
+        // Discriminator 33 = DecompressCmintInvokeSigned
+        let wrapper_instruction_data = [
+            vec![InstructionType::DecompressCmintInvokeSigned as u8],
+            decompress_data.try_to_vec().unwrap(),
+        ]
+        .concat();
+
+        let ctoken_program_id = Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+        let wrapper_accounts = vec![
+            AccountMeta::new_readonly(mint_signer_pda, false),
+            AccountMeta::new_readonly(pda_mint_authority, false),
+            AccountMeta::new(payer.pubkey(), true),
+            AccountMeta::new(mint_pda, false),
+            AccountMeta::new_readonly(compressible_config, false),
+            AccountMeta::new(rent_sponsor, false),
+            AccountMeta::new(compressed_mint_account.tree_info.tree, false),
+            AccountMeta::new(compressed_mint_account.tree_info.queue, false),
+            AccountMeta::new(output_queue, false),
+            AccountMeta::new_readonly(default_pubkeys.light_system_program, false),
+            AccountMeta::new_readonly(default_pubkeys.cpi_authority_pda, false),
+            AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
+            AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
+            AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
+            AccountMeta::new_readonly(default_pubkeys.system_program, false),
+            AccountMeta::new_readonly(ctoken_program_id, false),
+        ];
+
+        let decompress_ix = Instruction {
+            program_id: ID,
+            accounts: wrapper_accounts,
+            data: wrapper_instruction_data,
+        };
+
+        rpc.create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &[&payer])
+            .await
+            .unwrap();
+
+        compressed_mint
+    };
+
+    // Verify CMint state with single assert_eq
+    let cmint_account = rpc
+        .get_account(mint_pda)
+        .await
+        .unwrap()
+        .expect("CMint should exist after decompression");
+    let cmint = CompressedMint::deserialize(&mut &cmint_account.data[..]).unwrap();
+
+    // Extract runtime-specific Compressible extension (added during decompression)
+    let compressible_ext = cmint
+        .extensions
+        .as_ref()
+        .and_then(|exts| {
+            exts.iter().find_map(|e| match e {
+                ExtensionStruct::Compressible(info) => Some(*info),
+                _ => None,
+            })
+        })
+        .expect("CMint should have Compressible extension");
+
+    // Build expected CMint from original compressed mint, updating fields changed by decompression
+    let mut expected_cmint = compressed_mint.clone();
+    expected_cmint.metadata.cmint_decompressed = true;
+    expected_cmint.extensions = Some(vec![ExtensionStruct::Compressible(compressible_ext)]);
+
+    assert_eq!(cmint, expected_cmint, "CMint should match expected state");
+}
