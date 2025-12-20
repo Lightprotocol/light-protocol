@@ -69,7 +69,8 @@ fn process_extensions(
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
     let mint = accounts.get(ACCOUNT_MINT);
 
-    process_transfer_extensions(
+    // Ignore decimals - only used for transfer_checked
+    let (signer_is_validated, _decimals) = process_transfer_extensions(
         TransferAccounts {
             source,
             destination,
@@ -77,5 +78,6 @@ fn process_extensions(
             mint,
         },
         max_top_up,
-    )
+    )?;
+    Ok(signer_is_validated)
 }

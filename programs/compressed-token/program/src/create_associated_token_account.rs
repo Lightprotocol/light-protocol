@@ -12,7 +12,7 @@ use spl_pod::solana_msg::msg;
 
 use crate::{
     create_token_account::next_config_account,
-    extensions::{has_mint_extensions, MintExtensionFlags},
+    extensions::has_mint_extensions,
     shared::{
         convert_program_error, create_pda_account,
         initialize_ctoken_account::{initialize_ctoken_account, CTokenInitConfig},
@@ -68,37 +68,18 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
         CreateAssociatedTokenAccountInstructionData::deserialize(&mut instruction_data)
             .map_err(ProgramError::from)?;
 
-    let (owner_and_mint, remaining_accounts) = account_infos.split_at(2);
-    let owner = &owner_and_mint[0];
-    let mint = &owner_and_mint[1];
+    let bump = instruction_inputs.bump;
+    let compressible_config = instruction_inputs.compressible_config;
 
-    process_create_associated_token_account_inner::<IDEMPOTENT>(
-        remaining_accounts,
-        owner.key(),
-        mint.key(),
-        instruction_inputs.bump,
-        instruction_inputs.compressible_config,
-        None, // No mint account available in create_ata (owner/mint passed as bytes)
-    )
-}
-
-/// Core logic for creating associated token account with owner and mint as pubkeys
-#[inline(always)]
-#[profile]
-pub(crate) fn process_create_associated_token_account_inner<const IDEMPOTENT: bool>(
-    account_infos: &[AccountInfo],
-    owner_bytes: &[u8; 32],
-    mint_bytes: &[u8; 32],
-    bump: u8,
-    compressible_config: Option<CompressibleExtensionInstructionData>,
-    // Optional mint account for checking pausable extension (used by create_ata2)
-    mint_account: Option<&AccountInfo>,
-) -> Result<(), ProgramError> {
     let mut iter = AccountIterator::new(account_infos);
-
+    let owner = iter.next_non_mut("owner")?;
+    let mint = iter.next_non_mut("mint")?;
     let fee_payer = iter.next_signer_mut("fee_payer")?;
     let associated_token_account = iter.next_mut("associated_token_account")?;
     let _system_program = iter.next_non_mut("system_program")?;
+
+    let owner_bytes = owner.key();
+    let mint_bytes = mint.key();
 
     // If idempotent mode, check if account already exists
     if IDEMPOTENT {
@@ -116,11 +97,7 @@ pub(crate) fn process_create_associated_token_account_inner<const IDEMPOTENT: bo
     }
 
     // Check which extensions the mint has (single deserialization, only if mint account is provided)
-    let mint_extensions = if let Some(mint) = mint_account {
-        has_mint_extensions(mint)?
-    } else {
-        MintExtensionFlags::default()
-    };
+    let mint_extensions = has_mint_extensions(mint)?;
 
     let has_compressible = compressible_config.is_some();
     let token_account_size = mint_extensions.calculate_account_size(has_compressible) as usize;
@@ -168,6 +145,7 @@ pub(crate) fn process_create_associated_token_account_inner<const IDEMPOTENT: bo
             compressible_config_account,
             custom_rent_payer,
             mint_extensions,
+            mint_account: mint,
         },
     )?;
     Ok(())

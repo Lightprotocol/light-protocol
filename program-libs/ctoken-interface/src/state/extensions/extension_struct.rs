@@ -76,7 +76,44 @@ pub enum ExtensionStruct {
 #[aligned_sized]
 pub struct CompressibleExtension {
     pub compression_only: bool,
+    /// Mint decimals (if has_decimals is set).
+    /// Cached from mint at account creation for transfer_checked optimization.
+    pub decimals: u8,
+    /// 1 if decimals is set, 0 otherwise.
+    /// Separate flag needed because decimals=0 is valid for some tokens.
+    pub has_decimals: u8,
     pub info: CompressionInfo,
+}
+
+impl CompressibleExtension {
+    /// Get cached decimals if set.
+    /// Returns Some(decimals) if decimals were cached at account creation, None otherwise.
+    pub fn get_decimals(&self) -> Option<u8> {
+        if self.has_decimals != 0 {
+            Some(self.decimals)
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> ZCompressibleExtensionMut<'a> {
+    /// Get cached decimals if set.
+    /// Returns Some(decimals) if decimals were cached at account creation, None otherwise.
+    pub fn get_decimals(&self) -> Option<u8> {
+        if self.has_decimals != 0 {
+            Some(self.decimals)
+        } else {
+            None
+        }
+    }
+
+    /// Set cached decimals from mint.
+    /// Call this during account initialization when mint is available.
+    pub fn set_decimals(&mut self, decimals: u8) {
+        self.decimals = decimals;
+        self.has_decimals = 1;
+    }
 }
 
 #[derive(Debug)]

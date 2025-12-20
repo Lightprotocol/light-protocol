@@ -1,7 +1,9 @@
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
-use pinocchio_token_program::processor::transfer_checked::process_transfer_checked;
+use pinocchio_token_program::processor::{
+    shared::transfer::process_transfer, unpack_amount_and_decimals,
+};
 
 use super::shared::{process_transfer_extensions, TransferAccounts};
 use crate::shared::owner_validation::check_token_program_owner;
@@ -65,7 +67,7 @@ pub fn process_ctoken_transfer_checked(
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
-    let signer_is_validated = process_transfer_extensions(
+    let (signer_is_validated, extension_decimals) = process_transfer_extensions(
         TransferAccounts {
             source,
             destination,
@@ -76,6 +78,17 @@ pub fn process_ctoken_transfer_checked(
     )?;
 
     // Pass the first 9 bytes (amount + decimals) to the SPL transfer_checked processor
-    process_transfer_checked(accounts, &instruction_data[..9], signer_is_validated)
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))
+    let (amount, decimals) =
+        unpack_amount_and_decimals(instruction_data).map_err(|e| ProgramError::Custom(e as u32))?;
+
+    if let Some(extension_decimals) = extension_decimals {
+        if extension_decimals != decimals {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        process_transfer(accounts, amount, None, signer_is_validated)
+            .map_err(|e| ProgramError::Custom(u64::from(e) as u32))
+    } else {
+        process_transfer(accounts, amount, Some(decimals), signer_is_validated)
+            .map_err(|e| ProgramError::Custom(u64::from(e) as u32))
+    }
 }

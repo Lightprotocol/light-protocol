@@ -97,6 +97,8 @@ pub async fn assert_create_token_account_internal(
                     light_ctoken_interface::state::extensions::ExtensionStruct::Compressible(
                         CompressibleExtension {
                             compression_only: false,
+                            decimals: 0,
+                            has_decimals: 0,
                             info: CompressionInfo {
                                 config_account_version: 1,
                                 last_claimed_slot: current_slot,

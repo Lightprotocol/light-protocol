@@ -13,12 +13,12 @@ pub const BASE_TOKEN_ACCOUNT_SIZE: u64 = 165;
 /// Extension metadata overhead: AccountType (1) + Option discriminator (1) + Vec length (4) + Extension enum variant (1)
 pub const EXTENSION_METADATA: u64 = 7;
 
-/// Size of a token account with compressible extension 261 bytes.
-/// CompressibleExtension: 1 byte compression_only + 88 bytes CompressionInfo
+/// Size of a token account with compressible extension (263 bytes).
+/// CompressibleExtension: 1 compression_only + 1 decimals + 1 has_decimals + 88 CompressionInfo
 pub const COMPRESSIBLE_TOKEN_ACCOUNT_SIZE: u64 =
     BASE_TOKEN_ACCOUNT_SIZE + CompressibleExtension::LEN as u64 + EXTENSION_METADATA;
 
-/// Size of a token account with compressible + pausable extensions (262 bytes).
+/// Size of a token account with compressible + pausable extensions (264 bytes).
 /// Adds 1 byte for PausableAccount discriminator (marker extension with 0 data bytes).
 pub const COMPRESSIBLE_PAUSABLE_TOKEN_ACCOUNT_SIZE: u64 = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE + 1;
 

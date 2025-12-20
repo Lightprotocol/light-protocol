@@ -20,7 +20,7 @@ use crate::{
 /// # Extension Sizes
 /// - Base account: 165 bytes
 /// - Extension metadata (per extension): 7 bytes (1 AccountType + 1 Option + 4 Vec len + 1 discriminant)
-/// - Compressible: 89 bytes (1 compression_only + 88 CompressionInfo::LEN)
+/// - Compressible: 91 bytes (1 compression_only + 1 decimals + 1 has_decimals + 88 CompressionInfo::LEN)
 /// - PausableAccount: 0 bytes (marker only, just discriminant)
 /// - PermanentDelegateAccount: 0 bytes (marker only, just discriminant)
 /// - TransferFeeAccount: 8 bytes (withheld_amount u64)
@@ -35,8 +35,8 @@ pub const fn calculate_ctoken_account_size(
     let mut size = BASE_TOKEN_ACCOUNT_SIZE;
 
     if has_compressible {
-        // CompressibleExtension: 1 byte compression_only + CompressionInfo::LEN
-        size += 1 + CompressionInfo::LEN as u64 + EXTENSION_METADATA;
+        // CompressibleExtension: 1 compression_only + 1 decimals + 1 has_decimals + CompressionInfo::LEN
+        size += 3 + CompressionInfo::LEN as u64 + EXTENSION_METADATA;
     }
 
     if has_pausable {

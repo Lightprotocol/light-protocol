@@ -194,8 +194,11 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
                         }
                         ZExtensionInstructionData::Compressible(compression_info) => {
                             // Convert zero-copy CompressionInfo to owned CompressibleExtension
+                            // Note: decimals are not used for CMints, only for token accounts
                             Ok(ExtensionStruct::Compressible(CompressibleExtension {
                                 compression_only: false,
+                                decimals: 0,
+                                has_decimals: 0,
                                 info: light_compressible::compression_info::CompressionInfo {
                                     config_account_version: compression_info
                                         .config_account_version
