@@ -174,66 +174,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      * Returns local test state trees.
      */
     async getStateTreeInfos(): Promise<TreeInfo[]> {
-        const infos = localTestActiveStateTreeInfos();
-
-        // In local test environments, some batched (V2) output queues can get
-        // stuck in a "Full" state (BatchNotReady=14301) if no background worker
-        // drains them. We must still return *all* TreeInfos (needed to resolve
-        // historical merkle contexts), but we mark blocked trees as "inactive"
-        // by setting nextTreeInfo, so selection logic skips them.
-        const V2_QUEUE_DISCRIMINATOR_LEN = 8;
-        const QUEUE_METADATA_LEN = 224; // QueueMetadata (see sdk-libs/program-test comment)
-        const QUEUE_BATCHES_OFFSET =
-            V2_QUEUE_DISCRIMINATOR_LEN + QUEUE_METADATA_LEN; // 232
-        const U64_LEN = 8;
-        const BATCH_STRUCT_LEN = 96; // program-libs/batched-merkle-tree/src/batch.rs
-        const BATCHES_OFFSET = QUEUE_BATCHES_OFFSET + 7 * U64_LEN; // QueueBatches fields before batches
-        const BATCH_STATE_OFFSET_IN_BATCH = 1 * U64_LEN; // after num_inserted
-        const BATCH0_STATE_OFFSET =
-            BATCHES_OFFSET + BATCH_STATE_OFFSET_IN_BATCH; // 296
-        const BATCH1_STATE_OFFSET =
-            BATCHES_OFFSET + BATCH_STRUCT_LEN + BATCH_STATE_OFFSET_IN_BATCH; // 392
-        const BATCH_STATE_FULL = 2;
-
-        const v2StateTrees = infos.filter(t => t.treeType === TreeType.StateV2);
-        if (v2StateTrees.length === 0) {
-            return infos;
-        }
-
-        const queueAccountInfos = await this.getMultipleAccountsInfo(
-            v2StateTrees.map(t => t.queue),
-        );
-
-        const blockedQueues = new Set<string>();
-        for (let i = 0; i < v2StateTrees.length; i++) {
-            const ai = queueAccountInfos[i];
-            if (!ai) continue;
-            const data = ai.data;
-            if (data.length < BATCH1_STATE_OFFSET + U64_LEN) continue;
-            const state0 = Number(data.readBigUInt64LE(BATCH0_STATE_OFFSET));
-            const state1 = Number(data.readBigUInt64LE(BATCH1_STATE_OFFSET));
-            if (state0 === BATCH_STATE_FULL && state1 === BATCH_STATE_FULL) {
-                blockedQueues.add(v2StateTrees[i].queue.toBase58());
-            }
-        }
-
-        // Pick a "next" tree for blocked ones (first non-blocked V2 tree).
-        const fallbackNextTree =
-            v2StateTrees.find(t => !blockedQueues.has(t.queue.toBase58())) ??
-            null;
-
-        if (blockedQueues.size === 0 || !fallbackNextTree) {
-            return infos;
-        }
-
-        return infos.map(info => {
-            if (info.treeType !== TreeType.StateV2) return info;
-            if (!blockedQueues.has(info.queue.toBase58())) return info;
-            return {
-                ...info,
-                nextTreeInfo: fallbackNextTree,
-            };
-        });
+        return localTestActiveStateTreeInfos();
     }
     async doFetch(): Promise<TreeInfo[]> {
         throw new Error('doFetch not supported in test-rpc');
