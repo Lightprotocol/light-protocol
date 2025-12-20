@@ -27,7 +27,7 @@ use crate::{
 ///
 /// ## Process Steps
 /// 1. **State Validation**: Ensure mint is not already decompressed
-/// 2. **Rent Payment Validation**: rent_payment must be >= 2 (CMint is always compressible)
+/// 2. **Rent Payment Validation**: rent_payment must be 0 or >= 2
 /// 3. **Config Validation**: Validate CompressibleConfig account
 /// 4. **Write Top-Up Validation**: write_top_up must not exceed max_top_up
 /// 5. **Add Compressible Extension**: Add CompressionInfo to the compressed mint extensions
@@ -60,12 +60,6 @@ pub fn process_decompress_mint_action(
         return Err(ErrorCode::CMintAlreadyExists.into());
     }
 
-    // 2. Validate rent_payment (CMint is ALWAYS compressible)
-    // rent_payment == 0 is rejected - CMint must be compressible
-    if action.rent_payment == 0 {
-        msg!("rent_payment must be >= 2 (CMint is always compressible)");
-        return Err(ErrorCode::InvalidRentPayment.into());
-    }
     // rent_payment == 1 is rejected - epoch boundary edge case
     if action.rent_payment == 1 {
         msg!("Prefunding for exactly 1 epoch is not allowed. Use 2+ epochs.");
@@ -87,16 +81,6 @@ pub fn process_decompress_mint_action(
         .ok_or(ErrorCode::MissingCompressibleConfig)?;
 
     let config = parse_config_account(config_account)?;
-
-    // 4. Validate rent_payment doesn't exceed max_funded_epochs
-    if action.rent_payment > config.rent_config.max_funded_epochs {
-        msg!(
-            "rent_payment {} exceeds max_funded_epochs {}",
-            action.rent_payment,
-            config.rent_config.max_funded_epochs
-        );
-        return Err(ErrorCode::RentPaymentExceedsMax.into());
-    }
 
     // 5. Validate write_top_up doesn't exceed max_top_up
     if action.write_top_up > config.rent_config.max_top_up as u32 {
