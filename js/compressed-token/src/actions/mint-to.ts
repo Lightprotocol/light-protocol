@@ -21,39 +21,6 @@ import {
     SplInterfaceInfo,
 } from '../utils/get-token-pool-infos';
 
-function isBatchNotReadyError(error: unknown): boolean {
-    const message = error instanceof Error ? error.message : String(error);
-    // BatchedMerkleTreeError::BatchNotReady (14301) => custom program error 0x37dd
-    return (
-        message.includes('0x37dd') ||
-        message.includes('14301') ||
-        message.includes('BatchNotReady')
-    );
-}
-
-async function selectAlternativeStateTreeInfo(
-    rpc: Rpc,
-    current: TreeInfo,
-): Promise<TreeInfo> {
-    const infos = await rpc.getStateTreeInfos();
-
-    // Prefer a different active tree of the same type.
-    const candidates = infos.filter(
-        t =>
-            t.treeType === current.treeType &&
-            !t.nextTreeInfo &&
-            !t.queue.equals(current.queue),
-    );
-
-    if (candidates.length > 0) {
-        const length = Math.min(5, candidates.length);
-        return candidates[Math.floor(Math.random() * length)];
-    }
-
-    // Fall back to normal selection (may return the same tree).
-    return selectStateTreeInfo(infos, current.treeType, true);
-}
-
 /**
  * Mint compressed tokens to a solana address
  *
@@ -92,51 +59,25 @@ export async function mintTo(
         splInterfaceInfo ??
         selectSplInterfaceInfo(await getSplInterfaceInfos(rpc, mint));
 
-    // Retry on BatchNotReady (full output queue batch) by selecting a different
-    // active state tree. This can happen under heavy test load when one of the
-    // V2 output queues becomes blocked.
-    let selectedTree = outputStateTreeInfo;
-    let lastError: unknown;
-    for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-            const ix = await CompressedTokenProgram.mintTo({
-                feePayer: payer.publicKey,
-                mint,
-                authority: authority.publicKey,
-                amount,
-                toPubkey,
-                outputStateTreeInfo: selectedTree,
-                tokenPoolInfo: splInterfaceInfo,
-            });
+    const ix = await CompressedTokenProgram.mintTo({
+        feePayer: payer.publicKey,
+        mint,
+        authority: authority.publicKey,
+        amount,
+        toPubkey,
+        outputStateTreeInfo,
+        tokenPoolInfo: splInterfaceInfo,
+    });
 
-            const { blockhash } = await rpc.getLatestBlockhash();
-            const additionalSigners = dedupeSigner(payer, [authority]);
+    const { blockhash } = await rpc.getLatestBlockhash();
+    const additionalSigners = dedupeSigner(payer, [authority]);
 
-            const tx = buildAndSignTx(
-                [
-                    ComputeBudgetProgram.setComputeUnitLimit({
-                        units: 1_000_000,
-                    }),
-                    ix,
-                ],
-                payer,
-                blockhash,
-                additionalSigners,
-            );
+    const tx = buildAndSignTx(
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        payer,
+        blockhash,
+        additionalSigners,
+    );
 
-            return sendAndConfirmTx(rpc, tx, confirmOptions);
-        } catch (error) {
-            lastError = error;
-            if (!isBatchNotReadyError(error) || attempt === 2) {
-                throw error;
-            }
-            selectedTree = await selectAlternativeStateTreeInfo(
-                rpc,
-                selectedTree,
-            );
-        }
-    }
-
-    // Unreachable, but keeps TS happy.
-    throw lastError;
+    return sendAndConfirmTx(rpc, tx, confirmOptions);
 }
