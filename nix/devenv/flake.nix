@@ -16,7 +16,6 @@
         anchor = pkgs.callPackage ./anchor.nix { };
 
         # Versions (keep in sync with scripts/devenv/versions.sh)
-        rustVersion = "1.90.0";
         photonCommit = "3dbfb8e6772779fc89c640b5b0823b95d1958efc";
 
       in {
@@ -63,12 +62,10 @@
             fi
             export SBF_SDK_PATH="$SOLANA_TOOLS_DIR/sbf"
 
-            # Rust toolchain (managed by rustup, not nix)
-            if ! rustup show active-toolchain 2>/dev/null | grep -q "${rustVersion}"; then
-              echo "Installing Rust ${rustVersion}..."
-              rustup install ${rustVersion}
-              rustup default ${rustVersion}
-              rustup component add clippy
+            # Rust: rust-toolchain.toml handles the main toolchain automatically.
+            # We only need nightly for `cargo +nightly fmt`.
+            if ! rustup run nightly rustfmt --version &>/dev/null; then
+              echo "Installing nightly toolchain for rustfmt..."
               rustup toolchain install nightly --component rustfmt
             fi
 
@@ -106,7 +103,7 @@
             echo "Light Protocol devenv activated"
             echo "  Solana: ${solana.version}"
             echo "  Anchor: ${anchor.version}"
-            echo "  Rust:   ${rustVersion}"
+            echo "  Rust:   $(rustc --version 2>/dev/null | awk '{print $2}' || echo 'see rust-toolchain.toml')"
             echo ""
           '';
 
