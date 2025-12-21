@@ -4,9 +4,10 @@ mod shared;
 
 use borsh::BorshDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
+use light_compressible::compression_info::CompressionInfo;
 use light_ctoken_interface::{
     instructions::mint_action::CompressedMintWithContext,
-    state::{CompressedMint, ExtensionStruct},
+    state::CompressedMint,
 };
 use light_ctoken_sdk::ctoken::{find_cmint_address, DecompressCMint};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
@@ -98,22 +99,17 @@ async fn test_decompress_cmint() {
     let cmint_account = cmint_account_after.unwrap();
     let cmint = CompressedMint::deserialize(&mut &cmint_account.data[..]).unwrap();
 
-    // Extract runtime-specific Compressible extension (added during decompression)
-    let compressible_ext = cmint
-        .extensions
-        .as_ref()
-        .and_then(|exts| {
-            exts.iter().find_map(|e| match e {
-                ExtensionStruct::Compressible(info) => Some(info),
-                _ => None,
-            })
-        })
-        .expect("CMint should have Compressible extension");
+    // Verify compression info is set (non-default) when decompressed
+    assert_ne!(
+        cmint.compression,
+        CompressionInfo::default(),
+        "CMint compression info should be set when decompressed"
+    );
 
     // Build expected CMint from original compressed mint, updating fields changed by decompression
     let mut expected_cmint = compressed_mint.clone();
     expected_cmint.metadata.cmint_decompressed = true;
-    expected_cmint.extensions = Some(vec![ExtensionStruct::Compressible(*compressible_ext)]);
+    expected_cmint.compression = cmint.compression.clone();
 
     assert_eq!(cmint, expected_cmint, "CMint should match expected state");
 }
@@ -208,22 +204,17 @@ async fn test_decompress_cmint_with_freeze_authority() {
         .expect("CMint should exist after decompression");
     let cmint = CompressedMint::deserialize(&mut &cmint_account.data[..]).unwrap();
 
-    // Extract runtime-specific Compressible extension (added during decompression)
-    let compressible_ext = cmint
-        .extensions
-        .as_ref()
-        .and_then(|exts| {
-            exts.iter().find_map(|e| match e {
-                ExtensionStruct::Compressible(info) => Some(*info),
-                _ => None,
-            })
-        })
-        .expect("CMint should have Compressible extension");
+    // Verify compression info is set (non-default) when decompressed
+    assert_ne!(
+        cmint.compression,
+        CompressionInfo::default(),
+        "CMint compression info should be set when decompressed"
+    );
 
     // Build expected CMint from original compressed mint, updating fields changed by decompression
     let mut expected_cmint = compressed_mint.clone();
     expected_cmint.metadata.cmint_decompressed = true;
-    expected_cmint.extensions = Some(vec![ExtensionStruct::Compressible(compressible_ext)]);
+    expected_cmint.compression = cmint.compression.clone();
 
     assert_eq!(cmint, expected_cmint, "CMint should match expected state");
 }
@@ -412,38 +403,24 @@ async fn test_decompress_cmint_with_token_metadata() {
         .expect("CMint should exist after decompression");
     let cmint = CompressedMint::deserialize(&mut &cmint_account.data[..]).unwrap();
 
-    // Extract runtime-specific Compressible extension (added during decompression)
-    let compressible_ext = cmint
-        .extensions
-        .as_ref()
-        .and_then(|exts| {
-            exts.iter().find_map(|e| match e {
-                ExtensionStruct::Compressible(info) => Some(*info),
-                _ => None,
-            })
-        })
-        .expect("CMint should have Compressible extension");
+    // Verify compression info is set (non-default) when decompressed
+    assert_ne!(
+        cmint.compression,
+        CompressionInfo::default(),
+        "CMint compression info should be set when decompressed"
+    );
 
-    // Extract the TokenMetadata extension (should be preserved from original)
-    let token_metadata_ext = cmint
-        .extensions
-        .as_ref()
-        .and_then(|exts| {
-            exts.iter().find_map(|e| match e {
-                ExtensionStruct::TokenMetadata(tm) => Some(tm.clone()),
-                _ => None,
-            })
-        })
-        .expect("CMint should have TokenMetadata extension");
+    // Verify TokenMetadata extension is preserved
+    assert!(
+        cmint.extensions.is_some(),
+        "CMint should have extensions with TokenMetadata"
+    );
 
     // Build expected CMint from original compressed mint, updating fields changed by decompression
     let mut expected_cmint = compressed_mint.clone();
     expected_cmint.metadata.cmint_decompressed = true;
-    // Extensions should include original TokenMetadata plus new Compressible
-    expected_cmint.extensions = Some(vec![
-        ExtensionStruct::TokenMetadata(token_metadata_ext),
-        ExtensionStruct::Compressible(compressible_ext),
-    ]);
+    expected_cmint.compression = cmint.compression.clone();
+    // Extensions should preserve original TokenMetadata
 
     assert_eq!(cmint, expected_cmint, "CMint should match expected state");
 }
@@ -720,22 +697,17 @@ async fn test_decompress_cmint_cpi_invoke_signed() {
         .expect("CMint should exist after decompression");
     let cmint = CompressedMint::deserialize(&mut &cmint_account.data[..]).unwrap();
 
-    // Extract runtime-specific Compressible extension (added during decompression)
-    let compressible_ext = cmint
-        .extensions
-        .as_ref()
-        .and_then(|exts| {
-            exts.iter().find_map(|e| match e {
-                ExtensionStruct::Compressible(info) => Some(*info),
-                _ => None,
-            })
-        })
-        .expect("CMint should have Compressible extension");
+    // Verify compression info is set (non-default) when decompressed
+    assert_ne!(
+        cmint.compression,
+        CompressionInfo::default(),
+        "CMint compression info should be set when decompressed"
+    );
 
     // Build expected CMint from original compressed mint, updating fields changed by decompression
     let mut expected_cmint = compressed_mint.clone();
     expected_cmint.metadata.cmint_decompressed = true;
-    expected_cmint.extensions = Some(vec![ExtensionStruct::Compressible(compressible_ext)]);
+    expected_cmint.compression = cmint.compression.clone();
 
     assert_eq!(cmint, expected_cmint, "CMint should match expected state");
 }

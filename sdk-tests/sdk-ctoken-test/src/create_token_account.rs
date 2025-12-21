@@ -46,7 +46,7 @@ pub fn process_create_token_account_invoke(
         account: accounts[1].clone(),
         mint: accounts[2].clone(),
         owner: data.owner,
-        compressible: Some(compressible_params),
+        compressible: compressible_params,
     }
     .invoke()?;
 
@@ -91,7 +91,7 @@ pub fn process_create_token_account_invoke_signed(
         account: accounts[1].clone(),
         mint: accounts[2].clone(),
         owner: data.owner,
-        compressible: Some(compressible_params),
+        compressible: compressible_params,
     };
 
     // Invoke with PDA signing

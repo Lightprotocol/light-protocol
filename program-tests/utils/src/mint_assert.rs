@@ -49,6 +49,7 @@ pub fn assert_compressed_mint_account(
         },
         reserved: [0u8; 49],
         account_type: ACCOUNT_TYPE_MINT,
+        compression: light_compressible::compression_info::CompressionInfo::default(),
         extensions: expected_extensions,
     };
 

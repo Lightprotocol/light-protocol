@@ -50,7 +50,7 @@ impl CompressToPubkey {
             references.push(seed.as_slice());
         }
         let derived_pubkey = derive_address(references.as_slice(), self.bump, &self.program_id)?;
-        if !pubkey_eq(derived_pubkey.array_ref(), pubkey) {
+        if !pubkey_eq(&derived_pubkey, pubkey) {
             Err(CTokenError::InvalidAccountData)
         } else {
             Ok(())
@@ -66,7 +66,7 @@ pub fn derive_address(
     seeds: &[&[u8]],
     bump: u8,
     program_id: &pinocchio::pubkey::Pubkey,
-) -> Result<Pubkey, CTokenError> {
+) -> Result<pinocchio::pubkey::Pubkey, CTokenError> {
     const PDA_MARKER: &[u8; 21] = b"ProgramDerivedAddress";
     // Must be strictly less than MAX_SEEDS because we need space for:
     // seeds + bump + program_id + PDA_MARKER in a [MAX_SEEDS + 2] array

@@ -43,88 +43,60 @@ pub async fn assert_compressible_for_account(
     };
 
     if let (Some((token_before, _)), Some((token_after, _))) = (&token_before, &token_after) {
-        if let Some(extensions_before) = &token_before.extensions {
-            if let Some(compressible_before) = extensions_before.iter().find_map(|ext| {
-                if let light_ctoken_interface::state::ZExtensionStruct::Compressible(comp) = ext {
-                    Some(comp)
-                } else {
-                    None
-                }
-            }) {
-                let compressible_after = token_after
-                    .extensions
-                    .as_ref()
-                    .and_then(|extensions| {
-                        extensions.iter().find_map(|ext| {
-                            if let light_ctoken_interface::state::ZExtensionStruct::Compressible(
-                                comp,
-                            ) = ext
-                            {
-                                Some(comp)
-                            } else {
-                                None
-                            }
-                        })
-                    })
-                    .unwrap_or_else(|| {
-                        panic!("{} should have compressible extension after transfer", name)
-                    });
+        // Get compression info from meta.compression
+        let compression_before = &token_before.meta.compression;
+        let compression_after = &token_after.meta.compression;
 
-                assert_eq!(
-                    u64::from(compressible_after.info.last_claimed_slot),
-                    u64::from(compressible_before.info.last_claimed_slot),
-                    "{} last_claimed_slot should be different from current slot before transfer",
-                    name
-                );
+        assert_eq!(
+            u64::from(compression_after.last_claimed_slot),
+            u64::from(compression_before.last_claimed_slot),
+            "{} last_claimed_slot should be different from current slot before transfer",
+            name
+        );
 
-                assert_eq!(
-                    compressible_before.info.compression_authority,
-                    compressible_after.info.compression_authority,
-                    "{} compression_authority should not change",
-                    name
-                );
-                assert_eq!(
-                    compressible_before.info.rent_sponsor, compressible_after.info.rent_sponsor,
-                    "{} rent_sponsor should not change",
-                    name
-                );
-                assert_eq!(
-                    compressible_before.info.config_account_version,
-                    compressible_after.info.config_account_version,
-                    "{} config_account_version should not change",
-                    name
-                );
-                let current_slot = rpc.get_slot().await.unwrap();
-                let rent_exemption = rpc
-                    .get_minimum_balance_for_rent_exemption(data_before.len())
-                    .await
-                    .unwrap();
-                let top_up = compressible_before
-                    .info
-                    .calculate_top_up_lamports(
-                        data_before.len() as u64,
-                        current_slot,
-                        lamports_before,
-                        rent_exemption,
-                    )
-                    .unwrap();
-                // Check if top-up was applied
-                if top_up != 0 {
-                    assert_eq!(
-                        lamports_before + top_up,
-                        lamports_after,
-                        "{} account should be topped up by {} lamports",
-                        name,
-                        top_up
-                    );
-                } else {
-                    assert_eq!(
-                        lamports_before, lamports_after,
-                        "{} account should not be topped up",
-                        name
-                    );
-                }
-            }
+        assert_eq!(
+            compression_before.compression_authority, compression_after.compression_authority,
+            "{} compression_authority should not change",
+            name
+        );
+        assert_eq!(
+            compression_before.rent_sponsor, compression_after.rent_sponsor,
+            "{} rent_sponsor should not change",
+            name
+        );
+        assert_eq!(
+            compression_before.config_account_version, compression_after.config_account_version,
+            "{} config_account_version should not change",
+            name
+        );
+        let current_slot = rpc.get_slot().await.unwrap();
+        let rent_exemption = rpc
+            .get_minimum_balance_for_rent_exemption(data_before.len())
+            .await
+            .unwrap();
+        let top_up = compression_before
+            .calculate_top_up_lamports(
+                data_before.len() as u64,
+                current_slot,
+                lamports_before,
+                rent_exemption,
+            )
+            .unwrap();
+        // Check if top-up was applied
+        if top_up != 0 {
+            assert_eq!(
+                lamports_before + top_up,
+                lamports_after,
+                "{} account should be topped up by {} lamports",
+                name,
+                top_up
+            );
+        } else {
+            assert_eq!(
+                lamports_before, lamports_after,
+                "{} account should not be topped up",
+                name
+            );
         }
     }
 }

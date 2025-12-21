@@ -1,6 +1,6 @@
 // Re-export all necessary imports for test modules
 pub use light_compressible::rent::{RentConfig, SLOTS_PER_EPOCH};
-pub use light_ctoken_interface::{BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE};
+pub use light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE;
 pub use light_ctoken_sdk::ctoken::{
     derive_ctoken_ata, CloseCTokenAccount, CompressibleParams, CreateAssociatedCTokenAccount,
     CreateCTokenAccount,
@@ -302,48 +302,23 @@ pub async fn close_and_assert_token_account(
         .unwrap()
         .unwrap();
 
-    let is_compressible = account_info.data.len() == COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize;
+    // Read rent_sponsor from the account's embedded compression info
+    use light_ctoken_interface::state::CToken;
+    use light_zero_copy::traits::ZeroCopyAt;
 
-    let close_ix = if is_compressible {
-        // Read rent_sponsor from the account's compressible extension
-        use light_ctoken_interface::state::{CToken, ZExtensionStruct};
-        use light_zero_copy::traits::ZeroCopyAt;
+    let (ctoken, _) = CToken::zero_copy_at(&account_info.data).unwrap();
+    let compression = &ctoken.meta.compression;
+    let rent_sponsor = Pubkey::from(compression.rent_sponsor);
 
-        let (ctoken, _) = CToken::zero_copy_at(&account_info.data).unwrap();
-        let rent_sponsor = if let Some(extensions) = ctoken.extensions.as_ref() {
-            extensions
-                .iter()
-                .find_map(|ext| match ext {
-                    ZExtensionStruct::Compressible(comp) => {
-                        Some(Pubkey::from(comp.info.rent_sponsor))
-                    }
-                    _ => None,
-                })
-                .unwrap()
-        } else {
-            panic!("Compressible account must have compressible extension");
-        };
-
-        CloseCTokenAccount {
-            token_program: light_compressed_token::ID,
-            account: token_account_pubkey,
-            destination,
-            owner: context.owner_keypair.pubkey(),
-            rent_sponsor: Some(rent_sponsor),
-        }
-        .instruction()
-        .unwrap()
-    } else {
-        CloseCTokenAccount {
-            token_program: light_compressed_token::ID,
-            account: token_account_pubkey,
-            destination,
-            owner: context.owner_keypair.pubkey(),
-            rent_sponsor: None,
-        }
-        .instruction()
-        .unwrap()
-    };
+    let close_ix = CloseCTokenAccount {
+        token_program: light_compressed_token::ID,
+        account: token_account_pubkey,
+        destination,
+        owner: context.owner_keypair.pubkey(),
+        rent_sponsor: Some(rent_sponsor),
+    }
+    .instruction()
+    .unwrap();
 
     context
         .rpc
@@ -439,7 +414,7 @@ pub async fn create_and_assert_ata(
 
         builder.instruction().unwrap()
     } else {
-        // Create non-compressible account
+        // Create account with default compressible params
         let mut builder = CreateAssociatedCTokenAccount {
             idempotent: false,
             bump,
@@ -447,7 +422,7 @@ pub async fn create_and_assert_ata(
             owner: owner_pubkey,
             mint: context.mint_pubkey,
             associated_token_account: ata_pubkey,
-            compressible: None,
+            compressible: CompressibleParams::default(),
         };
 
         if idempotent {
@@ -683,7 +658,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
 
     use anchor_lang::{InstructionData, ToAccountMetas};
     use light_compressible::config::CompressibleConfig;
-    use light_ctoken_interface::state::{CToken, ZExtensionStruct};
+    use light_ctoken_interface::state::CToken;
     use light_registry::{
         accounts::CompressAndCloseContext as CompressAndCloseAccounts,
         instruction::CompressAndClose, utils::get_forester_epoch_pda_from_authority,
@@ -724,17 +699,9 @@ pub async fn compress_and_close_forester_with_invalid_output(
     let (ctoken, _) = CToken::zero_copy_at(&token_account_info.data).unwrap();
     let mint_pubkey = Pubkey::from(ctoken.mint.to_bytes());
 
-    // Extract compressible extension data
-    let extensions = ctoken.extensions.as_ref().unwrap();
-    let compressible_ext = extensions
-        .iter()
-        .find_map(|ext| match ext {
-            ZExtensionStruct::Compressible(comp) => Some(comp),
-            _ => None,
-        })
-        .unwrap();
-
-    let rent_sponsor = Pubkey::from(compressible_ext.info.rent_sponsor);
+    // Extract compression info from embedded field
+    let compression = &ctoken.meta.compression;
+    let rent_sponsor = Pubkey::from(compression.rent_sponsor);
 
     // Get output queue for compression
     let output_queue = context

@@ -3,7 +3,7 @@ use light_account_checks::AccountInfoTrait;
 use light_compressible::config::CompressibleConfig;
 use light_ctoken_interface::{
     instructions::create_ctoken_account::CompressToPubkey,
-    state::{ctoken::CompressedTokenConfig, CToken},
+    state::{ctoken::CompressedTokenConfig, CToken, ExtensionStructConfig},
     CTokenError, CTOKEN_PROGRAM_ID,
 };
 use light_program_profiler::profile;
@@ -81,16 +81,32 @@ pub fn initialize_ctoken_account(
         mint_account,
     } = config;
 
+    // Build extensions Vec from boolean flags
+    let mut extensions = Vec::new();
+    if has_pausable {
+        extensions.push(ExtensionStructConfig::PausableAccount(()));
+    }
+    if has_permanent_delegate {
+        extensions.push(ExtensionStructConfig::PermanentDelegateAccount(()));
+    }
+    if has_transfer_fee {
+        extensions.push(ExtensionStructConfig::TransferFeeAccount(()));
+    }
+    if has_transfer_hook {
+        extensions.push(ExtensionStructConfig::TransferHookAccount(()));
+    }
+
     // Build the config for new_zero_copy
     let zc_config = CompressedTokenConfig {
         mint: light_compressed_account::Pubkey::from(*mint),
         owner: light_compressed_account::Pubkey::from(*owner),
         state: if default_state_frozen { 2 } else { 1 },
         compression_only: compression_ix_data.compression_only != 0,
-        has_pausable,
-        has_permanent_delegate,
-        has_transfer_fee,
-        has_transfer_hook,
+        extensions: if extensions.is_empty() {
+            None
+        } else {
+            Some(extensions)
+        },
     };
 
     // Access the token account data as mutable bytes

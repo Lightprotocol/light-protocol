@@ -131,7 +131,7 @@ where
                     .take(ctoken_signer_seeds.len().saturating_sub(1))
                     .cloned()
                     .collect();
-                light_ctoken_interface::instructions::extensions::compressible::CompressToPubkey {
+                light_ctoken_interface::instructions::extensions::CompressToPubkey {
                     bump,
                     program_id: program_id.to_bytes(),
                     seeds: seeds_without_bump,

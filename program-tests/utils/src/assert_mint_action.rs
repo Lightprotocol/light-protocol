@@ -4,8 +4,7 @@ use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
 use light_compressed_account::compressed_account::CompressedAccountData;
 use light_ctoken_interface::state::{
-    extensions::{AdditionalMetadata, ExtensionStruct},
-    CToken, CompressedMint,
+    extensions::AdditionalMetadata, CToken, CompressedMint, ExtensionStruct,
 };
 use light_program_test::{LightProgramTest, Rpc};
 use light_token_client::instructions::mint_action::MintActionType;
@@ -115,13 +114,6 @@ pub async fn assert_mint_action(
             }
             MintActionType::CompressAndCloseCMint { .. } => {
                 expected_mint.metadata.cmint_decompressed = false;
-                // Remove Compressible extension
-                if let Some(ref mut extensions) = expected_mint.extensions {
-                    extensions.retain(|e| !matches!(e, ExtensionStruct::Compressible(_)));
-                    if extensions.is_empty() {
-                        expected_mint.extensions = None;
-                    }
-                }
             }
         }
     }
@@ -158,16 +150,11 @@ pub async fn assert_mint_action(
             "CMint metadata should match expected mint metadata"
         );
 
-        // CMint should have Compressible extension
-        assert!(
-            cmint
-                .extensions
-                .as_ref()
-                .map(|exts| exts
-                    .iter()
-                    .any(|e| matches!(e, ExtensionStruct::Compressible(_))))
-                .unwrap_or(false),
-            "CMint should have Compressible extension when decompressed"
+        // CMint compression info should be set (non-default) when decompressed
+        assert_ne!(
+            cmint.compression,
+            light_compressible::compression_info::CompressionInfo::default(),
+            "CMint compression info should be set when decompressed"
         );
 
         // Compressed account should have zero sentinel values
@@ -206,16 +193,12 @@ pub async fn assert_mint_action(
             "Compressed mint state after mint_action should match expected"
         );
 
-        // Compressed mint should NEVER have Compressible extension
-        // (Compressible only lives in CMint Solana account, not in compressed account)
-        if let Some(ref extensions) = actual_mint.extensions {
-            assert!(
-                !extensions
-                    .iter()
-                    .any(|e| matches!(e, ExtensionStruct::Compressible(_))),
-                "Compressed mint should NEVER have Compressible extension"
-            );
-        }
+        // Compressed mint compression info should be default (not set)
+        assert_eq!(
+            actual_mint.compression,
+            light_compressible::compression_info::CompressionInfo::default(),
+            "Compressed mint compression info should be default when compressed"
+        );
     }
 
     // If CompressAndCloseCMint, verify CMint Solana account is closed
@@ -265,65 +248,32 @@ pub async fn assert_mint_action(
         let pre_lamports = pre_account.lamports;
         let post_lamports = account_data.lamports;
 
-        // Check if account has compressible extension (reuse pre_ctoken parsed earlier)
-        if let Some(extensions) = pre_ctoken.extensions.as_ref() {
-            // Look for compressible extension
-            let compressible_ext = extensions.iter().find_map(|ext| {
-                if let ExtensionStruct::Compressible(comp) = ext {
-                    Some(comp)
-                } else {
-                    None
-                }
-            });
+        // Calculate expected top-up using embedded compression info
+        let current_slot = rpc.get_slot().await.unwrap();
+        let account_size = pre_account.data.len() as u64;
+        let rent_exemption = rpc
+            .get_minimum_balance_for_rent_exemption(pre_account.data.len())
+            .await
+            .unwrap();
 
-            if let Some(compressible) = compressible_ext {
-                // Account has compressible extension - calculate expected top-up
-                let current_slot = rpc.get_slot().await.unwrap();
-                let account_size = pre_account.data.len() as u64;
-                let rent_exemption = rpc
-                    .get_minimum_balance_for_rent_exemption(pre_account.data.len())
-                    .await
-                    .unwrap();
+        let expected_top_up = pre_ctoken
+            .compression
+            .calculate_top_up_lamports(account_size, current_slot, pre_lamports, rent_exemption)
+            .unwrap();
 
-                let expected_top_up = compressible
-                    .info
-                    .calculate_top_up_lamports(
-                        account_size,
-                        current_slot,
-                        pre_lamports,
-                        rent_exemption,
-                    )
-                    .unwrap();
+        let actual_lamport_change = post_lamports
+            .checked_sub(pre_lamports)
+            .expect("Post lamports should be >= pre lamports");
 
-                let actual_lamport_change = post_lamports
-                    .checked_sub(pre_lamports)
-                    .expect("Post lamports should be >= pre lamports");
+        assert_eq!(
+            actual_lamport_change, expected_top_up,
+            "CToken account at {} should receive {} lamports top-up, got {}",
+            account_pubkey, expected_top_up, actual_lamport_change
+        );
 
-                assert_eq!(
-                    actual_lamport_change, expected_top_up,
-                    "CToken account at {} should receive {} lamports top-up for compressible extension, got {}",
-                    account_pubkey, expected_top_up, actual_lamport_change
-                );
-
-                println!(
-                        "✓ Lamport top-up validated: {} lamports transferred to compressible ctoken account {}",
-                        expected_top_up, account_pubkey
-                    );
-            } else {
-                // Has extensions but no compressible extension - lamports should not change
-                assert_eq!(
-                    pre_lamports, post_lamports,
-                    "Non-compressible CToken account at {} should not receive lamport top-up",
-                    account_pubkey
-                );
-            }
-        } else {
-            // No extensions - lamports should not change
-            assert_eq!(
-                pre_lamports, post_lamports,
-                "CToken account without extensions at {} should not receive lamport top-up",
-                account_pubkey
-            );
-        }
+        println!(
+            "✓ Lamport top-up validated: {} lamports transferred to compressible ctoken account {}",
+            expected_top_up, account_pubkey
+        );
     }
 }

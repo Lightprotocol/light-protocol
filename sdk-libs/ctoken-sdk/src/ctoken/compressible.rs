@@ -1,5 +1,5 @@
 use light_ctoken_interface::{
-    instructions::extensions::compressible::CompressToPubkey, state::TokenDataVersion,
+    instructions::create_ctoken_account::CompressToPubkey, state::TokenDataVersion,
 };
 use solana_account_info::AccountInfo;
 use solana_pubkey::Pubkey;

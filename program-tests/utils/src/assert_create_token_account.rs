@@ -1,13 +1,9 @@
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::rpc::Rpc;
-use light_compressible::rent::RentConfig;
+use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
 use light_ctoken_interface::{
-    state::{
-        ctoken::CToken,
-        extensions::{CompressibleExtension, CompressionInfo},
-        AccountState, ACCOUNT_TYPE_TOKEN_ACCOUNT,
-    },
-    BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+    state::{ctoken::CToken, AccountState, ACCOUNT_TYPE_TOKEN_ACCOUNT},
+    BASE_TOKEN_ACCOUNT_SIZE,
 };
 use light_ctoken_sdk::ctoken::derive_ctoken_ata;
 use light_program_test::LightProgramTest;
@@ -53,19 +49,16 @@ pub async fn assert_create_token_account_internal(
     match compressible_data {
         Some(compressible_info) => {
             // Validate compressible token account
-            assert_eq!(
-                account_info.data.len(),
-                COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
-            );
+            let account_size = account_info.data.len();
 
             // Calculate expected lamports balance
             let rent_exemption = rpc
-                .get_minimum_balance_for_rent_exemption(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize)
+                .get_minimum_balance_for_rent_exemption(account_size)
                 .await
                 .expect("Failed to get rent exemption");
 
             let rent_with_compression = RentConfig::default().get_rent_with_compression_cost(
-                COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+                account_size as u64,
                 compressible_info.num_prepaid_epochs as u64,
             );
             let expected_lamports = rent_exemption + rent_with_compression;
@@ -83,40 +76,30 @@ pub async fn assert_create_token_account_internal(
             // Get current slot for validation (program sets this to current slot)
             let current_slot = rpc.get_slot().await.expect("Failed to get current slot");
 
-            // Create expected compressible token account
+            // Create expected compressible token account with embedded compression info
             let expected_token_account = CToken {
                 mint: mint_pubkey.into(),
                 owner: owner_pubkey.into(),
                 amount: 0,
                 delegate: None,
-                state: AccountState::Initialized, // Initialized
+                state: AccountState::Initialized,
                 is_native: None,
                 delegated_amount: 0,
                 close_authority: None,
                 account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
-                extensions: Some(vec![
-                    light_ctoken_interface::state::extensions::ExtensionStruct::Compressible(
-                        CompressibleExtension {
-                            compression_only: false,
-                            decimals: 0,
-                            has_decimals: 0,
-                            info: CompressionInfo {
-                                config_account_version: 1,
-                                last_claimed_slot: current_slot,
-                                rent_config: RentConfig::default(),
-                                lamports_per_write: compressible_info
-                                    .lamports_per_write
-                                    .unwrap_or(0),
-                                compression_authority: compressible_info
-                                    .compression_authority
-                                    .to_bytes(),
-                                rent_sponsor: compressible_info.rent_sponsor.to_bytes(),
-                                compress_to_pubkey: compressible_info.compress_to_pubkey as u8,
-                                account_version: compressible_info.account_version as u8,
-                            },
-                        },
-                    ),
-                ]),
+                decimals: None,
+                compression_only: false,
+                compression: CompressionInfo {
+                    config_account_version: 1,
+                    last_claimed_slot: current_slot,
+                    rent_config: RentConfig::default(),
+                    lamports_per_write: compressible_info.lamports_per_write.unwrap_or(0),
+                    compression_authority: compressible_info.compression_authority.to_bytes(),
+                    rent_sponsor: compressible_info.rent_sponsor.to_bytes(),
+                    compress_to_pubkey: compressible_info.compress_to_pubkey as u8,
+                    account_version: compressible_info.account_version as u8,
+                },
+                extensions: None, // Compression info is now embedded, no extensions needed
             };
 
             assert_eq!(actual_token_account, expected_token_account);

@@ -106,7 +106,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         // Check if this account has marker extensions that require CompressedOnly in output
         let mut has_marker_extensions = false;
         let mut withheld_transfer_fee: u64 = 0;
-        let delegated_amount: u64 = (*ctoken.delegated_amount).into();
+        let delegated_amount: u64 = ctoken.delegated_amount.get();
         // AccountState::Frozen = 2 in CToken
         let is_frozen = ctoken.state == 2;
 
@@ -114,7 +114,9 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         if is_frozen {
             has_marker_extensions = true;
         }
-
+        if ctoken.compression_only() {
+            has_marker_extensions = true;
+        }
         if let Some(extensions) = &ctoken.extensions {
             for ext in extensions.iter() {
                 match ext {
@@ -126,12 +128,6 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
                     ZExtensionStruct::TransferFeeAccount(fee_ext) => {
                         has_marker_extensions = true;
                         withheld_transfer_fee = fee_ext.withheld_amount.into();
-                    }
-                    ZExtensionStruct::Compressible(compressible_ext) => {
-                        // If compression_only flag is set, we need CompressedOnly extension
-                        if compressible_ext.compression_only() {
-                            has_marker_extensions = true;
-                        }
                     }
                     _ => {}
                 }

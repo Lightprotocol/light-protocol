@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_ctoken_interface::{COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, CTOKEN_PROGRAM_ID};
+use light_ctoken_interface::{BASE_TOKEN_ACCOUNT_SIZE, CTOKEN_PROGRAM_ID};
 use light_program_test::LightProgramTest;
 use light_token_client::instructions::transfer2::{
     CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
@@ -385,28 +385,16 @@ pub async fn assert_transfer2_with_delegate(
                 let pre_token_account = SplTokenAccount::unpack(&pre_account_data.data[..165])
                     .expect("Failed to unpack SPL token account");
 
-                // Check if compress_to_pubkey is set in the compressible extension
-                use light_ctoken_interface::state::{ctoken::CToken, ZExtensionStruct};
+                // Check if compress_to_pubkey is set in the compression info
+                use light_ctoken_interface::state::ctoken::CToken;
                 use light_zero_copy::traits::ZeroCopyAt;
 
                 let compress_to_pubkey = if pre_account_data.data.len() > 165 {
-                    // Has extensions, check for compressible extension
+                    // Parse ctoken account and get compress_to_pubkey from embedded compression info
                     let (ctoken, _) = CToken::zero_copy_at(&pre_account_data.data)
                         .expect("Failed to deserialize ctoken account");
 
-                    if let Some(extensions) = ctoken.extensions.as_ref() {
-                        extensions
-                            .iter()
-                            .find_map(|ext| match ext {
-                                ZExtensionStruct::Compressible(comp) => {
-                                    Some(comp.info.compress_to_pubkey == 1)
-                                }
-                                _ => None,
-                            })
-                            .unwrap_or(false)
-                    } else {
-                        false
-                    }
+                    ctoken.meta.compression.compress_to_pubkey == 1
                 } else {
                     false
                 };
@@ -475,11 +463,11 @@ pub async fn assert_transfer2_with_delegate(
                 // TLV contains CompressedOnly extension when:
                 // - Account is frozen (is_frozen=true)
                 // - Account has delegated_amount > 0
-                // - Account has extensions beyond base + Compressible (size > COMPRESSIBLE_TOKEN_ACCOUNT_SIZE)
+                // - Account has extensions beyond base (size > BASE_TOKEN_ACCOUNT_SIZE)
                 // - Account has withheld_transfer_fee > 0 (from TransferFeeAccount extension)
                 let has_delegated_amount = pre_token_account.delegated_amount > 0;
                 let has_extra_extensions =
-                    pre_account_data.data.len() > COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize;
+                    pre_account_data.data.len() > BASE_TOKEN_ACCOUNT_SIZE as usize;
                 let needs_tlv = is_frozen || has_delegated_amount || has_extra_extensions;
 
                 let expected_tlv = if needs_tlv {

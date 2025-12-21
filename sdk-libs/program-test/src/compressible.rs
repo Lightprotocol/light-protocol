@@ -14,7 +14,7 @@ use light_compressible::rent::RentConfig;
 #[cfg(feature = "devenv")]
 use light_compressible::rent::SLOTS_PER_EPOCH;
 #[cfg(feature = "devenv")]
-use light_ctoken_interface::state::{CToken, ExtensionStruct};
+use light_ctoken_interface::state::CToken;
 #[cfg(feature = "devenv")]
 use light_sdk::compressible::CompressibleConfig as CpdaCompressibleConfig;
 #[cfg(feature = "devenv")]
@@ -94,33 +94,27 @@ pub async fn claim_and_compress(
         .filter(|e| e.1.data.len() > 200 && e.1.lamports > 0)
     {
         let des_account = CToken::deserialize(&mut account.1.data.as_slice())?;
-        if let Some(extensions) = des_account.extensions.as_ref() {
-            for extension in extensions.iter() {
-                if let ExtensionStruct::Compressible(e) = extension {
-                    let base_lamports = rpc
-                        .get_minimum_balance_for_rent_exemption(account.1.data.len())
-                        .await
-                        .unwrap();
-                    let last_funded_epoch = e
-                        .info
-                        .get_last_funded_epoch(
-                            account.1.data.len() as u64,
-                            account.1.lamports,
-                            base_lamports,
-                        )
-                        .unwrap();
-                    let last_funded_slot = last_funded_epoch * SLOTS_PER_EPOCH;
-                    stored_compressible_accounts.insert(
-                        account.0,
-                        StoredCompressibleAccount {
-                            pubkey: account.0,
-                            last_paid_slot: last_funded_slot,
-                            account: des_account.clone(),
-                        },
-                    );
-                }
-            }
-        }
+        let base_lamports = rpc
+            .get_minimum_balance_for_rent_exemption(account.1.data.len())
+            .await
+            .unwrap();
+        let last_funded_epoch = des_account
+            .compression
+            .get_last_funded_epoch(
+                account.1.data.len() as u64,
+                account.1.lamports,
+                base_lamports,
+            )
+            .unwrap();
+        let last_funded_slot = last_funded_epoch * SLOTS_PER_EPOCH;
+        stored_compressible_accounts.insert(
+            account.0,
+            StoredCompressibleAccount {
+                pubkey: account.0,
+                last_paid_slot: last_funded_slot,
+                account: des_account.clone(),
+            },
+        );
     }
 
     let current_slot = rpc.get_slot().await?;
@@ -135,37 +129,31 @@ pub async fn claim_and_compress(
             .get_minimum_balance_for_rent_exemption(account.data.len())
             .await?;
 
-        // Get compressible extension
-        if let Some(extensions) = stored_account.account.extensions.as_ref() {
-            for extension in extensions.iter() {
-                if let ExtensionStruct::Compressible(comp_ext) = extension {
-                    use light_compressible::rent::AccountRentState;
+        use light_compressible::rent::AccountRentState;
 
-                    // Create state for rent calculation
-                    let state = AccountRentState {
-                        num_bytes: account.data.len() as u64,
-                        current_slot,
-                        current_lamports: account.lamports,
-                        last_claimed_slot: comp_ext.info.last_claimed_slot,
-                    };
+        let compression = &stored_account.account.compression;
 
-                    // Check what action is needed
-                    match state.calculate_claimable_rent(&comp_ext.info.rent_config, rent_exemption)
-                    {
-                        None => {
-                            // Account is compressible (has rent deficit)
-                            compress_accounts.push(*pubkey);
-                        }
-                        Some(claimable_amount) if claimable_amount > 0 => {
-                            // Has rent to claim from completed epochs
-                            claim_accounts.push(*pubkey);
-                        }
-                        Some(_) => {
-                            // Well-funded, nothing to claim (0 completed epochs)
-                            // Do nothing - skip this account
-                        }
-                    }
-                }
+        // Create state for rent calculation
+        let state = AccountRentState {
+            num_bytes: account.data.len() as u64,
+            current_slot,
+            current_lamports: account.lamports,
+            last_claimed_slot: compression.last_claimed_slot,
+        };
+
+        // Check what action is needed
+        match state.calculate_claimable_rent(&compression.rent_config, rent_exemption) {
+            None => {
+                // Account is compressible (has rent deficit)
+                compress_accounts.push(*pubkey);
+            }
+            Some(claimable_amount) if claimable_amount > 0 => {
+                // Has rent to claim from completed epochs
+                claim_accounts.push(*pubkey);
+            }
+            Some(_) => {
+                // Well-funded, nothing to claim (0 completed epochs)
+                // Do nothing - skip this account
             }
         }
     }

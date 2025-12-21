@@ -6122,6 +6122,7 @@ dependencies = [
  "borsh 0.10.4",
  "light-client",
  "light-compressed-account",
+ "light-compressible",
  "light-compressible-client",
  "light-ctoken-interface",
  "light-ctoken-sdk",

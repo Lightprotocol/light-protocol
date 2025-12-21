@@ -11,7 +11,10 @@ use spl_pod::solana_msg::msg;
 
 use crate::state::CToken;
 use crate::{
-    state::{ExtensionStruct, ZExtensionStruct, ZExtensionStructMut, ACCOUNT_TYPE_TOKEN_ACCOUNT},
+    state::{
+        ExtensionStruct, ExtensionStructConfig, ZExtensionStruct, ZExtensionStructMut,
+        ACCOUNT_TYPE_TOKEN_ACCOUNT,
+    },
     AnchorDeserialize, AnchorSerialize,
 };
 pub const BASE_TOKEN_ACCOUNT_SIZE: u64 = CTokenZeroCopyMeta::LEN as u64;
@@ -82,11 +85,8 @@ pub struct CompressedTokenConfig {
     pub state: u8,
     /// Whether account is compression-only (cannot decompress)
     pub compression_only: bool,
-    /// Extension flags
-    pub has_pausable: bool,
-    pub has_permanent_delegate: bool,
-    pub has_transfer_fee: bool,
-    pub has_transfer_hook: bool,
+    /// Extensions to include in the account
+    pub extensions: Option<Vec<ExtensionStructConfig>>,
 }
 
 impl<'a> ZeroCopyNew<'a> for CToken {
@@ -96,12 +96,16 @@ impl<'a> ZeroCopyNew<'a> for CToken {
     fn byte_len(
         config: &Self::ZeroCopyConfig,
     ) -> Result<usize, light_zero_copy::errors::ZeroCopyError> {
-        Ok(crate::state::calculate_ctoken_account_size(
-            config.has_pausable,
-            config.has_permanent_delegate,
-            config.has_transfer_fee,
-            config.has_transfer_hook,
-        ) as usize)
+        let mut size = BASE_TOKEN_ACCOUNT_SIZE as usize;
+        if let Some(extensions) = &config.extensions {
+            if !extensions.is_empty() {
+                size += 4; // Vec length prefix
+                for ext in extensions {
+                    size += ExtensionStruct::byte_len(ext)?;
+                }
+            }
+        }
+        Ok(size)
     }
 
     fn new_zero_copy(
@@ -124,39 +128,20 @@ impl<'a> ZeroCopyNew<'a> for CToken {
         meta.account_type = ACCOUNT_TYPE_TOKEN_ACCOUNT;
         meta.compression_only = config.compression_only as u8;
 
-        // Write extensions directly into bytes based on flags
-        let has_any_extension = config.has_pausable
-            || config.has_permanent_delegate
-            || config.has_transfer_fee
-            || config.has_transfer_hook;
+        // Write extensions using ExtensionStruct::new_zero_copy
+        if let Some(extensions) = config.extensions {
+            if !extensions.is_empty() {
+                *meta.has_extensions = 1u8;
 
-        if has_any_extension {
-            *meta.has_extensions = 1u8;
+                // Write Vec length prefix (4 bytes, little-endian u32)
+                remaining[..4].copy_from_slice(&(extensions.len() as u32).to_le_bytes());
+                remaining = &mut remaining[4..];
 
-            // Write PausableAccount extension (discriminator 27, 0 bytes data)
-            if config.has_pausable {
-                remaining[0] = 27;
-                remaining = &mut remaining[1..];
-            }
-
-            // Write PermanentDelegateAccount extension (discriminator 28, 0 bytes data)
-            if config.has_permanent_delegate {
-                remaining[0] = 28;
-                remaining = &mut remaining[1..];
-            }
-
-            // Write TransferFeeAccount extension (discriminator 29, 8 bytes withheld_amount = 0)
-            if config.has_transfer_fee {
-                remaining[0] = 29;
-                // withheld_amount is already zeroed
-                remaining = &mut remaining[9..];
-            }
-
-            // Write TransferHookAccount extension (discriminator 30, 1 byte transferring = false)
-            if config.has_transfer_hook {
-                remaining[0] = 30;
-                remaining[1] = 0; // transferring = false
-                remaining = &mut remaining[2..];
+                // Write each extension
+                for ext_config in extensions {
+                    let (_, rest) = ExtensionStruct::new_zero_copy(remaining, ext_config)?;
+                    remaining = rest;
+                }
             }
         }
 

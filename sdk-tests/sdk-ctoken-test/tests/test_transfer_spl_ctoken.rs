@@ -5,7 +5,7 @@ mod shared;
 use borsh::BorshSerialize;
 use light_client::rpc::Rpc;
 use light_ctoken_sdk::{
-    ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount},
+    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
     spl_interface::find_spl_interface_pda_with_index,
 };
 use light_ctoken_types::CPI_AUTHORITY_PDA;
@@ -481,7 +481,6 @@ async fn test_ctoken_to_spl_invoke_signed() {
     .unwrap();
 
     // Create ctoken ATA owned by the PDA
-    // We need to use a non-compressible ATA so it can be owned by a PDA
     let (ctoken_account, bump) = derive_ctoken_ata(&authority_pda, &mint);
     let instruction = CreateAssociatedCTokenAccount {
         idempotent: false,
@@ -490,7 +489,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
         owner: authority_pda,
         mint,
         associated_token_account: ctoken_account,
-        compressible: None, // Non-compressible so PDA can own it
+        compressible: CompressibleParams::default(),
     }
     .instruction()
     .unwrap();

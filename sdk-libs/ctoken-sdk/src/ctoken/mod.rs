@@ -99,7 +99,7 @@ pub use freeze::*;
 use light_compressible::config::CompressibleConfig;
 pub use light_ctoken_interface::{
     instructions::{
-        extensions::{compressible::CompressToPubkey, ExtensionInstructionData},
+        create_ctoken_account::CompressToPubkey, extensions::ExtensionInstructionData,
         mint_action::CompressedMintWithContext,
     },
     state::{CToken, TokenDataVersion},

@@ -1,6 +1,6 @@
 use light_client::rpc::Rpc;
 use light_compressible::rent::AccountRentState;
-use light_ctoken_interface::state::{ctoken::CToken, ZExtensionStruct};
+use light_ctoken_interface::state::ctoken::CToken;
 use light_program_test::LightProgramTest;
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_sdk::{pubkey::Pubkey, signer::Signer};
@@ -43,66 +43,21 @@ pub async fn assert_close_token_account(
         .get_pre_transaction_account(&authority_pubkey)
         .map(|acc| acc.lamports)
         .unwrap_or(0);
-    // Verify authority received correct amount (account may not exist if never funded)
-    let final_authority_lamports = rpc
-        .get_account(authority_pubkey)
-        .await
-        .expect("Failed to get authority account")
-        .map(|acc| acc.lamports)
-        .unwrap_or(0);
-    // Validate compressible account closure (we already have the parsed data)
-    // Extract the compressible extension (already parsed above)
-    if let Some(extension) = compressed_token.extensions.as_ref() {
-        assert_compressible_extension(
-            rpc,
-            extension,
-            authority_pubkey,
-            account_data_before_close,
-            account_lamports_before_close,
-            initial_authority_lamports,
-            destination,
-        )
-        .await;
-    } else {
-        // For non-compressible accounts, all lamports go to the destination
-        // Get initial destination balance from pre-transaction context
-        let initial_destination_lamports = rpc
-            .get_pre_transaction_account(&destination)
-            .map(|acc| acc.lamports)
-            .unwrap_or(0);
 
-        // Get final destination balance
-        let final_destination_lamports = rpc
-            .get_account(destination)
-            .await
-            .expect("Failed to get destination account")
-            .expect("Destination account should exist")
-            .lamports;
+    // Validate compressible account closure using embedded compression info
+    // Check if compression info is present (non-zero compression_authority indicates compressible)
+    let compression = &compressed_token.meta.compression;
 
-        assert_eq!(
-            final_destination_lamports,
-            initial_destination_lamports + account_lamports_before_close,
-            "Destination should receive all {} lamports from closed account",
-            account_lamports_before_close
-        );
-
-        // For non-compressible accounts, authority balance check depends on if they're also the destination
-        if authority_pubkey == destination {
-            // Authority is the destination, they receive the lamports
-            assert_eq!(
-                final_authority_lamports,
-                initial_authority_lamports + account_lamports_before_close,
-                "Authority (as destination) should receive all {} lamports for non-compressible account closure",
-                account_lamports_before_close
-            );
-        } else {
-            // Authority is not the destination, shouldn't receive anything
-            assert_eq!(
-                final_authority_lamports, initial_authority_lamports,
-                "Authority (not destination) should not receive any lamports for non-compressible account closure"
-            );
-        }
-    };
+    assert_compressible_extension(
+        rpc,
+        compression,
+        authority_pubkey,
+        account_data_before_close,
+        account_lamports_before_close,
+        initial_authority_lamports,
+        destination,
+    )
+    .await;
 }
 
 /// 1. if authority is owner
@@ -113,23 +68,13 @@ pub async fn assert_close_token_account(
 ///     - all funds (rent exemption + remaining) should go to rent recipient
 async fn assert_compressible_extension(
     rpc: &mut LightProgramTest,
-    extension: &[ZExtensionStruct<'_>],
+    compression: &light_compressible::compression_info::ZCompressionInfo<'_>,
     authority_pubkey: Pubkey,
     account_data_before_close: &[u8],
     account_lamports_before_close: u64,
     initial_authority_lamports: u64,
     destination_pubkey: Pubkey,
 ) {
-    let compressible_extension = extension
-        .iter()
-        .find_map(|ext| match ext {
-            light_ctoken_interface::state::extensions::ZExtensionStruct::Compressible(comp) => {
-                Some(comp)
-            }
-            _ => None,
-        })
-        .expect("If a token account has extensions it must be a compressible extension");
-
     // Get initial destination balance from pre-transaction context
     let initial_destination_lamports = rpc
         .get_pre_transaction_account(&destination_pubkey)
@@ -158,20 +103,20 @@ async fn assert_compressible_extension(
     // Get the transaction payer (who pays the tx fee)
     let payer_pubkey = rpc.get_payer().pubkey();
 
-    // Verify compressible extension fields are valid
+    // Verify compression info fields are valid
     let current_slot = rpc.get_slot().await.expect("Failed to get current slot");
     assert!(
-        u64::from(compressible_extension.info.last_claimed_slot) <= current_slot,
+        u64::from(compression.last_claimed_slot) <= current_slot,
         "Last claimed slot ({}) should not be greater than current slot ({})",
-        u64::from(compressible_extension.info.last_claimed_slot),
+        u64::from(compression.last_claimed_slot),
         current_slot
     );
 
     // Verify config_account_version is initialized
     assert!(
-        compressible_extension.info.config_account_version == 1,
+        compression.config_account_version == 1,
         "Config account version should be 1 (initialized), got {}",
-        compressible_extension.info.config_account_version
+        compression.config_account_version
     );
 
     // Calculate expected lamport distribution using the same function as the program
@@ -186,31 +131,21 @@ async fn assert_compressible_extension(
         num_bytes: account_size,
         current_slot,
         current_lamports: account_lamports_before_close,
-        last_claimed_slot: u64::from(compressible_extension.info.last_claimed_slot),
+        last_claimed_slot: u64::from(compression.last_claimed_slot),
     };
 
-    let distribution =
-        state.calculate_close_distribution(&compressible_extension.info.rent_config, base_lamports);
+    let distribution = state.calculate_close_distribution(&compression.rent_config, base_lamports);
     let (mut lamports_to_rent_sponsor, mut lamports_to_destination) =
         (distribution.to_rent_sponsor, distribution.to_user);
 
-    let compression_cost: u64 = compressible_extension
-        .info
-        .rent_config
-        .compression_cost
-        .into();
+    let compression_cost: u64 = compression.rent_config.compression_cost.into();
 
-    // Get the rent recipient from the extension
-    let rent_sponsor = Pubkey::from(compressible_extension.info.rent_sponsor);
+    // Get the rent recipient from the compression info
+    let rent_sponsor = Pubkey::from(compression.rent_sponsor);
 
-    // Check if rent authority is the signer
-    // Check if compression_authority is set (non-zero)
+    // Check if compression_authority is the signer
     let is_compression_authority_signer =
-        if compressible_extension.info.compression_authority != [0u8; 32] {
-            authority_pubkey == Pubkey::from(compressible_extension.info.compression_authority)
-        } else {
-            false
-        };
+        authority_pubkey == Pubkey::from(compression.compression_authority);
 
     // Adjust distribution based on who signed (matching processor logic)
     if is_compression_authority_signer {
