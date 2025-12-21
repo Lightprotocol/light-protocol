@@ -168,24 +168,40 @@ async fn test_create_ata_idempotent() {
         // Verify the account still has the same properties (unchanged by second creation)
         let account = context.rpc.get_account(ata_pubkey).await.unwrap().unwrap();
 
-        // Should still be compressible size (COMPRESSIBLE_TOKEN_ACCOUNT_SIZE bytes)
+        // Should still be compressible size (BASE_TOKEN_ACCOUNT_SIZE bytes)
         assert_eq!(
             account.data.len(),
-            light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize,
+            light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE as usize,
             "Account should still be compressible size after idempotent recreation"
         );
     }
 }
 
+/// Tests creation of an ATA with 0 prepaid epochs (immediately compressible).
+/// All CToken accounts now have compression infrastructure, so we pass
+/// CompressibleData with num_prepaid_epochs: 0.
 #[tokio::test]
 async fn test_create_non_compressible_ata() {
     let mut context = setup_account_test().await.unwrap();
+    let payer_pubkey = context.payer.pubkey();
+
+    // All accounts now have compression infrastructure, so pass CompressibleData
+    // with 0 prepaid epochs (immediately compressible)
+    let compressible_data = CompressibleData {
+        compression_authority: context.compression_authority,
+        rent_sponsor: context.rent_sponsor,
+        num_prepaid_epochs: 0,
+        lamports_per_write: None,
+        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compress_to_pubkey: false,
+        payer: payer_pubkey,
+    };
 
     create_and_assert_ata(
         &mut context,
-        None,  // Non-compressible
+        Some(compressible_data),
         false, // Non-idempotent
-        "non_compressible_ata",
+        "ata_zero_epochs",
     )
     .await;
 }
@@ -312,7 +328,7 @@ async fn test_create_ata_failing() {
         use anchor_lang::prelude::borsh::BorshSerialize;
         use light_ctoken_interface::instructions::{
             create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
-            extensions::compressible::{CompressToPubkey, CompressibleExtensionInstructionData},
+            create_ctoken_account::CompressToPubkey,
         };
         use solana_sdk::instruction::Instruction;
 
@@ -321,7 +337,7 @@ async fn test_create_ata_failing() {
         let (ata_pubkey, bump) =
             derive_ctoken_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
-        // Manually build instruction data with compress_to_account_pubkey (forbidden)
+        // Manually build instruction data with compress_to_account_pubkey (forbidden for ATAs)
         let compress_to_pubkey = CompressToPubkey {
             bump: 255,
             program_id: light_compressed_token::ID.to_bytes(),
@@ -330,14 +346,11 @@ async fn test_create_ata_failing() {
 
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
             bump,
-            compressible_config: Some(CompressibleExtensionInstructionData {
-                compression_only: 0,
-                token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat
-                    as u8,
-                rent_payment: 2,
-                write_top_up: 100,
-                compress_to_account_pubkey: Some(compress_to_pubkey), // Forbidden for ATAs!
-            }),
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat as u8,
+            rent_payment: 2,
+            compression_only: 0,
+            write_top_up: 100,
+            compressible_config: Some(compress_to_pubkey), // Forbidden for ATAs!
         };
 
         let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
@@ -381,10 +394,7 @@ async fn test_create_ata_failing() {
     // Error: 21 (ProgramFailedToComplete - provided seeds do not result in valid address)
     {
         use anchor_lang::prelude::borsh::BorshSerialize;
-        use light_ctoken_interface::instructions::{
-            create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
-            extensions::compressible::CompressibleExtensionInstructionData,
-        };
+        use light_ctoken_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
         use solana_sdk::instruction::Instruction;
 
         // Use different mint for this test
@@ -402,14 +412,11 @@ async fn test_create_ata_failing() {
         // Owner and mint are now passed as accounts, not in instruction data
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
             bump: wrong_bump, // Wrong bump!
-            compressible_config: Some(CompressibleExtensionInstructionData {
-                compression_only: 0,
-                token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat
-                    as u8,
-                rent_payment: 2,
-                write_top_up: 100,
-                compress_to_account_pubkey: None,
-            }),
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat as u8,
+            rent_payment: 2,
+            compression_only: 0,
+            write_top_up: 100,
+            compressible_config: None,
         };
 
         let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
@@ -629,13 +636,17 @@ async fn test_create_ata_failing() {
         // Build instruction with correct bump but WRONG address (arbitrary keypair)
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
             bump: correct_bump, // Correct bump for the real PDA
+            token_account_version: 0,
+            rent_payment: 0,
+            compression_only: 0,
+            write_top_up: 0,
             compressible_config: None,
         };
 
         let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
-        // Account order: owner, mint, payer, ata (fake!), system_program
+        // Account order: owner, mint, payer, ata (fake!), system_program, compressible_config, rent_sponsor
         let ix = Instruction {
             program_id: light_compressed_token::ID,
             accounts: vec![
@@ -650,6 +661,11 @@ async fn test_create_ata_failing() {
                     solana_sdk::pubkey::Pubkey::default(),
                     false,
                 ),
+                solana_sdk::instruction::AccountMeta::new_readonly(
+                    context.compressible_config,
+                    false,
+                ),
+                solana_sdk::instruction::AccountMeta::new(context.rent_sponsor, false),
             ],
             data,
         };
@@ -786,6 +802,7 @@ async fn test_ata_multiple_owners_same_mint() {
         owner1,
         mint,
         Some(compressible_data.clone()),
+        None,
     )
     .await;
 
@@ -808,6 +825,7 @@ async fn test_ata_multiple_owners_same_mint() {
         owner2,
         mint,
         Some(compressible_data.clone()),
+        None,
     )
     .await;
 
@@ -830,6 +848,7 @@ async fn test_ata_multiple_owners_same_mint() {
         owner3,
         mint,
         Some(compressible_data.clone()),
+        None,
     )
     .await;
 

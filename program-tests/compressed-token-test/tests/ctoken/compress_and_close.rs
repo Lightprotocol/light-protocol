@@ -1,5 +1,4 @@
 use light_client::rpc::Rpc;
-use light_ctoken_interface::state::ZExtensionStructMut;
 use light_zero_copy::traits::ZeroCopyAtMut;
 use solana_sdk::signer::Signer;
 
@@ -249,7 +248,7 @@ async fn test_compress_and_close_rent_authority_scenarios() {
             .rpc
             .airdrop_lamports(
                 &token_account_pubkey,
-                RentConfig::default().get_rent(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, 1),
+                RentConfig::default().get_rent(BASE_TOKEN_ACCOUNT_SIZE, 1),
             )
             .await
             .unwrap();
@@ -437,15 +436,8 @@ async fn test_compress_and_close_compress_to_pubkey() {
         let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut token_account.data)
             .expect("Failed to deserialize ctoken account");
 
-        // Modify compress_to_pubkey in the compressible extension
-        if let Some(extensions) = ctoken.extensions.as_mut() {
-            for ext in extensions.iter_mut() {
-                if let ZExtensionStructMut::Compressible(ref mut comp) = ext {
-                    comp.info.compress_to_pubkey = 1;
-                    break;
-                }
-            }
-        }
+        // Modify compress_to_pubkey in the compression field (now on meta, not extension)
+        ctoken.meta.compression.compress_to_pubkey = 1;
 
         // Write the modified account back
         context.rpc.set_account(token_account_pubkey, token_account);
@@ -507,7 +499,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
     // Create system account with compressible size
     let rent_exemption = context
         .rpc
-        .get_minimum_balance_for_rent_exemption(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize)
+        .get_minimum_balance_for_rent_exemption(BASE_TOKEN_ACCOUNT_SIZE as usize)
         .await
         .unwrap();
 
@@ -568,6 +560,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
             account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
+        None,
     )
     .await;
 
@@ -582,7 +575,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
         .expect("Payer should exist")
         .lamports;
     let rent = RentConfig::default()
-        .get_rent_with_compression_cost(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, num_prepaid_epochs as u64);
+        .get_rent_with_compression_cost(BASE_TOKEN_ACCOUNT_SIZE, num_prepaid_epochs as u64);
     let tx_fee = 10_000; // Standard transaction fee
     assert_eq!(
         pool_balance_before - payer_balance_after,
@@ -607,8 +600,8 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
             .unwrap()
             .expect("Payer should exist")
             .lamports;
-        let rent = RentConfig::default()
-            .get_rent(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, num_prepaid_epochs as u64);
+        let rent =
+            RentConfig::default().get_rent(BASE_TOKEN_ACCOUNT_SIZE, num_prepaid_epochs as u64);
         assert_eq!(
             payer_balance_after,
             payer_balance_before + rent_exemption + rent,
@@ -775,15 +768,8 @@ async fn test_compress_and_close_output_validation_errors() {
         let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut token_account.data)
             .expect("Failed to deserialize ctoken account");
 
-        // Set compress_to_pubkey=true in the compressible extension
-        if let Some(extensions) = ctoken.extensions.as_mut() {
-            for ext in extensions.iter_mut() {
-                if let ZExtensionStructMut::Compressible(ref mut comp) = ext {
-                    comp.info.compress_to_pubkey = 1;
-                    break;
-                }
-            }
-        }
+        // Set compress_to_pubkey=true in the compression field (now on meta, not extension)
+        ctoken.meta.compression.compress_to_pubkey = 1;
 
         // Write the modified account back
         context.rpc.set_account(token_account_pubkey, token_account);

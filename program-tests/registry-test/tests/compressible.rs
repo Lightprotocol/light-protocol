@@ -6,7 +6,7 @@ use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_compressible::{
     config::CompressibleConfig, error::CompressibleError, rent::SLOTS_PER_EPOCH,
 };
-use light_ctoken_interface::state::{CToken, ExtensionStruct};
+use light_ctoken_interface::state::CToken;
 use light_ctoken_sdk::ctoken::{
     derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount,
 };
@@ -1128,7 +1128,7 @@ async fn assert_not_compressible<R: Rpc>(
     name: &str,
 ) -> Result<(), RpcError> {
     use borsh::BorshDeserialize;
-    use light_ctoken_interface::state::{CToken, ExtensionStruct};
+    use light_ctoken_interface::state::CToken;
 
     let account = rpc
         .get_account(account_pubkey)
@@ -1142,62 +1142,44 @@ async fn assert_not_compressible<R: Rpc>(
     let ctoken = CToken::deserialize(&mut account.data.as_slice())
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to deserialize CToken: {:?}", e)))?;
 
-    if let Some(extensions) = ctoken.extensions.as_ref() {
-        for ext in extensions.iter() {
-            if let ExtensionStruct::Compressible(compressible_ext) = ext {
-                let current_slot = rpc.get_slot().await?;
+    // CompressionInfo is now embedded directly in ctoken.compression
+    let compression_info = &ctoken.compression;
+    let current_slot = rpc.get_slot().await?;
 
-                // Check if account is compressible using AccountRentState
-                let state = light_compressible::rent::AccountRentState {
-                    num_bytes: account.data.len() as u64,
-                    current_slot,
-                    current_lamports: account.lamports,
-                    last_claimed_slot: compressible_ext.info.last_claimed_slot,
-                };
-                let is_compressible =
-                    state.is_compressible(&compressible_ext.info.rent_config, rent_exemption);
+    // Check if account is compressible using AccountRentState
+    let state = light_compressible::rent::AccountRentState {
+        num_bytes: account.data.len() as u64,
+        current_slot,
+        current_lamports: account.lamports,
+        last_claimed_slot: compression_info.last_claimed_slot,
+    };
+    let is_compressible = state.is_compressible(&compression_info.rent_config, rent_exemption);
 
-                assert!(
-                    is_compressible.is_none(),
-                    "{} should NOT be compressible (well-funded), but has deficit: {:?}",
-                    name,
-                    is_compressible
-                );
+    assert!(
+        is_compressible.is_none(),
+        "{} should NOT be compressible (well-funded), but has deficit: {:?}",
+        name,
+        is_compressible
+    );
 
-                // Also verify last_funded_epoch is ahead of current
-                let last_funded_epoch = compressible_ext
-                    .info
-                    .get_last_funded_epoch(
-                        account.data.len() as u64,
-                        account.lamports,
-                        rent_exemption,
-                    )
-                    .map_err(|e| {
-                        RpcError::AssertRpcError(format!(
-                            "Failed to get last funded epoch: {:?}",
-                            e
-                        ))
-                    })?;
+    // Also verify last_funded_epoch is ahead of current
+    let last_funded_epoch = compression_info
+        .get_last_funded_epoch(account.data.len() as u64, account.lamports, rent_exemption)
+        .map_err(|e| {
+            RpcError::AssertRpcError(format!("Failed to get last funded epoch: {:?}", e))
+        })?;
 
-                let current_epoch = slot_to_epoch(current_slot);
+    let current_epoch = slot_to_epoch(current_slot);
 
-                assert!(
-                    last_funded_epoch >= current_epoch,
-                    "{} last_funded_epoch ({}) should be >= current_epoch ({})",
-                    name,
-                    last_funded_epoch,
-                    current_epoch
-                );
+    assert!(
+        last_funded_epoch >= current_epoch,
+        "{} last_funded_epoch ({}) should be >= current_epoch ({})",
+        name,
+        last_funded_epoch,
+        current_epoch
+    );
 
-                return Ok(());
-            }
-        }
-    }
-
-    Err(RpcError::AssertRpcError(format!(
-        "{} does not have compressible extension",
-        name
-    )))
+    Ok(())
 }
 
 #[tokio::test]
@@ -1258,13 +1240,15 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     // Mint 1,000,000 tokens to Account A
     let transfer_amount = 1_000_000u64;
     {
-        use light_ctoken_interface::state::CToken;
-        use light_zero_copy::traits::ZeroCopyAtMut;
+        use anchor_spl::token_2022::spl_token_2022;
+        use solana_sdk::program_pack::Pack;
 
         let mut account_data = rpc.get_account(account_a).await?.unwrap();
-        let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut account_data.data)
-            .map_err(|e| RpcError::AssertRpcError(format!("Failed to parse CToken: {:?}", e)))?;
-        *ctoken.amount = transfer_amount.into();
+        // Unpack and modify the SPL token portion (first 165 bytes)
+        let mut spl_account =
+            spl_token_2022::state::Account::unpack(&account_data.data[..165]).unwrap();
+        spl_account.amount = transfer_amount;
+        spl_token_2022::state::Account::pack(spl_account, &mut account_data.data[..165]).unwrap();
         rpc.set_account(account_a, account_data);
     }
 
@@ -1272,19 +1256,8 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     let ctoken_a = CToken::deserialize(&mut account_a_data.data.as_slice())
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to deserialize CToken: {:?}", e)))?;
 
-    let rent_config = ctoken_a
-        .extensions
-        .as_ref()
-        .and_then(|exts| {
-            exts.iter().find_map(|ext| {
-                if let ExtensionStruct::Compressible(comp) = ext {
-                    Some(comp.info.rent_config)
-                } else {
-                    None
-                }
-            })
-        })
-        .ok_or_else(|| RpcError::AssertRpcError("No compressible extension found".to_string()))?;
+    // CompressionInfo is now embedded directly in ctoken.compression
+    let rent_config = ctoken_a.compression.rent_config;
 
     let account_size = account_a_data.data.len() as u64;
     let rent_per_epoch = rent_config.rent_curve_per_epoch(account_size);
@@ -1304,16 +1277,8 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
             RpcError::AssertRpcError(format!("Failed to deserialize CToken: {:?}", e))
         })?;
 
-        if let Some(extensions) = ctoken.extensions.as_ref() {
-            for ext in extensions.iter() {
-                if let ExtensionStruct::Compressible(comp) = ext {
-                    return Ok(comp.info.last_claimed_slot);
-                }
-            }
-        }
-        Err(RpcError::AssertRpcError(
-            "No compressible extension".to_string(),
-        ))
+        // CompressionInfo is now embedded directly in ctoken.compression
+        Ok(ctoken.compression.last_claimed_slot)
     };
 
     let initial_last_claimed_a =

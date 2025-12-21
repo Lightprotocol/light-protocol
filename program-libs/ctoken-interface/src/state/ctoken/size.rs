@@ -1,8 +1,9 @@
+use light_zero_copy::ZeroCopyNew;
+
 use crate::{
     state::{ExtensionStruct, ExtensionStructConfig},
     BASE_TOKEN_ACCOUNT_SIZE,
 };
-use light_zero_copy::ZeroCopyNew;
 
 /// Calculates the size of a ctoken account based on which extensions are present.
 ///

@@ -293,9 +293,9 @@ fn test_mint_extension_edge_cases() {
         extensions: Some(vec![ExtensionStruct::TokenMetadata(TokenMetadata {
             update_authority: Pubkey::from([3u8; 32]),
             mint: Pubkey::from([2u8; 32]),
-            name: vec![],           // Empty name
-            symbol: vec![],         // Empty symbol
-            uri: vec![],            // Empty URI
+            name: vec![],                // Empty name
+            symbol: vec![],              // Empty symbol
+            uri: vec![],                 // Empty URI
             additional_metadata: vec![], // No additional metadata
         })]),
     };

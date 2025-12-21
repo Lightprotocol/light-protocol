@@ -114,6 +114,9 @@ pub async fn assert_mint_action(
             }
             MintActionType::CompressAndCloseCMint { .. } => {
                 expected_mint.metadata.cmint_decompressed = false;
+                // When compressed, the compression info should be default (zeroed)
+                expected_mint.compression =
+                    light_compressible::compression_info::CompressionInfo::default();
             }
         }
     }

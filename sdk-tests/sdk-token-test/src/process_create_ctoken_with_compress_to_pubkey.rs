@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke_signed};
-use light_ctoken_interface::instructions::extensions::compressible::CompressToPubkey;
+use light_ctoken_interface::instructions::create_ctoken_account::CompressToPubkey;
 use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
 
 use crate::Generic;

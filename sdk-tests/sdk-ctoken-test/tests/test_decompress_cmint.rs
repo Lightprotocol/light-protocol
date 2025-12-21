@@ -6,8 +6,7 @@ use borsh::BorshDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressible::compression_info::CompressionInfo;
 use light_ctoken_interface::{
-    instructions::mint_action::CompressedMintWithContext,
-    state::CompressedMint,
+    instructions::mint_action::CompressedMintWithContext, state::CompressedMint,
 };
 use light_ctoken_sdk::ctoken::{find_cmint_address, DecompressCMint};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
@@ -109,7 +108,7 @@ async fn test_decompress_cmint() {
     // Build expected CMint from original compressed mint, updating fields changed by decompression
     let mut expected_cmint = compressed_mint.clone();
     expected_cmint.metadata.cmint_decompressed = true;
-    expected_cmint.compression = cmint.compression.clone();
+    expected_cmint.compression = cmint.compression;
 
     assert_eq!(cmint, expected_cmint, "CMint should match expected state");
 }
@@ -214,7 +213,7 @@ async fn test_decompress_cmint_with_freeze_authority() {
     // Build expected CMint from original compressed mint, updating fields changed by decompression
     let mut expected_cmint = compressed_mint.clone();
     expected_cmint.metadata.cmint_decompressed = true;
-    expected_cmint.compression = cmint.compression.clone();
+    expected_cmint.compression = cmint.compression;
 
     assert_eq!(cmint, expected_cmint, "CMint should match expected state");
 }
@@ -419,7 +418,7 @@ async fn test_decompress_cmint_with_token_metadata() {
     // Build expected CMint from original compressed mint, updating fields changed by decompression
     let mut expected_cmint = compressed_mint.clone();
     expected_cmint.metadata.cmint_decompressed = true;
-    expected_cmint.compression = cmint.compression.clone();
+    expected_cmint.compression = cmint.compression;
     // Extensions should preserve original TokenMetadata
 
     assert_eq!(cmint, expected_cmint, "CMint should match expected state");
@@ -707,7 +706,7 @@ async fn test_decompress_cmint_cpi_invoke_signed() {
     // Build expected CMint from original compressed mint, updating fields changed by decompression
     let mut expected_cmint = compressed_mint.clone();
     expected_cmint.metadata.cmint_decompressed = true;
-    expected_cmint.compression = cmint.compression.clone();
+    expected_cmint.compression = cmint.compression;
 
     assert_eq!(cmint, expected_cmint, "CMint should match expected state");
 }

@@ -1,5 +1,8 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_ctoken_interface::{state::{CToken, CompressedMint}, CTokenError};
+use light_ctoken_interface::{
+    state::{CToken, CompressedMint},
+    CTokenError,
+};
 use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::{

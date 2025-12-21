@@ -23,7 +23,6 @@ pub use light_token_client::{
 };
 pub use serial_test::serial;
 pub use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
-pub use solana_system_interface::instruction::create_account;
 /// Shared test context for account operations
 pub struct AccountTestContext {
     pub rpc: LightProgramTest,
@@ -125,6 +124,7 @@ pub async fn create_and_assert_token_account(
         context.mint_pubkey,
         context.owner_keypair.pubkey(),
         Some(compressible_data),
+        None,
     )
     .await;
 }
@@ -212,73 +212,63 @@ pub async fn setup_account_test_with_created_account(
     Ok(context)
 }
 
-/// Create a non-compressible token account (165 bytes, no compressible extension)
+/// Create a token account with 0 prepaid epochs (immediately compressible by compression authority)
 pub async fn create_non_compressible_token_account(
     context: &mut AccountTestContext,
     token_keypair: Option<&Keypair>,
 ) {
-    use anchor_lang::prelude::{borsh::BorshSerialize, AccountMeta};
-    use light_ctoken_interface::instructions::create_ctoken_account::CreateTokenAccountInstructionData;
-    use solana_sdk::instruction::Instruction;
     let token_keypair = token_keypair.unwrap_or(&context.token_account_keypair);
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = token_keypair.pubkey();
 
-    // Create account via system program (166 bytes for non-compressible)
-    let rent = context
-        .rpc
-        .get_minimum_balance_for_rent_exemption(BASE_TOKEN_ACCOUNT_SIZE as usize)
-        .await
-        .unwrap();
+    // Use the SDK builder with 0 prepaid epochs
+    let compressible_params = CompressibleParams {
+        compressible_config: context.compressible_config,
+        rent_sponsor: context.rent_sponsor,
+        pre_pay_num_epochs: 0,
+        lamports_per_write: None,
+        compress_to_account_pubkey: None,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
+    };
 
-    let create_account_ix = solana_sdk::system_instruction::create_account(
-        &payer_pubkey,
-        &token_account_pubkey,
-        rent,
-        BASE_TOKEN_ACCOUNT_SIZE,
-        &light_compressed_token::ID,
-    );
+    let create_ix = CreateCTokenAccount::new(
+        payer_pubkey,
+        token_account_pubkey,
+        context.mint_pubkey,
+        context.owner_keypair.pubkey(),
+    )
+    .with_compressible(compressible_params)
+    .instruction()
+    .unwrap();
 
     context
         .rpc
         .create_and_send_transaction(
-            &[create_account_ix],
+            &[create_ix],
             &payer_pubkey,
             &[&context.payer, token_keypair],
         )
         .await
         .unwrap();
 
-    // Initialize the token account (non-compressible)
-    let init_data = CreateTokenAccountInstructionData {
-        owner: context.owner_keypair.pubkey().into(),
-        compressible_config: None, // Non-compressible
+    // Assert account was created correctly with 0 prepaid epochs
+    let compressible_data = CompressibleData {
+        compression_authority: context.compression_authority,
+        rent_sponsor: context.rent_sponsor,
+        num_prepaid_epochs: 0,
+        lamports_per_write: None,
+        compress_to_pubkey: false,
+        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        payer: payer_pubkey,
     };
-    let mut data = vec![18]; // CreateTokenAccount discriminator
-    init_data.serialize(&mut data).unwrap();
-
-    let init_ix = Instruction {
-        program_id: light_compressed_token::ID,
-        accounts: vec![
-            AccountMeta::new(token_account_pubkey, true),
-            AccountMeta::new_readonly(context.mint_pubkey, false),
-        ],
-        data,
-    };
-
-    context
-        .rpc
-        .create_and_send_transaction(&[init_ix], &payer_pubkey, &[&context.payer, token_keypair])
-        .await
-        .unwrap();
-
-    // Assert account was created correctly
     assert_create_token_account(
         &mut context.rpc,
         token_account_pubkey,
         context.mint_pubkey,
         context.owner_keypair.pubkey(),
-        None, // Non-compressible
+        Some(compressible_data),
+        None,
     )
     .await;
 }
@@ -315,7 +305,7 @@ pub async fn close_and_assert_token_account(
         account: token_account_pubkey,
         destination,
         owner: context.owner_keypair.pubkey(),
-        rent_sponsor: Some(rent_sponsor),
+        rent_sponsor,
     }
     .instruction()
     .unwrap();
@@ -345,7 +335,7 @@ pub async fn close_and_assert_token_account_fails(
     context: &mut AccountTestContext,
     destination: Pubkey,
     authority: &Keypair,
-    rent_sponsor: Option<Pubkey>,
+    rent_sponsor: Pubkey,
     name: &str,
     expected_error_code: u32,
 ) {
@@ -357,7 +347,7 @@ pub async fn close_and_assert_token_account_fails(
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
-    let close_ix = CloseCTokenAccount {
+    let mut close_ix = CloseCTokenAccount {
         token_program: light_compressed_token::ID,
         account: token_account_pubkey,
         destination,
@@ -366,6 +356,10 @@ pub async fn close_and_assert_token_account_fails(
     }
     .instruction()
     .unwrap();
+    // Remove rent_sponsor account if it's default to test missing rent sponsor
+    if rent_sponsor == Pubkey::default() {
+        close_ix.accounts.pop();
+    }
 
     let result = context
         .rpc
@@ -444,6 +438,7 @@ pub async fn create_and_assert_ata(
         owner_pubkey,
         context.mint_pubkey,
         compressible_data,
+        None,
     )
     .await;
 

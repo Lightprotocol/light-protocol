@@ -538,22 +538,10 @@ async fn run_bootstrap_test(
                 account_state.pubkey
             );
 
-            // Verify account has compressible extension
-            let has_compressible = account_state
-                .account
-                .extensions
-                .as_ref()
-                .is_some_and(|exts| {
-                    exts.iter().any(|ext| {
-                        matches!(
-                            ext,
-                            light_ctoken_interface::state::extensions::ExtensionStruct::Compressible(_)
-                        )
-                    })
-                });
+            // Verify account is a valid CToken
             assert!(
-                has_compressible,
-                "Account {} should have Compressible extension",
+                account_state.account.is_ctoken_account(),
+                "Account {} should be a valid CToken account",
                 account_state.pubkey
             );
 

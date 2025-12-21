@@ -28,6 +28,7 @@ struct AccountExtensionInfo {
 }
 
 impl AccountExtensionInfo {
+    #[inline(always)]
     fn t22_extensions_eq(&self, other: &Self) -> bool {
         self.has_pausable == other.has_pausable
             && self.has_permanent_delegate == other.has_permanent_delegate
@@ -35,6 +36,7 @@ impl AccountExtensionInfo {
             && self.has_transfer_hook == other.has_transfer_hook
     }
 
+    #[inline(always)]
     fn check_t22_extensions(&self, other: &Self) -> Result<(), ProgramError> {
         if !self.t22_extensions_eq(other) {
             Err(ProgramError::InvalidInstructionData)
@@ -91,6 +93,8 @@ pub fn process_transfer_extensions(
     // Return decimals from sender (source account has the cached decimals)
     Ok((signer_is_validated, sender_info.decimals))
 }
+
+#[inline(always)]
 fn transfer_top_up(
     transfer_accounts: &TransferAccounts,
     sender_top_up: u64,

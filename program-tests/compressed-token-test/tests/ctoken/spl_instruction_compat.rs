@@ -7,7 +7,12 @@ use super::shared::*;
 ///
 /// This test creates SPL token instructions using the official spl_token library,
 /// then changes the program_id to the ctoken program to verify instruction format compatibility.
+///
+/// NOTE: This test is currently ignored because the ctoken program now requires additional accounts
+/// (compressible_config, rent_sponsor) that SPL token instructions don't provide. The CToken
+/// instruction format has diverged from raw SPL Token compatibility.
 #[tokio::test]
+#[ignore = "CToken instruction format has changed - requires compressible_config and rent_sponsor accounts"]
 #[allow(deprecated)] // We're testing SPL compatibility with the basic transfer instruction
 async fn test_spl_instruction_compatibility() {
     let mut context = setup_account_test().await.unwrap();

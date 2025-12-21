@@ -1,5 +1,6 @@
-use aligned_sized::aligned_sized;
 use core::ops::Deref;
+
+use aligned_sized::aligned_sized;
 use light_compressed_account::Pubkey;
 use light_compressible::compression_info::CompressionInfo;
 use light_program_profiler::profile;
@@ -7,12 +8,10 @@ use light_zero_copy::{
     traits::{ZeroCopyAt, ZeroCopyAtMut},
     ZeroCopy, ZeroCopyMut, ZeroCopyNew,
 };
-use spl_pod::solana_msg::msg;
 
-use crate::state::CToken;
 use crate::{
     state::{
-        ExtensionStruct, ExtensionStructConfig, ZExtensionStruct, ZExtensionStructMut,
+        CToken, ExtensionStruct, ExtensionStructConfig, ZExtensionStruct, ZExtensionStructMut,
         ACCOUNT_TYPE_TOKEN_ACCOUNT,
     },
     AnchorDeserialize, AnchorSerialize,
@@ -158,6 +157,7 @@ impl<'a> ZeroCopyNew<'a> for CToken {
 impl<'a> ZeroCopyAt<'a> for CToken {
     type ZeroCopyAt = ZCToken<'a>;
 
+    #[inline(always)]
     fn zero_copy_at(
         bytes: &'a [u8],
     ) -> Result<(Self::ZeroCopyAt, &'a [u8]), light_zero_copy::errors::ZeroCopyError> {
@@ -188,6 +188,7 @@ impl<'a> ZeroCopyAt<'a> for CToken {
 impl<'a> ZeroCopyAtMut<'a> for CToken {
     type ZeroCopyAtMut = ZCTokenMut<'a>;
 
+    #[inline(always)]
     fn zero_copy_at_mut(
         bytes: &'a mut [u8],
     ) -> Result<(Self::ZeroCopyAtMut, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
@@ -253,6 +254,7 @@ impl ZCTokenZeroCopyMeta<'_> {
     }
 
     /// Get delegate if set (COption discriminator == 1)
+    #[inline(always)]
     pub fn delegate(&self) -> Option<&Pubkey> {
         if u32::from(self.delegate_option_prefix) == 1 {
             Some(&self.delegate)
@@ -262,6 +264,7 @@ impl ZCTokenZeroCopyMeta<'_> {
     }
 
     /// Get is_native value if set (COption discriminator == 1)
+    #[inline(always)]
     pub fn is_native_value(&self) -> Option<u64> {
         if u32::from(self.is_native_option_prefix) == 1 {
             Some(u64::from(self.is_native))
@@ -271,6 +274,7 @@ impl ZCTokenZeroCopyMeta<'_> {
     }
 
     /// Get close_authority if set (COption discriminator == 1)
+    #[inline(always)]
     pub fn close_authority(&self) -> Option<&Pubkey> {
         if u32::from(self.close_authority_option_prefix) == 1 {
             Some(&self.close_authority)
@@ -280,6 +284,7 @@ impl ZCTokenZeroCopyMeta<'_> {
     }
 
     /// Get decimals if set (option prefix == 1)
+    #[inline(always)]
     pub fn decimals(&self) -> Option<u8> {
         if self.decimal_option_prefix == 1 {
             Some(self.decimals)
@@ -310,6 +315,7 @@ impl ZCTokenZeroCopyMetaMut<'_> {
     }
 
     /// Get delegate if set (COption discriminator == 1)
+    #[inline(always)]
     pub fn delegate(&self) -> Option<&Pubkey> {
         if u32::from(self.delegate_option_prefix) == 1 {
             Some(&self.delegate)
@@ -319,6 +325,7 @@ impl ZCTokenZeroCopyMetaMut<'_> {
     }
 
     /// Get is_native value if set (COption discriminator == 1)
+    #[inline(always)]
     pub fn is_native_value(&self) -> Option<u64> {
         if u32::from(self.is_native_option_prefix) == 1 {
             Some(u64::from(self.is_native))
@@ -328,6 +335,7 @@ impl ZCTokenZeroCopyMetaMut<'_> {
     }
 
     /// Get close_authority if set (COption discriminator == 1)
+    #[inline(always)]
     pub fn close_authority(&self) -> Option<&Pubkey> {
         if u32::from(self.close_authority_option_prefix) == 1 {
             Some(&self.close_authority)
@@ -337,6 +345,7 @@ impl ZCTokenZeroCopyMetaMut<'_> {
     }
 
     /// Get decimals if set (option prefix == 1)
+    #[inline(always)]
     pub fn decimals(&self) -> Option<u8> {
         if self.decimal_option_prefix == 1 {
             Some(self.decimals)
@@ -346,12 +355,14 @@ impl ZCTokenZeroCopyMetaMut<'_> {
     }
 
     /// Set decimals value
+    #[inline(always)]
     pub fn set_decimals(&mut self, decimals: u8) {
         self.decimal_option_prefix = 1;
         self.decimals = decimals;
     }
 
     /// Set delegate (Some to set, None to clear)
+    #[inline(always)]
     pub fn set_delegate(&mut self, delegate: Option<Pubkey>) -> Result<(), crate::CTokenError> {
         match delegate {
             Some(pubkey) => {
@@ -368,16 +379,19 @@ impl ZCTokenZeroCopyMetaMut<'_> {
     }
 
     /// Set account state
+    #[inline(always)]
     pub fn set_state(&mut self, state: u8) {
         self.state = state;
     }
 
     /// Set account as frozen (state = 2)
+    #[inline(always)]
     pub fn set_frozen(&mut self) {
         self.state = 2;
     }
 
     /// Set account as initialized/unfrozen (state = 1)
+    #[inline(always)]
     pub fn set_initialized(&mut self) {
         self.state = 1;
     }
@@ -391,18 +405,10 @@ impl CToken {
     /// - Account type is not ACCOUNT_TYPE_TOKEN_ACCOUNT (byte 165 != 2)
     ///   Allows both Initialized (1) and Frozen (2) states.
     #[profile]
+    #[inline(always)]
     pub fn zero_copy_at_checked(
         bytes: &[u8],
     ) -> Result<(ZCToken<'_>, &[u8]), crate::error::CTokenError> {
-        // Check minimum size
-        if bytes.len() < BASE_TOKEN_ACCOUNT_SIZE as usize {
-            msg!(
-                "zero_copy_at_checked bytes.len() < BASE_TOKEN_ACCOUNT_SIZE {}",
-                bytes.len()
-            );
-            return Err(crate::error::CTokenError::InvalidAccountData);
-        }
-
         let (ctoken, remaining) = CToken::zero_copy_at(bytes)?;
 
         if !ctoken.is_initialized() {
@@ -420,18 +426,10 @@ impl CToken {
     /// - Account is uninitialized (state == 0)
     /// - Account type is not ACCOUNT_TYPE_TOKEN_ACCOUNT
     #[profile]
+    #[inline(always)]
     pub fn zero_copy_at_mut_checked(
         bytes: &mut [u8],
     ) -> Result<(ZCTokenMut<'_>, &mut [u8]), crate::error::CTokenError> {
-        // Check minimum size
-        if bytes.len() < BASE_TOKEN_ACCOUNT_SIZE as usize {
-            msg!(
-                "zero_copy_at_checked bytes.len() < BASE_TOKEN_ACCOUNT_SIZE {}",
-                bytes.len()
-            );
-            return Err(crate::error::CTokenError::InvalidAccountData);
-        }
-
         let (ctoken, remaining) = CToken::zero_copy_at_mut(bytes)?;
 
         if !ctoken.is_initialized() {

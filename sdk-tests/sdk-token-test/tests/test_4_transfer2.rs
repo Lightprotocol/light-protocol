@@ -244,6 +244,7 @@ async fn mint_compressed_tokens(
         },
         reserved: [0u8; 49],
         account_type: ACCOUNT_TYPE_MINT,
+        compression: Default::default(),
         extensions: None,
     };
 

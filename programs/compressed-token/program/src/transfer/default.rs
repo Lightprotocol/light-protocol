@@ -9,7 +9,6 @@ use crate::transfer::shared::{process_transfer_extensions, TransferAccounts};
 const ACCOUNT_SOURCE: usize = 0;
 const ACCOUNT_DESTINATION: usize = 1;
 const ACCOUNT_AUTHORITY: usize = 2;
-const ACCOUNT_MINT: usize = 3;
 
 /// Process ctoken transfer instruction
 ///
@@ -67,7 +66,6 @@ fn process_extensions(
     let authority = accounts
         .get(ACCOUNT_AUTHORITY)
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let mint = accounts.get(ACCOUNT_MINT);
 
     // Ignore decimals - only used for transfer_checked
     let (signer_is_validated, _decimals) = process_transfer_extensions(
@@ -75,7 +73,7 @@ fn process_extensions(
             source,
             destination,
             authority,
-            mint,
+            mint: None,
         },
         max_top_up,
     )?;

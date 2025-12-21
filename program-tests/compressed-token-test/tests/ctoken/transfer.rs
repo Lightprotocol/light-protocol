@@ -28,30 +28,30 @@ async fn setup_transfer_test(
     let rent_sponsor = context.rent_sponsor;
 
     // Create source token account
+    // When num_prepaid_epochs is None, use 3 epochs (sufficient for no top-up: epochs_funded_ahead = 3 - 1 = 2 >= 2)
+    let source_epochs = num_prepaid_epochs.unwrap_or(3);
     context.token_account_keypair = source_keypair.insecure_clone();
-    if let Some(epochs) = num_prepaid_epochs {
+    {
         let compressible_data = CompressibleData {
             compression_authority: context.compression_authority,
             rent_sponsor,
-            num_prepaid_epochs: epochs,
+            num_prepaid_epochs: source_epochs,
             lamports_per_write: Some(100),
             account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
         create_and_assert_token_account(&mut context, compressible_data, "source_account").await;
-    } else {
-        // Create non-compressible source account (165 bytes, no extension)
-        create_non_compressible_token_account(&mut context, Some(&source_keypair)).await;
     }
 
     // Create destination token account
+    let dest_epochs = num_prepaid_epochs.unwrap_or(3);
     context.token_account_keypair = destination_keypair.insecure_clone();
-    if let Some(epochs) = num_prepaid_epochs {
+    {
         let compressible_data = CompressibleData {
             compression_authority: context.compression_authority,
             rent_sponsor,
-            num_prepaid_epochs: epochs,
+            num_prepaid_epochs: dest_epochs,
             lamports_per_write: Some(100),
             account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
@@ -59,9 +59,6 @@ async fn setup_transfer_test(
         };
         create_and_assert_token_account(&mut context, compressible_data, "destination_account")
             .await;
-    } else {
-        // Create non-compressible destination account (165 bytes, no extension)
-        create_non_compressible_token_account(&mut context, Some(&destination_keypair)).await;
     }
 
     // Mint tokens to source account using set_account
@@ -98,6 +95,9 @@ async fn setup_transfer_test(
 }
 
 /// Build a ctoken transfer instruction
+///
+/// For basic transfers (no T22 extensions), only 3 accounts are needed.
+/// Authority is writable because compressible accounts may require top-up.
 fn build_transfer_instruction(
     source: Pubkey,
     destination: Pubkey,
@@ -107,18 +107,18 @@ fn build_transfer_instruction(
     use anchor_lang::prelude::AccountMeta;
     use solana_sdk::instruction::Instruction;
 
-    // Build instruction data: discriminator (3) + SPL Transfer data
-    let mut data = vec![3]; // CTokenTransfer discriminator (first byte: 3)
-    data.extend_from_slice(&amount.to_le_bytes()); // Amount as u64 little-endian
+    // Build instruction data: discriminator (3) + amount (8 bytes)
+    let mut data = vec![3u8];
+    data.extend_from_slice(&amount.to_le_bytes());
 
-    // Build instruction
+    // Note: Index 3 would be interpreted as mint (for T22 extension validation).
+    // For basic transfers, we only pass 3 accounts.
     Instruction {
         program_id: light_compressed_token::ID,
         accounts: vec![
             AccountMeta::new(source, false),
             AccountMeta::new(destination, false),
-            AccountMeta::new(authority, true), // Authority must sign (also acts as payer for top-ups)
-            AccountMeta::new_readonly(Pubkey::default(), false), // System program for lamport transfers during top-up
+            AccountMeta::new(authority, true), // Authority must sign and be writable for top-ups
         ],
         data,
     }
@@ -136,18 +136,16 @@ fn build_transfer_instruction_with_max_top_up(
     use solana_sdk::instruction::Instruction;
 
     // Build instruction data: discriminator (3) + amount (8 bytes) + max_top_up (2 bytes)
-    let mut data = vec![3]; // CTokenTransfer discriminator
-    data.extend_from_slice(&amount.to_le_bytes()); // Amount as u64 little-endian
-    data.extend_from_slice(&max_top_up.to_le_bytes()); // max_top_up as u16 little-endian
+    let mut data = vec![3u8];
+    data.extend_from_slice(&amount.to_le_bytes());
+    data.extend_from_slice(&max_top_up.to_le_bytes());
 
-    // Build instruction
     Instruction {
         program_id: light_compressed_token::ID,
         accounts: vec![
             AccountMeta::new(source, false),
             AccountMeta::new(destination, false),
-            AccountMeta::new(authority, true), // Authority must sign (also acts as payer for top-ups)
-            AccountMeta::new_readonly(Pubkey::default(), false), // System program for lamport transfers during top-up
+            AccountMeta::new(authority, true), // Authority must sign and be writable for top-ups
         ],
         data,
     }
@@ -410,32 +408,28 @@ async fn test_ctoken_transfer_wrong_authority() {
 
 #[tokio::test]
 async fn test_ctoken_transfer_mint_mismatch() {
-    // Create source account with default mint
-    let (mut context, source, _destination, _mint_amount, _source_keypair, _dest_keypair) =
+    // Create two accounts with the same mint first
+    let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
         setup_transfer_test(None, 1000).await.unwrap();
 
-    // Create destination account with a different mint
+    // Modify the destination account's mint field to create a mint mismatch
     let different_mint = Pubkey::new_unique();
-    let original_mint = context.mint_pubkey;
-    context.mint_pubkey = different_mint;
+    let mut dest_account = context.rpc.get_account(destination).await.unwrap().unwrap();
 
-    let dest_keypair = Keypair::new();
-    context.token_account_keypair = dest_keypair.insecure_clone();
-    create_non_compressible_token_account(&mut context, Some(&dest_keypair)).await;
-    let destination_with_different_mint = dest_keypair.pubkey();
-
-    // Restore original mint for context
-    context.mint_pubkey = original_mint;
+    // CToken mint is the first 32 bytes after the account type discriminator
+    // The mint field is at bytes 0-32 in the CToken account data
+    dest_account.data[0..32].copy_from_slice(&different_mint.to_bytes());
+    context.rpc.set_account(destination, dest_account);
 
     // Use the owner keypair as authority
     let owner_keypair = context.owner_keypair.insecure_clone();
 
     // Try to transfer between accounts with different mints
-    // Expected error: MintMismatch (error code 3)
+    // The SPL Token program returns error code 3 (MintMismatch)
     transfer_and_assert_fails(
         &mut context,
         source,
-        destination_with_different_mint,
+        destination,
         500,
         &owner_keypair,
         "mint_mismatch_transfer",
@@ -470,31 +464,41 @@ async fn test_ctoken_transfer_zero_amount() {
 
 #[tokio::test]
 async fn test_ctoken_transfer_mixed_compressible_non_compressible() {
-    // Create source as compressible
+    // Create source with more prepaid epochs
     let mut context = setup_account_test().await.unwrap();
     let payer_pubkey = context.payer.pubkey();
 
-    // Create compressible source account
+    // Create source account with more prepaid epochs (lamports_per_write = Some(100))
     let source_keypair = Keypair::new();
     let source_pubkey = source_keypair.pubkey();
     context.token_account_keypair = source_keypair.insecure_clone();
 
-    let compressible_data = CompressibleData {
+    let source_data = CompressibleData {
         compression_authority: context.compression_authority,
         rent_sponsor: context.rent_sponsor,
-        num_prepaid_epochs: 3, // 3 epochs for no top-up: epochs_funded_ahead = 3 - 1 = 2 >= 2
+        num_prepaid_epochs: 5, // More epochs with higher lamports_per_write
         lamports_per_write: Some(100),
         account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
         compress_to_pubkey: false,
         payer: payer_pubkey,
     };
-    create_and_assert_token_account(&mut context, compressible_data, "source_account").await;
+    create_and_assert_token_account(&mut context, source_data, "source_account").await;
 
-    // Create non-compressible destination account
+    // Create destination account with fewer prepaid epochs (no lamports_per_write)
     let destination_keypair = Keypair::new();
     let destination_pubkey = destination_keypair.pubkey();
     context.token_account_keypair = destination_keypair.insecure_clone();
-    create_non_compressible_token_account(&mut context, Some(&destination_keypair)).await;
+
+    let dest_data = CompressibleData {
+        compression_authority: context.compression_authority,
+        rent_sponsor: context.rent_sponsor,
+        num_prepaid_epochs: 3, // Standard 3 epochs sufficient for no top-up
+        lamports_per_write: None,
+        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compress_to_pubkey: false,
+        payer: payer_pubkey,
+    };
+    create_and_assert_token_account(&mut context, dest_data, "destination_account").await;
 
     // Mint tokens to source
     let mut source_account = context
@@ -509,7 +513,7 @@ async fn test_ctoken_transfer_mixed_compressible_non_compressible() {
     spl_token_2022::state::Account::pack(token_account, &mut source_account.data[..165]).unwrap();
     context.rpc.set_account(source_pubkey, source_account);
 
-    // Fund owner to pay for top-up
+    // Fund owner to pay for potential top-up
     context
         .rpc
         .airdrop_lamports(&context.owner_keypair.pubkey(), 100_000_000)
@@ -518,7 +522,7 @@ async fn test_ctoken_transfer_mixed_compressible_non_compressible() {
 
     let owner_keypair = context.owner_keypair.insecure_clone();
 
-    // Transfer from compressible to non-compressible (only source needs top-up)
+    // Transfer from source with more prepaid to destination with fewer prepaid
     transfer_and_assert(
         &mut context,
         source_pubkey,

@@ -4,7 +4,9 @@ use anchor_lang::{
 };
 use light_ctoken_interface::{
     instructions::mint_action::{CompressedMintWithContext, Recipient},
-    state::{BaseMint, CompressedMint, CompressedMintMetadata, ACCOUNT_TYPE_MINT},
+    state::{
+        BaseMint, CompressedMint, CompressedMintMetadata, TokenDataVersion, ACCOUNT_TYPE_MINT,
+    },
     COMPRESSED_MINT_SEED, CTOKEN_PROGRAM_ID,
 };
 use light_ctoken_sdk::{
@@ -12,7 +14,10 @@ use light_ctoken_sdk::{
         create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
         mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
     },
-    ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount},
+    ctoken::{
+        config_pda, derive_ctoken_ata, rent_sponsor_pda, CompressibleParams,
+        CreateAssociatedCTokenAccount,
+    },
 };
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
@@ -130,6 +135,7 @@ async fn test_compress_full_and_close() {
         },
         reserved: [0u8; 49],
         account_type: ACCOUNT_TYPE_MINT,
+        compression: Default::default(),
         extensions: None,
     };
 
@@ -171,18 +177,25 @@ async fn test_compress_full_and_close() {
 
     println!("✅ Minted {} compressed tokens to recipient", mint_amount);
 
-    // Step 4: Create associated token account for decompression
+    // Step 4: Create compressible associated token account for decompression
     let (ctoken_ata_pubkey, bump) = derive_ctoken_ata(&recipient, &mint_pda);
-    // Create a non-compressible token account by setting compressible to None
-    let create_ata_instruction = CreateAssociatedCTokenAccount {
-        idempotent: false,
+    let compressible_params = CompressibleParams {
+        token_account_version: TokenDataVersion::ShaFlat,
+        pre_pay_num_epochs: 2,
+        lamports_per_write: Some(1000),
+        compress_to_account_pubkey: None,
+        compressible_config: config_pda(),
+        rent_sponsor: rent_sponsor_pda(),
+        compression_only: false,
+    };
+    let create_ata_instruction = CreateAssociatedCTokenAccount::new_with_bump(
+        payer.pubkey(),
+        recipient,
+        mint_pda,
+        ctoken_ata_pubkey,
         bump,
-        payer: payer.pubkey(),
-        owner: recipient,
-        mint: mint_pda,
-        associated_token_account: ctoken_ata_pubkey,
-        compressible: None,
-    }
+    )
+    .with_compressible(compressible_params)
     .instruction()
     .unwrap();
 
@@ -277,6 +290,7 @@ async fn test_compress_full_and_close() {
     let source_index = remaining_accounts.insert_or_get(ctoken_ata_pubkey); // Token account to compress
     let authority_index = remaining_accounts.insert_or_get(recipient_keypair.pubkey()); // Authority
     let close_recipient_index = remaining_accounts.insert_or_get(close_recipient_pubkey); // Close recipient
+    let rent_sponsor_index = remaining_accounts.insert_or_get(rent_sponsor_pda()); // Rent sponsor
 
     // Get remaining accounts and create instruction
     let (account_metas, system_accounts_offset, _packed_accounts_offset) =
@@ -288,6 +302,7 @@ async fn test_compress_full_and_close() {
         source_index,
         authority_index,
         close_recipient_index,
+        rent_sponsor_index,
         system_accounts_offset: system_accounts_offset as u8,
     };
     rpc.airdrop_lamports(&recipient_keypair.pubkey(), 1_000_000_000)

@@ -53,8 +53,7 @@ pub fn pack_for_compress_and_close(
         true,
         true,
     );
-    let rent_sponsor_index =
-        packed_accounts.insert_or_get(Pubkey::from(compression.rent_sponsor));
+    let rent_sponsor_index = packed_accounts.insert_or_get(Pubkey::from(compression.rent_sponsor));
     // When compression authority closes, everything goes to rent sponsor
     let destination_index = rent_sponsor_index;
 

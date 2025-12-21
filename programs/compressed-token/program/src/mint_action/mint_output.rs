@@ -4,8 +4,7 @@ use borsh::BorshSerialize;
 use light_compressed_account::instruction_data::data::ZOutputCompressedAccountWithPackedContextMut;
 use light_compressible::rent::get_rent_exemption_lamports;
 use light_ctoken_interface::{
-    hash_cache::HashCache,
-    instructions::mint_action::ZMintActionCompressedInstructionData,
+    hash_cache::HashCache, instructions::mint_action::ZMintActionCompressedInstructionData,
     state::CompressedMint,
 };
 use light_hasher::{sha256::Sha256BE, Hasher};
