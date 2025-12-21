@@ -1,13 +1,14 @@
 use aligned_sized::aligned_sized;
+use light_compressible::compression_info::CompressionInfo;
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use spl_pod::solana_msg::msg;
 
 use crate::{
     state::extensions::{
-        CompressedOnlyExtension, CompressedOnlyExtensionConfig, CompressionInfo,
-        PausableAccountExtension, PausableAccountExtensionConfig,
-        PermanentDelegateAccountExtension, PermanentDelegateAccountExtensionConfig, TokenMetadata,
-        TokenMetadataConfig, TransferFeeAccountExtension, TransferFeeAccountExtensionConfig,
+        CompressedOnlyExtension, CompressedOnlyExtensionConfig, PausableAccountExtension,
+        PausableAccountExtensionConfig, PermanentDelegateAccountExtension,
+        PermanentDelegateAccountExtensionConfig, TokenMetadata, TokenMetadataConfig,
+        TransferFeeAccountExtension, TransferFeeAccountExtensionConfig,
         TransferHookAccountExtension, TransferHookAccountExtensionConfig,
         ZPausableAccountExtensionMut, ZPermanentDelegateAccountExtensionMut, ZTokenMetadataMut,
         ZTransferFeeAccountExtensionMut, ZTransferHookAccountExtensionMut,
@@ -56,10 +57,12 @@ pub enum ExtensionStruct {
     TransferHookAccount(TransferHookAccountExtension),
     /// CompressedOnly extension for compressed token accounts (stores delegated amount)
     CompressedOnly(CompressedOnlyExtension),
-    /// Account contains compressible timing data and rent authority
+    /// Account/Mint contains compressible timing data and rent authority
     Compressible(CompressibleExtension),
 }
 
+/// Extension for mint accounts that support compression.
+/// Note: For token accounts, compression info is embedded directly in CTokenZeroCopy.
 #[derive(
     Debug,
     ZeroCopy,
@@ -158,7 +161,7 @@ pub enum ZExtensionStructMut<'a> {
     CompressedOnly(
         <CompressedOnlyExtension as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut,
     ),
-    /// Account contains compressible timing data and rent authority
+    /// Account/Mint contains compressible timing data and rent authority
     Compressible(
         <CompressibleExtension as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut,
     ),
@@ -186,15 +189,6 @@ impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
                     TokenMetadata::zero_copy_at_mut(remaining_data)?;
                 Ok((
                     ZExtensionStructMut::TokenMetadata(token_metadata),
-                    remaining_bytes,
-                ))
-            }
-            32 => {
-                // Compressible variant (index 32 to avoid Token-2022 overlap)
-                let (compressible_ext, remaining_bytes) =
-                    CompressibleExtension::zero_copy_at_mut(remaining_data)?;
-                Ok((
-                    ZExtensionStructMut::Compressible(compressible_ext),
                     remaining_bytes,
                 ))
             }
@@ -243,6 +237,15 @@ impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
+            32 => {
+                // Compressible variant (index 32 to avoid Token-2022 overlap)
+                let (compressible_ext, remaining_bytes) =
+                    CompressibleExtension::zero_copy_at_mut(remaining_data)?;
+                Ok((
+                    ZExtensionStructMut::Compressible(compressible_ext),
+                    remaining_bytes,
+                ))
+            }
             _ => Err(light_zero_copy::errors::ZeroCopyError::InvalidConversion),
         }
     }
@@ -259,10 +262,6 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
             ExtensionStructConfig::TokenMetadata(token_metadata_config) => {
                 // 1 byte for discriminant + TokenMetadata size
                 1 + TokenMetadata::byte_len(token_metadata_config)?
-            }
-            ExtensionStructConfig::Compressible(config) => {
-                // 1 byte for discriminant + CompressibleExtension size
-                1 + CompressibleExtension::byte_len(config)?
             }
             ExtensionStructConfig::PausableAccount(config) => {
                 // 1 byte for discriminant + 0 bytes for marker extension
@@ -283,6 +282,10 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
             ExtensionStructConfig::CompressedOnly(_) => {
                 // 1 byte for discriminant + 16 bytes for CompressedOnlyExtension (2 * u64)
                 1 + CompressedOnlyExtension::LEN
+            }
+            ExtensionStructConfig::Compressible(_) => {
+                // 1 byte for discriminant + CompressibleExtension size
+                1 + CompressibleExtension::LEN
             }
             _ => {
                 msg!("Invalid extension type returning");
@@ -310,23 +313,6 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                     TokenMetadata::new_zero_copy(&mut bytes[1..], config)?;
                 Ok((
                     ZExtensionStructMut::TokenMetadata(token_metadata),
-                    remaining_bytes,
-                ))
-            }
-            ExtensionStructConfig::Compressible(config) => {
-                // Write discriminant (32 for Compressible - avoids Token-2022 overlap)
-                if bytes.is_empty() {
-                    return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
-                        1,
-                        bytes.len(),
-                    ));
-                }
-                bytes[0] = 32u8;
-
-                let (compressible_ext, remaining_bytes) =
-                    CompressibleExtension::new_zero_copy(&mut bytes[1..], config)?;
-                Ok((
-                    ZExtensionStructMut::Compressible(compressible_ext),
                     remaining_bytes,
                 ))
             }
@@ -412,6 +398,23 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                     CompressedOnlyExtension::new_zero_copy(&mut bytes[1..], config)?;
                 Ok((
                     ZExtensionStructMut::CompressedOnly(compressed_only_ext),
+                    remaining_bytes,
+                ))
+            }
+            ExtensionStructConfig::Compressible(config) => {
+                // Write discriminant (32 for Compressible - avoids Token-2022 overlap)
+                if bytes.len() < 1 + CompressibleExtension::LEN {
+                    return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
+                        1 + CompressibleExtension::LEN,
+                        bytes.len(),
+                    ));
+                }
+                bytes[0] = 32u8;
+
+                let (compressible_ext, remaining_bytes) =
+                    CompressibleExtension::new_zero_copy(&mut bytes[1..], config)?;
+                Ok((
+                    ZExtensionStructMut::Compressible(compressible_ext),
                     remaining_bytes,
                 ))
             }

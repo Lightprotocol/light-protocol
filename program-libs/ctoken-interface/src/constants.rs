@@ -1,27 +1,18 @@
 use light_macros::pubkey_array;
 
-use crate::state::extensions::CompressibleExtension;
-
 pub const CPI_AUTHORITY: [u8; 32] = pubkey_array!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
 pub const CTOKEN_PROGRAM_ID: [u8; 32] =
     pubkey_array!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
 /// Account size constants
-/// Size of a basic CToken account (SPL token size + 1 byte for account_type at byte 165)
-pub const BASE_TOKEN_ACCOUNT_SIZE: u64 = 166;
+/// Size of a CToken account with embedded compression info (no extensions).
+/// CTokenZeroCopy includes: SPL token layout (165) + account_type (1) + decimal_option_prefix (1)
+/// + decimals (1) + compression_only (1) + CompressionInfo (88) + has_extensions (1)
+pub use crate::state::BASE_TOKEN_ACCOUNT_SIZE;
 
-/// Extension metadata overhead: Option discriminator (1) + Vec length (4) + Extension enum variant (1)
-/// Note: AccountType is part of BASE_TOKEN_ACCOUNT_SIZE, not extension metadata
-pub const EXTENSION_METADATA: u64 = 6;
-
-/// Size of a token account with compressible extension (263 bytes).
-/// CompressibleExtension: 1 compression_only + 1 decimals + 1 has_decimals + 88 CompressionInfo
-pub const COMPRESSIBLE_TOKEN_ACCOUNT_SIZE: u64 =
-    BASE_TOKEN_ACCOUNT_SIZE + CompressibleExtension::LEN as u64 + EXTENSION_METADATA;
-
-/// Size of a token account with compressible + pausable extensions (264 bytes).
-/// Adds 1 byte for PausableAccount discriminator (marker extension with 0 data bytes).
-pub const COMPRESSIBLE_PAUSABLE_TOKEN_ACCOUNT_SIZE: u64 = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE + 1;
+/// Extension metadata overhead: Vec length (4) - added when any extensions are present
+/// Note: The Option discriminator is the has_extensions bool in the base struct
+pub const EXTENSION_METADATA: u64 = 4;
 
 /// Size of CompressedOnly extension (8 bytes for u64 delegated_amount)
 pub const COMPRESSED_ONLY_EXTENSION_SIZE: u64 = 8;
