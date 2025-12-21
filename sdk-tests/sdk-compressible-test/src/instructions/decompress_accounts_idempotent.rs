@@ -217,7 +217,7 @@ pub fn decompress_accounts_idempotent<'info>(
                     .cloned()
                     .collect();
                 let compress_to_pubkey =
-                    light_ctoken_interface::instructions::extensions::compressible::CompressToPubkey {
+                    light_ctoken_interface::instructions::create_ctoken_account::CompressToPubkey {
                         bump,
                         program_id: crate::ID.to_bytes(),
                         seeds: seeds_without_bump,
@@ -228,7 +228,7 @@ pub fn decompress_accounts_idempotent<'info>(
                     account: owner_info.clone(),
                     mint: mint_info.clone(),
                     owner: *authority.clone().to_account_info().key,
-                    compressible: Some(CompressibleParamsCpi {
+                    compressible: CompressibleParamsCpi {
                         compressible_config: ctoken_config.to_account_info(),
                         rent_sponsor: ctoken_rent_sponsor.clone().to_account_info(),
                         system_program: accounts.system_program.to_account_info(),
@@ -238,7 +238,7 @@ pub fn decompress_accounts_idempotent<'info>(
                         token_account_version:
                             light_ctoken_interface::state::TokenDataVersion::ShaFlat,
                         compression_only: false,
-                    }),
+                    },
                 }
                 .invoke_signed(&[seeds_slice])?;
             }

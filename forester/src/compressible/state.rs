@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use borsh::BorshDeserialize;
 use dashmap::DashMap;
-use light_ctoken_interface::state::{extensions::ExtensionStruct, CToken};
+use light_ctoken_interface::state::CToken;
 use solana_sdk::{pubkey::Pubkey, rent::Rent};
 use tracing::{debug, warn};
 
@@ -18,24 +18,12 @@ fn calculate_compressible_slot(
 ) -> Result<u64> {
     use light_compressible::rent::SLOTS_PER_EPOCH;
 
-    // Find the Compressible extension
-    let compressible_ext = account
-        .extensions
-        .as_ref()
-        .and_then(|exts| {
-            exts.iter().find_map(|ext| match ext {
-                ExtensionStruct::Compressible(comp) => Some(comp),
-                _ => None,
-            })
-        })
-        .ok_or_else(|| anyhow::anyhow!("Account missing Compressible extension"))?;
-
     // Calculate rent exemption dynamically
     let rent_exemption = Rent::default().minimum_balance(account_size);
 
-    // Calculate last funded epoch
-    let last_funded_epoch = compressible_ext
-        .info
+    // Calculate last funded epoch using embedded compression info
+    let last_funded_epoch = account
+        .compression
         .get_last_funded_epoch(account_size as u64, lamports, rent_exemption)
         .map_err(|e| {
             anyhow::anyhow!(
@@ -73,17 +61,14 @@ impl CompressibleAccountTracker {
         self.accounts.remove(pubkey).map(|(_, v)| v)
     }
 
-    /// Get all accounts with compressible extension
+    /// Get all accounts with compressible configuration
     pub fn get_compressible_accounts(&self) -> Vec<CompressibleAccountState> {
         self.accounts
             .iter()
             .filter(|entry| {
                 let state = entry.value();
-                // Check if account has compressible extension
-                state.account.extensions.as_ref().is_some_and(|exts| {
-                    exts.iter()
-                        .any(|ext| matches!(ext, ExtensionStruct::Compressible(_)))
-                })
+                // Check if account is a valid CToken (account_type == 2)
+                state.account.is_ctoken_account()
             })
             .map(|entry| entry.value().clone())
             .collect()

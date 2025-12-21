@@ -473,7 +473,7 @@ impl TestContext {
                     owner: signer.pubkey(),
                     mint,
                     associated_token_account: ata,
-                    compressible: None,
+                    compressible: CompressibleParams::default(),
                 }
                 .instruction()
                 .unwrap()

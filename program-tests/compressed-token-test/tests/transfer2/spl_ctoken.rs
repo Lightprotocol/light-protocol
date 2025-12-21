@@ -2,7 +2,9 @@ use anchor_lang::prelude::{AccountMeta, ProgramError};
 // Re-export all necessary imports for test modules
 pub use anchor_spl::token_2022::spl_token_2022;
 use light_ctoken_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
-pub use light_ctoken_sdk::ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount};
+pub use light_ctoken_sdk::ctoken::{
+    derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount,
+};
 use light_ctoken_sdk::{
     compressed_token::{
         transfer2::{
@@ -249,7 +251,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         owner: recipient.pubkey(),
         mint,
         associated_token_account,
-        compressible: None,
+        compressible: CompressibleParams::default(),
     }
     .instruction()
     .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e)))

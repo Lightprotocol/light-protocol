@@ -1,15 +1,12 @@
-use light_compressed_account::Pubkey;
-use light_zero_copy::ZeroCopy;
-use pinocchio::pubkey::pubkey_eq;
-
-use crate::{AnchorDeserialize, AnchorSerialize};
 use std::mem::MaybeUninit;
 
-use light_zero_copy::ZeroCopyMut;
+use light_compressed_account::Pubkey;
+use light_zero_copy::{ZeroCopy, ZeroCopyMut};
+use pinocchio::pubkey::pubkey_eq;
 use solana_pubkey::MAX_SEEDS;
 use tinyvec::ArrayVec;
 
-use crate::CTokenError;
+use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
 
 #[repr(C)]
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]

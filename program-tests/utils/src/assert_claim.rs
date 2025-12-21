@@ -1,8 +1,7 @@
 use light_client::rpc::Rpc;
 use light_ctoken_interface::{state::CToken, BASE_TOKEN_ACCOUNT_SIZE};
 use light_program_test::LightProgramTest;
-use light_zero_copy::traits::ZeroCopyAt;
-use light_zero_copy::traits::ZeroCopyAtMut;
+use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 use solana_sdk::{clock::Clock, pubkey::Pubkey};
 
 pub async fn assert_claim(

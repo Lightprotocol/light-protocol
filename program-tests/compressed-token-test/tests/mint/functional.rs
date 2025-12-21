@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::borsh::BorshDeserialize, solana_program::program_pack::Pack};
 use light_client::indexer::Indexer;
-use light_compressible::rent::SLOTS_PER_EPOCH;
+use light_compressible::{compression_info::CompressionInfo, rent::SLOTS_PER_EPOCH};
 use light_ctoken_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData, mint_action::Recipient,
@@ -253,7 +253,7 @@ async fn test_create_compressed_mint() {
         owner: new_recipient,
         mint: spl_mint_pda,
         associated_token_account: ctoken_ata_pubkey,
-        compressible: None,
+        compressible: CompressibleParams::default(),
     }
     .instruction()
     .unwrap();
@@ -456,7 +456,7 @@ async fn test_create_compressed_mint() {
         owner: decompress_recipient.pubkey(),
         mint: spl_mint_pda,
         associated_token_account: decompress_dest_ata,
-        compressible: None,
+        compressible: CompressibleParams::default(),
     }
     .instruction()
     .unwrap();
@@ -802,7 +802,7 @@ async fn test_ctoken_transfer() {
         owner: second_recipient_keypair.pubkey(),
         mint: spl_mint_pda,
         associated_token_account: second_recipient_ata,
-        compressible: None,
+        compressible: CompressibleParams::default(),
     }
     .instruction()
     .unwrap();
@@ -933,7 +933,7 @@ async fn test_ctoken_transfer() {
         .unwrap()
         .unwrap();
     let pre_compress_spl_account =
-        spl_token_2022::state::Account::unpack(&pre_compress_account_data.data).unwrap();
+        spl_token_2022::state::Account::unpack(&pre_compress_account_data.data[..165]).unwrap();
     println!(
         "Account balance before compression: {}",
         pre_compress_spl_account.amount
@@ -978,7 +978,7 @@ async fn test_ctoken_transfer() {
         .unwrap()
         .unwrap();
     let final_spl_account =
-        spl_token_2022::state::Account::unpack(&final_account_data.data).unwrap();
+        spl_token_2022::state::Account::unpack(&final_account_data.data[..165]).unwrap();
     println!(
         "Final account balance after compression: {}",
         final_spl_account.amount
@@ -1251,6 +1251,9 @@ async fn test_mint_actions() {
             mint: spl_mint_pda.into(),
             cmint_decompressed: false, // Should be true after CreateSplMint action
         },
+        reserved: [0u8; 49],
+        account_type: ACCOUNT_TYPE_MINT,
+        compression: CompressionInfo::default(),
         extensions: Some(vec![
             light_ctoken_interface::state::extensions::ExtensionStruct::TokenMetadata(
                 light_ctoken_interface::state::extensions::TokenMetadata {
@@ -1263,8 +1266,6 @@ async fn test_mint_actions() {
                 },
             ),
         ]), // Match the metadata we're creating
-        reserved: [0u8; 49],
-        account_type: ACCOUNT_TYPE_MINT,
     };
 
     assert_mint_to_compressed(
@@ -1483,9 +1484,10 @@ async fn test_create_compressed_mint_with_cmint() {
             cmint_decompressed: false, // Before DecompressMint
             mint: cmint_pda.to_bytes().into(),
         },
-        extensions: None,
         reserved: [0u8; 49],
         account_type: ACCOUNT_TYPE_MINT,
+        compression: CompressionInfo::default(),
+        extensions: None,
     };
 
     // Verify DecompressMint action results using assert_mint_action

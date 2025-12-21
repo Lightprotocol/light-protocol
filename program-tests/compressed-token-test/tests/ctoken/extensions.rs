@@ -5,8 +5,9 @@
 
 use borsh::BorshDeserialize;
 use light_ctoken_interface::state::{
-    AccountState, CToken, PausableAccountExtension, PermanentDelegateAccountExtension,
-    TransferFeeAccountExtension, TransferHookAccountExtension, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+    AccountState, CToken, ExtensionStruct, PausableAccountExtension,
+    PermanentDelegateAccountExtension, TransferFeeAccountExtension, TransferHookAccountExtension,
+    ACCOUNT_TYPE_TOKEN_ACCOUNT,
 };
 use light_program_test::{
     program_test::TestRpc, utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig,
@@ -243,13 +244,11 @@ async fn test_mint_and_compress_with_extensions() {
 #[tokio::test]
 #[serial]
 async fn test_create_ctoken_with_extensions() {
-    use borsh::BorshDeserialize;
-    use light_ctoken_interface::state::{
-        AccountState, CToken, ExtensionStruct, PausableAccountExtension,
-        PermanentDelegateAccountExtension, TokenDataVersion, TransferFeeAccountExtension,
-        TransferHookAccountExtension,
-    };
+    use light_ctoken_interface::state::TokenDataVersion;
     use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
+    use light_test_utils::assert_create_token_account::{
+        assert_create_token_account, CompressibleData,
+    };
 
     let mut context = setup_extensions_test().await.unwrap();
     let payer = context.payer.insecure_clone();
@@ -259,19 +258,27 @@ async fn test_create_ctoken_with_extensions() {
     let account_keypair = Keypair::new();
     let account_pubkey = account_keypair.pubkey();
 
+    let compressible_config = context
+        .rpc
+        .test_accounts
+        .funding_pool_config
+        .compressible_config_pda;
+    let rent_sponsor = context
+        .rpc
+        .test_accounts
+        .funding_pool_config
+        .rent_sponsor_pda;
+    let compression_authority = context
+        .rpc
+        .test_accounts
+        .funding_pool_config
+        .compression_authority_pda;
+
     let create_ix =
         CreateCTokenAccount::new(payer.pubkey(), account_pubkey, mint_pubkey, payer.pubkey())
             .with_compressible(CompressibleParams {
-                compressible_config: context
-                    .rpc
-                    .test_accounts
-                    .funding_pool_config
-                    .compressible_config_pda,
-                rent_sponsor: context
-                    .rpc
-                    .test_accounts
-                    .funding_pool_config
-                    .rent_sponsor_pda,
+                compressible_config,
+                rent_sponsor,
                 pre_pay_num_epochs: 2,
                 lamports_per_write: Some(100),
                 compress_to_account_pubkey: None,
@@ -287,63 +294,33 @@ async fn test_create_ctoken_with_extensions() {
         .await
         .unwrap();
 
-    // Verify account was created with correct size (273 bytes)
-    let account = context
-        .rpc
-        .get_account(account_pubkey)
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(
-        account.data.len(),
-        274,
-        "CToken account should be 274 bytes (165 base + 7 metadata + 89 compressible + 1 pausable + 1 permanent_delegate + 9 transfer_fee + 2 transfer_hook)"
-    );
+    // Use assertion function to verify account creation with T22 extensions
+    let expected_extensions = vec![
+        ExtensionStruct::PausableAccount(PausableAccountExtension),
+        ExtensionStruct::PermanentDelegateAccount(PermanentDelegateAccountExtension),
+        ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
+        ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
+    ];
 
-    // Deserialize the CToken account
-    let ctoken =
-        CToken::deserialize(&mut &account.data[..]).expect("Failed to deserialize CToken account");
+    assert_create_token_account(
+        &mut context.rpc,
+        account_pubkey,
+        mint_pubkey,
+        payer.pubkey(),
+        Some(CompressibleData {
+            compression_authority,
+            rent_sponsor,
+            num_prepaid_epochs: 2,
+            lamports_per_write: Some(100),
+            compress_to_pubkey: false,
+            account_version: TokenDataVersion::ShaFlat,
+            payer: payer.pubkey(),
+        }),
+        Some(expected_extensions),
+    )
+    .await;
 
-    // Extract CompressionInfo from the deserialized account (contains runtime-specific values)
-    let compression_info = ctoken
-        .extensions
-        .as_ref()
-        .and_then(|exts| {
-            exts.iter().find_map(|e| match e {
-                ExtensionStruct::Compressible(info) => Some(*info),
-                _ => None,
-            })
-        })
-        .expect("Should have Compressible extension");
-
-    // Build expected CToken account for comparison
-    let expected_ctoken = CToken {
-        mint: mint_pubkey.to_bytes().into(),
-        owner: payer.pubkey().to_bytes().into(),
-        amount: 0,
-        delegate: None,
-        state: AccountState::Initialized,
-        is_native: None,
-        delegated_amount: 0,
-        close_authority: None,
-        extensions: Some(vec![
-            ExtensionStruct::Compressible(compression_info),
-            ExtensionStruct::PausableAccount(PausableAccountExtension),
-            ExtensionStruct::PermanentDelegateAccount(PermanentDelegateAccountExtension),
-            ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
-            ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
-        ]),
-        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
-    };
-
-    assert_eq!(
-        ctoken, expected_ctoken,
-        "CToken account should match expected with all 5 extensions"
-    );
-
-    println!(
-        "Successfully created CToken account with all 5 extensions: compressible, pausable, permanent_delegate, transfer_fee, transfer_hook"
-    );
+    println!("Successfully created CToken account with all extensions from Token-2022 mint");
 }
 
 /// Test complete flow: Create Token-2022 mint -> SPL account -> Mint -> Create CToken accounts -> Transfer SPL to CToken (hot path) -> Transfer with permanent delegate
@@ -484,17 +461,20 @@ async fn test_transfer_with_permanent_delegate() {
         .unwrap();
 
     // Step 5: Transfer from A to B using permanent delegate as authority
+    // Use CTokenTransferChecked (discriminator 6) because accounts have PausableAccount extension
     let transfer_amount = 500_000_000u64;
-    let mut data = vec![3]; // CTokenTransfer discriminator
+    let decimals: u8 = 9;
+    let mut data = vec![6]; // CTokenTransferChecked discriminator
     data.extend_from_slice(&transfer_amount.to_le_bytes());
+    data.push(decimals);
 
     let transfer_ix = Instruction {
         program_id: light_compressed_token::ID,
         accounts: vec![
-            AccountMeta::new(account_a_pubkey, false),
-            AccountMeta::new(account_b_pubkey, false),
-            AccountMeta::new(permanent_delegate, true), // Permanent delegate must sign
-            AccountMeta::new_readonly(mint_pubkey, false), // Mint required for extension check
+            AccountMeta::new(account_a_pubkey, false),     // source
+            AccountMeta::new_readonly(mint_pubkey, false), // mint (required for extension check)
+            AccountMeta::new(account_b_pubkey, false),     // destination
+            AccountMeta::new(permanent_delegate, true), // authority (permanent delegate must sign)
             AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // System program for compressible top-up
         ],
         data,
@@ -587,12 +567,12 @@ async fn test_create_ctoken_with_frozen_default_state() {
         .await
         .unwrap();
 
-    // Verify account was created with correct size (263 bytes = 165 base + 7 metadata + 88 compressible + 2 markers)
+    // Verify account was created with correct size (264 bytes = 166 base + 7 metadata + 88 compressible + 2 markers)
     let account = rpc.get_account(account_pubkey).await.unwrap().unwrap();
     assert_eq!(
         account.data.len(),
-        263,
-        "CToken account should be 263 bytes"
+        264,
+        "CToken account should be 264 bytes"
     );
 
     // Deserialize the CToken account using borsh
@@ -605,19 +585,8 @@ async fn test_create_ctoken_with_frozen_default_state() {
     let ctoken =
         CToken::deserialize(&mut &account.data[..]).expect("Failed to deserialize CToken account");
 
-    // Extract CompressionInfo from the deserialized account (contains runtime-specific values)
-    let compression_info = ctoken
-        .extensions
-        .as_ref()
-        .and_then(|exts| {
-            exts.iter().find_map(|e| match e {
-                ExtensionStruct::Compressible(info) => Some(*info),
-                _ => None,
-            })
-        })
-        .expect("Should have Compressible extension");
-
     // Build expected CToken account for comparison
+    // compression is now a direct field on CToken
     let expected_ctoken = CToken {
         mint: mint_pubkey.to_bytes().into(),
         owner: payer.pubkey().to_bytes().into(),
@@ -627,12 +596,14 @@ async fn test_create_ctoken_with_frozen_default_state() {
         is_native: None,
         delegated_amount: 0,
         close_authority: None,
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        decimals: ctoken.decimals,
+        compression_only: ctoken.compression_only,
+        compression: ctoken.compression,
         extensions: Some(vec![
-            ExtensionStruct::Compressible(compression_info),
             ExtensionStruct::PausableAccount(PausableAccountExtension),
             ExtensionStruct::PermanentDelegateAccount(PermanentDelegateAccountExtension),
         ]),
-        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
     };
 
     assert_eq!(
@@ -783,8 +754,8 @@ async fn test_transfer_with_owner_authority() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(account_a_data.data.len(), 276);
-    assert_eq!(account_b_data.data.len(), 276);
+    assert_eq!(account_a_data.data.len(), 275);
+    assert_eq!(account_b_data.data.len(), 275);
 
     // Step 3: Transfer SPL to CToken account A using hot path (compress + decompress in same tx)
     let (spl_interface_pda, spl_interface_pda_bump) =
@@ -812,17 +783,20 @@ async fn test_transfer_with_owner_authority() {
         .unwrap();
 
     // Step 4: Transfer from A to B using owner as authority
+    // Use CTokenTransferChecked (discriminator 6) because accounts have PausableAccount extension
     let transfer_amount = 500_000_000u64;
-    let mut data = vec![3]; // CTokenTransfer discriminator
+    let decimals: u8 = 9;
+    let mut data = vec![6]; // CTokenTransferChecked discriminator
     data.extend_from_slice(&transfer_amount.to_le_bytes());
+    data.push(decimals);
 
     let transfer_ix = Instruction {
         program_id: light_compressed_token::ID,
         accounts: vec![
-            AccountMeta::new(account_a_pubkey, false),
-            AccountMeta::new(account_b_pubkey, false),
-            AccountMeta::new(owner.pubkey(), true), // Owner must sign
-            AccountMeta::new_readonly(mint_pubkey, false), // Mint required for extension check
+            AccountMeta::new(account_a_pubkey, false),     // source
+            AccountMeta::new_readonly(mint_pubkey, false), // mint (required for extension check)
+            AccountMeta::new(account_b_pubkey, false),     // destination
+            AccountMeta::new(owner.pubkey(), true),        // authority (owner must sign)
             AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // System program for compressible top-up
         ],
         data,
@@ -866,31 +840,8 @@ async fn test_transfer_with_owner_authority() {
     let ctoken_a = CToken::deserialize(&mut &account_a.data[..]).unwrap();
     let ctoken_b = CToken::deserialize(&mut &account_b.data[..]).unwrap();
 
-    // Extract CompressionInfo from account A
-    let compression_info_a = ctoken_a
-        .extensions
-        .as_ref()
-        .and_then(|exts| {
-            exts.iter().find_map(|e| match e {
-                ExtensionStruct::Compressible(info) => Some(*info),
-                _ => None,
-            })
-        })
-        .expect("Account A should have Compressible extension");
-
-    // Extract CompressionInfo from account B
-    let compression_info_b = ctoken_b
-        .extensions
-        .as_ref()
-        .and_then(|exts| {
-            exts.iter().find_map(|e| match e {
-                ExtensionStruct::Compressible(info) => Some(*info),
-                _ => None,
-            })
-        })
-        .expect("Account B should have Compressible extension");
-
     // Build expected CToken accounts
+    // compression is now a direct field on CToken
     let expected_ctoken_a = CToken {
         mint: mint_pubkey.to_bytes().into(),
         owner: owner.pubkey().to_bytes().into(),
@@ -900,14 +851,16 @@ async fn test_transfer_with_owner_authority() {
         is_native: None,
         delegated_amount: 0,
         close_authority: None,
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        decimals: ctoken_a.decimals,
+        compression_only: ctoken_a.compression_only,
+        compression: ctoken_a.compression,
         extensions: Some(vec![
-            ExtensionStruct::Compressible(compression_info_a),
             ExtensionStruct::PausableAccount(PausableAccountExtension),
             ExtensionStruct::PermanentDelegateAccount(PermanentDelegateAccountExtension),
             ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
             ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
         ]),
-        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
     };
 
     let expected_ctoken_b = CToken {
@@ -919,14 +872,16 @@ async fn test_transfer_with_owner_authority() {
         is_native: None,
         delegated_amount: 0,
         close_authority: None,
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        decimals: ctoken_b.decimals,
+        compression_only: ctoken_b.compression_only,
+        compression: ctoken_b.compression,
         extensions: Some(vec![
-            ExtensionStruct::Compressible(compression_info_b),
             ExtensionStruct::PausableAccount(PausableAccountExtension),
             ExtensionStruct::PermanentDelegateAccount(PermanentDelegateAccountExtension),
             ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
             ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
         ]),
-        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
     };
 
     assert_eq!(
@@ -1248,19 +1203,8 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     let dest_ctoken = CToken::deserialize(&mut &dest_account_data.data[..])
         .expect("Failed to deserialize destination CToken account");
 
-    // Extract CompressionInfo for comparison (it has runtime values)
-    let compression_info = dest_ctoken
-        .extensions
-        .as_ref()
-        .and_then(|exts| {
-            exts.iter().find_map(|e| match e {
-                ExtensionStruct::Compressible(info) => Some(*info),
-                _ => None,
-            })
-        })
-        .expect("Should have Compressible extension");
-
     // Build expected CToken account
+    // compression is now a direct field on CToken
     let expected_dest_ctoken = CToken {
         mint: mint_pubkey.to_bytes().into(),
         owner: owner.pubkey().to_bytes().into(),
@@ -1270,14 +1214,16 @@ async fn test_compress_and_close_ctoken_with_extensions() {
         is_native: None,
         delegated_amount: 0,
         close_authority: None,
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        decimals: dest_ctoken.decimals,
+        compression_only: dest_ctoken.compression_only,
+        compression: dest_ctoken.compression,
         extensions: Some(vec![
-            ExtensionStruct::Compressible(compression_info),
             ExtensionStruct::PausableAccount(PausableAccountExtension),
             ExtensionStruct::PermanentDelegateAccount(PermanentDelegateAccountExtension),
             ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
             ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
         ]),
-        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
     };
 
     assert_eq!(

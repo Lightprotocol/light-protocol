@@ -42,7 +42,7 @@ async fn create_and_assert_ata2(
             owner: owner_pubkey,
             mint: context.mint_pubkey,
             associated_token_account: ata_pubkey,
-            compressible: None,
+            compressible: CompressibleParams::default(),
         };
 
         if idempotent {
@@ -63,6 +63,7 @@ async fn create_and_assert_ata2(
         owner_pubkey,
         context.mint_pubkey,
         compressible_data,
+        None,
     )
     .await;
 
@@ -96,8 +97,24 @@ async fn test_create_ata2_basic() {
 
     {
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
-
-        create_and_assert_ata2(&mut context, None, false, "non_compressible_ata2").await;
+        // All accounts now have compression infrastructure, so pass CompressibleData
+        // with 0 prepaid epochs (immediately compressible)
+        let compressible_data = CompressibleData {
+            compression_authority: context.compression_authority,
+            rent_sponsor: context.rent_sponsor,
+            num_prepaid_epochs: 0,
+            lamports_per_write: None,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compress_to_pubkey: false,
+            payer: payer_pubkey,
+        };
+        create_and_assert_ata2(
+            &mut context,
+            Some(compressible_data),
+            false,
+            "ata2_zero_epochs",
+        )
+        .await;
     }
 }
 
@@ -141,7 +158,7 @@ async fn test_create_ata2_idempotent() {
 
     assert_eq!(
         account.data.len(),
-        light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize,
+        light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE as usize,
         "Account should still be compressible size after idempotent recreation"
     );
 }

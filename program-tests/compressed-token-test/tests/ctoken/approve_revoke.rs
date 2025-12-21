@@ -3,17 +3,16 @@
 //! Tests verify that approve and revoke work correctly for compressible
 //! CToken accounts with extensions.
 
-use borsh::BorshDeserialize;
-use light_ctoken_interface::state::{
-    AccountState, CToken, ExtensionStruct, PausableAccountExtension,
-    PermanentDelegateAccountExtension, TokenDataVersion, TransferFeeAccountExtension,
-    TransferHookAccountExtension, ACCOUNT_TYPE_TOKEN_ACCOUNT,
-};
+use anchor_lang::AnchorDeserialize;
+use light_ctoken_interface::state::{CToken, TokenDataVersion};
 use light_ctoken_sdk::ctoken::{
     ApproveCToken, CompressibleParams, CreateCTokenAccount, RevokeCToken,
 };
 use light_program_test::program_test::TestRpc;
-use light_test_utils::{Rpc, RpcError};
+use light_test_utils::{
+    assert_ctoken_approve_revoke::{assert_ctoken_approve, assert_ctoken_revoke},
+    Rpc, RpcError,
+};
 use serial_test::serial;
 use solana_sdk::{program_pack::Pack, signature::Keypair, signer::Signer};
 
@@ -94,18 +93,6 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
     assert!(ctoken_initial.delegate.is_none());
     assert_eq!(ctoken_initial.delegated_amount, 0);
 
-    // Extract CompressionInfo for expected comparisons
-    let compression_info = ctoken_initial
-        .extensions
-        .as_ref()
-        .and_then(|exts| {
-            exts.iter().find_map(|e| match e {
-                ExtensionStruct::Compressible(info) => Some(*info),
-                _ => None,
-            })
-        })
-        .expect("Should have Compressible extension");
-
     // Fund the owner for compressible top-up
     context
         .rpc
@@ -131,33 +118,13 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
         .await?;
 
     // 4. Assert delegate and delegated_amount fields after approve
-    let account_data_approved = context.rpc.get_account(account_pubkey).await?.unwrap();
-    let ctoken_approved = CToken::deserialize(&mut &account_data_approved.data[..])
-        .expect("Failed to deserialize CToken after approve");
-
-    let expected_approved = CToken {
-        mint: mint_pubkey.to_bytes().into(),
-        owner: owner.pubkey().to_bytes().into(),
-        amount: token_balance,
-        delegate: Some(delegate.pubkey().to_bytes().into()),
-        state: AccountState::Initialized,
-        is_native: None,
-        delegated_amount: approve_amount,
-        close_authority: None,
-        extensions: Some(vec![
-            ExtensionStruct::Compressible(compression_info),
-            ExtensionStruct::PausableAccount(PausableAccountExtension),
-            ExtensionStruct::PermanentDelegateAccount(PermanentDelegateAccountExtension),
-            ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
-            ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
-        ]),
-        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
-    };
-
-    assert_eq!(
-        ctoken_approved, expected_approved,
-        "CToken after approve should have delegate set and delegated_amount=10"
-    );
+    assert_ctoken_approve(
+        &mut context.rpc,
+        account_pubkey,
+        delegate.pubkey(),
+        approve_amount,
+    )
+    .await;
 
     // 5. Revoke delegation
     let revoke_ix = RevokeCToken {
@@ -173,33 +140,7 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
         .await?;
 
     // 6. Assert delegate cleared and delegated_amount is 0 after revoke
-    let account_data_revoked = context.rpc.get_account(account_pubkey).await?.unwrap();
-    let ctoken_revoked = CToken::deserialize(&mut &account_data_revoked.data[..])
-        .expect("Failed to deserialize CToken after revoke");
-
-    let expected_revoked = CToken {
-        mint: mint_pubkey.to_bytes().into(),
-        owner: owner.pubkey().to_bytes().into(),
-        amount: token_balance,
-        delegate: None,
-        state: AccountState::Initialized,
-        is_native: None,
-        delegated_amount: 0,
-        close_authority: None,
-        extensions: Some(vec![
-            ExtensionStruct::Compressible(compression_info),
-            ExtensionStruct::PausableAccount(PausableAccountExtension),
-            ExtensionStruct::PermanentDelegateAccount(PermanentDelegateAccountExtension),
-            ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
-            ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
-        ]),
-        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
-    };
-
-    assert_eq!(
-        ctoken_revoked, expected_revoked,
-        "CToken after revoke should have delegate cleared and delegated_amount=0"
-    );
+    assert_ctoken_revoke(&mut context.rpc, account_pubkey).await;
 
     println!("Successfully tested approve and revoke with compressible CToken");
     Ok(())

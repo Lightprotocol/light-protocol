@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
 use borsh::BorshDeserialize;
-use light_ctoken_interface::{
-    state::{extensions::ExtensionStruct, CToken},
-    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, CTOKEN_PROGRAM_ID,
-};
+use light_ctoken_interface::{state::CToken, BASE_TOKEN_ACCOUNT_SIZE, CTOKEN_PROGRAM_ID};
 use serde_json::json;
 use solana_sdk::pubkey::Pubkey;
 use tokio::sync::oneshot;
@@ -116,14 +113,9 @@ fn process_account(
         }
     };
 
-    // Check for Compressible extension
-    let has_compressible = ctoken.extensions.as_ref().is_some_and(|exts| {
-        exts.iter()
-            .any(|ext| matches!(ext, ExtensionStruct::Compressible(_)))
-    });
-
-    if !has_compressible {
-        debug!("Skipping account {} without Compressible extension", pubkey);
+    // Check if account is a valid CToken account (account_type == 2)
+    if !ctoken.is_ctoken_account() {
+        debug!("Skipping account {} without compressible config", pubkey);
         return Ok(false);
     }
 
@@ -207,7 +199,7 @@ async fn bootstrap_with_v2_api(
                 "encoding": "base64",
                 "commitment": "confirmed",
                 "filters": [
-                    {"dataSize": COMPRESSIBLE_TOKEN_ACCOUNT_SIZE}
+                    {"dataSize": BASE_TOKEN_ACCOUNT_SIZE}
                 ],
                 "limit": PAGE_SIZE
             }
@@ -325,7 +317,7 @@ async fn bootstrap_with_standard_api(
                 "encoding": "base64",
                 "commitment": "confirmed",
                 "filters": [
-                    {"dataSize": COMPRESSIBLE_TOKEN_ACCOUNT_SIZE}
+                    {"dataSize": BASE_TOKEN_ACCOUNT_SIZE}
                 ]
             }
         ]

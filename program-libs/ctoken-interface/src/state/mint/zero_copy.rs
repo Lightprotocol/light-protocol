@@ -1,5 +1,6 @@
-use aligned_sized::aligned_sized;
 use core::ops::Deref;
+
+use aligned_sized::aligned_sized;
 use light_compressed_account::Pubkey;
 use light_compressible::compression_info::CompressionInfo;
 use light_program_profiler::profile;

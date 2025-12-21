@@ -121,26 +121,11 @@ impl<R: Rpc> Compressor<R> {
             let mint = Pubkey::new_from_array(account_state.account.mint.to_bytes());
             let mint_index = packed_accounts.insert_or_get(mint);
 
-            // Get compressible extension to extract rent_sponsor and compress_to_pubkey
-            let compressible_ext = account_state
-                .account
-                .extensions
-                .as_ref()
-                .and_then(|exts| {
-                    exts.iter().find_map(|ext| {
-                        if let light_ctoken_interface::state::ExtensionStruct::Compressible(comp) =
-                            ext
-                        {
-                            Some(comp)
-                        } else {
-                            None
-                        }
-                    })
-                })
-                .ok_or_else(|| anyhow::anyhow!("Account missing compressible extension"))?;
+            // Get compression info from embedded field
+            let compression = &account_state.account.compression;
 
             // Determine owner based on compress_to_pubkey flag
-            let compressed_token_owner = if compressible_ext.info.compress_to_pubkey != 0 {
+            let compressed_token_owner = if compression.compress_to_pubkey != 0 {
                 account_state.pubkey // Use account pubkey for PDAs
             } else {
                 Pubkey::new_from_array(account_state.account.owner.to_bytes()) // Use original owner
@@ -148,8 +133,8 @@ impl<R: Rpc> Compressor<R> {
 
             let owner_index = packed_accounts.insert_or_get(compressed_token_owner);
 
-            // Extract rent_sponsor from extension
-            let rent_sponsor = Pubkey::new_from_array(compressible_ext.info.rent_sponsor);
+            // Extract rent_sponsor from compression info
+            let rent_sponsor = Pubkey::new_from_array(compression.rent_sponsor);
             let rent_sponsor_index = packed_accounts.insert_or_get(rent_sponsor);
 
             // Handle delegate if present
