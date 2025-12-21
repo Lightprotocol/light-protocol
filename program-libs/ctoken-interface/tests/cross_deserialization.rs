@@ -5,8 +5,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
 use light_ctoken_interface::state::{
-    AccountState, BaseMint, CToken, CompressedMint, CompressedMintMetadata, CompressibleExtension,
-    ExtensionStruct, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+    AccountState, BaseMint, CToken, CompressedMint, CompressedMintMetadata, ACCOUNT_TYPE_MINT,
+    ACCOUNT_TYPE_TOKEN_ACCOUNT,
 };
 
 const ACCOUNT_TYPE_OFFSET: usize = 165;
@@ -27,6 +27,22 @@ fn create_test_cmint() -> CompressedMint {
         },
         reserved: [0u8; 49],
         account_type: ACCOUNT_TYPE_MINT,
+        compression: CompressionInfo {
+            config_account_version: 1,
+            compress_to_pubkey: 0,
+            account_version: 3,
+            lamports_per_write: 100,
+            compression_authority: [3u8; 32],
+            rent_sponsor: [4u8; 32],
+            last_claimed_slot: 100,
+            rent_config: RentConfig {
+                base_rent: 0,
+                compression_cost: 0,
+                lamports_per_byte_per_epoch: 0,
+                max_funded_epochs: 0,
+                max_top_up: 0,
+            },
+        },
         extensions: None,
     }
 }
@@ -60,27 +76,7 @@ fn create_test_ctoken() -> CToken {
                 max_top_up: 0,
             },
         },
-        extensions: Some(vec![ExtensionStruct::Compressible(CompressibleExtension {
-            compression_only: false,
-            decimals: 6,
-            has_decimals: 1,
-            info: CompressionInfo {
-                config_account_version: 1,
-                compress_to_pubkey: 0,
-                account_version: 3,
-                lamports_per_write: 100,
-                compression_authority: [3u8; 32],
-                rent_sponsor: [4u8; 32],
-                last_claimed_slot: 100,
-                rent_config: RentConfig {
-                    base_rent: 0,
-                    compression_cost: 0,
-                    lamports_per_byte_per_epoch: 0,
-                    max_funded_epochs: 0,
-                    max_top_up: 0,
-                },
-            },
-        })]),
+        extensions: None, // CompressionInfo is now embedded directly in the struct
     }
 }
 

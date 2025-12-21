@@ -586,33 +586,6 @@ impl PartialEq<CToken> for ZCToken<'_> {
                                 return false;
                             }
                         }
-                        (
-                            ZExtensionStruct::Compressible(zc_comp),
-                            crate::state::extensions::ExtensionStruct::Compressible(regular_comp),
-                        ) => {
-                            if (zc_comp.compression_only != 0) != regular_comp.compression_only
-                                || zc_comp.decimals != regular_comp.decimals
-                                || zc_comp.has_decimals != regular_comp.has_decimals
-                            {
-                                return false;
-                            }
-                            // Compare nested CompressionInfo
-                            if u16::from(zc_comp.info.config_account_version)
-                                != regular_comp.info.config_account_version
-                                || zc_comp.info.compress_to_pubkey
-                                    != regular_comp.info.compress_to_pubkey
-                                || zc_comp.info.account_version != regular_comp.info.account_version
-                                || u32::from(zc_comp.info.lamports_per_write)
-                                    != regular_comp.info.lamports_per_write
-                                || zc_comp.info.compression_authority
-                                    != regular_comp.info.compression_authority
-                                || zc_comp.info.rent_sponsor != regular_comp.info.rent_sponsor
-                                || u64::from(zc_comp.info.last_claimed_slot)
-                                    != regular_comp.info.last_claimed_slot
-                            {
-                                return false;
-                            }
-                        }
                         // Unknown or unhandled extension types should panic to surface bugs early
                         (zc_ext, regular_ext) => {
                             panic!(
