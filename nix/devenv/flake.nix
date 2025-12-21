@@ -20,28 +20,46 @@
           set -e
           REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
-          # Build a single program with its own target dir
           build_program() {
-            local prog="$1"
-            shift
+            local prog="$1"; shift
             local name=$(basename "$prog")
             echo "==> $prog"
             CARGO_TARGET_DIR="$REPO_ROOT/target-$name" cargo build-sbf --manifest-path "$prog/Cargo.toml" "$@"
           }
 
-          # If running from workspace root, build each program separately
           if [ -f "Cargo.toml" ] && grep -q '^\[workspace\]' "Cargo.toml" 2>/dev/null; then
             echo "Building programs with separate target directories..."
             for prog in programs/*/; do
-              if [ -f "$prog/Cargo.toml" ]; then
-                build_program "$prog" "$@"
-              fi
+              [ -f "$prog/Cargo.toml" ] && build_program "$prog" "$@"
             done
           else
-            # Single program build
-            local name=$(basename "$PWD")
+            name=$(basename "$PWD")
             export CARGO_TARGET_DIR="$REPO_ROOT/target-$name"
             exec cargo build-sbf "$@"
+          fi
+        '';
+
+        # Smart test-sbf wrapper
+        testSbfWrapper = pkgs.writeShellScriptBin "test-sbf" ''
+          set -e
+          REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+          test_program() {
+            local prog="$1"; shift
+            local name=$(basename "$prog")
+            echo "==> $prog"
+            CARGO_TARGET_DIR="$REPO_ROOT/target-$name" cargo test-sbf --manifest-path "$prog/Cargo.toml" "$@"
+          }
+
+          if [ -f "Cargo.toml" ] && grep -q '^\[workspace\]' "Cargo.toml" 2>/dev/null; then
+            echo "Testing programs with separate target directories..."
+            for prog in programs/*/; do
+              [ -f "$prog/Cargo.toml" ] && test_program "$prog" "$@"
+            done
+          else
+            name=$(basename "$PWD")
+            export CARGO_TARGET_DIR="$REPO_ROOT/target-$name"
+            exec cargo test-sbf "$@"
           fi
         '';
 
@@ -77,7 +95,8 @@
             # Solana ecosystem
             solana
             anchor
-            buildSbfWrapper  # Smart wrapper with separate target dirs
+            buildSbfWrapper  # Smart wrapper: build-sbf
+            testSbfWrapper   # Smart wrapper: test-sbf
           ];
 
           shellHook = ''
