@@ -53,10 +53,19 @@ in stdenv.mkDerivation {
   dontConfigure = true;
   dontBuild = true;
 
+  # Ignore missing CUDA/SGX libraries - they're optional performance libs
+  autoPatchelfIgnoreMissingDeps = [
+    "libOpenCL.so.1"
+    "libsgx_uae_service.so"
+    "libsgx_urts.so"
+  ];
+
   installPhase = ''
     runHook preInstall
     mkdir -p $out/bin
     cp -r solana-release/bin/* $out/bin/
+    # Remove optional perf-libs that require CUDA/SGX (not needed for dev/CI)
+    rm -rf $out/bin/perf-libs
     runHook postInstall
   '';
 
