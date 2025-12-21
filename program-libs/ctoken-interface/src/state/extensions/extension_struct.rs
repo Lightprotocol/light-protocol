@@ -1,6 +1,4 @@
-use aligned_sized::aligned_sized;
-use light_compressible::compression_info::CompressionInfo;
-use light_zero_copy::{ZeroCopy, ZeroCopyMut};
+use light_zero_copy::ZeroCopy;
 use spl_pod::solana_msg::msg;
 
 use crate::{
@@ -57,66 +55,8 @@ pub enum ExtensionStruct {
     TransferHookAccount(TransferHookAccountExtension),
     /// CompressedOnly extension for compressed token accounts (stores delegated amount)
     CompressedOnly(CompressedOnlyExtension),
-    /// Account/Mint contains compressible timing data and rent authority
-    Compressible(CompressibleExtension),
-}
-
-/// Extension for mint accounts that support compression.
-/// Note: For token accounts, compression info is embedded directly in CTokenZeroCopy.
-#[derive(
-    Debug,
-    ZeroCopy,
-    ZeroCopyMut,
-    Clone,
-    Copy,
-    PartialEq,
-    Hash,
-    Eq,
-    AnchorSerialize,
-    AnchorDeserialize,
-)]
-#[repr(C)]
-#[aligned_sized]
-pub struct CompressibleExtension {
-    pub compression_only: bool,
-    /// Mint decimals (if has_decimals is set).
-    /// Cached from mint at account creation for transfer_checked optimization.
-    pub decimals: u8,
-    /// 1 if decimals is set, 0 otherwise.
-    /// Separate flag needed because decimals=0 is valid for some tokens.
-    pub has_decimals: u8,
-    pub info: CompressionInfo,
-}
-
-impl CompressibleExtension {
-    /// Get cached decimals if set.
-    /// Returns Some(decimals) if decimals were cached at account creation, None otherwise.
-    pub fn get_decimals(&self) -> Option<u8> {
-        if self.has_decimals != 0 {
-            Some(self.decimals)
-        } else {
-            None
-        }
-    }
-}
-
-impl<'a> ZCompressibleExtensionMut<'a> {
-    /// Get cached decimals if set.
-    /// Returns Some(decimals) if decimals were cached at account creation, None otherwise.
-    pub fn get_decimals(&self) -> Option<u8> {
-        if self.has_decimals != 0 {
-            Some(self.decimals)
-        } else {
-            None
-        }
-    }
-
-    /// Set cached decimals from mint.
-    /// Call this during account initialization when mint is available.
-    pub fn set_decimals(&mut self, decimals: u8) {
-        self.decimals = decimals;
-        self.has_decimals = 1;
-    }
+    /// Reserved - CompressionInfo is now embedded directly in CToken and CompressedMint structs
+    Placeholder32,
 }
 
 #[derive(Debug)]
@@ -161,10 +101,8 @@ pub enum ZExtensionStructMut<'a> {
     CompressedOnly(
         <CompressedOnlyExtension as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut,
     ),
-    /// Account/Mint contains compressible timing data and rent authority
-    Compressible(
-        <CompressibleExtension as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut,
-    ),
+    /// Reserved - CompressionInfo is now embedded directly in CToken and CompressedMint structs
+    Placeholder32,
 }
 
 impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
@@ -237,15 +175,6 @@ impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
-            32 => {
-                // Compressible variant (index 32 to avoid Token-2022 overlap)
-                let (compressible_ext, remaining_bytes) =
-                    CompressibleExtension::zero_copy_at_mut(remaining_data)?;
-                Ok((
-                    ZExtensionStructMut::Compressible(compressible_ext),
-                    remaining_bytes,
-                ))
-            }
             _ => Err(light_zero_copy::errors::ZeroCopyError::InvalidConversion),
         }
     }
@@ -282,10 +211,6 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
             ExtensionStructConfig::CompressedOnly(_) => {
                 // 1 byte for discriminant + 16 bytes for CompressedOnlyExtension (2 * u64)
                 1 + CompressedOnlyExtension::LEN
-            }
-            ExtensionStructConfig::Compressible(_) => {
-                // 1 byte for discriminant + CompressibleExtension size
-                1 + CompressibleExtension::LEN
             }
             _ => {
                 msg!("Invalid extension type returning");
@@ -401,23 +326,6 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
-            ExtensionStructConfig::Compressible(config) => {
-                // Write discriminant (32 for Compressible - avoids Token-2022 overlap)
-                if bytes.len() < 1 + CompressibleExtension::LEN {
-                    return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
-                        1 + CompressibleExtension::LEN,
-                        bytes.len(),
-                    ));
-                }
-                bytes[0] = 32u8;
-
-                let (compressible_ext, remaining_bytes) =
-                    CompressibleExtension::new_zero_copy(&mut bytes[1..], config)?;
-                Ok((
-                    ZExtensionStructMut::Compressible(compressible_ext),
-                    remaining_bytes,
-                ))
-            }
             _ => Err(light_zero_copy::errors::ZeroCopyError::InvalidConversion),
         }
     }
@@ -458,5 +366,6 @@ pub enum ExtensionStructConfig {
     TransferFeeAccount(TransferFeeAccountExtensionConfig),
     TransferHookAccount(TransferHookAccountExtensionConfig),
     CompressedOnly(CompressedOnlyExtensionConfig),
-    Compressible(CompressibleExtensionConfig),
+    /// Reserved - CompressionInfo is now embedded directly in CToken and CompressedMint structs
+    Placeholder32,
 }
