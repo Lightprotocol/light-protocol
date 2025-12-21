@@ -107,9 +107,9 @@ pub use light_ctoken_interface::{
 use light_ctoken_types::POOL_SEED;
 pub use mint_to::*;
 pub use revoke::*;
-pub use thaw::*;
 use solana_account_info::AccountInfo;
 use solana_pubkey::{pubkey, Pubkey};
+pub use thaw::*;
 pub use transfer_ctoken::*;
 pub use transfer_ctoken_checked::*;
 pub use transfer_ctoken_spl::{TransferCTokenToSpl, TransferCTokenToSplCpi};

@@ -20,7 +20,7 @@ fn test_compressed_token_new_zero_copy() {
 
     // Calculate required buffer size
     let required_size = CToken::byte_len(&config).unwrap();
-    assert_eq!(required_size, 165); // SPL Token account size
+    assert_eq!(required_size, 166); // SPL Token account size + account_type byte
 
     // Create buffer and initialize
     let mut buffer = vec![0u8; required_size];

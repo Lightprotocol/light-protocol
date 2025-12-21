@@ -6,7 +6,7 @@
 use borsh::BorshDeserialize;
 use light_ctoken_interface::state::{
     AccountState, CToken, PausableAccountExtension, PermanentDelegateAccountExtension,
-    TransferFeeAccountExtension, TransferHookAccountExtension,
+    TransferFeeAccountExtension, TransferHookAccountExtension, ACCOUNT_TYPE_TOKEN_ACCOUNT,
 };
 use light_program_test::{
     program_test::TestRpc, utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig,
@@ -333,6 +333,7 @@ async fn test_create_ctoken_with_extensions() {
             ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
             ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
         ]),
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
     };
 
     assert_eq!(
@@ -631,6 +632,7 @@ async fn test_create_ctoken_with_frozen_default_state() {
             ExtensionStruct::PausableAccount(PausableAccountExtension),
             ExtensionStruct::PermanentDelegateAccount(PermanentDelegateAccountExtension),
         ]),
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
     };
 
     assert_eq!(
@@ -781,8 +783,8 @@ async fn test_transfer_with_owner_authority() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(account_a_data.data.len(), 274);
-    assert_eq!(account_b_data.data.len(), 274);
+    assert_eq!(account_a_data.data.len(), 276);
+    assert_eq!(account_b_data.data.len(), 276);
 
     // Step 3: Transfer SPL to CToken account A using hot path (compress + decompress in same tx)
     let (spl_interface_pda, spl_interface_pda_bump) =
@@ -905,6 +907,7 @@ async fn test_transfer_with_owner_authority() {
             ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
             ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
         ]),
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
     };
 
     let expected_ctoken_b = CToken {
@@ -923,6 +926,7 @@ async fn test_transfer_with_owner_authority() {
             ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
             ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
         ]),
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
     };
 
     assert_eq!(
@@ -1273,6 +1277,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
             ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
             ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
         ]),
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
     };
 
     assert_eq!(

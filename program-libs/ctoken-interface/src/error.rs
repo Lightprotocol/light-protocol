@@ -162,6 +162,9 @@ pub enum CTokenError {
 
     #[error("TLV extension length mismatch - exactly one extension required")]
     TlvExtensionLengthMismatch,
+
+    #[error("InvalidAccountType")]
+    InvalidAccountType,
 }
 
 impl From<CTokenError> for u32 {
@@ -219,6 +222,7 @@ impl From<CTokenError> for u32 {
             CTokenError::InLamportsUnimplemented => 18050,
             CTokenError::OutLamportsUnimplemented => 18051,
             CTokenError::TlvExtensionLengthMismatch => 18052,
+            CTokenError::InvalidAccountType => 18053,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

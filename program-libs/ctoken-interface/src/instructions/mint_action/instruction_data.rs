@@ -247,6 +247,8 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
                 cmint_decompressed: instruction_data.metadata.cmint_decompressed(),
                 mint: instruction_data.metadata.mint,
             },
+            reserved: [0u8; 49],
+            account_type: crate::state::mint::ACCOUNT_TYPE_MINT,
             extensions,
         })
     }

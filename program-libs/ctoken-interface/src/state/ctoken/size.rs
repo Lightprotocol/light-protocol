@@ -18,8 +18,8 @@ use crate::{
 /// The total account size in bytes
 ///
 /// # Extension Sizes
-/// - Base account: 165 bytes
-/// - Extension metadata (per extension): 7 bytes (1 AccountType + 1 Option + 4 Vec len + 1 discriminant)
+/// - Base account: 166 bytes (165 SPL token + 1 account_type)
+/// - Extension metadata (per extension): 6 bytes (1 Option + 4 Vec len + 1 discriminant)
 /// - Compressible: 91 bytes (1 compression_only + 1 decimals + 1 has_decimals + 88 CompressionInfo::LEN)
 /// - PausableAccount: 0 bytes (marker only, just discriminant)
 /// - PermanentDelegateAccount: 0 bytes (marker only, just discriminant)

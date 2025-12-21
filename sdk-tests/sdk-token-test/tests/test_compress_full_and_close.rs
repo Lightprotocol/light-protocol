@@ -4,7 +4,7 @@ use anchor_lang::{
 };
 use light_ctoken_interface::{
     instructions::mint_action::{CompressedMintWithContext, Recipient},
-    state::{BaseMint, CompressedMint, CompressedMintMetadata},
+    state::{BaseMint, CompressedMint, CompressedMintMetadata, ACCOUNT_TYPE_MINT},
     COMPRESSED_MINT_SEED, CTOKEN_PROGRAM_ID,
 };
 use light_ctoken_sdk::{
@@ -128,6 +128,8 @@ async fn test_compress_full_and_close() {
             mint: mint_pda.into(),
             cmint_decompressed: false,
         },
+        reserved: [0u8; 49],
+        account_type: ACCOUNT_TYPE_MINT,
         extensions: None,
     };
 

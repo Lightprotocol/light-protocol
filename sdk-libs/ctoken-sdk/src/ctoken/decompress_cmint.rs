@@ -10,10 +10,9 @@ use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
+pub use super::find_cmint_address;
 use super::{config_pda, rent_sponsor_pda, SystemAccountInfos};
 use crate::compressed_token::mint_action::MintActionMetaConfig;
-
-pub use super::find_cmint_address;
 
 /// Decompress a compressed mint to a CMint Solana account.
 ///

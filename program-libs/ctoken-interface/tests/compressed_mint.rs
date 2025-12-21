@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_ctoken_interface::state::{
-    BaseMint, CompressedMint, CompressedMintConfig, CompressedMintMetadata,
+    BaseMint, CompressedMint, CompressedMintConfig, CompressedMintMetadata, ACCOUNT_TYPE_MINT,
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
 use rand::{thread_rng, Rng};
@@ -29,6 +29,8 @@ fn generate_random_compressed_mint(rng: &mut impl Rng, with_extensions: bool) ->
             mint: Pubkey::from(rng.gen::<[u8; 32]>()),
             cmint_decompressed: rng.gen_bool(0.5),
         },
+        reserved: [0u8; 49],
+        account_type: ACCOUNT_TYPE_MINT,
         extensions: if with_extensions {
             // For simplicity, we'll test without extensions for now
             // Extensions require more complex setup
@@ -99,7 +101,10 @@ fn test_compressed_mint_borsh_zerocopy_compatibility() {
             1
         } else {
             0
-        }; // Now deserialize the zero-copy bytes with borsh
+        };
+        // Set account_type to Mint (reserved bytes are already zeroed)
+        *zc_mint.account_type = ACCOUNT_TYPE_MINT;
+        // Now deserialize the zero-copy bytes with borsh
         let zc_as_borsh = CompressedMint::deserialize(&mut zero_copy_bytes.as_slice())
             .unwrap_or_else(|_| {
                 panic!(
@@ -175,6 +180,8 @@ fn test_compressed_mint_edge_cases() {
             mint: Pubkey::from([0xff; 32]),
             cmint_decompressed: false,
         },
+        reserved: [0u8; 49],
+        account_type: ACCOUNT_TYPE_MINT,
         extensions: None,
     };
 
@@ -208,6 +215,8 @@ fn test_compressed_mint_edge_cases() {
     zc_mint.metadata.version = mint_no_auth.metadata.version;
     zc_mint.metadata.mint = mint_no_auth.metadata.mint;
     zc_mint.metadata.cmint_decompressed = 0;
+    // Set account_type to Mint (1) - reserved bytes are already zeroed
+    *zc_mint.account_type = ACCOUNT_TYPE_MINT;
 
     let zc_as_borsh = CompressedMint::deserialize(&mut zc_bytes.as_slice()).unwrap();
     assert_eq!(mint_no_auth, zc_as_borsh);
@@ -226,6 +235,8 @@ fn test_compressed_mint_edge_cases() {
             mint: Pubkey::from([0xbb; 32]),
             cmint_decompressed: true,
         },
+        reserved: [0u8; 49],
+        account_type: ACCOUNT_TYPE_MINT,
         extensions: None,
     };
 
@@ -250,6 +261,8 @@ fn test_base_mint_in_compressed_mint_spl_format() {
             mint: Pubkey::from([3; 32]),
             cmint_decompressed: false,
         },
+        reserved: [0u8; 49],
+        account_type: ACCOUNT_TYPE_MINT,
         extensions: None,
     };
 

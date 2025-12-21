@@ -127,7 +127,11 @@ fn validate_sender(
     current_slot: &mut u64,
 ) -> Result<(AccountExtensionInfo, bool), ProgramError> {
     // Process sender once
-    let sender_info = process_account_extensions(transfer_accounts.source, current_slot)?;
+    let sender_info = process_account_extensions(
+        transfer_accounts.source,
+        current_slot,
+        transfer_accounts.mint,
+    )?;
 
     // Get mint checks if any account has extensions (single mint deserialization)
     let mint_checks = if sender_info.has_pausable
@@ -155,7 +159,8 @@ fn validate_recipient(
     account: &AccountInfo,
     current_slot: &mut u64,
 ) -> Result<AccountExtensionInfo, ProgramError> {
-    process_account_extensions(account, current_slot)
+    // No mint validation for recipient - only sender needs to match mint
+    process_account_extensions(account, current_slot, None)
 }
 
 /// Validate permanent delegate authority.
@@ -180,23 +185,32 @@ fn validate_permanent_delegate(
 
 /// Process account extensions with mutable access.
 /// Performs extension detection and compressible top-up calculation.
+/// If mint account is provided, validates it matches the token's mint field.
 #[inline(always)]
 #[profile]
 fn process_account_extensions(
     account: &AccountInfo,
     current_slot: &mut u64,
+    mint: Option<&AccountInfo>,
 ) -> Result<AccountExtensionInfo, ProgramError> {
-    // Fast path: base account with no extensions
-    if account.data_len() == light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE as usize {
-        return Ok(AccountExtensionInfo::default());
-    }
-
     let mut account_data = account
         .try_borrow_mut_data()
         .map_err(convert_program_error)?;
     let (token, remaining) = CToken::zero_copy_at_mut_checked(&mut account_data)?;
     if !remaining.is_empty() {
         return Err(ProgramError::InvalidAccountData);
+    }
+
+    // Validate mint account matches token's mint field
+    if let Some(mint_account) = mint {
+        if !pubkey_eq(mint_account.key(), token.mint.array_ref()) {
+            return Err(CTokenError::InvalidAccountData.into());
+        }
+    }
+
+    // Fast path: base account with no extensions
+    if account.data_len() == light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE as usize {
+        return Ok(AccountExtensionInfo::default());
     }
 
     let extensions = token.extensions.ok_or(CTokenError::InvalidAccountData)?;

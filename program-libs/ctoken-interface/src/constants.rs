@@ -7,11 +7,12 @@ pub const CTOKEN_PROGRAM_ID: [u8; 32] =
     pubkey_array!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
 /// Account size constants
-/// Size of a basic SPL token account
-pub const BASE_TOKEN_ACCOUNT_SIZE: u64 = 165;
+/// Size of a basic CToken account (SPL token size + 1 byte for account_type at byte 165)
+pub const BASE_TOKEN_ACCOUNT_SIZE: u64 = 166;
 
-/// Extension metadata overhead: AccountType (1) + Option discriminator (1) + Vec length (4) + Extension enum variant (1)
-pub const EXTENSION_METADATA: u64 = 7;
+/// Extension metadata overhead: Option discriminator (1) + Vec length (4) + Extension enum variant (1)
+/// Note: AccountType is part of BASE_TOKEN_ACCOUNT_SIZE, not extension metadata
+pub const EXTENSION_METADATA: u64 = 6;
 
 /// Size of a token account with compressible extension (263 bytes).
 /// CompressibleExtension: 1 compression_only + 1 decimals + 1 has_decimals + 88 CompressionInfo

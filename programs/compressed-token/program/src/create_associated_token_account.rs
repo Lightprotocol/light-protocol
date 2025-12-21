@@ -72,8 +72,8 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     let compressible_config = instruction_inputs.compressible_config;
 
     let mut iter = AccountIterator::new(account_infos);
-    let owner = iter.next_non_mut("owner")?;
-    let mint = iter.next_non_mut("mint")?;
+    let owner = iter.next_account("owner")?;
+    let mint = iter.next_account("mint")?;
     let fee_payer = iter.next_signer_mut("fee_payer")?;
     let associated_token_account = iter.next_mut("associated_token_account")?;
     let _system_program = iter.next_non_mut("system_program")?;

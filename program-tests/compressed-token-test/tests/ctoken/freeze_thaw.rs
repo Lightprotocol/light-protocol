@@ -9,7 +9,7 @@ use light_ctoken_interface::{
     state::{
         AccountState, CToken, ExtensionStruct, PausableAccountExtension,
         PermanentDelegateAccountExtension, TokenDataVersion, TransferFeeAccountExtension,
-        TransferHookAccountExtension,
+        TransferHookAccountExtension, ACCOUNT_TYPE_TOKEN_ACCOUNT,
     },
 };
 use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount, FreezeCToken, ThawCToken};
@@ -129,6 +129,7 @@ async fn test_freeze_thaw_with_basic_mint() -> Result<(), RpcError> {
         delegated_amount: 0,
         close_authority: None,
         extensions: None,
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
     };
 
     assert_eq!(
@@ -163,6 +164,7 @@ async fn test_freeze_thaw_with_basic_mint() -> Result<(), RpcError> {
         delegated_amount: 0,
         close_authority: None,
         extensions: None,
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
     };
 
     assert_eq!(
@@ -281,6 +283,7 @@ async fn test_freeze_thaw_with_extensions() -> Result<(), RpcError> {
             ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
             ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
         ]),
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
     };
 
     assert_eq!(
@@ -323,6 +326,7 @@ async fn test_freeze_thaw_with_extensions() -> Result<(), RpcError> {
             ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
             ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
         ]),
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
     };
 
     assert_eq!(

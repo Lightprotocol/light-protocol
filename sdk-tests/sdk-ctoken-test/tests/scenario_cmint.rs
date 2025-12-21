@@ -48,17 +48,18 @@ async fn test_cmint_to_ctoken_scenario() {
     let mint_amount2 = 5_000u64;
     let transfer_amount = 3_000u64;
 
-    let (mint, _compression_address, ata_pubkeys, _mint_seed) = shared::setup_create_compressed_mint(
-        &mut rpc,
-        &payer,
-        payer.pubkey(), // mint_authority
-        9,              // decimals
-        vec![
-            (mint_amount1, owner1.pubkey()),
-            (mint_amount2, owner2.pubkey()),
-        ],
-    )
-    .await;
+    let (mint, _compression_address, ata_pubkeys, _mint_seed) =
+        shared::setup_create_compressed_mint(
+            &mut rpc,
+            &payer,
+            payer.pubkey(), // mint_authority
+            9,              // decimals
+            vec![
+                (mint_amount1, owner1.pubkey()),
+                (mint_amount2, owner2.pubkey()),
+            ],
+        )
+        .await;
 
     let ctoken_ata1 = ata_pubkeys[0];
     let ctoken_ata2 = ata_pubkeys[1];

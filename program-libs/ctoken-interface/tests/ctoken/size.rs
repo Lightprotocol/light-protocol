@@ -23,10 +23,10 @@ fn test_ctoken_account_size_calculation() {
         COMPRESSIBLE_PAUSABLE_TOKEN_ACCOUNT_SIZE
     );
 
-    // With compressible + pausable + permanent_delegate (262 + 1 = 263)
+    // With compressible + pausable + permanent_delegate (264 + 1 = 265)
     assert_eq!(
         calculate_ctoken_account_size(true, true, true, false, false),
-        263
+        265
     );
 
     // With pausable only (165 + 1 = 166)
@@ -47,10 +47,10 @@ fn test_ctoken_account_size_calculation() {
         167
     );
 
-    // With compressible + permanent_delegate (261 + 1 = 262)
+    // With compressible + permanent_delegate (263 + 1 = 264)
     assert_eq!(
         calculate_ctoken_account_size(true, false, true, false, false),
-        262
+        264
     );
 
     // With transfer_fee only (165 + 9 = 174)
@@ -59,22 +59,22 @@ fn test_ctoken_account_size_calculation() {
         174
     );
 
-    // With compressible + transfer_fee (261 + 9 = 270)
+    // With compressible + transfer_fee (263 + 9 = 272)
     assert_eq!(
         calculate_ctoken_account_size(true, false, false, true, false),
-        270
-    );
-
-    // With 4 extensions (261 + 1 + 1 + 9 = 272)
-    assert_eq!(
-        calculate_ctoken_account_size(true, true, true, true, false),
         272
     );
 
-    // With all 5 extensions (261 + 1 + 1 + 9 + 2 = 274)
+    // With 4 extensions (263 + 1 + 1 + 9 = 274)
+    assert_eq!(
+        calculate_ctoken_account_size(true, true, true, true, false),
+        274
+    );
+
+    // With all 5 extensions (263 + 1 + 1 + 9 + 2 = 276)
     assert_eq!(
         calculate_ctoken_account_size(true, true, true, true, true),
-        274
+        276
     );
 
     // With transfer_hook only (165 + 2 = 167)

@@ -2,8 +2,7 @@
 
 mod shared;
 use anchor_spl::token::{spl_token, Mint};
-use borsh::BorshDeserialize;
-use borsh::BorshSerialize;
+use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
 use light_ctoken_interface::state::CToken;
 use light_ctoken_sdk::{

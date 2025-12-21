@@ -11,9 +11,9 @@ use spl_pod::solana_msg::msg;
 use crate::{
     state::{
         CToken, CompressibleExtensionConfig, CompressionInfoConfig, ExtensionStruct,
-        ExtensionStructConfig, ZExtensionStruct, ZExtensionStructMut,
+        ExtensionStructConfig, ZExtensionStruct, ZExtensionStructMut, ACCOUNT_TYPE_TOKEN_ACCOUNT,
     },
-    AnchorDeserialize, AnchorSerialize,
+    AnchorDeserialize, AnchorSerialize, BASE_TOKEN_ACCOUNT_SIZE,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -38,6 +38,8 @@ pub struct CTokenMeta {
     pub delegated_amount: u64,
     /// Optional authority to close the account.
     pub close_authority: Option<Pubkey>,
+    /// Account type discriminator at byte 165 (2 for token accounts)
+    pub account_type: u8,
 }
 
 // Note: spl zero-copy compatibility is implemented in fn zero_copy_at
@@ -51,6 +53,7 @@ pub struct ZCTokenMeta<'a> {
     pub is_native: Option<zerocopy::Ref<&'a [u8], zerocopy::little_endian::U64>>,
     pub delegated_amount: zerocopy::Ref<&'a [u8], zerocopy::little_endian::U64>,
     pub close_authority: Option<<Pubkey as ZeroCopyAt<'a>>::ZeroCopyAt>,
+    pub account_type: u8,
 }
 
 #[derive(Debug, PartialEq)]
@@ -69,6 +72,8 @@ pub struct ZCompressedTokenMetaMut<'a> {
     // 4 option bytes (spl compat) + 32 pubkey bytes
     close_authority_option: zerocopy::Ref<&'a mut [u8], [u8; 36]>,
     pub close_authority: Option<<Pubkey as ZeroCopyAtMut<'a>>::ZeroCopyAtMut>,
+    /// Account type discriminator at byte 165 (immutable, defaults to ACCOUNT_TYPE_TOKEN_ACCOUNT)
+    pub account_type: u8,
 }
 
 impl<'a> ZeroCopyAt<'a> for CTokenMeta {
@@ -80,8 +85,8 @@ impl<'a> ZeroCopyAt<'a> for CTokenMeta {
             Ref,
         };
 
+        // Allow both 165 bytes (SPL token) and 166+ bytes (CToken with account_type)
         if bytes.len() < 165 {
-            // SPL Token Account size
             return Err(ZeroCopyError::Size);
         }
 
@@ -126,6 +131,16 @@ impl<'a> ZeroCopyAt<'a> for CTokenMeta {
             None
         };
 
+        // account_type: 1 byte at position 165 if available, otherwise default to ACCOUNT_TYPE_TOKEN_ACCOUNT
+        // Provides backward compatibility with 165-byte SPL token accounts
+        let mut account_type = ACCOUNT_TYPE_TOKEN_ACCOUNT;
+        let bytes = if !bytes.is_empty() {
+            account_type = bytes[0];
+            &bytes[1..]
+        } else {
+            bytes
+        };
+
         let meta = ZCTokenMeta {
             mint,
             owner,
@@ -135,6 +150,7 @@ impl<'a> ZeroCopyAt<'a> for CTokenMeta {
             is_native,
             delegated_amount,
             close_authority,
+            account_type,
         };
 
         Ok((meta, bytes))
@@ -151,6 +167,7 @@ impl<'a> ZeroCopyAtMut<'a> for CTokenMeta {
     ) -> Result<(Self::ZeroCopyAtMut, &'a mut [u8]), ZeroCopyError> {
         use zerocopy::{little_endian::U64 as ZU64, Ref};
 
+        // Allow both 165 bytes (SPL token) and 166+ bytes (CToken with account_type)
         if bytes.len() < 165 {
             return Err(ZeroCopyError::Size);
         }
@@ -198,6 +215,16 @@ impl<'a> ZeroCopyAtMut<'a> for CTokenMeta {
             None
         };
 
+        // account_type: 1 byte at position 165 if available, otherwise default to ACCOUNT_TYPE_TOKEN_ACCOUNT
+        // Provides backward compatibility with 165-byte SPL token accounts
+        let mut account_type = ACCOUNT_TYPE_TOKEN_ACCOUNT;
+        let bytes = if !bytes.is_empty() {
+            account_type = bytes[0];
+            &mut bytes[1..]
+        } else {
+            bytes
+        };
+
         let meta = ZCompressedTokenMetaMut {
             mint,
             owner,
@@ -210,6 +237,7 @@ impl<'a> ZeroCopyAtMut<'a> for CTokenMeta {
             delegated_amount,
             close_authority_option,
             close_authority,
+            account_type,
         };
 
         Ok((meta, bytes))
@@ -424,6 +452,22 @@ impl PartialEq<CToken> for ZCToken<'_> {
     }
 }
 
+impl ZCTokenMeta<'_> {
+    /// Checks if account_type matches CToken discriminator value
+    #[inline(always)]
+    pub fn is_ctoken_account(&self) -> bool {
+        self.account_type == ACCOUNT_TYPE_TOKEN_ACCOUNT
+    }
+}
+
+impl ZCToken<'_> {
+    /// Checks if account_type matches CToken discriminator value
+    #[inline(always)]
+    pub fn is_ctoken_account(&self) -> bool {
+        self.__meta.is_ctoken_account()
+    }
+}
+
 #[cfg(feature = "test-only")]
 impl PartialEq<ZCToken<'_>> for CToken {
     fn eq(&self, other: &ZCToken<'_>) -> bool {
@@ -451,23 +495,34 @@ impl DerefMut for ZCompressedTokenMut<'_> {
     }
 }
 
+impl ZCompressedTokenMetaMut<'_> {
+    /// Checks if account_type matches CToken discriminator value
+    #[inline(always)]
+    pub fn is_ctoken_account(&self) -> bool {
+        self.account_type == ACCOUNT_TYPE_TOKEN_ACCOUNT
+    }
+}
+
+impl ZCompressedTokenMut<'_> {
+    /// Checks if account_type matches CToken discriminator value
+    #[inline(always)]
+    pub fn is_ctoken_account(&self) -> bool {
+        self.__meta.is_ctoken_account()
+    }
+}
+
 impl<'a> ZeroCopyAt<'a> for CToken {
     type ZeroCopyAt = ZCToken<'a>;
 
     #[profile]
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
+        // CTokenMeta now includes account_type at byte 165
         let (__meta, bytes) = <CTokenMeta as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
-        let (extensions, bytes) = if !bytes.is_empty() {
-            // Check if first byte is AccountType::Account (value 2) for SPL Token 2022 compatibility
-            let extension_start = if bytes.first() == Some(&2) {
-                // Skip AccountType::Account byte at position 165
-                &bytes[1..]
-            } else {
-                return Err(ZeroCopyError::Size);
-            };
 
+        // Read extensions if more bytes exist
+        let (extensions, bytes) = if !bytes.is_empty() {
             let (extensions, remaining_bytes) =
-                <Option<Vec<ExtensionStruct>> as ZeroCopyAt<'a>>::zero_copy_at(extension_start)?;
+                <Option<Vec<ExtensionStruct>> as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
             (extensions, remaining_bytes)
         } else {
             (None, bytes)
@@ -477,15 +532,21 @@ impl<'a> ZeroCopyAt<'a> for CToken {
 }
 
 impl CToken {
-    /// Zero-copy deserialization with initialization check.
-    /// Returns an error if the account is uninitialized (byte 108 == 0).
-    /// Allows both Initialized (1) and Frozen (2) states.
+    /// Zero-copy deserialization with initialization and account_type check.
+    /// Returns an error if:
+    /// - Account is uninitialized (byte 108 == 0)
+    /// - Account type is not ACCOUNT_TYPE_TOKEN_ACCOUNT (byte 165 != 2)
+    ///   Allows both Initialized (1) and Frozen (2) states.
     #[profile]
     pub fn zero_copy_at_checked(
         bytes: &[u8],
     ) -> Result<(ZCToken<'_>, &[u8]), crate::error::CTokenError> {
-        // Check minimum size for state field at byte 108
-        if bytes.len() < 109 {
+        // Check minimum size for account_type at byte 165
+        if bytes.len() < BASE_TOKEN_ACCOUNT_SIZE as usize {
+            msg!(
+                "zero_copy_at_checked bytes.len() < BASE_TOKEN_ACCOUNT_SIZE {}",
+                bytes.len()
+            );
             return Err(crate::error::CTokenError::InvalidAccountData);
         }
 
@@ -495,20 +556,32 @@ impl CToken {
             return Err(crate::error::CTokenError::InvalidAccountState);
         }
 
-        // Proceed with normal deserialization
-        Ok(CToken::zero_copy_at(bytes)?)
+        // Proceed with deserialization first
+        let (ctoken, remaining) = CToken::zero_copy_at(bytes)?;
+
+        // Verify account_type using the method
+        if !ctoken.is_ctoken_account() {
+            return Err(crate::error::CTokenError::InvalidAccountType);
+        }
+
+        Ok((ctoken, remaining))
     }
 
-    /// Mutable zero-copy deserialization with initialization check.
-    /// Returns an error if the account is uninitialized (byte 108 == 0).
-    /// Allows both Initialized (1) and Frozen (2) states.
+    /// Mutable zero-copy deserialization with initialization and account_type check.
+    /// Returns an error if:
+    /// - Account is uninitialized (byte 108 == 0)
+    /// - Account type is not ACCOUNT_TYPE_TOKEN_ACCOUNT (byte 165 != 2)
+    ///   Allows both Initialized (1) and Frozen (2) states.
     #[profile]
     pub fn zero_copy_at_mut_checked(
         bytes: &mut [u8],
     ) -> Result<(ZCompressedTokenMut<'_>, &mut [u8]), crate::error::CTokenError> {
-        // Check minimum size for state field at byte 108
-        if bytes.len() < 109 {
-            msg!("zero_copy_at_mut_checked bytes.len() < 109 {}", bytes.len());
+        // Check minimum size for account_type at byte 165
+        if bytes.len() < BASE_TOKEN_ACCOUNT_SIZE as usize {
+            msg!(
+                "zero_copy_at_checked bytes.len() < BASE_TOKEN_ACCOUNT_SIZE {}",
+                bytes.len()
+            );
             return Err(crate::error::CTokenError::InvalidAccountData);
         }
 
@@ -518,7 +591,15 @@ impl CToken {
             return Err(crate::error::CTokenError::InvalidAccountState);
         }
 
-        Ok(CToken::zero_copy_at_mut(bytes)?)
+        // Proceed with deserialization first
+        let (ctoken, remaining) = CToken::zero_copy_at_mut(bytes)?;
+
+        // Verify account_type using the method
+        if !ctoken.is_ctoken_account() {
+            return Err(crate::error::CTokenError::InvalidAccountType);
+        }
+
+        Ok((ctoken, remaining))
     }
 }
 
@@ -530,19 +611,13 @@ impl<'a> ZeroCopyAtMut<'a> for CToken {
     fn zero_copy_at_mut(
         bytes: &'a mut [u8],
     ) -> Result<(Self::ZeroCopyAtMut, &'a mut [u8]), ZeroCopyError> {
+        // CTokenMeta now includes account_type at byte 165
         let (__meta, bytes) = <CTokenMeta as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
-        let (extensions, bytes) = if !bytes.is_empty() {
-            // Check if first byte is AccountType::Account (value 2) for SPL Token 2022 compatibility
-            let extension_start = if bytes.first() == Some(&2) {
-                // Skip AccountType::Account byte at position 165
-                &mut bytes[1..]
-            } else {
-                return Err(ZeroCopyError::Size);
-            };
 
-            let (extensions, remaining_bytes) = <Option<Vec<ExtensionStruct>> as ZeroCopyAtMut<
-                'a,
-            >>::zero_copy_at_mut(extension_start)?;
+        // Read extensions if more bytes exist
+        let (extensions, bytes) = if !bytes.is_empty() {
+            let (extensions, remaining_bytes) =
+                <Option<Vec<ExtensionStruct>> as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
             (extensions, remaining_bytes)
         } else {
             (None, bytes)
@@ -684,11 +759,11 @@ impl<'a> ZeroCopyNew<'a> for CToken {
         // is_native: 4 bytes discriminator + 8 bytes u64
         // delegated_amount: 8 bytes
         // close_authority: 4 bytes discriminator + 32 bytes pubkey
-        // Total: 165 bytes (SPL Token Account size)
-        let mut len = 165;
-        // Add AccountType byte for SPL Token 2022 compatibility (always present if we have extensions)
+        // account_type: 1 byte at position 165
+        // Total: 166 bytes (base CToken size)
+        let mut len = 166;
+        // Add extensions if present
         if !config.extensions.is_empty() {
-            len += 1; // AccountType::Account byte at position 165
             len += 1; // Option discriminant for extensions (Some = 1)
             len += <Vec<ExtensionStruct> as ZeroCopyNew<'a>>::byte_len(&config.extensions)?;
         }
@@ -723,11 +798,11 @@ impl<'a> ZeroCopyNew<'a> for CToken {
         // close_authority discriminator at offset 129 (109 + 12 is_native + 8 delegated_amount)
         bytes[129] = if config.close_authority { 1 } else { 0 };
 
+        // Always set account_type at byte 165
+        bytes[165] = ACCOUNT_TYPE_TOKEN_ACCOUNT;
+
         // Initialize extensions if present
         if !config.extensions.is_empty() {
-            // Set AccountType::Account byte at position 165 for SPL Token 2022 compatibility
-            bytes[165] = 2; // AccountType::Account = 2
-
             // Set Option discriminant for extensions (Some = 1) at position 166
             bytes[166] = 1;
 
