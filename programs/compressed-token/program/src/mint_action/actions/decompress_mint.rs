@@ -2,9 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
 use light_ctoken_interface::{
-    instructions::mint_action::ZDecompressMintAction,
-    state::{CompressedMint, CompressibleExtension, ExtensionStruct},
-    COMPRESSED_MINT_SEED,
+    instructions::mint_action::ZDecompressMintAction, state::CompressedMint, COMPRESSED_MINT_SEED,
 };
 use light_program_profiler::profile;
 #[cfg(target_os = "solana")]
@@ -110,8 +108,8 @@ pub fn process_decompress_mint_action(
     #[cfg(not(target_os = "solana"))]
     let current_slot = 1u64;
 
-    // 8. Build Compressible extension and add to compressed_mint
-    let compression_info = CompressionInfo {
+    // 8. Set compression info directly on compressed_mint (all cmints now have embedded compression)
+    compressed_mint.compression = CompressionInfo {
         config_account_version: config.version,
         compress_to_pubkey: 0, // Not applicable for CMint
         account_version: 3,    // ShaFlat version
@@ -127,19 +125,6 @@ pub fn process_decompress_mint_action(
             max_top_up: config.rent_config.max_top_up,
         },
     };
-
-    // Add Compressible extension to compressed_mint
-    let extension = ExtensionStruct::Compressible(CompressibleExtension {
-        compression_only: false,
-        decimals: 0,     // Not used for CMint
-        has_decimals: 0, // Decimals not set for CMint
-        info: compression_info,
-    });
-    if let Some(ref mut extensions) = compressed_mint.extensions {
-        extensions.push(extension);
-    } else {
-        compressed_mint.extensions = Some(vec![extension]);
-    }
 
     // 9. Verify PDA derivation
     let seeds: [&[u8]; 2] = [COMPRESSED_MINT_SEED, mint_signer.key()];

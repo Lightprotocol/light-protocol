@@ -11,10 +11,7 @@ use spl_pod::solana_msg::msg;
 
 use crate::state::CToken;
 use crate::{
-    state::{
-        ExtensionStruct, ExtensionStructConfig, ZExtensionStruct, ZExtensionStructMut,
-        ACCOUNT_TYPE_TOKEN_ACCOUNT,
-    },
+    state::{ExtensionStruct, ZExtensionStruct, ZExtensionStructMut, ACCOUNT_TYPE_TOKEN_ACCOUNT},
     AnchorDeserialize, AnchorSerialize,
 };
 pub const BASE_TOKEN_ACCOUNT_SIZE: u64 = CTokenZeroCopyMeta::LEN as u64;
@@ -77,8 +74,19 @@ pub struct ZCTokenMut<'a> {
 /// Configuration for creating a new CToken via ZeroCopyNew
 #[derive(Debug, Clone, PartialEq)]
 pub struct CompressedTokenConfig {
-    /// Extension configurations
-    pub extensions: Option<Vec<ExtensionStructConfig>>,
+    /// The mint pubkey
+    pub mint: Pubkey,
+    /// The owner pubkey
+    pub owner: Pubkey,
+    /// Account state: 1=Initialized, 2=Frozen
+    pub state: u8,
+    /// Whether account is compression-only (cannot decompress)
+    pub compression_only: bool,
+    /// Extension flags
+    pub has_pausable: bool,
+    pub has_permanent_delegate: bool,
+    pub has_transfer_fee: bool,
+    pub has_transfer_hook: bool,
 }
 
 impl<'a> ZeroCopyNew<'a> for CToken {
@@ -88,24 +96,12 @@ impl<'a> ZeroCopyNew<'a> for CToken {
     fn byte_len(
         config: &Self::ZeroCopyConfig,
     ) -> Result<usize, light_zero_copy::errors::ZeroCopyError> {
-        // Use derived byte_len for meta struct
-        let meta_config = CTokenZeroCopyMetaConfig {
-            compression: light_compressible::compression_info::CompressionInfoConfig {
-                rent_config: (),
-            },
-        };
-        let mut size = CTokenZeroCopyMeta::byte_len(&meta_config)?;
-
-        // Add extension sizes if present
-        if let Some(ref extensions) = config.extensions {
-            // Vec length prefix (4 bytes) + each extension's size
-            size += 4;
-            for ext_config in extensions {
-                size += ExtensionStruct::byte_len(ext_config)?;
-            }
-        }
-
-        Ok(size)
+        Ok(crate::state::calculate_ctoken_account_size(
+            config.has_pausable,
+            config.has_permanent_delegate,
+            config.has_transfer_fee,
+            config.has_transfer_hook,
+        ) as usize)
     }
 
     fn new_zero_copy(
@@ -118,34 +114,59 @@ impl<'a> ZeroCopyNew<'a> for CToken {
                 rent_config: (),
             },
         };
-        let (mut meta, remaining) =
+        let (mut meta, mut remaining) =
             <CTokenZeroCopyMeta as ZeroCopyNew<'a>>::new_zero_copy(bytes, meta_config)?;
+
+        // Set base token account fields from config
+        meta.mint = config.mint;
+        meta.owner = config.owner;
+        meta.state = config.state;
         meta.account_type = ACCOUNT_TYPE_TOKEN_ACCOUNT;
+        meta.compression_only = config.compression_only as u8;
 
-        // Initialize extensions if present
-        if let Some(extensions_config) = config.extensions {
+        // Write extensions directly into bytes based on flags
+        let has_any_extension = config.has_pausable
+            || config.has_permanent_delegate
+            || config.has_transfer_fee
+            || config.has_transfer_hook;
+
+        if has_any_extension {
             *meta.has_extensions = 1u8;
-            let (extensions, remaining) = <Vec<ExtensionStruct> as ZeroCopyNew<'a>>::new_zero_copy(
-                remaining,
-                extensions_config,
-            )?;
 
-            Ok((
-                ZCTokenMut {
-                    meta,
-                    extensions: Some(extensions),
-                },
-                remaining,
-            ))
-        } else {
-            Ok((
-                ZCTokenMut {
-                    meta,
-                    extensions: None,
-                },
-                remaining,
-            ))
+            // Write PausableAccount extension (discriminator 27, 0 bytes data)
+            if config.has_pausable {
+                remaining[0] = 27;
+                remaining = &mut remaining[1..];
+            }
+
+            // Write PermanentDelegateAccount extension (discriminator 28, 0 bytes data)
+            if config.has_permanent_delegate {
+                remaining[0] = 28;
+                remaining = &mut remaining[1..];
+            }
+
+            // Write TransferFeeAccount extension (discriminator 29, 8 bytes withheld_amount = 0)
+            if config.has_transfer_fee {
+                remaining[0] = 29;
+                // withheld_amount is already zeroed
+                remaining = &mut remaining[9..];
+            }
+
+            // Write TransferHookAccount extension (discriminator 30, 1 byte transferring = false)
+            if config.has_transfer_hook {
+                remaining[0] = 30;
+                remaining[1] = 0; // transferring = false
+                remaining = &mut remaining[2..];
+            }
         }
+
+        Ok((
+            ZCTokenMut {
+                meta,
+                extensions: None, // Extensions are written directly, not tracked as Vec
+            },
+            remaining,
+        ))
     }
 }
 
@@ -337,6 +358,43 @@ impl ZCTokenZeroCopyMetaMut<'_> {
         } else {
             None
         }
+    }
+
+    /// Set decimals value
+    pub fn set_decimals(&mut self, decimals: u8) {
+        self.decimal_option_prefix = 1;
+        self.decimals = decimals;
+    }
+
+    /// Set delegate (Some to set, None to clear)
+    pub fn set_delegate(&mut self, delegate: Option<Pubkey>) -> Result<(), crate::CTokenError> {
+        match delegate {
+            Some(pubkey) => {
+                self.delegate_option_prefix.set(1);
+                self.delegate = pubkey;
+            }
+            None => {
+                self.delegate_option_prefix.set(0);
+                // Clear delegate bytes
+                self.delegate = Pubkey::default();
+            }
+        }
+        Ok(())
+    }
+
+    /// Set account state
+    pub fn set_state(&mut self, state: u8) {
+        self.state = state;
+    }
+
+    /// Set account as frozen (state = 2)
+    pub fn set_frozen(&mut self) {
+        self.state = 2;
+    }
+
+    /// Set account as initialized/unfrozen (state = 1)
+    pub fn set_initialized(&mut self) {
+        self.state = 1;
     }
 }
 

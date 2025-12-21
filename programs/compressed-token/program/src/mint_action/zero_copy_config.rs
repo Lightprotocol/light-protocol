@@ -65,12 +65,11 @@ pub fn get_zero_copy_configs(
 
     // Output mint config (always present) with final authority states
     let output_mint_config = CompressedMintConfig {
-        base: (),
-        metadata: (),
-        extensions: (
-            !output_extensions_config.is_empty(),
-            output_extensions_config,
-        ),
+        extensions: if output_extensions_config.is_empty() {
+            None
+        } else {
+            Some(output_extensions_config)
+        },
     };
 
     // Count recipients from MintTo actions

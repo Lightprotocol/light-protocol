@@ -1,8 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_ctoken_interface::{
-    instructions::mint_action::ZCompressAndCloseCMintAction,
-    state::{CompressedMint, ExtensionStruct},
+    instructions::mint_action::ZCompressAndCloseCMintAction, state::CompressedMint,
 };
 use light_program_profiler::profile;
 #[cfg(target_os = "solana")]
@@ -68,24 +67,12 @@ pub fn process_compress_and_close_cmint_action(
         return Err(ErrorCode::InvalidCMintAccount.into());
     }
 
-    // 4. Get Compressible extension (required)
-    let compression_info = compressed_mint
-        .extensions
-        .as_ref()
-        .and_then(|exts| {
-            exts.iter().find_map(|e| match e {
-                ExtensionStruct::Compressible(info) => Some(info),
-                _ => None,
-            })
-        })
-        .ok_or_else(|| {
-            msg!("CMint does not have Compressible extension");
-            ErrorCode::CMintMissingCompressibleExtension
-        })?;
+    // 4. Access compression info directly (all cmints now have embedded compression)
+    let compression_info = &compressed_mint.compression;
 
-    // 5. Verify rent_sponsor matches extension
-    if rent_sponsor.key() != &compression_info.info.rent_sponsor {
-        msg!("Rent sponsor does not match extension");
+    // 5. Verify rent_sponsor matches compression info
+    if rent_sponsor.key() != &compression_info.rent_sponsor {
+        msg!("Rent sponsor does not match compression info");
         return Err(ErrorCode::InvalidRentSponsor.into());
     }
 
@@ -100,7 +87,6 @@ pub fn process_compress_and_close_cmint_action(
     #[cfg(target_os = "solana")]
     {
         let is_compressible = compression_info
-            .info
             .is_compressible(cmint.data_len() as u64, current_slot, cmint.lamports())
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
@@ -127,23 +113,9 @@ pub fn process_compress_and_close_cmint_action(
     // 8. Set cmint_decompressed = false
     compressed_mint.metadata.cmint_decompressed = false;
 
-    // 9. Remove Compressible extension from compressed mint
-    let extensions = compressed_mint
-        .extensions
-        .as_mut()
-        .ok_or(ErrorCode::CMintMissingCompressibleExtension)?;
-
-    if extensions.len() == 1 {
-        // Only Compressible extension exists, just set to None
-        compressed_mint.extensions = None;
-    } else {
-        // Find and remove Compressible extension
-        let pos = extensions
-            .iter()
-            .position(|e| matches!(e, ExtensionStruct::Compressible(_)))
-            .ok_or(ErrorCode::CMintMissingCompressibleExtension)?;
-        extensions.remove(pos);
-    }
+    // 9. Zero out compression info - only relevant when account is decompressed
+    // When compressed back to a compressed account, this info should be cleared
+    compressed_mint.compression = light_compressible::compression_info::CompressionInfo::default();
 
     Ok(())
 }

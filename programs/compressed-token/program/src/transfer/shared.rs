@@ -208,62 +208,61 @@ fn process_account_extensions(
         }
     }
 
-    // Fast path: base account with no extensions
-    if account.data_len() == light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE as usize {
-        return Ok(AccountExtensionInfo::default());
-    }
-
-    let extensions = token.extensions.ok_or(CTokenError::InvalidAccountData)?;
-
     let mut info = AccountExtensionInfo::default();
 
-    for extension in extensions {
-        match extension {
-            ZExtensionStructMut::Compressible(compressible_extension) => {
-                info.has_compressible = true;
-                // Get current slot for compressible top-up calculation
-                use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
-                if *current_slot == 0 {
-                    *current_slot = Clock::get()
-                        .map_err(|_| CTokenError::SysvarAccessError)?
-                        .slot;
+    // All ctoken accounts now have compression info embedded directly in meta
+    info.has_compressible = true;
+    {
+        // Get current slot for compressible top-up calculation
+        use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
+        if *current_slot == 0 {
+            *current_slot = Clock::get()
+                .map_err(|_| CTokenError::SysvarAccessError)?
+                .slot;
+        }
+
+        let rent_exemption = Rent::get()
+            .map_err(|_| CTokenError::SysvarAccessError)?
+            .minimum_balance(account.data_len());
+
+        info.top_up_amount = token
+            .meta
+            .compression
+            .calculate_top_up_lamports(
+                account.data_len() as u64,
+                *current_slot,
+                account.lamports(),
+                rent_exemption,
+            )
+            .map_err(|_| CTokenError::InvalidAccountData)?;
+
+        // Extract cached decimals if set
+        info.decimals = token.meta.decimals();
+    }
+
+    // Process other extensions if present
+    if let Some(extensions) = token.extensions {
+        for extension in extensions {
+            match extension {
+                ZExtensionStructMut::PausableAccount(_) => {
+                    info.has_pausable = true;
                 }
-
-                let rent_exemption = Rent::get()
-                    .map_err(|_| CTokenError::SysvarAccessError)?
-                    .minimum_balance(account.data_len());
-
-                info.top_up_amount = compressible_extension
-                    .info
-                    .calculate_top_up_lamports(
-                        account.data_len() as u64,
-                        *current_slot,
-                        account.lamports(),
-                        rent_exemption,
-                    )
-                    .map_err(|_| CTokenError::InvalidAccountData)?;
-
-                // Extract cached decimals if set
-                info.decimals = compressible_extension.get_decimals();
-            }
-            ZExtensionStructMut::PausableAccount(_) => {
-                info.has_pausable = true;
-            }
-            ZExtensionStructMut::PermanentDelegateAccount(_) => {
-                info.has_permanent_delegate = true;
-            }
-            ZExtensionStructMut::TransferFeeAccount(_transfer_fee_ext) => {
-                info.has_transfer_fee = true;
-                // Note: Non-zero transfer fees are rejected by check_mint_extensions,
-                // so no fee withholding is needed here.
-            }
-            ZExtensionStructMut::TransferHookAccount(_) => {
-                info.has_transfer_hook = true;
-                // No runtime logic needed - we only support nil program_id
-            }
-            // Placeholder and TokenMetadata variants are not valid for CToken accounts
-            _ => {
-                return Err(CTokenError::InvalidAccountData.into());
+                ZExtensionStructMut::PermanentDelegateAccount(_) => {
+                    info.has_permanent_delegate = true;
+                }
+                ZExtensionStructMut::TransferFeeAccount(_transfer_fee_ext) => {
+                    info.has_transfer_fee = true;
+                    // Note: Non-zero transfer fees are rejected by check_mint_extensions,
+                    // so no fee withholding is needed here.
+                }
+                ZExtensionStructMut::TransferHookAccount(_) => {
+                    info.has_transfer_hook = true;
+                    // No runtime logic needed - we only support nil program_id
+                }
+                // Placeholder and TokenMetadata variants are not valid for CToken accounts
+                _ => {
+                    return Err(CTokenError::InvalidAccountData.into());
+                }
             }
         }
     }

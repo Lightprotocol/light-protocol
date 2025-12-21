@@ -5,7 +5,7 @@ use pinocchio_token_program::processor::{approve::process_approve, revoke::proce
 
 use crate::{
     shared::{convert_program_error, transfer_lamports_via_cpi},
-    transfer2::compression::ctoken::process_compressible_extension,
+    transfer2::compression::ctoken::process_compression_top_up,
 };
 
 /// Account indices for approve instruction
@@ -116,8 +116,8 @@ fn process_compressible_top_up(
         (max_top_up as u64).saturating_add(1)
     };
 
-    process_compressible_extension(
-        ctoken.extensions.as_deref(),
+    process_compression_top_up(
+        &ctoken.meta.compression,
         account,
         &mut current_slot,
         &mut transfer_amount,
