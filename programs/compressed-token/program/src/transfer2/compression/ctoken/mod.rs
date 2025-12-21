@@ -13,9 +13,7 @@ mod compress_or_decompress_ctokens;
 mod inputs;
 
 pub use compress_and_close::close_for_compress_and_close;
-pub use compress_or_decompress_ctokens::{
-    compress_or_decompress_ctokens, process_compressible_extension,
-};
+pub use compress_or_decompress_ctokens::{compress_or_decompress_ctokens, process_compression_top_up};
 pub use inputs::{CTokenCompressionInputs, CompressAndCloseInputs};
 
 /// Process compression/decompression for ctoken accounts.

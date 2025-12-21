@@ -4,7 +4,7 @@ use light_account_checks::checks::check_owner;
 use light_compressed_account::Pubkey;
 use light_ctoken_interface::{
     instructions::{extensions::ZExtensionInstructionData, transfer2::ZCompressionMode},
-    state::{CToken, ZCompressedTokenMut, ZExtensionStructMut},
+    state::{CToken, ZCTokenMut, ZExtensionStructMut},
     CTokenError,
 };
 use light_program_profiler::profile;
@@ -48,7 +48,7 @@ pub fn compress_or_decompress_ctokens(
     let (mut ctoken, _) = CToken::zero_copy_at_mut_checked(&mut token_account_data)?;
 
     // Reject uninitialized accounts (state == 0)
-    if *ctoken.state == 0 {
+    if ctoken.meta.state == 0 {
         msg!("Account is uninitialized");
         return Err(CTokenError::InvalidAccountState.into());
     }
@@ -64,12 +64,12 @@ pub fn compress_or_decompress_ctokens(
     // Check if account is frozen (SPL Token-2022 compatibility)
     // Frozen accounts cannot have their balance modified except for CompressAndClose
     // (only foresters can call CompressAndClose via registry program)
-    if *ctoken.state == 2 && mode != ZCompressionMode::CompressAndClose {
+    if ctoken.meta.state == 2 && mode != ZCompressionMode::CompressAndClose {
         msg!("Cannot modify frozen account");
         return Err(ErrorCode::AccountFrozen.into());
     }
     // Get current balance
-    let current_balance: u64 = u64::from(*ctoken.amount);
+    let current_balance: u64 = ctoken.meta.amount.get();
     let mut current_slot = 0;
     // Calculate new balance using effective amount
     match mode {
@@ -80,13 +80,14 @@ pub fn compress_or_decompress_ctokens(
 
             // Compress: subtract from solana account
             // Update the balance in the ctoken solana account
-            *ctoken.amount = current_balance
-                .checked_sub(amount)
-                .ok_or(ProgramError::ArithmeticOverflow)?
-                .into();
+            ctoken.meta.amount.set(
+                current_balance
+                    .checked_sub(amount)
+                    .ok_or(ProgramError::ArithmeticOverflow)?,
+            );
 
-            process_compressible_extension(
-                ctoken.extensions.as_deref(),
+            process_compression_top_up(
+                &ctoken.meta.compression,
                 token_account_info,
                 &mut current_slot,
                 transfer_amount,
@@ -96,16 +97,17 @@ pub fn compress_or_decompress_ctokens(
         ZCompressionMode::Decompress => {
             // Decompress: add to solana account
             // Update the balance in the compressed token account
-            *ctoken.amount = current_balance
-                .checked_add(amount)
-                .ok_or(ProgramError::ArithmeticOverflow)?
-                .into();
+            ctoken.meta.amount.set(
+                current_balance
+                    .checked_add(amount)
+                    .ok_or(ProgramError::ArithmeticOverflow)?,
+            );
 
             // Handle extension state transfer from input compressed account
             apply_decompress_extension_state(&mut ctoken, input_tlv, input_delegate)?;
 
-            process_compressible_extension(
-                ctoken.extensions.as_deref(),
+            process_compression_top_up(
+                &ctoken.meta.compression,
                 token_account_info,
                 &mut current_slot,
                 transfer_amount,
@@ -128,7 +130,7 @@ pub fn compress_or_decompress_ctokens(
 /// the compressed account's CompressedOnly extension to the CToken account.
 #[inline(always)]
 fn apply_decompress_extension_state(
-    ctoken: &mut ZCompressedTokenMut,
+    ctoken: &mut ZCTokenMut,
     input_tlv: Option<&[ZExtensionInstructionData]>,
     input_delegate: Option<&AccountInfo>,
 ) -> Result<(), ProgramError> {
@@ -156,7 +158,7 @@ fn apply_decompress_extension_state(
         let input_delegate_pubkey = input_delegate.map(|acc| Pubkey::from(*acc.key()));
 
         // Validate delegate compatibility
-        if let Some(ctoken_delegate) = ctoken.delegate.as_ref() {
+        if let Some(ctoken_delegate) = ctoken.delegate() {
             // CToken has a delegate - check if it matches the input delegate
             if let Some(input_del) = input_delegate_pubkey.as_ref() {
                 if ctoken_delegate.to_bytes() != input_del.to_bytes() {
@@ -171,7 +173,7 @@ fn apply_decompress_extension_state(
             // Delegates match - add to delegated_amount
         } else if let Some(input_del) = input_delegate_pubkey {
             // CToken has no delegate - set it from the input
-            ctoken.set_delegate(Some(input_del))?;
+            ctoken.meta.set_delegate(Some(input_del))?;
         } else if delegated_amount > 0 {
             // Has delegated_amount but no delegate pubkey - invalid state
             msg!("Decompress: delegated_amount > 0 but no delegate pubkey provided");
@@ -180,11 +182,12 @@ fn apply_decompress_extension_state(
 
         // Add delegated_amount to CToken's delegated_amount
         if delegated_amount > 0 {
-            let current_delegated: u64 = (*ctoken.delegated_amount).into();
-            *ctoken.delegated_amount = current_delegated
-                .checked_add(delegated_amount)
-                .ok_or(ProgramError::ArithmeticOverflow)?
-                .into();
+            let current_delegated: u64 = ctoken.meta.delegated_amount.get();
+            ctoken.meta.delegated_amount.set(
+                current_delegated
+                    .checked_add(delegated_amount)
+                    .ok_or(ProgramError::ArithmeticOverflow)?,
+            );
         }
     }
 
@@ -208,15 +211,17 @@ fn apply_decompress_extension_state(
 
     // Handle is_frozen - restore frozen state from compressed token
     if ext_data.is_frozen != 0 {
-        *ctoken.state = 2; // AccountState::Frozen
+        ctoken.meta.set_frozen();
     }
 
     Ok(())
 }
 
+/// Process compression top-up using embedded compression info.
+/// All ctoken accounts now have compression info embedded directly in meta.
 #[inline(always)]
-pub fn process_compressible_extension(
-    extensions: Option<&[ZExtensionStructMut]>,
+pub fn process_compression_top_up(
+    compression: &light_compressible::compression_info::ZCompressionInfoMut<'_>,
     token_account_info: &AccountInfo,
     current_slot: &mut u64,
     transfer_amount: &mut u64,
@@ -226,33 +231,25 @@ pub fn process_compressible_extension(
         return Ok(());
     }
 
-    if let Some(extensions) = extensions {
-        for extension in extensions.iter() {
-            if let ZExtensionStructMut::Compressible(compressible_extension) = extension {
-                if *current_slot == 0 {
-                    *current_slot = Clock::get()
-                        .map_err(|_| CTokenError::SysvarAccessError)?
-                        .slot;
-                }
-                let rent_exemption = Rent::get()
-                    .map_err(|_| CTokenError::SysvarAccessError)?
-                    .minimum_balance(token_account_info.data_len());
-
-                *transfer_amount = compressible_extension
-                    .info
-                    .calculate_top_up_lamports(
-                        token_account_info.data_len() as u64,
-                        *current_slot,
-                        token_account_info.lamports(),
-                        rent_exemption,
-                    )
-                    .map_err(|_| CTokenError::InvalidAccountData)?;
-
-                *lamports_budget = lamports_budget.saturating_sub(*transfer_amount);
-
-                return Ok(());
-            }
-        }
+    if *current_slot == 0 {
+        *current_slot = Clock::get()
+            .map_err(|_| CTokenError::SysvarAccessError)?
+            .slot;
     }
+    let rent_exemption = Rent::get()
+        .map_err(|_| CTokenError::SysvarAccessError)?
+        .minimum_balance(token_account_info.data_len());
+
+    *transfer_amount = compression
+        .calculate_top_up_lamports(
+            token_account_info.data_len() as u64,
+            *current_slot,
+            token_account_info.lamports(),
+            rent_exemption,
+        )
+        .map_err(|_| CTokenError::InvalidAccountData)?;
+
+    *lamports_budget = lamports_budget.saturating_sub(*transfer_amount);
+
     Ok(())
 }

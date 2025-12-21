@@ -1,5 +1,5 @@
 use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
-use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
+use light_compressible::compression_info::CompressionInfo;
 use light_zero_copy::ZeroCopy;
 
 use super::{
@@ -103,7 +103,6 @@ pub struct CompressedMintInstructionData {
     pub decimals: u8,
     /// Light Protocol-specific metadata
     pub metadata: CompressedMintMetadata,
-    pub compression_info: CompressionInfo,
     /// Optional authority used to mint new tokens. The mint authority may only
     /// be provided during mint creation. If no mint authority is present
     /// then the mint has a fixed supply and no further tokens may be
@@ -149,7 +148,6 @@ impl TryFrom<CompressedMint> for CompressedMintInstructionData {
             metadata: mint.metadata,
             mint_authority: mint.base.mint_authority,
             freeze_authority: mint.base.freeze_authority,
-            compression_info: mint.compression,
             extensions: Some(extension_list),
         })
     }
@@ -217,43 +215,7 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
             },
             reserved: [0u8; 49],
             account_type: crate::state::mint::ACCOUNT_TYPE_MINT,
-            compression: CompressionInfo {
-                config_account_version: instruction_data
-                    .compression_info
-                    .config_account_version
-                    .get(),
-                compress_to_pubkey: instruction_data.compression_info.compress_to_pubkey,
-                account_version: instruction_data.compression_info.account_version,
-                lamports_per_write: instruction_data.compression_info.lamports_per_write.get(),
-                compression_authority: instruction_data.compression_info.compression_authority,
-                rent_sponsor: instruction_data.compression_info.rent_sponsor,
-                last_claimed_slot: instruction_data.compression_info.last_claimed_slot.get(),
-                rent_config: RentConfig {
-                    base_rent: instruction_data
-                        .compression_info
-                        .rent_config
-                        .base_rent
-                        .get(),
-                    compression_cost: instruction_data
-                        .compression_info
-                        .rent_config
-                        .compression_cost
-                        .get(),
-                    lamports_per_byte_per_epoch: instruction_data
-                        .compression_info
-                        .rent_config
-                        .lamports_per_byte_per_epoch,
-                    max_funded_epochs: instruction_data
-                        .compression_info
-                        .rent_config
-                        .max_funded_epochs,
-                    max_top_up: instruction_data
-                        .compression_info
-                        .rent_config
-                        .max_top_up
-                        .get(),
-                },
-            },
+            compression: CompressionInfo::default(),
             extensions,
         })
     }

@@ -1,8 +1,5 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_ctoken_interface::{
-    state::{CToken, CompressedMint, ZExtensionStruct},
-    CTokenError, BASE_TOKEN_ACCOUNT_SIZE,
-};
+use light_ctoken_interface::{state::{CToken, CompressedMint}, CTokenError};
 use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::{
@@ -52,63 +49,50 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
         let cmint_data = cmint.try_borrow_data().map_err(convert_program_error)?;
         let (mint, _) = CompressedMint::zero_copy_at(&cmint_data)
             .map_err(|_| CTokenError::CMintDeserializationFailed)?;
-        if let Some(ref extensions) = mint.extensions {
-            for extension in extensions.iter() {
-                if let ZExtensionStruct::Compressible(ref compression_info) = extension {
-                    if current_slot == 0 {
-                        current_slot = Clock::get()
-                            .map_err(|_| CTokenError::SysvarAccessError)?
-                            .slot;
-                        rent = Some(Rent::get().map_err(|_| CTokenError::SysvarAccessError)?);
-                    }
-                    let rent_exemption = rent.as_ref().unwrap().minimum_balance(cmint.data_len());
-                    transfers[0].amount = compression_info
-                        .info
-                        .calculate_top_up_lamports(
-                            cmint.data_len() as u64,
-                            current_slot,
-                            cmint.lamports(),
-                            rent_exemption,
-                        )
-                        .map_err(|_| CTokenError::InvalidAccountData)?;
-                    lamports_budget = lamports_budget.saturating_sub(transfers[0].amount);
-                    break;
-                }
-            }
+        // Access compression info directly from meta (all cmints now have compression embedded)
+        if current_slot == 0 {
+            current_slot = Clock::get()
+                .map_err(|_| CTokenError::SysvarAccessError)?
+                .slot;
+            rent = Some(Rent::get().map_err(|_| CTokenError::SysvarAccessError)?);
         }
+        let rent_exemption = rent.as_ref().unwrap().minimum_balance(cmint.data_len());
+        transfers[0].amount = mint
+            .meta
+            .compression
+            .calculate_top_up_lamports(
+                cmint.data_len() as u64,
+                current_slot,
+                cmint.lamports(),
+                rent_exemption,
+            )
+            .map_err(|_| CTokenError::InvalidAccountData)?;
+        lamports_budget = lamports_budget.saturating_sub(transfers[0].amount);
     }
 
-    // Calculate CToken top-up (CToken uses zero-copy extensions)
-    if ctoken.data_len() > BASE_TOKEN_ACCOUNT_SIZE as usize {
+    // Calculate CToken top-up
+    {
         let account_data = ctoken.try_borrow_data().map_err(convert_program_error)?;
         let (token, _) = CToken::zero_copy_at_checked(&account_data)?;
-        if let Some(ref extensions) = token.extensions {
-            for extension in extensions.iter() {
-                if let ZExtensionStruct::Compressible(compressible_ext) = extension {
-                    if current_slot == 0 {
-                        current_slot = Clock::get()
-                            .map_err(|_| CTokenError::SysvarAccessError)?
-                            .slot;
-                        rent = Some(Rent::get().map_err(|_| CTokenError::SysvarAccessError)?);
-                    }
-                    let rent_exemption = rent.as_ref().unwrap().minimum_balance(ctoken.data_len());
-                    transfers[1].amount = compressible_ext
-                        .info
-                        .calculate_top_up_lamports(
-                            ctoken.data_len() as u64,
-                            current_slot,
-                            ctoken.lamports(),
-                            rent_exemption,
-                        )
-                        .map_err(|_| CTokenError::InvalidAccountData)?;
-                    lamports_budget = lamports_budget.saturating_sub(transfers[1].amount);
-                    break;
-                }
-            }
-        } else {
-            // Only Compressible extensions are implemented for ctoken accounts.
-            return Err(CTokenError::InvalidAccountData.into());
+        // Access compression info directly from meta (all ctokens now have compression embedded)
+        if current_slot == 0 {
+            current_slot = Clock::get()
+                .map_err(|_| CTokenError::SysvarAccessError)?
+                .slot;
+            rent = Some(Rent::get().map_err(|_| CTokenError::SysvarAccessError)?);
         }
+        let rent_exemption = rent.as_ref().unwrap().minimum_balance(ctoken.data_len());
+        transfers[1].amount = token
+            .meta
+            .compression
+            .calculate_top_up_lamports(
+                ctoken.data_len() as u64,
+                current_slot,
+                ctoken.lamports(),
+                rent_exemption,
+            )
+            .map_err(|_| CTokenError::InvalidAccountData)?;
+        lamports_budget = lamports_budget.saturating_sub(transfers[1].amount);
     }
 
     // Exit early if no compressible accounts

@@ -1,5 +1,6 @@
 use light_compressed_account::Pubkey;
 use light_zero_copy::ZeroCopy;
+use pinocchio::pubkey::pubkey_eq;
 
 use crate::{AnchorDeserialize, AnchorSerialize};
 use std::mem::MaybeUninit;
@@ -40,7 +41,7 @@ pub struct CompressToPubkey {
 }
 
 impl CompressToPubkey {
-    pub fn check_seeds(&self, pubkey: &Pubkey) -> Result<(), CTokenError> {
+    pub fn check_seeds(&self, pubkey: &pinocchio::pubkey::Pubkey) -> Result<(), CTokenError> {
         if self.seeds.len() >= MAX_SEEDS {
             return Err(CTokenError::TooManySeeds(MAX_SEEDS - 1));
         }
@@ -49,7 +50,7 @@ impl CompressToPubkey {
             references.push(seed.as_slice());
         }
         let derived_pubkey = derive_address(references.as_slice(), self.bump, &self.program_id)?;
-        if derived_pubkey != *pubkey {
+        if !pubkey_eq(derived_pubkey.array_ref(), pubkey) {
             Err(CTokenError::InvalidAccountData)
         } else {
             Ok(())

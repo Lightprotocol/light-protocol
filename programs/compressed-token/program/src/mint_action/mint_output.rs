@@ -6,7 +6,7 @@ use light_compressible::rent::get_rent_exemption_lamports;
 use light_ctoken_interface::{
     hash_cache::HashCache,
     instructions::mint_action::ZMintActionCompressedInstructionData,
-    state::{CompressedMint, ExtensionStruct},
+    state::CompressedMint,
 };
 use light_hasher::{sha256::Sha256BE, Hasher};
 use light_program_profiler::profile;
@@ -50,47 +50,40 @@ pub fn process_output_compressed_account<'a>(
     // SKIP if CompressAndCloseCMint action is present (CMint is being closed, not synced)
     if let Some(cmint_account) = validated_accounts.get_cmint() {
         if !accounts_config.has_compress_and_close_cmint_action {
-            // Check if CMint has Compressible extension and handle top-up
-            if let Some(ref mut extensions) = compressed_mint.extensions {
-                if let Some(ExtensionStruct::Compressible(ref mut compression_info)) = extensions
-                    .iter_mut()
-                    .find(|e| matches!(e, ExtensionStruct::Compressible(_)))
-                {
-                    // Get current slot for top-up calculation
-                    let current_slot = Clock::get()
-                        .map_err(|_| ProgramError::UnsupportedSysvar)?
-                        .slot;
+            // Handle top-up for compressed mint (compression info is now embedded directly)
+            // Get current slot for top-up calculation
+            let current_slot = Clock::get()
+                .map_err(|_| ProgramError::UnsupportedSysvar)?
+                .slot;
 
-                    let num_bytes = cmint_account.data_len() as u64;
-                    let current_lamports = cmint_account.lamports();
-                    let rent_exemption = get_rent_exemption_lamports(num_bytes)
-                        .map_err(|_| ErrorCode::CMintTopUpCalculationFailed)?;
+            let num_bytes = cmint_account.data_len() as u64;
+            let current_lamports = cmint_account.lamports();
+            let rent_exemption = get_rent_exemption_lamports(num_bytes)
+                .map_err(|_| ErrorCode::CMintTopUpCalculationFailed)?;
 
-                    // Calculate top-up amount
-                    let top_up = compression_info
-                        .info
-                        .calculate_top_up_lamports(
-                            num_bytes,
-                            current_slot,
-                            current_lamports,
-                            rent_exemption,
-                        )
-                        .map_err(|_| ErrorCode::CMintTopUpCalculationFailed)?;
+            // Calculate top-up amount using embedded compression info
+            let top_up = compressed_mint
+                .compression
+                .calculate_top_up_lamports(
+                    num_bytes,
+                    current_slot,
+                    current_lamports,
+                    rent_exemption,
+                )
+                .map_err(|_| ErrorCode::CMintTopUpCalculationFailed)?;
 
-                    if top_up > 0 {
-                        let fee_payer = validated_accounts
-                            .executing
-                            .as_ref()
-                            .map(|exec| exec.system.fee_payer)
-                            .ok_or(ProgramError::NotEnoughAccountKeys)?;
-                        transfer_lamports(top_up, fee_payer, cmint_account)
-                            .map_err(convert_program_error)?;
-                    }
-
-                    // Update last_claimed_slot to current slot
-                    compression_info.info.last_claimed_slot = current_slot;
-                }
+            if top_up > 0 {
+                let fee_payer = validated_accounts
+                    .executing
+                    .as_ref()
+                    .map(|exec| exec.system.fee_payer)
+                    .ok_or(ProgramError::NotEnoughAccountKeys)?;
+                transfer_lamports(top_up, fee_payer, cmint_account)
+                    .map_err(convert_program_error)?;
             }
+
+            // Update last_claimed_slot to current slot
+            compressed_mint.compression.last_claimed_slot = current_slot;
 
             let serialized = compressed_mint
                 .try_to_vec()

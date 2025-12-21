@@ -67,12 +67,10 @@ pub struct MintExtensionFlags {
 impl MintExtensionFlags {
     /// Calculate the ctoken account size based on extension flags.
     ///
-    /// # Arguments
-    /// * `has_compressible` - Whether the account has the Compressible extension
-    ///   (this is an account-level choice, not a mint extension)
-    pub const fn calculate_account_size(&self, has_compressible: bool) -> u64 {
+    /// Calculate account size based on mint extensions.
+    /// All ctoken accounts now have CompressionInfo embedded in base struct.
+    pub const fn calculate_account_size(&self) -> u64 {
         light_ctoken_interface::state::calculate_ctoken_account_size(
-            has_compressible,
             self.has_pausable,
             self.has_permanent_delegate,
             self.has_transfer_fee,
