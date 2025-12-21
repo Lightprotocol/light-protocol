@@ -4,53 +4,49 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
+  outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ rust-overlay.overlays.default ];
-        };
-
-        # Rust version from rust-toolchain.toml
-        rustVersion = "1.90.0";
-        rustToolchain = pkgs.rust-bin.stable.${rustVersion}.default.override {
-          extensions = [ "clippy" "rust-src" ];
-        };
-
-        # Cargo wrapper that handles `+toolchain` syntax (for cargo-build-sbf compatibility)
-        cargoWrapper = pkgs.writeShellScriptBin "cargo" ''
-          if [[ "$1" == +solana ]]; then
-            # Use platform-tools for SBF compilation
-            shift
-            PLATFORM_TOOLS="''${SBF_SDK_PATH:-$HOME/.cache/solana-platform-tools}/dependencies/platform-tools"
-            if [ -x "$PLATFORM_TOOLS/rust/bin/cargo" ]; then
-              # Set RUSTC so cargo uses platform-tools rustc (supports -Z flags)
-              export RUSTC="$PLATFORM_TOOLS/rust/bin/rustc"
-              export RUSTDOC="$PLATFORM_TOOLS/rust/bin/rustdoc"
-              exec "$PLATFORM_TOOLS/rust/bin/cargo" "$@"
-            else
-              echo "Error: Solana platform-tools not found at $PLATFORM_TOOLS" >&2
-              echo "Run cargo-build-sbf once to download platform-tools" >&2
-              exit 1
-            fi
-          elif [[ "$1" == +* ]]; then
-            toolchain="''${1#+}"
-            shift
-            exec ${pkgs.rustup}/bin/rustup run "$toolchain" cargo "$@"
-          else
-            exec ${rustToolchain}/bin/cargo "$@"
-          fi
-        '';
+        pkgs = import nixpkgs { inherit system; };
 
         # Import custom packages
         solana = pkgs.callPackage ./solana.nix { };
         anchor = pkgs.callPackage ./anchor.nix { };
 
+        # Smart build-sbf wrapper that uses per-program target dirs to avoid cache invalidation
+        buildSbfWrapper = pkgs.writeShellScriptBin "build-sbf" ''
+          set -e
+          REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+          # Build a single program with its own target dir
+          build_program() {
+            local prog="$1"
+            shift
+            local name=$(basename "$prog")
+            echo "==> $prog"
+            CARGO_TARGET_DIR="$REPO_ROOT/target-$name" cargo build-sbf --manifest-path "$prog/Cargo.toml" "$@"
+          }
+
+          # If running from workspace root, build each program separately
+          if [ -f "Cargo.toml" ] && grep -q '^\[workspace\]' "Cargo.toml" 2>/dev/null; then
+            echo "Building programs with separate target directories..."
+            for prog in programs/*/; do
+              if [ -f "$prog/Cargo.toml" ]; then
+                build_program "$prog" "$@"
+              fi
+            done
+          else
+            # Single program build
+            local name=$(basename "$PWD")
+            export CARGO_TARGET_DIR="$REPO_ROOT/target-$name"
+            exec cargo build-sbf "$@"
+          fi
+        '';
+
         # Versions (keep in sync with scripts/devenv/versions.sh)
+        rustVersion = "1.90.0";
         photonCommit = "3dbfb8e6772779fc89c640b5b0823b95d1958efc";
 
       in {
@@ -65,9 +61,7 @@
           packages = [
             # Languages
             pkgs.go
-            cargoWrapper  # Must be before rustToolchain to shadow cargo
-            rustToolchain
-            pkgs.rustup  # For `cargo +toolchain` handling
+            pkgs.rustup
             pkgs.nodejs_22
             pkgs.pnpm
 
@@ -78,16 +72,23 @@
             pkgs.pkg-config
             pkgs.openssl
             pkgs.starship
+            pkgs.sccache  # Compile cache (helps with different feature combinations)
 
             # Solana ecosystem
             solana
             anchor
+            buildSbfWrapper  # Smart wrapper with separate target dirs
           ];
 
           shellHook = ''
             # Environment variables
             export REDIS_URL="redis://localhost:6379"
             export SBF_OUT_DIR="target/deploy"
+
+            # sccache is available but NOT enabled by default
+            # It helps with different feature combinations but breaks cargo's incremental cache
+            # Enable manually for CI: export RUSTC_WRAPPER=sccache
+            export SCCACHE_DIR="$HOME/.cache/sccache"
 
             # Solana platform-tools: copy SDK to writable location for cargo-build-sbf
             SOLANA_TOOLS_DIR="$HOME/.cache/solana-platform-tools/${solana.version}"
@@ -99,9 +100,12 @@
             fi
             export SBF_SDK_PATH="$SOLANA_TOOLS_DIR/sbf"
 
-            # Install nightly rustfmt via rustup (for `cargo +nightly fmt`)
-            if ! rustup run nightly rustfmt --version &>/dev/null; then
-              echo "Installing nightly toolchain for rustfmt..."
+            # Rust toolchain (managed by rustup, not nix)
+            if ! rustup show active-toolchain 2>/dev/null | grep -q "${rustVersion}"; then
+              echo "Installing Rust ${rustVersion}..."
+              rustup install ${rustVersion}
+              rustup default ${rustVersion}
+              rustup component add clippy
               rustup toolchain install nightly --component rustfmt
             fi
 
