@@ -70,6 +70,10 @@ const MINT_TO_NUM: u64 = 5;
 const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 5;
 const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
 
+// program-libs/batched-merkle-tree/src/errors.rs
+// BatchedMerkleTreeError::BatchNotReady => 14301 (0x37dd)
+const BATCH_NOT_READY_ERROR_CODE: u32 = 14301;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum TestMode {
     Local,
@@ -194,6 +198,69 @@ fn is_v1_address_test_enabled() -> bool {
 
 fn is_v2_address_test_enabled() -> bool {
     env::var("TEST_V2_ADDRESS").unwrap_or_else(|_| "true".to_string()) == "true"
+}
+
+fn is_batch_not_ready_error(e: &light_client::rpc::RpcError) -> bool {
+    match e {
+        light_client::rpc::RpcError::ClientError(client_error) => {
+            match &client_error.kind {
+                solana_rpc_client_api::client_error::ErrorKind::RpcError(
+                    solana_rpc_client_api::request::RpcError::RpcResponseError { data, .. },
+                ) => match data {
+                    solana_rpc_client_api::request::RpcResponseErrorData::SendTransactionPreflightFailure(sim) => {
+                        matches!(
+                            sim.err,
+                            Some(solana_sdk::transaction::TransactionError::InstructionError(
+                                _,
+                                solana_sdk::instruction::InstructionError::Custom(code),
+                            )) if code == BATCH_NOT_READY_ERROR_CODE
+                        )
+                    }
+                    _ => false,
+                },
+                _ => false,
+            }
+        }
+        _ => false,
+    }
+}
+
+async fn create_and_send_transaction_retrying_batch_not_ready<R: Rpc>(
+    rpc: &mut R,
+    instructions: &[solana_sdk::instruction::Instruction],
+    fee_payer: &Pubkey,
+    signers: &[&Keypair],
+    label: &'static str,
+) -> Result<Signature, light_client::rpc::RpcError> {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(DEFAULT_TIMEOUT_SECONDS);
+    let mut backoff = Duration::from_millis(250);
+    let max_backoff = Duration::from_secs(5);
+    let mut attempt: u32 = 0;
+
+    loop {
+        attempt = attempt.saturating_add(1);
+        match rpc
+            .create_and_send_transaction(instructions, fee_payer, signers)
+            .await
+        {
+            Ok(sig) => return Ok(sig),
+            Err(e) if is_batch_not_ready_error(&e) => {
+                if tokio::time::Instant::now() >= deadline {
+                    return Err(light_client::rpc::RpcError::CustomError(format!(
+                        "{label}: BatchNotReady persisted until timeout after {attempt} attempts. last error: {:?}",
+                        e
+                    )));
+                }
+
+                println!(
+                    "{label}: BatchNotReady (output queue full). retry {attempt}, sleeping {backoff:?}"
+                );
+                sleep(backoff).await;
+                backoff = std::cmp::min(backoff * 2, max_backoff);
+            }
+            Err(e) => return Err(e),
+        }
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 16)]
@@ -1003,9 +1070,15 @@ async fn mint_to<R: Rpc>(
         ),
         mint_to_ix,
     ];
-    rpc.create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
-        .await
-        .unwrap()
+    create_and_send_transaction_retrying_batch_not_ready(
+        rpc,
+        &instructions,
+        &payer.pubkey(),
+        &[payer],
+        "mint_to",
+    )
+    .await
+    .unwrap()
 }
 
 async fn compressed_token_transfer<R: Rpc>(
@@ -1113,10 +1186,15 @@ async fn compressed_token_transfer<R: Rpc>(
         ),
         instruction,
     ];
-    let sig = rpc
-        .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
-        .await
-        .unwrap();
+    let sig = create_and_send_transaction_retrying_batch_not_ready(
+        rpc,
+        &instructions,
+        &payer.pubkey(),
+        &[payer],
+        "compressed_token_transfer",
+    )
+    .await
+    .unwrap();
     *counter += compressed_accounts.len() as u64;
     *counter -= input_compressed_accounts.len() as u64;
     sig
@@ -1238,10 +1316,15 @@ async fn transfer<const V2: bool, R: Rpc>(
         ),
         instruction,
     ];
-    let sig = rpc
-        .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
-        .await
-        .unwrap();
+    let sig = create_and_send_transaction_retrying_batch_not_ready(
+        rpc,
+        &instructions,
+        &payer.pubkey(),
+        &[payer],
+        "transfer",
+    )
+    .await
+    .unwrap();
     *counter += compressed_accounts.len() as u64;
     *counter -= input_compressed_accounts_data.len() as u64;
     sig
@@ -1309,18 +1392,18 @@ async fn compress<R: Rpc>(
         ),
         instruction,
     ];
-    match rpc
-        .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
-        .await
-    {
-        Ok(sig) => {
-            *counter += 1;
-            sig
-        }
-        Err(e) => {
-            panic!("compress error: {:?}", e);
-        }
-    }
+    let sig = create_and_send_transaction_retrying_batch_not_ready(
+        rpc,
+        &instructions,
+        &payer.pubkey(),
+        &[payer],
+        "compress",
+    )
+    .await
+    .unwrap_or_else(|e| panic!("compress error: {:?}", e));
+
+    *counter += 1;
+    sig
 }
 
 async fn create_v1_address<R: Rpc>(
@@ -1389,10 +1472,15 @@ async fn create_v1_address<R: Rpc>(
         ),
         instruction,
     ];
-    let sig = rpc
-        .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
-        .await
-        .unwrap();
+    let sig = create_and_send_transaction_retrying_batch_not_ready(
+        rpc,
+        &instructions,
+        &payer.pubkey(),
+        &[payer],
+        "create_v1_address",
+    )
+    .await
+    .unwrap();
     *counter += 1;
     sig
 }
@@ -1489,7 +1577,13 @@ async fn create_v2_addresses<R: Rpc>(
         instruction,
     ];
 
-    rpc.create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
-        .await
-        .map(|_| ())
+    create_and_send_transaction_retrying_batch_not_ready(
+        rpc,
+        &instructions,
+        &payer.pubkey(),
+        &[payer],
+        "create_v2_addresses",
+    )
+    .await
+    .map(|_| ())
 }
