@@ -4,8 +4,10 @@ use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
-use spl_token_2022::extension::{BaseStateWithExtensions, ExtensionType, StateWithExtensions};
-use spl_token_2022::state::Mint;
+use spl_token_2022::{
+    extension::{BaseStateWithExtensions, ExtensionType, StateWithExtensions},
+    state::Mint,
+};
 
 /// Restricted extension types that require compression_only mode.
 const RESTRICTED_EXTENSIONS: [ExtensionType; 4] = [

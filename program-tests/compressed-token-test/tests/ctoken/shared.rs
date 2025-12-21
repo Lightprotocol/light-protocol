@@ -1,6 +1,6 @@
 // Re-export all necessary imports for test modules
 pub use light_compressible::rent::{RentConfig, SLOTS_PER_EPOCH};
-pub use light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
+pub use light_ctoken_interface::{BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE};
 pub use light_ctoken_sdk::ctoken::{
     derive_ctoken_ata, CloseCTokenAccount, CompressibleParams, CreateAssociatedCTokenAccount,
     CreateCTokenAccount,
@@ -224,10 +224,10 @@ pub async fn create_non_compressible_token_account(
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = token_keypair.pubkey();
 
-    // Create account via system program (165 bytes for non-compressible)
+    // Create account via system program (166 bytes for non-compressible)
     let rent = context
         .rpc
-        .get_minimum_balance_for_rent_exemption(165)
+        .get_minimum_balance_for_rent_exemption(BASE_TOKEN_ACCOUNT_SIZE as usize)
         .await
         .unwrap();
 
@@ -235,7 +235,7 @@ pub async fn create_non_compressible_token_account(
         &payer_pubkey,
         &token_account_pubkey,
         rent,
-        165,
+        BASE_TOKEN_ACCOUNT_SIZE,
         &light_compressed_token::ID,
     );
 

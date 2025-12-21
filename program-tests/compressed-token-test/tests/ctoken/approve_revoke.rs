@@ -7,7 +7,7 @@ use borsh::BorshDeserialize;
 use light_ctoken_interface::state::{
     AccountState, CToken, ExtensionStruct, PausableAccountExtension,
     PermanentDelegateAccountExtension, TokenDataVersion, TransferFeeAccountExtension,
-    TransferHookAccountExtension,
+    TransferHookAccountExtension, ACCOUNT_TYPE_TOKEN_ACCOUNT,
 };
 use light_ctoken_sdk::ctoken::{
     ApproveCToken, CompressibleParams, CreateCTokenAccount, RevokeCToken,
@@ -151,6 +151,7 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
             ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
             ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
         ]),
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
     };
 
     assert_eq!(
@@ -192,6 +193,7 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
             ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
             ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
         ]),
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
     };
 
     assert_eq!(

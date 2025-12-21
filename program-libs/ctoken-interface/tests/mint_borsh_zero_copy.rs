@@ -6,7 +6,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_ctoken_interface::state::{
     extensions::{AdditionalMetadata, ExtensionStruct, TokenMetadata},
-    mint::{BaseMint, CompressedMint, CompressedMintMetadata},
+    mint::{BaseMint, CompressedMint, CompressedMintMetadata, ACCOUNT_TYPE_MINT},
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 use rand::{thread_rng, Rng};
@@ -103,6 +103,8 @@ fn generate_random_mint() -> CompressedMint {
                 Pubkey::from(bytes)
             },
         },
+        reserved: [0u8; 49],
+        account_type: ACCOUNT_TYPE_MINT,
         extensions,
     }
 }
@@ -162,6 +164,8 @@ fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]
             cmint_decompressed: zc_mint.metadata.cmint_decompressed != 0,
             mint: zc_mint.metadata.mint,
         },
+        reserved: *zc_mint.reserved,
+        account_type: zc_mint.account_type,
         extensions: zc_extensions.clone(),
     };
 
@@ -183,6 +187,8 @@ fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]
             cmint_decompressed: zc_mint_mut.metadata.cmint_decompressed != 0,
             mint: zc_mint_mut.metadata.mint,
         },
+        reserved: *zc_mint_mut.reserved,
+        account_type: *zc_mint_mut.account_type,
         extensions: zc_extensions, // Extensions handling for mut is same as read-only
     };
 

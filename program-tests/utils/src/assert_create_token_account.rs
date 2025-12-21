@@ -5,7 +5,7 @@ use light_ctoken_interface::{
     state::{
         ctoken::CToken,
         extensions::{CompressibleExtension, CompressionInfo},
-        AccountState,
+        AccountState, ACCOUNT_TYPE_TOKEN_ACCOUNT,
     },
     BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
@@ -93,6 +93,7 @@ pub async fn assert_create_token_account_internal(
                 is_native: None,
                 delegated_amount: 0,
                 close_authority: None,
+                account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
                 extensions: Some(vec![
                     light_ctoken_interface::state::extensions::ExtensionStruct::Compressible(
                         CompressibleExtension {
@@ -216,11 +217,11 @@ pub async fn assert_create_token_account_internal(
         }
         None => {
             // Validate basic SPL token account
-            assert_eq!(account_info.data.len(), 165); // SPL token account size
+            assert_eq!(account_info.data.len(), BASE_TOKEN_ACCOUNT_SIZE as usize); // SPL token account size
 
             // Use SPL token Pack trait for basic account
             let actual_spl_token_account =
-                spl_token_2022::state::Account::unpack(&account_info.data)
+                spl_token_2022::state::Account::unpack(&account_info.data[..165])
                     .expect("Failed to unpack basic token account data");
 
             // Create expected SPL token account

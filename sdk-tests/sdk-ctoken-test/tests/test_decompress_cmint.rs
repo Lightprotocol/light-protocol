@@ -4,8 +4,10 @@ mod shared;
 
 use borsh::BorshDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_ctoken_interface::instructions::mint_action::CompressedMintWithContext;
-use light_ctoken_interface::state::{CompressedMint, ExtensionStruct};
+use light_ctoken_interface::{
+    instructions::mint_action::CompressedMintWithContext,
+    state::{CompressedMint, ExtensionStruct},
+};
 use light_ctoken_sdk::ctoken::{find_cmint_address, DecompressCMint};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};

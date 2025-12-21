@@ -263,8 +263,9 @@ pub async fn setup_create_compressed_mint_with_freeze_authority(
     // Decompress the mint to create an on-chain CMint account
     // This is required for freeze/thaw operations which need to read the mint
     {
-        use light_ctoken_interface::instructions::mint_action::CompressedMintWithContext;
-        use light_ctoken_interface::state::CompressedMint;
+        use light_ctoken_interface::{
+            instructions::mint_action::CompressedMintWithContext, state::CompressedMint,
+        };
         use light_ctoken_sdk::ctoken::DecompressCMint;
 
         let compressed_mint = CompressedMint::deserialize(

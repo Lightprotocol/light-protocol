@@ -18,6 +18,7 @@ use light_ctoken_interface::{
     state::{
         AdditionalMetadata, AdditionalMetadataConfig, BaseMint, CompressedMint,
         CompressedMintMetadata, ExtensionStruct, TokenMetadata, ZCompressedMint, ZExtensionStruct,
+        ACCOUNT_TYPE_MINT,
     },
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
@@ -379,6 +380,8 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
             mint: Pubkey::new_from_array([3; 32]),
             cmint_decompressed: false,
         },
+        reserved: [0u8; 49],
+        account_type: ACCOUNT_TYPE_MINT,
         extensions: Some(vec![ExtensionStruct::TokenMetadata(token_metadata)]),
     };
 
@@ -407,6 +410,8 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
                 mint: zc_mint.metadata.mint,
                 cmint_decompressed: zc_mint.metadata.cmint_decompressed != 0,
             },
+            reserved: *zc_mint.reserved,
+            account_type: zc_mint.account_type,
             extensions: zc_mint.extensions.as_ref().map(|zc_exts| {
                 zc_exts
                     .iter()

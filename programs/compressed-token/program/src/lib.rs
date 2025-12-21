@@ -32,8 +32,7 @@ use create_token_account::process_create_token_account;
 use ctoken_approve_revoke::{process_ctoken_approve, process_ctoken_revoke};
 use ctoken_freeze_thaw::{process_ctoken_freeze_account, process_ctoken_thaw_account};
 use ctoken_mint_to::process_ctoken_mint_to;
-use transfer::process_ctoken_transfer;
-use transfer::process_ctoken_transfer_checked;
+use transfer::{process_ctoken_transfer, process_ctoken_transfer_checked};
 use withdraw_funding_pool::process_withdraw_funding_pool;
 
 use crate::{

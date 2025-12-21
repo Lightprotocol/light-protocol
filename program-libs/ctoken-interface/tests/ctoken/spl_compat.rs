@@ -7,7 +7,7 @@
 
 use light_compressed_account::Pubkey;
 use light_ctoken_interface::state::{
-    ctoken::{CToken, CompressedTokenConfig, ZCToken},
+    ctoken::{CToken, CompressedTokenConfig, ZCToken, ACCOUNT_TYPE_TOKEN_ACCOUNT},
     CompressibleExtensionConfig, CompressionInfoConfig, ExtensionStructConfig,
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
@@ -50,8 +50,10 @@ fn generate_random_token_account_data(rng: &mut impl Rng) -> Vec<u8> {
     };
     println!("Expected Account: {:?}", account);
 
-    let mut account_data = vec![0u8; Account::LEN];
-    Account::pack(account, &mut account_data).unwrap();
+    let mut account_data = vec![0u8; Account::LEN + 1]; // +1 for account_type byte
+    Account::pack(account, &mut account_data[..Account::LEN]).unwrap();
+    // Set account_type byte at position 165 to ACCOUNT_TYPE_TOKEN_ACCOUNT (2)
+    account_data[165] = 2;
     account_data
 }
 
@@ -306,7 +308,8 @@ fn test_compressed_token_equivalent_to_pod_account() {
     for _ in 0..10000 {
         let mut account_data = generate_random_token_account_data(&mut rng);
         let account_data_clone = account_data.clone();
-        let pod_account = pod_from_bytes::<PodAccount>(&account_data_clone).unwrap();
+        // Pod account only knows about the first 165 bytes
+        let pod_account = pod_from_bytes::<PodAccount>(&account_data_clone[..165]).unwrap();
 
         // Test immutable version
         let (compressed_token, _) = CToken::zero_copy_at(&account_data).unwrap();
@@ -318,7 +321,8 @@ fn test_compressed_token_equivalent_to_pod_account() {
         ));
         {
             let account_data_clone = account_data.clone();
-            let pod_account = pod_from_bytes::<PodAccount>(&account_data_clone).unwrap();
+            // Pod account only knows about the first 165 bytes
+            let pod_account = pod_from_bytes::<PodAccount>(&account_data_clone[..165]).unwrap();
             // Test mutable version
             let (mut compressed_token_mut, _) =
                 CToken::zero_copy_at_mut(&mut account_data).unwrap();
@@ -363,8 +367,9 @@ fn test_compressed_token_equivalent_to_pod_account() {
             }
             // Clone the modified bytes and create a new Pod account to verify changes
             let modified_account_data = account_data.clone();
+            // Pod account only knows about the first 165 bytes
             let modified_pod_account =
-                pod_from_bytes::<PodAccount>(&modified_account_data).unwrap();
+                pod_from_bytes::<PodAccount>(&modified_account_data[..165]).unwrap();
 
             // Create a new immutable compressed token from the modified data to compare
             let (modified_compressed_token, _) =
@@ -560,8 +565,11 @@ fn test_compressible_extension_partial_eq() {
         is_native: None,
         delegated_amount: 0,
         close_authority: None,
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
         extensions: Some(vec![ExtensionStruct::Compressible(CompressibleExtension {
             compression_only: false,
+            decimals: 0,
+            has_decimals: 0,
             info: compression_info,
         })]),
     };
@@ -577,6 +585,8 @@ fn test_compressible_extension_partial_eq() {
     let ctoken_diff_compress = CToken {
         extensions: Some(vec![ExtensionStruct::Compressible(CompressibleExtension {
             compression_only: false,
+            decimals: 0,
+            has_decimals: 0,
             info: CompressionInfo {
                 compress_to_pubkey: 0,
                 ..compression_info
@@ -591,6 +601,8 @@ fn test_compressible_extension_partial_eq() {
     let ctoken_diff_version = CToken {
         extensions: Some(vec![ExtensionStruct::Compressible(CompressibleExtension {
             compression_only: false,
+            decimals: 0,
+            has_decimals: 0,
             info: CompressionInfo {
                 account_version: 0,
                 ..compression_info

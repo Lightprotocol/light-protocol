@@ -88,8 +88,9 @@ async fn test_ctoken_mint_to_invoke() {
 #[tokio::test]
 async fn test_ctoken_mint_to_invoke_signed() {
     use light_client::indexer::Indexer;
-    use light_ctoken_interface::instructions::mint_action::CompressedMintWithContext;
-    use light_ctoken_interface::state::CompressedMint;
+    use light_ctoken_interface::{
+        instructions::mint_action::CompressedMintWithContext, state::CompressedMint,
+    };
     use light_ctoken_sdk::ctoken::CreateAssociatedCTokenAccount;
     use native_ctoken_examples::{
         CreateCmintData, DecompressCmintData, InstructionType as WrapperInstructionType,

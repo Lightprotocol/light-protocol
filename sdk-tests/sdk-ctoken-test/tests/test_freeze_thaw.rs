@@ -7,7 +7,7 @@ use light_client::rpc::Rpc;
 use light_ctoken_interface::state::{AccountState, CToken};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_sdk_types::C_TOKEN_PROGRAM_ID;
-use native_ctoken_examples::{InstructionType, ID, FREEZE_AUTHORITY_SEED};
+use native_ctoken_examples::{InstructionType, FREEZE_AUTHORITY_SEED, ID};
 use shared::*;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -26,15 +26,16 @@ async fn test_freeze_invoke() {
     let freeze_authority = Keypair::new();
 
     // Create a compressed mint with freeze_authority and an ATA for the payer with 1000 tokens
-    let (mint_pda, _compression_address, ata_pubkeys) = setup_create_compressed_mint_with_freeze_authority(
-        &mut rpc,
-        &payer,
-        payer.pubkey(),
-        Some(freeze_authority.pubkey()),
-        9,
-        vec![(1000, payer.pubkey())],
-    )
-    .await;
+    let (mint_pda, _compression_address, ata_pubkeys) =
+        setup_create_compressed_mint_with_freeze_authority(
+            &mut rpc,
+            &payer,
+            payer.pubkey(),
+            Some(freeze_authority.pubkey()),
+            9,
+            vec![(1000, payer.pubkey())],
+        )
+        .await;
 
     let ata = ata_pubkeys[0];
 
@@ -54,18 +55,22 @@ async fn test_freeze_invoke() {
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(ata, false),                              // token_account
-            AccountMeta::new_readonly(mint_pda, false),                // mint
+            AccountMeta::new(ata, false),               // token_account
+            AccountMeta::new_readonly(mint_pda, false), // mint
             AccountMeta::new_readonly(freeze_authority.pubkey(), true), // freeze_authority (signer)
-            AccountMeta::new_readonly(ctoken_program, false),          // ctoken_program
+            AccountMeta::new_readonly(ctoken_program, false), // ctoken_program
         ],
         data: instruction_data,
     };
 
     // Execute the freeze instruction
-    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &freeze_authority])
-        .await
-        .unwrap();
+    rpc.create_and_send_transaction(
+        &[instruction],
+        &payer.pubkey(),
+        &[&payer, &freeze_authority],
+    )
+    .await
+    .unwrap();
 
     // Verify the account is now frozen
     let ata_account_after = rpc.get_account(ata).await.unwrap().unwrap();
@@ -89,15 +94,16 @@ async fn test_freeze_invoke_signed() {
     let (pda_freeze_authority, _bump) = Pubkey::find_program_address(&[FREEZE_AUTHORITY_SEED], &ID);
 
     // Create a compressed mint with PDA freeze_authority and an ATA for the payer with 1000 tokens
-    let (mint_pda, _compression_address, ata_pubkeys) = setup_create_compressed_mint_with_freeze_authority(
-        &mut rpc,
-        &payer,
-        payer.pubkey(),
-        Some(pda_freeze_authority),
-        9,
-        vec![(1000, payer.pubkey())],
-    )
-    .await;
+    let (mint_pda, _compression_address, ata_pubkeys) =
+        setup_create_compressed_mint_with_freeze_authority(
+            &mut rpc,
+            &payer,
+            payer.pubkey(),
+            Some(pda_freeze_authority),
+            9,
+            vec![(1000, payer.pubkey())],
+        )
+        .await;
 
     let ata = ata_pubkeys[0];
 
@@ -108,10 +114,10 @@ async fn test_freeze_invoke_signed() {
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(ata, false),                         // token_account
-            AccountMeta::new_readonly(mint_pda, false),           // mint
+            AccountMeta::new(ata, false),                           // token_account
+            AccountMeta::new_readonly(mint_pda, false),             // mint
             AccountMeta::new_readonly(pda_freeze_authority, false), // PDA freeze_authority (program signs)
-            AccountMeta::new_readonly(ctoken_program, false),     // ctoken_program
+            AccountMeta::new_readonly(ctoken_program, false),       // ctoken_program
         ],
         data: instruction_data,
     };
@@ -143,15 +149,16 @@ async fn test_thaw_invoke() {
     let ctoken_program = Pubkey::from(C_TOKEN_PROGRAM_ID);
 
     // Create a compressed mint with freeze_authority and an ATA for the payer with 1000 tokens
-    let (mint_pda, _compression_address, ata_pubkeys) = setup_create_compressed_mint_with_freeze_authority(
-        &mut rpc,
-        &payer,
-        payer.pubkey(),
-        Some(freeze_authority.pubkey()),
-        9,
-        vec![(1000, payer.pubkey())],
-    )
-    .await;
+    let (mint_pda, _compression_address, ata_pubkeys) =
+        setup_create_compressed_mint_with_freeze_authority(
+            &mut rpc,
+            &payer,
+            payer.pubkey(),
+            Some(freeze_authority.pubkey()),
+            9,
+            vec![(1000, payer.pubkey())],
+        )
+        .await;
 
     let ata = ata_pubkeys[0];
 
@@ -168,9 +175,13 @@ async fn test_thaw_invoke() {
         data: freeze_instruction_data,
     };
 
-    rpc.create_and_send_transaction(&[freeze_instruction], &payer.pubkey(), &[&payer, &freeze_authority])
-        .await
-        .unwrap();
+    rpc.create_and_send_transaction(
+        &[freeze_instruction],
+        &payer.pubkey(),
+        &[&payer, &freeze_authority],
+    )
+    .await
+    .unwrap();
 
     // Verify account is frozen
     let ata_account_after_freeze = rpc.get_account(ata).await.unwrap().unwrap();
@@ -186,17 +197,21 @@ async fn test_thaw_invoke() {
     let thaw_instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(ata, false),                              // token_account
-            AccountMeta::new_readonly(mint_pda, false),                // mint
+            AccountMeta::new(ata, false),               // token_account
+            AccountMeta::new_readonly(mint_pda, false), // mint
             AccountMeta::new_readonly(freeze_authority.pubkey(), true), // freeze_authority (signer)
-            AccountMeta::new_readonly(ctoken_program, false),          // ctoken_program
+            AccountMeta::new_readonly(ctoken_program, false), // ctoken_program
         ],
         data: thaw_instruction_data,
     };
 
-    rpc.create_and_send_transaction(&[thaw_instruction], &payer.pubkey(), &[&payer, &freeze_authority])
-        .await
-        .unwrap();
+    rpc.create_and_send_transaction(
+        &[thaw_instruction],
+        &payer.pubkey(),
+        &[&payer, &freeze_authority],
+    )
+    .await
+    .unwrap();
 
     // Verify the account is now thawed (initialized)
     let ata_account_after_thaw = rpc.get_account(ata).await.unwrap().unwrap();
@@ -221,15 +236,16 @@ async fn test_thaw_invoke_signed() {
     let ctoken_program = Pubkey::from(C_TOKEN_PROGRAM_ID);
 
     // Create a compressed mint with PDA freeze_authority and an ATA for the payer with 1000 tokens
-    let (mint_pda, _compression_address, ata_pubkeys) = setup_create_compressed_mint_with_freeze_authority(
-        &mut rpc,
-        &payer,
-        payer.pubkey(),
-        Some(pda_freeze_authority),
-        9,
-        vec![(1000, payer.pubkey())],
-    )
-    .await;
+    let (mint_pda, _compression_address, ata_pubkeys) =
+        setup_create_compressed_mint_with_freeze_authority(
+            &mut rpc,
+            &payer,
+            payer.pubkey(),
+            Some(pda_freeze_authority),
+            9,
+            vec![(1000, payer.pubkey())],
+        )
+        .await;
 
     let ata = ata_pubkeys[0];
 
@@ -264,10 +280,10 @@ async fn test_thaw_invoke_signed() {
     let thaw_instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(ata, false),                         // token_account
-            AccountMeta::new_readonly(mint_pda, false),           // mint
+            AccountMeta::new(ata, false),                           // token_account
+            AccountMeta::new_readonly(mint_pda, false),             // mint
             AccountMeta::new_readonly(pda_freeze_authority, false), // PDA freeze_authority (program signs)
-            AccountMeta::new_readonly(ctoken_program, false),     // ctoken_program
+            AccountMeta::new_readonly(ctoken_program, false),       // ctoken_program
         ],
         data: thaw_instruction_data,
     };

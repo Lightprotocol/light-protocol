@@ -7,7 +7,7 @@ use light_ctoken_interface::{
     },
     state::{
         extensions::AdditionalMetadata, BaseMint, CompressedMint, CompressedMintMetadata,
-        TokenDataVersion,
+        TokenDataVersion, ACCOUNT_TYPE_MINT,
     },
     COMPRESSED_MINT_SEED,
 };
@@ -1263,6 +1263,8 @@ async fn test_mint_actions() {
                 },
             ),
         ]), // Match the metadata we're creating
+        reserved: [0u8; 49],
+        account_type: ACCOUNT_TYPE_MINT,
     };
 
     assert_mint_to_compressed(
@@ -1482,6 +1484,8 @@ async fn test_create_compressed_mint_with_cmint() {
             mint: cmint_pda.to_bytes().into(),
         },
         extensions: None,
+        reserved: [0u8; 49],
+        account_type: ACCOUNT_TYPE_MINT,
     };
 
     // Verify DecompressMint action results using assert_mint_action

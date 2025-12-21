@@ -23,8 +23,8 @@ fn test_compressed_token_new_zero_copy_buffer_too_small() {
 
 #[test]
 fn test_zero_copy_at_checked_uninitialized_account() {
-    // Create a 165-byte buffer with all zeros (byte 108 = 0, uninitialized)
-    let buffer = vec![0u8; 165];
+    // Create a 166-byte buffer with all zeros (byte 108 = 0, uninitialized)
+    let buffer = vec![0u8; 166];
 
     // This should fail because byte 108 is 0 (not initialized)
     let result = CToken::zero_copy_at_checked(&buffer);
@@ -35,8 +35,8 @@ fn test_zero_copy_at_checked_uninitialized_account() {
 
 #[test]
 fn test_zero_copy_at_mut_checked_uninitialized_account() {
-    // Create a 165-byte mutable buffer with all zeros
-    let mut buffer = vec![0u8; 165];
+    // Create a 166-byte mutable buffer with all zeros
+    let mut buffer = vec![0u8; 166];
 
     // This should fail because byte 108 is 0 (not initialized)
     let result = CToken::zero_copy_at_mut_checked(&mut buffer);

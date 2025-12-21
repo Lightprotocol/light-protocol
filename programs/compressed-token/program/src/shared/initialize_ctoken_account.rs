@@ -3,7 +3,10 @@ use light_account_checks::AccountInfoTrait;
 use light_compressible::config::CompressibleConfig;
 use light_ctoken_interface::{
     instructions::extensions::compressible::CompressibleExtensionInstructionData,
-    state::{calculate_ctoken_account_size, CompressibleExtension, ZCompressibleExtensionMut},
+    state::{
+        calculate_ctoken_account_size, CompressibleExtension, ZCompressibleExtensionMut,
+        ACCOUNT_TYPE_TOKEN_ACCOUNT,
+    },
     CTokenError, CTOKEN_PROGRAM_ID,
 };
 use light_program_profiler::profile;
@@ -113,6 +116,10 @@ pub fn initialize_ctoken_account(
     // AccountState: Uninitialized = 0, Initialized = 1, Frozen = 2
     base_token_bytes[108] = if default_state_frozen { 2 } else { 1 };
 
+    // Set account_type at byte 165 (first byte of extension_bytes)
+    // AccountType::Account = 2 for CToken accounts
+    extension_bytes[0] = ACCOUNT_TYPE_TOKEN_ACCOUNT;
+
     // Configure compressible extension if present
     if let Some(compressible_ix_data) = compressible {
         let compressible_config_account =
@@ -121,9 +128,9 @@ pub fn initialize_ctoken_account(
         // CompressibleExtension layout: 1 byte compression_only + CompressionInfo
         let (extension_bytes, compressible_data) = extension_bytes.split_at_mut(7);
 
-        // Manually set extension metadata
-        // Byte 0: AccountType::Account = 2
-        extension_bytes[0] = 2;
+        // // Manually set extension metadata
+        // // Byte 0: AccountType::Account = 2
+        // extension_bytes[0] = ACCOUNT_TYPE_TOKEN_ACCOUNT;
 
         // Byte 1: Option::Some = 1 (for Option<Vec<ExtensionStruct>>)
         extension_bytes[1] = 1;

@@ -52,9 +52,6 @@ pub fn process_ctoken_transfer_checked(
         .get(ACCOUNT_AUTHORITY)
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-    // Validate mint ownership before any other processing
-    check_token_program_owner(mint)?;
-
     // Parse max_top_up based on instruction data length
     // 0 means no limit
     let max_top_up = match instruction_data.len() {
@@ -83,11 +80,21 @@ pub fn process_ctoken_transfer_checked(
 
     if let Some(extension_decimals) = extension_decimals {
         if extension_decimals != decimals {
+            msg!("extension_decimals != decimals");
             return Err(ProgramError::InvalidInstructionData);
         }
-        process_transfer(accounts, amount, None, signer_is_validated)
-            .map_err(|e| ProgramError::Custom(u64::from(e) as u32))
+        // Create accounts slice without mint: [source, destination, authority]
+        // pinocchio expects 3 accounts when expected_decimals is None
+        let transfer_accounts = [*source, *destination, *authority];
+        process_transfer(
+            transfer_accounts.as_slice(),
+            amount,
+            None,
+            signer_is_validated,
+        )
+        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))
     } else {
+        check_token_program_owner(mint)?;
         process_transfer(accounts, amount, Some(decimals), signer_is_validated)
             .map_err(|e| ProgramError::Custom(u64::from(e) as u32))
     }
