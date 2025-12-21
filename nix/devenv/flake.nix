@@ -26,6 +26,8 @@
         };
 
         devShells.default = pkgs.mkShell {
+          name = "light";
+
           packages = [
             # Languages
             pkgs.go
@@ -39,6 +41,7 @@
             pkgs.gnumake
             pkgs.pkg-config
             pkgs.openssl
+            pkgs.starship
 
             # Solana ecosystem
             solana
@@ -89,6 +92,14 @@
             if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
               echo "Installing node dependencies..."
               pnpm install
+            fi
+
+            # Mark that we're in the devenv (for custom prompts)
+            export LIGHT_DEVENV=1
+
+            # Initialize starship prompt if available and shell is interactive
+            if [[ $- == *i* ]] && command -v starship &>/dev/null; then
+              eval "$(starship init bash 2>/dev/null || starship init zsh 2>/dev/null || true)"
             fi
 
             echo ""

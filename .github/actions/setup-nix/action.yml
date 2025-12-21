@@ -1,0 +1,29 @@
+name: 'Setup with Nix'
+description: 'Install Nix and prepare devshell for Light Protocol'
+
+inputs:
+  skip-devshell-build:
+    description: 'Skip building the devshell (for faster startup when only nix tools needed)'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@main
+
+    - name: Setup Nix Cache
+      uses: DeterminateSystems/magic-nix-cache-action@main
+
+    - name: Build devshell
+      if: inputs.skip-devshell-build != 'true'
+      shell: bash
+      run: |
+        # Build and cache the devshell
+        nix develop ./nix/devenv --command echo "Devshell ready"
+
+    - name: Set environment
+      shell: bash
+      run: |
+        echo "IN_NIX_SHELL=true" >> $GITHUB_ENV
