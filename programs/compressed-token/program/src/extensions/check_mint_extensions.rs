@@ -1,6 +1,7 @@
 use anchor_compressed_token::{ErrorCode, ALLOWED_EXTENSION_TYPES};
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountInfoTrait;
+use light_ctoken_interface::state::ExtensionStructConfig;
 use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
 use spl_token_2022::{
     extension::{
@@ -69,13 +70,26 @@ impl MintExtensionFlags {
     ///
     /// Calculate account size based on mint extensions.
     /// All ctoken accounts now have CompressionInfo embedded in base struct.
-    pub const fn calculate_account_size(&self) -> u64 {
-        light_ctoken_interface::state::calculate_ctoken_account_size(
-            self.has_pausable,
-            self.has_permanent_delegate,
-            self.has_transfer_fee,
-            self.has_transfer_hook,
-        )
+    pub fn calculate_account_size(&self) -> u64 {
+        let mut extensions = Vec::new();
+        if self.has_pausable {
+            extensions.push(ExtensionStructConfig::PausableAccount(()));
+        }
+        if self.has_permanent_delegate {
+            extensions.push(ExtensionStructConfig::PermanentDelegateAccount(()));
+        }
+        if self.has_transfer_fee {
+            extensions.push(ExtensionStructConfig::TransferFeeAccount(()));
+        }
+        if self.has_transfer_hook {
+            extensions.push(ExtensionStructConfig::TransferHookAccount(()));
+        }
+        let exts = if extensions.is_empty() {
+            None
+        } else {
+            Some(extensions.as_slice())
+        };
+        light_ctoken_interface::state::calculate_ctoken_account_size(exts) as u64
     }
 
     /// Returns true if mint has any restricted extensions.

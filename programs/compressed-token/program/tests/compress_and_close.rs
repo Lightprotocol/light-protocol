@@ -22,8 +22,14 @@ fn create_compressible_ctoken_data(
     owner_pubkey: &[u8; 32],
     rent_sponsor_pubkey: &[u8; 32],
 ) -> Vec<u8> {
-    // Create config for compressible CToken (no delegate, not native, no close_authority)
-    let config = CompressedTokenConfig::new_compressible(false, false, false);
+    // Create config for compressible CToken - CompressionInfo is now embedded in base struct
+    let config = CompressedTokenConfig {
+        mint: light_compressed_account::Pubkey::from([0u8; 32]),
+        owner: light_compressed_account::Pubkey::from(*owner_pubkey),
+        state: 1, // AccountState::Initialized
+        compression_only: false,
+        extensions: None,
+    };
 
     // Calculate required size
     let size = CToken::byte_len(&config).unwrap();
@@ -32,29 +38,20 @@ fn create_compressible_ctoken_data(
     // Initialize using zero-copy new
     let (mut ctoken, _) = CToken::new_zero_copy(&mut data, config).unwrap();
 
-    // Set required fields using to_bytes/to_bytes_mut methods
-    *ctoken.mint = light_compressed_account::Pubkey::from([0u8; 32]);
-    *ctoken.owner = light_compressed_account::Pubkey::from(*owner_pubkey);
-    *ctoken.state = 1; // AccountState::Initialized
-
-    // Set compressible extension fields
-    if let Some(extensions) = ctoken.extensions.as_mut() {
-        if let Some(light_ctoken_interface::state::ZExtensionStructMut::Compressible(comp_ext)) =
-            extensions.first_mut()
-        {
-            comp_ext.info.config_account_version.set(1);
-            comp_ext.info.account_version = 3; // ShaFlat
-            comp_ext
-                .info
-                .compression_authority
-                .copy_from_slice(owner_pubkey);
-            comp_ext
-                .info
-                .rent_sponsor
-                .copy_from_slice(rent_sponsor_pubkey);
-            comp_ext.info.last_claimed_slot.set(0);
-        }
-    }
+    // Set compression info fields (now embedded in meta, not an extension)
+    ctoken.meta.compression.config_account_version.set(1);
+    ctoken.meta.compression.account_version = 3; // ShaFlat
+    ctoken
+        .meta
+        .compression
+        .compression_authority
+        .copy_from_slice(owner_pubkey);
+    ctoken
+        .meta
+        .compression
+        .rent_sponsor
+        .copy_from_slice(rent_sponsor_pubkey);
+    ctoken.meta.compression.last_claimed_slot.set(0);
 
     data
 }

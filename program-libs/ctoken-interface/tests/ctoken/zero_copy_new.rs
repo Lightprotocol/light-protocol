@@ -9,8 +9,7 @@ use light_compressed_account::Pubkey;
 use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
 use light_ctoken_interface::state::{
     ctoken::{AccountState, CToken, CompressedTokenConfig, BASE_TOKEN_ACCOUNT_SIZE},
-    extensions::{ExtensionStruct, PausableAccountExtension},
-    ExtensionStructConfig,
+    extensions::{ExtensionStruct, ExtensionStructConfig, PausableAccountExtension},
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
 
@@ -33,9 +32,19 @@ fn zeroed_compression_info() -> CompressionInfo {
     }
 }
 
+fn default_config() -> CompressedTokenConfig {
+    CompressedTokenConfig {
+        mint: Pubkey::default(),
+        owner: Pubkey::default(),
+        state: 1,
+        compression_only: false,
+        extensions: None,
+    }
+}
+
 #[test]
 fn test_compressed_token_new_zero_copy() {
-    let config = CompressedTokenConfig { extensions: None };
+    let config = default_config();
 
     let required_size = CToken::byte_len(&config).unwrap();
     assert_eq!(required_size, BASE_TOKEN_ACCOUNT_SIZE as usize);
@@ -45,16 +54,17 @@ fn test_compressed_token_new_zero_copy() {
 
     let (zctoken, remaining) = CToken::zero_copy_at(&buffer).unwrap();
 
+    // new_zero_copy now sets fields from config
     let expected = CToken {
         mint: Pubkey::default(),
         owner: Pubkey::default(),
         amount: 0,
         delegate: None,
-        state: AccountState::Uninitialized,
+        state: AccountState::Initialized, // state: 1 from default_config
         is_native: None,
         delegated_amount: 0,
         close_authority: None,
-        account_type: 0,
+        account_type: 2, // ACCOUNT_TYPE_TOKEN_ACCOUNT
         decimals: None,
         compression_only: false,
         compression: zeroed_compression_info(),
@@ -69,6 +79,7 @@ fn test_compressed_token_new_zero_copy() {
 fn test_compressed_token_new_zero_copy_with_pausable_extension() {
     let config = CompressedTokenConfig {
         extensions: Some(vec![ExtensionStructConfig::PausableAccount(())]),
+        ..default_config()
     };
 
     let required_size = CToken::byte_len(&config).unwrap();
@@ -79,16 +90,17 @@ fn test_compressed_token_new_zero_copy_with_pausable_extension() {
 
     let (zctoken, remaining) = CToken::zero_copy_at(&buffer).unwrap();
 
+    // new_zero_copy now sets fields from config
     let expected = CToken {
         mint: Pubkey::default(),
         owner: Pubkey::default(),
         amount: 0,
         delegate: None,
-        state: AccountState::Uninitialized,
+        state: AccountState::Initialized, // state: 1 from default_config
         is_native: None,
         delegated_amount: 0,
         close_authority: None,
-        account_type: 0,
+        account_type: 2, // ACCOUNT_TYPE_TOKEN_ACCOUNT
         decimals: None,
         compression_only: false,
         compression: zeroed_compression_info(),
@@ -104,7 +116,7 @@ fn test_compressed_token_new_zero_copy_with_pausable_extension() {
 #[test]
 fn test_compressed_token_byte_len_consistency() {
     // No extensions
-    let config_no_ext = CompressedTokenConfig { extensions: None };
+    let config_no_ext = default_config();
     let size_no_ext = CToken::byte_len(&config_no_ext).unwrap();
     let mut buffer_no_ext = vec![0u8; size_no_ext];
     let (_, remaining) = CToken::new_zero_copy(&mut buffer_no_ext, config_no_ext).unwrap();
@@ -113,6 +125,7 @@ fn test_compressed_token_byte_len_consistency() {
     // With pausable extension
     let config_with_ext = CompressedTokenConfig {
         extensions: Some(vec![ExtensionStructConfig::PausableAccount(())]),
+        ..default_config()
     };
     let size_with_ext = CToken::byte_len(&config_with_ext).unwrap();
     let mut buffer_with_ext = vec![0u8; size_with_ext];

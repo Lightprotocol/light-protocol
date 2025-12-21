@@ -529,45 +529,19 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     .ok_or(CTokenSdkError::InvalidAccountData)?;
 
                 // Parse the compressed token account using zero-copy deserialization
-                use light_ctoken_interface::state::{CToken, ZExtensionStruct};
+                use light_ctoken_interface::state::CToken;
                 use light_zero_copy::traits::ZeroCopyAt;
                 let (compressed_token, _) = CToken::zero_copy_at(&token_account_info.data)
                     .map_err(|_| CTokenSdkError::InvalidAccountData)?;
                 let mint = compressed_token.mint;
-                let balance = compressed_token.amount;
+                let balance: u64 = compressed_token.amount.into();
                 let owner = compressed_token.owner;
 
-                // Extract rent_sponsor, compression_authority, and compress_to_pubkey from compressible extension
-                // For non-compressible accounts, use the owner as the rent_sponsor
-                let (rent_sponsor, _compression_authority, compress_to_pubkey) = if input
-                    .is_compressible
-                {
-                    if let Some(extensions) = compressed_token.extensions.as_ref() {
-                        let mut found_rent_sponsor = None;
-                        let mut found_compression_authority = None;
-                        let mut found_compress_to_pubkey = false;
-                        for extension in extensions {
-                            if let ZExtensionStruct::Compressible(compressible_ext) = extension {
-                                found_rent_sponsor = Some(compressible_ext.info.rent_sponsor);
-                                found_compression_authority =
-                                    Some(compressible_ext.info.compression_authority);
-                                found_compress_to_pubkey =
-                                    compressible_ext.info.compress_to_pubkey == 1;
-                                break;
-                            }
-                        }
-                        (
-                            found_rent_sponsor.ok_or(CTokenSdkError::InvalidAccountData)?,
-                            found_compression_authority,
-                            found_compress_to_pubkey,
-                        )
-                    } else {
-                        return Err(CTokenSdkError::InvalidAccountData);
-                    }
-                } else {
-                    // Non-compressible account: use owner as rent_sponsor
-                    (owner.to_bytes(), None, false)
-                };
+                // Extract rent_sponsor, compression_authority, and compress_to_pubkey from compression info
+                let compression = &compressed_token.meta.compression;
+                let rent_sponsor = compression.rent_sponsor;
+                let _compression_authority = compression.compression_authority;
+                let compress_to_pubkey = compression.compress_to_pubkey == 1;
 
                 // Add source account first (it's being closed, so needs to be writable)
                 let source_index = packed_tree_accounts.insert_or_get(input.solana_ctoken_account);
@@ -604,7 +578,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     .unwrap_or(authority_index); // Default to authority if no destination specified
 
                 token_account.compress_and_close(
-                    (*balance).into(),
+                    balance,
                     source_index,
                     authority_index,
                     rent_sponsor_index,         // Use the extracted rent_sponsor

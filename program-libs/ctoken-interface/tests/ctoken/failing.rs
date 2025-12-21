@@ -1,12 +1,23 @@
+use light_compressed_account::Pubkey;
 use light_ctoken_interface::{
     error::CTokenError,
     state::{CToken, CompressedTokenConfig, BASE_TOKEN_ACCOUNT_SIZE},
 };
 use light_zero_copy::ZeroCopyNew;
 
+fn default_config() -> CompressedTokenConfig {
+    CompressedTokenConfig {
+        mint: Pubkey::default(),
+        owner: Pubkey::default(),
+        state: 1,
+        compression_only: false,
+        extensions: None,
+    }
+}
+
 #[test]
 fn test_compressed_token_new_zero_copy_buffer_too_small() {
-    let config = CompressedTokenConfig { extensions: None };
+    let config = default_config();
 
     // Create buffer that's too small
     let mut buffer = vec![0u8; 100]; // Less than BASE_TOKEN_ACCOUNT_SIZE

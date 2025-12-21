@@ -1,8 +1,5 @@
 use borsh::BorshSerialize;
-use light_ctoken_interface::instructions::{
-    create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
-    extensions::compressible::CompressibleExtensionInstructionData,
-};
+use light_ctoken_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
 use solana_instruction::{AccountMeta, Instruction};
@@ -44,7 +41,7 @@ pub struct CreateAssociatedCTokenAccount {
     pub mint: Pubkey,
     pub associated_token_account: Pubkey,
     pub bump: u8,
-    pub compressible: Option<CompressibleParams>,
+    pub compressible: CompressibleParams,
     pub idempotent: bool,
 }
 
@@ -57,7 +54,7 @@ impl CreateAssociatedCTokenAccount {
             mint,
             associated_token_account: ata,
             bump,
-            compressible: Some(CompressibleParams::default()),
+            compressible: CompressibleParams::default(),
             idempotent: false,
         }
     }
@@ -75,13 +72,13 @@ impl CreateAssociatedCTokenAccount {
             mint,
             associated_token_account,
             bump,
-            compressible: Some(CompressibleParams::default()),
+            compressible: CompressibleParams::default(),
             idempotent: false,
         }
     }
 
     pub fn with_compressible(mut self, compressible_params: CompressibleParams) -> Self {
-        self.compressible = Some(compressible_params);
+        self.compressible = compressible_params;
         self
     }
 
@@ -91,20 +88,13 @@ impl CreateAssociatedCTokenAccount {
     }
 
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        let compressible_extension =
-            self.compressible
-                .as_ref()
-                .map(|config| CompressibleExtensionInstructionData {
-                    token_account_version: config.token_account_version as u8,
-                    rent_payment: config.pre_pay_num_epochs,
-                    compression_only: if config.compression_only { 1 } else { 0 },
-                    write_top_up: config.lamports_per_write.unwrap_or(0),
-                    compress_to_account_pubkey: None,
-                });
-
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
             bump: self.bump,
-            compressible_config: compressible_extension,
+            token_account_version: self.compressible.token_account_version as u8,
+            rent_payment: self.compressible.pre_pay_num_epochs,
+            compression_only: self.compressible.compression_only as u8,
+            write_top_up: self.compressible.lamports_per_write.unwrap_or(0),
+            compressible_config: self.compressible.compress_to_account_pubkey.clone(),
         };
 
         let discriminator = if self.idempotent {
@@ -119,18 +109,15 @@ impl CreateAssociatedCTokenAccount {
             .serialize(&mut data)
             .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
 
-        let mut accounts = vec![
+        let accounts = vec![
             AccountMeta::new_readonly(self.owner, false),
             AccountMeta::new_readonly(self.mint, false),
             AccountMeta::new(self.payer, true),
             AccountMeta::new(self.associated_token_account, false),
             AccountMeta::new_readonly(Pubkey::new_from_array([0; 32]), false), // system_program
+            AccountMeta::new_readonly(self.compressible.compressible_config, false),
+            AccountMeta::new(self.compressible.rent_sponsor, false),
         ];
-
-        if let Some(config) = &self.compressible {
-            accounts.push(AccountMeta::new_readonly(config.compressible_config, false));
-            accounts.push(AccountMeta::new(config.rent_sponsor, false));
-        }
 
         Ok(Instruction {
             program_id: Pubkey::from(light_ctoken_interface::CTOKEN_PROGRAM_ID),
@@ -158,7 +145,7 @@ impl CreateAssociatedCTokenAccount {
 ///     associated_token_account,
 ///     system_program,
 ///     bump,
-///     compressible: Some(compressible),
+///     compressible,
 ///     idempotent: true,
 /// }
 /// .invoke()?;
@@ -171,7 +158,7 @@ pub struct CreateAssociatedCTokenAccountCpi<'info> {
     pub associated_token_account: AccountInfo<'info>,
     pub system_program: AccountInfo<'info>,
     pub bump: u8,
-    pub compressible: Option<CompressibleParamsCpi<'info>>,
+    pub compressible: CompressibleParamsCpi<'info>,
     pub idempotent: bool,
 }
 
@@ -182,52 +169,30 @@ impl<'info> CreateAssociatedCTokenAccountCpi<'info> {
 
     pub fn invoke(self) -> Result<(), ProgramError> {
         let instruction = self.instruction()?;
-        if let Some(compressible) = self.compressible {
-            let account_infos = [
-                self.owner,
-                self.mint,
-                self.payer,
-                self.associated_token_account,
-                self.system_program,
-                compressible.compressible_config,
-                compressible.rent_sponsor,
-            ];
-            invoke(&instruction, &account_infos)
-        } else {
-            let account_infos = [
-                self.owner,
-                self.mint,
-                self.payer,
-                self.associated_token_account,
-                self.system_program,
-            ];
-            invoke(&instruction, &account_infos)
-        }
+        let account_infos = [
+            self.owner,
+            self.mint,
+            self.payer,
+            self.associated_token_account,
+            self.system_program,
+            self.compressible.compressible_config,
+            self.compressible.rent_sponsor,
+        ];
+        invoke(&instruction, &account_infos)
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = self.instruction()?;
-        if let Some(compressible) = self.compressible {
-            let account_infos = [
-                self.owner,
-                self.mint,
-                self.payer,
-                self.associated_token_account,
-                self.system_program,
-                compressible.compressible_config,
-                compressible.rent_sponsor,
-            ];
-            invoke_signed(&instruction, &account_infos, signer_seeds)
-        } else {
-            let account_infos = [
-                self.owner,
-                self.mint,
-                self.payer,
-                self.associated_token_account,
-                self.system_program,
-            ];
-            invoke_signed(&instruction, &account_infos, signer_seeds)
-        }
+        let account_infos = [
+            self.owner,
+            self.mint,
+            self.payer,
+            self.associated_token_account,
+            self.system_program,
+            self.compressible.compressible_config,
+            self.compressible.rent_sponsor,
+        ];
+        invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
 
@@ -239,18 +204,18 @@ impl<'info> From<&CreateAssociatedCTokenAccountCpi<'info>> for CreateAssociatedC
             mint: *account_infos.mint.key,
             associated_token_account: *account_infos.associated_token_account.key,
             bump: account_infos.bump,
-            compressible: account_infos
-                .compressible
-                .as_ref()
-                .map(|config| CompressibleParams {
-                    compressible_config: *config.compressible_config.key,
-                    rent_sponsor: *config.rent_sponsor.key,
-                    pre_pay_num_epochs: config.pre_pay_num_epochs,
-                    lamports_per_write: config.lamports_per_write,
-                    compress_to_account_pubkey: None,
-                    token_account_version: config.token_account_version,
-                    compression_only: config.compression_only,
-                }),
+            compressible: CompressibleParams {
+                compressible_config: *account_infos.compressible.compressible_config.key,
+                rent_sponsor: *account_infos.compressible.rent_sponsor.key,
+                pre_pay_num_epochs: account_infos.compressible.pre_pay_num_epochs,
+                lamports_per_write: account_infos.compressible.lamports_per_write,
+                compress_to_account_pubkey: account_infos
+                    .compressible
+                    .compress_to_account_pubkey
+                    .clone(),
+                token_account_version: account_infos.compressible.token_account_version,
+                compression_only: account_infos.compressible.compression_only,
+            },
             idempotent: account_infos.idempotent,
         }
     }

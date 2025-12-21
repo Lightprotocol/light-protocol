@@ -163,9 +163,9 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
             Some(exts) => {
                 let converted_exts: Vec<_> = exts
                     .iter()
-                    .filter_map(|ext| match ext {
+                    .map(|ext| match ext {
                         ZExtensionInstructionData::TokenMetadata(token_metadata_data) => {
-                            Some(Ok(ExtensionStruct::TokenMetadata(TokenMetadata {
+                            Ok(ExtensionStruct::TokenMetadata(TokenMetadata {
                                 update_authority: token_metadata_data
                                     .update_authority
                                     .map(|p| *p)
@@ -186,9 +186,9 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
                                             .collect()
                                     })
                                     .unwrap_or_else(Vec::new),
-                            })))
+                            }))
                         }
-                        _ => Some(Err(CTokenError::UnsupportedExtension)),
+                        _ => Err(CTokenError::UnsupportedExtension),
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 if converted_exts.is_empty() {

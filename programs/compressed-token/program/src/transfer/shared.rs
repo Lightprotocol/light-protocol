@@ -18,7 +18,6 @@ use crate::{
 /// Extension information detected from a single account deserialization
 #[derive(Debug, Default)]
 struct AccountExtensionInfo {
-    has_compressible: bool,
     has_pausable: bool,
     has_permanent_delegate: bool,
     has_transfer_fee: bool,
@@ -210,8 +209,6 @@ fn process_account_extensions(
 
     let mut info = AccountExtensionInfo::default();
 
-    // All ctoken accounts now have compression info embedded directly in meta
-    info.has_compressible = true;
     {
         // Get current slot for compressible top-up calculation
         use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};

@@ -5,7 +5,7 @@ mod shared;
 use borsh::BorshSerialize;
 use light_client::rpc::Rpc;
 use light_ctoken_sdk::{
-    ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount},
+    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
     spl_interface::find_spl_interface_pda_with_index,
 };
 use light_ctoken_types::CPI_AUTHORITY_PDA;
@@ -572,7 +572,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
         owner: authority_pda,
         mint,
         associated_token_account: ctoken_account,
-        compressible: None,
+        compressible: CompressibleParams::default(),
     }
     .instruction()
     .unwrap();
@@ -716,7 +716,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
         owner: authority_pda,
         mint,
         associated_token_account: source_ctoken,
-        compressible: None,
+        compressible: CompressibleParams::default(),
     }
     .instruction()
     .unwrap();

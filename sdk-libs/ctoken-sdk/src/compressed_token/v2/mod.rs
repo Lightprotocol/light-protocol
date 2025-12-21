@@ -9,3 +9,4 @@ pub mod transfer2;
 pub mod update_compressed_mint;
 
 pub use account2::*;
+pub use compress_and_close::*;

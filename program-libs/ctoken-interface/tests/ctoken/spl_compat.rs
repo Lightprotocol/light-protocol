@@ -12,7 +12,7 @@ use light_ctoken_interface::state::{
         CToken, CompressedTokenConfig, ZCToken, ZCTokenMut, ACCOUNT_TYPE_TOKEN_ACCOUNT,
         BASE_TOKEN_ACCOUNT_SIZE,
     },
-    ExtensionStructConfig,
+    extensions::ExtensionStructConfig,
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
 use rand::Rng;
@@ -23,6 +23,16 @@ use spl_token_2022::{
     solana_program::program_pack::Pack,
     state::{Account, AccountState},
 };
+
+fn default_config() -> CompressedTokenConfig {
+    CompressedTokenConfig {
+        mint: Pubkey::default(),
+        owner: Pubkey::default(),
+        state: 1,
+        compression_only: false,
+        extensions: None,
+    }
+}
 
 fn zeroed_compression_info() -> CompressionInfo {
     CompressionInfo {
@@ -335,6 +345,7 @@ fn test_compressed_token_equivalent_to_pod_account() {
 fn test_compressed_token_with_pausable_extension() {
     let config = CompressedTokenConfig {
         extensions: Some(vec![ExtensionStructConfig::PausableAccount(())]),
+        ..default_config()
     };
 
     let required_size = CToken::byte_len(&config).unwrap();
@@ -345,16 +356,15 @@ fn test_compressed_token_with_pausable_extension() {
 
     let mut buffer = vec![0u8; required_size];
     {
-        let (compressed_token, remaining_bytes) = CToken::new_zero_copy(&mut buffer, config)
+        let (_, remaining_bytes) = CToken::new_zero_copy(&mut buffer, config)
             .expect("Failed to initialize compressed token with pausable extension");
 
         assert_eq!(remaining_bytes.len(), 0);
-        assert!(compressed_token.extensions.is_some());
-        let extensions = compressed_token.extensions.as_ref().unwrap();
-        assert_eq!(extensions.len(), 1);
+        // Note: new_zero_copy now writes extensions directly to bytes but returns extensions: None
+        // Extensions are parsed when deserializing with zero_copy_at
     }
 
-    // Test zero-copy deserialization round-trip
+    // Test zero-copy deserialization round-trip - extensions are parsed from bytes
     let (deserialized_token, _) =
         CToken::zero_copy_at(&buffer).expect("Failed to deserialize token with pausable extension");
 
@@ -374,6 +384,7 @@ fn test_compressed_token_with_pausable_extension() {
 fn test_account_type_compatibility_with_spl_parsing() {
     let config = CompressedTokenConfig {
         extensions: Some(vec![ExtensionStructConfig::PausableAccount(())]),
+        ..default_config()
     };
 
     let mut buffer = vec![0u8; CToken::byte_len(&config).unwrap()];
@@ -418,17 +429,19 @@ fn test_pausable_extension_partial_eq() {
 
     let config = CompressedTokenConfig {
         extensions: Some(vec![ExtensionStructConfig::PausableAccount(())]),
+        ..default_config()
     };
 
     let mut buffer = vec![0u8; CToken::byte_len(&config).unwrap()];
     let _ = CToken::new_zero_copy(&mut buffer, config).unwrap();
 
+    // new_zero_copy now sets fields from config
     let expected = CToken {
         mint: Pubkey::default(),
         owner: Pubkey::default(),
         amount: 0,
         delegate: None,
-        state: CtokenAccountState::Uninitialized,
+        state: CtokenAccountState::Initialized, // state: 1 from default_config
         is_native: None,
         delegated_amount: 0,
         close_authority: None,

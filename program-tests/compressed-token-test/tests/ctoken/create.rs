@@ -355,7 +355,7 @@ async fn test_create_compressible_token_account_failing() {
     // Providing invalid seeds should fail the PDA validation.
     // Error: 18002 (InvalidAccountData from CTokenError)
     {
-        use light_ctoken_interface::instructions::extensions::compressible::CompressToPubkey;
+        use light_ctoken_interface::instructions::create_ctoken_account::CompressToPubkey;
 
         context.token_account_keypair = Keypair::new();
         let token_account_pubkey = context.token_account_keypair.pubkey();
