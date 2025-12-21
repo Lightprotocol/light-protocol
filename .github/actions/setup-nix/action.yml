@@ -11,10 +11,22 @@ runs:
   using: 'composite'
   steps:
     - name: Install Nix
-      uses: DeterminateSystems/nix-installer-action@main
+      uses: cachix/install-nix-action@v27
+      with:
+        extra_nix_config: |
+          experimental-features = nix-command flakes
+          accept-flake-config = true
 
-    - name: Setup Nix Cache
-      uses: DeterminateSystems/magic-nix-cache-action@main
+    - name: Cache Nix store
+      uses: actions/cache@v4
+      with:
+        path: |
+          /nix/store
+          /nix/var/nix/profiles
+          ~/.cache/nix
+        key: nix-${{ runner.os }}-${{ hashFiles('nix/devenv/flake.lock', 'nix/devenv/*.nix') }}
+        restore-keys: |
+          nix-${{ runner.os }}-
 
     - name: Build devshell
       if: inputs.skip-devshell-build != 'true'
