@@ -1,5 +1,3 @@
-use light_compressible::compression_info::CompressionInfo;
-
 use crate::{
     BASE_TOKEN_ACCOUNT_SIZE, EXTENSION_METADATA, TRANSFER_FEE_ACCOUNT_EXTENSION_LEN,
     TRANSFER_HOOK_ACCOUNT_EXTENSION_LEN,
@@ -7,8 +5,10 @@ use crate::{
 
 /// Calculates the size of a ctoken account based on which extensions are present.
 ///
+/// Note: Compression info is now embedded in the base struct (CTokenZeroCopyMeta),
+/// so there's no separate compressible extension parameter.
+///
 /// # Arguments
-/// * `has_compressible` - Whether the account has the Compressible extension
 /// * `has_pausable` - Whether the account has the PausableAccount extension (marker, 0 bytes)
 /// * `has_permanent_delegate` - Whether the account has the PermanentDelegateAccount extension (marker, 0 bytes)
 /// * `has_transfer_fee` - Whether the account has the TransferFeeAccount extension (8 bytes)
@@ -18,25 +18,25 @@ use crate::{
 /// The total account size in bytes
 ///
 /// # Extension Sizes
-/// - Base account: 166 bytes (165 SPL token + 1 account_type)
-/// - Extension metadata (per extension): 6 bytes (1 Option + 4 Vec len + 1 discriminant)
-/// - Compressible: 91 bytes (1 compression_only + 1 decimals + 1 has_decimals + 88 CompressionInfo::LEN)
-/// - PausableAccount: 0 bytes (marker only, just discriminant)
-/// - PermanentDelegateAccount: 0 bytes (marker only, just discriminant)
-/// - TransferFeeAccount: 8 bytes (withheld_amount u64)
-/// - TransferHookAccount: 1 byte (transferring flag, consistent with T22)
+/// - Base account: 258 bytes (165 SPL token + 1 account_type + 2 decimals + 1 compression_only + 88 CompressionInfo + 1 has_extensions)
+/// - Extension metadata: 5 bytes (1 Option discriminator + 4 Vec length) - added when any extension present
+/// - PausableAccount: 1 byte (discriminant only, marker extension)
+/// - PermanentDelegateAccount: 1 byte (discriminant only, marker extension)
+/// - TransferFeeAccount: 9 bytes (1 discriminant + 8 withheld_amount)
+/// - TransferHookAccount: 2 bytes (1 discriminant + 1 transferring flag)
 pub const fn calculate_ctoken_account_size(
-    has_compressible: bool,
     has_pausable: bool,
     has_permanent_delegate: bool,
     has_transfer_fee: bool,
     has_transfer_hook: bool,
 ) -> u64 {
+    let has_any_extension = has_pausable || has_permanent_delegate || has_transfer_fee || has_transfer_hook;
+
     let mut size = BASE_TOKEN_ACCOUNT_SIZE;
 
-    if has_compressible {
-        // CompressibleExtension: 1 compression_only + 1 decimals + 1 has_decimals + CompressionInfo::LEN
-        size += 3 + CompressionInfo::LEN as u64 + EXTENSION_METADATA;
+    // Add extension metadata overhead if any extensions are present
+    if has_any_extension {
+        size += EXTENSION_METADATA;
     }
 
     if has_pausable {

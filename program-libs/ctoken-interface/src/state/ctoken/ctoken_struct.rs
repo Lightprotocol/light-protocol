@@ -1,4 +1,5 @@
 use light_compressed_account::Pubkey;
+use light_compressible::compression_info::CompressionInfo;
 use light_zero_copy::errors::ZeroCopyError;
 
 use crate::{state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError};
@@ -52,8 +53,12 @@ pub struct CToken {
     pub delegated_amount: u64,
     /// Optional authority to close the account.
     pub close_authority: Option<Pubkey>,
+    // End of spl-token compatible layout
     /// Account type discriminator at byte 165 (always 2 for CToken accounts)
-    pub account_type: u8,
+    pub account_type: u8, // t22 compatible account type - end of t22 compatible layout
+    pub decimals: Option<u8>,
+    pub compression_only: bool,
+    pub compression: CompressionInfo,
     /// Extensions for the token account (including compressible config)
     pub extensions: Option<Vec<ExtensionStruct>>,
 }
