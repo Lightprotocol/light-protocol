@@ -4,12 +4,47 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs { inherit system; };
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ rust-overlay.overlays.default ];
+        };
+
+        # Rust version from rust-toolchain.toml
+        rustVersion = "1.90.0";
+        rustToolchain = pkgs.rust-bin.stable.${rustVersion}.default.override {
+          extensions = [ "clippy" "rust-src" ];
+        };
+
+        # Cargo wrapper that handles `+toolchain` syntax (for cargo-build-sbf compatibility)
+        cargoWrapper = pkgs.writeShellScriptBin "cargo" ''
+          if [[ "$1" == +solana ]]; then
+            # Use platform-tools for SBF compilation
+            shift
+            PLATFORM_TOOLS="''${SBF_SDK_PATH:-$HOME/.cache/solana-platform-tools}/dependencies/platform-tools"
+            if [ -x "$PLATFORM_TOOLS/rust/bin/cargo" ]; then
+              # Set RUSTC so cargo uses platform-tools rustc (supports -Z flags)
+              export RUSTC="$PLATFORM_TOOLS/rust/bin/rustc"
+              export RUSTDOC="$PLATFORM_TOOLS/rust/bin/rustdoc"
+              exec "$PLATFORM_TOOLS/rust/bin/cargo" "$@"
+            else
+              echo "Error: Solana platform-tools not found at $PLATFORM_TOOLS" >&2
+              echo "Run cargo-build-sbf once to download platform-tools" >&2
+              exit 1
+            fi
+          elif [[ "$1" == +* ]]; then
+            toolchain="''${1#+}"
+            shift
+            exec ${pkgs.rustup}/bin/rustup run "$toolchain" cargo "$@"
+          else
+            exec ${rustToolchain}/bin/cargo "$@"
+          fi
+        '';
 
         # Import custom packages
         solana = pkgs.callPackage ./solana.nix { };
@@ -30,7 +65,9 @@
           packages = [
             # Languages
             pkgs.go
-            pkgs.rustup
+            cargoWrapper  # Must be before rustToolchain to shadow cargo
+            rustToolchain
+            pkgs.rustup  # For `cargo +toolchain` handling
             pkgs.nodejs_22
             pkgs.pnpm
 
@@ -62,8 +99,7 @@
             fi
             export SBF_SDK_PATH="$SOLANA_TOOLS_DIR/sbf"
 
-            # Rust: rust-toolchain.toml handles the main toolchain automatically.
-            # We only need nightly for `cargo +nightly fmt`.
+            # Install nightly rustfmt via rustup (for `cargo +nightly fmt`)
             if ! rustup run nightly rustfmt --version &>/dev/null; then
               echo "Installing nightly toolchain for rustfmt..."
               rustup toolchain install nightly --component rustfmt
@@ -103,7 +139,7 @@
             echo "Light Protocol devenv activated"
             echo "  Solana: ${solana.version}"
             echo "  Anchor: ${anchor.version}"
-            echo "  Rust:   $(rustc --version 2>/dev/null | awk '{print $2}' || echo 'see rust-toolchain.toml')"
+            echo "  Rust:   ${rustVersion}"
             echo ""
           '';
 
