@@ -4,12 +4,26 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs { inherit system; };
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ rust-overlay.overlays.default ];
+        };
+
+        # Versions (keep in sync with scripts/devenv/versions.sh)
+        rustVersion = "1.90.0";
+        photonCommit = "3dbfb8e6772779fc89c640b5b0823b95d1958efc";
+
+        # Rust toolchains from rust-overlay (pre-built binaries, fast)
+        rustStable = pkgs.rust-bin.stable.${rustVersion}.default.override {
+          extensions = [ "clippy" "rust-src" ];
+        };
+        rustNightlyFmt = pkgs.rust-bin.nightly.latest.rustfmt;
 
         # Import custom packages
         solana = pkgs.callPackage ./solana.nix { };
@@ -63,10 +77,6 @@
           fi
         '';
 
-        # Versions (keep in sync with scripts/devenv/versions.sh)
-        rustVersion = "1.90.0";
-        photonCommit = "3dbfb8e6772779fc89c640b5b0823b95d1958efc";
-
       in {
         packages = {
           inherit solana anchor;
@@ -79,7 +89,8 @@
           packages = [
             # Languages
             pkgs.go
-            pkgs.rustup
+            rustStable
+            rustNightlyFmt  # For cargo fmt
             pkgs.nodejs_22
             pkgs.pnpm
 
@@ -90,7 +101,6 @@
             pkgs.pkg-config
             pkgs.openssl
             pkgs.starship
-            pkgs.sccache  # Compile cache (helps with different feature combinations)
 
             # Solana ecosystem
             solana
@@ -100,14 +110,8 @@
           ];
 
           shellHook = ''
-            # Environment variables
             export REDIS_URL="redis://localhost:6379"
             export SBF_OUT_DIR="target/deploy"
-
-            # sccache is available but NOT enabled by default
-            # It helps with different feature combinations but breaks cargo's incremental cache
-            # Enable manually for CI: export RUSTC_WRAPPER=sccache
-            export SCCACHE_DIR="$HOME/.cache/sccache"
 
             # Solana platform-tools: copy SDK to writable location for cargo-build-sbf
             SOLANA_TOOLS_DIR="$HOME/.cache/solana-platform-tools/${solana.version}"
@@ -118,15 +122,6 @@
               chmod -R u+w "$SOLANA_TOOLS_DIR"
             fi
             export SBF_SDK_PATH="$SOLANA_TOOLS_DIR/sbf"
-
-            # Rust toolchain (managed by rustup, not nix)
-            if ! rustup show active-toolchain 2>/dev/null | grep -q "${rustVersion}"; then
-              echo "Installing Rust ${rustVersion}..."
-              rustup install ${rustVersion}
-              rustup default ${rustVersion}
-              rustup component add clippy
-              rustup toolchain install nightly --component rustfmt
-            fi
 
             # Photon indexer (installed via cargo)
             if ! command -v photon &>/dev/null; then
