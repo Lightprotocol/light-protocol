@@ -395,7 +395,7 @@ pub async fn assert_transfer2_with_delegate(
                     let (ctoken, _) = CToken::zero_copy_at(&pre_account_data.data)
                         .expect("Failed to deserialize ctoken account");
 
-                    ctoken.meta.compression.compress_to_pubkey == 1
+                    ctoken.compression.compress_to_pubkey == 1
                 } else {
                     false
                 };

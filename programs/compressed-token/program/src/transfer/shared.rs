@@ -227,7 +227,6 @@ fn process_account_extensions(
             .minimum_balance(account.data_len());
 
         info.top_up_amount = token
-            .meta
             .compression
             .calculate_top_up_lamports(
                 account.data_len() as u64,
@@ -238,7 +237,7 @@ fn process_account_extensions(
             .map_err(|_| CTokenError::InvalidAccountData)?;
 
         // Extract cached decimals if set
-        info.decimals = token.meta.decimals();
+        info.decimals = token.base.decimals();
     }
 
     // Process other extensions if present

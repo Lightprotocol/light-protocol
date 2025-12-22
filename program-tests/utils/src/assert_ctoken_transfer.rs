@@ -43,9 +43,9 @@ pub async fn assert_compressible_for_account(
     };
 
     if let (Some((token_before, _)), Some((token_after, _))) = (&token_before, &token_after) {
-        // Get compression info from meta.compression
-        let compression_before = &token_before.meta.compression;
-        let compression_after = &token_after.meta.compression;
+        // Get compression info from compression
+        let compression_before = &token_before.compression;
+        let compression_after = &token_after.compression;
 
         assert_eq!(
             u64::from(compression_after.last_claimed_slot),

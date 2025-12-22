@@ -1,6 +1,6 @@
 use std::panic::Location;
 
-use anchor_compressed_token::TokenData;
+use anchor_compressed_token::{ErrorCode, TokenData};
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::AccountError;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
@@ -93,19 +93,30 @@ pub fn set_input_compressed_account<'a>(
                     CompressedTokenAccountState::Initialized as u8
                 };
                 // Convert instruction TLV data to state TLV
-                let tlv: Option<Vec<ExtensionStruct>> = tlv_data.map(|exts| {
-                    exts.iter()
-                        .filter_map(|ext| match ext {
-                            ZExtensionInstructionData::CompressedOnly(data) => {
-                                Some(ExtensionStruct::CompressedOnly(CompressedOnlyExtension {
-                                    delegated_amount: data.delegated_amount.into(),
-                                    withheld_transfer_fee: data.withheld_transfer_fee.into(),
-                                }))
+                let tlv: Option<Vec<ExtensionStruct>> = match tlv_data {
+                    Some(exts) => {
+                        let mut result = Vec::with_capacity(exts.len());
+                        for ext in exts.iter() {
+                            match ext {
+                                ZExtensionInstructionData::CompressedOnly(data) => {
+                                    result.push(ExtensionStruct::CompressedOnly(
+                                        CompressedOnlyExtension {
+                                            delegated_amount: data.delegated_amount.into(),
+                                            withheld_transfer_fee: data
+                                                .withheld_transfer_fee
+                                                .into(),
+                                        },
+                                    ));
+                                }
+                                _ => {
+                                    return Err(ErrorCode::UnsupportedTlvExtensionType.into());
+                                }
                             }
-                            _ => None,
-                        })
-                        .collect()
-                });
+                        }
+                        Some(result)
+                    }
+                    None => None,
+                };
                 let token_data = TokenData {
                     mint: mint_account.key().into(),
                     owner: owner_account.key().into(),

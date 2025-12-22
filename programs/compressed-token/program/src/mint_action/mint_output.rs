@@ -44,45 +44,49 @@ pub fn process_output_compressed_account<'a>(
         &validated_accounts.packed_accounts,
         &mut compressed_mint,
     )?;
-
-    // AUTO-SYNC OUTPUT: If CMint account was passed, update it with new state
-    // SKIP if CompressAndCloseCMint action is present (CMint is being closed, not synced)
-    if let Some(cmint_account) = validated_accounts.get_cmint() {
+    // When decompressed (CMint is source of truth), use zero values
+    let cmint_is_source_of_truth = accounts_config.cmint_is_source_of_truth();
+    // Serialize state into CMint solana account
+    // SKIP if CompressAndCloseCMint action is present (CMint is being closed)
+    // SKIP if DecompressMint action is present (CMint is being closed)
+    if cmint_is_source_of_truth {
+        let cmint_account = validated_accounts
+            .get_cmint()
+            .ok_or(ErrorCode::CMintNotFound)?;
         if !accounts_config.has_compress_and_close_cmint_action {
-            // Handle top-up for compressed mint (compression info is now embedded directly)
-            // Get current slot for top-up calculation
-            let current_slot = Clock::get()
-                .map_err(|_| ProgramError::UnsupportedSysvar)?
-                .slot;
-
             let num_bytes = cmint_account.data_len() as u64;
             let current_lamports = cmint_account.lamports();
             let rent_exemption = get_rent_exemption_lamports(num_bytes)
                 .map_err(|_| ErrorCode::CMintTopUpCalculationFailed)?;
 
-            // Calculate top-up amount using embedded compression info
-            let top_up = compressed_mint
-                .compression
-                .calculate_top_up_lamports(
-                    num_bytes,
-                    current_slot,
-                    current_lamports,
-                    rent_exemption,
-                )
-                .map_err(|_| ErrorCode::CMintTopUpCalculationFailed)?;
+            // Skip top-up calculation if decompress mint action is present.
+            if !accounts_config.has_decompress_mint_action {
+                // Handle top-up for compressed mint (compression info is now embedded directly)
+                // Get current slot for top-up calculation
+                let current_slot = Clock::get()
+                    .map_err(|_| ProgramError::UnsupportedSysvar)?
+                    .slot;
+                // Calculate top-up amount using embedded compression info
+                let top_up = compressed_mint
+                    .compression
+                    .calculate_top_up_lamports(
+                        num_bytes,
+                        current_slot,
+                        current_lamports,
+                        rent_exemption,
+                    )
+                    .map_err(|_| ErrorCode::CMintTopUpCalculationFailed)?;
 
-            if top_up > 0 {
-                let fee_payer = validated_accounts
-                    .executing
-                    .as_ref()
-                    .map(|exec| exec.system.fee_payer)
-                    .ok_or(ProgramError::NotEnoughAccountKeys)?;
-                transfer_lamports(top_up, fee_payer, cmint_account)
-                    .map_err(convert_program_error)?;
+                if top_up > 0 {
+                    let fee_payer = validated_accounts
+                        .executing
+                        .as_ref()
+                        .map(|exec| exec.system.fee_payer)
+                        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+                    transfer_lamports(top_up, fee_payer, cmint_account)
+                        .map_err(convert_program_error)?;
+                }
             }
-
-            // Update last_claimed_slot to current slot
-            compressed_mint.compression.last_claimed_slot = current_slot;
 
             let serialized = compressed_mint
                 .try_to_vec()
@@ -128,8 +132,6 @@ pub fn process_output_compressed_account<'a>(
         }
     }
 
-    // When decompressed (CMint is source of truth), use zero values
-    let cmint_is_source_of_truth = accounts_config.cmint_is_source_of_truth();
     let compressed_account_data = mint_account
         .compressed_account
         .data

@@ -39,19 +39,17 @@ fn create_compressible_ctoken_data(
     let (mut ctoken, _) = CToken::new_zero_copy(&mut data, config).unwrap();
 
     // Set compression info fields (now embedded in meta, not an extension)
-    ctoken.meta.compression.config_account_version.set(1);
-    ctoken.meta.compression.account_version = 3; // ShaFlat
+    ctoken.compression.config_account_version.set(1);
+    ctoken.compression.account_version = 3; // ShaFlat
     ctoken
-        .meta
         .compression
         .compression_authority
         .copy_from_slice(owner_pubkey);
     ctoken
-        .meta
         .compression
         .rent_sponsor
         .copy_from_slice(rent_sponsor_pubkey);
-    ctoken.meta.compression.last_claimed_slot.set(0);
+    ctoken.compression.last_claimed_slot.set(0);
 
     data
 }

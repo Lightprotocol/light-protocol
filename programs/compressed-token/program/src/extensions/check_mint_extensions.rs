@@ -66,30 +66,67 @@ pub struct MintExtensionFlags {
 }
 
 impl MintExtensionFlags {
+    pub fn num_extensions(&self) -> usize {
+        let mut count = 0;
+        if self.has_pausable {
+            count += 1;
+        }
+        if self.has_permanent_delegate {
+            count += 1;
+        }
+        if self.has_transfer_fee {
+            count += 1;
+        }
+        if self.has_transfer_hook {
+            count += 1;
+        }
+        count
+    }
+
     /// Calculate the ctoken account size based on extension flags.
     ///
     /// Calculate account size based on mint extensions.
     /// All ctoken accounts now have CompressionInfo embedded in base struct.
-    pub fn calculate_account_size(&self) -> u64 {
-        let mut extensions = Vec::new();
+    ///
+    /// # Returns
+    /// * `Ok(u64)` - The account size in bytes
+    /// * `Err(ProgramError)` - If extension size calculation fails
+    pub fn calculate_account_size(&self) -> Result<u64, ProgramError> {
+        // Use stack-allocated array to avoid heap allocation
+        // Maximum 4 extensions: pausable, permanent_delegate, transfer_fee, transfer_hook
+        let mut extensions: [ExtensionStructConfig; 4] = [
+            ExtensionStructConfig::Placeholder0,
+            ExtensionStructConfig::Placeholder0,
+            ExtensionStructConfig::Placeholder0,
+            ExtensionStructConfig::Placeholder0,
+        ];
+        let mut count = 0;
+
         if self.has_pausable {
-            extensions.push(ExtensionStructConfig::PausableAccount(()));
+            extensions[count] = ExtensionStructConfig::PausableAccount(());
+            count += 1;
         }
         if self.has_permanent_delegate {
-            extensions.push(ExtensionStructConfig::PermanentDelegateAccount(()));
+            extensions[count] = ExtensionStructConfig::PermanentDelegateAccount(());
+            count += 1;
         }
         if self.has_transfer_fee {
-            extensions.push(ExtensionStructConfig::TransferFeeAccount(()));
+            extensions[count] = ExtensionStructConfig::TransferFeeAccount(());
+            count += 1;
         }
         if self.has_transfer_hook {
-            extensions.push(ExtensionStructConfig::TransferHookAccount(()));
+            extensions[count] = ExtensionStructConfig::TransferHookAccount(());
+            count += 1;
         }
-        let exts = if extensions.is_empty() {
+
+        let exts = if count == 0 {
             None
         } else {
-            Some(extensions.as_slice())
+            Some(&extensions[..count])
         };
-        light_ctoken_interface::state::calculate_ctoken_account_size(exts) as u64
+        light_ctoken_interface::state::calculate_ctoken_account_size(exts)
+            .map(|size| size as u64)
+            .map_err(|_| ProgramError::InvalidAccountData)
     }
 
     /// Returns true if mint has any restricted extensions.
@@ -132,7 +169,7 @@ pub fn check_mint_extensions(
     let mint_state = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;
 
     // Always compute has_restricted_extensions (needed for CompressAndClose validation)
-    let extension_types = mint_state.get_extension_types().unwrap_or_default();
+    let extension_types = mint_state.get_extension_types()?;
     let has_restricted_extensions = extension_types.iter().any(is_restricted_extension);
 
     // When there are output compressed accounts, mint must not contain restricted extensions.
@@ -216,7 +253,7 @@ pub fn has_mint_extensions(mint_account: &AccountInfo) -> Result<MintExtensionFl
     let mint_state = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;
 
     // Get all extension types in a single call
-    let extension_types = mint_state.get_extension_types().unwrap_or_default();
+    let extension_types = mint_state.get_extension_types()?;
 
     // Check for unsupported extensions and collect flags in a single pass
     let mut has_pausable = false;

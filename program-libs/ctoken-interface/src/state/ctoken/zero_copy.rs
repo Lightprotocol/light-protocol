@@ -1,4 +1,4 @@
-use core::ops::Deref;
+use core::ops::{Deref, DerefMut};
 
 use aligned_sized::aligned_sized;
 use light_compressed_account::Pubkey;
@@ -59,17 +59,17 @@ struct CTokenZeroCopyMeta {
     has_extensions: bool,
 }
 
-/// Zero-copy view of CToken with meta and optional extensions
+/// Zero-copy view of CToken with base and optional extensions
 #[derive(Debug)]
 pub struct ZCToken<'a> {
-    pub meta: ZCTokenZeroCopyMeta<'a>,
+    pub base: ZCTokenZeroCopyMeta<'a>,
     pub extensions: Option<Vec<ZExtensionStruct<'a>>>,
 }
 
-/// Mutable zero-copy view of CToken with meta and optional extensions
+/// Mutable zero-copy view of CToken with base and optional extensions
 #[derive(Debug)]
 pub struct ZCTokenMut<'a> {
-    pub meta: ZCTokenZeroCopyMetaMut<'a>,
+    pub base: ZCTokenZeroCopyMetaMut<'a>,
     pub extensions: Option<Vec<ZExtensionStructMut<'a>>>,
 }
 
@@ -111,26 +111,26 @@ impl<'a> ZeroCopyNew<'a> for CToken {
         bytes: &'a mut [u8],
         config: Self::ZeroCopyConfig,
     ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
-        // Use derived new_zero_copy for meta struct
-        let meta_config = CTokenZeroCopyMetaConfig {
+        // Use derived new_zero_copy for base struct
+        let base_config = CTokenZeroCopyMetaConfig {
             compression: light_compressible::compression_info::CompressionInfoConfig {
                 rent_config: (),
             },
         };
-        let (mut meta, mut remaining) =
-            <CTokenZeroCopyMeta as ZeroCopyNew<'a>>::new_zero_copy(bytes, meta_config)?;
+        let (mut base, mut remaining) =
+            <CTokenZeroCopyMeta as ZeroCopyNew<'a>>::new_zero_copy(bytes, base_config)?;
 
         // Set base token account fields from config
-        meta.mint = config.mint;
-        meta.owner = config.owner;
-        meta.state = config.state;
-        meta.account_type = ACCOUNT_TYPE_TOKEN_ACCOUNT;
-        meta.compression_only = config.compression_only as u8;
+        base.mint = config.mint;
+        base.owner = config.owner;
+        base.state = config.state;
+        base.account_type = ACCOUNT_TYPE_TOKEN_ACCOUNT;
+        base.compression_only = config.compression_only as u8;
 
         // Write extensions using ExtensionStruct::new_zero_copy
         if let Some(extensions) = config.extensions {
             if !extensions.is_empty() {
-                *meta.has_extensions = 1u8;
+                *base.has_extensions = 1u8;
 
                 // Write Vec length prefix (4 bytes, little-endian u32)
                 remaining[..4].copy_from_slice(&(extensions.len() as u32).to_le_bytes());
@@ -146,7 +146,7 @@ impl<'a> ZeroCopyNew<'a> for CToken {
 
         Ok((
             ZCTokenMut {
-                meta,
+                base,
                 extensions: None, // Extensions are written directly, not tracked as Vec
             },
             remaining,
@@ -161,14 +161,14 @@ impl<'a> ZeroCopyAt<'a> for CToken {
     fn zero_copy_at(
         bytes: &'a [u8],
     ) -> Result<(Self::ZeroCopyAt, &'a [u8]), light_zero_copy::errors::ZeroCopyError> {
-        let (meta, bytes) = <CTokenZeroCopyMeta as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
+        let (base, bytes) = <CTokenZeroCopyMeta as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
         // has_extensions already consumed the Option discriminator byte
-        if meta.has_extensions() {
+        if base.has_extensions() {
             let (extensions, bytes) =
                 <Vec<ExtensionStruct> as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
             Ok((
                 ZCToken {
-                    meta,
+                    base,
                     extensions: Some(extensions),
                 },
                 bytes,
@@ -176,7 +176,7 @@ impl<'a> ZeroCopyAt<'a> for CToken {
         } else {
             Ok((
                 ZCToken {
-                    meta,
+                    base,
                     extensions: None,
                 },
                 bytes,
@@ -192,14 +192,14 @@ impl<'a> ZeroCopyAtMut<'a> for CToken {
     fn zero_copy_at_mut(
         bytes: &'a mut [u8],
     ) -> Result<(Self::ZeroCopyAtMut, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
-        let (meta, bytes) = <CTokenZeroCopyMeta as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
+        let (base, bytes) = <CTokenZeroCopyMeta as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
         // has_extensions already consumed the Option discriminator byte
-        if meta.has_extensions() {
+        if base.has_extensions() {
             let (extensions, bytes) =
                 <Vec<ExtensionStruct> as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
             Ok((
                 ZCTokenMut {
-                    meta,
+                    base,
                     extensions: Some(extensions),
                 },
                 bytes,
@@ -207,7 +207,7 @@ impl<'a> ZeroCopyAtMut<'a> for CToken {
         } else {
             Ok((
                 ZCTokenMut {
-                    meta,
+                    base,
                     extensions: None,
                 },
                 bytes,
@@ -221,7 +221,7 @@ impl<'a> Deref for ZCToken<'a> {
     type Target = ZCTokenZeroCopyMeta<'a>;
 
     fn deref(&self) -> &Self::Target {
-        &self.meta
+        &self.base
     }
 }
 
@@ -229,7 +229,13 @@ impl<'a> Deref for ZCTokenMut<'a> {
     type Target = ZCTokenZeroCopyMetaMut<'a>;
 
     fn deref(&self) -> &Self::Target {
-        &self.meta
+        &self.base
+    }
+}
+
+impl<'a> DerefMut for ZCTokenMut<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base
     }
 }
 
@@ -241,10 +247,10 @@ impl ZCTokenZeroCopyMeta<'_> {
         self.account_type == ACCOUNT_TYPE_TOKEN_ACCOUNT
     }
 
-    /// Checks if account is initialized (state == 1 or state == 2)
+    /// Checks if account is initialized (state == 1)
     #[inline(always)]
     pub fn is_initialized(&self) -> bool {
-        self.state != 0
+        self.state == 1
     }
 
     /// Checks if account is frozen (state == 2)
@@ -302,10 +308,10 @@ impl ZCTokenZeroCopyMetaMut<'_> {
         self.account_type == ACCOUNT_TYPE_TOKEN_ACCOUNT
     }
 
-    /// Checks if account is initialized (state == 1 or state == 2)
+    /// Checks if account is initialized (state == 1)
     #[inline(always)]
     pub fn is_initialized(&self) -> bool {
-        self.state != 0
+        self.state == 1
     }
 
     /// Checks if account is frozen (state == 2)
@@ -376,12 +382,6 @@ impl ZCTokenZeroCopyMetaMut<'_> {
             }
         }
         Ok(())
-    }
-
-    /// Set account state
-    #[inline(always)]
-    pub fn set_state(&mut self, state: u8) {
-        self.state = state;
     }
 
     /// Set account as frozen (state = 2)
@@ -624,6 +624,17 @@ impl PartialEq<CToken> for ZCToken<'_> {
                             ),
                         ) => {
                             if zc_tha.transferring != regular_tha.transferring {
+                                return false;
+                            }
+                        }
+                        (
+                            ZExtensionStruct::CompressedOnly(zc_co),
+                            crate::state::extensions::ExtensionStruct::CompressedOnly(regular_co),
+                        ) => {
+                            if u64::from(zc_co.delegated_amount) != regular_co.delegated_amount
+                                || u64::from(zc_co.withheld_transfer_fee)
+                                    != regular_co.withheld_transfer_fee
+                            {
                                 return false;
                             }
                         }

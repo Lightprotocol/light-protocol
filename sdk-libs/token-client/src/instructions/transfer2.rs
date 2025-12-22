@@ -538,7 +538,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 let owner = compressed_token.owner;
 
                 // Extract rent_sponsor, compression_authority, and compress_to_pubkey from compression info
-                let compression = &compressed_token.meta.compression;
+                let compression = &compressed_token.base.compression;
                 let rent_sponsor = compression.rent_sponsor;
                 let _compression_authority = compression.compression_authority;
                 let compress_to_pubkey = compression.compress_to_pubkey == 1;

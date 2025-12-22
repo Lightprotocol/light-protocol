@@ -10,6 +10,7 @@ use light_ctoken_interface::{
 use light_program_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
+    pubkey::pubkey_eq,
     sysvars::{clock::Clock, rent::Rent, Sysvar},
 };
 use spl_pod::solana_msg::msg;
@@ -48,11 +49,11 @@ pub fn compress_or_decompress_ctokens(
     let (mut ctoken, _) = CToken::zero_copy_at_mut_checked(&mut token_account_data)?;
 
     // Reject uninitialized accounts (state == 0)
-    if ctoken.meta.state == 0 {
+    if ctoken.base.state == 0 {
         msg!("Account is uninitialized");
         return Err(CTokenError::InvalidAccountState.into());
     }
-    if ctoken.mint.to_bytes() != mint {
+    if !pubkey_eq(ctoken.mint.array_ref(), &mint) {
         msg!(
             "mint mismatch account: ctoken.mint {:?}, mint {:?}",
             solana_pubkey::Pubkey::new_from_array(ctoken.mint.to_bytes()),
@@ -64,30 +65,30 @@ pub fn compress_or_decompress_ctokens(
     // Check if account is frozen (SPL Token-2022 compatibility)
     // Frozen accounts cannot have their balance modified except for CompressAndClose
     // (only foresters can call CompressAndClose via registry program)
-    if ctoken.meta.state == 2 && mode != ZCompressionMode::CompressAndClose {
+    if ctoken.base.state == 2 && mode != ZCompressionMode::CompressAndClose {
         msg!("Cannot modify frozen account");
         return Err(ErrorCode::AccountFrozen.into());
     }
     // Get current balance
-    let current_balance: u64 = ctoken.meta.amount.get();
+    let current_balance: u64 = ctoken.base.amount.get();
     let mut current_slot = 0;
     // Calculate new balance using effective amount
     match mode {
         ZCompressionMode::Compress => {
-            // Verify authority for compression operations and update delegated amount if needed
+            // Verify authority for compression operations
             let authority_account = authority.ok_or(ErrorCode::InvalidCompressAuthority)?;
-            check_ctoken_owner(&mut ctoken, authority_account, mint_checks.as_ref(), amount)?;
+            check_ctoken_owner(&mut ctoken, authority_account, mint_checks.as_ref())?;
 
             // Compress: subtract from solana account
             // Update the balance in the ctoken solana account
-            ctoken.meta.amount.set(
+            ctoken.base.amount.set(
                 current_balance
                     .checked_sub(amount)
                     .ok_or(ProgramError::ArithmeticOverflow)?,
             );
 
             process_compression_top_up(
-                &ctoken.meta.compression,
+                &ctoken.base.compression,
                 token_account_info,
                 &mut current_slot,
                 transfer_amount,
@@ -97,7 +98,7 @@ pub fn compress_or_decompress_ctokens(
         ZCompressionMode::Decompress => {
             // Decompress: add to solana account
             // Update the balance in the compressed token account
-            ctoken.meta.amount.set(
+            ctoken.base.amount.set(
                 current_balance
                     .checked_add(amount)
                     .ok_or(ProgramError::ArithmeticOverflow)?,
@@ -107,7 +108,7 @@ pub fn compress_or_decompress_ctokens(
             apply_decompress_extension_state(&mut ctoken, input_tlv, input_delegate)?;
 
             process_compression_top_up(
-                &ctoken.meta.compression,
+                &ctoken.base.compression,
                 token_account_info,
                 &mut current_slot,
                 transfer_amount,
@@ -173,7 +174,7 @@ fn apply_decompress_extension_state(
             // Delegates match - add to delegated_amount
         } else if let Some(input_del) = input_delegate_pubkey {
             // CToken has no delegate - set it from the input
-            ctoken.meta.set_delegate(Some(input_del))?;
+            ctoken.base.set_delegate(Some(input_del))?;
         } else if delegated_amount > 0 {
             // Has delegated_amount but no delegate pubkey - invalid state
             msg!("Decompress: delegated_amount > 0 but no delegate pubkey provided");
@@ -182,8 +183,8 @@ fn apply_decompress_extension_state(
 
         // Add delegated_amount to CToken's delegated_amount
         if delegated_amount > 0 {
-            let current_delegated: u64 = ctoken.meta.delegated_amount.get();
-            ctoken.meta.delegated_amount.set(
+            let current_delegated: u64 = ctoken.base.delegated_amount.get();
+            ctoken.base.delegated_amount.set(
                 current_delegated
                     .checked_add(delegated_amount)
                     .ok_or(ProgramError::ArithmeticOverflow)?,
@@ -211,7 +212,7 @@ fn apply_decompress_extension_state(
 
     // Handle is_frozen - restore frozen state from compressed token
     if ext_data.is_frozen != 0 {
-        ctoken.meta.set_frozen();
+        ctoken.base.set_frozen();
     }
 
     Ok(())

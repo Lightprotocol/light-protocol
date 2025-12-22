@@ -3,10 +3,10 @@ use spl_pod::solana_msg::msg;
 
 use crate::{
     state::extensions::{
-        CompressedOnlyExtension, CompressedOnlyExtensionConfig, PausableAccountExtension,
-        PausableAccountExtensionConfig, PermanentDelegateAccountExtension,
-        PermanentDelegateAccountExtensionConfig, TokenMetadata, TokenMetadataConfig,
-        TransferFeeAccountExtension, TransferFeeAccountExtensionConfig,
+        CompressedOnlyExtension, CompressedOnlyExtensionConfig, ExtensionType,
+        PausableAccountExtension, PausableAccountExtensionConfig,
+        PermanentDelegateAccountExtension, PermanentDelegateAccountExtensionConfig, TokenMetadata,
+        TokenMetadataConfig, TransferFeeAccountExtension, TransferFeeAccountExtensionConfig,
         TransferHookAccountExtension, TransferHookAccountExtensionConfig,
         ZPausableAccountExtensionMut, ZPermanentDelegateAccountExtensionMut, ZTokenMetadataMut,
         ZTransferFeeAccountExtensionMut, ZTransferHookAccountExtensionMut,
@@ -121,8 +121,11 @@ impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
 
         let discriminant = data[0];
         let remaining_data = &mut data[1..];
-        match discriminant {
-            19 => {
+        let extension_type = ExtensionType::try_from(discriminant)
+            .map_err(|_| light_zero_copy::errors::ZeroCopyError::InvalidConversion)?;
+
+        match extension_type {
+            ExtensionType::TokenMetadata => {
                 let (token_metadata, remaining_bytes) =
                     TokenMetadata::zero_copy_at_mut(remaining_data)?;
                 Ok((
@@ -130,8 +133,7 @@ impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
-            27 => {
-                // PausableAccount variant (marker extension, no data)
+            ExtensionType::PausableAccount => {
                 let (pausable_ext, remaining_bytes) =
                     PausableAccountExtension::zero_copy_at_mut(remaining_data)?;
                 Ok((
@@ -139,8 +141,7 @@ impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
-            28 => {
-                // PermanentDelegateAccount variant (marker extension, no data)
+            ExtensionType::PermanentDelegateAccount => {
                 let (permanent_delegate_ext, remaining_bytes) =
                     PermanentDelegateAccountExtension::zero_copy_at_mut(remaining_data)?;
                 Ok((
@@ -148,8 +149,7 @@ impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
-            29 => {
-                // TransferFeeAccount variant
+            ExtensionType::TransferFeeAccount => {
                 let (transfer_fee_ext, remaining_bytes) =
                     TransferFeeAccountExtension::zero_copy_at_mut(remaining_data)?;
                 Ok((
@@ -157,8 +157,7 @@ impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
-            30 => {
-                // TransferHookAccount variant
+            ExtensionType::TransferHookAccount => {
                 let (transfer_hook_ext, remaining_bytes) =
                     TransferHookAccountExtension::zero_copy_at_mut(remaining_data)?;
                 Ok((
@@ -166,8 +165,7 @@ impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
-            31 => {
-                // CompressedOnly variant
+            ExtensionType::CompressedOnly => {
                 let (compressed_only_ext, remaining_bytes) =
                     CompressedOnlyExtension::zero_copy_at_mut(remaining_data)?;
                 Ok((
@@ -225,14 +223,13 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
     ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
         match config {
             ExtensionStructConfig::TokenMetadata(config) => {
-                // Write discriminant (19 for TokenMetadata)
                 if bytes.is_empty() {
                     return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
                         1,
                         bytes.len(),
                     ));
                 }
-                bytes[0] = 19u8;
+                bytes[0] = ExtensionType::TokenMetadata as u8;
 
                 let (token_metadata, remaining_bytes) =
                     TokenMetadata::new_zero_copy(&mut bytes[1..], config)?;
@@ -242,14 +239,13 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                 ))
             }
             ExtensionStructConfig::PausableAccount(config) => {
-                // Write discriminant (27 for PausableAccount)
                 if bytes.is_empty() {
                     return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
                         1,
                         bytes.len(),
                     ));
                 }
-                bytes[0] = 27u8;
+                bytes[0] = ExtensionType::PausableAccount as u8;
 
                 let (pausable_ext, remaining_bytes) =
                     PausableAccountExtension::new_zero_copy(&mut bytes[1..], config)?;
@@ -259,14 +255,13 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                 ))
             }
             ExtensionStructConfig::PermanentDelegateAccount(config) => {
-                // Write discriminant (28 for PermanentDelegateAccount)
                 if bytes.is_empty() {
                     return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
                         1,
                         bytes.len(),
                     ));
                 }
-                bytes[0] = 28u8;
+                bytes[0] = ExtensionType::PermanentDelegateAccount as u8;
 
                 let (permanent_delegate_ext, remaining_bytes) =
                     PermanentDelegateAccountExtension::new_zero_copy(&mut bytes[1..], config)?;
@@ -276,14 +271,13 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                 ))
             }
             ExtensionStructConfig::TransferFeeAccount(config) => {
-                // Write discriminant (29 for TransferFeeAccount)
                 if bytes.is_empty() {
                     return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
                         1,
                         bytes.len(),
                     ));
                 }
-                bytes[0] = 29u8;
+                bytes[0] = ExtensionType::TransferFeeAccount as u8;
 
                 let (transfer_fee_ext, remaining_bytes) =
                     TransferFeeAccountExtension::new_zero_copy(&mut bytes[1..], config)?;
@@ -293,14 +287,13 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                 ))
             }
             ExtensionStructConfig::TransferHookAccount(config) => {
-                // Write discriminant (30 for TransferHookAccount)
                 if bytes.is_empty() {
                     return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
                         1,
                         bytes.len(),
                     ));
                 }
-                bytes[0] = 30u8;
+                bytes[0] = ExtensionType::TransferHookAccount as u8;
 
                 let (transfer_hook_ext, remaining_bytes) =
                     TransferHookAccountExtension::new_zero_copy(&mut bytes[1..], config)?;
@@ -310,14 +303,13 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                 ))
             }
             ExtensionStructConfig::CompressedOnly(config) => {
-                // Write discriminant (31 for CompressedOnly)
                 if bytes.len() < 1 + CompressedOnlyExtension::LEN {
                     return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
                         1 + CompressedOnlyExtension::LEN,
                         bytes.len(),
                     ));
                 }
-                bytes[0] = 31u8;
+                bytes[0] = ExtensionType::CompressedOnly as u8;
 
                 let (compressed_only_ext, remaining_bytes) =
                     CompressedOnlyExtension::new_zero_copy(&mut bytes[1..], config)?;
@@ -331,8 +323,9 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum ExtensionStructConfig {
+    #[default]
     Placeholder0,
     Placeholder1,
     Placeholder2,

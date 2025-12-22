@@ -155,19 +155,19 @@ fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]
     // Construct a CompressedMint from zero-copy read-only data for comparison
     let zc_reconstructed = CompressedMint {
         base: BaseMint {
-            mint_authority: zc_mint.meta.mint_authority().copied(),
-            freeze_authority: zc_mint.meta.freeze_authority().copied(),
-            supply: u64::from(zc_mint.meta.supply),
-            decimals: zc_mint.meta.decimals,
-            is_initialized: zc_mint.meta.is_initialized != 0,
+            mint_authority: zc_mint.base.mint_authority().copied(),
+            freeze_authority: zc_mint.base.freeze_authority().copied(),
+            supply: u64::from(zc_mint.base.supply),
+            decimals: zc_mint.base.decimals,
+            is_initialized: zc_mint.base.is_initialized != 0,
         },
         metadata: CompressedMintMetadata {
-            version: zc_mint.meta.metadata.version,
-            cmint_decompressed: zc_mint.meta.metadata.cmint_decompressed != 0,
-            mint: zc_mint.meta.metadata.mint,
+            version: zc_mint.base.metadata.version,
+            cmint_decompressed: zc_mint.base.metadata.cmint_decompressed != 0,
+            mint: zc_mint.base.metadata.mint,
         },
-        reserved: *zc_mint.meta.reserved,
-        account_type: zc_mint.meta.account_type,
+        reserved: *zc_mint.base.reserved,
+        account_type: zc_mint.base.account_type,
         compression: CompressionInfo::default(),
         extensions: zc_extensions.clone(),
     };
@@ -179,19 +179,19 @@ fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]
     // Reconstruct from mutable zero-copy data for comparison
     let zc_mut_reconstructed = CompressedMint {
         base: BaseMint {
-            mint_authority: zc_mint_mut.meta.mint_authority().copied(),
-            freeze_authority: zc_mint_mut.meta.freeze_authority().copied(),
-            supply: u64::from(zc_mint_mut.meta.supply),
-            decimals: zc_mint_mut.meta.decimals,
-            is_initialized: zc_mint_mut.meta.is_initialized != 0,
+            mint_authority: zc_mint_mut.base.mint_authority().copied(),
+            freeze_authority: zc_mint_mut.base.freeze_authority().copied(),
+            supply: u64::from(zc_mint_mut.base.supply),
+            decimals: zc_mint_mut.base.decimals,
+            is_initialized: zc_mint_mut.base.is_initialized != 0,
         },
         metadata: CompressedMintMetadata {
-            version: zc_mint_mut.meta.metadata.version,
-            cmint_decompressed: zc_mint_mut.meta.metadata.cmint_decompressed != 0,
-            mint: zc_mint_mut.meta.metadata.mint,
+            version: zc_mint_mut.base.metadata.version,
+            cmint_decompressed: zc_mint_mut.base.metadata.cmint_decompressed != 0,
+            mint: zc_mint_mut.base.metadata.mint,
         },
-        reserved: *zc_mint_mut.meta.reserved,
-        account_type: *zc_mint_mut.meta.account_type,
+        reserved: *zc_mint_mut.base.reserved,
+        account_type: *zc_mint_mut.base.account_type,
         compression: CompressionInfo::default(),
         extensions: zc_extensions, // Extensions handling for mut is same as read-only
     };

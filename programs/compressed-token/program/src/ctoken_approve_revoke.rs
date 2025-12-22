@@ -1,5 +1,5 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_ctoken_interface::{state::CToken, CTokenError, BASE_TOKEN_ACCOUNT_SIZE};
+use light_ctoken_interface::{state::CToken, CTokenError};
 use pinocchio::account_info::AccountInfo;
 use pinocchio_token_program::processor::{approve::process_approve, revoke::process_revoke};
 
@@ -97,18 +97,12 @@ fn process_compressible_top_up(
     payer: &AccountInfo,
     max_top_up: u16,
 ) -> Result<(), ProgramError> {
-    // Fast path: base account with no extensions
-    if account.data_len() == BASE_TOKEN_ACCOUNT_SIZE as usize {
-        return Ok(());
-    }
-
     // Borrow account data to get extensions
     let mut account_data = account
         .try_borrow_mut_data()
         .map_err(convert_program_error)?;
     let (ctoken, _) = CToken::zero_copy_at_mut_checked(&mut account_data)?;
 
-    let mut current_slot = 0;
     let mut transfer_amount = 0u64;
     let mut lamports_budget = if max_top_up == 0 {
         u64::MAX
@@ -117,9 +111,9 @@ fn process_compressible_top_up(
     };
 
     process_compression_top_up(
-        &ctoken.meta.compression,
+        &ctoken.base.compression,
         account,
-        &mut current_slot,
+        &mut 0,
         &mut transfer_amount,
         &mut lamports_budget,
     )?;
@@ -128,8 +122,7 @@ fn process_compressible_top_up(
     drop(account_data);
 
     if transfer_amount > 0 {
-        // Check budget if max_top_up is set (non-zero)
-        if max_top_up != 0 && transfer_amount > max_top_up as u64 {
+        if lamports_budget != 0 && transfer_amount > lamports_budget {
             return Err(CTokenError::MaxTopUpExceeded.into());
         }
         transfer_lamports_via_cpi(transfer_amount, payer, account)

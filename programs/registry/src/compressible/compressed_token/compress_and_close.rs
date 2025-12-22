@@ -166,7 +166,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             pool_account_index: idx.rent_sponsor_index,
             pool_index: i as u8,
             bump: destination_index,
-            decimals: 1, // Used as rent_sponsor_is_signer flag (non-zero = true)
+            decimals: 0,
         };
 
         compressions.push(compression);

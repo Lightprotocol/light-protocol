@@ -3,7 +3,7 @@ use light_account_checks::AccountInfoTrait;
 use light_compressible::config::CompressibleConfig;
 use light_ctoken_interface::{
     instructions::create_ctoken_account::CompressToPubkey,
-    state::{ctoken::CompressedTokenConfig, CToken, ExtensionStructConfig},
+    state::{ctoken::CompressedTokenConfig, AccountState, CToken, ExtensionStructConfig},
     CTokenError, CTOKEN_PROGRAM_ID,
 };
 use light_program_profiler::profile;
@@ -70,29 +70,22 @@ pub fn initialize_ctoken_account(
         compress_to_pubkey,
         compressible_config_account,
         custom_rent_payer,
-        mint_extensions:
-            MintExtensionFlags {
-                has_pausable,
-                has_permanent_delegate,
-                default_state_frozen,
-                has_transfer_fee,
-                has_transfer_hook,
-            },
+        mint_extensions,
         mint_account,
     } = config;
 
     // Build extensions Vec from boolean flags
-    let mut extensions = Vec::new();
-    if has_pausable {
+    let mut extensions = Vec::with_capacity(mint_extensions.num_extensions());
+    if mint_extensions.has_pausable {
         extensions.push(ExtensionStructConfig::PausableAccount(()));
     }
-    if has_permanent_delegate {
+    if mint_extensions.has_permanent_delegate {
         extensions.push(ExtensionStructConfig::PermanentDelegateAccount(()));
     }
-    if has_transfer_fee {
+    if mint_extensions.has_transfer_fee {
         extensions.push(ExtensionStructConfig::TransferFeeAccount(()));
     }
-    if has_transfer_hook {
+    if mint_extensions.has_transfer_hook {
         extensions.push(ExtensionStructConfig::TransferHookAccount(()));
     }
 
@@ -100,7 +93,11 @@ pub fn initialize_ctoken_account(
     let zc_config = CompressedTokenConfig {
         mint: light_compressed_account::Pubkey::from(*mint),
         owner: light_compressed_account::Pubkey::from(*owner),
-        state: if default_state_frozen { 2 } else { 1 },
+        state: if mint_extensions.default_state_frozen {
+            AccountState::Frozen as u8
+        } else {
+            AccountState::Initialized as u8
+        },
         compression_only: compression_ix_data.compression_only != 0,
         extensions: if extensions.is_empty() {
             None
@@ -122,7 +119,7 @@ pub fn initialize_ctoken_account(
 
     // Configure compression info fields and decimals
     configure_compression_info(
-        &mut ctoken.meta,
+        &mut ctoken.base,
         compression_ix_data,
         compress_to_pubkey,
         compressible_config_account,

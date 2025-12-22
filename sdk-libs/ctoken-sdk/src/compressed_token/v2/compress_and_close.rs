@@ -46,8 +46,8 @@ pub fn pack_for_compress_and_close(
     let mint_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
     let owner_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.owner.to_bytes()));
 
-    // Get compression info from meta
-    let compression = &ctoken_account.meta.compression;
+    // Get compression info from base
+    let compression = &ctoken_account.base.compression;
     let authority_index = packed_accounts.insert_or_get_config(
         Pubkey::from(compression.compression_authority),
         true,
@@ -270,8 +270,8 @@ pub fn compress_and_close_ctoken_accounts<'info>(
         let mint_pubkey = Pubkey::from(compressed_token.mint.to_bytes());
         let owner_pubkey = Pubkey::from(compressed_token.owner.to_bytes());
 
-        // Get compression info from meta
-        let compression = &compressed_token.meta.compression;
+        // Get compression info from base
+        let compression = &compressed_token.base.compression;
         let authority = Pubkey::from(compression.compression_authority);
         let rent_sponsor = Pubkey::from(compression.rent_sponsor);
 

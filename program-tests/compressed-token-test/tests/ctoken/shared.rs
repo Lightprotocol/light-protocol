@@ -297,7 +297,7 @@ pub async fn close_and_assert_token_account(
     use light_zero_copy::traits::ZeroCopyAt;
 
     let (ctoken, _) = CToken::zero_copy_at(&account_info.data).unwrap();
-    let compression = &ctoken.meta.compression;
+    let compression = &ctoken.compression;
     let rent_sponsor = Pubkey::from(compression.rent_sponsor);
 
     let close_ix = CloseCTokenAccount {
@@ -695,7 +695,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
     let mint_pubkey = Pubkey::from(ctoken.mint.to_bytes());
 
     // Extract compression info from embedded field
-    let compression = &ctoken.meta.compression;
+    let compression = &ctoken.compression;
     let rent_sponsor = Pubkey::from(compression.rent_sponsor);
 
     // Get output queue for compression

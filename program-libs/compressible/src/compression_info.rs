@@ -1,4 +1,5 @@
 use aligned_sized::aligned_sized;
+use bytemuck::{Pod, Zeroable};
 use light_program_profiler::profile;
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use pinocchio::pubkey::Pubkey;
@@ -27,6 +28,8 @@ use crate::{
     AnchorDeserialize,
     ZeroCopy,
     ZeroCopyMut,
+    Pod,
+    Zeroable,
 )]
 #[repr(C)]
 #[aligned_sized]
