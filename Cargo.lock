@@ -2408,7 +2408,6 @@ dependencies = [
  "light-registry",
  "light-sdk",
  "light-sparse-merkle-tree",
- "light-verifier",
  "num-bigint 0.4.6",
  "num-traits",
  "serde",
