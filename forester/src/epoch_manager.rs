@@ -902,7 +902,7 @@ impl<R: Rpc> EpochManager<R> {
         let slot = rpc.get_slot().await?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
-        if slot < phases.registration.end {
+        if slot >= phases.registration.start && slot < phases.registration.end {
             let forester_epoch_pda_pubkey =
                 get_forester_epoch_pda_from_authority(&self.config.derivation_pubkey, epoch).0;
             let existing_registration = rpc
@@ -984,6 +984,17 @@ impl<R: Rpc> EpochManager<R> {
             };
             debug!("Registered: {:?}", registration_info);
             Ok(registration_info)
+        } else if slot < phases.registration.start {
+            warn!(
+                "Too early to register for epoch {}. Current slot: {}, Registration starts: {}",
+                epoch, slot, phases.registration.start
+            );
+            Err(RegistrationError::RegistrationPhaseNotStarted {
+                epoch,
+                current_slot: slot,
+                registration_start: phases.registration.start,
+            }
+            .into())
         } else {
             warn!(
                 "Too late to register for epoch {}. Current slot: {}, Registration end: {}",

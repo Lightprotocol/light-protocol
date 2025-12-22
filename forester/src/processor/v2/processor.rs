@@ -293,6 +293,7 @@ where
             self.zkp_batch_size,
             self.current_root,
             self.proof_cache.clone(),
+            self.seq,
         );
         let job_tx = self
             .worker_pool

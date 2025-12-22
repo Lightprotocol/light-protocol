@@ -107,10 +107,10 @@ struct OrderedProofBuffer {
 }
 
 impl OrderedProofBuffer {
-    fn new(capacity: usize) -> Self {
+    fn new(capacity: usize, base_seq: u64) -> Self {
         Self {
             buffer: (0..capacity).map(|_| None).collect(),
-            base_seq: 0,
+            base_seq,
             len: 0,
             head: 0,
         }
@@ -191,6 +191,7 @@ impl<R: Rpc> TxSender<R> {
         zkp_batch_size: u64,
         last_seen_root: [u8; 32],
         proof_cache: Option<Arc<SharedProofCache>>,
+        initial_seq: u64,
     ) -> JoinHandle<crate::Result<TxSenderResult>> {
         let ixs_per_tx = if context.address_lookup_tables.is_empty() {
             V2_IXS_PER_TX_WITHOUT_LUT
@@ -200,7 +201,7 @@ impl<R: Rpc> TxSender<R> {
 
         let sender = Self {
             context,
-            buffer: OrderedProofBuffer::new(MAX_BUFFER_SIZE),
+            buffer: OrderedProofBuffer::new(MAX_BUFFER_SIZE, initial_seq),
             zkp_batch_size,
             last_seen_root,
             pending_batch: Vec::with_capacity(ixs_per_tx),
