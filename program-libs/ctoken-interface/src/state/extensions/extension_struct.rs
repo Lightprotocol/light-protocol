@@ -55,8 +55,6 @@ pub enum ExtensionStruct {
     TransferHookAccount(TransferHookAccountExtension),
     /// CompressedOnly extension for compressed token accounts (stores delegated amount)
     CompressedOnly(CompressedOnlyExtension),
-    /// Reserved - CompressionInfo is now embedded directly in CToken and CompressedMint structs
-    Placeholder32,
 }
 
 #[derive(Debug)]
@@ -101,8 +99,6 @@ pub enum ZExtensionStructMut<'a> {
     CompressedOnly(
         <CompressedOnlyExtension as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut,
     ),
-    /// Reserved - CompressionInfo is now embedded directly in CToken and CompressedMint structs
-    Placeholder32,
 }
 
 impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
@@ -359,6 +355,4 @@ pub enum ExtensionStructConfig {
     TransferFeeAccount(TransferFeeAccountExtensionConfig),
     TransferHookAccount(TransferHookAccountExtensionConfig),
     CompressedOnly(CompressedOnlyExtensionConfig),
-    /// Reserved - CompressionInfo is now embedded directly in CToken and CompressedMint structs
-    Placeholder32,
 }
