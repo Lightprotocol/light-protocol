@@ -41,6 +41,7 @@ export async function startIndexer(
   indexerPort: number,
   checkPhotonVersion: boolean = true,
   photonDatabaseUrl?: string,
+  proverUrl?: string,
 ) {
   await killIndexer();
   const resolvedOrNull = which.sync("photon", { nothrow: true });
@@ -60,6 +61,9 @@ export async function startIndexer(
     ];
     if (photonDatabaseUrl) {
       args.push("--db-url", photonDatabaseUrl);
+    }
+    if (proverUrl) {
+      args.push("--prover-url", proverUrl);
     }
 
     spawnBinary(INDEXER_PROCESS_NAME, args);

@@ -101,7 +101,7 @@ jobs:
           attempt=1
           max_attempts=2
           cd js/compressed-token
-          until LIGHT_PROTOCOL_VERSION=V2 pnpm test:e2e:ctoken:all; do
+          until LIGHT_PROTOCOL_VERSION=V2 pnpm test:e2e:ctoken; do
             attempt=$((attempt + 1))
             if [ $attempt -gt $max_attempts ]; then
               echo "Tests failed after $max_attempts attempts"

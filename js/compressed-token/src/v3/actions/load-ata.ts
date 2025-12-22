@@ -18,6 +18,7 @@ import {
     TOKEN_2022_PROGRAM_ID,
     getAssociatedTokenAddressSync,
     createAssociatedTokenAccountIdempotentInstruction,
+    TokenAccountNotFoundError,
 } from '@solana/spl-token';
 import {
     AccountInterface,
@@ -77,23 +78,31 @@ export async function createLoadAtaInstructions(
     // Validation happens inside getAtaInterface via checkAtaAddress helper:
     // - Always validates ata matches mint+owner derivation
     // - For wrap=true, additionally requires c-token ATA
-    const ataInterface = await _getAtaInterface(
-        rpc,
-        ata,
-        owner,
-        mint,
-        undefined,
-        undefined,
-        wrap,
-    );
-    return createLoadAtaInstructionsFromInterface(
-        rpc,
-        payer,
-        ataInterface,
-        options,
-        wrap,
-        ata,
-    );
+    try {
+        const ataInterface = await _getAtaInterface(
+            rpc,
+            ata,
+            owner,
+            mint,
+            undefined,
+            undefined,
+            wrap,
+        );
+        return createLoadAtaInstructionsFromInterface(
+            rpc,
+            payer,
+            ataInterface,
+            options,
+            wrap,
+            ata,
+        );
+    } catch (error) {
+        // If account doesn't exist, there's nothing to load
+        if (error instanceof TokenAccountNotFoundError) {
+            return [];
+        }
+        throw error;
+    }
 }
 
 // Re-export AtaType for backwards compatibility
