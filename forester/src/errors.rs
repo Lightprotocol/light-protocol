@@ -68,6 +68,13 @@ pub enum ForesterError {
 
 #[derive(Error, Debug)]
 pub enum RegistrationError {
+    #[error("Too early to register for epoch {epoch}. Current slot: {current_slot}, Registration starts: {registration_start}")]
+    RegistrationPhaseNotStarted {
+        epoch: u64,
+        current_slot: u64,
+        registration_start: u64,
+    },
+
     #[error("Too late to register for epoch {epoch}. Current slot: {current_slot}, Registration end: {registration_end}")]
     RegistrationPhaseEnded {
         epoch: u64,
