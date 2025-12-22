@@ -59,8 +59,8 @@ fn test_zero_copy_at_checked_buffer_too_small() {
     // This should fail because buffer is too small
     let result = CToken::zero_copy_at_checked(&buffer);
 
-    // Assert it returns InvalidAccountData error
-    assert!(matches!(result, Err(CTokenError::InvalidAccountData)));
+    // Assert it returns ZeroCopyError (buffer too small fails at zero_copy_at before checked validation)
+    assert!(matches!(result, Err(CTokenError::ZeroCopyError(_))));
 }
 
 #[test]
@@ -71,6 +71,6 @@ fn test_zero_copy_at_mut_checked_buffer_too_small() {
     // This should fail because buffer is too small
     let result = CToken::zero_copy_at_mut_checked(&mut buffer);
 
-    // Assert it returns InvalidAccountData error
-    assert!(matches!(result, Err(CTokenError::InvalidAccountData)));
+    // Assert it returns ZeroCopyError (buffer too small fails at zero_copy_at_mut before checked validation)
+    assert!(matches!(result, Err(CTokenError::ZeroCopyError(_))));
 }
