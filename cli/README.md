@@ -7,7 +7,7 @@ CLI to interact with compressed accounts and compressed tokens on Solana.
 - Ensure you have Node >= v20.9.0 installed on your machine.
 
 - You will need a valid Solana filesystem wallet set up at `~/.config/solana/id.json`.
-  If you don't have one yet, visit the [Solana documentation](https://docs.solanalabs.com/cli/wallets/file-system) for details.
+  If you don't have one yet, visit the [Solana documentation](https://docs.anza.xyz/cli/wallets/file-system/) for details.
   The CLI will use this wallet as the default fee payer and mint authority.
 
 ## Installation
