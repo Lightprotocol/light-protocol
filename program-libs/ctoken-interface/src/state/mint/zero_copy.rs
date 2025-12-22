@@ -14,7 +14,7 @@ use super::compressed_mint::{CompressedMintMetadata, ACCOUNT_TYPE_MINT};
 use crate::{
     instructions::mint_action::CompressedMintInstructionData,
     state::{
-        CompressedMint, ExtensionStruct, ExtensionStructConfig, ZExtensionStruct,
+        CompressedMint, ExtensionStruct, ExtensionStructConfig, TokenDataVersion, ZExtensionStruct,
         ZExtensionStructMut,
     },
     AnchorDeserialize, AnchorSerialize, CTokenError, BASE_TOKEN_ACCOUNT_SIZE,
@@ -51,17 +51,17 @@ struct CompressedMintZeroCopyMeta {
     has_extensions: bool,
 }
 
-/// Zero-copy view of CompressedMint with meta and optional extensions
+/// Zero-copy view of CompressedMint with base and optional extensions
 #[derive(Debug)]
 pub struct ZCompressedMint<'a> {
-    pub meta: ZCompressedMintZeroCopyMeta<'a>,
+    pub base: ZCompressedMintZeroCopyMeta<'a>,
     pub extensions: Option<Vec<ZExtensionStruct<'a>>>,
 }
 
-/// Mutable zero-copy view of CompressedMint with meta and optional extensions
+/// Mutable zero-copy view of CompressedMint with base and optional extensions
 #[derive(Debug)]
 pub struct ZCompressedMintMut<'a> {
-    pub meta: ZCompressedMintZeroCopyMetaMut<'a>,
+    pub base: ZCompressedMintZeroCopyMetaMut<'a>,
     pub extensions: Option<Vec<ZExtensionStructMut<'a>>>,
 }
 
@@ -111,14 +111,14 @@ impl<'a> ZeroCopyNew<'a> for CompressedMint {
                 rent_config: (),
             },
         };
-        let (mut meta, remaining) =
+        let (mut base, remaining) =
             <CompressedMintZeroCopyMeta as ZeroCopyNew<'a>>::new_zero_copy(bytes, meta_config)?;
-        *meta.account_type = ACCOUNT_TYPE_MINT;
-        meta.is_initialized = 1;
+        *base.account_type = ACCOUNT_TYPE_MINT;
+        base.is_initialized = 1;
 
         // Initialize extensions if present
         if let Some(extensions_config) = config.extensions {
-            *meta.has_extensions = 1u8;
+            *base.has_extensions = 1u8;
             let (extensions, remaining) = <Vec<ExtensionStruct> as ZeroCopyNew<'a>>::new_zero_copy(
                 remaining,
                 extensions_config,
@@ -126,7 +126,7 @@ impl<'a> ZeroCopyNew<'a> for CompressedMint {
 
             Ok((
                 ZCompressedMintMut {
-                    meta,
+                    base,
                     extensions: Some(extensions),
                 },
                 remaining,
@@ -134,7 +134,7 @@ impl<'a> ZeroCopyNew<'a> for CompressedMint {
         } else {
             Ok((
                 ZCompressedMintMut {
-                    meta,
+                    base,
                     extensions: None,
                 },
                 remaining,
@@ -149,14 +149,14 @@ impl<'a> ZeroCopyAt<'a> for CompressedMint {
     fn zero_copy_at(
         bytes: &'a [u8],
     ) -> Result<(Self::ZeroCopyAt, &'a [u8]), light_zero_copy::errors::ZeroCopyError> {
-        let (meta, bytes) = <CompressedMintZeroCopyMeta as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
+        let (base, bytes) = <CompressedMintZeroCopyMeta as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
         // has_extensions already consumed the Option discriminator byte
-        if meta.has_extensions() {
+        if base.has_extensions() {
             let (extensions, bytes) =
                 <Vec<ExtensionStruct> as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
             Ok((
                 ZCompressedMint {
-                    meta,
+                    base,
                     extensions: Some(extensions),
                 },
                 bytes,
@@ -164,7 +164,7 @@ impl<'a> ZeroCopyAt<'a> for CompressedMint {
         } else {
             Ok((
                 ZCompressedMint {
-                    meta,
+                    base,
                     extensions: None,
                 },
                 bytes,
@@ -179,15 +179,15 @@ impl<'a> ZeroCopyAtMut<'a> for CompressedMint {
     fn zero_copy_at_mut(
         bytes: &'a mut [u8],
     ) -> Result<(Self::ZeroCopyAtMut, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
-        let (meta, bytes) =
+        let (base, bytes) =
             <CompressedMintZeroCopyMeta as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
         // has_extensions already consumed the Option discriminator byte
-        if meta.has_extensions() {
+        if base.has_extensions() {
             let (extensions, bytes) =
                 <Vec<ExtensionStruct> as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
             Ok((
                 ZCompressedMintMut {
-                    meta,
+                    base,
                     extensions: Some(extensions),
                 },
                 bytes,
@@ -195,7 +195,7 @@ impl<'a> ZeroCopyAtMut<'a> for CompressedMint {
         } else {
             Ok((
                 ZCompressedMintMut {
-                    meta,
+                    base,
                     extensions: None,
                 },
                 bytes,
@@ -209,7 +209,7 @@ impl<'a> Deref for ZCompressedMint<'a> {
     type Target = ZCompressedMintZeroCopyMeta<'a>;
 
     fn deref(&self) -> &Self::Target {
-        &self.meta
+        &self.base
     }
 }
 
@@ -217,7 +217,7 @@ impl<'a> Deref for ZCompressedMintMut<'a> {
     type Target = ZCompressedMintZeroCopyMetaMut<'a>;
 
     fn deref(&self) -> &Self::Target {
-        &self.meta
+        &self.base
     }
 }
 
@@ -375,13 +375,13 @@ impl ZCompressedMint<'_> {
     /// Checks if account_type matches CMint discriminator value
     #[inline(always)]
     pub fn is_cmint_account(&self) -> bool {
-        self.meta.is_cmint_account()
+        self.base.is_cmint_account()
     }
 
     /// Checks if account is initialized
     #[inline(always)]
     pub fn is_initialized(&self) -> bool {
-        self.meta.is_initialized()
+        self.base.is_initialized()
     }
 }
 
@@ -390,13 +390,13 @@ impl ZCompressedMintMut<'_> {
     /// Checks if account_type matches CMint discriminator value
     #[inline(always)]
     pub fn is_cmint_account(&self) -> bool {
-        self.meta.is_cmint_account()
+        self.base.is_cmint_account()
     }
 
     /// Checks if account is initialized
     #[inline(always)]
     pub fn is_initialized(&self) -> bool {
-        self.meta.is_initialized()
+        self.base.is_initialized()
     }
 
     /// Set all fields of the CompressedMint struct at once
@@ -407,7 +407,7 @@ impl ZCompressedMintMut<'_> {
         ix_data: &<CompressedMintInstructionData as light_zero_copy::traits::ZeroCopyAt<'_>>::ZeroCopyAt,
         cmint_decompressed: bool,
     ) -> Result<(), CTokenError> {
-        if ix_data.metadata.version != 3 {
+        if ix_data.metadata.version != TokenDataVersion::ShaFlat as u8 {
             #[cfg(feature = "solana")]
             msg!(
                 "Only shaflat version 3 is supported got {}",
@@ -416,21 +416,21 @@ impl ZCompressedMintMut<'_> {
             return Err(CTokenError::InvalidTokenMetadataVersion);
         }
         // Set metadata fields from instruction data
-        self.meta.metadata.version = ix_data.metadata.version;
-        self.meta.metadata.mint = ix_data.metadata.mint;
-        self.meta.metadata.cmint_decompressed = if cmint_decompressed { 1 } else { 0 };
+        self.base.metadata.version = ix_data.metadata.version;
+        self.base.metadata.mint = ix_data.metadata.mint;
+        self.base.metadata.cmint_decompressed = if cmint_decompressed { 1 } else { 0 };
 
         // Set base fields
-        self.meta.supply = ix_data.supply;
-        self.meta.decimals = ix_data.decimals;
-        self.meta.is_initialized = 1; // Always initialized for compressed mints
+        self.base.supply = ix_data.supply;
+        self.base.decimals = ix_data.decimals;
+        self.base.is_initialized = 1; // Always initialized for compressed mints
 
         if let Some(mint_authority) = ix_data.mint_authority.as_deref() {
-            self.meta.set_mint_authority(Some(*mint_authority));
+            self.base.set_mint_authority(Some(*mint_authority));
         }
         // Set freeze authority using COption format
         if let Some(freeze_authority) = ix_data.freeze_authority.as_deref() {
-            self.meta.set_freeze_authority(Some(*freeze_authority));
+            self.base.set_freeze_authority(Some(*freeze_authority));
         }
 
         // account_type is already set in new_zero_copy

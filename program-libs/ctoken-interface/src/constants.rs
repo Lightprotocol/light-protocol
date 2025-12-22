@@ -14,8 +14,8 @@ pub use crate::state::BASE_TOKEN_ACCOUNT_SIZE;
 /// Note: The Option discriminator is the has_extensions bool in the base struct
 pub const EXTENSION_METADATA: u64 = 4;
 
-/// Size of CompressedOnly extension (8 bytes for u64 delegated_amount)
-pub const COMPRESSED_ONLY_EXTENSION_SIZE: u64 = 8;
+/// Size of CompressedOnly extension (16 bytes for two u64 fields: delegated_amount and withheld_transfer_fee)
+pub const COMPRESSED_ONLY_EXTENSION_SIZE: u64 = 16;
 
 /// Size of a Token-2022 mint account
 pub const MINT_ACCOUNT_SIZE: u64 = 82;

@@ -529,6 +529,8 @@ pub enum ErrorCode {
     OutLamportsUnimplemented,
     #[msg("Mints with restricted extensions require compressible accounts")]
     CompressibleRequired,
+    #[msg("CMint account not found")]
+    CMintNotFound,
 }
 
 /// Anchor error code offset - error codes start at 6000

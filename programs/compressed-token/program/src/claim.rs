@@ -108,7 +108,7 @@ fn validate_and_claim(
 
     // Access compression info directly from meta (all ctokens now have compression embedded)
     compressed_token
-        .meta
+        .base
         .compression
         .claim_and_update(ClaimAndUpdate {
             compression_authority: accounts.compression_authority.key(),

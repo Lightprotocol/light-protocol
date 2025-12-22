@@ -68,10 +68,10 @@ pub fn process_compress_and_close(
         close_inputs.tlv,
     )?;
 
-    ctoken.meta.amount.set(0);
+    ctoken.base.amount.set(0);
     // Unfreeze the account if frozen (frozen state is preserved in compressed token TLV)
     // This allows the close_token_account validation to pass for frozen accounts
-    ctoken.meta.set_initialized();
+    ctoken.base.set_initialized();
     Ok(())
 }
 
@@ -131,10 +131,10 @@ fn validate_compressed_token_account(
         return Err(ErrorCode::CompressAndCloseAmountMismatch.into());
     }
     // Token balance must match the compressed output amount
-    if ctoken.meta.amount.get() != compressed_token_account.amount.get() {
+    if ctoken.amount.get() != compressed_token_account.amount.get() {
         msg!(
             "output ctoken.amount {} != compressed token account amount {}",
-            ctoken.meta.amount.get(),
+            ctoken.amount.get(),
             compressed_token_account.amount.get()
         );
         return Err(ErrorCode::CompressAndCloseBalanceMismatch.into());
@@ -159,8 +159,8 @@ fn validate_compressed_token_account(
     }
 
     // Version should also match what's specified in the embedded compression info
-    let expected_version = ctoken.meta.compression.account_version;
-    let compression_only = ctoken.meta.compression_only != 0;
+    let expected_version = ctoken.compression.account_version;
+    let compression_only = ctoken.compression_only != 0;
 
     if compressed_token_account.version != expected_version {
         return Err(ErrorCode::CompressAndCloseInvalidVersion.into());
@@ -178,12 +178,10 @@ fn validate_compressed_token_account(
         compression_only_extension
     {
         // Delegated amounts must match
-        if u64::from(compression_only_extension.delegated_amount)
-            != ctoken.meta.delegated_amount.get()
-        {
+        if u64::from(compression_only_extension.delegated_amount) != ctoken.delegated_amount.get() {
             msg!(
                 "delegated_amount mismatch: ctoken {} != extension {}",
-                ctoken.meta.delegated_amount.get(),
+                ctoken.delegated_amount.get(),
                 u64::from(compression_only_extension.delegated_amount)
             );
             return Err(ErrorCode::CompressAndCloseDelegatedAmountMismatch.into());
@@ -241,7 +239,7 @@ fn validate_compressed_token_account(
         // Frozen state must match between CToken and extension data
         // AccountState::Frozen = 2 in CToken
         // ZeroCopy converts bool to u8: 0 = false, non-zero = true
-        let ctoken_is_frozen = ctoken.meta.state == 2;
+        let ctoken_is_frozen = ctoken.state == 2;
         let extension_is_frozen = compression_only_extension.is_frozen != 0;
         if extension_is_frozen != ctoken_is_frozen {
             msg!(
@@ -254,7 +252,7 @@ fn validate_compressed_token_account(
     } else {
         // Frozen accounts require CompressedOnly extension to preserve frozen state
         // AccountState::Frozen = 2 in CToken
-        let ctoken_is_frozen = ctoken.meta.state == 2;
+        let ctoken_is_frozen = ctoken.state == 2;
         if ctoken_is_frozen {
             msg!("Frozen account requires CompressedOnly extension with is_frozen=true");
             return Err(ErrorCode::CompressAndCloseMissingCompressedOnlyExtension.into());

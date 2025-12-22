@@ -151,7 +151,7 @@ impl BorshDeserialize for CToken {
         let compression_only = compression_only_byte[0] != 0;
 
         // Read compression (CompressionInfo)
-        let compression = CompressionInfo::deserialize_reader(buf)?;
+        let compression = CompressionInfo::deserialize_reader(buf).unwrap_or_default();
 
         // Read extensions if account_type indicates token account
         let extensions =

@@ -1,4 +1,4 @@
-use light_zero_copy::ZeroCopyNew;
+use light_zero_copy::{errors::ZeroCopyError, ZeroCopyNew};
 
 use crate::{
     state::{ExtensionStruct, ExtensionStructConfig},
@@ -14,18 +14,21 @@ use crate::{
 /// * `extensions` - Optional slice of extension configs
 ///
 /// # Returns
-/// The total account size in bytes
-pub fn calculate_ctoken_account_size(extensions: Option<&[ExtensionStructConfig]>) -> usize {
+/// * `Ok(usize)` - The total account size in bytes
+/// * `Err(ZeroCopyError)` - If extension size calculation fails
+pub fn calculate_ctoken_account_size(
+    extensions: Option<&[ExtensionStructConfig]>,
+) -> Result<usize, ZeroCopyError> {
     let mut size = BASE_TOKEN_ACCOUNT_SIZE as usize;
 
     if let Some(exts) = extensions {
         if !exts.is_empty() {
             size += 4; // Vec length prefix
             for ext in exts {
-                size += ExtensionStruct::byte_len(ext).unwrap_or(0);
+                size += ExtensionStruct::byte_len(ext)?;
             }
         }
     }
 
-    size
+    Ok(size)
 }

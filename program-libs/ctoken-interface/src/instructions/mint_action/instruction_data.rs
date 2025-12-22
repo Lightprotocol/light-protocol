@@ -118,29 +118,31 @@ impl TryFrom<CompressedMint> for CompressedMintInstructionData {
     type Error = CTokenError;
 
     fn try_from(mint: CompressedMint) -> Result<Self, Self::Error> {
-        let mut extension_list = vec![];
-
-        // Add other extensions
-        if let Some(exts) = mint.extensions {
-            for ext in exts {
-                match ext {
-                    ExtensionStruct::TokenMetadata(token_metadata) => {
-                        extension_list.push(ExtensionInstructionData::TokenMetadata(
-                            crate::instructions::extensions::token_metadata::TokenMetadataInstructionData {
-                                update_authority: if token_metadata.update_authority == [0u8;32] {None}else {Some(token_metadata.update_authority)},
-                                name: token_metadata.name,
-                                symbol: token_metadata.symbol,
-                                uri: token_metadata.uri,
-                                additional_metadata: Some(token_metadata.additional_metadata),
-                            },
-                        ));
-                    }
-                    _ => {
-                        return Err(CTokenError::UnsupportedExtension);
+        let extensions = match mint.extensions {
+            Some(exts) if !exts.is_empty() => {
+                let mut extension_list = Vec::with_capacity(exts.len());
+                for ext in exts {
+                    match ext {
+                        ExtensionStruct::TokenMetadata(token_metadata) => {
+                            extension_list.push(ExtensionInstructionData::TokenMetadata(
+                                crate::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+                                    update_authority: if token_metadata.update_authority == [0u8;32] {None}else {Some(token_metadata.update_authority)},
+                                    name: token_metadata.name,
+                                    symbol: token_metadata.symbol,
+                                    uri: token_metadata.uri,
+                                    additional_metadata: Some(token_metadata.additional_metadata),
+                                },
+                            ));
+                        }
+                        _ => {
+                            return Err(CTokenError::UnsupportedExtension);
+                        }
                     }
                 }
+                Some(extension_list)
             }
-        }
+            _ => None,
+        };
 
         Ok(Self {
             supply: mint.base.supply,
@@ -148,7 +150,7 @@ impl TryFrom<CompressedMint> for CompressedMintInstructionData {
             metadata: mint.metadata,
             mint_authority: mint.base.mint_authority,
             freeze_authority: mint.base.freeze_authority,
-            extensions: Some(extension_list),
+            extensions,
         })
     }
 }

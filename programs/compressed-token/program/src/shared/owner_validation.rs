@@ -48,7 +48,7 @@ pub fn verify_owner_or_delegate_signer<'a>(
     // Check if permanent delegate is signer (search through all accounts)
     if let Some(perm_delegate) = permanent_delegate {
         for account in accounts {
-            if account.key() == perm_delegate && account.is_signer() {
+            if pubkey_eq(account.key(), perm_delegate) && account.is_signer() {
                 return Ok(());
             }
         }
@@ -84,7 +84,6 @@ pub fn check_ctoken_owner(
     compressed_token: &mut ZCTokenMut,
     authority_account: &AccountInfo,
     mint_checks: Option<&MintExtensionChecks>,
-    _compression_amount: u64,
 ) -> Result<(), ProgramError> {
     // Verify authority is signer
     check_signer(authority_account).map_err(|e| {
@@ -93,17 +92,17 @@ pub fn check_ctoken_owner(
     })?;
 
     let authority_key = authority_account.key();
-    let owner_key = compressed_token.owner.to_bytes();
+    let owner_key = compressed_token.owner.array_ref();
 
     // Check if authority is the owner
-    if *authority_key == owner_key {
+    if pubkey_eq(authority_key, owner_key) {
         return Ok(()); // Owner can always compress
     }
 
     // Check if authority is the permanent delegate from the mint
     if let Some(checks) = mint_checks {
         if let Some(permanent_delegate) = &checks.permanent_delegate {
-            if authority_key == permanent_delegate {
+            if pubkey_eq(authority_key, permanent_delegate) {
                 return Ok(()); // Permanent delegate can compress any account of this mint
             }
         }

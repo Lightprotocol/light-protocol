@@ -122,7 +122,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
             packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
 
         // Get compression info from meta
-        let compression = &ctoken_account.meta.compression;
+        let compression = &ctoken_account.compression;
         let current_authority = Pubkey::from(compression.compression_authority);
         let rent_sponsor_pubkey = Pubkey::from(compression.rent_sponsor);
 

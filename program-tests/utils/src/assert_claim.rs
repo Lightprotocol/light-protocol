@@ -40,7 +40,7 @@ pub async fn assert_claim(
             .expect("Failed to deserialize pre-transaction token account");
 
         // Get compression info from meta.compression
-        let compression = &mut pre_compressed_token.meta.compression;
+        let compression = &mut pre_compressed_token.compression;
         let pre_last_claimed_slot = u64::from(compression.last_claimed_slot);
 
         let pre_compression_authority = Pubkey::from(compression.compression_authority);
@@ -75,7 +75,7 @@ pub async fn assert_claim(
             .expect("Failed to deserialize post-transaction token account");
 
         // Get post-transaction compression info from meta.compression
-        let post_compression = &post_compressed_token.meta.compression;
+        let post_compression = &post_compressed_token.compression;
         let post_last_claimed_slot = u64::from(post_compression.last_claimed_slot);
         println!("post_last_claimed_slot {}", post_last_claimed_slot);
         if !not_claimed_was_none {

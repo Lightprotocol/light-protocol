@@ -400,7 +400,7 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
         // Convert zero-copy fields back to regular types
         // Reconstruct CompressionInfo from zero-copy fields
         let compression = {
-            let zc = &zc_mint.meta.compression;
+            let zc = &zc_mint.base.compression;
             CompressionInfo {
                 config_account_version: u16::from(zc.config_account_version),
                 compress_to_pubkey: zc.compress_to_pubkey,
@@ -422,19 +422,19 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
         let reconstructed_mint = CompressedMint {
             compression,
             base: BaseMint {
-                mint_authority: zc_mint.meta.mint_authority().cloned(),
-                supply: u64::from(zc_mint.meta.supply),
-                decimals: zc_mint.meta.decimals,
-                is_initialized: zc_mint.meta.is_initialized != 0,
-                freeze_authority: zc_mint.meta.freeze_authority().cloned(),
+                mint_authority: zc_mint.base.mint_authority().cloned(),
+                supply: u64::from(zc_mint.base.supply),
+                decimals: zc_mint.base.decimals,
+                is_initialized: zc_mint.base.is_initialized != 0,
+                freeze_authority: zc_mint.base.freeze_authority().cloned(),
             },
             metadata: CompressedMintMetadata {
-                version: zc_mint.meta.metadata.version,
-                mint: zc_mint.meta.metadata.mint,
-                cmint_decompressed: zc_mint.meta.metadata.cmint_decompressed != 0,
+                version: zc_mint.base.metadata.version,
+                mint: zc_mint.base.metadata.mint,
+                cmint_decompressed: zc_mint.base.metadata.cmint_decompressed != 0,
             },
-            reserved: *zc_mint.meta.reserved,
-            account_type: zc_mint.meta.account_type,
+            reserved: *zc_mint.base.reserved,
+            account_type: zc_mint.base.account_type,
             extensions: zc_mint.extensions.as_ref().map(|zc_exts| {
                 zc_exts
                     .iter()

@@ -437,7 +437,7 @@ async fn test_compress_and_close_compress_to_pubkey() {
             .expect("Failed to deserialize ctoken account");
 
         // Modify compress_to_pubkey in the compression field (now on meta, not extension)
-        ctoken.meta.compression.compress_to_pubkey = 1;
+        ctoken.compression.compress_to_pubkey = 1;
 
         // Write the modified account back
         context.rpc.set_account(token_account_pubkey, token_account);
@@ -769,7 +769,7 @@ async fn test_compress_and_close_output_validation_errors() {
             .expect("Failed to deserialize ctoken account");
 
         // Set compress_to_pubkey=true in the compression field (now on meta, not extension)
-        ctoken.meta.compression.compress_to_pubkey = 1;
+        ctoken.compression.compress_to_pubkey = 1;
 
         // Write the modified account back
         context.rpc.set_account(token_account_pubkey, token_account);

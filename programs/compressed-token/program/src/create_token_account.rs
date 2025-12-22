@@ -136,7 +136,7 @@ pub fn process_create_token_account(
     }
 
     // Calculate account size based on extensions
-    let account_size = mint_extensions.calculate_account_size();
+    let account_size = mint_extensions.calculate_account_size()?;
 
     let config_account = &accounts.compressible.parsed_config;
     let rent = config_account

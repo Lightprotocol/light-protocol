@@ -69,7 +69,7 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
         }
     }
     // All ctoken accounts are now compressible - CompressionInfo is embedded directly in the struct
-    let compression = &ctoken.meta.compression;
+    let compression = &ctoken.base.compression;
 
     // Validate rent_sponsor matches
     let rent_sponsor = accounts
@@ -113,10 +113,12 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
     // For regular close (!COMPRESS_AND_CLOSE): fall through to owner check
 
     // Check account state - reject frozen and uninitialized (only for regular close)
-    match ctoken.state {
-        state if state == AccountState::Initialized as u8 => {} // OK to proceed
-        state if state == AccountState::Frozen as u8 => return Err(ErrorCode::AccountFrozen.into()),
-        _ => return Err(ProgramError::UninitializedAccount),
+    let account_state =
+        AccountState::try_from(ctoken.state).map_err(|_| ProgramError::UninitializedAccount)?;
+    match account_state {
+        AccountState::Initialized => {} // OK to proceed
+        AccountState::Frozen => return Err(ErrorCode::AccountFrozen.into()),
+        AccountState::Uninitialized => return Err(ProgramError::UninitializedAccount),
     }
 
     // For regular close: check close_authority first, then fall back to owner
@@ -164,7 +166,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
     let (ctoken, _) = CToken::zero_copy_at_checked(&token_account_data)?;
 
     // All ctoken accounts are now compressible - CompressionInfo is embedded directly in the struct
-    let compression = &ctoken.meta.compression;
+    let compression = &ctoken.base.compression;
 
     // Calculate distribution based on rent and write_top_up
     #[cfg(target_os = "solana")]

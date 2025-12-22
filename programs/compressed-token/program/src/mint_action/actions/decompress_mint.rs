@@ -5,9 +5,11 @@ use light_ctoken_interface::{
     instructions::mint_action::ZDecompressMintAction, state::CompressedMint, COMPRESSED_MINT_SEED,
 };
 use light_program_profiler::profile;
-#[cfg(target_os = "solana")]
-use pinocchio::sysvars::{clock::Clock, Sysvar};
-use pinocchio::{account_info::AccountInfo, instruction::Seed};
+use pinocchio::{
+    account_info::AccountInfo,
+    instruction::Seed,
+    sysvars::{clock::Clock, Sysvar},
+};
 use pinocchio_system::instructions::Transfer;
 use spl_pod::solana_msg::msg;
 
@@ -101,12 +103,9 @@ pub fn process_decompress_mint_action(
     }
 
     // 7. Get current slot for last_claimed_slot
-    #[cfg(target_os = "solana")]
     let current_slot = Clock::get()
         .map_err(|_| ProgramError::UnsupportedSysvar)?
         .slot;
-    #[cfg(not(target_os = "solana"))]
-    let current_slot = 1u64;
 
     // 8. Set compression info directly on compressed_mint (all cmints now have embedded compression)
     compressed_mint.compression = CompressionInfo {

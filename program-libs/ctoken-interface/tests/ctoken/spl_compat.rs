@@ -392,7 +392,7 @@ fn test_account_type_compatibility_with_spl_parsing() {
         let (mut compressed_token, _) = CToken::new_zero_copy(&mut buffer, config)
             .expect("Failed to create token with extension");
         // Set state to Initialized (1) for SPL compatibility - required for SPL parsing
-        compressed_token.meta.state = 1;
+        compressed_token.base.state = 1;
     }
 
     let pod_account = pod_from_bytes::<PodAccount>(&buffer[..165])

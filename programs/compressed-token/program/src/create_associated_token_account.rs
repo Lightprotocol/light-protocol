@@ -95,7 +95,7 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     let mint_extensions = has_mint_extensions(mint)?;
 
     // Calculate account size based on extensions
-    let account_size = mint_extensions.calculate_account_size();
+    let account_size = mint_extensions.calculate_account_size()?;
 
     let rent = config_account
         .rent_config

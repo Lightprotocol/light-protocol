@@ -191,7 +191,7 @@ async fn test_close_token_account_fails() {
         use light_ctoken_interface::state::ctoken::CToken;
         use light_zero_copy::traits::ZeroCopyAtMut;
         let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut account.data).unwrap();
-        ctoken.meta.amount.set(1u64);
+        ctoken.amount.set(1u64);
         drop(ctoken);
 
         // Set the modified account back
@@ -245,7 +245,7 @@ async fn test_close_token_account_fails() {
         use light_zero_copy::traits::ZeroCopyAtMut;
         use spl_token_2022::state::AccountState;
         let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut account.data).unwrap();
-        ctoken.meta.state = AccountState::Uninitialized as u8;
+        ctoken.state = AccountState::Uninitialized as u8;
         drop(ctoken);
 
         // Set the modified account back
@@ -298,7 +298,7 @@ async fn test_close_token_account_fails() {
         use light_zero_copy::traits::ZeroCopyAtMut;
         use spl_token_2022::state::AccountState;
         let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut account.data).unwrap();
-        ctoken.meta.state = AccountState::Frozen as u8;
+        ctoken.state = AccountState::Frozen as u8;
         drop(ctoken);
 
         // Set the modified account back

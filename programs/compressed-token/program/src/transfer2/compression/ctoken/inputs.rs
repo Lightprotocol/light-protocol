@@ -86,6 +86,10 @@ impl<'a> CTokenCompressionInputs<'a> {
 
         // For Decompress mode, find matching input by mint index and extract TLV and delegate
         let (input_tlv, input_delegate) = if compression.mode == ZCompressionMode::Decompress {
+            // TODO: double check this what is the purpose?
+            // This seems very inefficient and possibly wrong
+            // We need to check uniqueness as for compress and close.
+            // We need to pass the index of the input account in instruction data.
             // Find the input compressed account that matches this decompress by mint index
             let matching_input_index = inputs
                 .in_token_data
@@ -103,9 +107,11 @@ impl<'a> CTokenCompressionInputs<'a> {
             let input_delegate = matching_input_index.and_then(|idx| {
                 let input = inputs.in_token_data.get(idx)?;
                 if input.has_delegate() {
-                    packed_accounts
-                        .get_u8(input.delegate, "input delegate")
-                        .ok()
+                    Some(
+                        packed_accounts
+                            .get_u8(input.delegate, "input delegate")
+                            .ok()?,
+                    )
                 } else {
                     None
                 }

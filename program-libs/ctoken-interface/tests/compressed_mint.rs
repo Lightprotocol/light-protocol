@@ -127,56 +127,56 @@ fn test_compressed_mint_borsh_zerocopy_compatibility() {
 
         // Set the zero-copy fields to match original
         zc_mint
-            .meta
+            .base
             .set_mint_authority(original_mint.base.mint_authority);
-        zc_mint.meta.supply = original_mint.base.supply.into();
-        zc_mint.meta.decimals = original_mint.base.decimals;
-        zc_mint.meta.is_initialized = if original_mint.base.is_initialized {
+        zc_mint.base.supply = original_mint.base.supply.into();
+        zc_mint.base.decimals = original_mint.base.decimals;
+        zc_mint.base.is_initialized = if original_mint.base.is_initialized {
             1
         } else {
             0
         };
         zc_mint
-            .meta
+            .base
             .set_freeze_authority(original_mint.base.freeze_authority);
-        zc_mint.meta.metadata.version = original_mint.metadata.version;
-        zc_mint.meta.metadata.mint = original_mint.metadata.mint;
-        zc_mint.meta.metadata.cmint_decompressed = if original_mint.metadata.cmint_decompressed {
+        zc_mint.base.metadata.version = original_mint.metadata.version;
+        zc_mint.base.metadata.mint = original_mint.metadata.mint;
+        zc_mint.base.metadata.cmint_decompressed = if original_mint.metadata.cmint_decompressed {
             1
         } else {
             0
         };
         // account_type is already set in new_zero_copy
         // Set compression fields
-        zc_mint.meta.compression.config_account_version =
+        zc_mint.base.compression.config_account_version =
             original_mint.compression.config_account_version.into();
-        zc_mint.meta.compression.compress_to_pubkey = original_mint.compression.compress_to_pubkey;
-        zc_mint.meta.compression.account_version = original_mint.compression.account_version;
-        zc_mint.meta.compression.lamports_per_write =
+        zc_mint.base.compression.compress_to_pubkey = original_mint.compression.compress_to_pubkey;
+        zc_mint.base.compression.account_version = original_mint.compression.account_version;
+        zc_mint.base.compression.lamports_per_write =
             original_mint.compression.lamports_per_write.into();
-        zc_mint.meta.compression.compression_authority =
+        zc_mint.base.compression.compression_authority =
             original_mint.compression.compression_authority;
-        zc_mint.meta.compression.rent_sponsor = original_mint.compression.rent_sponsor;
-        zc_mint.meta.compression.last_claimed_slot =
+        zc_mint.base.compression.rent_sponsor = original_mint.compression.rent_sponsor;
+        zc_mint.base.compression.last_claimed_slot =
             original_mint.compression.last_claimed_slot.into();
-        zc_mint.meta.compression.rent_config.base_rent =
+        zc_mint.base.compression.rent_config.base_rent =
             original_mint.compression.rent_config.base_rent.into();
-        zc_mint.meta.compression.rent_config.compression_cost = original_mint
+        zc_mint.base.compression.rent_config.compression_cost = original_mint
             .compression
             .rent_config
             .compression_cost
             .into();
         zc_mint
-            .meta
+            .base
             .compression
             .rent_config
             .lamports_per_byte_per_epoch = original_mint
             .compression
             .rent_config
             .lamports_per_byte_per_epoch;
-        zc_mint.meta.compression.rent_config.max_funded_epochs =
+        zc_mint.base.compression.rent_config.max_funded_epochs =
             original_mint.compression.rent_config.max_funded_epochs;
-        zc_mint.meta.compression.rent_config.max_top_up =
+        zc_mint.base.compression.rent_config.max_top_up =
             original_mint.compression.rent_config.max_top_up.into();
 
         // Now deserialize the zero-copy bytes with borsh
@@ -201,40 +201,40 @@ fn test_compressed_mint_borsh_zerocopy_compatibility() {
         // Verify fields match
         assert_eq!(
             original_mint.base.mint_authority,
-            zc_read.meta.mint_authority().copied(),
+            zc_read.base.mint_authority().copied(),
             "Mint authority mismatch at iteration {}",
             i
         );
         assert_eq!(
             original_mint.base.supply,
-            u64::from(zc_read.meta.supply),
+            u64::from(zc_read.base.supply),
             "Supply mismatch at iteration {}",
             i
         );
         assert_eq!(
-            original_mint.base.decimals, zc_read.meta.decimals,
+            original_mint.base.decimals, zc_read.base.decimals,
             "Decimals mismatch at iteration {}",
             i
         );
         assert_eq!(
             original_mint.base.freeze_authority,
-            zc_read.meta.freeze_authority().copied(),
+            zc_read.base.freeze_authority().copied(),
             "Freeze authority mismatch at iteration {}",
             i
         );
         assert_eq!(
-            original_mint.metadata.version, zc_read.meta.metadata.version,
+            original_mint.metadata.version, zc_read.base.metadata.version,
             "Version mismatch at iteration {}",
             i
         );
         assert_eq!(
-            original_mint.metadata.mint, zc_read.meta.metadata.mint,
+            original_mint.metadata.mint, zc_read.base.metadata.mint,
             "SPL mint mismatch at iteration {}",
             i
         );
         assert_eq!(
             original_mint.metadata.cmint_decompressed,
-            zc_read.meta.metadata.cmint_decompressed != 0,
+            zc_read.base.metadata.cmint_decompressed != 0,
             "Is decompressed mismatch at iteration {}",
             i
         );
@@ -279,43 +279,43 @@ fn test_compressed_mint_edge_cases() {
     let (mut zc_mint, _) = CompressedMint::new_zero_copy(&mut zc_bytes, config).unwrap();
 
     zc_mint
-        .meta
+        .base
         .set_mint_authority(mint_no_auth.base.mint_authority);
-    zc_mint.meta.supply = mint_no_auth.base.supply.into();
-    zc_mint.meta.decimals = mint_no_auth.base.decimals;
-    zc_mint.meta.is_initialized = 1;
+    zc_mint.base.supply = mint_no_auth.base.supply.into();
+    zc_mint.base.decimals = mint_no_auth.base.decimals;
+    zc_mint.base.is_initialized = 1;
     zc_mint
-        .meta
+        .base
         .set_freeze_authority(mint_no_auth.base.freeze_authority);
-    zc_mint.meta.metadata.version = mint_no_auth.metadata.version;
-    zc_mint.meta.metadata.mint = mint_no_auth.metadata.mint;
-    zc_mint.meta.metadata.cmint_decompressed = 0;
+    zc_mint.base.metadata.version = mint_no_auth.metadata.version;
+    zc_mint.base.metadata.mint = mint_no_auth.metadata.mint;
+    zc_mint.base.metadata.cmint_decompressed = 0;
     // account_type is already set in new_zero_copy
     // Set compression fields
-    zc_mint.meta.compression.config_account_version =
+    zc_mint.base.compression.config_account_version =
         mint_no_auth.compression.config_account_version.into();
-    zc_mint.meta.compression.compress_to_pubkey = mint_no_auth.compression.compress_to_pubkey;
-    zc_mint.meta.compression.account_version = mint_no_auth.compression.account_version;
-    zc_mint.meta.compression.lamports_per_write =
+    zc_mint.base.compression.compress_to_pubkey = mint_no_auth.compression.compress_to_pubkey;
+    zc_mint.base.compression.account_version = mint_no_auth.compression.account_version;
+    zc_mint.base.compression.lamports_per_write =
         mint_no_auth.compression.lamports_per_write.into();
-    zc_mint.meta.compression.compression_authority = mint_no_auth.compression.compression_authority;
-    zc_mint.meta.compression.rent_sponsor = mint_no_auth.compression.rent_sponsor;
-    zc_mint.meta.compression.last_claimed_slot = mint_no_auth.compression.last_claimed_slot.into();
-    zc_mint.meta.compression.rent_config.base_rent =
+    zc_mint.base.compression.compression_authority = mint_no_auth.compression.compression_authority;
+    zc_mint.base.compression.rent_sponsor = mint_no_auth.compression.rent_sponsor;
+    zc_mint.base.compression.last_claimed_slot = mint_no_auth.compression.last_claimed_slot.into();
+    zc_mint.base.compression.rent_config.base_rent =
         mint_no_auth.compression.rent_config.base_rent.into();
-    zc_mint.meta.compression.rent_config.compression_cost =
+    zc_mint.base.compression.rent_config.compression_cost =
         mint_no_auth.compression.rent_config.compression_cost.into();
     zc_mint
-        .meta
+        .base
         .compression
         .rent_config
         .lamports_per_byte_per_epoch = mint_no_auth
         .compression
         .rent_config
         .lamports_per_byte_per_epoch;
-    zc_mint.meta.compression.rent_config.max_funded_epochs =
+    zc_mint.base.compression.rent_config.max_funded_epochs =
         mint_no_auth.compression.rent_config.max_funded_epochs;
-    zc_mint.meta.compression.rent_config.max_top_up =
+    zc_mint.base.compression.rent_config.max_top_up =
         mint_no_auth.compression.rent_config.max_top_up.into();
 
     let zc_as_borsh = CompressedMint::deserialize(&mut zc_bytes.as_slice()).unwrap();
