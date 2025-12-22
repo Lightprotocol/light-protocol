@@ -46,11 +46,7 @@ pub fn check_mint_extensions(
 ) -> Result<MintExtensionChecks, ProgramError> {
     // Only Token-2022 mints can have extensions
     if !mint_account.is_owned_by(&SPL_TOKEN_2022_ID) {
-        return Ok(MintExtensionChecks {
-            permanent_delegate: None,
-            has_transfer_fee: false,
-            has_restricted_extensions: false,
-        });
+        return Ok(MintExtensionChecks::default());
     }
 
     let mint_data = AccountInfoTrait::try_borrow_data(mint_account)?;
