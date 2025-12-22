@@ -8,6 +8,7 @@ use light_ctoken_interface::{
     CTokenError,
 };
 use light_program_profiler::profile;
+use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::{
     account_info::AccountInfo,
     pubkey::pubkey_eq,
@@ -46,9 +47,17 @@ pub fn compress_or_decompress_ctokens(
         .try_borrow_mut_data()
         .map_err(|_| ProgramError::AccountBorrowFailed)?;
 
-    let (mut ctoken, _) = CToken::zero_copy_at_mut_checked(&mut token_account_data)?;
+    let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut token_account_data)?;
 
+    // Account type check: must be CToken account (byte 165 == 2)
+    // SPL token accounts are exactly 165 bytes and don't have this field.
+    // CToken accounts are longer and have account_type at byte 165.
+    if !ctoken.is_ctoken_account() {
+        msg!("Invalid account type");
+        return Err(CTokenError::InvalidAccountType.into());
+    }
     // Reject uninitialized accounts (state == 0)
+    // Frozen accounts (state == 2) are allowed for CompressAndClose (checked below)
     if ctoken.base.state == 0 {
         msg!("Account is uninitialized");
         return Err(CTokenError::InvalidAccountState.into());

@@ -343,7 +343,7 @@ async fn test_ctoken_transfer_frozen_source() {
     let owner_keypair = context.owner_keypair.insecure_clone();
 
     // Try to transfer from frozen account
-    // Expected error: AccountFrozen (error code 17)
+    // Expected error: CTokenError::InvalidAccountState (frozen accounts rejected by zero_copy_at_mut_checked)
     transfer_and_assert_fails(
         &mut context,
         source,
@@ -351,7 +351,7 @@ async fn test_ctoken_transfer_frozen_source() {
         500,
         &owner_keypair,
         "frozen_source_transfer",
-        17, // AccountFrozen
+        18036, // CTokenError::InvalidAccountState
     )
     .await;
 }
@@ -371,7 +371,7 @@ async fn test_ctoken_transfer_frozen_destination() {
     let owner_keypair = context.owner_keypair.insecure_clone();
 
     // Try to transfer to frozen account
-    // Expected error: AccountFrozen (error code 17)
+    // Expected error: CTokenError::InvalidAccountState (frozen accounts rejected by zero_copy_at_mut_checked)
     transfer_and_assert_fails(
         &mut context,
         source,
@@ -379,7 +379,7 @@ async fn test_ctoken_transfer_frozen_destination() {
         500,
         &owner_keypair,
         "frozen_destination_transfer",
-        17, // AccountFrozen
+        18036, // CTokenError::InvalidAccountState
     )
     .await;
 }

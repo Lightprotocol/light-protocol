@@ -2,7 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_ctoken_interface::{
     state::{CToken, ZExtensionStructMut},
-    CTokenError,
+    CTokenError, MintExtensionFlags,
 };
 use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
@@ -15,13 +15,13 @@ use crate::{
     },
 };
 
-/// Extension information detected from a single account deserialization
+/// Extension information detected from a single account deserialization.
+/// Uses `MintExtensionFlags` for T22 extension flags to avoid duplication.
 #[derive(Debug, Default)]
 struct AccountExtensionInfo {
-    has_pausable: bool,
-    has_permanent_delegate: bool,
-    has_transfer_fee: bool,
-    has_transfer_hook: bool,
+    /// T22 extension flags (pausable, permanent_delegate, transfer_fee, transfer_hook)
+    flags: MintExtensionFlags,
+    /// Top-up amount calculated from compression info
     top_up_amount: u64,
     /// Cached decimals from compressible extension (if has_decimals was set)
     decimals: Option<u8>,
@@ -29,16 +29,12 @@ struct AccountExtensionInfo {
 
 impl AccountExtensionInfo {
     #[inline(always)]
-    fn t22_extensions_eq(&self, other: &Self) -> bool {
-        self.has_pausable == other.has_pausable
-            && self.has_permanent_delegate == other.has_permanent_delegate
-            && self.has_transfer_fee == other.has_transfer_fee
-            && self.has_transfer_hook == other.has_transfer_hook
-    }
-
-    #[inline(always)]
     fn check_t22_extensions(&self, other: &Self) -> Result<(), ProgramError> {
-        if !self.t22_extensions_eq(other) {
+        if self.flags.has_pausable != other.flags.has_pausable
+            || self.flags.has_permanent_delegate != other.flags.has_permanent_delegate
+            || self.flags.has_transfer_fee != other.flags.has_transfer_fee
+            || self.flags.has_transfer_hook != other.flags.has_transfer_hook
+        {
             Err(ProgramError::InvalidInstructionData)
         } else {
             Ok(())
@@ -137,11 +133,7 @@ fn validate_sender(
     )?;
 
     // Get mint checks if any account has extensions (single mint deserialization)
-    let mint_checks = if sender_info.has_pausable
-        || sender_info.has_permanent_delegate
-        || sender_info.has_transfer_fee
-        || sender_info.has_transfer_hook
-    {
+    let mint_checks = if sender_info.flags.has_restricted_extensions() {
         let mint_account = transfer_accounts
             .mint
             .ok_or(ErrorCode::MintRequiredForTransfer)?;
@@ -245,18 +237,18 @@ fn process_account_extensions(
         for extension in extensions {
             match extension {
                 ZExtensionStructMut::PausableAccount(_) => {
-                    info.has_pausable = true;
+                    info.flags.has_pausable = true;
                 }
                 ZExtensionStructMut::PermanentDelegateAccount(_) => {
-                    info.has_permanent_delegate = true;
+                    info.flags.has_permanent_delegate = true;
                 }
                 ZExtensionStructMut::TransferFeeAccount(_transfer_fee_ext) => {
-                    info.has_transfer_fee = true;
+                    info.flags.has_transfer_fee = true;
                     // Note: Non-zero transfer fees are rejected by check_mint_extensions,
                     // so no fee withholding is needed here.
                 }
                 ZExtensionStructMut::TransferHookAccount(_) => {
-                    info.has_transfer_hook = true;
+                    info.flags.has_transfer_hook = true;
                     // No runtime logic needed - we only support nil program_id
                 }
                 // Placeholder and TokenMetadata variants are not valid for CToken accounts

@@ -86,7 +86,6 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
         }
         let rent_exemption = rent.as_ref().unwrap().minimum_balance(ctoken.data_len());
         transfers[1].amount = token
-
             .compression
             .calculate_top_up_lamports(
                 ctoken.data_len() as u64,

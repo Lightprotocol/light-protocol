@@ -1,6 +1,7 @@
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
+use light_ctoken_interface::ALLOWED_EXTENSION_TYPES;
 use spl_token_2022::{
     extension::{
         transfer_fee::TransferFeeConfig, transfer_hook::TransferHook, BaseStateWithExtensions,
@@ -101,38 +102,6 @@ pub fn find_token_pool_pda_with_index(mint: &Pubkey, token_pool_index: u8) -> (P
 pub fn get_token_pool_pda_with_index(mint: &Pubkey, token_pool_index: u8) -> Pubkey {
     find_token_pool_pda_with_index(mint, token_pool_index).0
 }
-
-/// Allowed mint extension types for CToken accounts.
-/// Extensions not in this list will cause account creation to fail.
-///
-/// Runtime constraints enforced by check_mint_extensions():
-/// - TransferFeeConfig: fees must be zero
-/// - DefaultAccountState: any state allowed (Initialized or Frozen)
-/// - TransferHook: program_id must be nil (no hook execution)
-/// - ConfidentialTransferMint: initialized but not enabled
-/// - ConfidentialMintBurn: initialized but not enabled
-/// - ConfidentialTransferFeeConfig: fees must be zero
-pub const ALLOWED_EXTENSION_TYPES: [ExtensionType; 16] = [
-    // Metadata extensions
-    ExtensionType::MetadataPointer,
-    ExtensionType::TokenMetadata,
-    // Group extensions
-    ExtensionType::InterestBearingConfig,
-    ExtensionType::GroupPointer,
-    ExtensionType::GroupMemberPointer,
-    ExtensionType::TokenGroup,
-    ExtensionType::TokenGroupMember,
-    // Token 2022 extensions with runtime constraints
-    ExtensionType::MintCloseAuthority,
-    ExtensionType::TransferFeeConfig,
-    ExtensionType::DefaultAccountState,
-    ExtensionType::PermanentDelegate,
-    ExtensionType::TransferHook,
-    ExtensionType::Pausable,
-    ExtensionType::ConfidentialTransferMint,
-    ExtensionType::ConfidentialTransferFeeConfig,
-    ExtensionType::ConfidentialMintBurn,
-];
 
 pub fn assert_mint_extensions(account_data: &[u8]) -> Result<()> {
     let mint = PodStateWithExtensions::<PodMint>::unpack(account_data)
