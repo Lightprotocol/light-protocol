@@ -194,6 +194,22 @@ export async function getAllStateTreeInfos({
             if (!tree || !queue || !cpiContext) {
                 throw new Error('Invalid state tree pubkeys structure');
             }
+            // Detect tree type based on tree address prefix
+            // - bmt = batch merkle tree (StateV2)
+            // - amt = address merkle tree (AddressV2 if starts with amt2, AddressV1 if amt1)
+            // - smt = sparse merkle tree (StateV1)
+            const treeStr = tree.toBase58();
+            let treeType: TreeType;
+            if (treeStr.startsWith('bmt')) {
+                treeType = TreeType.StateV2;
+            } else if (treeStr.startsWith('amt2')) {
+                treeType = TreeType.AddressV2;
+            } else if (treeStr.startsWith('amt')) {
+                treeType = TreeType.AddressV1;
+            } else {
+                treeType = TreeType.StateV1;
+            }
+
             if (
                 nullifyLookupTablePubkeys
                     .map(addr => addr.toBase58())
@@ -204,7 +220,7 @@ export async function getAllStateTreeInfos({
                     tree: PublicKey.default,
                     queue: PublicKey.default,
                     cpiContext: PublicKey.default,
-                    treeType: TreeType.StateV1,
+                    treeType,
                     nextTreeInfo: null,
                 };
             }
@@ -212,7 +228,7 @@ export async function getAllStateTreeInfos({
                 tree,
                 queue,
                 cpiContext,
-                treeType: TreeType.StateV1,
+                treeType,
                 nextTreeInfo,
             });
         }
