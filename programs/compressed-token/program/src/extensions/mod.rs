@@ -3,10 +3,7 @@ pub mod processor;
 pub mod token_metadata;
 
 // Re-export extension checking functions
-pub use check_mint_extensions::{
-    check_mint_extensions, has_mint_extensions, is_restricted_extension, MintExtensionChecks,
-    MintExtensionFlags, RESTRICTED_EXTENSION_TYPES,
-};
+pub use check_mint_extensions::{check_mint_extensions, has_mint_extensions, MintExtensionChecks};
 // Import from ctoken-types instead of local modules
 use light_ctoken_interface::{
     instructions::mint_action::ZAction,
@@ -15,6 +12,11 @@ use light_ctoken_interface::{
         TokenMetadata, TokenMetadataConfig,
     },
     CTokenError,
+};
+// Re-export from ctoken-interface (consolidated types)
+pub use light_ctoken_interface::{
+    is_restricted_extension, MintExtensionFlags, ALLOWED_EXTENSION_TYPES,
+    RESTRICTED_EXTENSION_TYPES,
 };
 use light_program_profiler::profile;
 use light_zero_copy::ZeroCopyNew;

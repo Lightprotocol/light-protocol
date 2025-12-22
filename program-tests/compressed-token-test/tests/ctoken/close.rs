@@ -269,7 +269,7 @@ async fn test_close_token_account_fails() {
         .await;
     }
 
-    // Test 11: Frozen account → Error 6076 (AccountFrozen)
+    // Test 11: Frozen account → Error 18036 (CTokenError::InvalidAccountState)
     {
         // Create a fresh account for this test
         context.token_account_keypair = Keypair::new();
@@ -317,7 +317,7 @@ async fn test_close_token_account_fails() {
             &owner_keypair,
             rent_sponsor,
             "frozen_account",
-            6076, // anchor_compressed_token::ErrorCode::AccountFrozen
+            18036, // CTokenError::InvalidAccountState (frozen accounts rejected by zero_copy_at_mut_checked)
         )
         .await;
     }
