@@ -15,6 +15,8 @@ This documentation is organized to provide clear navigation through the compress
   - `CLOSE_TOKEN_ACCOUNT.md` - Close decompressed token accounts
   - `DECOMPRESSED_TRANSFER.md` - Transfer between decompressed accounts
   - `WITHDRAW_FUNDING_POOL.md` - Withdraw funds from rent recipient pool
+  - `CREATE_TOKEN_POOL.md` - Create initial token pool for SPL/T22 mint compression
+  - `ADD_TOKEN_POOL.md` - Add additional token pools (up to 5 per mint)
 
 ## Navigation Tips
 - Start with `../../CLAUDE.md` for the instruction index and overview
@@ -40,3 +42,5 @@ every instruction description must include the sections:
 5. **Close Token Account** - Close decompressed token accounts with rent distribution
 6. **Decompressed Transfer** - SPL-compatible transfers between decompressed accounts
 7. **Withdraw Funding Pool** - Withdraw funds from rent recipient pool
+8. **Create Token Pool** - Create initial token pool PDA for SPL/T22 mint compression
+9. **Add Token Pool** - Add additional token pools for a mint (up to 5 per mint)
