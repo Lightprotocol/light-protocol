@@ -10,6 +10,7 @@ import {
     nullifierQueue2Pubkey,
     nullifierQueuePubkey,
     localTestActiveStateTreeInfos,
+    featureFlags,
 } from '../../../src';
 
 describe('selectStateTreeInfo', () => {
@@ -131,20 +132,7 @@ describe('selectStateTreeInfo', () => {
     it('should correctly set tree types for BMT (V2) trees', () => {
         const allTrees = localTestActiveStateTreeInfos();
 
-        // Check BMT trees have StateV2 type
-        const bmtTrees = allTrees.filter((t: TreeInfo) =>
-            t.tree.toBase58().startsWith('bmt'),
-        );
-        expect(bmtTrees.length).toBeGreaterThan(0);
-
-        for (const tree of bmtTrees) {
-            expect(tree.treeType).toBe(TreeType.StateV2);
-            expect(tree.treeType).not.toBe(TreeType.StateV1);
-            // Verify the numeric value is 3 (StateV2)
-            expect(tree.treeType).toBe(3);
-        }
-
-        // Check SMT trees have StateV1 type
+        // Check SMT trees have StateV1 type (always present)
         const smtTrees = allTrees.filter((t: TreeInfo) =>
             t.tree.toBase58().startsWith('smt'),
         );
@@ -156,16 +144,43 @@ describe('selectStateTreeInfo', () => {
             expect(tree.treeType).toBe(1);
         }
 
-        // Check V2 address tree has AddressV2 type
-        const amt2Trees = allTrees.filter((t: TreeInfo) =>
-            t.tree.toBase58().startsWith('amt2'),
-        );
-        expect(amt2Trees.length).toBe(1);
+        // V2 trees (BMT state trees and AddressV2) are only present when featureFlags.isV2()
+        if (featureFlags.isV2()) {
+            // Check BMT trees have StateV2 type
+            const bmtTrees = allTrees.filter((t: TreeInfo) =>
+                t.tree.toBase58().startsWith('bmt'),
+            );
+            expect(bmtTrees.length).toBeGreaterThan(0);
 
-        for (const tree of amt2Trees) {
-            expect(tree.treeType).toBe(TreeType.AddressV2);
-            // Verify the numeric value is 4 (AddressV2)
-            expect(tree.treeType).toBe(4);
+            for (const tree of bmtTrees) {
+                expect(tree.treeType).toBe(TreeType.StateV2);
+                expect(tree.treeType).not.toBe(TreeType.StateV1);
+                // Verify the numeric value is 3 (StateV2)
+                expect(tree.treeType).toBe(3);
+            }
+
+            // Check V2 address tree has AddressV2 type
+            const amt2Trees = allTrees.filter((t: TreeInfo) =>
+                t.tree.toBase58().startsWith('amt2'),
+            );
+            expect(amt2Trees.length).toBe(1);
+
+            for (const tree of amt2Trees) {
+                expect(tree.treeType).toBe(TreeType.AddressV2);
+                // Verify the numeric value is 4 (AddressV2)
+                expect(tree.treeType).toBe(4);
+            }
+        } else {
+            // In V1 mode, BMT and AddressV2 trees should NOT be present
+            const bmtTrees = allTrees.filter((t: TreeInfo) =>
+                t.tree.toBase58().startsWith('bmt'),
+            );
+            expect(bmtTrees.length).toBe(0);
+
+            const amt2Trees = allTrees.filter((t: TreeInfo) =>
+                t.tree.toBase58().startsWith('amt2'),
+            );
+            expect(amt2Trees.length).toBe(0);
         }
     });
 });
