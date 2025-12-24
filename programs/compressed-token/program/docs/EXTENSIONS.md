@@ -292,17 +292,7 @@ MintExtensionChecks {
 
 ### 2. How to enforce restricted extensions in anchor instructions?
 
-**Possible solutions:**
-
-**Option A: Add explicit checks to each anchor instruction**
-- `mint_to`: Check `ctx.accounts.mint` with `assert_mint_extensions()`
-- `batch_compress`: Derive mint from token account, check extensions
-- `transfer`/`compress_spl_token_account`: Add `mint: Option<AccountInfo>` to `TransferInstruction`
-
-**Option B: Deprecate anchor instructions**
-- Redirect users to Transfer2 which properly enforces restrictions
-
-**Option C: Different pool PDA derivation for restricted mints**
+**Different pool PDA derivation for restricted mints**
 - Current: `seeds = [b"pool", mint_pubkey]` for all mints
 - Proposed: `seeds = [b"pool", mint_pubkey, b"restricted"]` for restricted mints
 - `CreateTokenPool` detects restricted extensions → creates pool at different PDA

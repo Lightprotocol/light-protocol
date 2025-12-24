@@ -1,26 +1,9 @@
 use light_client::rpc::{Rpc, RpcError};
-use light_ctoken_interface::{state::TokenDataVersion, RESTRICTED_EXTENSION_TYPES};
+use light_ctoken_interface::{has_restricted_extensions, state::TokenDataVersion};
 use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
-use spl_token_2022::{
-    extension::{BaseStateWithExtensions, StateWithExtensions},
-    state::Mint,
-};
-
-/// Check if a mint has any restricted extensions that require compression_only mode.
-fn mint_has_restricted_extensions(mint_data: &[u8]) -> bool {
-    let Ok(mint_state) = StateWithExtensions::<Mint>::unpack(mint_data) else {
-        return false;
-    };
-    let Ok(extension_types) = mint_state.get_extension_types() else {
-        return false;
-    };
-    extension_types
-        .iter()
-        .any(|ext| RESTRICTED_EXTENSION_TYPES.contains(ext))
-}
 
 pub struct CreateCompressibleTokenAccountInputs<'a> {
     pub owner: Pubkey,
@@ -73,7 +56,7 @@ pub async fn create_compressible_token_account<R: Rpc>(
 
     // Check if mint has restricted extensions that require compression_only mode
     let compression_only = match rpc.get_account(mint).await {
-        Ok(Some(mint_account)) => mint_has_restricted_extensions(&mint_account.data),
+        Ok(Some(mint_account)) => has_restricted_extensions(&mint_account.data),
         _ => false,
     };
 

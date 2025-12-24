@@ -192,8 +192,9 @@ async fn test_mint_and_compress_with_extensions() {
 
     // 4. Transfer SPL to CToken using hot path (compress + decompress in same tx)
     let transfer_amount = 500_000_000u64; // Transfer half
+                                          // Use restricted=true because this mint has restricted extensions (PermanentDelegate, etc.)
     let (spl_interface_pda, spl_interface_pda_bump) =
-        find_spl_interface_pda_with_index(&mint_pubkey, 0);
+        find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
     let transfer_ix = TransferSplToCtoken {
         amount: transfer_amount,
         spl_interface_pda_bump,
@@ -437,7 +438,7 @@ async fn test_transfer_with_permanent_delegate() {
 
     // Step 3: Transfer SPL to CToken account A using hot path (compress + decompress in same tx)
     let (spl_interface_pda, spl_interface_pda_bump) =
-        find_spl_interface_pda_with_index(&mint_pubkey, 0);
+        find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
     let transfer_spl_to_ctoken_ix = TransferSplToCtoken {
         amount: mint_amount,
@@ -759,7 +760,7 @@ async fn test_transfer_with_owner_authority() {
 
     // Step 3: Transfer SPL to CToken account A using hot path (compress + decompress in same tx)
     let (spl_interface_pda, spl_interface_pda_bump) =
-        find_spl_interface_pda_with_index(&mint_pubkey, 0);
+        find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
     let transfer_spl_to_ctoken_ix = TransferSplToCtoken {
         amount: mint_amount,
@@ -1027,7 +1028,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
 
     // 3. Transfer tokens to CToken using hot path (required for mints with restricted extensions)
     let (spl_interface_pda, spl_interface_pda_bump) =
-        find_spl_interface_pda_with_index(&mint_pubkey, 0);
+        find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
     let transfer_ix = TransferSplToCtoken {
         amount: mint_amount,
         spl_interface_pda_bump,
@@ -1375,7 +1376,7 @@ async fn run_compress_and_close_extension_test(
 
     // 3. Transfer tokens to CToken using hot path
     let (spl_interface_pda, spl_interface_pda_bump) =
-        find_spl_interface_pda_with_index(&mint_pubkey, 0);
+        find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
     let transfer_ix = TransferSplToCtoken {
         amount: mint_amount,
         spl_interface_pda_bump,

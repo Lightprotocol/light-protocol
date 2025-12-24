@@ -150,15 +150,22 @@ fn test_cmint_bytes_borsh_as_ctoken() {
 
     // Try to deserialize CMint bytes as CToken
     let result = CToken::try_from_slice(&cmint_bytes);
-    // Should fail or produce invalid state
+    // Borsh deserialization is lenient, but checked deserialization should detect the wrong type
     match result {
-        Ok(_ctoken) => {
-            // If it succeeds, the data should be garbage/misaligned
-            // CMint has different layout than CToken
-            panic!("CMint bytes should not successfully parse as CToken");
+        Ok(ctoken) => {
+            // Borsh is lenient and may succeed, but is_ctoken_account() check should fail
+            // because CMint has account_type = ACCOUNT_TYPE_MINT (1), not ACCOUNT_TYPE_TOKEN_ACCOUNT (2)
+            assert!(
+                !ctoken.is_ctoken_account(),
+                "CMint bytes deserialized as CToken should fail is_ctoken_account() check"
+            );
+            assert_eq!(
+                ctoken.account_type, ACCOUNT_TYPE_MINT,
+                "CMint bytes should retain ACCOUNT_TYPE_MINT discriminator"
+            );
         }
         Err(_) => {
-            // Expected - deserialization should fail
+            // Also acceptable - deserialization failure
         }
     }
 }

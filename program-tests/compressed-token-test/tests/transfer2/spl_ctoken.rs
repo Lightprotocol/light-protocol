@@ -297,7 +297,8 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
     // Now transfer back using CompressAndClose instead of regular transfer
     println!("Testing reverse transfer with CompressAndClose: ctoken to SPL");
 
-    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) =
+        find_spl_interface_pda_with_index(&mint, 0, false);
 
     let transfer_ix = CtokenToSplTransferAndClose {
         source_ctoken_account: associated_token_account,

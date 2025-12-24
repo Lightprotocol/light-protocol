@@ -1,7 +1,10 @@
-use anchor_compressed_token::check_spl_token_pool_derivation_with_index;
+use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
-use light_ctoken_interface::instructions::transfer2::{ZCompression, ZCompressionMode};
+use light_ctoken_interface::{
+    instructions::transfer2::{ZCompression, ZCompressionMode},
+    is_valid_spl_interface_pda,
+};
 use light_program_profiler::profile;
 use light_sdk_types::CPI_AUTHORITY_PDA_SEED;
 use pinocchio::{
@@ -21,6 +24,7 @@ pub(super) fn process_spl_compressions(
     token_account_info: &AccountInfo,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     cpi_authority: &AccountInfo,
+    is_restricted: bool,
 ) -> Result<(), ProgramError> {
     let mode = &compression.mode;
 
@@ -36,12 +40,15 @@ pub(super) fn process_spl_compressions(
         compression.pool_account_index,
         "process_spl_compression: token pool account",
     )?;
-    check_spl_token_pool_derivation_with_index(
+    if !is_valid_spl_interface_pda(
+        &mint_account,
         &solana_pubkey::Pubkey::new_from_array(*token_pool_account_info.key()),
-        &solana_pubkey::Pubkey::new_from_array(mint_account),
         compression.pool_index,
         Some(compression.bump),
-    )?;
+        is_restricted,
+    ) {
+        return Err(ErrorCode::InvalidTokenPoolPda.into());
+    }
     match mode {
         ZCompressionMode::Compress => {
             let authority = packed_accounts.get_u8(

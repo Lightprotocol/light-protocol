@@ -194,7 +194,7 @@ fn create_spl_compression_inputs(
 
     // Derive SPL interface PDA using SDK function
     let pool_index = 0u8;
-    let (spl_interface_pda, bump) = find_spl_interface_pda_with_index(&mint, pool_index);
+    let (spl_interface_pda, bump) = find_spl_interface_pda_with_index(&mint, pool_index, false);
     let pool_account_index = packed_tree_accounts.insert_or_get(spl_interface_pda);
 
     // Compress from SPL token account
@@ -458,7 +458,7 @@ async fn test_spl_compression_invalid_pool_bump() -> Result<(), RpcError> {
 
     // Derive pool with correct seed but wrong bump
     let pool_index = 0u8;
-    let (_, correct_bump) = find_spl_interface_pda_with_index(&mint, pool_index);
+    let (_, correct_bump) = find_spl_interface_pda_with_index(&mint, pool_index, false);
 
     // Modify the bump in the compression data to an incorrect value
     if let Some(compression) = &mut compression_inputs.token_accounts[0].compression {
@@ -493,7 +493,8 @@ async fn test_spl_compression_invalid_pool_index() -> Result<(), RpcError> {
 
     // Derive pool with index 1 instead of 0
     let wrong_pool_index = 1u8;
-    let (wrong_pool_pda, wrong_bump) = find_spl_interface_pda_with_index(&mint, wrong_pool_index);
+    let (wrong_pool_pda, wrong_bump) =
+        find_spl_interface_pda_with_index(&mint, wrong_pool_index, false);
 
     // Update the compression data with wrong pool index
     if let Some(compression) = &mut compression_inputs.token_accounts[0].compression {

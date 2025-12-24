@@ -1,7 +1,14 @@
 //! SPL interface PDA derivation utilities.
+//!
+//! Re-exports from `light_ctoken_interface` with convenience wrappers.
 
 use light_ctoken_interface::CTOKEN_PROGRAM_ID;
-use light_ctoken_types::constants::{CPI_AUTHORITY_PDA, CREATE_TOKEN_POOL, POOL_SEED};
+// Re-export derivation functions from ctoken-interface
+pub use light_ctoken_interface::{
+    find_spl_interface_pda, find_spl_interface_pda_with_index, get_spl_interface_pda,
+    has_restricted_extensions, is_valid_spl_interface_pda, NUM_MAX_POOL_ACCOUNTS,
+};
+use light_ctoken_types::constants::{CPI_AUTHORITY_PDA, CREATE_TOKEN_POOL};
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
@@ -14,30 +21,9 @@ pub struct SplInterfacePda {
     pub index: u8,
 }
 
-/// Derive the spl interface pda for a given mint
-pub fn get_spl_interface_pda(mint: &Pubkey) -> Pubkey {
-    get_spl_interface_pda_with_index(mint, 0)
-}
-
-/// Find the spl interface pda for a given mint and index
-pub fn find_spl_interface_pda_with_index(mint: &Pubkey, spl_interface_index: u8) -> (Pubkey, u8) {
-    let seeds = &[POOL_SEED, mint.as_ref(), &[spl_interface_index]];
-    let seeds = if spl_interface_index == 0 {
-        &seeds[..2]
-    } else {
-        &seeds[..]
-    };
-    Pubkey::find_program_address(seeds, &Pubkey::from(CTOKEN_PROGRAM_ID))
-}
-
-/// Get the spl interface pda for a given mint and index
-pub fn get_spl_interface_pda_with_index(mint: &Pubkey, spl_interface_index: u8) -> Pubkey {
-    find_spl_interface_pda_with_index(mint, spl_interface_index).0
-}
-
 /// Derive spl interface pda information for a given mint
-pub fn derive_spl_interface_pda(mint: &solana_pubkey::Pubkey, index: u8) -> SplInterfacePda {
-    let (pubkey, bump) = find_spl_interface_pda_with_index(mint, index);
+pub fn derive_spl_interface_pda(mint: &Pubkey, index: u8, restricted: bool) -> SplInterfacePda {
+    let (pubkey, bump) = find_spl_interface_pda_with_index(mint, index, restricted);
     SplInterfacePda {
         pubkey,
         bump,
@@ -57,7 +43,7 @@ pub fn derive_spl_interface_pda(mint: &solana_pubkey::Pubkey, index: u8) -> SplI
 /// # let fee_payer = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
 /// # let token_program = SPL_TOKEN_PROGRAM_ID;
-/// let instruction = CreateSplInterfacePda::new(fee_payer, mint, token_program)
+/// let instruction = CreateSplInterfacePda::new(fee_payer, mint, token_program, false)
 ///     .instruction();
 /// ```
 pub struct CreateSplInterfacePda {
@@ -69,8 +55,8 @@ pub struct CreateSplInterfacePda {
 
 impl CreateSplInterfacePda {
     /// Derives the spl interface pda for an SPL mint with index 0.
-    pub fn new(fee_payer: Pubkey, mint: Pubkey, token_program: Pubkey) -> Self {
-        let (spl_interface_pda, _) = find_spl_interface_pda_with_index(&mint, 0);
+    pub fn new(fee_payer: Pubkey, mint: Pubkey, token_program: Pubkey, restricted: bool) -> Self {
+        let (spl_interface_pda, _) = find_spl_interface_pda(&mint, restricted);
         Self {
             fee_payer,
             mint,

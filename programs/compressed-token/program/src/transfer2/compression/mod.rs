@@ -81,21 +81,28 @@ pub fn process_token_compression<'a>(
                     &mut lamports_budget,
                 )?,
                 SPL_TOKEN_ID => {
+                    // SPL Token (not Token-2022) never has restricted extensions
                     spl::process_spl_compressions(
                         compression,
                         &SPL_TOKEN_ID.to_pubkey_bytes(),
                         source_or_recipient,
                         packed_accounts,
                         cpi_authority,
+                        false, // SPL Token has no extensions
                     )?;
                 }
                 SPL_TOKEN_2022_ID => {
+                    // Check if mint has restricted extensions from the cache
+                    let is_restricted = mint_checks
+                        .map(|checks| checks.has_restricted_extensions)
+                        .unwrap_or(false);
                     spl::process_spl_compressions(
                         compression,
                         &SPL_TOKEN_2022_ID.to_pubkey_bytes(),
                         source_or_recipient,
                         packed_accounts,
                         cpi_authority,
+                        is_restricted,
                     )?;
                 }
                 _ => {

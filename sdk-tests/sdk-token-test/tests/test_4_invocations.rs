@@ -262,7 +262,7 @@ async fn compress_spl_tokens(
     token_account: Pubkey,
 ) -> Result<Signature, RpcError> {
     let mut remaining_accounts = PackedAccounts::default();
-    let spl_interface_pda = get_spl_interface_pda(&mint);
+    let spl_interface_pda = get_spl_interface_pda(&mint, false);
     let config = TokenAccountsMetaConfig::compress_client(
         spl_interface_pda,
         token_account,
@@ -430,7 +430,7 @@ async fn test_four_invokes_instruction(
 ) -> Result<(), RpcError> {
     let default_pubkeys = CTokenDefaultAccounts::default();
     let mut remaining_accounts = PackedAccounts::default();
-    let spl_interface_pda1 = get_spl_interface_pda(&mint1);
+    let spl_interface_pda1 = get_spl_interface_pda(&mint1, false);
     // Remaining accounts 0
     remaining_accounts.add_pre_accounts_meta(AccountMeta::new(compression_token_account, false));
     // Remaining accounts 1

@@ -68,7 +68,8 @@ async fn test_ctoken_transfer_checked_spl_mint() {
 
     // Create token pool for SPL interface
     let create_pool_ix =
-        CreateSplInterfacePda::new(payer.pubkey(), mint, anchor_spl::token::ID).instruction();
+        CreateSplInterfacePda::new(payer.pubkey(), mint, anchor_spl::token::ID, false)
+            .instruction();
 
     rpc.create_and_send_transaction(&[create_pool_ix], &payer.pubkey(), &[&payer])
         .await
@@ -114,7 +115,8 @@ async fn test_ctoken_transfer_checked_spl_mint() {
     .unwrap();
 
     // Transfer SPL tokens to source cToken ATA
-    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) =
+        find_spl_interface_pda_with_index(&mint, 0, false);
     let transfer_to_ctoken = TransferSplToCtoken {
         amount: 1000,
         spl_interface_pda_bump,
@@ -217,8 +219,9 @@ async fn test_ctoken_transfer_checked_t22_mint() {
     .await
     .unwrap();
 
-    // Transfer T22 tokens to source cToken ATA
-    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
+    // Transfer T22 tokens to source cToken ATA (use restricted=true for mints with restricted extensions)
+    let (spl_interface_pda, spl_interface_pda_bump) =
+        find_spl_interface_pda_with_index(&mint, 0, true);
     let transfer_to_ctoken = TransferSplToCtoken {
         amount: 1000,
         spl_interface_pda_bump,
