@@ -1,7 +1,7 @@
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
-use light_ctoken_interface::ALLOWED_EXTENSION_TYPES;
+use light_ctoken_interface::{is_restricted_extension, ALLOWED_EXTENSION_TYPES};
 use spl_token_2022::{
     extension::{
         transfer_fee::TransferFeeConfig, transfer_hook::TransferHook, BaseStateWithExtensions,
@@ -11,9 +11,32 @@ use spl_token_2022::{
 };
 
 use crate::{
-    constants::{NUM_MAX_POOL_ACCOUNTS, POOL_SEED},
+    constants::{NUM_MAX_POOL_ACCOUNTS, POOL_SEED, RESTRICTED_POOL_SEED},
     spl_compression::is_valid_token_pool_pda,
 };
+
+/// Returns RESTRICTED_POOL_SEED if mint has restricted extensions, empty vec otherwise.
+/// For mints with restricted extensions (Pausable, PermanentDelegate, TransferFeeConfig, TransferHook),
+/// returns the restricted seed to include in PDA derivation.
+pub fn restricted_seed(mint: &AccountInfo) -> Vec<u8> {
+    let mint_data = mint.try_borrow_data().unwrap();
+    let has_restricted =
+        if let Ok(mint_state) = PodStateWithExtensions::<PodMint>::unpack(&mint_data) {
+            mint_state
+                .get_extension_types()
+                .unwrap_or_default()
+                .iter()
+                .any(is_restricted_extension)
+        } else {
+            false
+        };
+
+    if has_restricted {
+        RESTRICTED_POOL_SEED.to_vec()
+    } else {
+        vec![]
+    }
+}
 
 /// Creates an SPL or token-2022 token pool account, which is owned by the token authority PDA.
 /// We use manual token account initialization via CPI instead of Anchor's `token::mint` constraint
@@ -28,7 +51,7 @@ pub struct CreateTokenPoolInstruction<'info> {
     /// constraint cannot handle Token 2022 mints with variable-length extensions.
     #[account(
         init,
-        seeds = [POOL_SEED, &mint.key().to_bytes()],
+        seeds = [POOL_SEED, &mint.key().to_bytes(), restricted_seed(&mint).as_slice()],
         bump,
         payer = fee_payer,
         space = get_token_account_space(&mint)?,

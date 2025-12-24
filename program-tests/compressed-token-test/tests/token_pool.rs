@@ -11,6 +11,10 @@ use light_compressed_token::{
     mint_sdk::create_create_token_pool_instruction, process_transfer::get_cpi_authority_pda,
     spl_compression::check_spl_token_pool_derivation_with_index, ErrorCode,
 };
+use light_ctoken_interface::{
+    find_spl_interface_pda, find_spl_interface_pda_with_index, has_restricted_extensions,
+};
+use light_ctoken_sdk::spl_interface::CreateSplInterfacePda;
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     spl::{create_additional_token_pools, create_mint_22_helper, create_mint_helper},
@@ -542,4 +546,177 @@ pub async fn add_token_pool<R: Rpc>(
     };
     rpc.create_and_send_transaction(&[instruction], &fee_payer.pubkey(), &[fee_payer])
         .await
+}
+
+/// Test that restricted extensions are properly detected and use different pool derivations.
+///
+/// This test verifies:
+/// 1. Mints with restricted extensions (Pausable, PermanentDelegate, TransferFeeConfig, TransferHook)
+///    are detected by `has_restricted_extensions()`
+/// 2. Restricted and non-restricted pool PDAs are different
+/// 3. The anchor `create_token_pool` instruction still works for restricted mints
+///    (uses normal derivation, which is intentional for backward compatibility)
+#[serial]
+#[tokio::test]
+async fn test_restricted_mint_pool_derivation() {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Test PermanentDelegate (a restricted extension)
+    let extension_type = ExtensionType::PermanentDelegate;
+    println!("Testing restricted extension: {:?}", extension_type);
+
+    // Create mint with restricted extension
+    let mint = Keypair::new();
+    let space =
+        ExtensionType::try_calculate_account_len::<spl_token_2022::state::Mint>(&[extension_type])
+            .unwrap();
+
+    let instructions = vec![
+        system_instruction::create_account(
+            &payer.pubkey(),
+            &mint.pubkey(),
+            rpc.get_minimum_balance_for_rent_exemption(space)
+                .await
+                .unwrap(),
+            space as u64,
+            &spl_token_2022::ID,
+        ),
+        spl_token_2022::instruction::initialize_permanent_delegate(
+            &spl_token_2022::ID,
+            &mint.pubkey(),
+            &payer.pubkey(),
+        )
+        .unwrap(),
+        spl_token_2022::instruction::initialize_mint(
+            &spl_token_2022::ID,
+            &mint.pubkey(),
+            &payer.pubkey(),
+            None,
+            2,
+        )
+        .unwrap(),
+    ];
+
+    rpc.create_and_send_transaction(&instructions, &payer.pubkey(), &[&payer, &mint])
+        .await
+        .unwrap();
+
+    // Fetch mint account and verify restricted extensions are detected
+    let mint_account = rpc.get_account(mint.pubkey()).await.unwrap().unwrap();
+    assert!(
+        has_restricted_extensions(&mint_account.data),
+        "Mint with PermanentDelegate should be detected as restricted"
+    );
+
+    // Verify that restricted and non-restricted PDAs are different
+    let (regular_pda, _) = find_spl_interface_pda(&mint.pubkey(), false);
+    let (restricted_pda, _) = find_spl_interface_pda(&mint.pubkey(), true);
+    assert_ne!(
+        regular_pda, restricted_pda,
+        "Regular and restricted PDAs should be different"
+    );
+
+    // Verify with index derivation as well
+    for index in 0..NUM_MAX_POOL_ACCOUNTS {
+        let (regular_pda_idx, _) = find_spl_interface_pda_with_index(&mint.pubkey(), index, false);
+        let (restricted_pda_idx, _) =
+            find_spl_interface_pda_with_index(&mint.pubkey(), index, true);
+        assert_ne!(
+            regular_pda_idx, restricted_pda_idx,
+            "Regular and restricted PDAs for index {} should be different",
+            index
+        );
+    }
+
+    // The anchor create_token_pool instruction automatically uses restricted derivation
+    // for mints with restricted extensions (detected via restricted_seed() function)
+    let create_pool_ix = CreateSplInterfacePda::new(
+        payer.pubkey(),
+        mint.pubkey(),
+        spl_token_2022::ID,
+        true, // restricted = true for mints with restricted extensions
+    )
+    .instruction();
+
+    rpc.create_and_send_transaction(&[create_pool_ix], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
+
+    // Verify pool was created at restricted derivation
+    let token_pool_account = rpc.get_account(restricted_pda).await.unwrap();
+    assert!(
+        token_pool_account.is_some(),
+        "Token pool should exist at restricted derivation"
+    );
+
+    println!(
+        "Successfully tested PermanentDelegate: regular_pda={}, restricted_pda={}",
+        regular_pda, restricted_pda
+    );
+}
+
+/// Test that non-restricted mints are correctly identified.
+#[serial]
+#[tokio::test]
+async fn test_non_restricted_mint_detection() {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Create a regular SPL token mint (not Token-2022)
+    let spl_mint = create_mint_helper(&mut rpc, &payer).await;
+    let spl_mint_account = rpc.get_account(spl_mint).await.unwrap().unwrap();
+    assert!(
+        !has_restricted_extensions(&spl_mint_account.data),
+        "Regular SPL mint should not be restricted"
+    );
+
+    // Create a Token-2022 mint with only non-restricted extensions
+    let mint = Keypair::new();
+    let space = ExtensionType::try_calculate_account_len::<spl_token_2022::state::Mint>(&[
+        ExtensionType::MetadataPointer,
+    ])
+    .unwrap();
+
+    let instructions = vec![
+        system_instruction::create_account(
+            &payer.pubkey(),
+            &mint.pubkey(),
+            rpc.get_minimum_balance_for_rent_exemption(space)
+                .await
+                .unwrap(),
+            space as u64,
+            &spl_token_2022::ID,
+        ),
+        spl_token_2022::extension::metadata_pointer::instruction::initialize(
+            &spl_token_2022::ID,
+            &mint.pubkey(),
+            Some(payer.pubkey()),
+            None,
+        )
+        .unwrap(),
+        spl_token_2022::instruction::initialize_mint(
+            &spl_token_2022::ID,
+            &mint.pubkey(),
+            &payer.pubkey(),
+            None,
+            2,
+        )
+        .unwrap(),
+    ];
+
+    rpc.create_and_send_transaction(&instructions, &payer.pubkey(), &[&payer, &mint])
+        .await
+        .unwrap();
+
+    // Verify non-restricted extension is not detected as restricted
+    let mint_account = rpc.get_account(mint.pubkey()).await.unwrap().unwrap();
+    assert!(
+        !has_restricted_extensions(&mint_account.data),
+        "Mint with MetadataPointer should not be restricted"
+    );
 }

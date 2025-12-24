@@ -4,7 +4,7 @@ use light_client::{
 };
 use light_ctoken_sdk::{
     constants::SPL_TOKEN_PROGRAM_ID, ctoken::TransferCTokenToSpl,
-    spl_interface::find_spl_interface_pda_with_index,
+    spl_interface::find_spl_interface_pda,
 };
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -23,7 +23,7 @@ pub async fn transfer_ctoken_to_spl<R: Rpc + Indexer>(
     payer: &Keypair,
     decimals: u8,
 ) -> Result<Signature, RpcError> {
-    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda(&mint, false);
 
     let transfer_ix = TransferCTokenToSpl {
         source_ctoken_account,

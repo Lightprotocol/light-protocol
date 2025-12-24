@@ -290,7 +290,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     // Use pool_index from input, default to 0
                     let pool_index = input.pool_index.unwrap_or(0);
                     let (spl_interface_pda, bump) =
-                        find_spl_interface_pda_with_index(&mint, pool_index);
+                        find_spl_interface_pda_with_index(&mint, pool_index, false);
                     let pool_account_index = packed_tree_accounts.insert_or_get(spl_interface_pda);
 
                     // Use the new SPL-specific compress method
@@ -369,7 +369,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     // Use pool_index from input, default to 0
                     let pool_index = input.pool_index.unwrap_or(0);
                     let (spl_interface_pda, bump) =
-                        find_spl_interface_pda_with_index(&mint, pool_index);
+                        find_spl_interface_pda_with_index(&mint, pool_index, false);
                     let pool_account_index = packed_tree_accounts.insert_or_get(spl_interface_pda);
 
                     // Use the new SPL-specific decompress method

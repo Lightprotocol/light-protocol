@@ -33,3 +33,7 @@ pub const TRANSFER_HOOK_ACCOUNT_EXTENSION_LEN: u64 = 2;
 
 /// Instruction discriminator for Transfer2
 pub const TRANSFER2: u8 = 101;
+
+/// Pool PDA seeds
+pub const POOL_SEED: &[u8] = b"pool";
+pub const RESTRICTED_POOL_SEED: &[u8] = b"restricted";

@@ -5,7 +5,7 @@
 
 use forester_utils::instructions::create_account::create_account_instruction;
 use light_client::rpc::Rpc;
-use light_compressed_token::{get_token_pool_pda, mint_sdk::create_create_token_pool_instruction};
+use light_ctoken_sdk::spl_interface::{find_spl_interface_pda, CreateSplInterfacePda};
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
@@ -213,9 +213,10 @@ pub async fn create_mint_22_with_extensions<R: Rpc>(
     )
     .unwrap();
 
-    // 11. Create token pool for compressed tokens
-    let token_pool_pubkey = get_token_pool_pda(&mint_pubkey);
-    let create_token_pool_ix = create_create_token_pool_instruction(&authority, &mint_pubkey, true);
+    // 11. Create token pool for compressed tokens (restricted=true for mints with restricted extensions)
+    let (token_pool_pubkey, _) = find_spl_interface_pda(&mint_pubkey, true);
+    let create_token_pool_ix =
+        CreateSplInterfacePda::new(authority, mint_pubkey, spl_token_2022::ID, true).instruction();
 
     // Combine all instructions
     let instructions: Vec<Instruction> = vec![
@@ -324,9 +325,10 @@ pub async fn create_mint_22_with_frozen_default_state<R: Rpc>(
     )
     .unwrap();
 
-    // 5. Create token pool for compressed tokens
-    let token_pool_pubkey = get_token_pool_pda(&mint_pubkey);
-    let create_token_pool_ix = create_create_token_pool_instruction(&authority, &mint_pubkey, true);
+    // 5. Create token pool for compressed tokens (restricted=true for mints with restricted extensions)
+    let (token_pool_pubkey, _) = find_spl_interface_pda(&mint_pubkey, true);
+    let create_token_pool_ix =
+        CreateSplInterfacePda::new(authority, mint_pubkey, spl_token_2022::ID, true).instruction();
 
     let instructions: Vec<Instruction> = vec![
         create_account_ix,

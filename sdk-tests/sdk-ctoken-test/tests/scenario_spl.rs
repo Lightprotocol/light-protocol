@@ -86,7 +86,8 @@ async fn test_spl_to_ctoken_scenario() {
 
     // 3. Create token pool (SPL interface PDA) using SDK instruction
     let create_pool_ix =
-        CreateSplInterfacePda::new(payer.pubkey(), mint, anchor_spl::token::ID).instruction();
+        CreateSplInterfacePda::new(payer.pubkey(), mint, anchor_spl::token::ID, false)
+            .instruction();
 
     rpc.create_and_send_transaction(&[create_pool_ix], &payer.pubkey(), &[&payer])
         .await
@@ -149,7 +150,8 @@ async fn test_spl_to_ctoken_scenario() {
     );
 
     // 7. Transfer SPL tokens to cToken account
-    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) =
+        find_spl_interface_pda_with_index(&mint, 0, false);
 
     let transfer_instruction = TransferSplToCtoken {
         amount: transfer_amount,
