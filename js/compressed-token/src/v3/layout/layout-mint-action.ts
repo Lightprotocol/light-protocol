@@ -22,8 +22,7 @@ import {
     publicKey,
     rustEnum,
 } from '@coral-xyz/borsh';
-import { bn } from '@lightprotocol/stateless.js';
-import { isDevnetCompat } from './devnet-compat';
+import { bn, isDevnetCompat } from '@lightprotocol/stateless.js';
 
 export const MINT_ACTION_DISCRIMINATOR = Buffer.from([103]);
 

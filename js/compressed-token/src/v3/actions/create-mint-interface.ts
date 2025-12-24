@@ -24,7 +24,6 @@ import {
     createMintInstruction,
     TokenMetadataInstructionData,
 } from '../instructions/create-mint';
-import { setDevnetCompatFromEndpoint } from '../layout/devnet-compat';
 import { deriveCMintAddress, findMintAddress } from '../derivation';
 import { createMint } from '../../actions/create-mint';
 
@@ -117,9 +116,6 @@ export async function createMintInterface(
         ],
         DerivationMode.standard,
     );
-
-    // TODO: Remove after devnet program update
-    setDevnetCompatFromEndpoint(rpc.rpcEndpoint);
 
     const ix = createMintInstruction(
         keypair.publicKey,

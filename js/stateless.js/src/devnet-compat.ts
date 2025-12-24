@@ -7,8 +7,8 @@
 let _useDevnetFormat = false;
 
 /**
- * Enable V1 instruction format for devnet compatibility.
- * Call this before any mint operations when targeting devnet.
+ * @internal
+ * Set devnet compat mode. Called automatically by createRpc().
  */
 export function setDevnetCompat(enabled: boolean): void {
     _useDevnetFormat = enabled;
@@ -16,14 +16,9 @@ export function setDevnetCompat(enabled: boolean): void {
 
 /**
  * Check if devnet compatibility mode is enabled.
+ * Used by compressed-token SDK to select the correct instruction encoding.
  */
 export function isDevnetCompat(): boolean {
     return _useDevnetFormat;
 }
 
-/**
- * Auto-detect and set devnet compat from RPC endpoint.
- */
-export function setDevnetCompatFromEndpoint(endpoint: string): void {
-    _useDevnetFormat = endpoint.toLowerCase().includes('devnet');
-}

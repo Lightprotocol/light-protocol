@@ -16,7 +16,6 @@ import {
     TreeInfo,
 } from '@lightprotocol/stateless.js';
 import { createMintToInstruction } from '../instructions/mint-to';
-import { setDevnetCompatFromEndpoint } from '../layout/devnet-compat';
 import { getMintInterface } from '../get-mint-interface';
 
 export async function mintTo(
@@ -29,9 +28,6 @@ export async function mintTo(
     outputQueue?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    // TODO: Remove after devnet program update
-    setDevnetCompatFromEndpoint(rpc.rpcEndpoint);
-
     const mintInfo = await getMintInterface(
         rpc,
         mint,

@@ -17,7 +17,6 @@ import {
     createUpdateMintAuthorityInstruction,
     createUpdateFreezeAuthorityInstruction,
 } from '../instructions/update-mint';
-import { setDevnetCompatFromEndpoint } from '../layout/devnet-compat';
 import { getMintInterface } from '../get-mint-interface';
 
 /**
@@ -38,9 +37,6 @@ export async function updateMintAuthority(
     newMintAuthority: PublicKey | null,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    // TODO: Remove after devnet program update
-    setDevnetCompatFromEndpoint(rpc.rpcEndpoint);
-
     const mintInterface = await getMintInterface(
         rpc,
         mint,
@@ -108,9 +104,6 @@ export async function updateFreezeAuthority(
     newFreezeAuthority: PublicKey | null,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    // TODO: Remove after devnet program update
-    setDevnetCompatFromEndpoint(rpc.rpcEndpoint);
-
     const mintInterface = await getMintInterface(
         rpc,
         mint,

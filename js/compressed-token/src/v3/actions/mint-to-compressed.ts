@@ -16,7 +16,6 @@ import {
     TreeInfo,
 } from '@lightprotocol/stateless.js';
 import { createMintToCompressedInstruction } from '../instructions/mint-to-compressed';
-import { setDevnetCompatFromEndpoint } from '../layout/devnet-compat';
 import { getMintInterface } from '../get-mint-interface';
 
 /**
@@ -41,9 +40,6 @@ export async function mintToCompressed(
     tokenAccountVersion: number = 3,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    // TODO: Remove after devnet program update
-    setDevnetCompatFromEndpoint(rpc.rpcEndpoint);
-
     const mintInfo = await getMintInterface(
         rpc,
         mint,
