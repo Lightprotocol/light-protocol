@@ -1,6 +1,6 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::rpc::Rpc;
-use light_ctoken_interface::state::{extensions::ExtensionStruct, CToken, CompressedMint};
+use light_ctoken_interface::state::{CToken, CompressedMint};
 use light_program_test::LightProgramTest;
 use solana_sdk::pubkey::Pubkey;
 
@@ -85,7 +85,7 @@ pub async fn assert_ctoken_burn(
 
     let expected_ctoken_lamport_change = calculate_expected_lamport_change(
         rpc,
-        &ctoken_parsed_before.extensions,
+        &ctoken_parsed_before.compression,
         ctoken_before.data.len(),
         current_slot,
         ctoken_before.lamports,
@@ -94,7 +94,7 @@ pub async fn assert_ctoken_burn(
 
     let expected_cmint_lamport_change = calculate_expected_lamport_change(
         rpc,
-        &cmint_parsed_before.extensions,
+        &cmint_parsed_before.compression,
         cmint_before.data.len(),
         current_slot,
         cmint_before.lamports,
@@ -117,35 +117,21 @@ pub async fn assert_ctoken_burn(
 
 async fn calculate_expected_lamport_change(
     rpc: &mut LightProgramTest,
-    extensions: &Option<Vec<ExtensionStruct>>,
+    compression: &light_compressible::compression_info::CompressionInfo,
     data_len: usize,
     current_slot: u64,
     current_lamports: u64,
 ) -> u64 {
-    if let Some(exts) = extensions {
-        let compressible = exts.iter().find_map(|ext| {
-            if let ExtensionStruct::Compressible(comp) = ext {
-                Some(comp)
-            } else {
-                None
-            }
-        });
-
-        if let Some(comp) = compressible {
-            let rent_exemption = rpc
-                .get_minimum_balance_for_rent_exemption(data_len)
-                .await
-                .unwrap();
-            return comp
-                .info
-                .calculate_top_up_lamports(
-                    data_len as u64,
-                    current_slot,
-                    current_lamports,
-                    rent_exemption,
-                )
-                .unwrap();
-        }
-    }
-    0
+    let rent_exemption = rpc
+        .get_minimum_balance_for_rent_exemption(data_len)
+        .await
+        .unwrap();
+    compression
+        .calculate_top_up_lamports(
+            data_len as u64,
+            current_slot,
+            current_lamports,
+            rent_exemption,
+        )
+        .unwrap()
 }

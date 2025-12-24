@@ -23,6 +23,7 @@ solana-msg = { workspace = true }
 solana-keypair = { workspace = true }
 solana-signer = { workspace = true }
 solana-signature = { workspace = true }
+solana-system-interface = { workspace = true }
 spl-token-2022 = { workspace = true }
 spl-pod = { workspace = true }
 borsh = { workspace = true }

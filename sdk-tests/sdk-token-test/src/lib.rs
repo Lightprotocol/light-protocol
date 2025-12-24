@@ -107,6 +107,7 @@ pub mod sdk_token_test {
         source_index: u8,
         authority_index: u8,
         close_recipient_index: u8,
+        rent_sponsor_index: u8,
         system_accounts_offset: u8,
     ) -> Result<()> {
         process_compress_full_and_close(
@@ -116,6 +117,7 @@ pub mod sdk_token_test {
             source_index,
             authority_index,
             close_recipient_index,
+            rent_sponsor_index,
             system_accounts_offset,
         )
     }

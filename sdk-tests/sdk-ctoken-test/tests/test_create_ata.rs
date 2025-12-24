@@ -28,7 +28,7 @@ async fn test_create_ata_invoke() {
     let mint_authority = payer.pubkey();
 
     // Create compressed mint first (using helper)
-    let (mint_pda, _compression_address, _) =
+    let (mint_pda, _compression_address, _, _mint_seed) =
         setup_create_compressed_mint(&mut rpc, &payer, mint_authority, 9, vec![]).await;
 
     // Derive the ATA address
@@ -102,7 +102,7 @@ async fn test_create_ata_invoke_signed() {
     let mint_authority = payer.pubkey();
 
     // Create compressed mint first (using helper)
-    let (mint_pda, _compression_address, _) =
+    let (mint_pda, _compression_address, _, _mint_seed) =
         setup_create_compressed_mint(&mut rpc, &payer, mint_authority, 9, vec![]).await;
 
     // Derive the PDA that will act as payer/owner (using ATA_SEED)

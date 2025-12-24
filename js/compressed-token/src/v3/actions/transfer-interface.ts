@@ -18,6 +18,7 @@ import {
     TOKEN_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID,
     getAssociatedTokenAddressSync,
+    getMint,
 } from '@solana/spl-token';
 import BN from 'bn.js';
 import { getAtaProgramId } from '../ata-utils';
@@ -264,6 +265,21 @@ export async function transferInterface(
         : [];
     const splInterfaceInfo = splInterfaceInfos.find(info => info.isInitialized);
 
+    // Fetch mint decimals if we need to wrap
+    let decimals = 0;
+    if (
+        splInterfaceInfo &&
+        (splBalance > BigInt(0) || t22Balance > BigInt(0))
+    ) {
+        const mintInfo = await getMint(
+            rpc,
+            mint,
+            undefined,
+            splInterfaceInfo.tokenProgram,
+        );
+        decimals = mintInfo.decimals;
+    }
+
     // Wrap SPL tokens if balance exists (only when wrap=true)
     if (wrap && splAta && splBalance > BigInt(0) && splInterfaceInfo) {
         instructions.push(
@@ -274,6 +290,7 @@ export async function transferInterface(
                 mint,
                 splBalance,
                 splInterfaceInfo,
+                decimals,
                 payer.publicKey,
             ),
         );
@@ -290,6 +307,7 @@ export async function transferInterface(
                 mint,
                 t22Balance,
                 splInterfaceInfo,
+                decimals,
                 payer.publicKey,
             ),
         );
@@ -316,6 +334,8 @@ export async function transferInterface(
                 ctokenAtaAddress,
                 compressedBalance,
                 proof,
+                undefined,
+                decimals,
             ),
         );
     }

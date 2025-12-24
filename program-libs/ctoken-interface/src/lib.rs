@@ -2,8 +2,10 @@ pub mod instructions;
 
 pub mod error;
 pub mod hash_cache;
+pub mod token_2022_extensions;
 
 pub use error::*;
+pub use token_2022_extensions::*;
 mod constants;
 pub mod state;
 #[cfg(feature = "anchor")]

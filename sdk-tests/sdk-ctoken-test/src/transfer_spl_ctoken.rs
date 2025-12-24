@@ -12,6 +12,7 @@ pub const TRANSFER_AUTHORITY_SEED: &[u8] = b"transfer_authority";
 pub struct TransferSplToCtokenData {
     pub amount: u64,
     pub spl_interface_pda_bump: u8,
+    pub decimals: u8,
 }
 
 /// Instruction data for CToken to SPL transfer
@@ -19,6 +20,7 @@ pub struct TransferSplToCtokenData {
 pub struct TransferCTokenToSplData {
     pub amount: u64,
     pub spl_interface_pda_bump: u8,
+    pub decimals: u8,
 }
 
 /// Handler for transferring SPL tokens to CToken (invoke)
@@ -33,11 +35,12 @@ pub struct TransferCTokenToSplData {
 /// - accounts[6]: spl_interface_pda
 /// - accounts[7]: spl_token_program
 /// - accounts[8]: compressed_token_program_authority
+/// - accounts[9]: system_program
 pub fn process_spl_to_ctoken_invoke(
     accounts: &[AccountInfo],
     data: TransferSplToCtokenData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 9 {
+    if accounts.len() < 10 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -50,8 +53,10 @@ pub fn process_spl_to_ctoken_invoke(
         payer: accounts[5].clone(),
         spl_interface_pda: accounts[6].clone(),
         spl_interface_pda_bump: data.spl_interface_pda_bump,
+        decimals: data.decimals,
         spl_token_program: accounts[7].clone(),
         compressed_token_program_authority: accounts[8].clone(),
+        system_program: accounts[9].clone(),
     }
     .invoke()?;
 
@@ -72,11 +77,12 @@ pub fn process_spl_to_ctoken_invoke(
 /// - accounts[6]: spl_interface_pda
 /// - accounts[7]: spl_token_program
 /// - accounts[8]: compressed_token_program_authority
+/// - accounts[9]: system_program
 pub fn process_spl_to_ctoken_invoke_signed(
     accounts: &[AccountInfo],
     data: TransferSplToCtokenData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 9 {
+    if accounts.len() < 10 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -98,8 +104,10 @@ pub fn process_spl_to_ctoken_invoke_signed(
         payer: accounts[5].clone(),
         spl_interface_pda: accounts[6].clone(),
         spl_interface_pda_bump: data.spl_interface_pda_bump,
+        decimals: data.decimals,
         spl_token_program: accounts[7].clone(),
         compressed_token_program_authority: accounts[8].clone(),
+        system_program: accounts[9].clone(),
     };
 
     // Invoke with PDA signing
@@ -138,6 +146,7 @@ pub fn process_ctoken_to_spl_invoke(
         payer: accounts[5].clone(),
         spl_interface_pda: accounts[6].clone(),
         spl_interface_pda_bump: data.spl_interface_pda_bump,
+        decimals: data.decimals,
         spl_token_program: accounts[7].clone(),
         compressed_token_program_authority: accounts[8].clone(),
     }
@@ -186,6 +195,7 @@ pub fn process_ctoken_to_spl_invoke_signed(
         payer: accounts[5].clone(),
         spl_interface_pda: accounts[6].clone(),
         spl_interface_pda_bump: data.spl_interface_pda_bump,
+        decimals: data.decimals,
         spl_token_program: accounts[7].clone(),
         compressed_token_program_authority: accounts[8].clone(),
     };

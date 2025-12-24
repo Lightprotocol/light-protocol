@@ -37,6 +37,7 @@ pub fn create_input_compressed_mint_account(
             .mint
             .as_ref()
             .ok_or(ProgramError::InvalidInstructionData)?;
+        // Return it so that we dont deserialize it twice.
         let compressed_mint = CompressedMint::try_from(mint_data)?;
         let bytes = compressed_mint
             .try_to_vec()

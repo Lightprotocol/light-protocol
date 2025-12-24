@@ -23,6 +23,7 @@ use crate::{
     Copy,
     PartialEq,
     Eq,
+    Default,
     AnchorSerialize,
     AnchorDeserialize,
     ZeroCopy,

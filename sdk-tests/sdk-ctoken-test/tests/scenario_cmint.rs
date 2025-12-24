@@ -48,17 +48,18 @@ async fn test_cmint_to_ctoken_scenario() {
     let mint_amount2 = 5_000u64;
     let transfer_amount = 3_000u64;
 
-    let (mint, _compression_address, ata_pubkeys) = shared::setup_create_compressed_mint(
-        &mut rpc,
-        &payer,
-        payer.pubkey(), // mint_authority
-        9,              // decimals
-        vec![
-            (mint_amount1, owner1.pubkey()),
-            (mint_amount2, owner2.pubkey()),
-        ],
-    )
-    .await;
+    let (mint, _compression_address, ata_pubkeys, _mint_seed) =
+        shared::setup_create_compressed_mint(
+            &mut rpc,
+            &payer,
+            payer.pubkey(), // mint_authority
+            9,              // decimals
+            vec![
+                (mint_amount1, owner1.pubkey()),
+                (mint_amount2, owner2.pubkey()),
+            ],
+        )
+        .await;
 
     let ctoken_ata1 = ata_pubkeys[0];
     let ctoken_ata2 = ata_pubkeys[1];
@@ -205,6 +206,8 @@ async fn test_cmint_to_ctoken_scenario() {
         "cToken ATA should exist after recreation"
     );
     println!("  - cToken ATA recreated: {}", ctoken_ata2);
+    let deserialized_ata = CToken::try_from_slice(ctoken_account_data.data.as_slice()).unwrap();
+    println!("deserialized ata {:?}", deserialized_ata);
 
     // 10. Get validity proof for the compressed account
     let compressed_hashes: Vec<_> = compressed_accounts
@@ -232,6 +235,8 @@ async fn test_cmint_to_ctoken_scenario() {
 
     // 11. Decompress compressed tokens to cToken account
     println!("Decompressing tokens to cToken account...");
+    println!("discriminator {:?}", discriminator);
+    println!("token_data {:?}", token_data);
     let decompress_instruction = DecompressToCtoken {
         token_data,
         discriminator,

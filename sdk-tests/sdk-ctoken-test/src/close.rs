@@ -10,24 +10,18 @@ use crate::{ID, TOKEN_ACCOUNT_SEED};
 /// - accounts[1]: account to close (writable)
 /// - accounts[2]: destination for lamports (writable)
 /// - accounts[3]: owner/authority (signer)
-/// - accounts[4]: rent_sponsor (optional, writable)
+/// - accounts[4]: rent_sponsor (writable)
 pub fn process_close_account_invoke(accounts: &[AccountInfo]) -> Result<(), ProgramError> {
-    if accounts.len() < 4 {
+    if accounts.len() < 5 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
-
-    let rent_sponsor = if accounts.len() > 4 {
-        Some(accounts[4].clone())
-    } else {
-        None
-    };
 
     CloseCTokenAccountCpi {
         token_program: accounts[0].clone(),
         account: accounts[1].clone(),
         destination: accounts[2].clone(),
         owner: accounts[3].clone(),
-        rent_sponsor,
+        rent_sponsor: accounts[4].clone(),
     }
     .invoke()?;
 
@@ -41,9 +35,9 @@ pub fn process_close_account_invoke(accounts: &[AccountInfo]) -> Result<(), Prog
 /// - accounts[1]: account to close (writable)
 /// - accounts[2]: destination for lamports (writable)
 /// - accounts[3]: PDA owner/authority (not signer, program signs)
-/// - accounts[4]: rent_sponsor (optional, writable)
+/// - accounts[4]: rent_sponsor (writable)
 pub fn process_close_account_invoke_signed(accounts: &[AccountInfo]) -> Result<(), ProgramError> {
-    if accounts.len() < 4 {
+    if accounts.len() < 5 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -55,19 +49,13 @@ pub fn process_close_account_invoke_signed(accounts: &[AccountInfo]) -> Result<(
         return Err(ProgramError::InvalidSeeds);
     }
 
-    let rent_sponsor = if accounts.len() > 4 {
-        Some(accounts[4].clone())
-    } else {
-        None
-    };
-
     let signer_seeds: &[&[u8]] = &[TOKEN_ACCOUNT_SEED, &[bump]];
     CloseCTokenAccountCpi {
         token_program: accounts[0].clone(),
         account: accounts[1].clone(),
         destination: accounts[2].clone(),
         owner: accounts[3].clone(),
-        rent_sponsor,
+        rent_sponsor: accounts[4].clone(),
     }
     .invoke_signed(&[signer_seeds])?;
 

@@ -263,6 +263,7 @@ describe('layout-transfer2', () => {
                 3, // poolAccountIndex
                 0, // poolIndex
                 255, // bump
+                9, // decimals
             );
 
             expect(compression.mode).toBe(COMPRESSION_MODE_COMPRESS);
@@ -273,7 +274,7 @@ describe('layout-transfer2', () => {
             expect(compression.poolAccountIndex).toBe(3);
             expect(compression.poolIndex).toBe(0);
             expect(compression.bump).toBe(255);
-            expect(compression.decimals).toBe(0);
+            expect(compression.decimals).toBe(9);
         });
 
         it('should handle different index values', () => {
@@ -285,6 +286,7 @@ describe('layout-transfer2', () => {
                 20, // poolAccountIndex
                 3, // poolIndex
                 254, // bump
+                6, // decimals
             );
 
             expect(compression.mint).toBe(5);
@@ -305,6 +307,7 @@ describe('layout-transfer2', () => {
                 3,
                 0,
                 255,
+                9,
             );
 
             expect(compression.amount).toBe(largeAmount);
@@ -366,6 +369,7 @@ describe('layout-transfer2', () => {
                 2, // poolAccountIndex
                 0, // poolIndex
                 253, // bump
+                9, // decimals
             );
 
             expect(decompression.mode).toBe(COMPRESSION_MODE_DECOMPRESS);
@@ -376,7 +380,7 @@ describe('layout-transfer2', () => {
             expect(decompression.poolAccountIndex).toBe(2);
             expect(decompression.poolIndex).toBe(0);
             expect(decompression.bump).toBe(253);
-            expect(decompression.decimals).toBe(0);
+            expect(decompression.decimals).toBe(9);
         });
 
         it('should handle different pool configurations', () => {
@@ -387,6 +391,7 @@ describe('layout-transfer2', () => {
                 5, // poolAccountIndex
                 2, // poolIndex
                 200, // bump
+                6, // decimals
             );
 
             expect(decompression.poolAccountIndex).toBe(5);
@@ -402,13 +407,13 @@ describe('layout-transfer2', () => {
         });
 
         it('should set correct modes in factory functions', () => {
-            const compress = createCompressSpl(100n, 0, 1, 2, 3, 0, 255);
+            const compress = createCompressSpl(100n, 0, 1, 2, 3, 0, 255, 9);
             expect(compress.mode).toBe(COMPRESSION_MODE_COMPRESS);
 
             const decompressCtoken = createDecompressCtoken(100n, 0, 1);
             expect(decompressCtoken.mode).toBe(COMPRESSION_MODE_DECOMPRESS);
 
-            const decompressSpl = createDecompressSpl(100n, 0, 1, 2, 0, 255);
+            const decompressSpl = createDecompressSpl(100n, 0, 1, 2, 0, 255, 9);
             expect(decompressSpl.mode).toBe(COMPRESSION_MODE_DECOMPRESS);
         });
     });
@@ -416,7 +421,7 @@ describe('layout-transfer2', () => {
     describe('encoding roundtrip integration', () => {
         it('should encode complex wrap instruction correctly', () => {
             const compressions = [
-                createCompressSpl(1000n, 0, 2, 1, 4, 0, 255),
+                createCompressSpl(1000n, 0, 2, 1, 4, 0, 255, 9),
                 createDecompressCtoken(1000n, 0, 3, 6),
             ];
 

@@ -45,7 +45,9 @@ use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, Prog
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::{
     airdrop_lamports,
-    spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens},
+    spl::{
+        create_mint_helper, create_token_2022_account, mint_spl_tokens, CREATE_MINT_HELPER_DECIMALS,
+    },
     Rpc, RpcError,
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -204,6 +206,7 @@ fn create_spl_compression_inputs(
             pool_account_index,
             pool_index,
             bump,
+            CREATE_MINT_HELPER_DECIMALS,
         )
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to compress SPL: {:?}", e)))?;
 
@@ -221,6 +224,7 @@ fn create_spl_compression_inputs(
         in_lamports: None,
         out_lamports: None,
         output_queue: shared_output_queue,
+        in_tlv: None,
     })
 }
 

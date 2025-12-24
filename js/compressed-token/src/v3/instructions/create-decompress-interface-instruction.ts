@@ -96,7 +96,7 @@ function buildInputTokenData(
  *
  * Supports decompressing to both c-token accounts and SPL token accounts:
  * - For c-token destinations: No splInterfaceInfo needed
- * - For SPL destinations: Provide splInterfaceInfo (token pool info)
+ * - For SPL destinations: Provide splInterfaceInfo (token pool info) and decimals
  *
  * @param payer                        Fee payer public key
  * @param inputCompressedTokenAccounts Input compressed token accounts
@@ -104,6 +104,7 @@ function buildInputTokenData(
  * @param amount                       Amount to decompress
  * @param validityProof                Validity proof (contains compressedProof and rootIndices)
  * @param splInterfaceInfo             Optional: SPL interface info for SPL destinations
+ * @param decimals                     Mint decimals (required for SPL destinations)
  * @returns TransactionInstruction
  */
 export function createDecompressInterfaceInstruction(
@@ -112,7 +113,8 @@ export function createDecompressInterfaceInstruction(
     toAddress: PublicKey,
     amount: bigint,
     validityProof: ValidityProofWithContext,
-    splInterfaceInfo?: SplInterfaceInfo,
+    splInterfaceInfo: SplInterfaceInfo | undefined,
+    decimals: number,
 ): TransactionInstruction {
     if (inputCompressedTokenAccounts.length === 0) {
         throw new Error('No input compressed token accounts provided');
@@ -245,7 +247,7 @@ export function createDecompressInterfaceInstruction(
             poolAccountIndex: splInterfaceInfo ? poolAccountIndex : 0,
             poolIndex: splInterfaceInfo ? poolIndex : 0,
             bump: splInterfaceInfo ? poolBump : 0,
-            decimals: 0,
+            decimals,
         },
     ];
 

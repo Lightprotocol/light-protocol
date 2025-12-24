@@ -68,8 +68,8 @@ pub struct Compression {
     /// compressed account index for CompressAndClose
     pub pool_index: u8, // This account is not necessary to decompress ctokens because there are no token pools
     pub bump: u8, // This account is not necessary to decompress ctokens because there are no token pools
-    /// Placeholder for future use (decimals for spl token operations, or flags).
-    /// Currently unused - always set to 0.
+    /// decimals for spl token Compression/Decompression (used in transfer_checked)
+    /// rent_sponsor_is_signer flag for CompressAndClose (non-zero = true)
     pub decimals: u8,
 }
 
@@ -95,6 +95,7 @@ impl ZCompression<'_> {
 }
 
 impl Compression {
+    #[allow(clippy::too_many_arguments)]
     pub fn compress_and_close_ctoken(
         amount: u64,
         mint: u8,
@@ -117,6 +118,7 @@ impl Compression {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn compress_spl(
         amount: u64,
         mint: u8,
@@ -125,6 +127,7 @@ impl Compression {
         pool_account_index: u8,
         pool_index: u8,
         bump: u8,
+        decimals: u8,
     ) -> Self {
         Compression {
             amount,
@@ -135,7 +138,7 @@ impl Compression {
             pool_account_index,
             pool_index,
             bump,
-            decimals: 0,
+            decimals,
         }
     }
     pub fn compress_ctoken(amount: u64, mint: u8, source: u8, authority: u8) -> Self {
@@ -159,6 +162,7 @@ impl Compression {
         pool_account_index: u8,
         pool_index: u8,
         bump: u8,
+        decimals: u8,
     ) -> Self {
         Compression {
             amount,
@@ -169,7 +173,7 @@ impl Compression {
             pool_account_index,
             pool_index,
             bump,
-            decimals: 0,
+            decimals,
         }
     }
 

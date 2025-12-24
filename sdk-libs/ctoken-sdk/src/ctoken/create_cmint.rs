@@ -21,7 +21,7 @@ use crate::{
     },
     ctoken::SystemAccountInfos,
 };
-
+// TODO: modify so that it creates a decompressed mint, if you want a compressed mint use light_ctoken_sdk::compressed_token::create_cmint
 /// Parameters for creating a compressed mint.
 #[derive(Debug, Clone)]
 pub struct CreateCMintParams {

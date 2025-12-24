@@ -302,7 +302,8 @@ When compression processing occurs (in both Path A and Path B):
 - `ProgramError::InvalidInstructionData` (error code: 3) - Invalid instruction data or authority index for decompress mode
 - `ProgramError::InvalidAccountData` (error code: 4) - Account data deserialization fails
 - `ProgramError::ArithmeticOverflow` (error code: 24) - Overflow in lamport calculations
-- `CTokenError::TokenDataTlvUnimplemented` (error code: 18035) - TLV data not yet supported
+- `CTokenError::InLamportsUnimplemented` (error code: 18050) - in_lamports field not yet implemented
+- `CTokenError::OutLamportsUnimplemented` (error code: 18051) - out_lamports field not yet implemented
 - `CTokenError::CompressedTokenAccountTlvUnimplemented` (error code: 18021) - Compressed account TLV not supported
 - `CTokenError::InvalidInstructionData` (error code: 18001) - Compressions not allowed when writing to CPI context
 - `CTokenError::InvalidCompressionMode` (error code: 18018) - Invalid compression mode value

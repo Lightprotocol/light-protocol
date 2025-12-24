@@ -5,6 +5,8 @@ use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 use solana_signer::Signer;
 
+const SYSTEM_PROGRAM_ID: [u8; 32] = [0u8; 32];
+
 /// Transfer from one c-token account to another.
 ///
 /// # Arguments
@@ -60,8 +62,8 @@ pub fn create_transfer_ctoken_instruction(
         accounts: vec![
             AccountMeta::new(source, false),      // Source token account
             AccountMeta::new(destination, false), // Destination token account
-            AccountMeta::new(authority, true),
-            AccountMeta::new_readonly(Pubkey::default(), false),
+            AccountMeta::new(authority, true), // Authority must be writable for potential top-ups
+            AccountMeta::new_readonly(Pubkey::from(SYSTEM_PROGRAM_ID), false), // System program for rent top-ups
         ],
         data: {
             // CTokenTransfer discriminator

@@ -310,8 +310,8 @@ async fn test_write_to_cpi_context_invalid_address_tree() {
         .await;
 
     // Assert that the transaction failed with MintActionInvalidCpiContextAddressTreePubkey error
-    // Error code 105 = MintActionInvalidCpiContextAddressTreePubkey
-    assert_rpc_error(result, 0, 105).unwrap();
+    // Error code 6105 = MintActionInvalidCpiContextAddressTreePubkey
+    assert_rpc_error(result, 0, 6105).unwrap();
 }
 
 #[tokio::test]
@@ -402,8 +402,8 @@ async fn test_write_to_cpi_context_invalid_compressed_address() {
         .await;
 
     // Assert that the transaction failed with MintActionInvalidCompressedMintAddress error
-    // Error code 103 = MintActionInvalidCompressedMintAddress
-    assert_rpc_error(result, 0, 103).unwrap();
+    // Error code 6103 = MintActionInvalidCompressedMintAddress
+    assert_rpc_error(result, 0, 6103).unwrap();
 }
 
 #[tokio::test]
@@ -497,6 +497,6 @@ async fn test_execute_cpi_context_invalid_tree_index() {
         .await;
 
     // Assert that the transaction failed with MintActionInvalidCpiContextForCreateMint error
-    // Error code 104 = MintActionInvalidCpiContextForCreateMint
-    assert_rpc_error(result, 0, 104).unwrap();
+    // Error code 6104 = MintActionInvalidCpiContextForCreateMint
+    assert_rpc_error(result, 0, 6104).unwrap();
 }

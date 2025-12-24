@@ -1,7 +1,11 @@
 use light_compressed_account::Pubkey;
+use light_compressible::compression_info::CompressionInfo;
 use light_zero_copy::errors::ZeroCopyError;
 
 use crate::{state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError};
+
+/// AccountType discriminator value for token accounts (at byte 165)
+pub const ACCOUNT_TYPE_TOKEN_ACCOUNT: u8 = 2;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, AnchorSerialize, AnchorDeserialize)]
 #[repr(u8)]
@@ -49,6 +53,12 @@ pub struct CToken {
     pub delegated_amount: u64,
     /// Optional authority to close the account.
     pub close_authority: Option<Pubkey>,
+    // End of spl-token compatible layout
+    /// Account type discriminator at byte 165 (always 2 for CToken accounts)
+    pub account_type: u8, // t22 compatible account type - end of t22 compatible layout
+    pub decimals: Option<u8>,
+    pub compression_only: bool,
+    pub compression: CompressionInfo,
     /// Extensions for the token account (including compressible config)
     pub extensions: Option<Vec<ExtensionStruct>>,
 }
@@ -93,5 +103,11 @@ impl CToken {
     /// Checks if account is initialized
     pub fn is_initialized(&self) -> bool {
         self.state == AccountState::Initialized
+    }
+
+    /// Checks if account_type matches CToken discriminator value
+    #[inline(always)]
+    pub fn is_ctoken_account(&self) -> bool {
+        self.account_type == ACCOUNT_TYPE_TOKEN_ACCOUNT
     }
 }
