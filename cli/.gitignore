@@ -14,3 +14,4 @@ test-ledger
 /**/.DS_store
 /bin
 /config.json
+/src/utils/proverVersion.generated.ts
