@@ -21,7 +21,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-const Version = "2.0.6"
+//go:embed VERSION
+var Version string
 
 func main() {
 	runCli()
