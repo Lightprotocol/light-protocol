@@ -9,6 +9,9 @@ export default defineConfig({
             : ['src/**/__tests__/*.test.ts', 'tests/**/*.test.ts'],
         includeSource: ['src/**/*.{js,ts}'],
         exclude: ['src/program.ts'],
+        // e2e tests share a single local validator instance; running files in parallel can
+        // overflow on-chain queues and lead to nondeterministic ProgramError failures.
+        fileParallelism: false,
         testTimeout: 350000,
         hookTimeout: 100000,
         reporters: ['verbose'],

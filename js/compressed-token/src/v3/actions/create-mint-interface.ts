@@ -17,13 +17,14 @@ import {
     getBatchAddressTreeInfo,
     DerivationMode,
     CTOKEN_PROGRAM_ID,
+    getDefaultAddressTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
     createMintInstruction,
     TokenMetadataInstructionData,
 } from '../instructions/create-mint';
-import { findMintAddress } from '../derivation';
+import { deriveCMintAddress, findMintAddress } from '../derivation';
 import { createMint } from '../../actions/create-mint';
 
 export { TokenMetadataInstructionData };
@@ -81,6 +82,14 @@ export async function createMintInterface(
             'mintAuthority must be a Signer for compressed token mints',
         );
     }
+    if (
+        addressTreeInfo &&
+        !addressTreeInfo.tree.equals(getDefaultAddressTreeInfo().tree)
+    ) {
+        throw new Error(
+            `addressTreeInfo ${addressTreeInfo?.tree.toString()} must be the default address tree info: ${getDefaultAddressTreeInfo().tree.toString()}`,
+        );
+    }
 
     const resolvedFreezeAuthority =
         freezeAuthority && 'secretKey' in freezeAuthority
@@ -92,15 +101,20 @@ export async function createMintInterface(
         outputStateTreeInfo ??
         selectStateTreeInfo(await rpc.getStateTreeInfos());
 
+    const compressedMintAddress = deriveCMintAddress(
+        keypair.publicKey,
+        addressTreeInfo,
+    );
+
     const validityProof = await rpc.getValidityProofV2(
         [],
         [
             {
-                address: findMintAddress(keypair.publicKey)[0].toBytes(),
+                address: Uint8Array.from(compressedMintAddress),
                 treeInfo: addressTreeInfo,
             },
         ],
-        DerivationMode.compressible,
+        DerivationMode.standard,
     );
 
     const ix = createMintInstruction(
@@ -123,10 +137,8 @@ export async function createMintInterface(
         blockhash,
         additionalSigners,
     );
-    const txId = await sendAndConfirmTx(rpc, tx, {
-        ...confirmOptions,
-        skipPreflight: true,
-    });
+    const txId = await sendAndConfirmTx(rpc, tx);
+    console.log('txId', txId);
 
     const mint = findMintAddress(keypair.publicKey);
     return { mint: mint[0], transactionSignature: txId };

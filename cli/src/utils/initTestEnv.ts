@@ -11,6 +11,7 @@ import {
 import path from "path";
 import { downloadBinIfNotExists } from "../psp-utils";
 import {
+  confirmRpcReadiness,
   confirmServerStability,
   executeCommand,
   killProcess,
@@ -172,16 +173,21 @@ export async function initTestEnv({
   });
   await waitForServers([{ port: rpcPort, path: "/health" }]);
   await confirmServerStability(`http://127.0.0.1:${rpcPort}/health`);
+  await confirmRpcReadiness(`http://127.0.0.1:${rpcPort}`);
 
   if (indexer) {
     const config = getConfig();
     config.indexerUrl = `http://127.0.0.1:${indexerPort}`;
     setConfig(config);
+    const proverUrlForIndexer = prover
+      ? `http://127.0.0.1:${proverPort}`
+      : undefined;
     await startIndexer(
       `http://127.0.0.1:${rpcPort}`,
       indexerPort,
       checkPhotonVersion,
       photonDatabaseUrl,
+      proverUrlForIndexer,
     );
   }
 

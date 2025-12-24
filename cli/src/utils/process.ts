@@ -285,3 +285,73 @@ export async function confirmServerStability(
     throw error;
   }
 }
+
+/**
+ * Confirms that the Solana RPC is fully ready to process requests.
+ * This goes beyond HTTP availability and verifies the RPC can handle actual Solana requests.
+ *
+ * @param rpcUrl - The RPC endpoint URL
+ * @param maxAttempts - Maximum number of attempts (default: 30)
+ * @param delayMs - Delay between attempts in milliseconds (default: 500ms)
+ * @throws Error if RPC doesn't become ready within maxAttempts
+ */
+export async function confirmRpcReadiness(
+  rpcUrl: string,
+  maxAttempts: number = 30,
+  delayMs: number = 500,
+) {
+  let lastError: Error | unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await axios.post(
+        rpcUrl,
+        {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "getHealth",
+          params: [],
+        },
+        {
+          headers: { "Content-Type": "application/json" },
+          timeout: 3000,
+        },
+      );
+
+      if (response.data?.result === "ok") {
+        console.log(
+          `RPC is ready after ${attempt} attempt${attempt > 1 ? "s" : ""}.`,
+        );
+        return;
+      }
+
+      // Response received but not "ok"
+      lastError = new Error(
+        `RPC returned unexpected result: ${JSON.stringify(response.data)}`,
+      );
+    } catch (error) {
+      lastError = error;
+
+      // Log connection errors only on later attempts to reduce noise
+      if (attempt > 5 && attempt % 5 === 0) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.log(
+          `RPC not ready yet (attempt ${attempt}/${maxAttempts}): ${errorMsg}`,
+        );
+      }
+    }
+
+    // Don't sleep after the last attempt
+    if (attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  // If we get here, all attempts failed
+  const errorMsg =
+    lastError instanceof Error ? lastError.message : String(lastError);
+  const totalTime = Math.round((maxAttempts * delayMs) / 1000);
+  throw new Error(
+    `RPC failed to become ready after ${maxAttempts} attempts (~${totalTime}s). Last error: ${errorMsg}`,
+  );
+}
