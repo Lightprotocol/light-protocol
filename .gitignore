@@ -95,3 +95,6 @@ output1.txt
 **/~/
 
 expand.rs
+
+# Separate target dirs for SBF builds (pinocchio vs anchor features)
+target-*/
