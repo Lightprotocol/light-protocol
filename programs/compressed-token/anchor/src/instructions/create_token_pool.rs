@@ -176,9 +176,10 @@ pub struct AddTokenPoolInstruction<'info> {
     pub fee_payer: Signer<'info>,
     /// CHECK: Token pool account. Initialized manually via CPI because Anchor's token::mint
     /// constraint cannot handle Token 2022 mints with variable-length extensions.
+    /// For mints with restricted extensions, the PDA includes "restricted" seed.
     #[account(
         init,
-        seeds = [POOL_SEED, &mint.key().to_bytes(), &[token_pool_index]],
+        seeds = [POOL_SEED, &mint.key().to_bytes(), restricted_seed(&mint).as_slice(), &[token_pool_index]],
         bump,
         payer = fee_payer,
         space = get_token_account_space(&mint)?,

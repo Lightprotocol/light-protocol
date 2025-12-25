@@ -720,3 +720,160 @@ async fn test_non_restricted_mint_detection() {
         "Mint with MetadataPointer should not be restricted"
     );
 }
+
+/// Test creating all 5 SPL interface PDAs (index 0-4) using the SDK.
+/// Tests both regular and restricted mints.
+#[serial]
+#[tokio::test]
+async fn test_create_all_spl_interface_pdas_with_sdk() {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Test 1: Regular SPL mint (non-restricted)
+    {
+        // Create mint without a pool
+        let mint = Keypair::new();
+        let rent = rpc
+            .get_minimum_balance_for_rent_exemption(Mint::LEN)
+            .await
+            .unwrap();
+
+        let instructions = vec![
+            system_instruction::create_account(
+                &payer.pubkey(),
+                &mint.pubkey(),
+                rent,
+                Mint::LEN as u64,
+                &spl_token::ID,
+            ),
+            initialize_mint(&spl_token::ID, &mint.pubkey(), &payer.pubkey(), None, 2).unwrap(),
+        ];
+
+        rpc.create_and_send_transaction(&instructions, &payer.pubkey(), &[&payer, &mint])
+            .await
+            .unwrap();
+
+        println!("Testing regular SPL mint: {}", mint.pubkey());
+
+        // Create all 5 pools using SDK
+        for index in 0..NUM_MAX_POOL_ACCOUNTS {
+            let create_pool_ix = CreateSplInterfacePda::new_with_index(
+                payer.pubkey(),
+                mint.pubkey(),
+                spl_token::ID,
+                index,
+                false, // not restricted
+            )
+            .instruction();
+
+            rpc.create_and_send_transaction(&[create_pool_ix], &payer.pubkey(), &[&payer])
+                .await
+                .unwrap();
+
+            // Verify pool was created at correct derivation
+            let (expected_pda, _) = find_spl_interface_pda_with_index(&mint.pubkey(), index, false);
+            let pool_account = rpc.get_account(expected_pda).await.unwrap();
+            assert!(
+                pool_account.is_some(),
+                "Pool at index {} should exist for regular mint",
+                index
+            );
+            println!("Created pool at index {}: {}", index, expected_pda);
+        }
+    }
+
+    // Test 2: Token-2022 mint with restricted extension (PermanentDelegate)
+    {
+        let mint = Keypair::new();
+        let space = ExtensionType::try_calculate_account_len::<spl_token_2022::state::Mint>(&[
+            ExtensionType::PermanentDelegate,
+        ])
+        .unwrap();
+
+        let instructions = vec![
+            system_instruction::create_account(
+                &payer.pubkey(),
+                &mint.pubkey(),
+                rpc.get_minimum_balance_for_rent_exemption(space)
+                    .await
+                    .unwrap(),
+                space as u64,
+                &spl_token_2022::ID,
+            ),
+            spl_token_2022::instruction::initialize_permanent_delegate(
+                &spl_token_2022::ID,
+                &mint.pubkey(),
+                &payer.pubkey(),
+            )
+            .unwrap(),
+            spl_token_2022::instruction::initialize_mint(
+                &spl_token_2022::ID,
+                &mint.pubkey(),
+                &payer.pubkey(),
+                None,
+                2,
+            )
+            .unwrap(),
+        ];
+
+        rpc.create_and_send_transaction(&instructions, &payer.pubkey(), &[&payer, &mint])
+            .await
+            .unwrap();
+
+        println!(
+            "Testing restricted Token-2022 mint (PermanentDelegate): {}",
+            mint.pubkey()
+        );
+
+        // Verify it's detected as restricted
+        let mint_account = rpc.get_account(mint.pubkey()).await.unwrap().unwrap();
+        assert!(
+            has_restricted_extensions(&mint_account.data),
+            "Mint should be detected as restricted"
+        );
+
+        // Create all 5 pools using SDK with restricted = true
+        for index in 0..NUM_MAX_POOL_ACCOUNTS {
+            let create_pool_ix = CreateSplInterfacePda::new_with_index(
+                payer.pubkey(),
+                mint.pubkey(),
+                spl_token_2022::ID,
+                index,
+                true, // restricted
+            )
+            .instruction();
+
+            rpc.create_and_send_transaction(&[create_pool_ix], &payer.pubkey(), &[&payer])
+                .await
+                .unwrap();
+
+            // Verify pool was created at restricted derivation
+            let (restricted_pda, _) =
+                find_spl_interface_pda_with_index(&mint.pubkey(), index, true);
+            let pool_account = rpc.get_account(restricted_pda).await.unwrap();
+            assert!(
+                pool_account.is_some(),
+                "Pool at index {} should exist for restricted mint",
+                index
+            );
+
+            // Verify it's NOT at the regular derivation
+            let (regular_pda, _) = find_spl_interface_pda_with_index(&mint.pubkey(), index, false);
+            let regular_account = rpc.get_account(regular_pda).await.unwrap();
+            assert!(
+                regular_account.is_none(),
+                "Pool at index {} should NOT exist at regular derivation",
+                index
+            );
+
+            println!(
+                "Created restricted pool at index {}: {}",
+                index, restricted_pda
+            );
+        }
+    }
+
+    println!("Successfully created all SPL interface PDAs for both regular and restricted mints");
+}

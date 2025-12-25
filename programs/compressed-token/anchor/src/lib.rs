@@ -37,8 +37,9 @@ solana_security_txt::security_txt! {
 pub mod light_compressed_token {
 
     use constants::{NOT_FROZEN, NUM_MAX_POOL_ACCOUNTS};
+    use instructions::create_token_pool::restricted_seed;
+    use light_ctoken_interface::is_valid_spl_interface_pda;
     use light_zero_copy::traits::ZeroCopyAt;
-    use spl_compression::check_spl_token_pool_derivation_with_index;
 
     use super::*;
 
@@ -63,6 +64,7 @@ pub mod light_compressed_token {
 
     /// This instruction creates an additional token pool for a given mint.
     /// The maximum number of token pools per mint is 5.
+    /// For mints with restricted extensions, uses restricted PDA derivation.
     pub fn add_token_pool<'info>(
         ctx: Context<'_, '_, '_, 'info, AddTokenPoolInstruction<'info>>,
         token_pool_index: u8,
@@ -70,12 +72,19 @@ pub mod light_compressed_token {
         if token_pool_index >= NUM_MAX_POOL_ACCOUNTS {
             return err!(ErrorCode::InvalidTokenPoolBump);
         }
-        // Check that token pool account with previous bump already exists.
-        check_spl_token_pool_derivation_with_index(
+        // Check that token pool account with previous index already exists.
+        // Use the same restricted derivation as the new pool.
+        let is_restricted = !restricted_seed(&ctx.accounts.mint).is_empty();
+        let prev_index = token_pool_index.saturating_sub(1);
+        if !is_valid_spl_interface_pda(
             &ctx.accounts.mint.key().to_bytes(),
             &ctx.accounts.existing_token_pool_pda.key(),
-            &[token_pool_index.saturating_sub(1)],
-        )?;
+            prev_index,
+            None,
+            is_restricted,
+        ) {
+            return err!(ErrorCode::InvalidTokenPoolPda);
+        }
         // Initialize the token account via CPI (Anchor's init constraint only allocated space)
         instructions::create_token_pool::initialize_token_account(
             &ctx.accounts.token_pool_pda,
