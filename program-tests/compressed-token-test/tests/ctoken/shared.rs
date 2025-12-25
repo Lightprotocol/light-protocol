@@ -2,8 +2,8 @@
 pub use light_compressible::rent::{RentConfig, SLOTS_PER_EPOCH};
 pub use light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE;
 pub use light_ctoken_sdk::ctoken::{
-    derive_ctoken_ata, CloseCTokenAccount, CompressibleParams, CreateAssociatedCTokenAccount,
-    CreateCTokenAccount,
+    derive_ctoken_ata, ApproveCToken, CloseCTokenAccount, CompressibleParams,
+    CreateAssociatedCTokenAccount, CreateCTokenAccount, RevokeCToken,
 };
 pub use light_program_test::{
     forester::compress_and_close_forester, program_test::TestRpc, LightProgramTest,
@@ -15,6 +15,7 @@ pub use light_test_utils::{
     assert_create_token_account::{
         assert_create_associated_token_account, assert_create_token_account, CompressibleData,
     },
+    assert_ctoken_approve_revoke::{assert_ctoken_approve, assert_ctoken_revoke},
     assert_transfer2::assert_transfer2_compress,
     Rpc, RpcError,
 };
@@ -786,3 +787,311 @@ pub async fn compress_and_close_forester_with_invalid_output(
     // Assert that the transaction failed with the expected error code
     light_program_test::utils::assert::assert_rpc_error(result, 0, expected_error_code).unwrap();
 }
+
+// ============================================================================
+// Approve and Revoke Helper Functions
+// ============================================================================
+
+/// Execute SPL-format approve and assert success (uses spl_token_2022 instruction format)
+/// This tests SPL compatibility - building instruction with spl_token_2022 and changing program_id.
+/// Note: CToken requires system_program account for compressible top-up, so we add it here.
+pub async fn approve_spl_compat_and_assert(
+    context: &mut AccountTestContext,
+    delegate: Pubkey,
+    amount: u64,
+    name: &str,
+) {
+    use anchor_spl::token_2022::spl_token_2022;
+    use solana_sdk::instruction::AccountMeta;
+    println!("SPL compat approve initiated for: {}", name);
+
+    // Build SPL approve instruction and change program_id
+    let mut approve_ix = spl_token_2022::instruction::approve(
+        &spl_token_2022::ID,
+        &context.token_account_keypair.pubkey(),
+        &delegate,
+        &context.owner_keypair.pubkey(),
+        &[],
+        amount,
+    )
+    .unwrap();
+    approve_ix.program_id = light_compressed_token::ID;
+    // Mark owner as writable for compressible top-up (ctoken extension)
+    approve_ix.accounts[2].is_writable = true;
+    // Add system program for CPI (required for lamport transfers)
+    approve_ix
+        .accounts
+        .push(AccountMeta::new_readonly(Pubkey::default(), false));
+
+    context
+        .rpc
+        .create_and_send_transaction(
+            &[approve_ix],
+            &context.payer.pubkey(),
+            &[&context.payer, &context.owner_keypair],
+        )
+        .await
+        .unwrap();
+
+    // Use existing assert function from light-test-utils
+    assert_ctoken_approve(
+        &mut context.rpc,
+        context.token_account_keypair.pubkey(),
+        delegate,
+        amount,
+    )
+    .await;
+}
+
+/// Execute SPL-format revoke and assert success (uses spl_token_2022 instruction format)
+/// This tests SPL compatibility - building instruction with spl_token_2022 and changing program_id.
+/// Note: CToken requires system_program account for compressible top-up, so we add it here.
+pub async fn revoke_spl_compat_and_assert(context: &mut AccountTestContext, name: &str) {
+    use anchor_spl::token_2022::spl_token_2022;
+    use solana_sdk::instruction::AccountMeta;
+    println!("SPL compat revoke initiated for: {}", name);
+
+    // Build SPL revoke instruction and change program_id
+    let mut revoke_ix = spl_token_2022::instruction::revoke(
+        &spl_token_2022::ID,
+        &context.token_account_keypair.pubkey(),
+        &context.owner_keypair.pubkey(),
+        &[],
+    )
+    .unwrap();
+    revoke_ix.program_id = light_compressed_token::ID;
+    // Mark owner as writable for compressible top-up (ctoken extension)
+    revoke_ix.accounts[1].is_writable = true;
+    // Add system program for CPI (required for lamport transfers)
+    revoke_ix
+        .accounts
+        .push(AccountMeta::new_readonly(Pubkey::default(), false));
+
+    context
+        .rpc
+        .create_and_send_transaction(
+            &[revoke_ix],
+            &context.payer.pubkey(),
+            &[&context.payer, &context.owner_keypair],
+        )
+        .await
+        .unwrap();
+
+    // Use existing assert function from light-test-utils
+    assert_ctoken_revoke(&mut context.rpc, context.token_account_keypair.pubkey()).await;
+}
+
+/// Execute approve and assert success using SDK
+pub async fn approve_and_assert(
+    context: &mut AccountTestContext,
+    delegate: Pubkey,
+    amount: u64,
+    name: &str,
+) {
+    println!("Approve initiated for: {}", name);
+
+    // Use light-ctoken-sdk
+    let approve_ix = ApproveCToken {
+        token_account: context.token_account_keypair.pubkey(),
+        delegate,
+        owner: context.owner_keypair.pubkey(),
+        amount,
+    }
+    .instruction()
+    .unwrap();
+
+    context
+        .rpc
+        .create_and_send_transaction(
+            &[approve_ix],
+            &context.payer.pubkey(),
+            &[&context.payer, &context.owner_keypair],
+        )
+        .await
+        .unwrap();
+
+    // Use existing assert function from light-test-utils
+    assert_ctoken_approve(
+        &mut context.rpc,
+        context.token_account_keypair.pubkey(),
+        delegate,
+        amount,
+    )
+    .await;
+}
+
+/// Execute approve expecting failure - modify SDK instruction if needed
+pub async fn approve_and_assert_fails(
+    context: &mut AccountTestContext,
+    token_account: Pubkey,
+    delegate: Pubkey,
+    authority: &Keypair,
+    amount: u64,
+    max_top_up: Option<u16>,
+    name: &str,
+    expected_error_code: u32,
+) {
+    println!("Approve (expecting failure) initiated for: {}", name);
+
+    // Build using SDK, then modify if needed for max_top_up
+    let mut instruction = ApproveCToken {
+        token_account,
+        delegate,
+        owner: authority.pubkey(),
+        amount,
+    }
+    .instruction()
+    .unwrap();
+
+    // Add max_top_up to instruction data if specified
+    if let Some(max) = max_top_up {
+        instruction.data.extend_from_slice(&max.to_le_bytes());
+    }
+
+    let result = context
+        .rpc
+        .create_and_send_transaction(
+            &[instruction],
+            &context.payer.pubkey(),
+            &[&context.payer, authority],
+        )
+        .await;
+
+    light_program_test::utils::assert::assert_rpc_error(result, 0, expected_error_code).unwrap();
+}
+
+/// Execute revoke and assert success using SDK
+pub async fn revoke_and_assert(context: &mut AccountTestContext, name: &str) {
+    println!("Revoke initiated for: {}", name);
+
+    // Use light-ctoken-sdk
+    let revoke_ix = RevokeCToken {
+        token_account: context.token_account_keypair.pubkey(),
+        owner: context.owner_keypair.pubkey(),
+    }
+    .instruction()
+    .unwrap();
+
+    context
+        .rpc
+        .create_and_send_transaction(
+            &[revoke_ix],
+            &context.payer.pubkey(),
+            &[&context.payer, &context.owner_keypair],
+        )
+        .await
+        .unwrap();
+
+    // Use existing assert function from light-test-utils
+    assert_ctoken_revoke(&mut context.rpc, context.token_account_keypair.pubkey()).await;
+}
+
+/// Execute revoke expecting failure - modify SDK instruction if needed
+pub async fn revoke_and_assert_fails(
+    context: &mut AccountTestContext,
+    token_account: Pubkey,
+    authority: &Keypair,
+    max_top_up: Option<u16>,
+    name: &str,
+    expected_error_code: u32,
+) {
+    println!("Revoke (expecting failure) initiated for: {}", name);
+
+    // Build using SDK, then modify if needed for max_top_up
+    let mut instruction = RevokeCToken {
+        token_account,
+        owner: authority.pubkey(),
+    }
+    .instruction()
+    .unwrap();
+
+    // Add max_top_up to instruction data if specified
+    if let Some(max) = max_top_up {
+        instruction.data.extend_from_slice(&max.to_le_bytes());
+    }
+
+    let result = context
+        .rpc
+        .create_and_send_transaction(
+            &[instruction],
+            &context.payer.pubkey(),
+            &[&context.payer, authority],
+        )
+        .await;
+
+    light_program_test::utils::assert::assert_rpc_error(result, 0, expected_error_code).unwrap();
+}
+
+// Note: Delegate self-revoke (Token-2022 feature) is NOT supported by pinocchio-token-program.
+// The pinocchio implementation only validates against the owner, not the delegate.
+
+// ============================================================================
+// Transfer Checked Helper Functions
+// ============================================================================
+
+use anchor_spl::token::Mint;
+
+/// Set up test environment with an SPL Token mint (not Token-2022)
+/// Creates a real SPL Token mint for transfer_checked tests
+pub async fn setup_account_test_with_spl_mint(decimals: u8) -> Result<AccountTestContext, RpcError> {
+    use anchor_spl::token::spl_token;
+
+    let rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
+    let payer = rpc.get_payer().insecure_clone();
+    let owner_keypair = Keypair::new();
+    let token_account_keypair = Keypair::new();
+
+    // Create SPL Token mint
+    let mint_keypair = Keypair::new();
+    let mint_pubkey = mint_keypair.pubkey();
+
+    let mint_rent = rpc
+        .get_minimum_balance_for_rent_exemption(Mint::LEN)
+        .await?;
+
+    let create_mint_account_ix = solana_sdk::system_instruction::create_account(
+        &payer.pubkey(),
+        &mint_pubkey,
+        mint_rent,
+        Mint::LEN as u64,
+        &spl_token::ID,
+    );
+
+    let initialize_mint_ix = spl_token::instruction::initialize_mint(
+        &spl_token::ID,
+        &mint_pubkey,
+        &payer.pubkey(),
+        Some(&payer.pubkey()),
+        decimals,
+    )
+    .unwrap();
+
+    let mut rpc_mut = rpc;
+    rpc_mut
+        .create_and_send_transaction(
+            &[create_mint_account_ix, initialize_mint_ix],
+            &payer.pubkey(),
+            &[&payer, &mint_keypair],
+        )
+        .await?;
+
+    Ok(AccountTestContext {
+        compressible_config: rpc_mut
+            .test_accounts
+            .funding_pool_config
+            .compressible_config_pda,
+        rent_sponsor: rpc_mut.test_accounts.funding_pool_config.rent_sponsor_pda,
+        compression_authority: rpc_mut
+            .test_accounts
+            .funding_pool_config
+            .compression_authority_pda,
+        rpc: rpc_mut,
+        payer,
+        mint_pubkey,
+        owner_keypair,
+        token_account_keypair,
+    })
+}
+
+// Note: Token-2022 mint setup is more complex and requires additional handling.
+// Tests for Token-2022 mints are covered in sdk-tests/sdk-ctoken-test/tests/test_transfer_checked.rs

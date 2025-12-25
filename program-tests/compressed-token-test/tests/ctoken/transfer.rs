@@ -580,3 +580,363 @@ async fn test_ctoken_transfer_max_top_up_exceeded() {
     // Assert MaxTopUpExceeded (error code 18043)
     light_program_test::utils::assert::assert_rpc_error(result, 0, 18043).unwrap();
 }
+
+// ============================================================================
+// Transfer Checked Helper Functions
+// ============================================================================
+
+use light_ctoken_sdk::ctoken::TransferCTokenChecked;
+
+/// Setup context with two token accounts for transfer_checked tests using a real SPL Token mint
+async fn setup_transfer_checked_test_with_spl_mint(
+    num_prepaid_epochs: Option<u8>,
+    mint_amount: u64,
+    decimals: u8,
+) -> Result<(AccountTestContext, Pubkey, Pubkey, u64, Keypair, Keypair), RpcError> {
+    let mut context = setup_account_test_with_spl_mint(decimals).await?;
+    let payer_pubkey = context.payer.pubkey();
+
+    let source_keypair = Keypair::new();
+    let source_pubkey = source_keypair.pubkey();
+
+    let destination_keypair = Keypair::new();
+    let destination_pubkey = destination_keypair.pubkey();
+
+    let rent_sponsor = context.rent_sponsor;
+    let source_epochs = num_prepaid_epochs.unwrap_or(3);
+
+    context.token_account_keypair = source_keypair.insecure_clone();
+    {
+        let compressible_params = CompressibleParams {
+            compressible_config: context.compressible_config,
+            rent_sponsor,
+            pre_pay_num_epochs: source_epochs,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
+        };
+
+        let create_token_account_ix = CreateCTokenAccount::new(
+            payer_pubkey,
+            source_pubkey,
+            context.mint_pubkey,
+            context.owner_keypair.pubkey(),
+        )
+        .with_compressible(compressible_params)
+        .instruction()
+        .unwrap();
+
+        context
+            .rpc
+            .create_and_send_transaction(
+                &[create_token_account_ix],
+                &payer_pubkey,
+                &[&context.payer, &source_keypair],
+            )
+            .await
+            .unwrap();
+    }
+
+    let dest_epochs = num_prepaid_epochs.unwrap_or(3);
+    context.token_account_keypair = destination_keypair.insecure_clone();
+    {
+        let compressible_params = CompressibleParams {
+            compressible_config: context.compressible_config,
+            rent_sponsor,
+            pre_pay_num_epochs: dest_epochs,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
+        };
+
+        let create_token_account_ix = CreateCTokenAccount::new(
+            payer_pubkey,
+            destination_pubkey,
+            context.mint_pubkey,
+            context.owner_keypair.pubkey(),
+        )
+        .with_compressible(compressible_params)
+        .instruction()
+        .unwrap();
+
+        context
+            .rpc
+            .create_and_send_transaction(
+                &[create_token_account_ix],
+                &payer_pubkey,
+                &[&context.payer, &destination_keypair],
+            )
+            .await
+            .unwrap();
+    }
+
+    if mint_amount > 0 {
+        let mut source_account = context
+            .rpc
+            .get_account(source_pubkey)
+            .await?
+            .ok_or_else(|| RpcError::AssertRpcError("Source account not found".to_string()))?;
+
+        let mut token_account =
+            spl_token_2022::state::Account::unpack_unchecked(&source_account.data[..165]).map_err(
+                |e| RpcError::AssertRpcError(format!("Failed to unpack token account: {:?}", e)),
+            )?;
+        token_account.amount = mint_amount;
+        spl_token_2022::state::Account::pack(token_account, &mut source_account.data[..165])
+            .map_err(|e| {
+                RpcError::AssertRpcError(format!("Failed to pack token account: {:?}", e))
+            })?;
+
+        context.rpc.set_account(source_pubkey, source_account);
+    }
+
+    Ok((
+        context,
+        source_pubkey,
+        destination_pubkey,
+        mint_amount,
+        source_keypair,
+        destination_keypair,
+    ))
+}
+
+
+/// Execute a ctoken transfer_checked and assert success
+async fn transfer_checked_and_assert(
+    context: &mut AccountTestContext,
+    source: Pubkey,
+    mint: Pubkey,
+    destination: Pubkey,
+    amount: u64,
+    decimals: u8,
+    authority: &Keypair,
+    name: &str,
+) {
+    use light_test_utils::assert_ctoken_transfer::assert_ctoken_transfer;
+
+    println!("Transfer checked initiated for: {}", name);
+
+    let payer_pubkey = context.payer.pubkey();
+
+    let transfer_ix = TransferCTokenChecked {
+        source,
+        mint,
+        destination,
+        amount,
+        decimals,
+        authority: authority.pubkey(),
+        max_top_up: None,
+    }
+    .instruction()
+    .unwrap();
+
+    context
+        .rpc
+        .create_and_send_transaction(&[transfer_ix], &payer_pubkey, &[&context.payer, authority])
+        .await
+        .unwrap();
+
+    assert_ctoken_transfer(&mut context.rpc, source, destination, amount).await;
+}
+
+/// Execute a ctoken transfer_checked expecting failure with specific error code
+async fn transfer_checked_and_assert_fails(
+    context: &mut AccountTestContext,
+    source: Pubkey,
+    mint: Pubkey,
+    destination: Pubkey,
+    amount: u64,
+    decimals: u8,
+    authority: &Keypair,
+    name: &str,
+    expected_error_code: u32,
+) {
+    println!("Transfer checked (expecting failure) initiated for: {}", name);
+
+    let payer_pubkey = context.payer.pubkey();
+
+    let transfer_ix = TransferCTokenChecked {
+        source,
+        mint,
+        destination,
+        amount,
+        decimals,
+        authority: authority.pubkey(),
+        max_top_up: None,
+    }
+    .instruction()
+    .unwrap();
+
+    let result = context
+        .rpc
+        .create_and_send_transaction(&[transfer_ix], &payer_pubkey, &[&context.payer, authority])
+        .await;
+
+    light_program_test::utils::assert::assert_rpc_error(result, 0, expected_error_code).unwrap();
+}
+
+// ============================================================================
+// Transfer Checked Success Tests
+// ============================================================================
+
+#[tokio::test]
+async fn test_ctoken_transfer_checked_with_spl_mint() {
+    let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_checked_test_with_spl_mint(None, 1000, 9).await.unwrap();
+
+    let mint = context.mint_pubkey;
+    let owner_keypair = context.owner_keypair.insecure_clone();
+
+    transfer_checked_and_assert(
+        &mut context,
+        source,
+        mint,
+        destination,
+        500,
+        9,
+        &owner_keypair,
+        "transfer_checked_spl_mint",
+    )
+    .await;
+}
+
+// Note: Token-2022 mint tests are covered in sdk-tests/sdk-ctoken-test/tests/test_transfer_checked.rs
+// The T22 mint requires additional setup (extensions, token pool, etc.) that is handled there.
+
+#[tokio::test]
+async fn test_ctoken_transfer_checked_compressible_with_topup() {
+    let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_checked_test_with_spl_mint(Some(3), 1000, 9).await.unwrap();
+
+    context
+        .rpc
+        .airdrop_lamports(&context.owner_keypair.pubkey(), 100_000_000)
+        .await
+        .unwrap();
+
+    let mint = context.mint_pubkey;
+    let owner_keypair = context.owner_keypair.insecure_clone();
+
+    transfer_checked_and_assert(
+        &mut context,
+        source,
+        mint,
+        destination,
+        500,
+        9,
+        &owner_keypair,
+        "compressible_transfer_checked_with_topup",
+    )
+    .await;
+}
+
+// ============================================================================
+// Transfer Checked Failure Tests
+// ============================================================================
+
+#[tokio::test]
+async fn test_ctoken_transfer_checked_wrong_decimals() {
+    let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_checked_test_with_spl_mint(None, 1000, 9).await.unwrap();
+
+    let mint = context.mint_pubkey;
+    let owner_keypair = context.owner_keypair.insecure_clone();
+
+    transfer_checked_and_assert_fails(
+        &mut context,
+        source,
+        mint,
+        destination,
+        500,
+        8, // Wrong decimals - mint has 9
+        &owner_keypair,
+        "wrong_decimals_transfer_checked",
+        2, // InvalidInstructionData
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_ctoken_transfer_checked_wrong_mint() {
+    let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_checked_test_with_spl_mint(None, 1000, 9).await.unwrap();
+
+    let wrong_mint = Pubkey::new_unique();
+    let owner_keypair = context.owner_keypair.insecure_clone();
+
+    transfer_checked_and_assert_fails(
+        &mut context,
+        source,
+        wrong_mint,
+        destination,
+        500,
+        9,
+        &owner_keypair,
+        "wrong_mint_transfer_checked",
+        18002, // CTokenError::MintMismatch
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_ctoken_transfer_checked_insufficient_balance() {
+    let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_checked_test_with_spl_mint(None, 1000, 9).await.unwrap();
+
+    let mint = context.mint_pubkey;
+    let owner_keypair = context.owner_keypair.insecure_clone();
+
+    transfer_checked_and_assert_fails(
+        &mut context,
+        source,
+        mint,
+        destination,
+        1500,
+        9,
+        &owner_keypair,
+        "insufficient_balance_transfer_checked",
+        1, // InsufficientFunds
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_ctoken_transfer_checked_max_top_up_exceeded() {
+    let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_checked_test_with_spl_mint(Some(0), 1000, 9).await.unwrap();
+
+    context
+        .rpc
+        .airdrop_lamports(&context.owner_keypair.pubkey(), 100_000_000)
+        .await
+        .unwrap();
+
+    let mint = context.mint_pubkey;
+    let owner_keypair = context.owner_keypair.insecure_clone();
+    let payer_pubkey = context.payer.pubkey();
+
+    let transfer_ix = TransferCTokenChecked {
+        source,
+        mint,
+        destination,
+        amount: 100,
+        decimals: 9,
+        authority: owner_keypair.pubkey(),
+        max_top_up: Some(1),
+    }
+    .instruction()
+    .unwrap();
+
+    let result = context
+        .rpc
+        .create_and_send_transaction(
+            &[transfer_ix],
+            &payer_pubkey,
+            &[&context.payer, &owner_keypair],
+        )
+        .await;
+
+    light_program_test::utils::assert::assert_rpc_error(result, 0, 18043).unwrap();
+}
