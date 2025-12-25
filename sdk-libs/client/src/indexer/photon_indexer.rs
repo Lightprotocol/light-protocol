@@ -138,7 +138,7 @@ impl PhotonIndexer {
             let error_message = error
                 .clone()
                 .message
-                .unwrap_or_else(|| format!("Unknown API error: {:?}", error).to_string());
+                .unwrap_or_else(|| format!("Unknown API error: {:?}", error));
             return Err(IndexerError::ApiError(format!(
                 "API error in {} (code: {:?}): {}",
                 context, error.code, error_message
