@@ -1,10 +1,13 @@
 use anchor_lang::prelude::ProgramError;
 use borsh::BorshDeserialize;
-use light_account_checks::AccountIterator;
+use light_account_checks::{AccountInfoTrait, AccountIterator};
 use light_compressible::config::CompressibleConfig;
-use light_ctoken_interface::instructions::{
-    create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
-    extensions::compressible::CompressibleExtensionInstructionData,
+use light_ctoken_interface::{
+    instructions::{
+        create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
+        extensions::compressible::CompressibleExtensionInstructionData,
+    },
+    state::CToken,
 };
 use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, instruction::Seed, pubkey::Pubkey};
@@ -100,8 +103,34 @@ pub(crate) fn process_create_associated_token_account_inner<const IDEMPOTENT: bo
     if IDEMPOTENT {
         // Verify the PDA derivation is correct
         validate_ata_derivation(associated_token_account, owner_bytes, mint_bytes, bump)?;
-        // If account is already owned by our program, it exists - return success
+        // If account is already owned by our program, verify internal fields match
         if associated_token_account.is_owned_by(&crate::LIGHT_CPI_SIGNER.program_id) {
+            // Validate internal mint and owner fields match expected values
+            // This prevents accepting accounts with mismatched internal data
+            let account_data = AccountInfoTrait::try_borrow_data(associated_token_account)?;
+            let (ctoken, _) = CToken::zero_copy_at_checked(&account_data)
+                .map_err(|_| ProgramError::InvalidAccountData)?;
+
+            // Verify mint field matches expected mint
+            if ctoken.mint.to_bytes() != *mint_bytes {
+                msg!(
+                    "ATA mint mismatch: expected {:?}, found {:?}",
+                    solana_pubkey::Pubkey::new_from_array(*mint_bytes),
+                    solana_pubkey::Pubkey::new_from_array(ctoken.mint.to_bytes())
+                );
+                return Err(ProgramError::InvalidAccountData);
+            }
+
+            // Verify owner field matches expected owner
+            if ctoken.owner.to_bytes() != *owner_bytes {
+                msg!(
+                    "ATA owner mismatch: expected {:?}, found {:?}",
+                    solana_pubkey::Pubkey::new_from_array(*owner_bytes),
+                    solana_pubkey::Pubkey::new_from_array(ctoken.owner.to_bytes())
+                );
+                return Err(ProgramError::InvalidAccountData);
+            }
+
             return Ok(());
         }
     }
