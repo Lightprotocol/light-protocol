@@ -1,0 +1,12 @@
+[package]
+name = "sp1-circuits-lib"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+light-poseidon = { workspace = true }
+ark-bn254 = { workspace = true }
+ark-ff = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+hex = "0.4"

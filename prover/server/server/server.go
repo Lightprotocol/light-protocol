@@ -418,6 +418,7 @@ type proveHandler struct {
 	keyManager  *common.LazyKeyManager
 	redisQueue  *RedisQueue
 	enableQueue bool
+	sp1Client   *SP1ProxyClient
 }
 
 func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -620,6 +621,25 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, keyManager *com
 	} else {
 		logging.Logger().Warn().Msg("No API key configured - server will accept all requests. Set PROVER_API_KEY environment variable to enable authentication.")
 	}
+
+	// Initialize SP1 proxy client if configured
+	sp1Config := GetSP1ConfigFromEnv()
+	var sp1Client *SP1ProxyClient
+	if sp1Config.Enabled {
+		sp1Client = NewSP1ProxyClient(sp1Config)
+		if err := sp1Client.HealthCheck(); err != nil {
+			logging.Logger().Warn().
+				Err(err).
+				Str("sp1_url", sp1Config.ServerURL).
+				Msg("SP1 prover health check failed - batch operations will use local Gnark prover")
+			sp1Client = nil
+		} else {
+			logging.Logger().Info().
+				Str("sp1_url", sp1Config.ServerURL).
+				Msg("SP1 prover connected successfully - batch operations will use SP1")
+		}
+	}
+
 	metricsMux := http.NewServeMux()
 	metricsMux.Handle("/metrics", promhttp.Handler())
 	metricsServer := &http.Server{Addr: config.MetricsAddress, Handler: metricsMux}
@@ -632,6 +652,7 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, keyManager *com
 		keyManager:  keyManager,
 		redisQueue:  redisQueue,
 		enableQueue: config.Queue != nil && config.Queue.Enabled,
+		sp1Client:   sp1Client,
 	})
 
 	proverMux.Handle("/health", healthHandler{})
@@ -1006,7 +1027,10 @@ func (handler proveHandler) handleSyncProof(w http.ResponseWriter, r *http.Reque
 	if timeoutDuration < 10*time.Second {
 		timeoutDuration = 10 * time.Second
 	}
-	if timeoutDuration > 300*time.Second {
+	// For SP1 batch operations, use a much longer timeout (SP1 CPU proving is slow)
+	if handler.sp1Client != nil && handler.isBatchOperation(meta.CircuitType) {
+		timeoutDuration = handler.sp1Client.config.Timeout
+	} else if timeoutDuration > 300*time.Second {
 		timeoutDuration = 300 * time.Second
 	}
 
@@ -1161,6 +1185,22 @@ func (handler proveHandler) processProofSync(buf []byte) (*common.Proof, *Error)
 	proofRequestMeta, err := common.ParseProofRequestMeta(buf)
 	if err != nil {
 		return nil, malformedBodyError(err)
+	}
+
+	// Try SP1 for batch operations if available
+	if handler.sp1Client != nil && handler.isBatchOperation(proofRequestMeta.CircuitType) {
+		proof, sp1Err := handler.sp1Client.ProxyBatchProof(proofRequestMeta.CircuitType, buf)
+		if sp1Err == nil {
+			logging.Logger().Info().
+				Str("circuit_type", string(proofRequestMeta.CircuitType)).
+				Msg("Proof generated via SP1")
+			return proof, nil
+		}
+		// SP1 failed, fall back to local Gnark prover
+		logging.Logger().Warn().
+			Err(sp1Err).
+			Str("circuit_type", string(proofRequestMeta.CircuitType)).
+			Msg("SP1 proof generation failed, falling back to Gnark")
 	}
 
 	switch proofRequestMeta.CircuitType {

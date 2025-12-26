@@ -1,0 +1,10 @@
+[package]
+name = "batch-address-append-program"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sp1-zkvm = { workspace = true }
+sp1-circuits-lib = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
