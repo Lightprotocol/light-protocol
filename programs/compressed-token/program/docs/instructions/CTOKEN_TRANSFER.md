@@ -4,6 +4,16 @@
 **enum:** `InstructionType::CTokenTransfer`
 **path:** programs/compressed-token/program/src/ctoken_transfer.rs
 
+### SPL Instruction Format Compatibility
+
+**Important:** This instruction is only compatible with the SPL Token instruction format (using `spl_token_2022::instruction::transfer` with changed program ID) when **no top-up is required**.
+
+If any CToken account (source or destination) has a compressible extension and requires a rent top-up, the instruction needs the **system program account** to perform the lamports transfer. Without the system program account, the top-up CPI will fail.
+
+**Compatibility scenarios:**
+- **SPL-compatible (no system program needed):** Non-compressible accounts, or compressible accounts with sufficient prepaid rent
+- **NOT SPL-compatible (system program required):** Compressible accounts that need rent top-up based on current slot
+
 **description:**
 1. Transfers tokens between decompressed ctoken solana accounts, fully compatible with SPL Token semantics
 2. Account layout `CToken` is defined in path: program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs
@@ -86,6 +96,10 @@
 - `ProgramError::NotEnoughAccountKeys` (error code: 11) - Less than 3 accounts provided
 - `ProgramError::InvalidInstructionData` (error code: 3) - Instruction is not TokenInstruction::Transfer or failed to unpack instruction data
 - `ProgramError::InsufficientFunds` (error code: 6) - Source balance less than amount (SPL Token error)
-- `ProgramError::Custom` (SPL Token errors) - OwnerMismatch, MintMismatch, AccountFrozen, or InvalidDelegate from SPL token validation
+- SPL Token errors (converted to ProgramError::Custom):
+  - `TokenError::OwnerMismatch` (error code: 4) - Authority is not owner or delegate
+  - `TokenError::MintMismatch` (error code: 3) - Source and destination have different mints
+  - `TokenError::AccountFrozen` (error code: 17) - Source or destination account is frozen
+  - `TokenError::InsufficientFunds` (error code: 1) - Delegate has insufficient allowance
 - `CTokenError::InvalidAccountData` (error code: 18002) - Account has extensions but no Compressible extension or failed to parse extensions
 - `CTokenError::SysvarAccessError` (error code: 18020) - Failed to get Clock sysvar for current slot

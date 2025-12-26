@@ -921,6 +921,7 @@ pub async fn approve_and_assert(
 }
 
 /// Execute approve expecting failure - modify SDK instruction if needed
+#[allow(clippy::too_many_arguments)]
 pub async fn approve_and_assert_fails(
     context: &mut AccountTestContext,
     token_account: Pubkey,
@@ -1033,7 +1034,9 @@ use anchor_spl::token::Mint;
 
 /// Set up test environment with an SPL Token mint (not Token-2022)
 /// Creates a real SPL Token mint for transfer_checked tests
-pub async fn setup_account_test_with_spl_mint(decimals: u8) -> Result<AccountTestContext, RpcError> {
+pub async fn setup_account_test_with_spl_mint(
+    decimals: u8,
+) -> Result<AccountTestContext, RpcError> {
     use anchor_spl::token::spl_token;
 
     let rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;

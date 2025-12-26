@@ -1,6 +1,7 @@
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
-use light_ctoken_interface::instructions::transfer2::{
-    ZCompressedTokenInstructionDataTransfer2, ZCompression,
+use light_ctoken_interface::instructions::{
+    extensions::ZExtensionInstructionData,
+    transfer2::{ZCompressedTokenInstructionDataTransfer2, ZCompression},
 };
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
@@ -20,6 +21,7 @@ pub use inputs::{CTokenCompressionInputs, CompressAndCloseInputs};
 
 /// Process compression/decompression for ctoken accounts.
 #[profile]
+#[allow(clippy::too_many_arguments)]
 pub(super) fn process_ctoken_compressions<'a>(
     inputs: &'a ZCompressedTokenInstructionDataTransfer2<'a>,
     compression: &ZCompression,
@@ -28,6 +30,8 @@ pub(super) fn process_ctoken_compressions<'a>(
     mint_checks: Option<MintExtensionChecks>,
     transfer_amount: &mut u64,
     lamports_budget: &mut u64,
+    input_tlv: Option<&'a [ZExtensionInstructionData<'a>]>,
+    input_delegate: Option<&'a AccountInfo>,
 ) -> Result<(), anchor_lang::prelude::ProgramError> {
     // Validate compression fields for the given mode
     validate_compression_mode_fields(compression)?;
@@ -39,6 +43,8 @@ pub(super) fn process_ctoken_compressions<'a>(
         inputs,
         packed_accounts,
         mint_checks,
+        input_tlv,
+        input_delegate,
     )?;
 
     compress_or_decompress_ctokens(compression_inputs, transfer_amount, lamports_budget)

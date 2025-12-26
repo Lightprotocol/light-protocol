@@ -44,6 +44,8 @@ impl<'a> CTokenCompressionInputs<'a> {
         inputs: &'a ZCompressedTokenInstructionDataTransfer2<'a>,
         packed_accounts: &'a ProgramPackedAccounts<'a, AccountInfo>,
         mint_checks: Option<MintExtensionChecks>,
+        input_tlv: Option<&'a [ZExtensionInstructionData<'a>]>,
+        input_delegate: Option<&'a AccountInfo>,
     ) -> Result<Self, anchor_lang::prelude::ProgramError> {
         let authority_account = if compression.mode != ZCompressionMode::Decompress {
             Some(packed_accounts.get_u8(
@@ -82,44 +84,6 @@ impl<'a> CTokenCompressionInputs<'a> {
             })
         } else {
             None
-        };
-
-        // For Decompress mode, find matching input by mint index and extract TLV and delegate
-        let (input_tlv, input_delegate) = if compression.mode == ZCompressionMode::Decompress {
-            // TODO: double check this what is the purpose?
-            // This seems very inefficient and possibly wrong
-            // We need to check uniqueness as for compress and close.
-            // We need to pass the index of the input account in instruction data.
-            // Find the input compressed account that matches this decompress by mint index
-            let matching_input_index = inputs
-                .in_token_data
-                .iter()
-                .position(|input| input.mint == compression.mint);
-
-            let input_tlv = matching_input_index.and_then(|idx| {
-                inputs
-                    .in_tlv
-                    .as_ref()
-                    .and_then(|tlvs| tlvs.get(idx))
-                    .map(|v| v.as_slice())
-            });
-
-            let input_delegate = matching_input_index.and_then(|idx| {
-                let input = inputs.in_token_data.get(idx)?;
-                if input.has_delegate() {
-                    Some(
-                        packed_accounts
-                            .get_u8(input.delegate, "input delegate")
-                            .ok()?,
-                    )
-                } else {
-                    None
-                }
-            });
-
-            (input_tlv, input_delegate)
-        } else {
-            (None, None)
         };
 
         Ok(Self {

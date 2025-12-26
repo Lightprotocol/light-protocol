@@ -148,3 +148,83 @@ async fn test_ctoken_mint_to() {
         "Final balance should be 1000 after minting 500 + 500"
     );
 }
+
+// ============================================================================
+// MintTo Checked Tests
+// ============================================================================
+
+use light_ctoken_sdk::ctoken::CTokenMintToChecked;
+
+#[tokio::test]
+#[serial]
+async fn test_ctoken_mint_to_checked_success() {
+    let mut ctx = setup_mint_to_test().await;
+
+    // Mint 500 tokens with correct decimals (8)
+    let mint_ix = CTokenMintToChecked {
+        cmint: ctx.cmint_pda,
+        destination: ctx.ctoken_account,
+        amount: 500,
+        decimals: 8, // Correct decimals
+        authority: ctx.mint_authority.pubkey(),
+        max_top_up: None,
+    }
+    .instruction()
+    .unwrap();
+
+    ctx.rpc
+        .create_and_send_transaction(
+            &[mint_ix],
+            &ctx.payer.pubkey(),
+            &[&ctx.payer, &ctx.mint_authority],
+        )
+        .await
+        .unwrap();
+
+    // Verify balance
+    use anchor_lang::prelude::borsh::BorshDeserialize;
+    use light_ctoken_interface::state::CToken;
+    let ctoken_after = ctx
+        .rpc
+        .get_account(ctx.ctoken_account)
+        .await
+        .unwrap()
+        .unwrap();
+    let token_account: CToken =
+        BorshDeserialize::deserialize(&mut ctoken_after.data.as_slice()).unwrap();
+    assert_eq!(token_account.amount, 500, "Balance should be 500");
+
+    println!("test_ctoken_mint_to_checked_success: passed");
+}
+
+#[tokio::test]
+#[serial]
+async fn test_ctoken_mint_to_checked_wrong_decimals() {
+    let mut ctx = setup_mint_to_test().await;
+
+    // Try to mint with wrong decimals (7 instead of 8)
+    let mint_ix = CTokenMintToChecked {
+        cmint: ctx.cmint_pda,
+        destination: ctx.ctoken_account,
+        amount: 500,
+        decimals: 7, // Wrong decimals
+        authority: ctx.mint_authority.pubkey(),
+        max_top_up: None,
+    }
+    .instruction()
+    .unwrap();
+
+    let result = ctx
+        .rpc
+        .create_and_send_transaction(
+            &[mint_ix],
+            &ctx.payer.pubkey(),
+            &[&ctx.payer, &ctx.mint_authority],
+        )
+        .await;
+
+    // Should fail with MintDecimalsMismatch (error code 18 in pinocchio)
+    assert!(result.is_err(), "Mint with wrong decimals should fail");
+    light_program_test::utils::assert::assert_rpc_error(result, 0, 18).unwrap();
+    println!("test_ctoken_mint_to_checked_wrong_decimals: passed");
+}

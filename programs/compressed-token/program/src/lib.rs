@@ -29,15 +29,17 @@ use create_associated_token_account::{
     process_create_associated_token_account, process_create_associated_token_account_idempotent,
 };
 use create_token_account::process_create_token_account;
-use ctoken_approve_revoke::{process_ctoken_approve, process_ctoken_revoke};
+use ctoken_approve_revoke::{
+    process_ctoken_approve, process_ctoken_approve_checked, process_ctoken_revoke,
+};
+use ctoken_burn::{process_ctoken_burn, process_ctoken_burn_checked};
 use ctoken_freeze_thaw::{process_ctoken_freeze_account, process_ctoken_thaw_account};
-use ctoken_mint_to::process_ctoken_mint_to;
+use ctoken_mint_to::{process_ctoken_mint_to, process_ctoken_mint_to_checked};
 use transfer::{process_ctoken_transfer, process_ctoken_transfer_checked};
 use withdraw_funding_pool::process_withdraw_funding_pool;
 
 use crate::{
-    convert_account_infos::convert_account_infos, ctoken_burn::process_ctoken_burn,
-    mint_action::processor::process_mint_action,
+    convert_account_infos::convert_account_infos, mint_action::processor::process_mint_action,
 };
 
 pub const LIGHT_CPI_SIGNER: CpiSigner =
@@ -68,6 +70,12 @@ pub enum InstructionType {
     CTokenFreezeAccount = 10,
     /// CToken ThawAccount
     CTokenThawAccount = 11,
+    /// CToken ApproveChecked - approve with decimals validation
+    CTokenApproveChecked = 12,
+    /// CToken MintToChecked - mint with decimals validation
+    CTokenMintToChecked = 14,
+    /// CToken BurnChecked - burn with decimals validation
+    CTokenBurnChecked = 15,
     /// Create CToken, equivalent to SPL Token InitializeAccount3
     CreateTokenAccount = 18,
     CreateAssociatedCTokenAccount = 100,
@@ -109,6 +117,9 @@ impl From<u8> for InstructionType {
             9 => InstructionType::CloseTokenAccount,
             10 => InstructionType::CTokenFreezeAccount,
             11 => InstructionType::CTokenThawAccount,
+            12 => InstructionType::CTokenApproveChecked,
+            14 => InstructionType::CTokenMintToChecked,
+            15 => InstructionType::CTokenBurnChecked,
             18 => InstructionType::CreateTokenAccount,
             100 => InstructionType::CreateAssociatedCTokenAccount,
             101 => InstructionType::Transfer2,
@@ -162,6 +173,18 @@ pub fn process_instruction(
         InstructionType::CTokenBurn => {
             msg!("CTokenBurn");
             process_ctoken_burn(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::CTokenApproveChecked => {
+            msg!("CTokenApproveChecked");
+            process_ctoken_approve_checked(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::CTokenMintToChecked => {
+            msg!("CTokenMintToChecked");
+            process_ctoken_mint_to_checked(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::CTokenBurnChecked => {
+            msg!("CTokenBurnChecked");
+            process_ctoken_burn_checked(accounts, &instruction_data[1..])?;
         }
         InstructionType::CloseTokenAccount => {
             msg!("CloseTokenAccount");

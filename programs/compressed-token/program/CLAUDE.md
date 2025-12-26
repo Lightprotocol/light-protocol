@@ -76,8 +76,38 @@ Every instruction description must include the sections:
    - Supports 9 action types: CreateCompressedMint, MintTo, UpdateMintAuthority, UpdateFreezeAuthority, CreateSplMint, MintToCToken, UpdateMetadataField, UpdateMetadataAuthority, RemoveMetadataKey
    - Handles both compressed and decompressed token minting
 
-7. **CTokenTransfer** - `src/ctoken_transfer.rs` (discriminator: 3, enum: `CTokenInstruction::CTokenTransfer`)
-   - Transfer between decompressed accounts
+7. **CTokenTransfer** - [`docs/instructions/CTOKEN_TRANSFER.md`](docs/instructions/CTOKEN_TRANSFER.md)
+   - Transfer between decompressed accounts (discriminator: 3, enum: `CTokenInstruction::CTokenTransfer`)
+
+8. **CTokenTransferChecked** - [`docs/instructions/CTOKEN_TRANSFER_CHECKED.md`](docs/instructions/CTOKEN_TRANSFER_CHECKED.md)
+   - Transfer with decimals validation (discriminator: 6, enum: `CTokenInstruction::CTokenTransferChecked`)
+
+9. **CTokenApprove** - [`docs/instructions/CTOKEN_APPROVE.md`](docs/instructions/CTOKEN_APPROVE.md)
+   - Approve delegate on decompressed CToken account (discriminator: 4, enum: `CTokenInstruction::CTokenApprove`)
+
+10. **CTokenRevoke** - [`docs/instructions/CTOKEN_REVOKE.md`](docs/instructions/CTOKEN_REVOKE.md)
+   - Revoke delegate on decompressed CToken account (discriminator: 5, enum: `CTokenInstruction::CTokenRevoke`)
+
+11. **CTokenMintTo** - [`docs/instructions/CTOKEN_MINT_TO.md`](docs/instructions/CTOKEN_MINT_TO.md)
+   - Mint tokens to decompressed CToken account (discriminator: 7, enum: `CTokenInstruction::CTokenMintTo`)
+
+12. **CTokenBurn** - [`docs/instructions/CTOKEN_BURN.md`](docs/instructions/CTOKEN_BURN.md)
+   - Burn tokens from decompressed CToken account (discriminator: 8, enum: `CTokenInstruction::CTokenBurn`)
+
+13. **CTokenFreezeAccount** - [`docs/instructions/CTOKEN_FREEZE_ACCOUNT.md`](docs/instructions/CTOKEN_FREEZE_ACCOUNT.md)
+   - Freeze decompressed CToken account (discriminator: 10, enum: `CTokenInstruction::CTokenFreezeAccount`)
+
+14. **CTokenThawAccount** - [`docs/instructions/CTOKEN_THAW_ACCOUNT.md`](docs/instructions/CTOKEN_THAW_ACCOUNT.md)
+   - Thaw frozen decompressed CToken account (discriminator: 11, enum: `CTokenInstruction::CTokenThawAccount`)
+
+15. **CTokenApproveChecked** - [`docs/instructions/CTOKEN_APPROVE_CHECKED.md`](docs/instructions/CTOKEN_APPROVE_CHECKED.md)
+   - Approve delegate with decimals validation (discriminator: 12, enum: `CTokenInstruction::CTokenApproveChecked`)
+
+16. **CTokenMintToChecked** - [`docs/instructions/CTOKEN_MINT_TO_CHECKED.md`](docs/instructions/CTOKEN_MINT_TO_CHECKED.md)
+   - Mint tokens with decimals validation (discriminator: 14, enum: `CTokenInstruction::CTokenMintToChecked`)
+
+17. **CTokenBurnChecked** - [`docs/instructions/CTOKEN_BURN_CHECKED.md`](docs/instructions/CTOKEN_BURN_CHECKED.md)
+   - Burn tokens with decimals validation (discriminator: 15, enum: `CTokenInstruction::CTokenBurnChecked`)
 
 ## Config State Requirements Summary
 - **Active only:** Create token account, Create associated token account

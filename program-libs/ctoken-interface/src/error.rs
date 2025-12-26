@@ -165,6 +165,9 @@ pub enum CTokenError {
 
     #[error("InvalidAccountType")]
     InvalidAccountType,
+
+    #[error("Duplicate compression_index found in input TLV data")]
+    DuplicateCompressionIndex,
 }
 
 impl From<CTokenError> for u32 {
@@ -223,6 +226,7 @@ impl From<CTokenError> for u32 {
             CTokenError::OutLamportsUnimplemented => 18051,
             CTokenError::TlvExtensionLengthMismatch => 18052,
             CTokenError::InvalidAccountType => 18053,
+            CTokenError::DuplicateCompressionIndex => 18054,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

@@ -702,8 +702,8 @@ async fn setup_transfer_checked_test_with_spl_mint(
     ))
 }
 
-
 /// Execute a ctoken transfer_checked and assert success
+#[allow(clippy::too_many_arguments)]
 async fn transfer_checked_and_assert(
     context: &mut AccountTestContext,
     source: Pubkey,
@@ -742,6 +742,7 @@ async fn transfer_checked_and_assert(
 }
 
 /// Execute a ctoken transfer_checked expecting failure with specific error code
+#[allow(clippy::too_many_arguments)]
 async fn transfer_checked_and_assert_fails(
     context: &mut AccountTestContext,
     source: Pubkey,
@@ -753,7 +754,10 @@ async fn transfer_checked_and_assert_fails(
     name: &str,
     expected_error_code: u32,
 ) {
-    println!("Transfer checked (expecting failure) initiated for: {}", name);
+    println!(
+        "Transfer checked (expecting failure) initiated for: {}",
+        name
+    );
 
     let payer_pubkey = context.payer.pubkey();
 
@@ -784,7 +788,9 @@ async fn transfer_checked_and_assert_fails(
 #[tokio::test]
 async fn test_ctoken_transfer_checked_with_spl_mint() {
     let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
-        setup_transfer_checked_test_with_spl_mint(None, 1000, 9).await.unwrap();
+        setup_transfer_checked_test_with_spl_mint(None, 1000, 9)
+            .await
+            .unwrap();
 
     let mint = context.mint_pubkey;
     let owner_keypair = context.owner_keypair.insecure_clone();
@@ -808,7 +814,9 @@ async fn test_ctoken_transfer_checked_with_spl_mint() {
 #[tokio::test]
 async fn test_ctoken_transfer_checked_compressible_with_topup() {
     let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
-        setup_transfer_checked_test_with_spl_mint(Some(3), 1000, 9).await.unwrap();
+        setup_transfer_checked_test_with_spl_mint(Some(3), 1000, 9)
+            .await
+            .unwrap();
 
     context
         .rpc
@@ -839,7 +847,9 @@ async fn test_ctoken_transfer_checked_compressible_with_topup() {
 #[tokio::test]
 async fn test_ctoken_transfer_checked_wrong_decimals() {
     let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
-        setup_transfer_checked_test_with_spl_mint(None, 1000, 9).await.unwrap();
+        setup_transfer_checked_test_with_spl_mint(None, 1000, 9)
+            .await
+            .unwrap();
 
     let mint = context.mint_pubkey;
     let owner_keypair = context.owner_keypair.insecure_clone();
@@ -861,7 +871,9 @@ async fn test_ctoken_transfer_checked_wrong_decimals() {
 #[tokio::test]
 async fn test_ctoken_transfer_checked_wrong_mint() {
     let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
-        setup_transfer_checked_test_with_spl_mint(None, 1000, 9).await.unwrap();
+        setup_transfer_checked_test_with_spl_mint(None, 1000, 9)
+            .await
+            .unwrap();
 
     let wrong_mint = Pubkey::new_unique();
     let owner_keypair = context.owner_keypair.insecure_clone();
@@ -883,7 +895,9 @@ async fn test_ctoken_transfer_checked_wrong_mint() {
 #[tokio::test]
 async fn test_ctoken_transfer_checked_insufficient_balance() {
     let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
-        setup_transfer_checked_test_with_spl_mint(None, 1000, 9).await.unwrap();
+        setup_transfer_checked_test_with_spl_mint(None, 1000, 9)
+            .await
+            .unwrap();
 
     let mint = context.mint_pubkey;
     let owner_keypair = context.owner_keypair.insecure_clone();
@@ -905,7 +919,9 @@ async fn test_ctoken_transfer_checked_insufficient_balance() {
 #[tokio::test]
 async fn test_ctoken_transfer_checked_max_top_up_exceeded() {
     let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
-        setup_transfer_checked_test_with_spl_mint(Some(0), 1000, 9).await.unwrap();
+        setup_transfer_checked_test_with_spl_mint(Some(0), 1000, 9)
+            .await
+            .unwrap();
 
     context
         .rpc

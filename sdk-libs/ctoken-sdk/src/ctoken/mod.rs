@@ -66,13 +66,16 @@
 //!
 
 mod approve;
+mod approve_checked;
 mod burn;
+mod burn_checked;
 mod close;
 mod compressible;
 mod create;
 mod create_ata;
 mod create_cmint;
 mod ctoken_mint_to;
+mod ctoken_mint_to_checked;
 mod decompress;
 mod decompress_cmint;
 mod freeze;
@@ -86,13 +89,16 @@ mod transfer_interface;
 mod transfer_spl_ctoken;
 
 pub use approve::*;
+pub use approve_checked::*;
 pub use burn::*;
+pub use burn_checked::*;
 pub use close::*;
 pub use compressible::{CompressibleParams, CompressibleParamsCpi};
 pub use create::*;
 pub use create_ata::*;
 pub use create_cmint::*;
 pub use ctoken_mint_to::*;
+pub use ctoken_mint_to_checked::*;
 pub use decompress::DecompressToCtoken;
 pub use decompress_cmint::*;
 pub use freeze::*;

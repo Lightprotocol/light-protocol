@@ -1166,6 +1166,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
             delegated_amount: 0,
             withheld_transfer_fee: 0,
             is_frozen: false,
+            compression_index: 0,
         },
     )]];
 
@@ -1253,14 +1254,16 @@ async fn test_compress_and_close_ctoken_with_extensions() {
 }
 
 /// Configuration for parameterized compress and close extension tests
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct CompressAndCloseTestConfig {
-    /// Set delegate and delegated_amount before compress (delegate pubkey, amount)
-    delegate_config: Option<(Pubkey, u64)>,
+    /// Delegate keypair and delegated_amount (delegate can sign)
+    delegate_config: Option<(Keypair, u64)>,
     /// Set account state to frozen before compress
     is_frozen: bool,
     /// Use permanent delegate as authority for decompress (instead of owner)
     use_permanent_delegate_for_decompress: bool,
+    /// Use regular delegate as authority for decompress (instead of owner)
+    use_delegate_for_decompress: bool,
 }
 
 /// Helper to modify CToken account state for testing using set_account
@@ -1400,8 +1403,12 @@ async fn run_compress_and_close_extension_test(
         .await?;
 
     // 4. Modify CToken state based on config BEFORE warp
-    let delegate_pubkey = config.delegate_config.map(|(d, _)| d);
-    let delegated_amount = config.delegate_config.map(|(_, a)| a).unwrap_or(0);
+    let delegate_pubkey = config.delegate_config.as_ref().map(|(kp, _)| kp.pubkey());
+    let delegated_amount = config
+        .delegate_config
+        .as_ref()
+        .map(|(_, a)| *a)
+        .unwrap_or(0);
 
     if config.delegate_config.is_some() || config.is_frozen {
         set_ctoken_account_state(
@@ -1511,6 +1518,7 @@ async fn run_compress_and_close_extension_test(
             delegated_amount,
             withheld_transfer_fee: 0,
             is_frozen: config.is_frozen,
+            compression_index: 0,
         },
     )]];
 
@@ -1533,7 +1541,7 @@ async fn run_compress_and_close_extension_test(
         RpcError::CustomError(format!("Failed to create decompress instruction: {:?}", e))
     })?;
 
-    // 10. Sign with owner or permanent delegate based on config
+    // 10. Sign with owner, permanent delegate, or regular delegate based on config
     let signers: Vec<&Keypair> = if config.use_permanent_delegate_for_decompress {
         // Permanent delegate is the payer in this test setup.
         // Find owner in account metas and set is_signer = false since permanent delegate acts on behalf.
@@ -1544,6 +1552,32 @@ async fn run_compress_and_close_extension_test(
             }
         }
         vec![&payer]
+    } else if config.use_delegate_for_decompress {
+        // Regular delegate signs instead of owner
+        let delegate_kp = &config
+            .delegate_config
+            .as_ref()
+            .expect("delegate_config required when use_delegate_for_decompress is true")
+            .0;
+        let delegate_pubkey = delegate_kp.pubkey();
+
+        // Add delegate as signer account (it's not in the instruction by default)
+        decompress_ix
+            .accounts
+            .push(solana_sdk::instruction::AccountMeta {
+                pubkey: delegate_pubkey,
+                is_signer: true,
+                is_writable: false,
+            });
+
+        // Remove owner as signer
+        let owner_pubkey = owner.pubkey();
+        for account_meta in decompress_ix.accounts.iter_mut() {
+            if account_meta.pubkey == owner_pubkey {
+                account_meta.is_signer = false;
+            }
+        }
+        vec![&payer, delegate_kp]
     } else {
         vec![&payer, &owner]
     };
@@ -1580,10 +1614,10 @@ async fn run_compress_and_close_extension_test(
         "Decompressed CToken delegated_amount should match"
     );
 
-    if let Some((delegate, _)) = config.delegate_config {
+    if let Some((delegate_kp, _)) = &config.delegate_config {
         assert_eq!(
             dest_ctoken.delegate,
-            Some(delegate.to_bytes().into()),
+            Some(delegate_kp.pubkey().to_bytes().into()),
             "Decompressed CToken delegate should match"
         );
     } else {
@@ -1620,9 +1654,10 @@ async fn run_compress_and_close_extension_test(
 async fn test_compress_and_close_with_delegated_amount() {
     let delegate = Keypair::new();
     run_compress_and_close_extension_test(CompressAndCloseTestConfig {
-        delegate_config: Some((delegate.pubkey(), 500_000_000)),
+        delegate_config: Some((delegate, 500_000_000)),
         is_frozen: false,
         use_permanent_delegate_for_decompress: false,
+        use_delegate_for_decompress: false,
     })
     .await
     .unwrap();
@@ -1635,6 +1670,7 @@ async fn test_compress_and_close_frozen() {
         delegate_config: None,
         is_frozen: true,
         use_permanent_delegate_for_decompress: false,
+        use_delegate_for_decompress: false,
     })
     .await
     .unwrap();
@@ -1647,6 +1683,21 @@ async fn test_compress_and_close_with_permanent_delegate() {
         delegate_config: None,
         is_frozen: false,
         use_permanent_delegate_for_decompress: true,
+        use_delegate_for_decompress: false,
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+#[serial]
+async fn test_compress_and_close_delegate_decompress() {
+    let delegate = Keypair::new();
+    run_compress_and_close_extension_test(CompressAndCloseTestConfig {
+        delegate_config: Some((delegate, 500_000_000)),
+        is_frozen: false,
+        use_permanent_delegate_for_decompress: false,
+        use_delegate_for_decompress: true,
     })
     .await
     .unwrap();

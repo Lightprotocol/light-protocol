@@ -122,6 +122,7 @@ fn test_rnd_create_output_compressed_accounts() {
                         delegated_amount: tlv_delegated_amounts[i],
                         withheld_transfer_fee: tlv_withheld_fees[i],
                         is_frozen: rng.gen_bool(0.2), // 20% chance of frozen
+                        compression_index: i as u8,
                     },
                 );
                 tlv_instruction_data_vecs.push(vec![ext.clone()]);

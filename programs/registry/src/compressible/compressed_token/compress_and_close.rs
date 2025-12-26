@@ -141,6 +141,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
                     delegated_amount,
                     withheld_transfer_fee,
                     is_frozen,
+                    compression_index: i as u8,
                 },
             )]);
         } else {

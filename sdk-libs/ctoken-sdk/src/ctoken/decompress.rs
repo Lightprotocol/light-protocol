@@ -105,6 +105,7 @@ impl DecompressToCtoken {
                                     delegated_amount: compressed_only.delegated_amount,
                                     withheld_transfer_fee: compressed_only.withheld_transfer_fee,
                                     is_frozen,
+                                    compression_index: 0,
                                 },
                             ))
                         }

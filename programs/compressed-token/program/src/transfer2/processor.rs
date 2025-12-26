@@ -199,6 +199,7 @@ fn process_no_system_program_cpi<'a>(
     // This is the compression-only hot path (no compressed inputs/outputs).
     // Extension checks are skipped because balance must be restored immediately
     // (compress + decompress in same tx) or sum check will fail.
+    // No compressed inputs, so compression_to_input lookup is empty.
     process_token_compression(
         fee_payer,
         inputs,
@@ -206,6 +207,7 @@ fn process_no_system_program_cpi<'a>(
         cpi_authority_pda,
         inputs.max_top_up.get(),
         mint_cache,
+        &[None; 32],
     )?;
 
     close_for_compress_and_close(compressions.as_slice(), validated_accounts)?;
@@ -241,8 +243,8 @@ fn process_with_system_program_cpi<'a>(
     // Create HashCache to cache hashed pubkeys.
     let mut hash_cache = HashCache::new();
 
-    // Process input compressed accounts.
-    set_input_compressed_accounts(
+    // Process input compressed accounts and build compression-to-input lookup.
+    let compression_to_input = set_input_compressed_accounts(
         &mut cpi_instruction_struct,
         &mut hash_cache,
         inputs,
@@ -281,6 +283,7 @@ fn process_with_system_program_cpi<'a>(
             system_accounts.cpi_authority_pda,
             inputs.max_top_up.get(),
             mint_cache,
+            &compression_to_input,
         )?;
 
         // Get CPI accounts slice and tree accounts for light-system-program invocation

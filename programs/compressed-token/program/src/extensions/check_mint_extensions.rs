@@ -177,6 +177,7 @@ pub fn has_mint_extensions(mint_account: &AccountInfo) -> Result<MintExtensionFl
     Ok(MintExtensionFlags {
         has_pausable,
         has_permanent_delegate,
+        has_default_account_state,
         default_state_frozen: default_account_state_frozen,
         has_transfer_fee,
         has_transfer_hook,
