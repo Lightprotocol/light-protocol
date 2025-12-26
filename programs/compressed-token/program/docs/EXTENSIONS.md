@@ -172,7 +172,8 @@ The compressed token program supports 16 Token-2022 extension types. **4 restric
 MintExtensionFlags {
     has_pausable: bool,
     has_permanent_delegate: bool,
-    default_state_frozen: bool,  // DefaultAccountState == Frozen
+    has_default_account_state: bool,  // Extension exists (restricted)
+    default_state_frozen: bool,       // Current state is Frozen (for CToken creation)
     has_transfer_fee: bool,
     has_transfer_hook: bool,
 }
@@ -274,21 +275,14 @@ MintExtensionChecks {
 
 ## Open Questions
 
-### 1. Should DefaultAccountState be a restricted extension?
+### 1. ~~Should DefaultAccountState be a restricted extension?~~ ✅ IMPLEMENTED
 
-**Analysis:** Yes, it should be restricted.
+**Status:** Implemented. `DefaultAccountState` is now in `RESTRICTED_EXTENSION_TYPES`.
 
-**Problem:**
-- `DefaultAccountState=Frozen` is an access control mechanism - only accounts explicitly thawed by freeze authority can receive tokens
-- **CToken accounts** respect this via `default_state_frozen` flag in `has_mint_extensions()` → accounts created frozen
-- **Compressed token accounts** do NOT respect this:
-  - `mint_to` → `state: CompressedTokenAccountState::Initialized` (always unfrozen)
-  - `batch_compress` → same issue
-  - `Transfer2` outputs → `is_frozen` comes from TLV data, not from mint's DefaultAccountState
-
-**Impact:** Access control bypass - anyone can receive compressed tokens even when mint requires frozen default state.
-
-**Fix:** Add `DefaultAccountState` to `RESTRICTED_EXTENSION_TYPES` and enforce `compression_only` mode, OR check DefaultAccountState in compressed token output creation and create accounts frozen.
+When a mint has the `DefaultAccountState` extension (regardless of current state), the `has_restricted_extensions()` flag is set to true via `has_default_account_state`, which enforces `compression_only` mode. This is necessary because:
+1. The default state can be changed by mint authority at any time
+2. Once compressed, we don't re-check the mint's DefaultAccountState when creating outputs
+3. CToken accounts still respect the current frozen state for proper initialization
 
 ### 2. How to enforce restricted extensions in anchor instructions?
 

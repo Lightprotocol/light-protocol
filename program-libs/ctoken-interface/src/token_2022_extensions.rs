@@ -4,13 +4,14 @@ use spl_token_2022::extension::ExtensionType;
 use crate::state::ExtensionStructConfig;
 
 /// Restricted extension types that require compression_only mode.
-/// These extensions have special behaviors (pausable, permanent delegate, fees, hooks)
-/// that are incompatible with standard compressed token transfers.
-pub const RESTRICTED_EXTENSION_TYPES: [ExtensionType; 4] = [
+/// These extensions have special behaviors (pausable, permanent delegate, fees, hooks,
+/// default frozen state) that are incompatible with standard compressed token transfers.
+pub const RESTRICTED_EXTENSION_TYPES: [ExtensionType; 5] = [
     ExtensionType::Pausable,
     ExtensionType::PermanentDelegate,
     ExtensionType::TransferFeeConfig,
     ExtensionType::TransferHook,
+    ExtensionType::DefaultAccountState,
 ];
 
 /// Allowed mint extension types for CToken accounts.
@@ -51,6 +52,7 @@ pub const fn is_restricted_extension(ext: &ExtensionType) -> bool {
             | ExtensionType::PermanentDelegate
             | ExtensionType::TransferFeeConfig
             | ExtensionType::TransferHook
+            | ExtensionType::DefaultAccountState
     )
 }
 
@@ -61,7 +63,9 @@ pub struct MintExtensionFlags {
     pub has_pausable: bool,
     /// Whether the mint has the PermanentDelegate extension
     pub has_permanent_delegate: bool,
-    /// Whether the mint has DefaultAccountState set to Frozen
+    /// Whether the mint has the DefaultAccountState extension (restricted regardless of state)
+    pub has_default_account_state: bool,
+    /// Whether DefaultAccountState is currently set to Frozen (for CToken account creation)
     pub default_state_frozen: bool,
     /// Whether the mint has the TransferFeeConfig extension
     pub has_transfer_fee: bool,
@@ -132,12 +136,13 @@ impl MintExtensionFlags {
     }
 
     /// Returns true if mint has any restricted extensions.
-    /// Restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook)
-    /// require compression_only mode when compressing tokens.
+    /// Restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook,
+    /// DefaultAccountState) require compression_only mode when compressing tokens.
     pub const fn has_restricted_extensions(&self) -> bool {
         self.has_pausable
             || self.has_permanent_delegate
             || self.has_transfer_fee
             || self.has_transfer_hook
+            || self.has_default_account_state
     }
 }

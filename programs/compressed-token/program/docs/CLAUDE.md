@@ -10,7 +10,21 @@ This documentation is organized to provide clear navigation through the compress
 - **`EXTENSIONS.md`** - Token-2022 extension validation across instructions
 - **`instructions/`** - Detailed instruction documentation
   - `CREATE_TOKEN_ACCOUNT.md` - Create token account & associated token account instructions
-  - Additional instruction docs to be added as needed
+  - `MINT_ACTION.md` - Mint operations and compressed mint management
+  - `TRANSFER2.md` - Batch transfer instruction for compressed/decompressed operations
+  - `CLAIM.md` - Claim rent from expired compressible accounts
+  - `CLOSE_TOKEN_ACCOUNT.md` - Close decompressed token accounts
+  - `CTOKEN_TRANSFER.md` - Transfer between decompressed accounts
+  - `CTOKEN_TRANSFER_CHECKED.md` - Transfer with decimals validation
+  - `CTOKEN_APPROVE.md` - Approve delegate on decompressed CToken account
+  - `CTOKEN_REVOKE.md` - Revoke delegate on decompressed CToken account
+  - `CTOKEN_MINT_TO.md` - Mint tokens to decompressed CToken account
+  - `CTOKEN_BURN.md` - Burn tokens from decompressed CToken account
+  - `CTOKEN_FREEZE_ACCOUNT.md` - Freeze decompressed CToken account
+  - `CTOKEN_THAW_ACCOUNT.md` - Thaw frozen decompressed CToken account
+  - `WITHDRAW_FUNDING_POOL.md` - Withdraw funds from rent recipient pool
+  - `CREATE_TOKEN_POOL.md` - Create initial token pool for SPL/T22 mint compression
+  - `ADD_TOKEN_POOL.md` - Add additional token pools (up to 5 per mint)
 
 ## Navigation Tips
 - Start with `../CLAUDE.md` for the instruction index and overview

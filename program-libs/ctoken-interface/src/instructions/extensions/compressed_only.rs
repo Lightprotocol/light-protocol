@@ -14,4 +14,6 @@ pub struct CompressedOnlyExtensionInstructionData {
     pub withheld_transfer_fee: u64,
     /// Whether the source CToken account was frozen when compressed.
     pub is_frozen: bool,
+    /// Index of the compression operation that consumes this input.
+    pub compression_index: u8,
 }

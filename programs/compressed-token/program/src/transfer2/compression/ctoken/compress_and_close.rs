@@ -228,7 +228,9 @@ fn validate_compressed_token_account(
                 );
                 return Err(ErrorCode::CompressAndCloseWithheldFeeMismatch.into());
             }
-        } else if u64::from(compression_only_extension.withheld_transfer_fee) != 0 {
+        }
+
+        if u64::from(compression_only_extension.withheld_transfer_fee) != 0 {
             msg!(
                 "withheld_transfer_fee must be 0 when ctoken has no fee extension, got {}",
                 u64::from(compression_only_extension.withheld_transfer_fee)

@@ -6,6 +6,7 @@ use light_ctoken_interface::{
     instructions::{
         extensions::ZExtensionInstructionData, transfer2::ZCompressedTokenInstructionDataTransfer2,
     },
+    CTokenError,
 };
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
@@ -13,7 +14,8 @@ use pinocchio::account_info::AccountInfo;
 use super::check_extensions::{validate_tlv_and_get_frozen, MintExtensionCache};
 use crate::shared::token_input::set_input_compressed_account;
 
-/// Process input compressed accounts and return total input lamports
+/// Process input compressed accounts and return compression-to-input lookup.
+/// Returns `[Option<u8>; 32]` where `compression_to_input[compression_idx] = Some(input_idx)`.
 #[profile]
 #[inline(always)]
 pub fn set_input_compressed_accounts<'a>(
@@ -23,7 +25,10 @@ pub fn set_input_compressed_accounts<'a>(
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     all_accounts: &[AccountInfo],
     mint_cache: &'a MintExtensionCache,
-) -> Result<(), ProgramError> {
+) -> Result<[Option<u8>; 32], ProgramError> {
+    // compression_to_input[compression_index] = Some(input_index), None means unset
+    let mut compression_to_input: [Option<u8>; 32] = [None; 32];
+
     for (i, input_data) in inputs.in_token_data.iter().enumerate() {
         let input_lamports = if let Some(lamports) = inputs.in_lamports.as_ref() {
             if let Some(input_lamports) = lamports.get(i) {
@@ -43,6 +48,20 @@ pub fn set_input_compressed_accounts<'a>(
 
         let is_frozen = validate_tlv_and_get_frozen(tlv_data, input_data.version)?;
 
+        // Extract compression_index from CompressedOnly TLV if present
+        if let Some(tlv) = tlv_data {
+            for ext in tlv {
+                if let ZExtensionInstructionData::CompressedOnly(co) = ext {
+                    let idx = co.compression_index as usize;
+                    // Check uniqueness - error if compression_index already used
+                    if compression_to_input[idx].is_some() {
+                        return Err(CTokenError::DuplicateCompressionIndex.into());
+                    }
+                    compression_to_input[idx] = Some(i as u8);
+                }
+            }
+        }
+
         set_input_compressed_account(
             cpi_instruction_struct
                 .input_compressed_accounts
@@ -59,5 +78,5 @@ pub fn set_input_compressed_accounts<'a>(
         )?;
     }
 
-    Ok(())
+    Ok(compression_to_input)
 }

@@ -13,10 +13,20 @@ This documentation is organized to provide clear navigation through the compress
   - `TRANSFER2.md` - Batch transfer instruction for compressed/decompressed operations
   - `CLAIM.md` - Claim rent from expired compressible accounts
   - `CLOSE_TOKEN_ACCOUNT.md` - Close decompressed token accounts
-  - `DECOMPRESSED_TRANSFER.md` - Transfer between decompressed accounts
+  - `CTOKEN_TRANSFER.md` - Transfer between decompressed accounts
+  - `CTOKEN_TRANSFER_CHECKED.md` - Transfer with decimals validation
   - `WITHDRAW_FUNDING_POOL.md` - Withdraw funds from rent recipient pool
   - `CREATE_TOKEN_POOL.md` - Create initial token pool for SPL/T22 mint compression
   - `ADD_TOKEN_POOL.md` - Add additional token pools (up to 5 per mint)
+  - `CTOKEN_APPROVE.md` - Approve delegate on decompressed CToken account
+  - `CTOKEN_REVOKE.md` - Revoke delegate on decompressed CToken account
+  - `CTOKEN_MINT_TO.md` - Mint tokens to decompressed CToken account
+  - `CTOKEN_BURN.md` - Burn tokens from decompressed CToken account
+  - `CTOKEN_FREEZE_ACCOUNT.md` - Freeze decompressed CToken account
+  - `CTOKEN_THAW_ACCOUNT.md` - Thaw frozen decompressed CToken account
+  - `CTOKEN_APPROVE_CHECKED.md` - Approve delegate with decimals validation
+  - `CTOKEN_MINT_TO_CHECKED.md` - Mint tokens with decimals validation
+  - `CTOKEN_BURN_CHECKED.md` - Burn tokens with decimals validation
 
 ## Navigation Tips
 - Start with `../../CLAUDE.md` for the instruction index and overview
@@ -44,3 +54,6 @@ every instruction description must include the sections:
 7. **Withdraw Funding Pool** - Withdraw funds from rent recipient pool
 8. **Create Token Pool** - Create initial token pool PDA for SPL/T22 mint compression
 9. **Add Token Pool** - Add additional token pools for a mint (up to 5 per mint)
+10. **CToken MintTo** - Mint tokens to decompressed CToken account
+11. **CToken Burn** - Burn tokens from decompressed CToken account
+12. **CToken Freeze/Thaw** - Freeze and thaw decompressed CToken accounts

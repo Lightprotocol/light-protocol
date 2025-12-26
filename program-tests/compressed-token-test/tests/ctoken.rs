@@ -40,3 +40,6 @@ mod freeze_thaw;
 
 #[path = "ctoken/approve_revoke.rs"]
 mod approve_revoke;
+
+#[path = "ctoken/burn.rs"]
+mod burn;

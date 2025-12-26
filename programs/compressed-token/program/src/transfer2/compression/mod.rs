@@ -4,8 +4,9 @@ use arrayvec::ArrayVec;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::pubkey::AsPubkey;
 use light_ctoken_interface::{
-    instructions::transfer2::{
-        ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode,
+    instructions::{
+        extensions::ZExtensionInstructionData,
+        transfer2::{ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode},
     },
     CTokenError,
 };
@@ -37,6 +38,7 @@ const ID: &[u8; 32] = &LIGHT_CPI_SIGNER.program_id;
 ///
 /// # Arguments
 /// * `max_top_up` - Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
+/// * `compression_to_input` - Lookup array mapping compression index to input index for decompress operations
 #[profile]
 pub fn process_token_compression<'a>(
     fee_payer: &AccountInfo,
@@ -45,13 +47,38 @@ pub fn process_token_compression<'a>(
     cpi_authority: &AccountInfo,
     max_top_up: u16,
     mint_cache: &'a MintExtensionCache,
+    compression_to_input: &[Option<u8>; 32],
 ) -> Result<(), ProgramError> {
     if let Some(compressions) = inputs.compressions.as_ref() {
         let mut transfer_map = [0u64; MAX_PACKED_ACCOUNTS];
         // Initialize budget: +1 allows exact match (total == max_top_up)
         let mut lamports_budget = (max_top_up as u64).saturating_add(1);
 
-        for compression in compressions {
+        for (compression_index, compression) in compressions.iter().enumerate() {
+            // Validate compression-input consistency when there's a matching input
+            if let Some(input_idx) = compression_to_input[compression_index] {
+                let idx = input_idx as usize;
+                // Compression must be Decompress mode to consume an input
+                if compression.mode != ZCompressionMode::Decompress {
+                    msg!(
+                        "Input linked to non-decompress compression at index {}",
+                        compression_index
+                    );
+                    return Err(ProgramError::InvalidInstructionData);
+                }
+                // Validate mint matches between compression and input
+                let input_data = inputs
+                    .in_token_data
+                    .get(idx)
+                    .ok_or(ProgramError::InvalidInstructionData)?;
+                if compression.mint != input_data.mint {
+                    msg!(
+                        "Mint mismatch between compression and input at index {}",
+                        compression_index
+                    );
+                    return Err(ProgramError::InvalidInstructionData);
+                }
+            }
             let account_index = compression.source_or_recipient as usize;
             if account_index >= MAX_PACKED_ACCOUNTS {
                 msg!(
@@ -71,17 +98,47 @@ pub fn process_token_compression<'a>(
             let mint_checks = mint_cache.get_by_key(&compression.mint).cloned();
 
             match source_or_recipient.owner() {
-                ID => ctoken::process_ctoken_compressions(
-                    inputs,
-                    compression,
-                    source_or_recipient,
-                    packed_accounts,
-                    mint_checks,
-                    &mut transfer_map[account_index],
-                    &mut lamports_budget,
-                )?,
+                ID => {
+                    // Extract input TLV and delegate for decompress operations using O(1) lookup
+                    let (input_tlv, input_delegate): (
+                        Option<&[ZExtensionInstructionData]>,
+                        Option<&AccountInfo>,
+                    ) = if let Some(input_idx) = compression_to_input[compression_index] {
+                        let idx = input_idx as usize;
+                        let tlv = inputs
+                            .in_tlv
+                            .as_ref()
+                            .and_then(|tlvs| tlvs.get(idx))
+                            .map(|v| v.as_slice());
+                        let delegate = inputs.in_token_data.get(idx).and_then(|input| {
+                            if input.has_delegate() {
+                                packed_accounts
+                                    .get_u8(input.delegate, "input delegate")
+                                    .ok()
+                            } else {
+                                None
+                            }
+                        });
+                        (tlv, delegate)
+                    } else {
+                        (None, None)
+                    };
+
+                    ctoken::process_ctoken_compressions(
+                        inputs,
+                        compression,
+                        source_or_recipient,
+                        packed_accounts,
+                        mint_checks,
+                        &mut transfer_map[account_index],
+                        &mut lamports_budget,
+                        input_tlv,
+                        input_delegate,
+                    )?;
+                }
                 SPL_TOKEN_ID => {
-                    // SPL Token (not Token-2022) never has restricted extensions
+                    // SPL Token (not Token-2022) never has restricted extensions.
+                    // Delegation is disregarded for decompression to SPL token accounts.
                     spl::process_spl_compressions(
                         compression,
                         &SPL_TOKEN_ID.to_pubkey_bytes(),
@@ -92,7 +149,8 @@ pub fn process_token_compression<'a>(
                     )?;
                 }
                 SPL_TOKEN_2022_ID => {
-                    // Check if mint has restricted extensions from the cache
+                    // Check if mint has restricted extensions from the cache.
+                    // Delegation is disregarded for decompression to SPL token accounts.
                     let is_restricted = mint_checks
                         .map(|checks| checks.has_restricted_extensions)
                         .unwrap_or(false);
