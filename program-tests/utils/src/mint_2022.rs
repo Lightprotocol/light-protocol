@@ -360,6 +360,78 @@ pub async fn create_mint_22_with_frozen_default_state<R: Rpc>(
     (mint_keypair, config)
 }
 
+/// Asserts that a Token 2022 mint with all extensions is correctly configured.
+///
+/// Verifies:
+/// - All extensions are present on the mint
+/// - Token pool account exists
+/// - All authorities match the expected payer
+///
+/// # Arguments
+/// * `rpc` - RPC client
+/// * `mint_pubkey` - The mint pubkey
+/// * `extension_config` - The extension configuration to verify
+/// * `expected_authority` - The expected authority for all extensions
+pub async fn assert_mint_22_with_all_extensions<R: Rpc>(
+    rpc: &mut R,
+    mint_pubkey: &Pubkey,
+    extension_config: &Token22ExtensionConfig,
+    expected_authority: &Pubkey,
+) {
+    // Verify all extensions are present
+    verify_mint_extensions(rpc, mint_pubkey).await.unwrap();
+
+    // Verify the extension config has correct values
+    assert_eq!(
+        extension_config.mint, *mint_pubkey,
+        "Extension config mint should match"
+    );
+
+    // Verify token pool was created
+    let token_pool_account = rpc
+        .get_account(extension_config.token_pool)
+        .await
+        .unwrap();
+    assert!(
+        token_pool_account.is_some(),
+        "Token pool account should exist"
+    );
+
+    // Verify all authorities match expected
+    assert_eq!(
+        extension_config.close_authority, *expected_authority,
+        "Close authority mismatch"
+    );
+    assert_eq!(
+        extension_config.transfer_fee_config_authority, *expected_authority,
+        "Transfer fee config authority mismatch"
+    );
+    assert_eq!(
+        extension_config.withdraw_withheld_authority, *expected_authority,
+        "Withdraw withheld authority mismatch"
+    );
+    assert_eq!(
+        extension_config.permanent_delegate, *expected_authority,
+        "Permanent delegate mismatch"
+    );
+    assert_eq!(
+        extension_config.metadata_update_authority, *expected_authority,
+        "Metadata update authority mismatch"
+    );
+    assert_eq!(
+        extension_config.pause_authority, *expected_authority,
+        "Pause authority mismatch"
+    );
+    assert_eq!(
+        extension_config.confidential_transfer_authority, *expected_authority,
+        "Confidential transfer authority mismatch"
+    );
+    assert_eq!(
+        extension_config.confidential_transfer_fee_authority, *expected_authority,
+        "Confidential transfer fee authority mismatch"
+    );
+}
+
 /// Verifies that a mint has all expected extensions by reading the account data.
 ///
 /// # Arguments
