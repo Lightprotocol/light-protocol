@@ -4,9 +4,8 @@ use arrayvec::ArrayVec;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::pubkey::AsPubkey;
 use light_ctoken_interface::{
-    instructions::{
-        extensions::ZExtensionInstructionData,
-        transfer2::{ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode},
+    instructions::transfer2::{
+        ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode,
     },
     CTokenError,
 };
@@ -28,6 +27,7 @@ pub mod spl;
 
 pub use ctoken::{
     close_for_compress_and_close, compress_or_decompress_ctokens, CTokenCompressionInputs,
+    DecompressCompressOnlyInputs,
 };
 
 const SPL_TOKEN_ID: &[u8; 32] = &spl_token::ID.to_bytes();
@@ -50,35 +50,16 @@ pub fn process_token_compression<'a>(
     compression_to_input: &[Option<u8>; 32],
 ) -> Result<(), ProgramError> {
     if let Some(compressions) = inputs.compressions.as_ref() {
+        if compressions.len() >= 32 {
+            // TODO: add meaningful error message
+            // TODO: use constant instead of 32.
+            return Err(ProgramError::InvalidInstructionData);
+        }
         let mut transfer_map = [0u64; MAX_PACKED_ACCOUNTS];
         // Initialize budget: +1 allows exact match (total == max_top_up)
         let mut lamports_budget = (max_top_up as u64).saturating_add(1);
 
         for (compression_index, compression) in compressions.iter().enumerate() {
-            // Validate compression-input consistency when there's a matching input
-            if let Some(input_idx) = compression_to_input[compression_index] {
-                let idx = input_idx as usize;
-                // Compression must be Decompress mode to consume an input
-                if compression.mode != ZCompressionMode::Decompress {
-                    msg!(
-                        "Input linked to non-decompress compression at index {}",
-                        compression_index
-                    );
-                    return Err(ProgramError::InvalidInstructionData);
-                }
-                // Validate mint matches between compression and input
-                let input_data = inputs
-                    .in_token_data
-                    .get(idx)
-                    .ok_or(ProgramError::InvalidInstructionData)?;
-                if compression.mint != input_data.mint {
-                    msg!(
-                        "Mint mismatch between compression and input at index {}",
-                        compression_index
-                    );
-                    return Err(ProgramError::InvalidInstructionData);
-                }
-            }
             let account_index = compression.source_or_recipient as usize;
             if account_index >= MAX_PACKED_ACCOUNTS {
                 msg!(
@@ -99,30 +80,14 @@ pub fn process_token_compression<'a>(
 
             match source_or_recipient.owner() {
                 ID => {
-                    // Extract input TLV and delegate for decompress operations using O(1) lookup
-                    let (input_tlv, input_delegate): (
-                        Option<&[ZExtensionInstructionData]>,
-                        Option<&AccountInfo>,
-                    ) = if let Some(input_idx) = compression_to_input[compression_index] {
-                        let idx = input_idx as usize;
-                        let tlv = inputs
-                            .in_tlv
-                            .as_ref()
-                            .and_then(|tlvs| tlvs.get(idx))
-                            .map(|v| v.as_slice());
-                        let delegate = inputs.in_token_data.get(idx).and_then(|input| {
-                            if input.has_delegate() {
-                                packed_accounts
-                                    .get_u8(input.delegate, "input delegate")
-                                    .ok()
-                            } else {
-                                None
-                            }
-                        });
-                        (tlv, delegate)
-                    } else {
-                        (None, None)
-                    };
+                    let decompress_with_compress_only_inputs =
+                        DecompressCompressOnlyInputs::try_extract(
+                            compression,
+                            compression_index,
+                            compression_to_input,
+                            inputs,
+                            packed_accounts,
+                        )?;
 
                     ctoken::process_ctoken_compressions(
                         inputs,
@@ -132,8 +97,7 @@ pub fn process_token_compression<'a>(
                         mint_checks,
                         &mut transfer_map[account_index],
                         &mut lamports_budget,
-                        input_tlv,
-                        input_delegate,
+                        decompress_with_compress_only_inputs,
                     )?;
                 }
                 SPL_TOKEN_ID => {
@@ -149,6 +113,15 @@ pub fn process_token_compression<'a>(
                     )?;
                 }
                 SPL_TOKEN_2022_ID => {
+                    // CompressedOnly inputs must decompress to CToken accounts to preserve
+                    // extension state (frozen, delegated, withheld fees).
+                    if compression.mode.is_decompress()
+                        && compression_to_input[compression_index].is_some()
+                    {
+                        msg!("CompressedOnly inputs must decompress to CToken account");
+                        return Err(ErrorCode::CompressedOnlyRequiresCTokenDecompress.into());
+                    }
+
                     // Check if mint has restricted extensions from the cache.
                     // Delegation is disregarded for decompression to SPL token accounts.
                     let is_restricted = mint_checks

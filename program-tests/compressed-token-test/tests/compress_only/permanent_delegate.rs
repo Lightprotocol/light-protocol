@@ -4,6 +4,7 @@
 //! CompressedOnly tokens on behalf of the owner.
 
 use serial_test::serial;
+use spl_token_2022::extension::ExtensionType;
 
 use super::shared::{run_compress_and_close_extension_test, CompressAndCloseTestConfig};
 
@@ -12,6 +13,7 @@ use super::shared::{run_compress_and_close_extension_test, CompressAndCloseTestC
 #[serial]
 async fn test_compress_and_close_with_permanent_delegate() {
     run_compress_and_close_extension_test(CompressAndCloseTestConfig {
+        extensions: &[ExtensionType::PermanentDelegate],
         delegate_config: None,
         is_frozen: false,
         use_permanent_delegate_for_decompress: true,

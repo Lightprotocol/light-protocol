@@ -38,9 +38,8 @@ pub fn process_compress_and_close_cmint_action(
     compressed_mint: &mut CompressedMint,
     validated_accounts: &MintActionAccounts,
 ) -> Result<(), ProgramError> {
-    // 1. Check idempotent flag - if CMint doesn't exist and idempotent is set, succeed silently
-    if action.idempotent != 0 && !compressed_mint.metadata.cmint_decompressed {
-        // CMint doesn't exist, but idempotent flag is set - succeed silently
+    // 1. Idempotent check - if CMint doesn't exist and idempotent is set, succeed silently
+    if action.is_idempotent() && !compressed_mint.metadata.cmint_decompressed {
         return Ok(());
     }
 
@@ -90,7 +89,7 @@ pub fn process_compress_and_close_cmint_action(
     ) {
         Ok(is_compressible) => is_compressible,
         Err(_) => {
-            if action.idempotent != 1 {
+            if action.is_idempotent() {
                 return Ok(());
             } else {
                 msg!("CMint is not compressible (rent not expired)");
@@ -100,6 +99,9 @@ pub fn process_compress_and_close_cmint_action(
     };
 
     if is_compressible.is_none() {
+        if action.is_idempotent() {
+            return Ok(());
+        }
         msg!("CMint is not compressible (rent not expired)");
         return Err(ErrorCode::CMintNotCompressible.into());
     }

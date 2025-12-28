@@ -67,6 +67,10 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
         if u64::from(ctoken.amount) != 0 {
             return Err(ErrorCode::NonNativeHasBalance.into());
         }
+        // TODO: Non-zero transfer fees not yet supported. If fees != 0 support is added:
+        // - Check TransferFeeAccount.withheld_amount == 0 before allowing close
+        // - Implement harvest_withheld_fees instruction to extract fees first
+        // - T22 blocks close when withheld_amount > 0 to prevent fee loss
     }
     // All ctoken accounts are now compressible - CompressionInfo is embedded directly in the struct
     let compression = &ctoken.base.compression;

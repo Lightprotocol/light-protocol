@@ -186,8 +186,8 @@ fn validate_compressed_token_account(
             );
             return Err(ErrorCode::CompressAndCloseDelegatedAmountMismatch.into());
         }
-        // if delegated amount is not zero, delegate must match
-        if compression_only_extension.delegated_amount != 0 {
+        // Delegate must be preserved for exact state restoration during decompress
+        if ctoken.delegate().is_some() || compression_only_extension.delegated_amount != 0 {
             let delegate = ctoken
                 .delegate()
                 .ok_or(ErrorCode::CompressAndCloseInvalidDelegate)?;
@@ -228,9 +228,7 @@ fn validate_compressed_token_account(
                 );
                 return Err(ErrorCode::CompressAndCloseWithheldFeeMismatch.into());
             }
-        }
-
-        if u64::from(compression_only_extension.withheld_transfer_fee) != 0 {
+        } else if u64::from(compression_only_extension.withheld_transfer_fee) != 0 {
             msg!(
                 "withheld_transfer_fee must be 0 when ctoken has no fee extension, got {}",
                 u64::from(compression_only_extension.withheld_transfer_fee)

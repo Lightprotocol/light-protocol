@@ -12,7 +12,7 @@ use light_program_test::program_test::TestRpc;
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
 
-use super::shared::{setup_extensions_test, Rpc};
+use super::shared::{setup_extensions_test, Rpc, ALL_EXTENSIONS};
 
 /// Test that forester can compress and close a CToken account with Token-2022 extensions
 /// after prepaid epochs expire, and then decompress it back to a CToken account.
@@ -37,7 +37,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
         create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
     };
 
-    let mut context = setup_extensions_test().await.unwrap();
+    let mut context = setup_extensions_test(ALL_EXTENSIONS).await.unwrap();
     let payer = context.payer.insecure_clone();
     let mint_pubkey = context.mint_pubkey;
 

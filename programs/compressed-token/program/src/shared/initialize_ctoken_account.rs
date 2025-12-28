@@ -212,10 +212,12 @@ fn configure_compression_info(
             // SPL Token: mint must be exactly 82 bytes
             mint_data.len() == SPL_MINT_LEN
         } else if *owner == SPL_TOKEN_2022_ID || *owner == CTOKEN_PROGRAM_ID {
-            // Token-2022/CToken: check AccountType marker at offset 165
-            // Layout: 82 bytes mint + 83 bytes padding + AccountType
-            mint_data.len() > T22_ACCOUNT_TYPE_OFFSET
-                && mint_data[T22_ACCOUNT_TYPE_OFFSET] == ACCOUNT_TYPE_MINT
+            // Token-2022/CToken: Either exactly 82 bytes (no extensions) or
+            // check AccountType marker at offset 165 (with extensions)
+            // Layout with extensions: 82 bytes mint + 83 bytes padding + AccountType
+            mint_data.len() == SPL_MINT_LEN
+                || (mint_data.len() > T22_ACCOUNT_TYPE_OFFSET
+                    && mint_data[T22_ACCOUNT_TYPE_OFFSET] == ACCOUNT_TYPE_MINT)
         } else {
             msg!("Invalid mint owner");
             return Err(ProgramError::IncorrectProgramId);
