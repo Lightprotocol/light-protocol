@@ -6,7 +6,7 @@ This document describes how Token-2022 extensions are validated across compresse
 
 The compressed token program supports 16 Token-2022 extension types. **5 restricted extensions** require instruction-level validation checks. Pure mint extensions (metadata, group, etc.) are allowed without explicit instruction support.
 
-**Allowed extensions** (defined in `program-libs/ctoken-interface/src/token_2022_extensions.rs:23-43`):
+**Allowed extensions** (defined in `program-libs/ctoken-interface/src/token_2022_extensions.rs:24-44`):
 
 1. MetadataPointer
 2. TokenMetadata
@@ -58,8 +58,8 @@ The compressed token program supports 16 Token-2022 extension types. **5 restric
 - `C&C` = CompressAndClose mode
 
 **Key:**
-- `requires comp_only` = Extension triggers compression_only requirement
-- `blocked` = Operation fails with MintHasRestrictedExtensions (6121)
+- `requires comp_only` = Extension triggers compression_only requirement with CompressionOnlyRequired (6131)
+- `blocked` = Operation fails with MintHasRestrictedExtensions (6142)
 - `fees must be 0` / `hook must be nil` = Specific validation check (errors: 6129, 6130)
 - `blocked if paused` = Fails with MintPaused (6127) when mint is paused
 - `frozen blocked` = Account frozen state prevents operation (pinocchio check)
@@ -80,11 +80,11 @@ The compressed token program supports 16 Token-2022 extension types. **5 restric
 | CreateTokenPool | `assert_mint_extensions()` | Fees must be zero | `NonZeroTransferFeeNotSupported` (6129) |
 | Transfer2 | `check_mint_extensions()` | Fees must be zero | `NonZeroTransferFeeNotSupported` (6129) |
 | CTokenTransfer | `check_mint_extensions()` | Fees must be zero | `NonZeroTransferFeeNotSupported` (6129) |
-| CreateTokenAccount | `has_mint_extensions()` | Flags restricted extension | `CompressionOnlyRequired` (6097) |
+| CreateTokenAccount | `has_mint_extensions()` | Flags restricted extension | `CompressionOnlyRequired` (6131) |
 
 **Validation paths:**
-- `programs/compressed-token/anchor/src/instructions/create_token_pool.rs:119-130`
-- `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:85-101`
+- `programs/compressed-token/anchor/src/instructions/create_token_pool.rs:142-153` - `assert_mint_extensions()` checks TransferFeeConfig
+- `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:86-99` - `parse_mint_extensions()` checks TransferFeeConfig
 
 **Unchecked instructions:**
 1. CTokenApprove
@@ -106,11 +106,11 @@ The compressed token program supports 16 Token-2022 extension types. **5 restric
 | CreateTokenPool | `assert_mint_extensions()` | program_id must be nil | `TransferHookNotSupported` (6130) |
 | Transfer2 | `check_mint_extensions()` | program_id must be nil | `TransferHookNotSupported` (6130) |
 | CTokenTransfer | `check_mint_extensions()` | program_id must be nil | `TransferHookNotSupported` (6130) |
-| CreateTokenAccount | `has_mint_extensions()` | Flags restricted extension | `CompressionOnlyRequired` (6097) |
+| CreateTokenAccount | `has_mint_extensions()` | Flags restricted extension | `CompressionOnlyRequired` (6131) |
 
 **Validation paths:**
-- `programs/compressed-token/anchor/src/instructions/create_token_pool.rs:132-139`
-- `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:103-108`
+- `programs/compressed-token/anchor/src/instructions/create_token_pool.rs:155-162` - `assert_mint_extensions()` checks TransferHook
+- `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:101-107` - `parse_mint_extensions()` checks TransferHook
 
 **Unchecked instructions:**
 1. CTokenApprove
@@ -129,13 +129,13 @@ The compressed token program supports 16 Token-2022 extension types. **5 restric
 
 | Instruction | Validation Function | Check | Error |
 |-------------|---------------------|-------|-------|
-| CreateTokenAccount | `has_mint_extensions()` | Flags restricted extension | `CompressionOnlyRequired` (6097) |
-| Transfer2 | `check_mint_extensions()` → `verify_owner_or_delegate_signer()` | Extract delegate pubkey, then validate authority is owner OR delegate. If authority matches permanent delegate, that account must be a signer. | `OwnerMismatch` (6077) or `MissingRequiredSignature` |
-| CTokenTransfer | `check_mint_extensions()` → `verify_owner_or_delegate_signer()` | Extract delegate pubkey, then validate authority is owner OR delegate. If authority matches permanent delegate, that account must be a signer. | `OwnerMismatch` (6077) or `MissingRequiredSignature` |
+| CreateTokenAccount | `has_mint_extensions()` | Flags restricted extension | `CompressionOnlyRequired` (6131) |
+| Transfer2 | `parse_mint_extensions()` → `verify_owner_or_delegate_signer()` | Extract delegate pubkey, then validate authority is owner OR delegate. If authority matches permanent delegate, that account must be a signer. | `OwnerMismatch` (6075) or `MissingRequiredSignature` |
+| CTokenTransfer | `parse_mint_extensions()` → `verify_owner_or_delegate_signer()` | Extract delegate pubkey, then validate authority is owner OR delegate. If authority matches permanent delegate, that account must be a signer. | `OwnerMismatch` (6075) or `MissingRequiredSignature` |
 
 **Validation paths:**
-- `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:76-83` - Extracts delegate pubkey
-- `programs/compressed-token/program/src/shared/owner_validation.rs:48-55` - Validates delegate signer
+- `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:77-84` - Extracts delegate pubkey in `parse_mint_extensions()`
+- `programs/compressed-token/program/src/shared/owner_validation.rs:30-78` - `verify_owner_or_delegate_signer()` validates delegate/permanent delegate signer
 - `programs/compressed-token/program/src/transfer/shared.rs:164-179` - `validate_permanent_delegate()`
 
 **Unchecked instructions:**
@@ -155,12 +155,13 @@ The compressed token program supports 16 Token-2022 extension types. **5 restric
 
 | Instruction | Validation Function | Check | Error |
 |-------------|---------------------|-------|-------|
-| CreateTokenAccount | `has_mint_extensions()` | Flags restricted extension | `CompressionOnlyRequired` (6097) |
-| Transfer2 | `check_mint_extensions()` | `pausable_config.paused == false` | `MintPaused` (6131) |
-| CTokenTransfer | `check_mint_extensions()` | `pausable_config.paused == false` | `MintPaused` (6131) |
+| CreateTokenAccount | `has_mint_extensions()` | Flags restricted extension | `CompressionOnlyRequired` (6131) |
+| Transfer2 | `check_mint_extensions()` | `pausable_config.paused == false` | `MintPaused` (6127) |
+| CTokenTransfer | `check_mint_extensions()` | `pausable_config.paused == false` | `MintPaused` (6127) |
 
 **Validation path:**
-- `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:69-73`
+- `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:71-74` - `parse_mint_extensions()` checks PausableConfig.paused
+- `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:147-149` - `check_mint_extensions()` throws MintPaused error
 
 **Unchecked instructions:**
 1. CTokenApprove - allowed when paused (only affects delegation, not token movement)
@@ -181,11 +182,11 @@ The compressed token program supports 16 Token-2022 extension types. **5 restric
 
 | Instruction | Validation Function | Check | Error |
 |-------------|---------------------|-------|-------|
-| CreateTokenAccount | `has_mint_extensions()` | Flags restricted extension, applies frozen state | `CompressionOnlyRequired` (6097) |
+| CreateTokenAccount | `has_mint_extensions()` | Flags restricted extension, applies frozen state | `CompressionOnlyRequired` (6131) |
 | Transfer2 (Decompress) | - | Restores frozen state from CompressedOnly extension | - |
 
 **Validation paths:**
-- `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:209-218` - Detects `default_state_frozen`
+- `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:211-220` - Detects `default_state_frozen`
 - `programs/compressed-token/program/src/shared/initialize_ctoken_account.rs:96-100` - Applies frozen state
 
 **Account Initialization:**
@@ -223,7 +224,9 @@ The CompressedOnly extension preserves CToken account state during CompressAndCl
 **State Extension** (`program-libs/ctoken-interface/src/state/extensions/compressed_only.rs`):
 ```rust
 pub struct CompressedOnlyExtension {
+    /// The delegated amount from the source CToken account's delegate field.
     pub delegated_amount: u64,
+    /// Withheld transfer fee amount from the source CToken account.
     pub withheld_transfer_fee: u64,
 }
 ```
@@ -231,9 +234,13 @@ pub struct CompressedOnlyExtension {
 **Instruction Data** (`program-libs/ctoken-interface/src/instructions/extensions/compressed_only.rs`):
 ```rust
 pub struct CompressedOnlyExtensionInstructionData {
+    /// The delegated amount from the source CToken account's delegate field.
     pub delegated_amount: u64,
+    /// Withheld transfer fee amount
     pub withheld_transfer_fee: u64,
+    /// Whether the source CToken account was frozen when compressed.
     pub is_frozen: bool,
+    /// Index of the compression operation that consumes this input.
     pub compression_index: u8,
 }
 ```
@@ -249,17 +256,20 @@ pub struct CompressedOnlyExtensionInstructionData {
 - Output compressed token must include CompressedOnly extension in TLV data
 - Extension values must match source CToken state
 
-**Validation (lines 168-261):**
-1. If source has `compression_only=true`, CompressedOnly extension is required
-2. `delegated_amount` must match source CToken's `delegated_amount`
-3. `withheld_transfer_fee` must match source's TransferFeeAccount withheld amount
-4. `is_frozen` must match source CToken's frozen state (`state == 2`)
-5. If source is frozen but extension missing → `CompressAndCloseMissingCompressedOnlyExtension`
+**Validation (lines 168-277 in `validate_compressed_token_account`):**
+1. If source has `compression_only=true`, CompressedOnly extension is required (line 173-175)
+2. `delegated_amount` must match source CToken's `delegated_amount` (lines 181-188)
+3. Delegate pubkey must match if delegated_amount > 0 (lines 189-210)
+4. `withheld_transfer_fee` must match source's TransferFeeAccount withheld amount (lines 211-237)
+5. `is_frozen` must match source CToken's frozen state (`state == 2`) (lines 239-251)
+6. If source is frozen but extension missing → `CompressAndCloseMissingCompressedOnlyExtension` (lines 253-259)
 
-**Source CToken Reset:**
+**Source CToken Reset (lines 71-74 in `process_compress_and_close`):**
 ```rust
 ctoken.base.amount.set(0);
-ctoken.base.set_initialized();  // Unfreeze before closing
+// Unfreeze the account if frozen (frozen state is preserved in compressed token TLV)
+// This allows the close_token_account validation to pass for frozen accounts
+ctoken.base.set_initialized();
 ```
 
 ### When Consumed (Decompress)
@@ -268,16 +278,20 @@ ctoken.base.set_initialized();  // Unfreeze before closing
 
 **Trigger:** Decompressing a compressed token that has CompressedOnly extension.
 
-**State Restoration (lines 66-125):**
-1. Extract CompressedOnly data from input TLV
-2. Restore delegate pubkey (from instruction input account)
-3. Restore `delegated_amount` to destination CToken
-4. Restore `withheld_transfer_fee` to TransferFeeAccount extension
-5. Restore frozen state via `ctoken.base.set_frozen()`
+**State Restoration (`apply_decompress_extension_state` function, lines 56-128):**
+1. Extract CompressedOnly data from input TLV (lines 65-77)
+2. Validate destination is fresh with matching owner via `validate_decompression_destination` (lines 15-50)
+3. Restore delegate pubkey from instruction input account (lines 85-96)
+4. Restore `delegated_amount` to destination CToken (lines 99-101)
+5. Restore `withheld_transfer_fee` to TransferFeeAccount extension (lines 104-120)
+6. Restore frozen state via `ctoken.base.set_frozen()` (lines 122-125)
 
-**Validation:**
-- Destination CToken must be fresh (amount=0, no delegate, no delegated_amount)
-- Destination owner must match
+**Validation (`validate_decompression_destination`, lines 15-50):**
+- Destination owner must match input owner
+- Destination amount must be 0
+- Destination must not have delegate
+- Destination delegated_amount must be 0
+- Destination must not have close_authority
 
 ### State Preservation Matrix
 
@@ -294,42 +308,45 @@ ctoken.base.set_initialized();  // Unfreeze before closing
 
 | Error | Code | Description |
 |-------|------|-------------|
-| `CompressAndCloseMissingCompressedOnlyExtension` | 6122 | Restricted mint CompressAndClose lacks CompressedOnly output |
-| `CompressAndCloseDelegatedAmountMismatch` | 6123 | delegated_amount doesn't match source |
-| `CompressAndCloseWithheldTransferFeeMismatch` | 6124 | withheld_transfer_fee doesn't match source |
-| `CompressAndCloseFrozenMismatch` | 6125 | is_frozen doesn't match source frozen state |
+| `CompressAndCloseMissingCompressedOnlyExtension` | 6133 | Restricted mint CompressAndClose lacks CompressedOnly output |
+| `CompressAndCloseDelegatedAmountMismatch` | 6135 | delegated_amount doesn't match source |
+| `CompressAndCloseWithheldFeeMismatch` | 6137 | withheld_transfer_fee doesn't match source |
+| `CompressAndCloseFrozenMismatch` | 6138 | is_frozen doesn't match source frozen state |
 
 ---
 
 ## Validation Functions
 
 ### `assert_mint_extensions()`
-**Path:** `programs/compressed-token/anchor/src/instructions/create_token_pool.rs:106-142`
+**Path:** `programs/compressed-token/anchor/src/instructions/create_token_pool.rs:129-165`
 
 **Used by:** CreateTokenPool (Anchor layer, pool creation time)
 
 **Behavior:**
-1. Deserialize mint with `PodStateWithExtensions<PodMint>::unpack()`
-2. Validate all extensions are in `ALLOWED_EXTENSION_TYPES` → `MintWithInvalidExtension`
-3. If TransferFeeConfig exists: check fees are zero → `NonZeroTransferFeeNotSupported`
-4. If TransferHook exists: check program_id is nil → `TransferHookNotSupported`
+1. Deserialize mint with `PodStateWithExtensions<PodMint>::unpack()` (line 130-131)
+2. Validate all extensions are in `ALLOWED_EXTENSION_TYPES` → `MintWithInvalidExtension` (lines 134-140)
+3. If TransferFeeConfig exists: check fees are zero → `NonZeroTransferFeeNotSupported` (lines 142-153)
+4. If TransferHook exists: check program_id is nil → `TransferHookNotSupported` (lines 155-162)
 
 **Does NOT check:** Pausable state, PermanentDelegate (allowed at pool creation)
 
 ---
 
 ### `has_mint_extensions()`
-**Path:** `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:130-184`
+**Path:** `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:175-230`
 
 **Used by:** CreateTokenAccount (detection only)
 
 **Behavior:**
-1. Return default flags if not Token-2022 mint
-2. Deserialize mint with `PodStateWithExtensions<PodMint>::unpack()`
-3. Validate all extensions are in `ALLOWED_EXTENSION_TYPES` → `MintWithInvalidExtension`
-4. Return `MintExtensionFlags` with boolean flags
+1. Return default flags if not Token-2022 mint (lines 177-179)
+2. Deserialize mint with `PodStateWithExtensions<PodMint>::unpack()` (lines 181-184)
+3. Get all extension types in a single call (line 187)
+4. Validate all extensions are in `ALLOWED_EXTENSION_TYPES` → `MintWithInvalidExtension` (lines 196-200)
+5. Detect which restricted extensions are present (lines 201-209)
+6. Check if DefaultAccountState is set to Frozen (lines 213-220)
+7. Return `MintExtensionFlags` with boolean flags
 
-**Returns:**
+**Returns** (defined in `program-libs/ctoken-interface/src/token_2022_extensions.rs:59-74`):
 ```rust
 MintExtensionFlags {
     has_pausable: bool,
@@ -345,8 +362,36 @@ MintExtensionFlags {
 
 ---
 
+### `parse_mint_extensions()`
+**Path:** `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:53-117`
+
+**Used by:** Internal helper for `check_mint_extensions()` and `build_mint_extension_cache()`
+
+**Behavior:**
+1. Return default if not Token-2022 mint (lines 57-59)
+2. Deserialize mint with `PodStateWithExtensions<PodMint>::unpack()` (lines 61-64)
+3. Compute `has_restricted_extensions` from extension types (lines 66-68)
+4. Check if Pausable extension exists and paused state (lines 71-74)
+5. Extract PermanentDelegate pubkey if exists (lines 77-84)
+6. Check TransferFeeConfig for non-zero fees (lines 87-99)
+7. Check TransferHook for non-nil program_id (lines 102-107)
+
+**Returns** (defined in `check_mint_extensions.rs:21-40`):
+```rust
+MintExtensionChecks {
+    permanent_delegate: Option<Pubkey>,  // For signer validation
+    has_transfer_fee: bool,
+    has_restricted_extensions: bool,     // For CompressAndClose validation
+    is_paused: bool,                     // CompressAndClose bypasses this check
+    has_non_zero_transfer_fee: bool,     // CompressAndClose bypasses this check
+    has_non_nil_transfer_hook: bool,     // CompressAndClose bypasses this check
+}
+```
+
+---
+
 ### `check_mint_extensions()`
-**Path:** `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:43-115`
+**Path:** `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:134-159`
 
 **Used by:** Transfer2, CTokenTransfer (runtime validation)
 
@@ -354,41 +399,33 @@ MintExtensionFlags {
 - `mint_account: &AccountInfo` - The SPL Token 2022 mint
 - `deny_restricted_extensions: bool` - If true, fails when mint has restricted extensions
 
-**Behavior:**
-1. Return default if not Token-2022 mint
-2. Deserialize mint with `PodStateWithExtensions<PodMint>::unpack()`
-3. Compute `has_restricted_extensions` from extension types
-4. If `deny_restricted_extensions && has_restricted_extensions` → `MintHasRestrictedExtensions`
-5. If Pausable exists and `paused == true` → `MintPaused`
-6. Extract PermanentDelegate pubkey if exists (for downstream signer validation)
-7. If TransferFeeConfig exists: check fees are zero → `NonZeroTransferFeeNotSupported`
-8. If TransferHook exists: check program_id is nil → `TransferHookNotSupported`
-
-**Returns:**
-```rust
-MintExtensionChecks {
-    permanent_delegate: Option<Pubkey>,  // For signer validation
-    has_transfer_fee: bool,
-    has_restricted_extensions: bool,     // For CompressAndClose validation
-}
-```
+**Behavior:** Wrapper around `parse_mint_extensions()` that throws errors for invalid states:
+1. Call `parse_mint_extensions()` (line 138)
+2. If `deny_restricted_extensions && has_restricted_extensions` → `MintHasRestrictedExtensions` (6142) (lines 141-145)
+3. If `is_paused == true` → `MintPaused` (6127) (lines 148-150)
+4. If `has_non_zero_transfer_fee` → `NonZeroTransferFeeNotSupported` (6129) (lines 151-153)
+5. If `has_non_nil_transfer_hook` → `TransferHookNotSupported` (6130) (lines 154-156)
 
 ---
 
 ### `build_mint_extension_cache()`
-**Path:** `programs/compressed-token/program/src/transfer2/check_extensions.rs:65-142`
+**Path:** `programs/compressed-token/program/src/transfer2/check_extensions.rs:77-145`
 
 **Used by:** Transfer2 (batch validation)
 
 **Behavior:**
-1. For each unique mint in inputs and compressions (max 5 mints):
-   - Call `check_mint_extensions()` with appropriate `deny_restricted_extensions`
+1. For each unique mint in inputs (lines 85-97):
+   - If no outputs: call `parse_mint_extensions()` (bypass state checks for pure decompress)
+   - Otherwise: call `check_mint_extensions()` with `deny_restricted_extensions`
    - Cache result in `ArrayMap<u8, MintExtensionChecks, 5>`
-2. Special handling for CompressAndClose mode:
+2. For each unique mint in compressions (lines 100-142):
+   - CompressAndClose and full Decompress: use `parse_mint_extensions()` (bypass state checks)
+   - Otherwise: use `check_mint_extensions()` with `deny_restricted_extensions`
+3. Special handling for CompressAndClose mode (lines 116-137):
    - Mints with restricted extensions require CompressedOnly output extension
-   - If missing → `CompressAndCloseMissingCompressedOnlyExtension`
+   - If missing → `CompressAndCloseMissingCompressedOnlyExtension` (6133)
 
-**Returns:** `MintExtensionCache` - Cached checks keyed by mint account index
+**Returns:** `MintExtensionCache` (type alias defined at line 46) - Cached checks keyed by mint account index
 
 ---
 
@@ -396,31 +433,32 @@ MintExtensionChecks {
 
 | Error | Code | Description |
 |-------|------|-------------|
+| `OwnerMismatch` | 6075 | Authority signature does not match owner/delegate |
+| `MintPaused` | 6127 | Mint is paused |
 | `NonZeroTransferFeeNotSupported` | 6129 | TransferFeeConfig has non-zero fees |
 | `TransferHookNotSupported` | 6130 | TransferHook has non-nil program_id |
-| `MintPaused` | 6131 | Mint is paused |
-| `CompressionOnlyRequired` | 6097 | Restricted extension requires compression_only mode |
-| `MintHasRestrictedExtensions` | 6121 | Cannot create compressed outputs with restricted extensions |
-| `OwnerMismatch` | 6077 | Authority signature does not match owner/delegate |
+| `CompressionOnlyRequired` | 6131 | Restricted extension requires compression_only mode |
+| `MintHasRestrictedExtensions` | 6142 | Cannot create compressed outputs with restricted extensions |
 
 
 ## Restricted Extension Enforcement for Compression
 
 ### Transfer2
 
-**Enforcement:** `build_mint_extension_cache()` is called with `deny_restricted_extensions = !no_output_compressed_accounts`
+**Enforcement:** `build_mint_extension_cache()` is called with `deny_restricted_extensions = !out_token_data.is_empty()`
 
 **Flow:**
-1. `Transfer2Config::from_instruction_data()` computes `no_output_compressed_accounts = out_token_data.is_empty()`
-2. `build_mint_extension_cache()` calls `check_mint_extensions(mint, deny_restricted_extensions)`
-3. If `deny_restricted_extensions=true` and mint has restricted extensions → `MintHasRestrictedExtensions` (6121)
+1. `build_mint_extension_cache()` computes `deny_restricted_extensions = !inputs.out_token_data.is_empty()` (line 82)
+2. For input mints: calls `check_mint_extensions(mint, deny_restricted_extensions)` (line 93)
+3. If `deny_restricted_extensions=true` and mint has restricted extensions → `MintHasRestrictedExtensions` (6142)
 
-**Exception - CompressAndClose mode:**
-- Always passes `deny_restricted_extensions=false` to `check_mint_extensions()`
-- Instead requires CompressedOnly output extension
-- If missing → `CompressAndCloseMissingCompressedOnlyExtension`
+**Exception - CompressAndClose and Decompress modes:**
+- CompressAndClose: calls `parse_mint_extensions()` to bypass state checks (line 111)
+- Full Decompress (no outputs): calls `parse_mint_extensions()` to bypass state checks (lines 89-91)
+- CompressAndClose still requires CompressedOnly output extension for restricted mints (lines 116-137)
+- If missing → `CompressAndCloseMissingCompressedOnlyExtension` (6133)
 
-**Path:** `programs/compressed-token/program/src/transfer2/processor.rs:61-65`
+**Path:** `programs/compressed-token/program/src/transfer2/processor.rs:61` calls `build_mint_extension_cache()`
 
 ### Anchor Instructions
 
@@ -446,13 +484,15 @@ When a mint has the `DefaultAccountState` extension (regardless of current state
 2. Once compressed, we don't re-check the mint's DefaultAccountState when creating outputs
 3. CToken accounts still respect the current frozen state for proper initialization
 
-### 2. How to enforce restricted extensions in anchor instructions?
+### 2. ~~How to enforce restricted extensions in anchor instructions?~~ ✅ IMPLEMENTED
 
-**Different pool PDA derivation for restricted mints**
-- Current: `seeds = [b"pool", mint_pubkey]` for all mints
-- Proposed: `seeds = [b"pool", mint_pubkey, b"restricted"]` for restricted mints
-- `CreateTokenPool` detects restricted extensions → creates pool at different PDA
+**Status:** Implemented via different pool PDA derivation for restricted mints.
+
+**Implementation:**
+- `CreateTokenPool` uses `restricted_seed()` function (lines 21-39) to detect restricted extensions
+- If mint has restricted extensions: `seeds = [b"pool", mint_pubkey, RESTRICTED_POOL_SEED]`
+- Otherwise: `seeds = [b"pool", mint_pubkey]`
+- `AddTokenPoolInstruction` follows same derivation pattern (lines 171-201)
 - Anchor instructions use normal derivation → pool not found → CPI fails automatically
-- Transfer2 derives correct pool based on mint extension flags from cache
-- Pros: No changes to anchor instruction code, implicit enforcement
-- Cons: SDK/client changes needed, Transfer2 pool derivation update required
+
+**Path:** `programs/compressed-token/anchor/src/instructions/create_token_pool.rs:17-39`

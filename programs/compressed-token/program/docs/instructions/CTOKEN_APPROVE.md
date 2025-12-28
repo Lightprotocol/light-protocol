@@ -18,7 +18,7 @@ If the CToken account has a compressible extension and requires a rent top-up, t
 Delegates a specified amount to a delegate authority on a decompressed ctoken account (account layout `CToken` defined in program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs). Before the approve operation, automatically tops up compressible accounts (extension layout `CompressionInfo` defined in program-libs/compressible/src/compression_info.rs) with additional lamports if needed to prevent accounts from becoming compressible during normal operations. The instruction supports a max_top_up parameter (0 = no limit) that enforces transaction failure if the calculated top-up exceeds this limit. Uses pinocchio-token-program for SPL-compatible approve semantics. Supports backwards-compatible instruction data format (8 bytes legacy vs 10 bytes with max_top_up).
 
 **Instruction data:**
-Path: programs/compressed-token/program/src/ctoken_approve_revoke.rs (lines 22-46)
+Path: programs/compressed-token/program/src/ctoken_approve_revoke.rs (lines 34-58)
 
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to delegate
 - Bytes 8-9 (optional): `max_top_up` (u16, little-endian) - Maximum lamports for top-up (0 = no limit, default for legacy format)
@@ -42,14 +42,15 @@ Path: programs/compressed-token/program/src/ctoken_approve_revoke.rs (lines 22-4
 
 **Instruction Logic and Checks:**
 
-1. **Parse instruction data:**
+1. **Validate minimum accounts:**
+   - Require source account (index 0) and owner account (index 2)
+   - Return NotEnoughAccountKeys if either account is missing
+   - Note: delegate (index 1) is validated by pinocchio during SPL approve
+
+2. **Parse instruction data:**
    - If 8 bytes: legacy format, set max_top_up = 0 (no limit)
    - If 10 bytes: parse amount (first 8 bytes) and max_top_up (last 2 bytes)
    - Return InvalidInstructionData for any other length
-
-2. **Validate minimum accounts:**
-   - Require at least 3 accounts (source, delegate, owner)
-   - Return NotEnoughAccountKeys if insufficient
 
 3. **Process compressible top-up:**
    - Borrow source account data mutably

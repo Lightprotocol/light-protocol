@@ -2,7 +2,7 @@
 //!
 //! This module provides functions to derive SPL interface PDAs (token pools) for both regular
 //! and restricted mints. Restricted mints (those with Pausable, PermanentDelegate,
-//! TransferFeeConfig, or TransferHook extensions) use a different derivation path
+//! TransferFeeConfig, TransferHook, or DefaultAccountState extensions) use a different derivation path
 //! to prevent accidental compression via legacy anchor instructions.
 
 use solana_pubkey::Pubkey;
@@ -153,7 +153,7 @@ pub fn is_valid_spl_interface_pda(
 
 /// Check if a mint has any restricted extensions.
 ///
-/// Restricted extensions (Pausable, PermanentDelegate, TransferFeeConfig, TransferHook)
+/// Restricted extensions (Pausable, PermanentDelegate, TransferFeeConfig, TransferHook, DefaultAccountState)
 /// require using the restricted pool derivation path.
 ///
 /// # Arguments

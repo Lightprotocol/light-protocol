@@ -1,6 +1,6 @@
 # Add Token Pool
 
-**path:** programs/compressed-token/anchor/src/lib.rs:66-86
+**path:** programs/compressed-token/anchor/src/lib.rs:68-95
 
 **description:**
 Token pool pda is renamed to spl interface pda in the light-token-sdk.
@@ -8,6 +8,7 @@ Token pool pda is renamed to spl interface pda in the light-token-sdk.
 2. Requires the previous pool (index-1) to exist, enforcing sequential pool creation. This ensures mint extensions were already validated during `create_token_pool` for pool index 0
 3. Maximum 5 pools per mint (NUM_MAX_POOL_ACCOUNTS = 5, defined in programs/compressed-token/anchor/src/constants.rs)
 4. Multiple pools enable scaling for high-volume mints by distributing token storage across accounts
+5. For mints with restricted extensions (Pausable, PermanentDelegate, TransferFeeConfig, TransferHook, DefaultAccountState), uses a separate PDA derivation path with "restricted" seed to prevent accidental compression via legacy anchor instructions
 
 **Instruction data:**
 - `token_pool_index`: u8 - Pool index to create (valid values: 1-4)
@@ -19,7 +20,8 @@ Token pool pda is renamed to spl interface pda in the light-token-sdk.
 2. token_pool_pda
    - (mutable)
    - New token pool account being created
-   - PDA derivation: seeds=[b"pool", mint_pubkey, token_pool_index], program=light_compressed_token
+   - PDA derivation (regular mints): seeds=[b"pool", mint_pubkey, token_pool_index], program=light_compressed_token
+   - PDA derivation (restricted mints): seeds=[b"pool", mint_pubkey, b"restricted", token_pool_index], program=light_compressed_token
    - Owner set to token_program
 3. existing_token_pool_pda
    - Existing token pool at index (token_pool_index - 1)
@@ -40,10 +42,14 @@ Token pool pda is renamed to spl interface pda in the light-token-sdk.
 **Instruction Logic and Checks:**
 1. Validate token_pool_index < NUM_MAX_POOL_ACCOUNTS (5)
    - Error: InvalidTokenPoolBump if index >= 5
-2. Validate previous pool exists via `check_spl_token_pool_derivation_with_index()` (programs/compressed-token/anchor/src/instructions/create_token_pool.rs)
+2. Determine if mint has restricted extensions via `restricted_seed()` (programs/compressed-token/anchor/src/instructions/create_token_pool.rs:21-39)
+   - Checks for: Pausable, PermanentDelegate, TransferFeeConfig, TransferHook, DefaultAccountState extensions
+3. Validate previous pool exists via `is_valid_spl_interface_pda()` (program-libs/ctoken-interface/src/pool_derivation.rs:95-148)
+   - Uses `token_pool_index.saturating_sub(1)` as the previous index
    - Verifies existing_token_pool_pda matches PDA derivation with (token_pool_index - 1)
+   - Uses the same restricted/regular derivation path as the new pool
    - Error: InvalidTokenPoolPda if previous pool doesn't exist or has wrong derivation
-3. Initialize token account via CPI to `spl_token_2022::instruction::initialize_account3` (same as create_token_pool)
+4. Initialize token account via CPI to `spl_token_2022::instruction::initialize_account3` (same as create_token_pool)
 
 **CPIs:**
 - `spl_token_2022::instruction::initialize_account3`

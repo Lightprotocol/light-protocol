@@ -20,8 +20,8 @@
 1. Batch transfer instruction supporting multiple token operations in a single transaction with up to 5 different mints (cmints or spl)
 
 2. Account types and data layouts:
-   - Compressed accounts: `TokenData` (program-libs/ctoken-types/src/state/token_data.rs)
-   - Decompressed Solana accounts: `CToken` for ctokens (program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs) or standard SPL token accounts
+   - Compressed accounts: `TokenData` (program-libs/ctoken-interface/src/state/compressed_token/token_data.rs)
+   - Decompressed Solana accounts: `CToken` for ctokens (program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs) or standard SPL token accounts
    - SPL tokens when compressed are backed by tokens stored in ctoken pool PDAs
 
 3. Compression modes:
@@ -40,7 +40,7 @@
    - Execute mode: All operations supported including compress/decompress
 
 **Instruction data:**
-1. instruction data is defined in path: program-libs/ctoken-types/src/instructions/transfer2.rs
+1. instruction data is defined in path: program-libs/ctoken-interface/src/instructions/transfer2/instruction_data.rs
    - `with_transaction_hash`: Compute transaction hash for the complete transaction and include in compressed account data, enables ZK proofs over how compressed accounts are spent
    - `with_lamports_change_account_merkle_tree_index`: Track lamport changes in specified tree
    - `proof`: Optional CompressedProof - Required for ZK validation of compressed inputs; not needed for proof by index or when no compressed inputs exist
@@ -48,12 +48,12 @@
    - `out_token_data`: Vec<MultiTokenTransferOutputData> - Output compressed token accounts (packed: owner/delegate/mint/merkle_tree are indices to packed accounts)
    - `in_lamports`: Optional lamport amounts for input accounts (unimplemented)
    - `out_lamports`: Optional lamport amounts for output accounts (unimplemented)
-   - `in_tlv`: Optional TLV data for input accounts (unimplemented)
-   - `out_tlv`: Optional TLV data for output accounts (unimplemented)
+   - `in_tlv`: Optional TLV data for input accounts (used for CompressedOnly extension during decompress)
+   - `out_tlv`: Optional TLV data for output accounts (used for CompressedOnly extension during CompressAndClose)
    - `compressions`: Optional Vec<Compression> - Compress/decompress operations
    - `cpi_context`: Optional CompressedCpiContext - Required for CPI operations; write mode: set either first_set_context or set_context (not both); execute mode: provide with all flags false
 
-2. Compression struct fields (path: program-libs/ctoken-types/src/instructions/transfer2.rs):
+2. Compression struct fields (path: program-libs/ctoken-interface/src/instructions/transfer2/compression.rs):
    - `mode`: CompressionMode enum (Compress, Decompress, CompressAndClose)
    - `amount`: u64 - Amount to compress/decompress
    - `mint`: u8 - Index of mint account in packed accounts
@@ -130,7 +130,10 @@ Packed accounts (dynamic indexing):
    - Deserialize `CompressedTokenInstructionDataTransfer2` using zero-copy
    - Validate CPI context via `check_cpi_context`: Ensures `set_context || first_set_context` is false when `cpi_context` is Some
    - Validate instruction data via `validate_instruction_data`:
-     - Check unimplemented features (`in_lamports`, `out_lamports`, `in_tlv`, `out_tlv`) are None
+     - Check unimplemented features (`in_lamports`, `out_lamports`) are None
+     - Validate `in_tlv` length matches `in_token_data` length if provided
+     - Validate `out_tlv` length matches `out_token_data` length if provided
+     - Block CompressedOnly inputs from having compressed outputs (error: CompressedOnlyBlocksTransfer)
      - Ensure CPI context write mode (`set_context || first_set_context`) has no compressions
    - Determine required optional accounts via `Transfer2Config::from_instruction_data`:
      - Analyzes instruction data to identify which optional accounts must be present
@@ -140,6 +143,10 @@ Packed accounts (dynamic indexing):
      - Sets `no_compressed_accounts` when no compressed accounts involved (in_token_data and out_token_data both empty)
      - Uses checked arithmetic to prevent lamport calculation overflow
    - Validate and parse accounts via `Transfer2Accounts::validate_and_parse`
+   - Build mint extension cache via `build_mint_extension_cache`:
+     - Caches extension state for unique mints (max 5)
+     - **Mode-dependent enforcement:** Compress enforces restrictions; Decompress and CompressAndClose bypass
+     - For CompressAndClose with restricted extensions: requires CompressedOnly extension in output TLV
 
 2. **Branch based on compressed account involvement:**
 
@@ -252,6 +259,14 @@ When compression processing occurs (in both Path A and Path B):
      - Subtracts compression amount from the source ctoken account balance (with overflow protection)
    - **For Decompress:**
      - Adds decompression amount to the recipient ctoken account balance (with overflow protection)
+     - **Extension state transfer (with CompressedOnly in input TLV):**
+       - Validates destination CToken is fresh (zero amount, no delegate, no close_authority)
+       - Transfers delegate and delegated_amount from CompressedOnly extension to CToken
+       - Transfers withheld_transfer_fee to CToken's TransferFeeAccount extension
+       - Restores frozen state (sets CToken.state = 2 if extension.is_frozen)
+       - Error: `DecompressDestinationNotFresh` if destination has non-zero state
+     - **CompressedOnly inputs must decompress to CToken, not SPL token accounts:**
+       - Error: `CompressedOnlyRequiresCTokenDecompress` if decompressing to SPL token account
    - **For CompressAndClose:**
      - **Authority validation:**
        - Authority must be signer
@@ -264,9 +279,11 @@ When compression processing occurs (in both Path A and Path B):
        - Account becomes compressible when it lacks sufficient rent for current epoch + 1
        - This prevents compression_authority from arbitrarily compressing accounts before rent expires
        - Error: `ProgramError::InvalidAccountData` with message "account not compressible" if check fails
-     - **Frozen account check:**
-       - Frozen ctoken accounts (state == 2) cannot be compressed
-       - Error: `ErrorCode::AccountFrozen` if account is frozen
+     - **Frozen account handling:**
+       - Frozen ctoken accounts (state == 2) CAN be CompressAndClose'd
+       - Frozen state is preserved via CompressedOnly extension in output TLV
+       - The account is temporarily unfrozen (set to initialized) to pass close validation
+       - Error: `ErrorCode::AccountFrozen` if trying to Compress (not CompressAndClose) a frozen account
      - **Design principle: Compression authority control** (see `program-libs/compressible/docs/RENT.md` for detailed rent calculations)
        - Tokens: Belong to the owner, but compression is controlled by compression_authority
        - Rent exemption + completed epoch rent: Belong to rent_sponsor (who funded them)
@@ -281,9 +298,19 @@ When compression processing occurs (in both Path A and Path B):
        - Owner: If `compress_to_pubkey` flag is true, owner must be the token account's pubkey (allows closing accounts owned by PDAs)
        - **Note:** `compress_to_pubkey` is stored in the compressible extension and set during account creation, not per-instruction
        - Mint: Must match the ctoken account's mint field
-       - Delegate: Must be None (has_delegate=false and delegate=0) - delegates cannot be carried over
        - Version: Must be ShaFlat (version=3) for security
        - Version: Must match the version specified in the token account's compressible extension
+     - **Delegate/Frozen state handling (with CompressedOnly extension):**
+       - If account has `compression_only` flag set (restricted mint), CompressedOnly extension is REQUIRED in output TLV
+       - CompressedOnly extension preserves: `is_frozen`, `delegated_amount`, `delegate` (in token_data), `withheld_transfer_fee`
+       - Delegate: Must match between ctoken.delegate and compressed output delegate
+       - Delegated amount: Must match between ctoken.delegated_amount and extension.delegated_amount
+       - Frozen state: Must match between ctoken.state==2 and extension.is_frozen
+       - Withheld fee: Must match between ctoken TransferFeeAccount.withheld_amount and extension.withheld_transfer_fee
+       - Error: `CompressAndCloseDelegatedAmountMismatch`, `CompressAndCloseInvalidDelegate`, `CompressAndCloseFrozenMismatch`, `CompressAndCloseWithheldFeeMismatch`
+     - **Delegate handling (without CompressedOnly extension):**
+       - Delegate: Must be None (has_delegate=false and delegate=0) - delegates cannot be carried over without extension
+       - Error: `CompressAndCloseDelegateNotAllowed` if source has delegate or output has delegate
      - **Account state updates:**
        - Token account balance is set to 0
        - Account is marked for closing after the transaction
@@ -304,7 +331,10 @@ When compression processing occurs (in both Path A and Path B):
 - `ProgramError::ArithmeticOverflow` (error code: 24) - Overflow in lamport calculations
 - `CTokenError::InLamportsUnimplemented` (error code: 18050) - in_lamports field not yet implemented
 - `CTokenError::OutLamportsUnimplemented` (error code: 18051) - out_lamports field not yet implemented
-- `CTokenError::CompressedTokenAccountTlvUnimplemented` (error code: 18021) - Compressed account TLV not supported
+- `CTokenError::CompressedTokenAccountTlvUnimplemented` (error code: 18021) - out_tlv provided but not all compressions are CompressAndClose mode
+- `CTokenError::CompressedOnlyBlocksTransfer` (error code: 18048) - CompressedOnly inputs cannot have compressed outputs (must decompress only)
+- `CTokenError::OutTlvOutputCountMismatch` (error code: 18049) - out_tlv length does not match out_token_data length
+- `CTokenError::DecompressDestinationNotFresh` (error code: 18055) - Decompress destination CToken has non-zero state (amount, delegate, etc)
 - `CTokenError::InvalidInstructionData` (error code: 18001) - Compressions not allowed when writing to CPI context
 - `CTokenError::InvalidCompressionMode` (error code: 18018) - Invalid compression mode value
 - `CTokenError::CompressInsufficientFunds` (error code: 18019) - Insufficient balance for compression
@@ -331,6 +361,14 @@ When compression processing occurs (in both Path A and Path B):
 - `ErrorCode::CompressAndCloseBalanceMismatch` (error code: 6091) - Token account balance must match compressed output amount
 - `ErrorCode::CompressAndCloseDelegateNotAllowed` (error code: 6092) - Source token account has delegate OR compressed output has delegate (delegates not supported)
 - `ErrorCode::CompressAndCloseInvalidVersion` (error code: 6093) - Compressed token version must be 3 (ShaFlat) and must match compressible extension's account_version
+- `ErrorCode::CompressAndCloseInvalidMint` (error code: 6108) - Compressed token mint does not match source token account mint
+- `ErrorCode::CompressAndCloseMissingCompressedOnlyExtension` (error code: 6109) - Missing required CompressedOnly extension for restricted mint or frozen account
+- `ErrorCode::CompressAndCloseDelegatedAmountMismatch` (error code: 6116) - Delegated amount mismatch between ctoken and CompressedOnly extension
+- `ErrorCode::CompressAndCloseInvalidDelegate` (error code: 6118) - Delegate mismatch between ctoken and compressed token output
+- `ErrorCode::CompressAndCloseWithheldFeeMismatch` (error code: 6120) - Withheld transfer fee mismatch
+- `ErrorCode::CompressAndCloseFrozenMismatch` (error code: 6122) - Frozen state mismatch between ctoken and CompressedOnly extension
+- `ErrorCode::CompressedOnlyRequiresCTokenDecompress` (error code: 6144) - CompressedOnly inputs must decompress to CToken account, not SPL token account
+- `ErrorCode::TlvRequiresVersion3` (error code: 6123) - TLV extensions only supported with version 3 (ShaFlat)
 - `ErrorCode::CompressAndCloseDuplicateOutput` (error code: 6420) - Cannot use the same compressed output account for multiple CompressAndClose operations (security protection against fund theft)
 - `ErrorCode::CompressAndCloseOutputMissing` (error code: 6421) - Compressed token account output required but not provided
 - `AccountError::InvalidSigner` (error code: 12015) - Required signer account is not signing

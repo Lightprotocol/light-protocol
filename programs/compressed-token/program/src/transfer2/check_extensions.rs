@@ -65,7 +65,7 @@ pub type MintExtensionCache = ArrayMap<u8, MintExtensionChecks, 5>;
 /// - `NonZeroTransferFeeNotSupported` - Transfer fees are non-zero
 /// - `TransferHookNotSupported` - Transfer hook program_id is non-nil
 /// - `MintHasRestrictedExtensions` - When `deny_restricted_extensions=true` and mint has
-///   Pausable, PermanentDelegate, TransferFeeConfig, or TransferHook extensions
+///   Pausable, PermanentDelegate, TransferFeeConfig, TransferHook, or DefaultAccountState extensions
 ///
 /// # Cached data:
 /// - `permanent_delegate`: Pubkey if PermanentDelegate extension exists and is set

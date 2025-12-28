@@ -25,7 +25,7 @@ pub struct MintExtensionChecks {
     pub permanent_delegate: Option<Pubkey>,
     /// Whether the mint has the TransferFeeConfig extension (non-zero fees are rejected)
     pub has_transfer_fee: bool,
-    /// Whether the mint has restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook)
+    /// Whether the mint has restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook, DefaultAccountState)
     /// Used to require CompressedOnly output when compressing tokens from restricted mints
     pub has_restricted_extensions: bool,
     /// Whether the mint is paused (PausableConfig.paused == true)

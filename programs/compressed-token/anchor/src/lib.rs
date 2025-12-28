@@ -526,7 +526,7 @@ pub enum ErrorCode {
     CTokenHasDisallowedExtensions,
     #[msg("CompressAndClose: rent_sponsor_is_signer flag does not match actual signer")]
     RentSponsorIsSignerMismatch,
-    #[msg("Mint has restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook) must not create compressed token accounts.")]
+    #[msg("Mint has restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook, DefaultAccountState) must not create compressed token accounts.")]
     MintHasRestrictedExtensions,
     #[msg("Decompress: CToken delegate does not match input compressed account delegate")]
     DecompressDelegateMismatch,

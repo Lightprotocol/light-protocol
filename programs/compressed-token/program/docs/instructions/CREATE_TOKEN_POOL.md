@@ -1,6 +1,6 @@
 # Create Token Pool
 
-**path:** programs/compressed-token/anchor/src/lib.rs:49-62
+**path:** programs/compressed-token/anchor/src/lib.rs:50-63
 
 **description:**
 Token pool pda is renamed to spl interface pda in the light-token-sdk.
@@ -20,7 +20,8 @@ Token pool pda is renamed to spl interface pda in the light-token-sdk.
 2. token_pool_pda
    - (mutable)
    - New token pool account being created
-   - PDA derivation: seeds=[b"pool", mint_pubkey], program=light_compressed_token
+   - PDA derivation for standard mints: seeds=[b"pool", mint_pubkey], program=light_compressed_token
+   - PDA derivation for restricted mints: seeds=[b"pool", mint_pubkey, b"restricted"], program=light_compressed_token
    - Owner set to token_program
 3. system_program
    - System program for account allocation
@@ -36,16 +37,18 @@ Token pool pda is renamed to spl interface pda in the light-token-sdk.
    - Becomes the owner/authority of the token pool account
 
 **Instruction Logic and Checks:**
-1. Validate mint extensions via `assert_mint_extensions()` (programs/compressed-token/anchor/src/instructions/create_token_pool.rs:106-142)
-   - All extensions must be in ALLOWED_EXTENSION_TYPES (program-libs/ctoken-interface/src/token_2022_extensions.rs:23-43)
+1. Validate mint extensions via `assert_mint_extensions()` (programs/compressed-token/anchor/src/instructions/create_token_pool.rs:129-165)
+   - All extensions must be in ALLOWED_EXTENSION_TYPES (program-libs/ctoken-interface/src/token_2022_extensions.rs:24-44)
    - Allowed extensions (16 types): MetadataPointer, TokenMetadata, InterestBearingConfig, GroupPointer, GroupMemberPointer, TokenGroup, TokenGroupMember, MintCloseAuthority, TransferFeeConfig, DefaultAccountState, PermanentDelegate, TransferHook, Pausable, ConfidentialTransferMint, ConfidentialTransferFeeConfig, ConfidentialMintBurn
-   - **Restricted extensions (require specific configuration):**
-     - `TransferFeeConfig` - fees must be zero (both `older_transfer_fee` and `newer_transfer_fee` must have `transfer_fee_basis_points == 0` and `maximum_fee == 0`)
-     - `TransferHook` - program_id must be nil (no active transfer hook program)
-     - `PermanentDelegate` - allowed, but marks token for compression_only mode at runtime
-     - `Pausable` - allowed, but pause state checked at transfer time from SPL mint
-2. Anchor allocates account space based on mint extensions via `get_token_account_space()` (programs/compressed-token/anchor/src/instructions/create_token_pool.rs:51-61)
-3. Initialize token account via CPI to `spl_token_2022::instruction::initialize_account3` (programs/compressed-token/anchor/src/instructions/create_token_pool.rs:64-86)
+   - **Restricted extensions (5 types) require compression_only mode:**
+     - `Pausable` - pause state checked at transfer time from SPL mint
+     - `PermanentDelegate` - marks token for compression_only mode at runtime
+     - `TransferFeeConfig` - fees must be zero at pool creation (both `older_transfer_fee` and `newer_transfer_fee` must have `transfer_fee_basis_points == 0` and `maximum_fee == 0`)
+     - `TransferHook` - program_id must be nil at pool creation (no active transfer hook program)
+     - `DefaultAccountState` - restricted regardless of state (Initialized or Frozen)
+   - Mints with restricted extensions use separate PDA derivation with `RESTRICTED_POOL_SEED` (b"restricted")
+2. Anchor allocates account space based on mint extensions via `get_token_account_space()` (programs/compressed-token/anchor/src/instructions/create_token_pool.rs:76-84)
+3. Initialize token account via CPI to `spl_token_2022::instruction::initialize_account3` (programs/compressed-token/anchor/src/instructions/create_token_pool.rs:87-109)
 
 **CPIs:**
 - `spl_token_2022::instruction::initialize_account3`

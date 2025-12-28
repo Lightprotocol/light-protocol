@@ -9,11 +9,11 @@ Mints tokens from a decompressed CMint account to a destination CToken account w
 
 Account layouts:
 - `CToken` defined in: program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs
-- `CompressedMint` (CMint) defined in: program-libs/ctoken-interface/src/state/mint/cmint_struct.rs
-- `CompressionInfo` extension defined in: program-libs/ctoken-interface/src/state/extensions/compressible.rs
+- `CompressedMint` (CMint) defined in: program-libs/ctoken-interface/src/state/mint/compressed_mint.rs
+- `CompressionInfo` extension defined in: program-libs/compressible/src/compression_info.rs
 
 **Instruction data:**
-Path: programs/compressed-token/program/src/ctoken_mint_to.rs
+Path: programs/compressed-token/program/src/ctoken_mint_to.rs (lines 62-112, function `process_ctoken_mint_to_checked`)
 
 Byte layout:
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to mint
