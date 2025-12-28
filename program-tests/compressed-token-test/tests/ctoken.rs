@@ -43,3 +43,6 @@ mod approve_revoke;
 
 #[path = "ctoken/burn.rs"]
 mod burn;
+
+#[path = "ctoken/extensions_failing.rs"]
+mod extensions_failing;

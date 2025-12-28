@@ -785,9 +785,9 @@ async fn test_compress_and_close_output_validation_errors() {
         .await;
     }
 
-    // Test 8: Token account has delegate - should fail when forester tries to close
-    // The validation checks that delegate must be None in compressed output
-    // Since compressed token doesn't support delegation, any account with a delegate should fail
+    // Test 8: Forester CAN compress and close accounts with delegates
+    // When a delegate is present, the registry automatically adds CompressedOnly extension
+    // to preserve the delegate in the compressed output. This allows recovery of delegated accounts.
     {
         let mut context = setup_compress_and_close_test(
             2,       // 2 prepaid epochs
@@ -834,19 +834,33 @@ async fn test_compress_and_close_output_validation_errors() {
             .await
             .unwrap();
 
-        // Try to compress and close via forester (should fail because delegate is present)
-        // Error: CompressAndCloseDelegateNotAllowed (92 = 0x5c)
-        let result = compress_and_close_forester(
+        // Compress and close via forester (should succeed - delegate preserved via CompressedOnly)
+        compress_and_close_forester(
             &mut context.rpc,
             &[token_account_pubkey],
             &forester_keypair,
             &context.payer,
             Some(destination.pubkey()),
         )
-        .await;
+        .await
+        .unwrap();
 
-        // Assert that the transaction failed with delegate not allowed error
-        light_program_test::utils::assert::assert_rpc_error(result, 0, 6092).unwrap();
+        // Assert compress and close succeeded
+        use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
+        use light_token_client::instructions::transfer2::CompressAndCloseInput;
+
+        let output_queue = context.rpc.get_random_state_tree_info().unwrap().queue;
+        assert_transfer2_compress_and_close(
+            &mut context.rpc,
+            CompressAndCloseInput {
+                solana_ctoken_account: token_account_pubkey,
+                authority: context.compression_authority,
+                output_queue,
+                destination: Some(destination.pubkey()),
+                is_compressible: true,
+            },
+        )
+        .await;
     }
 
     // Test 9: Forester CAN compress and close frozen accounts

@@ -114,6 +114,10 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         if is_frozen {
             has_marker_extensions = true;
         }
+        // Delegate (even with delegated_amount=0) requires CompressedOnly to preserve delegate
+        if idx.delegate_index != 0 {
+            has_marker_extensions = true;
+        }
         if ctoken.compression_only() {
             has_marker_extensions = true;
         }
@@ -149,13 +153,15 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         }
 
         // Create one output account per compression operation
+        // has_delegate must be true if delegate is set (delegate_index != 0),
+        // even if delegated_amount is 0 (orphan delegate case)
         output_accounts.push(MultiTokenTransferOutputData {
             owner: idx.owner_index,
             amount,
             delegate: idx.delegate_index,
             mint: idx.mint_index,
             version: 3, // Shaflat
-            has_delegate: delegated_amount > 0,
+            has_delegate: idx.delegate_index != 0,
         });
 
         let compression = Compression {

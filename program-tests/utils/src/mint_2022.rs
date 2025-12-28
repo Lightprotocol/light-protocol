@@ -32,7 +32,7 @@ use spl_token_2022::{
         permanent_delegate::PermanentDelegate,
         transfer_fee::{instruction::initialize_transfer_fee_config, TransferFeeConfig},
         transfer_hook::{instruction::initialize as initialize_transfer_hook, TransferHook},
-        BaseStateWithExtensions, ExtensionType, StateWithExtensions,
+        BaseStateWithExtensions, ExtensionType, StateWithExtensions, StateWithExtensionsMut,
     },
     instruction::{
         initialize_mint, initialize_mint_close_authority, initialize_permanent_delegate,
@@ -634,6 +634,102 @@ pub async fn mint_spl_tokens_22<R: Rpc>(
     rpc.create_and_send_transaction(&[mint_to_ix], &mint_authority.pubkey(), &[mint_authority])
         .await
         .unwrap();
+}
+
+/// Pause a Token 2022 mint by modifying the PausableConfig extension.
+///
+/// This function reads the mint account, locates the PausableConfig extension,
+/// sets paused = true, and writes the modified data back using set_account.
+///
+/// # Arguments
+/// * `rpc` - RPC client (must support set_account, e.g., LightProgramTest)
+/// * `mint_pubkey` - The mint pubkey to pause
+pub async fn pause_mint(rpc: &mut light_program_test::LightProgramTest, mint_pubkey: &Pubkey) {
+    use spl_token_2022::extension::BaseStateWithExtensionsMut;
+
+    // Read mint account
+    let mut account = rpc.get_account(*mint_pubkey).await.unwrap().unwrap();
+
+    // Parse mint and get extension offset
+    {
+        let mut mint_state = StateWithExtensionsMut::<Mint>::unpack(&mut account.data).unwrap();
+        let pausable_config = mint_state.get_extension_mut::<PausableConfig>().unwrap();
+        pausable_config.paused = true.into();
+    }
+
+    // Write back modified account
+    rpc.context.set_account(*mint_pubkey, account).unwrap();
+}
+
+/// Modify the TransferFeeConfig extension on a Token 2022 mint.
+///
+/// This function modifies both older and newer transfer fee configs
+/// to set non-zero fees for testing validation failures.
+///
+/// # Arguments
+/// * `rpc` - RPC client (must support set_account, e.g., LightProgramTest)
+/// * `mint_pubkey` - The mint pubkey to modify
+/// * `basis_points` - Transfer fee basis points (e.g., 100 = 1%)
+/// * `max_fee` - Maximum fee in token amount
+pub async fn set_mint_transfer_fee(
+    rpc: &mut light_program_test::LightProgramTest,
+    mint_pubkey: &Pubkey,
+    basis_points: u16,
+    max_fee: u64,
+) {
+    use spl_token_2022::extension::BaseStateWithExtensionsMut;
+
+    // Read mint account
+    let mut account = rpc.get_account(*mint_pubkey).await.unwrap().unwrap();
+
+    // Parse mint and modify extension
+    {
+        let mut mint_state = StateWithExtensionsMut::<Mint>::unpack(&mut account.data).unwrap();
+        let transfer_fee_config = mint_state.get_extension_mut::<TransferFeeConfig>().unwrap();
+        // Set newer_transfer_fee (active fee schedule)
+        transfer_fee_config
+            .newer_transfer_fee
+            .transfer_fee_basis_points = basis_points.into();
+        transfer_fee_config.newer_transfer_fee.maximum_fee = max_fee.into();
+        // Also set older_transfer_fee for completeness
+        transfer_fee_config
+            .older_transfer_fee
+            .transfer_fee_basis_points = basis_points.into();
+        transfer_fee_config.older_transfer_fee.maximum_fee = max_fee.into();
+    }
+
+    // Write back modified account
+    rpc.context.set_account(*mint_pubkey, account).unwrap();
+}
+
+/// Modify the TransferHook extension on a Token 2022 mint.
+///
+/// This function sets the transfer hook program_id to a non-nil value
+/// for testing validation failures.
+///
+/// # Arguments
+/// * `rpc` - RPC client (must support set_account, e.g., LightProgramTest)
+/// * `mint_pubkey` - The mint pubkey to modify
+/// * `program_id` - The transfer hook program_id to set
+pub async fn set_mint_transfer_hook(
+    rpc: &mut light_program_test::LightProgramTest,
+    mint_pubkey: &Pubkey,
+    program_id: Pubkey,
+) {
+    use spl_token_2022::extension::BaseStateWithExtensionsMut;
+
+    // Read mint account
+    let mut account = rpc.get_account(*mint_pubkey).await.unwrap().unwrap();
+
+    // Parse mint and modify extension
+    {
+        let mut mint_state = StateWithExtensionsMut::<Mint>::unpack(&mut account.data).unwrap();
+        let transfer_hook = mint_state.get_extension_mut::<TransferHook>().unwrap();
+        transfer_hook.program_id = Some(program_id).try_into().unwrap();
+    }
+
+    // Write back modified account
+    rpc.context.set_account(*mint_pubkey, account).unwrap();
 }
 
 #[cfg(test)]

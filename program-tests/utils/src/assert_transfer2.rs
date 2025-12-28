@@ -463,13 +463,13 @@ pub async fn assert_transfer2_with_delegate(
                 // Build expected TLV based on account state
                 // TLV contains CompressedOnly extension when:
                 // - Account is frozen (is_frozen=true)
-                // - Account has delegated_amount > 0
+                // - Account has delegate set (even if delegated_amount=0)
                 // - Account has extensions beyond base (size > BASE_TOKEN_ACCOUNT_SIZE)
                 // - Account has withheld_transfer_fee > 0 (from TransferFeeAccount extension)
-                let has_delegated_amount = pre_token_account.delegated_amount > 0;
+                let has_delegate = expected_delegate.is_some();
                 let has_extra_extensions =
                     pre_account_data.data.len() > BASE_TOKEN_ACCOUNT_SIZE as usize;
-                let needs_tlv = is_frozen || has_delegated_amount || has_extra_extensions;
+                let needs_tlv = is_frozen || has_delegate || has_extra_extensions;
 
                 let expected_tlv = if needs_tlv {
                     Some(vec![
