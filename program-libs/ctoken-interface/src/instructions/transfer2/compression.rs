@@ -18,6 +18,20 @@ pub enum CompressionMode {
     CompressAndClose,
 }
 
+impl ZCompressionMode {
+    pub fn is_compress(&self) -> bool {
+        matches!(self, ZCompressionMode::Compress)
+    }
+
+    pub fn is_decompress(&self) -> bool {
+        matches!(self, ZCompressionMode::Decompress)
+    }
+
+    pub fn is_compress_and_close(&self) -> bool {
+        matches!(self, ZCompressionMode::CompressAndClose)
+    }
+}
+
 pub const COMPRESS: u8 = 0u8;
 pub const DECOMPRESS: u8 = 1u8;
 pub const COMPRESS_AND_CLOSE: u8 = 2u8;

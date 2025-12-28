@@ -5,6 +5,7 @@
 
 use forester_utils::instructions::create_account::create_account_instruction;
 use light_client::rpc::Rpc;
+use light_ctoken_interface::RESTRICTED_EXTENSION_TYPES;
 use light_ctoken_sdk::spl_interface::{find_spl_interface_pda, CreateSplInterfacePda};
 use solana_sdk::{
     instruction::Instruction,
@@ -68,21 +69,35 @@ pub struct Token22ExtensionConfig {
     pub default_account_state_frozen: bool,
 }
 
-/// Creates a Token 2022 mint with all supported extensions initialized.
-///
-/// The following extensions are initialized:
-/// - Mint close authority
-/// - Transfer fees (set to zero)
-/// - Default account state (set to Initialized)
-/// - Permanent delegate
-/// - Transfer hook (set to nil program id)
-/// - Metadata pointer (points to mint itself)
-/// - Pausable
-/// - Confidential transfers (initialized, not enabled)
-/// - Confidential transfer fee (set to zero)
-///
-/// Note: Confidential mint/burn requires additional setup after mint initialization
-/// and is not included in this helper.
+/// All restricted extension types for Token 2022 mints.
+/// These extensions restrict token transfers and require compression_only mode.
+pub const RESTRICTED_EXTENSIONS: &[ExtensionType] = RESTRICTED_EXTENSION_TYPES.as_slice();
+
+/// Non-restricted extension types for Token 2022 mints.
+/// These extensions don't restrict transfers and work with normal compression.
+pub const NON_RESTRICTED_EXTENSIONS: &[ExtensionType] = &[
+    ExtensionType::MintCloseAuthority,
+    ExtensionType::MetadataPointer,
+    ExtensionType::ConfidentialTransferMint,
+    ExtensionType::ConfidentialTransferFeeConfig,
+];
+
+/// All supported extension types (restricted + non-restricted).
+pub const ALL_EXTENSIONS: &[ExtensionType] = &[
+    // Non-restricted
+    ExtensionType::MintCloseAuthority,
+    ExtensionType::DefaultAccountState,
+    ExtensionType::MetadataPointer,
+    ExtensionType::ConfidentialTransferMint,
+    ExtensionType::ConfidentialTransferFeeConfig,
+    // Restricted
+    ExtensionType::TransferFeeConfig,
+    ExtensionType::PermanentDelegate,
+    ExtensionType::TransferHook,
+    ExtensionType::Pausable,
+];
+
+/// Creates a Token 2022 mint with all extensions initialized.
 ///
 /// # Arguments
 /// * `rpc` - RPC client
@@ -96,25 +111,31 @@ pub async fn create_mint_22_with_extensions<R: Rpc>(
     payer: &Keypair,
     decimals: u8,
 ) -> (Keypair, Token22ExtensionConfig) {
+    create_mint_22_with_extension_types(rpc, payer, decimals, ALL_EXTENSIONS).await
+}
+
+/// Creates a Token 2022 mint with the specified extension types.
+///
+/// # Arguments
+/// * `rpc` - RPC client
+/// * `payer` - Transaction fee payer and authority for all extensions
+/// * `decimals` - Token decimals
+/// * `extensions` - Slice of extension types to initialize
+///
+/// # Returns
+/// A tuple of (mint_keypair, extension_config)
+pub async fn create_mint_22_with_extension_types<R: Rpc>(
+    rpc: &mut R,
+    payer: &Keypair,
+    decimals: u8,
+    extensions: &[ExtensionType],
+) -> (Keypair, Token22ExtensionConfig) {
     let mint_keypair = Keypair::new();
     let mint_pubkey = mint_keypair.pubkey();
     let authority = payer.pubkey();
 
-    // Define all extensions we want to initialize
-    let extension_types = [
-        ExtensionType::MintCloseAuthority,
-        ExtensionType::TransferFeeConfig,
-        ExtensionType::DefaultAccountState,
-        ExtensionType::PermanentDelegate,
-        ExtensionType::TransferHook,
-        ExtensionType::MetadataPointer,
-        ExtensionType::Pausable,
-        ExtensionType::ConfidentialTransferMint,
-        ExtensionType::ConfidentialTransferFeeConfig,
-    ];
-
-    // Calculate the account size needed for all extensions
-    let mint_len = ExtensionType::try_calculate_account_len::<Mint>(&extension_types).unwrap();
+    // Calculate the account size needed for requested extensions
+    let mint_len = ExtensionType::try_calculate_account_len::<Mint>(extensions).unwrap();
 
     let rent = rpc
         .get_minimum_balance_for_rent_exemption(mint_len)
@@ -130,128 +151,157 @@ pub async fn create_mint_22_with_extensions<R: Rpc>(
         Some(&mint_keypair),
     );
 
-    // Initialize extensions in the correct order (before initialize_mint)
-    // Order matters - some extensions must be initialized before others
+    // Build instructions based on requested extensions
+    let mut instructions: Vec<Instruction> = vec![create_account_ix];
+    let mut config = Token22ExtensionConfig {
+        mint: mint_pubkey,
+        token_pool: Pubkey::default(),
+        close_authority: Pubkey::default(),
+        transfer_fee_config_authority: Pubkey::default(),
+        withdraw_withheld_authority: Pubkey::default(),
+        permanent_delegate: Pubkey::default(),
+        metadata_update_authority: Pubkey::default(),
+        pause_authority: Pubkey::default(),
+        confidential_transfer_authority: Pubkey::default(),
+        confidential_transfer_fee_authority: Pubkey::default(),
+        default_account_state_frozen: false,
+    };
 
-    // 1. Mint close authority
-    let init_close_authority_ix =
-        initialize_mint_close_authority(&spl_token_2022::ID, &mint_pubkey, Some(&authority))
-            .unwrap();
+    // Add extension init instructions in correct order
+    for ext in extensions {
+        match ext {
+            ExtensionType::MintCloseAuthority => {
+                instructions.push(
+                    initialize_mint_close_authority(
+                        &spl_token_2022::ID,
+                        &mint_pubkey,
+                        Some(&authority),
+                    )
+                    .unwrap(),
+                );
+                config.close_authority = authority;
+            }
+            ExtensionType::TransferFeeConfig => {
+                instructions.push(
+                    initialize_transfer_fee_config(
+                        &spl_token_2022::ID,
+                        &mint_pubkey,
+                        Some(&authority),
+                        Some(&authority),
+                        0,
+                        0,
+                    )
+                    .unwrap(),
+                );
+                config.transfer_fee_config_authority = authority;
+                config.withdraw_withheld_authority = authority;
+            }
+            ExtensionType::DefaultAccountState => {
+                instructions.push(
+                    initialize_default_account_state(
+                        &spl_token_2022::ID,
+                        &mint_pubkey,
+                        &AccountState::Initialized,
+                    )
+                    .unwrap(),
+                );
+            }
+            ExtensionType::PermanentDelegate => {
+                instructions.push(
+                    initialize_permanent_delegate(&spl_token_2022::ID, &mint_pubkey, &authority)
+                        .unwrap(),
+                );
+                config.permanent_delegate = authority;
+            }
+            ExtensionType::TransferHook => {
+                instructions.push(
+                    initialize_transfer_hook(
+                        &spl_token_2022::ID,
+                        &mint_pubkey,
+                        Some(authority),
+                        None,
+                    )
+                    .unwrap(),
+                );
+            }
+            ExtensionType::MetadataPointer => {
+                instructions.push(
+                    initialize_metadata_pointer(
+                        &spl_token_2022::ID,
+                        &mint_pubkey,
+                        Some(authority),
+                        Some(mint_pubkey),
+                    )
+                    .unwrap(),
+                );
+                config.metadata_update_authority = authority;
+            }
+            ExtensionType::Pausable => {
+                instructions.push(
+                    initialize_pausable(&spl_token_2022::ID, &mint_pubkey, &authority).unwrap(),
+                );
+                config.pause_authority = authority;
+            }
+            ExtensionType::ConfidentialTransferMint => {
+                instructions.push(
+                    initialize_confidential_transfer_mint(
+                        &spl_token_2022::ID,
+                        &mint_pubkey,
+                        Some(authority),
+                        false,
+                        None,
+                    )
+                    .unwrap(),
+                );
+                config.confidential_transfer_authority = authority;
+            }
+            ExtensionType::ConfidentialTransferFeeConfig => {
+                instructions.push(
+                    initialize_confidential_transfer_fee_config(
+                        &spl_token_2022::ID,
+                        &mint_pubkey,
+                        Some(authority),
+                        &PodElGamalPubkey::default(),
+                    )
+                    .unwrap(),
+                );
+                config.confidential_transfer_fee_authority = authority;
+            }
+            _ => {} // Ignore unsupported extensions
+        }
+    }
 
-    // 2. Transfer fee config (fees set to zero)
-    let init_transfer_fee_ix = initialize_transfer_fee_config(
-        &spl_token_2022::ID,
-        &mint_pubkey,
-        Some(&authority), // transfer_fee_config_authority
-        Some(&authority), // withdraw_withheld_authority
-        0,                // fee_basis_points (0 = no fee)
-        0,                // max_fee (0 = no max)
-    )
-    .unwrap();
+    // Initialize mint (must come after extension inits)
+    // freeze_authority required if DefaultAccountState is present
+    let needs_freeze_authority = extensions.contains(&ExtensionType::DefaultAccountState);
+    instructions.push(
+        initialize_mint(
+            &spl_token_2022::ID,
+            &mint_pubkey,
+            &authority,
+            if needs_freeze_authority {
+                Some(&authority)
+            } else {
+                None
+            },
+            decimals,
+        )
+        .unwrap(),
+    );
 
-    // 3. Default account state (Initialized - not frozen by default)
-    let init_default_state_ix = initialize_default_account_state(
-        &spl_token_2022::ID,
-        &mint_pubkey,
-        &AccountState::Initialized,
-    )
-    .unwrap();
-
-    // 4. Permanent delegate
-    let init_permanent_delegate_ix =
-        initialize_permanent_delegate(&spl_token_2022::ID, &mint_pubkey, &authority).unwrap();
-
-    // 5. Transfer hook (nil program - no hook)
-    let init_transfer_hook_ix = initialize_transfer_hook(
-        &spl_token_2022::ID,
-        &mint_pubkey,
-        Some(authority),
-        None, // No transfer hook program
-    )
-    .unwrap();
-
-    // 6. Metadata pointer (points to mint itself for embedded metadata)
-    let init_metadata_pointer_ix = initialize_metadata_pointer(
-        &spl_token_2022::ID,
-        &mint_pubkey,
-        Some(authority),   // authority
-        Some(mint_pubkey), // metadata address (self-referential)
-    )
-    .unwrap();
-
-    // 7. Pausable
-    let init_pausable_ix =
-        initialize_pausable(&spl_token_2022::ID, &mint_pubkey, &authority).unwrap();
-
-    // 8. Confidential transfer mint (initialized but not auto-approve, no auditor)
-    let init_confidential_transfer_ix = initialize_confidential_transfer_mint(
-        &spl_token_2022::ID,
-        &mint_pubkey,
-        Some(authority), // authority
-        false,           // auto_approve_new_accounts
-        None,            // auditor_elgamal_pubkey (none)
-    )
-    .unwrap();
-
-    // 9. Confidential transfer fee config (fees set to zero, no authority)
-    // Using zeroed ElGamal pubkey since we're not enabling confidential fees
-    let init_confidential_fee_ix = initialize_confidential_transfer_fee_config(
-        &spl_token_2022::ID,
-        &mint_pubkey,
-        Some(authority),              // authority
-        &PodElGamalPubkey::default(), // zeroed withdraw_withheld_authority_elgamal_pubkey
-    )
-    .unwrap();
-
-    // 10. Initialize mint (must come after extension inits)
-    let init_mint_ix = initialize_mint(
-        &spl_token_2022::ID,
-        &mint_pubkey,
-        &authority,       // mint_authority
-        Some(&authority), // freeze_authority (required for DefaultAccountState)
-        decimals,
-    )
-    .unwrap();
-
-    // 11. Create token pool for compressed tokens (restricted=true for mints with restricted extensions)
-    let (token_pool_pubkey, _) = find_spl_interface_pda(&mint_pubkey, true);
-    let create_token_pool_ix =
-        CreateSplInterfacePda::new(authority, mint_pubkey, spl_token_2022::ID, true).instruction();
-
-    // Combine all instructions
-    let instructions: Vec<Instruction> = vec![
-        create_account_ix,
-        init_close_authority_ix,
-        init_transfer_fee_ix,
-        init_default_state_ix,
-        init_permanent_delegate_ix,
-        init_transfer_hook_ix,
-        init_metadata_pointer_ix,
-        init_pausable_ix,
-        init_confidential_transfer_ix,
-        init_confidential_fee_ix,
-        init_mint_ix,
-        create_token_pool_ix,
-    ];
+    // Create token pool for compressed tokens (restricted=true if any restricted extension)
+    let has_restricted = !extensions.is_empty();
+    let (token_pool_pubkey, _) = find_spl_interface_pda(&mint_pubkey, has_restricted);
+    instructions.push(
+        CreateSplInterfacePda::new(authority, mint_pubkey, spl_token_2022::ID, has_restricted)
+            .instruction(),
+    );
+    config.token_pool = token_pool_pubkey;
 
     // Send transaction
     rpc.create_and_send_transaction(&instructions, &authority, &[payer, &mint_keypair])
         .await
         .unwrap();
-
-    let config = Token22ExtensionConfig {
-        mint: mint_pubkey,
-        token_pool: token_pool_pubkey,
-        close_authority: authority,
-        transfer_fee_config_authority: authority,
-        withdraw_withheld_authority: authority,
-        permanent_delegate: authority,
-        metadata_update_authority: authority,
-        pause_authority: authority,
-        confidential_transfer_authority: authority,
-        confidential_transfer_fee_authority: authority,
-        default_account_state_frozen: false,
-    };
 
     (mint_keypair, config)
 }
@@ -388,10 +438,7 @@ pub async fn assert_mint_22_with_all_extensions<R: Rpc>(
     );
 
     // Verify token pool was created
-    let token_pool_account = rpc
-        .get_account(extension_config.token_pool)
-        .await
-        .unwrap();
+    let token_pool_account = rpc.get_account(extension_config.token_pool).await.unwrap();
     assert!(
         token_pool_account.is_some(),
         "Token pool account should exist"

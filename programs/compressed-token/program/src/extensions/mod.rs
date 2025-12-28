@@ -3,7 +3,9 @@ pub mod processor;
 pub mod token_metadata;
 
 // Re-export extension checking functions
-pub use check_mint_extensions::{check_mint_extensions, has_mint_extensions, MintExtensionChecks};
+pub use check_mint_extensions::{
+    check_mint_extensions, has_mint_extensions, parse_mint_extensions, MintExtensionChecks,
+};
 // Import from ctoken-types instead of local modules
 use light_ctoken_interface::{
     instructions::mint_action::ZAction,

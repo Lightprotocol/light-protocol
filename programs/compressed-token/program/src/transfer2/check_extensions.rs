@@ -3,14 +3,13 @@ use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_array_map::ArrayMap;
 use light_ctoken_interface::instructions::{
-    extensions::ZExtensionInstructionData,
-    transfer2::{ZCompressedTokenInstructionDataTransfer2, ZCompressionMode},
+    extensions::ZExtensionInstructionData, transfer2::ZCompressedTokenInstructionDataTransfer2,
 };
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 
-use crate::extensions::{check_mint_extensions, MintExtensionChecks};
+use crate::extensions::{check_mint_extensions, parse_mint_extensions, MintExtensionChecks};
 
 /// Validate TLV data and extract is_frozen flag from CompressedOnly extension.
 ///
@@ -48,33 +47,51 @@ pub type MintExtensionCache = ArrayMap<u8, MintExtensionChecks, 5>;
 
 /// Build mint extension cache for all unique mints in the instruction.
 ///
-/// # Checks performed per mint (via `check_mint_extensions`):
-/// - **Pausable**: Fails with `MintPaused` if mint is paused
-/// - **Restricted extensions**: When `has_output_compressed_accounts=true`, fails with
-///   `MintHasRestrictedExtensions` if mint has Pausable, PermanentDelegate, TransferFeeConfig,
-///   or TransferHook extensions
-/// - **TransferFeeConfig**: Fails with `NonZeroTransferFeeNotSupported` if fees are non-zero
-/// - **TransferHook**: Fails with `TransferHookNotSupported` if program_id is non-nil
+/// # Extension State Enforcement Strategy
+///
+/// Restrictions (paused, non-zero fees, non-nil hook) are enforced when **entering** compressed
+/// state, not when **exiting** it. This protects users who compressed tokens before restrictions
+/// were added - they can always recover their tokens.
+///
+/// - **Compress** (from ctoken or SPL): Enforces restrictions. Creating new compressed state
+///   requires valid extension state.
+/// - **Decompress**: Bypasses restrictions. Restoring existing compressed state to on-chain.
+///   If mint state changed after compression, user should still recover their tokens.
+/// - **CompressAndClose**: Bypasses restrictions. Preserving state in CompressedOnly extension.
+///   Foresters should be able to close accounts to recover rent exemption even if mint state changed.
+///
+/// # Errors (Compress mode only):
+/// - `MintPaused` - Mint is paused
+/// - `NonZeroTransferFeeNotSupported` - Transfer fees are non-zero
+/// - `TransferHookNotSupported` - Transfer hook program_id is non-nil
+/// - `MintHasRestrictedExtensions` - When `deny_restricted_extensions=true` and mint has
+///   Pausable, PermanentDelegate, TransferFeeConfig, or TransferHook extensions
 ///
 /// # Cached data:
 /// - `permanent_delegate`: Pubkey if PermanentDelegate extension exists and is set
-/// - `has_transfer_fee`: Whether TransferFeeConfig extension exists (non-zero fees are rejected)
-/// - `has_restricted_extensions`: Whether mint has restricted extensions (for CompressAndClose validation)
+/// - `has_transfer_fee`: Whether TransferFeeConfig extension exists
+/// - `has_restricted_extensions`: Whether mint has restricted extensions
+/// - `is_paused`, `has_non_zero_transfer_fee`, `has_non_nil_transfer_hook`: Individual state flags
 #[profile]
 #[inline(always)]
 pub fn build_mint_extension_cache<'a>(
     inputs: &ZCompressedTokenInstructionDataTransfer2,
     packed_accounts: &'a ProgramPackedAccounts<'a, AccountInfo>,
-    deny_restricted_extensions: bool, // true if has_output_compressed_accounts
 ) -> Result<MintExtensionCache, ProgramError> {
     let mut cache: MintExtensionCache = ArrayMap::new();
+    let deny_restricted_extensions = !inputs.out_token_data.is_empty();
 
     // Collect mints from input token data
     for input in inputs.in_token_data.iter() {
         let mint_index = input.mint;
         if cache.get_by_key(&mint_index).is_none() {
             let mint_account = packed_accounts.get_u8(mint_index, "mint cache: input")?;
-            let checks = check_mint_extensions(mint_account, deny_restricted_extensions)?;
+            let checks = if inputs.out_token_data.is_empty() {
+                // No outputs - bypass state checks (full decompress or transfer-only)
+                parse_mint_extensions(mint_account)?
+            } else {
+                check_mint_extensions(mint_account, deny_restricted_extensions)?
+            };
             cache.insert(mint_index, checks, ErrorCode::MintCacheCapacityExceeded)?;
         }
     }
@@ -86,50 +103,36 @@ pub fn build_mint_extension_cache<'a>(
 
             if cache.get_by_key(&mint_index).is_none() {
                 let mint_account = packed_accounts.get_u8(mint_index, "mint cache: compression")?;
-                let checks = if compression.mode == ZCompressionMode::CompressAndClose {
-                    check_mint_extensions(
-                        mint_account,
-                        false, // Allow restricted extensions, also if instruction has has_output_compressed_accounts
-                    )?
+                let is_full_decompress =
+                    compression.mode.is_decompress() && inputs.out_token_data.is_empty();
+                let checks = if compression.mode.is_compress_and_close() || is_full_decompress {
+                    // CompressAndClose and Decompress bypass extension state checks
+                    // (paused, non-zero fees, non-nil transfer hook)
+                    parse_mint_extensions(mint_account)?
                 } else {
                     check_mint_extensions(mint_account, deny_restricted_extensions)?
                 };
 
-                // Validate mints with restricted extensions:
-                // - CompressAndClose: OK if output has CompressedOnly
-                // - Compress: NOT allowed (mints with restricted extensions must not be compressed)
-                // - Decompress: OK (no output compressed accounts, handled by check_restricted)
-                if checks.has_restricted_extensions {
-                    match compression.mode {
-                        ZCompressionMode::CompressAndClose => {
-                            // Verify output has CompressedOnly extension
-                            let output_idx = compression.get_compressed_token_account_index()?;
-                            let has_compressed_only = inputs
-                                .out_tlv
-                                .as_ref()
-                                .and_then(|tlvs| tlvs.get(output_idx as usize))
-                                .map(|tlv| {
-                                    tlv.iter().any(|e| {
-                                        matches!(e, ZExtensionInstructionData::CompressedOnly(_))
-                                    })
-                                })
-                                .unwrap_or(false);
-                            if !has_compressed_only {
-                                msg!("Mint has restricted extensions - CompressedOnly output required");
-                                return Err(
-                                    ErrorCode::CompressAndCloseMissingCompressedOnlyExtension
-                                        .into(),
-                                );
-                            }
-                        }
-                        ZCompressionMode::Compress => {
-                            // msg!("Mints with restricted extensions cannot be compressed");
-                            // return Err(ErrorCode::MintHasRestrictedExtensions.into());
-                        }
-                        ZCompressionMode::Decompress => {
-                            // OK - if we reach here, has_output_compressed_accounts=false
-                            // (otherwise check_mint_extensions would have failed earlier)
-                        }
+                // CompressAndClose with restricted extensions requires CompressedOnly output.
+                // Compress/Decompress don't need additional validation here:
+                // - Compress: blocked by check_mint_extensions when outputs exist
+                // - Decompress: bypassed (restoring existing state)
+                if checks.has_restricted_extensions && compression.mode.is_compress_and_close() {
+                    let output_idx = compression.get_compressed_token_account_index()?;
+                    let has_compressed_only = inputs
+                        .out_tlv
+                        .as_ref()
+                        .and_then(|tlvs| tlvs.get(output_idx as usize))
+                        .map(|tlv| {
+                            tlv.iter()
+                                .any(|e| matches!(e, ZExtensionInstructionData::CompressedOnly(_)))
+                        })
+                        .unwrap_or(false);
+                    if !has_compressed_only {
+                        msg!("Mint has restricted extensions - CompressedOnly output required");
+                        return Err(
+                            ErrorCode::CompressAndCloseMissingCompressedOnlyExtension.into()
+                        );
                     }
                 }
 

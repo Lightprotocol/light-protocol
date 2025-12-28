@@ -28,21 +28,30 @@ pub struct MintExtensionChecks {
     /// Whether the mint has restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook)
     /// Used to require CompressedOnly output when compressing tokens from restricted mints
     pub has_restricted_extensions: bool,
+    /// Whether the mint is paused (PausableConfig.paused == true)
+    /// CompressAndClose bypasses this check
+    pub is_paused: bool,
+    /// Whether the mint has non-zero transfer fees
+    /// CompressAndClose bypasses this check
+    pub has_non_zero_transfer_fee: bool,
+    /// Whether the mint has a non-nil transfer hook program_id
+    /// CompressAndClose bypasses this check
+    pub has_non_nil_transfer_hook: bool,
 }
 
-/// Check mint extensions in a single pass with zero-copy deserialization.
-/// This function deserializes the mint once and checks both pausable and permanent delegate extensions.
+/// Parse mint extensions in a single pass with zero-copy deserialization.
+/// This function deserializes the mint once and extracts extension information.
+/// It does NOT throw errors for invalid extension states (paused, non-zero fees, non-nil hook).
+/// Use `check_mint_extensions` wrapper to enforce state validation.
 ///
 /// # Arguments
 /// * `mint_account` - The SPL Token 2022 mint account to check
 ///
 /// # Returns
-/// * `Ok(MintExtensionChecks)` - Extension check results
-/// * `Err(ErrorCode::MintPaused)` - If the mint is paused
+/// * `Ok(MintExtensionChecks)` - Extension check results including `has_invalid_extension_state`
 /// * `Err(ProgramError)` - If there's an error parsing the mint account
-pub fn check_mint_extensions(
+pub fn parse_mint_extensions(
     mint_account: &AccountInfo,
-    deny_restricted_extensions: bool,
 ) -> Result<MintExtensionChecks, ProgramError> {
     // Only Token-2022 mints can have extensions
     if !mint_account.is_owned_by(&SPL_TOKEN_2022_ID) {
@@ -58,19 +67,11 @@ pub fn check_mint_extensions(
     let extension_types = mint_state.get_extension_types()?;
     let has_restricted_extensions = extension_types.iter().any(is_restricted_extension);
 
-    // When there are output compressed accounts, mint must not contain restricted extensions.
-    // Restricted extensions require compression_only mode (no compressed outputs).
-    if deny_restricted_extensions && has_restricted_extensions {
-        msg!("Mint has restricted extensions - compression_only mode required");
-        return Err(ErrorCode::MintHasRestrictedExtensions.into());
-    }
-
-    // Check pausable extension first (early return if paused)
-    if let Ok(pausable_config) = mint_state.get_extension::<PausableConfig>() {
-        if bool::from(pausable_config.paused) {
-            return Err(ErrorCode::MintPaused.into());
-        }
-    }
+    // Check pausable extension
+    let is_paused = mint_state
+        .get_extension::<PausableConfig>()
+        .map(|pausable_config| bool::from(pausable_config.paused))
+        .unwrap_or(false);
 
     // Check permanent delegate extension
     let permanent_delegate =
@@ -82,36 +83,79 @@ pub fn check_mint_extensions(
             None
         };
 
-    // Check transfer fee extension - non-zero fees not supported
-    let has_transfer_fee =
+    // Check transfer fee extension
+    let (has_transfer_fee, has_non_zero_transfer_fee) =
         if let Ok(transfer_fee_config) = mint_state.get_extension::<TransferFeeConfig>() {
             // Check both older and newer fee configs for non-zero values
             let older_fee = &transfer_fee_config.older_transfer_fee;
             let newer_fee = &transfer_fee_config.newer_transfer_fee;
-            if u16::from(older_fee.transfer_fee_basis_points) != 0
+            let has_non_zero = u16::from(older_fee.transfer_fee_basis_points) != 0
                 || u64::from(older_fee.maximum_fee) != 0
                 || u16::from(newer_fee.transfer_fee_basis_points) != 0
-                || u64::from(newer_fee.maximum_fee) != 0
-            {
-                return Err(ErrorCode::NonZeroTransferFeeNotSupported.into());
-            }
-            true
+                || u64::from(newer_fee.maximum_fee) != 0;
+            (true, has_non_zero)
         } else {
-            false
+            (false, false)
         };
 
     // Check transfer hook extension - only nil program_id supported
-    if let Ok(transfer_hook) = mint_state.get_extension::<TransferHook>() {
-        if Option::<solana_pubkey::Pubkey>::from(transfer_hook.program_id).is_some() {
-            return Err(ErrorCode::TransferHookNotSupported.into());
-        }
-    }
+    let has_non_nil_transfer_hook = mint_state
+        .get_extension::<TransferHook>()
+        .map(|transfer_hook| {
+            Option::<solana_pubkey::Pubkey>::from(transfer_hook.program_id).is_some()
+        })
+        .unwrap_or(false);
 
     Ok(MintExtensionChecks {
         permanent_delegate,
         has_transfer_fee,
         has_restricted_extensions,
+        is_paused,
+        has_non_zero_transfer_fee,
+        has_non_nil_transfer_hook,
     })
+}
+
+/// Check mint extensions and enforce state validation.
+/// Wrapper around `parse_mint_extensions` that throws errors for invalid states.
+///
+/// # Arguments
+/// * `mint_account` - The SPL Token 2022 mint account to check
+/// * `deny_restricted_extensions` - If true, fail if mint has restricted extensions
+///
+/// # Returns
+/// * `Ok(MintExtensionChecks)` - Extension check results
+/// * `Err(ErrorCode::MintPaused)` - If the mint is paused
+/// * `Err(ErrorCode::NonZeroTransferFeeNotSupported)` - If transfer fees are non-zero
+/// * `Err(ErrorCode::TransferHookNotSupported)` - If transfer hook program_id is non-nil
+/// * `Err(ErrorCode::MintHasRestrictedExtensions)` - If deny_restricted_extensions and has restricted
+/// * `Err(ProgramError)` - If there's an error parsing the mint account
+#[inline(always)]
+pub fn check_mint_extensions(
+    mint_account: &AccountInfo,
+    deny_restricted_extensions: bool,
+) -> Result<MintExtensionChecks, ProgramError> {
+    let checks = parse_mint_extensions(mint_account)?;
+
+    // When there are output compressed accounts, mint must not contain restricted extensions.
+    // Restricted extensions require compression_only mode (no compressed outputs).
+    if deny_restricted_extensions && checks.has_restricted_extensions {
+        msg!("Mint has restricted extensions - compression_only mode required");
+        return Err(ErrorCode::MintHasRestrictedExtensions.into());
+    }
+
+    // Check for invalid extension states - throw specific errors for each
+    if checks.is_paused {
+        return Err(ErrorCode::MintPaused.into());
+    }
+    if checks.has_non_zero_transfer_fee {
+        return Err(ErrorCode::NonZeroTransferFeeNotSupported.into());
+    }
+    if checks.has_non_nil_transfer_hook {
+        return Err(ErrorCode::TransferHookNotSupported.into());
+    }
+
+    Ok(checks)
 }
 
 /// Hash which extensions a mint has in a single zero-copy deserialization.
@@ -127,6 +171,7 @@ pub fn check_mint_extensions(
 /// # Returns
 /// * `Ok(MintExtensionFlags)` - Flags indicating which extensions the mint has
 /// * `Err(ProgramError)` - If there's an error parsing the mint account
+#[inline(always)]
 pub fn has_mint_extensions(mint_account: &AccountInfo) -> Result<MintExtensionFlags, ProgramError> {
     // Only Token-2022 mints can have extensions
     if !mint_account.is_owned_by(&SPL_TOKEN_2022_ID) {

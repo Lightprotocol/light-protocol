@@ -21,7 +21,7 @@ pub struct Transfer2Config {
     /// No compressed accounts (neither input nor output) - determines system CPI path
     pub no_compressed_accounts: bool,
     /// No output compressed accounts - determines mint extension hotpath
-    pub no_output_compressed_accounts: bool,
+    pub no_output_compressed_accounts: bool, // TODO: remove dead code
 }
 
 impl Transfer2Config {

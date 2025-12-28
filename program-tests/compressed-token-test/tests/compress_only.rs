@@ -32,3 +32,34 @@ mod frozen;
 // Delegated value must be the same pre compress and close
 #[path = "compress_only/delegated.rs"]
 mod delegated;
+
+// Per-extension tests (single extension only)
+#[path = "compress_only/transfer_fee.rs"]
+mod transfer_fee;
+
+#[path = "compress_only/transfer_hook.rs"]
+mod transfer_hook;
+
+#[path = "compress_only/pausable.rs"]
+mod pausable;
+
+// Failing tests for compression_only requirement
+#[path = "compress_only/restricted_required.rs"]
+mod restricted_required;
+
+// Failing tests for invalid decompress destination
+#[path = "compress_only/invalid_destination.rs"]
+mod invalid_destination;
+
+// Failing tests for invalid extension state (non-zero fees, non-nil hook)
+#[path = "compress_only/invalid_extension_state.rs"]
+mod invalid_extension_state;
+
+// Failing tests:
+// 1. cannot decompress to invalid account (try all variants of checked values in validate_decompression_destination)
+// 2. cannot compress with restricted extension(s) (try all restricted extensions alone and all combinations)
+// 3. extensions in invalid state (transfer hook not nil, transfer fee not zero, etc.)
+//
+// Functional tests:
+// 1. can compress and close -> decompress (all extensions, restricted alone, restricted combinations, no extensions, frozen, delegated)
+// 2. randomized (any state (delegated, frozen, token balance 0, token balance > 0), any extension combinations)

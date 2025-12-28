@@ -4,7 +4,7 @@ This document describes how Token-2022 extensions are validated across compresse
 
 ## Overview
 
-The compressed token program supports 16 Token-2022 extension types. **4 restricted extensions** require instruction-level validation checks. Pure mint extensions (metadata, group, etc.) are allowed without explicit instruction support.
+The compressed token program supports 16 Token-2022 extension types. **5 restricted extensions** require instruction-level validation checks. Pure mint extensions (metadata, group, etc.) are allowed without explicit instruction support.
 
 **Allowed extensions** (defined in `program-libs/ctoken-interface/src/token_2022_extensions.rs:23-43`):
 
@@ -17,7 +17,7 @@ The compressed token program supports 16 Token-2022 extension types. **4 restric
 7. TokenGroupMember
 8. MintCloseAuthority
 9. TransferFeeConfig *(restricted)*
-10. DefaultAccountState
+10. DefaultAccountState *(restricted)*
 11. PermanentDelegate *(restricted)*
 12. TransferHook *(restricted)*
 13. Pausable *(restricted)*
@@ -27,7 +27,36 @@ The compressed token program supports 16 Token-2022 extension types. **4 restric
 
 **Restricted extensions** require `compression_only` mode when creating token accounts, and have runtime checks during transfers.
 - restricted extensions are only supported in ctoken accounts not compressed accounts.
-- compression only prevents compressed transfers once ctoken accounts are compressed and closed. 
+- compression only prevents compressed transfers once ctoken accounts are compressed and closed.
+
+## Quick Reference
+
+| Instruction          | TransferFee       | DefaultState       | PermanentDelegate  | TransferHook      | Pausable           |
+|----------------------|-------------------|--------------------|--------------------|-------------------|--------------------|
+| CreateTokenAccount   | requires comp_only| applies frozen     | requires comp_only | requires comp_only| requires comp_only |
+| Transfer2 (compress) | blocked           | -                  | blocked            | blocked           | blocked if paused  |
+| Transfer2 (c→c)      | blocked           | -                  | blocked            | blocked           | blocked            |
+| Transfer2 (decompress)| allowed          | restores frozen    | allowed            | allowed           | allowed            |
+| Transfer2 (C&C)      | allowed           | preserved          | allowed            | allowed           | allowed            |
+| CTokenTransfer       | fees must be 0    | frozen blocked     | authority check    | hook must be nil  | blocked if paused  |
+| CTokenApprove        | -                 | frozen blocked     | -                  | -                 | -                  |
+| CTokenRevoke         | -                 | frozen blocked     | -                  | -                 | -                  |
+| CTokenBurn           | N/A (CMint-only)  | frozen blocked     | N/A (CMint-only)   | N/A (CMint-only)  | N/A (CMint-only)   |
+| CTokenMintTo         | N/A (CMint-only)  | -                  | N/A (CMint-only)   | N/A (CMint-only)  | N/A (CMint-only)   |
+| CTokenFreeze/Thaw    | -                 | -                  | -                  | -                 | -                  |
+| CloseTokenAccount    | -                 | -                  | -                  | -                 | -                  |
+| CreateTokenPool      | fees must be 0    | -                  | -                  | hook must be nil  | -                  |
+
+**Key:**
+- `requires comp_only` = Extension triggers compression_only requirement
+- `blocked` = Operation fails with MintHasRestrictedExtensions (6121)
+- `bypassed` = CompressAndClose skips all extension validation
+- `fees must be 0` / `hook must be nil` = Specific validation check
+- `frozen blocked` = Account frozen state prevents operation (pinocchio check)
+- `N/A (CMint-only)` = Instruction only works with CMints which don't support restricted extensions
+- `-` = No extension-specific behavior
+
+---
 
 ## Restricted Extensions
 
@@ -123,19 +152,141 @@ The compressed token program supports 16 Token-2022 extension types. **4 restric
 - `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:69-73`
 
 **Unchecked instructions:**
-1. CTokenApprove - operations succeed even when mint is paused
-2. CTokenRevoke - operations succeed even when mint is paused
-3. CTokenBurn - operations succeed even when mint is paused
-4. CTokenMintTo - operations succeed even when mint is paused
-5. CTokenFreezeAccount - operations succeed even when mint is paused
-6. CTokenThawAccount - operations succeed even when mint is paused
-7. CloseTokenAccount - operations succeed even when mint is paused
+1. CTokenApprove - allowed when paused (only affects delegation, not token movement)
+2. CTokenRevoke - allowed when paused (only affects delegation, not token movement)
+3. CTokenBurn - N/A (CMint-only instruction, CMints don't support Pausable)
+4. CTokenMintTo - N/A (CMint-only instruction, CMints don't support Pausable)
+5. CTokenFreezeAccount - allowed when paused (freeze authority can still manage accounts)
+6. CTokenThawAccount - allowed when paused (freeze authority can still manage accounts)
+7. CloseTokenAccount - allowed when paused (account management, not token movement)
+
+**Note:** CTokenMintTo and CTokenBurn only work with CMints (compressed mints). CMints do not support restricted extensions - only TokenMetadata is allowed. T22 mints with Pausable extension can only be used with CToken accounts via Transfer2 and CTokenTransfer.
 
 ---
 
-## CompressOnly Extension
+### 5. DefaultAccountState
 
-**TODO** - Documentation pending separate analysis.
+**Behavior:** When a mint has DefaultAccountState extension, new CToken accounts inherit the frozen state at creation time.
+
+| Instruction | Validation Function | Check | Error |
+|-------------|---------------------|-------|-------|
+| CreateTokenAccount | `has_mint_extensions()` | Flags restricted extension, applies frozen state | `CompressionOnlyRequired` (6097) |
+| Transfer2 (Decompress) | - | Restores frozen state from CompressedOnly extension | - |
+
+**Validation paths:**
+- `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:209-218` - Detects `default_state_frozen`
+- `programs/compressed-token/program/src/shared/initialize_ctoken_account.rs:96-100` - Applies frozen state
+
+**Account Initialization:**
+```rust
+state: if mint_extensions.default_state_frozen {
+    AccountState::Frozen as u8  // 2
+} else {
+    AccountState::Initialized as u8  // 1
+}
+```
+
+**Frozen Account Behavior (pinocchio checks):**
+- Transfer: Blocked (source or destination frozen)
+- Approve: Blocked (source frozen)
+- Revoke: Blocked (source frozen)
+- Burn: Blocked (source frozen)
+- Freeze/Thaw: Can override frozen state
+
+**Unchecked instructions:**
+1. CTokenMintTo - no frozen check
+2. CTokenFreezeAccount - sets frozen state
+3. CTokenThawAccount - clears frozen state
+4. CloseTokenAccount - no frozen check
+
+**Note:** Unlike other restricted extensions, DefaultAccountState does NOT have runtime validation in `check_mint_extensions()`. The frozen state is applied at account creation and checked by pinocchio during token operations.
+
+---
+
+## CompressedOnly Extension
+
+The CompressedOnly extension preserves CToken account state during CompressAndClose operations, enabling full state restoration during Decompress.
+
+### Data Structures
+
+**State Extension** (`program-libs/ctoken-interface/src/state/extensions/compressed_only.rs`):
+```rust
+pub struct CompressedOnlyExtension {
+    pub delegated_amount: u64,
+    pub withheld_transfer_fee: u64,
+}
+```
+
+**Instruction Data** (`program-libs/ctoken-interface/src/instructions/extensions/compressed_only.rs`):
+```rust
+pub struct CompressedOnlyExtensionInstructionData {
+    pub delegated_amount: u64,
+    pub withheld_transfer_fee: u64,
+    pub is_frozen: bool,
+    pub compression_index: u8,
+}
+```
+
+### When Created (CompressAndClose)
+
+**Path:** `programs/compressed-token/program/src/transfer2/compression/ctoken/compress_and_close.rs`
+
+**Trigger:** `ZCompressionMode::CompressAndClose` with `compression_only=true` on source CToken account.
+
+**Requirements:**
+- Source CToken must have `compression_only` flag set
+- Output compressed token must include CompressedOnly extension in TLV data
+- Extension values must match source CToken state
+
+**Validation (lines 168-261):**
+1. If source has `compression_only=true`, CompressedOnly extension is required
+2. `delegated_amount` must match source CToken's `delegated_amount`
+3. `withheld_transfer_fee` must match source's TransferFeeAccount withheld amount
+4. `is_frozen` must match source CToken's frozen state (`state == 2`)
+5. If source is frozen but extension missing → `CompressAndCloseMissingCompressedOnlyExtension`
+
+**Source CToken Reset:**
+```rust
+ctoken.base.amount.set(0);
+ctoken.base.set_initialized();  // Unfreeze before closing
+```
+
+### When Consumed (Decompress)
+
+**Path:** `programs/compressed-token/program/src/transfer2/compression/ctoken/decompress.rs`
+
+**Trigger:** Decompressing a compressed token that has CompressedOnly extension.
+
+**State Restoration (lines 66-125):**
+1. Extract CompressedOnly data from input TLV
+2. Restore delegate pubkey (from instruction input account)
+3. Restore `delegated_amount` to destination CToken
+4. Restore `withheld_transfer_fee` to TransferFeeAccount extension
+5. Restore frozen state via `ctoken.base.set_frozen()`
+
+**Validation:**
+- Destination CToken must be fresh (amount=0, no delegate, no delegated_amount)
+- Destination owner must match
+
+### State Preservation Matrix
+
+| Field | Preserved (C&C) | Restored (Decompress) | Notes |
+|-------|-----------------|----------------------|-------|
+| delegated_amount | ✅ | ✅ | Stored in extension |
+| withheld_transfer_fee | ✅ | ✅ | Restored to TransferFeeAccount |
+| is_frozen | ✅ | ✅ | Restored via `set_frozen()` |
+| delegate pubkey | Validated | From input | Passed as instruction account |
+| amount | ❌ (set to 0) | From compression | New amount from compressed token |
+| close_authority | ❌ | ❌ | Not preserved |
+
+### Error Codes
+
+| Error | Code | Description |
+|-------|------|-------------|
+| `CompressAndCloseMissingCompressedOnlyExtension` | 6122 | Restricted mint CompressAndClose lacks CompressedOnly output |
+| `CompressAndCloseDelegatedAmountMismatch` | 6123 | delegated_amount doesn't match source |
+| `CompressAndCloseWithheldTransferFeeMismatch` | 6124 | withheld_transfer_fee doesn't match source |
+| `CompressAndCloseFrozenMismatch` | 6125 | is_frozen doesn't match source frozen state |
 
 ---
 

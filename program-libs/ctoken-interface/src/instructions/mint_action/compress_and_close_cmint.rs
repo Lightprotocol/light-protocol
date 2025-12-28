@@ -17,6 +17,27 @@ use crate::{AnchorDeserialize, AnchorSerialize};
 #[repr(C)]
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct CompressAndCloseCMintAction {
-    /// If non-zero, succeed silently when CMint doesn't exist (cmint_decompressed = false)
+    /// If non-zero, succeed silently when CMint doesn't exist or cannot be compressed.
+    /// Useful for foresters to handle already-compressed mints without failing.
     pub idempotent: u8,
+}
+
+impl CompressAndCloseCMintAction {
+    /// Returns true if this action should succeed silently when:
+    /// - CMint doesn't exist (already compressed)
+    /// - CMint cannot be compressed (rent not expired)
+    #[inline(always)]
+    pub fn is_idempotent(&self) -> bool {
+        self.idempotent != 0
+    }
+}
+
+impl ZCompressAndCloseCMintAction<'_> {
+    /// Returns true if this action should succeed silently when:
+    /// - CMint doesn't exist (already compressed)
+    /// - CMint cannot be compressed (rent not expired)
+    #[inline(always)]
+    pub fn is_idempotent(&self) -> bool {
+        self.idempotent != 0
+    }
 }

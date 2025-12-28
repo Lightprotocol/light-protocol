@@ -9,11 +9,13 @@ use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestCon
 pub use light_test_utils::Rpc;
 use light_test_utils::{
     mint_2022::{
-        create_mint_22_with_extensions, create_token_22_account, mint_spl_tokens_22,
-        Token22ExtensionConfig,
+        create_mint_22_with_extension_types, create_token_22_account, mint_spl_tokens_22,
+        Token22ExtensionConfig, RESTRICTED_EXTENSIONS,
     },
     RpcError,
 };
+pub use light_test_utils::mint_2022::ALL_EXTENSIONS;
+pub use spl_token_2022::extension::ExtensionType;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 /// Test context for extension-related tests
@@ -25,14 +27,16 @@ pub struct ExtensionsTestContext {
     pub extension_config: Token22ExtensionConfig,
 }
 
-/// Set up test environment with a Token 2022 mint with all extensions
-pub async fn setup_extensions_test() -> Result<ExtensionsTestContext, RpcError> {
+/// Set up test environment with a Token 2022 mint with specified extensions
+pub async fn setup_extensions_test(
+    extensions: &[ExtensionType],
+) -> Result<ExtensionsTestContext, RpcError> {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
     let payer = rpc.get_payer().insecure_clone();
 
-    // Create mint with all extensions
+    // Create mint with specified extensions
     let (mint_keypair, extension_config) =
-        create_mint_22_with_extensions(&mut rpc, &payer, 9).await;
+        create_mint_22_with_extension_types(&mut rpc, &payer, 9, extensions).await;
 
     let mint_pubkey = mint_keypair.pubkey();
 
@@ -46,8 +50,9 @@ pub async fn setup_extensions_test() -> Result<ExtensionsTestContext, RpcError> 
 }
 
 /// Configuration for parameterized compress and close extension tests
-#[derive(Debug)]
 pub struct CompressAndCloseTestConfig {
+    /// Extensions to initialize on the mint
+    pub extensions: &'static [ExtensionType],
     /// Delegate keypair and delegated_amount (delegate can sign)
     pub delegate_config: Option<(Keypair, u64)>,
     /// Set account state to frozen before compress
@@ -118,7 +123,7 @@ pub async fn run_compress_and_close_extension_test(
         create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
     };
 
-    let mut context = setup_extensions_test().await?;
+    let mut context = setup_extensions_test(config.extensions).await?;
     let payer = context.payer.insecure_clone();
     let mint_pubkey = context.mint_pubkey;
     let _permanent_delegate = context.extension_config.permanent_delegate;
@@ -169,8 +174,13 @@ pub async fn run_compress_and_close_extension_test(
         .await?;
 
     // 3. Transfer tokens to CToken using hot path
+    // Determine if mint has restricted extensions for pool derivation
+    let has_restricted = config
+        .extensions
+        .iter()
+        .any(|ext| RESTRICTED_EXTENSIONS.contains(ext));
     let (spl_interface_pda, spl_interface_pda_bump) =
-        find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
+        find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted);
     let transfer_ix = TransferSplToCtoken {
         amount: mint_amount,
         spl_interface_pda_bump,
@@ -260,8 +270,7 @@ pub async fn run_compress_and_close_extension_test(
     assert_eq!(
         compressed_accounts[0].token,
         expected_token_data.into(),
-        "Compressed token account should match expected TokenData with config: {:?}",
-        config
+        "Compressed token account should match expected TokenData"
     );
 
     // 8. Create destination CToken account for decompress
@@ -432,10 +441,7 @@ pub async fn run_compress_and_close_extension_test(
         "Should have no more compressed token accounts after decompress"
     );
 
-    println!(
-        "Successfully completed compress-and-close -> decompress cycle with config: {:?}",
-        config
-    );
+    println!("Successfully completed compress-and-close -> decompress cycle");
 
     Ok(())
 }

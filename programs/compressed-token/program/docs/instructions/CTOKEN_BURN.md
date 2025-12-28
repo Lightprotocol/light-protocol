@@ -5,7 +5,7 @@
 **path:** programs/compressed-token/program/src/ctoken_burn.rs
 
 **description:**
-Burns tokens from a decompressed CToken account and decreases the CMint supply, fully compatible with SPL Token burn semantics. Account layout `CToken` is defined in `program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs`. Account layout `CompressedMint` (CMint) is defined in `program-libs/ctoken-interface/src/state/mint/compressed_mint.rs`. Extension layout `CompressionInfo` is defined in `program-libs/compressible/src/compression_info.rs` and is embedded in both CToken and CMint structs. Uses pinocchio-token-program to process the burn (handles balance/supply updates, authority check, frozen check). After the burn, automatically tops up compressible accounts with additional lamports if needed. Top-up is calculated for both CMint and source CToken based on current slot and account balance. Top-up prevents accounts from becoming compressible during normal operations. Enforces max_top_up limit if provided (transaction fails if exceeded). Account order is REVERSED from mint_to instruction: [source_ctoken, cmint, authority] vs mint_to's [cmint, destination_ctoken, authority]. Supports max_top_up parameter to limit rent top-up costs (0 = no limit). Instruction data is backwards-compatible: 8-byte format (legacy, no max_top_up enforcement) and 10-byte format (with max_top_up).
+Burns tokens from a decompressed CToken account and decreases the CMint supply, fully compatible with SPL Token burn semantics. Account layout `CToken` is defined in `program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs`. Account layout `CompressedMint` (CMint) is defined in `program-libs/ctoken-interface/src/state/mint/compressed_mint.rs`. Extension layout `CompressionInfo` is defined in `program-libs/compressible/src/compression_info.rs` and is embedded in both CToken and CMint structs. Uses pinocchio-token-program to process the burn (handles balance/supply updates, authority check, frozen check). After the burn, automatically tops up compressible accounts with additional lamports if needed. Top-up is calculated for both CMint and source CToken based on current slot and account balance. Top-up prevents accounts from becoming compressible during normal operations. Enforces max_top_up limit if provided (transaction fails if exceeded). Account order is REVERSED from mint_to instruction: [source_ctoken, cmint, authority] vs mint_to's [cmint, destination_ctoken, authority]. Supports max_top_up parameter to limit rent top-up costs (0 = no limit). Instruction data is backwards-compatible: 8-byte format (legacy, no max_top_up enforcement) and 10-byte format (with max_top_up). This instruction only works with CMints (compressed mints). CMints do not support restricted Token-2022 extensions (Pausable, TransferFee, TransferHook, PermanentDelegate, DefaultAccountState) - only TokenMetadata is allowed. To burn tokens from T22 mints with restricted extensions, use Transfer2 with decompress mode to convert to SPL tokens first, then burn via SPL Token-2022.
 
 **Instruction data:**
 
@@ -221,44 +221,13 @@ if source_account.get_extension::<NonTransferableAccount>().is_ok() {
 
 **Why allowed**: Burning reduces supply and eliminates tokens - doesn't violate non-transferable constraint since tokens aren't moving to another account.
 
-### Extension Handling Differences
+### Extension Handling
 
-#### Token-2022 Extensions Checked During Burn
+CToken Burn only operates on CMints, which do not support restricted extensions:
 
-1. **PausableConfig**: Fails if `mint.paused == true` (error: `MintPaused`)
-   ```rust
-   if let Ok(extension) = mint.get_extension::<PausableConfig>() {
-       if extension.paused.into() {
-           return Err(TokenError::MintPaused.into());
-       }
-   }
-   ```
-
-2. **CpiGuard**: Blocks burn in CPI context if guard enabled and authority is owner
-   ```rust
-   if let Ok(cpi_guard) = source_account.get_extension::<CpiGuard>() {
-       if *authority_info.key == source_account.base.owner
-           && cpi_guard.lock_cpi.into()
-           && in_cpi()
-       {
-           return Err(TokenError::CpiGuardBurnBlocked.into());
-       }
-   }
-   ```
-
-3. **PermanentDelegate**: Allows permanent delegate to burn tokens (in addition to owner/delegate)
-
-#### CToken Extensions NOT Checked During Burn
-
-According to `programs/compressed-token/program/docs/EXTENSIONS.md`:
-
-**Unchecked restricted extensions during CToken Burn:**
-1. **TransferFeeConfig** - Not validated (zero-fee enforcement only during transfers)
-2. **TransferHook** - Not validated (hook execution only during transfers)
-3. **PausableConfig** - **Checked by pinocchio burn** (inherited from Token-2022)
-4. **PermanentDelegate** - **Supported by pinocchio burn** but cannot burn without owner signature in CToken (no explicit permanent delegate-only burn)
-
-**Rationale**: Burn instruction only affects supply/balance, not transfer mechanics. Extension checks focus on transfer-time constraints.
+- **CMints only support TokenMetadata extension** - no Pausable, TransferFee, TransferHook, PermanentDelegate, or DefaultAccountState
+- **No extension checks needed** - CMints cannot have these extensions, so no validation is required
+- **For T22 mints with restricted extensions**: Use Transfer2 (decompress) to convert to SPL tokens, then burn via SPL Token-2022
 
 ### Security Notes
 

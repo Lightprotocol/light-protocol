@@ -5,7 +5,7 @@
 **path:** programs/compressed-token/program/src/ctoken_mint_to.rs
 
 **description:**
-Mints tokens from a decompressed CMint account to a destination CToken account, fully compatible with SPL Token mint_to semantics. Uses pinocchio-token-program to process the mint_to operation which handles balance/supply updates, authority validation, and frozen account checks. After minting, automatically tops up compressible accounts with additional lamports if needed to prevent accounts from becoming compressible during normal operations. Both CMint and destination CToken can receive top-ups based on their current slot and account balance. Supports max_top_up parameter to limit rent top-up costs where 0 means no limit. Instruction data is backwards-compatible with two formats: 8-byte format for legacy compatibility without max_top_up enforcement and 10-byte format with max_top_up.
+Mints tokens from a decompressed CMint account to a destination CToken account, fully compatible with SPL Token mint_to semantics. Uses pinocchio-token-program to process the mint_to operation which handles balance/supply updates, authority validation, and frozen account checks. After minting, automatically tops up compressible accounts with additional lamports if needed to prevent accounts from becoming compressible during normal operations. Both CMint and destination CToken can receive top-ups based on their current slot and account balance. Supports max_top_up parameter to limit rent top-up costs where 0 means no limit. Instruction data is backwards-compatible with two formats: 8-byte format for legacy compatibility without max_top_up enforcement and 10-byte format with max_top_up. This instruction only works with CMints (compressed mints). CMints do not support restricted Token-2022 extensions (Pausable, TransferFee, TransferHook, PermanentDelegate, DefaultAccountState) - only TokenMetadata is allowed.
 
 Account layouts:
 - `CToken` defined in: program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs
@@ -173,23 +173,13 @@ CToken MintTo includes a `max_top_up` parameter to control rent costs:
   - Use case: Prevents minting with incorrect decimal assumptions in offline/hardware wallet scenarios
 - **CToken workaround:** Clients must validate decimals independently before calling CToken MintTo
 
-### Extension Handling Differences
+### Extension Handling
 
-**Token-2022 Extension Checks (process_mint_to):**
+CToken MintTo only operates on CMints, which do not support restricted extensions:
 
-1. **NonTransferable + ImmutableOwner:** Requires destination account to have ImmutableOwner extension if mint has NonTransferable extension
-2. **PausableConfig:** Returns MintPaused error if mint's PausableConfig.paused is true
-3. **ConfidentialMintBurn:** Returns IllegalMintBurnConversion error if mint has ConfidentialMintBurn extension (confidential mints must use dedicated instructions)
-4. **Account extensions:** Automatically unpacks and validates all Token-2022 extensions via PodStateWithExtensionsMut
-
-**CToken Extension Handling:**
-
-1. **Compressible extension (CToken-specific):** Always present in CMint and CToken accounts as embedded field, accessed via zero-copy
-2. **TokenMetadata (CMint-specific):** CMint supports TokenMetadata extension for on-chain metadata
-3. **SPL Token-2022 extensions:** CToken accounts support standard Token-2022 extensions (PermanentDelegate, PausableAccount, etc.) via the extensions field
-4. **No special extension validation:** CToken MintTo delegates core minting logic to pinocchio-token-program's process_mint_to, which handles base SPL Token semantics but does not enforce Token-2022 extension-specific rules (NonTransferable, PausableConfig, etc.)
-
-**Key difference:** Token-2022's process_mint_to explicitly checks for and enforces extension-specific rules, while CToken MintTo focuses on compression concerns and delegates standard token logic to pinocchio-token-program.
+- **CMints only support TokenMetadata extension** - no Pausable, TransferFee, TransferHook, PermanentDelegate, or DefaultAccountState
+- **No extension checks needed** - CMints cannot have these extensions, so no validation is required
+- **Compressible extension (CToken-specific):** Always present in CMint and CToken accounts as embedded field, accessed via zero-copy
 
 ### Security Notes
 
@@ -222,6 +212,6 @@ CToken MintTo includes a `max_top_up` parameter to control rent costs:
 | Automatic rent top-up | No | No | Yes (compressible accounts) |
 | Top-up budget control | N/A | N/A | Yes (max_top_up) |
 | Authority account | Read-only | Read-only | Writable (when top-ups needed) |
-| Extension checks | NonTransferable, PausableConfig, ConfidentialMintBurn | Same as MintTo | Compressible only (delegates to pinocchio) |
+| Extension checks | NonTransferable, PausableConfig, ConfidentialMintBurn | Same as MintTo | None (CMints don't support restricted extensions) |
 | Account count | 3+ (multisig) | 3+ (multisig) | Exactly 3 |
 | Backwards compatibility | N/A | N/A | 8-byte format (legacy) and 10-byte format (with max_top_up) |

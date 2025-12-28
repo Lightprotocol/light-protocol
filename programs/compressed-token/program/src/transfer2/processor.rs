@@ -58,11 +58,7 @@ pub fn process_transfer2(
 
     let validated_accounts = Transfer2Accounts::validate_and_parse(accounts, &transfer_config)?;
 
-    let mint_cache = build_mint_extension_cache(
-        &inputs,
-        &validated_accounts.packed_accounts,
-        !transfer_config.no_output_compressed_accounts,
-    )?;
+    let mint_cache = build_mint_extension_cache(&inputs, &validated_accounts.packed_accounts)?;
 
     if transfer_config.no_compressed_accounts {
         // No compressed accounts are invalidated or created in this transaction

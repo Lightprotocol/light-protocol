@@ -540,6 +540,8 @@ pub enum ErrorCode {
     CompressibleRequired,
     #[msg("CMint account not found")]
     CMintNotFound,
+    #[msg("CompressedOnly inputs must decompress to CToken account, not SPL token account")]
+    CompressedOnlyRequiresCTokenDecompress,
 }
 
 /// Anchor error code offset - error codes start at 6000

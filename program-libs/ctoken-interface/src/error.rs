@@ -168,6 +168,9 @@ pub enum CTokenError {
 
     #[error("Duplicate compression_index found in input TLV data")]
     DuplicateCompressionIndex,
+
+    #[error("Decompress destination CToken is not a fresh account")]
+    DecompressDestinationNotFresh,
 }
 
 impl From<CTokenError> for u32 {
@@ -227,6 +230,7 @@ impl From<CTokenError> for u32 {
             CTokenError::TlvExtensionLengthMismatch => 18052,
             CTokenError::InvalidAccountType => 18053,
             CTokenError::DuplicateCompressionIndex => 18054,
+            CTokenError::DecompressDestinationNotFresh => 18055,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

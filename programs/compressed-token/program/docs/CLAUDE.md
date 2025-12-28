@@ -7,7 +7,9 @@ This documentation is organized to provide clear navigation through the compress
 - **`CLAUDE.md`** (this file) - Documentation structure guide
 - **`../CLAUDE.md`** (parent) - Main entry point with summary and instruction index
 - **`ACCOUNTS.md`** - Complete account layouts and data structures
-- **`EXTENSIONS.md`** - Token-2022 extension validation across instructions
+- **`EXTENSIONS.md`** - Token-2022 extension validation across ctoken instructions
+- **`RESTRICTED_T22_EXTENSIONS.md`** - SPL Token-2022 behavior for 5 restricted extensions
+- **`T22_VS_CTOKEN_COMPARISON.md`** - Comparison of T22 vs ctoken extension behavior
 - **`instructions/`** - Detailed instruction documentation
   - `CREATE_TOKEN_ACCOUNT.md` - Create token account & associated token account instructions
   - `MINT_ACTION.md` - Mint operations and compressed mint management

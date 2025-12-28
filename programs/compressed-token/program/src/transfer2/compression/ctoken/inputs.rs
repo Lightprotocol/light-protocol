@@ -1,3 +1,4 @@
+use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_ctoken_interface::instructions::{
     extensions::ZExtensionInstructionData,
@@ -7,8 +8,86 @@ use light_ctoken_interface::instructions::{
     },
 };
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use spl_pod::solana_msg::msg;
 
 use crate::extensions::MintExtensionChecks;
+
+/// Decompress-specific inputs from the input compressed account.
+/// Only required for decompression with CompressedOnly extension.
+pub struct DecompressCompressOnlyInputs<'a> {
+    /// Input TLV for decompress operations (from the input compressed account being consumed).
+    pub tlv: &'a [ZExtensionInstructionData<'a>],
+    /// Delegate pubkey from input compressed account (for decompress extension state transfer).
+    pub delegate: Option<&'a AccountInfo>,
+    /// Owner pubkey from input compressed account (for decompress destination validation).
+    pub owner: &'a AccountInfo,
+}
+
+impl<'a> DecompressCompressOnlyInputs<'a> {
+    /// Extract decompress inputs for CompressedOnly extension state transfer.
+    ///
+    /// Extracts TLV, delegate, and owner from the input compressed account for decompress
+    /// operations. Also validates compression-input consistency (mode and mint match).
+    #[inline(always)]
+    pub fn try_extract(
+        compression: &ZCompression,
+        compression_index: usize,
+        compression_to_input: &[Option<u8>; 32],
+        inputs: &'a ZCompressedTokenInstructionDataTransfer2<'a>,
+        packed_accounts: &'a ProgramPackedAccounts<'a, AccountInfo>,
+    ) -> Result<Option<Self>, ProgramError> {
+        let Some(input_idx) = compression_to_input[compression_index] else {
+            return Ok(None);
+        };
+        let idx = input_idx as usize;
+
+        // Compression must be Decompress mode to consume an input
+        if compression.mode != ZCompressionMode::Decompress {
+            msg!(
+                "Input linked to non-decompress compression at index {}",
+                compression_index
+            );
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        // Validate mint matches between compression and input
+        let input_data = inputs
+            .in_token_data
+            .get(idx)
+            .ok_or(ProgramError::InvalidInstructionData)?;
+        if compression.mint != input_data.mint {
+            msg!(
+                "Mint mismatch between compression and input at index {}",
+                compression_index
+            );
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        // Get TLV slice (use empty slice if not present)
+        let tlv = inputs
+            .in_tlv
+            .as_ref()
+            .and_then(|tlvs| tlvs.get(idx))
+            .map(|v| v.as_slice())
+            .unwrap_or(&[]);
+
+        // Get delegate (optional, only if input has delegate)
+        let delegate = if input_data.has_delegate() {
+            Some(packed_accounts.get_u8(input_data.delegate, "input delegate")?)
+        } else {
+            None
+        };
+
+        // Get owner (required for DecompressCompressOnlyInputs)
+        let owner = packed_accounts.get_u8(input_data.owner, "input owner")?;
+
+        Ok(Some(DecompressCompressOnlyInputs {
+            tlv,
+            delegate,
+            owner,
+        }))
+    }
+}
 
 /// Compress and close specific inputs
 pub struct CompressAndCloseInputs<'a> {
@@ -30,10 +109,8 @@ pub struct CTokenCompressionInputs<'a> {
     /// Mint extension checks result (permanent delegate, transfer fee info).
     /// Used to validate permanent delegate authority for compression operations.
     pub mint_checks: Option<MintExtensionChecks>,
-    /// Input TLV for decompress operations (from the input compressed account being consumed).
-    pub input_tlv: Option<&'a [ZExtensionInstructionData<'a>]>,
-    /// Delegate pubkey from input compressed account (for decompress extension state transfer).
-    pub input_delegate: Option<&'a AccountInfo>,
+    /// Decompress-specific inputs (TLV, delegate, owner from input compressed account).
+    pub decompress_inputs: Option<DecompressCompressOnlyInputs<'a>>,
 }
 
 impl<'a> CTokenCompressionInputs<'a> {
@@ -44,8 +121,7 @@ impl<'a> CTokenCompressionInputs<'a> {
         inputs: &'a ZCompressedTokenInstructionDataTransfer2<'a>,
         packed_accounts: &'a ProgramPackedAccounts<'a, AccountInfo>,
         mint_checks: Option<MintExtensionChecks>,
-        input_tlv: Option<&'a [ZExtensionInstructionData<'a>]>,
-        input_delegate: Option<&'a AccountInfo>,
+        decompress_inputs: Option<DecompressCompressOnlyInputs<'a>>,
     ) -> Result<Self, anchor_lang::prelude::ProgramError> {
         let authority_account = if compression.mode != ZCompressionMode::Decompress {
             Some(packed_accounts.get_u8(
@@ -95,8 +171,7 @@ impl<'a> CTokenCompressionInputs<'a> {
             mode: compression.mode.clone(),
             packed_accounts,
             mint_checks,
-            input_tlv,
-            input_delegate,
+            decompress_inputs,
         })
     }
 
@@ -115,8 +190,7 @@ impl<'a> CTokenCompressionInputs<'a> {
             mode: ZCompressionMode::Decompress,
             packed_accounts,
             mint_checks: None,
-            input_tlv: None,
-            input_delegate: None,
+            decompress_inputs: None,
         }
     }
 }
