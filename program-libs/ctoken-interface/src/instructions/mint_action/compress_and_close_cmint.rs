@@ -7,7 +7,6 @@ use crate::{AnchorDeserialize, AnchorSerialize};
 ///
 /// ## Requirements
 /// - CMint must exist (cmint_decompressed = true) - unless idempotent is set
-/// - CMint must have Compressible extension
 /// - is_compressible() must return true (rent expired)
 /// - Cannot be combined with DecompressMint in same instruction
 ///

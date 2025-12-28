@@ -22,12 +22,12 @@ use crate::{
 /// 1. **Idempotent Check**: If idempotent flag is set and CMint doesn't exist, succeed silently
 /// 2. **State Validation**: Ensure CMint exists (cmint_decompressed = true)
 /// 3. **CMint Verification**: Verify CMint account matches compressed_mint.metadata.mint
-/// 4. **Extension Validation**: Ensure CMint has Compressible extension
-/// 5. **Compressibility Check**: Verify is_compressible() returns true
+/// 4. **Rent Sponsor Validation**: Verify rent_sponsor matches compression info
+/// 5. **Compressibility Check**: Verify is_compressible() returns true (rent expired)
 /// 6. **Lamport Distribution**: ALL lamports -> rent_sponsor
 /// 7. **Account Closure**: Assign to system program, resize to 0
 /// 8. **Flag Update**: Set cmint_decompressed = false
-/// 9. **Remove Compressible Extension**: Remove from compressed mint extensions
+/// 9. **Clear Compression Info**: Zero out embedded compression info
 ///
 /// ## Note
 /// CompressAndCloseCMint is **permissionless** - anyone can compress and close a CMint
@@ -38,6 +38,9 @@ pub fn process_compress_and_close_cmint_action(
     compressed_mint: &mut CompressedMint,
     validated_accounts: &MintActionAccounts,
 ) -> Result<(), ProgramError> {
+    // NOTE: CompressAndCloseCMint is permissionless - anyone can compress if is_compressible() returns true
+    // All lamports returned to rent_sponsor
+
     // 1. Idempotent check - if CMint doesn't exist and idempotent is set, succeed silently
     if action.is_idempotent() && !compressed_mint.metadata.cmint_decompressed {
         return Ok(());
@@ -77,26 +80,15 @@ pub fn process_compress_and_close_cmint_action(
         return Err(ErrorCode::InvalidRentSponsor.into());
     }
 
-    // 7. Check is_compressible (rent has expired)
+    // 5. Check is_compressible (rent has expired)
     let current_slot = Clock::get()
         .map_err(|_| ProgramError::UnsupportedSysvar)?
         .slot;
 
-    let is_compressible = match compression_info.is_compressible(
-        cmint.data_len() as u64,
-        current_slot,
-        cmint.lamports(),
-    ) {
-        Ok(is_compressible) => is_compressible,
-        Err(_) => {
-            if action.is_idempotent() {
-                return Ok(());
-            } else {
-                msg!("CMint is not compressible (rent not expired)");
-                return Err(ErrorCode::CMintNotCompressible.into());
-            }
-        }
-    };
+    let is_compressible = compression_info
+        .is_compressible(cmint.data_len() as u64, current_slot, cmint.lamports())
+        .ok()
+        .flatten();
 
     if is_compressible.is_none() {
         if action.is_idempotent() {
