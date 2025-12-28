@@ -31,28 +31,39 @@ The compressed token program supports 16 Token-2022 extension types. **5 restric
 
 ## Quick Reference
 
-| Instruction          | TransferFee       | DefaultState       | PermanentDelegate  | TransferHook      | Pausable           |
-|----------------------|-------------------|--------------------|--------------------|-------------------|--------------------|
-| CreateTokenAccount   | requires comp_only| applies frozen     | requires comp_only | requires comp_only| requires comp_only |
-| Transfer2 (compress) | blocked           | -                  | blocked            | blocked           | blocked if paused  |
-| Transfer2 (c→c)      | blocked           | -                  | blocked            | blocked           | blocked            |
-| Transfer2 (decompress)| allowed          | restores frozen    | allowed            | allowed           | allowed            |
-| Transfer2 (C&C)      | allowed           | preserved          | allowed            | allowed           | allowed            |
-| CTokenTransfer       | fees must be 0    | frozen blocked     | authority check    | hook must be nil  | blocked if paused  |
-| CTokenApprove        | -                 | frozen blocked     | -                  | -                 | -                  |
-| CTokenRevoke         | -                 | frozen blocked     | -                  | -                 | -                  |
-| CTokenBurn           | N/A (CMint-only)  | frozen blocked     | N/A (CMint-only)   | N/A (CMint-only)  | N/A (CMint-only)   |
-| CTokenMintTo         | N/A (CMint-only)  | -                  | N/A (CMint-only)   | N/A (CMint-only)  | N/A (CMint-only)   |
-| CTokenFreeze/Thaw    | -                 | -                  | -                  | -                 | -                  |
-| CloseTokenAccount    | -                 | -                  | -                  | -                 | -                  |
-| CreateTokenPool      | fees must be 0    | -                  | -                  | hook must be nil  | -                  |
+| Instruction              | TransferFee       | DefaultState       | PermanentDelegate  | TransferHook      | Pausable           |
+|--------------------------|-------------------|--------------------|--------------------|-------------------|--------------------|
+| CreateTokenAccount       | requires comp_only| applies frozen     | requires comp_only | requires comp_only| requires comp_only |
+| Transfer2 (→compressed)  | blocked           | -                  | blocked            | blocked           | blocked if paused  |
+| Transfer2 (c→c)          | blocked           | -                  | blocked            | blocked           | blocked            |
+| Transfer2 (SPL→CToken)   | fees must be 0    | -                  | -                  | hook must be nil  | blocked if paused  |
+| Transfer2 (CToken→SPL)   | fees must be 0    | -                  | -                  | hook must be nil  | blocked if paused  |
+| Transfer2 (decompress)   | allowed           | restores frozen    | allowed            | allowed           | allowed            |
+| Transfer2 (C&C)          | allowed           | preserved          | allowed            | allowed           | allowed            |
+| CTokenTransfer           | fees must be 0    | frozen blocked     | authority check    | hook must be nil  | blocked if paused  |
+| CTokenApprove            | -                 | frozen blocked     | -                  | -                 | -                  |
+| CTokenRevoke             | -                 | frozen blocked     | -                  | -                 | -                  |
+| CTokenBurn               | N/A (CMint-only)  | frozen blocked     | N/A (CMint-only)   | N/A (CMint-only)  | N/A (CMint-only)   |
+| CTokenMintTo             | N/A (CMint-only)  | -                  | N/A (CMint-only)   | N/A (CMint-only)  | N/A (CMint-only)   |
+| CTokenFreeze/Thaw        | -                 | -                  | -                  | -                 | -                  |
+| CloseTokenAccount        | -                 | -                  | -                  | -                 | -                  |
+| CreateTokenPool          | fees must be 0    | -                  | -                  | hook must be nil  | -                  |
+
+**Transfer2 Mode Definitions:**
+- `→compressed` = Compress to output compressed account (Compress mode with compressed outputs)
+- `c→c` = Transfer between compressed accounts
+- `SPL→CToken` = Transfer from SPL token account to CToken account (uses Compress mode)
+- `CToken→SPL` = Transfer from CToken account to SPL token account (uses Compress+Decompress)
+- `decompress` = Decompress from compressed account to SPL/CToken (pure Decompress, no Compress)
+- `C&C` = CompressAndClose mode
 
 **Key:**
 - `requires comp_only` = Extension triggers compression_only requirement
 - `blocked` = Operation fails with MintHasRestrictedExtensions (6121)
-- `bypassed` = CompressAndClose skips all extension validation
-- `fees must be 0` / `hook must be nil` = Specific validation check
+- `fees must be 0` / `hook must be nil` = Specific validation check (errors: 6129, 6130)
+- `blocked if paused` = Fails with MintPaused (6127) when mint is paused
 - `frozen blocked` = Account frozen state prevents operation (pinocchio check)
+- `allowed` = Bypasses extension state checks (decompress/C&C exit paths)
 - `N/A (CMint-only)` = Instruction only works with CMints which don't support restricted extensions
 - `-` = No extension-specific behavior
 

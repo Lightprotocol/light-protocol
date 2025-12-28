@@ -6,7 +6,9 @@
 
 use light_ctoken_interface::state::TokenDataVersion;
 use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
-use light_program_test::{program_test::LightProgramTest, utils::assert::assert_rpc_error, ProgramTestConfig, Rpc};
+use light_program_test::{
+    program_test::LightProgramTest, utils::assert::assert_rpc_error, ProgramTestConfig, Rpc,
+};
 use light_test_utils::mint_2022::create_mint_22_with_extension_types;
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
@@ -24,7 +26,8 @@ async fn test_compression_only_required_for_extensions(extensions: &[ExtensionTy
     let payer = rpc.get_payer().insecure_clone();
 
     // Create mint with specified extensions
-    let (mint_keypair, _) = create_mint_22_with_extension_types(&mut rpc, &payer, 9, extensions).await;
+    let (mint_keypair, _) =
+        create_mint_22_with_extension_types(&mut rpc, &payer, 9, extensions).await;
     let mint_pubkey = mint_keypair.pubkey();
 
     // Try to create CToken account WITHOUT compression_only (should fail)
@@ -38,7 +41,10 @@ async fn test_compression_only_required_for_extensions(extensions: &[ExtensionTy
         payer.pubkey(),
     )
     .with_compressible(CompressibleParams {
-        compressible_config: rpc.test_accounts.funding_pool_config.compressible_config_pda,
+        compressible_config: rpc
+            .test_accounts
+            .funding_pool_config
+            .compressible_config_pda,
         rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
         pre_pay_num_epochs: 2,
         lamports_per_write: Some(100),
@@ -50,7 +56,11 @@ async fn test_compression_only_required_for_extensions(extensions: &[ExtensionTy
     .unwrap();
 
     let result = rpc
-        .create_and_send_transaction(&[create_ix], &payer.pubkey(), &[&payer, &token_account_keypair])
+        .create_and_send_transaction(
+            &[create_ix],
+            &payer.pubkey(),
+            &[&payer, &token_account_keypair],
+        )
         .await;
 
     assert_rpc_error(result, 0, COMPRESSION_ONLY_REQUIRED).unwrap();

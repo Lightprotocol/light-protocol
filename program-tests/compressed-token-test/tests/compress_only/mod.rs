@@ -6,7 +6,7 @@
 use borsh::BorshDeserialize;
 use light_ctoken_interface::state::{AccountState, CToken, ExtensionStruct};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
-pub use light_test_utils::Rpc;
+pub use light_test_utils::{mint_2022::ALL_EXTENSIONS, Rpc};
 use light_test_utils::{
     mint_2022::{
         create_mint_22_with_extension_types, create_token_22_account, mint_spl_tokens_22,
@@ -14,9 +14,8 @@ use light_test_utils::{
     },
     RpcError,
 };
-pub use light_test_utils::mint_2022::ALL_EXTENSIONS;
-pub use spl_token_2022::extension::ExtensionType;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
+pub use spl_token_2022::extension::ExtensionType;
 
 /// Test context for extension-related tests
 pub struct ExtensionsTestContext {
@@ -98,6 +97,54 @@ pub async fn set_ctoken_account_state(
     spl_token_2022::state::Account::pack(spl_account, &mut account_info.data[..165])
         .map_err(|e| RpcError::CustomError(format!("Failed to pack SPL account: {:?}", e)))?;
 
+    rpc.set_account(account_pubkey, account_info);
+    Ok(())
+}
+
+/// Helper to set withheld_amount in TransferFeeAccount extension for testing
+/// Finds the TransferFeeAccount extension in the CToken and modifies the withheld_amount field
+pub async fn set_ctoken_withheld_fee(
+    rpc: &mut LightProgramTest,
+    account_pubkey: Pubkey,
+    withheld_amount: u64,
+) -> Result<(), RpcError> {
+    use light_ctoken_interface::state::{ExtensionStruct, TransferFeeAccountExtension};
+
+    let mut account_info = rpc
+        .get_account(account_pubkey)
+        .await?
+        .ok_or_else(|| RpcError::CustomError("Account not found".to_string()))?;
+
+    // Deserialize CToken to find and modify TransferFeeAccount extension
+    let mut ctoken = CToken::deserialize(&mut &account_info.data[..])
+        .map_err(|e| RpcError::CustomError(format!("Failed to deserialize CToken: {:?}", e)))?;
+
+    // Find and update TransferFeeAccount extension
+    let mut found = false;
+    if let Some(extensions) = ctoken.extensions.as_mut() {
+        for ext in extensions.iter_mut() {
+            if let ExtensionStruct::TransferFeeAccount(fee_ext) = ext {
+                *fee_ext = TransferFeeAccountExtension { withheld_amount };
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if !found {
+        return Err(RpcError::CustomError(
+            "TransferFeeAccount extension not found in CToken".to_string(),
+        ));
+    }
+
+    // Serialize the modified CToken back
+    use borsh::BorshSerialize;
+    let serialized = ctoken
+        .try_to_vec()
+        .map_err(|e| RpcError::CustomError(format!("Failed to serialize CToken: {:?}", e)))?;
+
+    // Update account data
+    account_info.data = serialized;
     rpc.set_account(account_pubkey, account_info);
     Ok(())
 }

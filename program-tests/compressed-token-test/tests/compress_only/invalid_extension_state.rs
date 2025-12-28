@@ -5,8 +5,8 @@
 //! - TransferHook has non-nil program_id
 
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
-use light_compressed_token::process_transfer::get_cpi_authority_pda;
 use light_ctoken_interface::find_spl_interface_pda_with_index;
+use light_ctoken_sdk::constants::CPI_AUTHORITY_PDA;
 use light_program_test::{
     program_test::LightProgramTest, utils::assert::assert_rpc_error, ProgramTestConfig, Rpc,
 };
@@ -28,10 +28,7 @@ const NON_ZERO_TRANSFER_FEE_NOT_SUPPORTED: u32 = 6129;
 const TRANSFER_HOOK_NOT_SUPPORTED: u32 = 6130;
 
 /// Create a mint with non-zero transfer fee
-async fn create_mint_with_non_zero_fee(
-    rpc: &mut LightProgramTest,
-    payer: &Keypair,
-) -> Pubkey {
+async fn create_mint_with_non_zero_fee(rpc: &mut LightProgramTest, payer: &Keypair) -> Pubkey {
     use solana_system_interface::instruction as system_instruction;
 
     let mint_keypair = Keypair::new();
@@ -61,7 +58,7 @@ async fn create_mint_with_non_zero_fee(
         &mint_pubkey,
         Some(&authority),
         Some(&authority),
-        100, // Non-zero transfer_fee_basis_points
+        100,  // Non-zero transfer_fee_basis_points
         1000, // Non-zero maximum_fee
     )
     .unwrap();
@@ -88,10 +85,7 @@ async fn create_mint_with_non_zero_fee(
 }
 
 /// Create a mint with non-nil transfer hook program
-async fn create_mint_with_non_nil_hook(
-    rpc: &mut LightProgramTest,
-    payer: &Keypair,
-) -> Pubkey {
+async fn create_mint_with_non_nil_hook(rpc: &mut LightProgramTest, payer: &Keypair) -> Pubkey {
     use solana_system_interface::instruction as system_instruction;
 
     let mint_keypair = Keypair::new();
@@ -158,7 +152,7 @@ fn create_token_pool_instruction(payer: Pubkey, mint: Pubkey, restricted: bool) 
         system_program: system_program::ID,
         mint,
         token_program: spl_token_2022::ID,
-        cpi_authority_pda: get_cpi_authority_pda().0,
+        cpi_authority_pda: CPI_AUTHORITY_PDA,
     };
 
     Instruction {
