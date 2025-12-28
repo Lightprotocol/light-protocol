@@ -16,7 +16,7 @@ use crate::{
 };
 
 /// Returns RESTRICTED_POOL_SEED if mint has restricted extensions, empty vec otherwise.
-/// For mints with restricted extensions (Pausable, PermanentDelegate, TransferFeeConfig, TransferHook),
+/// For mints with restricted extensions (Pausable, PermanentDelegate, TransferFeeConfig, TransferHook, DefaultAccountState),
 /// returns the restricted seed to include in PDA derivation.
 pub fn restricted_seed(mint: &AccountInfo) -> Vec<u8> {
     let mint_data = mint.try_borrow_data().unwrap();

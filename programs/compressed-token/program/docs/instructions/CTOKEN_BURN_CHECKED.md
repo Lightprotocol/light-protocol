@@ -161,7 +161,7 @@ CToken BurnChecked implements similar core functionality to SPL Token-2022's Bur
 
 3. **Decimals Validation:**
    - Pinocchio validates instruction decimals against CMint's decimals field
-   - Returns MintDecimalsMismatch (error code: 15) on mismatch
+   - Returns MintDecimalsMismatch (error code: 18) on mismatch
 
 ### Security Properties
 

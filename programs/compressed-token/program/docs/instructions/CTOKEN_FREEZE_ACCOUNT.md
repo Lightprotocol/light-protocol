@@ -5,7 +5,7 @@
 **path:** programs/compressed-token/program/src/ctoken_freeze_thaw.rs
 
 **description:**
-Freezes a decompressed ctoken account, preventing transfers and other operations while frozen. This is a pass-through instruction that validates mint ownership (must be owned by SPL Token, Token-2022, or CToken program) before delegating to pinocchio-token-program for standard SPL Token freeze validation. After freezing, the account's state field is set to AccountState::Frozen, and only the freeze_authority of the mint can freeze accounts (mint must have freeze_authority set). The account layout `CToken` is defined in program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs.
+Freezes a decompressed ctoken account, preventing transfers and other operations while frozen. This is a pass-through instruction that validates mint ownership (must be owned by SPL Token, Token-2022, or CToken program) before delegating to pinocchio-token-program for standard SPL Token freeze validation. After freezing, the account's state field is set to AccountState::Frozen, and only the freeze_authority of the mint can freeze accounts (mint must have freeze_authority set). The account layout `CToken` is defined in program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs.
 
 **Instruction data:**
 No instruction data required beyond the discriminator byte.
@@ -121,7 +121,7 @@ CToken accounts may have a `Compressible` extension (not present in SPL/Token-20
 
 **Permanent Delegate Interaction:**
 - Token-2022: Permanent delegate cannot transfer/burn from frozen accounts (operations fail with AccountFrozen)
-- CToken: Same behavior - permanent delegate cannot compress frozen accounts (see `programs/compressed-token/program/src/shared/owner_validation.rs:82-113`)
+- CToken: Same behavior - permanent delegate cannot compress frozen accounts (frozen check in `programs/compressed-token/program/src/transfer2/compression/ctoken/compress_or_decompress_ctokens.rs:173-178`)
 
 **Default Account State Extension:**
 - Token-2022: Supports `DefaultAccountState` extension to create accounts in frozen state by default

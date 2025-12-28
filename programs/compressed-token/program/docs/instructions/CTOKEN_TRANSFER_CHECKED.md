@@ -1,21 +1,21 @@
 ## CToken TransferChecked
 
 **discriminator:** 6
-**enum:** `CTokenInstruction::CTokenTransferChecked`
+**enum:** `InstructionType::CTokenTransferChecked`
 **path:** programs/compressed-token/program/src/transfer/checked.rs
 
 ### SPL Instruction Format Compatibility
 
-**Important:** This instruction is only compatible with the SPL Token instruction format (using `spl_token_2022::instruction::transfer_checked` with changed program ID) when **no top-up is required**.
+**Important:** This instruction uses the same account layout as SPL Token TransferChecked (source, mint, destination, authority) but has extended instruction data format.
 
-If any CToken account (source or destination) has a compressible extension and requires a rent top-up, the instruction needs the **system program account** to perform the lamports transfer. Without the system program account, the top-up CPI will fail.
+When accounts require rent top-up, lamports are transferred directly from the authority account to the token accounts. The authority must have sufficient lamports to cover the top-up amount.
 
 **Compatibility scenarios:**
-- **SPL-compatible (no system program needed):** Non-compressible accounts, or compressible accounts with sufficient prepaid rent
-- **NOT SPL-compatible (system program required):** Compressible accounts that need rent top-up based on current slot
+- **SPL-compatible:** When using 9-byte instruction data (amount + decimals) with no top-up needed
+- **Extended format:** When using 11-byte instruction data (amount + decimals + max_top_up) for compressible accounts
 
 **description:**
-Transfers tokens between decompressed ctoken solana accounts with mint decimals validation, fully compatible with SPL Token TransferChecked semantics. Account layout `CToken` is defined in program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs. Extension layout `CompressionInfo` is defined in program-libs/compressible/src/state/compression_info.rs. Uses pinocchio-token-program to process the transfer (lightweight SPL-compatible implementation). After the transfer, automatically tops up compressible accounts with additional lamports if needed based on current slot and account balance. Top-up prevents accounts from becoming compressible during normal operations. Supports standard SPL Token transfer features including delegate authority and permanent delegate (multisig not supported). The transfer amount, authority validation, and decimals validation follow SPL Token TransferChecked rules exactly. Validates that mint decimals match the provided decimals parameter. Difference from CTokenTransfer: Requires mint account (4 accounts vs 3) for decimals validation and T22 extension validation.
+Transfers tokens between decompressed ctoken solana accounts with mint decimals validation, fully compatible with SPL Token TransferChecked semantics. Account layout `CToken` is defined in program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs. Compression info for rent top-up is defined in program-libs/compressible/src/compression_info.rs. Uses pinocchio-token-program to process the transfer (lightweight SPL-compatible implementation). After the transfer, automatically tops up compressible accounts with additional lamports if needed based on current slot and account balance. Top-up prevents accounts from becoming compressible during normal operations. Supports standard SPL Token transfer features including delegate authority and permanent delegate (multisig not supported). The transfer amount, authority validation, and decimals validation follow SPL Token TransferChecked rules exactly. Validates that mint decimals match the provided decimals parameter. Difference from CTokenTransfer: Requires mint account (4 accounts vs 3) for decimals validation and T22 extension validation.
 
 **Instruction data:**
 - **9 bytes (legacy):** amount (u64) + decimals (u8)
@@ -74,7 +74,7 @@ Transfers tokens between decompressed ctoken solana accounts with mint decimals 
    - Validate sender (source account):
      - Deserialize source account (CToken) and extract extension information
      - Validate mint account matches source token's mint field
-     - Check for T22 restricted extensions (pausable, permanent_delegate, transfer_fee, transfer_hook)
+     - Check for T22 restricted extensions (pausable, permanent_delegate, transfer_fee, transfer_hook, default_account_state)
      - If source has restricted extensions, deserialize and validate mint extensions once:
        - Mint must not be paused
        - Transfer fees must be zero
@@ -131,10 +131,10 @@ Transfers tokens between decompressed ctoken solana accounts with mint decimals 
   - `TokenError::AccountFrozen` (error code: 17) - Source or destination account is frozen
   - `TokenError::InsufficientFunds` (error code: 1) - Delegate has insufficient allowance
   - `TokenError::InvalidMint` (error code: 2) - Mint decimals do not match provided decimals parameter
-- `ErrorCode::MintRequiredForTransfer` (error code: 6498) - Account has restricted extensions but mint account not provided
-- `ErrorCode::MintPaused` (error code: 6496) - Mint has pausable extension and is currently paused
-- `ErrorCode::NonZeroTransferFeeNotSupported` (error code: 6500) - Mint has non-zero transfer fee configured
-- `ErrorCode::TransferHookNotSupported` (error code: 6501) - Mint has transfer hook with non-nil program_id
+- `ErrorCode::MintRequiredForTransfer` (error code: 6128) - Account has restricted extensions but mint account not provided
+- `ErrorCode::MintPaused` (error code: 6127) - Mint has pausable extension and is currently paused
+- `ErrorCode::NonZeroTransferFeeNotSupported` (error code: 6129) - Mint has non-zero transfer fee configured
+- `ErrorCode::TransferHookNotSupported` (error code: 6130) - Mint has transfer hook with non-nil program_id
 
 ## Comparison with Token-2022
 
@@ -160,7 +160,7 @@ CToken TransferChecked includes automatic rent top-up for compressible accounts 
 - **Budget enforcement**: `max_top_up` parameter (bytes 9-11) limits total lamports for combined source + destination top-up (0 = no limit)
 - **Purpose**: Prevents accounts from becoming compressible during normal operations, ensuring continuous availability
 
-**Code Reference**: `programs/compressed-token/program/src/transfer/shared.rs:82-121`
+**Code Reference**: `programs/compressed-token/program/src/transfer/shared.rs:93-122`
 
 #### 2. Max Top-Up Parameter
 CToken supports an optional 11-byte instruction format with max_top_up budget:
@@ -170,7 +170,7 @@ CToken supports an optional 11-byte instruction format with max_top_up budget:
 - **Enforcement**: Transaction fails with `MaxTopUpExceeded` if calculated top-up exceeds budget
 - **Token-2022**: Has no equivalent budget parameter
 
-**Code Reference**: `programs/compressed-token/program/src/transfer/checked.rs:55-65`
+**Code Reference**: `programs/compressed-token/program/src/transfer/checked.rs:57-65`
 
 #### 3. Cached Decimals Optimization
 CToken can cache mint decimals in the Compressible extension to skip mint account validation:
@@ -181,7 +181,7 @@ CToken can cache mint decimals in the Compressible extension to skip mint accoun
 - **Benefit**: Reduces account requirements and mint deserialization overhead for compressible accounts
 - **Token-2022**: Always requires mint account for decimals validation
 
-**Code Reference**: `programs/compressed-token/program/src/transfer/checked.rs:81-95`
+**Code Reference**: `programs/compressed-token/program/src/transfer/checked.rs:81-101`
 
 #### 4. Single Account Deserialization
 CToken deserializes each account (source, destination) exactly once to extract:
@@ -192,7 +192,7 @@ CToken deserializes each account (source, destination) exactly once to extract:
 
 Token-2022 deserializes accounts multiple times throughout validation.
 
-**Code Reference**: `programs/compressed-token/program/src/transfer/shared.rs:186-263`
+**Code Reference**: `programs/compressed-token/program/src/transfer/shared.rs:186-264`
 
 ### Missing Features
 
@@ -213,7 +213,7 @@ Token-2022 deserializes accounts multiple times throughout validation.
 - **Credited amount**: CToken always credits full amount (no fee deduction), Token-2022 credits `amount - fee`
 
 **Token-2022 Reference**: `/home/ananas/dev/token-2022/analysis/transfer-checked.md:94-96, 211-222`
-**CToken Reference**: `programs/compressed-token/program/src/transfer/shared.rs:245-249`
+**CToken Reference**: `programs/compressed-token/program/src/transfer/shared.rs:245-249` (extension flag detection)
 
 #### 3. No TransferHook Execution
 - **CToken**: Rejects mints with transfer hooks that have non-nil program_id
@@ -224,7 +224,7 @@ Token-2022 deserializes accounts multiple times throughout validation.
 - **Use case limitation**: CToken cannot support custom transfer logic hooks
 
 **Token-2022 Reference**: `/home/ananas/dev/token-2022/analysis/transfer-checked.md:236-270`
-**CToken Reference**: `programs/compressed-token/program/src/transfer/shared.rs:250-253`
+**CToken Reference**: `programs/compressed-token/program/src/transfer/shared.rs:250-253` (extension flag detection)
 
 #### 4. No Self-Transfer Optimization
 - **CToken**: Processes source and destination independently even when identical

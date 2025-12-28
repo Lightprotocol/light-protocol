@@ -17,7 +17,7 @@ This document compares the behavior of 5 restricted Token-2022 extensions betwee
 | PermanentDelegate scope   | Transfer + Burn              | Transfer + Burn (same)              |
 | Pausable: MintTo/Burn     | Blocked when paused          | N/A (CMint-only, no extensions)     |
 | Account extensions        | Per-extension markers        | All restricted add markers          |
-| Compression bypass        | N/A                          | CompressAndClose/Decompress bypass  |
+| Compression bypass        | N/A                          | CompressAndClose/FullDecompress bypass |
 
 ---
 
@@ -138,13 +138,13 @@ Transfer hooks invoke external programs that cannot access compressed state. Sin
 
 ### Key Differences
 
-| Aspect              | T22                       | CToken                            |
-|---------------------|---------------------------|-----------------------------------|
-| MintTo when paused  | Blocked (`MintPaused`)    | N/A (CTokenMintTo is CMint-only)  |
-| Burn when paused    | Blocked (`MintPaused`)    | N/A (CTokenBurn is CMint-only)    |
-| Pause/Resume        | Direct instructions       | Not implemented (T22 mint instr)  |
-| Decompress (paused) | N/A                       | ALLOWED (bypasses check)          |
-| CompressAndClose    | N/A                       | ALLOWED (bypasses check)          |
+| Aspect                   | T22                       | CToken                            |
+|--------------------------|---------------------------|-----------------------------------|
+| MintTo when paused       | Blocked (`MintPaused`)    | N/A (CTokenMintTo is CMint-only)  |
+| Burn when paused         | Blocked (`MintPaused`)    | N/A (CTokenBurn is CMint-only)    |
+| Pause/Resume             | Direct instructions       | Not implemented (T22 mint instr)  |
+| Full Decompress (paused) | N/A                       | ALLOWED (bypasses check)          |
+| CompressAndClose         | N/A                       | ALLOWED (bypasses check)          |
 
 ### T22 Features Not Implemented
 
@@ -156,8 +156,10 @@ Transfer hooks invoke external programs that cannot access compressed state. Sin
 **CTokenMintTo/CTokenBurn - CMint only:**
 CTokenMintTo and CTokenBurn instructions only work with CMints (compressed mints). CMints do not support restricted extensions - only TokenMetadata is allowed. Therefore, pausable checks are not applicable to these instructions. T22 mints with Pausable extension can only be used with CToken accounts via Transfer2 (compress/decompress).
 
-**Decompress/CompressAndClose bypass:**
+**Full Decompress/CompressAndClose bypass:**
 Users who compressed tokens before a pause should be able to recover them. CompressAndClose allows foresters to reclaim rent even when paused. These operations use `parse_mint_extensions()` (extract data only) instead of `check_mint_extensions()` (validate state).
+
+**Note:** "Full decompress" means decompress operations with no compressed outputs (`inputs.out_token_data.is_empty()`). Decompress operations that also create new compressed outputs are subject to normal validation.
 
 ---
 
@@ -182,7 +184,7 @@ Users who compressed tokens before a pause should be able to recover them. Compr
 Required when mint has any restricted extension:
 - Enforced at CreateTokenAccount via `has_mint_extensions()`
 - Prevents creation of regular compressed token outputs for restricted mints
-- Error: `CompressionOnlyRequired` (6097)
+- Error: `CompressionOnlyRequired` (6131)
 
 Enables:
 - State preservation during CompressAndClose (delegated_amount, withheld_transfer_fee, frozen state)
@@ -191,16 +193,23 @@ Enables:
 ### CompressAndClose/Decompress Bypass (CToken-specific)
 
 ```rust
-// Path: src/transfer2/check_extensions.rs:102-110
-if compression.mode.is_compress_and_close() || compression.mode.is_decompress() {
+// Path: src/transfer2/check_extensions.rs:106-114
+let is_full_decompress =
+    compression.mode.is_decompress() && inputs.out_token_data.is_empty();
+let checks = if compression.mode.is_compress_and_close() || is_full_decompress {
+    // CompressAndClose and Decompress bypass extension state checks
     parse_mint_extensions(mint_account)?  // Extract data only
 } else {
     check_mint_extensions(mint_account, deny_restricted_extensions)?  // Validate state
-}
+};
 ```
 
+**Note:** Only "full decompress" (decompress without creating new compressed outputs) bypasses
+state checks. Decompress operations that create additional compressed outputs are subject to
+normal validation via `check_mint_extensions`.
+
 This allows:
-- **Decompress when paused:** Users can recover tokens compressed before pause
+- **Full Decompress when paused:** Users can recover tokens compressed before pause (when no compressed outputs)
 - **CompressAndClose when paused:** Foresters can reclaim rent exemption
 - **Operations after fee/hook changes:** Users aren't locked out by mint config changes
 

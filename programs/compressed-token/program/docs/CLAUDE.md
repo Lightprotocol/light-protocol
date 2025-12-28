@@ -24,6 +24,9 @@ This documentation is organized to provide clear navigation through the compress
   - `CTOKEN_BURN.md` - Burn tokens from decompressed CToken account
   - `CTOKEN_FREEZE_ACCOUNT.md` - Freeze decompressed CToken account
   - `CTOKEN_THAW_ACCOUNT.md` - Thaw frozen decompressed CToken account
+  - `CTOKEN_APPROVE_CHECKED.md` - Approve delegate with decimals validation
+  - `CTOKEN_MINT_TO_CHECKED.md` - Mint tokens with decimals validation
+  - `CTOKEN_BURN_CHECKED.md` - Burn tokens with decimals validation
   - `WITHDRAW_FUNDING_POOL.md` - Withdraw funds from rent recipient pool
   - `CREATE_TOKEN_POOL.md` - Create initial token pool for SPL/T22 mint compression
   - `ADD_TOKEN_POOL.md` - Add additional token pools (up to 5 per mint)
