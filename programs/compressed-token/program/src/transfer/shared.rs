@@ -218,8 +218,12 @@ fn process_account_extensions(
             .map_err(|_| CTokenError::SysvarAccessError)?
             .minimum_balance(account.data_len());
 
-        info.top_up_amount = token
-            .compression
+        let compression = token
+            .get_compressible_extension()
+            .ok_or(CTokenError::InvalidAccountData)?;
+
+        info.top_up_amount = compression
+            .info
             .calculate_top_up_lamports(
                 account.data_len() as u64,
                 *current_slot,
@@ -229,7 +233,7 @@ fn process_account_extensions(
             .map_err(|_| CTokenError::InvalidAccountData)?;
 
         // Extract cached decimals if set
-        info.decimals = token.base.decimals();
+        info.decimals = compression.decimals();
     }
 
     // Process other extensions if present

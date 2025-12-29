@@ -68,14 +68,16 @@ pub fn compress_or_decompress_ctokens(
                     .checked_sub(amount)
                     .ok_or(ProgramError::ArithmeticOverflow)?,
             );
-
-            process_compression_top_up(
-                &ctoken.base.compression,
-                token_account_info,
-                &mut current_slot,
-                transfer_amount,
-                lamports_budget,
-            )
+            if let Some(compression) = ctoken.get_compressible_extension() {
+                process_compression_top_up(
+                    &compression.info,
+                    token_account_info,
+                    &mut current_slot,
+                    transfer_amount,
+                    lamports_budget,
+                )?;
+            }
+            Ok(())
         }
         ZCompressionMode::Decompress => {
             // Handle extension state transfer from input compressed account
@@ -90,13 +92,16 @@ pub fn compress_or_decompress_ctokens(
                     .ok_or(ProgramError::ArithmeticOverflow)?,
             );
 
-            process_compression_top_up(
-                &ctoken.base.compression,
-                token_account_info,
-                &mut current_slot,
-                transfer_amount,
-                lamports_budget,
-            )
+            if let Some(compression) = ctoken.get_compressible_extension() {
+                process_compression_top_up(
+                    &compression.info,
+                    token_account_info,
+                    &mut current_slot,
+                    transfer_amount,
+                    lamports_budget,
+                )?;
+            }
+            Ok(())
         }
         ZCompressionMode::CompressAndClose => process_compress_and_close(
             authority,

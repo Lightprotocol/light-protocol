@@ -171,6 +171,9 @@ pub enum CTokenError {
 
     #[error("Decompress destination CToken is not a fresh account")]
     DecompressDestinationNotFresh,
+
+    #[error("CToken account missing required Compressible extension")]
+    MissingCompressibleExtension,
 }
 
 impl From<CTokenError> for u32 {
@@ -231,6 +234,7 @@ impl From<CTokenError> for u32 {
             CTokenError::InvalidAccountType => 18053,
             CTokenError::DuplicateCompressionIndex => 18054,
             CTokenError::DecompressDestinationNotFresh => 18055,
+            CTokenError::MissingCompressibleExtension => 18056,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

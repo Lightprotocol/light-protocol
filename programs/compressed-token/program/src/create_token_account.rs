@@ -27,8 +27,8 @@ pub struct CreateCTokenAccounts<'info> {
     pub token_account: &'info AccountInfo,
     /// The mint for the token account (only used for pubkey not checked)
     pub mint: &'info AccountInfo,
-    /// Optional compressible configuration accounts
-    pub compressible: CompressibleAccounts<'info>,
+    /// Optional compressible configuration accounts (None = non-compressible account)
+    pub compressible: Option<CompressibleAccounts<'info>>,
 }
 
 /// Accounts required when creating a compressible token account
@@ -47,19 +47,39 @@ impl<'info> CreateCTokenAccounts<'info> {
     /// Parse and validate accounts from the provided account infos
     #[profile]
     #[inline(always)]
-    pub fn new(account_infos: &'info [AccountInfo]) -> Result<Self, ProgramError> {
+    pub fn parse(
+        account_infos: &'info [AccountInfo],
+        is_compressible: bool,
+    ) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(account_infos);
-        Ok(Self {
-            token_account: iter.next_signer_mut("token_account")?,
-            mint: iter.next_non_mut("mint")?,
-            compressible: CompressibleAccounts {
+
+        // For compressible accounts: token_account must be signer (account created via CPI)
+        // For non-compressible accounts: token_account doesn't need to be signer (SPL compatibility)
+        let token_account = if is_compressible {
+            iter.next_signer_mut("token_account")?
+        } else {
+            iter.next_mut("token_account")?
+        };
+        let mint = iter.next_non_mut("mint")?;
+
+        // Parse optional compressible accounts
+        let compressible = if is_compressible {
+            Some(CompressibleAccounts {
                 payer: iter.next_signer_mut("payer")?,
                 parsed_config: next_config_account(&mut iter)?,
                 system_program: iter.next_non_mut("system program")?,
                 // Must be signer if custom rent payer.
                 // Rent sponsor is not signer.
                 rent_payer: iter.next_mut("rent payer")?,
-            },
+            })
+        } else {
+            None
+        };
+
+        Ok(Self {
+            token_account,
+            mint,
+            compressible,
         })
     }
 }
@@ -105,109 +125,122 @@ pub fn process_create_token_account(
     account_infos: &[AccountInfo],
     mut instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
+    use crate::shared::initialize_ctoken_account::CompressibleInitData;
+
     let inputs = CreateTokenAccountInstructionData::deserialize(&mut instruction_data)
         .map_err(ProgramError::from)?;
 
+    let is_compressible = inputs.compressible_config.is_some();
+
     // Parse and validate accounts
-    let accounts = CreateCTokenAccounts::new(account_infos)?;
-
-    // Validate that rent_payment is not exactly 1 epoch (footgun prevention)
-    if inputs.rent_payment == 1 {
-        msg!("Prefunding for exactly 1 epoch is not allowed. If the account is created near an epoch boundary, it could become immediately compressible. Use 0 or 2+ epochs.");
-        return Err(anchor_compressed_token::ErrorCode::OneEpochPrefundingNotAllowed.into());
-    }
-
-    if let Some(compress_to_pubkey) = inputs.compressible_config.as_ref() {
-        // Compress to pubkey specifies compression to account pubkey instead of the owner.
-        // This is useful for pda token accounts that rely on pubkey derivation but have a program wide
-        // authority pda as owner.
-        // To prevent compressing ctokens to owners that cannot sign, prevent misconfiguration,
-        // we check that the account is a pda and can be signer with known seeds.
-        compress_to_pubkey.check_seeds(accounts.token_account.key())?;
-    }
+    let accounts = CreateCTokenAccounts::parse(account_infos, is_compressible)?;
 
     // Check which extensions the mint has (single deserialization)
     let mint_extensions = has_mint_extensions(accounts.mint)?;
 
-    // If restricted extensions exist, compression_only must be set
-    if mint_extensions.has_restricted_extensions() && inputs.compression_only == 0 {
-        msg!("Mint has restricted extensions - compression_only must be set");
-        return Err(anchor_compressed_token::ErrorCode::CompressionOnlyRequired.into());
-    }
+    // Handle compressible vs non-compressible account creation
+    let compressible_init_data = if let Some(ref compressible_config) = inputs.compressible_config {
+        let compressible = accounts
+            .compressible
+            .as_ref()
+            .ok_or(ProgramError::InvalidAccountData)?;
 
-    // Calculate account size based on extensions
-    let account_size = mint_extensions.calculate_account_size()?;
+        // Validate that rent_payment is not exactly 1 epoch (footgun prevention)
+        if compressible_config.rent_payment == 1 {
+            msg!("Prefunding for exactly 1 epoch is not allowed. If the account is created near an epoch boundary, it could become immediately compressible. Use 0 or 2+ epochs.");
+            return Err(anchor_compressed_token::ErrorCode::OneEpochPrefundingNotAllowed.into());
+        }
 
-    let config_account = &accounts.compressible.parsed_config;
-    let rent = config_account
-        .rent_config
-        .get_rent_with_compression_cost(account_size, inputs.rent_payment as u64);
-    let account_size = account_size as usize;
+        if let Some(compress_to_pubkey) = compressible_config.compress_to_account_pubkey.as_ref() {
+            // Compress to pubkey specifies compression to account pubkey instead of the owner.
+            compress_to_pubkey.check_seeds(accounts.token_account.key())?;
+        }
 
-    let custom_rent_payer =
-        *accounts.compressible.rent_payer.key() != config_account.rent_sponsor.to_bytes();
+        // If restricted extensions exist, compression_only must be set
+        if mint_extensions.has_restricted_extensions() && compressible_config.compression_only == 0
+        {
+            msg!("Mint has restricted extensions - compression_only must be set");
+            return Err(anchor_compressed_token::ErrorCode::CompressionOnlyRequired.into());
+        }
 
-    // Prevents setting executable accounts as rent_sponsor
-    if custom_rent_payer && !accounts.compressible.rent_payer.is_signer() {
-        msg!("Custom rent payer must be a signer");
-        return Err(ProgramError::MissingRequiredSignature);
-    }
+        // Calculate account size based on extensions (includes Compressible extension)
+        let account_size = mint_extensions.calculate_account_size()?;
 
-    // Build fee_payer seeds (rent_sponsor PDA or None for custom keypair)
-    let version_bytes = config_account.version.to_le_bytes();
-    let bump_seed = [config_account.rent_sponsor_bump];
-    let rent_sponsor_seeds = [
-        Seed::from(b"rent_sponsor".as_ref()),
-        Seed::from(version_bytes.as_ref()),
-        Seed::from(bump_seed.as_ref()),
-    ];
+        let config_account = compressible.parsed_config;
+        let rent = config_account
+            .rent_config
+            .get_rent_with_compression_cost(account_size, compressible_config.rent_payment as u64);
+        let account_size = account_size as usize;
 
-    // fee_payer_seeds: Some for rent_sponsor PDA, None for custom keypair
-    // new_account_seeds: None (token_account is always a keypair signer)
-    let fee_payer_seeds = if custom_rent_payer {
-        None
+        let custom_rent_payer =
+            *compressible.rent_payer.key() != config_account.rent_sponsor.to_bytes();
+
+        // Prevents setting executable accounts as rent_sponsor
+        if custom_rent_payer && !compressible.rent_payer.is_signer() {
+            msg!("Custom rent payer must be a signer");
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Build fee_payer seeds (rent_sponsor PDA or None for custom keypair)
+        let version_bytes = config_account.version.to_le_bytes();
+        let bump_seed = [config_account.rent_sponsor_bump];
+        let rent_sponsor_seeds = [
+            Seed::from(b"rent_sponsor".as_ref()),
+            Seed::from(version_bytes.as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
+
+        let fee_payer_seeds = if custom_rent_payer {
+            None
+        } else {
+            Some(rent_sponsor_seeds.as_slice())
+        };
+
+        let additional_lamports = if custom_rent_payer { Some(rent) } else { None };
+
+        // Create token account (handles DoS prevention internally)
+        create_pda_account(
+            compressible.rent_payer,
+            accounts.token_account,
+            account_size,
+            fee_payer_seeds,
+            None, // token_account is keypair signer
+            additional_lamports,
+        )?;
+
+        // When using protocol rent sponsor, payer pays the compression incentive
+        if !custom_rent_payer {
+            transfer_lamports_via_cpi(rent, compressible.payer, accounts.token_account)
+                .map_err(convert_program_error)?;
+        }
+
+        Some(CompressibleInitData {
+            ix_data: CompressionInstructionData {
+                compression_only: compressible_config.compression_only,
+                token_account_version: compressible_config.token_account_version,
+                write_top_up: compressible_config.write_top_up,
+            },
+            config_account: compressible.parsed_config,
+            compress_to_pubkey: compressible_config.compress_to_account_pubkey.as_ref(),
+            custom_rent_payer: if custom_rent_payer {
+                Some(*compressible.rent_payer.key())
+            } else {
+                None
+            },
+        })
     } else {
-        Some(rent_sponsor_seeds.as_slice())
+        // Non-compressible account: token_account must already exist and be owned by our program
+        // This is SPL-compatible initialize_account3 behavior
+        None
     };
 
-    // Custom rent payer pays both account creation and compression incentive
-    // Protocol rent sponsor only pays account creation, payer pays compression incentive
-    let additional_lamports = if custom_rent_payer { Some(rent) } else { None };
-
-    // Create token account (handles DoS prevention internally)
-    create_pda_account(
-        accounts.compressible.rent_payer,
-        accounts.token_account,
-        account_size,
-        fee_payer_seeds,
-        None, // token_account is keypair signer
-        additional_lamports,
-    )?;
-
-    // When using protocol rent sponsor, payer pays the compression incentive
-    if !custom_rent_payer {
-        transfer_lamports_via_cpi(rent, accounts.compressible.payer, accounts.token_account)
-            .map_err(convert_program_error)?;
-    }
-
-    // Initialize the token account (assumes account already exists and is owned by our program)
+    // Initialize the token account
     initialize_ctoken_account(
         accounts.token_account,
         CTokenInitConfig {
             mint: accounts.mint.key(),
             owner: &inputs.owner.to_bytes(),
-            compress_to_pubkey: inputs.compressible_config.as_ref(),
-            compression_ix_data: CompressionInstructionData {
-                compression_only: inputs.compression_only,
-                token_account_version: inputs.token_account_version,
-                write_top_up: inputs.write_top_up,
-            },
-            compressible_config_account: accounts.compressible.parsed_config,
-            custom_rent_payer: if custom_rent_payer {
-                Some(*accounts.compressible.rent_payer.key())
-            } else {
-                None
-            },
+            compressible: compressible_init_data,
             mint_extensions,
             mint_account: accounts.mint,
         },

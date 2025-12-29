@@ -42,6 +42,12 @@ pub fn process_ctoken_approve(
     let source = accounts
         .get(APPROVE_ACCOUNT_SOURCE)
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    process_approve(accounts, &instruction_data[..8]).map_err(convert_program_error)?;
+    // Hot path: 165-byte accounts have no extensions, just call pinocchio directly
+    if source.data_len() == 165 {
+        return Ok(());
+    }
+
     let payer = accounts
         .get(APPROVE_ACCOUNT_OWNER)
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
@@ -56,12 +62,7 @@ pub fn process_ctoken_approve(
         ),
         _ => return Err(ProgramError::InvalidInstructionData),
     };
-
-    // Handle compressible top-up before pinocchio call
-    process_compressible_top_up(source, payer, max_top_up)?;
-
-    // Only pass the first 8 bytes (amount) to the SPL approve processor
-    process_approve(accounts, &instruction_data[..8]).map_err(convert_program_error)
+    process_compressible_top_up(source, payer, max_top_up)
 }
 
 /// Process CToken revoke instruction.
@@ -78,6 +79,14 @@ pub fn process_ctoken_revoke(
     let source = accounts
         .get(REVOKE_ACCOUNT_SOURCE)
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
+
+    process_revoke(accounts).map_err(convert_program_error)?;
+
+    // Hot path: 165-byte accounts have no extensions
+    if source.data_len() == 165 {
+        return Ok(());
+    }
+
     let payer = accounts
         .get(REVOKE_ACCOUNT_OWNER)
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
@@ -93,10 +102,7 @@ pub fn process_ctoken_revoke(
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
-    // Handle compressible top-up before pinocchio call
-    process_compressible_top_up(source, payer, max_top_up)?;
-
-    process_revoke(accounts).map_err(convert_program_error)
+    process_compressible_top_up(source, payer, max_top_up)
 }
 
 /// Calculate and transfer compressible top-up for a single account.
@@ -115,28 +121,35 @@ fn process_compressible_top_up(
         .map_err(convert_program_error)?;
     let (ctoken, _) = CToken::zero_copy_at_mut_checked(&mut account_data)?;
 
-    let mut transfer_amount = 0u64;
-    let mut lamports_budget = if max_top_up == 0 {
-        u64::MAX
-    } else {
-        (max_top_up as u64).saturating_add(1)
-    };
+    // Only process top-up if account has Compressible extension
+    let transfer_amount = if let Some(compressible) = ctoken.get_compressible_extension() {
+        let mut transfer_amount = 0u64;
+        let mut lamports_budget = if max_top_up == 0 {
+            u64::MAX
+        } else {
+            (max_top_up as u64).saturating_add(1)
+        };
 
-    process_compression_top_up(
-        &ctoken.base.compression,
-        account,
-        &mut 0,
-        &mut transfer_amount,
-        &mut lamports_budget,
-    )?;
+        process_compression_top_up(
+            &compressible.info,
+            account,
+            &mut 0,
+            &mut transfer_amount,
+            &mut lamports_budget,
+        )?;
+
+        if transfer_amount > 0 && lamports_budget == 0 {
+            return Err(CTokenError::MaxTopUpExceeded.into());
+        }
+        transfer_amount
+    } else {
+        0
+    };
 
     // Drop borrow before CPI
     drop(account_data);
 
     if transfer_amount > 0 {
-        if lamports_budget == 0 {
-            return Err(CTokenError::MaxTopUpExceeded.into());
-        }
         transfer_lamports_via_cpi(transfer_amount, payer, account)
             .map_err(convert_program_error)?;
     }
@@ -177,6 +190,21 @@ pub fn process_ctoken_approve_checked(
     let (amount, decimals) =
         unpack_amount_and_decimals(instruction_data).map_err(|e| ProgramError::Custom(e as u32))?;
 
+    let source = accounts
+        .get(APPROVE_CHECKED_ACCOUNT_SOURCE)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let mint = accounts
+        .get(APPROVE_CHECKED_ACCOUNT_MINT)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+
+    // Hot path: 165-byte accounts have no extensions (no cached decimals, no top-up)
+    // Validate via mint and use full 4-account layout
+    if source.data_len() == 165 {
+        check_token_program_owner(mint)?;
+        return shared_process_approve(accounts, amount, Some(decimals))
+            .map_err(convert_program_error);
+    }
+
     // Parse max_top_up from bytes 9-10 if present (0 = no limit)
     let max_top_up = match instruction_data.len() {
         9 => 0u16, // Legacy: no max_top_up
@@ -188,12 +216,6 @@ pub fn process_ctoken_approve_checked(
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
-    let source = accounts
-        .get(APPROVE_CHECKED_ACCOUNT_SOURCE)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let mint = accounts
-        .get(APPROVE_CHECKED_ACCOUNT_MINT)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
     let delegate = accounts
         .get(APPROVE_CHECKED_ACCOUNT_DELEGATE)
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
@@ -201,39 +223,45 @@ pub fn process_ctoken_approve_checked(
         .get(APPROVE_CHECKED_ACCOUNT_OWNER)
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-    // Borrow source account to check for cached decimals
+    // Borrow source account to check for cached decimals and handle top-up
     let cached_decimals = {
         let mut account_data = source
             .try_borrow_mut_data()
             .map_err(convert_program_error)?;
         let (ctoken, _) = CToken::zero_copy_at_mut_checked(&mut account_data)?;
 
-        // Get cached decimals if present
-        let cached = ctoken.base.decimals();
+        // Get compressible extension for cached decimals and top-up
+        let (cached, transfer_amount) =
+            if let Some(compressible) = ctoken.get_compressible_extension() {
+                let cached = compressible.decimals();
 
-        // Also handle compressible top-up while we have the borrow
-        let mut transfer_amount = 0u64;
-        let mut lamports_budget = if max_top_up == 0 {
-            u64::MAX
-        } else {
-            (max_top_up as u64).saturating_add(1)
-        };
+                let mut transfer_amount = 0u64;
+                let mut lamports_budget = if max_top_up == 0 {
+                    u64::MAX
+                } else {
+                    (max_top_up as u64).saturating_add(1)
+                };
 
-        process_compression_top_up(
-            &ctoken.base.compression,
-            source,
-            &mut 0,
-            &mut transfer_amount,
-            &mut lamports_budget,
-        )?;
+                process_compression_top_up(
+                    &compressible.info,
+                    source,
+                    &mut 0,
+                    &mut transfer_amount,
+                    &mut lamports_budget,
+                )?;
+
+                if transfer_amount > 0 && lamports_budget == 0 {
+                    return Err(CTokenError::MaxTopUpExceeded.into());
+                }
+                (cached, transfer_amount)
+            } else {
+                (None, 0)
+            };
 
         // Drop borrow before CPI
         drop(account_data);
 
         if transfer_amount > 0 {
-            if lamports_budget == 0 {
-                return Err(CTokenError::MaxTopUpExceeded.into());
-            }
             transfer_lamports_via_cpi(transfer_amount, owner, source)
                 .map_err(convert_program_error)?;
         }
