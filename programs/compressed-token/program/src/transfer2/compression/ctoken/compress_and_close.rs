@@ -8,6 +8,7 @@ use light_ctoken_interface::{
         transfer2::{ZCompression, ZCompressionMode, ZMultiTokenTransferOutputData},
     },
     state::{ZCTokenMut, ZExtensionStructMut},
+    CTokenError,
 };
 use light_program_profiler::profile;
 use pinocchio::{
@@ -157,10 +158,12 @@ fn validate_compressed_token_account(
     if compressed_token_account.version != 3 {
         return Err(ErrorCode::CompressAndCloseInvalidVersion.into());
     }
-
+    let compression = ctoken
+        .get_compressible_extension()
+        .ok_or::<ProgramError>(CTokenError::MissingCompressibleExtension.into())?;
     // Version should also match what's specified in the embedded compression info
-    let expected_version = ctoken.compression.account_version;
-    let compression_only = ctoken.compression_only != 0;
+    let expected_version = compression.info.account_version;
+    let compression_only = compression.compression_only();
 
     if compressed_token_account.version != expected_version {
         return Err(ErrorCode::CompressAndCloseInvalidVersion.into());

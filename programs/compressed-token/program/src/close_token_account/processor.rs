@@ -72,21 +72,27 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
         // - Implement harvest_withheld_fees instruction to extract fees first
         // - T22 blocks close when withheld_amount > 0 to prevent fee loss
     }
-    // All ctoken accounts are now compressible - CompressionInfo is embedded directly in the struct
-    let compression = &ctoken.base.compression;
-
-    // Validate rent_sponsor matches
-    let rent_sponsor = accounts
-        .rent_sponsor
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    if compression.rent_sponsor != *rent_sponsor.key() {
-        msg!("rent recipient mismatch");
-        return Err(ProgramError::InvalidAccountData);
-    }
+    // Check for Compressible extension
+    let compressible = ctoken.get_compressible_extension();
 
     if COMPRESS_AND_CLOSE {
+        // CompressAndClose requires Compressible extension
+        let compression = compressible.ok_or_else(|| {
+            msg!("compress and close requires compressible extension");
+            ProgramError::InvalidAccountData
+        })?;
+
+        // Validate rent_sponsor matches
+        let rent_sponsor = accounts
+            .rent_sponsor
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        if compression.info.rent_sponsor != *rent_sponsor.key() {
+            msg!("rent recipient mismatch");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
         // For CompressAndClose: ONLY compression_authority can compress and close
-        if compression.compression_authority != *accounts.authority.key() {
+        if compression.info.compression_authority != *accounts.authority.key() {
             msg!("compress and close requires compression authority");
             return Err(ProgramError::InvalidAccountData);
         }
@@ -99,6 +105,7 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
         #[cfg(target_os = "solana")]
         {
             let is_compressible = compression
+                .info
                 .is_compressible(
                     accounts.token_account.data_len() as u64,
                     current_slot,
@@ -112,7 +119,18 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
             }
         }
 
-        return Ok(compression.compress_to_pubkey());
+        return Ok(compression.info.compress_to_pubkey());
+    }
+
+    // For regular close: validate rent_sponsor if compressible
+    if let Some(compression) = compressible {
+        let rent_sponsor = accounts
+            .rent_sponsor
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        if compression.info.rent_sponsor != *rent_sponsor.key() {
+            msg!("rent recipient mismatch");
+            return Err(ProgramError::InvalidAccountData);
+        }
     }
     // For regular close (!COMPRESS_AND_CLOSE): fall through to owner check
 
@@ -169,69 +187,82 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
     let token_account_data = AccountInfoTrait::try_borrow_data(accounts.token_account)?;
     let (ctoken, _) = CToken::zero_copy_at_checked(&token_account_data)?;
 
-    // All ctoken accounts are now compressible - CompressionInfo is embedded directly in the struct
-    let compression = &ctoken.base.compression;
+    // Check for Compressible extension
+    let compressible = ctoken.get_compressible_extension();
 
-    // Calculate distribution based on rent and write_top_up
-    #[cfg(target_os = "solana")]
-    let current_slot = pinocchio::sysvars::clock::Clock::get()
-        .map_err(convert_program_error)?
-        .slot;
-    #[cfg(not(target_os = "solana"))]
-    let current_slot = 0;
-    let compression_cost: u64 = compression.rent_config.compression_cost.into();
+    if let Some(compression) = compressible {
+        // Compressible account: distribute based on rent config
+        #[cfg(target_os = "solana")]
+        let current_slot = pinocchio::sysvars::clock::Clock::get()
+            .map_err(convert_program_error)?
+            .slot;
+        #[cfg(not(target_os = "solana"))]
+        let current_slot = 0;
+        let compression_cost: u64 = compression.info.rent_config.compression_cost.into();
 
-    let (mut lamports_to_rent_sponsor, mut lamports_to_destination) = {
-        let base_lamports = get_rent_exemption_lamports(accounts.token_account.data_len() as u64)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+        let (mut lamports_to_rent_sponsor, mut lamports_to_destination) = {
+            let base_lamports =
+                get_rent_exemption_lamports(accounts.token_account.data_len() as u64)
+                    .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        let state = AccountRentState {
-            num_bytes: accounts.token_account.data_len() as u64,
-            current_slot,
-            current_lamports: token_account_lamports,
-            last_claimed_slot: compression.last_claimed_slot.into(),
+            let state = AccountRentState {
+                num_bytes: accounts.token_account.data_len() as u64,
+                current_slot,
+                current_lamports: token_account_lamports,
+                last_claimed_slot: compression.info.last_claimed_slot.into(),
+            };
+
+            let distribution =
+                state.calculate_close_distribution(&compression.info.rent_config, base_lamports);
+            (distribution.to_rent_sponsor, distribution.to_user)
         };
 
-        let distribution =
-            state.calculate_close_distribution(&compression.rent_config, base_lamports);
-        (distribution.to_rent_sponsor, distribution.to_user)
-    };
+        let rent_sponsor = accounts
+            .rent_sponsor
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-    let rent_sponsor = accounts
-        .rent_sponsor
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        if accounts.authority.key() == &compression.info.compression_authority {
+            // When compressing via compression_authority:
+            // Extract compression incentive from rent_sponsor portion to give to forester
+            // The compression incentive is included in lamports_to_rent_sponsor
+            lamports_to_rent_sponsor = lamports_to_rent_sponsor
+                .checked_sub(compression_cost)
+                .ok_or(ProgramError::InsufficientFunds)?;
 
-    if accounts.authority.key() == &compression.compression_authority {
-        // When compressing via compression_authority:
-        // Extract compression incentive from rent_sponsor portion to give to forester
-        // The compression incentive is included in lamports_to_rent_sponsor
-        lamports_to_rent_sponsor = lamports_to_rent_sponsor
-            .checked_sub(compression_cost)
-            .ok_or(ProgramError::InsufficientFunds)?;
+            // Unused funds also go to rent_sponsor.
+            lamports_to_rent_sponsor += lamports_to_destination;
+            lamports_to_destination = compression_cost; // This will go to fee_payer (forester)
+        }
 
-        // Unused funds also go to rent_sponsor.
-        lamports_to_rent_sponsor += lamports_to_destination;
-        lamports_to_destination = compression_cost; // This will go to fee_payer (forester)
-    }
+        // Transfer lamports to rent sponsor.
+        if lamports_to_rent_sponsor > 0 {
+            transfer_lamports(
+                lamports_to_rent_sponsor,
+                accounts.token_account,
+                rent_sponsor,
+            )
+            .map_err(convert_program_error)?;
+        }
 
-    // Transfer lamports to rent sponsor.
-    if lamports_to_rent_sponsor > 0 {
-        transfer_lamports(
-            lamports_to_rent_sponsor,
-            accounts.token_account,
-            rent_sponsor,
-        )
-        .map_err(convert_program_error)?;
-    }
-
-    // Transfer lamports to destination (user or forester).
-    if lamports_to_destination > 0 {
-        transfer_lamports(
-            lamports_to_destination,
-            accounts.token_account,
-            accounts.destination,
-        )
-        .map_err(convert_program_error)?;
+        // Transfer lamports to destination (user or forester).
+        if lamports_to_destination > 0 {
+            transfer_lamports(
+                lamports_to_destination,
+                accounts.token_account,
+                accounts.destination,
+            )
+            .map_err(convert_program_error)?;
+        }
+    } else {
+        // Non-compressible account: transfer all lamports to destination
+        if token_account_lamports > 0 {
+            transfer_lamports(
+                token_account_lamports,
+                accounts.token_account,
+                accounts.destination,
+            )
+            .map_err(convert_program_error)?;
+        }
     }
     Ok(())
 }

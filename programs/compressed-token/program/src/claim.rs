@@ -2,8 +2,9 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{checks::check_owner, AccountInfoTrait, AccountIterator};
 use light_compressible::{compression_info::ClaimAndUpdate, config::CompressibleConfig};
-use light_ctoken_interface::state::{
-    CToken, CompressedMint, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+use light_ctoken_interface::{
+    state::{CToken, CompressedMint, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT},
+    CTokenError,
 };
 use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};
@@ -138,9 +139,11 @@ fn validate_and_claim(
         ACCOUNT_TYPE_TOKEN_ACCOUNT => {
             // CToken account
             let (mut ctoken, _) = CToken::zero_copy_at_mut_checked(&mut account_data)?;
-            ctoken
-                .base
-                .compression
+            let compressible = ctoken
+                .get_compressible_extension_mut()
+                .ok_or::<ProgramError>(CTokenError::MissingCompressibleExtension.into())?;
+            compressible
+                .info
                 .claim_and_update(claim_and_update)
                 .map_err(ProgramError::from)
         }

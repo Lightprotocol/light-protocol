@@ -73,11 +73,14 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
         lamports_budget = lamports_budget.saturating_sub(transfers[0].amount);
     }
 
-    // Calculate CToken top-up
-    {
+    // Calculate CToken top-up (only if not 165 bytes - 165 means no extensions)
+    if ctoken.data_len() != 165 {
         let account_data = ctoken.try_borrow_data().map_err(convert_program_error)?;
         let (token, _) = CToken::zero_copy_at_checked(&account_data)?;
-        // Access compression info directly from meta (all ctokens now have compression embedded)
+        // Check for Compressible extension
+        let compressible = token
+            .get_compressible_extension()
+            .ok_or::<ProgramError>(CTokenError::MissingCompressibleExtension.into())?;
         if current_slot == 0 {
             current_slot = Clock::get()
                 .map_err(|_| CTokenError::SysvarAccessError)?
@@ -85,8 +88,8 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
             rent = Some(Rent::get().map_err(|_| CTokenError::SysvarAccessError)?);
         }
         let rent_exemption = rent.as_ref().unwrap().minimum_balance(ctoken.data_len());
-        transfers[1].amount = token
-            .compression
+        transfers[1].amount = compressible
+            .info
             .calculate_top_up_lamports(
                 ctoken.data_len() as u64,
                 current_slot,

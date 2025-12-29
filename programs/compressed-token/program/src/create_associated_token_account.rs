@@ -12,7 +12,8 @@ use crate::{
     shared::{
         convert_program_error, create_pda_account,
         initialize_ctoken_account::{
-            initialize_ctoken_account, CTokenInitConfig, CompressionInstructionData,
+            initialize_ctoken_account, CTokenInitConfig, CompressibleInitData,
+            CompressionInstructionData,
         },
         transfer_lamports_via_cpi, validate_ata_derivation,
     },
@@ -80,15 +81,17 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     }
 
     // Validate that rent_payment is not exactly 1 epoch (footgun prevention)
-    if inputs.rent_payment == 1 {
-        msg!("Prefunding for exactly 1 epoch is not allowed. If the account is created near an epoch boundary, it could become immediately compressible. Use 0 or 2+ epochs.");
-        return Err(anchor_compressed_token::ErrorCode::OneEpochPrefundingNotAllowed.into());
-    }
+    if let Some(config) = &inputs.compressible_config {
+        if config.rent_payment == 1 {
+            msg!("Prefunding for exactly 1 epoch is not allowed. If the account is created near an epoch boundary, it could become immediately compressible. Use 0 or 2+ epochs.");
+            return Err(anchor_compressed_token::ErrorCode::OneEpochPrefundingNotAllowed.into());
+        }
 
-    // Associated token accounts must not compress to pubkey
-    if inputs.compressible_config.is_some() {
-        msg!("Associated token accounts must not compress to pubkey");
-        return Err(ProgramError::InvalidInstructionData);
+        // Associated token accounts must not compress to pubkey
+        if config.compress_to_account_pubkey.is_some() {
+            msg!("Associated token accounts must not compress to pubkey");
+            return Err(ProgramError::InvalidInstructionData);
+        }
     }
 
     // Check which extensions the mint has
@@ -97,9 +100,14 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     // Calculate account size based on extensions
     let account_size = mint_extensions.calculate_account_size()?;
 
+    let rent_payment = inputs
+        .compressible_config
+        .as_ref()
+        .map(|c| c.rent_payment as u64)
+        .unwrap_or(0);
     let rent = config_account
         .rent_config
-        .get_rent_with_compression_cost(account_size, inputs.rent_payment as u64);
+        .get_rent_with_compression_cost(account_size, rent_payment);
     let account_size = account_size as usize;
 
     let custom_rent_payer = *rent_payer.key() != config_account.rent_sponsor.to_bytes();
@@ -156,24 +164,31 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
             .map_err(convert_program_error)?;
     }
 
+    // Build compressible init data from instruction config
+    let compressible = inputs.compressible_config.as_ref().map(|config| {
+        CompressibleInitData {
+            ix_data: CompressionInstructionData {
+                compression_only: config.compression_only,
+                token_account_version: config.token_account_version,
+                write_top_up: config.write_top_up,
+            },
+            config_account,
+            compress_to_pubkey: None, // ATAs must not compress to pubkey
+            custom_rent_payer: if custom_rent_payer {
+                Some(*rent_payer.key())
+            } else {
+                None
+            },
+        }
+    });
+
     // Initialize the token account
     initialize_ctoken_account(
         associated_token_account,
         CTokenInitConfig {
             mint: mint_bytes,
             owner: owner_bytes,
-            compress_to_pubkey: None, // ATAs must not compress to pubkey
-            compression_ix_data: CompressionInstructionData {
-                compression_only: inputs.compression_only,
-                token_account_version: inputs.token_account_version,
-                write_top_up: inputs.write_top_up,
-            },
-            compressible_config_account: config_account,
-            custom_rent_payer: if custom_rent_payer {
-                Some(*rent_payer.key())
-            } else {
-                None
-            },
+            compressible,
             mint_extensions,
             mint_account: mint,
         },
