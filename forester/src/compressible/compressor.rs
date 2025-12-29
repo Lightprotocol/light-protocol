@@ -121,8 +121,21 @@ impl<R: Rpc> Compressor<R> {
             let mint = Pubkey::new_from_array(account_state.account.mint.to_bytes());
             let mint_index = packed_accounts.insert_or_get(mint);
 
-            // Get compression info from embedded field
-            let compression = &account_state.account.compression;
+            // Get compression info from Compressible extension
+            use light_ctoken_interface::state::extensions::ExtensionStruct;
+            let compression = account_state
+                .account
+                .extensions
+                .as_ref()
+                .and_then(|exts| {
+                    exts.iter().find_map(|ext| match ext {
+                        ExtensionStruct::Compressible(comp) => Some(&comp.info),
+                        _ => None,
+                    })
+                })
+                .ok_or_else(|| {
+                    anyhow::anyhow!("Missing Compressible extension on CToken account")
+                })?;
 
             // Determine owner based on compress_to_pubkey flag
             let compressed_token_owner = if compression.compress_to_pubkey != 0 {

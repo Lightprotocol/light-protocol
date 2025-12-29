@@ -293,13 +293,15 @@ pub async fn close_and_assert_token_account(
         .unwrap()
         .unwrap();
 
-    // Read rent_sponsor from the account's embedded compression info
+    // Read rent_sponsor from the account's Compressible extension
     use light_ctoken_interface::state::CToken;
     use light_zero_copy::traits::ZeroCopyAt;
 
     let (ctoken, _) = CToken::zero_copy_at(&account_info.data).unwrap();
-    let compression = &ctoken.compression;
-    let rent_sponsor = Pubkey::from(compression.rent_sponsor);
+    let compressible = ctoken
+        .get_compressible_extension()
+        .expect("CToken should have Compressible extension");
+    let rent_sponsor = Pubkey::from(compressible.info.rent_sponsor);
 
     let close_ix = CloseCTokenAccount {
         token_program: light_compressed_token::ID,
@@ -695,9 +697,11 @@ pub async fn compress_and_close_forester_with_invalid_output(
     let (ctoken, _) = CToken::zero_copy_at(&token_account_info.data).unwrap();
     let mint_pubkey = Pubkey::from(ctoken.mint.to_bytes());
 
-    // Extract compression info from embedded field
-    let compression = &ctoken.compression;
-    let rent_sponsor = Pubkey::from(compression.rent_sponsor);
+    // Extract compression info from Compressible extension
+    let compressible = ctoken
+        .get_compressible_extension()
+        .expect("CToken should have Compressible extension");
+    let rent_sponsor = Pubkey::from(compressible.info.rent_sponsor);
 
     // Get output queue for compression
     let output_queue = context

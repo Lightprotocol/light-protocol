@@ -13,15 +13,13 @@ fn test_ctoken_account_size_calculation() {
 
     // With pausable only (165 base + 1 account_type + 4 vec length + 1 discriminant = 171)
     let pausable_size =
-        calculate_ctoken_account_size(Some(&[ExtensionStructConfig::PausableAccount(())]))
-            .unwrap();
+        calculate_ctoken_account_size(Some(&[ExtensionStructConfig::PausableAccount(())])).unwrap();
     assert_eq!(pausable_size, 171);
 
     // With permanent_delegate only (165 + 1 + 4 + 1 = 171)
-    let perm_delegate_size = calculate_ctoken_account_size(Some(&[
-        ExtensionStructConfig::PermanentDelegateAccount(()),
-    ]))
-    .unwrap();
+    let perm_delegate_size =
+        calculate_ctoken_account_size(Some(&[ExtensionStructConfig::PermanentDelegateAccount(())]))
+            .unwrap();
     assert_eq!(perm_delegate_size, 171);
 
     // With pausable + permanent_delegate (165 + 1 + 4 + 1 + 1 = 172)

@@ -45,7 +45,10 @@ fn extract_pre_compression_mut(
         ACCOUNT_TYPE_TOKEN_ACCOUNT => {
             let (mut ctoken, _) = CToken::zero_copy_at_mut(data)
                 .unwrap_or_else(|e| panic!("Failed to parse ctoken account {}: {:?}", pubkey, e));
-            let compression = &mut ctoken.compression;
+            let compressible = ctoken
+                .get_compressible_extension_mut()
+                .unwrap_or_else(|| panic!("CToken {} should have Compressible extension", pubkey));
+            let compression = &mut compressible.info;
             let last_claimed_slot = u64::from(compression.last_claimed_slot);
             let compression_authority = Pubkey::from(compression.compression_authority);
             let rent_sponsor = Pubkey::from(compression.rent_sponsor);
@@ -93,7 +96,10 @@ fn extract_post_compression(data: &[u8], pubkey: &Pubkey) -> u64 {
         ACCOUNT_TYPE_TOKEN_ACCOUNT => {
             let (ctoken, _) = CToken::zero_copy_at(data)
                 .unwrap_or_else(|e| panic!("Failed to parse ctoken account {}: {:?}", pubkey, e));
-            u64::from(ctoken.compression.last_claimed_slot)
+            let compressible = ctoken
+                .get_compressible_extension()
+                .unwrap_or_else(|| panic!("CToken {} should have Compressible extension", pubkey));
+            u64::from(compressible.info.last_claimed_slot)
         }
         ACCOUNT_TYPE_MINT => {
             let (cmint, _) = CompressedMint::zero_copy_at(data)

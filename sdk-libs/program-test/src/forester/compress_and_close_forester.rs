@@ -121,16 +121,18 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
         let mint_index =
             packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
 
-        // Get compression info from meta
-        let compression = &ctoken_account.compression;
-        let current_authority = Pubkey::from(compression.compression_authority);
-        let rent_sponsor_pubkey = Pubkey::from(compression.rent_sponsor);
+        // Get compression info from Compressible extension
+        let compressible_ext = ctoken_account.get_compressible_extension().ok_or_else(|| {
+            RpcError::CustomError("Missing Compressible extension on CToken account".to_string())
+        })?;
+        let current_authority = Pubkey::from(compressible_ext.info.compression_authority);
+        let rent_sponsor_pubkey = Pubkey::from(compressible_ext.info.rent_sponsor);
 
         if compression_authority_pubkey.is_none() {
             compression_authority_pubkey = Some(current_authority);
         }
 
-        let compressed_token_owner = if compression.compress_to_pubkey == 1 {
+        let compressed_token_owner = if compressible_ext.info.compress_to_pubkey == 1 {
             *solana_ctoken_account_pubkey
         } else {
             Pubkey::from(ctoken_account.owner.to_bytes())

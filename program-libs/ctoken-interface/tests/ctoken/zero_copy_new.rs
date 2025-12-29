@@ -8,8 +8,8 @@
 use light_compressed_account::Pubkey;
 use light_ctoken_interface::state::{
     ctoken::{
-        AccountState, CToken, CompressedTokenConfig, BASE_TOKEN_ACCOUNT_SIZE,
-        ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        AccountState, CToken, CompressedTokenConfig, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        BASE_TOKEN_ACCOUNT_SIZE,
     },
     extensions::{ExtensionStruct, ExtensionStructConfig, PausableAccountExtension},
 };

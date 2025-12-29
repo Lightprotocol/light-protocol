@@ -1,5 +1,8 @@
 use borsh::BorshSerialize;
-use light_ctoken_interface::instructions::create_ctoken_account::CreateTokenAccountInstructionData;
+use light_ctoken_interface::instructions::{
+    create_ctoken_account::CreateTokenAccountInstructionData,
+    extensions::CompressibleExtensionInstructionData,
+};
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
 use solana_instruction::{AccountMeta, Instruction};
@@ -49,11 +52,13 @@ impl CreateCTokenAccount {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         let instruction_data = CreateTokenAccountInstructionData {
             owner: light_compressed_account::Pubkey::from(self.owner.to_bytes()),
-            token_account_version: self.compressible.token_account_version as u8,
-            rent_payment: self.compressible.pre_pay_num_epochs,
-            compression_only: self.compressible.compression_only as u8,
-            write_top_up: self.compressible.lamports_per_write.unwrap_or(0),
-            compressible_config: self.compressible.compress_to_account_pubkey.clone(),
+            compressible_config: Some(CompressibleExtensionInstructionData {
+                token_account_version: self.compressible.token_account_version as u8,
+                rent_payment: self.compressible.pre_pay_num_epochs,
+                compression_only: self.compressible.compression_only as u8,
+                write_top_up: self.compressible.lamports_per_write.unwrap_or(0),
+                compress_to_account_pubkey: self.compressible.compress_to_account_pubkey.clone(),
+            }),
         };
 
         let mut data = Vec::new();

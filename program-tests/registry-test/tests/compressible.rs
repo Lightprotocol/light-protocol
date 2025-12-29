@@ -4,9 +4,22 @@ use std::str::FromStr;
 // TODO: refactor into dir
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_compressible::{
-    config::CompressibleConfig, error::CompressibleError, rent::SLOTS_PER_EPOCH,
+    compression_info::CompressionInfo, config::CompressibleConfig, error::CompressibleError,
+    rent::SLOTS_PER_EPOCH,
 };
-use light_ctoken_interface::state::CToken;
+use light_ctoken_interface::state::{extensions::ExtensionStruct, CToken};
+
+/// Extract CompressionInfo from CToken's Compressible extension
+fn get_ctoken_compression_info(ctoken: &CToken) -> Option<CompressionInfo> {
+    ctoken
+        .extensions
+        .as_ref()?
+        .iter()
+        .find_map(|ext| match ext {
+            ExtensionStruct::Compressible(comp) => Some(comp.info),
+            _ => None,
+        })
+}
 use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::find_cmint_address,
     ctoken::{derive_ctoken_ata, CTokenMintTo, CompressibleParams, CreateAssociatedCTokenAccount},
@@ -1133,7 +1146,6 @@ async fn assert_not_compressible<R: Rpc>(
     name: &str,
 ) -> Result<(), RpcError> {
     use borsh::BorshDeserialize;
-    use light_ctoken_interface::state::CToken;
 
     let account = rpc
         .get_account(account_pubkey)
@@ -1147,8 +1159,10 @@ async fn assert_not_compressible<R: Rpc>(
     let ctoken = CToken::deserialize(&mut account.data.as_slice())
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to deserialize CToken: {:?}", e)))?;
 
-    // CompressionInfo is now embedded directly in ctoken.compression
-    let compression_info = &ctoken.compression;
+    // Get CompressionInfo from the Compressible extension
+    let compression_info = get_ctoken_compression_info(&ctoken).ok_or_else(|| {
+        RpcError::AssertRpcError("CToken should have Compressible extension".to_string())
+    })?;
     let current_slot = rpc.get_slot().await?;
 
     // Check if account is compressible using AccountRentState
@@ -1381,8 +1395,10 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     let ctoken_a = CToken::deserialize(&mut account_a_data.data.as_slice())
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to deserialize CToken: {:?}", e)))?;
 
-    // CompressionInfo is now embedded directly in ctoken.compression
-    let rent_config = ctoken_a.compression.rent_config;
+    // CompressionInfo is accessed via the Compressible extension
+    let compression =
+        get_ctoken_compression_info(&ctoken_a).expect("CToken should have Compressible extension");
+    let rent_config = compression.rent_config;
 
     let account_size = account_a_data.data.len() as u64;
     let rent_per_epoch = rent_config.rent_curve_per_epoch(account_size);
@@ -1401,7 +1417,10 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
         let ctoken = CToken::deserialize(&mut &account_data[..]).map_err(|e| {
             RpcError::AssertRpcError(format!("Failed to deserialize CToken: {:?}", e))
         })?;
-        Ok(ctoken.compression.last_claimed_slot)
+        let compression = get_ctoken_compression_info(&ctoken).ok_or_else(|| {
+            RpcError::AssertRpcError("CToken should have Compressible extension".to_string())
+        })?;
+        Ok(compression.last_claimed_slot)
     };
 
     let get_last_claimed_slot_cmint = |account_data: &[u8]| -> Result<u64, RpcError> {

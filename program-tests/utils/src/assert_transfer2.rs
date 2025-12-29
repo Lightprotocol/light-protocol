@@ -391,11 +391,14 @@ pub async fn assert_transfer2_with_delegate(
                 use light_zero_copy::traits::ZeroCopyAt;
 
                 let compress_to_pubkey = if pre_account_data.data.len() > 165 {
-                    // Parse ctoken account and get compress_to_pubkey from embedded compression info
+                    // Parse ctoken account and get compress_to_pubkey from Compressible extension
                     let (ctoken, _) = CToken::zero_copy_at(&pre_account_data.data)
                         .expect("Failed to deserialize ctoken account");
 
-                    ctoken.compression.compress_to_pubkey == 1
+                    ctoken
+                        .get_compressible_extension()
+                        .map(|ext| ext.info.compress_to_pubkey == 1)
+                        .unwrap_or(false)
                 } else {
                     false
                 };

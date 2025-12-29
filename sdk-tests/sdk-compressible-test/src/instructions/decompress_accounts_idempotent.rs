@@ -217,7 +217,7 @@ pub fn decompress_accounts_idempotent<'info>(
                     .cloned()
                     .collect();
                 let compress_to_pubkey =
-                    light_ctoken_interface::instructions::create_ctoken_account::CompressToPubkey {
+                    light_ctoken_interface::instructions::extensions::CompressToPubkey {
                         bump,
                         program_id: crate::ID.to_bytes(),
                         seeds: seeds_without_bump,

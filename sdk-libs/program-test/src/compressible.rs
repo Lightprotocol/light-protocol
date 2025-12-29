@@ -46,12 +46,24 @@ fn determine_account_type(data: &[u8]) -> Option<u8> {
 /// Returns (CompressionInfo, account_type) or None if parsing fails.
 #[cfg(feature = "devenv")]
 fn extract_compression_info(data: &[u8]) -> Option<(CompressionInfo, u8)> {
+    use light_ctoken_interface::state::extensions::ExtensionStruct;
+
     let account_type = determine_account_type(data)?;
 
     match account_type {
         ACCOUNT_TYPE_TOKEN_ACCOUNT => {
             let ctoken = CToken::deserialize(&mut &data[..]).ok()?;
-            Some((ctoken.compression, account_type))
+            // Get CompressionInfo from Compressible extension
+            let compression_info =
+                ctoken
+                    .extensions
+                    .as_ref()?
+                    .iter()
+                    .find_map(|ext| match ext {
+                        ExtensionStruct::Compressible(comp) => Some(comp.info),
+                        _ => None,
+                    })?;
+            Some((compression_info, account_type))
         }
         ACCOUNT_TYPE_MINT => {
             let cmint = CompressedMint::deserialize(&mut &data[..]).ok()?;

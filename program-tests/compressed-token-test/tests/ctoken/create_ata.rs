@@ -328,7 +328,7 @@ async fn test_create_ata_failing() {
         use anchor_lang::prelude::borsh::BorshSerialize;
         use light_ctoken_interface::instructions::{
             create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
-            create_ctoken_account::CompressToPubkey,
+            extensions::{CompressToPubkey, CompressibleExtensionInstructionData},
         };
         use solana_sdk::instruction::Instruction;
 
@@ -346,11 +346,14 @@ async fn test_create_ata_failing() {
 
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
             bump,
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat as u8,
-            rent_payment: 2,
-            compression_only: 0,
-            write_top_up: 100,
-            compressible_config: Some(compress_to_pubkey), // Forbidden for ATAs!
+            compressible_config: Some(CompressibleExtensionInstructionData {
+                token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat
+                    as u8,
+                rent_payment: 2,
+                compression_only: 0,
+                write_top_up: 100,
+                compress_to_account_pubkey: Some(compress_to_pubkey), // Forbidden for ATAs!
+            }),
         };
 
         let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
@@ -394,7 +397,10 @@ async fn test_create_ata_failing() {
     // Error: 21 (ProgramFailedToComplete - provided seeds do not result in valid address)
     {
         use anchor_lang::prelude::borsh::BorshSerialize;
-        use light_ctoken_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
+        use light_ctoken_interface::instructions::{
+            create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
+            extensions::CompressibleExtensionInstructionData,
+        };
         use solana_sdk::instruction::Instruction;
 
         // Use different mint for this test
@@ -412,11 +418,14 @@ async fn test_create_ata_failing() {
         // Owner and mint are now passed as accounts, not in instruction data
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
             bump: wrong_bump, // Wrong bump!
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat as u8,
-            rent_payment: 2,
-            compression_only: 0,
-            write_top_up: 100,
-            compressible_config: None,
+            compressible_config: Some(CompressibleExtensionInstructionData {
+                token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat
+                    as u8,
+                rent_payment: 2,
+                compression_only: 0,
+                write_top_up: 100,
+                compress_to_account_pubkey: None,
+            }),
         };
 
         let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
@@ -634,12 +643,9 @@ async fn test_create_ata_failing() {
         let fake_ata_pubkey = fake_ata_keypair.pubkey();
 
         // Build instruction with correct bump but WRONG address (arbitrary keypair)
+        // No compressible config for non-compressible ATAs
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
             bump: correct_bump, // Correct bump for the real PDA
-            token_account_version: 0,
-            rent_payment: 0,
-            compression_only: 0,
-            write_top_up: 0,
             compressible_config: None,
         };
 

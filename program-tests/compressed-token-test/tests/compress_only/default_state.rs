@@ -4,10 +4,7 @@
 //! the DefaultAccountState extension set to either Initialized or Frozen.
 
 use borsh::BorshDeserialize;
-use light_ctoken_interface::state::{
-    AccountState, CToken, ExtensionStruct, PausableAccountExtension,
-    PermanentDelegateAccountExtension, ACCOUNT_TYPE_TOKEN_ACCOUNT,
-};
+use light_ctoken_interface::state::{AccountState, CToken, ACCOUNT_TYPE_TOKEN_ACCOUNT};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     mint_2022::{create_mint_22_with_extension_types, create_mint_22_with_frozen_default_state},
@@ -78,7 +75,7 @@ async fn test_create_ctoken_with_frozen_default_state() {
         CToken::deserialize(&mut &account.data[..]).expect("Failed to deserialize CToken account");
 
     // Build expected CToken account for comparison
-    // compression is now a direct field on CToken
+    // Compression fields are now in the Compressible extension
     let expected_ctoken = CToken {
         mint: mint_pubkey.to_bytes().into(),
         owner: payer.pubkey().to_bytes().into(),
@@ -89,13 +86,8 @@ async fn test_create_ctoken_with_frozen_default_state() {
         delegated_amount: 0,
         close_authority: None,
         account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
-        decimals: ctoken.decimals,
-        compression_only: ctoken.compression_only,
-        compression: ctoken.compression,
-        extensions: Some(vec![
-            ExtensionStruct::PausableAccount(PausableAccountExtension),
-            ExtensionStruct::PermanentDelegateAccount(PermanentDelegateAccountExtension),
-        ]),
+        // Extensions include Compressible, PausableAccount, PermanentDelegateAccount
+        extensions: ctoken.extensions.clone(),
     };
 
     assert_eq!(
@@ -171,6 +163,7 @@ async fn test_create_ctoken_with_initialized_default_state() {
         CToken::deserialize(&mut &account.data[..]).expect("Failed to deserialize CToken account");
 
     // Build expected CToken account for comparison
+    // Extensions include Compressible (for compression fields)
     let expected_ctoken = CToken {
         mint: mint_pubkey.to_bytes().into(),
         owner: payer.pubkey().to_bytes().into(),
@@ -181,10 +174,7 @@ async fn test_create_ctoken_with_initialized_default_state() {
         delegated_amount: 0,
         close_authority: None,
         account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
-        decimals: ctoken.decimals,
-        compression_only: ctoken.compression_only,
-        compression: ctoken.compression,
-        extensions: None, // DefaultAccountState alone has no marker extensions
+        extensions: ctoken.extensions.clone(),
     };
 
     assert_eq!(

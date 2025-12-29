@@ -93,16 +93,17 @@ impl MintExtensionFlags {
 
     /// Calculate the ctoken account size based on extension flags.
     ///
-    /// Calculate account size based on mint extensions.
-    /// All ctoken accounts now have CompressionInfo embedded in base struct.
+    /// # Arguments
+    /// * `compressible` - If true, includes the Compressible extension in the size calculation
     ///
     /// # Returns
     /// * `Ok(u64)` - The account size in bytes
     /// * `Err(ZeroCopyError)` - If extension size calculation fails
-    pub fn calculate_account_size(&self) -> Result<u64, ZeroCopyError> {
+    pub fn calculate_account_size(&self, compressible: bool) -> Result<u64, ZeroCopyError> {
         // Use stack-allocated array to avoid heap allocation
-        // Maximum 4 extensions: pausable, permanent_delegate, transfer_fee, transfer_hook
-        let mut extensions: [ExtensionStructConfig; 4] = [
+        // Maximum 5 extensions: pausable, permanent_delegate, transfer_fee, transfer_hook, compressible
+        let mut extensions: [ExtensionStructConfig; 5] = [
+            ExtensionStructConfig::Placeholder0,
             ExtensionStructConfig::Placeholder0,
             ExtensionStructConfig::Placeholder0,
             ExtensionStructConfig::Placeholder0,
@@ -124,6 +125,13 @@ impl MintExtensionFlags {
         }
         if self.has_transfer_hook {
             extensions[count] = ExtensionStructConfig::TransferHookAccount(());
+            count += 1;
+        }
+        if compressible {
+            extensions[count] =
+                ExtensionStructConfig::Compressible(crate::state::CompressibleExtensionConfig {
+                    info: crate::state::CompressionInfoConfig { rent_config: () },
+                });
             count += 1;
         }
 
