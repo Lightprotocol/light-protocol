@@ -3,10 +3,11 @@ use spl_pod::solana_msg::msg;
 
 use crate::{
     state::extensions::{
-        CompressedOnlyExtension, CompressedOnlyExtensionConfig, ExtensionType,
-        PausableAccountExtension, PausableAccountExtensionConfig,
-        PermanentDelegateAccountExtension, PermanentDelegateAccountExtensionConfig, TokenMetadata,
-        TokenMetadataConfig, TransferFeeAccountExtension, TransferFeeAccountExtensionConfig,
+        CompressedOnlyExtension, CompressedOnlyExtensionConfig, CompressibleExtension,
+        CompressibleExtensionConfig, ExtensionType, PausableAccountExtension,
+        PausableAccountExtensionConfig, PermanentDelegateAccountExtension,
+        PermanentDelegateAccountExtensionConfig, TokenMetadata, TokenMetadataConfig,
+        TransferFeeAccountExtension, TransferFeeAccountExtensionConfig,
         TransferHookAccountExtension, TransferHookAccountExtensionConfig,
         ZPausableAccountExtensionMut, ZPermanentDelegateAccountExtensionMut, ZTokenMetadataMut,
         ZTransferFeeAccountExtensionMut, ZTransferHookAccountExtensionMut,
@@ -55,6 +56,8 @@ pub enum ExtensionStruct {
     TransferHookAccount(TransferHookAccountExtension),
     /// CompressedOnly extension for compressed token accounts (stores delegated amount)
     CompressedOnly(CompressedOnlyExtension),
+    /// Compressible extension for ctoken accounts (compression config and timing data)
+    Compressible(CompressibleExtension),
 }
 
 #[derive(Debug)]
@@ -98,6 +101,10 @@ pub enum ZExtensionStructMut<'a> {
     /// CompressedOnly extension for compressed token accounts
     CompressedOnly(
         <CompressedOnlyExtension as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut,
+    ),
+    /// Compressible extension for ctoken accounts
+    Compressible(
+        <CompressibleExtension as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut,
     ),
 }
 
@@ -169,6 +176,14 @@ impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
+            ExtensionType::Compressible => {
+                let (compressible_ext, remaining_bytes) =
+                    CompressibleExtension::zero_copy_at_mut(remaining_data)?;
+                Ok((
+                    ZExtensionStructMut::Compressible(compressible_ext),
+                    remaining_bytes,
+                ))
+            }
             _ => Err(light_zero_copy::errors::ZeroCopyError::InvalidConversion),
         }
     }
@@ -205,6 +220,10 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
             ExtensionStructConfig::CompressedOnly(_) => {
                 // 1 byte for discriminant + 16 bytes for CompressedOnlyExtension (2 * u64)
                 1 + CompressedOnlyExtension::LEN
+            }
+            ExtensionStructConfig::Compressible(_) => {
+                // 1 byte for discriminant + CompressibleExtension size
+                1 + CompressibleExtension::LEN
             }
             _ => {
                 msg!("Invalid extension type returning");
@@ -314,6 +333,22 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
+            ExtensionStructConfig::Compressible(config) => {
+                if bytes.len() < 1 + CompressibleExtension::LEN {
+                    return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
+                        1 + CompressibleExtension::LEN,
+                        bytes.len(),
+                    ));
+                }
+                bytes[0] = ExtensionType::Compressible as u8;
+
+                let (compressible_ext, remaining_bytes) =
+                    CompressibleExtension::new_zero_copy(&mut bytes[1..], config)?;
+                Ok((
+                    ZExtensionStructMut::Compressible(compressible_ext),
+                    remaining_bytes,
+                ))
+            }
             _ => Err(light_zero_copy::errors::ZeroCopyError::InvalidConversion),
         }
     }
@@ -355,4 +390,5 @@ pub enum ExtensionStructConfig {
     TransferFeeAccount(TransferFeeAccountExtensionConfig),
     TransferHookAccount(TransferHookAccountExtensionConfig),
     CompressedOnly(CompressedOnlyExtensionConfig),
+    Compressible(CompressibleExtensionConfig),
 }
