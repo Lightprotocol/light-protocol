@@ -10,7 +10,6 @@ fn default_config() -> CompressedTokenConfig {
         mint: Pubkey::default(),
         owner: Pubkey::default(),
         state: 1,
-        compression_only: false,
         extensions: None,
     }
 }

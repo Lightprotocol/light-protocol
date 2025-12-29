@@ -6,13 +6,10 @@
 //! 3. test_account_type_compatibility_with_spl_parsing
 
 use light_compressed_account::Pubkey;
-use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
 use light_ctoken_interface::state::{
-    ctoken::{
-        CToken, CompressedTokenConfig, ZCToken, ZCTokenMut, ACCOUNT_TYPE_TOKEN_ACCOUNT,
-        BASE_TOKEN_ACCOUNT_SIZE,
-    },
+    ctoken::{CToken, CompressedTokenConfig, ZCToken, ZCTokenMut, BASE_TOKEN_ACCOUNT_SIZE},
     extensions::ExtensionStructConfig,
+    ACCOUNT_TYPE_TOKEN_ACCOUNT,
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
 use rand::Rng;
@@ -29,27 +26,7 @@ fn default_config() -> CompressedTokenConfig {
         mint: Pubkey::default(),
         owner: Pubkey::default(),
         state: 1,
-        compression_only: false,
         extensions: None,
-    }
-}
-
-fn zeroed_compression_info() -> CompressionInfo {
-    CompressionInfo {
-        config_account_version: 0,
-        compress_to_pubkey: 0,
-        account_version: 0,
-        lamports_per_write: 0,
-        compression_authority: [0u8; 32],
-        rent_sponsor: [0u8; 32],
-        last_claimed_slot: 0,
-        rent_config: RentConfig {
-            base_rent: 0,
-            compression_cost: 0,
-            lamports_per_byte_per_epoch: 0,
-            max_funded_epochs: 0,
-            max_top_up: 0,
-        },
     }
 }
 
@@ -84,11 +61,10 @@ fn generate_random_token_account_data(rng: &mut impl Rng) -> Vec<u8> {
     };
     println!("Expected Account: {:?}", account);
 
-    // Create buffer large enough for full CToken meta struct
+    // Create buffer for SPL-compatible token account (165 bytes, no extensions)
     let mut account_data = vec![0u8; BASE_TOKEN_ACCOUNT_SIZE as usize];
     Account::pack(account, &mut account_data[..Account::LEN]).unwrap();
-    // Set account_type byte at position 165 to ACCOUNT_TYPE_TOKEN_ACCOUNT (2)
-    account_data[165] = 2;
+    // Note: No account_type byte for pure SPL accounts without extensions
     account_data
 }
 
@@ -446,9 +422,6 @@ fn test_pausable_extension_partial_eq() {
         delegated_amount: 0,
         close_authority: None,
         account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
-        decimals: None,
-        compression_only: false,
-        compression: zeroed_compression_info(),
         extensions: Some(vec![ExtensionStruct::PausableAccount(
             PausableAccountExtension,
         )]),

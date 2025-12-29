@@ -2,7 +2,6 @@ use core::ops::{Deref, DerefMut};
 
 use aligned_sized::aligned_sized;
 use light_compressed_account::Pubkey;
-use light_compressible::compression_info::CompressionInfo;
 use light_program_profiler::profile;
 use light_zero_copy::{
     traits::{ZeroCopyAt, ZeroCopyAtMut},
@@ -16,10 +15,13 @@ use crate::{
     },
     AnchorDeserialize, AnchorSerialize,
 };
+
+/// SPL Token Account base size (165 bytes)
 pub const BASE_TOKEN_ACCOUNT_SIZE: u64 = CTokenZeroCopyMeta::LEN as u64;
 
-/// Optimized CToken zero copy struct.
-/// Uses derive macros to generate ZCToken<'a> and ZCTokenMut<'a>.
+/// SPL-compatible CToken zero copy struct (165 bytes).
+/// Uses derive macros to generate ZCTokenZeroCopyMeta<'a> and ZCTokenZeroCopyMetaMut<'a>.
+/// Note: account_type byte at position 165 is handled separately in ZeroCopyAt/ZeroCopyAtMut implementations.
 #[derive(
     Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
 )]
@@ -49,20 +51,15 @@ struct CTokenZeroCopyMeta {
     /// Optional authority to close the account.
     close_authority_option_prefix: u32,
     close_authority: Pubkey,
-    // End of spl-token compatible layout
-    /// Account type discriminator at byte 165 (always 2 for CToken accounts)
-    pub account_type: u8, // t22 compatible account type - end of t22 compatible layout
-    decimal_option_prefix: u8,
-    decimals: u8,
-    pub compression_only: bool,
-    pub compression: CompressionInfo,
-    has_extensions: bool,
+    // End of SPL Token Account compatible layout (165 bytes)
 }
 
 /// Zero-copy view of CToken with base and optional extensions
 #[derive(Debug)]
 pub struct ZCToken<'a> {
     pub base: ZCTokenZeroCopyMeta<'a>,
+    /// Account type byte read from position 165 (immutable)
+    account_type: u8,
     pub extensions: Option<Vec<ZExtensionStruct<'a>>>,
 }
 
@@ -70,6 +67,8 @@ pub struct ZCToken<'a> {
 #[derive(Debug)]
 pub struct ZCTokenMut<'a> {
     pub base: ZCTokenZeroCopyMetaMut<'a>,
+    /// Account type byte read from position 165 (immutable even for mut)
+    account_type: u8,
     pub extensions: Option<Vec<ZExtensionStructMut<'a>>>,
 }
 
@@ -82,9 +81,7 @@ pub struct CompressedTokenConfig {
     pub owner: Pubkey,
     /// Account state: 1=Initialized, 2=Frozen
     pub state: u8,
-    /// Whether account is compression-only (cannot decompress)
-    pub compression_only: bool,
-    /// Extensions to include in the account
+    /// Extensions to include in the account (should include Compressible extension for compressible accounts)
     pub extensions: Option<Vec<ExtensionStructConfig>>,
 }
 
@@ -98,6 +95,8 @@ impl<'a> ZeroCopyNew<'a> for CToken {
         let mut size = BASE_TOKEN_ACCOUNT_SIZE as usize;
         if let Some(extensions) = &config.extensions {
             if !extensions.is_empty() {
+                size += 1; // account_type byte at position 165
+                size += 1; // Option discriminator for extensions (1 = Some)
                 size += 4; // Vec length prefix
                 for ext in extensions {
                     size += ExtensionStruct::byte_len(ext)?;
@@ -111,26 +110,25 @@ impl<'a> ZeroCopyNew<'a> for CToken {
         bytes: &'a mut [u8],
         config: Self::ZeroCopyConfig,
     ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
-        // Use derived new_zero_copy for base struct
-        let base_config = CTokenZeroCopyMetaConfig {
-            compression: light_compressible::compression_info::CompressionInfoConfig {
-                rent_config: (),
-            },
-        };
+        // Use derived new_zero_copy for base struct (config type is () for fixed-size struct)
         let (mut base, mut remaining) =
-            <CTokenZeroCopyMeta as ZeroCopyNew<'a>>::new_zero_copy(bytes, base_config)?;
+            <CTokenZeroCopyMeta as ZeroCopyNew<'a>>::new_zero_copy(bytes, ())?;
 
         // Set base token account fields from config
         base.mint = config.mint;
         base.owner = config.owner;
         base.state = config.state;
-        base.account_type = ACCOUNT_TYPE_TOKEN_ACCOUNT;
-        base.compression_only = config.compression_only as u8;
 
         // Write extensions using ExtensionStruct::new_zero_copy
-        if let Some(extensions) = config.extensions {
+        let account_type = if let Some(extensions) = config.extensions {
             if !extensions.is_empty() {
-                *base.has_extensions = 1u8;
+                // Write account_type byte at position 165
+                remaining[0] = ACCOUNT_TYPE_TOKEN_ACCOUNT;
+                remaining = &mut remaining[1..];
+
+                // Write Option discriminator (1 = Some)
+                remaining[0] = 1;
+                remaining = &mut remaining[1..];
 
                 // Write Vec length prefix (4 bytes, little-endian u32)
                 remaining[..4].copy_from_slice(&(extensions.len() as u32).to_le_bytes());
@@ -141,12 +139,19 @@ impl<'a> ZeroCopyNew<'a> for CToken {
                     let (_, rest) = ExtensionStruct::new_zero_copy(remaining, ext_config)?;
                     remaining = rest;
                 }
+
+                ACCOUNT_TYPE_TOKEN_ACCOUNT
+            } else {
+                ACCOUNT_TYPE_TOKEN_ACCOUNT
             }
-        }
+        } else {
+            ACCOUNT_TYPE_TOKEN_ACCOUNT
+        };
 
         Ok((
             ZCTokenMut {
                 base,
+                account_type,
                 extensions: None, // Extensions are written directly, not tracked as Vec
             },
             remaining,
@@ -162,21 +167,30 @@ impl<'a> ZeroCopyAt<'a> for CToken {
         bytes: &'a [u8],
     ) -> Result<(Self::ZeroCopyAt, &'a [u8]), light_zero_copy::errors::ZeroCopyError> {
         let (base, bytes) = <CTokenZeroCopyMeta as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
-        // has_extensions already consumed the Option discriminator byte
-        if base.has_extensions() {
+
+        // Check if there are extensions by looking at account_type byte at position 165
+        if !bytes.is_empty() && bytes[0] == ACCOUNT_TYPE_TOKEN_ACCOUNT {
+            let account_type = bytes[0];
+            // Skip account_type byte
+            let bytes = &bytes[1..];
+
+            // Read extensions using Option<Vec<ExtensionStruct>>
             let (extensions, bytes) =
-                <Vec<ExtensionStruct> as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
+                <Option<Vec<ExtensionStruct>> as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
             Ok((
                 ZCToken {
                     base,
-                    extensions: Some(extensions),
+                    account_type,
+                    extensions,
                 },
                 bytes,
             ))
         } else {
+            // No extensions - account_type defaults to TOKEN_ACCOUNT type
             Ok((
                 ZCToken {
                     base,
+                    account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
                     extensions: None,
                 },
                 bytes,
@@ -193,21 +207,30 @@ impl<'a> ZeroCopyAtMut<'a> for CToken {
         bytes: &'a mut [u8],
     ) -> Result<(Self::ZeroCopyAtMut, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
         let (base, bytes) = <CTokenZeroCopyMeta as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
-        // has_extensions already consumed the Option discriminator byte
-        if base.has_extensions() {
+
+        // Check if there are extensions by looking at account_type byte at position 165
+        if !bytes.is_empty() && bytes[0] == ACCOUNT_TYPE_TOKEN_ACCOUNT {
+            let account_type = bytes[0];
+            // Skip account_type byte
+            let bytes = &mut bytes[1..];
+
+            // Read extensions using Option<Vec<ExtensionStruct>>
             let (extensions, bytes) =
-                <Vec<ExtensionStruct> as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
+                <Option<Vec<ExtensionStruct>> as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
             Ok((
                 ZCTokenMut {
                     base,
-                    extensions: Some(extensions),
+                    account_type,
+                    extensions,
                 },
                 bytes,
             ))
         } else {
+            // No extensions - account_type defaults to TOKEN_ACCOUNT type
             Ok((
                 ZCTokenMut {
                     base,
+                    account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
                     extensions: None,
                 },
                 bytes,
@@ -239,14 +262,77 @@ impl<'a> DerefMut for ZCTokenMut<'a> {
     }
 }
 
-// Getters on ZCTokenZeroCopyMeta (immutable)
-impl ZCTokenZeroCopyMeta<'_> {
+// Getters on ZCToken (immutable view)
+impl<'a> ZCToken<'a> {
+    /// Returns the account_type byte read from position 165
+    #[inline(always)]
+    pub fn account_type(&self) -> u8 {
+        self.account_type
+    }
+
     /// Checks if account_type matches CToken discriminator value
     #[inline(always)]
     pub fn is_ctoken_account(&self) -> bool {
         self.account_type == ACCOUNT_TYPE_TOKEN_ACCOUNT
     }
 
+    /// Returns a reference to the Compressible extension if it exists
+    #[inline(always)]
+    pub fn get_compressible_extension(
+        &self,
+    ) -> Option<&crate::state::extensions::ZCompressibleExtension<'a>> {
+        self.extensions.as_ref().and_then(|exts| {
+            exts.iter().find_map(|ext| match ext {
+                ZExtensionStruct::Compressible(comp) => Some(comp),
+                _ => None,
+            })
+        })
+    }
+}
+
+// Getters on ZCTokenMut (account_type is still immutable)
+impl<'a> ZCTokenMut<'a> {
+    /// Returns the account_type byte read from position 165
+    #[inline(always)]
+    pub fn account_type(&self) -> u8 {
+        self.account_type
+    }
+
+    /// Checks if account_type matches CToken discriminator value
+    #[inline(always)]
+    pub fn is_ctoken_account(&self) -> bool {
+        self.account_type == ACCOUNT_TYPE_TOKEN_ACCOUNT
+    }
+
+    /// Returns a mutable reference to the Compressible extension if it exists
+    #[inline(always)]
+    pub fn get_compressible_extension_mut(
+        &mut self,
+    ) -> Option<&mut crate::state::extensions::ZCompressibleExtensionMut<'a>> {
+        self.extensions.as_mut().and_then(|exts| {
+            exts.iter_mut().find_map(|ext| match ext {
+                ZExtensionStructMut::Compressible(comp) => Some(comp),
+                _ => None,
+            })
+        })
+    }
+
+    /// Returns an immutable reference to the Compressible extension if it exists
+    #[inline(always)]
+    pub fn get_compressible_extension(
+        &self,
+    ) -> Option<&crate::state::extensions::ZCompressibleExtensionMut<'a>> {
+        self.extensions.as_ref().and_then(|exts| {
+            exts.iter().find_map(|ext| match ext {
+                ZExtensionStructMut::Compressible(comp) => Some(comp),
+                _ => None,
+            })
+        })
+    }
+}
+
+// Getters on ZCTokenZeroCopyMeta (immutable)
+impl ZCTokenZeroCopyMeta<'_> {
     /// Checks if account is initialized (state == 1)
     #[inline(always)]
     pub fn is_initialized(&self) -> bool {
@@ -284,16 +370,6 @@ impl ZCTokenZeroCopyMeta<'_> {
     pub fn close_authority(&self) -> Option<&Pubkey> {
         if u32::from(self.close_authority_option_prefix) == 1 {
             Some(&self.close_authority)
-        } else {
-            None
-        }
-    }
-
-    /// Get decimals if set (option prefix == 1)
-    #[inline(always)]
-    pub fn decimals(&self) -> Option<u8> {
-        if self.decimal_option_prefix == 1 {
-            Some(self.decimals)
         } else {
             None
         }
@@ -302,12 +378,6 @@ impl ZCTokenZeroCopyMeta<'_> {
 
 // Getters on ZCTokenZeroCopyMetaMut (mutable)
 impl ZCTokenZeroCopyMetaMut<'_> {
-    /// Checks if account_type matches CToken discriminator value
-    #[inline(always)]
-    pub fn is_ctoken_account(&self) -> bool {
-        self.account_type == ACCOUNT_TYPE_TOKEN_ACCOUNT
-    }
-
     /// Checks if account is initialized (state == 1)
     #[inline(always)]
     pub fn is_initialized(&self) -> bool {
@@ -348,23 +418,6 @@ impl ZCTokenZeroCopyMetaMut<'_> {
         } else {
             None
         }
-    }
-
-    /// Get decimals if set (option prefix == 1)
-    #[inline(always)]
-    pub fn decimals(&self) -> Option<u8> {
-        if self.decimal_option_prefix == 1 {
-            Some(self.decimals)
-        } else {
-            None
-        }
-    }
-
-    /// Set decimals value
-    #[inline(always)]
-    pub fn set_decimals(&mut self, decimals: u8) {
-        self.decimal_option_prefix = 1;
-        self.decimals = decimals;
     }
 
     /// Set delegate (Some to set, None to clear)
@@ -452,6 +505,7 @@ impl PartialEq<CToken> for ZCToken<'_> {
             || u64::from(self.amount) != other.amount
             || self.state != other.state as u8
             || u64::from(self.delegated_amount) != other.delegated_amount
+            || self.account_type != other.account_type
         {
             return false;
         }
@@ -487,73 +541,6 @@ impl PartialEq<CToken> for ZCToken<'_> {
             }
             (None, None) => {}
             _ => return false,
-        }
-
-        // Compare decimals
-        match (self.decimals(), &other.decimals) {
-            (Some(zc_decimals), Some(regular_decimals)) => {
-                if zc_decimals != *regular_decimals {
-                    return false;
-                }
-            }
-            (None, None) => {}
-            _ => return false,
-        }
-
-        // Compare compression_only
-        if self.compression_only() != other.compression_only {
-            return false;
-        }
-
-        // Compare compression fields
-        if u16::from(self.compression.config_account_version)
-            != other.compression.config_account_version
-        {
-            return false;
-        }
-        if self.compression.compress_to_pubkey != other.compression.compress_to_pubkey {
-            return false;
-        }
-        if self.compression.account_version != other.compression.account_version {
-            return false;
-        }
-        if u64::from(self.compression.last_claimed_slot) != other.compression.last_claimed_slot {
-            return false;
-        }
-        if u32::from(self.compression.lamports_per_write) != other.compression.lamports_per_write {
-            return false;
-        }
-        if self.compression.compression_authority != other.compression.compression_authority {
-            return false;
-        }
-        if self.compression.rent_sponsor != other.compression.rent_sponsor {
-            return false;
-        }
-        // Compare rent_config fields
-        if u16::from(self.compression.rent_config.base_rent)
-            != other.compression.rent_config.base_rent
-        {
-            return false;
-        }
-        if u16::from(self.compression.rent_config.compression_cost)
-            != other.compression.rent_config.compression_cost
-        {
-            return false;
-        }
-        if self.compression.rent_config.lamports_per_byte_per_epoch
-            != other.compression.rent_config.lamports_per_byte_per_epoch
-        {
-            return false;
-        }
-        if self.compression.rent_config.max_funded_epochs
-            != other.compression.rent_config.max_funded_epochs
-        {
-            return false;
-        }
-        if u16::from(self.compression.rent_config.max_top_up)
-            != other.compression.rent_config.max_top_up
-        {
-            return false;
         }
 
         // Compare extensions
@@ -634,6 +621,80 @@ impl PartialEq<CToken> for ZCToken<'_> {
                             if u64::from(zc_co.delegated_amount) != regular_co.delegated_amount
                                 || u64::from(zc_co.withheld_transfer_fee)
                                     != regular_co.withheld_transfer_fee
+                            {
+                                return false;
+                            }
+                        }
+                        (
+                            ZExtensionStruct::Compressible(zc_comp),
+                            crate::state::extensions::ExtensionStruct::Compressible(regular_comp),
+                        ) => {
+                            // Compare decimals
+                            let zc_decimals = if zc_comp.decimals_option == 1 {
+                                Some(zc_comp.decimals)
+                            } else {
+                                None
+                            };
+                            if zc_decimals != regular_comp.decimals() {
+                                return false;
+                            }
+                            // Compare compression_only (zero-copy has u8, regular has bool)
+                            if (zc_comp.compression_only != 0) != regular_comp.compression_only {
+                                return false;
+                            }
+                            // Compare CompressionInfo fields
+                            let zc_info = &zc_comp.info;
+                            let regular_info = &regular_comp.info;
+                            if u16::from(zc_info.config_account_version)
+                                != regular_info.config_account_version
+                            {
+                                return false;
+                            }
+                            if zc_info.compress_to_pubkey != regular_info.compress_to_pubkey {
+                                return false;
+                            }
+                            if zc_info.account_version != regular_info.account_version {
+                                return false;
+                            }
+                            if u64::from(zc_info.last_claimed_slot)
+                                != regular_info.last_claimed_slot
+                            {
+                                return false;
+                            }
+                            if u32::from(zc_info.lamports_per_write)
+                                != regular_info.lamports_per_write
+                            {
+                                return false;
+                            }
+                            if zc_info.compression_authority != regular_info.compression_authority {
+                                return false;
+                            }
+                            if zc_info.rent_sponsor != regular_info.rent_sponsor {
+                                return false;
+                            }
+                            // Compare rent_config fields
+                            if u16::from(zc_info.rent_config.base_rent)
+                                != regular_info.rent_config.base_rent
+                            {
+                                return false;
+                            }
+                            if u16::from(zc_info.rent_config.compression_cost)
+                                != regular_info.rent_config.compression_cost
+                            {
+                                return false;
+                            }
+                            if zc_info.rent_config.lamports_per_byte_per_epoch
+                                != regular_info.rent_config.lamports_per_byte_per_epoch
+                            {
+                                return false;
+                            }
+                            if zc_info.rent_config.max_funded_epochs
+                                != regular_info.rent_config.max_funded_epochs
+                            {
+                                return false;
+                            }
+                            if u16::from(zc_info.rent_config.max_top_up)
+                                != regular_info.rent_config.max_top_up
                             {
                                 return false;
                             }

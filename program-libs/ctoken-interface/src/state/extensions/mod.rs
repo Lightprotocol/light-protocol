@@ -1,4 +1,5 @@
 mod compressed_only;
+mod compressible;
 mod extension_struct;
 mod extension_type;
 mod pausable;
@@ -8,6 +9,7 @@ mod transfer_fee;
 mod transfer_hook;
 
 pub use compressed_only::*;
+pub use compressible::*;
 pub use extension_struct::*;
 pub use extension_type::*;
 pub use light_compressible::compression_info::{CompressionInfo, CompressionInfoConfig};
