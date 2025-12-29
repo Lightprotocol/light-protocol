@@ -60,7 +60,7 @@ describe('unified guards', () => {
         await expect(
             unifiedCreateLoadAtaInstructions(rpc, wrongAta, owner, mint, owner),
         ).rejects.toThrow(
-            'Unified loadAta expects ATA to be derived from c-token program. Derive it with getAssociatedTokenAddressInterface.',
+            'For wrap=true, ata must be the c-token ATA. Got spl ATA instead.',
         );
     });
 });

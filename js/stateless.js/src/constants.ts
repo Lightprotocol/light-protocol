@@ -27,8 +27,8 @@ export const featureFlags = {
         ) {
             return process.env.LIGHT_PROTOCOL_VERSION as VERSION;
         }
-        // Default to V1
-        return VERSION.V1;
+        // Default to V2
+        return VERSION.V2;
     })(),
     isV2: () =>
         featureFlags.version.replace(/['"]/g, '').toUpperCase() === 'V2',
@@ -145,79 +145,6 @@ export const isLocalTest = (url: string) => {
     return url.includes('localhost') || url.includes('127.0.0.1');
 };
 
-/**
- * @internal
- */
-export const localTestActiveStateTreeInfos = (): TreeInfo[] => {
-    return [
-        {
-            tree: new PublicKey(merkletreePubkey),
-            queue: new PublicKey(nullifierQueuePubkey),
-            cpiContext: new PublicKey(cpiContextPubkey),
-            treeType: TreeType.StateV1,
-            nextTreeInfo: null,
-        },
-        {
-            tree: new PublicKey(merkleTree2Pubkey),
-            queue: new PublicKey(nullifierQueue2Pubkey),
-            cpiContext: new PublicKey(cpiContext2Pubkey),
-            treeType: TreeType.StateV1,
-            nextTreeInfo: null,
-        },
-        {
-            tree: new PublicKey(batchMerkleTree1),
-            queue: new PublicKey(batchQueue1),
-            cpiContext: new PublicKey(batchCpiContext1),
-            treeType: TreeType.StateV2,
-            nextTreeInfo: null,
-        },
-        {
-            tree: new PublicKey(batchMerkleTree2),
-            queue: new PublicKey(batchQueue2),
-            cpiContext: new PublicKey(batchCpiContext2),
-            treeType: TreeType.StateV2,
-            nextTreeInfo: null,
-        },
-        {
-            tree: new PublicKey(batchMerkleTree3),
-            queue: new PublicKey(batchQueue3),
-            cpiContext: new PublicKey(batchCpiContext3),
-            treeType: TreeType.StateV2,
-            nextTreeInfo: null,
-        },
-        {
-            tree: new PublicKey(batchMerkleTree4),
-            queue: new PublicKey(batchQueue4),
-            cpiContext: new PublicKey(batchCpiContext4),
-            treeType: TreeType.StateV2,
-            nextTreeInfo: null,
-        },
-        {
-            tree: new PublicKey(batchMerkleTree5),
-            queue: new PublicKey(batchQueue5),
-            cpiContext: new PublicKey(batchCpiContext5),
-            treeType: TreeType.StateV2,
-            nextTreeInfo: null,
-        },
-        {
-            tree: new PublicKey(batchAddressTree),
-            queue: new PublicKey(batchAddressTree), // v2 address queue is part of the tree account.
-            cpiContext: PublicKey.default,
-            treeType: TreeType.AddressV2,
-            nextTreeInfo: null,
-        },
-        {
-            tree: new PublicKey(testBatchAddressTree),
-            queue: new PublicKey(testBatchAddressTree), // v2 address queue is part of the tree account.
-            cpiContext: PublicKey.default,
-            treeType: TreeType.AddressV2,
-            nextTreeInfo: null,
-        },
-    ].filter(info =>
-        featureFlags.isV2() ? true : info.treeType === TreeType.StateV1,
-    );
-};
-
 export const getDefaultAddressSpace = () => {
     return getBatchAddressTreeInfo();
 };
@@ -299,7 +226,7 @@ export const nullifierQueue2Pubkey =
     'nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X';
 export const cpiContext2Pubkey = 'cpi2cdhkH5roePvcudTgUL8ppEBfTay1desGh8G8QxK';
 
-// V2 testing - State Trees (5 triples)
+// V2
 export const batchMerkleTree1 = 'bmt1LryLZUMmF7ZtqESaw7wifBXLfXHQYoE4GAmrahU';
 export const batchQueue1 = 'oq1na8gojfdUhsfCpyjNt6h4JaDWtHf1yQj4koBWfto';
 export const batchCpiContext1 = 'cpi15BoVPKgEPw5o8wc2T816GE7b378nMXnhH3Xbq4y';
@@ -321,13 +248,65 @@ export const batchQueue5 = 'oq5oh5ZR3yGomuQgFduNDzjtGvVWfDRGLuDVjv9a96P';
 export const batchCpiContext5 = 'cpi5ZTjdgYpZ1Xr7B1cMLLUE81oTtJbNNAyKary2nV6';
 
 // V2 Address Trees
-export const batchAddressTree = 'amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx'; // v2 address tree (queue is part of the tree account)
-export const testBatchAddressTree =
-    'EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK'; // v2 address tree (queue is part of the tree account)
+export const batchAddressTree = 'amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx';
 
 // Deprecated: Use batchMerkleTree1, batchQueue1, batchCpiContext1 instead
 export const batchMerkleTree = batchMerkleTree1;
 export const batchQueue = batchQueue1;
+
+/**
+ * @internal
+ * Returns local test tree infos.
+ * V1: 2 state trees (smt/nfq/cpi pairs)
+ * V2: 5 batched state trees (bmt/oq/cpi triplets) + 1 address tree (amt2)
+ */
+export const localTestActiveStateTreeInfos = (): TreeInfo[] => {
+    // V1 State Trees: [tree, queue, cpi]
+    const V1_STATE_TREES: [string, string, string][] = [
+        [merkletreePubkey, nullifierQueuePubkey, cpiContextPubkey], // smt1, nfq1, cpi1
+        [merkleTree2Pubkey, nullifierQueue2Pubkey, cpiContext2Pubkey], // smt2, nfq2, cpi2
+    ];
+
+    // V2 State Trees (batched): [bmt, oq, cpi] triplets
+    const V2_STATE_TREES: [string, string, string][] = [
+        [batchMerkleTree1, batchQueue1, batchCpiContext1], // bmt1, oq1, cpi1
+        [batchMerkleTree2, batchQueue2, batchCpiContext2], // bmt2, oq2, cpi2
+        [batchMerkleTree3, batchQueue3, batchCpiContext3], // bmt3, oq3, cpi3
+        [batchMerkleTree4, batchQueue4, batchCpiContext4], // bmt4, oq4, cpi4
+        [batchMerkleTree5, batchQueue5, batchCpiContext5], // bmt5, oq5, cpi5
+    ];
+
+    const V2_ADDRESS_TREE = batchAddressTree; // amt2
+
+    const v1Trees: TreeInfo[] = V1_STATE_TREES.map(([tree, queue, cpi]) => ({
+        tree: new PublicKey(tree),
+        queue: new PublicKey(queue),
+        cpiContext: new PublicKey(cpi),
+        treeType: TreeType.StateV1,
+        nextTreeInfo: null,
+    }));
+
+    const v2Trees: TreeInfo[] = V2_STATE_TREES.map(([tree, queue, cpi]) => ({
+        tree: new PublicKey(tree),
+        queue: new PublicKey(queue),
+        cpiContext: new PublicKey(cpi),
+        treeType: TreeType.StateV2,
+        nextTreeInfo: null,
+    }));
+
+    const v2AddressTree: TreeInfo = {
+        tree: new PublicKey(V2_ADDRESS_TREE),
+        queue: new PublicKey(V2_ADDRESS_TREE), // queue is part of the tree account
+        cpiContext: PublicKey.default,
+        treeType: TreeType.AddressV2,
+        nextTreeInfo: null,
+    };
+
+    if (featureFlags.isV2()) {
+        return [...v1Trees, ...v2Trees, v2AddressTree];
+    }
+    return v1Trees;
+};
 
 export const confirmConfig: ConfirmOptions = {
     commitment: 'confirmed',

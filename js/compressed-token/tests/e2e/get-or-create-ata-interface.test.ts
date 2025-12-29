@@ -806,39 +806,37 @@ describe('getOrCreateAtaInterface', () => {
         });
     });
 
-    describe('default programId (TOKEN_PROGRAM_ID)', () => {
-        let splMint: PublicKey;
+    describe('default programId (CTOKEN_PROGRAM_ID)', () => {
+        let ctokenMint: PublicKey;
 
         beforeAll(async () => {
             const mintAuthority = Keypair.generate();
-            splMint = await createMint(
+            const result = await createMintInterface(
                 rpc,
                 payer,
-                mintAuthority.publicKey,
+                mintAuthority,
                 null,
                 9,
-                undefined,
-                undefined,
-                TOKEN_PROGRAM_ID,
             );
+            ctokenMint = result.mint;
         });
 
-        it('should default to TOKEN_PROGRAM_ID when programId not specified', async () => {
+        it('should default to CTOKEN_PROGRAM_ID when programId not specified', async () => {
             const owner = Keypair.generate();
 
             const expectedAddress = getAssociatedTokenAddressSync(
-                splMint,
+                ctokenMint,
                 owner.publicKey,
                 false,
-                TOKEN_PROGRAM_ID,
-                ASSOCIATED_TOKEN_PROGRAM_ID,
+                CTOKEN_PROGRAM_ID,
+                CTOKEN_PROGRAM_ID, // c-token uses CTOKEN_PROGRAM_ID as ATA program
             );
 
             // Call without specifying programId
             const account = await getOrCreateAtaInterface(
                 rpc,
                 payer,
-                splMint,
+                ctokenMint,
                 owner.publicKey,
             );
 
@@ -846,9 +844,9 @@ describe('getOrCreateAtaInterface', () => {
                 expectedAddress.toBase58(),
             );
 
-            // Verify it's owned by TOKEN_PROGRAM_ID
+            // Verify it's owned by CTOKEN_PROGRAM_ID
             const info = await rpc.getAccountInfo(expectedAddress);
-            expect(info?.owner.toBase58()).toBe(TOKEN_PROGRAM_ID.toBase58());
+            expect(info?.owner.toBase58()).toBe(CTOKEN_PROGRAM_ID.toBase58());
         });
     });
 
