@@ -17,6 +17,7 @@ import {
     createLoadAtaInstructions as _createLoadAtaInstructions,
     loadAta as _loadAta,
 } from '../actions/load-ata';
+import { checkAtaAddress } from '../ata-utils';
 import { transferInterface as _transferInterface } from '../actions/transfer-interface';
 import { _getOrCreateAtaInterface } from '../actions/get-or-create-ata-interface';
 import { getAtaProgramId } from '../ata-utils';

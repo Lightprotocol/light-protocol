@@ -11,6 +11,7 @@ import {
     sendAndConfirmTx,
     dedupeSigner,
 } from '@lightprotocol/stateless.js';
+import { getMint } from '@solana/spl-token';
 import BN from 'bn.js';
 import { createUnwrapInstruction } from '../instructions/unwrap';
 import {
@@ -94,6 +95,14 @@ export async function unwrap(
         );
     }
 
+    // Get mint info to get decimals
+    const mintInfo = await getMint(
+        rpc,
+        mint,
+        undefined,
+        resolvedSplInterfaceInfo.tokenProgram,
+    );
+
     // Build unwrap instruction
     const ix = createUnwrapInstruction(
         ctokenAta,
@@ -102,6 +111,7 @@ export async function unwrap(
         mint,
         unwrapAmount,
         resolvedSplInterfaceInfo,
+        mintInfo.decimals,
         payer.publicKey,
     );
 

@@ -214,6 +214,7 @@ export function createCompressSpl(
     poolAccountIndex: number,
     poolIndex: number,
     bump: number,
+    decimals: number,
 ): Compression {
     return {
         mode: COMPRESSION_MODE_COMPRESS,
@@ -224,7 +225,7 @@ export function createCompressSpl(
         poolAccountIndex,
         poolIndex,
         bump,
-        decimals: 0,
+        decimals,
     };
 }
 
@@ -293,6 +294,7 @@ export function createDecompressSpl(
     poolAccountIndex: number,
     poolIndex: number,
     bump: number,
+    decimals: number,
 ): Compression {
     return {
         mode: COMPRESSION_MODE_DECOMPRESS,
@@ -303,6 +305,6 @@ export function createDecompressSpl(
         poolAccountIndex,
         poolIndex,
         bump,
-        decimals: 0,
+        decimals,
     };
 }

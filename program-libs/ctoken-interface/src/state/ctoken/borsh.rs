@@ -1,7 +1,8 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
+use light_compressible::compression_info::CompressionInfo;
 
-use crate::state::{AccountState, CToken, ExtensionStruct};
+use crate::state::{AccountState, CToken, ExtensionStruct, ACCOUNT_TYPE_TOKEN_ACCOUNT};
 
 // Manual implementation of BorshSerialize for SPL compatibility
 impl BorshSerialize for CToken {
@@ -45,14 +46,24 @@ impl BorshSerialize for CToken {
             writer.write_all(&[0; 36])?; // COption None (4 bytes) + empty pubkey (32 bytes)
         }
 
-        // Write extensions if present
-        if let Some(ref extensions) = self.extensions {
-            // Write AccountType::Account byte for SPL Token 2022 compatibility
-            writer.write_all(&[2])?; // AccountType::Account = 2
+        // Always write account_type at byte 165
+        writer.write_all(&[self.account_type])?;
 
-            // Serialize extensions using borsh
-            extensions.serialize(writer)?;
+        // Write decimals as option prefix (1 byte) + value (1 byte)
+        if let Some(decimals) = self.decimals {
+            writer.write_all(&[1, decimals])?;
+        } else {
+            writer.write_all(&[0, 0])?;
         }
+
+        // Write compression_only (1 byte as bool)
+        writer.write_all(&[self.compression_only as u8])?;
+
+        // Write compression (CompressionInfo)
+        self.compression.serialize(writer)?;
+
+        // Write extensions as Option<Vec<ExtensionStruct>>
+        self.extensions.serialize(writer)?;
 
         Ok(())
     }
@@ -119,22 +130,32 @@ impl BorshDeserialize for CToken {
             None
         };
 
-        // Try to read extensions if data remains
-        let extensions = {
-            // Try to read AccountType byte
-            let mut account_type = [0u8; 1];
-            match buf.read_exact(&mut account_type) {
-                Ok(_) => {
-                    if account_type[0] == 2 {
-                        // AccountType::Account, extensions follow
-                        Option::<Vec<ExtensionStruct>>::deserialize_reader(buf).unwrap_or_default()
-                    } else {
-                        None
-                    }
-                }
-                Err(_) => None, // No more data, no extensions
-            }
+        // Read account_type byte at position 165
+        let mut account_type_byte = [ACCOUNT_TYPE_TOKEN_ACCOUNT; 1];
+        // Ignore result and use default value.
+        let _ = buf.read_exact(&mut account_type_byte);
+        let account_type = account_type_byte[0];
+
+        // Read decimals option prefix (1 byte) + value (1 byte)
+        let mut decimals_bytes = [0u8; 2];
+        let _ = buf.read_exact(&mut decimals_bytes);
+        let decimals = if decimals_bytes[0] == 1 {
+            Some(decimals_bytes[1])
+        } else {
+            None
         };
+
+        // Read compression_only (1 byte as bool)
+        let mut compression_only_byte = [0u8; 1];
+        let _ = buf.read_exact(&mut compression_only_byte);
+        let compression_only = compression_only_byte[0] != 0;
+
+        // Read compression (CompressionInfo)
+        let compression = CompressionInfo::deserialize_reader(buf).unwrap_or_default();
+
+        // Read extensions if account_type indicates token account
+        let extensions =
+            Option::<Vec<ExtensionStruct>>::deserialize_reader(buf).unwrap_or_default();
 
         Ok(Self {
             mint,
@@ -146,6 +167,10 @@ impl BorshDeserialize for CToken {
             is_native,
             delegated_amount,
             close_authority,
+            account_type,
+            decimals,
+            compression_only,
+            compression,
             extensions,
         })
     }

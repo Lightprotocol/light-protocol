@@ -2,14 +2,14 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
 use light_ctoken_interface::{
-    instructions::mint_action::ZDecompressMintAction,
-    state::{CompressedMint, CompressibleExtension, ExtensionStruct},
-    COMPRESSED_MINT_SEED,
+    instructions::mint_action::ZDecompressMintAction, state::CompressedMint, COMPRESSED_MINT_SEED,
 };
 use light_program_profiler::profile;
-#[cfg(target_os = "solana")]
-use pinocchio::sysvars::{clock::Clock, Sysvar};
-use pinocchio::{account_info::AccountInfo, instruction::Seed};
+use pinocchio::{
+    account_info::AccountInfo,
+    instruction::Seed,
+    sysvars::{clock::Clock, Sysvar},
+};
 use pinocchio_system::instructions::Transfer;
 use spl_pod::solana_msg::msg;
 
@@ -27,7 +27,7 @@ use crate::{
 ///
 /// ## Process Steps
 /// 1. **State Validation**: Ensure mint is not already decompressed
-/// 2. **Rent Payment Validation**: rent_payment must be >= 2 (CMint is always compressible)
+/// 2. **Rent Payment Validation**: rent_payment must be 0 or >= 2
 /// 3. **Config Validation**: Validate CompressibleConfig account
 /// 4. **Write Top-Up Validation**: write_top_up must not exceed max_top_up
 /// 5. **Add Compressible Extension**: Add CompressionInfo to the compressed mint extensions
@@ -60,15 +60,9 @@ pub fn process_decompress_mint_action(
         return Err(ErrorCode::CMintAlreadyExists.into());
     }
 
-    // 2. Validate rent_payment (CMint is ALWAYS compressible)
-    // rent_payment == 0 is rejected - CMint must be compressible
-    if action.rent_payment == 0 {
-        msg!("rent_payment must be >= 2 (CMint is always compressible)");
-        return Err(ErrorCode::InvalidRentPayment.into());
-    }
     // rent_payment == 1 is rejected - epoch boundary edge case
     if action.rent_payment == 1 {
-        msg!("Prefunding for exactly 1 epoch is not allowed. Use 2+ epochs.");
+        msg!("Prefunding for exactly 1 epoch is not allowed. Use 0 or 2+ epochs.");
         return Err(ErrorCode::OneEpochPrefundingNotAllowed.into());
     }
 
@@ -87,16 +81,6 @@ pub fn process_decompress_mint_action(
         .ok_or(ErrorCode::MissingCompressibleConfig)?;
 
     let config = parse_config_account(config_account)?;
-
-    // 4. Validate rent_payment doesn't exceed max_funded_epochs
-    if action.rent_payment > config.rent_config.max_funded_epochs {
-        msg!(
-            "rent_payment {} exceeds max_funded_epochs {}",
-            action.rent_payment,
-            config.rent_config.max_funded_epochs
-        );
-        return Err(ErrorCode::RentPaymentExceedsMax.into());
-    }
 
     // 5. Validate write_top_up doesn't exceed max_top_up
     if action.write_top_up > config.rent_config.max_top_up as u32 {
@@ -119,17 +103,12 @@ pub fn process_decompress_mint_action(
     }
 
     // 7. Get current slot for last_claimed_slot
-    #[cfg(target_os = "solana")]
     let current_slot = Clock::get()
         .map_err(|_| ProgramError::UnsupportedSysvar)?
         .slot;
-    #[cfg(not(target_os = "solana"))]
-    let current_slot = 1u64;
 
-    // 8. Build Compressible extension and add to compressed_mint
-    // NOTE: Compressible will be stripped when writing to compressed account,
-    // but kept when writing to CMint (sync in mint_output.rs)
-    let compression_info = CompressionInfo {
+    // 8. Set compression info directly on compressed_mint (all cmints now have embedded compression)
+    compressed_mint.compression = CompressionInfo {
         config_account_version: config.version,
         compress_to_pubkey: 0, // Not applicable for CMint
         account_version: 3,    // ShaFlat version
@@ -145,17 +124,6 @@ pub fn process_decompress_mint_action(
             max_top_up: config.rent_config.max_top_up,
         },
     };
-
-    // Add Compressible extension to compressed_mint
-    let extension = ExtensionStruct::Compressible(CompressibleExtension {
-        compression_only: false,
-        info: compression_info,
-    });
-    if let Some(ref mut extensions) = compressed_mint.extensions {
-        extensions.push(extension);
-    } else {
-        compressed_mint.extensions = Some(vec![extension]);
-    }
 
     // 9. Verify PDA derivation
     let seeds: [&[u8]; 2] = [COMPRESSED_MINT_SEED, mint_signer.key()];
@@ -214,11 +182,8 @@ pub fn process_decompress_mint_action(
     .invoke()
     .map_err(convert_program_error)?;
 
-    // 16. Set the cmint_decompressed flag (will be persisted in sync)
+    // 16. Set the cmint_decompressed flag
     compressed_mint.metadata.cmint_decompressed = true;
-
-    // NOTE: Don't serialize here - the sync logic at the end of MintAction
-    // processor will write the output compressed mint to CMint account
 
     Ok(())
 }

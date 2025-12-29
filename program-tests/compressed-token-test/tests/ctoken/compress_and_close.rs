@@ -1,5 +1,4 @@
 use light_client::rpc::Rpc;
-use light_ctoken_interface::state::ZExtensionStructMut;
 use light_zero_copy::traits::ZeroCopyAtMut;
 use solana_sdk::signer::Signer;
 
@@ -249,7 +248,7 @@ async fn test_compress_and_close_rent_authority_scenarios() {
             .rpc
             .airdrop_lamports(
                 &token_account_pubkey,
-                RentConfig::default().get_rent(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, 1),
+                RentConfig::default().get_rent(BASE_TOKEN_ACCOUNT_SIZE, 1),
             )
             .await
             .unwrap();
@@ -437,15 +436,8 @@ async fn test_compress_and_close_compress_to_pubkey() {
         let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut token_account.data)
             .expect("Failed to deserialize ctoken account");
 
-        // Modify compress_to_pubkey in the compressible extension
-        if let Some(extensions) = ctoken.extensions.as_mut() {
-            for ext in extensions.iter_mut() {
-                if let ZExtensionStructMut::Compressible(ref mut comp) = ext {
-                    comp.info.compress_to_pubkey = 1;
-                    break;
-                }
-            }
-        }
+        // Modify compress_to_pubkey in the compression field (now on meta, not extension)
+        ctoken.compression.compress_to_pubkey = 1;
 
         // Write the modified account back
         context.rpc.set_account(token_account_pubkey, token_account);
@@ -507,7 +499,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
     // Create system account with compressible size
     let rent_exemption = context
         .rpc
-        .get_minimum_balance_for_rent_exemption(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize)
+        .get_minimum_balance_for_rent_exemption(BASE_TOKEN_ACCOUNT_SIZE as usize)
         .await
         .unwrap();
 
@@ -522,6 +514,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
         lamports_per_write,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let create_token_account_ix = CreateCTokenAccount::new(
@@ -567,6 +560,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
             account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
+        None,
     )
     .await;
 
@@ -581,7 +575,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
         .expect("Payer should exist")
         .lamports;
     let rent = RentConfig::default()
-        .get_rent_with_compression_cost(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, num_prepaid_epochs as u64);
+        .get_rent_with_compression_cost(BASE_TOKEN_ACCOUNT_SIZE, num_prepaid_epochs as u64);
     let tx_fee = 10_000; // Standard transaction fee
     assert_eq!(
         pool_balance_before - payer_balance_after,
@@ -606,8 +600,8 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
             .unwrap()
             .expect("Payer should exist")
             .lamports;
-        let rent = RentConfig::default()
-            .get_rent(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, num_prepaid_epochs as u64);
+        let rent =
+            RentConfig::default().get_rent(BASE_TOKEN_ACCOUNT_SIZE, num_prepaid_epochs as u64);
         assert_eq!(
             payer_balance_after,
             payer_balance_before + rent_exemption + rent,
@@ -739,7 +733,7 @@ async fn test_compress_and_close_output_validation_errors() {
             &mut context,
             CompressAndCloseValidationError::OwnerMismatch(wrong_owner.pubkey()),
             None, // Default destination
-            89,   // CompressAndCloseInvalidOwner
+            6089, // CompressAndCloseInvalidOwner
         )
         .await;
     }
@@ -774,15 +768,8 @@ async fn test_compress_and_close_output_validation_errors() {
         let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut token_account.data)
             .expect("Failed to deserialize ctoken account");
 
-        // Set compress_to_pubkey=true in the compressible extension
-        if let Some(extensions) = ctoken.extensions.as_mut() {
-            for ext in extensions.iter_mut() {
-                if let ZExtensionStructMut::Compressible(ref mut comp) = ext {
-                    comp.info.compress_to_pubkey = 1;
-                    break;
-                }
-            }
-        }
+        // Set compress_to_pubkey=true in the compression field (now on meta, not extension)
+        ctoken.compression.compress_to_pubkey = 1;
 
         // Write the modified account back
         context.rpc.set_account(token_account_pubkey, token_account);
@@ -793,14 +780,14 @@ async fn test_compress_and_close_output_validation_errors() {
             &mut context,
             CompressAndCloseValidationError::OwnerNotAccountPubkey(owner_pubkey),
             None, // Default destination
-            89,   // CompressAndCloseInvalidOwner
+            6089, // CompressAndCloseInvalidOwner
         )
         .await;
     }
 
-    // Test 8: Token account has delegate - should fail when forester tries to close
-    // The validation checks that delegate must be None in compressed output
-    // Since compressed token doesn't support delegation, any account with a delegate should fail
+    // Test 8: Forester CAN compress and close accounts with delegates
+    // When a delegate is present, the registry automatically adds CompressedOnly extension
+    // to preserve the delegate in the compressed output. This allows recovery of delegated accounts.
     {
         let mut context = setup_compress_and_close_test(
             2,       // 2 prepaid epochs
@@ -847,23 +834,37 @@ async fn test_compress_and_close_output_validation_errors() {
             .await
             .unwrap();
 
-        // Try to compress and close via forester (should fail because delegate is present)
-        // Error: CompressAndCloseDelegateNotAllowed (92 = 0x5c)
-        let result = compress_and_close_forester(
+        // Compress and close via forester (should succeed - delegate preserved via CompressedOnly)
+        compress_and_close_forester(
             &mut context.rpc,
             &[token_account_pubkey],
             &forester_keypair,
             &context.payer,
             Some(destination.pubkey()),
         )
-        .await;
+        .await
+        .unwrap();
 
-        // Assert that the transaction failed with delegate not allowed error
-        light_program_test::utils::assert::assert_rpc_error(result, 0, 92).unwrap();
+        // Assert compress and close succeeded
+        use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
+        use light_token_client::instructions::transfer2::CompressAndCloseInput;
+
+        let output_queue = context.rpc.get_random_state_tree_info().unwrap().queue;
+        assert_transfer2_compress_and_close(
+            &mut context.rpc,
+            CompressAndCloseInput {
+                solana_ctoken_account: token_account_pubkey,
+                authority: context.compression_authority,
+                output_queue,
+                destination: Some(destination.pubkey()),
+                is_compressible: true,
+            },
+        )
+        .await;
     }
 
-    // Test 9: Frozen account cannot be closed
-    // The validation checks that account state must be Initialized, not Frozen
+    // Test 9: Forester CAN compress and close frozen accounts
+    // Note: Owner compress_and_close is already tested in test_compress_and_close_owner_scenarios
     {
         let mut context = setup_compress_and_close_test(
             2,       // 2 prepaid epochs
@@ -897,7 +898,9 @@ async fn test_compress_and_close_output_validation_errors() {
             .unwrap();
         context.rpc.set_account(token_account_pubkey, token_account);
 
-        // Get forester keypair and setup for compress_and_close
+        // Test 9: Forester CAN close frozen accounts
+        // Note: Owners can't compress_and_close at all (they fail compression_authority check
+        // in test_compress_and_close_owner_scenarios), so frozen account test for owners is redundant
         let forester_keypair = context.rpc.test_accounts.protocol.forester.insecure_clone();
 
         // Create destination for compression incentive
@@ -908,19 +911,32 @@ async fn test_compress_and_close_output_validation_errors() {
             .await
             .unwrap();
 
-        // Try to compress and close via forester (should fail because account is frozen)
-        // Error: AccountFrozen
-        let result = compress_and_close_forester(
+        // Compress and close via forester (should succeed)
+        compress_and_close_forester(
             &mut context.rpc,
             &[token_account_pubkey],
             &forester_keypair,
             &context.payer,
             Some(destination.pubkey()),
         )
-        .await;
+        .await
+        .unwrap();
 
-        // Assert that the transaction failed with account frozen error
-        // Error: InvalidAccountState (18036)
-        light_program_test::utils::assert::assert_rpc_error(result, 0, 18036).unwrap();
+        // Assert compress and close succeeded
+        use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
+        use light_token_client::instructions::transfer2::CompressAndCloseInput;
+
+        let output_queue = context.rpc.get_random_state_tree_info().unwrap().queue;
+        assert_transfer2_compress_and_close(
+            &mut context.rpc,
+            CompressAndCloseInput {
+                solana_ctoken_account: token_account_pubkey,
+                authority: context.compression_authority,
+                output_queue,
+                destination: Some(destination.pubkey()),
+                is_compressible: true,
+            },
+        )
+        .await;
     }
 }

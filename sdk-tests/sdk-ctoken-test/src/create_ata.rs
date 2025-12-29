@@ -45,7 +45,7 @@ pub fn process_create_ata_invoke(
         associated_token_account: accounts[3].clone(),
         system_program: accounts[4].clone(),
         bump: data.bump,
-        compressible: Some(compressible_params),
+        compressible: compressible_params,
         idempotent: false,
     }
     .invoke()?;
@@ -94,7 +94,7 @@ pub fn process_create_ata_invoke_signed(
         associated_token_account: accounts[3].clone(),
         system_program: accounts[4].clone(),
         bump: data.bump,
-        compressible: Some(compressible_params),
+        compressible: compressible_params,
         idempotent: false,
     };
 

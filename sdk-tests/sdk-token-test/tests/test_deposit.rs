@@ -448,7 +448,7 @@ async fn batch_compress_spl_tokens(
     remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
     let spl_interface_index = 0;
     let (spl_interface_pda, spl_interface_bump) =
-        find_spl_interface_pda_with_index(&mint, spl_interface_index);
+        find_spl_interface_pda_with_index(&mint, spl_interface_index, false);
     println!("spl_interface_pda {:?}", spl_interface_pda);
 
     // Use batch compress account metas

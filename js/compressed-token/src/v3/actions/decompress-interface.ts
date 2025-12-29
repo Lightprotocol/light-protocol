@@ -15,6 +15,7 @@ import {
 import {
     createAssociatedTokenAccountIdempotentInstruction,
     getAssociatedTokenAddress,
+    getMint,
 } from '@solana/spl-token';
 import BN from 'bn.js';
 import { createDecompressInterfaceInstruction } from '../instructions/create-decompress-interface-instruction';
@@ -163,6 +164,18 @@ export async function decompressInterface(
         computeUnits += 50_000;
     }
 
+    // Fetch decimals for SPL destinations
+    let decimals = 0;
+    if (isSplDestination) {
+        const mintInfo = await getMint(
+            rpc,
+            mint,
+            undefined,
+            splInterfaceInfo.tokenProgram,
+        );
+        decimals = mintInfo.decimals;
+    }
+
     // Add decompressInterface instruction
     instructions.push(
         createDecompressInterfaceInstruction(
@@ -172,6 +185,7 @@ export async function decompressInterface(
             decompressAmount,
             validityProof,
             splInterfaceInfo,
+            decimals,
         ),
     );
 

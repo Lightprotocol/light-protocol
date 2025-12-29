@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_ctoken_interface::CTOKEN_PROGRAM_ID;
+use light_ctoken_interface::{BASE_TOKEN_ACCOUNT_SIZE, CTOKEN_PROGRAM_ID};
 use light_program_test::LightProgramTest;
 use light_token_client::instructions::transfer2::{
     CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
@@ -55,7 +55,8 @@ pub async fn assert_transfer2_with_delegate(
                         .get_pre_transaction_account(&pubkey)
                         .expect("SPL token account should exist in pre-transaction context");
 
-                    spl_token_2022::state::Account::unpack(&pre_account_data.data)
+                    // CToken accounts are 166 bytes, SPL token expects 165 bytes
+                    spl_token_2022::state::Account::unpack(&pre_account_data.data[..165])
                         .expect("Failed to unpack SPL token account")
                 });
 
@@ -385,28 +386,16 @@ pub async fn assert_transfer2_with_delegate(
                 let pre_token_account = SplTokenAccount::unpack(&pre_account_data.data[..165])
                     .expect("Failed to unpack SPL token account");
 
-                // Check if compress_to_pubkey is set in the compressible extension
-                use light_ctoken_interface::state::{ctoken::CToken, ZExtensionStruct};
+                // Check if compress_to_pubkey is set in the compression info
+                use light_ctoken_interface::state::ctoken::CToken;
                 use light_zero_copy::traits::ZeroCopyAt;
 
                 let compress_to_pubkey = if pre_account_data.data.len() > 165 {
-                    // Has extensions, check for compressible extension
+                    // Parse ctoken account and get compress_to_pubkey from embedded compression info
                     let (ctoken, _) = CToken::zero_copy_at(&pre_account_data.data)
                         .expect("Failed to deserialize ctoken account");
 
-                    if let Some(extensions) = ctoken.extensions.as_ref() {
-                        extensions
-                            .iter()
-                            .find_map(|ext| match ext {
-                                ZExtensionStruct::Compressible(comp) => {
-                                    Some(comp.info.compress_to_pubkey == 1)
-                                }
-                                _ => None,
-                            })
-                            .unwrap_or(false)
-                    } else {
-                        false
-                    }
+                    ctoken.compression.compress_to_pubkey == 1
                 } else {
                     false
                 };
@@ -455,38 +444,60 @@ pub async fn assert_transfer2_with_delegate(
 
                 let compressed_account = mint_accounts[0];
 
-                // Verify the compressed account has the correct data
+                // Determine expected state - frozen state should be preserved
+                let is_frozen =
+                    pre_token_account.state == spl_token_2022::state::AccountState::Frozen;
+                let expected_state = if is_frozen {
+                    light_ctoken_sdk::compat::AccountState::Frozen
+                } else {
+                    light_ctoken_sdk::compat::AccountState::Initialized
+                };
+
+                // Delegate is preserved from the original account
+                use spl_token_2022::solana_program::program_option::COption;
+                let expected_delegate: Option<Pubkey> = match pre_token_account.delegate {
+                    COption::Some(d) => Some(d),
+                    COption::None => None,
+                };
+
+                // Build expected TLV based on account state
+                // TLV contains CompressedOnly extension when:
+                // - Account is frozen (is_frozen=true)
+                // - Account has delegate set (even if delegated_amount=0)
+                // - Account has extensions beyond base (size > BASE_TOKEN_ACCOUNT_SIZE)
+                // - Account has withheld_transfer_fee > 0 (from TransferFeeAccount extension)
+                let has_delegate = expected_delegate.is_some();
+                let has_extra_extensions =
+                    pre_account_data.data.len() > BASE_TOKEN_ACCOUNT_SIZE as usize;
+                let needs_tlv = is_frozen || has_delegate || has_extra_extensions;
+
+                let expected_tlv = if needs_tlv {
+                    Some(vec![
+                        light_ctoken_interface::state::ExtensionStruct::CompressedOnly(
+                            light_ctoken_interface::state::CompressedOnlyExtension {
+                                delegated_amount: pre_token_account.delegated_amount,
+                                withheld_transfer_fee: 0, // TODO: extract from TransferFeeAccount if present
+                            },
+                        ),
+                    ])
+                } else {
+                    None
+                };
+
+                // Build expected token data for single assert comparison
+                let expected_token = light_ctoken_sdk::compat::TokenData {
+                    mint: expected_mint,
+                    owner: expected_owner,
+                    amount: expected_amount,
+                    delegate: expected_delegate,
+                    state: expected_state,
+                    tlv: expected_tlv,
+                };
+
                 assert_eq!(
-                    compressed_account.token.amount, expected_amount,
-                    "CompressAndClose compressed amount should match original balance"
-                );
-                assert_eq!(
-                    compressed_account.token.owner,
-                    expected_owner,
-                    "CompressAndClose owner should be {} (compress_to_pubkey={})",
-                    if compress_to_pubkey {
-                        "account pubkey"
-                    } else {
-                        "original owner"
-                    },
+                    compressed_account.token, expected_token,
+                    "CompressAndClose compressed token should match expected (compress_to_pubkey={})",
                     compress_to_pubkey
-                );
-                assert_eq!(
-                    compressed_account.token.mint, expected_mint,
-                    "CompressAndClose mint should match original mint"
-                );
-                assert_eq!(
-                    compressed_account.token.delegate, None,
-                    "CompressAndClose compressed account should have no delegate"
-                );
-                assert_eq!(
-                    compressed_account.token.state,
-                    light_ctoken_sdk::compat::AccountState::Initialized,
-                    "CompressAndClose compressed account should be initialized"
-                );
-                assert_eq!(
-                    compressed_account.token.tlv, None,
-                    "CompressAndClose compressed account should have no TLV data"
                 );
 
                 // Verify compressed account metadata

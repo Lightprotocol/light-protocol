@@ -86,8 +86,8 @@ pub fn process_actions<'a>(
                 compressed_mint.base.freeze_authority =
                     update_action.new_authority.as_ref().map(|a| **a);
             }
+            // TODO: Remove CreateSplMint - dead code, never activated
             ZAction::CreateSplMint(_create_spl_action) => {
-                // The creation of an associated spl mint is not activated.
                 return Err(ErrorCode::MintActionUnsupportedOperation.into());
                 // process_create_spl_mint_action(
                 //     create_spl_action,

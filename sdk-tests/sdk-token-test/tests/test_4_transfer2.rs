@@ -4,7 +4,7 @@ use light_ctoken_interface::{
         mint_action::{CompressedMintWithContext, Recipient},
         transfer2::MultiInputTokenDataWithContext,
     },
-    state::{BaseMint, CompressedMintMetadata},
+    state::{BaseMint, CompressedMintMetadata, ACCOUNT_TYPE_MINT},
     COMPRESSED_MINT_SEED,
 };
 use light_ctoken_sdk::{
@@ -127,6 +127,7 @@ async fn create_compressed_mints_and_tokens(
             decompress_amount,
             token_account1_pubkey,
             payer.pubkey(),
+            9,
         )
         .await
         .unwrap();
@@ -241,6 +242,9 @@ async fn mint_compressed_tokens(
             mint: mint_pda.into(),
             cmint_decompressed: false,
         },
+        reserved: [0u8; 49],
+        account_type: ACCOUNT_TYPE_MINT,
+        compression: Default::default(),
         extensions: None,
     };
 

@@ -100,6 +100,7 @@ describe('createWrapInstruction', () => {
             mint,
             BigInt(1000),
             tokenPoolInfo!,
+            TEST_TOKEN_DECIMALS,
         );
 
         expect(ix).toBeDefined();
@@ -131,6 +132,7 @@ describe('createWrapInstruction', () => {
             mint,
             BigInt(500),
             tokenPoolInfo!,
+            TEST_TOKEN_DECIMALS,
             feePayer.publicKey,
         );
 
@@ -164,6 +166,7 @@ describe('createWrapInstruction', () => {
             mint,
             BigInt(100),
             tokenPoolInfo!,
+            TEST_TOKEN_DECIMALS,
             // payer not provided - defaults to owner
         );
 

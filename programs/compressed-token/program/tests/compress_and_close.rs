@@ -14,13 +14,22 @@ use light_ctoken_interface::{
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
 use pinocchio::pubkey::Pubkey;
 
+// Anchor custom error codes start at offset 6000
+const ANCHOR_ERROR_OFFSET: u32 = 6000;
+
 /// Helper to create valid compressible CToken account data
 fn create_compressible_ctoken_data(
     owner_pubkey: &[u8; 32],
     rent_sponsor_pubkey: &[u8; 32],
 ) -> Vec<u8> {
-    // Create config for compressible CToken (no delegate, not native, no close_authority)
-    let config = CompressedTokenConfig::new_compressible(false, false, false);
+    // Create config for compressible CToken - CompressionInfo is now embedded in base struct
+    let config = CompressedTokenConfig {
+        mint: light_compressed_account::Pubkey::from([0u8; 32]),
+        owner: light_compressed_account::Pubkey::from(*owner_pubkey),
+        state: 1, // AccountState::Initialized
+        compression_only: false,
+        extensions: None,
+    };
 
     // Calculate required size
     let size = CToken::byte_len(&config).unwrap();
@@ -29,29 +38,18 @@ fn create_compressible_ctoken_data(
     // Initialize using zero-copy new
     let (mut ctoken, _) = CToken::new_zero_copy(&mut data, config).unwrap();
 
-    // Set required fields using to_bytes/to_bytes_mut methods
-    *ctoken.mint = light_compressed_account::Pubkey::from([0u8; 32]);
-    *ctoken.owner = light_compressed_account::Pubkey::from(*owner_pubkey);
-    *ctoken.state = 1; // AccountState::Initialized
-
-    // Set compressible extension fields
-    if let Some(extensions) = ctoken.extensions.as_mut() {
-        if let Some(light_ctoken_interface::state::ZExtensionStructMut::Compressible(comp_ext)) =
-            extensions.first_mut()
-        {
-            comp_ext.info.config_account_version.set(1);
-            comp_ext.info.account_version = 3; // ShaFlat
-            comp_ext
-                .info
-                .compression_authority
-                .copy_from_slice(owner_pubkey);
-            comp_ext
-                .info
-                .rent_sponsor
-                .copy_from_slice(rent_sponsor_pubkey);
-            comp_ext.info.last_claimed_slot.set(0);
-        }
-    }
+    // Set compression info fields (now embedded in meta, not an extension)
+    ctoken.compression.config_account_version.set(1);
+    ctoken.compression.account_version = 3; // ShaFlat
+    ctoken
+        .compression
+        .compression_authority
+        .copy_from_slice(owner_pubkey);
+    ctoken
+        .compression
+        .rent_sponsor
+        .copy_from_slice(rent_sponsor_pubkey);
+    ctoken.compression.last_claimed_slot.set(0);
 
     data
 }
@@ -70,7 +68,7 @@ fn test_close_for_compress_and_close_duplicate_detection() {
             pool_account_index: 2, // rent_sponsor index
             pool_index: 0,         // DUPLICATE: compressed_account_index = 0
             bump: 3,               // destination index
-            decimals: 0,
+            decimals: 9,
         },
         Compression {
             mode: CompressionMode::CompressAndClose,
@@ -81,7 +79,7 @@ fn test_close_for_compress_and_close_duplicate_detection() {
             pool_account_index: 2, // rent_sponsor index
             pool_index: 0,         // DUPLICATE: compressed_account_index = 0 (SAME AS FIRST!)
             bump: 3,               // destination index
-            decimals: 0,
+            decimals: 9,
         },
     ];
 
@@ -145,7 +143,7 @@ fn test_close_for_compress_and_close_duplicate_detection() {
         Err(anchor_lang::prelude::ProgramError::Custom(code)) => {
             assert_eq!(
                 code,
-                ErrorCode::CompressAndCloseDuplicateOutput as u32,
+                ANCHOR_ERROR_OFFSET + ErrorCode::CompressAndCloseDuplicateOutput as u32,
                 "Expected CompressAndCloseDuplicateOutput error, got error code: {}",
                 code
             );

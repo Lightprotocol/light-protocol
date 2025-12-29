@@ -3,7 +3,10 @@ use light_client::{
     rpc::Rpc,
 };
 use light_ctoken_interface::{
-    instructions::transfer2::{MultiInputTokenDataWithContext, MultiTokenTransferOutputData},
+    instructions::{
+        extensions::ExtensionInstructionData,
+        transfer2::{MultiInputTokenDataWithContext, MultiTokenTransferOutputData},
+    },
     state::TokenDataVersion,
     CTOKEN_PROGRAM_ID,
 };
@@ -72,6 +75,7 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
     decompress_amount: u64,
     solana_token_account: Pubkey,
     payer: Pubkey,
+    decimals: u8,
 ) -> Result<Instruction, CTokenSdkError> {
     create_generic_transfer2_instruction(
         rpc,
@@ -81,6 +85,8 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
             solana_token_account,
             amount: decompress_amount,
             pool_index: None,
+            decimals,
+            in_tlv: None,
         })],
         payer,
         false,
@@ -104,6 +110,9 @@ pub struct DecompressInput {
     pub solana_token_account: Pubkey,
     pub amount: u64,
     pub pool_index: Option<u8>, // For SPL only. None = default (0), Some(n) = specific pool
+    pub decimals: u8,           // Mint decimals for SPL transfer_checked
+    /// TLV extensions for each input compressed account (required for version 3 accounts with extensions).
+    pub in_tlv: Option<Vec<Vec<ExtensionInstructionData>>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -116,6 +125,7 @@ pub struct CompressInput {
     pub authority: Pubkey,
     pub output_queue: Pubkey,
     pub pool_index: Option<u8>, // For SPL only. None = default (0), Some(n) = specific pool
+    pub decimals: u8,           // Mint decimals for SPL transfer_checked
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -214,6 +224,8 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     let mut in_lamports = Vec::new();
     let mut out_lamports = Vec::new();
     let mut token_accounts = Vec::new();
+    let mut collected_in_tlv: Vec<Vec<ExtensionInstructionData>> = Vec::new();
+    let mut has_any_tlv = false;
     for action in actions {
         match action {
             Transfer2InstructionType::Compress(input) => {
@@ -278,7 +290,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     // Use pool_index from input, default to 0
                     let pool_index = input.pool_index.unwrap_or(0);
                     let (spl_interface_pda, bump) =
-                        find_spl_interface_pda_with_index(&mint, pool_index);
+                        find_spl_interface_pda_with_index(&mint, pool_index, false);
                     let pool_account_index = packed_tree_accounts.insert_or_get(spl_interface_pda);
 
                     // Use the new SPL-specific compress method
@@ -289,6 +301,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         pool_account_index,
                         pool_index,
                         bump,
+                        input.decimals,
                     )?;
                 } else {
                     // Regular compression for compressed token accounts
@@ -297,6 +310,17 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 token_accounts.push(token_account);
             }
             Transfer2InstructionType::Decompress(input) => {
+                // Collect in_tlv data if provided
+                if let Some(ref tlv_data) = input.in_tlv {
+                    has_any_tlv = true;
+                    collected_in_tlv.extend(tlv_data.iter().cloned());
+                } else {
+                    // Add empty TLV entries for each input (needed for proper indexing)
+                    for _ in 0..input.compressed_token_account.len() {
+                        collected_in_tlv.push(Vec::new());
+                    }
+                }
+
                 let token_data = input
                     .compressed_token_account
                     .iter()
@@ -345,7 +369,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     // Use pool_index from input, default to 0
                     let pool_index = input.pool_index.unwrap_or(0);
                     let (spl_interface_pda, bump) =
-                        find_spl_interface_pda_with_index(&mint, pool_index);
+                        find_spl_interface_pda_with_index(&mint, pool_index, false);
                     let pool_account_index = packed_tree_accounts.insert_or_get(spl_interface_pda);
 
                     // Use the new SPL-specific decompress method
@@ -355,6 +379,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         pool_account_index,
                         pool_index,
                         bump,
+                        input.decimals,
                     )?;
                 } else {
                     // Use the new SPL-specific decompress method
@@ -504,45 +529,19 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     .ok_or(CTokenSdkError::InvalidAccountData)?;
 
                 // Parse the compressed token account using zero-copy deserialization
-                use light_ctoken_interface::state::{CToken, ZExtensionStruct};
+                use light_ctoken_interface::state::CToken;
                 use light_zero_copy::traits::ZeroCopyAt;
                 let (compressed_token, _) = CToken::zero_copy_at(&token_account_info.data)
                     .map_err(|_| CTokenSdkError::InvalidAccountData)?;
                 let mint = compressed_token.mint;
-                let balance = compressed_token.amount;
+                let balance: u64 = compressed_token.amount.into();
                 let owner = compressed_token.owner;
 
-                // Extract rent_sponsor, compression_authority, and compress_to_pubkey from compressible extension
-                // For non-compressible accounts, use the owner as the rent_sponsor
-                let (rent_sponsor, _compression_authority, compress_to_pubkey) = if input
-                    .is_compressible
-                {
-                    if let Some(extensions) = compressed_token.extensions.as_ref() {
-                        let mut found_rent_sponsor = None;
-                        let mut found_compression_authority = None;
-                        let mut found_compress_to_pubkey = false;
-                        for extension in extensions {
-                            if let ZExtensionStruct::Compressible(compressible_ext) = extension {
-                                found_rent_sponsor = Some(compressible_ext.info.rent_sponsor);
-                                found_compression_authority =
-                                    Some(compressible_ext.info.compression_authority);
-                                found_compress_to_pubkey =
-                                    compressible_ext.info.compress_to_pubkey == 1;
-                                break;
-                            }
-                        }
-                        (
-                            found_rent_sponsor.ok_or(CTokenSdkError::InvalidAccountData)?,
-                            found_compression_authority,
-                            found_compress_to_pubkey,
-                        )
-                    } else {
-                        return Err(CTokenSdkError::InvalidAccountData);
-                    }
-                } else {
-                    // Non-compressible account: use owner as rent_sponsor
-                    (owner.to_bytes(), None, false)
-                };
+                // Extract rent_sponsor, compression_authority, and compress_to_pubkey from compression info
+                let compression = &compressed_token.base.compression;
+                let rent_sponsor = compression.rent_sponsor;
+                let _compression_authority = compression.compression_authority;
+                let compress_to_pubkey = compression.compress_to_pubkey == 1;
 
                 // Add source account first (it's being closed, so needs to be writable)
                 let source_index = packed_tree_accounts.insert_or_get(input.solana_ctoken_account);
@@ -579,7 +578,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     .unwrap_or(authority_index); // Default to authority if no destination specified
 
                 token_account.compress_and_close(
-                    (*balance).into(),
+                    balance,
                     source_index,
                     authority_index,
                     rent_sponsor_index,         // Use the extracted rent_sponsor
@@ -621,6 +620,11 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
         },
         token_accounts,
         output_queue: shared_output_queue,
+        in_tlv: if has_any_tlv {
+            Some(collected_in_tlv)
+        } else {
+            None
+        },
     };
     create_transfer2_instruction(inputs)
 }
