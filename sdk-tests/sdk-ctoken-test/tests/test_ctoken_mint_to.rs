@@ -49,12 +49,14 @@ async fn test_ctoken_mint_to_invoke() {
     mint_data.serialize(&mut instruction_data).unwrap();
 
     let ctoken_program = Pubkey::from(C_TOKEN_PROGRAM_ID);
+    let system_program = Pubkey::default();
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
             AccountMeta::new(mint_pda, false),                // cmint
             AccountMeta::new(ata, false),                     // destination
-            AccountMeta::new_readonly(payer.pubkey(), true),  // authority (signer)
+            AccountMeta::new(payer.pubkey(), true), // authority (signer, writable for top-up)
+            AccountMeta::new_readonly(system_program, false), // system_program
             AccountMeta::new_readonly(ctoken_program, false), // ctoken_program
         ],
         data: instruction_data,
@@ -307,13 +309,15 @@ async fn test_ctoken_mint_to_invoke_signed() {
     mint_data.serialize(&mut instruction_data).unwrap();
 
     let ctoken_program = Pubkey::from(C_TOKEN_PROGRAM_ID);
+    let system_program = Pubkey::default();
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(mint_pda, false),                    // cmint
-            AccountMeta::new(ata, false),                         // destination
-            AccountMeta::new_readonly(pda_mint_authority, false), // PDA authority (program signs)
-            AccountMeta::new_readonly(ctoken_program, false),     // ctoken_program
+            AccountMeta::new(mint_pda, false),                // cmint
+            AccountMeta::new(ata, false),                     // destination
+            AccountMeta::new(pda_mint_authority, false), // PDA authority (program signs, writable for top-up)
+            AccountMeta::new_readonly(system_program, false), // system_program
+            AccountMeta::new_readonly(ctoken_program, false), // ctoken_program
         ],
         data: instruction_data,
     };

@@ -5,9 +5,11 @@
 **path:** programs/compressed-token/program/src/claim/
 
 **description:**
-1. Claims rent from compressible ctoken solana accounts that have passed their rent expiration epochs
-2. Account layout `CToken` is defined in path: program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs
-3. Extension layout `CompressionInfo` is defined in path: program-libs/ctoken-types/src/state/extensions/compressible.rs
+1. Claims rent from compressible CToken and CMint solana accounts that have passed their rent expiration epochs
+2. Supports both account types:
+   - CToken (account_type = 2): decompressed token accounts, layout defined in program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs
+   - CMint (account_type = 1): decompressed mint accounts, layout defined in program-libs/ctoken-interface/src/state/mint/compressed_mint.rs
+3. CompressionInfo is embedded directly in both account types (not as an extension), defined in program-libs/compressible/src/compression_info.rs
 4. Processes multiple token accounts in a single instruction for efficiency
 5. For each eligible compressible account:
    - Updates the account's RentConfig from the CompressibleConfig
@@ -47,12 +49,12 @@
    - Owner must be Registry program (Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX)
    - Must not be in inactive state
 
-4. token_accounts (remaining accounts)
+4. accounts (remaining accounts)
    - (mutable, variable number)
-   - CToken accounts to claim rent from
+   - CToken or CMint accounts to claim rent from
+   - Account type determined by byte 165 (1 = CMint, 2 = CToken) or size (165 bytes = CToken)
    - Each account is processed independently
-   - Accounts without compressible extension are skipped
-   - Invalid accounts (wrong authority/recipient) are skipped without error
+   - Invalid accounts (wrong authority/recipient/type) are skipped without error
 
 **Instruction Logic and Checks:**
 
@@ -71,35 +73,39 @@
 3. **Get current slot:**
    - Fetch from Clock sysvar for epoch calculation
 
-4. **Process each token account:**
+4. **Process each account:**
    For each account in remaining accounts:
 
-   a. **Parse account data:**
-      - Borrow mutable data
-      - Deserialize as CToken with zero-copy
+   a. **Determine account type:**
+      - If account size < 165 bytes: invalid, skip
+      - If account size == 165 bytes: CToken (legacy)
+      - If account size > 165 bytes: read byte 165 for discriminator (1 = CMint, 2 = CToken)
 
-   b. **Find and validate compressible extension:**
-      - Search extensions for Compressible variant
-      - Skip if no compressible extension found
+   b. **Parse account data:**
+      - Borrow mutable data
+      - Deserialize as CToken or CMint based on account type with zero-copy
+
+   c. **Validate compression info:**
+      - Access embedded CompressionInfo from account
       - Validate compression_authority matches
       - Validate rent_sponsor matches
 
-   c. **Validate version:**
-      - Verify `compressible_ext.config_account_version` matches CompressibleConfig version
+   d. **Validate version:**
+      - Verify `compression.config_account_version` matches CompressibleConfig version
       - Error if versions don't match (prevents cross-version claims)
 
-   d. **Calculate and claim rent:**
+   e. **Calculate and claim rent:**
       - Get account size and current lamports
       - Calculate rent exemption for account size
-      - Call `compressible_ext.claim()` which:
+      - Call `compression.claim()` which:
         - Determines completed epochs since last claim using CURRENT RentConfig
         - Calculates claimable lamports
         - Updates last_claimed_slot if there's claimable rent
       - Returns None if no rent to claim (account not yet compressible)
-      - After claim calculation, always update `compressible_ext.rent_config` from CompressibleConfig for future operations
+      - After claim calculation, always update `compression.rent_config` from CompressibleConfig for future operations
 
-   e. **Transfer lamports:**
-      - If claim amount > 0, transfer from token account to rent_sponsor
+   f. **Transfer lamports:**
+      - If claim amount > 0, transfer from account to rent_sponsor
       - Update both account balances
 
 5. **Complete successfully:**

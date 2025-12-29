@@ -8,13 +8,17 @@ use borsh::BorshDeserialize;
 #[cfg(feature = "devenv")]
 use light_client::rpc::{Rpc, RpcError};
 #[cfg(feature = "devenv")]
+use light_compressible::compression_info::CompressionInfo;
+#[cfg(feature = "devenv")]
 use light_compressible::config::CompressibleConfig as CtokenCompressibleConfig;
 #[cfg(feature = "devenv")]
 use light_compressible::rent::RentConfig;
 #[cfg(feature = "devenv")]
 use light_compressible::rent::SLOTS_PER_EPOCH;
 #[cfg(feature = "devenv")]
-use light_ctoken_interface::state::CToken;
+use light_ctoken_interface::state::{
+    CToken, CompressedMint, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+};
 #[cfg(feature = "devenv")]
 use light_sdk::compressible::CompressibleConfig as CpdaCompressibleConfig;
 #[cfg(feature = "devenv")]
@@ -22,6 +26,40 @@ use solana_pubkey::Pubkey;
 
 #[cfg(feature = "devenv")]
 use crate::{litesvm_extensions::LiteSvmExtensions, LightProgramTest};
+
+/// Determines account type from account data.
+/// - If account is exactly 165 bytes: CToken (legacy size without extensions)
+/// - If account is > 165 bytes: read byte 165 for discriminator
+/// - If account is < 165 bytes: invalid (returns None)
+#[cfg(feature = "devenv")]
+fn determine_account_type(data: &[u8]) -> Option<u8> {
+    const ACCOUNT_TYPE_OFFSET: usize = 165;
+
+    match data.len().cmp(&ACCOUNT_TYPE_OFFSET) {
+        std::cmp::Ordering::Less => None,
+        std::cmp::Ordering::Equal => Some(ACCOUNT_TYPE_TOKEN_ACCOUNT), // 165 bytes = CToken
+        std::cmp::Ordering::Greater => Some(data[ACCOUNT_TYPE_OFFSET]),
+    }
+}
+
+/// Extracts CompressionInfo and account type from account data, handling both CToken and CMint.
+/// Returns (CompressionInfo, account_type) or None if parsing fails.
+#[cfg(feature = "devenv")]
+fn extract_compression_info(data: &[u8]) -> Option<(CompressionInfo, u8)> {
+    let account_type = determine_account_type(data)?;
+
+    match account_type {
+        ACCOUNT_TYPE_TOKEN_ACCOUNT => {
+            let ctoken = CToken::deserialize(&mut &data[..]).ok()?;
+            Some((ctoken.compression, account_type))
+        }
+        ACCOUNT_TYPE_MINT => {
+            let cmint = CompressedMint::deserialize(&mut &data[..]).ok()?;
+            Some((cmint.compression, account_type))
+        }
+        _ => None,
+    }
+}
 
 #[cfg(feature = "devenv")]
 pub type CompressibleAccountStore = HashMap<Pubkey, StoredCompressibleAccount>;
@@ -31,7 +69,9 @@ pub type CompressibleAccountStore = HashMap<Pubkey, StoredCompressibleAccount>;
 pub struct StoredCompressibleAccount {
     pub pubkey: Pubkey,
     pub last_paid_slot: u64,
-    pub account: CToken,
+    pub compression: CompressionInfo,
+    /// Account type: ACCOUNT_TYPE_TOKEN_ACCOUNT (2) or ACCOUNT_TYPE_MINT (1)
+    pub account_type: u8,
 }
 
 #[cfg(feature = "devenv")]
@@ -84,7 +124,7 @@ pub async fn claim_and_compress(
     let forester_keypair = rpc.test_accounts.protocol.forester.insecure_clone();
     let payer = rpc.get_payer().insecure_clone();
 
-    // Get all compressible token accounts
+    // Get all compressible token/mint accounts (both CToken and CMint)
     let compressible_ctoken_accounts = rpc
         .context
         .get_program_accounts(&light_compressed_token::ID);
@@ -93,13 +133,16 @@ pub async fn claim_and_compress(
         .iter()
         .filter(|e| e.1.data.len() > 200 && e.1.lamports > 0)
     {
-        let des_account = CToken::deserialize(&mut account.1.data.as_slice())?;
+        // Extract compression info and account type, handling both CToken and CMint
+        let Some((compression, account_type)) = extract_compression_info(&account.1.data) else {
+            continue;
+        };
+
         let base_lamports = rpc
             .get_minimum_balance_for_rent_exemption(account.1.data.len())
             .await
             .unwrap();
-        let last_funded_epoch = des_account
-            .compression
+        let last_funded_epoch = compression
             .get_last_funded_epoch(
                 account.1.data.len() as u64,
                 account.1.lamports,
@@ -112,7 +155,8 @@ pub async fn claim_and_compress(
             StoredCompressibleAccount {
                 pubkey: account.0,
                 last_paid_slot: last_funded_slot,
-                account: des_account.clone(),
+                compression,
+                account_type,
             },
         );
     }
@@ -131,7 +175,7 @@ pub async fn claim_and_compress(
 
         use light_compressible::rent::AccountRentState;
 
-        let compression = &stored_account.account.compression;
+        let compression = &stored_account.compression;
 
         // Create state for rent calculation
         let state = AccountRentState {
@@ -145,10 +189,15 @@ pub async fn claim_and_compress(
         match state.calculate_claimable_rent(&compression.rent_config, rent_exemption) {
             None => {
                 // Account is compressible (has rent deficit)
-                compress_accounts.push(*pubkey);
+                // Only CToken accounts can be compressed via compress_and_close_forester
+                // CMint accounts have a different compression flow
+                if stored_account.account_type == ACCOUNT_TYPE_TOKEN_ACCOUNT {
+                    compress_accounts.push(*pubkey);
+                }
             }
             Some(claimable_amount) if claimable_amount > 0 => {
                 // Has rent to claim from completed epochs
+                // Both CToken and CMint can be claimed
                 claim_accounts.push(*pubkey);
             }
             Some(_) => {

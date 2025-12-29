@@ -17,8 +17,11 @@ use crate::{
         CompressedMint, ExtensionStruct, ExtensionStructConfig, TokenDataVersion, ZExtensionStruct,
         ZExtensionStructMut,
     },
-    AnchorDeserialize, AnchorSerialize, CTokenError, BASE_TOKEN_ACCOUNT_SIZE,
+    AnchorDeserialize, AnchorSerialize, CTokenError,
 };
+
+/// Base size for CMint accounts (without extensions)
+pub const BASE_MINT_ACCOUNT_SIZE: u64 = CompressedMintZeroCopyMeta::LEN as u64;
 
 /// Optimized CompressedMint zero copy struct.
 /// Uses derive macros to generate ZCompressedMintZeroCopyMeta<'a> and ZCompressedMintZeroCopyMetaMut<'a>.
@@ -317,8 +320,8 @@ impl CompressedMint {
     /// - Account type is not ACCOUNT_TYPE_MINT (byte 165 != 1)
     #[profile]
     pub fn zero_copy_at_checked(bytes: &[u8]) -> Result<(ZCompressedMint<'_>, &[u8]), CTokenError> {
-        // Check minimum size for account_type at byte 165
-        if bytes.len() < BASE_TOKEN_ACCOUNT_SIZE as usize {
+        // Check minimum size (use CMint-specific size, not CToken size)
+        if bytes.len() < BASE_MINT_ACCOUNT_SIZE as usize {
             return Err(CTokenError::InvalidAccountData);
         }
 
@@ -347,10 +350,10 @@ impl CompressedMint {
     pub fn zero_copy_at_mut_checked(
         bytes: &mut [u8],
     ) -> Result<(ZCompressedMintMut<'_>, &mut [u8]), CTokenError> {
-        // Check minimum size
-        if bytes.len() < BASE_TOKEN_ACCOUNT_SIZE as usize {
+        // Check minimum size (use CMint-specific size, not CToken size)
+        if bytes.len() < BASE_MINT_ACCOUNT_SIZE as usize {
             msg!(
-                "zero_copy_at_checked bytes.len() < BASE_TOKEN_ACCOUNT_SIZE {}",
+                "zero_copy_at_mut_checked bytes.len() < BASE_MINT_ACCOUNT_SIZE {}",
                 bytes.len()
             );
             return Err(CTokenError::InvalidAccountData);
