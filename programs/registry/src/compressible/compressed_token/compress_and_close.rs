@@ -118,7 +118,12 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         if idx.delegate_index != 0 {
             has_marker_extensions = true;
         }
-        if ctoken.compression_only() {
+        // Check compression_only flag from Compressible extension
+        if ctoken
+            .get_compressible_extension()
+            .map(|ext| ext.compression_only != 0)
+            .unwrap_or(false)
+        {
             has_marker_extensions = true;
         }
         if let Some(extensions) = &ctoken.extensions {

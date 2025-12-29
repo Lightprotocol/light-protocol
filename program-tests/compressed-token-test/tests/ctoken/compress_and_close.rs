@@ -436,8 +436,11 @@ async fn test_compress_and_close_compress_to_pubkey() {
         let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut token_account.data)
             .expect("Failed to deserialize ctoken account");
 
-        // Modify compress_to_pubkey in the compression field (now on meta, not extension)
-        ctoken.compression.compress_to_pubkey = 1;
+        // Modify compress_to_pubkey in the Compressible extension
+        let compressible = ctoken
+            .get_compressible_extension_mut()
+            .expect("CToken should have Compressible extension");
+        compressible.info.compress_to_pubkey = 1;
 
         // Write the modified account back
         context.rpc.set_account(token_account_pubkey, token_account);
@@ -768,8 +771,11 @@ async fn test_compress_and_close_output_validation_errors() {
         let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut token_account.data)
             .expect("Failed to deserialize ctoken account");
 
-        // Set compress_to_pubkey=true in the compression field (now on meta, not extension)
-        ctoken.compression.compress_to_pubkey = 1;
+        // Set compress_to_pubkey=true in the Compressible extension
+        let compressible = ctoken
+            .get_compressible_extension_mut()
+            .expect("CToken should have Compressible extension");
+        compressible.info.compress_to_pubkey = 1;
 
         // Write the modified account back
         context.rpc.set_account(token_account_pubkey, token_account);

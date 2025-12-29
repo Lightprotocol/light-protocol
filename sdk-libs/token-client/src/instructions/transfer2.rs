@@ -537,11 +537,13 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 let balance: u64 = compressed_token.amount.into();
                 let owner = compressed_token.owner;
 
-                // Extract rent_sponsor, compression_authority, and compress_to_pubkey from compression info
-                let compression = &compressed_token.base.compression;
-                let rent_sponsor = compression.rent_sponsor;
-                let _compression_authority = compression.compression_authority;
-                let compress_to_pubkey = compression.compress_to_pubkey == 1;
+                // Extract rent_sponsor, compression_authority, and compress_to_pubkey from Compressible extension
+                let compressible_ext = compressed_token
+                    .get_compressible_extension()
+                    .ok_or(CTokenSdkError::MissingCompressibleExtension)?;
+                let rent_sponsor = compressible_ext.info.rent_sponsor;
+                let _compression_authority = compressible_ext.info.compression_authority;
+                let compress_to_pubkey = compressible_ext.info.compress_to_pubkey == 1;
 
                 // Add source account first (it's being closed, so needs to be writable)
                 let source_index = packed_tree_accounts.insert_or_get(input.solana_ctoken_account);

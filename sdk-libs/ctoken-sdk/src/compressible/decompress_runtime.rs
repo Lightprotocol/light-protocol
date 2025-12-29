@@ -1,6 +1,6 @@
 //! Runtime helpers for token decompression.
 use light_ctoken_interface::instructions::{
-    create_ctoken_account::CompressToPubkey, transfer2::MultiInputTokenDataWithContext,
+    extensions::CompressToPubkey, transfer2::MultiInputTokenDataWithContext,
 };
 use light_sdk::{cpi::v2::CpiAccounts, instruction::ValidityProof};
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;

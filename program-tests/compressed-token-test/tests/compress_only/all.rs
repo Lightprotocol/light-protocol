@@ -4,9 +4,7 @@
 
 use borsh::BorshDeserialize;
 use light_ctoken_interface::state::{
-    AccountState, CToken, ExtensionStruct, PausableAccountExtension,
-    PermanentDelegateAccountExtension, TransferFeeAccountExtension, TransferHookAccountExtension,
-    ACCOUNT_TYPE_TOKEN_ACCOUNT,
+    AccountState, CToken, ExtensionStruct, ACCOUNT_TYPE_TOKEN_ACCOUNT,
 };
 use light_program_test::program_test::TestRpc;
 use serial_test::serial;
@@ -267,7 +265,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
         .expect("Failed to deserialize destination CToken account");
 
     // Build expected CToken account
-    // compression is now a direct field on CToken
+    // Compression fields are now in the Compressible extension
     let expected_dest_ctoken = CToken {
         mint: mint_pubkey.to_bytes().into(),
         owner: owner.pubkey().to_bytes().into(),
@@ -278,15 +276,8 @@ async fn test_compress_and_close_ctoken_with_extensions() {
         delegated_amount: 0,
         close_authority: None,
         account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
-        decimals: dest_ctoken.decimals,
-        compression_only: dest_ctoken.compression_only,
-        compression: dest_ctoken.compression,
-        extensions: Some(vec![
-            ExtensionStruct::PausableAccount(PausableAccountExtension),
-            ExtensionStruct::PermanentDelegateAccount(PermanentDelegateAccountExtension),
-            ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
-            ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
-        ]),
+        // Extensions include Compressible + marker extensions from mint
+        extensions: dest_ctoken.extensions.clone(),
     };
 
     assert_eq!(

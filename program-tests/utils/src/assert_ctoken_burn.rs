@@ -1,8 +1,21 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::rpc::Rpc;
-use light_ctoken_interface::state::{CToken, CompressedMint};
+use light_compressible::compression_info::CompressionInfo;
+use light_ctoken_interface::state::{extensions::ExtensionStruct, CToken, CompressedMint};
 use light_program_test::LightProgramTest;
 use solana_sdk::pubkey::Pubkey;
+
+/// Extract CompressionInfo from CToken's Compressible extension
+fn get_ctoken_compression_info(ctoken: &CToken) -> Option<CompressionInfo> {
+    ctoken
+        .extensions
+        .as_ref()?
+        .iter()
+        .find_map(|ext| match ext {
+            ExtensionStruct::Compressible(comp) => Some(comp.info),
+            _ => None,
+        })
+}
 
 /// Assert that a ctoken burn was successful by checking complete account state.
 /// Automatically retrieves pre-transaction state from the cached context.
@@ -80,39 +93,43 @@ pub async fn assert_ctoken_burn(
         burn_amount
     );
 
-    // Calculate expected lamport changes
-    let current_slot = rpc.get_slot().await.unwrap();
+    // Calculate expected lamport changes only if account is compressible
+    if let Some(ctoken_compression) = get_ctoken_compression_info(&ctoken_parsed_before) {
+        let current_slot = rpc.get_slot().await.unwrap();
 
-    let expected_ctoken_lamport_change = calculate_expected_lamport_change(
-        rpc,
-        &ctoken_parsed_before.compression,
-        ctoken_before.data.len(),
-        current_slot,
-        ctoken_before.lamports,
-    )
-    .await;
+        let expected_ctoken_lamport_change = calculate_expected_lamport_change(
+            rpc,
+            &ctoken_compression,
+            ctoken_before.data.len(),
+            current_slot,
+            ctoken_before.lamports,
+        )
+        .await;
 
-    let expected_cmint_lamport_change = calculate_expected_lamport_change(
-        rpc,
-        &cmint_parsed_before.compression,
-        cmint_before.data.len(),
-        current_slot,
-        cmint_before.lamports,
-    )
-    .await;
+        let expected_cmint_lamport_change = calculate_expected_lamport_change(
+            rpc,
+            &cmint_parsed_before.compression,
+            cmint_before.data.len(),
+            current_slot,
+            cmint_before.lamports,
+        )
+        .await;
 
-    let actual_ctoken_lamport_change = ctoken_after.lamports.saturating_sub(ctoken_before.lamports);
-    let actual_cmint_lamport_change = cmint_after.lamports.saturating_sub(cmint_before.lamports);
+        let actual_ctoken_lamport_change =
+            ctoken_after.lamports.saturating_sub(ctoken_before.lamports);
+        let actual_cmint_lamport_change =
+            cmint_after.lamports.saturating_sub(cmint_before.lamports);
 
-    // Assert lamport changes
-    assert_eq!(
-        (actual_ctoken_lamport_change, actual_cmint_lamport_change),
-        (
-            expected_ctoken_lamport_change,
-            expected_cmint_lamport_change
-        ),
-        "Lamport changes mismatch after burn"
-    );
+        // Assert lamport changes
+        assert_eq!(
+            (actual_ctoken_lamport_change, actual_cmint_lamport_change),
+            (
+                expected_ctoken_lamport_change,
+                expected_cmint_lamport_change
+            ),
+            "Lamport changes mismatch after burn"
+        );
+    }
 }
 
 async fn calculate_expected_lamport_change(

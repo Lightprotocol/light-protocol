@@ -46,14 +46,17 @@ pub fn pack_for_compress_and_close(
     let mint_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
     let owner_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.owner.to_bytes()));
 
-    // Get compression info from base
-    let compression = &ctoken_account.base.compression;
+    // Get compression info from Compressible extension
+    let compressible_ext = ctoken_account
+        .get_compressible_extension()
+        .ok_or(CTokenSdkError::MissingCompressibleExtension)?;
     let authority_index = packed_accounts.insert_or_get_config(
-        Pubkey::from(compression.compression_authority),
+        Pubkey::from(compressible_ext.info.compression_authority),
         true,
         true,
     );
-    let rent_sponsor_index = packed_accounts.insert_or_get(Pubkey::from(compression.rent_sponsor));
+    let rent_sponsor_index =
+        packed_accounts.insert_or_get(Pubkey::from(compressible_ext.info.rent_sponsor));
     // When compression authority closes, everything goes to rent sponsor
     let destination_index = rent_sponsor_index;
 
@@ -270,10 +273,12 @@ pub fn compress_and_close_ctoken_accounts<'info>(
         let mint_pubkey = Pubkey::from(compressed_token.mint.to_bytes());
         let owner_pubkey = Pubkey::from(compressed_token.owner.to_bytes());
 
-        // Get compression info from base
-        let compression = &compressed_token.base.compression;
-        let authority = Pubkey::from(compression.compression_authority);
-        let rent_sponsor = Pubkey::from(compression.rent_sponsor);
+        // Get compression info from Compressible extension
+        let compressible_ext = compressed_token
+            .get_compressible_extension()
+            .ok_or(CTokenSdkError::MissingCompressibleExtension)?;
+        let authority = Pubkey::from(compressible_ext.info.compression_authority);
+        let rent_sponsor = Pubkey::from(compressible_ext.info.rent_sponsor);
 
         // When compression authority closes, everything goes to rent sponsor
         let destination_pubkey = rent_sponsor;

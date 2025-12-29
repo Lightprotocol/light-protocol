@@ -9,7 +9,10 @@ use light_compressed_token::transfer2::{
 };
 use light_ctoken_interface::{
     instructions::transfer2::{Compression, CompressionMode},
-    state::{CToken, CompressedTokenConfig},
+    state::{
+        CToken, CompressedTokenConfig, CompressibleExtensionConfig, CompressionInfoConfig,
+        ExtensionStructConfig,
+    },
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
 use pinocchio::pubkey::Pubkey;
@@ -22,13 +25,16 @@ fn create_compressible_ctoken_data(
     owner_pubkey: &[u8; 32],
     rent_sponsor_pubkey: &[u8; 32],
 ) -> Vec<u8> {
-    // Create config for compressible CToken - CompressionInfo is now embedded in base struct
+    // Create config for compressible CToken with Compressible extension
     let config = CompressedTokenConfig {
         mint: light_compressed_account::Pubkey::from([0u8; 32]),
         owner: light_compressed_account::Pubkey::from(*owner_pubkey),
         state: 1, // AccountState::Initialized
-        compression_only: false,
-        extensions: None,
+        extensions: Some(vec![ExtensionStructConfig::Compressible(
+            CompressibleExtensionConfig {
+                info: CompressionInfoConfig { rent_config: () },
+            },
+        )]),
     };
 
     // Calculate required size
@@ -38,18 +44,19 @@ fn create_compressible_ctoken_data(
     // Initialize using zero-copy new
     let (mut ctoken, _) = CToken::new_zero_copy(&mut data, config).unwrap();
 
-    // Set compression info fields (now embedded in meta, not an extension)
-    ctoken.compression.config_account_version.set(1);
-    ctoken.compression.account_version = 3; // ShaFlat
-    ctoken
-        .compression
+    // Set compression info fields via the Compressible extension
+    let compressible = ctoken.get_compressible_extension_mut().unwrap();
+    compressible.info.config_account_version.set(1);
+    compressible.info.account_version = 3; // ShaFlat
+    compressible
+        .info
         .compression_authority
         .copy_from_slice(owner_pubkey);
-    ctoken
-        .compression
+    compressible
+        .info
         .rent_sponsor
         .copy_from_slice(rent_sponsor_pubkey);
-    ctoken.compression.last_claimed_slot.set(0);
+    compressible.info.last_claimed_slot.set(0);
 
     data
 }

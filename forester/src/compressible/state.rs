@@ -17,13 +17,25 @@ fn calculate_compressible_slot(
     account_size: usize,
 ) -> Result<u64> {
     use light_compressible::rent::SLOTS_PER_EPOCH;
+    use light_ctoken_interface::state::extensions::ExtensionStruct;
 
     // Calculate rent exemption dynamically
     let rent_exemption = Rent::default().minimum_balance(account_size);
 
+    // Get CompressionInfo from Compressible extension
+    let compression_info = account
+        .extensions
+        .as_ref()
+        .and_then(|exts| {
+            exts.iter().find_map(|ext| match ext {
+                ExtensionStruct::Compressible(comp) => Some(&comp.info),
+                _ => None,
+            })
+        })
+        .ok_or_else(|| anyhow::anyhow!("Missing Compressible extension on CToken account"))?;
+
     // Calculate last funded epoch using embedded compression info
-    let last_funded_epoch = account
-        .compression
+    let last_funded_epoch = compression_info
         .get_last_funded_epoch(account_size as u64, lamports, rent_exemption)
         .map_err(|e| {
             anyhow::anyhow!(

@@ -485,11 +485,7 @@ async fn test_transfer_with_owner_authority() {
     use anchor_lang::prelude::AccountMeta;
     use anchor_spl::token_2022::spl_token_2022;
     use borsh::BorshDeserialize;
-    use light_ctoken_interface::state::{
-        AccountState, CToken, ExtensionStruct, PausableAccountExtension,
-        PermanentDelegateAccountExtension, TokenDataVersion, TransferFeeAccountExtension,
-        TransferHookAccountExtension,
-    };
+    use light_ctoken_interface::state::{AccountState, CToken, TokenDataVersion};
     use light_ctoken_sdk::{
         ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
         spl_interface::find_spl_interface_pda_with_index,
@@ -699,7 +695,7 @@ async fn test_transfer_with_owner_authority() {
     let ctoken_b = CToken::deserialize(&mut &account_b.data[..]).unwrap();
 
     // Build expected CToken accounts
-    // compression is now a direct field on CToken
+    // Compression fields are now in the Compressible extension
     let expected_ctoken_a = CToken {
         mint: mint_pubkey.to_bytes().into(),
         owner: owner.pubkey().to_bytes().into(),
@@ -710,15 +706,7 @@ async fn test_transfer_with_owner_authority() {
         delegated_amount: 0,
         close_authority: None,
         account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
-        decimals: ctoken_a.decimals,
-        compression_only: ctoken_a.compression_only,
-        compression: ctoken_a.compression,
-        extensions: Some(vec![
-            ExtensionStruct::PausableAccount(PausableAccountExtension),
-            ExtensionStruct::PermanentDelegateAccount(PermanentDelegateAccountExtension),
-            ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
-            ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
-        ]),
+        extensions: ctoken_a.extensions.clone(),
     };
 
     let expected_ctoken_b = CToken {
@@ -731,15 +719,7 @@ async fn test_transfer_with_owner_authority() {
         delegated_amount: 0,
         close_authority: None,
         account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
-        decimals: ctoken_b.decimals,
-        compression_only: ctoken_b.compression_only,
-        compression: ctoken_b.compression,
-        extensions: Some(vec![
-            ExtensionStruct::PausableAccount(PausableAccountExtension),
-            ExtensionStruct::PermanentDelegateAccount(PermanentDelegateAccountExtension),
-            ExtensionStruct::TransferFeeAccount(TransferFeeAccountExtension { withheld_amount: 0 }),
-            ExtensionStruct::TransferHookAccount(TransferHookAccountExtension { transferring: 0 }),
-        ]),
+        extensions: ctoken_b.extensions.clone(),
     };
 
     assert_eq!(

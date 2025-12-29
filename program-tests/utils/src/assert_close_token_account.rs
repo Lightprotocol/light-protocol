@@ -46,7 +46,10 @@ pub async fn assert_close_token_account(
 
     // Validate compressible account closure using embedded compression info
     // Check if compression info is present (non-zero compression_authority indicates compressible)
-    let compression = &compressed_token.compression;
+    let compressible = compressed_token
+        .get_compressible_extension()
+        .expect("Expected Compressible extension for closure");
+    let compression = &compressible.info;
 
     assert_compressible_extension(
         rpc,

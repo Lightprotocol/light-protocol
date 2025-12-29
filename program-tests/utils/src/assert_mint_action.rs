@@ -3,12 +3,25 @@ use std::collections::HashMap;
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
 use light_compressed_account::compressed_account::CompressedAccountData;
+use light_compressible::compression_info::CompressionInfo;
 use light_ctoken_interface::state::{
     extensions::AdditionalMetadata, CToken, CompressedMint, ExtensionStruct,
 };
 use light_program_test::{LightProgramTest, Rpc};
 use light_token_client::instructions::mint_action::MintActionType;
 use solana_sdk::pubkey::Pubkey;
+
+/// Extract CompressionInfo from CToken's Compressible extension
+fn get_ctoken_compression_info(ctoken: &CToken) -> Option<CompressionInfo> {
+    ctoken
+        .extensions
+        .as_ref()?
+        .iter()
+        .find_map(|ext| match ext {
+            ExtensionStruct::Compressible(comp) => Some(comp.info),
+            _ => None,
+        })
+}
 
 /// Assert that mint actions produce the expected state changes
 ///
@@ -248,35 +261,36 @@ pub async fn assert_mint_action(
         );
 
         // Validate lamport balance changes for compressible accounts
-        let pre_lamports = pre_account.lamports;
-        let post_lamports = account_data.lamports;
+        if let Some(compression_info) = get_ctoken_compression_info(&pre_ctoken) {
+            let pre_lamports = pre_account.lamports;
+            let post_lamports = account_data.lamports;
 
-        // Calculate expected top-up using embedded compression info
-        let current_slot = rpc.get_slot().await.unwrap();
-        let account_size = pre_account.data.len() as u64;
-        let rent_exemption = rpc
-            .get_minimum_balance_for_rent_exemption(pre_account.data.len())
-            .await
-            .unwrap();
+            // Calculate expected top-up using embedded compression info
+            let current_slot = rpc.get_slot().await.unwrap();
+            let account_size = pre_account.data.len() as u64;
+            let rent_exemption = rpc
+                .get_minimum_balance_for_rent_exemption(pre_account.data.len())
+                .await
+                .unwrap();
 
-        let expected_top_up = pre_ctoken
-            .compression
-            .calculate_top_up_lamports(account_size, current_slot, pre_lamports, rent_exemption)
-            .unwrap();
+            let expected_top_up = compression_info
+                .calculate_top_up_lamports(account_size, current_slot, pre_lamports, rent_exemption)
+                .unwrap();
 
-        let actual_lamport_change = post_lamports
-            .checked_sub(pre_lamports)
-            .expect("Post lamports should be >= pre lamports");
+            let actual_lamport_change = post_lamports
+                .checked_sub(pre_lamports)
+                .expect("Post lamports should be >= pre lamports");
 
-        assert_eq!(
-            actual_lamport_change, expected_top_up,
-            "CToken account at {} should receive {} lamports top-up, got {}",
-            account_pubkey, expected_top_up, actual_lamport_change
-        );
+            assert_eq!(
+                actual_lamport_change, expected_top_up,
+                "CToken account at {} should receive {} lamports top-up, got {}",
+                account_pubkey, expected_top_up, actual_lamport_change
+            );
 
-        println!(
-            "✓ Lamport top-up validated: {} lamports transferred to compressible ctoken account {}",
-            expected_top_up, account_pubkey
-        );
+            println!(
+                "✓ Lamport top-up validated: {} lamports transferred to compressible ctoken account {}",
+                expected_top_up, account_pubkey
+            );
+        }
     }
 }

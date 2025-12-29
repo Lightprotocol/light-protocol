@@ -2,8 +2,8 @@ use light_client::rpc::Rpc;
 use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
 use light_ctoken_interface::{
     state::{
-        ctoken::CToken, AccountState, ExtensionStruct, PausableAccountExtension,
-        PermanentDelegateAccountExtension, TransferFeeAccountExtension,
+        ctoken::CToken, extensions::CompressibleExtension, AccountState, ExtensionStruct,
+        PausableAccountExtension, PermanentDelegateAccountExtension, TransferFeeAccountExtension,
         TransferHookAccountExtension, ACCOUNT_TYPE_TOKEN_ACCOUNT,
     },
     BASE_TOKEN_ACCOUNT_SIZE,
@@ -195,6 +195,27 @@ pub async fn assert_create_token_account_internal(
                     get_expected_extensions_from_mint(rpc, mint_pubkey).await
                 };
 
+            // Build the Compressible extension
+            let compressible_ext = CompressibleExtension {
+                decimals_option: if decimals.is_some() { 1 } else { 0 },
+                decimals: decimals.unwrap_or(0),
+                compression_only,
+                info: CompressionInfo {
+                    config_account_version: 1,
+                    last_claimed_slot: current_slot,
+                    rent_config: RentConfig::default(),
+                    lamports_per_write: compressible_info.lamports_per_write.unwrap_or(0),
+                    compression_authority: compressible_info.compression_authority.to_bytes(),
+                    rent_sponsor: compressible_info.rent_sponsor.to_bytes(),
+                    compress_to_pubkey: compressible_info.compress_to_pubkey as u8,
+                    account_version: compressible_info.account_version as u8,
+                },
+            };
+
+            // Add Compressible extension to extensions list
+            let mut all_extensions = final_extensions.unwrap_or_default();
+            all_extensions.push(ExtensionStruct::Compressible(compressible_ext));
+
             // Create expected compressible token account with embedded compression info
             let expected_token_account = CToken {
                 mint: mint_pubkey.into(),
@@ -206,19 +227,7 @@ pub async fn assert_create_token_account_internal(
                 delegated_amount: 0,
                 close_authority: None,
                 account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
-                decimals,
-                compression_only,
-                compression: CompressionInfo {
-                    config_account_version: 1,
-                    last_claimed_slot: current_slot,
-                    rent_config: RentConfig::default(),
-                    lamports_per_write: compressible_info.lamports_per_write.unwrap_or(0),
-                    compression_authority: compressible_info.compression_authority.to_bytes(),
-                    rent_sponsor: compressible_info.rent_sponsor.to_bytes(),
-                    compress_to_pubkey: compressible_info.compress_to_pubkey as u8,
-                    account_version: compressible_info.account_version as u8,
-                },
-                extensions: final_extensions,
+                extensions: Some(all_extensions),
             };
 
             assert_eq!(actual_token_account, expected_token_account);
