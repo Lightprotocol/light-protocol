@@ -16,12 +16,13 @@ pub struct MintToData {
 /// - accounts[0]: cmint (writable)
 /// - accounts[1]: destination (CToken account, writable)
 /// - accounts[2]: authority (mint authority, signer)
-/// - accounts[3]: ctoken_program
+/// - accounts[3]: system_program
+/// - accounts[4]: ctoken_program
 pub fn process_ctoken_mint_to_invoke(
     accounts: &[AccountInfo],
     amount: u64,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 4 {
+    if accounts.len() < 5 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -30,6 +31,7 @@ pub fn process_ctoken_mint_to_invoke(
         destination: accounts[1].clone(),
         amount,
         authority: accounts[2].clone(),
+        system_program: accounts[3].clone(),
         max_top_up: None,
     }
     .invoke()?;
@@ -43,12 +45,13 @@ pub fn process_ctoken_mint_to_invoke(
 /// - accounts[0]: cmint (writable)
 /// - accounts[1]: destination (CToken account, writable)
 /// - accounts[2]: PDA authority (mint authority, program signs)
-/// - accounts[3]: ctoken_program
+/// - accounts[3]: system_program
+/// - accounts[4]: ctoken_program
 pub fn process_ctoken_mint_to_invoke_signed(
     accounts: &[AccountInfo],
     amount: u64,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 4 {
+    if accounts.len() < 5 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -66,6 +69,7 @@ pub fn process_ctoken_mint_to_invoke_signed(
         destination: accounts[1].clone(),
         amount,
         authority: accounts[2].clone(),
+        system_program: accounts[3].clone(),
         max_top_up: None,
     }
     .invoke_signed(&[signer_seeds])?;
