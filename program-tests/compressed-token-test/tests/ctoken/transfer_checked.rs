@@ -5,11 +5,13 @@
 
 use anchor_spl::token_2022::spl_token_2022;
 use light_ctoken_interface::state::TokenDataVersion;
-use light_ctoken_sdk::ctoken::{
-    CompressibleParams, CreateCTokenAccount, TransferCToken, TransferCTokenChecked,
-    TransferSplToCtoken,
+use light_ctoken_sdk::{
+    ctoken::{
+        CompressibleParams, CreateCTokenAccount, TransferCToken, TransferCTokenChecked,
+        TransferSplToCtoken,
+    },
+    spl_interface::find_spl_interface_pda_with_index,
 };
-use light_ctoken_sdk::spl_interface::find_spl_interface_pda_with_index;
 use light_program_test::utils::assert::assert_rpc_error;
 use light_test_utils::{
     assert_ctoken_transfer::assert_ctoken_transfer,

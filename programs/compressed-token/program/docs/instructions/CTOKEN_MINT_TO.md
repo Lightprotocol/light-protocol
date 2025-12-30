@@ -56,7 +56,7 @@ Format variants:
    - Default to 0 (no limit) if only 8 bytes provided (legacy format)
    - Return InvalidInstructionData if length is invalid (not 8 or 10 bytes)
 
-3. **Process SPL mint_to via pinocchio-token-program:**
+3. **Process mint_to (inline via pinocchio-token-program library):**
    - Call `process_mint_to` with first 8 bytes (amount only)
    - Validates authority signature matches CMint mint authority
    - Checks destination CToken mint matches CMint
@@ -106,112 +106,28 @@ Format variants:
 - `CTokenError::InvalidAccountData` (error code: 18002) - Failed to deserialize CToken account or calculate top-up amount
 - `CTokenError::SysvarAccessError` (error code: 18020) - Failed to get Clock or Rent sysvar for top-up calculation
 - `CTokenError::MaxTopUpExceeded` (error code: 18043) - Total top-up amount (CMint + CToken) exceeds max_top_up limit
+- `CTokenError::MissingCompressibleExtension` (error code: 18056) - CToken account (not 165 bytes) is missing the Compressible extension
 
 ---
 
-## Comparison with Token-2022
-
-This section compares CToken MintTo with Token-2022's MintTo and MintToChecked instructions.
+## Comparison with SPL Token
 
 ### Functional Parity
 
-CToken MintTo maintains core compatibility with Token-2022's MintTo instruction:
-
-- **Authority validation:** Both require mint authority signature and validate against the mint's configured mint_authority
-- **Balance updates:** Both increase destination account balance and mint supply by the specified amount
-- **Frozen account checks:** Both prevent minting to frozen accounts
-- **Mint matching:** Both validate that destination account's mint field matches the mint account
-- **Overflow protection:** Both check for arithmetic overflow when adding to balances and supply
-- **Fixed supply enforcement:** Both fail if mint_authority is set to None (supply is fixed)
+CToken delegates core logic to `pinocchio_token_program::processor::mint_to::process_mint_to`, which implements SPL Token-compatible mint semantics:
+- Authority validation, balance/supply updates, frozen check, mint matching, overflow protection
+- **MintToChecked:** CToken implements CTokenMintToChecked (discriminator: 14) with full decimals validation. See `CTOKEN_MINT_TO_CHECKED.md`.
 
 ### CToken-Specific Features
 
-CToken MintTo extends Token-2022 functionality with compression-specific features:
-
 **1. Compressible Top-Up Logic**
+Automatically tops up CMint and CToken with rent lamports after minting to prevent accounts from becoming compressible.
 
-After minting, CToken MintTo automatically replenishes lamports for compressible accounts to prevent premature compression:
+**2. max_top_up Parameter**
+10-byte instruction format adds `max_top_up` (u16) to limit combined top-up costs. Fails with `MaxTopUpExceeded` (18043) if exceeded.
 
-- **Dual account top-up:** Both CMint and destination CToken may receive rent top-ups in a single transaction
-- **Compressibility checks:** Uses `calculate_top_up_lamports` to determine if accounts need funding based on:
-  - Current slot vs last_compressible_slot
-  - Account lamport balance vs rent exemption threshold
-  - Configured lamports_per_write amount
-- **Automatic funding:** Authority account serves as payer for all top-ups
-- **Zero-copy access:** Uses zero-copy deserialization to read compression info directly from embedded fields without full account deserialization
-
-**2. Max Top-Up Parameter**
-
-CToken MintTo includes a `max_top_up` parameter to control rent costs:
-
-- **Budget enforcement:** Limits combined lamports spent on CMint + CToken top-ups
-- **Value 0 = unlimited:** Setting max_top_up to 0 means no spending limit
-- **Backwards compatibility:** Supports 8-byte format (amount only, no limit) and 10-byte format (amount + max_top_up)
-- **Fails on overflow:** Returns MaxTopUpExceeded error if total top-up exceeds budget
-- **Prevents DoS:** Protects authority account from unexpected lamport drainage
-
-**3. Authority Account Mutability**
-
-- **Token-2022:** Authority account is read-only (signature verification only)
-- **CToken:** Authority account must be writable when top-ups are needed (serves as payer)
-
-### Missing Token-2022 Features
+### Unsupported SPL & Token-2022 Features
 
 **1. No Multisig Support**
-
-- **Token-2022:** Supports multisig authorities via additional signer accounts (accounts 3..3+M)
-- **CToken:** Does not support multisig authorities - only single signer supported
-- **Implication:** CToken MintTo expects exactly 3 accounts; Token-2022 accepts 3+ for multisig
-
-**2. No MintToChecked Variant**
-
-- **Token-2022:** Provides MintToChecked instruction that validates decimals parameter against mint
-- **CToken:** Does not implement decimals validation in CToken MintTo
-- **Token-2022 MintToChecked behavior:**
-  - Instruction data: 10 bytes (discriminator + amount + decimals)
-  - Validation: `expected_decimals != mint.base.decimals` returns MintDecimalsMismatch error
-  - Use case: Prevents minting with incorrect decimal assumptions in offline/hardware wallet scenarios
-- **CToken workaround:** Clients must validate decimals independently before calling CToken MintTo
-
-### Extension Handling
-
-CToken MintTo only operates on CMints, which do not support restricted extensions:
-
-- **CMints only support TokenMetadata extension** - no Pausable, TransferFee, TransferHook, PermanentDelegate, or DefaultAccountState
-- **No extension checks needed** - CMints cannot have these extensions, so no validation is required
-- **Compressible extension (CToken-specific):** Always present in CMint and CToken accounts as embedded field, accessed via zero-copy
-
-### Security Notes
-
-**Shared Security Properties:**
-
-- Both validate authority signature before state changes
-- Both check for account ownership by token program
-- Both prevent overflow in balance/supply arithmetic
-- Both prevent minting to frozen accounts
-
-**CToken-Specific Security Considerations:**
-
-1. **Authority lamport drainage:** Authority must have sufficient lamports for top-ups; use max_top_up to limit exposure
-2. **Top-up atomicity:** If top-up fails (insufficient authority balance), entire instruction fails - no partial minting
-3. **Compressibility timing:** Top-ups are calculated based on current slot and account state; accounts may still become compressible after minting if not topped up
-4. **No multisig protection:** Single authority compromise affects all minting; Token-2022 multisig provides defense in depth
-
-**Token-2022-Specific Security Considerations:**
-
-1. **Extension-based restrictions:** NonTransferable, PausableConfig, and ConfidentialMintBurn extensions add security controls not enforced in CToken MintTo
-2. **Decimals validation (MintToChecked):** Prevents decimal precision errors in offline transaction construction
-
-### Summary Table
-
-| Feature | Token-2022 MintTo | Token-2022 MintToChecked | CToken MintTo |
-|---------|-------------------|--------------------------|---------------|
-| Instruction data | 8 bytes (amount) | 10 bytes (amount + decimals) | 8 or 10 bytes (amount + optional max_top_up) |
-| Multisig support | Yes | Yes | No |
-| Decimals validation | No | Yes | No |
-| Automatic rent top-up | No | No | Yes (compressible accounts) |
-| Top-up budget control | N/A | N/A | Yes (max_top_up) |
-| Authority account | Read-only | Read-only | Writable (when top-ups needed) |
-| Extension checks | NonTransferable, PausableConfig, ConfidentialMintBurn | Same as MintTo | None (CMints don't support restricted extensions) |
-| Account count | 3+ (multisig) | 3+ (multisig) | Exactly 3 |
-| Backwards compatibility | N/A | N/A | 8-byte format (legacy) and 10-byte format (with max_top_up) |
+**2. No CPI Guard Extension Check**
+**3. No Confidential Transfer Mint Extension Check**

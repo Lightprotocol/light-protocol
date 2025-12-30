@@ -58,7 +58,7 @@ Format variants:
    - Default to 0 (no limit) if only 9 bytes provided (legacy format)
    - Return InvalidInstructionData if length is invalid (not 9 or 11 bytes)
 
-3. **Process SPL mint_to_checked via pinocchio-token-program:**
+3. **Process mint_to_checked (inline via pinocchio-token-program library):**
    - Call `process_mint_to_checked` with first 9 bytes (amount + decimals)
    - Validates authority signature matches CMint mint authority
    - Validates decimals match CMint's decimals field
@@ -87,57 +87,27 @@ Format variants:
 - `CTokenError::InvalidAccountData` (error code: 18002) - Failed to deserialize CToken account or calculate top-up amount
 - `CTokenError::SysvarAccessError` (error code: 18020) - Failed to get Clock or Rent sysvar for top-up calculation
 - `CTokenError::MaxTopUpExceeded` (error code: 18043) - Total top-up amount (CMint + CToken) exceeds max_top_up limit
+- `CTokenError::MissingCompressibleExtension` (error code: 18056) - CToken account (not 165 bytes) is missing the Compressible extension
 
 ---
 
-## Comparison with Token-2022
+## Comparison with SPL Token
 
 ### Functional Parity
 
-CToken MintToChecked maintains core compatibility with Token-2022's MintToChecked instruction:
-
-- **Authority validation:** Both require mint authority signature and validate against the mint's configured mint_authority
-- **Balance updates:** Both increase destination account balance and mint supply by the specified amount
-- **Frozen account checks:** Both prevent minting to frozen accounts
-- **Mint matching:** Both validate that destination account's mint field matches the mint account
-- **Decimals validation:** Both validate that instruction decimals match mint decimals
-- **Overflow protection:** Both check for arithmetic overflow when adding to balances and supply
-- **Fixed supply enforcement:** Both fail if mint_authority is set to None (supply is fixed)
+CToken delegates core logic to `pinocchio_token_program::processor::mint_to_checked::process_mint_to_checked`, which implements SPL Token-compatible mint semantics:
+- Authority validation, balance/supply updates, frozen check, mint matching, decimals validation, overflow protection
 
 ### CToken-Specific Features
 
-1. **Compressible Top-Up Logic**: After minting, automatically replenishes lamports for compressible accounts
-2. **max_top_up Parameter**: Limits combined lamports spent on CMint + CToken top-ups
-3. **Authority Account Mutability**: Authority account must be writable when top-ups are needed
+**1. Compressible Top-Up Logic**
+Automatically tops up CMint and CToken with rent lamports after minting to prevent accounts from becoming compressible.
 
-### Missing Features
+**2. max_top_up Parameter**
+11-byte instruction format adds `max_top_up` (u16) to limit combined top-up costs. Fails with `MaxTopUpExceeded` (18043) if exceeded.
 
-1. **No Multisig Support**: Token-2022 supports multisig authorities via additional signer accounts
-2. **No Extension Checks**: Token-2022's MintToChecked validates NonTransferable, PausableConfig, and ConfidentialMintBurn extensions
+### Unsupported SPL & Token-2022 Features
 
-### Instruction Data Comparison
-
-| Token-2022 MintToChecked | CToken MintToChecked |
-|--------------------------|---------------------|
-| 10 bytes (discriminator + amount + decimals) | 9 or 11 bytes (amount + decimals + optional max_top_up) |
-
-### Account Layout Comparison
-
-| Token-2022 MintToChecked | CToken MintToChecked |
-|--------------------------|---------------------|
-| [mint, destination, authority, ...signers] | [cmint, destination, authority] |
-| 3+ accounts (for multisig) | Exactly 3 accounts |
-
-### Security Properties
-
-**Shared:**
-- Authority signature validation before state changes
-- Account ownership by token program validation
-- Overflow prevention in balance/supply arithmetic
-- Frozen account protection
-- Decimals mismatch protection
-
-**CToken-Specific:**
-- Authority lamport drainage protection via max_top_up
-- Top-up atomicity: if top-up fails, entire instruction fails
-- Compressibility timing management
+**1. No Multisig Support**
+**2. No CPI Guard Extension Check**
+**3. No Confidential Transfer Mint Extension Check**

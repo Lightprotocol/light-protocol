@@ -184,7 +184,9 @@ pub enum CTokenError {
     #[error("Decompress has delegated_amount but no delegate pubkey provided")]
     DecompressDelegatedAmountWithoutDelegate,
 
-    #[error("Decompress has withheld_transfer_fee but destination lacks TransferFeeAccount extension")]
+    #[error(
+        "Decompress has withheld_transfer_fee but destination lacks TransferFeeAccount extension"
+    )]
     DecompressWithheldFeeWithoutExtension,
 }
 

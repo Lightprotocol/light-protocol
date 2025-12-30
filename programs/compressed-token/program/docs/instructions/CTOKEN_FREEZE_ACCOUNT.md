@@ -1,7 +1,7 @@
 ## CToken Freeze Account
 
 **discriminator:** 10
-**enum:** `CTokenInstruction::CTokenFreezeAccount`
+**enum:** `InstructionType::CTokenFreezeAccount`
 **path:** programs/compressed-token/program/src/ctoken_freeze_thaw.rs
 
 **description:**
@@ -63,120 +63,19 @@ No instruction data required beyond the discriminator byte.
   - `TokenError::InvalidState` (error code: 13) - Account is already frozen or uninitialized
   - `ProgramError::InvalidAccountData` (error code: 4) - Account data is malformed
 
-## Comparison with Token-2022
+## Comparison with SPL Token
 
 ### Functional Parity
 
-CToken's FreezeAccount instruction maintains complete functional parity with Token-2022 for core freeze operations:
-
-- **Same discriminator:** Both use discriminator 10 (0x0A)
-- **Same account requirements:** token_account (writable), mint (read-only), freeze_authority (signer)
-- **Same state transitions:** Initialized → Frozen (prevents reverse transition Frozen → Frozen)
-- **Same authority validation:** Verifies freeze_authority matches mint's freeze_authority
-- **Same error handling:** Returns identical TokenError codes (MintCannotFreeze, OwnerMismatch, MintMismatch, InvalidState)
-- **Extension support:** Both handle Token-2022 extensions through TLV unpacking (PodStateWithExtensionsMut)
+CToken delegates core logic to `pinocchio_token_program::processor::freeze_account::process_freeze_account`, which implements SPL Token-compatible freeze semantics:
+- State transition (Initialized → Frozen), freeze authority validation, mint association check
 
 ### CToken-Specific Features
 
-**Additional Mint Ownership Validation:**
-CToken adds an explicit mint ownership check before delegating to the standard freeze logic:
+**1. Explicit Mint Ownership Validation**
+CToken adds `check_token_program_owner(mint)` before delegating to freeze logic, validating mint is owned by SPL Token, Token-2022, or CToken program.
 
-```rust
-// programs/compressed-token/program/src/ctoken_freeze_thaw.rs:14-15
-let mint_info = accounts.get(1).ok_or(ProgramError::NotEnoughAccountKeys)?;
-check_token_program_owner(mint_info)?;
-```
+### Unsupported SPL & Token-2022 Features
 
-This validates that the mint is owned by one of:
-- SPL Token program (TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA)
-- Token-2022 program (TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb)
-- CToken program (cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m)
-
-**Security benefit:** This explicit check provides defense-in-depth by failing fast with `ProgramError::IncorrectProgramId` before attempting deserialization, preventing potential cross-program account confusion.
-
-**Comparison with Token-2022:** Token-2022 relies on implicit validation through `PodStateWithExtensions::unpack()` which would fail on invalid mint data, but does not perform explicit ownership validation (see Token-2022 analysis: "MISSING CHECK 2: Mint Program Ownership").
-
-### Missing Features
-
-**No Multisig Support:**
-CToken's freeze instruction does not support multisig freeze authorities. The instruction only accepts:
-- Single signer freeze authority (accounts[2] must be signer)
-
-Token-2022 supports both:
-- Single owner: 3 accounts (token_account, mint, freeze_authority)
-- Multisig owner: 3+M accounts (token_account, mint, multisig_account, ...M signers)
-
-**Impact:** Mints with multisig freeze authorities cannot use CToken freeze operations. Users must rely on the native Token-2022 freeze instruction for multisig-controlled mints.
-
-### Extension Handling Differences
-
-**Token-2022 Extensions:**
-Both CToken and Token-2022 handle extensions identically through the underlying `process_freeze_account` implementation:
-- Uses `PodStateWithExtensionsMut::<PodAccount>::unpack()` for token account
-- Uses `PodStateWithExtensions::<PodMint>::unpack()` for mint
-- No extension-specific validation required (freeze operates on base state only)
-
-**CToken-Specific Extensions:**
-CToken accounts may have a `Compressible` extension (not present in SPL/Token-2022). The freeze instruction operates on the base `CToken` state and does not interact with the compressible extension. Frozen accounts remain frozen after compression/decompression cycles.
-
-**Permanent Delegate Interaction:**
-- Token-2022: Permanent delegate cannot transfer/burn from frozen accounts (operations fail with AccountFrozen)
-- CToken: Same behavior - permanent delegate cannot compress frozen accounts (frozen check in `programs/compressed-token/program/src/transfer2/compression/ctoken/compress_or_decompress_ctokens.rs:173-178`)
-
-**Default Account State Extension:**
-- Token-2022: Supports `DefaultAccountState` extension to create accounts in frozen state by default
-- CToken: Supports this extension when creating CToken accounts from Token-2022 mints (extension data preserved during decompression)
-
-### Security Property Comparison
-
-Both implementations provide equivalent security properties:
-
-| Security Property | Token-2022 | CToken |
-|------------------|------------|---------|
-| Account initialization validation | Yes (unpack checks is_initialized) | Yes (via pinocchio-token-program) |
-| Account type validation | Yes (checks AccountType::Account) | Yes (via pinocchio-token-program) |
-| State transition guards | Yes (prevents Frozen→Frozen) | Yes (via pinocchio-token-program) |
-| Native account rejection | Yes (NativeNotSupported) | Yes (via pinocchio-token-program) |
-| Mint association validation | Yes (key comparison) | Yes (via pinocchio-token-program) |
-| Mint initialization validation | Yes (unpack checks is_initialized) | Yes (via pinocchio-token-program) |
-| Freeze authority existence check | Yes (checks PodCOption::SOME) | Yes (via pinocchio-token-program) |
-| Freeze authority key validation | Yes (validate_owner) | Yes (via pinocchio-token-program) |
-| Single signer validation | Yes | Yes (via pinocchio-token-program) |
-| Multisig support | Yes (M-of-N threshold) | No |
-| **Explicit mint ownership check** | **No** (implicit via unpack) | **Yes** (explicit check_token_program_owner) |
-| **Explicit account ownership check** | **No** (implicit via unpack) | **No** (implicit via unpack) |
-
-**Key Differences:**
-1. **CToken adds explicit mint ownership validation** - Provides defense-in-depth with clear error messages before data borrowing
-2. **Token-2022 supports multisig** - CToken only supports single signer freeze authorities
-3. **Both lack explicit account ownership validation** - Rely on implicit unpack failures for non-token-program accounts
-
-### Implementation Architecture
-
-**Token-2022:**
-```
-FreezeAccount instruction (discriminator: 10)
-  ↓
-process_toggle_freeze_account(freeze=true)
-  ↓
-- Unpack source account (PodStateWithExtensionsMut)
-- Unpack mint (PodStateWithExtensions)
-- Validate freeze authority (single or multisig)
-- Update account state to Frozen
-```
-
-**CToken:**
-```
-CTokenFreezeAccount instruction (discriminator: 10)
-  ↓
-process_ctoken_freeze_account()
-  ↓
-check_token_program_owner(mint) // Additional validation
-  ↓
-process_freeze_account() (from pinocchio-token-program)
-  ↓
-- Same validation logic as Token-2022 single-signer path
-- Update account state to Frozen
-```
-
-**Architecture benefit:** CToken reuses Token-2022's battle-tested freeze logic through pinocchio-token-program while adding an extra layer of mint ownership validation.
+**1. No Multisig Support**
+**2. No CPI Guard Extension Check**

@@ -168,8 +168,7 @@ async fn test_cmint_to_ctoken_scenario() {
 
     let compressed_account = &compressed_accounts[0];
     assert_eq!(
-        compressed_account.token.owner,
-        ctoken_ata2,
+        compressed_account.token.owner, ctoken_ata2,
         "Compressed account owner should be the ATA pubkey"
     );
     assert_eq!(

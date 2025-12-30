@@ -25,6 +25,7 @@ use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
+#[allow(clippy::too_many_arguments)]
 pub fn pack_input_token_account(
     account: &CompressedTokenAccount,
     tree_info: &PackedStateTreeInfo,
@@ -33,7 +34,7 @@ pub fn pack_input_token_account(
     is_delegate_transfer: bool, // Explicitly specify if delegate is signing
     token_data_version: TokenDataVersion,
     override_owner: Option<Pubkey>, // For is_ata: use destination CToken owner instead
-    is_ata: bool, // For ATA decompress: owner (ATA pubkey) is not a signer
+    is_ata: bool,                   // For ATA decompress: owner (ATA pubkey) is not a signer
 ) -> MultiInputTokenDataWithContext {
     // Check if account has a delegate
     let has_delegate = account.token.delegate.is_some();
@@ -332,7 +333,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
 
                 // Check if any input has is_ata=true in the TLV
                 // If so, we need to use the destination CToken's owner as the signer
-                let is_ata = input.in_tlv.as_ref().map_or(false, |tlv| {
+                let is_ata = input.in_tlv.as_ref().is_some_and(|tlv| {
                     tlv.iter().flatten().any(|ext| {
                         matches!(ext, ExtensionInstructionData::CompressedOnly(data) if data.is_ata)
                     })

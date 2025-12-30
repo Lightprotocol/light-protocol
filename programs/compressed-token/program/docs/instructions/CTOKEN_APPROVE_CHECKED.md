@@ -1,14 +1,14 @@
 ## CToken ApproveChecked
 
-**discriminator:** 12
+**discriminator:** 13
 **enum:** `InstructionType::CTokenApproveChecked`
 **path:** programs/compressed-token/program/src/ctoken_approve_revoke.rs
 
 **description:**
-Delegates a specified amount to a delegate authority on a decompressed ctoken account with decimals validation, fully compatible with SPL Token ApproveChecked semantics. Account layout `CToken` is defined in program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs. Extension layout `CompressionInfo` is defined in program-libs/compressible/src/compression_info.rs. Uses pinocchio-token-program to process the approve operation. Before the approve operation, automatically tops up compressible accounts with additional lamports if needed to prevent accounts from becoming compressible during normal operations. Supports max_top_up parameter (0 = no limit) that enforces transaction failure if the calculated top-up exceeds this limit. Uses cached decimals optimization: if source CToken has cached decimals, validates against instruction decimals and skips mint read.
+Delegates a specified amount to a delegate authority on a decompressed ctoken account with decimals validation, fully compatible with SPL Token ApproveChecked semantics. Account layout `CToken` is defined in program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs. Extension layout `CompressionInfo` is defined in program-libs/compressible/src/compression_info.rs. Uses pinocchio-token-program to process the approve operation. Before the approve operation, automatically tops up compressible accounts with additional lamports if needed to prevent accounts from becoming compressible during normal operations. Supports max_top_up parameter (0 = no limit) that enforces transaction failure if the calculated top-up exceeds this limit. Uses cached decimals optimization: if source CToken has cached decimals, validates against instruction decimals and skips mint read. Cached decimals allow users to choose whether a cmint is required to be decompressed at account creation or transfer.
 
 **Instruction data:**
-Path: programs/compressed-token/program/src/ctoken_approve_revoke.rs (lines 150-189)
+Path: programs/compressed-token/program/src/ctoken_approve_revoke.rs (lines 163-217)
 
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to delegate
 - Byte 8: `decimals` (u8) - Expected token decimals
@@ -113,28 +113,8 @@ CToken ApproveChecked maintains compatibility with SPL Token-2022's ApproveCheck
 3. **max_top_up Parameter**: Limits rent top-up costs (0 = no limit)
 4. **Static 4-Account Layout**: Always requires mint account, but may skip reading it when cached decimals are available
 
-### Missing Features
 
-1. **No Multisig Support**: Token-2022 supports M-of-N multisig accounts as the authority
-2. **No CPI Guard Extension Check**: Token-2022 blocks approval via CPI when CPI Guard is enabled
+### Unsupported SPL & Token-2022 Features
 
-### Account Layout Comparison
-
-| Token-2022 ApproveChecked | CToken ApproveChecked |
-|---------------------------|----------------------|
-| [source, mint, delegate, owner, ...signers] | [source, mint, delegate, owner] |
-| Variable (3+ for multisig) | Fixed 4 accounts |
-
-### Security Properties
-
-**Shared:**
-- Account initialization check via unpack validation
-- Frozen account protection
-- Owner authority validation
-- Decimals validation against mint
-
-**CToken-Specific:**
-- Rent budget enforcement via max_top_up
-- Compressibility prevention via top-up
-- Zero-copy validation for CToken account structure
-- Cached decimals validation for optimization
+**1. No Multisig Support**
+**2. No CPI Guard Extension Check**

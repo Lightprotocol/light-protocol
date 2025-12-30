@@ -4,7 +4,6 @@ use light_ctoken_interface::{
     CTokenError,
 };
 use light_program_profiler::profile;
-use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::{
     account_info::AccountInfo,
     sysvars::{clock::Clock, rent::Rent, Sysvar},
@@ -50,7 +49,7 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
     // Calculate CMint top-up using zero-copy
     {
         let cmint_data = cmint.try_borrow_data().map_err(convert_program_error)?;
-        let (mint, _) = CompressedMint::zero_copy_at(&cmint_data)
+        let (mint, _) = CompressedMint::zero_copy_at_checked(&cmint_data)
             .map_err(|_| CTokenError::CMintDeserializationFailed)?;
         // Access compression info directly from meta (all cmints now have compression embedded)
         if current_slot == 0 {

@@ -1,6 +1,12 @@
 # Add Token Pool
 
-**path:** programs/compressed-token/anchor/src/lib.rs:68-95
+**discriminator:** `[114, 143, 210, 73, 96, 115, 1, 228]` program-libs/ctoken-interface/src/discriminator.rs
+
+**enum:** Not applicable - this is an Anchor instruction, not part of the custom `InstructionType` enum
+
+**path:**
+- Handler: `programs/compressed-token/anchor/src/lib.rs:68-95`
+- Accounts struct: `programs/compressed-token/anchor/src/instructions/create_token_pool.rs:171-201`
 
 **description:**
 Token pool pda is renamed to spl interface pda in the light-token-sdk.
