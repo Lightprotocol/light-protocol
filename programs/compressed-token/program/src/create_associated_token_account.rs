@@ -13,7 +13,6 @@ use crate::{
         convert_program_error, create_pda_account,
         initialize_ctoken_account::{
             initialize_ctoken_account, CTokenInitConfig, CompressibleInitData,
-            CompressionInstructionData,
         },
         transfer_lamports_via_cpi, validate_ata_derivation,
     },
@@ -162,19 +161,14 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
         // The is_ata flag allows decompress to verify the destination is the correct ATA
         // while keeping the compressed account owner as the wallet owner (who can sign).
         Some(CompressibleInitData {
-            ix_data: CompressionInstructionData {
-                compression_only: compressible_config.compression_only,
-                token_account_version: compressible_config.token_account_version,
-                write_top_up: compressible_config.write_top_up,
-                is_ata: true, // This is an ATA
-            },
+            ix_data: compressible_config,
             config_account,
-            compress_to_pubkey: None,
             custom_rent_payer: if custom_rent_payer {
                 Some(*rent_payer.key())
             } else {
                 None
             },
+            is_ata: true,
         })
     } else {
         // Non-compressible path: fee_payer pays for account creation directly
