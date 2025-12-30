@@ -1,4 +1,3 @@
-use account_compression::StateMerkleTreeAccount;
 use anchor_lang::prelude::*;
 use light_compressed_account::{
     compressed_account::{CompressedAccount, CompressedAccountData},
@@ -11,10 +10,11 @@ use light_compressed_account::{
 use light_ctoken_interface::state::CompressedTokenAccountState;
 
 use crate::{
+    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
     process_transfer::{
         add_data_hash_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
         get_input_compressed_accounts_with_merkle_context_and_check_signer,
-        get_token_account_discriminator, InputTokenDataWithContext, BATCHED_DISCRIMINATOR,
+        InputTokenDataWithContext,
     },
     FreezeInstruction, TokenData,
 };
@@ -115,7 +115,6 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
-        remaining_accounts,
     )?;
     Ok((compressed_input_accounts, output_compressed_accounts))
 }
@@ -164,25 +163,10 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
         };
         token_data.serialize(&mut token_data_bytes)?;
 
-        let discriminator_bytes = &remaining_accounts[token_data_with_context
-            .merkle_context
-            .merkle_tree_pubkey_index
-            as usize]
-            .try_borrow_data()?[0..8];
-        use anchor_lang::Discriminator;
-        let data_hash = match discriminator_bytes {
-            StateMerkleTreeAccount::DISCRIMINATOR => token_data.hash_v1(),
-            BATCHED_DISCRIMINATOR => token_data.hash_v2(),
-            _ => panic!(), // TODO: throw error
-        }
-        .map_err(ProgramError::from)?;
-
-        let discriminator = get_token_account_discriminator(discriminator_bytes)?;
-
         let data: CompressedAccountData = CompressedAccountData {
-            discriminator,
+            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
             data: token_data_bytes,
-            data_hash,
+            data_hash: token_data.hash_v1().map_err(ProgramError::from)?,
         };
         output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
             compressed_account: CompressedAccount {

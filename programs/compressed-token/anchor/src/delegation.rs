@@ -158,13 +158,11 @@ pub fn create_input_and_output_accounts_approve(
         lamports,
         &hashed_mint,
         &merkle_tree_indices,
-        remaining_accounts,
     )?;
     add_data_hash_to_input_compressed_accounts::<NOT_FROZEN>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
-        remaining_accounts,
     )?;
     Ok((compressed_input_accounts, output_compressed_accounts))
 }
@@ -250,13 +248,11 @@ pub fn create_input_and_output_accounts_revoke(
         lamports,
         &hashed_mint,
         &[inputs.output_account_merkle_tree_index],
-        remaining_accounts,
     )?;
     add_data_hash_to_input_compressed_accounts::<NOT_FROZEN>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
-        remaining_accounts,
     )?;
     Ok((compressed_input_accounts, output_compressed_accounts))
 }
