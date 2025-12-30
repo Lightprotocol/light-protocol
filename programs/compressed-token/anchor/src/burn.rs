@@ -171,7 +171,6 @@ pub fn create_input_and_output_accounts_burn(
             lamports,
             &hashed_mint,
             &[inputs.change_account_merkle_tree_index],
-            remaining_accounts,
         )?;
         output_compressed_accounts
     } else {
@@ -181,7 +180,6 @@ pub fn create_input_and_output_accounts_burn(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
-        remaining_accounts,
     )?;
     Ok((compressed_input_accounts, output_compressed_accounts))
 }
