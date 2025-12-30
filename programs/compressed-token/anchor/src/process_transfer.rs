@@ -296,18 +296,15 @@ pub fn add_data_hash_to_input_compressed_accounts_with_version<const FROZEN_INPU
     hashed_mint: &[u8; 32],
     version: Option<u8>,
 ) -> Result<()> {
-    // Check if version is ShaFlat - use SHA256 hashing for the whole TokenData
-    let use_sha_flat = version
-        .and_then(|v| TokenDataVersion::try_from(v).ok())
-        .map(|v| v == TokenDataVersion::ShaFlat)
-        .unwrap_or(false);
+    // Parse version
+    let token_version = version.and_then(|v| TokenDataVersion::try_from(v).ok());
 
     for (i, compressed_account_with_context) in input_compressed_accounts_with_merkle_context
         .iter_mut()
         .enumerate()
     {
         // For ShaFlat, use SHA256 hash of the full TokenData and set correct discriminator
-        if use_sha_flat {
+        if token_version == Some(TokenDataVersion::ShaFlat) {
             compressed_account_with_context.data_hash = input_token_data[i]
                 .hash_sha_flat()
                 .map_err(ProgramError::from)?;
@@ -317,10 +314,20 @@ pub fn add_data_hash_to_input_compressed_accounts_with_version<const FROZEN_INPU
             continue;
         }
 
+        // Update discriminator for V2 (V1 is the default set in get_input_compressed_accounts)
+        if token_version == Some(TokenDataVersion::V2) {
+            compressed_account_with_context.discriminator = TokenDataVersion::V2.discriminator();
+        }
+
         // For V1/V2, use Poseidon-based hashing
         let hashed_owner = hash_to_bn254_field_size_be(&input_token_data[i].owner.to_bytes());
         let mut amount_bytes = [0u8; 32];
-        amount_bytes[24..].copy_from_slice(&input_token_data[i].amount.to_le_bytes());
+        // V2 uses big-endian, V1 uses little-endian for amount bytes
+        if token_version == Some(TokenDataVersion::V2) {
+            amount_bytes[24..].copy_from_slice(&input_token_data[i].amount.to_be_bytes());
+        } else {
+            amount_bytes[24..].copy_from_slice(&input_token_data[i].amount.to_le_bytes());
+        }
 
         let delegate_store;
         let hashed_delegate = if let Some(delegate) = input_token_data[i].delegate {
