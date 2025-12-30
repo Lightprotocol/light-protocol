@@ -122,7 +122,6 @@ pub fn process_mint_to_or_compress<'info, const IS_MINT_TO: bool>(
             // We ensure that the Merkle tree account is the first
             // remaining account in the cpi to the system program.
             &vec![0; amounts.len()],
-            &[ctx.accounts.merkle_tree.to_account_info()],
         )?;
         bench_sbf_end!("tm_output_compressed_accounts");
 
