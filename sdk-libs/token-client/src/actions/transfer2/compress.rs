@@ -92,6 +92,7 @@ pub async fn compress<R: Rpc + Indexer>(
 ///
 /// # Returns
 /// `Result<Signature, RpcError>` - The transaction signature
+#[allow(clippy::too_many_arguments)]
 pub async fn compress_with_version<R: Rpc + Indexer>(
     rpc: &mut R,
     solana_token_account: Pubkey,

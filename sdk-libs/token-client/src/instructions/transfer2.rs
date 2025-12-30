@@ -132,8 +132,8 @@ pub struct CompressInput {
     pub amount: u64,
     pub authority: Pubkey,
     pub output_queue: Pubkey,
-    pub pool_index: Option<u8>,        // For SPL only. None = default (0), Some(n) = specific pool
-    pub decimals: u8,                  // Mint decimals for SPL transfer_checked
+    pub pool_index: Option<u8>, // For SPL only. None = default (0), Some(n) = specific pool
+    pub decimals: u8,           // Mint decimals for SPL transfer_checked
     pub version: Option<TokenDataVersion>, // Optional: specify output version. None = ShaFlat (3)
 }
 

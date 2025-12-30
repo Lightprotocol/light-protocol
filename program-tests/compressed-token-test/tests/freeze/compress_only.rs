@@ -331,31 +331,39 @@ async fn run_freeze_thaw_compressed_only_test(
 
     // 11. Create destination CToken account for decompress
     let dest_account_keypair = Keypair::new();
-    let create_dest_ix =
-        CreateCTokenAccount::new(payer.pubkey(), dest_account_keypair.pubkey(), mint_pubkey, owner.pubkey())
-            .with_compressible(CompressibleParams {
-                compressible_config: context
-                    .rpc
-                    .test_accounts
-                    .funding_pool_config
-                    .compressible_config_pda,
-                rent_sponsor: context
-                    .rpc
-                    .test_accounts
-                    .funding_pool_config
-                    .rent_sponsor_pda,
-                pre_pay_num_epochs: 2,
-                lamports_per_write: Some(100),
-                compress_to_account_pubkey: None,
-                token_account_version: TokenDataVersion::ShaFlat,
-                compression_only: true,
-            })
-            .instruction()
-            .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {:?}", e)))?;
+    let create_dest_ix = CreateCTokenAccount::new(
+        payer.pubkey(),
+        dest_account_keypair.pubkey(),
+        mint_pubkey,
+        owner.pubkey(),
+    )
+    .with_compressible(CompressibleParams {
+        compressible_config: context
+            .rpc
+            .test_accounts
+            .funding_pool_config
+            .compressible_config_pda,
+        rent_sponsor: context
+            .rpc
+            .test_accounts
+            .funding_pool_config
+            .rent_sponsor_pda,
+        pre_pay_num_epochs: 2,
+        lamports_per_write: Some(100),
+        compress_to_account_pubkey: None,
+        token_account_version: TokenDataVersion::ShaFlat,
+        compression_only: true,
+    })
+    .instruction()
+    .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {:?}", e)))?;
 
     context
         .rpc
-        .create_and_send_transaction(&[create_dest_ix], &payer.pubkey(), &[&payer, &dest_account_keypair])
+        .create_and_send_transaction(
+            &[create_dest_ix],
+            &payer.pubkey(),
+            &[&payer, &dest_account_keypair],
+        )
         .await?;
 
     // 12. Build TLV data for decompress (CompressedOnly extension with is_ata=false)
@@ -388,7 +396,9 @@ async fn run_freeze_thaw_compressed_only_test(
         true,
     )
     .await
-    .map_err(|e| RpcError::CustomError(format!("Failed to create decompress instruction: {:?}", e)))?;
+    .map_err(|e| {
+        RpcError::CustomError(format!("Failed to create decompress instruction: {:?}", e))
+    })?;
 
     context
         .rpc

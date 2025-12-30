@@ -27,6 +27,9 @@ This documentation is organized to provide clear navigation through the compress
   - `CTOKEN_APPROVE_CHECKED.md` - Approve delegate with decimals validation
   - `CTOKEN_MINT_TO_CHECKED.md` - Mint tokens with decimals validation
   - `CTOKEN_BURN_CHECKED.md` - Burn tokens with decimals validation
+  - `compressed_token/` - Anchor program instructions for compressed token accounts
+    - `FREEZE.md` - Freeze compressed token accounts
+    - `THAW.md` - Thaw frozen compressed token accounts
 
 ## Discriminator Reference
 
@@ -51,6 +54,8 @@ This documentation is organized to provide clear navigation through the compress
 | MintAction | 103 | `InstructionType::MintAction` | - |
 | Claim | 104 | `InstructionType::Claim` | - |
 | WithdrawFundingPool | 105 | `InstructionType::WithdrawFundingPool` | - |
+| Freeze | Anchor | `anchor_compressed_token::freeze` | - |
+| Thaw | Anchor | `anchor_compressed_token::thaw` | - |
 
 **SPL Token Compatibility Notes:**
 - Instructions with SPL Token equivalents share the same discriminator and accept the same instruction data format
@@ -88,3 +93,10 @@ every instruction description must include the sections:
 12. **CToken Freeze/Thaw** - Freeze and thaw decompressed CToken accounts
 13. **CToken Approve/Revoke** - Approve and revoke delegate on decompressed CToken accounts
 14. **CToken Checked Operations** - ApproveChecked, MintToChecked, BurnChecked with decimals validation
+
+## Anchor Program Instructions (Compressed Token Accounts)
+
+These instructions operate on compressed token accounts (stored in Merkle trees) and require ZK proofs:
+
+15. **Compressed Token Freeze** (`compressed_token/FREEZE.md`) - Freeze compressed token accounts
+16. **Compressed Token Thaw** (`compressed_token/THAW.md`) - Thaw frozen compressed token accounts
