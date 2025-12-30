@@ -35,6 +35,9 @@ mod spl_instruction_compat;
 #[path = "ctoken/extensions.rs"]
 mod extensions;
 
+#[path = "ctoken/transfer_checked.rs"]
+mod transfer_checked;
+
 #[path = "ctoken/freeze_thaw.rs"]
 mod freeze_thaw;
 

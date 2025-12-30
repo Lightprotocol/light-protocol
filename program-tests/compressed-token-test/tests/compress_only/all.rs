@@ -163,6 +163,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
             CompressedOnlyExtension {
                 delegated_amount: 0,
                 withheld_transfer_fee: 0,
+                is_ata: 0, // Non-ATA regular account
             },
         )]),
     };
@@ -226,6 +227,9 @@ async fn test_compress_and_close_ctoken_with_extensions() {
             withheld_transfer_fee: 0,
             is_frozen: false,
             compression_index: 0,
+            is_ata: false, // Non-ATA regular account
+            bump: 0,
+            owner_index: 0,
         },
     )]];
 

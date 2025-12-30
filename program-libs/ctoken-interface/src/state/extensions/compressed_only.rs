@@ -24,8 +24,11 @@ pub struct CompressedOnlyExtension {
     pub delegated_amount: u64,
     /// Withheld transfer fee amount from the source CToken account.
     pub withheld_transfer_fee: u64,
+    /// Whether the source was an ATA (1) or regular token account (0).
+    /// When is_ata=1, decompress must verify ATA derivation matches.
+    pub is_ata: u8,
 }
 
 impl CompressedOnlyExtension {
-    pub const LEN: usize = std::mem::size_of::<Self>();
+    pub const LEN: usize = 17;
 }

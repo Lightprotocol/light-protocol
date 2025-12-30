@@ -119,7 +119,9 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
             }
         }
 
-        return Ok(compression.info.compress_to_pubkey());
+        // Return true if either compress_to_pubkey is set OR this is an ATA
+        // When true, the compressed account owner will be the token account pubkey
+        return Ok(compression.info.compress_to_pubkey() || compression.is_ata != 0);
     }
 
     // For regular close: validate rent_sponsor if compressible

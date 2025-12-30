@@ -479,6 +479,7 @@ pub async fn assert_transfer2_with_delegate(
                             light_ctoken_interface::state::CompressedOnlyExtension {
                                 delegated_amount: pre_token_account.delegated_amount,
                                 withheld_transfer_fee: 0, // TODO: extract from TransferFeeAccount if present
+                                is_ata: 0,                // TODO: determine based on account type
                             },
                         ),
                     ])

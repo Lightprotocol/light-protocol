@@ -16,4 +16,14 @@ pub struct CompressedOnlyExtensionInstructionData {
     pub is_frozen: bool,
     /// Index of the compression operation that consumes this input.
     pub compression_index: u8,
+    /// Whether the source CToken account was an ATA.
+    /// When is_ata=true, decompress must verify ATA derivation matches.
+    pub is_ata: bool,
+    /// ATA derivation bump (only used when is_ata=true).
+    pub bump: u8,
+    /// Index into packed_accounts for the actual owner (only used when is_ata=true).
+    /// For ATA decompress: this is the wallet owner who signs. The program derives
+    /// ATA from (owner, program_id, mint, bump) and verifies it matches the
+    /// compressed account owner (which is the ATA pubkey).
+    pub owner_index: u8,
 }

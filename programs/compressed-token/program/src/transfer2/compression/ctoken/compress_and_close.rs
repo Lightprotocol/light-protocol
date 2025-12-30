@@ -164,6 +164,7 @@ fn validate_compressed_token_account(
     // Version should also match what's specified in the embedded compression info
     let expected_version = compression.info.account_version;
     let compression_only = compression.compression_only();
+    let is_ata = compression.is_ata != 0;
 
     if compressed_token_account.version != expected_version {
         return Err(ErrorCode::CompressAndCloseInvalidVersion.into());
@@ -173,13 +174,20 @@ fn validate_compressed_token_account(
             .find(|e| matches!(e, ZExtensionInstructionData::CompressedOnly(_)))
     });
 
-    if compression_only && compression_only_extension.is_none() {
+    // CompressedOnly extension is required for:
+    // - compression_only accounts (cannot decompress to SPL)
+    // - ATA accounts (need is_ata flag for proper decompress authorization)
+    if (compression_only || is_ata) && compression_only_extension.is_none() {
         return Err(ErrorCode::CompressAndCloseMissingCompressedOnlyExtension.into());
     }
 
     if let Some(ZExtensionInstructionData::CompressedOnly(compression_only_extension)) =
         compression_only_extension
     {
+        // Note: is_ata validation happens during decompress, not compress_and_close.
+        // During compress_and_close we just store the is_ata flag from the Compressible extension.
+        // The decompress instruction validates the ATA derivation using the stored is_ata and bump.
+
         // Delegated amounts must match
         if u64::from(compression_only_extension.delegated_amount) != ctoken.delegated_amount.get() {
             msg!(

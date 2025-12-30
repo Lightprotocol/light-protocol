@@ -310,6 +310,7 @@ pub async fn run_compress_and_close_extension_test(
             CompressedOnlyExtension {
                 delegated_amount,
                 withheld_transfer_fee: 0,
+                is_ata: 0, // Non-ATA regular account
             },
         )]),
     };
@@ -366,6 +367,9 @@ pub async fn run_compress_and_close_extension_test(
             withheld_transfer_fee: 0,
             is_frozen: config.is_frozen,
             compression_index: 0,
+            is_ata: false, // Non-ATA regular account
+            bump: 0,
+            owner_index: 0,
         },
     )]];
 

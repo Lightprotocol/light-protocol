@@ -76,8 +76,30 @@ pub fn set_input_compressed_account<'a>(
         .get_by_key(&input_token_data.mint)
         .and_then(|c| c.permanent_delegate.as_ref());
 
+    // For ATA decompress (is_ata=true), verify the wallet owner from owner_index instead
+    // of the compressed account owner (which is the ATA pubkey that can't sign).
+    let signer_account = if let Some(exts) = tlv_data {
+        exts.iter()
+            .find_map(|ext| {
+                if let ZExtensionInstructionData::CompressedOnly(data) = ext {
+                    if data.is_ata != 0 {
+                        // Get wallet owner from owner_index
+                        packed_accounts.get(data.owner_index as usize)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(owner_account)
+    } else {
+        owner_account
+    };
+
+    // TODO: allow freeze authority to decompress if has CompressOnlyExtension
     verify_owner_or_delegate_signer(
-        owner_account,
+        signer_account,
         delegate_account,
         permanent_delegate,
         all_accounts,
@@ -105,6 +127,7 @@ pub fn set_input_compressed_account<'a>(
                                             withheld_transfer_fee: data
                                                 .withheld_transfer_fee
                                                 .into(),
+                                            is_ata: if data.is_ata() { 1 } else { 0 },
                                         },
                                     ));
                                 }

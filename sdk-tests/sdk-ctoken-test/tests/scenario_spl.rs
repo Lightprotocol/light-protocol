@@ -287,9 +287,9 @@ async fn test_spl_to_ctoken_scenario() {
         }
     }
 
-    // Verify compressed token account exists
+    // Verify compressed token account exists (owner is ATA pubkey for is_ata accounts)
     let compressed_accounts = rpc
-        .get_compressed_token_accounts_by_owner(&ctoken_recipient.pubkey(), None, None)
+        .get_compressed_token_accounts_by_owner(&ctoken_ata, None, None)
         .await
         .unwrap()
         .value
@@ -302,9 +302,8 @@ async fn test_spl_to_ctoken_scenario() {
 
     let compressed_account = &compressed_accounts[0];
     assert_eq!(
-        compressed_account.token.owner,
-        ctoken_recipient.pubkey(),
-        "Compressed account owner should match"
+        compressed_account.token.owner, ctoken_ata,
+        "Compressed account owner should be ATA pubkey"
     );
     assert_eq!(
         compressed_account.token.amount, transfer_amount,
@@ -376,6 +375,7 @@ async fn test_spl_to_ctoken_scenario() {
         root_index: account_proof.root_index.root_index().unwrap_or(0),
         destination_ctoken_account: ctoken_ata,
         payer: payer.pubkey(),
+        signer: ctoken_recipient.pubkey(),
         validity_proof: rpc_result.proof,
     }
     .instruction()
@@ -391,7 +391,7 @@ async fn test_spl_to_ctoken_scenario() {
 
     // Verify compressed accounts are consumed
     let remaining_compressed = rpc
-        .get_compressed_token_accounts_by_owner(&ctoken_recipient.pubkey(), None, None)
+        .get_compressed_token_accounts_by_owner(&ctoken_ata, None, None)
         .await
         .unwrap()
         .value

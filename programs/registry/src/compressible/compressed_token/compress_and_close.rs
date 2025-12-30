@@ -118,14 +118,22 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         if idx.delegate_index != 0 {
             has_marker_extensions = true;
         }
-        // Check compression_only flag from Compressible extension
-        if ctoken
+        // Check compression_only flag and is_ata from Compressible extension
+        // Both require CompressedOnlyExtension to be included in output
+        let is_ata = ctoken
             .get_compressible_extension()
-            .map(|ext| ext.compression_only != 0)
-            .unwrap_or(false)
-        {
-            has_marker_extensions = true;
-        }
+            .map(|ext| {
+                if ext.compression_only != 0 {
+                    has_marker_extensions = true;
+                }
+                let is_ata = ext.is_ata != 0;
+                // ATA accounts require CompressedOnlyExtension for proper decompress authorization
+                if is_ata {
+                    has_marker_extensions = true;
+                }
+                is_ata
+            })
+            .unwrap_or(false);
         if let Some(extensions) = &ctoken.extensions {
             for ext in extensions.iter() {
                 match ext {
@@ -151,6 +159,12 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
                     withheld_transfer_fee,
                     is_frozen,
                     compression_index: i as u8,
+                    // is_ata is read from the compressible extension (set at account creation)
+                    // bump is derived by the program during validation
+                    is_ata,
+                    bump: 0,
+                    // owner_index points to wallet owner for ATA derivation check during decompress
+                    owner_index: idx.owner_index,
                 },
             )]);
         } else {
@@ -160,8 +174,10 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         // Create one output account per compression operation
         // has_delegate must be true if delegate is set (delegate_index != 0),
         // even if delegated_amount is 0 (orphan delegate case)
+        // For ATAs: owner = ATA pubkey (source_index) for hash, owner_index in extension for signing
+        // For non-ATAs: owner = wallet owner (owner_index)
         output_accounts.push(MultiTokenTransferOutputData {
-            owner: idx.owner_index,
+            owner: if is_ata { idx.source_index } else { idx.owner_index },
             amount,
             delegate: idx.delegate_index,
             mint: idx.mint_index,

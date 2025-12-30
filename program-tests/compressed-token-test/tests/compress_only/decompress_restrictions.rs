@@ -161,6 +161,9 @@ async fn test_decompress_compressed_only_rejects_spl_destination() {
             withheld_transfer_fee: 0,
             is_frozen: false,
             compression_index: 0,
+            is_ata: false,
+            bump: 0,
+            owner_index: 0,
         },
     )]];
 
@@ -238,6 +241,9 @@ async fn test_decompress_compressed_only_rejects_partial_decompress() {
             withheld_transfer_fee: 0,
             is_frozen: false,
             compression_index: 0,
+            is_ata: false,
+            bump: 0,
+            owner_index: 0,
         },
     )]];
 
