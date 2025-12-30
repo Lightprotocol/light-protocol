@@ -50,6 +50,28 @@ pub struct TransferAccounts<'a> {
     pub mint: Option<&'a AccountInfo>,
 }
 
+/// Process transfer extensions for CTokenTransfer instruction.
+/// Restricted extensions are NOT denied (but will fail anyway due to missing mint).
+#[inline(always)]
+#[profile]
+pub fn process_transfer_extensions_transfer(
+    transfer_accounts: TransferAccounts,
+    max_top_up: u16,
+) -> Result<(bool, Option<u8>), ProgramError> {
+    process_transfer_extensions(transfer_accounts, max_top_up, false)
+}
+
+/// Process transfer extensions for CTokenTransferChecked instruction.
+/// Restricted extensions ARE denied - source account must not have restricted T22 extensions.
+#[inline(always)]
+#[profile]
+pub fn process_transfer_extensions_transfer_checked(
+    transfer_accounts: TransferAccounts,
+    max_top_up: u16,
+) -> Result<(bool, Option<u8>), ProgramError> {
+    process_transfer_extensions(transfer_accounts, max_top_up, true)
+}
+
 /// Process extensions (pausable check, permanent delegate validation, transfer fee withholding)
 /// and calculate/execute top-up transfers.
 /// Each account is deserialized exactly once. Mint is checked once if any account has extensions.
@@ -57,6 +79,7 @@ pub struct TransferAccounts<'a> {
 /// # Arguments
 /// * `transfer_accounts` - Account references for source, destination, authority, and optional mint
 /// * `max_top_up` - Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
+/// * `deny_restricted_extensions` - If true, reject source accounts with restricted T22 extensions
 ///
 /// Returns:
 /// - `Ok((true, decimals))` - Permanent delegate is validated as authority/signer, skip pinocchio validation
@@ -64,14 +87,18 @@ pub struct TransferAccounts<'a> {
 /// - `decimals` is Some(u8) if source account has cached decimals in compressible extension
 #[inline(always)]
 #[profile]
-pub fn process_transfer_extensions(
+fn process_transfer_extensions(
     transfer_accounts: TransferAccounts,
     max_top_up: u16,
+    deny_restricted_extensions: bool,
 ) -> Result<(bool, Option<u8>), ProgramError> {
     let mut current_slot = 0;
 
-    let (sender_info, signer_is_validated) =
-        validate_sender(&transfer_accounts, &mut current_slot)?;
+    let (sender_info, signer_is_validated) = validate_sender(
+        &transfer_accounts,
+        &mut current_slot,
+        deny_restricted_extensions,
+    )?;
 
     // Process recipient
     let recipient_info = validate_recipient(transfer_accounts.destination, &mut current_slot)?;
@@ -124,6 +151,7 @@ fn transfer_top_up(
 fn validate_sender(
     transfer_accounts: &TransferAccounts,
     current_slot: &mut u64,
+    deny_restricted_extensions: bool,
 ) -> Result<(AccountExtensionInfo, bool), ProgramError> {
     // Process sender once
     let sender_info = process_account_extensions(
@@ -137,7 +165,10 @@ fn validate_sender(
         let mint_account = transfer_accounts
             .mint
             .ok_or(ErrorCode::MintRequiredForTransfer)?;
-        Some(check_mint_extensions(mint_account, false)?)
+        Some(check_mint_extensions(
+            mint_account,
+            deny_restricted_extensions,
+        )?)
     } else {
         None
     };

@@ -80,7 +80,7 @@ Every instruction description must include the sections:
    - Transfer between decompressed accounts (discriminator: 3, enum: `InstructionType::CTokenTransfer`)
 
 8. **CTokenTransferChecked** - [`docs/instructions/CTOKEN_TRANSFER_CHECKED.md`](docs/instructions/CTOKEN_TRANSFER_CHECKED.md)
-   - Transfer with decimals validation (discriminator: 6, enum: `InstructionType::CTokenTransferChecked`)
+   - Transfer with decimals validation (discriminator: 12, enum: `InstructionType::CTokenTransferChecked`)
 
 9. **CTokenApprove** - [`docs/instructions/CTOKEN_APPROVE.md`](docs/instructions/CTOKEN_APPROVE.md)
    - Approve delegate on decompressed CToken account (discriminator: 4, enum: `InstructionType::CTokenApprove`)
@@ -101,7 +101,7 @@ Every instruction description must include the sections:
    - Thaw frozen decompressed CToken account (discriminator: 11, enum: `InstructionType::CTokenThawAccount`)
 
 15. **CTokenApproveChecked** - [`docs/instructions/CTOKEN_APPROVE_CHECKED.md`](docs/instructions/CTOKEN_APPROVE_CHECKED.md)
-   - Approve delegate with decimals validation (discriminator: 12, enum: `InstructionType::CTokenApproveChecked`)
+   - Approve delegate with decimals validation (discriminator: 13, enum: `InstructionType::CTokenApproveChecked`)
 
 16. **CTokenMintToChecked** - [`docs/instructions/CTOKEN_MINT_TO_CHECKED.md`](docs/instructions/CTOKEN_MINT_TO_CHECKED.md)
    - Mint tokens with decimals validation (discriminator: 14, enum: `InstructionType::CTokenMintToChecked`)
@@ -121,7 +121,7 @@ Every instruction description must include the sections:
 - **`close_token_account/`** - Close ctoken accounts, handle rent distribution
 - **`transfer/`** - SPL-compatible transfers between decompressed accounts
   - `default.rs` - CTokenTransfer (discriminator: 3)
-  - `checked.rs` - CTokenTransferChecked (discriminator: 6)
+  - `checked.rs` - CTokenTransferChecked (discriminator: 12)
   - `shared.rs` - Common transfer utilities
 
 ## Token Operations
@@ -132,7 +132,7 @@ Every instruction description must include the sections:
   - `processor.rs` - Main instruction processor
   - `accounts.rs` - Account validation and parsing
 - **`mint_action/`** - Mint tokens to compressed/decompressed accounts
-- **`ctoken_approve_revoke.rs`** - CTokenApprove (4), CTokenRevoke (5), CTokenApproveChecked (12)
+- **`ctoken_approve_revoke.rs`** - CTokenApprove (4), CTokenRevoke (5), CTokenApproveChecked (13)
 - **`ctoken_mint_to.rs`** - CTokenMintTo (7), CTokenMintToChecked (14)
 - **`ctoken_burn.rs`** - CTokenBurn (8), CTokenBurnChecked (15)
 - **`ctoken_freeze_thaw.rs`** - CTokenFreezeAccount (10), CTokenThawAccount (11)

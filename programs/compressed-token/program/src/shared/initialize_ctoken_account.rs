@@ -195,8 +195,7 @@ fn configure_compression_info(
         .info
         .lamports_per_write
         .set(ix_data.write_top_up);
-    compressible_ext.info.compress_to_pubkey =
-        ix_data.compress_to_account_pubkey.is_some() as u8;
+    compressible_ext.info.compress_to_pubkey = ix_data.compress_to_account_pubkey.is_some() as u8;
 
     // Set compression_only flag on the extension
     compressible_ext.compression_only = if ix_data.compression_only != 0 { 1 } else { 0 };

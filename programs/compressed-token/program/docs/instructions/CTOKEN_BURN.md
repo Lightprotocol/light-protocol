@@ -5,7 +5,7 @@
 **path:** programs/compressed-token/program/src/ctoken_burn.rs
 
 **description:**
-Burns tokens from a decompressed CToken account and decreases the CMint supply, fully compatible with SPL Token burn semantics. Account layout `CToken` is defined in `program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs`. Account layout `CompressedMint` (CMint) is defined in `program-libs/ctoken-interface/src/state/mint/compressed_mint.rs`. Extension layout `CompressionInfo` is defined in `program-libs/compressible/src/compression_info.rs` and is embedded in both CToken and CMint structs. Uses pinocchio-token-program to process the burn (handles balance/supply updates, authority check, frozen check). After the burn, automatically tops up compressible accounts with additional lamports if needed. Top-up is calculated for both CMint and source CToken based on current slot and account balance. Top-up prevents accounts from becoming compressible during normal operations. Enforces max_top_up limit if provided (transaction fails if exceeded). Account order is REVERSED from mint_to instruction: [source_ctoken, cmint, authority] vs mint_to's [cmint, destination_ctoken, authority]. Supports max_top_up parameter to limit rent top-up costs (0 = no limit). Instruction data is backwards-compatible: 8-byte format (legacy, no max_top_up enforcement) and 10-byte format (with max_top_up). This instruction only works with CMints (compressed mints). CMints do not support restricted Token-2022 extensions (Pausable, TransferFee, TransferHook, PermanentDelegate, DefaultAccountState) - only TokenMetadata is allowed. To burn tokens from T22 mints with restricted extensions, use Transfer2 with decompress mode to convert to SPL tokens first, then burn via SPL Token-2022.
+Burns tokens from a decompressed CToken account and decreases the CMint supply, fully compatible with SPL Token burn semantics. Account layout `CToken` is defined in `program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs`. Account layout `CompressedMint` (CMint) is defined in `program-libs/ctoken-interface/src/state/mint/compressed_mint.rs`. Extension layout `CompressionInfo` is defined in `program-libs/compressible/src/compression_info.rs` and is embedded in both CToken and CMint structs. Uses pinocchio-token-program to process the burn (handles balance/supply updates, authority check, frozen check). After the burn, automatically tops up compressible accounts with additional lamports if needed. Top-up is calculated for both CMint and source CToken based on current slot and account balance. Top-up prevents accounts from becoming compressible during normal operations. Enforces max_top_up limit if provided (transaction fails if exceeded). Supports max_top_up parameter to limit rent top-up costs (0 = no limit). Instruction data is backwards-compatible: 8-byte format (legacy, no max_top_up enforcement) and 10-byte format (with max_top_up). This instruction only works with CMints (compressed mints). CMints do not support restricted Token-2022 extensions (Pausable, TransferFee, TransferHook, PermanentDelegate, DefaultAccountState) - only TokenMetadata is allowed. To burn tokens from spl or T22 mints, use Transfer2 with decompress mode to convert to SPL tokens first, then burn via SPL Token-2022.
 
 **Instruction data:**
 
@@ -74,10 +74,12 @@ Format 2 (10 bytes):
       - Subtract calculated top-up from lamports_budget
 
    c. **Calculate CToken top-up:**
+      - Skip if CToken data length is 165 bytes (no extensions, standard SPL token account)
       - Borrow CToken data and deserialize using `CToken::zero_copy_at_checked`
-      - Access compression info directly from token.compression (embedded in all CTokens)
+      - Get Compressible extension via `token.get_compressible_extension()`
+      - Fail with MissingCompressibleExtension if CToken has extensions but no Compressible extension
       - Lazy load Clock sysvar for current_slot and Rent sysvar if not yet loaded (current_slot == 0)
-      - Call `compression.calculate_top_up_lamports(data_len, current_slot, lamports, rent_exemption)`
+      - Call `compressible.info.calculate_top_up_lamports(data_len, current_slot, lamports, rent_exemption)`
       - Subtract calculated top-up from lamports_budget
 
    d. **Validate budget:**
@@ -101,172 +103,31 @@ Format 2 (10 bytes):
   - `TokenError::AccountFrozen` (error code: 17) - CToken account is frozen
 - `CTokenError::CMintDeserializationFailed` (error code: 18047) - Failed to deserialize CMint account using zero-copy
 - `CTokenError::InvalidAccountData` (error code: 18002) - Account data length is too small, calculate top-up failed, or invalid account format
-- `CTokenError::InvalidAccountState` (error code: 18036) - CToken account is not initialized
-- `CTokenError::InvalidAccountType` (error code: 18053) - Account is not a CToken account type
+- `CTokenError::InvalidAccountState` (error code: 18036) - CToken account is not initialized (from zero-copy parsing)
+- `CTokenError::InvalidAccountType` (error code: 18053) - Account is not a CToken account type (from zero-copy parsing)
 - `CTokenError::SysvarAccessError` (error code: 18020) - Failed to get Clock or Rent sysvar for top-up calculation
 - `CTokenError::MaxTopUpExceeded` (error code: 18043) - Total top-up amount (CMint + CToken) exceeds max_top_up limit
+- `CTokenError::MissingCompressibleExtension` (error code: 18056) - CToken account has extensions but missing required Compressible extension
 
 ## Comparison with Token-2022
 
-CToken Burn implements similar core functionality to SPL Token-2022's Burn instruction, with key differences to support Light Protocol's compressed token model.
-
 ### Functional Parity
 
-Both implementations share these core behaviors:
-
-1. **Balance/Supply Updates**: Decrease token account balance and mint supply by burn amount
-2. **Authority Validation**: Verify owner signature or delegate authority using multisig support
-3. **Account State Checks**:
-   - Frozen account check (fails if account is frozen)
-   - Native mint check (native SOL burning not supported)
-   - Mint mismatch validation (account must belong to specified mint)
-   - Insufficient funds check (account must have sufficient balance)
-4. **Delegate Handling**: Support for burning via delegate with delegated amount tracking
-5. **Permanent Delegate**: Honor permanent delegate authority if configured on mint
-6. **BurnChecked Variant**: Both support decimal validation (Token-2022's BurnChecked, CToken's optional decimals parameter in pinocchio burn)
-
-**Implementation Note**: CToken Burn delegates core burn logic to `pinocchio_token_program::processor::burn::process_burn`, which implements SPL-compatible burn semantics including all checks above.
+CToken Burn delegates core logic to `pinocchio_token_program::processor::burn::process_burn`, which implements SPL-compatible burn semantics:
+- Balance/supply updates, authority validation, frozen check, mint mismatch check, delegate handling
+- **BurnChecked:** CToken implements CTokenBurnChecked (discriminator: 15) with full decimals validation. See `CTOKEN_BURN_CHECKED.md`.
 
 ### CToken-Specific Features
 
-#### 1. Compressible Top-Up Logic
+**1. Compressible Top-Up Logic**
+Automatically tops up CMint and CToken with rent lamports after burning to prevent accounts from becoming compressible.
 
-CToken Burn automatically tops up compressible accounts with rent lamports after burning:
+**2. max_top_up Parameter**
+10-byte instruction format adds `max_top_up` (u16) to limit combined top-up costs. Fails with `MaxTopUpExceeded` (18043) if exceeded.
 
-```rust
-// After burn, calculate and execute top-ups for both CMint and CToken
-calculate_and_execute_compressible_top_ups(cmint, ctoken, payer, max_top_up)
-```
+### Unsupported SPL & Token-2022 Features
 
-**Top-up flow:**
-1. Calculate lamports needed for CMint based on compression state (current slot, balance, data length)
-2. Calculate lamports needed for CToken based on compression state
-3. Validate total against `max_top_up` budget
-4. Transfer lamports from payer (authority account) to both accounts if needed
-
-**Purpose**: Prevents accounts from becoming compressible during normal operations by maintaining sufficient rent balance.
-
-#### 2. max_top_up Parameter
-
-Instruction data supports two formats:
-- **Legacy (8 bytes)**: `amount` only, no top-up limit (max_top_up = 0)
-- **Extended (10 bytes)**: `amount` + `max_top_up` (u16), enforces combined CMint+CToken top-up limit
-
-```rust
-let max_top_up = match instruction_data.len() {
-    8 => 0u16,      // no limit
-    10 => u16::from_le_bytes(instruction_data[8..10])?,
-    _ => return Err(InvalidInstructionData),
-};
-```
-
-If `max_top_up != 0` and total required lamports exceed limit, transaction fails with `MaxTopUpExceeded` (18043).
-
-### Missing Features (vs Token-2022)
-
-#### 1. No Multisig Support
-
-**Token-2022**: Supports multisignature authorities with M-of-N signature validation
-```
-Accounts (multisig variant):
-0. source account (writable)
-1. mint (writable)
-2. multisig authority account
-3..3+M. signer accounts (M signers required)
-```
-
-**CToken Burn**: Only supports single-signer authority
-```
-Accounts:
-0. source CToken (writable)
-1. CMint (writable)
-2. authority (signer, also payer)
-```
-
-**Reason**: Pinocchio burn implementation handles multisig through `validate_owner()`, but CToken Burn only provides 3 accounts minimum. Multisig would require additional signer accounts and explicit multisig account validation.
-
-#### 2. No BurnChecked Instruction Variant
-
-**Token-2022**: Separate `BurnChecked` instruction (discriminator 15) with explicit decimals parameter in instruction data
-```rust
-BurnChecked {
-    amount: u64,
-    decimals: u8,  // Must match mint decimals
-}
-```
-
-**CToken Burn**: Single instruction (discriminator 8) with optional decimals validation in pinocchio layer
-```rust
-// Pinocchio burn signature:
-pub fn process_burn(
-    accounts: &[AccountInfo],
-    instruction_data: &[u8],  // 8 bytes: amount only
-) -> Result<(), TokenError>
-```
-
-**Implication**: CToken Burn relies on pinocchio's internal validation. No explicit decimals check in CToken instruction data format. If decimals validation is needed, it must be added to instruction data structure.
-
-#### 3. No NonTransferableTokens Extension Check
-
-**Token-2022**: Does NOT check `NonTransferableAccount` extension during burn (burning non-transferable tokens is allowed)
-```rust
-// Token-2022 allows burning non-transferable tokens
-// Only transfers are blocked for NonTransferableAccount
-if source_account.get_extension::<NonTransferableAccount>().is_ok() {
-    return Err(TokenError::NonTransferable.into());  // Only in transfer
-}
-```
-
-**CToken Burn**: No check for `NonTransferableAccount` extension (matches Token-2022 behavior)
-
-**Why allowed**: Burning reduces supply and eliminates tokens - doesn't violate non-transferable constraint since tokens aren't moving to another account.
-
-### Extension Handling
-
-CToken Burn only operates on CMints, which do not support restricted extensions:
-
-- **CMints only support TokenMetadata extension** - no Pausable, TransferFee, TransferHook, PermanentDelegate, or DefaultAccountState
-- **No extension checks needed** - CMints cannot have these extensions, so no validation is required
-- **For T22 mints with restricted extensions**: Use Transfer2 (decompress) to convert to SPL tokens, then burn via SPL Token-2022
-
-### Security Notes
-
-#### 1. Account Order Reversed from MintTo
-
-```
-CToken MintTo: [cmint, destination_ctoken, authority]
-CToken Burn:   [source_ctoken, cmint, authority]
-```
-
-**Reason**: SPL Token convention - source account first for burn, destination first for mint. CToken follows this pattern for pinocchio compatibility.
-
-#### 2. Top-Up Payer is Authority
-
-Unlike mint_to where payer is a separate account, burn uses the authority (signer) as payer for rent top-ups:
-
-```rust
-let payer = accounts.get(2).ok_or(ProgramError::NotEnoughAccountKeys)?;  // Same as authority
-```
-
-**Implication**: Burning tokens may require additional lamports from the authority's account if CMint/CToken are compressible and need top-up.
-
-#### 3. Pinocchio Error Conversion
-
-```rust
-process_burn(accounts, &instruction_data[..8])
-    .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
-```
-
-Pinocchio errors are converted to `ProgramError::Custom`. Common TokenError codes:
-- `TokenError::OwnerMismatch` (4)
-- `TokenError::MintMismatch` (3)
-- `TokenError::AccountFrozen` (17)
-- `TokenError::InsufficientFunds` (1)
-
-#### 4. No Extension Validation Before Pinocchio Call
-
-CToken Burn does NOT call `check_mint_extensions()` before burning. Extension checks (PausableConfig, PermanentDelegate) are handled internally by pinocchio burn logic.
-
-**Contrast with Transfer2/CTokenTransfer**: Those instructions explicitly call `check_mint_extensions()` to validate TransferFeeConfig, TransferHook, PausableConfig, and extract PermanentDelegate.
-
-**Risk**: If future Token-2022 extensions require pre-burn validation, CToken Burn would need to add explicit extension checks before calling pinocchio.
+**1. No Multisig Support**
+**2. No CPI Guard Extension Check**
+**3. No Memo Transfer Extension Check**
+**4. No Confidential Transfer Extension Check**

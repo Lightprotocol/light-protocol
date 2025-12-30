@@ -6,7 +6,7 @@ use pinocchio_token_program::processor::{
     unpack_amount_and_decimals,
 };
 
-use super::shared::{process_transfer_extensions, TransferAccounts};
+use super::shared::{process_transfer_extensions_transfer_checked, TransferAccounts};
 use crate::shared::owner_validation::check_token_program_owner;
 /// Account indices for CToken transfer_checked instruction
 /// Note: Different from ctoken_transfer - mint is at index 1
@@ -72,7 +72,7 @@ pub fn process_ctoken_transfer_checked(
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
-    let (signer_is_validated, extension_decimals) = process_transfer_extensions(
+    let (signer_is_validated, extension_decimals) = process_transfer_extensions_transfer_checked(
         TransferAccounts {
             source,
             destination,

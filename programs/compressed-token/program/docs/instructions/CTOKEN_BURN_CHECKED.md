@@ -78,11 +78,16 @@ Format 2 (11 bytes):
       - Subtract calculated top-up from lamports_budget
 
    c. **Calculate CToken top-up:**
+      - Skip if CToken data length is 165 bytes (no extensions, standard SPL token account)
       - Borrow CToken data and deserialize using `CToken::zero_copy_at_checked`
-      - Access compression info directly from token.compression
-      - Calculate top-up lamports and subtract from budget
+      - Get Compressible extension via `token.get_compressible_extension()`
+      - Fail with MissingCompressibleExtension if CToken has extensions but no Compressible extension
+      - Lazy load Clock sysvar for current_slot and Rent sysvar if not yet loaded
+      - Call `compressible.info.calculate_top_up_lamports(data_len, current_slot, lamports, rent_exemption)`
+      - Subtract calculated top-up from lamports_budget
 
    d. **Validate budget:**
+      - If no compressible accounts were found (current_slot == 0), exit early
       - If both top-up amounts are 0, exit early
       - If max_top_up != 0 and lamports_budget == 0, fail with MaxTopUpExceeded
 
@@ -103,10 +108,11 @@ Format 2 (11 bytes):
   - `TokenError::AccountFrozen` (error code: 17) - CToken account is frozen
 - `CTokenError::CMintDeserializationFailed` (error code: 18047) - Failed to deserialize CMint account using zero-copy
 - `CTokenError::InvalidAccountData` (error code: 18002) - Account data length is too small, calculate top-up failed, or invalid account format
-- `CTokenError::InvalidAccountState` (error code: 18036) - CToken account is not initialized
-- `CTokenError::InvalidAccountType` (error code: 18053) - Account is not a CToken account type
+- `CTokenError::InvalidAccountState` (error code: 18036) - CToken account is not initialized (from zero-copy parsing)
+- `CTokenError::InvalidAccountType` (error code: 18053) - Account is not a CToken account type (from zero-copy parsing)
 - `CTokenError::SysvarAccessError` (error code: 18020) - Failed to get Clock or Rent sysvar for top-up calculation
 - `CTokenError::MaxTopUpExceeded` (error code: 18043) - Total top-up amount (CMint + CToken) exceeds max_top_up limit
+- `CTokenError::MissingCompressibleExtension` (error code: 18056) - CToken account has extensions but missing required Compressible extension
 
 ## Comparison with Token-2022
 

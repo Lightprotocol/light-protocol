@@ -13,7 +13,7 @@
 | Debug errors | → [Error reference](#errors) (line 275) |
 
 **discriminator:** 101
-**enum:** `CTokenInstruction::Transfer2`
+**enum:** `InstructionType::Transfer2`
 **path:** programs/compressed-token/program/src/transfer2/
 
 **description:**

@@ -104,9 +104,11 @@ pub fn build_mint_extension_cache<'a>(
             if cache.get_by_key(&mint_index).is_none() {
                 let mint_account = packed_accounts.get_u8(mint_index, "mint cache: compression")?;
                 let no_compressed_outputs = inputs.out_token_data.is_empty();
-                let is_full_decompress =
-                    compression.mode.is_decompress() && no_compressed_outputs;
-                let checks = if compression.mode.is_compress_and_close() || is_full_decompress || no_compressed_outputs {
+                let is_full_decompress = compression.mode.is_decompress() && no_compressed_outputs;
+                let checks = if compression.mode.is_compress_and_close()
+                    || is_full_decompress
+                    || no_compressed_outputs
+                {
                     // Bypass extension state checks (paused, non-zero fees, non-nil transfer hook)
                     // when exiting compressed state: CompressAndClose, Decompress, or CToken→SPL
                     parse_mint_extensions(mint_account)?

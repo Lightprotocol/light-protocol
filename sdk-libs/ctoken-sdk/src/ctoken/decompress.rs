@@ -98,7 +98,7 @@ impl DecompressToCtoken {
             .map_err(|_| ProgramError::InvalidAccountData)? as u8;
 
         // Check if this is an ATA decompress (is_ata flag in stored TLV)
-        let is_ata = self.token_data.tlv.as_ref().map_or(false, |exts| {
+        let is_ata = self.token_data.tlv.as_ref().is_some_and(|exts| {
             exts.iter()
                 .any(|e| matches!(e, ExtensionStruct::CompressedOnly(co) if co.is_ata != 0))
         });

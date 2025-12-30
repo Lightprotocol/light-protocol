@@ -35,7 +35,9 @@
 // 1. create and mint to one ctoken compressed account
 //
 
-use light_ctoken_interface::{instructions::mint_action::Recipient, state::TokenDataVersion};
+use light_ctoken_interface::{
+    instructions::mint_action::Recipient, state::TokenDataVersion, CTokenError,
+};
 use light_ctoken_sdk::{
     compressed_token::{
         create_compressed_mint::find_cmint_address,
@@ -453,15 +455,7 @@ async fn test_compression_invalid_mint() -> Result<(), RpcError> {
         .await;
 
     // Should fail with InvalidAccountData - mint mismatch detected during CToken account validation
-    assert!(
-        result
-            .as_ref()
-            .unwrap_err()
-            .to_string()
-            .contains("invalid account data for instruction"),
-        "Expected InvalidAccountData error, got: {}",
-        result.unwrap_err().to_string()
-    );
+    assert_rpc_error(result, 0, CTokenError::MintMismatch.into()).unwrap();
 
     Ok(())
 }

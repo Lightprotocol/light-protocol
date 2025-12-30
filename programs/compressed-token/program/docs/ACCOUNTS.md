@@ -16,15 +16,15 @@
 - **description**
   struct `CToken`
   ctoken solana account with spl token compatible state layout
-  path: `program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs`
+  path: `program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs`
   crate: `light-ctoken-interface`
 - **associated instructions**
   1. `CreateTokenAccount` `18`
   2. `CloseTokenAccount` `9`
   3. `CTokenTransfer` `3`
-  4. `Transfer2` `104` - `Decompress`, `DecompressAndClose`
-  5. `MintAction` `106` - `MintToCToken`
-  6. `Claim` `107`
+  4. `Transfer2` `101` - `Decompress`, `DecompressAndClose`
+  5. `MintAction` `103` - `MintToCToken`
+  6. `Claim` `104`
 - **serialization example**
   borsh and zero copy deserialization deserialize the compressible extension, spl serialization only deserialize the base token data.
   zero copy: (always use in programs)
@@ -72,7 +72,7 @@
 
 ### Compressed Token
 - compressed token account.
-- version describes the hashing and the discriminator. (program-libs/ctoken-types/src/state/token_data_version.rs)
+- version describes the hashing and the discriminator. (program-libs/ctoken-interface/src/state/compressed_token/token_data_version.rs)
     pub enum TokenDataVersion {
         V1 = 1u8, // discriminator [2, 0, 0, 0, 0, 0, 0, 0], // 2 le (Poseidon hashed)
         V2 = 2u8, // discriminator [0, 0, 0, 0, 0, 0, 0, 3], // 3 be (Poseidon hashed)

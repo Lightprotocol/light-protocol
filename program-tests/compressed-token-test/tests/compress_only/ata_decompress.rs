@@ -8,9 +8,12 @@ use light_ctoken_interface::{
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
     state::{ExtensionStruct, TokenDataVersion},
 };
-use light_ctoken_sdk::ctoken::{
-    derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount, CreateCTokenAccount,
-    TransferSplToCtoken,
+use light_ctoken_sdk::{
+    ctoken::{
+        derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount, CreateCTokenAccount,
+        TransferSplToCtoken,
+    },
+    spl_interface::find_spl_interface_pda_with_index,
 };
 use light_program_test::{
     program_test::TestRpc, utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig,
@@ -30,7 +33,6 @@ use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 use spl_token_2022::extension::ExtensionType;
 
 use super::shared::{set_ctoken_account_state, setup_extensions_test};
-use light_ctoken_sdk::spl_interface::find_spl_interface_pda_with_index;
 
 /// Expected error code for DecompressDestinationMismatch
 const DECOMPRESS_DESTINATION_MISMATCH: u32 = 18057;

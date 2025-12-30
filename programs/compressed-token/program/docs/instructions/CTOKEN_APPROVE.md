@@ -5,8 +5,7 @@
 **path:** programs/compressed-token/program/src/ctoken_approve_revoke.rs
 
 ### SPL Instruction Format Compatibility
-
-**Important:** This instruction is only compatible with the SPL Token instruction format (using `spl_token_2022::instruction::approve` with changed program ID) when **no top-up is required**.
+This instruction is compatible with the SPL Token instruction format (using `spl_token_2022::instruction::approve` with changed program ID) when **no top-up is required**.
 
 If the CToken account has a compressible extension and requires a rent top-up, the instruction needs the **system program account** to perform the lamports transfer. Without the system program account, the top-up CPI will fail.
 
@@ -18,7 +17,7 @@ If the CToken account has a compressible extension and requires a rent top-up, t
 Delegates a specified amount to a delegate authority on a decompressed ctoken account (account layout `CToken` defined in program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs). Before the approve operation, automatically tops up compressible accounts (extension layout `CompressionInfo` defined in program-libs/compressible/src/compression_info.rs) with additional lamports if needed to prevent accounts from becoming compressible during normal operations. The instruction supports a max_top_up parameter (0 = no limit) that enforces transaction failure if the calculated top-up exceeds this limit. Uses pinocchio-token-program for SPL-compatible approve semantics. Supports backwards-compatible instruction data format (8 bytes legacy vs 10 bytes with max_top_up).
 
 **Instruction data:**
-Path: programs/compressed-token/program/src/ctoken_approve_revoke.rs (lines 34-58)
+Path: programs/compressed-token/program/src/ctoken_approve_revoke.rs (lines 34-66)
 
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to delegate
 - Bytes 8-9 (optional): `max_top_up` (u16, little-endian) - Maximum lamports for top-up (0 = no limit, default for legacy format)
@@ -146,117 +145,11 @@ if lamports_budget != 0 && transfer_amount > lamports_budget {
 
 **Use Case**: Allows callers to cap unexpected rent costs and fail transactions that exceed budget.
 
-### Missing Features
+### Unsupported SPL & Token-2022 Features
 
 **1. No Multisig Support**
-
-**Token-2022 Multisig Flow:**
-```
-Accounts (Multisig):
-0. [writable] Source account
-1. [] Delegate
-2. [] Multisignature owner account
-3. ..3+M [signer] M signer accounts
-```
-
-**CToken Limitation:**
-- Only supports single owner signature
-- No multisignature account validation
-- Requires exactly 3 accounts (source, delegate, owner)
-
-**Impact**: Users requiring M-of-N signature schemes cannot use CToken accounts for approval operations.
-
 **2. No CPI Guard Extension Check**
 
-**Token-2022 CPI Guard Protection:**
-```rust
-// Token-2022 processor.rs:611-615
-if let Ok(cpi_guard) = source_account.get_extension::<CpiGuard>() {
-    if cpi_guard.lock_cpi.into() && in_cpi() {
-        return Err(TokenError::CpiGuardApproveBlocked);
-    }
-}
-```
+### Related Instructions
 
-**CToken Behavior:**
-- Does NOT check for CPI Guard extension
-- Does NOT prevent approval via Cross-Program Invocation
-- No extension validation beyond Compressible
-
-**Security Implication**: CToken accounts cannot use CPI Guard to prevent opaque programs from gaining approval authority during CPIs. This is a deliberate design choice as CToken focuses on compression functionality rather than all Token-2022 extensions.
-
-**3. No ApproveChecked Variant**
-
-**Token-2022 ApproveChecked:**
-```
-Instruction Data:
-- amount: u64
-- decimals: u8
-
-Additional Account:
-1. [] The token mint
-
-Additional Checks:
-- Validates source_account.mint == mint_info.key
-- Validates expected_decimals == mint.base.decimals
-```
-
-**CToken Status:**
-- Only implements basic Approve (no mint/decimals validation)
-- No ApproveChecked instruction variant
-- Relies on caller to ensure correct mint context
-
-**Risk**: Without mint validation, callers could potentially approve on wrong token accounts if not carefully validating mint addresses externally.
-
-### Extension Handling Differences
-
-| Extension | Token-2022 Approve | CToken Approve |
-|-----------|-------------------|----------------|
-| **CPI Guard** | Blocks approval via CPI when enabled | Not checked, allows approval via CPI |
-| **Compressible** | N/A (Token-2022 extension, not in standard T22) | Auto top-up with max_top_up enforcement |
-| **Account State** | Checks initialized and frozen state | Delegates to pinocchio (same checks) |
-| **Multisig** | Validates M-of-N signatures with position matching | Not supported |
-
-### Security Property Comparison
-
-Based on Token-2022 security analysis (`/home/ananas/dev/token-2022/analysis/approve.md`):
-
-**Shared Security Properties:**
-1. **Account Initialization Check**: Both verify source account is initialized (via unpack validation)
-2. **Account Frozen State Validation**: Both prevent approval when account is frozen
-3. **Owner Authority Validation**: Both validate owner signature matches account owner field
-
-**Token-2022 Additional Security:**
-1. **Mint Validation** (ApproveChecked): Validates source account mint matches provided mint
-2. **Decimals Validation** (ApproveChecked): Validates expected decimals match mint decimals
-3. **CPI Guard Check**: Prevents approval via CPI when guard enabled
-4. **Multisig Validation**: M-of-N signature validation with position matching
-
-**CToken Additional Security:**
-1. **Rent Budget Enforcement**: max_top_up parameter prevents unexpected rent costs
-2. **Compressible State Management**: Ensures accounts maintain minimum rent to prevent compression
-
-**Critical Security Gap (Token-2022):**
-According to the security analysis, Token-2022's Approve instruction is missing explicit account ownership validation (`check_program_account(source_account_info.owner)?`). CToken delegates to pinocchio-token-program, which inherits this same gap. This is MEDIUM severity as the owner validation check provides significant protection, but the missing program ownership check creates potential attack surface if combined with account confusion attacks.
-
-**Recommendation for CToken:**
-- Current implementation correctly delegates to pinocchio for SPL compatibility
-- If pinocchio addresses the account ownership validation gap, CToken will automatically inherit the fix
-- Consider adding explicit ownership validation in CToken layer before delegating to pinocchio
-
-### Summary
-
-**Use CToken Approve when:**
-- Working with compressed token accounts that may need rent top-up
-- Need to enforce maximum rent cost budget (max_top_up parameter)
-- Only require single owner signature
-- CPI Guard protection is not required
-
-**Use Token-2022 Approve when:**
-- Need multisignature approval support
-- Require CPI Guard protection against opaque CPI approvals
-- Want mint/decimals validation (ApproveChecked variant)
-- Working with standard Token-2022 accounts without compression
-
-**Migration Path:**
-Users can decompress CToken accounts to Token-2022 accounts to gain access to multisig and CPI Guard features, then recompress after approval operations if needed.
+**ApproveChecked:** CToken implements CTokenApproveChecked (discriminator: 13) with full decimals validation. See `CTOKEN_APPROVE_CHECKED.md`.

@@ -7,7 +7,6 @@ use light_ctoken_interface::{
     CTokenError,
 };
 use light_program_profiler::profile;
-use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::{
     account_info::AccountInfo,
     pubkey::pubkey_eq,
@@ -48,7 +47,7 @@ pub fn compress_or_decompress_ctokens(
         .try_borrow_mut_data()
         .map_err(|_| ProgramError::AccountBorrowFailed)?;
 
-    let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut token_account_data)?;
+    let (mut ctoken, _) = CToken::zero_copy_at_mut_checked(&mut token_account_data)?;
     validate_ctoken(&ctoken, &mint, &mode)?;
 
     // Get current balance

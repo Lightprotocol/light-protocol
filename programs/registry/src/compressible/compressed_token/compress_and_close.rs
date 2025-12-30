@@ -177,7 +177,11 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         // For ATAs: owner = ATA pubkey (source_index) for hash, owner_index in extension for signing
         // For non-ATAs: owner = wallet owner (owner_index)
         output_accounts.push(MultiTokenTransferOutputData {
-            owner: if is_ata { idx.source_index } else { idx.owner_index },
+            owner: if is_ata {
+                idx.source_index
+            } else {
+                idx.owner_index
+            },
             amount,
             delegate: idx.delegate_index,
             mint: idx.mint_index,

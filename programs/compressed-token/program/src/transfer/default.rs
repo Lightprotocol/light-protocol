@@ -3,7 +3,7 @@ use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use pinocchio_token_program::processor::transfer::process_transfer;
 
-use crate::transfer::shared::{process_transfer_extensions, TransferAccounts};
+use crate::transfer::shared::{process_transfer_extensions_transfer, TransferAccounts};
 
 /// Account indices for CToken transfer instruction
 const ACCOUNT_SOURCE: usize = 0;
@@ -80,7 +80,7 @@ fn process_extensions(
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
     // Ignore decimals - only used for transfer_checked
-    let (signer_is_validated, _decimals) = process_transfer_extensions(
+    let (signer_is_validated, _decimals) = process_transfer_extensions_transfer(
         TransferAccounts {
             source,
             destination,

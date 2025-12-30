@@ -30,27 +30,32 @@ This documentation is organized to provide clear navigation through the compress
 
 ## Discriminator Reference
 
-| Instruction | Discriminator | Enum Variant |
-|-------------|---------------|--------------|
-| CTokenTransfer | 3 | `InstructionType::CTokenTransfer` |
-| CTokenApprove | 4 | `InstructionType::CTokenApprove` |
-| CTokenRevoke | 5 | `InstructionType::CTokenRevoke` |
-| CTokenTransferChecked | 6 | `InstructionType::CTokenTransferChecked` |
-| CTokenMintTo | 7 | `InstructionType::CTokenMintTo` |
-| CTokenBurn | 8 | `InstructionType::CTokenBurn` |
-| CloseTokenAccount | 9 | `InstructionType::CloseTokenAccount` |
-| CTokenFreezeAccount | 10 | `InstructionType::CTokenFreezeAccount` |
-| CTokenThawAccount | 11 | `InstructionType::CTokenThawAccount` |
-| CTokenApproveChecked | 12 | `InstructionType::CTokenApproveChecked` |
-| CTokenMintToChecked | 14 | `InstructionType::CTokenMintToChecked` |
-| CTokenBurnChecked | 15 | `InstructionType::CTokenBurnChecked` |
-| CreateTokenAccount | 18 | `InstructionType::CreateTokenAccount` |
-| CreateAssociatedCTokenAccount | 100 | `InstructionType::CreateAssociatedCTokenAccount` |
-| Transfer2 | 101 | `InstructionType::Transfer2` |
-| CreateAssociatedTokenAccountIdempotent | 102 | `InstructionType::CreateAssociatedTokenAccountIdempotent` |
-| MintAction | 103 | `InstructionType::MintAction` |
-| Claim | 104 | `InstructionType::Claim` |
-| WithdrawFundingPool | 105 | `InstructionType::WithdrawFundingPool` |
+| Instruction | Discriminator | Enum Variant | SPL Token Compatible |
+|-------------|---------------|--------------|----------------------|
+| CTokenTransfer | 3 | `InstructionType::CTokenTransfer` | Transfer |
+| CTokenApprove | 4 | `InstructionType::CTokenApprove` | Approve |
+| CTokenRevoke | 5 | `InstructionType::CTokenRevoke` | Revoke |
+| CTokenMintTo | 7 | `InstructionType::CTokenMintTo` | MintTo |
+| CTokenBurn | 8 | `InstructionType::CTokenBurn` | Burn |
+| CloseTokenAccount | 9 | `InstructionType::CloseTokenAccount` | CloseAccount |
+| CTokenFreezeAccount | 10 | `InstructionType::CTokenFreezeAccount` | FreezeAccount |
+| CTokenThawAccount | 11 | `InstructionType::CTokenThawAccount` | ThawAccount |
+| CTokenTransferChecked | 12 | `InstructionType::CTokenTransferChecked` | TransferChecked |
+| CTokenApproveChecked | 13 | `InstructionType::CTokenApproveChecked` | ApproveChecked |
+| CTokenMintToChecked | 14 | `InstructionType::CTokenMintToChecked` | MintToChecked |
+| CTokenBurnChecked | 15 | `InstructionType::CTokenBurnChecked` | BurnChecked |
+| CreateTokenAccount | 18 | `InstructionType::CreateTokenAccount` | InitializeAccount3 |
+| CreateAssociatedCTokenAccount | 100 | `InstructionType::CreateAssociatedCTokenAccount` | - |
+| Transfer2 | 101 | `InstructionType::Transfer2` | - |
+| CreateAssociatedTokenAccountIdempotent | 102 | `InstructionType::CreateAssociatedTokenAccountIdempotent` | - |
+| MintAction | 103 | `InstructionType::MintAction` | - |
+| Claim | 104 | `InstructionType::Claim` | - |
+| WithdrawFundingPool | 105 | `InstructionType::WithdrawFundingPool` | - |
+
+**SPL Token Compatibility Notes:**
+- Instructions with SPL Token equivalents share the same discriminator and accept the same instruction data format
+- CreateTokenAccount (18) accepts 32-byte owner pubkey for InitializeAccount3 compatibility
+- CToken-specific instructions (100+) have no SPL Token equivalent
 
 ## Navigation Tips
 - Start with `../../CLAUDE.md` for the instruction index and overview
