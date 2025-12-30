@@ -2,7 +2,7 @@ use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountInfoTrait;
 use light_compressible::config::CompressibleConfig;
 use light_ctoken_interface::{
-    instructions::extensions::CompressToPubkey,
+    instructions::extensions::CompressibleExtensionInstructionData,
     state::{
         ctoken::CompressedTokenConfig, AccountState, CToken, CompressibleExtensionConfig,
         CompressionInfoConfig, ExtensionStructConfig,
@@ -29,29 +29,16 @@ const T22_ACCOUNT_TYPE_OFFSET: usize = 165;
 /// AccountType::Mint discriminator value
 const ACCOUNT_TYPE_MINT: u8 = 1;
 
-/// Compression-related instruction data for initializing a CToken account
-#[derive(Debug, Clone, Copy)]
-pub struct CompressionInstructionData {
-    /// Version of the compressed token account when compressed
-    pub token_account_version: u8,
-    /// If true, the compressed token account cannot be transferred
-    pub compression_only: u8,
-    /// Write top-up in lamports per write
-    pub write_top_up: u32,
-    /// Whether this account is an ATA
-    pub is_ata: bool,
-}
-
 /// Configuration for compressible accounts
 pub struct CompressibleInitData<'a> {
     /// Instruction data for compression settings
-    pub ix_data: CompressionInstructionData,
+    pub ix_data: &'a CompressibleExtensionInstructionData,
     /// Compressible config account with rent and authority settings
     pub config_account: &'a CompressibleConfig,
-    /// Optional compress-to-pubkey configuration
-    pub compress_to_pubkey: Option<&'a CompressToPubkey>,
     /// Custom rent payer pubkey (if not using default rent sponsor)
     pub custom_rent_payer: Option<Pubkey>,
+    /// Whether this account is an ATA (determined by instruction path, not ix data)
+    pub is_ata: bool,
 }
 
 /// Configuration for initializing a CToken account
@@ -154,8 +141,8 @@ fn configure_compression_info(
     let CompressibleInitData {
         ix_data,
         config_account,
-        compress_to_pubkey,
         custom_rent_payer,
+        is_ata,
     } = compressible;
 
     // Get the Compressible extension (must exist since we added it)
@@ -208,13 +195,14 @@ fn configure_compression_info(
         .info
         .lamports_per_write
         .set(ix_data.write_top_up);
-    compressible_ext.info.compress_to_pubkey = compress_to_pubkey.is_some() as u8;
+    compressible_ext.info.compress_to_pubkey =
+        ix_data.compress_to_account_pubkey.is_some() as u8;
 
     // Set compression_only flag on the extension
     compressible_ext.compression_only = if ix_data.compression_only != 0 { 1 } else { 0 };
 
     // Set is_ata flag on the extension
-    compressible_ext.is_ata = ix_data.is_ata as u8;
+    compressible_ext.is_ata = is_ata as u8;
 
     // Validate token_account_version is ShaFlat (3)
     if ix_data.token_account_version != 3 {

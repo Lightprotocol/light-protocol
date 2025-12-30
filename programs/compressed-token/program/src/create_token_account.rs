@@ -14,9 +14,7 @@ use crate::{
     extensions::has_mint_extensions,
     shared::{
         convert_program_error, create_pda_account,
-        initialize_ctoken_account::{
-            initialize_ctoken_account, CTokenInitConfig, CompressionInstructionData,
-        },
+        initialize_ctoken_account::{initialize_ctoken_account, CTokenInitConfig},
         transfer_lamports_via_cpi,
     },
 };
@@ -229,19 +227,14 @@ pub fn process_create_token_account(
         }
 
         Some(CompressibleInitData {
-            ix_data: CompressionInstructionData {
-                compression_only: compressible_config.compression_only,
-                token_account_version: compressible_config.token_account_version,
-                write_top_up: compressible_config.write_top_up,
-                is_ata: false, // Regular token accounts are not ATAs
-            },
+            ix_data: compressible_config,
             config_account: compressible.parsed_config,
-            compress_to_pubkey: compressible_config.compress_to_account_pubkey.as_ref(),
             custom_rent_payer: if custom_rent_payer {
                 Some(*compressible.rent_payer.key())
             } else {
                 None
             },
+            is_ata: false,
         })
     } else {
         // Non-compressible account: token_account must already exist and be owned by our program
