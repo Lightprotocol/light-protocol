@@ -156,7 +156,7 @@ async fn run_freeze_thaw_test(version: TokenDataVersion) -> Result<(), RpcError>
     .await;
 
     // Get output merkle tree
-    let output_merkle_tree: Pubkey = env.v2_state_trees[0].output_queue.into();
+    let output_merkle_tree: Pubkey = env.v2_state_trees[0].output_queue;
 
     // 3. Compress tokens using transfer2 with specified version
     compress_with_version(
