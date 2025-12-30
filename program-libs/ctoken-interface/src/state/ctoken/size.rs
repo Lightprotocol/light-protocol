@@ -24,6 +24,7 @@ pub fn calculate_ctoken_account_size(
     if let Some(exts) = extensions {
         if !exts.is_empty() {
             size += 1; // account_type byte at position 165
+            size += 1; // Option discriminator for extensions (1 = Some)
             size += 4; // Vec length prefix
             for ext in exts {
                 size += ExtensionStruct::byte_len(ext)?;

@@ -125,10 +125,24 @@ pub fn process_create_token_account(
     account_infos: &[AccountInfo],
     mut instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
+    use light_compressed_account::Pubkey;
+
     use crate::shared::initialize_ctoken_account::CompressibleInitData;
 
-    let inputs = CreateTokenAccountInstructionData::deserialize(&mut instruction_data)
-        .map_err(ProgramError::from)?;
+    // SPL compatibility: if instruction_data is exactly 32 bytes, treat as owner-only (no compressible config)
+    // This matches SPL Token's initialize_account3 which only sends the owner pubkey
+    let inputs = if instruction_data.len() == 32 {
+        let owner_bytes: [u8; 32] = instruction_data[..32]
+            .try_into()
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
+        CreateTokenAccountInstructionData {
+            owner: Pubkey::from(owner_bytes),
+            compressible_config: None,
+        }
+    } else {
+        CreateTokenAccountInstructionData::deserialize(&mut instruction_data)
+            .map_err(ProgramError::from)?
+    };
 
     let is_compressible = inputs.compressible_config.is_some();
 

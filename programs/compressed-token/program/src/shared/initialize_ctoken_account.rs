@@ -126,13 +126,15 @@ pub fn initialize_ctoken_account(
 
     // Use new_zero_copy to initialize the token account
     // This sets mint, owner, state, compression_only, account_type, and extensions
-    let (mut ctoken, _remaining) = CToken::new_zero_copy(&mut token_account_data, zc_config)
-        .map_err(|e| {
+    let (mut ctoken, _) =
+        CToken::new_zero_copy(&mut token_account_data, zc_config).map_err(|e| {
             msg!("Failed to initialize CToken: {:?}", e);
             ProgramError::InvalidAccountData
         })?;
 
     // Configure compression info fields only if compressible
+    // We need to re-read using zero_copy_at_mut because new_zero_copy doesn't
+    // populate the extensions field (it only writes them to bytes)
     if let Some(compressible) = compressible {
         configure_compression_info(&mut ctoken, compressible, mint_account)?;
     }

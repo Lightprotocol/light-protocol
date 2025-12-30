@@ -111,7 +111,7 @@ impl TransferCTokenChecked {
             ],
             data: {
                 // Discriminator (1) + amount (8) + decimals (1) + optional max_top_up (2)
-                let mut data = vec![6u8];
+                let mut data = vec![12u8]; // TransferChecked discriminator (SPL compatible)
                 data.extend_from_slice(&self.amount.to_le_bytes());
                 data.push(self.decimals);
                 // Include max_top_up if set (11-byte format)

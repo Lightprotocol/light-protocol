@@ -43,7 +43,7 @@ pub fn process_create_associated_token_account_idempotent(
 /// 2. fee_payer (signer, mut)
 /// 3. associated_token_account (mut)
 /// 4. system_program
-/// Optional (only when compressible_config is Some):
+///   Optional (only when compressible_config is Some):
 /// 5. compressible_config
 /// 6. rent_payer
 #[profile]

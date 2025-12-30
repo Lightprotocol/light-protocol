@@ -34,6 +34,18 @@ pub fn process_ctoken_transfer(
         return Err(ProgramError::InvalidInstructionData);
     }
 
+    // Hot path: 165-byte accounts have no extensions, skip all extension processing
+    let source = accounts
+        .get(ACCOUNT_SOURCE)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let destination = accounts
+        .get(ACCOUNT_DESTINATION)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    if source.data_len() == 165 && destination.data_len() == 165 {
+        return process_transfer(accounts, &instruction_data[..8], false)
+            .map_err(|e| ProgramError::Custom(u64::from(e) as u32));
+    }
+
     // Parse max_top_up based on instruction data length
     // 0 means no limit
     let max_top_up = match instruction_data.len() {

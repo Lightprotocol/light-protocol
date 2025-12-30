@@ -121,7 +121,7 @@ impl<'info> From<&ApproveCTokenCheckedCpi<'info>> for ApproveCTokenChecked {
 
 impl ApproveCTokenChecked {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        let mut data = vec![12u8]; // CTokenApproveChecked discriminator
+        let mut data = vec![13u8]; // CTokenApproveChecked discriminator (SPL compatible)
         data.extend_from_slice(&self.amount.to_le_bytes());
         data.push(self.decimals);
         // Include max_top_up if set (11-byte format)

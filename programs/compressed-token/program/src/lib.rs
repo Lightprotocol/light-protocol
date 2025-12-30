@@ -58,8 +58,6 @@ pub enum InstructionType {
     CTokenApprove = 4,
     /// CToken Revoke
     CTokenRevoke = 5,
-    /// CToken TransferChecked - transfer with decimals validation
-    CTokenTransferChecked = 6,
     /// CToken mint_to - mint from decompressed CMint to CToken with top-ups
     CTokenMintTo = 7,
     /// CToken burn - burn from CToken, update CMint supply, with top-ups
@@ -70,8 +68,10 @@ pub enum InstructionType {
     CTokenFreezeAccount = 10,
     /// CToken ThawAccount
     CTokenThawAccount = 11,
-    /// CToken ApproveChecked - approve with decimals validation
-    CTokenApproveChecked = 12,
+    /// CToken TransferChecked - transfer with decimals validation (SPL compatible)
+    CTokenTransferChecked = 12,
+    /// CToken ApproveChecked - approve with decimals validation (SPL compatible)
+    CTokenApproveChecked = 13,
     /// CToken MintToChecked - mint with decimals validation
     CTokenMintToChecked = 14,
     /// CToken BurnChecked - burn with decimals validation
@@ -111,13 +111,13 @@ impl From<u8> for InstructionType {
             3 => InstructionType::CTokenTransfer,
             4 => InstructionType::CTokenApprove,
             5 => InstructionType::CTokenRevoke,
-            6 => InstructionType::CTokenTransferChecked,
             7 => InstructionType::CTokenMintTo,
             8 => InstructionType::CTokenBurn,
             9 => InstructionType::CloseTokenAccount,
             10 => InstructionType::CTokenFreezeAccount,
             11 => InstructionType::CTokenThawAccount,
-            12 => InstructionType::CTokenApproveChecked,
+            12 => InstructionType::CTokenTransferChecked,
+            13 => InstructionType::CTokenApproveChecked,
             14 => InstructionType::CTokenMintToChecked,
             15 => InstructionType::CTokenBurnChecked,
             18 => InstructionType::CreateTokenAccount,

@@ -2,7 +2,8 @@ use anchor_lang::solana_program::{msg, program_error::ProgramError};
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use pinocchio_token_program::processor::{
-    shared::transfer::process_transfer, unpack_amount_and_decimals,
+    shared::transfer::process_transfer, transfer_checked::process_transfer_checked,
+    unpack_amount_and_decimals,
 };
 
 use super::shared::{process_transfer_extensions, TransferAccounts};
@@ -42,11 +43,18 @@ pub fn process_ctoken_transfer_checked(
     let source = accounts
         .get(ACCOUNT_SOURCE)
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let mint = accounts
-        .get(ACCOUNT_MINT)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
     let destination = accounts
         .get(ACCOUNT_DESTINATION)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+
+    // Hot path: 165-byte accounts have no extensions, skip all extension processing
+    if source.data_len() == 165 && destination.data_len() == 165 {
+        return process_transfer_checked(accounts, &instruction_data[..9], false)
+            .map_err(|e| ProgramError::Custom(u64::from(e) as u32));
+    }
+
+    let mint = accounts
+        .get(ACCOUNT_MINT)
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
     let authority = accounts
         .get(ACCOUNT_AUTHORITY)

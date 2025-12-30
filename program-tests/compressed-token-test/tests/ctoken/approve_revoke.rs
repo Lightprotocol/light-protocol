@@ -83,7 +83,7 @@ async fn test_approve_fails() {
             100,
             None,
             "non_existent_account",
-            15010, // ZeroCopyError::Size - account doesn't exist
+            6000, // Pinocchio token program error - account doesn't exist
         )
         .await;
     }
@@ -253,7 +253,7 @@ async fn test_revoke_fails() {
             &owner,
             None,
             "non_existent_account",
-            15010, // ZeroCopyError::Size - account doesn't exist
+            6000, // Pinocchio token program error - account doesn't exist
         )
         .await;
     }
