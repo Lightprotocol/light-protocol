@@ -205,7 +205,8 @@ fn process_account_extensions(
 
     let mut info = AccountExtensionInfo::default();
 
-    {
+    // Only calculate top-up if account has Compressible extension
+    if let Some(compression) = token.get_compressible_extension() {
         // Get current slot for compressible top-up calculation
         use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
         if *current_slot == 0 {
@@ -217,10 +218,6 @@ fn process_account_extensions(
         let rent_exemption = Rent::get()
             .map_err(|_| CTokenError::SysvarAccessError)?
             .minimum_balance(account.data_len());
-
-        let compression = token
-            .get_compressible_extension()
-            .ok_or(CTokenError::InvalidAccountData)?;
 
         info.top_up_amount = compression
             .info
@@ -254,6 +251,9 @@ fn process_account_extensions(
                 ZExtensionStructMut::TransferHookAccount(_) => {
                     info.flags.has_transfer_hook = true;
                     // No runtime logic needed - we only support nil program_id
+                }
+                ZExtensionStructMut::Compressible(_) => {
+                    // Already handled above via get_compressible_extension()
                 }
                 // Placeholder and TokenMetadata variants are not valid for CToken accounts
                 _ => {

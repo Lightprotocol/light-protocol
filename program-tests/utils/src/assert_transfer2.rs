@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_ctoken_interface::{BASE_TOKEN_ACCOUNT_SIZE, CTOKEN_PROGRAM_ID};
+use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use light_program_test::LightProgramTest;
 use light_token_client::instructions::transfer2::{
     CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
@@ -467,12 +467,11 @@ pub async fn assert_transfer2_with_delegate(
                 // TLV contains CompressedOnly extension when:
                 // - Account is frozen (is_frozen=true)
                 // - Account has delegate set (even if delegated_amount=0)
-                // - Account has extensions beyond base (size > BASE_TOKEN_ACCOUNT_SIZE)
                 // - Account has withheld_transfer_fee > 0 (from TransferFeeAccount extension)
+                // Note: Compressible extension is for on-chain rent tracking only and is NOT
+                // preserved in the compressed output, so account size is not a criterion.
                 let has_delegate = expected_delegate.is_some();
-                let has_extra_extensions =
-                    pre_account_data.data.len() > BASE_TOKEN_ACCOUNT_SIZE as usize;
-                let needs_tlv = is_frozen || has_delegate || has_extra_extensions;
+                let needs_tlv = is_frozen || has_delegate;
 
                 let expected_tlv = if needs_tlv {
                     Some(vec![

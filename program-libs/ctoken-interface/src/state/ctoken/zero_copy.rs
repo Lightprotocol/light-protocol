@@ -120,39 +120,51 @@ impl<'a> ZeroCopyNew<'a> for CToken {
         base.state = config.state;
 
         // Write extensions using ExtensionStruct::new_zero_copy
-        let account_type = if let Some(extensions) = config.extensions {
-            if !extensions.is_empty() {
-                // Write account_type byte at position 165
-                remaining[0] = ACCOUNT_TYPE_TOKEN_ACCOUNT;
-                remaining = &mut remaining[1..];
-
-                // Write Option discriminator (1 = Some)
-                remaining[0] = 1;
-                remaining = &mut remaining[1..];
-
-                // Write Vec length prefix (4 bytes, little-endian u32)
-                remaining[..4].copy_from_slice(&(extensions.len() as u32).to_le_bytes());
-                remaining = &mut remaining[4..];
-
-                // Write each extension
-                for ext_config in extensions {
-                    let (_, rest) = ExtensionStruct::new_zero_copy(remaining, ext_config)?;
-                    remaining = rest;
-                }
-
-                ACCOUNT_TYPE_TOKEN_ACCOUNT
-            } else {
-                ACCOUNT_TYPE_TOKEN_ACCOUNT
+        let (account_type, extensions) = if let Some(ref extensions_config) = config.extensions {
+            if extensions_config.is_empty() {
+                return Err(light_zero_copy::errors::ZeroCopyError::InvalidEnumValue);
             }
+            // Check buffer has enough space for header: account_type (1) + Option (1) + Vec len (4)
+            if remaining.len() < 6 {
+                return Err(
+                    light_zero_copy::errors::ZeroCopyError::InsufficientMemoryAllocated(
+                        remaining.len(),
+                        6,
+                    ),
+                );
+            }
+
+            // Split remaining: header (6 bytes) and extension data
+            let (header, ext_data) = remaining.split_at_mut(6);
+            // Write account_type byte at position 165
+            header[0] = ACCOUNT_TYPE_TOKEN_ACCOUNT;
+            // Write Option discriminator (1 = Some)
+            header[1] = 1;
+            // Write Vec length prefix (4 bytes, little-endian u32)
+            header[2..6].copy_from_slice(&(extensions_config.len() as u32).to_le_bytes());
+
+            // Write each extension and collect mutable references
+            let mut parsed_extensions = Vec::with_capacity(extensions_config.len());
+            let mut write_remaining = ext_data;
+
+            for ext_config in extensions_config {
+                let (ext, rest) =
+                    ExtensionStruct::new_zero_copy(write_remaining, ext_config.clone())?;
+                parsed_extensions.push(ext);
+                write_remaining = rest;
+            }
+            // Update remaining to point past all written data
+            remaining = write_remaining;
+            (ACCOUNT_TYPE_TOKEN_ACCOUNT, Some(parsed_extensions))
         } else {
-            ACCOUNT_TYPE_TOKEN_ACCOUNT
+            (ACCOUNT_TYPE_TOKEN_ACCOUNT, None)
         };
 
         Ok((
             ZCTokenMut {
                 base,
                 account_type,
-                extensions: None, // Extensions are written directly, not tracked as Vec
+                extensions,
             },
             remaining,
         ))

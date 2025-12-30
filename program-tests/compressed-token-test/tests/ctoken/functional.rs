@@ -122,10 +122,23 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         .expect("Payer should exist")
         .lamports;
 
-    // Create system account with compressible size
+    // Calculate expected size for account with Compressible extension
+    use light_ctoken_interface::state::{
+        calculate_ctoken_account_size, CompressibleExtensionConfig, CompressionInfoConfig,
+        ExtensionStructConfig,
+    };
+    let compressible_account_size =
+        calculate_ctoken_account_size(Some(&[ExtensionStructConfig::Compressible(
+            CompressibleExtensionConfig {
+                info: CompressionInfoConfig { rent_config: () },
+            },
+        )]))
+        .unwrap();
+
+    // Get rent exemption for the actual compressible account size
     let rent_exemption = context
         .rpc
-        .get_minimum_balance_for_rent_exemption(BASE_TOKEN_ACCOUNT_SIZE as usize)
+        .get_minimum_balance_for_rent_exemption(compressible_account_size)
         .await
         .unwrap();
 
@@ -223,12 +236,17 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
 
     // Calculate transaction fee from the transaction result
     let tx_fee = 10_000; // Standard transaction fee
-                         // With 3 prepaid epochs: compression_cost (11000) + 3 * rent_per_epoch (386) = 12158
-                         // rent_per_epoch = 262 bytes * 1 lamport/byte/epoch + base_rent (124) = 386
+                         // Use RentConfig::default() to calculate expected rent
+    let expected_additional_rent = RentConfig::default().get_rent_with_compression_cost(
+        compressible_account_size as u64,
+        num_prepaid_epochs as u64,
+    );
     assert_eq!(
         payer_balance_before - payer_balance_after,
-        12_158 + tx_fee,
-        "Payer should have paid 12,158 lamports for additional rent (3 epochs) plus {} tx fee",
+        expected_additional_rent + tx_fee,
+        "Payer should have paid {} lamports for additional rent ({} epochs) plus {} tx fee",
+        expected_additional_rent,
+        num_prepaid_epochs,
         tx_fee
     );
 

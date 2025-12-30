@@ -168,10 +168,23 @@ async fn test_create_ata_idempotent() {
         // Verify the account still has the same properties (unchanged by second creation)
         let account = context.rpc.get_account(ata_pubkey).await.unwrap().unwrap();
 
-        // Should still be compressible size (BASE_TOKEN_ACCOUNT_SIZE bytes)
+        // Calculate expected size for account with Compressible extension
+        use light_ctoken_interface::state::{
+            calculate_ctoken_account_size, CompressibleExtensionConfig, CompressionInfoConfig,
+            ExtensionStructConfig,
+        };
+        let expected_size =
+            calculate_ctoken_account_size(Some(&[ExtensionStructConfig::Compressible(
+                CompressibleExtensionConfig {
+                    info: CompressionInfoConfig { rent_config: () },
+                },
+            )]))
+            .unwrap();
+
+        // Account size should remain unchanged by idempotent recreation
         assert_eq!(
             account.data.len(),
-            light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE as usize,
+            expected_size,
             "Account should still be compressible size after idempotent recreation"
         );
     }

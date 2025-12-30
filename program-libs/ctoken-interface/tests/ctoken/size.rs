@@ -11,38 +11,38 @@ fn test_ctoken_account_size_calculation() {
         BASE_TOKEN_ACCOUNT_SIZE as usize
     );
 
-    // With pausable only (165 base + 1 account_type + 4 vec length + 1 discriminant = 171)
+    // With pausable only (165 base + 1 account_type + 1 Option discriminator + 4 vec length + 1 ext discriminant = 172)
     let pausable_size =
         calculate_ctoken_account_size(Some(&[ExtensionStructConfig::PausableAccount(())])).unwrap();
-    assert_eq!(pausable_size, 171);
+    assert_eq!(pausable_size, 172);
 
-    // With permanent_delegate only (165 + 1 + 4 + 1 = 171)
+    // With permanent_delegate only (165 + 1 + 1 + 4 + 1 = 172)
     let perm_delegate_size =
         calculate_ctoken_account_size(Some(&[ExtensionStructConfig::PermanentDelegateAccount(())]))
             .unwrap();
-    assert_eq!(perm_delegate_size, 171);
+    assert_eq!(perm_delegate_size, 172);
 
-    // With pausable + permanent_delegate (165 + 1 + 4 + 1 + 1 = 172)
+    // With pausable + permanent_delegate (165 + 1 + 1 + 4 + 1 + 1 = 173)
     let both_size = calculate_ctoken_account_size(Some(&[
         ExtensionStructConfig::PausableAccount(()),
         ExtensionStructConfig::PermanentDelegateAccount(()),
     ]))
     .unwrap();
-    assert_eq!(both_size, 172);
+    assert_eq!(both_size, 173);
 
-    // With transfer_fee only (165 + 1 + 4 + 1 + 8 = 179)
+    // With transfer_fee only (165 + 1 + 1 + 4 + 1 + 8 = 180)
     let transfer_fee_size =
         calculate_ctoken_account_size(Some(&[ExtensionStructConfig::TransferFeeAccount(())]))
             .unwrap();
-    assert_eq!(transfer_fee_size, 179);
+    assert_eq!(transfer_fee_size, 180);
 
-    // With transfer_hook only (165 + 1 + 4 + 1 + 1 = 172)
+    // With transfer_hook only (165 + 1 + 1 + 4 + 1 + 1 = 173)
     let transfer_hook_size =
         calculate_ctoken_account_size(Some(&[ExtensionStructConfig::TransferHookAccount(())]))
             .unwrap();
-    assert_eq!(transfer_hook_size, 172);
+    assert_eq!(transfer_hook_size, 173);
 
-    // With all 4 extensions (165 + 1 + 4 + 1 + 1 + 9 + 2 = 183)
+    // With all 4 extensions (165 + 1 + 1 + 4 + 1 + 1 + 9 + 2 = 184)
     let all_size = calculate_ctoken_account_size(Some(&[
         ExtensionStructConfig::PausableAccount(()),
         ExtensionStructConfig::PermanentDelegateAccount(()),
@@ -50,5 +50,5 @@ fn test_ctoken_account_size_calculation() {
         ExtensionStructConfig::TransferHookAccount(()),
     ]))
     .unwrap();
-    assert_eq!(all_size, 183);
+    assert_eq!(all_size, 184);
 }

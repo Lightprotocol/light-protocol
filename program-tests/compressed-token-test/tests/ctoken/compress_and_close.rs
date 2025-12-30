@@ -243,12 +243,25 @@ async fn test_compress_and_close_rent_authority_scenarios() {
 
         let token_account_pubkey = context.token_account_keypair.pubkey();
 
+        // Calculate compressible account size
+        use light_ctoken_interface::state::{
+            calculate_ctoken_account_size, CompressibleExtensionConfig, CompressionInfoConfig,
+            ExtensionStructConfig,
+        };
+        let compressible_account_size =
+            calculate_ctoken_account_size(Some(&[ExtensionStructConfig::Compressible(
+                CompressibleExtensionConfig {
+                    info: CompressionInfoConfig { rent_config: () },
+                },
+            )]))
+            .unwrap();
+
         // Top up rent for one more epoch (total: 2 prepaid + 1 topped up = 3 epochs)
         context
             .rpc
             .airdrop_lamports(
                 &token_account_pubkey,
-                RentConfig::default().get_rent(BASE_TOKEN_ACCOUNT_SIZE, 1),
+                RentConfig::default().get_rent(compressible_account_size as u64, 1),
             )
             .await
             .unwrap();
@@ -499,10 +512,23 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
     let payer_pubkey = first_tx_payer.pubkey();
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
-    // Create system account with compressible size
+    // Calculate expected size for account with Compressible extension
+    use light_ctoken_interface::state::{
+        calculate_ctoken_account_size, CompressibleExtensionConfig, CompressionInfoConfig,
+        ExtensionStructConfig,
+    };
+    let compressible_account_size =
+        calculate_ctoken_account_size(Some(&[ExtensionStructConfig::Compressible(
+            CompressibleExtensionConfig {
+                info: CompressionInfoConfig { rent_config: () },
+            },
+        )]))
+        .unwrap();
+
+    // Get rent exemption for the actual compressible account size
     let rent_exemption = context
         .rpc
-        .get_minimum_balance_for_rent_exemption(BASE_TOKEN_ACCOUNT_SIZE as usize)
+        .get_minimum_balance_for_rent_exemption(compressible_account_size)
         .await
         .unwrap();
 
@@ -577,8 +603,10 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
         .unwrap()
         .expect("Payer should exist")
         .lamports;
-    let rent = RentConfig::default()
-        .get_rent_with_compression_cost(BASE_TOKEN_ACCOUNT_SIZE, num_prepaid_epochs as u64);
+    let rent = RentConfig::default().get_rent_with_compression_cost(
+        compressible_account_size as u64,
+        num_prepaid_epochs as u64,
+    );
     let tx_fee = 10_000; // Standard transaction fee
     assert_eq!(
         pool_balance_before - payer_balance_after,
@@ -603,8 +631,8 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
             .unwrap()
             .expect("Payer should exist")
             .lamports;
-        let rent =
-            RentConfig::default().get_rent(BASE_TOKEN_ACCOUNT_SIZE, num_prepaid_epochs as u64);
+        let rent = RentConfig::default()
+            .get_rent(compressible_account_size as u64, num_prepaid_epochs as u64);
         assert_eq!(
             payer_balance_after,
             payer_balance_before + rent_exemption + rent,

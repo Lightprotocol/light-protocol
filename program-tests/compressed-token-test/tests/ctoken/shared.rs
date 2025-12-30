@@ -1,6 +1,5 @@
 // Re-export all necessary imports for test modules
 pub use light_compressible::rent::{RentConfig, SLOTS_PER_EPOCH};
-pub use light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE;
 pub use light_ctoken_sdk::ctoken::{
     derive_ctoken_ata, ApproveCToken, CloseCTokenAccount, CompressibleParams,
     CreateAssociatedCTokenAccount, CreateCTokenAccount, RevokeCToken,
