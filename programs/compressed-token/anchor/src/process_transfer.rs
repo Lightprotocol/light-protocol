@@ -1,7 +1,5 @@
-use account_compression::{utils::constants::CPI_AUTHORITY_PDA_SEED, StateMerkleTreeAccount};
-use anchor_lang::{
-    prelude::*, solana_program::program_error::ProgramError, AnchorDeserialize, Discriminator,
-};
+use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
+use anchor_lang::{prelude::*, solana_program::program_error::ProgramError, AnchorDeserialize};
 use light_compressed_account::{
     compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
     hash_to_bn254_field_size_be,
@@ -17,17 +15,11 @@ use light_ctoken_interface::state::{
     CompressedTokenAccountState, ExtensionStruct, TokenData, TokenDataVersion,
 };
 use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_system_program::{
-    account_traits::{InvokeAccounts, SignerAccounts},
-    errors::SystemProgramError,
-};
+use light_system_program::account_traits::{InvokeAccounts, SignerAccounts};
 use light_zero_copy::num_trait::ZeroCopyNumTrait;
 
 use crate::{
-    constants::{
-        BUMP_CPI_AUTHORITY, NOT_FROZEN, TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-        TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR,
-    },
+    constants::{BUMP_CPI_AUTHORITY, NOT_FROZEN, TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR},
     spl_compression::process_compression_or_decompression,
     ErrorCode, TransferInstruction,
 };
@@ -136,7 +128,6 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
             .iter()
             .map(|data| data.merkle_tree_index)
             .collect::<Vec<u8>>(),
-        ctx.remaining_accounts,
     )?;
     bench_sbf_end!("t_create_output_compressed_accounts");
 
@@ -146,7 +137,6 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
             &mut compressed_input_accounts,
             input_token_data.as_slice(),
             &hashed_mint,
-            ctx.remaining_accounts,
         )?;
     }
     bench_sbf_end!("t_add_token_data_to_input_compressed_accounts");
@@ -185,19 +175,6 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         ctx.remaining_accounts,
     )
 }
-pub const BATCHED_DISCRIMINATOR: &[u8] = b"BatchMta";
-pub const OUTPUT_QUEUE_DISCRIMINATOR: &[u8] = b"queueacc";
-
-/// Helper function to determine the appropriate token account discriminator based on tree type
-pub fn get_token_account_discriminator(tree_discriminator: &[u8]) -> Result<[u8; 8]> {
-    match tree_discriminator {
-        StateMerkleTreeAccount::DISCRIMINATOR => Ok(TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR),
-        BATCHED_DISCRIMINATOR | OUTPUT_QUEUE_DISCRIMINATOR => {
-            Ok(TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR)
-        }
-        _ => err!(SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch),
-    }
-}
 
 /// Creates output compressed accounts.
 /// Steps:
@@ -216,7 +193,6 @@ pub fn create_output_compressed_accounts(
     lamports: Option<Vec<Option<impl ZeroCopyNumTrait>>>,
     hashed_mint: &[u8; 32],
     merkle_tree_indices: &[u8],
-    remaining_accounts: &[AccountInfo<'_>],
 ) -> Result<u64> {
     let mut sum_lamports = 0;
     let hashed_delegate_store = if let Some(delegate) = delegate {
@@ -261,30 +237,7 @@ pub fn create_output_compressed_accounts(
         let hashed_owner = hash_to_bn254_field_size_be(owner.to_pubkey_bytes().as_slice());
 
         let mut amount_bytes = [0u8; 32];
-        let discriminator_bytes =
-            &remaining_accounts[merkle_tree_indices[i] as usize].try_borrow_data()?[0..8];
-        match discriminator_bytes {
-            StateMerkleTreeAccount::DISCRIMINATOR => {
-                amount_bytes[24..].copy_from_slice(amount.to_bytes_le().as_slice());
-                Ok(())
-            }
-            BATCHED_DISCRIMINATOR => {
-                amount_bytes[24..].copy_from_slice(amount.to_bytes_be().as_slice());
-                Ok(())
-            }
-            OUTPUT_QUEUE_DISCRIMINATOR => {
-                amount_bytes[24..].copy_from_slice(amount.to_bytes_be().as_slice());
-                Ok(())
-            }
-            _ => {
-                msg!(
-                    "{} is no Merkle tree or output queue account. ",
-                    remaining_accounts[merkle_tree_indices[i] as usize].key()
-                );
-                err!(SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch)
-            }
-        }?;
-
+        amount_bytes[24..].copy_from_slice(amount.to_bytes_le().as_slice());
         let data_hash = TokenData::hash_with_hashed_values(
             hashed_mint,
             &hashed_owner,
@@ -293,10 +246,8 @@ pub fn create_output_compressed_accounts(
         )
         .map_err(ProgramError::from)?;
 
-        let discriminator = get_token_account_discriminator(discriminator_bytes)?;
-
         let data = CompressedAccountData {
-            discriminator,
+            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
             data: token_data_bytes,
             data_hash,
         };
@@ -328,13 +279,11 @@ pub fn add_data_hash_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
     input_compressed_accounts_with_merkle_context: &mut [InAccount],
     input_token_data: &[TokenData],
     hashed_mint: &[u8; 32],
-    remaining_accounts: &[AccountInfo<'_>],
 ) -> Result<()> {
     add_data_hash_to_input_compressed_accounts_with_version::<FROZEN_INPUTS>(
         input_compressed_accounts_with_merkle_context,
         input_token_data,
         hashed_mint,
-        remaining_accounts,
         None, // No version override - use discriminator-based detection
     )
 }
@@ -345,7 +294,6 @@ pub fn add_data_hash_to_input_compressed_accounts_with_version<const FROZEN_INPU
     input_compressed_accounts_with_merkle_context: &mut [InAccount],
     input_token_data: &[TokenData],
     hashed_mint: &[u8; 32],
-    remaining_accounts: &[AccountInfo<'_>],
     version: Option<u8>,
 ) -> Result<()> {
     // Check if version is ShaFlat - use SHA256 hashing for the whole TokenData
@@ -372,38 +320,8 @@ pub fn add_data_hash_to_input_compressed_accounts_with_version<const FROZEN_INPU
         // For V1/V2, use Poseidon-based hashing
         let hashed_owner = hash_to_bn254_field_size_be(&input_token_data[i].owner.to_bytes());
         let mut amount_bytes = [0u8; 32];
-        let discriminator_bytes = &remaining_accounts[compressed_account_with_context
-            .merkle_context
-            .merkle_tree_pubkey_index
-            as usize]
-            .try_borrow_data()?[0..8];
-        match discriminator_bytes {
-            StateMerkleTreeAccount::DISCRIMINATOR => {
-                amount_bytes[24..]
-                    .copy_from_slice(input_token_data[i].amount.to_le_bytes().as_slice());
-                Ok(())
-            }
-            BATCHED_DISCRIMINATOR => {
-                amount_bytes[24..]
-                    .copy_from_slice(input_token_data[i].amount.to_be_bytes().as_slice());
-                Ok(())
-            }
-            OUTPUT_QUEUE_DISCRIMINATOR => {
-                amount_bytes[24..]
-                    .copy_from_slice(input_token_data[i].amount.to_be_bytes().as_slice());
-                Ok(())
-            }
-            _ => {
-                msg!(
-                    "{} is no Merkle tree or output queue account. ",
-                    remaining_accounts[compressed_account_with_context
-                        .merkle_context
-                        .merkle_tree_pubkey_index as usize]
-                        .key()
-                );
-                err!(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch)
-            }
-        }?;
+        amount_bytes[24..].copy_from_slice(&input_token_data[i].amount.to_le_bytes());
+
         let delegate_store;
         let hashed_delegate = if let Some(delegate) = input_token_data[i].delegate {
             delegate_store = hash_to_bn254_field_size_be(&delegate.to_bytes());
@@ -717,15 +635,9 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
             return err!(ErrorCode::DelegateSignerCheckFailed);
         }
 
-        // Determine discriminator based on tree type
-        let discriminator_bytes = &remaining_accounts
-            [input_token_data.merkle_context.merkle_tree_pubkey_index as usize]
-            .try_borrow_data()?[0..8];
-        let discriminator = get_token_account_discriminator(discriminator_bytes)?;
-
         let compressed_account = InAccount {
             lamports: input_token_data.lamports.unwrap_or_default(),
-            discriminator,
+            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
             merkle_context: input_token_data.merkle_context,
             root_index: input_token_data.root_index,
             data_hash: [0u8; 32],

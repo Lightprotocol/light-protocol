@@ -155,7 +155,6 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
-        remaining_accounts,
         version,
     )?;
     Ok((compressed_input_accounts, output_compressed_accounts))
