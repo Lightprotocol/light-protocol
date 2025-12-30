@@ -1,4 +1,3 @@
-use account_compression::StateMerkleTreeAccount;
 use anchor_lang::prelude::*;
 use light_compressed_account::{
     compressed_account::{CompressedAccount, CompressedAccountData},
@@ -8,16 +7,41 @@ use light_compressed_account::{
         data::OutputCompressedAccountWithPackedContext, with_readonly::InAccount,
     },
 };
-use light_ctoken_interface::state::CompressedTokenAccountState;
+use light_ctoken_interface::state::{CompressedTokenAccountState, TokenDataVersion};
 
 use crate::{
     process_transfer::{
-        add_data_hash_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
+        add_data_hash_to_input_compressed_accounts_with_version,
+        cpi_execute_compressed_transaction_transfer,
         get_input_compressed_accounts_with_merkle_context_and_check_signer,
-        get_token_account_discriminator, InputTokenDataWithContext, BATCHED_DISCRIMINATOR,
+        InputTokenDataWithContext,
     },
     FreezeInstruction, TokenData,
 };
+
+/// Internal struct for backward-compatible parsing of freeze/thaw instruction data.
+/// Parses the base struct and checks for an optional trailing version byte.
+struct ParsedFreezeInputs {
+    base: CompressedTokenInstructionDataFreeze,
+    version: Option<u8>,
+}
+
+impl ParsedFreezeInputs {
+    fn deserialize(data: &[u8]) -> Result<Self> {
+        let mut cursor = data;
+        // Deserialize the base struct
+        let base = CompressedTokenInstructionDataFreeze::deserialize_reader(&mut cursor)?;
+
+        // Check if there is a remaining byte for version
+        let version = if !cursor.is_empty() {
+            Some(cursor[0])
+        } else {
+            None
+        };
+
+        Ok(Self { base, version })
+    }
+}
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenInstructionDataFreeze {
@@ -39,14 +63,17 @@ pub fn process_freeze_or_thaw<
     ctx: Context<'a, 'b, 'c, 'info, FreezeInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
-    let inputs: CompressedTokenInstructionDataFreeze =
-        CompressedTokenInstructionDataFreeze::deserialize(&mut inputs.as_slice())?;
+    // Use backward-compatible parsing that checks for optional trailing version byte
+    let parsed = ParsedFreezeInputs::deserialize(&inputs)?;
+    let inputs = parsed.base;
+    let version = parsed.version;
     // CPI context check not needed: freeze/thaw operations don't modify Solana account state
     let (compressed_input_accounts, output_compressed_accounts) =
         create_input_and_output_accounts_freeze_or_thaw::<FROZEN_INPUTS, FROZEN_OUTPUTS>(
             &inputs,
             &ctx.accounts.mint.key(),
             ctx.remaining_accounts,
+            version,
         )?;
     // TODO: discuss
     let proof = if inputs.proof == CompressedProof::default() {
@@ -75,6 +102,7 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
     inputs: &CompressedTokenInstructionDataFreeze,
     mint: &Pubkey,
     remaining_accounts: &[AccountInfo<'_>],
+    version: Option<u8>,
 ) -> Result<(
     Vec<InAccount>,
     Vec<OutputCompressedAccountWithPackedContext>,
@@ -82,6 +110,17 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
     if inputs.input_token_data_with_context.is_empty() {
         return err!(crate::ErrorCode::NoInputTokenAccountsProvided);
     }
+
+    // TLV is only supported with ShaFlat (version 3)
+    let is_sha_flat = version
+        .map(|v| v == TokenDataVersion::ShaFlat as u8)
+        .unwrap_or(false);
+    for input in &inputs.input_token_data_with_context {
+        if input.tlv.is_some() && !is_sha_flat {
+            return err!(crate::ErrorCode::InvalidTokenDataVersion);
+        }
+    }
+
     let (mut compressed_input_accounts, input_token_data, _) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<FROZEN_INPUTS>(
             // The signer in this case is the freeze authority. The owner is not
@@ -109,13 +148,15 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
         &inputs.owner,
         &inputs.outputs_merkle_tree_index,
         &mut output_compressed_accounts,
+        version,
     )?;
 
-    add_data_hash_to_input_compressed_accounts::<FROZEN_INPUTS>(
+    add_data_hash_to_input_compressed_accounts_with_version::<FROZEN_INPUTS>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
         remaining_accounts,
+        version,
     )?;
     Ok((compressed_input_accounts, output_compressed_accounts))
 }
@@ -130,7 +171,15 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
     owner: &Pubkey,
     outputs_merkle_tree_index: &u8,
     output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
+    version: Option<u8>,
 ) -> Result<()> {
+    // Determine version: explicit if provided, else default to V1 for backward compatibility
+    let token_version = if let Some(v) = version {
+        TokenDataVersion::try_from(v).map_err(|_| crate::ErrorCode::InvalidTokenDataVersion)?
+    } else {
+        TokenDataVersion::V1
+    };
+
     for (i, token_data_with_context) in input_token_data_with_context.iter().enumerate() {
         // 106/74 =
         //      32      mint
@@ -160,24 +209,19 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
             amount: token_data_with_context.amount,
             delegate: delegate.map(|k| k.into()),
             state,
-            tlv: None,
+            tlv: token_data_with_context.tlv.clone(),
         };
         token_data.serialize(&mut token_data_bytes)?;
 
-        let discriminator_bytes = &remaining_accounts[token_data_with_context
-            .merkle_context
-            .merkle_tree_pubkey_index
-            as usize]
-            .try_borrow_data()?[0..8];
-        use anchor_lang::Discriminator;
-        let data_hash = match discriminator_bytes {
-            StateMerkleTreeAccount::DISCRIMINATOR => token_data.hash_v1(),
-            BATCHED_DISCRIMINATOR => token_data.hash_v2(),
-            _ => panic!(), // TODO: throw error
+        // Use version-based hashing
+        let data_hash = match token_version {
+            TokenDataVersion::ShaFlat => token_data.hash_sha_flat(),
+            TokenDataVersion::V1 => token_data.hash_v1(),
+            TokenDataVersion::V2 => token_data.hash_v2(),
         }
         .map_err(ProgramError::from)?;
 
-        let discriminator = get_token_account_discriminator(discriminator_bytes)?;
+        let discriminator = token_version.discriminator();
 
         let data: CompressedAccountData = CompressedAccountData {
             discriminator,
@@ -431,6 +475,7 @@ pub mod test_freeze {
                     &inputs,
                     &mint.into(),
                     &remaining_accounts,
+                    None, // Use V1 hashing for backward compatibility
                 )
                 .unwrap();
             assert_eq!(compressed_input_accounts.len(), 2);
@@ -475,6 +520,7 @@ pub mod test_freeze {
                     &inputs,
                     &mint.into(),
                     &remaining_accounts,
+                    None, // Use V1 hashing for backward compatibility
                 )
                 .unwrap();
             assert_eq!(compressed_input_accounts.len(), 2);

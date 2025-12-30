@@ -288,6 +288,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
             output_queue,
             pool_index: None,
             decimals: 9,
+            version: None,
         };
         assert_transfer2_compress(&mut context.rpc, compress_input).await;
     }

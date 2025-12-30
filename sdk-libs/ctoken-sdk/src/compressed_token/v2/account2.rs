@@ -95,7 +95,7 @@ impl CTokenAccount2 {
                 amount: 0,
                 delegate: 0, // Default delegate index
                 mint: mint_index,
-                version: 3, // V2 for batched Merkle trees
+                version: 3, // ShaFlat
                 has_delegate: false,
             },
             compression: None,

@@ -13,7 +13,9 @@ use light_compressed_account::{
     },
     pubkey::AsPubkey,
 };
-use light_ctoken_interface::state::{CompressedTokenAccountState, TokenData};
+use light_ctoken_interface::state::{
+    CompressedTokenAccountState, ExtensionStruct, TokenData, TokenDataVersion,
+};
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_system_program::{
     account_traits::{InvokeAccounts, SignerAccounts},
@@ -328,12 +330,47 @@ pub fn add_data_hash_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
     hashed_mint: &[u8; 32],
     remaining_accounts: &[AccountInfo<'_>],
 ) -> Result<()> {
+    add_data_hash_to_input_compressed_accounts_with_version::<FROZEN_INPUTS>(
+        input_compressed_accounts_with_merkle_context,
+        input_token_data,
+        hashed_mint,
+        remaining_accounts,
+        None, // No version override - use discriminator-based detection
+    )
+}
+
+/// Add data hash to input compressed accounts with optional version override.
+/// When version is Some(ShaFlat), uses SHA256-based hashing instead of Poseidon.
+pub fn add_data_hash_to_input_compressed_accounts_with_version<const FROZEN_INPUTS: bool>(
+    input_compressed_accounts_with_merkle_context: &mut [InAccount],
+    input_token_data: &[TokenData],
+    hashed_mint: &[u8; 32],
+    remaining_accounts: &[AccountInfo<'_>],
+    version: Option<u8>,
+) -> Result<()> {
+    // Check if version is ShaFlat - use SHA256 hashing for the whole TokenData
+    let use_sha_flat = version
+        .and_then(|v| TokenDataVersion::try_from(v).ok())
+        .map(|v| v == TokenDataVersion::ShaFlat)
+        .unwrap_or(false);
+
     for (i, compressed_account_with_context) in input_compressed_accounts_with_merkle_context
         .iter_mut()
         .enumerate()
     {
-        let hashed_owner = hash_to_bn254_field_size_be(&input_token_data[i].owner.to_bytes());
+        // For ShaFlat, use SHA256 hash of the full TokenData and set correct discriminator
+        if use_sha_flat {
+            compressed_account_with_context.data_hash = input_token_data[i]
+                .hash_sha_flat()
+                .map_err(ProgramError::from)?;
+            // Also update the discriminator to ShaFlat (tree-based detection defaults to V2)
+            compressed_account_with_context.discriminator =
+                TokenDataVersion::ShaFlat.discriminator();
+            continue;
+        }
 
+        // For V1/V2, use Poseidon-based hashing
+        let hashed_owner = hash_to_bn254_field_size_be(&input_token_data[i].owner.to_bytes());
         let mut amount_bytes = [0u8; 32];
         let discriminator_bytes = &remaining_accounts[compressed_account_with_context
             .merkle_context
@@ -605,8 +642,8 @@ pub struct InputTokenDataWithContext {
     pub merkle_context: PackedMerkleContext,
     pub root_index: u16,
     pub lamports: Option<u64>,
-    /// Placeholder for TokenExtension tlv data (unimplemented)
-    pub tlv: Option<Vec<u8>>,
+    /// TLV extensions for the token account
+    pub tlv: Option<Vec<ExtensionStruct>>,
 }
 
 /// Struct to provide the owner when the delegate is signer of the transaction.
@@ -700,9 +737,9 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
         } else {
             CompressedTokenAccountState::Initialized as u8
         };
-        if input_token_data.tlv.is_some() {
-            unimplemented!("Tlv is unimplemented.");
-        }
+        // if input_token_data.tlv.is_some() {
+        //     unimplemented!("Tlv is unimplemented.");
+        // }
         let token_data = TokenData {
             mint: (*mint).into(),
             owner: owner.into(),
@@ -713,7 +750,7 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
                     .into()
             }),
             state,
-            tlv: None,
+            tlv: input_token_data.tlv.clone(),
         };
         input_token_data_vec.push(token_data);
         input_compressed_accounts_with_merkle_context.push(compressed_account);
@@ -1068,7 +1105,7 @@ pub mod transfer_sdk {
                 },
                 root_index: root_indices[i].unwrap_or_default(),
                 lamports,
-                tlv: None,
+                tlv: token_data.tlv.clone(),
             };
             input_token_data_with_context.push(token_data_with_context);
         }
