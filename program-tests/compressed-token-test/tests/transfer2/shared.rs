@@ -659,6 +659,7 @@ impl TestContext {
                                 output_queue,
                                 pool_index: None,
                                 decimals: CREATE_MINT_HELPER_DECIMALS,
+                                version: None,
                             };
 
                             // Create and execute the compress instruction
@@ -717,6 +718,7 @@ impl TestContext {
                             output_queue,
                             pool_index: None,
                             decimals: CREATE_MINT_HELPER_DECIMALS,
+                            version: None,
                         };
 
                         let ix = create_generic_transfer2_instruction(
@@ -1209,6 +1211,7 @@ impl TestContext {
             output_queue,
             pool_index: meta.pool_index,
             decimals: CREATE_MINT_HELPER_DECIMALS,
+            version: Some(meta.token_data_version),
         })
     }
 

@@ -326,6 +326,7 @@ async fn test_create_compressed_mint() {
             output_queue,
             pool_index: None,
             decimals: 9,
+            version: None,
         })],
         payer.pubkey(),
         true,
@@ -355,6 +356,7 @@ async fn test_create_compressed_mint() {
             output_queue,
             pool_index: None,
             decimals: 9,
+            version: None,
         },
     )
     .await;
@@ -374,6 +376,7 @@ async fn test_create_compressed_mint() {
             output_queue,
             pool_index: None,
             decimals: 9,
+            version: None,
         })],
         payer.pubkey(),
         true,
@@ -413,6 +416,7 @@ async fn test_create_compressed_mint() {
             output_queue,
             pool_index: None,
             decimals: 9,
+            version: None,
         })],
         payer.pubkey(),
         true,
@@ -510,6 +514,7 @@ async fn test_create_compressed_mint() {
                 output_queue: multi_output_queue,
                 pool_index: None,
                 decimals: 9,
+                version: None,
             }),
         ];
         // Create the combined multi-transfer instruction
@@ -919,6 +924,7 @@ async fn test_ctoken_transfer() {
             output_queue,
             pool_index: None,
             decimals: 9,
+            version: None,
         })],
         payer.pubkey(),
         true,
@@ -967,6 +973,7 @@ async fn test_ctoken_transfer() {
             authority: second_recipient_keypair.pubkey(),
             output_queue,
             decimals: 9,
+            version: None,
         },
     )
     .await;

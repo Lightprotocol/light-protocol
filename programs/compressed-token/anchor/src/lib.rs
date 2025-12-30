@@ -542,6 +542,8 @@ pub enum ErrorCode {
     CMintNotFound,
     #[msg("CompressedOnly inputs must decompress to CToken account, not SPL token account")]
     CompressedOnlyRequiresCTokenDecompress,
+    #[msg("Invalid token data version")]
+    InvalidTokenDataVersion,
 }
 
 /// Anchor error code offset - error codes start at 6000

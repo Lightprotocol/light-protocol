@@ -132,8 +132,9 @@ pub struct CompressInput {
     pub amount: u64,
     pub authority: Pubkey,
     pub output_queue: Pubkey,
-    pub pool_index: Option<u8>, // For SPL only. None = default (0), Some(n) = specific pool
-    pub decimals: u8,           // Mint decimals for SPL transfer_checked
+    pub pool_index: Option<u8>,        // For SPL only. None = default (0), Some(n) = specific pool
+    pub decimals: u8,                  // Mint decimals for SPL transfer_checked
+    pub version: Option<TokenDataVersion>, // Optional: specify output version. None = ShaFlat (3)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -271,10 +272,23 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         inputs_offset += token_data.len();
                         CTokenAccount2::new(token_data)?
                     } else {
-                        CTokenAccount2::new_empty(
-                            packed_tree_accounts.insert_or_get(input.to),
-                            packed_tree_accounts.insert_or_get(input.mint),
-                        )
+                        let owner_index = packed_tree_accounts.insert_or_get(input.to);
+                        let mint_index = packed_tree_accounts.insert_or_get(input.mint);
+                        let version = input.version.unwrap_or(TokenDataVersion::ShaFlat) as u8;
+                        CTokenAccount2 {
+                            inputs: vec![],
+                            output: MultiTokenTransferOutputData {
+                                owner: owner_index,
+                                amount: 0,
+                                delegate: 0,
+                                mint: mint_index,
+                                version,
+                                has_delegate: false,
+                            },
+                            compression: None,
+                            delegate_is_set: false,
+                            method_used: false,
+                        }
                     };
 
                 let source_index = packed_tree_accounts.insert_or_get(input.solana_token_account);

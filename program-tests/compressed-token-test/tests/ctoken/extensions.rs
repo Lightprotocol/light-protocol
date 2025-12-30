@@ -781,6 +781,7 @@ async fn test_compress_with_restricted_extensions_fails() {
             output_queue,
             pool_index: None,
             decimals: 9,
+            version: None,
         })],
         payer.pubkey(),
         true,
