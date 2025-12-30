@@ -123,6 +123,9 @@ fn test_rnd_create_output_compressed_accounts() {
                         withheld_transfer_fee: tlv_withheld_fees[i],
                         is_frozen: rng.gen_bool(0.2), // 20% chance of frozen
                         compression_index: i as u8,
+                        is_ata: false,
+                        bump: 0,
+                        owner_index: 0,
                     },
                 );
                 tlv_instruction_data_vecs.push(vec![ext.clone()]);
@@ -199,6 +202,7 @@ fn test_rnd_create_output_compressed_accounts() {
                     CompressedOnlyExtension {
                         delegated_amount: tlv_delegated_amounts[i],
                         withheld_transfer_fee: tlv_withheld_fees[i],
+                        is_ata: 0,
                     },
                 )])
             } else {

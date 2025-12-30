@@ -200,6 +200,7 @@ pub async fn assert_create_token_account_internal(
                 decimals_option: if decimals.is_some() { 1 } else { 0 },
                 decimals: decimals.unwrap_or(0),
                 compression_only,
+                is_ata: is_ata as u8,
                 info: CompressionInfo {
                     config_account_version: 1,
                     last_claimed_slot: current_slot,

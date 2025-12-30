@@ -158,14 +158,18 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
                 .map_err(convert_program_error)?;
         }
 
+        // For ATAs, we use is_ata flag in the extension instead of compress_to_pubkey.
+        // The is_ata flag allows decompress to verify the destination is the correct ATA
+        // while keeping the compressed account owner as the wallet owner (who can sign).
         Some(CompressibleInitData {
             ix_data: CompressionInstructionData {
                 compression_only: compressible_config.compression_only,
                 token_account_version: compressible_config.token_account_version,
                 write_top_up: compressible_config.write_top_up,
+                is_ata: true, // This is an ATA
             },
             config_account,
-            compress_to_pubkey: None, // ATAs must not compress to pubkey
+            compress_to_pubkey: None,
             custom_rent_payer: if custom_rent_payer {
                 Some(*rent_payer.key())
             } else {

@@ -96,6 +96,7 @@ impl<'a> ZTokenDataMut<'a> {
                         ) => {
                             compressed_only.delegated_amount = data.delegated_amount;
                             compressed_only.withheld_transfer_fee = data.withheld_transfer_fee;
+                            compressed_only.is_ata = if data.is_ata() { 1 } else { 0 };
                         }
                         _ => return Err(CTokenError::UnsupportedTlvExtensionType),
                     }

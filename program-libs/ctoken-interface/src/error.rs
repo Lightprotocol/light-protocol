@@ -174,6 +174,18 @@ pub enum CTokenError {
 
     #[error("CToken account missing required Compressible extension")]
     MissingCompressibleExtension,
+
+    #[error("Decompress destination doesn't match source account")]
+    DecompressDestinationMismatch,
+
+    #[error("CToken account mint does not match expected mint")]
+    MintMismatch,
+
+    #[error("Decompress has delegated_amount but no delegate pubkey provided")]
+    DecompressDelegatedAmountWithoutDelegate,
+
+    #[error("Decompress has withheld_transfer_fee but destination lacks TransferFeeAccount extension")]
+    DecompressWithheldFeeWithoutExtension,
 }
 
 impl From<CTokenError> for u32 {
@@ -235,6 +247,10 @@ impl From<CTokenError> for u32 {
             CTokenError::DuplicateCompressionIndex => 18054,
             CTokenError::DecompressDestinationNotFresh => 18055,
             CTokenError::MissingCompressibleExtension => 18056,
+            CTokenError::DecompressDestinationMismatch => 18057,
+            CTokenError::MintMismatch => 18058,
+            CTokenError::DecompressDelegatedAmountWithoutDelegate => 18059,
+            CTokenError::DecompressWithheldFeeWithoutExtension => 18060,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

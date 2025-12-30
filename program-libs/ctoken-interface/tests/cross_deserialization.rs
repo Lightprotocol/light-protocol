@@ -68,6 +68,7 @@ fn create_test_ctoken_with_extension() -> CToken {
             decimals_option: 1,
             decimals: 6,
             compression_only: false,
+            is_ata: 0,
             info: CompressionInfo {
                 config_account_version: 1,
                 compress_to_pubkey: 0,

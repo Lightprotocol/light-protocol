@@ -218,7 +218,7 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                 1 + TransferHookAccountExtension::byte_len(config)?
             }
             ExtensionStructConfig::CompressedOnly(_) => {
-                // 1 byte for discriminant + 16 bytes for CompressedOnlyExtension (2 * u64)
+                // 1 byte for discriminant + 17 bytes for CompressedOnlyExtension (2 * u64 + u8)
                 1 + CompressedOnlyExtension::LEN
             }
             ExtensionStructConfig::Compressible(_) => {

@@ -158,6 +158,7 @@ async fn test_roundtrip_withheld_transfer_fee_preserved() -> Result<(), RpcError
             CompressedOnlyExtension {
                 delegated_amount: 0,
                 withheld_transfer_fee: withheld_amount,
+                is_ata: 0, // Non-ATA regular account
             },
         )]),
     };
@@ -207,6 +208,9 @@ async fn test_roundtrip_withheld_transfer_fee_preserved() -> Result<(), RpcError
             withheld_transfer_fee: withheld_amount,
             is_frozen: false,
             compression_index: 0,
+            is_ata: false, // Non-ATA regular account
+            bump: 0,
+            owner_index: 0,
         },
     )]];
 

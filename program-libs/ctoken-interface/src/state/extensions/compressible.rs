@@ -27,6 +27,9 @@ pub struct CompressibleExtension {
     pub decimals: u8,
     /// Whether this account is compression-only (cannot decompress)
     pub compression_only: bool,
+    /// Whether the source account is an ATA (1 = ATA, 0 = regular account)
+    /// Used during compress_and_close to set is_ata in CompressedOnlyExtension
+    pub is_ata: u8,
     /// Compression configuration and timing data
     pub info: CompressionInfo,
 }

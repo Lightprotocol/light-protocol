@@ -20,7 +20,11 @@ pub struct DecompressCompressOnlyInputs<'a> {
     /// Delegate pubkey from input compressed account (for decompress extension state transfer).
     pub delegate: Option<&'a AccountInfo>,
     /// Owner pubkey from input compressed account (for decompress destination validation).
+    /// For is_ata=true, this is the ATA pubkey (not the wallet owner).
     pub owner: &'a AccountInfo,
+    /// Wallet owner for ATA decompress (from owner_index in CompressedOnly extension).
+    /// Only set when is_ata=true. Used for ATA derivation validation.
+    pub wallet_owner: Option<&'a AccountInfo>,
 }
 
 impl<'a> DecompressCompressOnlyInputs<'a> {
@@ -81,10 +85,27 @@ impl<'a> DecompressCompressOnlyInputs<'a> {
         // Get owner (required for DecompressCompressOnlyInputs)
         let owner = packed_accounts.get_u8(input_data.owner, "input owner")?;
 
+        // For is_ata decompress, extract wallet_owner from owner_index in CompressedOnly extension
+        let wallet_owner = tlv.iter().find_map(|ext| {
+            if let ZExtensionInstructionData::CompressedOnly(data) = ext {
+                if data.is_ata != 0 {
+                    // Get wallet owner from owner_index
+                    packed_accounts
+                        .get_u8(data.owner_index, "wallet owner")
+                        .ok()
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        });
+
         Ok(Some(DecompressCompressOnlyInputs {
             tlv,
             delegate,
             owner,
+            wallet_owner,
         }))
     }
 }

@@ -190,6 +190,54 @@ pub fn pack_for_decompress_full(
     }
 }
 
+/// Pack accounts for decompress with ATA support.
+///
+/// For ATA decompress (is_ata=true):
+/// - Owner (ATA pubkey) is added without signer flag (ATA can't sign)
+/// - Wallet owner is already added as signer by the caller
+///
+/// For non-ATA decompress:
+/// - Owner is added as signer (normal case)
+#[profile]
+pub fn pack_for_decompress_full_with_ata(
+    token: &TokenData,
+    tree_info: &PackedStateTreeInfo,
+    destination: Pubkey,
+    packed_accounts: &mut PackedAccounts,
+    tlv: Option<Vec<ExtensionInstructionData>>,
+    version: u8,
+    is_ata: bool,
+) -> DecompressFullIndices {
+    // For ATA: owner (ATA pubkey) is not a signer - wallet owner signs instead
+    // For non-ATA: owner is a signer
+    let owner_is_signer = !is_ata;
+
+    let source = MultiInputTokenDataWithContext {
+        owner: packed_accounts.insert_or_get_config(token.owner, owner_is_signer, false),
+        amount: token.amount,
+        has_delegate: token.delegate.is_some(),
+        delegate: token
+            .delegate
+            .map(|d| packed_accounts.insert_or_get(d))
+            .unwrap_or(0),
+        mint: packed_accounts.insert_or_get(token.mint),
+        version,
+        merkle_context: PackedMerkleContext {
+            merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
+            queue_pubkey_index: tree_info.queue_pubkey_index,
+            prove_by_index: tree_info.prove_by_index,
+            leaf_index: tree_info.leaf_index,
+        },
+        root_index: tree_info.root_index,
+    };
+
+    DecompressFullIndices {
+        source,
+        destination_index: packed_accounts.insert_or_get(destination),
+        tlv,
+    }
+}
+
 pub struct DecompressFullAccounts {
     pub compressed_token_program: Pubkey,
     pub cpi_authority_pda: Pubkey,

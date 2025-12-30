@@ -102,6 +102,12 @@ mod invalid_extension_state;
 #[path = "compress_only/decompress_restrictions.rs"]
 mod decompress_restrictions;
 
+// ATA decompress security tests
+// - ATAs can only decompress to the exact same ATA pubkey
+// - Verify is_ata flag and bump validation
+#[path = "compress_only/ata_decompress.rs"]
+mod ata_decompress;
+
 // Failing tests:
 // 1. cannot decompress to invalid account (try all variants of checked values in validate_decompression_destination)
 // 2. cannot compress with restricted extension(s) (try all restricted extensions alone and all combinations)

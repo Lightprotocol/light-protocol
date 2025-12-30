@@ -1,49 +1,112 @@
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::Pubkey;
 use light_ctoken_interface::{
-    instructions::extensions::ZExtensionInstructionData,
+    instructions::extensions::{
+        compressed_only::ZCompressedOnlyExtensionInstructionData, ZExtensionInstructionData,
+    },
     state::{ZCTokenMut, ZExtensionStructMut},
     CTokenError,
 };
+use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
 use spl_pod::solana_msg::msg;
 
 use super::inputs::DecompressCompressOnlyInputs;
 
-/// Validates that the destination CToken is a fresh/zeroed account with matching owner.
-/// This ensures we can recreate the exact account state from the CompressedOnly extension.
+/// Validates that the destination CToken matches the source account for ATA decompress.
+/// For ATA decompress (is_ata=true), verifies the destination is the correct ATA.
+/// For non-ATA decompress, just validates owner matches.
+///
+/// # Arguments
+/// * `ctoken` - Destination CToken account
+/// * `destination_account` - Destination account info
+/// * `input_owner` - Compressed account owner (ATA pubkey for is_ata)
+/// * `wallet_owner` - Wallet owner who signs (from owner_index, only for is_ata)
+/// * `ext_data` - CompressedOnly extension data
 #[inline(always)]
 fn validate_decompression_destination(
     ctoken: &ZCTokenMut,
+    destination_account: &AccountInfo,
     input_owner: &Pubkey,
+    wallet_owner: Option<&AccountInfo>,
+    ext_data: &ZCompressedOnlyExtensionInstructionData,
 ) -> Result<(), ProgramError> {
-    // Owner must match
-    if ctoken.base.owner.to_bytes() != input_owner.to_bytes() {
-        msg!("Decompress destination owner mismatch");
-        return Err(CTokenError::DecompressDestinationNotFresh.into());
-    }
+    // Owner must match (for non-ATA) or ATA must be correctly derived (for ATA)
+    if ext_data.is_ata != 0 {
+        // For ATA decompress, we need the wallet_owner
+        let wallet_owner = wallet_owner.ok_or_else(|| {
+            msg!("ATA decompress requires wallet_owner from owner_index");
+            CTokenError::DecompressDestinationMismatch
+        })?;
 
-    // Amount must be 0
-    if ctoken.base.amount.get() != 0 {
-        msg!("Decompress destination has non-zero amount");
-        return Err(CTokenError::DecompressDestinationNotFresh.into());
-    }
+        // Wallet owner must be a signer
+        if !wallet_owner.is_signer() {
+            msg!("Wallet owner must be signer for ATA decompress");
+            return Err(CTokenError::DecompressDestinationMismatch.into());
+        }
 
-    // Must not have delegate
-    if ctoken.delegate().is_some() {
-        msg!("Decompress destination has delegate set");
-        return Err(CTokenError::DecompressDestinationNotFresh.into());
-    }
+        // For ATA decompress, verify the destination is the correct ATA
+        // by deriving the ATA address from wallet_owner and comparing
+        let wallet_owner_bytes = wallet_owner.key();
+        let mint_pubkey = ctoken.base.mint.to_bytes();
+        let bump = ext_data.bump;
 
-    // Delegated amount must be 0
-    if ctoken.base.delegated_amount.get() != 0 {
-        msg!("Decompress destination has non-zero delegated_amount");
-        return Err(CTokenError::DecompressDestinationNotFresh.into());
-    }
+        // ATA seeds: [wallet_owner, program_id, mint, bump]
+        let bump_seed = [bump];
+        let ata_seeds: [&[u8]; 4] = [
+            wallet_owner_bytes.as_ref(),
+            crate::LIGHT_CPI_SIGNER.program_id.as_ref(),
+            mint_pubkey.as_ref(),
+            bump_seed.as_ref(),
+        ];
 
-    // Must not have close authority
-    if ctoken.close_authority().is_some() {
-        msg!("Decompress destination has close_authority set");
-        return Err(CTokenError::DecompressDestinationNotFresh.into());
+        // Derive ATA address and verify it matches the destination
+        let derived_ata = pinocchio::pubkey::create_program_address(
+            &ata_seeds,
+            &crate::LIGHT_CPI_SIGNER.program_id,
+        )
+        .map_err(|_| {
+            msg!("Failed to derive ATA address for decompress");
+            ProgramError::InvalidSeeds
+        })?;
+
+        // Verify derived ATA matches destination account pubkey
+        if !pubkey_eq(&derived_ata, destination_account.key()) {
+            msg!(
+                "Decompress ATA mismatch: derived {:?} != destination {:?}",
+                solana_pubkey::Pubkey::new_from_array(derived_ata),
+                solana_pubkey::Pubkey::new_from_array(*destination_account.key())
+            );
+            return Err(CTokenError::DecompressDestinationMismatch.into());
+        }
+
+        // Verify the compressed account's owner (input_owner) matches the derived ATA
+        // This proves the compressed account belongs to this ATA
+        let input_owner_bytes = input_owner.to_bytes();
+        if !pubkey_eq(&input_owner_bytes, &derived_ata) {
+            msg!(
+                "Decompress ATA: compressed owner {:?} != derived ATA {:?}",
+                solana_pubkey::Pubkey::new_from_array(input_owner_bytes),
+                solana_pubkey::Pubkey::new_from_array(derived_ata)
+            );
+            return Err(CTokenError::DecompressDestinationMismatch.into());
+        }
+
+        // Also verify destination CToken owner matches wallet_owner
+        // (destination should be wallet's ATA, owned by wallet)
+        if !pubkey_eq(wallet_owner_bytes, &ctoken.base.owner.to_bytes()) {
+            msg!(
+                "Decompress ATA: wallet owner {:?} != destination owner {:?}",
+                solana_pubkey::Pubkey::new_from_array(*wallet_owner_bytes),
+                solana_pubkey::Pubkey::new_from_array(ctoken.base.owner.to_bytes())
+            );
+            return Err(CTokenError::DecompressDestinationMismatch.into());
+        }
+    } else {
+        // For non-ATA decompress, owner must match
+        if ctoken.base.owner.to_bytes() != input_owner.to_bytes() {
+            msg!("Decompress destination owner mismatch");
+            return Err(CTokenError::DecompressDestinationMismatch.into());
+        }
     }
 
     Ok(())
@@ -52,9 +115,14 @@ fn validate_decompression_destination(
 /// Apply extension state from the input compressed account during decompress.
 /// This transfers delegate, delegated_amount, and withheld_transfer_fee from
 /// the compressed account's CompressedOnly extension to the CToken account.
+///
+/// For ATA decompress with is_ata=true, validates the destination matches the
+/// derived ATA address. Existing delegate/amount on destination is preserved
+/// and added to rather than overwritten.
 #[inline(always)]
 pub fn apply_decompress_extension_state(
     ctoken: &mut ZCTokenMut,
+    destination_account: &AccountInfo,
     decompress_inputs: Option<DecompressCompressOnlyInputs>,
 ) -> Result<(), ProgramError> {
     // If no decompress inputs, nothing to transfer
@@ -76,32 +144,42 @@ pub fn apply_decompress_extension_state(
         return Ok(());
     };
 
-    // Validate destination is a fresh account with matching owner
-    validate_decompression_destination(ctoken, &Pubkey::from(*inputs.owner.key()))?;
+    // Validate destination matches expected (ATA derivation or owner match)
+    validate_decompression_destination(
+        ctoken,
+        destination_account,
+        &Pubkey::from(*inputs.owner.key()),
+        inputs.wallet_owner,
+        ext_data,
+    )?;
 
     let delegated_amount: u64 = ext_data.delegated_amount.into();
     let withheld_transfer_fee: u64 = ext_data.withheld_transfer_fee.into();
 
     // Handle delegate and delegated_amount
+    // If destination already has delegate, skip delegate AND delegated_amount restoration (preserve existing)
     if delegated_amount > 0 || inputs.delegate.is_some() {
         let input_delegate_pubkey = inputs.delegate.map(|acc| Pubkey::from(*acc.key()));
 
-        if let Some(input_del) = input_delegate_pubkey {
-            // Set delegate from the input (destination is guaranteed fresh with no delegate)
-            ctoken.base.set_delegate(Some(input_del))?;
-        } else if delegated_amount > 0 {
-            // Has delegated_amount but no delegate pubkey - invalid state
-            msg!("Decompress: delegated_amount > 0 but no delegate pubkey provided");
-            return Err(CTokenError::InvalidAccountData.into());
-        }
+        // Only set delegate and delegated_amount if destination doesn't already have one
+        if ctoken.delegate().is_none() {
+            if let Some(input_del) = input_delegate_pubkey {
+                ctoken.base.set_delegate(Some(input_del))?;
+            } else if delegated_amount > 0 {
+                // Has delegated_amount but no delegate pubkey - invalid state
+                msg!("Decompress: delegated_amount > 0 but no delegate pubkey provided");
+                return Err(CTokenError::DecompressDelegatedAmountWithoutDelegate.into());
+            }
 
-        // Set delegated_amount (destination is guaranteed to have 0)
-        if delegated_amount > 0 {
-            ctoken.base.delegated_amount.set(delegated_amount);
+            // Add delegated_amount (only when we're setting the delegate)
+            if delegated_amount > 0 {
+                let current = ctoken.base.delegated_amount.get();
+                ctoken.base.delegated_amount.set(current + delegated_amount);
+            }
         }
     }
 
-    // Handle withheld_transfer_fee
+    // Handle withheld_transfer_fee (always add, not overwrite)
     if withheld_transfer_fee > 0 {
         let mut fee_applied = false;
         if let Some(extensions) = ctoken.extensions.as_deref_mut() {
@@ -115,7 +193,7 @@ pub fn apply_decompress_extension_state(
         }
         if !fee_applied {
             msg!("Decompress: withheld_transfer_fee > 0 but no TransferFeeAccount extension found");
-            return Err(CTokenError::InvalidAccountData.into());
+            return Err(CTokenError::DecompressWithheldFeeWithoutExtension.into());
         }
     }
 

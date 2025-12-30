@@ -38,6 +38,8 @@ pub struct CompressionInstructionData {
     pub compression_only: u8,
     /// Write top-up in lamports per write
     pub write_top_up: u32,
+    /// Whether this account is an ATA
+    pub is_ata: bool,
 }
 
 /// Configuration for compressible accounts
@@ -210,6 +212,9 @@ fn configure_compression_info(
 
     // Set compression_only flag on the extension
     compressible_ext.compression_only = if ix_data.compression_only != 0 { 1 } else { 0 };
+
+    // Set is_ata flag on the extension
+    compressible_ext.is_ata = ix_data.is_ata as u8;
 
     // Validate token_account_version is ShaFlat (3)
     if ix_data.token_account_version != 3 {

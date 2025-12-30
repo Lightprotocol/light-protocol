@@ -233,6 +233,7 @@ pub fn process_create_token_account(
                 compression_only: compressible_config.compression_only,
                 token_account_version: compressible_config.token_account_version,
                 write_top_up: compressible_config.write_top_up,
+                is_ata: false, // Regular token accounts are not ATAs
             },
             config_account: compressible.parsed_config,
             compress_to_pubkey: compressible_config.compress_to_account_pubkey.as_ref(),

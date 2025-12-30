@@ -152,9 +152,10 @@ async fn test_cmint_to_ctoken_scenario() {
         }
     }
 
-    // Verify compressed token account exists for owner2
+    // Verify compressed token account exists for the ATA
+    // For ATAs, the compressed account owner is the ATA pubkey (not wallet owner)
     let compressed_accounts = rpc
-        .get_compressed_token_accounts_by_owner(&owner2.pubkey(), None, None)
+        .get_compressed_token_accounts_by_owner(&ctoken_ata2, None, None)
         .await
         .unwrap()
         .value
@@ -168,8 +169,8 @@ async fn test_cmint_to_ctoken_scenario() {
     let compressed_account = &compressed_accounts[0];
     assert_eq!(
         compressed_account.token.owner,
-        owner2.pubkey(),
-        "Compressed account owner should match"
+        ctoken_ata2,
+        "Compressed account owner should be the ATA pubkey"
     );
     assert_eq!(
         compressed_account.token.amount,
@@ -234,6 +235,7 @@ async fn test_cmint_to_ctoken_scenario() {
     let account_proof = &rpc_result.accounts[0];
 
     // 11. Decompress compressed tokens to cToken account
+    // For ATA decompress, the wallet owner (owner2) must sign
     println!("Decompressing tokens to cToken account...");
     println!("discriminator {:?}", discriminator);
     println!("token_data {:?}", token_data);
@@ -246,6 +248,7 @@ async fn test_cmint_to_ctoken_scenario() {
         root_index: account_proof.root_index.root_index().unwrap_or(0),
         destination_ctoken_account: ctoken_ata2,
         payer: payer.pubkey(),
+        signer: owner2.pubkey(), // Wallet owner is the signer for ATA decompress
         validity_proof: rpc_result.proof,
     }
     .instruction()
@@ -261,7 +264,7 @@ async fn test_cmint_to_ctoken_scenario() {
 
     // 12. Verify compressed accounts are consumed
     let remaining_compressed = rpc
-        .get_compressed_token_accounts_by_owner(&owner2.pubkey(), None, None)
+        .get_compressed_token_accounts_by_owner(&ctoken_ata2, None, None)
         .await
         .unwrap()
         .value

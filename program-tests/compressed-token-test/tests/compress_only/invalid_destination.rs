@@ -1,8 +1,12 @@
-//! Tests for invalid decompress destination validation.
+//! Tests for decompress destination validation.
 //!
-//! These tests verify that decompression fails with DecompressDestinationNotFresh
-//! when the destination CToken account has invalid state (non-fresh).
+//! These tests verify:
+//! 1. Decompression fails with DecompressDestinationMismatch when owner doesn't match
+//! 2. Decompression SUCCEEDS when destination has existing state (amount, delegate, etc.)
+//!    - Amount is ADDED to existing balance
+//!    - Existing delegate is PRESERVED (not overwritten)
 
+use anchor_spl::token_2022::spl_token_2022;
 use light_client::indexer::Indexer;
 use light_ctoken_interface::{
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
@@ -25,12 +29,12 @@ use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
 };
 use serial_test::serial;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
+use solana_sdk::{program_pack::Pack, pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 use super::shared::ExtensionType;
 
-/// Expected error code for DecompressDestinationNotFresh
-const DECOMPRESS_DESTINATION_NOT_FRESH: u32 = 18055;
+/// Expected error code for DecompressDestinationMismatch (owner or ATA mismatch)
+const DECOMPRESS_DESTINATION_MISMATCH: u32 = 18057;
 
 /// Helper to modify CToken account to have invalid state
 async fn set_invalid_destination_state(
@@ -172,45 +176,6 @@ async fn setup_compressed_token_for_decompress(
     )
 }
 
-/// Helper to create destination and attempt decompress
-async fn attempt_decompress(
-    rpc: &mut LightProgramTest,
-    payer: &Keypair,
-    owner: &Keypair,
-    compressed_account: light_client::indexer::CompressedTokenAccount,
-    amount: u64,
-    destination_pubkey: Pubkey,
-) -> Result<solana_sdk::signature::Signature, light_test_utils::RpcError> {
-    let in_tlv = vec![vec![ExtensionInstructionData::CompressedOnly(
-        CompressedOnlyExtensionInstructionData {
-            delegated_amount: 0,
-            withheld_transfer_fee: 0,
-            is_frozen: false,
-            compression_index: 0,
-        },
-    )]];
-
-    let decompress_ix = create_generic_transfer2_instruction(
-        rpc,
-        vec![Transfer2InstructionType::Decompress(DecompressInput {
-            compressed_token_account: vec![compressed_account],
-            decompress_amount: amount,
-            solana_token_account: destination_pubkey,
-            amount,
-            pool_index: None,
-            decimals: 9,
-            in_tlv: Some(in_tlv),
-        })],
-        payer.pubkey(),
-        true,
-    )
-    .await
-    .unwrap();
-
-    rpc.create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &[payer, owner])
-        .await
-}
-
 #[tokio::test]
 #[serial]
 async fn test_decompress_owner_mismatch() {
@@ -254,6 +219,9 @@ async fn test_decompress_owner_mismatch() {
             withheld_transfer_fee: 0,
             is_frozen: false,
             compression_index: 0,
+            is_ata: false,
+            bump: 0,
+            owner_index: 0,
         },
     )]];
 
@@ -281,9 +249,11 @@ async fn test_decompress_owner_mismatch() {
         .await;
 
     // Should fail because destination owner doesn't match input owner
-    assert_rpc_error(result, 0, DECOMPRESS_DESTINATION_NOT_FRESH).unwrap();
+    assert_rpc_error(result, 0, DECOMPRESS_DESTINATION_MISMATCH).unwrap();
 }
 
+/// Test that decompression to an account with existing balance SUCCEEDS
+/// and the amount is ADDED to the existing balance.
 #[tokio::test]
 #[serial]
 async fn test_decompress_non_zero_amount() {
@@ -320,31 +290,66 @@ async fn test_decompress_non_zero_amount() {
         .await
         .unwrap();
 
-    // Set non-zero amount on destination
+    // Set non-zero amount on destination (existing balance of 1000)
+    let existing_balance = 1000u64;
     set_invalid_destination_state(
         &mut rpc,
         destination_pubkey,
-        Some(1000), // Non-zero amount
+        Some(existing_balance),
         None,
         None,
         None,
     )
     .await;
 
-    // Attempt decompress
-    let result = attempt_decompress(
+    // Build decompress input with CompressedOnly extension data
+    let in_tlv = vec![vec![ExtensionInstructionData::CompressedOnly(
+        CompressedOnlyExtensionInstructionData {
+            delegated_amount: 0,
+            withheld_transfer_fee: 0,
+            is_frozen: false,
+            compression_index: 0,
+            is_ata: false,
+            bump: 0,
+            owner_index: 0,
+        },
+    )]];
+
+    let decompress_ix = create_generic_transfer2_instruction(
         &mut rpc,
-        &payer,
-        &owner,
-        compressed_account,
-        amount,
-        destination_pubkey,
+        vec![Transfer2InstructionType::Decompress(DecompressInput {
+            compressed_token_account: vec![compressed_account],
+            decompress_amount: amount,
+            solana_token_account: destination_pubkey,
+            amount,
+            pool_index: None,
+            decimals: 9,
+            in_tlv: Some(in_tlv),
+        })],
+        payer.pubkey(),
+        true,
     )
-    .await;
+    .await
+    .unwrap();
 
-    assert_rpc_error(result, 0, DECOMPRESS_DESTINATION_NOT_FRESH).unwrap();
+    // Execute decompress - should succeed
+    rpc.create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &[&payer, &owner])
+        .await
+        .unwrap();
+
+    // Verify the amount was ADDED to existing balance
+    let account_data = rpc.get_account(destination_pubkey).await.unwrap().unwrap();
+    let token_account =
+        spl_token_2022::state::Account::unpack_unchecked(&account_data.data[..165]).unwrap();
+    assert_eq!(
+        token_account.amount,
+        existing_balance + amount,
+        "Amount should be added to existing balance"
+    );
 }
 
+/// Test that decompression to an account with existing delegate SUCCEEDS
+/// and the existing delegate is PRESERVED (not overwritten).
 #[tokio::test]
 #[serial]
 async fn test_decompress_has_delegate() {
@@ -381,32 +386,71 @@ async fn test_decompress_has_delegate() {
         .await
         .unwrap();
 
-    // Set delegate on destination
-    let delegate = Keypair::new();
+    // Set delegate on destination (existing delegate that should be preserved)
+    let existing_delegate = Keypair::new();
+    let existing_delegated_amount = 500u64;
     set_invalid_destination_state(
         &mut rpc,
         destination_pubkey,
         None,
-        Some(delegate.pubkey()), // Has delegate
-        None,
+        Some(existing_delegate.pubkey()),
+        Some(existing_delegated_amount),
         None,
     )
     .await;
 
-    // Attempt decompress
-    let result = attempt_decompress(
+    // Build decompress input with CompressedOnly extension data
+    let in_tlv = vec![vec![ExtensionInstructionData::CompressedOnly(
+        CompressedOnlyExtensionInstructionData {
+            delegated_amount: 0,
+            withheld_transfer_fee: 0,
+            is_frozen: false,
+            compression_index: 0,
+            is_ata: false,
+            bump: 0,
+            owner_index: 0,
+        },
+    )]];
+
+    let decompress_ix = create_generic_transfer2_instruction(
         &mut rpc,
-        &payer,
-        &owner,
-        compressed_account,
-        amount,
-        destination_pubkey,
+        vec![Transfer2InstructionType::Decompress(DecompressInput {
+            compressed_token_account: vec![compressed_account],
+            decompress_amount: amount,
+            solana_token_account: destination_pubkey,
+            amount,
+            pool_index: None,
+            decimals: 9,
+            in_tlv: Some(in_tlv),
+        })],
+        payer.pubkey(),
+        true,
     )
-    .await;
+    .await
+    .unwrap();
 
-    assert_rpc_error(result, 0, DECOMPRESS_DESTINATION_NOT_FRESH).unwrap();
+    // Execute decompress - should succeed
+    rpc.create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &[&payer, &owner])
+        .await
+        .unwrap();
+
+    // Verify the existing delegate was preserved (not overwritten)
+    let account_data = rpc.get_account(destination_pubkey).await.unwrap().unwrap();
+    let token_account =
+        spl_token_2022::state::Account::unpack_unchecked(&account_data.data[..165]).unwrap();
+    assert_eq!(
+        token_account.delegate,
+        solana_sdk::program_option::COption::Some(existing_delegate.pubkey()),
+        "Existing delegate should be preserved"
+    );
+    assert_eq!(
+        token_account.delegated_amount, existing_delegated_amount,
+        "Existing delegated_amount should be preserved"
+    );
 }
 
+/// Test that decompression to an account with existing delegated_amount SUCCEEDS.
+/// This is covered by test_decompress_has_delegate but kept for explicit coverage.
 #[tokio::test]
 #[serial]
 async fn test_decompress_non_zero_delegated_amount() {
@@ -455,20 +499,44 @@ async fn test_decompress_non_zero_delegated_amount() {
     )
     .await;
 
-    // Attempt decompress
-    let result = attempt_decompress(
-        &mut rpc,
-        &payer,
-        &owner,
-        compressed_account,
-        amount,
-        destination_pubkey,
-    )
-    .await;
+    // Build decompress input with CompressedOnly extension data
+    let in_tlv = vec![vec![ExtensionInstructionData::CompressedOnly(
+        CompressedOnlyExtensionInstructionData {
+            delegated_amount: 0,
+            withheld_transfer_fee: 0,
+            is_frozen: false,
+            compression_index: 0,
+            is_ata: false,
+            bump: 0,
+            owner_index: 0,
+        },
+    )]];
 
-    assert_rpc_error(result, 0, DECOMPRESS_DESTINATION_NOT_FRESH).unwrap();
+    let decompress_ix = create_generic_transfer2_instruction(
+        &mut rpc,
+        vec![Transfer2InstructionType::Decompress(DecompressInput {
+            compressed_token_account: vec![compressed_account],
+            decompress_amount: amount,
+            solana_token_account: destination_pubkey,
+            amount,
+            pool_index: None,
+            decimals: 9,
+            in_tlv: Some(in_tlv),
+        })],
+        payer.pubkey(),
+        true,
+    )
+    .await
+    .unwrap();
+
+    // Execute decompress - should succeed
+    rpc.create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &[&payer, &owner])
+        .await
+        .unwrap();
 }
 
+/// Test that decompression to an account with close_authority SUCCEEDS.
+/// Close authority is no longer checked during decompress.
 #[tokio::test]
 #[serial]
 async fn test_decompress_has_close_authority() {
@@ -517,16 +585,48 @@ async fn test_decompress_has_close_authority() {
     )
     .await;
 
-    // Attempt decompress
-    let result = attempt_decompress(
-        &mut rpc,
-        &payer,
-        &owner,
-        compressed_account,
-        amount,
-        destination_pubkey,
-    )
-    .await;
+    // Build decompress input with CompressedOnly extension data
+    let in_tlv = vec![vec![ExtensionInstructionData::CompressedOnly(
+        CompressedOnlyExtensionInstructionData {
+            delegated_amount: 0,
+            withheld_transfer_fee: 0,
+            is_frozen: false,
+            compression_index: 0,
+            is_ata: false,
+            bump: 0,
+            owner_index: 0,
+        },
+    )]];
 
-    assert_rpc_error(result, 0, DECOMPRESS_DESTINATION_NOT_FRESH).unwrap();
+    let decompress_ix = create_generic_transfer2_instruction(
+        &mut rpc,
+        vec![Transfer2InstructionType::Decompress(DecompressInput {
+            compressed_token_account: vec![compressed_account],
+            decompress_amount: amount,
+            solana_token_account: destination_pubkey,
+            amount,
+            pool_index: None,
+            decimals: 9,
+            in_tlv: Some(in_tlv),
+        })],
+        payer.pubkey(),
+        true,
+    )
+    .await
+    .unwrap();
+
+    // Execute decompress - should succeed (close_authority is not checked)
+    rpc.create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &[&payer, &owner])
+        .await
+        .unwrap();
+
+    // Verify the close_authority was preserved
+    let account_data = rpc.get_account(destination_pubkey).await.unwrap().unwrap();
+    let token_account =
+        spl_token_2022::state::Account::unpack_unchecked(&account_data.data[..165]).unwrap();
+    assert_eq!(
+        token_account.close_authority,
+        solana_sdk::program_option::COption::Some(close_authority.pubkey()),
+        "Existing close_authority should be preserved"
+    );
 }

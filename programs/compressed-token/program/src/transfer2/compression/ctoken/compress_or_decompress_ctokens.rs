@@ -82,7 +82,7 @@ pub fn compress_or_decompress_ctokens(
         ZCompressionMode::Decompress => {
             // Handle extension state transfer from input compressed account
             // Must be done BEFORE updating amount since validation checks for fresh (zero) amount
-            apply_decompress_extension_state(&mut ctoken, decompress_inputs)?;
+            apply_decompress_extension_state(&mut ctoken, token_account_info, decompress_inputs)?;
 
             // Decompress: add to solana account
             // Update the balance in the compressed token account
@@ -189,7 +189,7 @@ fn validate_ctoken(
             solana_pubkey::Pubkey::new_from_array(ctoken.mint.to_bytes()),
             solana_pubkey::Pubkey::new_from_array(*mint)
         );
-        return Err(ProgramError::InvalidAccountData);
+        return Err(CTokenError::MintMismatch.into());
     }
 
     Ok(())

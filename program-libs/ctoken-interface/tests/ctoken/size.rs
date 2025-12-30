@@ -1,5 +1,5 @@
 use light_ctoken_interface::{
-    state::{calculate_ctoken_account_size, ExtensionStructConfig},
+    state::{calculate_ctoken_account_size, CompressedOnlyExtension, ExtensionStructConfig},
     BASE_TOKEN_ACCOUNT_SIZE,
 };
 
@@ -51,4 +51,25 @@ fn test_ctoken_account_size_calculation() {
     ]))
     .unwrap();
     assert_eq!(all_size, 184);
+}
+
+#[test]
+fn test_compressed_only_extension_size() {
+    use light_ctoken_interface::state::ExtensionStruct;
+    use light_zero_copy::ZeroCopyNew;
+
+    // CompressedOnlyExtension: delegated_amount (u64=8) + withheld_transfer_fee (u64=8) + is_ata (u8=1) = 17 bytes
+    assert_eq!(
+        CompressedOnlyExtension::LEN,
+        17,
+        "CompressedOnlyExtension should be 17 bytes (8 + 8 + 1)"
+    );
+
+    // Verify ExtensionStruct::byte_len matches 1 (discriminant) + LEN
+    let config = ExtensionStructConfig::CompressedOnly(());
+    assert_eq!(
+        ExtensionStruct::byte_len(&config).unwrap(),
+        1 + CompressedOnlyExtension::LEN,
+        "ExtensionStruct byte_len should be 1 + LEN"
+    );
 }
