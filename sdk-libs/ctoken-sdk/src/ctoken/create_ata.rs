@@ -57,7 +57,7 @@ impl CreateAssociatedCTokenAccount {
             mint,
             associated_token_account: ata,
             bump,
-            compressible: CompressibleParams::default(),
+            compressible: CompressibleParams::default_ata(),
             idempotent: false,
         }
     }
@@ -75,7 +75,7 @@ impl CreateAssociatedCTokenAccount {
             mint,
             associated_token_account,
             bump,
-            compressible: CompressibleParams::default(),
+            compressible: CompressibleParams::default_ata(),
             idempotent: false,
         }
     }

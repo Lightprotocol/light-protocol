@@ -544,6 +544,10 @@ pub enum ErrorCode {
     CompressedOnlyRequiresCTokenDecompress,
     #[msg("Invalid token data version")]
     InvalidTokenDataVersion,
+    #[msg("compression_only can only be set for mints with restricted extensions")]
+    CompressionOnlyNotAllowed,
+    #[msg("Associated token accounts must have compression_only set")]
+    AtaRequiresCompressionOnly,
 }
 
 /// Anchor error code offset - error codes start at 6000

@@ -102,7 +102,7 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
         lamports_per_write: Some(1000),
         compress_to_account_pubkey: None,
         token_account_version: TokenDataVersion::ShaFlat,
-        compression_only: false,
+        compression_only: true, // ATAs require compression_only=true
     };
 
     let create_ata_instruction =
@@ -612,7 +612,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
         lamports_per_write: Some(1000),
         compress_to_account_pubkey: None,
         token_account_version: TokenDataVersion::ShaFlat,
-        compression_only: false,
+        compression_only: true, // ATAs require compression_only=true
     };
 
     let create_ata_instruction =

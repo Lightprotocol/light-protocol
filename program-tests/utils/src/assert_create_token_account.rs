@@ -196,10 +196,11 @@ pub async fn assert_create_token_account_internal(
                 };
 
             // Build the Compressible extension
+            // ATAs are always compression_only regardless of mint extensions
             let compressible_ext = CompressibleExtension {
                 decimals_option: if decimals.is_some() { 1 } else { 0 },
                 decimals: decimals.unwrap_or(0),
-                compression_only,
+                compression_only: is_ata || compression_only,
                 is_ata: is_ata as u8,
                 info: CompressionInfo {
                     config_account_version: 1,

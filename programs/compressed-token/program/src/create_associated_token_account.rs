@@ -104,6 +104,12 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
             return Err(ProgramError::InvalidInstructionData);
         }
 
+        // Associated token accounts must always be compression_only
+        if compressible_config.compression_only == 0 {
+            msg!("Associated token accounts must have compression_only set");
+            return Err(anchor_compressed_token::ErrorCode::AtaRequiresCompressionOnly.into());
+        }
+
         // Parse additional accounts for compressible path
         let config_account = next_config_account(&mut iter)?;
         let rent_payer = iter.next_mut("rent_payer")?;

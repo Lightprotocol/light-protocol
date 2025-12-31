@@ -51,25 +51,25 @@ pub struct TransferAccounts<'a> {
 }
 
 /// Process transfer extensions for CTokenTransfer instruction.
-/// Restricted extensions are NOT denied (but will fail anyway due to missing mint).
+/// Restricted extensions are NOT allowed (and will fail anyway due to missing mint).
 #[inline(always)]
 #[profile]
 pub fn process_transfer_extensions_transfer(
     transfer_accounts: TransferAccounts,
     max_top_up: u16,
 ) -> Result<(bool, Option<u8>), ProgramError> {
-    process_transfer_extensions(transfer_accounts, max_top_up, false)
+    process_transfer_extensions(transfer_accounts, max_top_up, true)
 }
 
 /// Process transfer extensions for CTokenTransferChecked instruction.
-/// Restricted extensions ARE denied - source account must not have restricted T22 extensions.
+/// Restricted extensions are ALLOWED when in valid state - CTokenTransferChecked is the instruction for restricted mints.
 #[inline(always)]
 #[profile]
 pub fn process_transfer_extensions_transfer_checked(
     transfer_accounts: TransferAccounts,
     max_top_up: u16,
 ) -> Result<(bool, Option<u8>), ProgramError> {
-    process_transfer_extensions(transfer_accounts, max_top_up, true)
+    process_transfer_extensions(transfer_accounts, max_top_up, false)
 }
 
 /// Process extensions (pausable check, permanent delegate validation, transfer fee withholding)
