@@ -397,7 +397,7 @@ pub async fn create_and_assert_ata(
             lamports_per_write: compressible.lamports_per_write,
             compress_to_account_pubkey: None,
             token_account_version: compressible.account_version,
-            compression_only: false,
+            compression_only: true, // ATAs always compression_only
         };
 
         let mut builder =
@@ -410,7 +410,7 @@ pub async fn create_and_assert_ata(
 
         builder.instruction().unwrap()
     } else {
-        // Create account with default compressible params
+        // Create account with default compressible params (ATAs use default_ata)
         let mut builder = CreateAssociatedCTokenAccount {
             idempotent: false,
             bump,
@@ -418,7 +418,7 @@ pub async fn create_and_assert_ata(
             owner: owner_pubkey,
             mint: context.mint_pubkey,
             associated_token_account: ata_pubkey,
-            compressible: CompressibleParams::default(),
+            compressible: CompressibleParams::default_ata(),
         };
 
         if idempotent {
@@ -461,6 +461,7 @@ pub async fn create_and_assert_ata_fails(
     let owner_pubkey = context.owner_keypair.pubkey();
 
     // Build instruction based on whether it's compressible
+    // ATAs always use compression_only: true
     let compressible_params = if let Some(compressible) = compressible_data.as_ref() {
         CompressibleParams {
             compressible_config: context.compressible_config,
@@ -469,10 +470,10 @@ pub async fn create_and_assert_ata_fails(
             lamports_per_write: compressible.lamports_per_write,
             compress_to_account_pubkey: None,
             token_account_version: compressible.account_version,
-            compression_only: false,
+            compression_only: true,
         }
     } else {
-        CompressibleParams::default()
+        CompressibleParams::default_ata()
     };
 
     let mut builder =

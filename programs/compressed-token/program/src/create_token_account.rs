@@ -175,6 +175,13 @@ pub fn process_create_token_account(
             return Err(anchor_compressed_token::ErrorCode::CompressionOnlyRequired.into());
         }
 
+        // compression_only can only be set for mints with restricted extensions
+        if compressible_config.compression_only != 0 && !mint_extensions.has_restricted_extensions()
+        {
+            msg!("compression_only can only be set for mints with restricted extensions");
+            return Err(anchor_compressed_token::ErrorCode::CompressionOnlyNotAllowed.into());
+        }
+
         // Calculate account size based on extensions (includes Compressible extension)
         let account_size = mint_extensions.calculate_account_size(true)?;
 

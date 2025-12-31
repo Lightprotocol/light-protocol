@@ -59,6 +59,15 @@ impl CompressibleParams {
         Self::default()
     }
 
+    /// Creates default params for ATAs (compression_only = true).
+    /// ATAs are always compression_only.
+    pub fn default_ata() -> Self {
+        Self {
+            compression_only: true,
+            ..Self::default()
+        }
+    }
+
     /// Sets the destination pubkey for compression.
     pub fn compress_to_pubkey(mut self, compress_to: CompressToPubkey) -> Self {
         self.compress_to_account_pubkey = Some(compress_to);
@@ -101,6 +110,24 @@ impl<'info> CompressibleParamsCpi<'info> {
         system_program: AccountInfo<'info>,
     ) -> Self {
         let defaults = CompressibleParams::default();
+        Self {
+            compressible_config,
+            rent_sponsor,
+            system_program,
+            pre_pay_num_epochs: defaults.pre_pay_num_epochs,
+            lamports_per_write: defaults.lamports_per_write,
+            compress_to_account_pubkey: None,
+            token_account_version: defaults.token_account_version,
+            compression_only: defaults.compression_only,
+        }
+    }
+
+    pub fn new_ata(
+        compressible_config: AccountInfo<'info>,
+        rent_sponsor: AccountInfo<'info>,
+        system_program: AccountInfo<'info>,
+    ) -> Self {
+        let defaults = CompressibleParams::default_ata();
         Self {
             compressible_config,
             rent_sponsor,

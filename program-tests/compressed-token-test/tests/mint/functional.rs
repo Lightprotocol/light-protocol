@@ -253,7 +253,7 @@ async fn test_create_compressed_mint() {
         owner: new_recipient,
         mint: spl_mint_pda,
         associated_token_account: ctoken_ata_pubkey,
-        compressible: CompressibleParams::default(),
+        compressible: CompressibleParams::default_ata(),
     }
     .instruction()
     .unwrap();
@@ -460,7 +460,7 @@ async fn test_create_compressed_mint() {
         owner: decompress_recipient.pubkey(),
         mint: spl_mint_pda,
         associated_token_account: decompress_dest_ata,
-        compressible: CompressibleParams::default(),
+        compressible: CompressibleParams::default_ata(),
     }
     .instruction()
     .unwrap();
@@ -730,7 +730,7 @@ async fn test_ctoken_transfer() {
         lamports_per_write: Some(1000),
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
-        compression_only: false,
+        compression_only: true,
     };
 
     let create_ata_instruction = CreateAssociatedCTokenAccount::new(
@@ -807,7 +807,7 @@ async fn test_ctoken_transfer() {
         owner: second_recipient_keypair.pubkey(),
         mint: spl_mint_pda,
         associated_token_account: second_recipient_ata,
-        compressible: CompressibleParams::default(),
+        compressible: CompressibleParams::default_ata(),
     }
     .instruction()
     .unwrap();

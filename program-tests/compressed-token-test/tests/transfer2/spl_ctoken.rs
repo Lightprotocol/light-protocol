@@ -242,7 +242,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         .await
         .unwrap();
 
-    // Create non-compressible token ATA for recipient (required for CompressAndClose without rent_sponsor)
+    // Create compressible token ATA for recipient (ATAs require compression_only=true)
     let (associated_token_account, bump) = derive_ctoken_ata(&recipient.pubkey(), &mint);
     let instruction = CreateAssociatedCTokenAccount {
         idempotent: false,
@@ -251,7 +251,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         owner: recipient.pubkey(),
         mint,
         associated_token_account,
-        compressible: CompressibleParams::default(),
+        compressible: CompressibleParams::default_ata(),
     }
     .instruction()
     .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e)))

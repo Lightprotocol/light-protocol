@@ -180,6 +180,8 @@ pub fn apply_decompress_extension_state(
     }
 
     // Handle withheld_transfer_fee (always add, not overwrite)
+    // Defensive: ensures compress/decompress always works for ctoken accounts.
+    // It should not be possible to set withheld_transfer_fee to non-zero.
     if withheld_transfer_fee > 0 {
         let mut fee_applied = false;
         if let Some(extensions) = ctoken.extensions.as_deref_mut() {

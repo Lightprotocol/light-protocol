@@ -171,6 +171,10 @@ pub async fn run_compress_and_close_extension_test(
     };
 
     let mut context = setup_extensions_test(config.extensions).await?;
+    let has_restricted_extensions = config
+        .extensions
+        .iter()
+        .any(|ext| RESTRICTED_EXTENSIONS.contains(ext));
     let payer = context.payer.insecure_clone();
     let mint_pubkey = context.mint_pubkey;
     let _permanent_delegate = context.extension_config.permanent_delegate;
@@ -210,7 +214,7 @@ pub async fn run_compress_and_close_extension_test(
                 lamports_per_write: Some(100),
                 compress_to_account_pubkey: None,
                 token_account_version: TokenDataVersion::ShaFlat,
-                compression_only: true,
+                compression_only: has_restricted_extensions,
             })
             .instruction()
             .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {:?}", e)))?;
@@ -222,12 +226,9 @@ pub async fn run_compress_and_close_extension_test(
 
     // 3. Transfer tokens to CToken using hot path
     // Determine if mint has restricted extensions for pool derivation
-    let has_restricted = config
-        .extensions
-        .iter()
-        .any(|ext| RESTRICTED_EXTENSIONS.contains(ext));
+
     let (spl_interface_pda, spl_interface_pda_bump) =
-        find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted);
+        find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted_extensions);
     let transfer_ix = TransferSplToCtoken {
         amount: mint_amount,
         spl_interface_pda_bump,
@@ -346,7 +347,7 @@ pub async fn run_compress_and_close_extension_test(
         lamports_per_write: Some(100),
         compress_to_account_pubkey: None,
         token_account_version: TokenDataVersion::ShaFlat,
-        compression_only: true,
+        compression_only: has_restricted_extensions,
     })
     .instruction()
     .map_err(|e| RpcError::CustomError(format!("Failed to create dest instruction: {:?}", e)))?;

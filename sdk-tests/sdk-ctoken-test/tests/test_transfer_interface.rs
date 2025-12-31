@@ -576,7 +576,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
         owner: authority_pda,
         mint,
         associated_token_account: ctoken_account,
-        compressible: CompressibleParams::default(),
+        compressible: CompressibleParams::default_ata(),
     }
     .instruction()
     .unwrap();
@@ -721,7 +721,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
         owner: authority_pda,
         mint,
         associated_token_account: source_ctoken,
-        compressible: CompressibleParams::default(),
+        compressible: CompressibleParams::default_ata(),
     }
     .instruction()
     .unwrap();

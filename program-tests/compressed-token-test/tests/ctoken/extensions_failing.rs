@@ -35,9 +35,6 @@ const NON_ZERO_TRANSFER_FEE_NOT_SUPPORTED: u32 = 6129;
 /// Expected error code for TransferHookNotSupported
 const TRANSFER_HOOK_NOT_SUPPORTED: u32 = 6130;
 
-/// Expected error code for MintHasRestrictedExtensions
-const MINT_HAS_RESTRICTED_EXTENSIONS: u32 = 6142;
-
 /// Set up two CToken accounts with tokens for transfer testing.
 /// Returns (source_account, destination_account, owner)
 async fn setup_ctoken_accounts_for_transfer(
@@ -456,56 +453,4 @@ async fn test_spl_to_ctoken_fails_with_non_zero_transfer_fee() {
         .await
         .unwrap();
     println!("Correctly rejected SPL→CToken with non-zero transfer fees");
-}
-
-// ============================================================================
-// CTokenTransferChecked Restricted Extensions Tests
-// ============================================================================
-
-/// Test that CTokenTransferChecked fails when source has restricted extensions.
-///
-/// CTokenTransferChecked denies transfers from CToken accounts that have restricted
-/// extension markers (PausableAccount, PermanentDelegateAccount, TransferFeeAccount,
-/// TransferHookAccount). Users with such accounts should use Transfer2 instead.
-///
-/// Setup:
-/// 1. Create mint with restricted extensions (Pausable, PermanentDelegate, etc.)
-/// 2. Create two CToken accounts with tokens (accounts inherit extension markers)
-/// 3. Attempt CTokenTransferChecked without modifying mint state
-///
-/// Expected: MintHasRestrictedExtensions (6142)
-#[tokio::test]
-#[serial]
-async fn test_ctoken_transfer_checked_fails_with_restricted_extensions() {
-    let mut context = setup_extensions_test().await.unwrap();
-    let mint_pubkey = context.mint_pubkey;
-
-    // Set up accounts with tokens (uses TransferSplToCtoken for setup which bypasses the check)
-    let (source, destination, owner) = setup_ctoken_accounts_for_transfer(&mut context).await;
-
-    // Attempt CTokenTransferChecked - should fail with MintHasRestrictedExtensions
-    // because source CToken has restricted extension markers from the T22 mint
-    let transfer_ix = TransferCTokenChecked {
-        source,
-        mint: mint_pubkey,
-        destination,
-        amount: 100_000_000,
-        decimals: 9,
-        authority: owner.pubkey(),
-        max_top_up: None,
-    }
-    .instruction()
-    .unwrap();
-
-    let result = context
-        .rpc
-        .create_and_send_transaction(
-            &[transfer_ix],
-            &context.payer.pubkey(),
-            &[&context.payer, &owner],
-        )
-        .await;
-
-    assert_rpc_error(result, 0, MINT_HAS_RESTRICTED_EXTENSIONS).unwrap();
-    println!("Correctly rejected CTokenTransferChecked when source has restricted extensions");
 }

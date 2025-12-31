@@ -31,7 +31,7 @@ pub fn process_create_ata_invoke(
     }
 
     // Build the compressible params using constructor
-    let compressible_params = CompressibleParamsCpi::new(
+    let compressible_params = CompressibleParamsCpi::new_ata(
         accounts[5].clone(),
         accounts[6].clone(),
         accounts[4].clone(),
@@ -80,7 +80,7 @@ pub fn process_create_ata_invoke_signed(
     }
 
     // Build the compressible params using constructor
-    let compressible_params = CompressibleParamsCpi::new(
+    let compressible_params = CompressibleParamsCpi::new_ata(
         accounts[5].clone(),
         accounts[6].clone(),
         accounts[4].clone(),

@@ -313,7 +313,7 @@ async fn test_create_ata_failing() {
             lamports_per_write: Some(1000),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
-            compression_only: false,
+            compression_only: true,
         };
 
         let create_ata_ix = CreateAssociatedCTokenAccount::new(
@@ -363,7 +363,7 @@ async fn test_create_ata_failing() {
                 token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat
                     as u8,
                 rent_payment: 2,
-                compression_only: 0,
+                compression_only: 1, // ATAs always compression_only
                 write_top_up: 100,
                 compress_to_account_pubkey: Some(compress_to_pubkey), // Forbidden for ATAs!
             }),
@@ -435,7 +435,7 @@ async fn test_create_ata_failing() {
                 token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat
                     as u8,
                 rent_payment: 2,
-                compression_only: 0,
+                compression_only: 1, // ATAs always compression_only
                 write_top_up: 100,
                 compress_to_account_pubkey: None,
             }),
@@ -502,7 +502,7 @@ async fn test_create_ata_failing() {
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
-            compression_only: false,
+            compression_only: true,
         };
 
         let create_ata_ix = CreateAssociatedCTokenAccount::new(
@@ -572,7 +572,7 @@ async fn test_create_ata_failing() {
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
-            compression_only: false,
+            compression_only: true,
         };
 
         let create_ata_ix = CreateAssociatedCTokenAccount::new(
@@ -611,7 +611,7 @@ async fn test_create_ata_failing() {
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
-            compression_only: false,
+            compression_only: true,
         };
 
         let create_ata_ix = CreateAssociatedCTokenAccount::new(
@@ -799,7 +799,7 @@ async fn test_ata_multiple_owners_same_mint() {
         lamports_per_write: Some(100),
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
-        compression_only: false,
+        compression_only: true,
     };
 
     let create_ata_ix1 = CreateAssociatedCTokenAccount::new(payer_pubkey, owner1, mint)

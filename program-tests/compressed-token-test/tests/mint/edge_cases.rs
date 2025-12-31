@@ -159,7 +159,7 @@ async fn functional_all_in_one_instruction() {
         lamports_per_write: Some(1000),
         compress_to_account_pubkey: None,
         token_account_version: TokenDataVersion::ShaFlat,
-        compression_only: false,
+        compression_only: true, // ATAs require compression_only=true
     };
 
     let create_compressible_ata_ix =
