@@ -431,6 +431,8 @@ describe('decompressInterface', () => {
                 ctokenAta,
                 BigInt(1000),
                 proof,
+                undefined,
+                TEST_TOKEN_DECIMALS,
             );
 
             // Verify instruction structure
@@ -472,6 +474,8 @@ describe('decompressInterface', () => {
                     BigInt(1000),
                     // Minimal mock - instruction throws before using proof
                     { compressedProof: null, rootIndices: [] } as any,
+                    undefined,
+                    TEST_TOKEN_DECIMALS,
                 ),
             ).toThrow('No input compressed token accounts provided');
         });
@@ -527,6 +531,8 @@ describe('decompressInterface', () => {
                 ctokenAta,
                 BigInt(1000),
                 proof,
+                undefined,
+                TEST_TOKEN_DECIMALS,
             );
 
             // Instruction should be valid
@@ -576,6 +582,8 @@ describe('decompressInterface', () => {
                 ctokenAta,
                 BigInt(1000),
                 proof,
+                undefined,
+                TEST_TOKEN_DECIMALS,
             );
 
             // Fee payer should be writable

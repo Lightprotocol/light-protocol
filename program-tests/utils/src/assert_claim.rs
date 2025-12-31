@@ -1,11 +1,114 @@
 use light_client::rpc::Rpc;
-use light_ctoken_interface::{
-    state::{CToken, ZExtensionStruct, ZExtensionStructMut},
-    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+use light_ctoken_interface::state::{
+    CToken, CompressedMint, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
 };
 use light_program_test::LightProgramTest;
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 use solana_sdk::{clock::Clock, pubkey::Pubkey};
+
+/// Determines account type from account data.
+/// - If account is exactly 165 bytes: CToken (legacy size without extensions)
+/// - If account is > 165 bytes: read byte 165 for discriminator
+/// - If account is < 165 bytes: invalid (returns None)
+fn determine_account_type(data: &[u8]) -> Option<u8> {
+    const ACCOUNT_TYPE_OFFSET: usize = 165;
+
+    match data.len().cmp(&ACCOUNT_TYPE_OFFSET) {
+        std::cmp::Ordering::Less => None,
+        std::cmp::Ordering::Equal => Some(ACCOUNT_TYPE_TOKEN_ACCOUNT),
+        std::cmp::Ordering::Greater => Some(data[ACCOUNT_TYPE_OFFSET]),
+    }
+}
+
+/// Helper struct to hold extracted compression info for assertions
+struct CompressionAssertData {
+    last_claimed_slot: u64,
+    compression_authority: Pubkey,
+    rent_sponsor: Pubkey,
+    claimable_lamports: Option<u64>,
+    claim_failed: bool,
+}
+
+/// Extract compression info from pre-transaction account data (mutable, computes claim)
+fn extract_pre_compression_mut(
+    data: &mut [u8],
+    account_size: u64,
+    current_slot: u64,
+    account_lamports: u64,
+    base_lamports: u64,
+    pubkey: &Pubkey,
+) -> CompressionAssertData {
+    let account_type = determine_account_type(data)
+        .unwrap_or_else(|| panic!("Failed to determine account type for {}", pubkey));
+
+    match account_type {
+        ACCOUNT_TYPE_TOKEN_ACCOUNT => {
+            let (mut ctoken, _) = CToken::zero_copy_at_mut(data)
+                .unwrap_or_else(|e| panic!("Failed to parse ctoken account {}: {:?}", pubkey, e));
+            let compressible = ctoken
+                .get_compressible_extension_mut()
+                .unwrap_or_else(|| panic!("CToken {} should have Compressible extension", pubkey));
+            let compression = &mut compressible.info;
+            let last_claimed_slot = u64::from(compression.last_claimed_slot);
+            let compression_authority = Pubkey::from(compression.compression_authority);
+            let rent_sponsor = Pubkey::from(compression.rent_sponsor);
+            let lamports_result =
+                compression.claim(account_size, current_slot, account_lamports, base_lamports);
+            let claim_failed = lamports_result.is_err();
+            let claimable_lamports = lamports_result.ok().flatten();
+            CompressionAssertData {
+                last_claimed_slot,
+                compression_authority,
+                rent_sponsor,
+                claimable_lamports,
+                claim_failed,
+            }
+        }
+        ACCOUNT_TYPE_MINT => {
+            let (mut cmint, _) = CompressedMint::zero_copy_at_mut(data)
+                .unwrap_or_else(|e| panic!("Failed to parse cmint account {}: {:?}", pubkey, e));
+            let compression = &mut cmint.base.compression;
+            let last_claimed_slot = u64::from(compression.last_claimed_slot);
+            let compression_authority = Pubkey::from(compression.compression_authority);
+            let rent_sponsor = Pubkey::from(compression.rent_sponsor);
+            let lamports_result =
+                compression.claim(account_size, current_slot, account_lamports, base_lamports);
+            let claim_failed = lamports_result.is_err();
+            let claimable_lamports = lamports_result.ok().flatten();
+            CompressionAssertData {
+                last_claimed_slot,
+                compression_authority,
+                rent_sponsor,
+                claimable_lamports,
+                claim_failed,
+            }
+        }
+        _ => panic!("Unknown account type {} for {}", account_type, pubkey),
+    }
+}
+
+/// Extract post-transaction compression info (immutable)
+fn extract_post_compression(data: &[u8], pubkey: &Pubkey) -> u64 {
+    let account_type = determine_account_type(data)
+        .unwrap_or_else(|| panic!("Failed to determine account type for {}", pubkey));
+
+    match account_type {
+        ACCOUNT_TYPE_TOKEN_ACCOUNT => {
+            let (ctoken, _) = CToken::zero_copy_at(data)
+                .unwrap_or_else(|e| panic!("Failed to parse ctoken account {}: {:?}", pubkey, e));
+            let compressible = ctoken
+                .get_compressible_extension()
+                .unwrap_or_else(|| panic!("CToken {} should have Compressible extension", pubkey));
+            u64::from(compressible.info.last_claimed_slot)
+        }
+        ACCOUNT_TYPE_MINT => {
+            let (cmint, _) = CompressedMint::zero_copy_at(data)
+                .unwrap_or_else(|e| panic!("Failed to parse cmint account {}: {:?}", pubkey, e));
+            u64::from(cmint.base.compression.last_claimed_slot)
+        }
+        _ => panic!("Unknown account type {} for {}", account_type, pubkey),
+    }
+}
 
 pub async fn assert_claim(
     rpc: &mut LightProgramTest,
@@ -25,113 +128,71 @@ pub async fn assert_claim(
         let mut pre_token_account = rpc
             .get_pre_transaction_account(token_account_pubkey)
             .expect("Token account should exist in pre-transaction context");
-        assert_eq!(
-            pre_token_account.data.len(),
-            COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
+        // Must have > 165 bytes to include account_type discriminator
+        assert!(
+            pre_token_account.data.len() > 165,
+            "Account must have > 165 bytes for CToken/CMint"
         );
-        // Parse pre-transaction token account data
-        let (mut pre_compressed_token, _) = CToken::zero_copy_at_mut(&mut pre_token_account.data)
-            .expect("Failed to deserialize pre-transaction token account");
+        // Get account size and lamports before parsing (to avoid borrow conflicts)
+        let account_size = pre_token_account.data.len() as u64;
+        let account_lamports = pre_token_account.lamports;
+        let current_slot = rpc.pre_context.as_ref().unwrap().get_sysvar::<Clock>().slot;
+        let base_lamports = rpc
+            .get_minimum_balance_for_rent_exemption(account_size as usize)
+            .await
+            .unwrap();
 
-        // Find and extract pre-transaction compressible extension data
-        let mut pre_last_claimed_slot = 0u64;
-        let mut pre_compression_authority: Option<Pubkey> = None;
-        let mut pre_rent_sponsor: Option<Pubkey> = None;
-        let mut not_claimed_was_none = false;
+        // Extract compression info (handles both CToken and CMint)
+        let pre_data = extract_pre_compression_mut(
+            &mut pre_token_account.data,
+            account_size,
+            current_slot,
+            account_lamports,
+            base_lamports,
+            token_account_pubkey,
+        );
 
-        if let Some(extensions) = pre_compressed_token.extensions.as_mut() {
-            for extension in extensions {
-                if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
-                    pre_last_claimed_slot = u64::from(compressible_ext.info.last_claimed_slot);
-                    // Check if compression_authority is set (non-zero)
-                    pre_compression_authority =
-                        if compressible_ext.info.compression_authority != [0u8; 32] {
-                            Some(Pubkey::from(compressible_ext.info.compression_authority))
-                        } else {
-                            None
-                        };
-                    // Check if rent_sponsor is set (non-zero)
-                    pre_rent_sponsor = if compressible_ext.info.rent_sponsor != [0u8; 32] {
-                        Some(Pubkey::from(compressible_ext.info.rent_sponsor))
-                    } else {
-                        None
-                    };
-                    let current_slot = rpc.pre_context.as_ref().unwrap().get_sysvar::<Clock>().slot;
-                    let base_lamports = rpc
-                        .get_minimum_balance_for_rent_exemption(
-                            COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize,
-                        )
-                        .await
-                        .unwrap();
-                    let lamports_result = compressible_ext.info.claim(
-                        COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-                        current_slot,
-                        pre_token_account.lamports,
-                        base_lamports,
-                    );
-                    not_claimed_was_none = lamports_result.is_err();
-                    if let Ok(Some(lamports)) = lamports_result {
-                        expected_lamports_claimed += lamports;
-                    }
-
-                    break;
-                }
-            }
-        } else {
-            panic!("Token account should have compressible extension");
+        if let Some(lamports) = pre_data.claimable_lamports {
+            expected_lamports_claimed += lamports;
         }
+
         // Verify rent authority matches
         assert_eq!(
-            pre_compression_authority,
-            Some(compression_authority),
-            "Rent authority should match the one in the extension"
+            pre_data.compression_authority, compression_authority,
+            "Rent authority should match the one in the compression info"
         );
 
         // Verify rent recipient matches pool PDA
         assert_eq!(
-            pre_rent_sponsor,
-            Some(pool_pda),
+            pre_data.rent_sponsor, pool_pda,
             "Rent recipient should match the pool PDA"
         );
+
         // Get post-transaction state
         let post_token_account = rpc
             .get_account(*token_account_pubkey)
             .await
-            .expect("Failed to get post-transaction token account")
-            .expect("Token account should still exist after claim");
+            .expect("Failed to get post-transaction account")
+            .expect("Account should still exist after claim");
 
-        // Parse post-transaction token account data
-        let (post_compressed_token, _) = CToken::zero_copy_at(&post_token_account.data)
-            .expect("Failed to deserialize post-transaction token account");
+        // Extract post-transaction compression info
+        let post_last_claimed_slot =
+            extract_post_compression(&post_token_account.data, token_account_pubkey);
 
-        // Find and extract post-transaction compressible extension data
-        let mut post_last_claimed_slot = 0u64;
-
-        if let Some(extensions) = post_compressed_token.extensions.as_ref() {
-            for extension in extensions {
-                if let ZExtensionStruct::Compressible(compressible_ext) = extension {
-                    post_last_claimed_slot = u64::from(compressible_ext.info.last_claimed_slot);
-                    println!("post_last_claimed_slot {}", post_last_claimed_slot);
-
-                    break;
-                }
-            }
-        } else {
-            panic!("Token account should still have compressible extension after claim");
-        }
-        if !not_claimed_was_none {
+        println!("post_last_claimed_slot {}", post_last_claimed_slot);
+        if !pre_data.claim_failed {
             // Verify last_claimed_slot was updated
             assert!(
-                post_last_claimed_slot > pre_last_claimed_slot,
+                post_last_claimed_slot > pre_data.last_claimed_slot,
                 "last_claimed_slot should be updated to a higher slot {} {}",
                 post_last_claimed_slot,
-                pre_last_claimed_slot
+                pre_data.last_claimed_slot
             );
         } else {
             assert_eq!(
-                post_last_claimed_slot, pre_last_claimed_slot,
+                post_last_claimed_slot, pre_data.last_claimed_slot,
                 "last_claimed_slot should not be updated to a higher slot {} {}",
-                post_last_claimed_slot, pre_last_claimed_slot
+                post_last_claimed_slot, pre_data.last_claimed_slot
             );
         }
     }

@@ -1,23 +1,27 @@
 // SPL to cToken scenario test - Direct SDK calls without wrapper program
 //
 // This test demonstrates the complete flow:
-// 1. Create SPL mint manually
+// 1. Create SPL mint manually (with freeze authority)
 // 2. Create token pool (SPL interface PDA) using SDK instruction
 // 3. Create SPL token account
 // 4. Mint SPL tokens
 // 5. Create cToken ATA (compressible)
 // 6. Transfer SPL tokens to cToken account
-// 7. Advance epochs to trigger compression
-// 8. Verify cToken account is compressed and closed
-// 9. Recreate cToken ATA
-// 10. Decompress compressed tokens back to cToken account
-// 11. Verify cToken account has tokens again
+// 7. Verify transfer results
+// 8. Freeze cToken account
+// 9. Thaw cToken account
+// 10. Advance epochs to trigger compression
+// 11. Verify cToken account is compressed and closed
+// 12. Recreate cToken ATA
+// 13. Decompress compressed tokens back to cToken account
+// 14. Verify cToken account has tokens again
 
 use anchor_spl::token::{spl_token, Mint};
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_ctoken_sdk::{
     ctoken::{
-        derive_ctoken_ata, CreateAssociatedCTokenAccount, DecompressToCtoken, TransferSplToCtoken,
+        derive_ctoken_ata, CreateAssociatedCTokenAccount, DecompressToCtoken, FreezeCToken,
+        ThawCToken, TransferSplToCtoken,
     },
     spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
 };
@@ -66,8 +70,8 @@ async fn test_spl_to_ctoken_scenario() {
     let initialize_mint_ix = spl_token::instruction::initialize_mint(
         &spl_token::ID,
         &mint,
-        &payer.pubkey(), // mint authority
-        None,            // freeze authority
+        &payer.pubkey(),       // mint authority
+        Some(&payer.pubkey()), // freeze authority
         decimals,
     )
     .unwrap();
@@ -82,7 +86,8 @@ async fn test_spl_to_ctoken_scenario() {
 
     // 3. Create token pool (SPL interface PDA) using SDK instruction
     let create_pool_ix =
-        CreateSplInterfacePda::new(payer.pubkey(), mint, anchor_spl::token::ID).instruction();
+        CreateSplInterfacePda::new(payer.pubkey(), mint, anchor_spl::token::ID, false)
+            .instruction();
 
     rpc.create_and_send_transaction(&[create_pool_ix], &payer.pubkey(), &[&payer])
         .await
@@ -145,11 +150,13 @@ async fn test_spl_to_ctoken_scenario() {
     );
 
     // 7. Transfer SPL tokens to cToken account
-    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) =
+        find_spl_interface_pda_with_index(&mint, 0, false);
 
     let transfer_instruction = TransferSplToCtoken {
         amount: transfer_amount,
         spl_interface_pda_bump,
+        decimals,
         source_spl_token_account: spl_token_account_keypair.pubkey(),
         destination_ctoken_account: ctoken_ata,
         authority: token_owner.pubkey(),
@@ -212,11 +219,61 @@ async fn test_spl_to_ctoken_scenario() {
         final_spl_balance, ctoken_balance
     );
 
-    // 8. Advance 25 epochs to trigger compression (default prepaid is 16 epochs)
+    // 8. Freeze the cToken account
+    println!("\nFreezing cToken account...");
+    let freeze_instruction = FreezeCToken {
+        token_account: ctoken_ata,
+        mint,
+        freeze_authority: payer.pubkey(),
+    }
+    .instruction()
+    .unwrap();
+
+    rpc.create_and_send_transaction(&[freeze_instruction], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
+
+    // Verify account is frozen (state == 2)
+    let ctoken_account_data = rpc.get_account(ctoken_ata).await.unwrap().unwrap();
+    let ctoken_account =
+        spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165]).unwrap();
+    assert_eq!(
+        ctoken_account.state,
+        spl_token_2022::state::AccountState::Frozen as u8,
+        "cToken account should be frozen"
+    );
+    println!("  - cToken account frozen");
+
+    // 9. Thaw the cToken account
+    println!("Thawing cToken account...");
+    let thaw_instruction = ThawCToken {
+        token_account: ctoken_ata,
+        mint,
+        freeze_authority: payer.pubkey(),
+    }
+    .instruction()
+    .unwrap();
+
+    rpc.create_and_send_transaction(&[thaw_instruction], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
+
+    // Verify account is thawed (state == 1)
+    let ctoken_account_data = rpc.get_account(ctoken_ata).await.unwrap().unwrap();
+    let ctoken_account =
+        spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165]).unwrap();
+    assert_eq!(
+        ctoken_account.state,
+        spl_token_2022::state::AccountState::Initialized as u8,
+        "cToken account should be thawed (initialized)"
+    );
+    println!("  - cToken account thawed");
+
+    // 10. Advance 25 epochs to trigger compression (default prepaid is 16 epochs)
     println!("\nAdvancing 25 epochs to trigger compression...");
     rpc.warp_epoch_forward(25).await.unwrap();
 
-    // 9. Verify cToken account is compressed and closed
+    // 11. Verify cToken account is compressed and closed
     let closed_account = rpc.get_account(ctoken_ata).await.unwrap();
     match closed_account {
         Some(account) => {
@@ -230,9 +287,9 @@ async fn test_spl_to_ctoken_scenario() {
         }
     }
 
-    // Verify compressed token account exists
+    // Verify compressed token account exists (owner is ATA pubkey for is_ata accounts)
     let compressed_accounts = rpc
-        .get_compressed_token_accounts_by_owner(&ctoken_recipient.pubkey(), None, None)
+        .get_compressed_token_accounts_by_owner(&ctoken_ata, None, None)
         .await
         .unwrap()
         .value
@@ -245,9 +302,8 @@ async fn test_spl_to_ctoken_scenario() {
 
     let compressed_account = &compressed_accounts[0];
     assert_eq!(
-        compressed_account.token.owner,
-        ctoken_recipient.pubkey(),
-        "Compressed account owner should match"
+        compressed_account.token.owner, ctoken_ata,
+        "Compressed account owner should be ATA pubkey"
     );
     assert_eq!(
         compressed_account.token.amount, transfer_amount,
@@ -264,7 +320,7 @@ async fn test_spl_to_ctoken_scenario() {
         compressed_account.token.amount
     );
 
-    // 10. Recreate cToken ATA for decompression (idempotent)
+    // 12. Recreate cToken ATA for decompression (idempotent)
     println!("\nRecreating cToken ATA for decompression...");
     let create_ata_instruction =
         CreateAssociatedCTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
@@ -284,7 +340,7 @@ async fn test_spl_to_ctoken_scenario() {
     );
     println!("  - cToken ATA recreated: {}", ctoken_ata);
 
-    // 11. Get validity proof for the compressed account
+    // Get validity proof for the compressed account
     let compressed_hashes: Vec<_> = compressed_accounts
         .iter()
         .map(|acc| acc.account.hash)
@@ -308,7 +364,7 @@ async fn test_spl_to_ctoken_scenario() {
     // Get tree info from validity proof result
     let account_proof = &rpc_result.accounts[0];
 
-    // 12. Decompress compressed tokens to cToken account
+    // 13. Decompress compressed tokens to cToken account
     println!("Decompressing tokens to cToken account...");
     let decompress_instruction = DecompressToCtoken {
         token_data,
@@ -319,6 +375,7 @@ async fn test_spl_to_ctoken_scenario() {
         root_index: account_proof.root_index.root_index().unwrap_or(0),
         destination_ctoken_account: ctoken_ata,
         payer: payer.pubkey(),
+        signer: ctoken_recipient.pubkey(),
         validity_proof: rpc_result.proof,
     }
     .instruction()
@@ -332,9 +389,9 @@ async fn test_spl_to_ctoken_scenario() {
     .await
     .unwrap();
 
-    // 13. Verify compressed accounts are consumed
+    // Verify compressed accounts are consumed
     let remaining_compressed = rpc
-        .get_compressed_token_accounts_by_owner(&ctoken_recipient.pubkey(), None, None)
+        .get_compressed_token_accounts_by_owner(&ctoken_ata, None, None)
         .await
         .unwrap()
         .value

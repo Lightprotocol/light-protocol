@@ -289,7 +289,7 @@ async fn compress_spl_tokens(
     token_account: Pubkey,
 ) -> Result<Signature, RpcError> {
     let mut remaining_accounts = PackedAccounts::default();
-    let spl_interface_pda = get_spl_interface_pda(&mint);
+    let spl_interface_pda = get_spl_interface_pda(&mint, false);
     let config = TokenAccountsMetaConfig::compress_client(
         spl_interface_pda,
         token_account,
@@ -394,7 +394,7 @@ async fn decompress_compressed_tokens(
     decompress_token_account: Pubkey,
 ) -> Result<Signature, RpcError> {
     let mut remaining_accounts = PackedAccounts::default();
-    let spl_interface_pda = get_spl_interface_pda(&compressed_account.token.mint);
+    let spl_interface_pda = get_spl_interface_pda(&compressed_account.token.mint, false);
     let config = TokenAccountsMetaConfig::decompress_client(
         spl_interface_pda,
         decompress_token_account,
@@ -582,7 +582,7 @@ async fn batch_compress_spl_tokens(
     remaining_accounts.add_pre_accounts_signer_mut(payer.pubkey());
     let spl_interface_index = 0;
     let (spl_interface_pda, spl_interface_bump) =
-        find_spl_interface_pda_with_index(&mint, spl_interface_index);
+        find_spl_interface_pda_with_index(&mint, spl_interface_index, false);
     println!("spl_interface_pda {:?}", spl_interface_pda);
     // Use batch compress account metas
     let config = BatchCompressMetaConfig::new_client(

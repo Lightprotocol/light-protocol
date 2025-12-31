@@ -168,24 +168,53 @@ async fn test_create_ata_idempotent() {
         // Verify the account still has the same properties (unchanged by second creation)
         let account = context.rpc.get_account(ata_pubkey).await.unwrap().unwrap();
 
-        // Should still be compressible size (COMPRESSIBLE_TOKEN_ACCOUNT_SIZE bytes)
+        // Calculate expected size for account with Compressible extension
+        use light_ctoken_interface::state::{
+            calculate_ctoken_account_size, CompressibleExtensionConfig, CompressionInfoConfig,
+            ExtensionStructConfig,
+        };
+        let expected_size =
+            calculate_ctoken_account_size(Some(&[ExtensionStructConfig::Compressible(
+                CompressibleExtensionConfig {
+                    info: CompressionInfoConfig { rent_config: () },
+                },
+            )]))
+            .unwrap();
+
+        // Account size should remain unchanged by idempotent recreation
         assert_eq!(
             account.data.len(),
-            light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize,
+            expected_size,
             "Account should still be compressible size after idempotent recreation"
         );
     }
 }
 
+/// Tests creation of an ATA with 0 prepaid epochs (immediately compressible).
+/// All CToken accounts now have compression infrastructure, so we pass
+/// CompressibleData with num_prepaid_epochs: 0.
 #[tokio::test]
 async fn test_create_non_compressible_ata() {
     let mut context = setup_account_test().await.unwrap();
+    let payer_pubkey = context.payer.pubkey();
+
+    // All accounts now have compression infrastructure, so pass CompressibleData
+    // with 0 prepaid epochs (immediately compressible)
+    let compressible_data = CompressibleData {
+        compression_authority: context.compression_authority,
+        rent_sponsor: context.rent_sponsor,
+        num_prepaid_epochs: 0,
+        lamports_per_write: None,
+        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compress_to_pubkey: false,
+        payer: payer_pubkey,
+    };
 
     create_and_assert_ata(
         &mut context,
-        None,  // Non-compressible
+        Some(compressible_data),
         false, // Non-idempotent
-        "non_compressible_ata",
+        "ata_zero_epochs",
     )
     .await;
 }
@@ -217,7 +246,7 @@ async fn test_create_ata_failing() {
             Some(compressible_data),
             false, // Non-idempotent
             "one_epoch_prefunding_forbidden",
-            101, // OneEpochPrefundingNotAllowed (0x65 hex = 101 decimal)
+            6101, // OneEpochPrefundingNotAllowed
         )
         .await;
     }
@@ -284,6 +313,7 @@ async fn test_create_ata_failing() {
             lamports_per_write: Some(1000),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: true,
         };
 
         let create_ata_ix = CreateAssociatedCTokenAccount::new(
@@ -311,7 +341,7 @@ async fn test_create_ata_failing() {
         use anchor_lang::prelude::borsh::BorshSerialize;
         use light_ctoken_interface::instructions::{
             create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
-            extensions::compressible::{CompressToPubkey, CompressibleExtensionInstructionData},
+            extensions::{CompressToPubkey, CompressibleExtensionInstructionData},
         };
         use solana_sdk::instruction::Instruction;
 
@@ -320,7 +350,7 @@ async fn test_create_ata_failing() {
         let (ata_pubkey, bump) =
             derive_ctoken_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
-        // Manually build instruction data with compress_to_account_pubkey (forbidden)
+        // Manually build instruction data with compress_to_account_pubkey (forbidden for ATAs)
         let compress_to_pubkey = CompressToPubkey {
             bump: 255,
             program_id: light_compressed_token::ID.to_bytes(),
@@ -330,10 +360,10 @@ async fn test_create_ata_failing() {
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
             bump,
             compressible_config: Some(CompressibleExtensionInstructionData {
-                compression_only: 0,
                 token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat
                     as u8,
                 rent_payment: 2,
+                compression_only: 1, // ATAs always compression_only
                 write_top_up: 100,
                 compress_to_account_pubkey: Some(compress_to_pubkey), // Forbidden for ATAs!
             }),
@@ -382,7 +412,7 @@ async fn test_create_ata_failing() {
         use anchor_lang::prelude::borsh::BorshSerialize;
         use light_ctoken_interface::instructions::{
             create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
-            extensions::compressible::CompressibleExtensionInstructionData,
+            extensions::CompressibleExtensionInstructionData,
         };
         use solana_sdk::instruction::Instruction;
 
@@ -402,10 +432,10 @@ async fn test_create_ata_failing() {
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
             bump: wrong_bump, // Wrong bump!
             compressible_config: Some(CompressibleExtensionInstructionData {
-                compression_only: 0,
                 token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat
                     as u8,
                 rent_payment: 2,
+                compression_only: 1, // ATAs always compression_only
                 write_top_up: 100,
                 compress_to_account_pubkey: None,
             }),
@@ -472,6 +502,7 @@ async fn test_create_ata_failing() {
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: true,
         };
 
         let create_ata_ix = CreateAssociatedCTokenAccount::new(
@@ -541,6 +572,7 @@ async fn test_create_ata_failing() {
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: true,
         };
 
         let create_ata_ix = CreateAssociatedCTokenAccount::new(
@@ -579,6 +611,7 @@ async fn test_create_ata_failing() {
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: true,
         };
 
         let create_ata_ix = CreateAssociatedCTokenAccount::new(
@@ -623,6 +656,7 @@ async fn test_create_ata_failing() {
         let fake_ata_pubkey = fake_ata_keypair.pubkey();
 
         // Build instruction with correct bump but WRONG address (arbitrary keypair)
+        // No compressible config for non-compressible ATAs
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
             bump: correct_bump, // Correct bump for the real PDA
             compressible_config: None,
@@ -631,7 +665,7 @@ async fn test_create_ata_failing() {
         let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
-        // Account order: owner, mint, payer, ata (fake!), system_program
+        // Account order: owner, mint, payer, ata (fake!), system_program, compressible_config, rent_sponsor
         let ix = Instruction {
             program_id: light_compressed_token::ID,
             accounts: vec![
@@ -646,6 +680,11 @@ async fn test_create_ata_failing() {
                     solana_sdk::pubkey::Pubkey::default(),
                     false,
                 ),
+                solana_sdk::instruction::AccountMeta::new_readonly(
+                    context.compressible_config,
+                    false,
+                ),
+                solana_sdk::instruction::AccountMeta::new(context.rent_sponsor, false),
             ],
             data,
         };
@@ -760,6 +799,7 @@ async fn test_ata_multiple_owners_same_mint() {
         lamports_per_write: Some(100),
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: true,
     };
 
     let create_ata_ix1 = CreateAssociatedCTokenAccount::new(payer_pubkey, owner1, mint)
@@ -781,6 +821,7 @@ async fn test_ata_multiple_owners_same_mint() {
         owner1,
         mint,
         Some(compressible_data.clone()),
+        None,
     )
     .await;
 
@@ -803,6 +844,7 @@ async fn test_ata_multiple_owners_same_mint() {
         owner2,
         mint,
         Some(compressible_data.clone()),
+        None,
     )
     .await;
 
@@ -825,6 +867,7 @@ async fn test_ata_multiple_owners_same_mint() {
         owner3,
         mint,
         Some(compressible_data.clone()),
+        None,
     )
     .await;
 

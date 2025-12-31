@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 
-use crate::state::{AccountState, CToken, ExtensionStruct};
+use crate::state::{AccountState, CToken, ExtensionStruct, ACCOUNT_TYPE_TOKEN_ACCOUNT};
 
 // Manual implementation of BorshSerialize for SPL compatibility
 impl BorshSerialize for CToken {
@@ -45,13 +45,15 @@ impl BorshSerialize for CToken {
             writer.write_all(&[0; 36])?; // COption None (4 bytes) + empty pubkey (32 bytes)
         }
 
-        // Write extensions if present
-        if let Some(ref extensions) = self.extensions {
-            // Write AccountType::Account byte for SPL Token 2022 compatibility
-            writer.write_all(&[2])?; // AccountType::Account = 2
+        // End of SPL Token Account base layout (165 bytes)
 
-            // Serialize extensions using borsh
-            extensions.serialize(writer)?;
+        // Write account_type and extensions only if extensions are present
+        if self.extensions.is_some() {
+            // Write account_type byte at position 165
+            writer.write_all(&[self.account_type])?;
+
+            // Write extensions as Option<Vec<ExtensionStruct>>
+            self.extensions.serialize(writer)?;
         }
 
         Ok(())
@@ -119,21 +121,25 @@ impl BorshDeserialize for CToken {
             None
         };
 
-        // Try to read extensions if data remains
-        let extensions = {
-            // Try to read AccountType byte
-            let mut account_type = [0u8; 1];
-            match buf.read_exact(&mut account_type) {
-                Ok(_) => {
-                    if account_type[0] == 2 {
-                        // AccountType::Account, extensions follow
-                        Option::<Vec<ExtensionStruct>>::deserialize_reader(buf).unwrap_or_default()
-                    } else {
-                        None
-                    }
-                }
-                Err(_) => None, // No more data, no extensions
+        // End of SPL Token Account base layout (165 bytes)
+
+        // Try to read account_type byte at position 165
+        let mut account_type_byte = [0u8; 1];
+        let (account_type, extensions) = if buf.read_exact(&mut account_type_byte).is_ok() {
+            let account_type = account_type_byte[0];
+            if account_type == ACCOUNT_TYPE_TOKEN_ACCOUNT {
+                // Read extensions
+                let extensions =
+                    Option::<Vec<ExtensionStruct>>::deserialize_reader(buf).unwrap_or_default();
+                (account_type, extensions)
+            } else {
+                // Account type byte present but not CToken - store it but no extensions
+                (account_type, None)
             }
+        } else {
+            // No account_type byte - base SPL token account without extensions
+            // Default to ACCOUNT_TYPE_TOKEN_ACCOUNT for CToken
+            (ACCOUNT_TYPE_TOKEN_ACCOUNT, None)
         };
 
         Ok(Self {
@@ -146,6 +152,7 @@ impl BorshDeserialize for CToken {
             is_native,
             delegated_amount,
             close_authority,
+            account_type,
             extensions,
         })
     }

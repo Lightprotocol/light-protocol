@@ -24,7 +24,7 @@ async fn test_ctoken_transfer_invoke() {
     let source_owner = payer.pubkey();
     let dest_owner = Pubkey::new_unique();
 
-    let (_mint_pda, _compression_address, ata_pubkeys) = setup_create_compressed_mint(
+    let (_mint_pda, _compression_address, ata_pubkeys, _mint_seed) = setup_create_compressed_mint(
         &mut rpc,
         &payer,
         payer.pubkey(),
@@ -81,7 +81,7 @@ async fn test_ctoken_transfer_invoke_signed() {
     let (pda_owner, _bump) = Pubkey::find_program_address(&[TOKEN_ACCOUNT_SEED], &ID);
     let dest_owner = payer.pubkey();
 
-    let (_mint_pda, _compression_address, ata_pubkeys) = setup_create_compressed_mint(
+    let (_mint_pda, _compression_address, ata_pubkeys, _mint_seed) = setup_create_compressed_mint(
         &mut rpc,
         &payer,
         payer.pubkey(),

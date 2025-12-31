@@ -1,5 +1,5 @@
 use light_client::rpc::{Rpc, RpcError};
-use light_ctoken_interface::state::TokenDataVersion;
+use light_ctoken_interface::{has_restricted_extensions, state::TokenDataVersion};
 use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -54,6 +54,12 @@ pub async fn create_compressible_token_account<R: Rpc>(
         &solana_pubkey::pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),
     );
 
+    // Check if mint has restricted extensions that require compression_only mode
+    let compression_only = match rpc.get_account(mint).await {
+        Ok(Some(mint_account)) => has_restricted_extensions(&mint_account.data),
+        _ => false,
+    };
+
     let compressible_params = CompressibleParams {
         compressible_config,
         rent_sponsor,
@@ -61,6 +67,7 @@ pub async fn create_compressible_token_account<R: Rpc>(
         lamports_per_write,
         compress_to_account_pubkey: None,
         token_account_version,
+        compression_only,
     };
 
     let create_token_account_ix =

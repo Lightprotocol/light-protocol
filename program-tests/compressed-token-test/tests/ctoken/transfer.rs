@@ -28,30 +28,30 @@ async fn setup_transfer_test(
     let rent_sponsor = context.rent_sponsor;
 
     // Create source token account
+    // When num_prepaid_epochs is None, use 3 epochs (sufficient for no top-up: epochs_funded_ahead = 3 - 1 = 2 >= 2)
+    let source_epochs = num_prepaid_epochs.unwrap_or(3);
     context.token_account_keypair = source_keypair.insecure_clone();
-    if let Some(epochs) = num_prepaid_epochs {
+    {
         let compressible_data = CompressibleData {
             compression_authority: context.compression_authority,
             rent_sponsor,
-            num_prepaid_epochs: epochs,
+            num_prepaid_epochs: source_epochs,
             lamports_per_write: Some(100),
             account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
         create_and_assert_token_account(&mut context, compressible_data, "source_account").await;
-    } else {
-        // Create non-compressible source account (165 bytes, no extension)
-        create_non_compressible_token_account(&mut context, Some(&source_keypair)).await;
     }
 
     // Create destination token account
+    let dest_epochs = num_prepaid_epochs.unwrap_or(3);
     context.token_account_keypair = destination_keypair.insecure_clone();
-    if let Some(epochs) = num_prepaid_epochs {
+    {
         let compressible_data = CompressibleData {
             compression_authority: context.compression_authority,
             rent_sponsor,
-            num_prepaid_epochs: epochs,
+            num_prepaid_epochs: dest_epochs,
             lamports_per_write: Some(100),
             account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
@@ -59,9 +59,6 @@ async fn setup_transfer_test(
         };
         create_and_assert_token_account(&mut context, compressible_data, "destination_account")
             .await;
-    } else {
-        // Create non-compressible destination account (165 bytes, no extension)
-        create_non_compressible_token_account(&mut context, Some(&destination_keypair)).await;
     }
 
     // Mint tokens to source account using set_account
@@ -98,6 +95,9 @@ async fn setup_transfer_test(
 }
 
 /// Build a ctoken transfer instruction
+///
+/// For basic transfers (no T22 extensions), only 3 accounts are needed.
+/// Authority is writable because compressible accounts may require top-up.
 fn build_transfer_instruction(
     source: Pubkey,
     destination: Pubkey,
@@ -107,18 +107,18 @@ fn build_transfer_instruction(
     use anchor_lang::prelude::AccountMeta;
     use solana_sdk::instruction::Instruction;
 
-    // Build instruction data: discriminator (3) + SPL Transfer data
-    let mut data = vec![3]; // CTokenTransfer discriminator (first byte: 3)
-    data.extend_from_slice(&amount.to_le_bytes()); // Amount as u64 little-endian
+    // Build instruction data: discriminator (3) + amount (8 bytes)
+    let mut data = vec![3u8];
+    data.extend_from_slice(&amount.to_le_bytes());
 
-    // Build instruction
+    // Note: Index 3 would be interpreted as mint (for T22 extension validation).
+    // For basic transfers, we only pass 3 accounts.
     Instruction {
         program_id: light_compressed_token::ID,
         accounts: vec![
             AccountMeta::new(source, false),
             AccountMeta::new(destination, false),
-            AccountMeta::new(authority, true), // Authority must sign (also acts as payer for top-ups)
-            AccountMeta::new_readonly(Pubkey::default(), false), // System program for lamport transfers during top-up
+            AccountMeta::new(authority, true), // Authority must sign and be writable for top-ups
         ],
         data,
     }
@@ -136,18 +136,16 @@ fn build_transfer_instruction_with_max_top_up(
     use solana_sdk::instruction::Instruction;
 
     // Build instruction data: discriminator (3) + amount (8 bytes) + max_top_up (2 bytes)
-    let mut data = vec![3]; // CTokenTransfer discriminator
-    data.extend_from_slice(&amount.to_le_bytes()); // Amount as u64 little-endian
-    data.extend_from_slice(&max_top_up.to_le_bytes()); // max_top_up as u16 little-endian
+    let mut data = vec![3u8];
+    data.extend_from_slice(&amount.to_le_bytes());
+    data.extend_from_slice(&max_top_up.to_le_bytes());
 
-    // Build instruction
     Instruction {
         program_id: light_compressed_token::ID,
         accounts: vec![
             AccountMeta::new(source, false),
             AccountMeta::new(destination, false),
-            AccountMeta::new(authority, true), // Authority must sign (also acts as payer for top-ups)
-            AccountMeta::new_readonly(Pubkey::default(), false), // System program for lamport transfers during top-up
+            AccountMeta::new(authority, true), // Authority must sign and be writable for top-ups
         ],
         data,
     }
@@ -345,7 +343,7 @@ async fn test_ctoken_transfer_frozen_source() {
     let owner_keypair = context.owner_keypair.insecure_clone();
 
     // Try to transfer from frozen account
-    // Expected error: AccountFrozen (error code 17)
+    // Expected error: CTokenError::InvalidAccountState (frozen accounts rejected by zero_copy_at_mut_checked)
     transfer_and_assert_fails(
         &mut context,
         source,
@@ -353,7 +351,7 @@ async fn test_ctoken_transfer_frozen_source() {
         500,
         &owner_keypair,
         "frozen_source_transfer",
-        17, // AccountFrozen
+        18036, // CTokenError::InvalidAccountState
     )
     .await;
 }
@@ -373,7 +371,7 @@ async fn test_ctoken_transfer_frozen_destination() {
     let owner_keypair = context.owner_keypair.insecure_clone();
 
     // Try to transfer to frozen account
-    // Expected error: AccountFrozen (error code 17)
+    // Expected error: CTokenError::InvalidAccountState (frozen accounts rejected by zero_copy_at_mut_checked)
     transfer_and_assert_fails(
         &mut context,
         source,
@@ -381,7 +379,7 @@ async fn test_ctoken_transfer_frozen_destination() {
         500,
         &owner_keypair,
         "frozen_destination_transfer",
-        17, // AccountFrozen
+        18036, // CTokenError::InvalidAccountState
     )
     .await;
 }
@@ -410,32 +408,28 @@ async fn test_ctoken_transfer_wrong_authority() {
 
 #[tokio::test]
 async fn test_ctoken_transfer_mint_mismatch() {
-    // Create source account with default mint
-    let (mut context, source, _destination, _mint_amount, _source_keypair, _dest_keypair) =
+    // Create two accounts with the same mint first
+    let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
         setup_transfer_test(None, 1000).await.unwrap();
 
-    // Create destination account with a different mint
+    // Modify the destination account's mint field to create a mint mismatch
     let different_mint = Pubkey::new_unique();
-    let original_mint = context.mint_pubkey;
-    context.mint_pubkey = different_mint;
+    let mut dest_account = context.rpc.get_account(destination).await.unwrap().unwrap();
 
-    let dest_keypair = Keypair::new();
-    context.token_account_keypair = dest_keypair.insecure_clone();
-    create_non_compressible_token_account(&mut context, Some(&dest_keypair)).await;
-    let destination_with_different_mint = dest_keypair.pubkey();
-
-    // Restore original mint for context
-    context.mint_pubkey = original_mint;
+    // CToken mint is the first 32 bytes after the account type discriminator
+    // The mint field is at bytes 0-32 in the CToken account data
+    dest_account.data[0..32].copy_from_slice(&different_mint.to_bytes());
+    context.rpc.set_account(destination, dest_account);
 
     // Use the owner keypair as authority
     let owner_keypair = context.owner_keypair.insecure_clone();
 
     // Try to transfer between accounts with different mints
-    // Expected error: MintMismatch (error code 3)
+    // The SPL Token program returns error code 3 (MintMismatch)
     transfer_and_assert_fails(
         &mut context,
         source,
-        destination_with_different_mint,
+        destination,
         500,
         &owner_keypair,
         "mint_mismatch_transfer",
@@ -470,31 +464,41 @@ async fn test_ctoken_transfer_zero_amount() {
 
 #[tokio::test]
 async fn test_ctoken_transfer_mixed_compressible_non_compressible() {
-    // Create source as compressible
+    // Create source with more prepaid epochs
     let mut context = setup_account_test().await.unwrap();
     let payer_pubkey = context.payer.pubkey();
 
-    // Create compressible source account
+    // Create source account with more prepaid epochs (lamports_per_write = Some(100))
     let source_keypair = Keypair::new();
     let source_pubkey = source_keypair.pubkey();
     context.token_account_keypair = source_keypair.insecure_clone();
 
-    let compressible_data = CompressibleData {
+    let source_data = CompressibleData {
         compression_authority: context.compression_authority,
         rent_sponsor: context.rent_sponsor,
-        num_prepaid_epochs: 3, // 3 epochs for no top-up: epochs_funded_ahead = 3 - 1 = 2 >= 2
+        num_prepaid_epochs: 5, // More epochs with higher lamports_per_write
         lamports_per_write: Some(100),
         account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
         compress_to_pubkey: false,
         payer: payer_pubkey,
     };
-    create_and_assert_token_account(&mut context, compressible_data, "source_account").await;
+    create_and_assert_token_account(&mut context, source_data, "source_account").await;
 
-    // Create non-compressible destination account
+    // Create destination account with fewer prepaid epochs (no lamports_per_write)
     let destination_keypair = Keypair::new();
     let destination_pubkey = destination_keypair.pubkey();
     context.token_account_keypair = destination_keypair.insecure_clone();
-    create_non_compressible_token_account(&mut context, Some(&destination_keypair)).await;
+
+    let dest_data = CompressibleData {
+        compression_authority: context.compression_authority,
+        rent_sponsor: context.rent_sponsor,
+        num_prepaid_epochs: 3, // Standard 3 epochs sufficient for no top-up
+        lamports_per_write: None,
+        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compress_to_pubkey: false,
+        payer: payer_pubkey,
+    };
+    create_and_assert_token_account(&mut context, dest_data, "destination_account").await;
 
     // Mint tokens to source
     let mut source_account = context
@@ -509,7 +513,7 @@ async fn test_ctoken_transfer_mixed_compressible_non_compressible() {
     spl_token_2022::state::Account::pack(token_account, &mut source_account.data[..165]).unwrap();
     context.rpc.set_account(source_pubkey, source_account);
 
-    // Fund owner to pay for top-up
+    // Fund owner to pay for potential top-up
     context
         .rpc
         .airdrop_lamports(&context.owner_keypair.pubkey(), 100_000_000)
@@ -518,7 +522,7 @@ async fn test_ctoken_transfer_mixed_compressible_non_compressible() {
 
     let owner_keypair = context.owner_keypair.insecure_clone();
 
-    // Transfer from compressible to non-compressible (only source needs top-up)
+    // Transfer from source with more prepaid to destination with fewer prepaid
     transfer_and_assert(
         &mut context,
         source_pubkey,
@@ -574,5 +578,381 @@ async fn test_ctoken_transfer_max_top_up_exceeded() {
         .await;
 
     // Assert MaxTopUpExceeded (error code 18043)
+    light_program_test::utils::assert::assert_rpc_error(result, 0, 18043).unwrap();
+}
+
+// ============================================================================
+// Transfer Checked Helper Functions
+// ============================================================================
+
+use light_ctoken_sdk::ctoken::TransferCTokenChecked;
+
+/// Setup context with two token accounts for transfer_checked tests using a real SPL Token mint
+async fn setup_transfer_checked_test_with_spl_mint(
+    num_prepaid_epochs: Option<u8>,
+    mint_amount: u64,
+    decimals: u8,
+) -> Result<(AccountTestContext, Pubkey, Pubkey, u64, Keypair, Keypair), RpcError> {
+    let mut context = setup_account_test_with_spl_mint(decimals).await?;
+    let payer_pubkey = context.payer.pubkey();
+
+    let source_keypair = Keypair::new();
+    let source_pubkey = source_keypair.pubkey();
+
+    let destination_keypair = Keypair::new();
+    let destination_pubkey = destination_keypair.pubkey();
+
+    let rent_sponsor = context.rent_sponsor;
+    let source_epochs = num_prepaid_epochs.unwrap_or(3);
+
+    context.token_account_keypair = source_keypair.insecure_clone();
+    {
+        let compressible_params = CompressibleParams {
+            compressible_config: context.compressible_config,
+            rent_sponsor,
+            pre_pay_num_epochs: source_epochs,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
+        };
+
+        let create_token_account_ix = CreateCTokenAccount::new(
+            payer_pubkey,
+            source_pubkey,
+            context.mint_pubkey,
+            context.owner_keypair.pubkey(),
+        )
+        .with_compressible(compressible_params)
+        .instruction()
+        .unwrap();
+
+        context
+            .rpc
+            .create_and_send_transaction(
+                &[create_token_account_ix],
+                &payer_pubkey,
+                &[&context.payer, &source_keypair],
+            )
+            .await
+            .unwrap();
+    }
+
+    let dest_epochs = num_prepaid_epochs.unwrap_or(3);
+    context.token_account_keypair = destination_keypair.insecure_clone();
+    {
+        let compressible_params = CompressibleParams {
+            compressible_config: context.compressible_config,
+            rent_sponsor,
+            pre_pay_num_epochs: dest_epochs,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
+        };
+
+        let create_token_account_ix = CreateCTokenAccount::new(
+            payer_pubkey,
+            destination_pubkey,
+            context.mint_pubkey,
+            context.owner_keypair.pubkey(),
+        )
+        .with_compressible(compressible_params)
+        .instruction()
+        .unwrap();
+
+        context
+            .rpc
+            .create_and_send_transaction(
+                &[create_token_account_ix],
+                &payer_pubkey,
+                &[&context.payer, &destination_keypair],
+            )
+            .await
+            .unwrap();
+    }
+
+    if mint_amount > 0 {
+        let mut source_account = context
+            .rpc
+            .get_account(source_pubkey)
+            .await?
+            .ok_or_else(|| RpcError::AssertRpcError("Source account not found".to_string()))?;
+
+        let mut token_account =
+            spl_token_2022::state::Account::unpack_unchecked(&source_account.data[..165]).map_err(
+                |e| RpcError::AssertRpcError(format!("Failed to unpack token account: {:?}", e)),
+            )?;
+        token_account.amount = mint_amount;
+        spl_token_2022::state::Account::pack(token_account, &mut source_account.data[..165])
+            .map_err(|e| {
+                RpcError::AssertRpcError(format!("Failed to pack token account: {:?}", e))
+            })?;
+
+        context.rpc.set_account(source_pubkey, source_account);
+    }
+
+    Ok((
+        context,
+        source_pubkey,
+        destination_pubkey,
+        mint_amount,
+        source_keypair,
+        destination_keypair,
+    ))
+}
+
+/// Execute a ctoken transfer_checked and assert success
+#[allow(clippy::too_many_arguments)]
+async fn transfer_checked_and_assert(
+    context: &mut AccountTestContext,
+    source: Pubkey,
+    mint: Pubkey,
+    destination: Pubkey,
+    amount: u64,
+    decimals: u8,
+    authority: &Keypair,
+    name: &str,
+) {
+    use light_test_utils::assert_ctoken_transfer::assert_ctoken_transfer;
+
+    println!("Transfer checked initiated for: {}", name);
+
+    let payer_pubkey = context.payer.pubkey();
+
+    let transfer_ix = TransferCTokenChecked {
+        source,
+        mint,
+        destination,
+        amount,
+        decimals,
+        authority: authority.pubkey(),
+        max_top_up: None,
+    }
+    .instruction()
+    .unwrap();
+
+    context
+        .rpc
+        .create_and_send_transaction(&[transfer_ix], &payer_pubkey, &[&context.payer, authority])
+        .await
+        .unwrap();
+
+    assert_ctoken_transfer(&mut context.rpc, source, destination, amount).await;
+}
+
+/// Execute a ctoken transfer_checked expecting failure with specific error code
+#[allow(clippy::too_many_arguments)]
+async fn transfer_checked_and_assert_fails(
+    context: &mut AccountTestContext,
+    source: Pubkey,
+    mint: Pubkey,
+    destination: Pubkey,
+    amount: u64,
+    decimals: u8,
+    authority: &Keypair,
+    name: &str,
+    expected_error_code: u32,
+) {
+    println!(
+        "Transfer checked (expecting failure) initiated for: {}",
+        name
+    );
+
+    let payer_pubkey = context.payer.pubkey();
+
+    let transfer_ix = TransferCTokenChecked {
+        source,
+        mint,
+        destination,
+        amount,
+        decimals,
+        authority: authority.pubkey(),
+        max_top_up: None,
+    }
+    .instruction()
+    .unwrap();
+
+    let result = context
+        .rpc
+        .create_and_send_transaction(&[transfer_ix], &payer_pubkey, &[&context.payer, authority])
+        .await;
+
+    light_program_test::utils::assert::assert_rpc_error(result, 0, expected_error_code).unwrap();
+}
+
+// ============================================================================
+// Transfer Checked Success Tests
+// ============================================================================
+
+#[tokio::test]
+async fn test_ctoken_transfer_checked_with_spl_mint() {
+    let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_checked_test_with_spl_mint(None, 1000, 9)
+            .await
+            .unwrap();
+
+    let mint = context.mint_pubkey;
+    let owner_keypair = context.owner_keypair.insecure_clone();
+
+    transfer_checked_and_assert(
+        &mut context,
+        source,
+        mint,
+        destination,
+        500,
+        9,
+        &owner_keypair,
+        "transfer_checked_spl_mint",
+    )
+    .await;
+}
+
+// Note: Token-2022 mint tests are covered in sdk-tests/sdk-ctoken-test/tests/test_transfer_checked.rs
+// The T22 mint requires additional setup (extensions, token pool, etc.) that is handled there.
+
+#[tokio::test]
+async fn test_ctoken_transfer_checked_compressible_with_topup() {
+    let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_checked_test_with_spl_mint(Some(3), 1000, 9)
+            .await
+            .unwrap();
+
+    context
+        .rpc
+        .airdrop_lamports(&context.owner_keypair.pubkey(), 100_000_000)
+        .await
+        .unwrap();
+
+    let mint = context.mint_pubkey;
+    let owner_keypair = context.owner_keypair.insecure_clone();
+
+    transfer_checked_and_assert(
+        &mut context,
+        source,
+        mint,
+        destination,
+        500,
+        9,
+        &owner_keypair,
+        "compressible_transfer_checked_with_topup",
+    )
+    .await;
+}
+
+// ============================================================================
+// Transfer Checked Failure Tests
+// ============================================================================
+
+#[tokio::test]
+async fn test_ctoken_transfer_checked_wrong_decimals() {
+    let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_checked_test_with_spl_mint(None, 1000, 9)
+            .await
+            .unwrap();
+
+    let mint = context.mint_pubkey;
+    let owner_keypair = context.owner_keypair.insecure_clone();
+
+    transfer_checked_and_assert_fails(
+        &mut context,
+        source,
+        mint,
+        destination,
+        500,
+        8, // Wrong decimals - mint has 9
+        &owner_keypair,
+        "wrong_decimals_transfer_checked",
+        2, // InvalidInstructionData
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_ctoken_transfer_checked_wrong_mint() {
+    let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_checked_test_with_spl_mint(None, 1000, 9)
+            .await
+            .unwrap();
+
+    let wrong_mint = Pubkey::new_unique();
+    let owner_keypair = context.owner_keypair.insecure_clone();
+
+    transfer_checked_and_assert_fails(
+        &mut context,
+        source,
+        wrong_mint,
+        destination,
+        500,
+        9,
+        &owner_keypair,
+        "wrong_mint_transfer_checked",
+        18002, // CTokenError::MintMismatch
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_ctoken_transfer_checked_insufficient_balance() {
+    let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_checked_test_with_spl_mint(None, 1000, 9)
+            .await
+            .unwrap();
+
+    let mint = context.mint_pubkey;
+    let owner_keypair = context.owner_keypair.insecure_clone();
+
+    transfer_checked_and_assert_fails(
+        &mut context,
+        source,
+        mint,
+        destination,
+        1500,
+        9,
+        &owner_keypair,
+        "insufficient_balance_transfer_checked",
+        1, // InsufficientFunds
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_ctoken_transfer_checked_max_top_up_exceeded() {
+    let (mut context, source, destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_checked_test_with_spl_mint(Some(0), 1000, 9)
+            .await
+            .unwrap();
+
+    context
+        .rpc
+        .airdrop_lamports(&context.owner_keypair.pubkey(), 100_000_000)
+        .await
+        .unwrap();
+
+    let mint = context.mint_pubkey;
+    let owner_keypair = context.owner_keypair.insecure_clone();
+    let payer_pubkey = context.payer.pubkey();
+
+    let transfer_ix = TransferCTokenChecked {
+        source,
+        mint,
+        destination,
+        amount: 100,
+        decimals: 9,
+        authority: owner_keypair.pubkey(),
+        max_top_up: Some(1),
+    }
+    .instruction()
+    .unwrap();
+
+    let result = context
+        .rpc
+        .create_and_send_transaction(
+            &[transfer_ix],
+            &payer_pubkey,
+            &[&context.payer, &owner_keypair],
+        )
+        .await;
+
     light_program_test::utils::assert::assert_rpc_error(result, 0, 18043).unwrap();
 }

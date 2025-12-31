@@ -2,7 +2,10 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{checks::check_owner, AccountInfoTrait, AccountIterator};
 use light_compressible::{compression_info::ClaimAndUpdate, config::CompressibleConfig};
-use light_ctoken_interface::state::{CToken, ZExtensionStructMut};
+use light_ctoken_interface::{
+    state::{CToken, CompressedMint, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT},
+    CTokenError,
+};
 use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};
 use spl_pod::solana_msg::msg;
@@ -89,42 +92,73 @@ pub fn process_claim(
     Ok(())
 }
 
+/// Determines account type from account data.
+/// - If account is exactly 165 bytes: CToken (legacy size without extensions)
+/// - If account is > 165 bytes: read byte 165 for discriminator
+/// - If account is < 165 bytes: invalid
+#[inline(always)]
+fn determine_account_type(data: &[u8]) -> Result<u8, ProgramError> {
+    const ACCOUNT_TYPE_OFFSET: usize = 165;
+
+    match data.len().cmp(&ACCOUNT_TYPE_OFFSET) {
+        core::cmp::Ordering::Less => Err(ProgramError::InvalidAccountData),
+        core::cmp::Ordering::Equal => Ok(ACCOUNT_TYPE_TOKEN_ACCOUNT), // 165 bytes = CToken
+        core::cmp::Ordering::Greater => Ok(data[ACCOUNT_TYPE_OFFSET]),
+    }
+}
+
 fn validate_and_claim(
     accounts: &ClaimAccounts,
     config_account: &CompressibleConfig,
-    token_account: &AccountInfo,
+    account: &AccountInfo,
     current_slot: u64,
 ) -> Result<Option<u64>, ProgramError> {
-    // Verify the token account is owned by the compressed token program
-    check_owner(&crate::LIGHT_CPI_SIGNER.program_id, token_account)?;
+    // Verify the account is owned by the compressed token program
+    check_owner(&crate::LIGHT_CPI_SIGNER.program_id, account)?;
 
     // Get current lamports balance
-    let current_lamports = AccountInfoTrait::lamports(token_account);
+    let current_lamports = AccountInfoTrait::lamports(account);
     // Claim rent for completed epochs
-    let bytes = token_account.data_len() as u64;
-    // Parse and process the token account
-    let mut token_account_data = AccountInfoTrait::try_borrow_mut_data(token_account)?;
-    let (mut compressed_token, _) = CToken::zero_copy_at_mut_checked(&mut token_account_data)?;
+    let bytes = account.data_len() as u64;
+    // Parse and process the account
+    let mut account_data = AccountInfoTrait::try_borrow_mut_data(account)?;
 
-    // Find compressible extension
-    if let Some(extensions) = compressed_token.extensions.as_mut() {
-        for extension in extensions {
-            if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
-                return compressible_ext
-                    .info
-                    .claim_and_update(ClaimAndUpdate {
-                        compression_authority: accounts.compression_authority.key(),
-                        rent_sponsor: accounts.rent_sponsor.key(),
-                        config_account,
-                        bytes,
-                        current_slot,
-                        current_lamports,
-                    })
-                    .map_err(ProgramError::from);
-            }
+    // Determine account type and process accordingly
+    let account_type = determine_account_type(&account_data)?;
+
+    let claim_and_update = ClaimAndUpdate {
+        compression_authority: accounts.compression_authority.key(),
+        rent_sponsor: accounts.rent_sponsor.key(),
+        config_account,
+        bytes,
+        current_slot,
+        current_lamports,
+    };
+
+    match account_type {
+        ACCOUNT_TYPE_TOKEN_ACCOUNT => {
+            // CToken account
+            let (mut ctoken, _) = CToken::zero_copy_at_mut_checked(&mut account_data)?;
+            let compressible = ctoken
+                .get_compressible_extension_mut()
+                .ok_or::<ProgramError>(CTokenError::MissingCompressibleExtension.into())?;
+            compressible
+                .info
+                .claim_and_update(claim_and_update)
+                .map_err(ProgramError::from)
+        }
+        ACCOUNT_TYPE_MINT => {
+            // CMint account
+            let (mut cmint, _) = CompressedMint::zero_copy_at_mut_checked(&mut account_data)?;
+            cmint
+                .base
+                .compression
+                .claim_and_update(claim_and_update)
+                .map_err(ProgramError::from)
+        }
+        _ => {
+            msg!("Invalid account type: {}", account_type);
+            Err(ProgramError::InvalidAccountData)
         }
     }
-
-    msg!("No compressible extension found");
-    Ok(None)
 }

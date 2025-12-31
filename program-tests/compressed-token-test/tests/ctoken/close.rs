@@ -100,9 +100,9 @@ async fn test_close_token_account_fails() {
             &mut context,
             destination,
             &wrong_owner,
-            Some(rent_sponsor),
+            rent_sponsor,
             "wrong_owner",
-            75, // ErrorCode::OwnerMismatch
+            6075, // ErrorCode::OwnerMismatch
         )
         .await;
     }
@@ -113,7 +113,7 @@ async fn test_close_token_account_fails() {
             &mut context,
             token_account_pubkey, // destination same as token_account
             &owner_keypair,
-            Some(rent_sponsor),
+            rent_sponsor,
             "destination_same_as_token_account",
             3, // ProgramError::InvalidAccountData
         )
@@ -133,7 +133,7 @@ async fn test_close_token_account_fails() {
             &mut context,
             destination,
             &owner_keypair,
-            None, // Missing rent_sponsor
+            Pubkey::default(), // Missing rent_sponsor
             "missing_rent_sponsor",
             11, // ProgramError::NotEnoughAccountKeys
         )
@@ -155,7 +155,7 @@ async fn test_close_token_account_fails() {
             &mut context,
             destination,
             &owner_keypair,
-            Some(wrong_rent_sponsor), // Wrong rent_sponsor
+            wrong_rent_sponsor, // Wrong rent_sponsor
             "wrong_rent_sponsor",
             3, // ProgramError::InvalidAccountData
         )
@@ -191,7 +191,7 @@ async fn test_close_token_account_fails() {
         use light_ctoken_interface::state::ctoken::CToken;
         use light_zero_copy::traits::ZeroCopyAtMut;
         let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut account.data).unwrap();
-        *ctoken.amount = 1u64.into();
+        ctoken.amount.set(1u64);
         drop(ctoken);
 
         // Set the modified account back
@@ -208,9 +208,9 @@ async fn test_close_token_account_fails() {
             &mut context,
             destination,
             &owner_keypair,
-            Some(rent_sponsor),
+            rent_sponsor,
             "non_zero_balance",
-            74, // ErrorCode::NonNativeHasBalance
+            6074, // ErrorCode::NonNativeHasBalance
         )
         .await;
     }
@@ -245,7 +245,7 @@ async fn test_close_token_account_fails() {
         use light_zero_copy::traits::ZeroCopyAtMut;
         use spl_token_2022::state::AccountState;
         let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut account.data).unwrap();
-        *ctoken.state = AccountState::Uninitialized as u8;
+        ctoken.state = AccountState::Uninitialized as u8;
         drop(ctoken);
 
         // Set the modified account back
@@ -262,14 +262,14 @@ async fn test_close_token_account_fails() {
             &mut context,
             destination,
             &owner_keypair,
-            Some(rent_sponsor),
+            rent_sponsor,
             "uninitialized_account",
             18036, // CTokenError::InvalidAccountState
         )
         .await;
     }
 
-    // Test 11: Frozen account → Error 6076 (AccountFrozen)
+    // Test 11: Frozen account → Error 18036 (CTokenError::InvalidAccountState)
     {
         // Create a fresh account for this test
         context.token_account_keypair = Keypair::new();
@@ -298,7 +298,7 @@ async fn test_close_token_account_fails() {
         use light_zero_copy::traits::ZeroCopyAtMut;
         use spl_token_2022::state::AccountState;
         let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut account.data).unwrap();
-        *ctoken.state = AccountState::Frozen as u8;
+        ctoken.state = AccountState::Frozen as u8;
         drop(ctoken);
 
         // Set the modified account back
@@ -315,9 +315,9 @@ async fn test_close_token_account_fails() {
             &mut context,
             destination,
             &owner_keypair,
-            Some(rent_sponsor),
+            rent_sponsor,
             "frozen_account",
-            18036, // CTokenError::InvalidAccountState
+            18036, // CTokenError::InvalidAccountState (frozen accounts rejected by zero_copy_at_mut_checked)
         )
         .await;
     }

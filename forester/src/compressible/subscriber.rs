@@ -1,7 +1,7 @@
 use std::{str::FromStr, sync::Arc};
 
 use futures::StreamExt;
-use light_ctoken_interface::{COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, CTOKEN_PROGRAM_ID};
+use light_ctoken_interface::{BASE_TOKEN_ACCOUNT_SIZE, CTOKEN_PROGRAM_ID};
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::{
     nonblocking::pubsub_client::PubsubClient,
@@ -59,9 +59,7 @@ impl AccountSubscriber {
             .program_subscribe(
                 &program_id,
                 Some(RpcProgramAccountsConfig {
-                    filters: Some(vec![RpcFilterType::DataSize(
-                        COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-                    )]),
+                    filters: Some(vec![RpcFilterType::DataSize(BASE_TOKEN_ACCOUNT_SIZE)]),
                     account_config: RpcAccountInfoConfig {
                         encoding: Some(UiAccountEncoding::Base64),
                         commitment: Some(CommitmentConfig::confirmed()),

@@ -48,17 +48,18 @@ async fn test_cmint_to_ctoken_scenario() {
     let mint_amount2 = 5_000u64;
     let transfer_amount = 3_000u64;
 
-    let (mint, _compression_address, ata_pubkeys) = shared::setup_create_compressed_mint(
-        &mut rpc,
-        &payer,
-        payer.pubkey(), // mint_authority
-        9,              // decimals
-        vec![
-            (mint_amount1, owner1.pubkey()),
-            (mint_amount2, owner2.pubkey()),
-        ],
-    )
-    .await;
+    let (mint, _compression_address, ata_pubkeys, _mint_seed) =
+        shared::setup_create_compressed_mint(
+            &mut rpc,
+            &payer,
+            payer.pubkey(), // mint_authority
+            9,              // decimals
+            vec![
+                (mint_amount1, owner1.pubkey()),
+                (mint_amount2, owner2.pubkey()),
+            ],
+        )
+        .await;
 
     let ctoken_ata1 = ata_pubkeys[0];
     let ctoken_ata2 = ata_pubkeys[1];
@@ -151,9 +152,10 @@ async fn test_cmint_to_ctoken_scenario() {
         }
     }
 
-    // Verify compressed token account exists for owner2
+    // Verify compressed token account exists for the ATA
+    // For ATAs, the compressed account owner is the ATA pubkey (not wallet owner)
     let compressed_accounts = rpc
-        .get_compressed_token_accounts_by_owner(&owner2.pubkey(), None, None)
+        .get_compressed_token_accounts_by_owner(&ctoken_ata2, None, None)
         .await
         .unwrap()
         .value
@@ -166,9 +168,8 @@ async fn test_cmint_to_ctoken_scenario() {
 
     let compressed_account = &compressed_accounts[0];
     assert_eq!(
-        compressed_account.token.owner,
-        owner2.pubkey(),
-        "Compressed account owner should match"
+        compressed_account.token.owner, ctoken_ata2,
+        "Compressed account owner should be the ATA pubkey"
     );
     assert_eq!(
         compressed_account.token.amount,
@@ -205,6 +206,8 @@ async fn test_cmint_to_ctoken_scenario() {
         "cToken ATA should exist after recreation"
     );
     println!("  - cToken ATA recreated: {}", ctoken_ata2);
+    let deserialized_ata = CToken::try_from_slice(ctoken_account_data.data.as_slice()).unwrap();
+    println!("deserialized ata {:?}", deserialized_ata);
 
     // 10. Get validity proof for the compressed account
     let compressed_hashes: Vec<_> = compressed_accounts
@@ -231,7 +234,10 @@ async fn test_cmint_to_ctoken_scenario() {
     let account_proof = &rpc_result.accounts[0];
 
     // 11. Decompress compressed tokens to cToken account
+    // For ATA decompress, the wallet owner (owner2) must sign
     println!("Decompressing tokens to cToken account...");
+    println!("discriminator {:?}", discriminator);
+    println!("token_data {:?}", token_data);
     let decompress_instruction = DecompressToCtoken {
         token_data,
         discriminator,
@@ -241,6 +247,7 @@ async fn test_cmint_to_ctoken_scenario() {
         root_index: account_proof.root_index.root_index().unwrap_or(0),
         destination_ctoken_account: ctoken_ata2,
         payer: payer.pubkey(),
+        signer: owner2.pubkey(), // Wallet owner is the signer for ATA decompress
         validity_proof: rpc_result.proof,
     }
     .instruction()
@@ -256,7 +263,7 @@ async fn test_cmint_to_ctoken_scenario() {
 
     // 12. Verify compressed accounts are consumed
     let remaining_compressed = rpc
-        .get_compressed_token_accounts_by_owner(&owner2.pubkey(), None, None)
+        .get_compressed_token_accounts_by_owner(&ctoken_ata2, None, None)
         .await
         .unwrap()
         .value

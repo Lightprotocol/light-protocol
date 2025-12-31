@@ -12,7 +12,6 @@ pub mod token_output;
 pub mod transfer_lamports;
 pub mod validate_ata_derivation;
 
-// Re-export AccountIterator from light-account-checks
 pub use convert_program_error::convert_program_error;
 pub use create_pda_account::{create_pda_account, verify_pda};
 pub use light_account_checks::AccountIterator;

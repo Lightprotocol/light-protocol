@@ -18,7 +18,10 @@ pub struct Transfer2Config {
     pub total_input_lamports: u64,
     /// Total output lamports (checked arithmetic).
     pub total_output_lamports: u64,
+    /// No compressed accounts (neither input nor output) - determines system CPI path
     pub no_compressed_accounts: bool,
+    /// No output compressed accounts - determines mint extension hotpath
+    pub no_output_compressed_accounts: bool, // TODO: remove dead code
 }
 
 impl Transfer2Config {
@@ -29,6 +32,7 @@ impl Transfer2Config {
     ) -> Result<Self, ProgramError> {
         let no_compressed_accounts =
             inputs.in_token_data.is_empty() && inputs.out_token_data.is_empty();
+        let no_output_compressed_accounts = inputs.out_token_data.is_empty();
         Ok(Self {
             sol_pool_required: false,
             sol_decompression_required: false,
@@ -41,6 +45,7 @@ impl Transfer2Config {
             total_input_lamports: 0,
             total_output_lamports: 0,
             no_compressed_accounts,
+            no_output_compressed_accounts,
         })
     }
 }

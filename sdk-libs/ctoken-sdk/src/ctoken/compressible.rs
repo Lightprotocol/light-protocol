@@ -1,6 +1,4 @@
-use light_ctoken_interface::{
-    instructions::extensions::compressible::CompressToPubkey, state::TokenDataVersion,
-};
+use light_ctoken_interface::{instructions::extensions::CompressToPubkey, state::TokenDataVersion};
 use solana_account_info::AccountInfo;
 use solana_pubkey::Pubkey;
 
@@ -34,6 +32,7 @@ pub struct CompressibleParams {
     pub compress_to_account_pubkey: Option<CompressToPubkey>,
     pub compressible_config: Pubkey,
     pub rent_sponsor: Pubkey,
+    pub compression_only: bool,
 }
 
 impl Default for CompressibleParams {
@@ -45,6 +44,7 @@ impl Default for CompressibleParams {
             lamports_per_write: Some(766),
             compress_to_account_pubkey: None,
             token_account_version: TokenDataVersion::ShaFlat,
+            compression_only: false,
         }
     }
 }
@@ -57,6 +57,15 @@ impl CompressibleParams {
     /// - TokenDataVersion::ShaFlat token data hashing (only sha is supported for compressible accounts)
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Creates default params for ATAs (compression_only = true).
+    /// ATAs are always compression_only.
+    pub fn default_ata() -> Self {
+        Self {
+            compression_only: true,
+            ..Self::default()
+        }
     }
 
     /// Sets the destination pubkey for compression.
@@ -91,6 +100,7 @@ pub struct CompressibleParamsCpi<'info> {
     pub lamports_per_write: Option<u32>,
     pub compress_to_account_pubkey: Option<CompressToPubkey>,
     pub token_account_version: TokenDataVersion,
+    pub compression_only: bool,
 }
 
 impl<'info> CompressibleParamsCpi<'info> {
@@ -107,7 +117,26 @@ impl<'info> CompressibleParamsCpi<'info> {
             pre_pay_num_epochs: defaults.pre_pay_num_epochs,
             lamports_per_write: defaults.lamports_per_write,
             compress_to_account_pubkey: None,
-            token_account_version: TokenDataVersion::ShaFlat,
+            token_account_version: defaults.token_account_version,
+            compression_only: defaults.compression_only,
+        }
+    }
+
+    pub fn new_ata(
+        compressible_config: AccountInfo<'info>,
+        rent_sponsor: AccountInfo<'info>,
+        system_program: AccountInfo<'info>,
+    ) -> Self {
+        let defaults = CompressibleParams::default_ata();
+        Self {
+            compressible_config,
+            rent_sponsor,
+            system_program,
+            pre_pay_num_epochs: defaults.pre_pay_num_epochs,
+            lamports_per_write: defaults.lamports_per_write,
+            compress_to_account_pubkey: None,
+            token_account_version: defaults.token_account_version,
+            compression_only: defaults.compression_only,
         }
     }
 

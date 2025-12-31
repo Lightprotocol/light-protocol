@@ -1,7 +1,4 @@
-use light_ctoken_interface::{
-    instructions::transfer2::CompressedCpiContext,
-    state::{CToken, ZExtensionStruct},
-};
+use light_ctoken_interface::{instructions::transfer2::CompressedCpiContext, state::CToken};
 use light_program_profiler::profile;
 use light_sdk::{
     error::LightSdkError,
@@ -43,59 +40,26 @@ pub fn pack_for_compress_and_close(
     ctoken_account_pubkey: Pubkey,
     ctoken_account_data: &[u8],
     packed_accounts: &mut PackedAccounts,
-    signer_is_compression_authority: bool, // if yes rent authority must be signer
 ) -> Result<CompressAndCloseIndices, CTokenSdkError> {
     let (ctoken_account, _) = CToken::zero_copy_at(ctoken_account_data)?;
     let source_index = packed_accounts.insert_or_get(ctoken_account_pubkey);
     let mint_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
     let owner_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.owner.to_bytes()));
 
-    let (rent_sponsor_index, authority_index, destination_index) =
-        if signer_is_compression_authority {
-            // When using rent authority from extension, find the rent recipient from extension
-            let mut recipient_index = owner_index; // Default to owner if no extension found
-            let mut authority_index = owner_index; // Default to owner if no extension found
-            if let Some(extensions) = &ctoken_account.extensions {
-                for extension in extensions {
-                    if let ZExtensionStruct::Compressible(e) = extension {
-                        authority_index = packed_accounts.insert_or_get_config(
-                            Pubkey::from(e.info.compression_authority),
-                            true,
-                            true,
-                        );
-                        recipient_index =
-                            packed_accounts.insert_or_get(Pubkey::from(e.info.rent_sponsor));
+    // Get compression info from Compressible extension
+    let compressible_ext = ctoken_account
+        .get_compressible_extension()
+        .ok_or(CTokenSdkError::MissingCompressibleExtension)?;
+    let authority_index = packed_accounts.insert_or_get_config(
+        Pubkey::from(compressible_ext.info.compression_authority),
+        true,
+        true,
+    );
+    let rent_sponsor_index =
+        packed_accounts.insert_or_get(Pubkey::from(compressible_ext.info.rent_sponsor));
+    // When compression authority closes, everything goes to rent sponsor
+    let destination_index = rent_sponsor_index;
 
-                        break;
-                    }
-                }
-            }
-            // When rent authority closes, everything goes to rent recipient
-            (recipient_index, authority_index, recipient_index)
-        } else {
-            // Owner is the authority and needs to sign
-            // Check if there's a compressible extension to get the rent_sponsor
-            let mut recipient_index = owner_index; // Default to owner if no extension
-            if let Some(extensions) = &ctoken_account.extensions {
-                for extension in extensions {
-                    if let ZExtensionStruct::Compressible(e) = extension {
-                        recipient_index =
-                            packed_accounts.insert_or_get(Pubkey::from(e.info.rent_sponsor));
-
-                        break;
-                    }
-                }
-            }
-            (
-                recipient_index,
-                packed_accounts.insert_or_get_config(
-                    Pubkey::from(ctoken_account.owner.to_bytes()),
-                    true,
-                    false,
-                ),
-                owner_index, // User funds go to owner
-            )
-        };
     Ok(CompressAndCloseIndices {
         source_index,
         mint_index,
@@ -117,7 +81,6 @@ fn find_account_indices(
     authority: &Pubkey,
     rent_sponsor_pubkey: &Pubkey,
     destination_pubkey: &Pubkey,
-    // output_tree_pubkey: &Pubkey,
 ) -> Result<CompressAndCloseIndices, CTokenSdkError> {
     let source_index = find_index(ctoken_account_key).ok_or_else(|| {
         msg!("Source ctoken account not found in packed_accounts");
@@ -172,7 +135,6 @@ fn find_account_indices(
 #[profile]
 pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
     fee_payer: Pubkey,
-    rent_sponsor_is_signer: bool,
     cpi_context_pubkey: Option<Pubkey>,
     indices: &[CompressAndCloseIndices],
     packed_accounts: &[AccountInfo<'info>],
@@ -218,11 +180,8 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             idx.destination_index, // destination for user funds
         )?;
 
-        if rent_sponsor_is_signer {
-            packed_account_metas[idx.authority_index as usize].is_signer = true;
-        } else {
-            packed_account_metas[idx.owner_index as usize].is_signer = true;
-        }
+        // Compression authority must sign
+        packed_account_metas[idx.authority_index as usize].is_signer = true;
 
         token_accounts.push(token_account);
     }
@@ -268,9 +227,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
 ///
 /// # Arguments
 /// * `fee_payer` - The fee payer pubkey
-/// * `with_compression_authority` - If true, use rent authority from compressible token extension
 /// * `output_queue_pubkey` - The output queue pubkey where compressed accounts will be stored
-/// * `cpi_context_pubkey` - Optional CPI context account for optimized multi-program transactions
 /// * `ctoken_solana_accounts` - Slice of ctoken Solana account infos to compress and close
 /// * `packed_accounts` - Slice of all accounts that will be used in the instruction (tree accounts)
 ///
@@ -279,7 +236,6 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
 #[profile]
 pub fn compress_and_close_ctoken_accounts<'info>(
     fee_payer: Pubkey,
-    with_compression_authority: bool,
     output_queue: AccountInfo<'info>,
     ctoken_solana_accounts: &[&AccountInfo<'info>],
     packed_accounts: &[AccountInfo<'info>],
@@ -303,7 +259,6 @@ pub fn compress_and_close_ctoken_accounts<'info>(
     let mut indices_vec = Vec::with_capacity(ctoken_solana_accounts.len());
 
     for ctoken_account_info in ctoken_solana_accounts.iter() {
-        let mut rent_sponsor_pubkey: Option<Pubkey> = None;
         // Deserialize the ctoken Solana account using light zero copy
         let account_data = ctoken_account_info
             .try_borrow_data()
@@ -318,62 +273,15 @@ pub fn compress_and_close_ctoken_accounts<'info>(
         let mint_pubkey = Pubkey::from(compressed_token.mint.to_bytes());
         let owner_pubkey = Pubkey::from(compressed_token.owner.to_bytes());
 
-        // Check if there's a compressible token extension to get the rent authority
-        let authority = if with_compression_authority {
-            // Find the compressible token extension
-            let mut compression_authority = owner_pubkey;
-            if let Some(extensions) = &compressed_token.extensions {
-                for extension in extensions {
-                    if let ZExtensionStruct::Compressible(extension) = extension {
-                        // Check if compression_authority is set (non-zero)
-                        if extension.info.compression_authority != [0u8; 32] {
-                            compression_authority =
-                                Pubkey::from(extension.info.compression_authority);
-                        }
-                        break;
-                    }
-                }
-            }
-            compression_authority
-        } else {
-            // If not using rent authority, always use the owner
-            owner_pubkey
-        };
+        // Get compression info from Compressible extension
+        let compressible_ext = compressed_token
+            .get_compressible_extension()
+            .ok_or(CTokenSdkError::MissingCompressibleExtension)?;
+        let authority = Pubkey::from(compressible_ext.info.compression_authority);
+        let rent_sponsor = Pubkey::from(compressible_ext.info.rent_sponsor);
 
-        // Determine rent recipient from extension or use default
-        let actual_rent_sponsor = if let Some(sponsor) = rent_sponsor_pubkey {
-            sponsor
-        } else {
-            // Check if there's a rent recipient in the compressible extension
-            if let Some(extensions) = &compressed_token.extensions {
-                for extension in extensions {
-                    if let ZExtensionStruct::Compressible(ext) = extension {
-                        // Check if rent_sponsor is set (non-zero)
-                        if ext.info.rent_sponsor != [0u8; 32] {
-                            rent_sponsor_pubkey = Some(Pubkey::from(ext.info.rent_sponsor));
-                        }
-                        break;
-                    }
-                }
-            }
-
-            // If still no rent recipient, find the fee payer (first signer)
-            if rent_sponsor_pubkey.is_none() {
-                for account in packed_accounts.iter() {
-                    if account.is_signer {
-                        rent_sponsor_pubkey = Some(*account.key);
-                        break;
-                    }
-                }
-            }
-            rent_sponsor_pubkey.ok_or(CTokenSdkError::InvalidAccountData)?
-        };
-
-        let destination_pubkey = if with_compression_authority {
-            actual_rent_sponsor
-        } else {
-            owner_pubkey
-        };
+        // When compression authority closes, everything goes to rent sponsor
+        let destination_pubkey = rent_sponsor;
 
         let indices = find_account_indices(
             find_index,
@@ -381,7 +289,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             &mint_pubkey,
             &owner_pubkey,
             &authority,
-            &actual_rent_sponsor,
+            &rent_sponsor,
             &destination_pubkey,
         )?;
         indices_vec.push(indices);
@@ -392,7 +300,6 @@ pub fn compress_and_close_ctoken_accounts<'info>(
 
     compress_and_close_ctoken_accounts_with_indices(
         fee_payer,
-        with_compression_authority,
         None,
         &indices_vec,
         packed_accounts_vec.as_slice(),
@@ -419,7 +326,6 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
     cpi_authority: AccountInfo<'info>,
     post_system: &[AccountInfo<'info>],
     remaining_accounts: &[AccountInfo<'info>],
-    with_compression_authority: bool,
 ) -> Result<(), CTokenSdkError> {
     let mut packed_accounts = Vec::with_capacity(post_system.len() + 4);
     packed_accounts.extend_from_slice(post_system);
@@ -433,7 +339,6 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
 
     let instruction = compress_and_close_ctoken_accounts(
         *fee_payer.key,
-        with_compression_authority,
         output_queue,
         &ctoken_infos,
         &packed_accounts,

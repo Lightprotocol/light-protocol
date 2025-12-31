@@ -3,7 +3,10 @@ use light_client::{
     rpc::Rpc,
 };
 use light_ctoken_interface::{
-    instructions::transfer2::{MultiInputTokenDataWithContext, MultiTokenTransferOutputData},
+    instructions::{
+        extensions::ExtensionInstructionData,
+        transfer2::{MultiInputTokenDataWithContext, MultiTokenTransferOutputData},
+    },
     state::TokenDataVersion,
     CTOKEN_PROGRAM_ID,
 };
@@ -22,6 +25,7 @@ use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
+#[allow(clippy::too_many_arguments)]
 pub fn pack_input_token_account(
     account: &CompressedTokenAccount,
     tree_info: &PackedStateTreeInfo,
@@ -29,6 +33,8 @@ pub fn pack_input_token_account(
     in_lamports: &mut Vec<u64>,
     is_delegate_transfer: bool, // Explicitly specify if delegate is signing
     token_data_version: TokenDataVersion,
+    override_owner: Option<Pubkey>, // For is_ata: use destination CToken owner instead
+    is_ata: bool,                   // For ATA decompress: owner (ATA pubkey) is not a signer
 ) -> MultiInputTokenDataWithContext {
     // Check if account has a delegate
     let has_delegate = account.token.delegate.is_some();
@@ -36,7 +42,8 @@ pub fn pack_input_token_account(
     // Determine who should be the signer
     // For delegate transfers, the account MUST have a delegate set
     // If is_delegate_transfer is true but no delegate exists, owner must sign
-    let owner_is_signer = !is_delegate_transfer || !has_delegate;
+    // For ATA decompress, the owner (ATA pubkey) cannot sign - wallet owner signs as fee payer
+    let owner_is_signer = !is_ata && (!is_delegate_transfer || !has_delegate);
 
     let delegate_index = if let Some(delegate) = account.token.delegate {
         // Delegate is signer only if this is explicitly a delegate transfer
@@ -49,6 +56,10 @@ pub fn pack_input_token_account(
         in_lamports.push(account.account.lamports);
     }
 
+    // For is_ata, use override_owner (wallet owner from destination CToken)
+    // For regular accounts, use the compressed account's owner
+    let effective_owner = override_owner.unwrap_or(account.token.owner);
+
     MultiInputTokenDataWithContext {
         amount: account.token.amount,
         merkle_context: light_compressed_account::compressed_account::PackedMerkleContext {
@@ -59,7 +70,7 @@ pub fn pack_input_token_account(
         },
         root_index: tree_info.root_index,
         mint: packed_accounts.insert_or_get_read_only(account.token.mint),
-        owner: packed_accounts.insert_or_get_config(account.token.owner, owner_is_signer, false),
+        owner: packed_accounts.insert_or_get_config(effective_owner, owner_is_signer, false),
         has_delegate, // Indicates if account has a delegate set
         delegate: delegate_index,
         version: token_data_version as u8, // V2 for batched Merkle trees
@@ -72,6 +83,7 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
     decompress_amount: u64,
     solana_token_account: Pubkey,
     payer: Pubkey,
+    decimals: u8,
 ) -> Result<Instruction, CTokenSdkError> {
     create_generic_transfer2_instruction(
         rpc,
@@ -81,6 +93,8 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
             solana_token_account,
             amount: decompress_amount,
             pool_index: None,
+            decimals,
+            in_tlv: None,
         })],
         payer,
         false,
@@ -104,6 +118,9 @@ pub struct DecompressInput {
     pub solana_token_account: Pubkey,
     pub amount: u64,
     pub pool_index: Option<u8>, // For SPL only. None = default (0), Some(n) = specific pool
+    pub decimals: u8,           // Mint decimals for SPL transfer_checked
+    /// TLV extensions for each input compressed account (required for version 3 accounts with extensions).
+    pub in_tlv: Option<Vec<Vec<ExtensionInstructionData>>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -116,6 +133,8 @@ pub struct CompressInput {
     pub authority: Pubkey,
     pub output_queue: Pubkey,
     pub pool_index: Option<u8>, // For SPL only. None = default (0), Some(n) = specific pool
+    pub decimals: u8,           // Mint decimals for SPL transfer_checked
+    pub version: Option<TokenDataVersion>, // Optional: specify output version. None = ShaFlat (3)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -214,6 +233,8 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     let mut in_lamports = Vec::new();
     let mut out_lamports = Vec::new();
     let mut token_accounts = Vec::new();
+    let mut collected_in_tlv: Vec<Vec<ExtensionInstructionData>> = Vec::new();
+    let mut has_any_tlv = false;
     for action in actions {
         match action {
             Transfer2InstructionType::Compress(input) => {
@@ -243,16 +264,31 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                                         account.account.data.as_ref().unwrap().discriminator,
                                     )
                                     .unwrap(),
+                                    None,  // No override for compress
+                                    false, // Not an ATA decompress
                                 ))
                             })
                             .collect::<Result<Vec<_>, _>>()?;
                         inputs_offset += token_data.len();
                         CTokenAccount2::new(token_data)?
                     } else {
-                        CTokenAccount2::new_empty(
-                            packed_tree_accounts.insert_or_get(input.to),
-                            packed_tree_accounts.insert_or_get(input.mint),
-                        )
+                        let owner_index = packed_tree_accounts.insert_or_get(input.to);
+                        let mint_index = packed_tree_accounts.insert_or_get(input.mint);
+                        let version = input.version.unwrap_or(TokenDataVersion::ShaFlat) as u8;
+                        CTokenAccount2 {
+                            inputs: vec![],
+                            output: MultiTokenTransferOutputData {
+                                owner: owner_index,
+                                amount: 0,
+                                delegate: 0,
+                                mint: mint_index,
+                                version,
+                                has_delegate: false,
+                            },
+                            compression: None,
+                            delegate_is_set: false,
+                            method_used: false,
+                        }
                     };
 
                 let source_index = packed_tree_accounts.insert_or_get(input.solana_token_account);
@@ -278,7 +314,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     // Use pool_index from input, default to 0
                     let pool_index = input.pool_index.unwrap_or(0);
                     let (spl_interface_pda, bump) =
-                        find_spl_interface_pda_with_index(&mint, pool_index);
+                        find_spl_interface_pda_with_index(&mint, pool_index, false);
                     let pool_account_index = packed_tree_accounts.insert_or_get(spl_interface_pda);
 
                     // Use the new SPL-specific compress method
@@ -289,6 +325,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         pool_account_index,
                         pool_index,
                         bump,
+                        input.decimals,
                     )?;
                 } else {
                     // Regular compression for compressed token accounts
@@ -297,6 +334,60 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 token_accounts.push(token_account);
             }
             Transfer2InstructionType::Decompress(input) => {
+                // Collect in_tlv data if provided
+                if let Some(ref tlv_data) = input.in_tlv {
+                    has_any_tlv = true;
+                    collected_in_tlv.extend(tlv_data.iter().cloned());
+                } else {
+                    // Add empty TLV entries for each input (needed for proper indexing)
+                    for _ in 0..input.compressed_token_account.len() {
+                        collected_in_tlv.push(Vec::new());
+                    }
+                }
+
+                // Check if any input has is_ata=true in the TLV
+                // If so, we need to use the destination CToken's owner as the signer
+                let is_ata = input.in_tlv.as_ref().is_some_and(|tlv| {
+                    tlv.iter().flatten().any(|ext| {
+                        matches!(ext, ExtensionInstructionData::CompressedOnly(data) if data.is_ata)
+                    })
+                });
+
+                // Add recipient account and get account info
+                let recipient_index =
+                    packed_tree_accounts.insert_or_get(input.solana_token_account);
+                let recipient_account = rpc
+                    .get_account(input.solana_token_account)
+                    .await
+                    .unwrap()
+                    .unwrap();
+                let recipient_account_owner = recipient_account.owner;
+
+                // For is_ata, the compressed account owner is the ATA pubkey (stored during compress_and_close)
+                // We keep that for hash calculation. The wallet owner signs instead of ATA pubkey.
+                // Get the wallet owner from the destination CToken account and add as signer.
+                if is_ata && recipient_account_owner.to_bytes() == CTOKEN_PROGRAM_ID {
+                    // Deserialize CToken to get wallet owner
+                    use borsh::BorshDeserialize;
+                    use light_ctoken_interface::state::CToken;
+                    if let Ok(ctoken) = CToken::deserialize(&mut &recipient_account.data[..]) {
+                        let wallet_owner = Pubkey::from(ctoken.owner.to_bytes());
+                        // Add wallet owner as signer and get its index
+                        let wallet_owner_index =
+                            packed_tree_accounts.insert_or_get_config(wallet_owner, true, false);
+                        // Update the owner_index in collected_in_tlv for CompressedOnly extensions
+                        for tlv in collected_in_tlv.iter_mut() {
+                            for ext in tlv.iter_mut() {
+                                if let ExtensionInstructionData::CompressedOnly(data) = ext {
+                                    if data.is_ata {
+                                        data.owner_index = wallet_owner_index;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 let token_data = input
                     .compressed_token_account
                     .iter()
@@ -319,20 +410,13 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                                 account.account.data.as_ref().unwrap().discriminator,
                             )
                             .unwrap(),
+                            None,   // No override - use stored owner (ATA pubkey for is_ata)
+                            is_ata, // For ATA: owner (ATA pubkey) is not signer
                         )
                     })
                     .collect::<Vec<_>>();
                 inputs_offset += token_data.len();
                 let mut token_account = CTokenAccount2::new(token_data)?;
-                // Add recipient SPL token account
-                let recipient_index =
-                    packed_tree_accounts.insert_or_get(input.solana_token_account);
-                let recipient_account_owner = rpc
-                    .get_account(input.solana_token_account)
-                    .await
-                    .unwrap()
-                    .unwrap()
-                    .owner;
 
                 if recipient_account_owner.to_bytes() != CTOKEN_PROGRAM_ID {
                     // For SPL decompression, get mint first
@@ -345,7 +429,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     // Use pool_index from input, default to 0
                     let pool_index = input.pool_index.unwrap_or(0);
                     let (spl_interface_pda, bump) =
-                        find_spl_interface_pda_with_index(&mint, pool_index);
+                        find_spl_interface_pda_with_index(&mint, pool_index, false);
                     let pool_account_index = packed_tree_accounts.insert_or_get(spl_interface_pda);
 
                     // Use the new SPL-specific decompress method
@@ -355,6 +439,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         pool_account_index,
                         pool_index,
                         bump,
+                        input.decimals,
                     )?;
                 } else {
                     // Use the new SPL-specific decompress method
@@ -394,6 +479,8 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                                 account.account.data.as_ref().unwrap().discriminator,
                             )
                             .unwrap(),
+                            None,  // No override for transfer
+                            false, // Not an ATA decompress
                         )
                     })
                     .collect::<Vec<_>>();
@@ -474,6 +561,8 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                                 account.account.data.as_ref().unwrap().discriminator,
                             )
                             .unwrap(),
+                            None,  // No override for approve
+                            false, // Not an ATA decompress
                         )
                     })
                     .collect::<Vec<_>>();
@@ -504,45 +593,21 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     .ok_or(CTokenSdkError::InvalidAccountData)?;
 
                 // Parse the compressed token account using zero-copy deserialization
-                use light_ctoken_interface::state::{CToken, ZExtensionStruct};
+                use light_ctoken_interface::state::CToken;
                 use light_zero_copy::traits::ZeroCopyAt;
                 let (compressed_token, _) = CToken::zero_copy_at(&token_account_info.data)
                     .map_err(|_| CTokenSdkError::InvalidAccountData)?;
                 let mint = compressed_token.mint;
-                let balance = compressed_token.amount;
+                let balance: u64 = compressed_token.amount.into();
                 let owner = compressed_token.owner;
 
-                // Extract rent_sponsor, compression_authority, and compress_to_pubkey from compressible extension
-                // For non-compressible accounts, use the owner as the rent_sponsor
-                let (rent_sponsor, _compression_authority, compress_to_pubkey) = if input
-                    .is_compressible
-                {
-                    if let Some(extensions) = compressed_token.extensions.as_ref() {
-                        let mut found_rent_sponsor = None;
-                        let mut found_compression_authority = None;
-                        let mut found_compress_to_pubkey = false;
-                        for extension in extensions {
-                            if let ZExtensionStruct::Compressible(compressible_ext) = extension {
-                                found_rent_sponsor = Some(compressible_ext.info.rent_sponsor);
-                                found_compression_authority =
-                                    Some(compressible_ext.info.compression_authority);
-                                found_compress_to_pubkey =
-                                    compressible_ext.info.compress_to_pubkey == 1;
-                                break;
-                            }
-                        }
-                        (
-                            found_rent_sponsor.ok_or(CTokenSdkError::InvalidAccountData)?,
-                            found_compression_authority,
-                            found_compress_to_pubkey,
-                        )
-                    } else {
-                        return Err(CTokenSdkError::InvalidAccountData);
-                    }
-                } else {
-                    // Non-compressible account: use owner as rent_sponsor
-                    (owner.to_bytes(), None, false)
-                };
+                // Extract rent_sponsor, compression_authority, and compress_to_pubkey from Compressible extension
+                let compressible_ext = compressed_token
+                    .get_compressible_extension()
+                    .ok_or(CTokenSdkError::MissingCompressibleExtension)?;
+                let rent_sponsor = compressible_ext.info.rent_sponsor;
+                let _compression_authority = compressible_ext.info.compression_authority;
+                let compress_to_pubkey = compressible_ext.info.compress_to_pubkey == 1;
 
                 // Add source account first (it's being closed, so needs to be writable)
                 let source_index = packed_tree_accounts.insert_or_get(input.solana_ctoken_account);
@@ -579,7 +644,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     .unwrap_or(authority_index); // Default to authority if no destination specified
 
                 token_account.compress_and_close(
-                    (*balance).into(),
+                    balance,
                     source_index,
                     authority_index,
                     rent_sponsor_index,         // Use the extracted rent_sponsor
@@ -621,6 +686,11 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
         },
         token_accounts,
         output_queue: shared_output_queue,
+        in_tlv: if has_any_tlv {
+            Some(collected_in_tlv)
+        } else {
+            None
+        },
     };
     create_transfer2_instruction(inputs)
 }

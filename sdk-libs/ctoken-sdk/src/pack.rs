@@ -108,8 +108,8 @@ pub mod compat {
         pub delegate: Option<Pubkey>,
         /// The account's state
         pub state: AccountState,
-        /// Placeholder for TokenExtension tlv data (unimplemented)
-        pub tlv: Option<Vec<u8>>,
+        /// TLV extensions for compressed token accounts
+        pub tlv: Option<Vec<light_ctoken_interface::state::ExtensionStruct>>,
     }
 
     impl TokenData {

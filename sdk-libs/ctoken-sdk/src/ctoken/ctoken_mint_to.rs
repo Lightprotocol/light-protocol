@@ -42,11 +42,13 @@ pub struct CTokenMintTo {
 /// # let cmint: AccountInfo = todo!();
 /// # let destination: AccountInfo = todo!();
 /// # let authority: AccountInfo = todo!();
+/// # let system_program: AccountInfo = todo!();
 /// CTokenMintToCpi {
 ///     cmint,
 ///     destination,
 ///     amount: 100,
 ///     authority,
+///     system_program,
 ///     max_top_up: None,
 /// }
 /// .invoke()?;
@@ -57,6 +59,7 @@ pub struct CTokenMintToCpi<'info> {
     pub destination: AccountInfo<'info>,
     pub amount: u64,
     pub authority: AccountInfo<'info>,
+    pub system_program: AccountInfo<'info>,
     /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
     pub max_top_up: Option<u16>,
 }
@@ -68,13 +71,23 @@ impl<'info> CTokenMintToCpi<'info> {
 
     pub fn invoke(self) -> Result<(), ProgramError> {
         let instruction = CTokenMintTo::from(&self).instruction()?;
-        let account_infos = [self.cmint, self.destination, self.authority];
+        let account_infos = [
+            self.cmint,
+            self.destination,
+            self.authority,
+            self.system_program,
+        ];
         invoke(&instruction, &account_infos)
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = CTokenMintTo::from(&self).instruction()?;
-        let account_infos = [self.cmint, self.destination, self.authority];
+        let account_infos = [
+            self.cmint,
+            self.destination,
+            self.authority,
+            self.system_program,
+        ];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
@@ -98,7 +111,8 @@ impl CTokenMintTo {
             accounts: vec![
                 AccountMeta::new(self.cmint, false),
                 AccountMeta::new(self.destination, false),
-                AccountMeta::new_readonly(self.authority, true),
+                AccountMeta::new(self.authority, true),
+                AccountMeta::new_readonly(Pubkey::default(), false), // System program for lamport transfers
             ],
             data: {
                 let mut data = vec![7u8]; // CTokenMintTo discriminator

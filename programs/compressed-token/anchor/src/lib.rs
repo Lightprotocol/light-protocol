@@ -37,8 +37,9 @@ solana_security_txt::security_txt! {
 pub mod light_compressed_token {
 
     use constants::{NOT_FROZEN, NUM_MAX_POOL_ACCOUNTS};
+    use instructions::create_token_pool::restricted_seed;
+    use light_ctoken_interface::is_valid_spl_interface_pda;
     use light_zero_copy::traits::ZeroCopyAt;
-    use spl_compression::check_spl_token_pool_derivation_with_index;
 
     use super::*;
 
@@ -51,11 +52,19 @@ pub mod light_compressed_token {
     ) -> Result<()> {
         instructions::create_token_pool::assert_mint_extensions(
             &ctx.accounts.mint.to_account_info().try_borrow_data()?,
+        )?;
+        // Initialize the token account via CPI (Anchor's init constraint only allocated space)
+        instructions::create_token_pool::initialize_token_account(
+            &ctx.accounts.token_pool_pda,
+            &ctx.accounts.mint,
+            &ctx.accounts.cpi_authority_pda,
+            &ctx.accounts.token_program.to_account_info(),
         )
     }
 
     /// This instruction creates an additional token pool for a given mint.
     /// The maximum number of token pools per mint is 5.
+    /// For mints with restricted extensions, uses restricted PDA derivation.
     pub fn add_token_pool<'info>(
         ctx: Context<'_, '_, '_, 'info, AddTokenPoolInstruction<'info>>,
         token_pool_index: u8,
@@ -63,11 +72,25 @@ pub mod light_compressed_token {
         if token_pool_index >= NUM_MAX_POOL_ACCOUNTS {
             return err!(ErrorCode::InvalidTokenPoolBump);
         }
-        // Check that token pool account with previous bump already exists.
-        check_spl_token_pool_derivation_with_index(
+        // Check that token pool account with previous index already exists.
+        // Use the same restricted derivation as the new pool.
+        let is_restricted = !restricted_seed(&ctx.accounts.mint).is_empty();
+        let prev_index = token_pool_index.saturating_sub(1);
+        if !is_valid_spl_interface_pda(
             &ctx.accounts.mint.key().to_bytes(),
             &ctx.accounts.existing_token_pool_pda.key(),
-            &[token_pool_index.saturating_sub(1)],
+            prev_index,
+            None,
+            is_restricted,
+        ) {
+            return err!(ErrorCode::InvalidTokenPoolPda);
+        }
+        // Initialize the token account via CPI (Anchor's init constraint only allocated space)
+        instructions::create_token_pool::initialize_token_account(
+            &ctx.accounts.token_pool_pda,
+            &ctx.accounts.mint,
+            &ctx.accounts.cpi_authority_pda,
+            &ctx.accounts.token_program.to_account_info(),
         )
     }
 
@@ -294,7 +317,8 @@ pub enum ErrorCode {
     InvalidExtensionType,
     InstructionDataExpectedDelegate,
     ZeroCopyExpectedDelegate,
-    TokenDataTlvUnimplemented,
+    #[msg("Unsupported TLV extension type - only CompressedOnly is currently implemented")]
+    UnsupportedTlvExtensionType,
     // Mint Action specific errors
     #[msg("Mint action requires at least one action")]
     MintActionNoActionsProvided,
@@ -467,11 +491,71 @@ pub enum ErrorCode {
     InvalidCMintAccount,
     #[msg("Mint data required in instruction when not decompressed")]
     MintDataRequired,
+    // Extension validation errors
+    #[msg("Invalid mint account data")]
+    InvalidMint,
+    #[msg("Token operations blocked - mint is paused")]
+    MintPaused,
+    #[msg("Mint account required for transfer when account has PausableAccount extension")]
+    MintRequiredForTransfer,
+    #[msg("Non-zero transfer fees are not supported")]
+    NonZeroTransferFeeNotSupported,
+    #[msg("Transfer hooks with non-nil program_id are not supported")]
+    TransferHookNotSupported,
+    #[msg("Mint has extensions that require compression_only mode")]
+    CompressionOnlyRequired,
+    #[msg("CompressAndClose: Compressed token mint does not match source token account mint")]
+    CompressAndCloseInvalidMint,
+    #[msg("CompressAndClose: Missing required CompressedOnly extension in output TLV")]
+    CompressAndCloseMissingCompressedOnlyExtension,
+    #[msg("CompressAndClose: CompressedOnly mint_account_index must be 0")]
+    CompressAndCloseInvalidMintAccountIndex,
+    #[msg(
+        "CompressAndClose: Delegated amount mismatch between ctoken and CompressedOnly extension"
+    )]
+    CompressAndCloseDelegatedAmountMismatch,
+    #[msg("CompressAndClose: Delegate mismatch between ctoken and compressed token output")]
+    CompressAndCloseInvalidDelegate,
+    #[msg("CompressAndClose: Withheld transfer fee mismatch")]
+    CompressAndCloseWithheldFeeMismatch,
+    #[msg("CompressAndClose: Frozen state mismatch")]
+    CompressAndCloseFrozenMismatch,
+    #[msg("TLV extensions require version 3 (ShaFlat)")]
+    TlvRequiresVersion3,
+    #[msg("CToken account has extensions that cannot be compressed. Only Compressible extension or no extensions allowed.")]
+    CTokenHasDisallowedExtensions,
+    #[msg("CompressAndClose: rent_sponsor_is_signer flag does not match actual signer")]
+    RentSponsorIsSignerMismatch,
+    #[msg("Mint has restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook, DefaultAccountState) must not create compressed token accounts.")]
+    MintHasRestrictedExtensions,
+    #[msg("Decompress: CToken delegate does not match input compressed account delegate")]
+    DecompressDelegateMismatch,
+    #[msg("Mint cache capacity exceeded (max 5 unique mints)")]
+    MintCacheCapacityExceeded,
+    #[msg("in_lamports field is not yet implemented")]
+    InLamportsUnimplemented,
+    #[msg("out_lamports field is not yet implemented")]
+    OutLamportsUnimplemented,
+    #[msg("Mints with restricted extensions require compressible accounts")]
+    CompressibleRequired,
+    #[msg("CMint account not found")]
+    CMintNotFound,
+    #[msg("CompressedOnly inputs must decompress to CToken account, not SPL token account")]
+    CompressedOnlyRequiresCTokenDecompress,
+    #[msg("Invalid token data version")]
+    InvalidTokenDataVersion,
+    #[msg("compression_only can only be set for mints with restricted extensions")]
+    CompressionOnlyNotAllowed,
+    #[msg("Associated token accounts must have compression_only set")]
+    AtaRequiresCompressionOnly,
 }
+
+/// Anchor error code offset - error codes start at 6000
+pub const ERROR_CODE_OFFSET: u32 = 6000;
 
 impl From<ErrorCode> for ProgramError {
     fn from(e: ErrorCode) -> Self {
-        ProgramError::Custom(e as u32)
+        ProgramError::Custom(ERROR_CODE_OFFSET + e as u32)
     }
 }
 

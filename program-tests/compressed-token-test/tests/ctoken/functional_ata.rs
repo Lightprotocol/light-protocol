@@ -19,19 +19,22 @@ async fn test_associated_token_account_operations() {
     let payer_pubkey = context.payer.pubkey();
     let owner_pubkey = context.owner_keypair.pubkey();
 
-    // Create basic (non-compressible) ATA using SDK function
-    let (ata, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
-    let instruction = CreateAssociatedCTokenAccount {
-        idempotent: false,
-        bump,
-        payer: payer_pubkey,
-        owner: owner_pubkey,
-        mint: context.mint_pubkey,
-        associated_token_account: ata,
-        compressible: None,
-    }
-    .instruction()
-    .unwrap();
+    // Create ATA with 0 prepaid epochs (immediately compressible)
+    let compressible_params = CompressibleParams {
+        compressible_config: context.compressible_config,
+        rent_sponsor: context.rent_sponsor,
+        pre_pay_num_epochs: 0,
+        lamports_per_write: None,
+        compress_to_account_pubkey: None,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: true,
+    };
+
+    let instruction =
+        CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+            .with_compressible(compressible_params)
+            .instruction()
+            .unwrap();
 
     context
         .rpc
@@ -39,11 +42,23 @@ async fn test_associated_token_account_operations() {
         .await
         .unwrap();
 
-    // Verify basic ATA creation using existing assertion helper
+    // Verify ATA creation using existing assertion helper
+    // Pass CompressibleData with 0 prepaid epochs since all accounts now have compression infrastructure
+    let compressible_data = CompressibleData {
+        compression_authority: context.compression_authority,
+        rent_sponsor: context.rent_sponsor,
+        num_prepaid_epochs: 0,
+        lamports_per_write: None,
+        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compress_to_pubkey: false,
+        payer: payer_pubkey,
+    };
+
     assert_create_associated_token_account(
         &mut context.rpc,
         owner_pubkey,
         context.mint_pubkey,
+        Some(compressible_data),
         None,
     )
     .await;
@@ -62,6 +77,7 @@ async fn test_associated_token_account_operations() {
         lamports_per_write,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: true,
     };
 
     let compressible_instruction = CreateAssociatedCTokenAccount::new(
@@ -97,6 +113,7 @@ async fn test_associated_token_account_operations() {
             account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
+        None,
     )
     .await;
 
@@ -152,19 +169,23 @@ async fn test_create_ata_idempotent() {
     let mut context = setup_account_test().await.unwrap();
     let payer_pubkey = context.payer.pubkey();
     let owner_pubkey = context.owner_keypair.pubkey();
-    let (ata, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
-    // Create ATA using non-idempotent instruction (first creation)
-    let instruction = CreateAssociatedCTokenAccount {
-        idempotent: false,
-        bump,
-        payer: payer_pubkey,
-        owner: owner_pubkey,
-        mint: context.mint_pubkey,
-        associated_token_account: ata,
-        compressible: None,
-    }
-    .instruction()
-    .unwrap();
+
+    // Create ATA with 0 prepaid epochs using non-idempotent instruction (first creation)
+    let compressible_params = CompressibleParams {
+        compressible_config: context.compressible_config,
+        rent_sponsor: context.rent_sponsor,
+        pre_pay_num_epochs: 0,
+        lamports_per_write: None,
+        compress_to_account_pubkey: None,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: true,
+    };
+
+    let instruction =
+        CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+            .with_compressible(compressible_params)
+            .instruction()
+            .unwrap();
 
     context
         .rpc
@@ -173,10 +194,21 @@ async fn test_create_ata_idempotent() {
         .unwrap();
 
     // Verify ATA creation
+    let compressible_data = CompressibleData {
+        compression_authority: context.compression_authority,
+        rent_sponsor: context.rent_sponsor,
+        num_prepaid_epochs: 0,
+        lamports_per_write: None,
+        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compress_to_pubkey: false,
+        payer: payer_pubkey,
+    };
+
     assert_create_associated_token_account(
         &mut context.rpc,
         owner_pubkey,
         context.mint_pubkey,
+        Some(compressible_data),
         None,
     )
     .await;
@@ -211,11 +243,20 @@ async fn test_create_ata_idempotent() {
         .await
         .unwrap();
 
-    // Verify ATA is still correct
+    // Verify ATA is still correct - account was created with compressible params so still has compression
     assert_create_associated_token_account(
         &mut context.rpc,
         owner_pubkey,
         context.mint_pubkey,
+        Some(CompressibleData {
+            compression_authority: context.compression_authority,
+            rent_sponsor: context.rent_sponsor,
+            num_prepaid_epochs: 0,
+            lamports_per_write: None,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compress_to_pubkey: false,
+            payer: payer_pubkey,
+        }),
         None,
     )
     .await;
@@ -258,6 +299,16 @@ async fn test_create_ata_with_prefunded_lamports() {
     );
 
     // Now create the ATA - this should succeed despite pre-funded lamports
+    let compressible_params = CompressibleParams {
+        compressible_config: context.compressible_config,
+        rent_sponsor: context.rent_sponsor,
+        pre_pay_num_epochs: 0,
+        lamports_per_write: None,
+        compress_to_account_pubkey: None,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: true,
+    };
+
     let instruction = CreateAssociatedCTokenAccount {
         idempotent: false,
         bump,
@@ -265,7 +316,7 @@ async fn test_create_ata_with_prefunded_lamports() {
         owner: owner_pubkey,
         mint: context.mint_pubkey,
         associated_token_account: ata,
-        compressible: None,
+        compressible: compressible_params,
     }
     .instruction()
     .unwrap();
@@ -281,6 +332,15 @@ async fn test_create_ata_with_prefunded_lamports() {
         &mut context.rpc,
         owner_pubkey,
         context.mint_pubkey,
+        Some(CompressibleData {
+            compression_authority: context.compression_authority,
+            rent_sponsor: context.rent_sponsor,
+            num_prepaid_epochs: 0,
+            lamports_per_write: None,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compress_to_pubkey: false,
+            payer: payer_pubkey,
+        }),
         None,
     )
     .await;
@@ -338,6 +398,7 @@ async fn test_create_token_account_with_prefunded_lamports() {
         lamports_per_write: Some(100),
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: false, // Must be false for non-restricted mints (non-ATA accounts)
     };
 
     let create_token_account_ix = CreateCTokenAccount::new(
@@ -375,6 +436,7 @@ async fn test_create_token_account_with_prefunded_lamports() {
             account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
+        None,
     )
     .await;
 

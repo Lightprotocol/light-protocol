@@ -1,15 +1,15 @@
 ## MintAction
 
 **discriminator:** 103
-**enum:** `CTokenInstruction::MintAction`
+**enum:** `InstructionType::MintAction`
 **path:** programs/compressed-token/program/src/mint_action/
 
 **description:**
 Batch instruction for managing compressed mint accounts (cmints) and performing mint operations. A compressed mint account stores the mint's supply, decimals, authorities (mint/freeze), and optional TokenMetadata extension in compressed state. TokenMetadata is the only extension supported for compressed mints and provides fields for name, symbol, uri, update_authority, and additional key-value metadata.
 
-This instruction supports 9 total actions - one creation action (controlled by `create_mint` flag) and 8 enum-based actions:
+This instruction supports 11 total actions - one creation action (controlled by `create_mint` flag) and 10 enum-based actions:
 
-**Compressed mint creation (executed first when `create_mint=true`):**
+**Compressed mint creation (executed first when `create_mint` is Some):**
 1. **Create Compressed Mint** - Create a new compressed mint account with initial authorities and optional TokenMetadata extension
 
 **Core mint operations (Action enum variants):**
@@ -26,6 +26,10 @@ This instruction supports 9 total actions - one creation action (controlled by `
 8. `UpdateMetadataAuthority` - Update the metadata update authority in the TokenMetadata extension
 9. `RemoveMetadataKey` - Remove a key-value pair from additional_metadata in the TokenMetadata extension
 
+**Decompress/Compress operations (Action enum variants):**
+10. `DecompressMint` - Decompress a compressed mint to a CMint Solana account. Creates a CMint PDA that becomes the source of truth.
+11. `CompressAndCloseCMint` - Compress and close a CMint Solana account. Permissionless - anyone can call if is_compressible() returns true (rent expired).
+
 Key concepts integrated:
 - **Compressed mint (cmint)**: Mint state stored in compressed account with deterministic address derived from associated SPL mint pubkey
 - **SPL mint synchronization**: When SPL mint exists, supply is tracked in both compressed mint and SPL mint through token pool PDAs
@@ -33,23 +37,23 @@ Key concepts integrated:
 - **Batch processing**: Multiple actions execute sequentially with state updates persisted between actions
 
 **Instruction data:**
-1. instruction data is defined in path: program-libs/ctoken-types/src/instructions/mint_action/instruction_data.rs
+1. instruction data is defined in path: program-libs/ctoken-interface/src/instructions/mint_action/instruction_data.rs
 
    **Core fields:**
-   - `create_mint`: bool - Whether creating new compressed mint (true) or updating existing (false)
-   - `mint_bump`: u8 - PDA bump for SPL mint derivation (only used if create_mint=true)
-   - `leaf_index`: u32 - Merkle tree leaf index of existing compressed mint (only used if create_mint=false)
-   - `prove_by_index`: bool - Use proof-by-index for existing mint validation (only used if create_mint=false)
+   - `leaf_index`: u32 - Merkle tree leaf index of existing compressed mint (only used if create_mint is None)
+   - `prove_by_index`: bool - Use proof-by-index for existing mint validation (only used if create_mint is None)
    - `root_index`: u16 - Root index for address proof (create) or validity proof (update)
    - `compressed_address`: [u8; 32] - Deterministic address derived from SPL mint pubkey
    - `token_pool_bump`: u8 - Token pool PDA bump (required for SPL mint operations)
    - `token_pool_index`: u8 - Token pool PDA index (required for SPL mint operations)
+   - `max_top_up`: u16 - Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
+   - `create_mint`: Option<CreateMint> - Configuration for creating new compressed mint (None for existing mint operations)
    - `actions`: Vec<Action> - Ordered list of actions to execute
    - `proof`: Option<CompressedProof> - ZK proof for compressed account validation (required unless prove_by_index=true)
    - `cpi_context`: Option<CpiContext> - For cross-program invocation support
-   - `mint`: CompressedMintInstructionData - Full mint state including supply, decimals, metadata, authorities, and extensions
+   - `mint`: Option<CompressedMintInstructionData> - Full mint state including supply, decimals, metadata, authorities, and extensions (None when reading from decompressed CMint)
 
-2. Action types (path: program-libs/ctoken-types/src/instructions/mint_action/):
+2. Action types (path: program-libs/ctoken-interface/src/instructions/mint_action/):
    - `MintToCompressed(MintToCompressedAction)` - Mint tokens to compressed accounts (mint_to.rs)
    - `UpdateMintAuthority(UpdateAuthority)` - Update mint authority (update_mint.rs)
    - `UpdateFreezeAuthority(UpdateAuthority)` - Update freeze authority (update_mint.rs)
@@ -58,6 +62,8 @@ Key concepts integrated:
    - `UpdateMetadataField(UpdateMetadataFieldAction)` - Update metadata field (update_metadata.rs)
    - `UpdateMetadataAuthority(UpdateMetadataAuthorityAction)` - Update metadata authority (update_metadata.rs)
    - `RemoveMetadataKey(RemoveMetadataKeyAction)` - Remove metadata key (update_metadata.rs)
+   - `DecompressMint(DecompressMintAction)` - Decompress compressed mint to CMint Solana account
+   - `CompressAndCloseCMint(CompressAndCloseCMintAction)` - Compress and close CMint Solana account
 
 **Accounts:**
 1. light_system_program
@@ -66,7 +72,7 @@ Key concepts integrated:
 
 Optional accounts (based on configuration):
 2. mint_signer
-   - (signer) - required if create_mint=true or CreateSplMint action present
+   - (signer) - required if create_mint is Some or CreateSplMint action present
    - PDA seed for SPL mint creation (seeds from compressed mint randomness)
 
 3. authority
@@ -101,11 +107,11 @@ For execution (when not writing to CPI context):
 
 14. address_merkle_tree OR in_merkle_tree
    - (mutable)
-   - If create_mint=true: address_merkle_tree for new mint (must be CMINT_ADDRESS_TREE)
-   - If create_mint=false: in_merkle_tree for existing mint validation
+   - If create_mint is Some: address_merkle_tree for new mint (must be CMINT_ADDRESS_TREE)
+   - If create_mint is None: in_merkle_tree for existing mint validation
 
 15. in_output_queue
-   - (mutable) - optional, required if create_mint=false
+   - (mutable) - optional, required if create_mint is None
    - Input queue for existing compressed mint
 
 16. tokens_out_queue
@@ -134,10 +140,10 @@ Packed accounts (remaining accounts):
    - Extract packed accounts for dynamic operations
 
 3. **Process mint creation or input:**
-   - If create_mint=true:
+   - If create_mint is Some:
      - Derive SPL mint PDA from compressed address
      - Set create address in CPI instruction
-   - If create_mint=false:
+   - If create_mint is None:
      - Hash existing compressed mint account
      - Set input with merkle context (tree, queue, leaf_index, proof)
 
@@ -182,6 +188,16 @@ Packed accounts (remaining accounts):
    - Validate: metadata authority matches signer
    - Find: key in additional_metadata
    - Remove: key-value pair from metadata
+
+   **DecompressMint:**
+   - Decompress compressed mint to a CMint Solana account
+   - Create CMint PDA that becomes the source of truth
+   - Update cmint_decompressed flag in compressed mint metadata
+
+   **CompressAndCloseCMint:**
+   - Compress and close a CMint Solana account
+   - Permissionless - anyone can call if is_compressible() returns true (rent expired)
+   - Compressed mint state is preserved
 
 5. **Finalize output compressed mint:**
    - Hash updated mint state

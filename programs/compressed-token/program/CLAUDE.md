@@ -46,38 +46,68 @@ Every instruction description must include the sections:
 
 ### Account Management
 1. **Create CToken Account** - [`docs/instructions/CREATE_TOKEN_ACCOUNT.md`](docs/instructions/CREATE_TOKEN_ACCOUNT.md)
-   - Create regular token account (discriminator: 18, enum: `CTokenInstruction::CreateTokenAccount`)
-   - Create associated token account (discriminator: 6, enum: `CTokenInstruction::CreateAssociatedCTokenAccount`)
-   - Create associated token account idempotent (discriminator: 101, enum: `CTokenInstruction::CreateAssociatedTokenAccountIdempotent`)
+   - Create regular token account (discriminator: 18, enum: `InstructionType::CreateTokenAccount`)
+   - Create associated token account (discriminator: 100, enum: `InstructionType::CreateAssociatedCTokenAccount`)
+   - Create associated token account idempotent (discriminator: 102, enum: `InstructionType::CreateAssociatedTokenAccountIdempotent`)
    - **Config validation:** Requires ACTIVE config only
 
-2. **Close Token Account** - `src/close_token_account.rs` (discriminator: 9, enum: `CTokenInstruction::CloseTokenAccount`)
+2. **Close Token Account** - [`docs/instructions/CLOSE_TOKEN_ACCOUNT.md`](docs/instructions/CLOSE_TOKEN_ACCOUNT.md) (discriminator: 9, enum: `InstructionType::CloseTokenAccount`)
    - Close decompressed token accounts
    - Returns rent exemption to rent recipient if compressible
    - Returns remaining lamports to destination account
 
 ### Rent Management
 3. **Claim** - [`docs/instructions/CLAIM.md`](docs/instructions/CLAIM.md)
-   - Claims rent from expired compressible accounts (discriminator: 104, enum: `CTokenInstruction::Claim`)
+   - Claims rent from expired compressible accounts (discriminator: 104, enum: `InstructionType::Claim`)
    - **Config validation:** Not inactive (active or deprecated OK)
 
 4. **Withdraw Funding Pool** - [`docs/instructions/WITHDRAW_FUNDING_POOL.md`](docs/instructions/WITHDRAW_FUNDING_POOL.md)
-   - Withdraws funds from rent recipient pool (discriminator: 105, enum: `CTokenInstruction::WithdrawFundingPool`)
+   - Withdraws funds from rent recipient pool (discriminator: 105, enum: `InstructionType::WithdrawFundingPool`)
    - **Config validation:** Not inactive (active or deprecated OK)
 
 ### Token Operations
 5. **Transfer2** - [`docs/instructions/TRANSFER2.md`](docs/instructions/TRANSFER2.md)
-   - Batch transfer instruction for compressed/decompressed operations (discriminator: 101, enum: `CTokenInstruction::Transfer2`)
+   - Batch transfer instruction for compressed/decompressed operations (discriminator: 101, enum: `InstructionType::Transfer2`)
    - Supports Compress, Decompress, CompressAndClose operations
    - Multi-mint support with sum checks
 
 6. **MintAction** - [`docs/instructions/MINT_ACTION.md`](docs/instructions/MINT_ACTION.md)
-   - Batch instruction for compressed mint management and mint operations (discriminator: 103, enum: `CTokenInstruction::MintAction`)
+   - Batch instruction for compressed mint management and mint operations (discriminator: 103, enum: `InstructionType::MintAction`)
    - Supports 9 action types: CreateCompressedMint, MintTo, UpdateMintAuthority, UpdateFreezeAuthority, CreateSplMint, MintToCToken, UpdateMetadataField, UpdateMetadataAuthority, RemoveMetadataKey
    - Handles both compressed and decompressed token minting
 
-7. **CTokenTransfer** - `src/ctoken_transfer.rs` (discriminator: 3, enum: `CTokenInstruction::CTokenTransfer`)
-   - Transfer between decompressed accounts
+7. **CTokenTransfer** - [`docs/instructions/CTOKEN_TRANSFER.md`](docs/instructions/CTOKEN_TRANSFER.md)
+   - Transfer between decompressed accounts (discriminator: 3, enum: `InstructionType::CTokenTransfer`)
+
+8. **CTokenTransferChecked** - [`docs/instructions/CTOKEN_TRANSFER_CHECKED.md`](docs/instructions/CTOKEN_TRANSFER_CHECKED.md)
+   - Transfer with decimals validation (discriminator: 12, enum: `InstructionType::CTokenTransferChecked`)
+
+9. **CTokenApprove** - [`docs/instructions/CTOKEN_APPROVE.md`](docs/instructions/CTOKEN_APPROVE.md)
+   - Approve delegate on decompressed CToken account (discriminator: 4, enum: `InstructionType::CTokenApprove`)
+
+10. **CTokenRevoke** - [`docs/instructions/CTOKEN_REVOKE.md`](docs/instructions/CTOKEN_REVOKE.md)
+   - Revoke delegate on decompressed CToken account (discriminator: 5, enum: `InstructionType::CTokenRevoke`)
+
+11. **CTokenMintTo** - [`docs/instructions/CTOKEN_MINT_TO.md`](docs/instructions/CTOKEN_MINT_TO.md)
+   - Mint tokens to decompressed CToken account (discriminator: 7, enum: `InstructionType::CTokenMintTo`)
+
+12. **CTokenBurn** - [`docs/instructions/CTOKEN_BURN.md`](docs/instructions/CTOKEN_BURN.md)
+   - Burn tokens from decompressed CToken account (discriminator: 8, enum: `InstructionType::CTokenBurn`)
+
+13. **CTokenFreezeAccount** - [`docs/instructions/CTOKEN_FREEZE_ACCOUNT.md`](docs/instructions/CTOKEN_FREEZE_ACCOUNT.md)
+   - Freeze decompressed CToken account (discriminator: 10, enum: `InstructionType::CTokenFreezeAccount`)
+
+14. **CTokenThawAccount** - [`docs/instructions/CTOKEN_THAW_ACCOUNT.md`](docs/instructions/CTOKEN_THAW_ACCOUNT.md)
+   - Thaw frozen decompressed CToken account (discriminator: 11, enum: `InstructionType::CTokenThawAccount`)
+
+15. **CTokenApproveChecked** - [`docs/instructions/CTOKEN_APPROVE_CHECKED.md`](docs/instructions/CTOKEN_APPROVE_CHECKED.md)
+   - Approve delegate with decimals validation (discriminator: 13, enum: `InstructionType::CTokenApproveChecked`)
+
+16. **CTokenMintToChecked** - [`docs/instructions/CTOKEN_MINT_TO_CHECKED.md`](docs/instructions/CTOKEN_MINT_TO_CHECKED.md)
+   - Mint tokens with decimals validation (discriminator: 14, enum: `InstructionType::CTokenMintToChecked`)
+
+17. **CTokenBurnChecked** - [`docs/instructions/CTOKEN_BURN_CHECKED.md`](docs/instructions/CTOKEN_BURN_CHECKED.md)
+   - Burn tokens with decimals validation (discriminator: 15, enum: `InstructionType::CTokenBurnChecked`)
 
 ## Config State Requirements Summary
 - **Active only:** Create token account, Create associated token account
@@ -89,16 +119,26 @@ Every instruction description must include the sections:
 - **`create_token_account.rs`** - Create regular ctoken accounts with optional compressible extension
 - **`create_associated_token_account.rs`** - Create deterministic ATA accounts
 - **`close_token_account/`** - Close ctoken accounts, handle rent distribution
-- **`ctoken_transfer.rs`** - SPL-compatible transfers between decompressed accounts
+- **`transfer/`** - SPL-compatible transfers between decompressed accounts
+  - `default.rs` - CTokenTransfer (discriminator: 3)
+  - `checked.rs` - CTokenTransferChecked (discriminator: 12)
+  - `shared.rs` - Common transfer utilities
 
 ## Token Operations
 - **`transfer2/`** - Unified transfer instruction supporting multiple modes
-  - `native_compression/` - Compress & close functionality
-  - `delegate/` - Delegated transfer authorization
+  - `compression/` - Compress & decompress functionality
+    - `ctoken/` - CToken-specific compression (compress_and_close.rs, decompress.rs, etc.)
+    - `spl.rs` - SPL token compression
+  - `processor.rs` - Main instruction processor
+  - `accounts.rs` - Account validation and parsing
 - **`mint_action/`** - Mint tokens to compressed/decompressed accounts
+- **`ctoken_approve_revoke.rs`** - CTokenApprove (4), CTokenRevoke (5), CTokenApproveChecked (13)
+- **`ctoken_mint_to.rs`** - CTokenMintTo (7), CTokenMintToChecked (14)
+- **`ctoken_burn.rs`** - CTokenBurn (8), CTokenBurnChecked (15)
+- **`ctoken_freeze_thaw.rs`** - CTokenFreezeAccount (10), CTokenThawAccount (11)
 
 ## Rent Management
-- **`claim/`** - Claim rent from expired compressible accounts
+- **`claim.rs`** - Claim rent from expired compressible accounts
 - **`withdraw_funding_pool.rs`** - Withdraw funds from rent recipient pool
 
 ## Shared Components
@@ -106,15 +146,27 @@ Every instruction description must include the sections:
   - `initialize_ctoken_account.rs` - Token account initialization with extensions
   - `create_pda_account.rs` - PDA creation and validation
   - `transfer_lamports.rs` - Safe lamport transfer helpers
-- **`extensions/`** - Extension handling (compressible, metadata)
-- **`constants.rs`** - Program seeds and constants
-- **`lib.rs`** - Main entry point and instruction dispatch
+  - `compressible_top_up.rs` - Rent top-up calculations for compressible accounts
+  - `owner_validation.rs` - Owner and delegate authority checks
+  - `token_input.rs` / `token_output.rs` - Token data handling utilities
+- **`extensions/`** - Extension handling (compressible, metadata, mint extensions)
+  - `mod.rs` - Extension validation and processing
+  - `check_mint_extensions.rs` - T22 mint extension validation
+  - `token_metadata.rs` - Token metadata extension handling
+  - `processor.rs` - Extension processing utilities
+- **`lib.rs`** - Main entry point and instruction dispatch (contains `InstructionType` enum)
 
 ## Data Structures
-All state and instruction data structures are defined in **`program-libs/ctoken-types/`** (`light-ctoken-interface` crate):
-- **`state/`** - Account state structures (CompressedToken, TokenData, CompressedMint)
+All state and instruction data structures are defined in **`program-libs/ctoken-interface/`** (`light-ctoken-interface` crate):
+- **`state/`** - Account state structures
+  - `compressed_token/` - TokenData, hashing
+  - `ctoken/` - CToken (decompressed account) structure
+  - `mint/` - CompressedMint structure
+  - `extensions/` - Extension data (Compressible, TokenMetadata, CompressedOnly, etc.)
 - **`instructions/`** - Instruction data structures for all operations
-- **`state/extensions/`** - Extension data (Compressible, TokenMetadata)
+  - `transfer2/` - Transfer2 instruction data
+  - `mint_action/` - MintAction instruction data
+  - `extensions/` - Extension instruction data
 
 **Why separate crate:** Data structures are isolated from program logic so SDKs can import types without pulling in program dependencies.
 
@@ -122,10 +174,12 @@ All state and instruction data structures are defined in **`program-libs/ctoken-
 Custom error codes are defined in **`programs/compressed-token/anchor/src/lib.rs`** (`anchor_compressed_token::ErrorCode` enum):
 - Contains all program-specific error codes used across compressed token operations
 - Errors are returned as `ProgramError::Custom(error_code as u32)` on-chain
+- CToken-specific errors are also defined in **`program-libs/ctoken-interface/src/error.rs`** (`CTokenError` enum)
 
 ## SDKs (`sdk-libs/`)
-- **`compressed-token-sdk/`** - SDK for programs to interact with compressed tokens (CPIs, instruction builders)
+- **`ctoken-sdk/`** - SDK for programs to interact with compressed tokens (CPIs, instruction builders)
 - **`token-client/`** - Client SDK for Rust applications (test helpers, transaction builders)
+- **`ctoken-types/`** - Lightweight types for client-side usage
 
 ## Compressible Extension Documentation
 When working with ctoken accounts that have the compressible extension (rent management), you **MUST** read:

@@ -11,11 +11,7 @@ use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 #[test]
 fn test_extension_allocation_only() {
     // Test 1: No extensions - should work
-    let mint_config_no_ext = CompressedMintConfig {
-        base: (),
-        metadata: (),
-        extensions: (false, vec![]),
-    };
+    let mint_config_no_ext = CompressedMintConfig { extensions: None };
     let expected_mint_size_no_ext = CompressedMint::byte_len(&mint_config_no_ext).unwrap();
 
     let mut outputs_no_ext = tinyvec::ArrayVec::<[(bool, u32); 35]>::new();
@@ -45,9 +41,7 @@ fn test_extension_allocation_only() {
     })];
 
     let mint_config_with_ext = CompressedMintConfig {
-        base: (),
-        metadata: (),
-        extensions: (true, extensions_config.clone()),
+        extensions: Some(extensions_config.clone()),
     };
     let expected_mint_size_with_ext = CompressedMint::byte_len(&mint_config_with_ext).unwrap();
 
@@ -156,9 +150,7 @@ fn test_progressive_extension_sizes() {
         })];
 
         let mint_config = CompressedMintConfig {
-            base: (),
-            metadata: (),
-            extensions: (true, extensions_config),
+            extensions: Some(extensions_config),
         };
 
         let expected_mint_size = CompressedMint::byte_len(&mint_config).unwrap();

@@ -17,7 +17,8 @@ use light_ctoken_interface::{
     },
     state::{
         AdditionalMetadata, AdditionalMetadataConfig, BaseMint, CompressedMint,
-        CompressedMintMetadata, ExtensionStruct, TokenMetadata, ZCompressedMint, ZExtensionStruct,
+        CompressedMintMetadata, CompressionInfo, ExtensionStruct, TokenMetadata, ZCompressedMint,
+        ZExtensionStruct, ACCOUNT_TYPE_MINT,
     },
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
@@ -367,6 +368,7 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
     };
 
     let compressed_mint = CompressedMint {
+        compression: CompressionInfo::default(),
         base: BaseMint {
             mint_authority: Some(Pubkey::new_from_array([4; 32])),
             supply: 1000u64,
@@ -379,6 +381,8 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
             mint: Pubkey::new_from_array([3; 32]),
             cmint_decompressed: false,
         },
+        reserved: [0u8; 49],
+        account_type: ACCOUNT_TYPE_MINT,
         extensions: Some(vec![ExtensionStruct::TokenMetadata(token_metadata)]),
     };
 
@@ -394,19 +398,43 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
     // Re-serialize the zero-copy mint back to borsh and compare with original
     let zc_reserialized = {
         // Convert zero-copy fields back to regular types
+        // Reconstruct CompressionInfo from zero-copy fields
+        let compression = {
+            let zc = &zc_mint.base.compression;
+            CompressionInfo {
+                config_account_version: u16::from(zc.config_account_version),
+                compress_to_pubkey: zc.compress_to_pubkey,
+                account_version: zc.account_version,
+                lamports_per_write: u32::from(zc.lamports_per_write),
+                compression_authority: zc.compression_authority,
+                rent_sponsor: zc.rent_sponsor,
+                last_claimed_slot: u64::from(zc.last_claimed_slot),
+                rent_config: light_compressible::rent::RentConfig {
+                    base_rent: u16::from(zc.rent_config.base_rent),
+                    compression_cost: u16::from(zc.rent_config.compression_cost),
+                    lamports_per_byte_per_epoch: zc.rent_config.lamports_per_byte_per_epoch,
+                    max_funded_epochs: zc.rent_config.max_funded_epochs,
+                    max_top_up: u16::from(zc.rent_config.max_top_up),
+                },
+            }
+        };
+
         let reconstructed_mint = CompressedMint {
+            compression,
             base: BaseMint {
-                mint_authority: zc_mint.base.mint_authority.map(|x| *x),
-                supply: u64::from(*zc_mint.base.supply),
+                mint_authority: zc_mint.base.mint_authority().cloned(),
+                supply: u64::from(zc_mint.base.supply),
                 decimals: zc_mint.base.decimals,
                 is_initialized: zc_mint.base.is_initialized != 0,
-                freeze_authority: zc_mint.base.freeze_authority.map(|x| *x),
+                freeze_authority: zc_mint.base.freeze_authority().cloned(),
             },
             metadata: CompressedMintMetadata {
-                version: zc_mint.metadata.version,
-                mint: zc_mint.metadata.mint,
-                cmint_decompressed: zc_mint.metadata.cmint_decompressed != 0,
+                version: zc_mint.base.metadata.version,
+                mint: zc_mint.base.metadata.mint,
+                cmint_decompressed: zc_mint.base.metadata.cmint_decompressed != 0,
             },
+            reserved: *zc_mint.base.reserved,
+            account_type: zc_mint.base.account_type,
             extensions: zc_mint.extensions.as_ref().map(|zc_exts| {
                 zc_exts
                     .iter()
