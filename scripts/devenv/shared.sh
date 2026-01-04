@@ -11,6 +11,10 @@ export INSTALL_LOG="${PREFIX}/.install_log"
 # Ensure PREFIX directory exists
 mkdir -p "${PREFIX}/bin"
 
+# Add locally installed binaries to PATH so they can be used during installation
+export GOROOT="${PREFIX}/go"
+export PATH="${PREFIX}/bin:${PREFIX}/go/bin:${PREFIX}/cargo/bin:${PATH}"
+
 VERSIONS=(
     "go:${GO_VERSION}"
     "node:${NODE_VERSION}"
