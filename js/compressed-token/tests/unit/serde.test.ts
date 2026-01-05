@@ -21,6 +21,9 @@ import {
     ExtensionType,
     MINT_CONTEXT_SIZE,
     MintContextLayout,
+    RESERVED_SIZE,
+    ACCOUNT_TYPE_SIZE,
+    COMPRESSION_INFO_SIZE,
 } from '../../src/v3';
 import { MINT_SIZE } from '@solana/spl-token';
 
@@ -188,8 +191,14 @@ describe('serde', () => {
             };
 
             const serialized = serializeMint(mint);
-            // 82 (MINT_SIZE) + 34 (MINT_CONTEXT_SIZE) + 1 (None option byte)
-            expect(serialized.length).toBe(MINT_SIZE + MINT_CONTEXT_SIZE + 1);
+            // 82 (MINT_SIZE) + 34 (MINT_CONTEXT_SIZE) + 49 (RESERVED_SIZE) + 1 (ACCOUNT_TYPE_SIZE) + 88 (COMPRESSION_INFO_SIZE) + 1 (None option byte)
+            const baseSize =
+                MINT_SIZE +
+                MINT_CONTEXT_SIZE +
+                RESERVED_SIZE +
+                ACCOUNT_TYPE_SIZE +
+                COMPRESSION_INFO_SIZE;
+            expect(serialized.length).toBe(baseSize + 1);
         });
     });
 
@@ -219,11 +228,15 @@ describe('serde', () => {
 
             const serialized = serializeMint(mint);
 
-            // Borsh format: Some(1) + vec_len(4) + discriminant(1) + data (NO length prefix)
+            // Base size + Borsh format: Some(1) + vec_len(4) + discriminant(1) + data (NO length prefix)
+            const baseSize =
+                MINT_SIZE +
+                MINT_CONTEXT_SIZE +
+                RESERVED_SIZE +
+                ACCOUNT_TYPE_SIZE +
+                COMPRESSION_INFO_SIZE;
             const expectedExtensionBytes = 1 + 4 + 1 + extensionData.length;
-            expect(serialized.length).toBe(
-                MINT_SIZE + MINT_CONTEXT_SIZE + expectedExtensionBytes,
-            );
+            expect(serialized.length).toBe(baseSize + expectedExtensionBytes);
         });
 
         it('should serialize mint with multiple extensions (no length prefix)', () => {
@@ -250,11 +263,15 @@ describe('serde', () => {
 
             const serialized = serializeMint(mint);
 
-            // Borsh format: Some(1) + vec_len(4) + (type(1) + data) for each (no length prefix)
+            // Base size + Borsh format: Some(1) + vec_len(4) + (type(1) + data) for each (no length prefix)
+            const baseSize =
+                MINT_SIZE +
+                MINT_CONTEXT_SIZE +
+                RESERVED_SIZE +
+                ACCOUNT_TYPE_SIZE +
+                COMPRESSION_INFO_SIZE;
             const expectedExtensionBytes = 1 + 4 + (1 + 3) + (1 + 5);
-            expect(serialized.length).toBe(
-                MINT_SIZE + MINT_CONTEXT_SIZE + expectedExtensionBytes,
-            );
+            expect(serialized.length).toBe(baseSize + expectedExtensionBytes);
         });
 
         it('should serialize mint with empty extensions array as None', () => {
@@ -276,8 +293,14 @@ describe('serde', () => {
 
             const serialized = serializeMint(mint);
 
-            // Empty extensions array is treated as None (1 byte)
-            expect(serialized.length).toBe(MINT_SIZE + MINT_CONTEXT_SIZE + 1);
+            // Base size + Empty extensions array is treated as None (1 byte)
+            const baseSize =
+                MINT_SIZE +
+                MINT_CONTEXT_SIZE +
+                RESERVED_SIZE +
+                ACCOUNT_TYPE_SIZE +
+                COMPRESSION_INFO_SIZE;
+            expect(serialized.length).toBe(baseSize + 1);
             // The last byte should be 0 (None)
             expect(serialized[serialized.length - 1]).toBe(0);
         });
@@ -781,9 +804,12 @@ describe('serde', () => {
 
             const encodedMetadata = encodeTokenMetadata(metadata);
 
-            // Build buffer in Borsh format manually
+            // Build buffer in Borsh format manually (includes new fields)
             const baseMintBuffer = Buffer.alloc(MINT_SIZE);
             const contextBuffer = Buffer.alloc(MINT_CONTEXT_SIZE);
+            const reservedBuffer = Buffer.alloc(RESERVED_SIZE);
+            const accountTypeBuffer = Buffer.from([1]); // ACCOUNT_TYPE_MINT = 1
+            const compressionBuffer = Buffer.alloc(COMPRESSION_INFO_SIZE);
 
             // Borsh format: Some(1) + vec_len(4) + discriminant(1) + data (no length prefix)
             const extensionsBuffer = Buffer.concat([
@@ -796,6 +822,9 @@ describe('serde', () => {
             const fullBuffer = Buffer.concat([
                 baseMintBuffer,
                 contextBuffer,
+                reservedBuffer,
+                accountTypeBuffer,
+                compressionBuffer,
                 extensionsBuffer,
             ]);
 

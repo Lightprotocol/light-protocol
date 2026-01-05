@@ -21,6 +21,8 @@ import {
     TokenMetadata,
     MintExtension,
     extractTokenMetadata,
+    CompressionInfo,
+    CompressedMint,
 } from './layout/layout-mint';
 
 export interface MintInterface {
@@ -30,6 +32,8 @@ export interface MintInterface {
     mintContext?: MintContext;
     tokenMetadata?: TokenMetadata;
     extensions?: MintExtension[];
+    /** Compression info for c-token mints */
+    compression?: CompressionInfo;
 }
 
 /**
@@ -128,6 +132,7 @@ export async function getMintInterface(
             mintContext: compressedMintData.mintContext,
             tokenMetadata: tokenMetadata || undefined,
             extensions: compressedMintData.extensions || undefined,
+            compression: compressedMintData.compression,
         };
 
         if (programId.equals(CTOKEN_PROGRAM_ID)) {
@@ -196,6 +201,7 @@ export function unpackMintInterface(
             mintContext: compressedMintData.mintContext,
             tokenMetadata: tokenMetadata || undefined,
             extensions: compressedMintData.extensions || undefined,
+            compression: compressedMintData.compression,
         };
 
         // Validate: CTOKEN_PROGRAM_ID requires mintContext
