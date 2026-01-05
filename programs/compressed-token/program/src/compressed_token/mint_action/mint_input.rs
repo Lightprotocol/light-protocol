@@ -8,7 +8,7 @@ use light_hasher::{sha256::Sha256BE, Hasher};
 use light_program_profiler::profile;
 use light_sdk::instruction::PackedMerkleContext;
 
-use crate::{constants::COMPRESSED_MINT_DISCRIMINATOR, mint_action::accounts::AccountsConfig};
+use crate::{compressed_token::mint_action::accounts::AccountsConfig, constants::COMPRESSED_MINT_DISCRIMINATOR};
 
 /// Creates and validates an input compressed mint account.
 /// This function follows the same pattern as create_output_compressed_mint_account

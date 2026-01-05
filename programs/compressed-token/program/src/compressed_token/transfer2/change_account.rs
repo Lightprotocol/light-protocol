@@ -6,7 +6,7 @@ use light_compressed_account::instruction_data::with_readonly::ZInstructionDataI
 use light_ctoken_interface::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
 use pinocchio::account_info::AccountInfo;
 
-use crate::transfer2::config::Transfer2Config;
+use crate::compressed_token::transfer2::config::Transfer2Config;
 
 /// Create a change account for excess lamports (following anchor program pattern)
 pub fn assign_change_account(

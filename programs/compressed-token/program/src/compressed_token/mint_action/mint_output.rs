@@ -13,12 +13,12 @@ use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    constants::COMPRESSED_MINT_DISCRIMINATOR,
-    mint_action::{
+    compressed_token::mint_action::{
         accounts::{AccountsConfig, MintActionAccounts},
         actions::process_actions,
         queue_indices::QueueIndices,
     },
+    constants::COMPRESSED_MINT_DISCRIMINATOR,
     shared::{convert_program_error, transfer_lamports::transfer_lamports},
 };
 

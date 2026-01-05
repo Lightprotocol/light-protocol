@@ -11,7 +11,7 @@ use pinocchio::{
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    mint_action::accounts::MintActionAccounts,
+    compressed_token::mint_action::accounts::MintActionAccounts,
     shared::{convert_program_error, transfer_lamports::transfer_lamports},
 };
 

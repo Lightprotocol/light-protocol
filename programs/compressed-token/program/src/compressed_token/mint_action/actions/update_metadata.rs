@@ -10,7 +10,7 @@ use light_ctoken_interface::{
 use light_program_profiler::profile;
 use spl_pod::solana_msg::msg;
 
-use crate::mint_action::check_authority;
+use crate::compressed_token::mint_action::check_authority;
 
 /// Get mutable reference to metadata extension at specified index
 #[profile]

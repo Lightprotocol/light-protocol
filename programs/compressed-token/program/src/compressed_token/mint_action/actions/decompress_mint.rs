@@ -14,8 +14,8 @@ use pinocchio_system::instructions::Transfer;
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    create_token_account::parse_config_account,
-    mint_action::accounts::MintActionAccounts,
+    compressed_token::mint_action::accounts::MintActionAccounts,
+    light_token::create_token_account::parse_config_account,
     shared::{
         convert_program_error,
         create_pda_account::{create_pda_account, verify_pda},

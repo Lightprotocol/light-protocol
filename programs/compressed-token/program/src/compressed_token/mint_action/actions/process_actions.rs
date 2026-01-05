@@ -14,7 +14,7 @@ use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    mint_action::{
+    compressed_token::mint_action::{
         accounts::MintActionAccounts,
         check_authority,
         compress_and_close_cmint::process_compress_and_close_cmint_action,

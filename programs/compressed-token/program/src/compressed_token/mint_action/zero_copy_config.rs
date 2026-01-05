@@ -10,7 +10,7 @@ use spl_pod::solana_msg::msg;
 use tinyvec::ArrayVec;
 
 use crate::{
-    mint_action::accounts::AccountsConfig,
+    compressed_token::mint_action::accounts::AccountsConfig,
     shared::{
         convert_program_error,
         cpi_bytes_size::{

@@ -16,8 +16,8 @@ use light_ctoken_interface::{
 use pinocchio::account_info::AccountInfo;
 
 use crate::{
+    compressed_token::transfer2::check_extensions::MintExtensionCache,
     shared::owner_validation::verify_owner_or_delegate_signer,
-    transfer2::check_extensions::MintExtensionCache,
 };
 
 /// Creates an input compressed account using zero-copy patterns and index-based account lookup.

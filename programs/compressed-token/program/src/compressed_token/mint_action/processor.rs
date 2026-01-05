@@ -10,7 +10,7 @@ use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
 
 use crate::{
-    mint_action::{
+    compressed_token::mint_action::{
         accounts::{AccountsConfig, MintActionAccounts},
         create_mint::process_create_mint_action,
         mint_input::create_input_compressed_mint_account,

@@ -9,8 +9,8 @@ use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 
 use crate::{
-    mint_action::{accounts::MintActionAccounts, check_authority},
-    transfer2::compression::{compress_or_decompress_ctokens, CTokenCompressionInputs},
+    compressed_token::mint_action::{accounts::MintActionAccounts, check_authority},
+    compressed_token::transfer2::compression::{compress_or_decompress_ctokens, CTokenCompressionInputs},
 };
 
 #[allow(clippy::too_many_arguments)]

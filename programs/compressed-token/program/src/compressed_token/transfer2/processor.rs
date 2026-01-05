@@ -20,8 +20,7 @@ use spl_pod::solana_msg::msg;
 
 use super::check_extensions::{build_mint_extension_cache, MintExtensionCache};
 use crate::{
-    shared::{convert_program_error, cpi::execute_cpi_invoke},
-    transfer2::{
+    compressed_token::transfer2::{
         accounts::Transfer2Accounts,
         compression::{close_for_compress_and_close, process_token_compression},
         config::Transfer2Config,
@@ -30,6 +29,7 @@ use crate::{
         token_inputs::set_input_compressed_accounts,
         token_outputs::set_output_compressed_accounts,
     },
+    shared::{convert_program_error, cpi::execute_cpi_invoke},
 };
 
 /// Process a token transfer instruction

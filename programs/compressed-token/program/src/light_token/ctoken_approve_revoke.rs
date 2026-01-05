@@ -7,11 +7,11 @@ use pinocchio_token_program::processor::{
 };
 
 use crate::{
+    compressed_token::transfer2::compression::ctoken::process_compression_top_up,
     shared::{
         convert_program_error, owner_validation::check_token_program_owner,
         transfer_lamports_via_cpi,
     },
-    transfer2::compression::ctoken::process_compression_top_up,
 };
 
 /// Account indices for approve instruction

@@ -6,11 +6,11 @@ use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
 
 use crate::{
+    compressed_token::transfer2::config::Transfer2Config,
     shared::{
         accounts::{CpiContextLightSystemAccounts, LightSystemAccounts},
         AccountIterator,
     },
-    transfer2::config::Transfer2Config,
 };
 
 /// 3 Scenarios:
