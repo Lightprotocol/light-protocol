@@ -8,7 +8,7 @@ use pinocchio::{
 use pinocchio_system::instructions::Transfer;
 use spl_pod::solana_msg::msg;
 
-use crate::light_token::create_token_account::parse_config_account;
+use crate::ctoken::create::parse_config_account;
 
 /// Accounts required for the withdraw funding pool instruction
 pub struct WithdrawFundingPoolAccounts<'a> {

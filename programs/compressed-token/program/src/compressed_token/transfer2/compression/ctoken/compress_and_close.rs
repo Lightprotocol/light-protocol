@@ -20,7 +20,7 @@ use spl_pod::solana_msg::msg;
 use super::inputs::CompressAndCloseInputs;
 use crate::{
     compressed_token::transfer2::accounts::Transfer2Accounts,
-    light_token::close_token_account::{
+    ctoken::close::{
         accounts::CloseTokenAccountAccounts, processor::validate_token_account_for_close_transfer2,
     },
 };
@@ -335,7 +335,7 @@ pub fn close_for_compress_and_close(
             let authority = validated_accounts
                 .packed_accounts
                 .get_u8(compression.authority, "CompressAndClose: authority")?;
-            use crate::light_token::close_token_account::processor::close_token_account;
+            use crate::ctoken::close::processor::close_token_account;
             close_token_account(&CloseTokenAccountAccounts {
                 token_account: token_account_info,
                 destination,

@@ -6,9 +6,9 @@ use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, instruction::Seed};
 use spl_pod::solana_msg::msg;
 
+use super::create::next_config_account;
 use crate::{
     extensions::has_mint_extensions,
-    light_token::create_token_account::next_config_account,
     shared::{
         convert_program_error, create_pda_account,
         initialize_ctoken_account::{

@@ -11,7 +11,7 @@ use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    light_token::create_token_account::parse_config_account,
+    ctoken::create::parse_config_account,
     shared::{convert_program_error, transfer_lamports},
 };
 

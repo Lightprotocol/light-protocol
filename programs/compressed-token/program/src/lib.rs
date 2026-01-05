@@ -8,14 +8,14 @@ use pinocchio::{account_info::AccountInfo, msg};
 pub mod compressed_token;
 pub mod compressible;
 pub mod convert_account_infos;
+pub mod ctoken;
 pub mod extensions;
-pub mod light_token;
 pub mod shared;
 
 // Reexport the wrapped anchor program.
 pub use ::anchor_compressed_token::*;
 use compressible::{process_claim, process_withdraw_funding_pool};
-use light_token::{
+use ctoken::{
     process_close_token_account, process_create_associated_token_account,
     process_create_associated_token_account_idempotent, process_create_token_account,
     process_ctoken_approve, process_ctoken_approve_checked, process_ctoken_burn,
