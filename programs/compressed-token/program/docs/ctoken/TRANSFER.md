@@ -2,7 +2,7 @@
 
 **discriminator:** 3
 **enum:** `InstructionType::CTokenTransfer`
-**path:** programs/compressed-token/program/src/transfer/default.rs
+**path:** programs/compressed-token/program/src/ctoken/transfer/default.rs
 
 ### SPL Instruction Format Compatibility
 

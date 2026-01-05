@@ -15,7 +15,7 @@
 
   **discriminator:** 18
   **enum:** `CTokenInstruction::CreateTokenAccount`
-  **path:** programs/compressed-token/program/src/create_token_account.rs
+  **path:** programs/compressed-token/program/src/ctoken/create.rs
 
   **description:**
   1. creates ctoken solana accounts with and without Compressible extension
@@ -131,7 +131,7 @@
 
   **discriminator:** 100 (non-idempotent), 102 (idempotent)
   **enum:** `CTokenInstruction::CreateAssociatedCTokenAccount` (non-idempotent), `CTokenInstruction::CreateAssociatedTokenAccountIdempotent` (idempotent)
-  **path:** programs/compressed-token/program/src/create_associated_token_account.rs
+  **path:** programs/compressed-token/program/src/ctoken/create_ata.rs
 
   **description:**
   1. Creates deterministic ctoken PDA accounts derived from [owner, ctoken_program_id, mint]

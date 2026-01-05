@@ -115,29 +115,59 @@ Every instruction description must include the sections:
 
 # Source Code Structure (`src/`)
 
-## Core Instructions
-- **`create_token_account.rs`** - Create regular ctoken accounts with optional compressible extension
-- **`create_associated_token_account.rs`** - Create deterministic ATA accounts
-- **`close_token_account/`** - Close ctoken accounts, handle rent distribution
-- **`transfer/`** - SPL-compatible transfers between decompressed accounts
-  - `default.rs` - CTokenTransfer (discriminator: 3)
-  - `checked.rs` - CTokenTransferChecked (discriminator: 12)
-  - `shared.rs` - Common transfer utilities
+```
+src/
+├── compressed_token/       # Operations on compressed accounts (in Merkle trees)
+│   ├── mint_action/           # MintAction instruction (103)
+│   └── transfer2/             # Transfer2 instruction (101)
+├── compressible/           # Rent management
+│   ├── claim.rs               # Claim instruction (104)
+│   └── withdraw_funding_pool.rs  # WithdrawFundingPool instruction (105)
+├── ctoken/                 # Operations on CToken Solana accounts (decompressed)
+│   ├── approve_revoke.rs      # CTokenApprove (4), CTokenRevoke (5), CTokenApproveChecked (13)
+│   ├── burn.rs                # CTokenBurn (8), CTokenBurnChecked (15)
+│   ├── close/                 # CloseTokenAccount instruction (9)
+│   ├── create.rs              # CreateTokenAccount instruction (18)
+│   ├── create_ata.rs          # CreateAssociatedCTokenAccount (100, 102)
+│   ├── freeze_thaw.rs         # CTokenFreezeAccount (10), CTokenThawAccount (11)
+│   ├── mint_to.rs             # CTokenMintTo (7), CTokenMintToChecked (14)
+│   └── transfer/              # CTokenTransfer (3), CTokenTransferChecked (12)
+├── extensions/             # Extension handling
+├── shared/                 # Common utilities
+├── convert_account_infos.rs
+└── lib.rs                  # Entry point and instruction dispatch
+```
 
-## Token Operations
+## Compressed Token Operations (`compressed_token/`)
+Operations on compressed accounts stored in Merkle trees.
+
+- **`mint_action/`** - MintAction instruction for compressed mint management
+  - `processor.rs` - Main instruction processor
+  - `accounts.rs` - Account validation and parsing
+  - `actions/` - Individual action handlers (create_mint, mint_to, decompress_mint, etc.)
 - **`transfer2/`** - Unified transfer instruction supporting multiple modes
   - `compression/` - Compress & decompress functionality
     - `ctoken/` - CToken-specific compression (compress_and_close.rs, decompress.rs, etc.)
     - `spl.rs` - SPL token compression
   - `processor.rs` - Main instruction processor
   - `accounts.rs` - Account validation and parsing
-- **`mint_action/`** - Mint tokens to compressed/decompressed accounts
-- **`ctoken_approve_revoke.rs`** - CTokenApprove (4), CTokenRevoke (5), CTokenApproveChecked (13)
-- **`ctoken_mint_to.rs`** - CTokenMintTo (7), CTokenMintToChecked (14)
-- **`ctoken_burn.rs`** - CTokenBurn (8), CTokenBurnChecked (15)
-- **`ctoken_freeze_thaw.rs`** - CTokenFreezeAccount (10), CTokenThawAccount (11)
 
-## Rent Management
+## CToken Operations (`ctoken/`)
+Operations on CToken Solana accounts (decompressed compressed tokens).
+
+- **`create.rs`** - Create regular ctoken accounts with optional compressible extension
+- **`create_ata.rs`** - Create deterministic ATA accounts
+- **`close/`** - Close ctoken accounts, handle rent distribution
+- **`transfer/`** - SPL-compatible transfers between decompressed accounts
+  - `default.rs` - CTokenTransfer (discriminator: 3)
+  - `checked.rs` - CTokenTransferChecked (discriminator: 12)
+  - `shared.rs` - Common transfer utilities
+- **`approve_revoke.rs`** - CTokenApprove (4), CTokenRevoke (5), CTokenApproveChecked (13)
+- **`mint_to.rs`** - CTokenMintTo (7), CTokenMintToChecked (14)
+- **`burn.rs`** - CTokenBurn (8), CTokenBurnChecked (15)
+- **`freeze_thaw.rs`** - CTokenFreezeAccount (10), CTokenThawAccount (11)
+
+## Rent Management (`compressible/`)
 - **`claim.rs`** - Claim rent from expired compressible accounts
 - **`withdraw_funding_pool.rs`** - Withdraw funds from rent recipient pool
 

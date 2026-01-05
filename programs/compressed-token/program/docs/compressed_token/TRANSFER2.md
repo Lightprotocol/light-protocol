@@ -14,7 +14,7 @@
 
 **discriminator:** 101
 **enum:** `InstructionType::Transfer2`
-**path:** programs/compressed-token/program/src/transfer2/
+**path:** programs/compressed-token/program/src/compressed_token/transfer2/
 
 **description:**
 1. Batch transfer instruction supporting multiple token operations in a single transaction with up to 5 different mints (cmints or spl)

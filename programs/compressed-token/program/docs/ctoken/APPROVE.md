@@ -2,7 +2,7 @@
 
 **discriminator:** 4
 **enum:** `InstructionType::CTokenApprove`
-**path:** programs/compressed-token/program/src/ctoken_approve_revoke.rs
+**path:** programs/compressed-token/program/src/ctoken/approve_revoke.rs
 
 ### SPL Instruction Format Compatibility
 This instruction is compatible with the SPL Token instruction format (using `spl_token_2022::instruction::approve` with changed program ID) when **no top-up is required**.
@@ -17,7 +17,7 @@ If the CToken account has a compressible extension and requires a rent top-up, t
 Delegates a specified amount to a delegate authority on a decompressed ctoken account (account layout `CToken` defined in program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs). Before the approve operation, automatically tops up compressible accounts (extension layout `CompressionInfo` defined in program-libs/compressible/src/compression_info.rs) with additional lamports if needed to prevent accounts from becoming compressible during normal operations. The instruction supports a max_top_up parameter (0 = no limit) that enforces transaction failure if the calculated top-up exceeds this limit. Uses pinocchio-token-program for SPL-compatible approve semantics. Supports backwards-compatible instruction data format (8 bytes legacy vs 10 bytes with max_top_up).
 
 **Instruction data:**
-Path: programs/compressed-token/program/src/ctoken_approve_revoke.rs (lines 34-66)
+Path: programs/compressed-token/program/src/ctoken/approve_revoke.rs (lines 34-66)
 
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to delegate
 - Bytes 8-9 (optional): `max_top_up` (u16, little-endian) - Maximum lamports for top-up (0 = no limit, default for legacy format)

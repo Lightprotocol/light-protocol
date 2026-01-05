@@ -2,7 +2,7 @@
 
 **discriminator:** 7
 **enum:** `InstructionType::CTokenMintTo`
-**path:** programs/compressed-token/program/src/ctoken_mint_to.rs
+**path:** programs/compressed-token/program/src/ctoken/mint_to.rs
 
 **description:**
 Mints tokens from a decompressed CMint account to a destination CToken account, fully compatible with SPL Token mint_to semantics. Uses pinocchio-token-program to process the mint_to operation which handles balance/supply updates, authority validation, and frozen account checks. After minting, automatically tops up compressible accounts with additional lamports if needed to prevent accounts from becoming compressible during normal operations. Both CMint and destination CToken can receive top-ups based on their current slot and account balance. Supports max_top_up parameter to limit rent top-up costs where 0 means no limit. Instruction data is backwards-compatible with two formats: 8-byte format for legacy compatibility without max_top_up enforcement and 10-byte format with max_top_up. This instruction only works with CMints (compressed mints). CMints do not support restricted Token-2022 extensions (Pausable, TransferFee, TransferHook, PermanentDelegate, DefaultAccountState) - only TokenMetadata is allowed.
@@ -13,7 +13,7 @@ Account layouts:
 - `CompressionInfo` extension defined in: program-libs/compressible/src/compression_info.rs
 
 **Instruction data:**
-Path: programs/compressed-token/program/src/ctoken_mint_to.rs (lines 10-47)
+Path: programs/compressed-token/program/src/ctoken/mint_to.rs (lines 10-47)
 
 Byte layout:
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to mint

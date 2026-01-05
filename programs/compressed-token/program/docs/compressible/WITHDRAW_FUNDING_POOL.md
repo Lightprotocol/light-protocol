@@ -2,7 +2,7 @@
 
 **discriminator:** 105
 **enum:** `InstructionType::WithdrawFundingPool`
-**path:** programs/compressed-token/program/src/withdraw_funding_pool.rs
+**path:** programs/compressed-token/program/src/compressible/withdraw_funding_pool.rs
 
 **description:**
 1. Withdraws lamports from the rent_sponsor PDA pool to a specified destination account

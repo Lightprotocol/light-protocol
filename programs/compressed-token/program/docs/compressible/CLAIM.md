@@ -2,7 +2,7 @@
 
 **discriminator:** 104
 **enum:** `InstructionType::Claim`
-**path:** programs/compressed-token/program/src/claim.rs
+**path:** programs/compressed-token/program/src/compressible/claim.rs
 
 **description:**
 1. Claims rent from compressible CToken and CMint solana accounts that have passed their rent expiration epochs

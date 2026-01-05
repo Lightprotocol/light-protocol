@@ -2,7 +2,7 @@
 
 **discriminator:** 14
 **enum:** `InstructionType::CTokenMintToChecked`
-**path:** programs/compressed-token/program/src/ctoken_mint_to.rs
+**path:** programs/compressed-token/program/src/ctoken/mint_to.rs
 
 **description:**
 Mints tokens from a decompressed CMint account to a destination CToken account with decimals validation, fully compatible with SPL Token MintToChecked semantics. Uses pinocchio-token-program to process the mint_to_checked operation which handles balance/supply updates, authority validation, frozen account checks, and decimals validation. After minting, automatically tops up compressible accounts with additional lamports if needed to prevent accounts from becoming compressible during normal operations. Both CMint and destination CToken can receive top-ups based on their current slot and account balance. Supports max_top_up parameter to limit rent top-up costs where 0 means no limit.
@@ -13,7 +13,7 @@ Account layouts:
 - `CompressionInfo` extension defined in: program-libs/compressible/src/compression_info.rs
 
 **Instruction data:**
-Path: programs/compressed-token/program/src/ctoken_mint_to.rs (lines 62-112, function `process_ctoken_mint_to_checked`)
+Path: programs/compressed-token/program/src/ctoken/mint_to.rs (lines 62-112, function `process_ctoken_mint_to_checked`)
 
 Byte layout:
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to mint

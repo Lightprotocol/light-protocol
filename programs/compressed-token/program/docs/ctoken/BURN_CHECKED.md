@@ -2,7 +2,7 @@
 
 **discriminator:** 15
 **enum:** `InstructionType::CTokenBurnChecked`
-**path:** programs/compressed-token/program/src/ctoken_burn.rs
+**path:** programs/compressed-token/program/src/ctoken/burn.rs
 
 **description:**
 Burns tokens from a decompressed CToken account and decreases the CMint supply with decimals validation, fully compatible with SPL Token BurnChecked semantics. Account layout `CToken` is defined in `program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs`. Account layout `CompressedMint` (CMint) is defined in `program-libs/ctoken-interface/src/state/mint/compressed_mint.rs`. Extension layout `CompressionInfo` is defined in `program-libs/compressible/src/compression_info.rs` and is embedded in both CToken and CMint structs. Uses pinocchio-token-program to process the burn_checked (handles balance/supply updates, authority check, frozen check, decimals validation). After the burn, automatically tops up compressible accounts with additional lamports if needed. Top-up prevents accounts from becoming compressible during normal operations. Enforces max_top_up limit if provided (transaction fails if exceeded). Account order is REVERSED from mint_to instruction: [source_ctoken, cmint, authority] vs mint_to's [cmint, destination_ctoken, authority].

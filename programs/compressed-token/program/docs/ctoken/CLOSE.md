@@ -2,7 +2,7 @@
 
 **discriminator:** 9
 **enum:** `CTokenInstruction::CloseTokenAccount`
-**path:** programs/compressed-token/program/src/close_token_account/
+**path:** programs/compressed-token/program/src/ctoken/close/
 
 **description:**
 1. Closes decompressed ctoken solana accounts and distributes remaining lamports to destination account.

@@ -2,13 +2,13 @@
 
 **discriminator:** 13
 **enum:** `InstructionType::CTokenApproveChecked`
-**path:** programs/compressed-token/program/src/ctoken_approve_revoke.rs
+**path:** programs/compressed-token/program/src/ctoken/approve_revoke.rs
 
 **description:**
 Delegates a specified amount to a delegate authority on a decompressed ctoken account with decimals validation, fully compatible with SPL Token ApproveChecked semantics. Account layout `CToken` is defined in program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs. Extension layout `CompressionInfo` is defined in program-libs/compressible/src/compression_info.rs. Uses pinocchio-token-program to process the approve operation. Before the approve operation, automatically tops up compressible accounts with additional lamports if needed to prevent accounts from becoming compressible during normal operations. Supports max_top_up parameter (0 = no limit) that enforces transaction failure if the calculated top-up exceeds this limit. Uses cached decimals optimization: if source CToken has cached decimals, validates against instruction decimals and skips mint read. Cached decimals allow users to choose whether a cmint is required to be decompressed at account creation or transfer.
 
 **Instruction data:**
-Path: programs/compressed-token/program/src/ctoken_approve_revoke.rs (lines 163-217)
+Path: programs/compressed-token/program/src/ctoken/approve_revoke.rs (lines 163-217)
 
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to delegate
 - Byte 8: `decimals` (u8) - Expected token decimals

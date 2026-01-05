@@ -2,7 +2,7 @@
 
 **discriminator:** 103
 **enum:** `InstructionType::MintAction`
-**path:** programs/compressed-token/program/src/mint_action/
+**path:** programs/compressed-token/program/src/compressed_token/mint_action/
 
 **description:**
 Batch instruction for managing compressed mint accounts (cmints) and performing mint operations. A compressed mint account stores the mint's supply, decimals, authorities (mint/freeze), and optional TokenMetadata extension in compressed state. TokenMetadata is the only extension supported for compressed mints and provides fields for name, symbol, uri, update_authority, and additional key-value metadata.
