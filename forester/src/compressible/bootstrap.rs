@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use borsh::BorshDeserialize;
-use light_ctoken_interface::{state::CToken, BASE_TOKEN_ACCOUNT_SIZE, CTOKEN_PROGRAM_ID};
+use light_ctoken_interface::{state::CToken, CTOKEN_PROGRAM_ID};
 use serde_json::json;
 use solana_sdk::pubkey::Pubkey;
 use tokio::sync::oneshot;
@@ -193,13 +193,15 @@ async fn bootstrap_with_v2_api(
         page_count += 1;
 
         // Build request payload
+        // Filter for accounts with account_type = 2 at position 165
+        // This indicates a CToken account with extensions (e.g., Compressible)
         let mut params = json!([
             program_id.to_string(),
             {
                 "encoding": "base64",
                 "commitment": "confirmed",
                 "filters": [
-                    {"dataSize": BASE_TOKEN_ACCOUNT_SIZE}
+                    {"memcmp": {"offset": 165, "bytes": "3"}}
                 ],
                 "limit": PAGE_SIZE
             }
@@ -307,6 +309,8 @@ async fn bootstrap_with_standard_api(
     let client = reqwest::Client::new();
     let program_id = Pubkey::new_from_array(CTOKEN_PROGRAM_ID);
 
+    // Filter for accounts with account_type = 2 at position 165
+    // This indicates a CToken account with extensions (e.g., Compressible)
     let payload = json!({
         "jsonrpc": "2.0",
         "id": 1,
@@ -317,7 +321,7 @@ async fn bootstrap_with_standard_api(
                 "encoding": "base64",
                 "commitment": "confirmed",
                 "filters": [
-                    {"dataSize": BASE_TOKEN_ACCOUNT_SIZE}
+                    {"memcmp": {"offset": 165, "bytes": "3"}}
                 ]
             }
         ]

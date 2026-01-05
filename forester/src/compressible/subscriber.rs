@@ -1,7 +1,7 @@
 use std::{str::FromStr, sync::Arc};
 
 use futures::StreamExt;
-use light_ctoken_interface::{BASE_TOKEN_ACCOUNT_SIZE, CTOKEN_PROGRAM_ID};
+use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::{
     nonblocking::pubsub_client::PubsubClient,
@@ -11,7 +11,7 @@ use solana_client::{
     },
     rpc_response::{Response as RpcResponse, RpcKeyedAccount, RpcLogsResponse},
 };
-use solana_rpc_client_api::filter::RpcFilterType;
+use solana_rpc_client_api::filter::{Memcmp, MemcmpEncodedBytes, RpcFilterType};
 use solana_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey};
 use tokio::sync::broadcast;
 use tracing::{debug, error, info};
@@ -54,12 +54,17 @@ impl AccountSubscriber {
             .map_err(|e| anyhow::anyhow!("Failed to connect to WebSocket: {}", e))?;
 
         let program_id = Pubkey::new_from_array(CTOKEN_PROGRAM_ID);
-        // Subscribe to compressed token program accounts with filter for compressible account size
+        // Subscribe to compressed token program accounts with filter for account_type = 2 at position 165
+        // This indicates a CToken account with extensions (e.g., Compressible)
+        // "3" is base58 encoding of byte value 2 (ACCOUNT_TYPE_TOKEN_ACCOUNT)
         let (mut subscription, unsubscribe) = pubsub_client
             .program_subscribe(
                 &program_id,
                 Some(RpcProgramAccountsConfig {
-                    filters: Some(vec![RpcFilterType::DataSize(BASE_TOKEN_ACCOUNT_SIZE)]),
+                    filters: Some(vec![RpcFilterType::Memcmp(Memcmp::new(
+                        165,
+                        MemcmpEncodedBytes::Base58("3".to_string()),
+                    ))]),
                     account_config: RpcAccountInfoConfig {
                         encoding: Some(UiAccountEncoding::Base64),
                         commitment: Some(CommitmentConfig::confirmed()),

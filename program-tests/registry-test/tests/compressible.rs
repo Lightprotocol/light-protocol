@@ -501,22 +501,9 @@ async fn test_pause_compressible_config_with_valid_authority() -> Result<(), Rpc
 
     // Test 1: Cannot create new token accounts with paused config
 
-    let compressible_params = CompressibleParams {
-        compressible_config: rpc
-            .test_accounts
-            .funding_pool_config
-            .compressible_config_pda,
-        rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
-        pre_pay_num_epochs: 2,
-        lamports_per_write: None,
-        compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
-        compression_only: false,
-    };
-
     let compressible_instruction =
         CreateAssociatedCTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
-            .with_compressible(compressible_params)
+            .with_compressible(CompressibleParams::default_ata())
             .instruction()
             .map_err(|e| {
                 RpcError::AssertRpcError(format!(
@@ -635,22 +622,9 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
     assert_eq!(config.state, 0, "Config should be paused before unpausing");
 
     // Verify cannot create account while paused
-    let compressible_params = CompressibleParams {
-        compressible_config: rpc
-            .test_accounts
-            .funding_pool_config
-            .compressible_config_pda,
-        rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
-        pre_pay_num_epochs: 2,
-        lamports_per_write: None,
-        compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
-        compression_only: false,
-    };
-
     let compressible_instruction =
         CreateAssociatedCTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
-            .with_compressible(compressible_params)
+            .with_compressible(CompressibleParams::default_ata())
             .instruction()
             .map_err(|e| {
                 RpcError::AssertRpcError(format!(
@@ -692,7 +666,7 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
         lamports_per_write: None,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
-        compression_only: false,
+        compression_only: true,
     };
 
     let compressible_instruction =
@@ -782,7 +756,7 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
         lamports_per_write: None,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
-        compression_only: false,
+        compression_only: true,
     };
 
     let compressible_instruction =
@@ -830,7 +804,7 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
         lamports_per_write: None,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
-        compression_only: false,
+        compression_only: true,
     };
 
     let compressible_instruction =

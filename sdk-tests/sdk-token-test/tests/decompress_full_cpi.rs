@@ -83,7 +83,7 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
             lamports_per_write: None,
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
-            compression_only: false,
+            compression_only: true,
         };
 
         let create_token_account_ix =

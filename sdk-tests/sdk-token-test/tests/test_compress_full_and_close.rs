@@ -186,7 +186,7 @@ async fn test_compress_full_and_close() {
         compress_to_account_pubkey: None,
         compressible_config: config_pda(),
         rent_sponsor: rent_sponsor_pda(),
-        compression_only: false,
+        compression_only: true,
     };
     let create_ata_instruction = CreateAssociatedCTokenAccount::new_with_bump(
         payer.pubkey(),
