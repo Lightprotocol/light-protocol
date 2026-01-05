@@ -13,6 +13,7 @@ use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 
+use super::check_extensions::MintExtensionCache;
 use crate::{
     shared::{
         convert_program_error,
@@ -26,6 +27,7 @@ pub mod spl;
 
 pub use ctoken::{
     close_for_compress_and_close, compress_or_decompress_ctokens, CTokenCompressionInputs,
+    DecompressCompressOnlyInputs,
 };
 
 const SPL_TOKEN_ID: &[u8; 32] = &spl_token::ID.to_bytes();
@@ -36,20 +38,28 @@ const ID: &[u8; 32] = &LIGHT_CPI_SIGNER.program_id;
 ///
 /// # Arguments
 /// * `max_top_up` - Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
+/// * `compression_to_input` - Lookup array mapping compression index to input index for decompress operations
 #[profile]
-pub fn process_token_compression(
+pub fn process_token_compression<'a>(
     fee_payer: &AccountInfo,
-    inputs: &ZCompressedTokenInstructionDataTransfer2,
-    packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
+    inputs: &'a ZCompressedTokenInstructionDataTransfer2<'a>,
+    packed_accounts: &'a ProgramPackedAccounts<'a, AccountInfo>,
     cpi_authority: &AccountInfo,
     max_top_up: u16,
+    mint_cache: &'a MintExtensionCache,
+    compression_to_input: &[Option<u8>; 32],
 ) -> Result<(), ProgramError> {
     if let Some(compressions) = inputs.compressions.as_ref() {
+        if compressions.len() >= 32 {
+            // TODO: add meaningful error message
+            // TODO: use constant instead of 32.
+            return Err(ProgramError::InvalidInstructionData);
+        }
         let mut transfer_map = [0u64; MAX_PACKED_ACCOUNTS];
         // Initialize budget: +1 allows exact match (total == max_top_up)
         let mut lamports_budget = (max_top_up as u64).saturating_add(1);
 
-        for compression in compressions {
+        for (compression_index, compression) in compressions.iter().enumerate() {
             let account_index = compression.source_or_recipient as usize;
             if account_index >= MAX_PACKED_ACCOUNTS {
                 msg!(
@@ -65,31 +75,65 @@ pub fn process_token_compression(
                 "compression source or recipient",
             )?;
 
+            // Lookup cached mint extension checks (cache was built with skip logic already applied)
+            let mint_checks = mint_cache.get_by_key(&compression.mint).cloned();
+
             match source_or_recipient.owner() {
-                ID => ctoken::process_ctoken_compressions(
-                    inputs,
-                    compression,
-                    source_or_recipient,
-                    packed_accounts,
-                    &mut transfer_map[account_index],
-                    &mut lamports_budget,
-                )?,
+                ID => {
+                    let decompress_with_compress_only_inputs =
+                        DecompressCompressOnlyInputs::try_extract(
+                            compression,
+                            compression_index,
+                            compression_to_input,
+                            inputs,
+                            packed_accounts,
+                        )?;
+
+                    ctoken::process_ctoken_compressions(
+                        inputs,
+                        compression,
+                        source_or_recipient,
+                        packed_accounts,
+                        mint_checks,
+                        &mut transfer_map[account_index],
+                        &mut lamports_budget,
+                        decompress_with_compress_only_inputs,
+                    )?;
+                }
                 SPL_TOKEN_ID => {
+                    // SPL Token (not Token-2022) never has restricted extensions.
+                    // Delegation is disregarded for decompression to SPL token accounts.
                     spl::process_spl_compressions(
                         compression,
                         &SPL_TOKEN_ID.to_pubkey_bytes(),
                         source_or_recipient,
                         packed_accounts,
                         cpi_authority,
+                        false, // SPL Token has no extensions
                     )?;
                 }
                 SPL_TOKEN_2022_ID => {
+                    // CompressedOnly inputs must decompress to CToken accounts to preserve
+                    // extension state (frozen, delegated, withheld fees).
+                    if compression.mode.is_decompress()
+                        && compression_to_input[compression_index].is_some()
+                    {
+                        msg!("CompressedOnly inputs must decompress to CToken account");
+                        return Err(ErrorCode::CompressedOnlyRequiresCTokenDecompress.into());
+                    }
+
+                    // Check if mint has restricted extensions from the cache.
+                    // Delegation is disregarded for decompression to SPL token accounts.
+                    let is_restricted = mint_checks
+                        .map(|checks| checks.has_restricted_extensions)
+                        .unwrap_or(false);
                     spl::process_spl_compressions(
                         compression,
                         &SPL_TOKEN_2022_ID.to_pubkey_bytes(),
                         source_or_recipient,
                         packed_accounts,
                         cpi_authority,
+                        is_restricted,
                     )?;
                 }
                 _ => {

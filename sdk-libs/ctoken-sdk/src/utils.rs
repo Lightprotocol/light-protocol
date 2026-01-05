@@ -1,24 +1,20 @@
 //! Utility functions and default account configurations.
 
-use light_ctoken_interface::instructions::transfer2::MultiInputTokenDataWithContext;
+use light_ctoken_interface::{
+    instructions::transfer2::MultiInputTokenDataWithContext, state::CToken,
+};
 use light_sdk_types::C_TOKEN_PROGRAM_ID;
 use solana_account_info::AccountInfo;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
-use spl_pod::bytemuck::pod_from_bytes;
-use spl_token_2022::pod::PodAccount;
 
 use crate::{error::CTokenSdkError, AnchorDeserialize, AnchorSerialize};
 
 pub fn get_token_account_balance(token_account_info: &AccountInfo) -> Result<u64, CTokenSdkError> {
-    let token_account_data = token_account_info
+    let data = token_account_info
         .try_borrow_data()
         .map_err(|_| CTokenSdkError::AccountBorrowFailed)?;
-
-    let pod_account = pod_from_bytes::<PodAccount>(&token_account_data)
-        .map_err(|_| CTokenSdkError::InvalidAccountData)?;
-
-    Ok(pod_account.amount.into())
+    CToken::amount_from_slice(&data).map_err(|_| CTokenSdkError::InvalidAccountData)
 }
 
 pub fn is_ctoken_account(account_info: &AccountInfo) -> Result<bool, CTokenSdkError> {

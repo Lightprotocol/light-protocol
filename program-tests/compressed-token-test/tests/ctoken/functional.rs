@@ -1,10 +1,9 @@
 use super::shared::*;
 /// Test:
-/// 1. SUCCESS: Create system account with SPL token size
-/// 2. SUCCESS: Initialize basic token account using SPL SDK compatible instruction
-/// 3. SUCCESS: Verify account structure and ownership using existing assertion helpers
-/// 4. SUCCESS: Close account transferring lamports to destination
-/// 5. SUCCESS: Verify account closure and lamport transfer using existing assertion helpers
+/// 1. SUCCESS: Create CToken account with 0 prepaid epochs (immediately compressible)
+/// 2. SUCCESS: Verify account structure and ownership using existing assertion helpers
+/// 3. SUCCESS: Close account transferring lamports to destination
+/// 4. SUCCESS: Verify account closure and lamport transfer using existing assertion helpers
 #[tokio::test]
 #[serial]
 async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
@@ -12,51 +11,58 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
-    // Create system account with proper rent exemption
-    let rent_exemption = context
-        .rpc
-        .get_minimum_balance_for_rent_exemption(165)
-        .await?;
+    // Create CToken account with 0 prepaid epochs (immediately compressible)
+    let compressible_params = CompressibleParams {
+        compressible_config: context.compressible_config,
+        rent_sponsor: context.rent_sponsor,
+        pre_pay_num_epochs: 0,
+        lamports_per_write: None,
+        compress_to_account_pubkey: None,
+        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
+    };
 
-    let create_account_ix = create_account(
-        &payer_pubkey,
-        &token_account_pubkey,
-        rent_exemption,
-        165,
-        &light_compressed_token::ID,
-    );
-
-    // Initialize token account using SPL SDK compatible instruction (non-compressible)
-    let mut initialize_account_ix = CreateCTokenAccount {
-        payer: payer_pubkey,
-        account: token_account_pubkey,
-        mint: context.mint_pubkey,
-        owner: context.owner_keypair.pubkey(),
-        compressible: None,
-    }
+    let create_ix = CreateCTokenAccount::new(
+        payer_pubkey,
+        token_account_pubkey,
+        context.mint_pubkey,
+        context.owner_keypair.pubkey(),
+    )
+    .with_compressible(compressible_params)
     .instruction()
     .map_err(|e| {
         RpcError::AssertRpcError(format!("Failed to create token account instruction: {}", e))
     })?;
-    initialize_account_ix.data.push(0);
 
     // Execute account creation
     context
         .rpc
         .create_and_send_transaction(
-            &[create_account_ix, initialize_account_ix],
+            &[create_ix],
             &payer_pubkey,
             &[&context.payer, &context.token_account_keypair],
         )
         .await?;
 
     // Verify account creation using existing assertion helper
+    // Pass CompressibleData with 0 prepaid epochs since all accounts now have compression infrastructure
+    let compressible_data = CompressibleData {
+        compression_authority: context.compression_authority,
+        rent_sponsor: context.rent_sponsor,
+        num_prepaid_epochs: 0,
+        lamports_per_write: None,
+        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compress_to_pubkey: false,
+        payer: payer_pubkey,
+    };
+
     assert_create_token_account(
         &mut context.rpc,
         token_account_pubkey,
         context.mint_pubkey,
         context.owner_keypair.pubkey(),
-        None, // Basic token account
+        Some(compressible_data),
+        None,
     )
     .await;
 
@@ -116,10 +122,23 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         .expect("Payer should exist")
         .lamports;
 
-    // Create system account with compressible size
+    // Calculate expected size for account with Compressible extension
+    use light_ctoken_interface::state::{
+        calculate_ctoken_account_size, CompressibleExtensionConfig, CompressionInfoConfig,
+        ExtensionStructConfig,
+    };
+    let compressible_account_size =
+        calculate_ctoken_account_size(Some(&[ExtensionStructConfig::Compressible(
+            CompressibleExtensionConfig {
+                info: CompressionInfoConfig { rent_config: () },
+            },
+        )]))
+        .unwrap();
+
+    // Get rent exemption for the actual compressible account size
     let rent_exemption = context
         .rpc
-        .get_minimum_balance_for_rent_exemption(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize)
+        .get_minimum_balance_for_rent_exemption(compressible_account_size)
         .await
         .unwrap();
 
@@ -134,6 +153,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         lamports_per_write,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let create_token_account_ix = CreateCTokenAccount::new(
@@ -185,6 +205,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
             account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
+        None,
     )
     .await;
 
@@ -215,12 +236,17 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
 
     // Calculate transaction fee from the transaction result
     let tx_fee = 10_000; // Standard transaction fee
-                         // With 3 prepaid epochs: compression_cost (11000) + 3 * rent_per_epoch (389) = 12167
-                         // rent_per_epoch = 261 bytes * 1 lamport/byte/epoch + base_rent (128) = 389
+                         // Use RentConfig::default() to calculate expected rent
+    let expected_additional_rent = RentConfig::default().get_rent_with_compression_cost(
+        compressible_account_size as u64,
+        num_prepaid_epochs as u64,
+    );
     assert_eq!(
         payer_balance_before - payer_balance_after,
-        12_167 + tx_fee,
-        "Payer should have paid 12,167 lamports for additional rent (3 epochs) plus {} tx fee",
+        expected_additional_rent + tx_fee,
+        "Payer should have paid {} lamports for additional rent ({} epochs) plus {} tx fee",
+        expected_additional_rent,
+        num_prepaid_epochs,
         tx_fee
     );
 
@@ -246,6 +272,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
             context.owner_keypair.pubkey(),
             &context.owner_keypair,
             &context.payer,
+            9,
         )
         .await
         .unwrap();
@@ -260,6 +287,8 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
             authority: context.owner_keypair.pubkey(),
             output_queue,
             pool_index: None,
+            decimals: 9,
+            version: None,
         };
         assert_transfer2_compress(&mut context.rpc, compress_input).await;
     }

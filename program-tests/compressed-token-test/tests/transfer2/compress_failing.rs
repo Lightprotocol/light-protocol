@@ -35,7 +35,9 @@
 // 1. create and mint to one ctoken compressed account
 //
 
-use light_ctoken_interface::{instructions::mint_action::Recipient, state::TokenDataVersion};
+use light_ctoken_interface::{
+    instructions::mint_action::Recipient, state::TokenDataVersion, CTokenError,
+};
 use light_ctoken_sdk::{
     compressed_token::{
         create_compressed_mint::find_cmint_address,
@@ -48,7 +50,9 @@ use light_ctoken_sdk::{
     ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
     ValidityProof,
 };
-use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc};
+use light_program_test::{
+    utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
+};
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::RpcError;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -98,6 +102,7 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
         lamports_per_write: Some(1000),
         compress_to_account_pubkey: None,
         token_account_version: TokenDataVersion::ShaFlat,
+        compression_only: true, // ATAs require compression_only=true
     };
 
     let create_ata_instruction =
@@ -234,6 +239,7 @@ fn create_compression_inputs(
         in_lamports: None,
         out_lamports: None,
         output_queue: output_merkle_tree_index,
+        in_tlv: None,
     })
 }
 
@@ -372,16 +378,8 @@ async fn test_compression_invalid_authority_signed() -> Result<(), RpcError> {
         .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer, &invalid_authority])
         .await;
 
-    // Should fail with OwnerMismatch (custom program error 0x4b = 75) - Authority doesn't match account owner or delegate
-    assert!(
-        result
-            .as_ref()
-            .unwrap_err()
-            .to_string()
-            .contains("custom program error: 0x4b"),
-        "Expected custom program error 0x4b, got: {}",
-        result.unwrap_err().to_string()
-    );
+    // Should fail with OwnerMismatch (6075) - Authority doesn't match account owner or delegate
+    assert_rpc_error(result, 0, 6075).unwrap();
 
     Ok(())
 }
@@ -457,15 +455,7 @@ async fn test_compression_invalid_mint() -> Result<(), RpcError> {
         .await;
 
     // Should fail with InvalidAccountData - mint mismatch detected during CToken account validation
-    assert!(
-        result
-            .as_ref()
-            .unwrap_err()
-            .to_string()
-            .contains("invalid account data for instruction"),
-        "Expected InvalidAccountData error, got: {}",
-        result.unwrap_err().to_string()
-    );
+    assert_rpc_error(result, 0, CTokenError::MintMismatch.into()).unwrap();
 
     Ok(())
 }
@@ -622,6 +612,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
         lamports_per_write: Some(1000),
         compress_to_account_pubkey: None,
         token_account_version: TokenDataVersion::ShaFlat,
+        compression_only: true, // ATAs require compression_only=true
     };
 
     let create_ata_instruction =
@@ -696,6 +687,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
         in_lamports: None,
         out_lamports: None,
         output_queue: 0,
+        in_tlv: None,
     };
 
     // Create instruction

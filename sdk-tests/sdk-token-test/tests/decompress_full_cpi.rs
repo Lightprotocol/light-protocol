@@ -83,6 +83,7 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
             lamports_per_write: None,
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: true,
         };
 
         let create_token_account_ix =
@@ -189,7 +190,8 @@ async fn test_decompress_full_cpi() {
             use light_zero_copy::traits::ZeroCopyAt;
             let (dest_token, _) = CToken::zero_copy_at(&dest_account.data).unwrap();
             assert_eq!(
-                *dest_token.amount, 0,
+                u64::from(dest_token.amount),
+                0,
                 "Destination should be empty initially"
             );
         }
@@ -243,6 +245,7 @@ async fn test_decompress_full_cpi() {
                     tree_info,
                     dest_pubkey,
                     &mut remaining_accounts,
+                    None, // No TLV extensions
                     version,
                 )
             })
@@ -288,7 +291,8 @@ async fn test_decompress_full_cpi() {
             use light_zero_copy::traits::ZeroCopyAt;
             let (dest_token_after, _) = CToken::zero_copy_at(&dest_account_after.data).unwrap();
             assert_eq!(
-                *dest_token_after.amount, ctx.compressed_amount_per_account,
+                u64::from(dest_token_after.amount),
+                ctx.compressed_amount_per_account,
                 "Each destination should have its decompressed amount"
             );
         }
@@ -333,7 +337,8 @@ async fn test_decompress_full_cpi_with_context() {
             use light_zero_copy::traits::ZeroCopyAt;
             let (dest_token_before, _) = CToken::zero_copy_at(&dest_account_before.data).unwrap();
             assert_eq!(
-                *dest_token_before.amount, 0,
+                u64::from(dest_token_before.amount),
+                0,
                 "Destination should be empty initially"
             );
         }
@@ -447,6 +452,7 @@ async fn test_decompress_full_cpi_with_context() {
                     tree_info,
                     dest_pubkey,
                     &mut remaining_accounts,
+                    None, // No TLV extensions
                     version,
                 )
             })
@@ -514,7 +520,8 @@ async fn test_decompress_full_cpi_with_context() {
             use light_zero_copy::traits::ZeroCopyAt;
             let (dest_token_after, _) = CToken::zero_copy_at(&dest_account_after.data).unwrap();
             assert_eq!(
-                *dest_token_after.amount, ctx.compressed_amount_per_account,
+                u64::from(dest_token_after.amount),
+                ctx.compressed_amount_per_account,
                 "Each destination should have received its decompressed amount"
             );
         }

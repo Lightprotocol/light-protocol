@@ -21,6 +21,7 @@ pub fn process_compress_full_and_close<'info>(
     source_index: u8,
     authority_index: u8,
     close_recipient_index: u8,
+    rent_sponsor_index: u8,
     system_accounts_offset: u8,
 ) -> Result<()> {
     // Parse CPI accounts (following four_transfer2 pattern)
@@ -38,6 +39,9 @@ pub fn process_compress_full_and_close<'info>(
     // should be in the anchor account struct
     let close_recipient_info = cpi_accounts
         .get_tree_account_info(close_recipient_index as usize)
+        .unwrap();
+    let rent_sponsor_info = cpi_accounts
+        .get_tree_account_info(rent_sponsor_index as usize)
         .unwrap();
     // Create CTokenAccount2 for compression (following four_transfer2 pattern)
     let mut token_account_compress = CTokenAccount2::new_empty(recipient_index, mint_index);
@@ -88,14 +92,13 @@ pub fn process_compress_full_and_close<'info>(
 
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
-    // Create close instruction without rent_sponsor for non-compressible accounts
-    let close_instruction = CloseCTokenAccount {
-        token_program: compressed_token_program_id,
-        account: *token_account_info.key,
-        destination: *close_recipient_info.key,
-        owner: *ctx.accounts.signer.key,
-        rent_sponsor: None,
-    }
+    // Create close instruction with rent_sponsor for compressible accounts
+    let close_instruction = CloseCTokenAccount::new(
+        compressed_token_program_id,
+        *token_account_info.key,
+        *close_recipient_info.key,
+        *ctx.accounts.signer.key,
+    )
     .instruction()?;
 
     invoke(
@@ -104,6 +107,7 @@ pub fn process_compress_full_and_close<'info>(
             token_account_info.clone(),
             close_recipient_info.clone(),
             ctx.accounts.signer.to_account_info(),
+            rent_sponsor_info.clone(),
         ],
     )?;
     Ok(())

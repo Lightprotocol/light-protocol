@@ -31,7 +31,7 @@ pub fn process_create_ata_invoke(
     }
 
     // Build the compressible params using constructor
-    let compressible_params = CompressibleParamsCpi::new(
+    let compressible_params = CompressibleParamsCpi::new_ata(
         accounts[5].clone(),
         accounts[6].clone(),
         accounts[4].clone(),
@@ -45,7 +45,7 @@ pub fn process_create_ata_invoke(
         associated_token_account: accounts[3].clone(),
         system_program: accounts[4].clone(),
         bump: data.bump,
-        compressible: Some(compressible_params),
+        compressible: compressible_params,
         idempotent: false,
     }
     .invoke()?;
@@ -80,7 +80,7 @@ pub fn process_create_ata_invoke_signed(
     }
 
     // Build the compressible params using constructor
-    let compressible_params = CompressibleParamsCpi::new(
+    let compressible_params = CompressibleParamsCpi::new_ata(
         accounts[5].clone(),
         accounts[6].clone(),
         accounts[4].clone(),
@@ -94,7 +94,7 @@ pub fn process_create_ata_invoke_signed(
         associated_token_account: accounts[3].clone(),
         system_program: accounts[4].clone(),
         bump: data.bump,
-        compressible: Some(compressible_params),
+        compressible: compressible_params,
         idempotent: false,
     };
 

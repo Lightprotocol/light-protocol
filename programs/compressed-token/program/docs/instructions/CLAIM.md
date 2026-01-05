@@ -2,12 +2,14 @@
 
 **discriminator:** 104
 **enum:** `InstructionType::Claim`
-**path:** programs/compressed-token/program/src/claim/
+**path:** programs/compressed-token/program/src/claim.rs
 
 **description:**
-1. Claims rent from compressible ctoken solana accounts that have passed their rent expiration epochs
-2. Account layout `CToken` is defined in path: program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs
-3. Extension layout `CompressionInfo` is defined in path: program-libs/ctoken-types/src/state/extensions/compressible.rs
+1. Claims rent from compressible CToken and CMint solana accounts that have passed their rent expiration epochs
+2. Supports both account types:
+   - CToken (account_type = 2): decompressed token accounts, layout defined in program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs
+   - CMint (account_type = 1): decompressed mint accounts, layout defined in program-libs/ctoken-interface/src/state/mint/compressed_mint.rs
+3. CompressionInfo is embedded directly in both account types (not as an extension), defined in program-libs/compressible/src/compression_info.rs
 4. Processes multiple token accounts in a single instruction for efficiency
 5. For each eligible compressible account:
    - Updates the account's RentConfig from the CompressibleConfig
@@ -20,20 +22,18 @@
 8. Only the compression authority (from CompressibleConfig) can execute claims
 9. **Config validation:** Config must not be inactive (active or deprecated allowed)
 10. Accounts that don't meet claim criteria are skipped without error
-11. Multiple accounts can be claimed in a single transaction for efficiency
-12. Only completed epochs are claimed, partial epochs remain with the account
-13. The instruction is designed to be called periodically by foresters
+11. Only completed epochs are claimed, partial epochs remain with the account
+12. The instruction is designed to be called periodically by foresters
 
 **Instruction data:**
-- Single byte: pool PDA bump
-- Used to validate the rent_sponsor PDA derivation
+- Empty (zero bytes required)
+- Error if any instruction data is provided
 
 **Accounts:**
 1. rent_sponsor
    - (mutable)
    - The pool PDA that receives claimed rent
    - Must match the rent_sponsor in CompressibleConfig
-   - Derivation validated using provided bump
 
 2. compression_authority
    - (signer)
@@ -47,18 +47,18 @@
    - Owner must be Registry program (Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX)
    - Must not be in inactive state
 
-4. token_accounts (remaining accounts)
+4. accounts (remaining accounts)
    - (mutable, variable number)
-   - CToken accounts to claim rent from
+   - CToken or CMint accounts to claim rent from
+   - Account type determined by byte 165 (1 = CMint, 2 = CToken) or size (165 bytes = CToken)
    - Each account is processed independently
-   - Accounts without compressible extension are skipped
-   - Invalid accounts (wrong authority/recipient) are skipped without error
+   - Invalid accounts (wrong authority/recipient/type) are skipped without error
 
 **Instruction Logic and Checks:**
 
-1. **Parse instruction data:**
-   - Extract pool PDA bump from first byte
-   - Error if instruction data is empty
+1. **Validate instruction data:**
+   - Verify instruction data is empty
+   - Error if any instruction data is provided
 
 2. **Validate fixed accounts:**
    - Verify compression_authority is a signer
@@ -71,35 +71,39 @@
 3. **Get current slot:**
    - Fetch from Clock sysvar for epoch calculation
 
-4. **Process each token account:**
+4. **Process each account:**
    For each account in remaining accounts:
 
-   a. **Parse account data:**
-      - Borrow mutable data
-      - Deserialize as CToken with zero-copy
+   a. **Determine account type:**
+      - If account size < 165 bytes: invalid, skip
+      - If account size == 165 bytes: CToken (legacy)
+      - If account size > 165 bytes: read byte 165 for discriminator (1 = CMint, 2 = CToken)
 
-   b. **Find and validate compressible extension:**
-      - Search extensions for Compressible variant
-      - Skip if no compressible extension found
+   b. **Parse account data:**
+      - Borrow mutable data
+      - Deserialize as CToken or CMint based on account type with zero-copy
+
+   c. **Validate compression info:**
+      - Access embedded CompressionInfo from account
       - Validate compression_authority matches
       - Validate rent_sponsor matches
 
-   c. **Validate version:**
-      - Verify `compressible_ext.config_account_version` matches CompressibleConfig version
-      - Error if versions don't match (prevents cross-version claims)
+   d. **Validate version:**
+      - Verify `compression.config_account_version` matches CompressibleConfig version
+      - Error with `CompressibleError::InvalidVersion` if versions don't match (prevents cross-version claims)
 
-   d. **Calculate and claim rent:**
+   e. **Calculate and claim rent:**
       - Get account size and current lamports
       - Calculate rent exemption for account size
-      - Call `compressible_ext.claim()` which:
+      - Call `compression.claim()` which:
         - Determines completed epochs since last claim using CURRENT RentConfig
         - Calculates claimable lamports
         - Updates last_claimed_slot if there's claimable rent
       - Returns None if no rent to claim (account not yet compressible)
-      - After claim calculation, always update `compressible_ext.rent_config` from CompressibleConfig for future operations
+      - After claim calculation, always update `compression.rent_config` from CompressibleConfig for future operations
 
-   e. **Transfer lamports:**
-      - If claim amount > 0, transfer from token account to rent_sponsor
+   f. **Transfer lamports:**
+      - If claim amount > 0, transfer from account to rent_sponsor
       - Update both account balances
 
 5. **Complete successfully:**
@@ -108,10 +112,14 @@
 
 **Errors:**
 
-- `ProgramError::InvalidInstructionData` (error code: 3) - Missing pool PDA bump in instruction data or instruction data is empty
-- `ProgramError::InvalidSeeds` (error code: 14) - compression_authority or rent_sponsor doesn't match CompressibleConfig
-- `ProgramError::InvalidAccountData` (error code: 4) - CompressibleConfig/CToken deserialization fails, config version mismatch, or claim calculation fails
-- `AccountError::NotEnoughAccountKeys` (error code: 12020) - Missing required accounts
-- `AccountError::InvalidSigner` (error code: 12015) - compression_authority is not a signer
-- `AccountError::AccountNotMutable` (error code: 12008) - rent_sponsor is not mutable
+- `ProgramError::InvalidInstructionData` (error code: 3) - Instruction data is not empty
+- `ProgramError::InvalidAccountData` (error code: 4) - CompressibleConfig/CToken deserialization fails, account type discriminator invalid, or claim calculation fails
+- `ErrorCode::InvalidCompressAuthority` - compression_authority doesn't match CompressibleConfig
+- `ErrorCode::InvalidRentSponsor` - rent_sponsor doesn't match CompressibleConfig
+- `CompressibleError::InvalidVersion` (error code: 19003) - Account's config_account_version doesn't match CompressibleConfig version
+- `CTokenError::MissingCompressibleExtension` (error code: 18056) - CToken account lacks required Compressible extension
+- `AccountError::NotEnoughAccountKeys` (error code: 20014) - Missing required accounts
+- `AccountError::InvalidSigner` (error code: 20009) - compression_authority is not a signer
+- `AccountError::AccountNotMutable` (error code: 20002) - rent_sponsor is not mutable
+- `AccountError::AccountOwnedByWrongProgram` (error code: 20001) - Token account not owned by compressed token program
 - `CompressibleError::InvalidState` (error code: 19002) - CompressibleConfig is in inactive state

@@ -1,7 +1,7 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_ctoken_interface::{
     instructions::extensions::TokenMetadataInstructionData,
-    state::{BaseMint, CompressedMint, CompressedMintMetadata, ExtensionStruct},
+    state::{BaseMint, CompressedMint, CompressedMintMetadata, ExtensionStruct, ACCOUNT_TYPE_MINT},
 };
 use solana_sdk::pubkey::Pubkey;
 
@@ -47,6 +47,9 @@ pub fn assert_compressed_mint_account(
             mint: spl_mint_pda.into(),
             cmint_decompressed: false,
         },
+        reserved: [0u8; 49],
+        account_type: ACCOUNT_TYPE_MINT,
+        compression: light_compressible::compression_info::CompressionInfo::default(),
         extensions: expected_extensions,
     };
 

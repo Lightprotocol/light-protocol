@@ -1,13 +1,13 @@
 use anchor_lang::{prelude::borsh::BorshDeserialize, solana_program::program_pack::Pack};
 use light_client::indexer::Indexer;
-use light_compressible::rent::SLOTS_PER_EPOCH;
+use light_compressible::{compression_info::CompressionInfo, rent::SLOTS_PER_EPOCH};
 use light_ctoken_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData, mint_action::Recipient,
     },
     state::{
         extensions::AdditionalMetadata, BaseMint, CompressedMint, CompressedMintMetadata,
-        TokenDataVersion,
+        TokenDataVersion, ACCOUNT_TYPE_MINT,
     },
     COMPRESSED_MINT_SEED,
 };
@@ -253,7 +253,7 @@ async fn test_create_compressed_mint() {
         owner: new_recipient,
         mint: spl_mint_pda,
         associated_token_account: ctoken_ata_pubkey,
-        compressible: None,
+        compressible: CompressibleParams::default_ata(),
     }
     .instruction()
     .unwrap();
@@ -268,6 +268,7 @@ async fn test_create_compressed_mint() {
         decompress_amount,
         ctoken_ata_pubkey,
         payer.pubkey(),
+        9, // decimals
     )
     .await
     .unwrap();
@@ -292,6 +293,8 @@ async fn test_create_compressed_mint() {
                     decompress_amount,
                     solana_token_account: ctoken_ata_pubkey,
                     amount: decompress_amount,
+                    decimals: 9,
+                    in_tlv: None,
                 },
             )
             .await;
@@ -322,6 +325,8 @@ async fn test_create_compressed_mint() {
             authority: new_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
             pool_index: None,
+            decimals: 9,
+            version: None,
         })],
         payer.pubkey(),
         true,
@@ -350,6 +355,8 @@ async fn test_create_compressed_mint() {
             authority: new_recipient_keypair.pubkey(),
             output_queue,
             pool_index: None,
+            decimals: 9,
+            version: None,
         },
     )
     .await;
@@ -368,6 +375,8 @@ async fn test_create_compressed_mint() {
             authority: new_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
             pool_index: None,
+            decimals: 9,
+            version: None,
         })],
         payer.pubkey(),
         true,
@@ -406,6 +415,8 @@ async fn test_create_compressed_mint() {
             authority: new_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
             pool_index: None,
+            decimals: 9,
+            version: None,
         })],
         payer.pubkey(),
         true,
@@ -449,7 +460,7 @@ async fn test_create_compressed_mint() {
         owner: decompress_recipient.pubkey(),
         mint: spl_mint_pda,
         associated_token_account: decompress_dest_ata,
-        compressible: None,
+        compressible: CompressibleParams::default_ata(),
     }
     .instruction()
     .unwrap();
@@ -489,6 +500,8 @@ async fn test_create_compressed_mint() {
                 solana_token_account: decompress_dest_ata,
                 amount: decompress_amount,
                 pool_index: None,
+                decimals: 9,
+                in_tlv: None,
             }),
             // 3. Compress SPL tokens to compressed tokens
             Transfer2InstructionType::Compress(CompressInput {
@@ -500,6 +513,8 @@ async fn test_create_compressed_mint() {
                 authority: new_recipient_keypair.pubkey(), // Authority for compression
                 output_queue: multi_output_queue,
                 pool_index: None,
+                decimals: 9,
+                version: None,
             }),
         ];
         // Create the combined multi-transfer instruction
@@ -715,6 +730,7 @@ async fn test_ctoken_transfer() {
         lamports_per_write: Some(1000),
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: true,
     };
 
     let create_ata_instruction = CreateAssociatedCTokenAccount::new(
@@ -791,7 +807,7 @@ async fn test_ctoken_transfer() {
         owner: second_recipient_keypair.pubkey(),
         mint: spl_mint_pda,
         associated_token_account: second_recipient_ata,
-        compressible: None,
+        compressible: CompressibleParams::default_ata(),
     }
     .instruction()
     .unwrap();
@@ -907,6 +923,8 @@ async fn test_ctoken_transfer() {
             authority: second_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
             pool_index: None,
+            decimals: 9,
+            version: None,
         })],
         payer.pubkey(),
         true,
@@ -921,7 +939,7 @@ async fn test_ctoken_transfer() {
         .unwrap()
         .unwrap();
     let pre_compress_spl_account =
-        spl_token_2022::state::Account::unpack(&pre_compress_account_data.data).unwrap();
+        spl_token_2022::state::Account::unpack(&pre_compress_account_data.data[..165]).unwrap();
     println!(
         "Account balance before compression: {}",
         pre_compress_spl_account.amount
@@ -954,6 +972,8 @@ async fn test_ctoken_transfer() {
             amount: compress_amount,
             authority: second_recipient_keypair.pubkey(),
             output_queue,
+            decimals: 9,
+            version: None,
         },
     )
     .await;
@@ -965,7 +985,7 @@ async fn test_ctoken_transfer() {
         .unwrap()
         .unwrap();
     let final_spl_account =
-        spl_token_2022::state::Account::unpack(&final_account_data.data).unwrap();
+        spl_token_2022::state::Account::unpack(&final_account_data.data[..165]).unwrap();
     println!(
         "Final account balance after compression: {}",
         final_spl_account.amount
@@ -1238,6 +1258,9 @@ async fn test_mint_actions() {
             mint: spl_mint_pda.into(),
             cmint_decompressed: false, // Should be true after CreateSplMint action
         },
+        reserved: [0u8; 49],
+        account_type: ACCOUNT_TYPE_MINT,
+        compression: CompressionInfo::default(),
         extensions: Some(vec![
             light_ctoken_interface::state::extensions::ExtensionStruct::TokenMetadata(
                 light_ctoken_interface::state::extensions::TokenMetadata {
@@ -1468,6 +1491,9 @@ async fn test_create_compressed_mint_with_cmint() {
             cmint_decompressed: false, // Before DecompressMint
             mint: cmint_pda.to_bytes().into(),
         },
+        reserved: [0u8; 49],
+        account_type: ACCOUNT_TYPE_MINT,
+        compression: CompressionInfo::default(),
         extensions: None,
     };
 

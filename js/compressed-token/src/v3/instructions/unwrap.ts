@@ -20,6 +20,7 @@ import {
  * @param mint             Mint address
  * @param amount           Amount to unwrap,
  * @param splInterfaceInfo SPL interface info for the decompression
+ * @param decimals         Mint decimals (required for transfer_checked)
  * @param payer            Fee payer (defaults to owner if not provided)
  * @returns TransactionInstruction to unwrap tokens
  */
@@ -30,6 +31,7 @@ export function createUnwrapInstruction(
     mint: PublicKey,
     amount: bigint,
     splInterfaceInfo: SplInterfaceInfo,
+    decimals: number,
     payer: PublicKey = owner,
 ): TransactionInstruction {
     const MINT_INDEX = 0;
@@ -56,6 +58,7 @@ export function createUnwrapInstruction(
             POOL_INDEX,
             splInterfaceInfo.poolIndex,
             splInterfaceInfo.bump,
+            decimals,
         ),
     ];
 

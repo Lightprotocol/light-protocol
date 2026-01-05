@@ -23,7 +23,7 @@ pub struct CloseCTokenAccount {
     pub account: Pubkey,
     pub destination: Pubkey,
     pub owner: Pubkey,
-    pub rent_sponsor: Option<Pubkey>,
+    pub rent_sponsor: Pubkey,
 }
 
 impl CloseCTokenAccount {
@@ -33,12 +33,12 @@ impl CloseCTokenAccount {
             account,
             destination,
             owner,
-            rent_sponsor: Some(RENT_SPONSOR),
+            rent_sponsor: RENT_SPONSOR,
         }
     }
 
     pub fn custom_rent_sponsor(mut self, rent_sponsor: Pubkey) -> Self {
-        self.rent_sponsor = Some(rent_sponsor);
+        self.rent_sponsor = rent_sponsor;
         self
     }
 
@@ -46,16 +46,12 @@ impl CloseCTokenAccount {
         // CloseAccount discriminator is 9 (no additional instruction data)
         let data = vec![9u8];
 
-        let mut accounts = vec![
+        let accounts = vec![
             AccountMeta::new(self.account, false),
             AccountMeta::new(self.destination, false),
             AccountMeta::new(self.owner, true), // signer, mutable to receive write_top_up
+            AccountMeta::new(self.rent_sponsor, false),
         ];
-
-        // Add rent sponsor for compressible accounts
-        if let Some(rent_sponsor) = self.rent_sponsor {
-            accounts.push(AccountMeta::new(rent_sponsor, false));
-        }
 
         Ok(Instruction {
             program_id: self.token_program,
@@ -80,7 +76,7 @@ impl CloseCTokenAccount {
 ///     account,
 ///     destination,
 ///     owner,
-///     rent_sponsor: Some(rent_sponsor),
+///     rent_sponsor,
 /// }
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
@@ -90,7 +86,7 @@ pub struct CloseCTokenAccountCpi<'info> {
     pub account: AccountInfo<'info>,
     pub destination: AccountInfo<'info>,
     pub owner: AccountInfo<'info>,
-    pub rent_sponsor: Option<AccountInfo<'info>>,
+    pub rent_sponsor: AccountInfo<'info>,
 }
 
 impl<'info> CloseCTokenAccountCpi<'info> {
@@ -100,24 +96,24 @@ impl<'info> CloseCTokenAccountCpi<'info> {
 
     pub fn invoke(self) -> Result<(), ProgramError> {
         let instruction = self.instruction()?;
-        if let Some(rent_sponsor) = self.rent_sponsor {
-            let account_infos = [self.account, self.destination, self.owner, rent_sponsor];
-            invoke(&instruction, &account_infos)
-        } else {
-            let account_infos = [self.account, self.destination, self.owner];
-            invoke(&instruction, &account_infos)
-        }
+        let account_infos = [
+            self.account,
+            self.destination,
+            self.owner,
+            self.rent_sponsor,
+        ];
+        invoke(&instruction, &account_infos)
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = self.instruction()?;
-        if let Some(rent_sponsor) = self.rent_sponsor {
-            let account_infos = [self.account, self.destination, self.owner, rent_sponsor];
-            invoke_signed(&instruction, &account_infos, signer_seeds)
-        } else {
-            let account_infos = [self.account, self.destination, self.owner];
-            invoke_signed(&instruction, &account_infos, signer_seeds)
-        }
+        let account_infos = [
+            self.account,
+            self.destination,
+            self.owner,
+            self.rent_sponsor,
+        ];
+        invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
 
@@ -128,7 +124,7 @@ impl<'info> From<&CloseCTokenAccountCpi<'info>> for CloseCTokenAccount {
             account: *account_infos.account.key,
             destination: *account_infos.destination.key,
             owner: *account_infos.owner.key,
-            rent_sponsor: account_infos.rent_sponsor.as_ref().map(|ai| *ai.key),
+            rent_sponsor: *account_infos.rent_sponsor.key,
         }
     }
 }

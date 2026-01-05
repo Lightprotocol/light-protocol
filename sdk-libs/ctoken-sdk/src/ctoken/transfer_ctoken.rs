@@ -27,7 +27,7 @@ pub struct TransferCToken {
     pub amount: u64,
     pub authority: Pubkey,
     /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
-    /// When set to a non-zero value, includes max_top_up in instruction data
+    /// When set, includes max_top_up in instruction data and adds system program account for compressible top-up
     pub max_top_up: Option<u16>,
 }
 
@@ -89,13 +89,30 @@ impl<'info> From<&TransferCTokenCpi<'info>> for TransferCToken {
 
 impl TransferCToken {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
+        // Authority is writable only when max_top_up is set (for compressible top-up lamport transfer)
+        let authority_meta = if self.max_top_up.is_some() {
+            AccountMeta::new(self.authority, true)
+        } else {
+            AccountMeta::new_readonly(self.authority, true)
+        };
+
+        let mut accounts = vec![
+            AccountMeta::new(self.source, false),
+            AccountMeta::new(self.destination, false),
+            authority_meta,
+        ];
+
+        // Include system program for compressible top-up when max_top_up is set
+        if self.max_top_up.is_some() {
+            accounts.push(AccountMeta::new_readonly(
+                solana_pubkey::pubkey!("11111111111111111111111111111111"),
+                false,
+            ));
+        }
+
         Ok(Instruction {
             program_id: Pubkey::from(C_TOKEN_PROGRAM_ID),
-            accounts: vec![
-                AccountMeta::new(self.source, false),
-                AccountMeta::new(self.destination, false),
-                AccountMeta::new_readonly(self.authority, true),
-            ],
+            accounts,
             data: {
                 let mut data = vec![3u8];
                 data.extend_from_slice(&self.amount.to_le_bytes());

@@ -71,6 +71,10 @@ pub enum CTokenSdkError {
     InvalidCpiContext,
     #[error("No input accounts provided")]
     NoInputAccounts,
+    #[error("Missing Compressible extension on CToken account")]
+    MissingCompressibleExtension,
+    #[error("Invalid CToken account data")]
+    InvalidCTokenAccount,
     #[error(transparent)]
     CompressedTokenTypes(#[from] LightTokenSdkTypeError),
     #[error(transparent)]
@@ -130,6 +134,8 @@ impl From<CTokenSdkError> for u32 {
             CTokenSdkError::MissingSplInterfacePdaBump => 17028,
             CTokenSdkError::InvalidCpiContext => 17029,
             CTokenSdkError::NoInputAccounts => 17030,
+            CTokenSdkError::MissingCompressibleExtension => 17031,
+            CTokenSdkError::InvalidCTokenAccount => 17032,
             CTokenSdkError::CompressedTokenTypes(e) => e.into(),
             CTokenSdkError::CTokenError(e) => e.into(),
             CTokenSdkError::LightSdkTypesError(e) => e.into(),

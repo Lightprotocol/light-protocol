@@ -3,18 +3,22 @@ use anchor_lang::prelude::ProgramError;
 use light_account_checks::checks::check_owner;
 use light_ctoken_interface::{
     instructions::transfer2::ZCompressionMode,
-    state::{CToken, ZExtensionStructMut},
+    state::{CToken, ZCTokenMut},
     CTokenError,
 };
 use light_program_profiler::profile;
+use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::{
     account_info::AccountInfo,
     pubkey::pubkey_eq,
-    sysvars::{clock::Clock, Sysvar},
+    sysvars::{clock::Clock, rent::Rent, Sysvar},
 };
 use spl_pod::solana_msg::msg;
 
-use super::{compress_and_close::process_compress_and_close, inputs::CTokenCompressionInputs};
+use super::{
+    compress_and_close::process_compress_and_close, decompress::apply_decompress_extension_state,
+    inputs::CTokenCompressionInputs,
+};
 use crate::shared::owner_validation::check_ctoken_owner;
 
 /// Perform compression/decompression on a ctoken account.
@@ -35,6 +39,8 @@ pub fn compress_or_decompress_ctokens(
         token_account_info,
         mode,
         packed_accounts,
+        mint_checks,
+        decompress_inputs,
     } = inputs;
 
     check_owner(&crate::LIGHT_CPI_SIGNER.program_id, token_account_info)?;
@@ -42,67 +48,61 @@ pub fn compress_or_decompress_ctokens(
         .try_borrow_mut_data()
         .map_err(|_| ProgramError::AccountBorrowFailed)?;
 
-    let (mut ctoken, _) = CToken::zero_copy_at_mut_checked(&mut token_account_data)?;
-
-    if !pubkey_eq(ctoken.mint.array_ref(), &mint) {
-        msg!(
-            "mint mismatch account: ctoken.mint {:?}, mint {:?}",
-            solana_pubkey::Pubkey::new_from_array(ctoken.mint.to_bytes()),
-            solana_pubkey::Pubkey::new_from_array(mint)
-        );
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    // Check if account is frozen (SPL Token-2022 compatibility)
-    // Frozen accounts cannot have their balance modified in any way
-    // TODO: Once freezing ctoken accounts is implemented, we need to allow
-    // CompressAndClose with rent authority for frozen accounts (similar to
-    // how rent authority can compress expired accounts)
-    if *ctoken.state == 2 {
-        msg!("Cannot modify frozen account");
-        return Err(ErrorCode::AccountFrozen.into());
-    }
+    let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut token_account_data)?;
+    validate_ctoken(&ctoken, &mint, &mode)?;
 
     // Get current balance
-    let current_balance: u64 = u64::from(*ctoken.amount);
+    let current_balance: u64 = ctoken.base.amount.get();
     let mut current_slot = 0;
     // Calculate new balance using effective amount
     match mode {
         ZCompressionMode::Compress => {
-            // Verify authority for compression operations and update delegated amount if needed
+            // Verify authority for compression operations
             let authority_account = authority.ok_or(ErrorCode::InvalidCompressAuthority)?;
-            check_ctoken_owner(&mut ctoken, authority_account)?;
+            check_ctoken_owner(&mut ctoken, authority_account, mint_checks.as_ref())?;
+            if !ctoken.is_initialized() {
+                return Err(CTokenError::InvalidAccountState.into());
+            }
 
             // Compress: subtract from solana account
             // Update the balance in the ctoken solana account
-            *ctoken.amount = current_balance
-                .checked_sub(amount)
-                .ok_or(ProgramError::ArithmeticOverflow)?
-                .into();
-
-            process_compressible_extension(
-                ctoken.extensions.as_deref(),
-                token_account_info,
-                &mut current_slot,
-                transfer_amount,
-                lamports_budget,
-            )
+            ctoken.base.amount.set(
+                current_balance
+                    .checked_sub(amount)
+                    .ok_or(ProgramError::ArithmeticOverflow)?,
+            );
+            if let Some(compression) = ctoken.get_compressible_extension() {
+                process_compression_top_up(
+                    &compression.info,
+                    token_account_info,
+                    &mut current_slot,
+                    transfer_amount,
+                    lamports_budget,
+                )?;
+            }
+            Ok(())
         }
         ZCompressionMode::Decompress => {
+            apply_decompress_extension_state(&mut ctoken, token_account_info, decompress_inputs)?;
+
             // Decompress: add to solana account
             // Update the balance in the compressed token account
-            *ctoken.amount = current_balance
-                .checked_add(amount)
-                .ok_or(ProgramError::ArithmeticOverflow)?
-                .into();
+            ctoken.base.amount.set(
+                current_balance
+                    .checked_add(amount)
+                    .ok_or(ProgramError::ArithmeticOverflow)?,
+            );
 
-            process_compressible_extension(
-                ctoken.extensions.as_deref(),
-                token_account_info,
-                &mut current_slot,
-                transfer_amount,
-                lamports_budget,
-            )
+            if let Some(compression) = ctoken.get_compressible_extension() {
+                process_compression_top_up(
+                    &compression.info,
+                    token_account_info,
+                    &mut current_slot,
+                    transfer_amount,
+                    lamports_budget,
+                )?;
+            }
+            Ok(())
         }
         ZCompressionMode::CompressAndClose => process_compress_and_close(
             authority,
@@ -115,9 +115,11 @@ pub fn compress_or_decompress_ctokens(
     }
 }
 
+/// Process compression top-up using embedded compression info.
+/// All ctoken accounts now have compression info embedded directly in meta.
 #[inline(always)]
-fn process_compressible_extension(
-    extensions: Option<&[ZExtensionStructMut]>,
+pub fn process_compression_top_up(
+    compression: &light_compressible::compression_info::ZCompressionInfoMut<'_>,
     token_account_info: &AccountInfo,
     current_slot: &mut u64,
     transfer_amount: &mut u64,
@@ -127,29 +129,69 @@ fn process_compressible_extension(
         return Ok(());
     }
 
-    if let Some(extensions) = extensions {
-        for extension in extensions.iter() {
-            if let ZExtensionStructMut::Compressible(compressible_extension) = extension {
-                if *current_slot == 0 {
-                    *current_slot = Clock::get()
-                        .map_err(|_| CTokenError::SysvarAccessError)?
-                        .slot;
-                }
-                *transfer_amount = compressible_extension
-                    .info
-                    .calculate_top_up_lamports(
-                        token_account_info.data_len() as u64,
-                        *current_slot,
-                        token_account_info.lamports(),
-                        light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
-                    )
-                    .map_err(|_| CTokenError::InvalidAccountData)?;
-
-                *lamports_budget = lamports_budget.saturating_sub(*transfer_amount);
-
-                return Ok(());
-            }
-        }
+    if *current_slot == 0 {
+        *current_slot = Clock::get()
+            .map_err(|_| CTokenError::SysvarAccessError)?
+            .slot;
     }
+    let rent_exemption = Rent::get()
+        .map_err(|_| CTokenError::SysvarAccessError)?
+        .minimum_balance(token_account_info.data_len());
+
+    *transfer_amount = compression
+        .calculate_top_up_lamports(
+            token_account_info.data_len() as u64,
+            *current_slot,
+            token_account_info.lamports(),
+            rent_exemption,
+        )
+        .map_err(|_| CTokenError::InvalidAccountData)?;
+
+    *lamports_budget = lamports_budget.saturating_sub(*transfer_amount);
+
+    Ok(())
+}
+
+/// Validate a CToken account for compression/decompression operations.
+///
+/// Checks:
+/// - Account type is CToken (not SPL token)
+/// - Account is initialized
+/// - Account is not frozen (unless CompressAndClose mode)
+/// - Mint matches expected mint
+#[inline(always)]
+fn validate_ctoken(
+    ctoken: &ZCTokenMut,
+    mint: &[u8; 32],
+    mode: &ZCompressionMode,
+) -> Result<(), ProgramError> {
+    // Account type check: must be CToken account (byte 165 == 2)
+    if !ctoken.is_ctoken_account() {
+        msg!("Invalid account type");
+        return Err(CTokenError::InvalidAccountType.into());
+    }
+
+    // Reject uninitialized accounts (state == 0)
+    if ctoken.base.state == 0 {
+        msg!("Account is uninitialized");
+        return Err(CTokenError::InvalidAccountState.into());
+    }
+    // Check if account is frozen (SPL Token-2022 compatibility)
+    // Frozen accounts cannot have their balance modified except for CompressAndClose
+    else if ctoken.base.state == 2 && !mode.is_compress_and_close() {
+        msg!("Cannot modify frozen account");
+        return Err(ErrorCode::AccountFrozen.into());
+    }
+
+    // Validate mint matches
+    if !pubkey_eq(ctoken.mint.array_ref(), mint) {
+        msg!(
+            "mint mismatch: ctoken.mint {:?}, expected {:?}",
+            solana_pubkey::Pubkey::new_from_array(ctoken.mint.to_bytes()),
+            solana_pubkey::Pubkey::new_from_array(*mint)
+        );
+        return Err(CTokenError::MintMismatch.into());
+    }
+
     Ok(())
 }

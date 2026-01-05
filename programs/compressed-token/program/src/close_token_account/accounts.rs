@@ -1,6 +1,5 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::check_owner;
-use light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 
@@ -20,11 +19,6 @@ impl<'info> CloseTokenAccountAccounts<'info> {
         let mut iter = AccountIterator::new(accounts);
         let token_account = iter.next_mut("token_account")?;
         check_owner(&LIGHT_CPI_SIGNER.program_id, token_account)?;
-        if token_account.data_len() != 165
-            && token_account.data_len() != COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
-        {
-            return Err(ProgramError::InvalidAccountData);
-        }
         Ok(CloseTokenAccountAccounts {
             token_account,
             destination: iter.next_mut("destination")?,

@@ -29,7 +29,7 @@ async fn test_create_token_account_invoke() {
     let mint_authority = payer.pubkey();
 
     // Create compressed mint first (using helper)
-    let (mint_pda, _compression_address, _) =
+    let (mint_pda, _compression_address, _, _mint_seed) =
         setup_create_compressed_mint(&mut rpc, &payer, mint_authority, 9, vec![]).await;
 
     // Create ctoken account via wrapper program
@@ -102,7 +102,7 @@ async fn test_create_token_account_invoke_signed() {
     let mint_authority = payer.pubkey();
 
     // Create compressed mint first (using helper)
-    let (mint_pda, _compression_address, _) =
+    let (mint_pda, _compression_address, _, _mint_seed) =
         setup_create_compressed_mint(&mut rpc, &payer, mint_authority, 9, vec![]).await;
 
     // Derive the PDA for the token account (same seeds as in the program)

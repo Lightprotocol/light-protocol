@@ -1,6 +1,7 @@
 use light_compressed_account::compressed_account::PackedMerkleContext;
-use light_ctoken_interface::instructions::transfer2::{
-    CompressedCpiContext, MultiInputTokenDataWithContext,
+use light_ctoken_interface::instructions::{
+    extensions::ExtensionInstructionData,
+    transfer2::{CompressedCpiContext, MultiInputTokenDataWithContext},
 };
 use light_program_profiler::profile;
 use light_sdk::{
@@ -19,15 +20,19 @@ use super::{
     },
 };
 use crate::{
-    compat::TokenData, error::CTokenSdkError, utils::CTokenDefaultAccounts, ValidityProof,
+    compat::TokenData, error::CTokenSdkError, utils::CTokenDefaultAccounts, AnchorDeserialize,
+    AnchorSerialize, ValidityProof,
 };
 
 /// Struct to hold all the data needed for DecompressFull operation
 /// Contains the complete compressed account data and destination index
-#[derive(Debug, Clone, crate::AnchorSerialize, crate::AnchorDeserialize)]
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct DecompressFullIndices {
     pub source: MultiInputTokenDataWithContext, // Complete compressed account data with merkle context
     pub destination_index: u8,                  // Destination ctoken Solana account (must exist)
+    /// TLV extensions for this compressed account (e.g., CompressedOnly extension).
+    /// Used to transfer extension state during decompress.
+    pub tlv: Option<Vec<ExtensionInstructionData>>,
 }
 
 /// Decompress full balance from compressed token accounts with pre-computed indices
@@ -55,6 +60,8 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
 
     // Process each set of indices
     let mut token_accounts = Vec::with_capacity(indices.len());
+    let mut in_tlv_data: Vec<Vec<ExtensionInstructionData>> = Vec::with_capacity(indices.len());
+    let mut has_any_tlv = false;
 
     // Convert packed_accounts to AccountMetas
     // TODO: we may have to add conditional delegate signers for delegate
@@ -70,6 +77,14 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
         // Set up decompress_full - decompress entire balance to destination ctoken account
         token_account.decompress_ctoken(idx.source.amount, idx.destination_index)?;
         token_accounts.push(token_account);
+
+        // Collect TLV data for this input
+        if let Some(tlv) = &idx.tlv {
+            has_any_tlv = true;
+            in_tlv_data.push(tlv.clone());
+        } else {
+            in_tlv_data.push(Vec::new());
+        }
 
         let owner_idx = idx.source.owner as usize;
         if owner_idx >= signer_flags.len() {
@@ -120,6 +135,7 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
         token_accounts,
         transfer_config,
         validity_proof,
+        in_tlv: if has_any_tlv { Some(in_tlv_data) } else { None },
         ..Default::default()
     };
 
@@ -134,7 +150,8 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
 /// * `tree_infos` - Packed tree info for each compressed account
 /// * `destination_indices` - Destination account indices for each decompression
 /// * `packed_accounts` - PackedAccounts that will be used to insert/get indices
-/// * `version` - Token data version (from TokenDataVersion enum)
+/// * `tlv` - Optional TLV extensions for the compressed account
+/// * `version` - TokenDataVersion (1=V1, 2=V2, 3=ShaFlat) for hash computation
 ///
 /// # Returns
 /// Vec of DecompressFullIndices ready to use with decompress_full_ctoken_accounts_with_indices
@@ -144,6 +161,7 @@ pub fn pack_for_decompress_full(
     tree_info: &PackedStateTreeInfo,
     destination: Pubkey,
     packed_accounts: &mut PackedAccounts,
+    tlv: Option<Vec<ExtensionInstructionData>>,
     version: u8,
 ) -> DecompressFullIndices {
     let source = MultiInputTokenDataWithContext {
@@ -168,6 +186,55 @@ pub fn pack_for_decompress_full(
     DecompressFullIndices {
         source,
         destination_index: packed_accounts.insert_or_get(destination),
+        tlv,
+    }
+}
+
+/// Pack accounts for decompress with ATA support.
+///
+/// For ATA decompress (is_ata=true):
+/// - Owner (ATA pubkey) is added without signer flag (ATA can't sign)
+/// - Wallet owner is already added as signer by the caller
+///
+/// For non-ATA decompress:
+/// - Owner is added as signer (normal case)
+#[profile]
+pub fn pack_for_decompress_full_with_ata(
+    token: &TokenData,
+    tree_info: &PackedStateTreeInfo,
+    destination: Pubkey,
+    packed_accounts: &mut PackedAccounts,
+    tlv: Option<Vec<ExtensionInstructionData>>,
+    version: u8,
+    is_ata: bool,
+) -> DecompressFullIndices {
+    // For ATA: owner (ATA pubkey) is not a signer - wallet owner signs instead
+    // For non-ATA: owner is a signer
+    let owner_is_signer = !is_ata;
+
+    let source = MultiInputTokenDataWithContext {
+        owner: packed_accounts.insert_or_get_config(token.owner, owner_is_signer, false),
+        amount: token.amount,
+        has_delegate: token.delegate.is_some(),
+        delegate: token
+            .delegate
+            .map(|d| packed_accounts.insert_or_get(d))
+            .unwrap_or(0),
+        mint: packed_accounts.insert_or_get(token.mint),
+        version,
+        merkle_context: PackedMerkleContext {
+            merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
+            queue_pubkey_index: tree_info.queue_pubkey_index,
+            prove_by_index: tree_info.prove_by_index,
+            leaf_index: tree_info.leaf_index,
+        },
+        root_index: tree_info.root_index,
+    };
+
+    DecompressFullIndices {
+        source,
+        destination_index: packed_accounts.insert_or_get(destination),
+        tlv,
     }
 }
 

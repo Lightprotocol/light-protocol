@@ -21,6 +21,7 @@ async fn create_and_assert_ata2(
             lamports_per_write: compressible.lamports_per_write,
             compress_to_account_pubkey: None,
             token_account_version: compressible.account_version,
+            compression_only: true,
         };
 
         let mut builder =
@@ -41,7 +42,7 @@ async fn create_and_assert_ata2(
             owner: owner_pubkey,
             mint: context.mint_pubkey,
             associated_token_account: ata_pubkey,
-            compressible: None,
+            compressible: CompressibleParams::default(),
         };
 
         if idempotent {
@@ -62,6 +63,7 @@ async fn create_and_assert_ata2(
         owner_pubkey,
         context.mint_pubkey,
         compressible_data,
+        None,
     )
     .await;
 
@@ -95,8 +97,24 @@ async fn test_create_ata2_basic() {
 
     {
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
-
-        create_and_assert_ata2(&mut context, None, false, "non_compressible_ata2").await;
+        // All accounts now have compression infrastructure, so pass CompressibleData
+        // with 0 prepaid epochs (immediately compressible)
+        let compressible_data = CompressibleData {
+            compression_authority: context.compression_authority,
+            rent_sponsor: context.rent_sponsor,
+            num_prepaid_epochs: 0,
+            lamports_per_write: None,
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compress_to_pubkey: false,
+            payer: payer_pubkey,
+        };
+        create_and_assert_ata2(
+            &mut context,
+            Some(compressible_data),
+            false,
+            "ata2_zero_epochs",
+        )
+        .await;
     }
 }
 
@@ -138,9 +156,22 @@ async fn test_create_ata2_idempotent() {
 
     let account = context.rpc.get_account(ata_pubkey).await.unwrap().unwrap();
 
+    // Calculate expected size for account with Compressible extension
+    use light_ctoken_interface::state::{
+        calculate_ctoken_account_size, CompressibleExtensionConfig, CompressionInfoConfig,
+        ExtensionStructConfig,
+    };
+    let expected_size =
+        calculate_ctoken_account_size(Some(&[ExtensionStructConfig::Compressible(
+            CompressibleExtensionConfig {
+                info: CompressionInfoConfig { rent_config: () },
+            },
+        )]))
+        .unwrap();
+
     assert_eq!(
         account.data.len(),
-        light_ctoken_interface::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize,
+        expected_size,
         "Account should still be compressible size after idempotent recreation"
     );
 }

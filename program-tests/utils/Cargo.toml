@@ -18,6 +18,7 @@ anchor-spl = { workspace = true }
 num-bigint = { workspace = true, features = ["rand"] }
 num-traits = { workspace = true }
 solana-sdk = { workspace = true }
+solana-system-interface = { workspace = true }
 thiserror = { workspace = true }
 account-compression = { workspace = true, features = ["cpi"] }
 light-compressed-token = { workspace = true, features = ["cpi"] }
@@ -41,6 +42,7 @@ log = { workspace = true }
 light-client = { workspace = true, features = ["devenv"] }
 create-address-test-program = { workspace = true }
 spl-token-2022 = { workspace = true }
+spl-pod = { workspace = true }
 light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
 light-merkle-tree-metadata = { workspace = true }
 reqwest = { workspace = true }

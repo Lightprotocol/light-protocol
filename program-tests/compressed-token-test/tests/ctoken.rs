@@ -31,3 +31,21 @@ mod create_ata2;
 
 #[path = "ctoken/spl_instruction_compat.rs"]
 mod spl_instruction_compat;
+
+#[path = "ctoken/extensions.rs"]
+mod extensions;
+
+#[path = "ctoken/transfer_checked.rs"]
+mod transfer_checked;
+
+#[path = "ctoken/freeze_thaw.rs"]
+mod freeze_thaw;
+
+#[path = "ctoken/approve_revoke.rs"]
+mod approve_revoke;
+
+#[path = "ctoken/burn.rs"]
+mod burn;
+
+#[path = "ctoken/extensions_failing.rs"]
+mod extensions_failing;

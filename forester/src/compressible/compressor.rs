@@ -121,26 +121,24 @@ impl<R: Rpc> Compressor<R> {
             let mint = Pubkey::new_from_array(account_state.account.mint.to_bytes());
             let mint_index = packed_accounts.insert_or_get(mint);
 
-            // Get compressible extension to extract rent_sponsor and compress_to_pubkey
-            let compressible_ext = account_state
+            // Get compression info from Compressible extension
+            use light_ctoken_interface::state::extensions::ExtensionStruct;
+            let compression = account_state
                 .account
                 .extensions
                 .as_ref()
                 .and_then(|exts| {
-                    exts.iter().find_map(|ext| {
-                        if let light_ctoken_interface::state::ExtensionStruct::Compressible(comp) =
-                            ext
-                        {
-                            Some(comp)
-                        } else {
-                            None
-                        }
+                    exts.iter().find_map(|ext| match ext {
+                        ExtensionStruct::Compressible(comp) => Some(&comp.info),
+                        _ => None,
                     })
                 })
-                .ok_or_else(|| anyhow::anyhow!("Account missing compressible extension"))?;
+                .ok_or_else(|| {
+                    anyhow::anyhow!("Missing Compressible extension on CToken account")
+                })?;
 
             // Determine owner based on compress_to_pubkey flag
-            let compressed_token_owner = if compressible_ext.info.compress_to_pubkey != 0 {
+            let compressed_token_owner = if compression.compress_to_pubkey != 0 {
                 account_state.pubkey // Use account pubkey for PDAs
             } else {
                 Pubkey::new_from_array(account_state.account.owner.to_bytes()) // Use original owner
@@ -148,15 +146,26 @@ impl<R: Rpc> Compressor<R> {
 
             let owner_index = packed_accounts.insert_or_get(compressed_token_owner);
 
-            // Extract rent_sponsor from extension
-            let rent_sponsor = Pubkey::new_from_array(compressible_ext.info.rent_sponsor);
+            // Extract rent_sponsor from compression info
+            let rent_sponsor = Pubkey::new_from_array(compression.rent_sponsor);
             let rent_sponsor_index = packed_accounts.insert_or_get(rent_sponsor);
+
+            // Handle delegate if present
+            let delegate_index = account_state
+                .account
+                .delegate
+                .map(|delegate| {
+                    let delegate_pubkey = Pubkey::new_from_array(delegate.to_bytes());
+                    packed_accounts.insert_or_get(delegate_pubkey)
+                })
+                .unwrap_or(0);
 
             indices_vec.push(CompressAndCloseIndices {
                 source_index,
                 mint_index,
                 owner_index,
                 rent_sponsor_index,
+                delegate_index,
             });
         }
 

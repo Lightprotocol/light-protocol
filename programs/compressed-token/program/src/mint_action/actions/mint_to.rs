@@ -97,6 +97,8 @@ fn create_output_compressed_token_accounts<'a>(
             mint,
             queue_pubkey_index,
             parsed_instruction_data.token_account_version,
+            None,  // No TLV for mint_to
+            false, // Minted tokens are always initialized (not frozen)
         )?;
         processed_count += 1;
     }

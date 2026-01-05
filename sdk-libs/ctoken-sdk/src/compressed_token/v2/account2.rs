@@ -95,7 +95,7 @@ impl CTokenAccount2 {
                 amount: 0,
                 delegate: 0, // Default delegate index
                 mint: mint_index,
-                version: 3, // V2 for batched Merkle trees
+                version: 3, // ShaFlat
                 has_delegate: false,
             },
             compression: None,
@@ -190,6 +190,7 @@ impl CTokenAccount2 {
     }
 
     #[profile]
+    #[allow(clippy::too_many_arguments)]
     pub fn compress_spl(
         &mut self,
         amount: u64,
@@ -198,6 +199,7 @@ impl CTokenAccount2 {
         pool_account_index: u8,
         pool_index: u8,
         bump: u8,
+        decimals: u8,
     ) -> Result<(), CTokenSdkError> {
         // Check if there's already a compression set
         if self.compression.is_some() {
@@ -213,6 +215,7 @@ impl CTokenAccount2 {
             pool_account_index,
             pool_index,
             bump,
+            decimals,
         ));
         self.method_used = true;
 
@@ -254,6 +257,7 @@ impl CTokenAccount2 {
         pool_account_index: u8,
         pool_index: u8,
         bump: u8,
+        decimals: u8,
     ) -> Result<(), CTokenSdkError> {
         // Check if there's already a compression set
         if self.compression.is_some() {
@@ -272,6 +276,7 @@ impl CTokenAccount2 {
             pool_account_index,
             pool_index,
             bump,
+            decimals,
         ));
         self.method_used = true;
 
@@ -306,7 +311,7 @@ impl CTokenAccount2 {
             pool_account_index: 0,
             pool_index: 0,
             bump: 0,
-            decimals: 0,
+            decimals: 0, // Not used for ctoken compression
         });
         self.method_used = true;
 

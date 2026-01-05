@@ -4,11 +4,25 @@ use std::str::FromStr;
 // TODO: refactor into dir
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_compressible::{
-    config::CompressibleConfig, error::CompressibleError, rent::SLOTS_PER_EPOCH,
+    compression_info::CompressionInfo, config::CompressibleConfig, error::CompressibleError,
+    rent::SLOTS_PER_EPOCH,
 };
-use light_ctoken_interface::state::{CToken, ExtensionStruct};
-use light_ctoken_sdk::ctoken::{
-    derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount,
+use light_ctoken_interface::state::{extensions::ExtensionStruct, CToken};
+
+/// Extract CompressionInfo from CToken's Compressible extension
+fn get_ctoken_compression_info(ctoken: &CToken) -> Option<CompressionInfo> {
+    ctoken
+        .extensions
+        .as_ref()?
+        .iter()
+        .find_map(|ext| match ext {
+            ExtensionStruct::Compressible(comp) => Some(comp.info),
+            _ => None,
+        })
+}
+use light_ctoken_sdk::{
+    compressed_token::create_compressed_mint::find_cmint_address,
+    ctoken::{derive_ctoken_ata, CTokenMintTo, CompressibleParams, CreateAssociatedCTokenAccount},
 };
 use light_program_test::{
     forester::claim_forester, program_test::TestRpc, utils::assert::assert_rpc_error,
@@ -21,8 +35,12 @@ use light_registry::accounts::{
 use light_test_utils::{
     airdrop_lamports, assert_claim::assert_claim, spl::create_mint_helper, Rpc, RpcError,
 };
-use light_token_client::actions::{
-    create_compressible_token_account, transfer_ctoken, CreateCompressibleTokenAccountInputs,
+use light_token_client::{
+    actions::{
+        create_compressible_token_account, mint_action_comprehensive, transfer_ctoken,
+        CreateCompressibleTokenAccountInputs,
+    },
+    instructions::mint_action::{DecompressMintParams, NewMint},
 };
 use solana_sdk::{
     instruction::Instruction,
@@ -483,21 +501,9 @@ async fn test_pause_compressible_config_with_valid_authority() -> Result<(), Rpc
 
     // Test 1: Cannot create new token accounts with paused config
 
-    let compressible_params = CompressibleParams {
-        compressible_config: rpc
-            .test_accounts
-            .funding_pool_config
-            .compressible_config_pda,
-        rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
-        pre_pay_num_epochs: 2,
-        lamports_per_write: None,
-        compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
-    };
-
     let compressible_instruction =
         CreateAssociatedCTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
-            .with_compressible(compressible_params)
+            .with_compressible(CompressibleParams::default_ata())
             .instruction()
             .map_err(|e| {
                 RpcError::AssertRpcError(format!(
@@ -616,21 +622,9 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
     assert_eq!(config.state, 0, "Config should be paused before unpausing");
 
     // Verify cannot create account while paused
-    let compressible_params = CompressibleParams {
-        compressible_config: rpc
-            .test_accounts
-            .funding_pool_config
-            .compressible_config_pda,
-        rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
-        pre_pay_num_epochs: 2,
-        lamports_per_write: None,
-        compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
-    };
-
     let compressible_instruction =
         CreateAssociatedCTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
-            .with_compressible(compressible_params)
+            .with_compressible(CompressibleParams::default_ata())
             .instruction()
             .map_err(|e| {
                 RpcError::AssertRpcError(format!(
@@ -672,6 +666,7 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
         lamports_per_write: None,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: true,
     };
 
     let compressible_instruction =
@@ -761,6 +756,7 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
         lamports_per_write: None,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: true,
     };
 
     let compressible_instruction =
@@ -808,6 +804,7 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
         lamports_per_write: None,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        compression_only: true,
     };
 
     let compressible_instruction =
@@ -1123,74 +1120,148 @@ async fn assert_not_compressible<R: Rpc>(
     name: &str,
 ) -> Result<(), RpcError> {
     use borsh::BorshDeserialize;
-    use light_ctoken_interface::state::{CToken, ExtensionStruct};
 
     let account = rpc
         .get_account(account_pubkey)
         .await?
         .ok_or_else(|| RpcError::AssertRpcError(format!("{} account not found", name)))?;
 
+    let rent_exemption = rpc
+        .get_minimum_balance_for_rent_exemption(account.data.len())
+        .await?;
+
     let ctoken = CToken::deserialize(&mut account.data.as_slice())
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to deserialize CToken: {:?}", e)))?;
 
-    if let Some(extensions) = ctoken.extensions.as_ref() {
-        for ext in extensions.iter() {
-            if let ExtensionStruct::Compressible(compressible_ext) = ext {
-                let current_slot = rpc.get_slot().await?;
+    // Get CompressionInfo from the Compressible extension
+    let compression_info = get_ctoken_compression_info(&ctoken).ok_or_else(|| {
+        RpcError::AssertRpcError("CToken should have Compressible extension".to_string())
+    })?;
+    let current_slot = rpc.get_slot().await?;
 
-                // Check if account is compressible using AccountRentState
-                let state = light_compressible::rent::AccountRentState {
-                    num_bytes: account.data.len() as u64,
-                    current_slot,
-                    current_lamports: account.lamports,
-                    last_claimed_slot: compressible_ext.info.last_claimed_slot,
-                };
-                let is_compressible = state.is_compressible(
-                    &compressible_ext.info.rent_config,
-                    light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
-                );
+    // Check if account is compressible using AccountRentState
+    let state = light_compressible::rent::AccountRentState {
+        num_bytes: account.data.len() as u64,
+        current_slot,
+        current_lamports: account.lamports,
+        last_claimed_slot: compression_info.last_claimed_slot,
+    };
+    let is_compressible = state.is_compressible(&compression_info.rent_config, rent_exemption);
 
-                assert!(
-                    is_compressible.is_none(),
-                    "{} should NOT be compressible (well-funded), but has deficit: {:?}",
-                    name,
-                    is_compressible
-                );
+    assert!(
+        is_compressible.is_none(),
+        "{} should NOT be compressible (well-funded), but has deficit: {:?}",
+        name,
+        is_compressible
+    );
 
-                // Also verify last_funded_epoch is ahead of current
-                let last_funded_epoch = compressible_ext
-                    .info
-                    .get_last_funded_epoch(
-                        account.data.len() as u64,
-                        account.lamports,
-                        light_ctoken_interface::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
-                    )
-                    .map_err(|e| {
-                        RpcError::AssertRpcError(format!(
-                            "Failed to get last funded epoch: {:?}",
-                            e
-                        ))
-                    })?;
+    // Also verify last_funded_epoch is ahead of current
+    let last_funded_epoch = compression_info
+        .get_last_funded_epoch(account.data.len() as u64, account.lamports, rent_exemption)
+        .map_err(|e| {
+            RpcError::AssertRpcError(format!("Failed to get last funded epoch: {:?}", e))
+        })?;
 
-                let current_epoch = slot_to_epoch(current_slot);
+    let current_epoch = slot_to_epoch(current_slot);
 
-                assert!(
-                    last_funded_epoch >= current_epoch,
-                    "{} last_funded_epoch ({}) should be >= current_epoch ({})",
-                    name,
-                    last_funded_epoch,
-                    current_epoch
-                );
+    assert!(
+        last_funded_epoch >= current_epoch,
+        "{} last_funded_epoch ({}) should be >= current_epoch ({})",
+        name,
+        last_funded_epoch,
+        current_epoch
+    );
 
-                return Ok(());
-            }
-        }
+    Ok(())
+}
+
+/// Helper function to assert that a compressible CMint account is NOT compressible (well-funded)
+async fn assert_not_compressible_cmint<R: Rpc>(
+    rpc: &mut R,
+    account_pubkey: Pubkey,
+    name: &str,
+) -> Result<(), RpcError> {
+    use borsh::BorshDeserialize;
+    use light_ctoken_interface::state::CompressedMint;
+
+    let account = rpc
+        .get_account(account_pubkey)
+        .await?
+        .ok_or_else(|| RpcError::AssertRpcError(format!("{} account not found", name)))?;
+
+    let rent_exemption = rpc
+        .get_minimum_balance_for_rent_exemption(account.data.len())
+        .await?;
+
+    let cmint = CompressedMint::deserialize(&mut account.data.as_slice())
+        .map_err(|e| RpcError::AssertRpcError(format!("Failed to deserialize CMint: {:?}", e)))?;
+
+    // CompressionInfo is embedded directly in cmint.compression
+    let compression_info = &cmint.compression;
+    let current_slot = rpc.get_slot().await?;
+
+    // Check if account is compressible using AccountRentState
+    let state = light_compressible::rent::AccountRentState {
+        num_bytes: account.data.len() as u64,
+        current_slot,
+        current_lamports: account.lamports,
+        last_claimed_slot: compression_info.last_claimed_slot,
+    };
+    let is_compressible = state.is_compressible(&compression_info.rent_config, rent_exemption);
+
+    assert!(
+        is_compressible.is_none(),
+        "{} should NOT be compressible (well-funded), but has deficit: {:?}",
+        name,
+        is_compressible
+    );
+
+    // Also verify last_funded_epoch is ahead of current
+    let last_funded_epoch = compression_info
+        .get_last_funded_epoch(account.data.len() as u64, account.lamports, rent_exemption)
+        .map_err(|e| {
+            RpcError::AssertRpcError(format!("Failed to get last funded epoch: {:?}", e))
+        })?;
+
+    let current_epoch = slot_to_epoch(current_slot);
+
+    assert!(
+        last_funded_epoch >= current_epoch,
+        "{} last_funded_epoch ({}) should be >= current_epoch ({})",
+        name,
+        last_funded_epoch,
+        current_epoch
+    );
+
+    Ok(())
+}
+
+/// Helper function to mint tokens to a CToken account using CTokenMintTo instruction
+async fn mint_to_ctoken<R: Rpc>(
+    rpc: &mut R,
+    cmint: Pubkey,
+    destination: Pubkey,
+    amount: u64,
+    mint_authority: &Keypair,
+    payer: &Keypair,
+) -> Result<Signature, RpcError> {
+    let ix = CTokenMintTo {
+        cmint,
+        destination,
+        amount,
+        authority: mint_authority.pubkey(),
+        max_top_up: None,
     }
+    .instruction()
+    .map_err(|e| {
+        RpcError::CustomError(format!(
+            "Failed to create CTokenMintTo instruction: {:?}",
+            e
+        ))
+    })?;
 
-    Err(RpcError::AssertRpcError(format!(
-        "{} does not have compressible extension",
-        name
-    )))
+    rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &[payer, mint_authority])
+        .await
 }
 
 #[tokio::test]
@@ -1201,7 +1272,41 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
         .await
         .unwrap();
     let payer = rpc.get_payer().insecure_clone();
-    let mint = create_mint_helper(&mut rpc, &payer).await;
+
+    // Create a CMint with compressible config (will be tested alongside CToken accounts)
+    let mint_seed = Keypair::new();
+    let mint_authority = payer.insecure_clone();
+    let (cmint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+
+    // Create CMint with write_top_up for infinite funding
+    mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        Some(DecompressMintParams {
+            rent_payment: 2,
+            write_top_up: 400, // Top-up on each write (MintTo)
+        }),
+        false,
+        vec![],
+        vec![],
+        None,
+        None,
+        Some(NewMint {
+            decimals: 9,
+            supply: 0,
+            mint_authority: mint_authority.pubkey(),
+            freeze_authority: None,
+            metadata: None,
+            version: 3,
+        }),
+    )
+    .await
+    .unwrap();
+
+    // Use the CMint PDA as the mint for CToken accounts
+    let mint = cmint_pda;
 
     // Create owner for both accounts
     let owner_keypair = Keypair::new();
@@ -1225,7 +1330,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
             num_prepaid_epochs: 2,
             payer: &payer,
             token_account_keypair: None,
-            lamports_per_write: Some(100),
+            lamports_per_write: Some(400),
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
         },
     )
@@ -1241,43 +1346,33 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
             num_prepaid_epochs: 2,
             payer: &payer,
             token_account_keypair: None,
-            lamports_per_write: Some(100),
+            lamports_per_write: Some(400),
             token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
         },
     )
     .await
     .unwrap();
 
-    // Mint 1,000,000 tokens to Account A
+    // Mint initial tokens to Account A via CTokenMintTo (this also writes to the CMint, triggering top-up)
     let transfer_amount = 1_000_000u64;
-    {
-        use light_ctoken_interface::state::CToken;
-        use light_zero_copy::traits::ZeroCopyAtMut;
-
-        let mut account_data = rpc.get_account(account_a).await?.unwrap();
-        let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut account_data.data)
-            .map_err(|e| RpcError::AssertRpcError(format!("Failed to parse CToken: {:?}", e)))?;
-        *ctoken.amount = transfer_amount.into();
-        rpc.set_account(account_a, account_data);
-    }
+    mint_to_ctoken(
+        &mut rpc,
+        cmint_pda,
+        account_a,
+        transfer_amount,
+        &mint_authority,
+        &payer,
+    )
+    .await?;
 
     let account_a_data = rpc.get_account(account_a).await?.unwrap();
     let ctoken_a = CToken::deserialize(&mut account_a_data.data.as_slice())
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to deserialize CToken: {:?}", e)))?;
 
-    let rent_config = ctoken_a
-        .extensions
-        .as_ref()
-        .and_then(|exts| {
-            exts.iter().find_map(|ext| {
-                if let ExtensionStruct::Compressible(comp) = ext {
-                    Some(comp.info.rent_config)
-                } else {
-                    None
-                }
-            })
-        })
-        .ok_or_else(|| RpcError::AssertRpcError("No compressible extension found".to_string()))?;
+    // CompressionInfo is accessed via the Compressible extension
+    let compression =
+        get_ctoken_compression_info(&ctoken_a).expect("CToken should have Compressible extension");
+    let rent_config = compression.rent_config;
 
     let account_size = account_a_data.data.len() as u64;
     let rent_per_epoch = rent_config.rent_curve_per_epoch(account_size);
@@ -1292,27 +1387,40 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     // Get initial slot and last_claimed_slot from both accounts
     let initial_slot = rpc.get_slot().await?;
 
-    let get_last_claimed_slot = |account_data: &[u8]| -> Result<u64, RpcError> {
+    let get_last_claimed_slot_ctoken = |account_data: &[u8]| -> Result<u64, RpcError> {
         let ctoken = CToken::deserialize(&mut &account_data[..]).map_err(|e| {
             RpcError::AssertRpcError(format!("Failed to deserialize CToken: {:?}", e))
         })?;
+        let compression = get_ctoken_compression_info(&ctoken).ok_or_else(|| {
+            RpcError::AssertRpcError("CToken should have Compressible extension".to_string())
+        })?;
+        Ok(compression.last_claimed_slot)
+    };
 
-        if let Some(extensions) = ctoken.extensions.as_ref() {
-            for ext in extensions.iter() {
-                if let ExtensionStruct::Compressible(comp) = ext {
-                    return Ok(comp.info.last_claimed_slot);
-                }
-            }
-        }
-        Err(RpcError::AssertRpcError(
-            "No compressible extension".to_string(),
-        ))
+    let get_last_claimed_slot_cmint = |account_data: &[u8]| -> Result<u64, RpcError> {
+        use borsh::BorshDeserialize;
+        use light_ctoken_interface::state::CompressedMint;
+        let cmint = CompressedMint::deserialize(&mut &account_data[..]).map_err(|e| {
+            RpcError::AssertRpcError(format!("Failed to deserialize CMint: {:?}", e))
+        })?;
+        Ok(cmint.compression.last_claimed_slot)
     };
 
     let initial_last_claimed_a =
-        get_last_claimed_slot(&rpc.get_account(account_a).await?.unwrap().data)?;
+        get_last_claimed_slot_ctoken(&rpc.get_account(account_a).await?.unwrap().data)?;
     let initial_last_claimed_b =
-        get_last_claimed_slot(&rpc.get_account(account_b).await?.unwrap().data)?;
+        get_last_claimed_slot_ctoken(&rpc.get_account(account_b).await?.unwrap().data)?;
+    let initial_last_claimed_cmint =
+        get_last_claimed_slot_cmint(&rpc.get_account(cmint_pda).await?.unwrap().data)?;
+
+    // Get CMint size and rent config for final verification
+    let cmint_account = rpc.get_account(cmint_pda).await?.unwrap();
+    let cmint_size = cmint_account.data.len() as u64;
+    let cmint_data = light_ctoken_interface::state::CompressedMint::deserialize(
+        &mut cmint_account.data.as_slice(),
+    )
+    .map_err(|e| RpcError::AssertRpcError(format!("Failed to deserialize CMint: {:?}", e)))?;
+    let cmint_rent_config = cmint_data.compression.rent_config;
 
     println!("Initial slot: {}", initial_slot);
     println!(
@@ -1322,6 +1430,10 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     println!(
         "Account B initial last_claimed_slot: {}",
         initial_last_claimed_b
+    );
+    println!(
+        "CMint initial last_claimed_slot: {}",
+        initial_last_claimed_cmint
     );
 
     // Main loop: 1000 iterations = 100 epochs * 10 iterations per epoch
@@ -1356,48 +1468,209 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
         assert_not_compressible(&mut rpc, source, source_name).await?;
         assert_not_compressible(&mut rpc, dest, dest_name).await?;
 
+        // Mint 0 tokens every 10 iterations (once per epoch) to trigger CMint write_top_up
+        // This keeps the CMint funded through its write_top_up mechanism
+        mint_to_ctoken(&mut rpc, cmint_pda, dest, 0, &mint_authority, &payer).await?;
+
         // Advance by 1/10 of an epoch (630 slots)
         let advance_slots = SLOTS_PER_EPOCH / 10; // 630 slots
         rpc.warp_slot_forward(advance_slots).await.unwrap();
 
-        // Log progress every 100 iterations
+        // Log progress and assert CMint every 100 iterations
         if i % 100 == 0 && i > 0 {
             println!("Completed iteration {}/1000 (epoch {})", i, epoch);
+            // Assert CMint is still well-funded (write_top_up should keep it funded)
+            assert_not_compressible_cmint(&mut rpc, cmint_pda, "CMint").await?;
         }
     }
 
     println!("Test completed successfully!");
-    println!("Both accounts remained well-funded through 100 epochs of continuous transfers");
+    println!("All accounts (CToken A, CToken B, CMint) remained well-funded through 100 epochs");
 
     // Final verification
     assert_not_compressible(&mut rpc, account_a, "Account A (final)").await?;
     assert_not_compressible(&mut rpc, account_b, "Account B (final)").await?;
+    assert_not_compressible_cmint(&mut rpc, cmint_pda, "CMint (final)").await?;
 
     // Verify total rent claimed
     let final_rent_sponsor_balance = rpc.get_account(rent_sponsor).await?.unwrap().lamports;
     let total_rent_claimed = final_rent_sponsor_balance - initial_rent_sponsor_balance;
 
-    // Get final last_claimed_slot from both accounts
+    // Get final last_claimed_slot from all accounts (CToken A, CToken B, CMint)
     let final_last_claimed_a =
-        get_last_claimed_slot(&rpc.get_account(account_a).await?.unwrap().data)?;
+        get_last_claimed_slot_ctoken(&rpc.get_account(account_a).await?.unwrap().data)?;
     let final_last_claimed_b =
-        get_last_claimed_slot(&rpc.get_account(account_b).await?.unwrap().data)?;
+        get_last_claimed_slot_ctoken(&rpc.get_account(account_b).await?.unwrap().data)?;
+    let final_last_claimed_cmint =
+        get_last_claimed_slot_cmint(&rpc.get_account(cmint_pda).await?.unwrap().data)?;
 
     // Calculate exact number of completed epochs that were claimed for each account
     use light_compressible::rent::SLOTS_PER_EPOCH;
     let completed_epochs_a = (final_last_claimed_a - initial_last_claimed_a) / SLOTS_PER_EPOCH;
     let completed_epochs_b = (final_last_claimed_b - initial_last_claimed_b) / SLOTS_PER_EPOCH;
+    let completed_epochs_cmint =
+        (final_last_claimed_cmint - initial_last_claimed_cmint) / SLOTS_PER_EPOCH;
 
     // Calculate exact expected rent using RentConfig's rent_curve_per_epoch
     let expected_rent_a = rent_config.get_rent(account_size, completed_epochs_a);
     let expected_rent_b = rent_config.get_rent(account_size, completed_epochs_b);
-    let expected_total_rent = expected_rent_a + expected_rent_b;
+    let expected_rent_cmint = cmint_rent_config.get_rent(cmint_size, completed_epochs_cmint);
+    let expected_total_rent = expected_rent_a + expected_rent_b + expected_rent_cmint;
+
+    println!(
+        "Rent claimed: {} (A: {}, B: {}, CMint: {})",
+        total_rent_claimed, expected_rent_a, expected_rent_b, expected_rent_cmint
+    );
 
     // Assert exact match
     assert_eq!(
         total_rent_claimed, expected_total_rent,
-        "Rent claimed should exactly match expected rent"
+        "Rent claimed should exactly match expected rent (CToken A + CToken B + CMint)"
     );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_claim_from_cmint_account() -> Result<(), RpcError> {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+    let mint_seed = Keypair::new();
+    let mint_authority = payer.insecure_clone();
+
+    // Create compressed mint + decompress to CMint with rent prepaid
+    let (cmint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+    mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        Some(DecompressMintParams {
+            rent_payment: 5,
+            write_top_up: 0,
+        }),
+        false,
+        vec![],
+        vec![],
+        None,
+        None,
+        Some(NewMint {
+            decimals: 9,
+            supply: 0,
+            mint_authority: mint_authority.pubkey(),
+            freeze_authority: None,
+            metadata: None,
+            version: 3,
+        }),
+    )
+    .await
+    .unwrap();
+
+    // Warp forward 2 epochs (use warp_to_slot to avoid auto-claim)
+    let current_slot = rpc.get_slot().await.unwrap();
+    let target_slot = current_slot + 2 * SLOTS_PER_EPOCH;
+    rpc.warp_to_slot(target_slot).unwrap();
+
+    // Claim rent from CMint
+    let forester_keypair = rpc.test_accounts.protocol.forester.insecure_clone();
+    claim_forester(&mut rpc, &[cmint_pda], &forester_keypair, &payer)
+        .await
+        .unwrap();
+
+    // Verify claim
+    let config = rpc.test_accounts.funding_pool_config;
+    assert_claim(
+        &mut rpc,
+        &[cmint_pda],
+        config.rent_sponsor_pda,
+        config.compression_authority_pda,
+    )
+    .await;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_claim_mixed_ctoken_and_cmint() -> Result<(), RpcError> {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Create CToken account with prepaid rent
+    let ctoken_owner = Keypair::new();
+    let mint = Pubkey::new_unique();
+    let ctoken_pubkey = create_compressible_token_account(
+        &mut rpc,
+        CreateCompressibleTokenAccountInputs {
+            owner: ctoken_owner.pubkey(),
+            mint,
+            num_prepaid_epochs: 5,
+            payer: &payer,
+            token_account_keypair: None,
+            lamports_per_write: Some(100),
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        },
+    )
+    .await
+    .unwrap();
+
+    // Create CMint account with prepaid rent
+    let mint_seed = Keypair::new();
+    let (cmint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+    mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &payer,
+        &payer,
+        Some(DecompressMintParams {
+            rent_payment: 5,
+            write_top_up: 0,
+        }),
+        false,
+        vec![],
+        vec![],
+        None,
+        None,
+        Some(NewMint {
+            decimals: 9,
+            supply: 0,
+            mint_authority: payer.pubkey(),
+            freeze_authority: None,
+            metadata: None,
+            version: 3,
+        }),
+    )
+    .await
+    .unwrap();
+
+    // Warp forward 2 epochs (use warp_to_slot to avoid auto-claim)
+    let current_slot = rpc.get_slot().await.unwrap();
+    let target_slot = current_slot + 2 * SLOTS_PER_EPOCH;
+    rpc.warp_to_slot(target_slot).unwrap();
+
+    // Claim rent from BOTH accounts in single instruction
+    let forester_keypair = rpc.test_accounts.protocol.forester.insecure_clone();
+    claim_forester(
+        &mut rpc,
+        &[ctoken_pubkey, cmint_pda],
+        &forester_keypair,
+        &payer,
+    )
+    .await
+    .unwrap();
+
+    // Verify both claims succeeded
+    let config = rpc.test_accounts.funding_pool_config;
+    assert_claim(
+        &mut rpc,
+        &[ctoken_pubkey, cmint_pda],
+        config.rent_sponsor_pda,
+        config.compression_authority_pda,
+    )
+    .await;
 
     Ok(())
 }

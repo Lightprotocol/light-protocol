@@ -1,21 +1,27 @@
 #![allow(unexpected_cfgs)]
 
+mod approve;
+mod burn;
 mod close;
 mod create_ata;
-mod create_ata2;
 mod create_cmint;
 mod create_token_account;
+mod ctoken_mint_to;
+mod decompress_cmint;
+mod freeze;
 mod mint_to_ctoken;
+mod revoke;
+mod thaw;
 mod transfer;
+mod transfer_checked;
 mod transfer_interface;
 mod transfer_spl_ctoken;
 
 // Re-export all instruction data types
+pub use approve::{process_approve_invoke, process_approve_invoke_signed, ApproveData};
+pub use burn::{process_burn_invoke, process_burn_invoke_signed, BurnData};
 pub use close::{process_close_account_invoke, process_close_account_invoke_signed};
 pub use create_ata::{process_create_ata_invoke, process_create_ata_invoke_signed, CreateAtaData};
-pub use create_ata2::{
-    process_create_ata2_invoke, process_create_ata2_invoke_signed, CreateAta2Data,
-};
 pub use create_cmint::{
     process_create_cmint, process_create_cmint_invoke_signed,
     process_create_cmint_with_pda_authority, CreateCmintData, MINT_SIGNER_SEED,
@@ -24,14 +30,24 @@ pub use create_token_account::{
     process_create_token_account_invoke, process_create_token_account_invoke_signed,
     CreateTokenAccountData,
 };
+pub use ctoken_mint_to::{
+    process_ctoken_mint_to_invoke, process_ctoken_mint_to_invoke_signed, MintToData,
+};
+pub use decompress_cmint::{process_decompress_cmint_invoke_signed, DecompressCmintData};
+pub use freeze::{process_freeze_invoke, process_freeze_invoke_signed};
 pub use mint_to_ctoken::{
     process_mint_to_ctoken, process_mint_to_ctoken_invoke_signed, MintToCTokenData,
     MINT_AUTHORITY_SEED,
 };
+pub use revoke::{process_revoke_invoke, process_revoke_invoke_signed};
 use solana_program::{
     account_info::AccountInfo, entrypoint, program_error::ProgramError, pubkey, pubkey::Pubkey,
 };
+pub use thaw::{process_thaw_invoke, process_thaw_invoke_signed};
 pub use transfer::{process_transfer_invoke, process_transfer_invoke_signed, TransferData};
+pub use transfer_checked::{
+    process_transfer_checked_invoke, process_transfer_checked_invoke_signed, TransferCheckedData,
+};
 pub use transfer_interface::{
     process_transfer_interface_invoke, process_transfer_interface_invoke_signed,
     TransferInterfaceData, TRANSFER_INTERFACE_AUTHORITY_SEED,
@@ -48,6 +64,7 @@ pub const ID: Pubkey = pubkey!("CToknNtvExmp1eProgram11111111111111111111112");
 /// PDA seeds for invoke_signed instructions
 pub const TOKEN_ACCOUNT_SEED: &[u8] = b"token_account";
 pub const ATA_SEED: &[u8] = b"ata";
+pub const FREEZE_AUTHORITY_SEED: &[u8] = b"freeze_authority";
 
 entrypoint!(process_instruction);
 
@@ -97,6 +114,36 @@ pub enum InstructionType {
     TransferInterfaceInvoke = 19,
     /// Unified transfer interface with PDA authority (invoke_signed)
     TransferInterfaceInvokeSigned = 20,
+    /// Approve delegate for CToken account (invoke)
+    ApproveInvoke = 21,
+    /// Approve delegate for PDA-owned CToken account (invoke_signed)
+    ApproveInvokeSigned = 22,
+    /// Revoke delegation for CToken account (invoke)
+    RevokeInvoke = 23,
+    /// Revoke delegation for PDA-owned CToken account (invoke_signed)
+    RevokeInvokeSigned = 24,
+    /// Freeze CToken account (invoke)
+    FreezeInvoke = 25,
+    /// Freeze CToken account with PDA freeze authority (invoke_signed)
+    FreezeInvokeSigned = 26,
+    /// Thaw frozen CToken account (invoke)
+    ThawInvoke = 27,
+    /// Thaw frozen CToken account with PDA freeze authority (invoke_signed)
+    ThawInvokeSigned = 28,
+    /// Burn CTokens (invoke)
+    BurnInvoke = 29,
+    /// Burn CTokens with PDA authority (invoke_signed)
+    BurnInvokeSigned = 30,
+    /// Mint to CToken from decompressed CMint (invoke)
+    CTokenMintToInvoke = 31,
+    /// Mint to CToken from decompressed CMint with PDA authority (invoke_signed)
+    CTokenMintToInvokeSigned = 32,
+    /// Decompress CMint with PDA authority (invoke_signed)
+    DecompressCmintInvokeSigned = 33,
+    /// Transfer cTokens with checked decimals (invoke)
+    CTokenTransferCheckedInvoke = 34,
+    /// Transfer cTokens with checked decimals from PDA-owned account (invoke_signed)
+    CTokenTransferCheckedInvokeSigned = 35,
 }
 
 impl TryFrom<u8> for InstructionType {
@@ -125,6 +172,21 @@ impl TryFrom<u8> for InstructionType {
             18 => Ok(InstructionType::CtokenToSplInvokeSigned),
             19 => Ok(InstructionType::TransferInterfaceInvoke),
             20 => Ok(InstructionType::TransferInterfaceInvokeSigned),
+            21 => Ok(InstructionType::ApproveInvoke),
+            22 => Ok(InstructionType::ApproveInvokeSigned),
+            23 => Ok(InstructionType::RevokeInvoke),
+            24 => Ok(InstructionType::RevokeInvokeSigned),
+            25 => Ok(InstructionType::FreezeInvoke),
+            26 => Ok(InstructionType::FreezeInvokeSigned),
+            27 => Ok(InstructionType::ThawInvoke),
+            28 => Ok(InstructionType::ThawInvokeSigned),
+            29 => Ok(InstructionType::BurnInvoke),
+            30 => Ok(InstructionType::BurnInvokeSigned),
+            31 => Ok(InstructionType::CTokenMintToInvoke),
+            32 => Ok(InstructionType::CTokenMintToInvokeSigned),
+            33 => Ok(InstructionType::DecompressCmintInvokeSigned),
+            34 => Ok(InstructionType::CTokenTransferCheckedInvoke),
+            35 => Ok(InstructionType::CTokenTransferCheckedInvokeSigned),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -191,16 +253,6 @@ pub fn process_instruction(
         }
         InstructionType::CloseAccountInvoke => process_close_account_invoke(accounts),
         InstructionType::CloseAccountInvokeSigned => process_close_account_invoke_signed(accounts),
-        InstructionType::CreateAta2Invoke => {
-            let data = CreateAta2Data::try_from_slice(&instruction_data[1..])
-                .map_err(|_| ProgramError::InvalidInstructionData)?;
-            process_create_ata2_invoke(accounts, data)
-        }
-        InstructionType::CreateAta2InvokeSigned => {
-            let data = CreateAta2Data::try_from_slice(&instruction_data[1..])
-                .map_err(|_| ProgramError::InvalidInstructionData)?;
-            process_create_ata2_invoke_signed(accounts, data)
-        }
         InstructionType::CreateCmintInvokeSigned => {
             let data = CreateCmintData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
@@ -246,6 +298,58 @@ pub fn process_instruction(
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_transfer_interface_invoke_signed(accounts, data)
         }
+        InstructionType::ApproveInvoke => {
+            let data = ApproveData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_approve_invoke(accounts, data)
+        }
+        InstructionType::ApproveInvokeSigned => {
+            let data = ApproveData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_approve_invoke_signed(accounts, data)
+        }
+        InstructionType::RevokeInvoke => process_revoke_invoke(accounts),
+        InstructionType::RevokeInvokeSigned => process_revoke_invoke_signed(accounts),
+        InstructionType::FreezeInvoke => process_freeze_invoke(accounts),
+        InstructionType::FreezeInvokeSigned => process_freeze_invoke_signed(accounts),
+        InstructionType::ThawInvoke => process_thaw_invoke(accounts),
+        InstructionType::ThawInvokeSigned => process_thaw_invoke_signed(accounts),
+        InstructionType::BurnInvoke => {
+            let data = BurnData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_burn_invoke(accounts, data.amount)
+        }
+        InstructionType::BurnInvokeSigned => {
+            let data = BurnData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_burn_invoke_signed(accounts, data.amount)
+        }
+        InstructionType::CTokenMintToInvoke => {
+            let data = MintToData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_ctoken_mint_to_invoke(accounts, data.amount)
+        }
+        InstructionType::CTokenMintToInvokeSigned => {
+            let data = MintToData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_ctoken_mint_to_invoke_signed(accounts, data.amount)
+        }
+        InstructionType::DecompressCmintInvokeSigned => {
+            let data = DecompressCmintData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_decompress_cmint_invoke_signed(accounts, data)
+        }
+        InstructionType::CTokenTransferCheckedInvoke => {
+            let data = TransferCheckedData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_transfer_checked_invoke(accounts, data)
+        }
+        InstructionType::CTokenTransferCheckedInvokeSigned => {
+            let data = TransferCheckedData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_transfer_checked_invoke_signed(accounts, data)
+        }
+        _ => Err(ProgramError::InvalidInstructionData),
     }
 }
 
@@ -276,6 +380,21 @@ mod tests {
         assert_eq!(InstructionType::CtokenToSplInvokeSigned as u8, 18);
         assert_eq!(InstructionType::TransferInterfaceInvoke as u8, 19);
         assert_eq!(InstructionType::TransferInterfaceInvokeSigned as u8, 20);
+        assert_eq!(InstructionType::ApproveInvoke as u8, 21);
+        assert_eq!(InstructionType::ApproveInvokeSigned as u8, 22);
+        assert_eq!(InstructionType::RevokeInvoke as u8, 23);
+        assert_eq!(InstructionType::RevokeInvokeSigned as u8, 24);
+        assert_eq!(InstructionType::FreezeInvoke as u8, 25);
+        assert_eq!(InstructionType::FreezeInvokeSigned as u8, 26);
+        assert_eq!(InstructionType::ThawInvoke as u8, 27);
+        assert_eq!(InstructionType::ThawInvokeSigned as u8, 28);
+        assert_eq!(InstructionType::BurnInvoke as u8, 29);
+        assert_eq!(InstructionType::BurnInvokeSigned as u8, 30);
+        assert_eq!(InstructionType::CTokenMintToInvoke as u8, 31);
+        assert_eq!(InstructionType::CTokenMintToInvokeSigned as u8, 32);
+        assert_eq!(InstructionType::DecompressCmintInvokeSigned as u8, 33);
+        assert_eq!(InstructionType::CTokenTransferCheckedInvoke as u8, 34);
+        assert_eq!(InstructionType::CTokenTransferCheckedInvokeSigned as u8, 35);
     }
 
     #[test]
@@ -364,6 +483,66 @@ mod tests {
             InstructionType::try_from(20).unwrap(),
             InstructionType::TransferInterfaceInvokeSigned
         );
-        assert!(InstructionType::try_from(21).is_err());
+        assert_eq!(
+            InstructionType::try_from(21).unwrap(),
+            InstructionType::ApproveInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(22).unwrap(),
+            InstructionType::ApproveInvokeSigned
+        );
+        assert_eq!(
+            InstructionType::try_from(23).unwrap(),
+            InstructionType::RevokeInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(24).unwrap(),
+            InstructionType::RevokeInvokeSigned
+        );
+        assert_eq!(
+            InstructionType::try_from(25).unwrap(),
+            InstructionType::FreezeInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(26).unwrap(),
+            InstructionType::FreezeInvokeSigned
+        );
+        assert_eq!(
+            InstructionType::try_from(27).unwrap(),
+            InstructionType::ThawInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(28).unwrap(),
+            InstructionType::ThawInvokeSigned
+        );
+        assert_eq!(
+            InstructionType::try_from(29).unwrap(),
+            InstructionType::BurnInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(30).unwrap(),
+            InstructionType::BurnInvokeSigned
+        );
+        assert_eq!(
+            InstructionType::try_from(31).unwrap(),
+            InstructionType::CTokenMintToInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(32).unwrap(),
+            InstructionType::CTokenMintToInvokeSigned
+        );
+        assert_eq!(
+            InstructionType::try_from(33).unwrap(),
+            InstructionType::DecompressCmintInvokeSigned
+        );
+        assert_eq!(
+            InstructionType::try_from(34).unwrap(),
+            InstructionType::CTokenTransferCheckedInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(35).unwrap(),
+            InstructionType::CTokenTransferCheckedInvokeSigned
+        );
+        assert!(InstructionType::try_from(36).is_err());
     }
 }

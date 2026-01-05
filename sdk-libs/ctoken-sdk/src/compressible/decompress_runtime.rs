@@ -1,5 +1,7 @@
 //! Runtime helpers for token decompression.
-use light_ctoken_interface::instructions::transfer2::MultiInputTokenDataWithContext;
+use light_ctoken_interface::instructions::{
+    extensions::CompressToPubkey, transfer2::MultiInputTokenDataWithContext,
+};
 use light_sdk::{cpi::v2::CpiAccounts, instruction::ValidityProof};
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
 use solana_account_info::AccountInfo;
@@ -131,7 +133,7 @@ where
                     .take(ctoken_signer_seeds.len().saturating_sub(1))
                     .cloned()
                     .collect();
-                light_ctoken_interface::instructions::extensions::compressible::CompressToPubkey {
+                CompressToPubkey {
                     bump,
                     program_id: program_id.to_bytes(),
                     seeds: seeds_without_bump,
@@ -143,7 +145,7 @@ where
             account: (*owner_info).clone(),
             mint: (*mint_info).clone(),
             owner: *authority.key,
-            compressible: Some(crate::ctoken::CompressibleParamsCpi {
+            compressible: crate::ctoken::CompressibleParamsCpi {
                 compressible_config: ctoken_config.clone(),
                 rent_sponsor: ctoken_rent_sponsor.clone(),
                 system_program: cpi_accounts
@@ -154,7 +156,8 @@ where
                 lamports_per_write: None,
                 compress_to_account_pubkey: compress_to_pubkey,
                 token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
-            }),
+                compression_only: false,
+            },
         }
         .invoke_signed(&[seeds_slice])?;
 
@@ -171,6 +174,7 @@ where
         let decompress_index = crate::compressed_token::decompress_full::DecompressFullIndices {
             source,
             destination_index: owner_index,
+            tlv: None,
         };
         token_decompress_indices.push(decompress_index);
         token_signers_seed_groups.push(ctoken_signer_seeds);

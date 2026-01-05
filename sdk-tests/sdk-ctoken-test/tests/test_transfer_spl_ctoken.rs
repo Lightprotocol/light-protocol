@@ -5,12 +5,14 @@ mod shared;
 use borsh::BorshSerialize;
 use light_client::rpc::Rpc;
 use light_ctoken_sdk::{
-    ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount},
+    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
     spl_interface::find_spl_interface_pda_with_index,
 };
 use light_ctoken_types::CPI_AUTHORITY_PDA;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_test_utils::spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens};
+use light_test_utils::spl::{
+    create_mint_helper, create_token_2022_account, mint_spl_tokens, CREATE_MINT_HELPER_DECIMALS,
+};
 use native_ctoken_examples::{
     TransferCTokenToSplData, TransferSplToCtokenData, ID, TRANSFER_AUTHORITY_SEED,
 };
@@ -86,7 +88,8 @@ async fn test_spl_to_ctoken_invoke() {
     assert_eq!(initial_spl_balance, amount);
 
     // Get token pool PDA
-    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) =
+        find_spl_interface_pda_with_index(&mint, 0, false);
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
@@ -95,6 +98,7 @@ async fn test_spl_to_ctoken_invoke() {
     let data = TransferSplToCtokenData {
         amount: transfer_amount,
         spl_interface_pda_bump,
+        decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 15 = SplToCtokenInvoke
     let wrapper_instruction_data = [vec![15u8], data.try_to_vec().unwrap()].concat();
@@ -109,6 +113,7 @@ async fn test_spl_to_ctoken_invoke() {
     // - accounts[6]: spl_interface_pda
     // - accounts[7]: spl_token_program
     // - accounts[8]: compressed_token_program_authority
+    // - accounts[9]: system_program
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
         AccountMeta::new(spl_token_account_keypair.pubkey(), false),
@@ -119,6 +124,7 @@ async fn test_spl_to_ctoken_invoke() {
         AccountMeta::new(spl_interface_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
         AccountMeta::new_readonly(cpi_authority_pda, false),
+        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
     ];
 
     let instruction = Instruction {
@@ -209,7 +215,8 @@ async fn test_ctoken_to_spl_invoke() {
     .unwrap();
 
     // Transfer from temp SPL to ctoken to fund it
-    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) =
+        find_spl_interface_pda_with_index(&mint, 0, false);
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
@@ -218,6 +225,7 @@ async fn test_ctoken_to_spl_invoke() {
         let data = TransferSplToCtokenData {
             amount,
             spl_interface_pda_bump,
+            decimals: CREATE_MINT_HELPER_DECIMALS,
         };
         let wrapper_instruction_data = [vec![15u8], data.try_to_vec().unwrap()].concat();
         let wrapper_accounts = vec![
@@ -230,6 +238,7 @@ async fn test_ctoken_to_spl_invoke() {
             AccountMeta::new(spl_interface_pda, false),
             AccountMeta::new_readonly(anchor_spl::token::ID, false),
             AccountMeta::new_readonly(cpi_authority_pda, false),
+            AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
         ];
 
         let instruction = Instruction {
@@ -254,6 +263,7 @@ async fn test_ctoken_to_spl_invoke() {
     let data = TransferCTokenToSplData {
         amount: transfer_amount,
         spl_interface_pda_bump,
+        decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 17 = CtokenToSplInvoke
     let wrapper_instruction_data = [vec![17u8], data.try_to_vec().unwrap()].concat();
@@ -378,7 +388,8 @@ async fn test_spl_to_ctoken_invoke_signed() {
     let ctoken_account = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
 
     // Get SPL interface PDA
-    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) =
+        find_spl_interface_pda_with_index(&mint, 0, false);
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
@@ -387,6 +398,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
     let data = TransferSplToCtokenData {
         amount: transfer_amount,
         spl_interface_pda_bump,
+        decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 16 = SplToCtokenInvokeSigned
     let wrapper_instruction_data = [vec![16u8], data.try_to_vec().unwrap()].concat();
@@ -401,6 +413,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
         AccountMeta::new(spl_interface_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
         AccountMeta::new_readonly(cpi_authority_pda, false),
+        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
     ];
 
     let instruction = Instruction {
@@ -471,7 +484,6 @@ async fn test_ctoken_to_spl_invoke_signed() {
     .unwrap();
 
     // Create ctoken ATA owned by the PDA
-    // We need to use a non-compressible ATA so it can be owned by a PDA
     let (ctoken_account, bump) = derive_ctoken_ata(&authority_pda, &mint);
     let instruction = CreateAssociatedCTokenAccount {
         idempotent: false,
@@ -480,7 +492,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
         owner: authority_pda,
         mint,
         associated_token_account: ctoken_account,
-        compressible: None, // Non-compressible so PDA can own it
+        compressible: CompressibleParams::default_ata(),
     }
     .instruction()
     .unwrap();
@@ -516,7 +528,8 @@ async fn test_ctoken_to_spl_invoke_signed() {
     .unwrap();
 
     // Transfer from temp SPL to ctoken to fund it
-    let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda_with_index(&mint, 0);
+    let (spl_interface_pda, spl_interface_pda_bump) =
+        find_spl_interface_pda_with_index(&mint, 0, false);
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
@@ -525,6 +538,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
         let data = TransferSplToCtokenData {
             amount,
             spl_interface_pda_bump,
+            decimals: CREATE_MINT_HELPER_DECIMALS,
         };
         let wrapper_instruction_data = [vec![15u8], data.try_to_vec().unwrap()].concat();
         let wrapper_accounts = vec![
@@ -537,6 +551,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
             AccountMeta::new(spl_interface_pda, false),
             AccountMeta::new_readonly(anchor_spl::token::ID, false),
             AccountMeta::new_readonly(cpi_authority_pda, false),
+            AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
         ];
 
         let instruction = Instruction {
@@ -561,6 +576,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
     let data = TransferCTokenToSplData {
         amount: transfer_amount,
         spl_interface_pda_bump,
+        decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 18 = CtokenToSplInvokeSigned
     let wrapper_instruction_data = [vec![18u8], data.try_to_vec().unwrap()].concat();

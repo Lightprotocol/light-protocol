@@ -1,24 +1,41 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
+use light_compressible::compression_info::CompressionInfo;
 use light_hasher::{sha256::Sha256BE, Hasher};
-use light_program_profiler::profile;
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 #[cfg(feature = "solana")]
 use solana_msg::msg;
 
-use crate::{
-    instructions::mint_action::CompressedMintInstructionData, state::ExtensionStruct,
-    AnchorDeserialize, AnchorSerialize, CTokenError,
-};
+use crate::{state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError};
+
+/// AccountType::Mint discriminator value
+pub const ACCOUNT_TYPE_MINT: u8 = 1;
 
 #[repr(C)]
-#[derive(
-    Debug, PartialEq, Default, Eq, Clone, BorshSerialize, BorshDeserialize, ZeroCopyMut, ZeroCopy,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, BorshSerialize, BorshDeserialize)]
 pub struct CompressedMint {
     pub base: BaseMint,
     pub metadata: CompressedMintMetadata,
+    /// Reserved bytes for T22 layout compatibility (padding to reach byte 165)
+    pub reserved: [u8; 49],
+    /// Account type discriminator at byte 165 (1 = Mint, 2 = Account)
+    pub account_type: u8,
+    /// Compression info embedded directly in the mint
+    pub compression: CompressionInfo,
     pub extensions: Option<Vec<ExtensionStruct>>,
+}
+
+impl Default for CompressedMint {
+    fn default() -> Self {
+        Self {
+            base: BaseMint::default(),
+            metadata: CompressedMintMetadata::default(),
+            reserved: [0u8; 49],
+            account_type: ACCOUNT_TYPE_MINT,
+            compression: CompressionInfo::default(),
+            extensions: None,
+        }
+    }
 }
 
 // and subsequent deserialization for remaining data (compression metadata + extensions)
@@ -104,45 +121,10 @@ impl CompressedMint {
 
         Ok(mint)
     }
-}
 
-// Implementation for zero-copy mutable CompressedMint
-impl ZCompressedMintMut<'_> {
-    /// Set all fields of the CompressedMint struct at once
-    #[inline]
-    #[profile]
-    pub fn set(
-        &mut self,
-        ix_data: &<CompressedMintInstructionData as light_zero_copy::traits::ZeroCopyAt<'_>>::ZeroCopyAt,
-        cmint_decompressed: bool,
-    ) -> Result<(), CTokenError> {
-        if ix_data.metadata.version != 3 {
-            #[cfg(feature = "solana")]
-            msg!(
-                "Only shaflat version 3 is supported got {}",
-                ix_data.metadata.version
-            );
-            return Err(CTokenError::InvalidTokenMetadataVersion);
-        }
-        // Set metadata fields from instruction data
-        self.metadata.version = ix_data.metadata.version;
-        self.metadata.mint = ix_data.metadata.mint;
-        self.metadata.cmint_decompressed = if cmint_decompressed { 1 } else { 0 };
-
-        // Set base fields
-        *self.base.supply = ix_data.supply;
-        *self.base.decimals = ix_data.decimals;
-        *self.base.is_initialized = 1; // Always initialized for compressed mints
-
-        if let Some(mint_authority) = ix_data.mint_authority.as_deref() {
-            self.base.set_mint_authority(Some(*mint_authority));
-        }
-        // Set freeze authority using COption format
-        if let Some(freeze_authority) = ix_data.freeze_authority.as_deref() {
-            self.base.set_freeze_authority(Some(*freeze_authority));
-        }
-
-        // extensions are handled separately
-        Ok(())
+    /// Checks if account_type matches CMint discriminator value
+    #[inline(always)]
+    pub fn is_cmint_account(&self) -> bool {
+        self.account_type == ACCOUNT_TYPE_MINT
     }
 }

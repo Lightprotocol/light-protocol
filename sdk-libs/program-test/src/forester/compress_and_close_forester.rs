@@ -6,7 +6,7 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressible::config::CompressibleConfig;
-use light_ctoken_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
+use light_ctoken_sdk::compressed_token::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
 use light_registry::{
     accounts::CompressAndCloseContext as CompressAndCloseAccounts,
     compressible::compressed_token::CompressAndCloseIndices, instruction::CompressAndClose,
@@ -83,7 +83,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     packed_accounts.insert_or_get(output_queue);
 
     // Parse the ctoken account to get required pubkeys
-    use light_ctoken_interface::state::{CToken, ZExtensionStruct};
+    use light_ctoken_interface::state::CToken;
     use light_zero_copy::traits::ZeroCopyAt;
 
     let mut indices_vec = Vec::with_capacity(solana_ctoken_accounts.len());
@@ -121,35 +121,40 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
         let mint_index =
             packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
 
-        let mut compressed_token_owner = Pubkey::from(ctoken_account.owner.to_bytes());
-        let mut rent_sponsor_pubkey = Pubkey::from(ctoken_account.owner.to_bytes());
+        // Get compression info from Compressible extension
+        let compressible_ext = ctoken_account.get_compressible_extension().ok_or_else(|| {
+            RpcError::CustomError("Missing Compressible extension on CToken account".to_string())
+        })?;
+        let current_authority = Pubkey::from(compressible_ext.info.compression_authority);
+        let rent_sponsor_pubkey = Pubkey::from(compressible_ext.info.rent_sponsor);
 
-        if let Some(extensions) = &ctoken_account.extensions {
-            for extension in extensions {
-                if let ZExtensionStruct::Compressible(e) = extension {
-                    let current_authority = Pubkey::from(e.info.compression_authority);
-                    rent_sponsor_pubkey = Pubkey::from(e.info.rent_sponsor);
-
-                    if compression_authority_pubkey.is_none() {
-                        compression_authority_pubkey = Some(current_authority);
-                    }
-
-                    if e.info.compress_to_pubkey() {
-                        compressed_token_owner = *solana_ctoken_account_pubkey;
-                    }
-                    break;
-                }
-            }
+        if compression_authority_pubkey.is_none() {
+            compression_authority_pubkey = Some(current_authority);
         }
+
+        let compressed_token_owner = if compressible_ext.info.compress_to_pubkey == 1 {
+            *solana_ctoken_account_pubkey
+        } else {
+            Pubkey::from(ctoken_account.owner.to_bytes())
+        };
 
         let owner_index = packed_accounts.insert_or_get(compressed_token_owner);
         let rent_sponsor_index = packed_accounts.insert_or_get(rent_sponsor_pubkey);
+
+        // Get delegate if present
+        let delegate_index = if ctoken_account.delegate != [0u8; 32] {
+            let delegate_pubkey = Pubkey::from(ctoken_account.delegate);
+            packed_accounts.insert_or_get(delegate_pubkey)
+        } else {
+            0 // 0 means no delegate
+        };
 
         let indices = CompressAndCloseIndices {
             source_index,
             mint_index,
             owner_index,
             rent_sponsor_index,
+            delegate_index,
         };
 
         indices_vec.push(indices);

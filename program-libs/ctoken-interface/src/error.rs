@@ -110,8 +110,8 @@ pub enum CTokenError {
     InstructionDataExpectedDelegate,
     #[error("ZeroCopyExpectedDelegate")]
     ZeroCopyExpectedDelegate,
-    #[error("TokenDataTlvUnimplemented")]
-    TokenDataTlvUnimplemented,
+    #[error("Unsupported TLV extension type - only CompressedOnly is currently implemented")]
+    UnsupportedTlvExtensionType,
     #[error("InvalidAccountState")]
     InvalidAccountState,
     #[error("BorshFailed")]
@@ -147,6 +147,47 @@ pub enum CTokenError {
 
     #[error("Failed to deserialize CMint account data")]
     CMintDeserializationFailed,
+
+    #[error("CompressedOnly tokens cannot have compressed outputs - must decompress only")]
+    CompressedOnlyBlocksTransfer,
+
+    #[error("Output TLV data count must match number of compressed outputs")]
+    OutTlvOutputCountMismatch,
+
+    #[error("in_lamports field is not yet implemented")]
+    InLamportsUnimplemented,
+
+    #[error("out_lamports field is not yet implemented")]
+    OutLamportsUnimplemented,
+
+    #[error("TLV extension length mismatch - exactly one extension required")]
+    TlvExtensionLengthMismatch,
+
+    #[error("InvalidAccountType")]
+    InvalidAccountType,
+
+    #[error("Duplicate compression_index found in input TLV data")]
+    DuplicateCompressionIndex,
+
+    #[error("Decompress destination CToken is not a fresh account")]
+    DecompressDestinationNotFresh,
+
+    #[error("CToken account missing required Compressible extension")]
+    MissingCompressibleExtension,
+
+    #[error("Decompress destination doesn't match source account")]
+    DecompressDestinationMismatch,
+
+    #[error("CToken account mint does not match expected mint")]
+    MintMismatch,
+
+    #[error("Decompress has delegated_amount but no delegate pubkey provided")]
+    DecompressDelegatedAmountWithoutDelegate,
+
+    #[error(
+        "Decompress has withheld_transfer_fee but destination lacks TransferFeeAccount extension"
+    )]
+    DecompressWithheldFeeWithoutExtension,
 }
 
 impl From<CTokenError> for u32 {
@@ -186,7 +227,7 @@ impl From<CTokenError> for u32 {
             CTokenError::InvalidExtensionConfig => 18032,
             CTokenError::InstructionDataExpectedDelegate => 18033,
             CTokenError::ZeroCopyExpectedDelegate => 18034,
-            CTokenError::TokenDataTlvUnimplemented => 18035,
+            CTokenError::UnsupportedTlvExtensionType => 18035,
             CTokenError::InvalidAccountState => 18036,
             CTokenError::BorshFailed => 18037,
             CTokenError::TooManyInputAccounts => 18038,
@@ -199,6 +240,19 @@ impl From<CTokenError> for u32 {
             CTokenError::CMintNotInitialized => 18045,
             CTokenError::CMintBorrowFailed => 18046,
             CTokenError::CMintDeserializationFailed => 18047,
+            CTokenError::CompressedOnlyBlocksTransfer => 18048,
+            CTokenError::OutTlvOutputCountMismatch => 18049,
+            CTokenError::InLamportsUnimplemented => 18050,
+            CTokenError::OutLamportsUnimplemented => 18051,
+            CTokenError::TlvExtensionLengthMismatch => 18052,
+            CTokenError::InvalidAccountType => 18053,
+            CTokenError::DuplicateCompressionIndex => 18054,
+            CTokenError::DecompressDestinationNotFresh => 18055,
+            CTokenError::MissingCompressibleExtension => 18056,
+            CTokenError::DecompressDestinationMismatch => 18057,
+            CTokenError::MintMismatch => 18058,
+            CTokenError::DecompressDelegatedAmountWithoutDelegate => 18059,
+            CTokenError::DecompressWithheldFeeWithoutExtension => 18060,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

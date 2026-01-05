@@ -85,6 +85,12 @@ export const TokenMetadataLayout = borshStruct([
 export interface CompressedMint {
     base: BaseMint;
     mintContext: MintContext;
+    /** Reserved bytes for T22 layout compatibility */
+    reserved: Uint8Array;
+    /** Account type discriminator (1 = Mint) */
+    accountType: number;
+    /** Compression info embedded in mint */
+    compression: CompressionInfo;
     extensions: MintExtension[] | null;
 }
 
@@ -104,6 +110,59 @@ export const MintContextLayout = struct<RawMintContext>([
 
 /** Byte length of MintContext */
 export const MINT_CONTEXT_SIZE = MintContextLayout.span; // 34 bytes
+
+/** Reserved bytes for T22 layout compatibility */
+export const RESERVED_SIZE = 49;
+
+/** Account type discriminator size */
+export const ACCOUNT_TYPE_SIZE = 1;
+
+/** Account type value for CMint */
+export const ACCOUNT_TYPE_MINT = 1;
+
+/**
+ * Rent configuration for compressible accounts
+ */
+export interface RentConfig {
+    /** Base rent constant per epoch */
+    baseRent: number;
+    /** Compression cost in lamports */
+    compressionCost: number;
+    /** Lamports per byte per epoch */
+    lamportsPerBytePerEpoch: number;
+    /** Maximum epochs that can be pre-funded */
+    maxFundedEpochs: number;
+    /** Maximum lamports for top-up operation */
+    maxTopUp: number;
+}
+
+/** Byte length of RentConfig */
+export const RENT_CONFIG_SIZE = 8; // 2 + 2 + 1 + 1 + 2
+
+/**
+ * Compression info embedded in CompressedMint
+ */
+export interface CompressionInfo {
+    /** Config account version (0 = uninitialized) */
+    configAccountVersion: number;
+    /** Whether to compress to pubkey instead of owner */
+    compressToPubkey: number;
+    /** Account version for hashing scheme */
+    accountVersion: number;
+    /** Lamports to top up per write */
+    lamportsPerWrite: number;
+    /** Authority that can compress the account */
+    compressionAuthority: PublicKey;
+    /** Recipient for rent on closure */
+    rentSponsor: PublicKey;
+    /** Last slot rent was claimed */
+    lastClaimedSlot: bigint;
+    /** Rent configuration */
+    rentConfig: RentConfig;
+}
+
+/** Byte length of CompressionInfo */
+export const COMPRESSION_INFO_SIZE = 88; // 2 + 1 + 1 + 4 + 32 + 32 + 8 + 8
 
 /**
  * Calculate the byte length of a TokenMetadata extension from buffer.
@@ -165,6 +224,73 @@ function getExtensionByteLength(
 }
 
 /**
+ * Deserialize CompressionInfo from buffer at given offset
+ * @returns Tuple of [CompressionInfo, bytesRead]
+ */
+function deserializeCompressionInfo(
+    buffer: Buffer,
+    offset: number,
+): [CompressionInfo, number] {
+    const startOffset = offset;
+
+    const configAccountVersion = buffer.readUInt16LE(offset);
+    offset += 2;
+
+    const compressToPubkey = buffer.readUInt8(offset);
+    offset += 1;
+
+    const accountVersion = buffer.readUInt8(offset);
+    offset += 1;
+
+    const lamportsPerWrite = buffer.readUInt32LE(offset);
+    offset += 4;
+
+    const compressionAuthority = new PublicKey(
+        buffer.slice(offset, offset + 32),
+    );
+    offset += 32;
+
+    const rentSponsor = new PublicKey(buffer.slice(offset, offset + 32));
+    offset += 32;
+
+    const lastClaimedSlot = buffer.readBigUInt64LE(offset);
+    offset += 8;
+
+    // Read RentConfig (8 bytes)
+    const baseRent = buffer.readUInt16LE(offset);
+    offset += 2;
+    const compressionCost = buffer.readUInt16LE(offset);
+    offset += 2;
+    const lamportsPerBytePerEpoch = buffer.readUInt8(offset);
+    offset += 1;
+    const maxFundedEpochs = buffer.readUInt8(offset);
+    offset += 1;
+    const maxTopUp = buffer.readUInt16LE(offset);
+    offset += 2;
+
+    const rentConfig: RentConfig = {
+        baseRent,
+        compressionCost,
+        lamportsPerBytePerEpoch,
+        maxFundedEpochs,
+        maxTopUp,
+    };
+
+    const compressionInfo: CompressionInfo = {
+        configAccountVersion,
+        compressToPubkey,
+        accountVersion,
+        lamportsPerWrite,
+        compressionAuthority,
+        rentSponsor,
+        lastClaimedSlot,
+        rentConfig,
+    };
+
+    return [compressionInfo, offset - startOffset];
+}
+
+/**
  * Deserialize a compressed mint from buffer
  * Uses SPL's MintLayout for BaseMint and buffer-layout struct for context
  *
@@ -185,7 +311,22 @@ export function deserializeMint(data: Buffer | Uint8Array): CompressedMint {
     );
     offset += MINT_CONTEXT_SIZE;
 
-    // 3. Parse extensions: Option<Vec<ExtensionStruct>>
+    // 3. Read reserved bytes (49 bytes) for T22 compatibility
+    const reserved = buffer.slice(offset, offset + RESERVED_SIZE);
+    offset += RESERVED_SIZE;
+
+    // 4. Read account_type discriminator (1 byte)
+    const accountType = buffer.readUInt8(offset);
+    offset += ACCOUNT_TYPE_SIZE;
+
+    // 5. Read CompressionInfo (88 bytes)
+    const [compression, compressionBytesRead] = deserializeCompressionInfo(
+        buffer,
+        offset,
+    );
+    offset += compressionBytesRead;
+
+    // 6. Parse extensions: Option<Vec<ExtensionStruct>>
     // Borsh format: Option byte + Vec length + (discriminant + variant data) for each
     const hasExtensions = buffer.readUInt8(offset) === 1;
     offset += 1;
@@ -238,10 +379,56 @@ export function deserializeMint(data: Buffer | Uint8Array): CompressedMint {
     const mint: CompressedMint = {
         base: baseMint,
         mintContext,
+        reserved,
+        accountType,
+        compression,
         extensions,
     };
 
     return mint;
+}
+
+/**
+ * Serialize CompressionInfo to buffer
+ */
+function serializeCompressionInfo(compression: CompressionInfo): Buffer {
+    const buffer = Buffer.alloc(COMPRESSION_INFO_SIZE);
+    let offset = 0;
+
+    buffer.writeUInt16LE(compression.configAccountVersion, offset);
+    offset += 2;
+
+    buffer.writeUInt8(compression.compressToPubkey, offset);
+    offset += 1;
+
+    buffer.writeUInt8(compression.accountVersion, offset);
+    offset += 1;
+
+    buffer.writeUInt32LE(compression.lamportsPerWrite, offset);
+    offset += 4;
+
+    compression.compressionAuthority.toBuffer().copy(buffer, offset);
+    offset += 32;
+
+    compression.rentSponsor.toBuffer().copy(buffer, offset);
+    offset += 32;
+
+    buffer.writeBigUInt64LE(compression.lastClaimedSlot, offset);
+    offset += 8;
+
+    // Write RentConfig (8 bytes)
+    buffer.writeUInt16LE(compression.rentConfig.baseRent, offset);
+    offset += 2;
+    buffer.writeUInt16LE(compression.rentConfig.compressionCost, offset);
+    offset += 2;
+    buffer.writeUInt8(compression.rentConfig.lamportsPerBytePerEpoch, offset);
+    offset += 1;
+    buffer.writeUInt8(compression.rentConfig.maxFundedEpochs, offset);
+    offset += 1;
+    buffer.writeUInt16LE(compression.rentConfig.maxTopUp, offset);
+    offset += 2;
+
+    return buffer;
 }
 
 /**
@@ -282,7 +469,22 @@ export function serializeMint(mint: CompressedMint): Buffer {
     );
     buffers.push(contextBuffer);
 
-    // 3. Encode extensions: Option<Vec<ExtensionStruct>>
+    // 3. Encode reserved bytes (49 bytes) - default to zeros
+    const reserved = mint.reserved ?? new Uint8Array(RESERVED_SIZE);
+    buffers.push(Buffer.from(reserved));
+
+    // 4. Encode account_type (1 byte) - default to ACCOUNT_TYPE_MINT (1)
+    const accountType = mint.accountType ?? ACCOUNT_TYPE_MINT;
+    buffers.push(Buffer.from([accountType]));
+
+    // 5. Encode CompressionInfo (88 bytes) - default to zeros
+    if (mint.compression) {
+        buffers.push(serializeCompressionInfo(mint.compression));
+    } else {
+        buffers.push(Buffer.alloc(COMPRESSION_INFO_SIZE));
+    }
+
+    // 6. Encode extensions: Option<Vec<ExtensionStruct>>
     // Borsh format: Option byte + Vec length + (discriminant + variant data) for each
     // NOTE: No length prefix per extension - Borsh enums are discriminant + data directly
     if (mint.extensions && mint.extensions.length > 0) {

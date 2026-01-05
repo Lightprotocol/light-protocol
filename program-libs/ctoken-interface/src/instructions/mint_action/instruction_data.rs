@@ -1,4 +1,5 @@
 use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
+use light_compressible::compression_info::CompressionInfo;
 use light_zero_copy::ZeroCopy;
 
 use super::{
@@ -9,8 +10,8 @@ use super::{
 use crate::{
     instructions::extensions::{ExtensionInstructionData, ZExtensionInstructionData},
     state::{
-        AdditionalMetadata, BaseMint, CompressedMint, CompressedMintMetadata,
-        CompressibleExtension, ExtensionStruct, TokenMetadata,
+        AdditionalMetadata, BaseMint, CompressedMint, CompressedMintMetadata, ExtensionStruct,
+        TokenMetadata,
     },
     AnchorDeserialize, AnchorSerialize, CTokenError,
 };
@@ -118,12 +119,12 @@ impl TryFrom<CompressedMint> for CompressedMintInstructionData {
 
     fn try_from(mint: CompressedMint) -> Result<Self, Self::Error> {
         let extensions = match mint.extensions {
-            Some(exts) => {
-                let converted_exts: Result<Vec<_>, Self::Error> = exts
-                    .into_iter()
-                    .map(|ext| match ext {
+            Some(exts) if !exts.is_empty() => {
+                let mut extension_list = Vec::with_capacity(exts.len());
+                for ext in exts {
+                    match ext {
                         ExtensionStruct::TokenMetadata(token_metadata) => {
-                            Ok(ExtensionInstructionData::TokenMetadata(
+                            extension_list.push(ExtensionInstructionData::TokenMetadata(
                                 crate::instructions::extensions::token_metadata::TokenMetadataInstructionData {
                                     update_authority: if token_metadata.update_authority == [0u8;32] {None}else {Some(token_metadata.update_authority)},
                                     name: token_metadata.name,
@@ -131,19 +132,16 @@ impl TryFrom<CompressedMint> for CompressedMintInstructionData {
                                     uri: token_metadata.uri,
                                     additional_metadata: Some(token_metadata.additional_metadata),
                                 },
-                            ))
-                        }
-                        ExtensionStruct::Compressible(compressible_ext) => {
-                            Ok(ExtensionInstructionData::Compressible(compressible_ext.info))
+                            ));
                         }
                         _ => {
-                            Err(CTokenError::UnsupportedExtension)
+                            return Err(CTokenError::UnsupportedExtension);
                         }
-                    })
-                    .collect();
-                Some(converted_exts?)
+                    }
+                }
+                Some(extension_list)
             }
-            None => None,
+            _ => None,
         };
 
         Ok(Self {
@@ -165,7 +163,7 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
     ) -> Result<Self, Self::Error> {
         let extensions = match &instruction_data.extensions {
             Some(exts) => {
-                let converted_exts: Result<Vec<_>, Self::Error> = exts
+                let converted_exts: Vec<_> = exts
                     .iter()
                     .map(|ext| match ext {
                         ZExtensionInstructionData::TokenMetadata(token_metadata_data) => {
@@ -192,41 +190,14 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
                                     .unwrap_or_else(Vec::new),
                             }))
                         }
-                        ZExtensionInstructionData::Compressible(compression_info) => {
-                            // Convert zero-copy CompressionInfo to owned CompressibleExtension
-                            Ok(ExtensionStruct::Compressible(CompressibleExtension {
-                                compression_only: false,
-                                info: light_compressible::compression_info::CompressionInfo {
-                                    config_account_version: compression_info
-                                        .config_account_version
-                                        .into(),
-                                    compress_to_pubkey: compression_info.compress_to_pubkey,
-                                    account_version: compression_info.account_version,
-                                    lamports_per_write: compression_info.lamports_per_write.into(),
-                                    compression_authority: compression_info.compression_authority,
-                                    rent_sponsor: compression_info.rent_sponsor,
-                                    last_claimed_slot: compression_info.last_claimed_slot.into(),
-                                    rent_config: light_compressible::rent::RentConfig {
-                                        base_rent: compression_info.rent_config.base_rent.into(),
-                                        compression_cost: compression_info
-                                            .rent_config
-                                            .compression_cost
-                                            .into(),
-                                        lamports_per_byte_per_epoch: compression_info
-                                            .rent_config
-                                            .lamports_per_byte_per_epoch,
-                                        max_funded_epochs: compression_info
-                                            .rent_config
-                                            .max_funded_epochs,
-                                        max_top_up: compression_info.rent_config.max_top_up.into(),
-                                    },
-                                },
-                            }))
-                        }
                         _ => Err(CTokenError::UnsupportedExtension),
                     })
-                    .collect();
-                Some(converted_exts?)
+                    .collect::<Result<Vec<_>, _>>()?;
+                if converted_exts.is_empty() {
+                    None
+                } else {
+                    Some(converted_exts)
+                }
             }
             None => None,
         };
@@ -241,9 +212,12 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
             },
             metadata: CompressedMintMetadata {
                 version: instruction_data.metadata.version,
-                cmint_decompressed: instruction_data.metadata.cmint_decompressed(),
+                cmint_decompressed: instruction_data.metadata.cmint_decompressed != 0,
                 mint: instruction_data.metadata.mint,
             },
+            reserved: [0u8; 49],
+            account_type: crate::state::mint::ACCOUNT_TYPE_MINT,
+            compression: CompressionInfo::default(),
             extensions,
         })
     }

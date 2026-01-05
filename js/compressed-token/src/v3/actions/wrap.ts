@@ -11,6 +11,7 @@ import {
     sendAndConfirmTx,
     dedupeSigner,
 } from '@lightprotocol/stateless.js';
+import { getMint } from '@solana/spl-token';
 import { createWrapInstruction } from '../instructions/wrap';
 import {
     getSplInterfaceInfos,
@@ -76,6 +77,14 @@ export async function wrap(
         }
     }
 
+    // Get mint info to get decimals
+    const mintInfo = await getMint(
+        rpc,
+        mint,
+        undefined,
+        resolvedSplInterfaceInfo.tokenProgram,
+    );
+
     // Build wrap instruction
     const ix = createWrapInstruction(
         source,
@@ -84,6 +93,7 @@ export async function wrap(
         mint,
         amount,
         resolvedSplInterfaceInfo,
+        mintInfo.decimals,
         payer.publicKey,
     );
 

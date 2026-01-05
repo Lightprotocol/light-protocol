@@ -65,41 +65,59 @@
 //! ```
 //!
 
+mod approve;
+mod approve_checked;
 mod burn;
+mod burn_checked;
 mod close;
 mod compressible;
 mod create;
 mod create_ata;
 mod create_cmint;
 mod ctoken_mint_to;
+mod ctoken_mint_to_checked;
 mod decompress;
+mod decompress_cmint;
+mod freeze;
 mod mint_to;
+mod revoke;
+mod thaw;
 mod transfer_ctoken;
+mod transfer_ctoken_checked;
 mod transfer_ctoken_spl;
 mod transfer_interface;
 mod transfer_spl_ctoken;
 
+pub use approve::*;
+pub use approve_checked::*;
 pub use burn::*;
+pub use burn_checked::*;
 pub use close::*;
 pub use compressible::{CompressibleParams, CompressibleParamsCpi};
 pub use create::*;
 pub use create_ata::*;
 pub use create_cmint::*;
 pub use ctoken_mint_to::*;
+pub use ctoken_mint_to_checked::*;
 pub use decompress::DecompressToCtoken;
+pub use decompress_cmint::*;
+pub use freeze::*;
 use light_compressible::config::CompressibleConfig;
 pub use light_ctoken_interface::{
     instructions::{
-        extensions::{compressible::CompressToPubkey, ExtensionInstructionData},
+        extensions::{CompressToPubkey, ExtensionInstructionData},
         mint_action::CompressedMintWithContext,
     },
     state::{CToken, TokenDataVersion},
 };
 use light_ctoken_types::POOL_SEED;
 pub use mint_to::*;
+pub use revoke::*;
 use solana_account_info::AccountInfo;
 use solana_pubkey::{pubkey, Pubkey};
+pub use thaw::*;
 pub use transfer_ctoken::*;
+pub use transfer_ctoken_checked::*;
 pub use transfer_ctoken_spl::{TransferCTokenToSpl, TransferCTokenToSplCpi};
 pub use transfer_interface::{SplInterface, TransferInterfaceCpi};
 pub use transfer_spl_ctoken::{TransferSplToCtoken, TransferSplToCtokenCpi};

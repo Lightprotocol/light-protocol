@@ -2,11 +2,8 @@ use std::sync::Arc;
 
 use borsh::BorshDeserialize;
 use dashmap::DashMap;
-use light_ctoken_interface::{
-    state::{extensions::ExtensionStruct, CToken},
-    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
-};
-use solana_sdk::pubkey::Pubkey;
+use light_ctoken_interface::state::CToken;
+use solana_sdk::{pubkey::Pubkey, rent::Rent};
 use tracing::{debug, warn};
 
 use super::types::CompressibleAccountState;
@@ -14,29 +11,32 @@ use crate::Result;
 
 /// Calculate the slot at which an account becomes compressible
 /// Returns the last funded slot; accounts are compressible when current_slot > this value
-fn calculate_compressible_slot(account: &CToken, lamports: u64) -> Result<u64> {
+fn calculate_compressible_slot(
+    account: &CToken,
+    lamports: u64,
+    account_size: usize,
+) -> Result<u64> {
     use light_compressible::rent::SLOTS_PER_EPOCH;
+    use light_ctoken_interface::state::extensions::ExtensionStruct;
 
-    // Find the Compressible extension
-    let compressible_ext = account
+    // Calculate rent exemption dynamically
+    let rent_exemption = Rent::default().minimum_balance(account_size);
+
+    // Get CompressionInfo from Compressible extension
+    let compression_info = account
         .extensions
         .as_ref()
         .and_then(|exts| {
             exts.iter().find_map(|ext| match ext {
-                ExtensionStruct::Compressible(comp) => Some(comp),
+                ExtensionStruct::Compressible(comp) => Some(&comp.info),
                 _ => None,
             })
         })
-        .ok_or_else(|| anyhow::anyhow!("Account missing Compressible extension"))?;
+        .ok_or_else(|| anyhow::anyhow!("Missing Compressible extension on CToken account"))?;
 
-    // Calculate last funded epoch
-    let last_funded_epoch = compressible_ext
-        .info
-        .get_last_funded_epoch(
-            COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-            lamports,
-            COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
-        )
+    // Calculate last funded epoch using embedded compression info
+    let last_funded_epoch = compression_info
+        .get_last_funded_epoch(account_size as u64, lamports, rent_exemption)
         .map_err(|e| {
             anyhow::anyhow!(
                 "Failed to calculate last funded epoch for account with {} lamports: {:?}",
@@ -73,17 +73,14 @@ impl CompressibleAccountTracker {
         self.accounts.remove(pubkey).map(|(_, v)| v)
     }
 
-    /// Get all accounts with compressible extension
+    /// Get all accounts with compressible configuration
     pub fn get_compressible_accounts(&self) -> Vec<CompressibleAccountState> {
         self.accounts
             .iter()
             .filter(|entry| {
                 let state = entry.value();
-                // Check if account has compressible extension
-                state.account.extensions.as_ref().is_some_and(|exts| {
-                    exts.iter()
-                        .any(|ext| matches!(ext, ExtensionStruct::Compressible(_)))
-                })
+                // Check if account is a valid CToken (account_type == 2)
+                state.account.is_ctoken_account()
             })
             .map(|entry| entry.value().clone())
             .collect()
@@ -124,16 +121,17 @@ impl CompressibleAccountTracker {
             .map_err(|e| anyhow::anyhow!("Failed to deserialize CToken with borsh: {:?}", e))?;
 
         // Calculate compressible slot
-        let compressible_slot = match calculate_compressible_slot(&ctoken, lamports) {
-            Ok(slot) => slot,
-            Err(e) => {
-                warn!(
+        let compressible_slot =
+            match calculate_compressible_slot(&ctoken, lamports, account_data.len()) {
+                Ok(slot) => slot,
+                Err(e) => {
+                    warn!(
                     "Failed to calculate compressible slot for account {}: {}. Skipping account.",
                     pubkey, e
                 );
-                return Ok(());
-            }
-        };
+                    return Ok(());
+                }
+            };
 
         // Create state with full CToken account
         let state = CompressibleAccountState {
