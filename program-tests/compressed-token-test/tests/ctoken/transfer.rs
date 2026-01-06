@@ -315,7 +315,7 @@ async fn test_ctoken_transfer_insufficient_balance() {
     let owner_keypair = context.owner_keypair.insecure_clone();
 
     // Try to transfer more than the balance (1500 > 1000)
-    // Expected error: InsufficientFunds (error code 1)
+    // Expected error: SplInsufficientFunds (6154)
     transfer_and_assert_fails(
         &mut context,
         source,
@@ -323,7 +323,7 @@ async fn test_ctoken_transfer_insufficient_balance() {
         1500,
         &owner_keypair,
         "insufficient_balance_transfer",
-        1, // InsufficientFunds
+        6154, // SplInsufficientFunds
     )
     .await;
 }
@@ -393,7 +393,7 @@ async fn test_ctoken_transfer_wrong_authority() {
     let wrong_authority = Keypair::new();
 
     // Try to transfer with wrong authority
-    // Expected error: OwnerMismatch (error code 4)
+    // Expected error: OwnerMismatch (6075)
     transfer_and_assert_fails(
         &mut context,
         source,
@@ -401,7 +401,7 @@ async fn test_ctoken_transfer_wrong_authority() {
         500,
         &wrong_authority,
         "wrong_authority_transfer",
-        4, // OwnerMismatch
+        6075, // OwnerMismatch
     )
     .await;
 }
@@ -425,7 +425,7 @@ async fn test_ctoken_transfer_mint_mismatch() {
     let owner_keypair = context.owner_keypair.insecure_clone();
 
     // Try to transfer between accounts with different mints
-    // The SPL Token program returns error code 3 (MintMismatch)
+    // Expected error: SplMintMismatch (6155)
     transfer_and_assert_fails(
         &mut context,
         source,
@@ -433,7 +433,7 @@ async fn test_ctoken_transfer_mint_mismatch() {
         500,
         &owner_keypair,
         "mint_mismatch_transfer",
-        3, // MintMismatch
+        6155, // SplMintMismatch
     )
     .await;
 }
@@ -911,7 +911,7 @@ async fn test_ctoken_transfer_checked_insufficient_balance() {
         9,
         &owner_keypair,
         "insufficient_balance_transfer_checked",
-        1, // InsufficientFunds
+        6154, // SplInsufficientFunds
     )
     .await;
 }

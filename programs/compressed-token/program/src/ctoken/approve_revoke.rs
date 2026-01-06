@@ -7,8 +7,8 @@ use pinocchio_token_program::processor::{
 };
 
 use crate::shared::{
-    compressible_top_up::process_compression_top_up, convert_program_error,
-    owner_validation::check_token_program_owner, transfer_lamports_via_cpi,
+    compressible_top_up::process_compression_top_up, convert_pinocchio_token_error,
+    convert_program_error, owner_validation::check_token_program_owner, transfer_lamports_via_cpi,
 };
 
 /// Account indices for approve instruction
@@ -39,7 +39,7 @@ pub fn process_ctoken_approve(
     let source = accounts
         .get(APPROVE_ACCOUNT_SOURCE)
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    process_approve(accounts, &instruction_data[..8]).map_err(convert_program_error)?;
+    process_approve(accounts, &instruction_data[..8]).map_err(convert_pinocchio_token_error)?;
     // Hot path: 165-byte accounts have no extensions, just call pinocchio directly
     if source.data_len() == 165 {
         return Ok(());
@@ -77,7 +77,7 @@ pub fn process_ctoken_revoke(
         .get(REVOKE_ACCOUNT_SOURCE)
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-    process_revoke(accounts).map_err(convert_program_error)?;
+    process_revoke(accounts).map_err(convert_pinocchio_token_error)?;
 
     // Hot path: 165-byte accounts have no extensions
     if source.data_len() == 165 {
@@ -86,7 +86,7 @@ pub fn process_ctoken_revoke(
 
     let payer = accounts
         .get(REVOKE_ACCOUNT_OWNER)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        .ok_or(ProgramError::Custom(u32::from(CTokenError::MissingPayer)))?;
 
     // Parse max_top_up based on instruction data length (0 = no limit)
     let max_top_up = match instruction_data.len() {
@@ -195,7 +195,7 @@ pub fn process_ctoken_approve_checked(
     if source.data_len() == 165 {
         check_token_program_owner(mint)?;
         return shared_process_approve(accounts, amount, Some(decimals))
-            .map_err(convert_program_error);
+            .map_err(convert_pinocchio_token_error);
     }
 
     // Parse max_top_up from bytes 9-10 if present (0 = no limit)
@@ -276,11 +276,13 @@ pub fn process_ctoken_approve_checked(
         }
         // Create 3-account slice [source, delegate, owner] - skip mint
         let approve_accounts = [*source, *delegate, *owner];
-        shared_process_approve(&approve_accounts, amount, None).map_err(convert_program_error)
+        shared_process_approve(&approve_accounts, amount, None)
+            .map_err(convert_pinocchio_token_error)
     } else {
         // No cached decimals - validate via mint account
         check_token_program_owner(mint)?;
         // Use full 4-account layout [source, mint, delegate, owner]
-        shared_process_approve(accounts, amount, Some(decimals)).map_err(convert_program_error)
+        shared_process_approve(accounts, amount, Some(decimals))
+            .map_err(convert_pinocchio_token_error)
     }
 }

@@ -83,7 +83,7 @@ async fn test_approve_fails() {
             100,
             None,
             "non_existent_account",
-            6000, // Pinocchio token program error - account doesn't exist
+            6153, // NotRentExempt (SPL Token code 0 -> ErrorCode::NotRentExempt)
         )
         .await;
     }
@@ -253,7 +253,7 @@ async fn test_revoke_fails() {
             &owner,
             None,
             "non_existent_account",
-            6000, // Pinocchio token program error - account doesn't exist
+            6153, // NotRentExempt (SPL Token code 0 -> ErrorCode::NotRentExempt)
         )
         .await;
     }

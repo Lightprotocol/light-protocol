@@ -86,7 +86,7 @@ pub fn get_zero_copy_configs(
         return Err(ErrorCode::TooManyMintToRecipients.into());
     }
     // CMint is source of truth when decompressed and not closing
-    let cmint_is_source_of_truth = accounts_config.cmint_is_source_of_truth();
+    let cmint_is_decompressed = accounts_config.cmint_is_decompressed();
 
     let input = CpiConfigInput {
         input_accounts: {
@@ -101,7 +101,7 @@ pub fn get_zero_copy_configs(
             let mut outputs = ArrayVec::new();
             // First output is always the mint account
             // When CMint is source of truth, use data_len=0 (zero discriminator/hash)
-            let mint_data_len = if cmint_is_source_of_truth {
+            let mint_data_len = if cmint_is_decompressed {
                 0
             } else {
                 mint_data_len(&output_mint_config)

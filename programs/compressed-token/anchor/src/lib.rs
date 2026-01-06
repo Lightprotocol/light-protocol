@@ -548,6 +548,38 @@ pub enum ErrorCode {
     CompressionOnlyNotAllowed, // 6151
     #[msg("Associated token accounts must have compression_only set")]
     AtaRequiresCompressionOnly, // 6152
+    // =========================================================================
+    // SPL Token compatible errors (mapped from pinocchio token processor)
+    // These mirror SPL Token error codes for consistent error reporting
+    // =========================================================================
+    #[msg("Lamport balance below rent-exempt threshold")]
+    NotRentExempt, // 6153 (SPL Token code 0)
+    #[msg("Insufficient funds for the operation")]
+    InsufficientFunds, // 6154 (SPL Token code 1)
+    #[msg("Account not associated with this Mint")]
+    MintMismatch, // 6155 (SPL Token code 3)
+    #[msg("This token's supply is fixed and new tokens cannot be minted")]
+    FixedSupply, // 6156 (SPL Token code 5)
+    #[msg("Account already in use")]
+    AlreadyInUse, // 6157 (SPL Token code 6)
+    #[msg("Invalid number of provided signers")]
+    InvalidNumberOfProvidedSigners, // 6158 (SPL Token code 7)
+    #[msg("Invalid number of required signers")]
+    InvalidNumberOfRequiredSigners, // 6159 (SPL Token code 8)
+    #[msg("State is uninitialized")]
+    UninitializedState, // 6160 (SPL Token code 9)
+    #[msg("Instruction does not support native tokens")]
+    NativeNotSupported, // 6161 (SPL Token code 10)
+    #[msg("Invalid instruction")]
+    InvalidInstruction, // 6162 (SPL Token code 12)
+    #[msg("State is invalid for requested operation")]
+    InvalidState, // 6163 (SPL Token code 13)
+    #[msg("Operation overflowed")]
+    Overflow, // 6164 (SPL Token code 14)
+    #[msg("Account does not support specified authority type")]
+    AuthorityTypeNotSupported, // 6165 (SPL Token code 15)
+    #[msg("Mint decimals mismatch between the client and mint")]
+    MintDecimalsMismatch, // 6166 (SPL Token code 18)
 }
 
 /// Anchor error code offset - error codes start at 6000

@@ -7,7 +7,7 @@ use pinocchio::{
     program::invoke_signed,
 };
 
-use crate::LIGHT_CPI_SIGNER;
+use crate::{shared::convert_program_error, LIGHT_CPI_SIGNER};
 
 /// Mint tokens to the token pool using SPL token mint_to instruction.
 /// This function is shared between create_spl_mint and mint_to_compressed processors
@@ -55,5 +55,5 @@ pub fn mint_to_token_pool(
         &[mint_account, token_pool_account, cpi_authority_pda],
         &[signer],
     )
-    .map_err(|e| ProgramError::Custom(u64::from(e) as u32 + 6000))
+    .map_err(convert_program_error)
 }

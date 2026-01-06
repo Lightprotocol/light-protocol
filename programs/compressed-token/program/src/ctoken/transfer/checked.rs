@@ -7,7 +7,7 @@ use pinocchio_token_program::processor::{
 };
 
 use super::shared::{process_transfer_extensions_transfer_checked, TransferAccounts};
-use crate::shared::owner_validation::check_token_program_owner;
+use crate::shared::{convert_pinocchio_token_error, owner_validation::check_token_program_owner};
 /// Account indices for CToken transfer_checked instruction
 /// Note: Different from ctoken_transfer - mint is at index 1
 const ACCOUNT_SOURCE: usize = 0;
@@ -50,7 +50,7 @@ pub fn process_ctoken_transfer_checked(
     // Hot path: 165-byte accounts have no extensions, skip all extension processing
     if source.data_len() == 165 && destination.data_len() == 165 {
         return process_transfer_checked(accounts, &instruction_data[..9], false)
-            .map_err(|e| ProgramError::Custom(u64::from(e) as u32));
+            .map_err(convert_pinocchio_token_error);
     }
 
     let mint = accounts
@@ -100,10 +100,10 @@ pub fn process_ctoken_transfer_checked(
             None,
             signer_is_validated,
         )
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))
+        .map_err(convert_pinocchio_token_error)
     } else {
         check_token_program_owner(mint)?;
         process_transfer(accounts, amount, Some(decimals), signer_is_validated)
-            .map_err(|e| ProgramError::Custom(u64::from(e) as u32))
+            .map_err(convert_pinocchio_token_error)
     }
 }

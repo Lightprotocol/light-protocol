@@ -4,6 +4,7 @@ use pinocchio::account_info::AccountInfo;
 use pinocchio_token_program::processor::transfer::process_transfer;
 
 use super::shared::{process_transfer_extensions_transfer, TransferAccounts};
+use crate::shared::convert_pinocchio_token_error;
 
 /// Account indices for CToken transfer instruction
 const ACCOUNT_SOURCE: usize = 0;
@@ -43,7 +44,7 @@ pub fn process_ctoken_transfer(
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
     if source.data_len() == 165 && destination.data_len() == 165 {
         return process_transfer(accounts, &instruction_data[..8], false)
-            .map_err(|e| ProgramError::Custom(u64::from(e) as u32));
+            .map_err(convert_pinocchio_token_error);
     }
 
     // Parse max_top_up based on instruction data length
@@ -62,7 +63,7 @@ pub fn process_ctoken_transfer(
 
     // Only pass the first 8 bytes (amount) to the SPL transfer processor
     process_transfer(accounts, &instruction_data[..8], signer_is_validated)
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))
+        .map_err(convert_pinocchio_token_error)
 }
 
 fn process_extensions(

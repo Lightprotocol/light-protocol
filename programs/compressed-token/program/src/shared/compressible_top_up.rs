@@ -27,7 +27,7 @@ use super::{
 pub fn calculate_and_execute_compressible_top_ups<'a>(
     cmint: &'a AccountInfo,
     ctoken: &'a AccountInfo,
-    payer: &'a AccountInfo,
+    payer: Option<&'a AccountInfo>,
     max_top_up: u16,
 ) -> Result<(), ProgramError> {
     let mut transfers = [
@@ -93,7 +93,7 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
     if max_top_up != 0 && lamports_budget == 0 {
         return Err(CTokenError::MaxTopUpExceeded.into());
     }
-
+    let payer = payer.ok_or(CTokenError::MissingPayer)?;
     multi_transfer_lamports(payer, &transfers).map_err(convert_program_error)?;
     Ok(())
 }

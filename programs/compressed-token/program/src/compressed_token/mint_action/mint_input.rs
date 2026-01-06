@@ -28,8 +28,8 @@ pub fn create_input_compressed_mint_account(
     accounts_config: &AccountsConfig,
 ) -> Result<(), ProgramError> {
     // When CMint was source of truth (input state BEFORE actions), use zero sentinel values
-    // Use cmint_decompressed directly, not cmint_is_source_of_truth(), because:
-    // - cmint_is_source_of_truth() tells us the OUTPUT state (after actions)
+    // Use cmint_decompressed directly, not cmint_is_decompressed(), because:
+    // - cmint_is_decompressed() tells us the OUTPUT state (after actions)
     // - cmint_decompressed tells us the INPUT state (before actions)
     // For CompressAndCloseCMint: input has zero values (was decompressed), output has real data
     let (discriminator, input_data_hash) = if accounts_config.cmint_decompressed {

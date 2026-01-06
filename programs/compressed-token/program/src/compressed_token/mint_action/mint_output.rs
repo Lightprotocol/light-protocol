@@ -45,11 +45,13 @@ pub fn process_output_compressed_account<'a>(
         &mut compressed_mint,
     )?;
     // When decompressed (CMint is source of truth), use zero values
-    let cmint_is_source_of_truth = accounts_config.cmint_is_source_of_truth();
+    // TODO: check whether I can just mutate is_decompressed instead of using has_compress_and_close_cmint_action
+    // TODO: double check that we cannot close and create in the same instruction
+    let cmint_is_decompressed = accounts_config.cmint_is_decompressed();
     // Serialize state into CMint solana account
     // SKIP if CompressAndCloseCMint action is present (CMint is being closed)
     // SKIP if DecompressMint action is present (CMint is being closed)
-    if cmint_is_source_of_truth {
+    if cmint_is_decompressed {
         let cmint_account = validated_accounts
             .get_cmint()
             .ok_or(ErrorCode::CMintNotFound)?;
@@ -138,9 +140,17 @@ pub fn process_output_compressed_account<'a>(
         .as_mut()
         .ok_or(ErrorCode::MintActionOutputSerializationFailed)?;
 
-    let (discriminator, data_hash) = if cmint_is_source_of_truth {
-        // Zero sentinel values indicate "data lives in CMint"
-        // Data buffer is empty (data_len=0), no serialization needed
+    let (discriminator, data_hash) = if cmint_is_decompressed {
+        if !compressed_account_data.data.is_empty() {
+            msg!(
+                "Data allocation for output mint account is wrong: {} (expected) != {} ",
+                0,
+                compressed_account_data.data.len()
+            );
+            return Err(ProgramError::InvalidAccountData);
+        }
+        // Zeroed discriminator and data hash preserve the address
+        // of a closed compressed account without any data.
         ([0u8; 8], [0u8; 32])
     } else {
         // Serialize compressed mint for compressed account
@@ -149,7 +159,7 @@ pub fn process_output_compressed_account<'a>(
             .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
         if data.len() != compressed_account_data.data.len() {
             msg!(
-                "Data allocation for output mint account is wrong: {} != {}",
+                "Data allocation for output mint account is wrong: {} (expected) != {}",
                 data.len(),
                 compressed_account_data.data.len()
             );

@@ -3,7 +3,9 @@ use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use pinocchio_token_program::processor::{burn::process_burn, burn_checked::process_burn_checked};
 
-use crate::shared::compressible_top_up::calculate_and_execute_compressible_top_ups;
+use crate::shared::{
+    compressible_top_up::calculate_and_execute_compressible_top_ups, convert_pinocchio_token_error,
+};
 
 /// Process ctoken burn instruction
 ///
@@ -45,14 +47,13 @@ pub fn process_ctoken_burn(
     };
 
     // Call pinocchio burn - handles balance/supply updates, authority check, frozen check
-    process_burn(accounts, &instruction_data[..8])
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+    process_burn(accounts, &instruction_data[..8]).map_err(convert_pinocchio_token_error)?;
 
     // Calculate and execute top-ups for both CMint and CToken
     // burn account order: [ctoken, cmint, authority] - reverse of mint_to
     let ctoken = accounts.first().ok_or(ProgramError::NotEnoughAccountKeys)?;
     let cmint = accounts.get(1).ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let payer = accounts.get(2).ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let payer = accounts.get(2);
 
     calculate_and_execute_compressible_top_ups(cmint, ctoken, payer, max_top_up)
 }
@@ -98,13 +99,13 @@ pub fn process_ctoken_burn_checked(
 
     // Call pinocchio burn_checked - validates decimals against CMint, handles balance/supply updates
     process_burn_checked(accounts, &instruction_data[..9])
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+        .map_err(convert_pinocchio_token_error)?;
 
     // Calculate and execute top-ups for both CMint and CToken
     // burn account order: [ctoken, cmint, authority] - reverse of mint_to
     let ctoken = accounts.first().ok_or(ProgramError::NotEnoughAccountKeys)?;
     let cmint = accounts.get(1).ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let payer = accounts.get(2).ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let payer = accounts.get(2);
 
     calculate_and_execute_compressible_top_ups(cmint, ctoken, payer, max_top_up)
 }

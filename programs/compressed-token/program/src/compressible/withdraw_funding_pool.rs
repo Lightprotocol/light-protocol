@@ -8,7 +8,7 @@ use pinocchio::{
 use pinocchio_system::instructions::Transfer;
 use spl_pod::solana_msg::msg;
 
-use crate::shared::parse_config_account;
+use crate::shared::{convert_program_error, parse_config_account};
 
 /// Accounts required for the withdraw funding pool instruction
 pub struct WithdrawFundingPoolAccounts<'a> {
@@ -115,5 +115,5 @@ pub fn process_withdraw_funding_pool(
 
     transfer
         .invoke_signed(&[signer])
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32 + 6000))
+        .map_err(convert_program_error)
 }

@@ -188,6 +188,9 @@ pub enum CTokenError {
         "Decompress has withheld_transfer_fee but destination lacks TransferFeeAccount extension"
     )]
     DecompressWithheldFeeWithoutExtension,
+
+    #[error("Missing required payer account")]
+    MissingPayer,
 }
 
 impl From<CTokenError> for u32 {
@@ -253,6 +256,7 @@ impl From<CTokenError> for u32 {
             CTokenError::MintMismatch => 18058,
             CTokenError::DecompressDelegatedAmountWithoutDelegate => 18059,
             CTokenError::DecompressWithheldFeeWithoutExtension => 18060,
+            CTokenError::MissingPayer => 18061,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

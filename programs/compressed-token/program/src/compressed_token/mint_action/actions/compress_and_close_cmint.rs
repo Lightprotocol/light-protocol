@@ -107,9 +107,7 @@ pub fn process_compress_and_close_cmint_action(
         unsafe {
             cmint.assign(&[0u8; 32]);
         }
-        cmint
-            .resize(0)
-            .map_err(|e| ProgramError::Custom(u64::from(e) as u32 + 6000))?;
+        cmint.resize(0).map_err(convert_program_error)?;
     }
     // 8. Set cmint_decompressed = false
     compressed_mint.metadata.cmint_decompressed = false;

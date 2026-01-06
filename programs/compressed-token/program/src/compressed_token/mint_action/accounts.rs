@@ -364,7 +364,7 @@ impl AccountsConfig {
     /// This is the case when the mint is decompressed (or being decompressed) and not being closed.
     /// When true, compressed account uses zero sentinel values (discriminator=[0;8], data_hash=[0;32]).
     #[inline(always)]
-    pub fn cmint_is_source_of_truth(&self) -> bool {
+    pub fn cmint_is_decompressed(&self) -> bool {
         (self.has_decompress_mint_action || self.cmint_decompressed)
             && !self.has_compress_and_close_cmint_action
     }
