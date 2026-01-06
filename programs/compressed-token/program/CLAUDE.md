@@ -206,6 +206,55 @@ Custom error codes are defined in **`programs/compressed-token/anchor/src/lib.rs
 - Errors are returned as `ProgramError::Custom(error_code as u32)` on-chain
 - CToken-specific errors are also defined in **`program-libs/ctoken-interface/src/error.rs`** (`CTokenError` enum)
 
+### Error Conversion Functions (`shared/convert_program_error.rs`)
+
+Two functions exist for converting pinocchio errors to anchor ProgramError:
+
+| Function | Use Case | Error Mapping |
+|----------|----------|---------------|
+| `convert_pinocchio_token_error` | SPL Token operations via pinocchio_token_program processors | Maps SPL Token error codes (0-18) to named ErrorCode variants |
+| `convert_token_error` | Functions returning TokenError directly (e.g., unpack_amount_and_decimals) | Maps SPL Token error codes (0-18) to named ErrorCode variants |
+| `convert_program_error` | System program, data access, lamport transfers | Adds +6000 offset to raw error code |
+
+**When to use each:**
+
+```rust
+// SPL Token operations - use convert_pinocchio_token_error
+process_transfer(accounts, data).map_err(convert_pinocchio_token_error)?;
+process_burn(accounts, data).map_err(convert_pinocchio_token_error)?;
+process_mint_to(accounts, data).map_err(convert_pinocchio_token_error)?;
+
+// System/internal operations - use convert_program_error
+transfer_lamports_via_cpi(...).map_err(convert_program_error)?;
+account.try_borrow_mut_data().map_err(convert_program_error)?;
+
+// ErrorCode variants - use ProgramError::from directly
+sum_check_multi_mint(...).map_err(ProgramError::from)?;
+validate_mint_uniqueness(...).map_err(ProgramError::from)?;
+```
+
+**SPL Token Error Code Mapping:**
+| SPL Code | ErrorCode Variant | Description |
+|----------|-------------------|-------------|
+| 0 | NotRentExempt | Lamport balance below rent-exempt threshold |
+| 1 | InsufficientFunds | Insufficient funds for the operation |
+| 2 | InvalidMint | Invalid mint account |
+| 3 | MintMismatch | Account not associated with this Mint |
+| 4 | OwnerMismatch | Owner does not match |
+| 5 | FixedSupply | Token supply is fixed |
+| 6 | AlreadyInUse | Account already in use |
+| 7-8 | InvalidNumberOf*Signers | Signer count mismatch |
+| 9 | UninitializedState | State is uninitialized |
+| 10 | NativeNotSupported | Native tokens not supported |
+| 11 | NonNativeHasBalance | Non-native account has balance |
+| 12 | InvalidInstruction | Invalid instruction |
+| 13 | InvalidState | State is invalid |
+| 14 | Overflow | Operation overflowed |
+| 15 | AuthorityTypeNotSupported | Authority type not supported |
+| 16 | MintHasNoFreezeAuthority | Mint cannot freeze |
+| 17 | AccountFrozen | Account is frozen |
+| 18 | MintDecimalsMismatch | Decimals mismatch |
+
 ## SDKs (`sdk-libs/`)
 - **`ctoken-sdk/`** - SDK for programs to interact with compressed tokens (CPIs, instruction builders)
 - **`token-client/`** - Client SDK for Rust applications (test helpers, transaction builders)

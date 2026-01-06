@@ -141,9 +141,18 @@ pub fn validate_instruction_data(
         if !allowed {
             return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
         }
+        // All out_token_data must be version 3 if tlv is present.
+        let allowed = inputs.out_token_data.iter().all(|c| c.version == 3);
+        if !allowed {
+            return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
+        }
 
         // Output count must match compressions count (no extra outputs)
-        let compressions_len = inputs.compressions.as_ref().map(|c| c.len()).unwrap_or(0);
+        let compressions_len = inputs
+            .compressions
+            .as_ref()
+            .map(|c| c.len())
+            .ok_or(CTokenError::OutTlvOutputCountMismatch)?;
         if inputs.out_token_data.len() != compressions_len {
             msg!("out_tlv requires out_token_data.len() == compressions.len()");
             return Err(CTokenError::OutTlvOutputCountMismatch);
@@ -186,11 +195,11 @@ fn process_no_system_program_cpi<'a>(
 
     let mint_map: ArrayMap<u8, u64, 5> =
         sum_check_multi_mint(&[], &[], Some(compressions.as_slice()))
-            .map_err(|e| ProgramError::Custom(e as u32 + 6000))?;
+            .map_err(ProgramError::from)?;
 
     // Validate mint uniqueness
     validate_mint_uniqueness(&mint_map, &validated_accounts.packed_accounts)
-        .map_err(|e| ProgramError::Custom(e as u32 + 6000))?;
+        .map_err(ProgramError::from)?;
 
     // This is the compression-only hot path (no compressed inputs/outputs).
     // Extension checks are skipped because balance must be restored immediately
@@ -263,11 +272,11 @@ fn process_with_system_program_cpi<'a>(
         &inputs.out_token_data,
         inputs.compressions.as_deref(),
     )
-    .map_err(|e| ProgramError::Custom(e as u32 + 6000))?;
+    .map_err(ProgramError::from)?;
 
     // Validate mint uniqueness
     validate_mint_uniqueness(&mint_map, &validated_accounts.packed_accounts)
-        .map_err(|e| ProgramError::Custom(e as u32 + 6000))?;
+        .map_err(ProgramError::from)?;
 
     if let Some(system_accounts) = validated_accounts.system.as_ref() {
         // Process token compressions/decompressions/close_and_compress

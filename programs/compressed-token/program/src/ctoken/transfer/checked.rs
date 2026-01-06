@@ -7,7 +7,7 @@ use pinocchio_token_program::processor::{
 };
 
 use super::shared::{process_transfer_extensions_transfer_checked, TransferAccounts};
-use crate::shared::{convert_pinocchio_token_error, owner_validation::check_token_program_owner};
+use crate::shared::{convert_pinocchio_token_error, convert_token_error, owner_validation::check_token_program_owner};
 /// Account indices for CToken transfer_checked instruction
 /// Note: Different from ctoken_transfer - mint is at index 1
 const ACCOUNT_SOURCE: usize = 0;
@@ -75,8 +75,7 @@ pub fn process_ctoken_transfer_checked(
     )?;
 
     // Pass the first 9 bytes (amount + decimals) to the SPL transfer_checked processor
-    let (amount, decimals) =
-        unpack_amount_and_decimals(instruction_data).map_err(|e| ProgramError::Custom(e as u32))?;
+    let (amount, decimals) = unpack_amount_and_decimals(instruction_data).map_err(convert_token_error)?;
 
     if let Some(extension_decimals) = extension_decimals {
         if extension_decimals != decimals {

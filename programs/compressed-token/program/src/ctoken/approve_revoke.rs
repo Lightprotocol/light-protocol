@@ -8,7 +8,8 @@ use pinocchio_token_program::processor::{
 
 use crate::shared::{
     compressible_top_up::process_compression_top_up, convert_pinocchio_token_error,
-    convert_program_error, owner_validation::check_token_program_owner, transfer_lamports_via_cpi,
+    convert_program_error, convert_token_error, owner_validation::check_token_program_owner,
+    transfer_lamports_via_cpi,
 };
 
 /// Account indices for approve instruction
@@ -177,8 +178,7 @@ pub fn process_ctoken_approve_checked(
     }
 
     // Parse amount and decimals from instruction data
-    let (amount, decimals) =
-        unpack_amount_and_decimals(instruction_data).map_err(|e| ProgramError::Custom(e as u32))?;
+    let (amount, decimals) = unpack_amount_and_decimals(instruction_data).map_err(convert_token_error)?;
 
     // SAFETY: accounts.len() >= 4 validated at function entry
     let source = &accounts[APPROVE_CHECKED_ACCOUNT_SOURCE];

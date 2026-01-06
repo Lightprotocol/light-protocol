@@ -1,4 +1,5 @@
 use anchor_compressed_token::ErrorCode;
+use pinocchio_token_program::error::TokenError;
 
 /// Convert generic pinocchio errors to anchor ProgramError with +6000 offset.
 /// Use this for system program operations, data access, and non-token operations.
@@ -6,6 +7,12 @@ pub fn convert_program_error(
     pinocchio_program_error: pinocchio::program_error::ProgramError,
 ) -> anchor_lang::prelude::ProgramError {
     anchor_lang::prelude::ProgramError::Custom(u64::from(pinocchio_program_error) as u32 + 6000)
+}
+
+/// Convert TokenError directly to anchor ProgramError.
+/// Use for functions returning TokenError (e.g., unpack_amount_and_decimals).
+pub fn convert_token_error(e: TokenError) -> anchor_lang::prelude::ProgramError {
+    convert_spl_token_error_code(e as u32)
 }
 
 /// Convert pinocchio token processor errors to our custom ErrorCode.
@@ -16,8 +23,12 @@ pub fn convert_program_error(
 pub fn convert_pinocchio_token_error(
     pinocchio_error: pinocchio::program_error::ProgramError,
 ) -> anchor_lang::prelude::ProgramError {
-    let code = u64::from(pinocchio_error) as u32;
+    convert_spl_token_error_code(u64::from(pinocchio_error) as u32)
+}
 
+/// Internal: Map SPL Token error code (0-18) to ErrorCode.
+#[inline(never)]
+fn convert_spl_token_error_code(code: u32) -> anchor_lang::prelude::ProgramError {
     let error_code = match code {
         0 => ErrorCode::NotRentExempt,
         1 => ErrorCode::InsufficientFunds,
