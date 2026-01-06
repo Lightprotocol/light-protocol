@@ -341,14 +341,14 @@ When compression processing occurs (in both Path A and Path B):
 - `CTokenError::InsufficientSupply` (error code: 18010) - Insufficient token supply for operation
 - `CTokenError::ArithmeticOverflow` (error code: 18003) - Arithmetic overflow in balance calculations
 - `ErrorCode::SumCheckFailed` (error code: 6005) - Input/output token amounts don't match
-- `ErrorCode::InputsOutOfOrder` (error code: 6054) - Sum inputs mint indices not in ascending order
-- `ErrorCode::TooManyMints` (error code: 6055) - Sum check, too many mints (max 5)
-- `ErrorCode::DuplicateMint` (error code: 6056) - Duplicate mint index detected in inputs, outputs, or compressions (same mint referenced by multiple indices or same index used multiple times)
+- `ErrorCode::InputsOutOfOrder` (error code: 6038) - Sum inputs mint indices not in ascending order
+- `ErrorCode::TooManyMints` (error code: 6039) - Sum check, too many mints (max 5)
+- `ErrorCode::DuplicateMint` (error code: 6102) - Duplicate mint index detected in inputs, outputs, or compressions (same mint referenced by multiple indices or same index used multiple times)
 - `ErrorCode::ComputeOutputSumFailed` (error code: 6002) - Output mint not in inputs or compressions
-- `ErrorCode::TooManyCompressionTransfers` (error code: 6106) - Too many compression transfers. Maximum 40 transfers allowed per instruction
+- `ErrorCode::TooManyCompressionTransfers` (error code: 6095) - Too many compression transfers. Maximum 40 transfers allowed per instruction
 - `ErrorCode::NoInputsProvided` (error code: 6025) - No compressions provided in early exit path (no compressed accounts)
-- `ErrorCode::CompressionsOnlyMissingFeePayer` (error code: 6026) - Missing fee payer for compressions-only operations
-- `ErrorCode::CompressionsOnlyMissingCpiAuthority` (error code: 6027) - Missing CPI authority PDA for compressions-only operations
+- `ErrorCode::CompressionsOnlyMissingFeePayer` (error code: 6096) - Missing fee payer for compressions-only operations
+- `ErrorCode::CompressionsOnlyMissingCpiAuthority` (error code: 6097) - Missing CPI authority PDA for compressions-only operations
 - `ErrorCode::OwnerMismatch` (error code: 6075) - Authority doesn't match account owner or delegate
 - `ErrorCode::Transfer2CpiContextWriteInvalidAccess` (error code: 6082) - Invalid access to system accounts during CPI write
 - `ErrorCode::Transfer2CpiContextWriteWithSolPool` (error code: 6083) - SOL pool operations not supported with CPI context write
@@ -361,16 +361,16 @@ When compression processing occurs (in both Path A and Path B):
 - `ErrorCode::CompressAndCloseBalanceMismatch` (error code: 6091) - Token account balance must match compressed output amount
 - `ErrorCode::CompressAndCloseDelegateNotAllowed` (error code: 6092) - Source token account has delegate OR compressed output has delegate (delegates not supported)
 - `ErrorCode::CompressAndCloseInvalidVersion` (error code: 6093) - Compressed token version must be 3 (ShaFlat) and must match compressible extension's account_version
-- `ErrorCode::CompressAndCloseInvalidMint` (error code: 6108) - Compressed token mint does not match source token account mint
-- `ErrorCode::CompressAndCloseMissingCompressedOnlyExtension` (error code: 6109) - Missing required CompressedOnly extension for restricted mint or frozen account
-- `ErrorCode::CompressAndCloseDelegatedAmountMismatch` (error code: 6116) - Delegated amount mismatch between ctoken and CompressedOnly extension
-- `ErrorCode::CompressAndCloseInvalidDelegate` (error code: 6118) - Delegate mismatch between ctoken and compressed token output
-- `ErrorCode::CompressAndCloseWithheldFeeMismatch` (error code: 6120) - Withheld transfer fee mismatch
-- `ErrorCode::CompressAndCloseFrozenMismatch` (error code: 6122) - Frozen state mismatch between ctoken and CompressedOnly extension
-- `ErrorCode::CompressedOnlyRequiresCTokenDecompress` (error code: 6144) - CompressedOnly inputs must decompress to CToken account, not SPL token account
-- `ErrorCode::TlvRequiresVersion3` (error code: 6123) - TLV extensions only supported with version 3 (ShaFlat)
-- `ErrorCode::CompressAndCloseDuplicateOutput` (error code: 6420) - Cannot use the same compressed output account for multiple CompressAndClose operations (security protection against fund theft)
-- `ErrorCode::CompressAndCloseOutputMissing` (error code: 6421) - Compressed token account output required but not provided
+- `ErrorCode::CompressAndCloseInvalidMint` (error code: 6132) - Compressed token mint does not match source token account mint
+- `ErrorCode::CompressAndCloseMissingCompressedOnlyExtension` (error code: 6133) - Missing required CompressedOnly extension for restricted mint or frozen account
+- `ErrorCode::CompressAndCloseDelegatedAmountMismatch` (error code: 6135) - Delegated amount mismatch between ctoken and CompressedOnly extension
+- `ErrorCode::CompressAndCloseInvalidDelegate` (error code: 6136) - Delegate mismatch between ctoken and compressed token output
+- `ErrorCode::CompressAndCloseWithheldFeeMismatch` (error code: 6137) - Withheld transfer fee mismatch
+- `ErrorCode::CompressAndCloseFrozenMismatch` (error code: 6138) - Frozen state mismatch between ctoken and CompressedOnly extension
+- `ErrorCode::CompressedOnlyRequiresCTokenDecompress` (error code: 6149) - CompressedOnly inputs must decompress to CToken account, not SPL token account
+- `ErrorCode::TlvRequiresVersion3` (error code: 6139) - TLV extensions only supported with version 3 (ShaFlat)
+- `ErrorCode::CompressAndCloseDuplicateOutput` (error code: 6106) - Cannot use the same compressed output account for multiple CompressAndClose operations (security protection against fund theft)
+- `ErrorCode::CompressAndCloseOutputMissing` (error code: 6107) - Compressed token account output required but not provided
 - `AccountError::InvalidSigner` (error code: 12015) - Required signer account is not signing
 - `AccountError::AccountNotMutable` (error code: 12008) - Required mutable account is not mutable
 - Additional errors from close_token_account for CompressAndClose operations

@@ -214,19 +214,19 @@ Packed accounts (remaining accounts):
 - `ProgramError::InvalidInstructionData` (error code: 3) - Failed to deserialize instruction data or invalid action configuration
 - `ProgramError::InvalidAccountData` (error code: 4) - Account validation failures (wrong program ownership, invalid PDA derivation)
 - `ProgramError::InvalidArgument` (error code: 1) - Invalid authority or action parameters
-- `ErrorCode::MintActionProofMissing` (error code: 6070) - ZK proof required but not provided
-- `ErrorCode::InvalidAuthorityMint` (error code: 6076) - Signer doesn't match mint authority
-- `ErrorCode::MintActionAmountTooLarge` (error code: 6101) - Arithmetic overflow in mint amount calculations
-- `ErrorCode::MintAccountMismatch` (error code: 6102) - SPL mint account doesn't match expected cmint
-- `ErrorCode::InvalidAddressTree` (error code: 6069) - Wrong address merkle tree for mint creation
-- `ErrorCode::MintActionMissingSplMintSigner` (error code: 6058) - Missing mint signer for SPL mint creation
-- `ErrorCode::MintActionMissingMintAccount` (error code: 6061) - Missing SPL mint account when required
-- `ErrorCode::MintActionMissingTokenPoolAccount` (error code: 6062) - Missing token pool PDA when required
-- `ErrorCode::MintActionMissingTokenProgram` (error code: 6063) - Missing token program when required
-- `ErrorCode::MintActionInvalidExtensionIndex` (error code: 6079) - Extension index out of bounds
-- `ErrorCode::MintActionInvalidExtensionType` (error code: 6081) - Extension is not TokenMetadata type
-- `ErrorCode::MintActionMetadataKeyNotFound` (error code: 6082) - Metadata key not found for removal
-- `ErrorCode::MintActionMissingExecutingAccounts` (error code: 6083) - Missing required execution accounts
+- `ErrorCode::MintActionProofMissing` (error code: 6055) - ZK proof required but not provided
+- `ErrorCode::InvalidAuthorityMint` (error code: 6018) - Signer doesn't match mint authority
+- `ErrorCode::MintActionAmountTooLarge` (error code: 6069) - Arithmetic overflow in mint amount calculations
+- `ErrorCode::MintAccountMismatch` (error code: 6051) - SPL mint account doesn't match expected cmint
+- `ErrorCode::InvalidAddressTree` (error code: 6094) - Wrong address merkle tree for mint creation
+- `ErrorCode::MintActionMissingSplMintSigner` (error code: 6045) - Missing mint signer for SPL mint creation
+- `ErrorCode::MintActionMissingMintAccount` (error code: 6048) - Missing SPL mint account when required
+- `ErrorCode::MintActionMissingTokenPoolAccount` (error code: 6049) - Missing token pool PDA when required
+- `ErrorCode::MintActionMissingTokenProgram` (error code: 6050) - Missing token program when required
+- `ErrorCode::MintActionInvalidExtensionIndex` (error code: 6059) - Extension index out of bounds
+- `ErrorCode::MintActionInvalidExtensionType` (error code: 6062) - Extension is not TokenMetadata type
+- `ErrorCode::MintActionMetadataKeyNotFound` (error code: 6063) - Metadata key not found for removal
+- `ErrorCode::MintActionMissingExecutingAccounts` (error code: 6064) - Missing required execution accounts
 - `ErrorCode::CpiContextExpected` (error code: 6085) - CPI context required but not provided
 - `AccountError::InvalidSigner` (error code: 12015) - Required signer account is not signing
 - `AccountError::NotEnoughAccountKeys` (error code: 12020) - Missing required accounts
