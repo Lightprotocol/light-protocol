@@ -39,13 +39,9 @@ pub fn process_ctoken_transfer_checked(
         return Err(ProgramError::InvalidInstructionData);
     }
 
-    // Get account references
-    let source = accounts
-        .get(ACCOUNT_SOURCE)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let destination = accounts
-        .get(ACCOUNT_DESTINATION)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    // SAFETY: accounts.len() >= 4 validated at function entry
+    let source = &accounts[ACCOUNT_SOURCE];
+    let destination = &accounts[ACCOUNT_DESTINATION];
 
     // Hot path: 165-byte accounts have no extensions, skip all extension processing
     if source.data_len() == 165 && destination.data_len() == 165 {
@@ -53,12 +49,8 @@ pub fn process_ctoken_transfer_checked(
             .map_err(convert_pinocchio_token_error);
     }
 
-    let mint = accounts
-        .get(ACCOUNT_MINT)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let authority = accounts
-        .get(ACCOUNT_AUTHORITY)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let mint = &accounts[ACCOUNT_MINT];
+    let authority = &accounts[ACCOUNT_AUTHORITY];
 
     // Parse max_top_up based on instruction data length
     // 0 means no limit

@@ -36,12 +36,9 @@ pub fn process_ctoken_transfer(
     }
 
     // Hot path: 165-byte accounts have no extensions, skip all extension processing
-    let source = accounts
-        .get(ACCOUNT_SOURCE)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let destination = accounts
-        .get(ACCOUNT_DESTINATION)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    // SAFETY: accounts.len() >= 3 validated at function entry
+    let source = &accounts[ACCOUNT_SOURCE];
+    let destination = &accounts[ACCOUNT_DESTINATION];
     if source.data_len() == 165 && destination.data_len() == 165 {
         return process_transfer(accounts, &instruction_data[..8], false)
             .map_err(convert_pinocchio_token_error);
@@ -59,36 +56,19 @@ pub fn process_ctoken_transfer(
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
-    let signer_is_validated = process_extensions(accounts, max_top_up)?;
+    let authority = &accounts[ACCOUNT_AUTHORITY];
 
-    // Only pass the first 8 bytes (amount) to the SPL transfer processor
-    process_transfer(accounts, &instruction_data[..8], signer_is_validated)
-        .map_err(convert_pinocchio_token_error)
-}
-
-fn process_extensions(
-    accounts: &[pinocchio::account_info::AccountInfo],
-    max_top_up: u16,
-) -> Result<bool, ProgramError> {
-    let source = accounts
-        .get(ACCOUNT_SOURCE)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let destination = accounts
-        .get(ACCOUNT_DESTINATION)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let authority = accounts
-        .get(ACCOUNT_AUTHORITY)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-
-    // Ignore decimals - only used for transfer_checked
-    let (signer_is_validated, _decimals) = process_transfer_extensions_transfer(
+    let (signer_is_validated, _) = process_transfer_extensions_transfer(
         TransferAccounts {
             source,
             destination,
             authority,
-            mint: None,
+            mint: None, // No mint in transfer instruction
         },
         max_top_up,
     )?;
-    Ok(signer_is_validated)
+
+    // Only pass the first 8 bytes (amount) to the SPL transfer processor
+    process_transfer(accounts, &instruction_data[..8], signer_is_validated)
+        .map_err(convert_pinocchio_token_error)
 }

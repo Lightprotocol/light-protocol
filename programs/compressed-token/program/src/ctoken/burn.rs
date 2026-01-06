@@ -51,8 +51,9 @@ pub fn process_ctoken_burn(
 
     // Calculate and execute top-ups for both CMint and CToken
     // burn account order: [ctoken, cmint, authority] - reverse of mint_to
-    let ctoken = accounts.first().ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let cmint = accounts.get(1).ok_or(ProgramError::NotEnoughAccountKeys)?;
+    // SAFETY: accounts.len() >= 3 validated at function entry
+    let ctoken = &accounts[0];
+    let cmint = &accounts[1];
     let payer = accounts.get(2);
 
     calculate_and_execute_compressible_top_ups(cmint, ctoken, payer, max_top_up)
@@ -103,8 +104,9 @@ pub fn process_ctoken_burn_checked(
 
     // Calculate and execute top-ups for both CMint and CToken
     // burn account order: [ctoken, cmint, authority] - reverse of mint_to
-    let ctoken = accounts.first().ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let cmint = accounts.get(1).ok_or(ProgramError::NotEnoughAccountKeys)?;
+    // SAFETY: accounts.len() >= 3 validated at function entry
+    let ctoken = &accounts[0];
+    let cmint = &accounts[1];
     let payer = accounts.get(2);
 
     calculate_and_execute_compressible_top_ups(cmint, ctoken, payer, max_top_up)

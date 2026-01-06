@@ -45,9 +45,7 @@ pub fn process_ctoken_approve(
         return Ok(());
     }
 
-    let payer = accounts
-        .get(APPROVE_ACCOUNT_OWNER)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let payer = accounts.get(APPROVE_ACCOUNT_OWNER);
 
     // Parse max_top_up based on instruction data length (0 = no limit)
     let max_top_up = match instruction_data.len() {
@@ -84,9 +82,7 @@ pub fn process_ctoken_revoke(
         return Ok(());
     }
 
-    let payer = accounts
-        .get(REVOKE_ACCOUNT_OWNER)
-        .ok_or(ProgramError::Custom(u32::from(CTokenError::MissingPayer)))?;
+    let payer = accounts.get(REVOKE_ACCOUNT_OWNER);
 
     // Parse max_top_up based on instruction data length (0 = no limit)
     let max_top_up = match instruction_data.len() {
@@ -109,7 +105,7 @@ pub fn process_ctoken_revoke(
 #[inline(always)]
 fn process_compressible_top_up(
     account: &AccountInfo,
-    payer: &AccountInfo,
+    payer: Option<&AccountInfo>,
     max_top_up: u16,
 ) -> Result<(), ProgramError> {
     // Borrow account data to get extensions
@@ -143,6 +139,7 @@ fn process_compressible_top_up(
     drop(account_data);
 
     if transfer_amount > 0 {
+        let payer = payer.ok_or(CTokenError::MissingPayer)?;
         transfer_lamports_via_cpi(transfer_amount, payer, account)
             .map_err(convert_program_error)?;
     }
@@ -183,12 +180,9 @@ pub fn process_ctoken_approve_checked(
     let (amount, decimals) =
         unpack_amount_and_decimals(instruction_data).map_err(|e| ProgramError::Custom(e as u32))?;
 
-    let source = accounts
-        .get(APPROVE_CHECKED_ACCOUNT_SOURCE)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let mint = accounts
-        .get(APPROVE_CHECKED_ACCOUNT_MINT)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    // SAFETY: accounts.len() >= 4 validated at function entry
+    let source = &accounts[APPROVE_CHECKED_ACCOUNT_SOURCE];
+    let mint = &accounts[APPROVE_CHECKED_ACCOUNT_MINT];
 
     // Hot path: 165-byte accounts have no extensions (no cached decimals, no top-up)
     // Validate via mint and use full 4-account layout
@@ -209,12 +203,8 @@ pub fn process_ctoken_approve_checked(
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
-    let delegate = accounts
-        .get(APPROVE_CHECKED_ACCOUNT_DELEGATE)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let owner = accounts
-        .get(APPROVE_CHECKED_ACCOUNT_OWNER)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let delegate = &accounts[APPROVE_CHECKED_ACCOUNT_DELEGATE];
+    let owner = &accounts[APPROVE_CHECKED_ACCOUNT_OWNER];
 
     // Borrow source account to check for cached decimals and handle top-up
     let cached_decimals = {
