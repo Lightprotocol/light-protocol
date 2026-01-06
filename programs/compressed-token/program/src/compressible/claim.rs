@@ -10,10 +10,7 @@ use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};
 use spl_pod::solana_msg::msg;
 
-use crate::{
-    ctoken::create::parse_config_account,
-    shared::{convert_program_error, transfer_lamports},
-};
+use crate::shared::{convert_program_error, parse_config_account, transfer_lamports};
 
 /// Accounts required for the claim instruction
 pub struct ClaimAccounts<'a> {

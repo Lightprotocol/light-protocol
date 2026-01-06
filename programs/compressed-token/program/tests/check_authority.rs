@@ -1,6 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
-use light_compressed_token::mint_action::check_authority;
+use light_compressed_token::compressed_token::mint_action::check_authority;
 use pinocchio::pubkey::Pubkey;
 
 // Anchor custom error codes start at offset 6000

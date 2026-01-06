@@ -249,305 +249,305 @@ pub mod light_compressed_token {
 #[error_code]
 pub enum ErrorCode {
     #[msg("public keys and amounts must be of same length")]
-    PublicKeyAmountMissmatch,
+    PublicKeyAmountMissmatch, // 6000
     #[msg("ComputeInputSumFailed")]
-    ComputeInputSumFailed,
+    ComputeInputSumFailed, // 6001
     #[msg("ComputeOutputSumFailed")]
-    ComputeOutputSumFailed,
+    ComputeOutputSumFailed, // 6002
     #[msg("ComputeCompressSumFailed")]
-    ComputeCompressSumFailed,
+    ComputeCompressSumFailed, // 6003
     #[msg("ComputeDecompressSumFailed")]
-    ComputeDecompressSumFailed,
+    ComputeDecompressSumFailed, // 6004
     #[msg("SumCheckFailed")]
-    SumCheckFailed,
+    SumCheckFailed, // 6005
     #[msg("DecompressRecipientUndefinedForDecompress")]
-    DecompressRecipientUndefinedForDecompress,
+    DecompressRecipientUndefinedForDecompress, // 6006
     #[msg("CompressedPdaUndefinedForDecompress")]
-    CompressedPdaUndefinedForDecompress,
+    CompressedPdaUndefinedForDecompress, // 6007
     #[msg("DeCompressAmountUndefinedForDecompress")]
-    DeCompressAmountUndefinedForDecompress,
+    DeCompressAmountUndefinedForDecompress, // 6008
     #[msg("CompressedPdaUndefinedForCompress")]
-    CompressedPdaUndefinedForCompress,
+    CompressedPdaUndefinedForCompress, // 6009
     #[msg("DeCompressAmountUndefinedForCompress")]
-    DeCompressAmountUndefinedForCompress,
+    DeCompressAmountUndefinedForCompress, // 6010
     #[msg("DelegateSignerCheckFailed")]
-    DelegateSignerCheckFailed,
+    DelegateSignerCheckFailed, // 6011
     #[msg("Minted amount greater than u64::MAX")]
-    MintTooLarge,
+    MintTooLarge, // 6012
     #[msg("SplTokenSupplyMismatch")]
-    SplTokenSupplyMismatch,
+    SplTokenSupplyMismatch, // 6013
     #[msg("HeapMemoryCheckFailed")]
-    HeapMemoryCheckFailed,
+    HeapMemoryCheckFailed, // 6014
     #[msg("The instruction is not callable")]
-    InstructionNotCallable,
+    InstructionNotCallable, // 6015
     #[msg("ArithmeticUnderflow")]
-    ArithmeticUnderflow,
+    ArithmeticUnderflow, // 6016
     #[msg("HashToFieldError")]
-    HashToFieldError,
+    HashToFieldError, // 6017
     #[msg("Expected the authority to be also a mint authority")]
-    InvalidAuthorityMint,
+    InvalidAuthorityMint, // 6018
     #[msg("Provided authority is not the freeze authority")]
-    InvalidFreezeAuthority,
-    InvalidDelegateIndex,
-    TokenPoolPdaUndefined,
+    InvalidFreezeAuthority, // 6019
+    InvalidDelegateIndex,  // 6020
+    TokenPoolPdaUndefined, // 6021
     #[msg("Compress or decompress recipient is the same account as the token pool pda.")]
-    IsTokenPoolPda,
-    InvalidTokenPoolPda,
-    NoInputTokenAccountsProvided,
-    NoInputsProvided,
-    MintHasNoFreezeAuthority,
-    MintWithInvalidExtension,
+    IsTokenPoolPda, // 6022
+    InvalidTokenPoolPda,   // 6023
+    NoInputTokenAccountsProvided, // 6024
+    NoInputsProvided,      // 6025
+    MintHasNoFreezeAuthority, // 6026
+    MintWithInvalidExtension, // 6027
     #[msg("The token account balance is less than the remaining amount.")]
-    InsufficientTokenAccountBalance,
+    InsufficientTokenAccountBalance, // 6028
     #[msg("Max number of token pools reached.")]
-    InvalidTokenPoolBump,
-    FailedToDecompress,
-    FailedToBurnSplTokensFromTokenPool,
-    NoMatchingBumpFound,
-    NoAmount,
-    AmountsAndAmountProvided,
+    InvalidTokenPoolBump, // 6029
+    FailedToDecompress,    // 6030
+    FailedToBurnSplTokensFromTokenPool, // 6031
+    NoMatchingBumpFound,   // 6032
+    NoAmount,              // 6033
+    AmountsAndAmountProvided, // 6034
     #[msg("Cpi context set and set first is not usable with burn, compression(transfer ix) or decompress(transfer).")]
-    CpiContextSetNotUsable,
-    MintIsNone,
-    InvalidMintPda,
+    CpiContextSetNotUsable, // 6035
+    MintIsNone,            // 6036
+    InvalidMintPda,        // 6037
     #[msg("Sum inputs mint indices not in ascending order.")]
-    InputsOutOfOrder,
+    InputsOutOfOrder, // 6038
     #[msg("Sum check, too many mints (max 5).")]
-    TooManyMints,
-    InvalidExtensionType,
-    InstructionDataExpectedDelegate,
-    ZeroCopyExpectedDelegate,
+    TooManyMints, // 6039
+    InvalidExtensionType,  // 6040
+    InstructionDataExpectedDelegate, // 6041
+    ZeroCopyExpectedDelegate, // 6042
     #[msg("Unsupported TLV extension type - only CompressedOnly is currently implemented")]
-    UnsupportedTlvExtensionType,
+    UnsupportedTlvExtensionType, // 6043
     // Mint Action specific errors
     #[msg("Mint action requires at least one action")]
-    MintActionNoActionsProvided,
+    MintActionNoActionsProvided, // 6044
     #[msg("Missing mint signer account for SPL mint creation")]
-    MintActionMissingSplMintSigner,
+    MintActionMissingSplMintSigner, // 6045
     #[msg("Missing system account configuration for mint action")]
-    MintActionMissingSystemAccount,
+    MintActionMissingSystemAccount, // 6046
     #[msg("Invalid mint bump seed provided")]
-    MintActionInvalidMintBump,
+    MintActionInvalidMintBump, // 6047
     #[msg("Missing mint account for decompressed mint operations")]
-    MintActionMissingMintAccount,
+    MintActionMissingMintAccount, // 6048
     #[msg("Missing token pool account for decompressed mint operations")]
-    MintActionMissingTokenPoolAccount,
+    MintActionMissingTokenPoolAccount, // 6049
     #[msg("Missing token program for SPL operations")]
-    MintActionMissingTokenProgram,
+    MintActionMissingTokenProgram, // 6050
     #[msg("Mint account does not match expected mint")]
-    MintAccountMismatch,
+    MintAccountMismatch, // 6051
     #[msg("Invalid or missing authority for compression operation")]
-    InvalidCompressAuthority,
+    InvalidCompressAuthority, // 6052
     #[msg("Invalid queue index configuration")]
-    MintActionInvalidQueueIndex,
+    MintActionInvalidQueueIndex, // 6053
     #[msg("Mint output serialization failed")]
-    MintActionSerializationFailed,
+    MintActionSerializationFailed, // 6054
     #[msg("Proof required for mint action but not provided")]
-    MintActionProofMissing,
+    MintActionProofMissing, // 6055
     #[msg("Unsupported mint action type")]
-    MintActionUnsupportedActionType,
+    MintActionUnsupportedActionType, // 6056
     #[msg("Metadata operations require decompressed mints")]
-    MintActionMetadataNotDecompressed,
+    MintActionMetadataNotDecompressed, // 6057
     #[msg("Missing metadata extension in mint")]
-    MintActionMissingMetadataExtension,
+    MintActionMissingMetadataExtension, // 6058
     #[msg("Extension index out of bounds")]
-    MintActionInvalidExtensionIndex,
+    MintActionInvalidExtensionIndex, // 6059
     #[msg("Invalid metadata value encoding")]
-    MintActionInvalidMetadataValue,
+    MintActionInvalidMetadataValue, // 6060
     #[msg("Invalid metadata key encoding")]
-    MintActionInvalidMetadataKey,
+    MintActionInvalidMetadataKey, // 6061
     #[msg("Extension at index is not a TokenMetadata extension")]
-    MintActionInvalidExtensionType,
+    MintActionInvalidExtensionType, // 6062
     #[msg("Metadata key not found")]
-    MintActionMetadataKeyNotFound,
+    MintActionMetadataKeyNotFound, // 6063
     #[msg("Missing executing system accounts for mint action")]
-    MintActionMissingExecutingAccounts,
+    MintActionMissingExecutingAccounts, // 6064
     #[msg("Invalid mint authority for mint action")]
-    MintActionInvalidMintAuthority,
+    MintActionInvalidMintAuthority, // 6065
     #[msg("Invalid mint PDA derivation in mint action")]
-    MintActionInvalidMintPda,
+    MintActionInvalidMintPda, // 6066
     #[msg("Missing system accounts for queue index calculation")]
-    MintActionMissingSystemAccountsForQueue,
+    MintActionMissingSystemAccountsForQueue, // 6067
     #[msg("Account data serialization failed in mint output")]
-    MintActionOutputSerializationFailed,
+    MintActionOutputSerializationFailed, // 6068
     #[msg("Mint amount too large, would cause overflow")]
-    MintActionAmountTooLarge,
+    MintActionAmountTooLarge, // 6069
     #[msg("Initial supply must be 0 for new mint creation")]
-    MintActionInvalidInitialSupply,
+    MintActionInvalidInitialSupply, // 6070
     #[msg("Mint version not supported")]
-    MintActionUnsupportedVersion,
+    MintActionUnsupportedVersion, // 6071
     #[msg("New mint must start as compressed")]
-    MintActionInvalidCompressionState,
-    MintActionUnsupportedOperation,
+    MintActionInvalidCompressionState, // 6072
+    MintActionUnsupportedOperation, // 6073
     // Close account specific errors
     #[msg("Cannot close account with non-zero token balance")]
-    NonNativeHasBalance,
+    NonNativeHasBalance, // 6074
     #[msg("Authority signature does not match expected owner")]
-    OwnerMismatch,
+    OwnerMismatch, // 6075
     #[msg("Account is frozen and cannot perform this operation")]
-    AccountFrozen,
+    AccountFrozen, // 6076
     // Account creation specific errors
     #[msg("Account size insufficient for token account")]
-    InsufficientAccountSize,
+    InsufficientAccountSize, // 6077
     #[msg("Account already initialized")]
-    AlreadyInitialized,
+    AlreadyInitialized, // 6078
     #[msg("Extension instruction data invalid")]
-    InvalidExtensionInstructionData,
+    InvalidExtensionInstructionData, // 6079
     #[msg("Lamports amount too large")]
-    MintActionLamportsAmountTooLarge,
+    MintActionLamportsAmountTooLarge, // 6080
     #[msg("Invalid token program provided")]
-    InvalidTokenProgram,
+    InvalidTokenProgram, // 6081
     // Transfer2 specific errors
     #[msg("Cannot access system accounts for CPI context write operations")]
-    Transfer2CpiContextWriteInvalidAccess,
+    Transfer2CpiContextWriteInvalidAccess, // 6082
     #[msg("SOL pool operations not supported with CPI context write")]
-    Transfer2CpiContextWriteWithSolPool,
+    Transfer2CpiContextWriteWithSolPool, // 6083
     #[msg("Change account must not contain token data")]
-    Transfer2InvalidChangeAccountData,
+    Transfer2InvalidChangeAccountData, // 6084
     #[msg("Cpi context expected but not provided.")]
-    CpiContextExpected,
+    CpiContextExpected, // 6085
     #[msg("CPI accounts slice exceeds provided account infos")]
-    CpiAccountsSliceOutOfBounds,
+    CpiAccountsSliceOutOfBounds, // 6086
     // CompressAndClose specific errors
     #[msg("CompressAndClose requires a destination account for rent lamports")]
-    CompressAndCloseDestinationMissing,
+    CompressAndCloseDestinationMissing, // 6087
     #[msg("CompressAndClose requires an authority account")]
-    CompressAndCloseAuthorityMissing,
+    CompressAndCloseAuthorityMissing, // 6088
     #[msg("CompressAndClose: Compressed token owner does not match expected owner")]
-    CompressAndCloseInvalidOwner,
+    CompressAndCloseInvalidOwner, // 6089
     #[msg("CompressAndClose: Compression amount must match the full token balance")]
-    CompressAndCloseAmountMismatch,
+    CompressAndCloseAmountMismatch, // 6090
     #[msg("CompressAndClose: Token account balance must match compressed output amount")]
-    CompressAndCloseBalanceMismatch,
+    CompressAndCloseBalanceMismatch, // 6091
     #[msg("CompressAndClose: Compressed token must not have a delegate")]
-    CompressAndCloseDelegateNotAllowed,
+    CompressAndCloseDelegateNotAllowed, // 6092
     #[msg("CompressAndClose: Invalid compressed token version")]
-    CompressAndCloseInvalidVersion,
+    CompressAndCloseInvalidVersion, // 6093
     #[msg("InvalidAddressTree")]
-    InvalidAddressTree,
+    InvalidAddressTree, // 6094
     #[msg("Too many compression transfers. Maximum 40 transfers allowed per instruction")]
-    TooManyCompressionTransfers,
+    TooManyCompressionTransfers, // 6095
     #[msg("Missing fee payer for compressions-only operation")]
-    CompressionsOnlyMissingFeePayer,
+    CompressionsOnlyMissingFeePayer, // 6096
     #[msg("Missing CPI authority PDA for compressions-only operation")]
-    CompressionsOnlyMissingCpiAuthority,
+    CompressionsOnlyMissingCpiAuthority, // 6097
     #[msg("Cpi authority pda expected but not provided.")]
-    ExpectedCpiAuthority,
+    ExpectedCpiAuthority, // 6098
     #[msg("InvalidRentSponsor")]
-    InvalidRentSponsor,
-    TooManyMintToRecipients,
+    InvalidRentSponsor, // 6099
+    TooManyMintToRecipients, // 6100
     #[msg("Prefunding for exactly 1 epoch is not allowed due to epoch boundary timing risk. Use 0 or 2+ epochs.")]
-    OneEpochPrefundingNotAllowed,
+    OneEpochPrefundingNotAllowed, // 6101
     #[msg("Duplicate mint index detected in inputs, outputs, or compressions")]
-    DuplicateMint,
+    DuplicateMint, // 6102
     #[msg("Invalid compressed mint address derivation")]
-    MintActionInvalidCompressedMintAddress,
+    MintActionInvalidCompressedMintAddress, // 6103
     #[msg("Invalid CPI context for create mint operation")]
-    MintActionInvalidCpiContextForCreateMint,
+    MintActionInvalidCpiContextForCreateMint, // 6104
     #[msg("Invalid address tree pubkey in CPI context")]
-    MintActionInvalidCpiContextAddressTreePubkey,
+    MintActionInvalidCpiContextAddressTreePubkey, // 6105
     #[msg("CompressAndClose: Cannot use the same compressed output account for multiple closures")]
-    CompressAndCloseDuplicateOutput,
+    CompressAndCloseDuplicateOutput, // 6106
     #[msg(
         "CompressAndClose by compression authority requires compressed token account in outputs"
     )]
-    CompressAndCloseOutputMissing,
+    CompressAndCloseOutputMissing, // 6107
     // CMint (decompressed compressed mint) specific errors
     #[msg("Missing mint signer account for mint action")]
-    MintActionMissingMintSigner,
+    MintActionMissingMintSigner, // 6108
     #[msg("Missing CMint account for decompress mint action")]
-    MintActionMissingCMintAccount,
+    MintActionMissingCMintAccount, // 6109
     #[msg("CMint account already exists")]
-    CMintAlreadyExists,
+    CMintAlreadyExists, // 6110
     #[msg("Invalid CMint account owner")]
-    InvalidCMintOwner,
+    InvalidCMintOwner, // 6111
     #[msg("Failed to deserialize CMint account data")]
-    CMintDeserializationFailed,
+    CMintDeserializationFailed, // 6112
     #[msg("Failed to resize CMint account")]
-    CMintResizeFailed,
+    CMintResizeFailed, // 6113
     // CMint Compressibility errors
     #[msg("Invalid rent payment - must be >= 2 (CMint is always compressible)")]
-    InvalidRentPayment,
+    InvalidRentPayment, // 6114
     #[msg("Missing compressible config account for CMint")]
-    MissingCompressibleConfig,
+    MissingCompressibleConfig, // 6115
     #[msg("Missing rent sponsor account for CMint")]
-    MissingRentSponsor,
+    MissingRentSponsor, // 6116
     #[msg("Rent payment exceeds max funded epochs")]
-    RentPaymentExceedsMax,
+    RentPaymentExceedsMax, // 6117
     #[msg("Write top-up exceeds maximum allowed")]
-    WriteTopUpExceedsMaximum,
+    WriteTopUpExceedsMaximum, // 6118
     #[msg("Failed to calculate CMint top-up amount")]
-    CMintTopUpCalculationFailed,
+    CMintTopUpCalculationFailed, // 6119
     // CompressAndCloseCMint specific errors
     #[msg("CMint is not decompressed")]
-    CMintNotDecompressed,
+    CMintNotDecompressed, // 6120
     #[msg("CMint is missing Compressible extension")]
-    CMintMissingCompressibleExtension,
+    CMintMissingCompressibleExtension, // 6121
     #[msg("CMint is not compressible (rent not expired)")]
-    CMintNotCompressible,
+    CMintNotCompressible, // 6122
     #[msg("Cannot combine DecompressMint and CompressAndCloseCMint in same instruction")]
-    CannotDecompressAndCloseInSameInstruction,
+    CannotDecompressAndCloseInSameInstruction, // 6123
     #[msg("CMint account does not match compressed_mint.metadata.mint")]
-    InvalidCMintAccount,
+    InvalidCMintAccount, // 6124
     #[msg("Mint data required in instruction when not decompressed")]
-    MintDataRequired,
+    MintDataRequired, // 6125
     // Extension validation errors
     #[msg("Invalid mint account data")]
-    InvalidMint,
+    InvalidMint, // 6126
     #[msg("Token operations blocked - mint is paused")]
-    MintPaused,
+    MintPaused, // 6127
     #[msg("Mint account required for transfer when account has PausableAccount extension")]
-    MintRequiredForTransfer,
+    MintRequiredForTransfer, // 6128
     #[msg("Non-zero transfer fees are not supported")]
-    NonZeroTransferFeeNotSupported,
+    NonZeroTransferFeeNotSupported, // 6129
     #[msg("Transfer hooks with non-nil program_id are not supported")]
-    TransferHookNotSupported,
+    TransferHookNotSupported, // 6130
     #[msg("Mint has extensions that require compression_only mode")]
-    CompressionOnlyRequired,
+    CompressionOnlyRequired, // 6131
     #[msg("CompressAndClose: Compressed token mint does not match source token account mint")]
-    CompressAndCloseInvalidMint,
+    CompressAndCloseInvalidMint, // 6132
     #[msg("CompressAndClose: Missing required CompressedOnly extension in output TLV")]
-    CompressAndCloseMissingCompressedOnlyExtension,
+    CompressAndCloseMissingCompressedOnlyExtension, // 6133
     #[msg("CompressAndClose: CompressedOnly mint_account_index must be 0")]
-    CompressAndCloseInvalidMintAccountIndex,
+    CompressAndCloseInvalidMintAccountIndex, // 6134
     #[msg(
         "CompressAndClose: Delegated amount mismatch between ctoken and CompressedOnly extension"
     )]
-    CompressAndCloseDelegatedAmountMismatch,
+    CompressAndCloseDelegatedAmountMismatch, // 6135
     #[msg("CompressAndClose: Delegate mismatch between ctoken and compressed token output")]
-    CompressAndCloseInvalidDelegate,
+    CompressAndCloseInvalidDelegate, // 6136
     #[msg("CompressAndClose: Withheld transfer fee mismatch")]
-    CompressAndCloseWithheldFeeMismatch,
+    CompressAndCloseWithheldFeeMismatch, // 6137
     #[msg("CompressAndClose: Frozen state mismatch")]
-    CompressAndCloseFrozenMismatch,
+    CompressAndCloseFrozenMismatch, // 6138
     #[msg("TLV extensions require version 3 (ShaFlat)")]
-    TlvRequiresVersion3,
+    TlvRequiresVersion3, // 6139
     #[msg("CToken account has extensions that cannot be compressed. Only Compressible extension or no extensions allowed.")]
-    CTokenHasDisallowedExtensions,
+    CTokenHasDisallowedExtensions, // 6140
     #[msg("CompressAndClose: rent_sponsor_is_signer flag does not match actual signer")]
-    RentSponsorIsSignerMismatch,
+    RentSponsorIsSignerMismatch, // 6141
     #[msg("Mint has restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook, DefaultAccountState) must not create compressed token accounts.")]
-    MintHasRestrictedExtensions,
+    MintHasRestrictedExtensions, // 6142
     #[msg("Decompress: CToken delegate does not match input compressed account delegate")]
-    DecompressDelegateMismatch,
+    DecompressDelegateMismatch, // 6143
     #[msg("Mint cache capacity exceeded (max 5 unique mints)")]
-    MintCacheCapacityExceeded,
+    MintCacheCapacityExceeded, // 6144
     #[msg("in_lamports field is not yet implemented")]
-    InLamportsUnimplemented,
+    InLamportsUnimplemented, // 6145
     #[msg("out_lamports field is not yet implemented")]
-    OutLamportsUnimplemented,
+    OutLamportsUnimplemented, // 6146
     #[msg("Mints with restricted extensions require compressible accounts")]
-    CompressibleRequired,
+    CompressibleRequired, // 6147
     #[msg("CMint account not found")]
-    CMintNotFound,
+    CMintNotFound, // 6148
     #[msg("CompressedOnly inputs must decompress to CToken account, not SPL token account")]
-    CompressedOnlyRequiresCTokenDecompress,
+    CompressedOnlyRequiresCTokenDecompress, // 6149
     #[msg("Invalid token data version")]
-    InvalidTokenDataVersion,
+    InvalidTokenDataVersion, // 6150
     #[msg("compression_only can only be set for mints with restricted extensions")]
-    CompressionOnlyNotAllowed,
+    CompressionOnlyNotAllowed, // 6151
     #[msg("Associated token accounts must have compression_only set")]
-    AtaRequiresCompressionOnly,
+    AtaRequiresCompressionOnly, // 6152
 }
 
 /// Anchor error code offset - error codes start at 6000

@@ -15,10 +15,10 @@ use spl_pod::solana_msg::msg;
 
 use crate::{
     compressed_token::mint_action::accounts::MintActionAccounts,
-    ctoken::create::parse_config_account,
     shared::{
         convert_program_error,
         create_pda_account::{create_pda_account, verify_pda},
+        parse_config_account,
     },
 };
 

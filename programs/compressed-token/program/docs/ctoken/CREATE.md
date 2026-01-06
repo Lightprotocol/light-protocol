@@ -1,15 +1,6 @@
 
 # Instructions
-
-**Instruction Schema:**
-1. every instruction description must include the sections:
-    - **path** path to instruction code in the program
-    - **description** highlevel description what the instruction does including accounts used and their state layout (paths to the code), usage flows what the instruction does
-    - **instruction_data** paths to code where instruction data structs are defined
-    - **Accounts** accounts in order including checks
-    - **Instruction logic and checks**
-    - **Errors** possible errors and description what causes these errors
-
+- This file documents create ctoken account and create associated ctoken account.
 
 ## 1. create ctoken account
 
@@ -38,7 +29,7 @@
     - `compressible_config`: Optional `CompressibleExtensionInstructionData` (None = non-compressible account)
   2. Instruction data with compressible extension
   program-libs/ctoken-interface/src/instructions/extensions/compressible.rs
-    - `token_account_version`: Version of the compressed token account hashing scheme (u8)
+    - `token_account_version`: Version of the compressed token account hashing scheme (u8). Must be 3 (ShaFlat) - only version 3 is supported.
     - `rent_payment`: Number of epochs to prepay for rent (u8)
       - `rent_payment = 1` is explicitly forbidden to prevent epoch boundary timing edge case (its rent for the current rent epoch)
       - Allowed values: 0 (no prefunding) or 2+ epochs (safe buffer)
@@ -95,6 +86,9 @@
     4.3. Validate compression_only requirement for restricted extensions:
         - If mint has restricted extensions (e.g., TransferFee) and compression_only == 0
         - Error: `ErrorCode::CompressionOnlyRequired`
+    4.3.1. Validate compression_only is only set for mints with restricted extensions:
+        - If compression_only != 0 and mint has no restricted extensions
+        - Error: `ErrorCode::CompressionOnlyNotAllowed`
     4.4. Calculate account size based on mint extensions (includes Compressible extension)
     4.5. Calculate rent (rent exemption + prepaid epochs rent + compression incentive)
     4.6. Check whether rent_payer is custom fee payer (rent_payer != config.rent_sponsor)
@@ -109,6 +103,21 @@
         - If custom fee payer, set custom fee payer as ctoken account rent_sponsor
         - Else set config.rent_sponsor as ctoken account rent_sponsor
         - Set `last_claimed_slot` to current slot (tracks when rent was last claimed/initialized)
+        - Validate token_account_version == 3 (ShaFlat)
+          - Error: `ProgramError::InvalidInstructionData` if version != 3
+        - Validate write_top_up <= config.rent_config.max_top_up
+          - Error: `CTokenError::WriteTopUpExceedsMaximum` if exceeded
+        - Validate mint account (if initialized):
+          - Check mint owner is SPL Token, Token-2022, or CToken program
+          - Error: `ProgramError::IncorrectProgramId` if invalid owner
+          - Check mint structure is valid (82 bytes for SPL, or has AccountType marker for T22)
+          - Error: `ProgramError::InvalidAccountData` if invalid structure
+        - Cache decimals from mint account in extension
+  5. If without compressible account (non-compressible path):
+    5.1. Validate mint does not have restricted extensions
+        - Check: `!mint_extensions.has_restricted_extensions()`
+        - Error: `ErrorCode::MissingCompressibleConfig` if mint has restricted extensions
+        - Rationale: Mints with restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook) must be marked as compression_only, and that marker is part of the Compressible extension
 
   **Errors:**
   - `ProgramError::BorshIoError` (error code: 15) - Failed to deserialize CreateTokenAccountInstructionData from instruction_data bytes
@@ -116,15 +125,19 @@
   - `AccountError::InvalidSigner` (error code: 12015) - token_account or payer is not a signer when required
   - `AccountError::AccountNotMutable` (error code: 12008) - token_account or payer is not mutable when required
   - `AccountError::AccountOwnedByWrongProgram` (error code: 12007) - Config account not owned by LightRegistry program
-  - `ProgramError::InvalidAccountData` (error code: 4) - CompressibleConfig pod deserialization fails or compress_to_pubkey.check_seeds() fails
-  - `ProgramError::InvalidInstructionData` (error code: 3) - compressible_config is None in instruction data when compressible accounts provided, or extension data invalid
+  - `ProgramError::InvalidAccountData` (error code: 4) - CompressibleConfig pod deserialization fails, compress_to_pubkey.check_seeds() fails, or invalid mint structure
+  - `ProgramError::InvalidInstructionData` (error code: 3) - compressible_config is None in instruction data when compressible accounts provided, extension data invalid, or token_account_version != 3
   - `ProgramError::MissingRequiredSignature` (error code: 8) - Custom rent_payer is not a signer
   - `ProgramError::UnsupportedSysvar` (error code: 17) - Failed to get Clock sysvar
+  - `ProgramError::IncorrectProgramId` (error code: 1) - Mint account owner is not SPL Token, Token-2022, or CToken program
   - `CompressibleError::InvalidState` (error code: 19002) - CompressibleConfig is not in active state
   - `ErrorCode::InsufficientAccountSize` (error code: 6077) - token_account data length < 165 bytes (non-compressible) or < COMPRESSIBLE_TOKEN_ACCOUNT_SIZE (compressible)
-  - `ErrorCode::InvalidCompressAuthority` (error code: 6052) - compressible_config is Some but compressible_config_account is None during extension initialization
-  - `ErrorCode::OneEpochPrefundingNotAllowed` (error code: 6116) - rent_payment is exactly 1 epoch, which is forbidden due to epoch boundary timing edge case
+  - `ErrorCode::OneEpochPrefundingNotAllowed` (error code: 6101) - rent_payment is exactly 1 epoch, which is forbidden due to epoch boundary timing edge case
   - `ErrorCode::CompressionOnlyRequired` (error code: 6131) - Mint has restricted extensions (e.g., TransferFee) but compression_only is not set in instruction data
+  - `ErrorCode::MissingCompressibleConfig` (error code: 6115) - Either: (1) compressible_config is Some in instruction data but compressible accounts are missing, or (2) non-compressible account creation attempted for mint with restricted extensions
+  - `ErrorCode::CompressionOnlyNotAllowed` (error code: 6151) - compression_only is set but mint has no restricted extensions
+  - `CTokenError::WriteTopUpExceedsMaximum` (error code: 18042) - write_top_up exceeds config.rent_config.max_top_up
+  - `CTokenError::MissingCompressibleExtension` (error code: 18056) - Compressible extension initialization failed internally
 
 
 ## 2. create associated ctoken account
@@ -140,11 +153,14 @@
   4. Associated token accounts cannot use compress_to_pubkey (always compress to owner)
   5. Owner and mint are provided as accounts, bump is provided via instruction data
   6. Token account must be uninitialized (owned by system program) unless idempotent mode
+  7. ATAs for mints with restricted extensions must be compressible (the compression_only marker is part of the Compressible extension)
 
   **Instruction data:**
   1. instruction data is defined in path: program-libs/ctoken-interface/src/instructions/create_associated_token_account.rs
     - `bump`: PDA bump seed for derivation (u8)
-    - `compressible_config`: Optional `CompressibleExtensionInstructionData`, same as create ctoken account but compress_to_account_pubkey must be None
+    - `compressible_config`: Optional `CompressibleExtensionInstructionData`, same as create ctoken account but:
+      - `compress_to_account_pubkey` must be None (ATAs always compress to owner)
+      - `compression_only` must be non-zero (compressible ATAs require compression_only)
 
   **Accounts:**
   1. owner
@@ -181,11 +197,14 @@
   4. Verify account is system-owned (uninitialized)
     - Error: `ProgramError::IllegalOwner` if not owned by system program
   5. If compressible:
-    - Validate rent_payment is not exactly 1 epoch (same as create ctoken account step 3.0)
+    - Validate rent_payment is not exactly 1 epoch (same as create ctoken account step 4.1)
       - Check: `compressible_config.rent_payment != 1`
       - Error: `ErrorCode::OneEpochPrefundingNotAllowed` if validation fails
     - Reject if compress_to_account_pubkey is Some (not allowed for ATAs)
       - Error: `ProgramError::InvalidInstructionData` if compress_to_account_pubkey is Some
+    - Validate compression_only is set (required for compressible ATAs)
+      - Check: `compressible_config.compression_only != 0`
+      - Error: `ErrorCode::AtaRequiresCompressionOnly` if compression_only == 0
     - Parse additional accounts: config, rent_payer
     - Validate CompressibleConfig is active (not inactive or deprecated)
     - Calculate account size based on mint extensions (includes Compressible extension)
@@ -198,7 +217,11 @@
       - Create ATA PDA with rent_sponsor PDA paying rent exemption
       - Transfer compression incentive from fee_payer to account via CPI
   6. If not compressible:
-    - Create ATA PDA with fee_payer paying rent exemption (base 165-byte SPL layout)
+    6.1. Validate mint does not have restricted extensions
+        - Check: `!mint_extensions.has_restricted_extensions()`
+        - Error: `ErrorCode::MissingCompressibleConfig` if mint has restricted extensions
+        - Rationale: Mints with restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook) must be marked as compression_only, and that marker is part of the Compressible extension
+    6.2. Create ATA PDA with fee_payer paying rent exemption (base 165-byte SPL layout)
   7. Initialize token account with is_ata flag set (same as ## 1. create ctoken account step 3.6, but with is_ata=true)
 
   **Errors:**
@@ -208,4 +231,6 @@
   - `ProgramError::MissingRequiredSignature` (error code: 8) - Custom rent_payer is not a signer
   - `AccountError::InvalidSigner` (error code: 12015) - fee_payer is not a signer
   - `AccountError::AccountNotMutable` (error code: 12008) - fee_payer or associated_token_account is not mutable
-  - `ErrorCode::OneEpochPrefundingNotAllowed` (error code: 6116) - rent_payment is exactly 1 epoch (see create ctoken account errors)
+  - `ErrorCode::OneEpochPrefundingNotAllowed` (error code: 6101) - rent_payment is exactly 1 epoch (see create ctoken account errors)
+  - `ErrorCode::AtaRequiresCompressionOnly` (error code: 6152) - compressible ATA must have compression_only set (compression_only == 0 is not allowed)
+  - `ErrorCode::MissingCompressibleConfig` (error code: 6115) - non-compressible ATA creation attempted for mint with restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook)

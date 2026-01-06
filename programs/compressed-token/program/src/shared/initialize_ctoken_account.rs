@@ -13,9 +13,12 @@ use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyNew;
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::{clock::Clock, Sysvar};
-use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, instruction::Seed, msg, pubkey::Pubkey};
 
-use crate::extensions::MintExtensionFlags;
+use crate::{
+    extensions::MintExtensionFlags,
+    shared::{convert_program_error, create_pda_account, transfer_lamports_via_cpi},
+};
 
 const SPL_TOKEN_ID: [u8; 32] = spl_token::ID.to_bytes();
 const SPL_TOKEN_2022_ID: [u8; 32] = spl_token_2022::ID.to_bytes();
@@ -43,8 +46,6 @@ pub struct CompressibleInitData<'a> {
 
 /// Configuration for initializing a CToken account
 pub struct CTokenInitConfig<'a> {
-    /// The mint pubkey (32 bytes)
-    pub mint: &'a [u8; 32],
     /// The owner pubkey (32 bytes)
     pub owner: &'a [u8; 32],
     /// Compressible configuration (None = not compressible)
@@ -55,6 +56,87 @@ pub struct CTokenInitConfig<'a> {
     pub mint_account: &'a AccountInfo,
 }
 
+#[profile]
+#[inline(always)]
+#[allow(clippy::too_many_arguments)]
+pub fn create_compressible_account<'info>(
+    compressible_config: &'info CompressibleExtensionInstructionData,
+    mint_extensions: &MintExtensionFlags,
+    config_account: &'info CompressibleConfig,
+    rent_payer: &'info AccountInfo,
+    target_account: &'info AccountInfo,
+    fee_payer: &'info AccountInfo,
+    account_seeds: Option<&[Seed]>,
+    is_ata: bool,
+) -> Result<CompressibleInitData<'info>, ProgramError> {
+    // Validate rent_payment != 1 (epoch boundary edge case)
+    if compressible_config.rent_payment == 1 {
+        msg!("Prefunding for exactly 1 epoch is not allowed. If the account is created near an epoch boundary, it could become immediately compressible. Use 0 or 2+ epochs.");
+        return Err(anchor_compressed_token::ErrorCode::OneEpochPrefundingNotAllowed.into());
+    }
+
+    // Calculate account size (includes Compressible extension)
+    let account_size = mint_extensions.calculate_account_size(true)?;
+
+    // Calculate rent with compression cost
+    let rent = config_account
+        .rent_config
+        .get_rent_with_compression_cost(account_size, compressible_config.rent_payment as u64);
+    let account_size = account_size as usize;
+
+    let custom_rent_payer = *rent_payer.key() != config_account.rent_sponsor.to_bytes();
+
+    // Custom rent payer must be a signer (prevents executable accounts as rent_sponsor)
+    if custom_rent_payer && !rent_payer.is_signer() {
+        msg!("Custom rent payer must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Build rent sponsor seeds for PDA signing
+    let version_bytes = config_account.version.to_le_bytes();
+    let bump_seed = [config_account.rent_sponsor_bump];
+    let rent_sponsor_seeds = [
+        Seed::from(b"rent_sponsor".as_ref()),
+        Seed::from(version_bytes.as_ref()),
+        Seed::from(bump_seed.as_ref()),
+    ];
+
+    let fee_payer_seeds = if custom_rent_payer {
+        None
+    } else {
+        Some(rent_sponsor_seeds.as_slice())
+    };
+
+    let additional_lamports = if custom_rent_payer { Some(rent) } else { None };
+
+    // Create the account
+    create_pda_account(
+        rent_payer,
+        target_account,
+        account_size,
+        fee_payer_seeds,
+        account_seeds,
+        additional_lamports,
+    )?;
+
+    // When using protocol rent sponsor, fee_payer pays the compression incentive
+    if !custom_rent_payer {
+        transfer_lamports_via_cpi(rent, fee_payer, target_account)
+            .map_err(convert_program_error)?;
+    }
+
+    Ok(CompressibleInitData {
+        ix_data: compressible_config,
+        config_account,
+        custom_rent_payer: if custom_rent_payer {
+            Some(*rent_payer.key())
+        } else {
+            None
+        },
+        is_ata,
+    })
+}
+
 /// Initialize a token account using zero-copy with embedded CompressionInfo
 #[profile]
 pub fn initialize_ctoken_account(
@@ -62,7 +144,6 @@ pub fn initialize_ctoken_account(
     config: CTokenInitConfig<'_>,
 ) -> Result<(), ProgramError> {
     let CTokenInitConfig {
-        mint,
         owner,
         compressible,
         mint_extensions,
@@ -72,19 +153,6 @@ pub fn initialize_ctoken_account(
     // Build extensions Vec from boolean flags
     // +1 for potential Compressible extension
     let mut extensions = Vec::with_capacity(mint_extensions.num_extensions() + 1);
-    if mint_extensions.has_pausable {
-        extensions.push(ExtensionStructConfig::PausableAccount(()));
-    }
-    if mint_extensions.has_permanent_delegate {
-        extensions.push(ExtensionStructConfig::PermanentDelegateAccount(()));
-    }
-    if mint_extensions.has_transfer_fee {
-        extensions.push(ExtensionStructConfig::TransferFeeAccount(()));
-    }
-    if mint_extensions.has_transfer_hook {
-        extensions.push(ExtensionStructConfig::TransferHookAccount(()));
-    }
-
     // Add Compressible extension if compression is enabled
     if compressible.is_some() {
         extensions.push(ExtensionStructConfig::Compressible(
@@ -92,11 +160,26 @@ pub fn initialize_ctoken_account(
                 info: CompressionInfoConfig { rent_config: () },
             },
         ));
-    }
 
+        if mint_extensions.has_pausable {
+            extensions.push(ExtensionStructConfig::PausableAccount(()));
+        }
+        if mint_extensions.has_permanent_delegate {
+            extensions.push(ExtensionStructConfig::PermanentDelegateAccount(()));
+        }
+        if mint_extensions.has_transfer_fee {
+            extensions.push(ExtensionStructConfig::TransferFeeAccount(()));
+        }
+        if mint_extensions.has_transfer_hook {
+            extensions.push(ExtensionStructConfig::TransferHookAccount(()));
+        }
+    } else if mint_extensions.has_restricted_extensions() {
+        // Mints with restricted extensions must have the compressible extension.
+        return Err(anchor_compressed_token::ErrorCode::MissingCompressibleConfig.into());
+    }
     // Build the config for new_zero_copy
     let zc_config = CompressedTokenConfig {
-        mint: light_compressed_account::Pubkey::from(*mint),
+        mint: light_compressed_account::Pubkey::from(*mint_account.key()),
         owner: light_compressed_account::Pubkey::from(*owner),
         state: if mint_extensions.default_state_frozen {
             AccountState::Frozen as u8
@@ -218,32 +301,39 @@ fn configure_compression_info(
     // Only try to read decimals if mint has data (is initialized)
     if !mint_data.is_empty() {
         let owner = mint_account.owner();
+        let decimals = mint_data.get(44);
 
-        // Validate mint account based on owner program
-        let is_valid_mint = if *owner == SPL_TOKEN_ID {
-            // SPL Token: mint must be exactly 82 bytes
-            mint_data.len() == SPL_MINT_LEN
-        } else if *owner == SPL_TOKEN_2022_ID || *owner == CTOKEN_PROGRAM_ID {
-            // Token-2022/CToken: Either exactly 82 bytes (no extensions) or
-            // check AccountType marker at offset 165 (with extensions)
-            // Layout with extensions: 82 bytes mint + 83 bytes padding + AccountType
-            mint_data.len() == SPL_MINT_LEN
-                || (mint_data.len() > T22_ACCOUNT_TYPE_OFFSET
-                    && mint_data[T22_ACCOUNT_TYPE_OFFSET] == ACCOUNT_TYPE_MINT)
-        } else {
-            msg!("Invalid mint owner");
-            return Err(ProgramError::IncorrectProgramId);
-        };
-
-        if !is_valid_mint {
+        if !is_valid_mint(owner, &mint_data)? {
             msg!("Invalid mint account: not a valid mint");
             return Err(ProgramError::InvalidAccountData);
         }
 
         // Mint layout: decimals at byte 44 for all token programs
         // (mint_authority option: 36, supply: 8) = 44
-        compressible_ext.set_decimals(Some(mint_data[44]));
+        compressible_ext.set_decimals(decimals.copied());
     }
 
     Ok(())
+}
+
+#[inline(always)]
+pub fn is_valid_mint(owner: &Pubkey, mint_data: &[u8]) -> Result<bool, ProgramError> {
+    if *owner == SPL_TOKEN_ID {
+        // SPL Token: mint must be exactly 82 bytes
+        Ok(mint_data.len() == SPL_MINT_LEN)
+    } else if *owner == SPL_TOKEN_2022_ID {
+        // Token-2022: Either exactly 82 bytes (no extensions) or
+        // check AccountType marker at offset 165 (with extensions)
+        // Layout with extensions: 82 bytes mint + 83 bytes padding + AccountType
+        Ok(mint_data.len() == SPL_MINT_LEN
+            || (mint_data.len() > T22_ACCOUNT_TYPE_OFFSET
+                && mint_data[T22_ACCOUNT_TYPE_OFFSET] == ACCOUNT_TYPE_MINT))
+    } else if *owner == CTOKEN_PROGRAM_ID {
+        // CToken: Always has extensions, must be >165 bytes with AccountType=Mint
+        Ok(mint_data.len() > T22_ACCOUNT_TYPE_OFFSET
+            && mint_data[T22_ACCOUNT_TYPE_OFFSET] == ACCOUNT_TYPE_MINT)
+    } else {
+        msg!("Invalid mint owner");
+        Err(ProgramError::IncorrectProgramId)
+    }
 }
