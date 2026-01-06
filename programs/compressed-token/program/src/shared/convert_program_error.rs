@@ -27,7 +27,6 @@ pub fn convert_pinocchio_token_error(
 }
 
 /// Internal: Map SPL Token error code (0-18) to ErrorCode.
-#[inline(never)]
 fn convert_spl_token_error_code(code: u32) -> anchor_lang::prelude::ProgramError {
     let error_code = match code {
         0 => ErrorCode::NotRentExempt,

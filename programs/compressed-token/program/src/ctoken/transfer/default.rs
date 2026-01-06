@@ -56,6 +56,17 @@ pub fn process_ctoken_transfer(
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
+    let signer_is_validated = process_extensions(accounts, max_top_up)?;
+
+    // Only pass the first 8 bytes (amount) to the SPL transfer processor
+    process_transfer(accounts, &instruction_data[..8], signer_is_validated)
+        .map_err(convert_pinocchio_token_error)
+}
+
+fn process_extensions(accounts: &[AccountInfo], max_top_up: u16) -> Result<bool, ProgramError> {
+    // SAFETY: accounts.len() >= 3 validated in caller
+    let source = &accounts[ACCOUNT_SOURCE];
+    let destination = &accounts[ACCOUNT_DESTINATION];
     let authority = &accounts[ACCOUNT_AUTHORITY];
 
     let (signer_is_validated, _) = process_transfer_extensions_transfer(
@@ -63,12 +74,9 @@ pub fn process_ctoken_transfer(
             source,
             destination,
             authority,
-            mint: None, // No mint in transfer instruction
+            mint: None,
         },
         max_top_up,
     )?;
-
-    // Only pass the first 8 bytes (amount) to the SPL transfer processor
-    process_transfer(accounts, &instruction_data[..8], signer_is_validated)
-        .map_err(convert_pinocchio_token_error)
+    Ok(signer_is_validated)
 }
