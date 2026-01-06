@@ -347,21 +347,24 @@ describe('loadAta - Unified Path (wrap=true)', () => {
     });
 
     describe('nothing to load', () => {
-        it('should throw when no balances exist at all', async () => {
-            const owner = Keypair.generate();
+        it('should create empty ATA when no balances exist at all', async () => {
+            const owner = await newAccountWithLamports(rpc, 1e9);
             const ctokenAta = getAssociatedTokenAddressInterfaceUnified(
                 mint,
                 owner.publicKey,
             );
 
-            await expect(
-                loadAtaUnified(
-                    rpc,
-                    ctokenAta,
-                    owner as unknown as Signer,
-                    mint,
-                ),
-            ).rejects.toThrow('Token account not found');
+            // Verify ATA doesn't exist before
+            const accountBefore = await rpc.getAccountInfo(ctokenAta);
+            expect(accountBefore).toBeNull();
+
+            // loadAta should create the ATA idempotently
+            const signature = await loadAtaUnified(rpc, ctokenAta, owner, mint);
+            expect(signature).not.toBeNull();
+
+            // Verify ATA now exists with 0 balance
+            const hotBalance = await getCTokenBalance(rpc, ctokenAta);
+            expect(hotBalance).toBe(BigInt(0));
         });
 
         it('should return null when only hot balance exists', async () => {

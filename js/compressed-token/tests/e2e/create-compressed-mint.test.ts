@@ -16,6 +16,7 @@ import {
     CTOKEN_PROGRAM_ID,
     DerivationMode,
     selectStateTreeInfo,
+    TreeType,
 } from '@lightprotocol/stateless.js';
 import {
     createMintInstruction,
@@ -136,7 +137,7 @@ describe('createMintInterface (compressed)', () => {
             tree: new PublicKey('amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx'),
             queue: new PublicKey('amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx'),
             cpiContext: undefined,
-            treeType: 1,
+            treeType: TreeType.AddressV2,
             nextTreeInfo: null,
         };
 

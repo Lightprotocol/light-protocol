@@ -421,7 +421,7 @@ describe('get-account-interface', () => {
                 // getAccountInterface auto-detect cannot find minted-compressed tokens
                 await expect(
                     getAccountInterface(rpc, ctokenAta, 'confirmed'),
-                ).rejects.toThrow(/Token account not found/);
+                ).rejects.toThrow(TokenAccountNotFoundError);
 
                 // Use getAtaInterface for minted-compressed tokens
                 const result = await getAtaInterface(
@@ -464,7 +464,7 @@ describe('get-account-interface', () => {
 
                 await expect(
                     getAccountInterface(rpc, nonExistentAta, 'confirmed'),
-                ).rejects.toThrow(/Token account not found/);
+                ).rejects.toThrow(TokenAccountNotFoundError);
             });
         });
     });
@@ -774,7 +774,7 @@ describe('get-account-interface', () => {
                         owner.publicKey,
                         ctokenMint,
                     ),
-                ).rejects.toThrow(/Token account not found/);
+                ).rejects.toThrow(TokenAccountNotFoundError);
             });
         });
 

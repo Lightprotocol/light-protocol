@@ -92,6 +92,7 @@ import {
     CTOKEN_PROGRAM_ID,
     getDefaultAddressSpace,
 } from './constants';
+import { setDevnetCompat } from './devnet-compat';
 import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
 import { ConfirmedSignatureInfo } from '@solana/web3.js';
@@ -278,6 +279,10 @@ export function createRpc(
     else {
         throw new Error('Invalid endpoint or connection type');
     }
+
+    // Auto-detect devnet for instruction encoding compatibility
+    // TODO: Remove after devnet program update
+    setDevnetCompat(endpoint.toLowerCase().includes('devnet'));
 
     return new Rpc(endpoint, compressionApiEndpoint, proverEndpoint, config);
 }
@@ -715,6 +720,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     /**
      * Get a list of all state tree infos. If not already cached, fetches from
      * the cluster.
+     * if featureFlags.isV2(), returns v2 trees too.
      */
     async getStateTreeInfos(): Promise<TreeInfo[]> {
         if (isLocalTest(this.rpcEndpoint)) {

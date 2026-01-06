@@ -22,6 +22,7 @@ import {
     TOKEN_PROGRAM_ID,
     createAssociatedTokenAccount,
     getAccount,
+    TokenAccountNotFoundError,
 } from '@solana/spl-token';
 import { createMint, mintTo, decompress } from '../../src/actions';
 import {
@@ -286,22 +287,21 @@ describe('loadAta - Standard Path (wrap=false)', () => {
     });
 
     describe('createLoadAtaInstructions', () => {
-        it('should throw when no accounts exist', async () => {
+        it('should return empty when no accounts exist', async () => {
             const owner = Keypair.generate();
             const ata = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
 
-            await expect(
-                createLoadAtaInstructions(
-                    rpc,
-                    ata,
-                    owner.publicKey,
-                    mint,
-                    payer.publicKey,
-                ),
-            ).rejects.toThrow('Token account not found');
+            const ixs = await createLoadAtaInstructions(
+                rpc,
+                ata,
+                owner.publicKey,
+                mint,
+                payer.publicKey,
+            );
+            expect(ixs.length).toBe(0);
         });
 
         it('should return empty when hot exists but no cold', async () => {
