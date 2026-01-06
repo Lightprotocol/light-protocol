@@ -43,6 +43,7 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
 
     let mut current_slot = 0;
     let mut rent: Option<Rent> = None;
+
     // Initialize budget: +1 allows exact match (total == max_top_up)
     let mut lamports_budget = (max_top_up as u64).saturating_add(1);
 
@@ -51,25 +52,14 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
         let cmint_data = cmint.try_borrow_data().map_err(convert_program_error)?;
         let (mint, _) = CompressedMint::zero_copy_at_checked(&cmint_data)
             .map_err(|_| CTokenError::CMintDeserializationFailed)?;
-        // Access compression info directly from meta (all cmints now have compression embedded)
-        if current_slot == 0 {
-            current_slot = Clock::get()
-                .map_err(|_| CTokenError::SysvarAccessError)?
-                .slot;
-            rent = Some(Rent::get().map_err(|_| CTokenError::SysvarAccessError)?);
-        }
-        let rent_exemption = rent.as_ref().unwrap().minimum_balance(cmint.data_len());
-        transfers[0].amount = mint
-            .base
-            .compression
-            .calculate_top_up_lamports(
-                cmint.data_len() as u64,
-                current_slot,
-                cmint.lamports(),
-                rent_exemption,
-            )
-            .map_err(|_| CTokenError::InvalidAccountData)?;
-        lamports_budget = lamports_budget.saturating_sub(transfers[0].amount);
+        process_compression_top_up(
+            &mint.base.compression,
+            cmint,
+            &mut current_slot,
+            &mut transfers[0].amount,
+            &mut lamports_budget,
+            &mut rent,
+        )?;
     }
 
     // Calculate CToken top-up (only if not 165 bytes - 165 means no extensions)
@@ -80,23 +70,14 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
         let compressible = token
             .get_compressible_extension()
             .ok_or::<ProgramError>(CTokenError::MissingCompressibleExtension.into())?;
-        if current_slot == 0 {
-            current_slot = Clock::get()
-                .map_err(|_| CTokenError::SysvarAccessError)?
-                .slot;
-            rent = Some(Rent::get().map_err(|_| CTokenError::SysvarAccessError)?);
-        }
-        let rent_exemption = rent.as_ref().unwrap().minimum_balance(ctoken.data_len());
-        transfers[1].amount = compressible
-            .info
-            .calculate_top_up_lamports(
-                ctoken.data_len() as u64,
-                current_slot,
-                ctoken.lamports(),
-                rent_exemption,
-            )
-            .map_err(|_| CTokenError::InvalidAccountData)?;
-        lamports_budget = lamports_budget.saturating_sub(transfers[1].amount);
+        process_compression_top_up(
+            &compressible.info,
+            ctoken,
+            &mut current_slot,
+            &mut transfers[1].amount,
+            &mut lamports_budget,
+            &mut rent,
+        )?;
     }
 
     // Exit early if no compressible accounts
@@ -114,5 +95,47 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
     }
 
     multi_transfer_lamports(payer, &transfers).map_err(convert_program_error)?;
+    Ok(())
+}
+
+/// Process compression top-up using embedded compression info.
+/// All ctoken accounts now have compression info embedded directly in meta.
+#[inline(always)]
+pub fn process_compression_top_up<T: light_compressible::compression_info::CalculateTopUp>(
+    compression: &T,
+    account_info: &AccountInfo,
+    current_slot: &mut u64,
+    transfer_amount: &mut u64,
+    lamports_budget: &mut u64,
+    rent: &mut Option<Rent>,
+) -> Result<(), ProgramError> {
+    if *transfer_amount != 0 {
+        return Ok(());
+    }
+
+    if *current_slot == 0 {
+        *current_slot = Clock::get()
+            .map_err(|_| CTokenError::SysvarAccessError)?
+            .slot;
+    }
+    if rent.is_none() {
+        *rent = Some(Rent::get().map_err(|_| CTokenError::SysvarAccessError)?);
+    }
+    let rent_exemption = rent
+        .as_ref()
+        .unwrap()
+        .minimum_balance(account_info.data_len());
+
+    *transfer_amount = compression
+        .calculate_top_up_lamports(
+            account_info.data_len() as u64,
+            *current_slot,
+            account_info.lamports(),
+            rent_exemption,
+        )
+        .map_err(|_| CTokenError::InvalidAccountData)?;
+
+    *lamports_budget = lamports_budget.saturating_sub(*transfer_amount);
+
     Ok(())
 }

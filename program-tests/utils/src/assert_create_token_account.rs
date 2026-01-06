@@ -214,9 +214,9 @@ pub async fn assert_create_token_account_internal(
                 },
             };
 
-            // Add Compressible extension to extensions list
+            // Add Compressible extension to extensions list (at beginning, matching program order)
             let mut all_extensions = final_extensions.unwrap_or_default();
-            all_extensions.push(ExtensionStruct::Compressible(compressible_ext));
+            all_extensions.insert(0, ExtensionStruct::Compressible(compressible_ext));
 
             // Create expected compressible token account with embedded compression info
             let expected_token_account = CToken {

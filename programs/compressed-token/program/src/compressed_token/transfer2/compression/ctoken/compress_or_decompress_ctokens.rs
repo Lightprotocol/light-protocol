@@ -8,18 +8,16 @@ use light_ctoken_interface::{
 };
 use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
-use pinocchio::{
-    account_info::AccountInfo,
-    pubkey::pubkey_eq,
-    sysvars::{clock::Clock, rent::Rent, Sysvar},
-};
+use pinocchio::pubkey::pubkey_eq;
 use spl_pod::solana_msg::msg;
 
 use super::{
     compress_and_close::process_compress_and_close, decompress::apply_decompress_extension_state,
     inputs::CTokenCompressionInputs,
 };
-use crate::shared::owner_validation::check_ctoken_owner;
+use crate::shared::{
+    compressible_top_up::process_compression_top_up, owner_validation::check_ctoken_owner,
+};
 
 /// Perform compression/decompression on a ctoken account.
 ///
@@ -78,6 +76,7 @@ pub fn compress_or_decompress_ctokens(
                     &mut current_slot,
                     transfer_amount,
                     lamports_budget,
+                    &mut None,
                 )?;
             }
             Ok(())
@@ -100,6 +99,7 @@ pub fn compress_or_decompress_ctokens(
                     &mut current_slot,
                     transfer_amount,
                     lamports_budget,
+                    &mut None,
                 )?;
             }
             Ok(())
@@ -113,43 +113,6 @@ pub fn compress_or_decompress_ctokens(
             packed_accounts,
         ),
     }
-}
-
-/// Process compression top-up using embedded compression info.
-/// All ctoken accounts now have compression info embedded directly in meta.
-#[inline(always)]
-pub fn process_compression_top_up(
-    compression: &light_compressible::compression_info::ZCompressionInfoMut<'_>,
-    token_account_info: &AccountInfo,
-    current_slot: &mut u64,
-    transfer_amount: &mut u64,
-    lamports_budget: &mut u64,
-) -> Result<(), ProgramError> {
-    if *transfer_amount != 0 {
-        return Ok(());
-    }
-
-    if *current_slot == 0 {
-        *current_slot = Clock::get()
-            .map_err(|_| CTokenError::SysvarAccessError)?
-            .slot;
-    }
-    let rent_exemption = Rent::get()
-        .map_err(|_| CTokenError::SysvarAccessError)?
-        .minimum_balance(token_account_info.data_len());
-
-    *transfer_amount = compression
-        .calculate_top_up_lamports(
-            token_account_info.data_len() as u64,
-            *current_slot,
-            token_account_info.lamports(),
-            rent_exemption,
-        )
-        .map_err(|_| CTokenError::InvalidAccountData)?;
-
-    *lamports_budget = lamports_budget.saturating_sub(*transfer_amount);
-
-    Ok(())
 }
 
 /// Validate a CToken account for compression/decompression operations.

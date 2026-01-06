@@ -6,12 +6,9 @@ use pinocchio_token_program::processor::{
     shared::approve::process_approve as shared_process_approve, unpack_amount_and_decimals,
 };
 
-use crate::{
-    compressed_token::transfer2::compression::ctoken::process_compression_top_up,
-    shared::{
-        convert_program_error, owner_validation::check_token_program_owner,
-        transfer_lamports_via_cpi,
-    },
+use crate::shared::{
+    compressible_top_up::process_compression_top_up, convert_program_error,
+    owner_validation::check_token_program_owner, transfer_lamports_via_cpi,
 };
 
 /// Account indices for approve instruction
@@ -124,21 +121,17 @@ fn process_compressible_top_up(
     // Only process top-up if account has Compressible extension
     let transfer_amount = if let Some(compressible) = ctoken.get_compressible_extension() {
         let mut transfer_amount = 0u64;
-        let mut lamports_budget = if max_top_up == 0 {
-            u64::MAX
-        } else {
-            (max_top_up as u64).saturating_add(1)
-        };
 
         process_compression_top_up(
             &compressible.info,
             account,
             &mut 0,
             &mut transfer_amount,
-            &mut lamports_budget,
+            &mut 0,
+            &mut None,
         )?;
 
-        if transfer_amount > 0 && lamports_budget == 0 {
+        if max_top_up > 0 && (max_top_up as u64) < transfer_amount {
             return Err(CTokenError::MaxTopUpExceeded.into());
         }
         transfer_amount
@@ -248,6 +241,7 @@ pub fn process_ctoken_approve_checked(
                     &mut 0,
                     &mut transfer_amount,
                     &mut lamports_budget,
+                    &mut None,
                 )?;
 
                 if transfer_amount > 0 && lamports_budget == 0 {
