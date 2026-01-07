@@ -260,6 +260,7 @@ async fn e2e_test() {
             ws_url: get_ws_rpc_url(),
             batch_size: 10,
             max_concurrent_batches: 10,
+            pda_programs: vec![],
         }),
     };
     let test_mode = TestMode::from_env();
@@ -273,6 +274,7 @@ async fn e2e_test() {
                 "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
                 "../target/deploy/create_address_test_program.so".to_string(),
             )],
+            upgradeable_programs: vec![],
             limit_ledger_size: None,
         }))
         .await;

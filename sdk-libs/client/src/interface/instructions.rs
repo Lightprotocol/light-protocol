@@ -14,7 +14,6 @@ use light_sdk::{
 use light_token::instruction::{
     COMPRESSIBLE_CONFIG_V1, LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR,
 };
-use solana_account::Account;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
@@ -288,12 +287,10 @@ where
 }
 
 /// Build compress instruction.
-#[allow(clippy::too_many_arguments)]
 pub fn build_compress_accounts_idempotent(
     program_id: &Pubkey,
     discriminator: &[u8],
     account_pubkeys: &[Pubkey],
-    _accounts_to_save: &[Account],
     program_account_metas: &[AccountMeta],
     proof: ValidityProofWithContext,
 ) -> Result<Instruction, Box<dyn std::error::Error>> {

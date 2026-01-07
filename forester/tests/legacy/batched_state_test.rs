@@ -46,6 +46,7 @@ async fn test_state_batched() {
         enable_prover: true,
         wait_time: 30,
         sbf_programs: vec![],
+        upgradeable_programs: vec![],
         limit_ledger_size: None,
     }))
     .await;

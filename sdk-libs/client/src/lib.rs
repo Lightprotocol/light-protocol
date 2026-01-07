@@ -40,6 +40,7 @@
 //!         enable_prover: true,
 //!         wait_time: 75,
 //!         sbf_programs: vec![],
+//!         upgradeable_programs: vec![],
 //!         limit_ledger_size: None,
 //!     };
 //!     spawn_validator(config).await;

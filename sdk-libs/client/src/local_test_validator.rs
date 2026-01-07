@@ -7,7 +7,11 @@ pub struct LightValidatorConfig {
     pub enable_indexer: bool,
     pub enable_prover: bool,
     pub wait_time: u64,
+    /// Non-upgradeable programs: (program_id, program_path)
     pub sbf_programs: Vec<(String, String)>,
+    /// Upgradeable programs: (program_id, program_path, upgrade_authority)
+    /// Use this when the program needs a valid upgrade authority (e.g., for compression config)
+    pub upgradeable_programs: Vec<(String, String, String)>,
     pub limit_ledger_size: Option<u64>,
 }
 
@@ -18,6 +22,7 @@ impl Default for LightValidatorConfig {
             enable_prover: false,
             wait_time: 35,
             sbf_programs: vec![],
+            upgradeable_programs: vec![],
             limit_ledger_size: None,
         }
     }
@@ -39,6 +44,13 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
             path.push_str(&format!(
                 " --sbf-program {} {}",
                 sbf_program.0, sbf_program.1
+            ));
+        }
+
+        for upgradeable_program in config.upgradeable_programs.iter() {
+            path.push_str(&format!(
+                " --upgradeable-program {} {} {}",
+                upgradeable_program.0, upgradeable_program.1, upgradeable_program.2
             ));
         }
 

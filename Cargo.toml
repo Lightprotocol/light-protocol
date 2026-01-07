@@ -240,6 +240,7 @@ light-indexed-array = { path = "program-libs/indexed-array", version = "0.3.0" }
 light-array-map = { path = "program-libs/array-map", version = "0.1.1" }
 light-program-profiler = { version = "0.1.0" }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }
+sdk-compressible-test = { path = "sdk-tests/sdk-compressible-test", version = "0.1.0" }
 groth16-solana = { version = "0.2.0" }
 bytemuck = { version = "1.19.0" }
 arrayvec = "0.7"

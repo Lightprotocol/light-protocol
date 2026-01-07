@@ -38,6 +38,7 @@ async fn test_epoch_monitor_with_2_foresters() {
         enable_prover: true,
         wait_time: 90,
         sbf_programs: vec![],
+        upgradeable_programs: vec![],
         limit_ledger_size: None,
     }))
     .await;
@@ -384,6 +385,7 @@ async fn test_epoch_double_registration() {
         enable_prover: true,
         wait_time: 90,
         sbf_programs: vec![],
+        upgradeable_programs: vec![],
         limit_ledger_size: None,
     }))
     .await;

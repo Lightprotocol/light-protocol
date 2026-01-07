@@ -1,7 +1,7 @@
 use std::io;
 
 use light_sdk::error::LightSdkError;
-use solana_rpc_client_api::client_error::Error as ClientError;
+use solana_rpc_client_api::client_error::{Error as ClientError, ErrorKind};
 use solana_transaction_error::TransactionError;
 use thiserror::Error;
 
@@ -80,16 +80,21 @@ impl From<light_event::error::ParseIndexerEventError> for RpcError {
 
 impl From<ClientError> for RpcError {
     fn from(e: ClientError) -> Self {
-        let error_str = e.to_string();
-        if error_str.contains("429")
-            || error_str.contains("Too Many Requests")
-            || error_str.contains("max usage")
-            || error_str.contains("rate limit")
-        {
-            RpcError::RateLimited
-        } else {
-            RpcError::ClientError(e)
+        // Check if this is a transaction error - don't mask those as RateLimited
+        if e.kind.get_transaction_error().is_some() {
+            return RpcError::ClientError(e);
         }
+
+        // Check for HTTP 429 status directly from reqwest error
+        if let ErrorKind::Reqwest(ref reqwest_err) = e.kind {
+            if let Some(status) = reqwest_err.status() {
+                if status.as_u16() == 429 {
+                    return RpcError::RateLimited;
+                }
+            }
+        }
+
+        RpcError::ClientError(e)
     }
 }
 

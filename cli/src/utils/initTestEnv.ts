@@ -125,6 +125,7 @@ export async function stopTestEnv(options: {
 
 export async function initTestEnv({
   additionalPrograms,
+  upgradeablePrograms,
   skipSystemAccounts,
   indexer = true,
   prover = true,
@@ -142,6 +143,11 @@ export async function initTestEnv({
   skipReset,
 }: {
   additionalPrograms?: { address: string; path: string }[];
+  upgradeablePrograms?: {
+    address: string;
+    path: string;
+    upgradeAuthority: string;
+  }[];
   skipSystemAccounts?: boolean;
   indexer: boolean;
   prover: boolean;
@@ -161,6 +167,7 @@ export async function initTestEnv({
   // We cannot await this promise directly because it will hang the process
   startTestValidator({
     additionalPrograms,
+    upgradeablePrograms,
     skipSystemAccounts,
     limitLedgerSize,
     rpcPort,
@@ -277,6 +284,7 @@ export function programFilePath(programName: string): string {
 
 export async function getSolanaArgs({
   additionalPrograms,
+  upgradeablePrograms,
   skipSystemAccounts,
   limitLedgerSize,
   rpcPort,
@@ -287,6 +295,11 @@ export async function getSolanaArgs({
   skipReset = false,
 }: {
   additionalPrograms?: { address: string; path: string }[];
+  upgradeablePrograms?: {
+    address: string;
+    path: string;
+    upgradeAuthority: string;
+  }[];
   skipSystemAccounts?: boolean;
   limitLedgerSize?: number;
   rpcPort?: number;
@@ -301,7 +314,7 @@ export async function getSolanaArgs({
   const solanaArgs = [
     `--limit-ledger-size=${limitLedgerSize}`,
     `--rpc-port=${rpcPort}`,
-    `--gossip-host=${gossipHost}`,
+    `--bind-address=${gossipHost}`,
     "--quiet",
   ];
 
@@ -367,6 +380,18 @@ export async function getSolanaArgs({
     }
   }
 
+  // Add upgradeable programs (with upgrade authority)
+  if (upgradeablePrograms) {
+    for (const program of upgradeablePrograms) {
+      solanaArgs.push(
+        "--upgradeable-program",
+        program.address,
+        program.path,
+        program.upgradeAuthority,
+      );
+    }
+  }
+
   // Load local system accounts only if not cloning from network
   if (!skipSystemAccounts && !cloneNetwork) {
     const accountsRelPath = "../../accounts";
@@ -379,6 +404,7 @@ export async function getSolanaArgs({
 
 export async function startTestValidator({
   additionalPrograms,
+  upgradeablePrograms,
   skipSystemAccounts,
   limitLedgerSize,
   rpcPort,
@@ -390,6 +416,11 @@ export async function startTestValidator({
   skipReset,
 }: {
   additionalPrograms?: { address: string; path: string }[];
+  upgradeablePrograms?: {
+    address: string;
+    path: string;
+    upgradeAuthority: string;
+  }[];
   skipSystemAccounts?: boolean;
   limitLedgerSize?: number;
   rpcPort?: number;
@@ -403,6 +434,7 @@ export async function startTestValidator({
   const command = "solana-test-validator";
   const solanaArgs = await getSolanaArgs({
     additionalPrograms,
+    upgradeablePrograms,
     skipSystemAccounts,
     limitLedgerSize,
     rpcPort,

@@ -28,7 +28,10 @@ use forester_utils::{
     forester_epoch::TreeAccounts, rate_limiter::RateLimiter, rpc_pool::SolanaRpcPoolBuilder,
 };
 use itertools::Itertools;
-use light_client::rpc::{LightClient, LightClientConfig, Rpc};
+use light_client::{
+    indexer::Indexer,
+    rpc::{LightClient, LightClientConfig, Rpc},
+};
 use light_compressed_account::TreeType;
 use solana_sdk::commitment_config::CommitmentConfig;
 use tokio::sync::{mpsc, oneshot, Mutex};
@@ -138,7 +141,7 @@ pub async fn run_queue_info(
     Ok(())
 }
 
-pub async fn run_pipeline<R: Rpc>(
+pub async fn run_pipeline<R: Rpc + Indexer>(
     config: Arc<ForesterConfig>,
     rpc_rate_limiter: Option<RateLimiter>,
     send_tx_rate_limiter: Option<RateLimiter>,
@@ -207,66 +210,160 @@ pub async fn run_pipeline<R: Rpc>(
         config.transaction_config.ops_cache_ttl_seconds,
     )));
 
-    let compressible_tracker = if let Some(compressible_config) = &config.compressible_config {
+    let (compressible_tracker, pda_tracker, mint_tracker) = if let Some(compressible_config) =
+        &config.compressible_config
+    {
         if let Some(shutdown_rx) = shutdown_compressible {
-            let tracker = Arc::new(compressible::CompressibleAccountTracker::new());
-            let tracker_clone = tracker.clone();
+            // Create all shutdown receivers upfront (before any are moved)
+            let shutdown_rx_ctoken = shutdown_rx.resubscribe();
+            let shutdown_rx_mint = shutdown_rx.resubscribe();
+            // Keep original for PDA subscriptions (will resubscribe per-program)
+            let shutdown_rx_pda_base = shutdown_rx;
+
+            // Create ctoken tracker
+            let ctoken_tracker = Arc::new(compressible::CTokenAccountTracker::new());
+            let tracker_clone = ctoken_tracker.clone();
             let ws_url = compressible_config.ws_url.clone();
 
-            // Create a second receiver for the log subscriber
-            let shutdown_rx_log = shutdown_rx.resubscribe();
-
-            // Spawn account subscriber
+            // Spawn account subscriber for ctokens
             tokio::spawn(async move {
-                let mut subscriber =
-                    compressible::AccountSubscriber::new(ws_url, tracker_clone, shutdown_rx);
+                let mut subscriber = compressible::AccountSubscriber::new(
+                    ws_url,
+                    tracker_clone,
+                    compressible::SubscriptionConfig::ctoken(),
+                    shutdown_rx_ctoken,
+                );
                 if let Err(e) = subscriber.run().await {
                     tracing::error!("Compressible subscriber error: {:?}", e);
                 }
             });
 
-            // Spawn log subscriber to detect compress_and_close operations
-            let tracker_clone_log = tracker.clone();
-            let ws_url_log = compressible_config.ws_url.clone();
-
-            tokio::spawn(async move {
-                let mut log_subscriber = compressible::LogSubscriber::new(
-                    ws_url_log,
-                    tracker_clone_log,
-                    shutdown_rx_log,
-                );
-                if let Err(e) = log_subscriber.run().await {
-                    tracing::error!("Log subscriber error: {:?}", e);
-                }
-            });
-
-            // Spawn bootstrap task
+            // Spawn bootstrap task for ctokens
             if let Some(shutdown_bootstrap_rx) = shutdown_bootstrap {
-                let tracker_clone = tracker.clone();
+                let tracker_clone = ctoken_tracker.clone();
                 let rpc_url = config.external_services.rpc_url.clone();
 
                 tokio::spawn(async move {
-                    if let Err(e) = compressible::bootstrap_compressible_accounts(
+                    if let Err(e) = compressible::bootstrap_ctoken_accounts(
                         rpc_url,
                         tracker_clone,
-                        shutdown_bootstrap_rx,
+                        Some(shutdown_bootstrap_rx),
                     )
                     .await
                     {
-                        tracing::error!("Bootstrap failed: {:?}", e);
+                        tracing::error!("CToken bootstrap failed: {:?}", e);
                     } else {
-                        tracing::info!("Bootstrap complete");
+                        tracing::info!("CToken bootstrap complete");
                     }
                 });
             }
 
-            Some(tracker)
+            // Create PDA tracker if there are PDA programs configured
+            let pda_tracker = if !compressible_config.pda_programs.is_empty() {
+                let pda_tracker = Arc::new(compressible::pda::PdaAccountTracker::new(
+                    compressible_config.pda_programs.clone(),
+                ));
+
+                // Spawn account subscribers for each PDA program
+                for pda_config in &compressible_config.pda_programs {
+                    let pda_tracker_sub = pda_tracker.clone();
+                    let ws_url_pda = compressible_config.ws_url.clone();
+                    let shutdown_rx_pda = shutdown_rx_pda_base.resubscribe();
+                    let program_id = pda_config.program_id;
+                    let discriminator = pda_config.discriminator;
+                    let program_name = format!(
+                        "pda-{}",
+                        program_id.to_string().chars().take(8).collect::<String>()
+                    );
+
+                    tokio::spawn(async move {
+                        let mut subscriber = compressible::AccountSubscriber::new(
+                            ws_url_pda,
+                            pda_tracker_sub,
+                            compressible::SubscriptionConfig::pda(
+                                program_id,
+                                discriminator,
+                                program_name.clone(),
+                            ),
+                            shutdown_rx_pda,
+                        );
+                        if let Err(e) = subscriber.run().await {
+                            tracing::error!("PDA subscriber error for {}: {:?}", program_name, e);
+                        }
+                    });
+                }
+
+                // Spawn bootstrap task for PDAs (runs to completion, no shutdown signal)
+                let pda_tracker_clone = pda_tracker.clone();
+                let rpc_url = config.external_services.rpc_url.clone();
+
+                tokio::spawn(async move {
+                    if let Err(e) = compressible::pda::bootstrap_pda_accounts(
+                        rpc_url,
+                        pda_tracker_clone,
+                        None, // Bootstrap runs to completion
+                    )
+                    .await
+                    {
+                        tracing::error!("PDA bootstrap failed: {:?}", e);
+                    } else {
+                        tracing::info!("PDA bootstrap complete");
+                    }
+                });
+
+                Some(pda_tracker)
+            } else {
+                None
+            };
+
+            // Create Mint tracker and spawn subscriptions + bootstrap
+            let mint_tracker = {
+                let mint_tracker = Arc::new(compressible::mint::MintAccountTracker::new());
+
+                // Spawn account subscriber for mints
+                let mint_tracker_sub = mint_tracker.clone();
+                let ws_url_mint = compressible_config.ws_url.clone();
+
+                tokio::spawn(async move {
+                    let mut subscriber = compressible::AccountSubscriber::new(
+                        ws_url_mint,
+                        mint_tracker_sub,
+                        compressible::SubscriptionConfig::mint(),
+                        shutdown_rx_mint,
+                    );
+                    if let Err(e) = subscriber.run().await {
+                        tracing::error!("Mint subscriber error: {:?}", e);
+                    }
+                });
+
+                // Spawn bootstrap task for Mints (runs to completion, no shutdown signal)
+                let mint_tracker_clone = mint_tracker.clone();
+                let rpc_url = config.external_services.rpc_url.clone();
+
+                tokio::spawn(async move {
+                    if let Err(e) = compressible::mint::bootstrap_mint_accounts(
+                        rpc_url,
+                        mint_tracker_clone,
+                        None, // Bootstrap runs to completion
+                    )
+                    .await
+                    {
+                        tracing::error!("Mint bootstrap failed: {:?}", e);
+                    } else {
+                        tracing::info!("Mint bootstrap complete");
+                    }
+                });
+
+                Some(mint_tracker)
+            };
+
+            (Some(ctoken_tracker), pda_tracker, mint_tracker)
         } else {
             tracing::warn!("Compressible config enabled but no shutdown receiver provided");
-            None
+            (None, None, None)
         }
     } else {
-        None
+        (None, None, None)
     };
 
     debug!("Starting Forester pipeline");
@@ -280,6 +377,8 @@ pub async fn run_pipeline<R: Rpc>(
         tx_cache,
         ops_cache,
         compressible_tracker,
+        pda_tracker,
+        mint_tracker,
     )
     .await;
 

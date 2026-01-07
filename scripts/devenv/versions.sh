@@ -13,8 +13,7 @@ export SOLANA_VERSION="2.2.15"
 export ANCHOR_VERSION="0.31.1"
 export JQ_VERSION="1.8.0"
 export PHOTON_VERSION="0.51.2"
-# current main (ci fails): 3dbfb8e6772779fc89c640b5b0823b95d1958efc
-export PHOTON_COMMIT="ac7df6c388db847b7693a7a1cb766a7c9d7809b5"
+export PHOTON_COMMIT="83b46c9aef58a134edef2eb8e506c1bc6604e876"
 export REDIS_VERSION="8.0.1"
 
 export ANCHOR_TAG="anchor-v${ANCHOR_VERSION}"

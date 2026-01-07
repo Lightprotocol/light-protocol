@@ -42,6 +42,7 @@ async fn test_state_indexer_batched() {
         enable_prover: true,
         wait_time: 90,
         sbf_programs: vec![],
+        upgradeable_programs: vec![],
         limit_ledger_size: None,
     }))
     .await;
