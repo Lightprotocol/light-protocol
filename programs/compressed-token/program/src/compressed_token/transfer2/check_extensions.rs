@@ -79,14 +79,15 @@ pub fn build_mint_extension_cache<'a>(
     packed_accounts: &'a ProgramPackedAccounts<'a, AccountInfo>,
 ) -> Result<MintExtensionCache, ProgramError> {
     let mut cache: MintExtensionCache = ArrayMap::new();
-    let deny_restricted_extensions = !inputs.out_token_data.is_empty();
+    let no_compressed_outputs = inputs.out_token_data.is_empty();
+    let deny_restricted_extensions = !no_compressed_outputs;
 
     // Collect mints from input token data
     for input in inputs.in_token_data.iter() {
         let mint_index = input.mint;
         if cache.get_by_key(&mint_index).is_none() {
             let mint_account = packed_accounts.get_u8(mint_index, "mint cache: input")?;
-            let checks = if inputs.out_token_data.is_empty() {
+            let checks = if no_compressed_outputs {
                 // No outputs - bypass state checks (full decompress or transfer-only)
                 parse_mint_extensions(mint_account)?
             } else {
@@ -103,14 +104,9 @@ pub fn build_mint_extension_cache<'a>(
 
             if cache.get_by_key(&mint_index).is_none() {
                 let mint_account = packed_accounts.get_u8(mint_index, "mint cache: compression")?;
-                let no_compressed_outputs = inputs.out_token_data.is_empty();
-                let is_full_decompress = compression.mode.is_decompress() && no_compressed_outputs;
-                let checks = if compression.mode.is_compress_and_close()
-                    || is_full_decompress
-                    || no_compressed_outputs
-                {
+                let checks = if compression.mode.is_compress_and_close() || no_compressed_outputs {
                     // Bypass extension state checks (paused, non-zero fees, non-nil transfer hook)
-                    // when exiting compressed state: CompressAndClose, Decompress, or CToken→SPL
+                    // when CompressAndClose, full Decompress, or CToken→SPL (compress and full decompress)
                     parse_mint_extensions(mint_account)?
                 } else {
                     check_mint_extensions(mint_account, deny_restricted_extensions)?
@@ -119,7 +115,7 @@ pub fn build_mint_extension_cache<'a>(
                 // CompressAndClose with restricted extensions requires CompressedOnly output.
                 // Compress/Decompress don't need additional validation here:
                 // - Compress: blocked by check_mint_extensions when outputs exist
-                // - Decompress: bypassed (restoring existing state)
+                // - Decompress: no check it restores existing state
                 if checks.has_restricted_extensions && compression.mode.is_compress_and_close() {
                     let output_idx = compression.get_compressed_token_account_index()?;
                     let has_compressed_only = inputs
@@ -139,6 +135,19 @@ pub fn build_mint_extension_cache<'a>(
                     }
                 }
 
+                cache.insert(mint_index, checks, ErrorCode::MintCacheCapacityExceeded)?;
+            }
+        }
+    }
+
+    for output in inputs.out_token_data.iter() {
+        // All mints of outputs that have non zero amount must have an input or compression.
+        // Thus we only check outputs with zero amounts here.
+        if output.amount.get() == 0 {
+            let mint_index = output.mint;
+            if cache.get_by_key(&mint_index).is_none() {
+                let mint_account = packed_accounts.get_u8(mint_index, "mint cache: output")?;
+                let checks = check_mint_extensions(mint_account, true)?;
                 cache.insert(mint_index, checks, ErrorCode::MintCacheCapacityExceeded)?;
             }
         }

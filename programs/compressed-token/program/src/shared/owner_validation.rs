@@ -103,7 +103,7 @@ pub fn check_ctoken_owner(
     if let Some(checks) = mint_checks {
         if let Some(permanent_delegate) = &checks.permanent_delegate {
             if pubkey_eq(authority_key, permanent_delegate) {
-                return Ok(()); // Permanent delegate can compress any account of this mint
+                return Ok(()); // Permanent delegate can (de)compress any account of this mint
             }
         }
     }

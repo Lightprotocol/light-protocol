@@ -101,8 +101,6 @@ pub fn process_token_compression<'a>(
                     )?;
                 }
                 SPL_TOKEN_ID => {
-                    // SPL Token (not Token-2022) never has restricted extensions.
-                    // Delegation is disregarded for decompression to SPL token accounts.
                     spl::process_spl_compressions(
                         compression,
                         &SPL_TOKEN_ID.to_pubkey_bytes(),
@@ -122,8 +120,7 @@ pub fn process_token_compression<'a>(
                         return Err(ErrorCode::CompressedOnlyRequiresCTokenDecompress.into());
                     }
 
-                    // Check if mint has restricted extensions from the cache.
-                    // Delegation is disregarded for decompression to SPL token accounts.
+                    // Propagate whether mint is restricted to enable correct derivation of the spl interface pda.
                     let is_restricted = mint_checks
                         .map(|checks| checks.has_restricted_extensions)
                         .unwrap_or(false);
