@@ -4,8 +4,8 @@ use light_client::indexer::Indexer;
 use light_compressed_account::instruction_data::traits::LightInstructionData;
 use light_ctoken_interface::{
     instructions::mint_action::{
-        CompressedMintInstructionData, CompressedMintWithContext, CpiContext,
-        MintActionCompressedInstructionData,
+        CompressedMintInstructionData, CompressedMintWithContext, CpiContext, DecompressMintAction,
+        MintActionCompressedInstructionData, MintToCTokenAction,
     },
     state::CompressedMintMetadata,
     CMINT_ADDRESS_TREE, CTOKEN_PROGRAM_ID,
@@ -83,6 +83,7 @@ async fn test_setup() -> TestSetup {
                 version: 3,
                 cmint_decompressed: false,
                 mint: spl_mint_pda.into(),
+                compressed_address: compressed_mint_address,
             },
             mint_authority: Some(mint_authority.pubkey().into()),
             freeze_authority: Some(freeze_authority.into()),
@@ -124,7 +125,6 @@ async fn test_write_to_cpi_context_create_mint() {
 
     // Build instruction data using new builder API
     let instruction_data = MintActionCompressedInstructionData::new_mint(
-        compressed_mint_inputs.address,
         compressed_mint_inputs.root_index,
         CompressedProof::default(),
         compressed_mint_inputs.mint.clone().unwrap(),
@@ -245,7 +245,6 @@ async fn test_write_to_cpi_context_invalid_address_tree() {
 
     // Build instruction data with invalid address tree
     let instruction_data = MintActionCompressedInstructionData::new_mint(
-        compressed_mint_inputs.address,
         compressed_mint_inputs.root_index,
         CompressedProof::default(),
         compressed_mint_inputs.mint.clone().unwrap(),
@@ -335,12 +334,14 @@ async fn test_write_to_cpi_context_invalid_compressed_address() {
     // Keep the correct address_tree_pubkey but provide wrong address
     let invalid_compressed_address = [42u8; 32];
 
-    // Build instruction data with invalid compressed address
+    // Build instruction data with invalid compressed address in metadata
+    let mut invalid_mint = compressed_mint_inputs.mint.clone().unwrap();
+    invalid_mint.metadata.compressed_address = invalid_compressed_address;
+
     let instruction_data = MintActionCompressedInstructionData::new_mint(
-        invalid_compressed_address,
         compressed_mint_inputs.root_index,
         CompressedProof::default(),
-        compressed_mint_inputs.mint.clone().unwrap(),
+        invalid_mint,
     )
     .with_cpi_context(CpiContext {
         set_context: false,
@@ -438,7 +439,6 @@ async fn test_execute_cpi_context_invalid_tree_index() {
 
     // Build instruction data for execute mode - must mark as create_mint
     let instruction_data = MintActionCompressedInstructionData::new_mint(
-        compressed_mint_inputs.address,
         compressed_mint_inputs.root_index,
         CompressedProof::default(),
         compressed_mint_inputs.mint.clone().unwrap(),
@@ -499,4 +499,281 @@ async fn test_execute_cpi_context_invalid_tree_index() {
     // Assert that the transaction failed with MintActionInvalidCpiContextForCreateMint error
     // Error code 6104 = MintActionInvalidCpiContextForCreateMint
     assert_rpc_error(result, 0, 6104).unwrap();
+}
+
+#[tokio::test]
+#[serial]
+async fn test_write_to_cpi_context_decompressed_mint_fails() {
+    let TestSetup {
+        mut rpc,
+        compressed_mint_inputs: _,
+        payer,
+        mint_seed: _,
+        mint_authority,
+        compressed_mint_address,
+        cpi_context_pubkey,
+        address_tree,
+        address_tree_index,
+        output_queue: _,
+        output_queue_index,
+    } = test_setup().await;
+
+    // Build instruction data with mint = None (simulates decompressed mint)
+    // This triggers cmint_decompressed = true in AccountsConfig
+    let mint_with_context = CompressedMintWithContext {
+        leaf_index: 0,
+        prove_by_index: false,
+        root_index: 0,
+        address: compressed_mint_address,
+        mint: None,
+    };
+
+    let instruction_data = MintActionCompressedInstructionData::new(mint_with_context, None)
+        .with_cpi_context(CpiContext {
+            set_context: false,
+            first_set_context: true,
+            in_tree_index: address_tree_index,
+            in_queue_index: 0,
+            out_queue_index: output_queue_index,
+            token_out_queue_index: 0,
+            assigned_account_index: 0,
+            read_only_address_trees: [0; 4],
+            address_tree_pubkey: address_tree.to_bytes(),
+        });
+
+    // Build account metas for CPI write mode
+    let config = MintActionMetaConfigCpiWrite {
+        fee_payer: payer.pubkey(),
+        mint_signer: None,
+        authority: mint_authority.pubkey(),
+        cpi_context: cpi_context_pubkey,
+    };
+
+    let account_metas = get_mint_action_instruction_account_metas_cpi_write(config);
+
+    // Serialize instruction data
+    let data = instruction_data
+        .data()
+        .expect("Failed to serialize instruction data");
+
+    // Build compressed token instruction
+    let ctoken_instruction = Instruction {
+        program_id: Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
+        accounts: account_metas,
+        data: data.clone(),
+    };
+
+    // Build wrapper instruction
+    let wrapper_ix_data =
+        compressed_token_test::instruction::WriteToCpiContextMintAction { inputs: data };
+
+    let wrapper_instruction = Instruction {
+        program_id: WRAPPER_PROGRAM_ID,
+        accounts: vec![AccountMeta::new_readonly(
+            Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
+            false,
+        )]
+        .into_iter()
+        .chain(ctoken_instruction.accounts.clone())
+        .collect(),
+        data: wrapper_ix_data.data(),
+    };
+
+    // Execute wrapper instruction - should fail with CpiContextSetNotUsable
+    let result = rpc
+        .create_and_send_transaction(
+            &[wrapper_instruction],
+            &payer.pubkey(),
+            &[&payer, &mint_authority],
+        )
+        .await;
+
+    // Assert error code 6035 = CpiContextSetNotUsable
+    // "Decompress mint not allowed when writing to cpi context"
+    assert_rpc_error(result, 0, 6035).unwrap();
+}
+
+#[tokio::test]
+#[serial]
+async fn test_write_to_cpi_context_mint_to_ctoken_fails() {
+    let TestSetup {
+        mut rpc,
+        compressed_mint_inputs,
+        payer,
+        mint_seed,
+        mint_authority,
+        compressed_mint_address: _,
+        cpi_context_pubkey,
+        address_tree,
+        address_tree_index,
+        output_queue: _,
+        output_queue_index,
+    } = test_setup().await;
+
+    // Build instruction data for create mint with MintToCToken action
+    // MintToCToken is not allowed when writing to CPI context
+    let instruction_data = MintActionCompressedInstructionData::new_mint(
+        compressed_mint_inputs.root_index,
+        CompressedProof::default(),
+        compressed_mint_inputs.mint.clone().unwrap(),
+    )
+    .with_mint_to_ctoken(MintToCTokenAction {
+        account_index: 0,
+        amount: 1000,
+    })
+    .with_cpi_context(CpiContext {
+        set_context: false,
+        first_set_context: true,
+        in_tree_index: address_tree_index,
+        in_queue_index: 0,
+        out_queue_index: output_queue_index,
+        token_out_queue_index: 0,
+        assigned_account_index: 0,
+        read_only_address_trees: [0; 4],
+        address_tree_pubkey: address_tree.to_bytes(),
+    });
+
+    // Build account metas for CPI write mode
+    let config = MintActionMetaConfigCpiWrite {
+        fee_payer: payer.pubkey(),
+        mint_signer: Some(mint_seed.pubkey()),
+        authority: mint_authority.pubkey(),
+        cpi_context: cpi_context_pubkey,
+    };
+
+    let account_metas = get_mint_action_instruction_account_metas_cpi_write(config);
+
+    // Serialize instruction data
+    let data = instruction_data
+        .data()
+        .expect("Failed to serialize instruction data");
+
+    // Build compressed token instruction
+    let ctoken_instruction = Instruction {
+        program_id: Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
+        accounts: account_metas,
+        data: data.clone(),
+    };
+
+    // Build wrapper instruction
+    let wrapper_ix_data =
+        compressed_token_test::instruction::WriteToCpiContextMintAction { inputs: data };
+
+    let wrapper_instruction = Instruction {
+        program_id: WRAPPER_PROGRAM_ID,
+        accounts: vec![AccountMeta::new_readonly(
+            Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
+            false,
+        )]
+        .into_iter()
+        .chain(ctoken_instruction.accounts.clone())
+        .collect(),
+        data: wrapper_ix_data.data(),
+    };
+
+    // Execute wrapper instruction - should fail with CpiContextSetNotUsable
+    let result = rpc
+        .create_and_send_transaction(
+            &[wrapper_instruction],
+            &payer.pubkey(),
+            &[&payer, &mint_seed, &mint_authority],
+        )
+        .await;
+
+    // Assert error code 6035 = CpiContextSetNotUsable
+    // "Mint to ctokens not allowed when writing to cpi context"
+    assert_rpc_error(result, 0, 6035).unwrap();
+}
+
+#[tokio::test]
+#[serial]
+async fn test_write_to_cpi_context_decompress_mint_action_fails() {
+    let TestSetup {
+        mut rpc,
+        compressed_mint_inputs,
+        payer,
+        mint_seed,
+        mint_authority,
+        compressed_mint_address: _,
+        cpi_context_pubkey,
+        address_tree,
+        address_tree_index,
+        output_queue: _,
+        output_queue_index,
+    } = test_setup().await;
+
+    // Build instruction data for create mint with DecompressMint action
+    // DecompressMint is not allowed when writing to CPI context
+    let instruction_data = MintActionCompressedInstructionData::new_mint(
+        compressed_mint_inputs.root_index,
+        CompressedProof::default(),
+        compressed_mint_inputs.mint.clone().unwrap(),
+    )
+    .with_decompress_mint(DecompressMintAction {
+        cmint_bump: 255,
+        rent_payment: 2,
+        write_top_up: 1000,
+    })
+    .with_cpi_context(CpiContext {
+        set_context: false,
+        first_set_context: true,
+        in_tree_index: address_tree_index,
+        in_queue_index: 0,
+        out_queue_index: output_queue_index,
+        token_out_queue_index: 0,
+        assigned_account_index: 0,
+        read_only_address_trees: [0; 4],
+        address_tree_pubkey: address_tree.to_bytes(),
+    });
+
+    // Build account metas for CPI write mode
+    let config = MintActionMetaConfigCpiWrite {
+        fee_payer: payer.pubkey(),
+        mint_signer: Some(mint_seed.pubkey()),
+        authority: mint_authority.pubkey(),
+        cpi_context: cpi_context_pubkey,
+    };
+
+    let account_metas = get_mint_action_instruction_account_metas_cpi_write(config);
+
+    // Serialize instruction data
+    let data = instruction_data
+        .data()
+        .expect("Failed to serialize instruction data");
+
+    // Build compressed token instruction
+    let ctoken_instruction = Instruction {
+        program_id: Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
+        accounts: account_metas,
+        data: data.clone(),
+    };
+
+    // Build wrapper instruction
+    let wrapper_ix_data =
+        compressed_token_test::instruction::WriteToCpiContextMintAction { inputs: data };
+
+    let wrapper_instruction = Instruction {
+        program_id: WRAPPER_PROGRAM_ID,
+        accounts: vec![AccountMeta::new_readonly(
+            Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
+            false,
+        )]
+        .into_iter()
+        .chain(ctoken_instruction.accounts.clone())
+        .collect(),
+        data: wrapper_ix_data.data(),
+    };
+
+    // Execute wrapper instruction - should fail with CpiContextSetNotUsable
+    let result = rpc
+        .create_and_send_transaction(
+            &[wrapper_instruction],
+            &payer.pubkey(),
+            &[&payer, &mint_seed, &mint_authority],
+        )
+        .await;
+
+    // Assert error code 6035 = CpiContextSetNotUsable
+    // "Decompress mint not allowed when writing to cpi context"
+    assert_rpc_error(result, 0, 6035).unwrap();
 }

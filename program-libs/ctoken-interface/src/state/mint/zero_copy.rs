@@ -45,7 +45,7 @@ struct CompressedMintZeroCopyMeta {
     // CompressedMintMetadata
     pub metadata: CompressedMintMetadata,
     /// Reserved bytes for T22 layout compatibility (padding to reach byte 165)
-    pub reserved: [u8; 49],
+    pub reserved: [u8; 17],
     /// Account type discriminator at byte 165 (1 = Mint, 2 = Account)
     pub account_type: u8,
     /// Compression info embedded directly in the mint
@@ -422,6 +422,7 @@ impl ZCompressedMintMut<'_> {
         self.base.metadata.version = ix_data.metadata.version;
         self.base.metadata.mint = ix_data.metadata.mint;
         self.base.metadata.cmint_decompressed = if cmint_decompressed { 1 } else { 0 };
+        self.base.metadata.compressed_address = ix_data.metadata.compressed_address;
 
         // Set base fields
         self.base.supply = ix_data.supply;

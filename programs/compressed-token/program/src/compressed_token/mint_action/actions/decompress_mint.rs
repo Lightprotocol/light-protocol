@@ -1,6 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
-use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
+use light_compressible::compression_info::CompressionInfo;
 use light_ctoken_interface::{
     instructions::mint_action::ZDecompressMintAction, state::CompressedMint, COMPRESSED_MINT_SEED,
 };
@@ -32,16 +32,11 @@ use crate::{
 /// 5. **Add Compressible Extension**: Add CompressionInfo to the compressed mint extensions
 /// 6. **PDA Verification**: Verify CMint account matches expected PDA derivation
 /// 7. **Account Creation**: rent_sponsor pays rent exemption, fee_payer pays Light rent
-/// 8. **Flag Update**: Set cmint_decompressed flag (synced at end of MintAction)
+/// 8. **Flag Update**: Set cmint_decompressed flag
 ///
 /// ## Note
-/// DecompressMint is **permissionless** - anyone can call it (they pay for the CMint creation).
+/// DecompressMint is **permissionless** - the caller pays initial rent, rent exemption is sponsored by the rent_sponsor.
 /// The authority signer is still required for MintAction, but does not need to match mint_authority.
-///
-/// ## Note
-/// The CMint account data is NOT serialized here. The sync logic at the end
-/// of the MintAction processor will write the output compressed mint to the
-/// CMint account.
 #[profile]
 pub fn process_decompress_mint_action(
     action: &ZDecompressMintAction,
@@ -50,9 +45,6 @@ pub fn process_decompress_mint_action(
     mint_signer: &AccountInfo,
     fee_payer: &AccountInfo,
 ) -> Result<(), ProgramError> {
-    // NOTE: DecompressMint is permissionless - anyone can decompress (they pay for the account)
-    // No authority check required
-
     // 1. Check not already decompressed
     if compressed_mint.metadata.cmint_decompressed {
         msg!("CMint account already exists");
@@ -113,13 +105,7 @@ pub fn process_decompress_mint_action(
         compression_authority: config.compression_authority.to_bytes(),
         rent_sponsor: config.rent_sponsor.to_bytes(),
         last_claimed_slot: current_slot,
-        rent_config: RentConfig {
-            base_rent: config.rent_config.base_rent,
-            compression_cost: config.rent_config.compression_cost,
-            lamports_per_byte_per_epoch: config.rent_config.lamports_per_byte_per_epoch,
-            max_funded_epochs: config.rent_config.max_funded_epochs,
-            max_top_up: config.rent_config.max_top_up,
-        },
+        rent_config: config.rent_config,
     };
 
     // 6. Verify PDA derivation

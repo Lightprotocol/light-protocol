@@ -29,8 +29,9 @@ fn create_test_cmint() -> CompressedMint {
             version: 3,
             mint: Pubkey::new_from_array([2; 32]),
             cmint_decompressed: false,
+            compressed_address: [5u8; 32],
         },
-        reserved: [0u8; 49],
+        reserved: [0u8; 17],
         account_type: ACCOUNT_TYPE_MINT,
         compression: CompressionInfo {
             config_account_version: 1,

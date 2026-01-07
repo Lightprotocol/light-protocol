@@ -18,8 +18,8 @@ use crate::shared::{
 
 pub struct MintActionAccounts<'info> {
     pub light_system_program: &'info AccountInfo,
-    /// Seed for spl mint pda.
-    /// Required for mint and spl mint creation.
+    /// Seed for mint PDA derivation.
+    /// Required for compressed mint creation and DecompressMint.
     /// Note: mint_signer is not in executing accounts since create mint
     /// is allowed in combination with write to cpi context.
     pub mint_signer: Option<&'info AccountInfo>,
@@ -45,7 +45,7 @@ pub struct ExecutingAccounts<'info> {
     /// CompressibleConfig - parsed and validated (active state) when creating CMint.
     pub compressible_config: Option<&'info CompressibleConfig>,
     /// CMint Solana account (decompressed compressed mint).
-    /// Required for DecompressMint action and when syncing with existing CMint.
+    /// Required for DecompressMint, CompressAndCloseCMint, and operations on decompressed mints.
     pub cmint: Option<&'info AccountInfo>,
     /// Rent sponsor PDA - required when creating CMint (pays for account).
     pub rent_sponsor: Option<&'info AccountInfo>,
@@ -107,7 +107,7 @@ impl<'info> MintActionAccounts<'info> {
                 None
             };
 
-            // CMint account required if already decompressed (for sync) OR being decompressed/closed
+            // CMint account required if already decompressed OR being decompressed/closed
             let cmint = iter.next_option_mut("cmint", config.needs_cmint_account())?;
 
             // Parse rent_sponsor when creating or closing CMint
@@ -345,11 +345,11 @@ pub struct AccountsConfig {
     /// 2. cpi context.first_set() || cpi context.set()
     pub write_to_cpi_context: bool,
     /// 4. Whether the compressed mint has been decompressed to a CMint Solana account.
-    ///    When true, the CMint account is the source of truth and must be synced.
+    ///    When true, the CMint account is the decompressed (compressed account is empty).
     pub cmint_decompressed: bool,
     /// 5. Mint
     pub has_mint_to_actions: bool,
-    /// 6. Either compressed mint and/or spl mint is created.
+    /// 6. Compressed mint is created or DecompressMint action is present.
     pub with_mint_signer: bool,
     /// 7. Compressed mint is created.
     pub create_mint: bool,
@@ -360,11 +360,11 @@ pub struct AccountsConfig {
 }
 
 impl AccountsConfig {
-    /// Returns true when CMint Solana account is the source of truth for mint data.
+    /// Returns true when CMint Solana account is the decompressed for mint data.
     /// This is the case when the mint is decompressed (or being decompressed) and not being closed.
     /// When true, compressed account uses zero sentinel values (discriminator=[0;8], data_hash=[0;32]).
     #[inline(always)]
-    pub fn cmint_is_decompressed(&self) -> bool {
+    pub fn cmint_output_decompressed(&self) -> bool {
         (self.has_decompress_mint_action || self.cmint_decompressed)
             && !self.has_compress_and_close_cmint_action
     }
@@ -441,8 +441,8 @@ impl AccountsConfig {
         // CompressAndCloseCMint does NOT need mint_signer - it verifies CMint by compressed_mint.metadata.mint
         let with_mint_signer =
             parsed_instruction_data.create_mint.is_some() || has_decompress_mint_action;
-        // CMint account needed for sync when mint is already decompressed (metadata flag)
-        // When mint is None, it means CMint is decompressed (data lives in CMint account)
+        // CMint account needed when mint is already decompressed (metadata flag)
+        // When mint is None, CMint is decompressed (data lives in CMint account, compressed account is empty)
         let cmint_decompressed = parsed_instruction_data.mint.is_none();
 
         if write_to_cpi_context {

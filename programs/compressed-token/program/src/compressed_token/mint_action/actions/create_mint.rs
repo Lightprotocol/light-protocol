@@ -26,7 +26,7 @@ pub fn process_create_mint_action(
 
     // 1. Derive compressed mint address without bump to ensure
     //      that only one mint per seed can be created.
-    let spl_mint_pda = solana_pubkey::Pubkey::find_program_address(
+    let mint_pda = solana_pubkey::Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_signer.as_slice()],
         &crate::ID,
     )
@@ -38,7 +38,7 @@ pub fn process_create_mint_action(
         .as_ref()
         .ok_or(ProgramError::InvalidInstructionData)?;
 
-    if !pubkey_eq(&spl_mint_pda, mint.metadata.mint.array_ref()) {
+    if !pubkey_eq(&mint_pda, mint.metadata.mint.array_ref()) {
         msg!("Invalid mint PDA derivation");
         return Err(ErrorCode::MintActionInvalidMintPda.into());
     }
@@ -56,11 +56,11 @@ pub fn process_create_mint_action(
             return Err(ErrorCode::MintActionInvalidCpiContextAddressTreePubkey.into());
         }
         let address = light_compressed_account::address::derive_address(
-            &spl_mint_pda,
+            &mint_pda,
             &cpi_context.address_tree_pubkey,
             &crate::LIGHT_CPI_SIGNER.program_id,
         );
-        if address != parsed_instruction_data.compressed_address {
+        if address != mint.metadata.compressed_address {
             msg!("Invalid compressed mint address derivation");
             return Err(ErrorCode::MintActionInvalidCompressedMintAddress.into());
         }
@@ -68,7 +68,7 @@ pub fn process_create_mint_action(
 
     // 2. Create NewAddressParams
     cpi_instruction_struct.new_address_params[0].set(
-        spl_mint_pda,
+        mint_pda,
         parsed_instruction_data.root_index,
         Some(
             parsed_instruction_data

@@ -77,8 +77,9 @@ fn generate_random_compressed_mint(rng: &mut impl Rng, with_extensions: bool) ->
             version: 3,
             mint,
             cmint_decompressed: rng.gen_bool(0.5),
+            compressed_address: rng.gen(),
         },
-        reserved: [0u8; 49],
+        reserved: [0u8; 17],
         account_type: ACCOUNT_TYPE_MINT,
         compression: CompressionInfo::default(),
         extensions,
@@ -146,6 +147,7 @@ fn test_compressed_mint_borsh_zerocopy_compatibility() {
         } else {
             0
         };
+        zc_mint.base.metadata.compressed_address = original_mint.metadata.compressed_address;
         // account_type is already set in new_zero_copy
         // Set compression fields
         zc_mint.base.compression.config_account_version =
@@ -257,8 +259,9 @@ fn test_compressed_mint_edge_cases() {
             version: 3,
             mint: Pubkey::from([0xff; 32]),
             cmint_decompressed: false,
+            compressed_address: [0u8; 32],
         },
-        reserved: [0u8; 49],
+        reserved: [0u8; 17],
         account_type: ACCOUNT_TYPE_MINT,
         compression: CompressionInfo::default(),
         extensions: None,
@@ -290,6 +293,7 @@ fn test_compressed_mint_edge_cases() {
     zc_mint.base.metadata.version = mint_no_auth.metadata.version;
     zc_mint.base.metadata.mint = mint_no_auth.metadata.mint;
     zc_mint.base.metadata.cmint_decompressed = 0;
+    zc_mint.base.metadata.compressed_address = mint_no_auth.metadata.compressed_address;
     // account_type is already set in new_zero_copy
     // Set compression fields
     zc_mint.base.compression.config_account_version =
@@ -334,8 +338,9 @@ fn test_compressed_mint_edge_cases() {
             version: 255,
             mint: Pubkey::from([0xbb; 32]),
             cmint_decompressed: true,
+            compressed_address: [0xcc; 32],
         },
-        reserved: [0u8; 49],
+        reserved: [0u8; 17],
         account_type: ACCOUNT_TYPE_MINT,
         compression: CompressionInfo::default(),
         extensions: None,
@@ -361,8 +366,9 @@ fn test_base_mint_in_compressed_mint_spl_format() {
             version: 3,
             mint: Pubkey::from([3; 32]),
             cmint_decompressed: false,
+            compressed_address: [4u8; 32],
         },
-        reserved: [0u8; 49],
+        reserved: [0u8; 17],
         account_type: ACCOUNT_TYPE_MINT,
         compression: CompressionInfo::default(),
         extensions: None,

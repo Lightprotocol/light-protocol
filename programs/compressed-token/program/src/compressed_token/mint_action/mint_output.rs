@@ -22,7 +22,8 @@ use crate::{
     shared::{convert_program_error, transfer_lamports::transfer_lamports},
 };
 
-/// Processes the output compressed mint account, syncing to CMint if decompressed.
+/// Processes the output compressed mint account.
+/// When decompressed, writes mint data to CMint account (compressed account is empty).
 #[profile]
 pub fn process_output_compressed_account<'a>(
     parsed_instruction_data: &ZMintActionCompressedInstructionData,
@@ -49,12 +50,7 @@ pub fn process_output_compressed_account<'a>(
         serialize_decompressed_mint(validated_accounts, accounts_config, &mut compressed_mint)?;
     }
 
-    serialize_compressed_mint(
-        mint_account,
-        compressed_mint,
-        parsed_instruction_data,
-        queue_indices,
-    )
+    serialize_compressed_mint(mint_account, compressed_mint, queue_indices)
 }
 
 #[inline(always)]
@@ -75,7 +71,6 @@ fn split_mint_and_token_accounts<'a>(
 fn serialize_compressed_mint<'a>(
     mint_account: &'a mut ZOutputCompressedAccountWithPackedContextMut<'a>,
     compressed_mint: CompressedMint,
-    parsed_instruction_data: &ZMintActionCompressedInstructionData,
     queue_indices: &QueueIndices,
 ) -> Result<(), ProgramError> {
     let compressed_account_data = mint_account
@@ -122,7 +117,7 @@ fn serialize_compressed_mint<'a>(
     mint_account.set(
         crate::LIGHT_CPI_SIGNER.program_id.into(),
         0,
-        Some(parsed_instruction_data.compressed_address),
+        Some(compressed_mint.metadata.compressed_address),
         queue_indices.output_queue_index,
         discriminator,
         data_hash,

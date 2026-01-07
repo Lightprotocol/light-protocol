@@ -50,15 +50,6 @@ pub struct MintActionCompressedInstructionData {
     /// If mint already exists, root index of validity proof
     /// If proof by index not used.
     pub root_index: u16,
-    /// Address of the compressed account the mint is stored in.
-    /// Derived from the associated spl mint pubkey.
-    pub compressed_address: [u8; 32],
-    /// Used to check token pool derivation.
-    /// Only required if associated spl mint exists and actions contain mint actions.
-    pub token_pool_bump: u8,
-    /// Used to check token pool derivation.
-    /// Only required if associated spl mint exists and actions contain mint actions.
-    pub token_pool_index: u8,
     /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
     pub max_top_up: u16,
     pub create_mint: Option<CreateMint>,
@@ -209,8 +200,9 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
                 version: instruction_data.metadata.version,
                 cmint_decompressed: instruction_data.metadata.cmint_decompressed != 0,
                 mint: instruction_data.metadata.mint,
+                compressed_address: instruction_data.metadata.compressed_address,
             },
-            reserved: [0u8; 49],
+            reserved: [0u8; 17],
             account_type: crate::state::mint::ACCOUNT_TYPE_MINT,
             compression: CompressionInfo::default(),
             extensions,

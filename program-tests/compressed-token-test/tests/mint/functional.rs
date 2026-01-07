@@ -1228,8 +1228,9 @@ async fn test_mint_actions() {
             version: 3, // With metadata
             mint: spl_mint_pda.into(),
             cmint_decompressed: false, // Becomes true after DecompressMint action
+            compressed_address: compressed_mint_address,
         },
-        reserved: [0u8; 49],
+        reserved: [0u8; 17],
         account_type: ACCOUNT_TYPE_MINT,
         compression: CompressionInfo::default(),
         extensions: Some(vec![
@@ -1461,8 +1462,9 @@ async fn test_create_compressed_mint_with_cmint() {
             version: 3,
             cmint_decompressed: false, // Before DecompressMint
             mint: cmint_pda.to_bytes().into(),
+            compressed_address: compressed_mint_address,
         },
-        reserved: [0u8; 49],
+        reserved: [0u8; 17],
         account_type: ACCOUNT_TYPE_MINT,
         compression: CompressionInfo::default(),
         extensions: None,

@@ -221,3 +221,7 @@ Packed accounts (remaining accounts):
 - `ErrorCode::CpiContextExpected` (error code: 6085) - CPI context required but not provided
 - `AccountError::InvalidSigner` (error code: 12015) - Required signer account is not signing
 - `AccountError::NotEnoughAccountKeys` (error code: 12020) - Missing required accounts
+
+### Spl mint migration
+- cmint to spl mint migration is unimplemented and not planned.
+- A way to support it in the future would require a new instruction that creates an spl mint in the mint pda solana account and mints the supply to the spl interface.

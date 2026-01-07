@@ -202,6 +202,7 @@ pub async fn create_mint<R: Rpc + Indexer>(
                 version: 3,
                 mint: mint.into(),
                 cmint_decompressed: false,
+                compressed_address: compressed_mint_address,
             },
             mint_authority: Some(mint_authority.pubkey().into()),
             freeze_authority: freeze_authority.map(|fa| fa.into()),

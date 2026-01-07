@@ -85,8 +85,7 @@ pub fn get_zero_copy_configs(
         msg!("Max allowed is 29 compressed token recipients");
         return Err(ErrorCode::TooManyMintToRecipients.into());
     }
-    // CMint is source of truth when decompressed and not closing
-    let cmint_is_decompressed = accounts_config.cmint_is_decompressed();
+    let cmint_is_decompressed = accounts_config.cmint_output_decompressed();
 
     let input = CpiConfigInput {
         input_accounts: {
@@ -100,7 +99,7 @@ pub fn get_zero_copy_configs(
         output_accounts: {
             let mut outputs = ArrayVec::new();
             // First output is always the mint account
-            // When CMint is source of truth, use data_len=0 (zero discriminator/hash)
+            // When CMint is decompressed, use data_len=0 (zero discriminator & hash)
             let mint_data_len = if cmint_is_decompressed {
                 0
             } else {
@@ -111,7 +110,7 @@ pub fn get_zero_copy_configs(
             // Add token accounts for recipients
             for _ in 0..num_recipients {
                 outputs.push((false, compressed_token_data_len(false)));
-                // No delegates for simple mint
+                // No delegates for mint to
             }
             outputs
         },

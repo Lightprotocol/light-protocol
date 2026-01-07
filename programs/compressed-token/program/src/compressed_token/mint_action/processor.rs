@@ -44,19 +44,24 @@ pub fn process_mint_action(
     // Get mint data based on source:
     // 1. Creating new mint: mint data required in instruction
     // 2. Existing compressed mint: mint data in instruction (cmint_decompressed = false)
-    // 3. CMint is source of truth: read from CMint account (cmint_decompressed = true)
-    let mint = if parsed_instruction_data.create_mint.is_some() {
+    // 3. CMint is decompressed: read from CMint account (cmint_decompressed = true)
+    let mint = if accounts_config.create_mint {
         // Creating new mint - mint data required in instruction
         let mint_data = parsed_instruction_data
             .mint
             .as_ref()
             .ok_or(ErrorCode::MintDataRequired)?;
         CompressedMint::try_from(mint_data)?
-    } else if let Some(mint_data) = parsed_instruction_data.mint.as_ref() {
+    } else if !accounts_config.cmint_decompressed {
         // Existing compressed mint with data in instruction
+        // In case that cmint is not actually compressed proof verification will fail.
+        let mint_data = parsed_instruction_data
+            .mint
+            .as_ref()
+            .ok_or(ErrorCode::MintDataRequired)?;
         CompressedMint::try_from(mint_data)?
     } else {
-        // CMint is source of truth - read from CMint account
+        // CMint is decompressed - read from CMint account
         let cmint_account = validated_accounts
             .get_cmint()
             .ok_or(ErrorCode::MintActionMissingCMintAccount)?;
@@ -90,7 +95,7 @@ pub fn process_mint_action(
     let queue_keys_match = validated_accounts.queue_keys_match();
     let queue_indices = QueueIndices::new(
         parsed_instruction_data.cpi_context.as_ref(),
-        parsed_instruction_data.create_mint.is_some(),
+        accounts_config.create_mint,
         tokens_out_queue_exists,
         queue_keys_match,
         accounts_config.write_to_cpi_context,
@@ -100,7 +105,7 @@ pub fn process_mint_action(
     // 1. Creating mint: mint data from instruction (must be Some)
     // 2. Existing mint with data in instruction: use instruction data
     // 3. Existing decompressed mint (CMint): read from CMint account
-    if parsed_instruction_data.create_mint.is_some() {
+    if accounts_config.create_mint {
         // Creating new mint - mint data required in instruction
         process_create_mint_action(
             &parsed_instruction_data,
@@ -113,11 +118,12 @@ pub fn process_mint_action(
             queue_indices.address_merkle_tree_index,
         )?;
     } else {
-        // Decompressed mint (CMint is source of truth) - data from CMint account
-        // Set input with zero values (data lives in CMint)
+        // Existing mint - set input compressed account
+        // When CMint is decompressed, input has zero values
+        // When data from instruction, input has real data hash
         create_input_compressed_mint_account(
             &mut cpi_instruction_struct.input_compressed_accounts[0],
-            &parsed_instruction_data,
+            parsed_instruction_data.root_index,
             PackedMerkleContext {
                 merkle_tree_pubkey_index: queue_indices.in_tree_index,
                 queue_pubkey_index: queue_indices.in_queue_index,
@@ -125,6 +131,7 @@ pub fn process_mint_action(
                 prove_by_index: parsed_instruction_data.prove_by_index(),
             },
             &accounts_config,
+            &mint,
         )?;
     };
 

@@ -19,7 +19,6 @@ pub fn process_mint_action<'a, 'info>(
     // ValidityProof is a wrapper around Option<CompressedProof>
     let compressed_proof = input.pda_creation.proof.0.unwrap();
     let instruction_data = MintActionCompressedInstructionData::new_mint(
-        input.compressed_mint_with_context.address,
         input.compressed_mint_with_context.root_index,
         compressed_proof,
         input.compressed_mint_with_context.mint.clone().unwrap(),

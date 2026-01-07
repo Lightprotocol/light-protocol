@@ -42,6 +42,7 @@ fn random_compressed_mint_metadata(rng: &mut StdRng) -> CompressedMintMetadata {
         version: rng.gen_range(1..=3) as u8,
         cmint_decompressed: rng.gen_bool(0.5),
         mint: random_pubkey(rng),
+        compressed_address: rng.gen::<[u8; 32]>(),
     }
 }
 
@@ -175,9 +176,6 @@ fn generate_random_instruction_data(
         leaf_index: rng.gen::<u32>(),
         prove_by_index: rng.gen_bool(0.5),
         root_index: rng.gen::<u16>(),
-        compressed_address: rng.gen::<[u8; 32]>(),
-        token_pool_bump: rng.gen::<u8>(),
-        token_pool_index: rng.gen::<u8>(),
         max_top_up: rng.gen::<u16>(),
         actions,
         proof: if rng.gen_bool(0.6) {

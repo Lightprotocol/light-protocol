@@ -158,6 +158,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                     mint: find_cmint_address(&params.mint_seed).0.to_bytes().into(),
                     // false for new mint - on-chain sets to true after DecompressMint
                     cmint_decompressed: false,
+                    compressed_address: params.compressed_mint_address,
                 },
                 mint_authority: Some(new_mint.mint_authority.to_bytes().into()),
                 freeze_authority: new_mint.freeze_authority.map(|auth| auth.to_bytes().into()),
@@ -223,7 +224,6 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
     // Build instruction data using builder pattern
     let mut instruction_data = if is_creating_mint {
         MintActionCompressedInstructionData::new_mint(
-            params.compressed_mint_address,
             compressed_mint_inputs.root_index,
             proof.ok_or_else(|| {
                 RpcError::CustomError("Proof is required for mint creation".to_string())

@@ -17,7 +17,7 @@ pub struct CompressedMint {
     pub base: BaseMint,
     pub metadata: CompressedMintMetadata,
     /// Reserved bytes for T22 layout compatibility (padding to reach byte 165)
-    pub reserved: [u8; 49],
+    pub reserved: [u8; 17],
     /// Account type discriminator at byte 165 (1 = Mint, 2 = Account)
     pub account_type: u8,
     /// Compression info embedded directly in the mint
@@ -30,7 +30,7 @@ impl Default for CompressedMint {
         Self {
             base: BaseMint::default(),
             metadata: CompressedMintMetadata::default(),
-            reserved: [0u8; 49],
+            reserved: [0u8; 17],
             account_type: ACCOUNT_TYPE_MINT,
             compression: CompressionInfo::default(),
             extensions: None,
@@ -71,6 +71,9 @@ pub struct CompressedMintMetadata {
     pub cmint_decompressed: bool,
     /// Pda with seed address of compressed mint
     pub mint: Pubkey,
+    /// Address of the compressed account the mint is stored in.
+    /// Derived from the associated spl mint pubkey.
+    pub compressed_address: [u8; 32],
 }
 
 impl CompressedMint {
@@ -117,6 +120,12 @@ impl CompressedMint {
             #[cfg(feature = "solana")]
             msg!("CMint account is not initialized");
             return Err(CTokenError::CMintNotInitialized);
+        }
+
+        if !mint.is_cmint_account() {
+            #[cfg(feature = "solana")]
+            msg!("CMint account is not a CMint account");
+            return Err(CTokenError::MintMismatch);
         }
 
         Ok(mint)

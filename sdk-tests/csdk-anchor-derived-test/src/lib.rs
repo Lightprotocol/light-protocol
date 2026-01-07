@@ -145,7 +145,6 @@ pub mod csdk_anchor_derived_test {
         // Build instruction data using the correct API
         let proof = compression_params.proof.0.unwrap_or_default();
         let instruction_data = MintActionCompressedInstructionData::new_mint(
-            compression_params.mint_with_context.address,
             0, // root_index for new addresses
             proof,
             compression_params.mint_with_context.mint.clone().unwrap(),
