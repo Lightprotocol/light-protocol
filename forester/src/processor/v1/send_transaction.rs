@@ -13,8 +13,8 @@ use light_compressed_account::TreeType;
 use light_registry::utils::get_forester_epoch_pda_from_authority;
 use reqwest::Url;
 use solana_client::rpc_config::RpcSendTransactionConfig;
+use solana_commitment_config::CommitmentLevel;
 use solana_sdk::{
-    commitment_config::CommitmentLevel,
     hash::Hash,
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
