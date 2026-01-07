@@ -95,6 +95,7 @@ pub struct GeneralConfig {
     pub sleep_after_processing_ms: u64,
     pub sleep_when_idle_ms: u64,
     pub queue_polling_mode: QueuePollingMode,
+    pub group_authority: Option<Pubkey>,
 }
 
 impl Default for GeneralConfig {
@@ -111,6 +112,7 @@ impl Default for GeneralConfig {
             sleep_after_processing_ms: 10_000,
             sleep_when_idle_ms: 45_000,
             queue_polling_mode: QueuePollingMode::Indexer,
+            group_authority: None,
         }
     }
 }
@@ -129,6 +131,7 @@ impl GeneralConfig {
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
             queue_polling_mode: QueuePollingMode::Indexer,
+            group_authority: None,
         }
     }
 
@@ -145,6 +148,7 @@ impl GeneralConfig {
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
             queue_polling_mode: QueuePollingMode::Indexer,
+            group_authority: None,
         }
     }
 }
@@ -325,6 +329,16 @@ impl ForesterConfig {
                 sleep_after_processing_ms: 10_000,
                 sleep_when_idle_ms: 45_000,
                 queue_polling_mode: args.queue_polling_mode,
+                group_authority: args
+                    .group_authority
+                    .as_ref()
+                    .map(|s| {
+                        Pubkey::from_str(s).map_err(|e| ConfigError::InvalidArguments {
+                            field: "group_authority",
+                            invalid_values: vec![e.to_string()],
+                        })
+                    })
+                    .transpose()?,
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: args.rpc_pool_size,
@@ -415,6 +429,7 @@ impl ForesterConfig {
                 sleep_after_processing_ms: 10_000,
                 sleep_when_idle_ms: 45_000,
                 queue_polling_mode: QueuePollingMode::OnChain, // Status uses on-chain reads
+                group_authority: None,
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: 10,

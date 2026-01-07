@@ -6,7 +6,6 @@ use std::{
     vec,
 };
 
-use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 use forester_utils::{forester_epoch::TreeAccounts, rpc_pool::SolanaRpcPool};
 use futures::StreamExt;
 use light_client::rpc::Rpc;
@@ -168,47 +167,32 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
 ) -> Result<Option<PreparedBatchData>> {
     let tree_id_str = tree_accounts.merkle_tree.to_string();
 
-    let (queue_total_capacity, queue_fetch_start_index, queue_fetch_length) =
-        match tree_accounts.tree_type {
-            TreeType::StateV1 => (
-                STATE_NULLIFIER_QUEUE_VALUES,
-                config.queue_config.state_queue_start_index,
-                config.queue_config.state_queue_length,
-            ),
-            TreeType::AddressV1 => (
-                ADDRESS_QUEUE_VALUES,
-                config.queue_config.address_queue_start_index,
-                config.queue_config.address_queue_length,
-            ),
-            _ => {
-                error!(
-                    tree = %tree_id_str,
-                    "prepare_batch_prerequisites called with unsupported tree type: {:?}",
-                    tree_accounts.tree_type
-                );
-                return Err(ForesterError::InvalidTreeType(tree_accounts.tree_type).into());
-            }
-        };
+    let queue_fetch_start_index = match tree_accounts.tree_type {
+        TreeType::StateV1 => config.queue_config.state_queue_start_index,
+        TreeType::AddressV1 => config.queue_config.address_queue_start_index,
+        _ => {
+            error!(
+                tree = %tree_id_str,
+                "prepare_batch_prerequisites called with unsupported tree type: {:?}",
+                tree_accounts.tree_type
+            );
+            return Err(ForesterError::InvalidTreeType(tree_accounts.tree_type).into());
+        }
+    };
 
     let queue_item_data = {
         let mut rpc = pool.get_connection().await.map_err(|e| {
             error!(tree = %tree_id_str, "Failed to get RPC for queue data: {:?}", e);
             ForesterError::RpcPool(e)
         })?;
-        fetch_queue_item_data(
-            &mut *rpc,
-            &tree_accounts.queue,
-            queue_fetch_start_index,
-            queue_fetch_length,
-            queue_total_capacity,
-        )
-        .await
-        .map_err(|e| {
-            error!(tree = %tree_id_str, "Failed to fetch queue item data: {:?}", e);
-            ForesterError::General {
-                error: format!("Fetch queue data failed for {}: {}", tree_id_str, e),
-            }
-        })?
+        fetch_queue_item_data(&mut *rpc, &tree_accounts.queue, queue_fetch_start_index)
+            .await
+            .map_err(|e| {
+                error!(tree = %tree_id_str, "Failed to fetch queue item data: {:?}", e);
+                ForesterError::General {
+                    error: format!("Fetch queue data failed for {}: {}", tree_id_str, e),
+                }
+            })?
     };
 
     if queue_item_data.is_empty() {

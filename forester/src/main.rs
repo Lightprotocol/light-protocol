@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use clap::Parser;
 use forester::{
+    api_server::spawn_api_server,
     cli::{Cli, Commands},
     errors::ForesterError,
     forester_status,
@@ -54,6 +55,7 @@ where
 #[tokio::main]
 #[allow(clippy::result_large_err)]
 async fn main() -> Result<(), ForesterError> {
+    dotenvy::dotenv().ok();
     setup_telemetry();
 
     let cli = Cli::parse();
@@ -107,6 +109,9 @@ async fn main() -> Result<(), ForesterError> {
             if let Some(rate_limit) = config.external_services.send_tx_rate_limit {
                 send_tx_limiter = Some(RateLimiter::new(rate_limit));
             }
+
+            let rpc_url_for_api: String = config.external_services.rpc_url.to_string();
+            spawn_api_server(rpc_url_for_api, args.api_server_port);
 
             run_pipeline::<LightClient>(
                 config,

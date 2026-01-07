@@ -72,7 +72,7 @@ use crate::{
         perform_state_merkle_tree_rollover_forester,
     },
     slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker},
-    tree_data_sync::fetch_trees,
+    tree_data_sync::{fetch_protocol_group_authority, fetch_trees},
     ForesterConfig, ForesterEpochInfo, Result,
 };
 
@@ -1144,6 +1144,7 @@ impl<R: Rpc> EpochManager<R> {
                 queue: solana_sdk::pubkey::Pubkey::default(),
                 tree_type: TreeType::Unknown,
                 is_rolledover: false,
+                owner: solana_sdk::pubkey::Pubkey::default(),
             };
             let tree_schedule = TreeForesterSchedule::new_with_schedule(
                 &compression_tree_accounts,
@@ -1509,7 +1510,7 @@ impl<R: Rpc> EpochManager<R> {
                 .check_forester_eligibility(
                     epoch_pda,
                     current_light_slot,
-                    &tree_accounts.queue,
+                    &tree_accounts.merkle_tree,
                     epoch_info.epoch,
                     epoch_info,
                 )
@@ -2816,6 +2817,36 @@ pub async fn run_service<R: Rpc>(
                                         fetch_result = fetch_trees(&*rpc) => {
                                             match fetch_result {
                                                 Ok(mut fetched_trees) => {
+                                                    let group_authority = match config.general_config.group_authority {
+                                                        Some(ga) => Some(ga),
+                                                        None => {
+                                                            match fetch_protocol_group_authority(&*rpc).await {
+                                                                Ok(ga) => {
+                                                                    info!("Using protocol default group authority: {}", ga);
+                                                                    Some(ga)
+                                                                }
+                                                                Err(e) => {
+                                                                    warn!(
+                                                                        "Failed to fetch protocol group authority, processing all trees: {:?}",
+                                                                        e
+                                                                    );
+                                                                    None
+                                                                }
+                                                            }
+                                                        }
+                                                    };
+
+                                                    if let Some(group_authority) = group_authority {
+                                                        let before_count = fetched_trees.len();
+                                                        fetched_trees.retain(|tree| tree.owner == group_authority);
+                                                        info!(
+                                                            "Filtered trees by group authority {}: {} -> {} trees",
+                                                            group_authority,
+                                                            before_count,
+                                                            fetched_trees.len()
+                                                        );
+                                                    }
+
                                                     if !config.general_config.tree_ids.is_empty() {
                                                         let tree_ids = &config.general_config.tree_ids;
                                                         fetched_trees.retain(|tree| tree_ids.contains(&tree.merkle_tree));
@@ -3058,6 +3089,7 @@ mod tests {
                 sleep_after_processing_ms: 50,
                 sleep_when_idle_ms: 100,
                 queue_polling_mode: crate::cli::QueuePollingMode::Indexer,
+                group_authority: None,
             },
             rpc_pool_config: Default::default(),
             registry_pubkey: Pubkey::default(),
@@ -3158,6 +3190,7 @@ mod tests {
             queue: Pubkey::new_unique(),
             is_rolledover: false,
             tree_type: TreeType::AddressV1,
+            owner: Default::default(),
         };
 
         let work_item = WorkItem {
@@ -3179,6 +3212,7 @@ mod tests {
             queue: Pubkey::new_unique(),
             is_rolledover: false,
             tree_type: TreeType::StateV1,
+            owner: Default::default(),
         };
 
         let work_item = WorkItem {
