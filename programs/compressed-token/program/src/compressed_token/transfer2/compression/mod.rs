@@ -50,7 +50,7 @@ pub fn process_token_compression<'a>(
     compression_to_input: &[Option<u8>; MAX_COMPRESSIONS],
 ) -> Result<(), ProgramError> {
     if let Some(compressions) = inputs.compressions.as_ref() {
-        if compressions.len() >= MAX_COMPRESSIONS {
+        if compressions.len() > MAX_COMPRESSIONS {
             msg!(
                 "Too many compressions: {} provided, maximum {} allowed",
                 compressions.len(),
