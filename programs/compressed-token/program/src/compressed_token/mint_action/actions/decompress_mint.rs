@@ -18,7 +18,6 @@ use crate::{
     shared::{
         convert_program_error,
         create_pda_account::{create_pda_account, verify_pda},
-        parse_config_account,
     },
 };
 
@@ -75,12 +74,10 @@ pub fn process_decompress_mint_action(
         .cmint
         .ok_or(ErrorCode::MintActionMissingCMintAccount)?;
 
-    // 3. Get and validate CompressibleConfig account
-    let config_account = executing
+    // 3. Get CompressibleConfig (already parsed and validated as active)
+    let config = executing
         .compressible_config
         .ok_or(ErrorCode::MissingCompressibleConfig)?;
-
-    let config = parse_config_account(config_account)?;
 
     // 5. Validate write_top_up doesn't exceed max_top_up
     if action.write_top_up > config.rent_config.max_top_up as u32 {

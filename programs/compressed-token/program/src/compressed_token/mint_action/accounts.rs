@@ -1,6 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
+use light_compressible::config::CompressibleConfig;
 use light_ctoken_interface::{
     instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
     CMINT_ADDRESS_TREE,
@@ -12,7 +13,7 @@ use spl_pod::solana_msg::msg;
 
 use crate::shared::{
     accounts::{CpiContextLightSystemAccounts, LightSystemAccounts},
-    AccountIterator,
+    next_config_account, AccountIterator,
 };
 
 pub struct MintActionAccounts<'info> {
@@ -41,8 +42,8 @@ pub struct MintActionAccounts<'info> {
 /// Required accounts to execute an instruction
 /// with or without cpi context.
 pub struct ExecutingAccounts<'info> {
-    /// CompressibleConfig account - required when creating CMint (always compressible).
-    pub compressible_config: Option<&'info AccountInfo>,
+    /// CompressibleConfig - parsed and validated (active state) when creating CMint.
+    pub compressible_config: Option<&'info CompressibleConfig>,
     /// CMint Solana account (decompressed compressed mint).
     /// Required for DecompressMint action and when syncing with existing CMint.
     pub cmint: Option<&'info AccountInfo>,
@@ -99,9 +100,12 @@ impl<'info> MintActionAccounts<'info> {
                 packed_accounts: ProgramPackedAccounts { accounts: &[] },
             })
         } else {
-            // Parse compressible config when creating or closing CMint
-            let compressible_config =
-                iter.next_option("compressible_config", config.needs_compressible_accounts())?;
+            // Parse and validate compressible config when creating or closing CMint
+            let compressible_config = if config.needs_compressible_accounts() {
+                Some(next_config_account(&mut iter)?)
+            } else {
+                None
+            };
 
             // CMint account required if already decompressed (for sync) OR being decompressed/closed
             let cmint = iter.next_option_mut("cmint", config.needs_cmint_account())?;

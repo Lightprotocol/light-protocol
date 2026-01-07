@@ -44,103 +44,47 @@ pub fn process_output_compressed_account<'a>(
         &validated_accounts.packed_accounts,
         &mut compressed_mint,
     )?;
-    // When decompressed (CMint is source of truth), use zero values
-    // TODO: check whether I can just mutate is_decompressed instead of using has_compress_and_close_cmint_action
-    // TODO: double check that we cannot close and create in the same instruction
-    let cmint_is_decompressed = accounts_config.cmint_is_decompressed();
-    // Serialize state into CMint solana account
-    // SKIP if CompressAndCloseCMint action is present (CMint is being closed)
-    // SKIP if DecompressMint action is present (CMint is being closed)
-    if cmint_is_decompressed {
-        let cmint_account = validated_accounts
-            .get_cmint()
-            .ok_or(ErrorCode::CMintNotFound)?;
-        if !accounts_config.has_compress_and_close_cmint_action {
-            let num_bytes = cmint_account.data_len() as u64;
-            let current_lamports = cmint_account.lamports();
-            let rent_exemption = get_rent_exemption_lamports(num_bytes)
-                .map_err(|_| ErrorCode::CMintTopUpCalculationFailed)?;
 
-            // Skip top-up calculation if decompress mint action is present.
-            if !accounts_config.has_decompress_mint_action {
-                // Handle top-up for compressed mint (compression info is now embedded directly)
-                // Get current slot for top-up calculation
-                let current_slot = Clock::get()
-                    .map_err(|_| ProgramError::UnsupportedSysvar)?
-                    .slot;
-                // Calculate top-up amount using embedded compression info
-                let top_up = compressed_mint
-                    .compression
-                    .calculate_top_up_lamports(
-                        num_bytes,
-                        current_slot,
-                        current_lamports,
-                        rent_exemption,
-                    )
-                    .map_err(|_| ErrorCode::CMintTopUpCalculationFailed)?;
-
-                if top_up > 0 {
-                    let fee_payer = validated_accounts
-                        .executing
-                        .as_ref()
-                        .map(|exec| exec.system.fee_payer)
-                        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-                    transfer_lamports(top_up, fee_payer, cmint_account)
-                        .map_err(convert_program_error)?;
-                }
-            }
-
-            let serialized = compressed_mint
-                .try_to_vec()
-                .map_err(|_| ErrorCode::MintActionOutputSerializationFailed)?;
-            let required_size = serialized.len();
-
-            // Resize if needed (e.g., metadata extensions added)
-            if cmint_account.data_len() < required_size {
-                cmint_account
-                    .resize(required_size)
-                    .map_err(|_| ErrorCode::CMintResizeFailed)?;
-
-                // Transfer additional lamports for rent if resized
-                let rent = Rent::get().map_err(|_| ProgramError::UnsupportedSysvar)?;
-                let required_lamports = rent.minimum_balance(required_size);
-                if cmint_account.lamports() < required_lamports {
-                    let fee_payer = validated_accounts
-                        .executing
-                        .as_ref()
-                        .map(|exec| exec.system.fee_payer)
-                        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-                    transfer_lamports(
-                        required_lamports - cmint_account.lamports(),
-                        fee_payer,
-                        cmint_account,
-                    )
-                    .map_err(convert_program_error)?;
-                }
-            }
-
-            let mut cmint_data = cmint_account
-                .try_borrow_mut_data()
-                .map_err(|_| ProgramError::AccountBorrowFailed)?;
-            if cmint_data.len() < serialized.len() {
-                msg!(
-                    "CMint account too small: {} < {}",
-                    cmint_data.len(),
-                    serialized.len()
-                );
-                return Err(ErrorCode::CMintResizeFailed.into());
-            }
-            cmint_data[..serialized.len()].copy_from_slice(&serialized);
-        }
+    if compressed_mint.metadata.cmint_decompressed {
+        serialize_decompressed_mint(validated_accounts, accounts_config, &mut compressed_mint)?;
     }
 
+    serialize_compressed_mint(
+        mint_account,
+        compressed_mint,
+        parsed_instruction_data,
+        queue_indices,
+    )
+}
+
+#[inline(always)]
+fn split_mint_and_token_accounts<'a>(
+    output_compressed_accounts: &'a mut [ZOutputCompressedAccountWithPackedContextMut<'a>],
+) -> (
+    &'a mut ZOutputCompressedAccountWithPackedContextMut<'a>,
+    &'a mut [ZOutputCompressedAccountWithPackedContextMut<'a>],
+) {
+    if output_compressed_accounts.len() == 1 {
+        (&mut output_compressed_accounts[0], &mut [])
+    } else {
+        let (mint_account, token_accounts) = output_compressed_accounts.split_at_mut(1);
+        (&mut mint_account[0], token_accounts)
+    }
+}
+
+fn serialize_compressed_mint<'a>(
+    mint_account: &'a mut ZOutputCompressedAccountWithPackedContextMut<'a>,
+    compressed_mint: CompressedMint,
+    parsed_instruction_data: &ZMintActionCompressedInstructionData,
+    queue_indices: &QueueIndices,
+) -> Result<(), ProgramError> {
     let compressed_account_data = mint_account
         .compressed_account
         .data
         .as_mut()
         .ok_or(ErrorCode::MintActionOutputSerializationFailed)?;
 
-    let (discriminator, data_hash) = if cmint_is_decompressed {
+    let (discriminator, data_hash) = if compressed_mint.metadata.cmint_decompressed {
         if !compressed_account_data.data.is_empty() {
             msg!(
                 "Data allocation for output mint account is wrong: {} (expected) != {} ",
@@ -170,13 +114,13 @@ pub fn process_output_compressed_account<'a>(
         compressed_account_data
             .data
             .copy_from_slice(data.as_slice());
+
         (
             COMPRESSED_MINT_DISCRIMINATOR,
             Sha256BE::hash(compressed_account_data.data)?,
         )
     };
 
-    // Set mint output compressed account fields except the data.
     mint_account.set(
         crate::LIGHT_CPI_SIGNER.program_id.into(),
         0,
@@ -185,21 +129,78 @@ pub fn process_output_compressed_account<'a>(
         discriminator,
         data_hash,
     )?;
-
     Ok(())
 }
 
-#[inline(always)]
-fn split_mint_and_token_accounts<'a>(
-    output_compressed_accounts: &'a mut [ZOutputCompressedAccountWithPackedContextMut<'a>],
-) -> (
-    &'a mut ZOutputCompressedAccountWithPackedContextMut<'a>,
-    &'a mut [ZOutputCompressedAccountWithPackedContextMut<'a>],
-) {
-    if output_compressed_accounts.len() == 1 {
-        (&mut output_compressed_accounts[0], &mut [])
-    } else {
-        let (mint_account, token_accounts) = output_compressed_accounts.split_at_mut(1);
-        (&mut mint_account[0], token_accounts)
+fn serialize_decompressed_mint(
+    validated_accounts: &MintActionAccounts,
+    accounts_config: &AccountsConfig,
+    compressed_mint: &mut CompressedMint,
+) -> Result<(), ProgramError> {
+    let cmint_account = validated_accounts
+        .get_cmint()
+        .ok_or(ErrorCode::CMintNotFound)?;
+    let num_bytes = cmint_account.data_len() as u64;
+    let current_lamports = cmint_account.lamports();
+    let rent_exemption = get_rent_exemption_lamports(num_bytes)
+        .map_err(|_| ErrorCode::CMintTopUpCalculationFailed)?;
+
+    // Skip top-up calculation if decompress mint action is present
+    // (rent was just paid during account creation).
+    if !accounts_config.has_decompress_mint_action {
+        // Handle top-up for compressed mint (compression info is now embedded directly)
+        // Get current slot for top-up calculation
+        let current_slot = Clock::get().map_err(convert_program_error)?.slot;
+        // Calculate top-up amount using embedded compression info
+        let top_up = compressed_mint
+            .compression
+            .calculate_top_up_lamports(num_bytes, current_slot, current_lamports, rent_exemption)
+            .map_err(|_| ErrorCode::CMintTopUpCalculationFailed)?;
+
+        if top_up > 0 {
+            let fee_payer = validated_accounts
+                .executing
+                .as_ref()
+                .map(|exec| exec.system.fee_payer)
+                .ok_or(ProgramError::NotEnoughAccountKeys)?;
+            transfer_lamports(top_up, fee_payer, cmint_account).map_err(convert_program_error)?;
+        }
     }
+
+    let serialized = compressed_mint
+        .try_to_vec()
+        .map_err(|_| ErrorCode::MintActionOutputSerializationFailed)?;
+    let required_size = serialized.len();
+
+    // Resize if needed (e.g., metadata extensions added)
+    if cmint_account.data_len() < required_size {
+        cmint_account
+            .resize(required_size)
+            .map_err(|_| ErrorCode::CMintResizeFailed)?;
+
+        // Transfer additional lamports for rent if resized
+        let rent = Rent::get().map_err(|_| ProgramError::UnsupportedSysvar)?;
+        let required_lamports = rent.minimum_balance(required_size);
+        if cmint_account.lamports() < required_lamports {
+            let fee_payer = validated_accounts
+                .executing
+                .as_ref()
+                .map(|exec| exec.system.fee_payer)
+                .ok_or(ProgramError::NotEnoughAccountKeys)?;
+            transfer_lamports(
+                required_lamports - cmint_account.lamports(),
+                fee_payer,
+                cmint_account,
+            )
+            .map_err(convert_program_error)?;
+        }
+    }
+
+    let mut cmint_data = cmint_account
+        .try_borrow_mut_data()
+        .map_err(|_| ProgramError::AccountBorrowFailed)?;
+    // SAFETY: we previously resized the account if needed
+    cmint_data[..serialized.len()].copy_from_slice(&serialized);
+
+    Ok(())
 }
