@@ -94,6 +94,7 @@ describe('createUnwrapInstruction', () => {
             mint,
             BigInt(1000),
             tokenPoolInfo!,
+            TEST_TOKEN_DECIMALS,
         );
 
         expect(ix).toBeDefined();
@@ -125,6 +126,7 @@ describe('createUnwrapInstruction', () => {
             mint,
             BigInt(500),
             tokenPoolInfo!,
+            TEST_TOKEN_DECIMALS,
             feePayer.publicKey,
         );
 
