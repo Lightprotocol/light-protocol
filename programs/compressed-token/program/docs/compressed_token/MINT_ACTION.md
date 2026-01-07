@@ -7,7 +7,7 @@
 **description:**
 Batch instruction for managing compressed mint accounts (cmints) and performing mint operations. A compressed mint account stores the mint's supply, decimals, authorities (mint/freeze), and optional TokenMetadata extension in compressed state. TokenMetadata is the only extension supported for compressed mints and provides fields for name, symbol, uri, update_authority, and additional key-value metadata.
 
-This instruction supports 11 total actions - one creation action (controlled by `create_mint` flag) and 10 enum-based actions:
+This instruction supports 10 total actions - one creation action (controlled by `create_mint` flag) and 9 enum-based actions:
 
 **Compressed mint creation (executed first when `create_mint` is Some):**
 1. **Create Compressed Mint** - Create a new compressed mint account with initial authorities and optional TokenMetadata extension
@@ -15,20 +15,19 @@ This instruction supports 11 total actions - one creation action (controlled by 
 **Core mint operations (Action enum variants):**
 2. `MintToCompressed` - Mint new compressed tokens to one or more compressed token accounts
 3. `MintToCToken` - Mint new tokens to decompressed ctoken accounts (not SPL tokens)
-4. `CreateSplMint` - Create an SPL Token 2022 mint for an existing compressed mint, enabling SPL interoperability
 
 **Authority updates (Action enum variants):**
-5. `UpdateMintAuthority` - Update or remove the mint authority
-6. `UpdateFreezeAuthority` - Update or remove the freeze authority
+4. `UpdateMintAuthority` - Update or remove the mint authority
+5. `UpdateFreezeAuthority` - Update or remove the freeze authority
 
 **TokenMetadata extension operations (Action enum variants):**
-7. `UpdateMetadataField` - Update name, symbol, uri, or additional_metadata fields in the TokenMetadata extension
-8. `UpdateMetadataAuthority` - Update the metadata update authority in the TokenMetadata extension
-9. `RemoveMetadataKey` - Remove a key-value pair from additional_metadata in the TokenMetadata extension
+6. `UpdateMetadataField` - Update name, symbol, uri, or additional_metadata fields in the TokenMetadata extension
+7. `UpdateMetadataAuthority` - Update the metadata update authority in the TokenMetadata extension
+8. `RemoveMetadataKey` - Remove a key-value pair from additional_metadata in the TokenMetadata extension
 
 **Decompress/Compress operations (Action enum variants):**
-10. `DecompressMint` - Decompress a compressed mint to a CMint Solana account. Creates a CMint PDA that becomes the source of truth.
-11. `CompressAndCloseCMint` - Compress and close a CMint Solana account. Permissionless - anyone can call if is_compressible() returns true (rent expired).
+9. `DecompressMint` - Decompress a compressed mint to a CMint Solana account. Creates a CMint PDA that becomes the source of truth.
+10. `CompressAndCloseCMint` - Compress and close a CMint Solana account. Permissionless - anyone can call if is_compressible() returns true (rent expired).
 
 Key concepts integrated:
 - **Compressed mint (cmint)**: Mint state stored in compressed account with deterministic address derived from associated SPL mint pubkey
@@ -54,16 +53,15 @@ Key concepts integrated:
    - `mint`: Option<CompressedMintInstructionData> - Full mint state including supply, decimals, metadata, authorities, and extensions (None when reading from decompressed CMint)
 
 2. Action types (path: program-libs/ctoken-interface/src/instructions/mint_action/):
-   - `MintToCompressed(MintToCompressedAction)` - Mint tokens to compressed accounts (mint_to.rs)
+   - `MintToCompressed(MintToCompressedAction)` - Mint tokens to compressed accounts (mint_to_compressed.rs)
    - `UpdateMintAuthority(UpdateAuthority)` - Update mint authority (update_mint.rs)
    - `UpdateFreezeAuthority(UpdateAuthority)` - Update freeze authority (update_mint.rs)
-   - `CreateSplMint(CreateSplMintAction)` - Create SPL mint for cmint (create_spl_mint.rs)
    - `MintToCToken(MintToCTokenAction)` - Mint to ctoken accounts (mint_to_ctoken.rs)
    - `UpdateMetadataField(UpdateMetadataFieldAction)` - Update metadata field (update_metadata.rs)
    - `UpdateMetadataAuthority(UpdateMetadataAuthorityAction)` - Update metadata authority (update_metadata.rs)
    - `RemoveMetadataKey(RemoveMetadataKeyAction)` - Remove metadata key (update_metadata.rs)
-   - `DecompressMint(DecompressMintAction)` - Decompress compressed mint to CMint Solana account
-   - `CompressAndCloseCMint(CompressAndCloseCMintAction)` - Compress and close CMint Solana account
+   - `DecompressMint(DecompressMintAction)` - Decompress compressed mint to CMint Solana account (decompress_mint.rs)
+   - `CompressAndCloseCMint(CompressAndCloseCMintAction)` - Compress and close CMint Solana account (compress_and_close_cmint.rs)
 
 **Accounts:**
 1. light_system_program
@@ -72,7 +70,7 @@ Key concepts integrated:
 
 Optional accounts (based on configuration):
 2. mint_signer
-   - (signer) - required if create_mint is Some or CreateSplMint action present
+   - (signer) - required if create_mint is Some or DecompressMint action present
    - PDA seed for SPL mint creation (seeds from compressed mint randomness)
 
 3. authority
@@ -160,13 +158,6 @@ Packed accounts (remaining accounts):
    **UpdateMintAuthority / UpdateFreezeAuthority:**
    - Validate: current authority matches signer
    - Update: set new authority (can be None to disable)
-
-   **CreateSplMint:**
-   - Validate: mint_signer is provided and signing
-   - Create: SPL Token 2022 mint account via CPI
-   - Create: Token pool PDA account
-   - Initialize: mint with ctoken PDA as mint/freeze authority
-   - Mint: existing supply to token pool
 
    **MintToCToken:**
    - Validate: mint authority matches signer

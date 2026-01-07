@@ -10,7 +10,7 @@ use pinocchio::{
 use crate::{shared::convert_program_error, LIGHT_CPI_SIGNER};
 
 /// Mint tokens to the token pool using SPL token mint_to instruction.
-/// This function is shared between create_spl_mint and mint_to_compressed processors
+/// This function is used by mint_to_compressed processors
 /// to ensure consistent token pool management.
 #[profile]
 pub fn mint_to_token_pool(

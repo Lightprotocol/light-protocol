@@ -19,7 +19,7 @@ use crate::{
         convert_program_error,
         transfer_lamports::{multi_transfer_lamports, Transfer},
     },
-    LIGHT_CPI_SIGNER, MAX_PACKED_ACCOUNTS,
+    LIGHT_CPI_SIGNER, MAX_COMPRESSIONS, MAX_PACKED_ACCOUNTS,
 };
 
 pub mod ctoken;
@@ -47,13 +47,16 @@ pub fn process_token_compression<'a>(
     cpi_authority: &AccountInfo,
     max_top_up: u16,
     mint_cache: &'a MintExtensionCache,
-    compression_to_input: &[Option<u8>; 32],
+    compression_to_input: &[Option<u8>; MAX_COMPRESSIONS],
 ) -> Result<(), ProgramError> {
     if let Some(compressions) = inputs.compressions.as_ref() {
-        if compressions.len() >= 32 {
-            // TODO: add meaningful error message
-            // TODO: use constant instead of 32.
-            return Err(ProgramError::InvalidInstructionData);
+        if compressions.len() >= MAX_COMPRESSIONS {
+            msg!(
+                "Too many compressions: {} provided, maximum {} allowed",
+                compressions.len(),
+                MAX_COMPRESSIONS
+            );
+            return Err(ErrorCode::TooManyCompressionTransfers.into());
         }
         let mut transfer_map = [0u64; MAX_PACKED_ACCOUNTS];
         // Initialize budget: +1 allows exact match (total == max_top_up)

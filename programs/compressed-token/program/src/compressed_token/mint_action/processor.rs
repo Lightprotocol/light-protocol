@@ -38,13 +38,8 @@ pub fn process_mint_action(
         .as_ref()
         .map(|m| m.metadata.mint.into());
     // Validate and parse
-    let validated_accounts = MintActionAccounts::validate_and_parse(
-        accounts,
-        &accounts_config,
-        cmint_pubkey.as_ref(),
-        parsed_instruction_data.token_pool_index,
-        parsed_instruction_data.token_pool_bump,
-    )?;
+    let validated_accounts =
+        MintActionAccounts::validate_and_parse(accounts, &accounts_config, cmint_pubkey.as_ref())?;
 
     // Get mint data based on source:
     // 1. Creating new mint: mint data required in instruction

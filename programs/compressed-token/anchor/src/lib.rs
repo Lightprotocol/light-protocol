@@ -425,7 +425,7 @@ pub enum ErrorCode {
     CompressAndCloseInvalidVersion, // 6093
     #[msg("InvalidAddressTree")]
     InvalidAddressTree, // 6094
-    #[msg("Too many compression transfers. Maximum 40 transfers allowed per instruction")]
+    #[msg("Too many compression transfers. Maximum 32 transfers allowed per instruction")]
     TooManyCompressionTransfers, // 6095
     #[msg("Missing fee payer for compressions-only operation")]
     CompressionsOnlyMissingFeePayer, // 6096

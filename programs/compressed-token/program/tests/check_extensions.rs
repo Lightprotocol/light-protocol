@@ -8,8 +8,7 @@
 //! - Category 5: Direct check_mint_extensions tests
 
 use anchor_compressed_token::ErrorCode;
-use anchor_lang::prelude::ProgramError;
-use anchor_lang::solana_program::pubkey::Pubkey as SolanaPubkey;
+use anchor_lang::{prelude::ProgramError, solana_program::pubkey::Pubkey as SolanaPubkey};
 use light_account_checks::{
     account_info::test_account_info::pinocchio::get_account_info,
     packed_accounts::ProgramPackedAccounts,
@@ -21,7 +20,7 @@ use light_compressed_token::{
 use light_ctoken_interface::instructions::{
     extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
     transfer2::{
-        Compression, CompressionMode, CompressedTokenInstructionDataTransfer2,
+        CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,
         MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
     },
 };
@@ -96,11 +95,8 @@ fn create_mock_t22_mint(config: &MintConfig) -> Vec<u8> {
 
     // Initialize extensions
     if config.has_pausable {
-        let ext = mint_state
-            .init_extension::<PausableConfig>(true)
-            .unwrap();
-        ext.authority =
-            OptionalNonZeroPubkey::try_from(Some(SolanaPubkey::new_unique())).unwrap();
+        let ext = mint_state.init_extension::<PausableConfig>(true).unwrap();
+        ext.authority = OptionalNonZeroPubkey::try_from(Some(SolanaPubkey::new_unique())).unwrap();
         ext.paused = PodBool::from(config.is_paused);
     }
 
@@ -132,14 +128,11 @@ fn create_mock_t22_mint(config: &MintConfig) -> Vec<u8> {
         let ext = mint_state
             .init_extension::<PermanentDelegate>(true)
             .unwrap();
-        ext.delegate =
-            OptionalNonZeroPubkey::try_from(Some(SolanaPubkey::new_unique())).unwrap();
+        ext.delegate = OptionalNonZeroPubkey::try_from(Some(SolanaPubkey::new_unique())).unwrap();
     }
 
     if config.has_metadata_pointer {
-        let ext = mint_state
-            .init_extension::<MetadataPointer>(true)
-            .unwrap();
+        let ext = mint_state.init_extension::<MetadataPointer>(true).unwrap();
         ext.metadata_address =
             OptionalNonZeroPubkey::try_from(Some(SolanaPubkey::new_unique())).unwrap();
     }
@@ -265,7 +258,9 @@ fn run_build_cache_test(
     );
 
     let accounts = [mint_account];
-    let packed_accounts = ProgramPackedAccounts { accounts: &accounts };
+    let packed_accounts = ProgramPackedAccounts {
+        accounts: &accounts,
+    };
 
     build_mint_extension_cache(&inputs, &packed_accounts).map(|_| ())
 }
@@ -426,7 +421,10 @@ fn test_compress_and_close_missing_compressed_only_fails() {
     });
 
     let result = run_build_cache_test(&inputs, &mint_data, SPL_TOKEN_2022_ID);
-    assert_error(result, ErrorCode::CompressAndCloseMissingCompressedOnlyExtension);
+    assert_error(
+        result,
+        ErrorCode::CompressAndCloseMissingCompressedOnlyExtension,
+    );
 }
 
 #[test]
@@ -445,7 +443,10 @@ fn test_compress_and_close_empty_tlv_fails() {
     });
 
     let result = run_build_cache_test(&inputs, &mint_data, SPL_TOKEN_2022_ID);
-    assert_error(result, ErrorCode::CompressAndCloseMissingCompressedOnlyExtension);
+    assert_error(
+        result,
+        ErrorCode::CompressAndCloseMissingCompressedOnlyExtension,
+    );
 }
 
 // ============================================================================
@@ -466,7 +467,11 @@ fn test_input_with_restricted_no_outputs_succeeds() {
     });
 
     let result = run_build_cache_test(&inputs, &mint_data, SPL_TOKEN_2022_ID);
-    assert!(result.is_ok(), "Should succeed with bypass, got {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Should succeed with bypass, got {:?}",
+        result
+    );
 }
 
 #[test]
@@ -486,7 +491,11 @@ fn test_compress_and_close_with_compressed_only_succeeds() {
     });
 
     let result = run_build_cache_test(&inputs, &mint_data, SPL_TOKEN_2022_ID);
-    assert!(result.is_ok(), "Should succeed with CompressedOnly, got {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Should succeed with CompressedOnly, got {:?}",
+        result
+    );
 }
 
 #[test]
@@ -504,7 +513,11 @@ fn test_decompress_no_outputs_succeeds() {
     });
 
     let result = run_build_cache_test(&inputs, &mint_data, SPL_TOKEN_2022_ID);
-    assert!(result.is_ok(), "Should succeed with bypass, got {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Should succeed with bypass, got {:?}",
+        result
+    );
 }
 
 #[test]
@@ -522,7 +535,11 @@ fn test_compress_no_outputs_succeeds() {
     });
 
     let result = run_build_cache_test(&inputs, &mint_data, SPL_TOKEN_2022_ID);
-    assert!(result.is_ok(), "Should succeed with bypass, got {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Should succeed with bypass, got {:?}",
+        result
+    );
 }
 
 // ============================================================================
@@ -555,7 +572,11 @@ fn test_t22_mint_no_extensions_succeeds() {
     });
 
     let result = run_build_cache_test(&inputs, &mint_data, SPL_TOKEN_2022_ID);
-    assert!(result.is_ok(), "T22 without extensions should succeed, got {:?}", result);
+    assert!(
+        result.is_ok(),
+        "T22 without extensions should succeed, got {:?}",
+        result
+    );
 }
 
 #[test]
@@ -572,7 +593,11 @@ fn test_t22_mint_with_metadata_only_succeeds() {
     });
 
     let result = run_build_cache_test(&inputs, &mint_data, SPL_TOKEN_2022_ID);
-    assert!(result.is_ok(), "MetadataPointer should succeed, got {:?}", result);
+    assert!(
+        result.is_ok(),
+        "MetadataPointer should succeed, got {:?}",
+        result
+    );
 }
 
 // ============================================================================
@@ -618,7 +643,10 @@ fn test_check_mint_extensions_non_zero_fee() {
     );
 
     let result = check_mint_extensions(&mint_account, false);
-    assert_error(result.map(|_| ()), ErrorCode::NonZeroTransferFeeNotSupported);
+    assert_error(
+        result.map(|_| ()),
+        ErrorCode::NonZeroTransferFeeNotSupported,
+    );
 }
 
 #[test]
@@ -679,7 +707,11 @@ fn test_check_mint_extensions_deny_restricted_non_restricted_succeeds() {
 
     // deny_restricted=true should succeed with non-restricted mint
     let result = check_mint_extensions(&mint_account, true);
-    assert!(result.is_ok(), "Non-restricted mint should succeed, got {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Non-restricted mint should succeed, got {:?}",
+        result
+    );
 }
 
 #[test]
@@ -704,5 +736,9 @@ fn test_check_mint_extensions_valid_mint_succeeds() {
 
     // deny_restricted=false with all valid states should succeed
     let result = check_mint_extensions(&mint_account, false);
-    assert!(result.is_ok(), "Valid mint should succeed, got {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Valid mint should succeed, got {:?}",
+        result
+    );
 }

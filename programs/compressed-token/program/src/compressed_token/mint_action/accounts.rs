@@ -70,13 +70,11 @@ impl<'info> MintActionAccounts<'info> {
         accounts: &'info [AccountInfo],
         config: &AccountsConfig,
         cmint_pubkey: Option<&solana_pubkey::Pubkey>,
-        token_pool_index: u8,
-        token_pool_bump: u8,
     ) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
         let light_system_program = iter.next_account("light_system_program")?;
 
-        // mint_signer needs to sign for create_mint/create_spl_mint, but not for decompress_mint
+        // mint_signer needs to sign for create_mint, but not for decompress_mint
         let mint_signer = if config.mint_signer_must_sign() {
             iter.next_option_signer("mint_signer", config.with_mint_signer)?
         } else {
@@ -156,7 +154,7 @@ impl<'info> MintActionAccounts<'info> {
                     accounts: iter.remaining_unchecked()?,
                 },
             };
-            mint_accounts.validate_accounts(cmint_pubkey, token_pool_index, token_pool_bump)?;
+            mint_accounts.validate_accounts(cmint_pubkey)?;
 
             Ok(mint_accounts)
         }
@@ -304,8 +302,6 @@ impl<'info> MintActionAccounts<'info> {
     pub fn validate_accounts(
         &self,
         cmint_pubkey: Option<&solana_pubkey::Pubkey>,
-        _token_pool_index: u8, //TODO: remove
-        _token_pool_bump: u8,
     ) -> Result<(), ProgramError> {
         let accounts = self
             .executing
@@ -386,7 +382,7 @@ impl AccountsConfig {
     }
 
     /// Returns true if mint_signer must be a signer.
-    /// Required for create_mint and create_spl_mint, but NOT for decompress_mint.
+    /// Required for create_mint, but NOT for decompress_mint.
     /// decompress_mint only needs mint_signer.key() for PDA derivation.
     #[inline(always)]
     pub fn mint_signer_must_sign(&self) -> bool {
@@ -418,11 +414,6 @@ impl AccountsConfig {
             .as_ref()
             .map(|x| x.first_set_context() || x.set_context())
             .unwrap_or_default();
-        // An action in this instruction creates a the spl mint corresponding to a compressed mint.
-        let create_spl_mint = parsed_instruction_data
-            .actions
-            .iter()
-            .any(|action| matches!(action, ZAction::CreateSplMint(_)));
 
         // Check if DecompressMint action is present
         let has_decompress_mint_action = parsed_instruction_data
@@ -442,18 +433,13 @@ impl AccountsConfig {
             return Err(ErrorCode::CannotDecompressAndCloseInSameInstruction.into());
         }
 
-        // We need mint signer if create mint, create spl mint, or decompress mint.
+        // We need mint signer if create mint or decompress mint.
         // CompressAndCloseCMint does NOT need mint_signer - it verifies CMint by compressed_mint.metadata.mint
-        let with_mint_signer = parsed_instruction_data.create_mint.is_some()
-            || create_spl_mint
-            || has_decompress_mint_action;
+        let with_mint_signer =
+            parsed_instruction_data.create_mint.is_some() || has_decompress_mint_action;
         // CMint account needed for sync when mint is already decompressed (metadata flag)
         // When mint is None, it means CMint is decompressed (data lives in CMint account)
         let cmint_decompressed = parsed_instruction_data.mint.is_none();
-
-        if cmint_decompressed && create_spl_mint {
-            return Err(ProgramError::InvalidInstructionData);
-        }
 
         if write_to_cpi_context {
             // Must not have any MintToCToken actions
@@ -463,10 +449,6 @@ impl AccountsConfig {
                 .any(|action| matches!(action, ZAction::MintToCToken(_)));
             if has_mint_to_ctoken_actions {
                 msg!("Mint to ctokens not allowed when writing to cpi context");
-                return Err(ErrorCode::CpiContextSetNotUsable.into());
-            }
-            if create_spl_mint {
-                msg!("Create spl mint not allowed when writing to cpi context");
                 return Err(ErrorCode::CpiContextSetNotUsable.into());
             }
             if has_decompress_mint_action || cmint_decompressed {

@@ -97,7 +97,6 @@ pub fn set_input_compressed_account<'a>(
         owner_account
     };
 
-    // TODO: allow freeze authority to decompress if has CompressOnlyExtension
     verify_owner_or_delegate_signer(
         signer_account,
         delegate_account,

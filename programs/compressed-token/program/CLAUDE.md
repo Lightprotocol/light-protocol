@@ -73,7 +73,7 @@ Every instruction description must include the sections:
 
 6. **MintAction** - [`docs/instructions/MINT_ACTION.md`](docs/instructions/MINT_ACTION.md)
    - Batch instruction for compressed mint management and mint operations (discriminator: 103, enum: `InstructionType::MintAction`)
-   - Supports 9 action types: CreateCompressedMint, MintTo, UpdateMintAuthority, UpdateFreezeAuthority, CreateSplMint, MintToCToken, UpdateMetadataField, UpdateMetadataAuthority, RemoveMetadataKey
+   - Supports 10 action types: CreateCompressedMint, MintTo, UpdateMintAuthority, UpdateFreezeAuthority, MintToCToken, UpdateMetadataField, UpdateMetadataAuthority, RemoveMetadataKey, DecompressMint, CompressAndCloseCMint
    - Handles both compressed and decompressed token minting
 
 7. **CTokenTransfer** - [`docs/instructions/CTOKEN_TRANSFER.md`](docs/instructions/CTOKEN_TRANSFER.md)

@@ -34,6 +34,9 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 
 pub const MAX_ACCOUNTS: usize = 30;
 pub(crate) const MAX_PACKED_ACCOUNTS: usize = 40;
+/// Maximum number of compression operations per instruction.
+/// Used for compression_to_input lookup array sizing.
+pub(crate) const MAX_COMPRESSIONS: usize = 32;
 
 // Custom ctoken instructions start at 100 to skip spl-token program instrutions.
 // When adding new instructions check anchor discriminators for collisions!
@@ -78,11 +81,12 @@ pub enum InstructionType {
     ///     2. MintTo
     ///     3. UpdateMintAuthority
     ///     4. UpdateFreezeAuthority
-    ///     5. CreateSplMint
-    ///     6. MintToCToken
-    ///     7. UpdateMetadataField
-    ///     8. UpdateMetadataAuthority
-    ///     9. RemoveMetadataKey
+    ///     5. MintToCToken
+    ///     6. UpdateMetadataField
+    ///     7. UpdateMetadataAuthority
+    ///     8. RemoveMetadataKey
+    ///     9. DecompressMint
+    ///     10. CompressAndCloseCMint
     MintAction = 103,
     /// Claim rent for past completed epochs from compressible token account
     Claim = 104,

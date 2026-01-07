@@ -37,8 +37,6 @@ export const UpdateAuthorityLayout = struct([
     option(publicKey(), 'newAuthority'),
 ]);
 
-export const CreateSplMintActionLayout = struct([u8('mintBump')]);
-
 export const MintToCTokenActionLayout = struct([
     u8('accountIndex'),
     u64('amount'),
@@ -74,7 +72,6 @@ export const ActionLayout = rustEnum([
     MintToCompressedActionLayout.replicate('mintToCompressed'),
     UpdateAuthorityLayout.replicate('updateMintAuthority'),
     UpdateAuthorityLayout.replicate('updateFreezeAuthority'),
-    CreateSplMintActionLayout.replicate('createSplMint'),
     MintToCTokenActionLayout.replicate('mintToCToken'),
     UpdateMetadataFieldActionLayout.replicate('updateMetadataField'),
     UpdateMetadataAuthorityActionLayout.replicate('updateMetadataAuthority'),
@@ -233,10 +230,6 @@ export interface UpdateAuthority {
     newAuthority: PublicKey | null;
 }
 
-export interface CreateSplMintAction {
-    mintBump: number;
-}
-
 export interface MintToCTokenAction {
     accountIndex: number;
     amount: bigint;
@@ -274,7 +267,6 @@ export type Action =
     | { mintToCompressed: MintToCompressedAction }
     | { updateMintAuthority: UpdateAuthority }
     | { updateFreezeAuthority: UpdateAuthority }
-    | { createSplMint: CreateSplMintAction }
     | { mintToCToken: MintToCTokenAction }
     | { updateMetadataField: UpdateMetadataFieldAction }
     | { updateMetadataAuthority: UpdateMetadataAuthorityAction }

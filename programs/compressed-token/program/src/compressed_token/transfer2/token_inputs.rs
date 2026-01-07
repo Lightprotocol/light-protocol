@@ -12,10 +12,10 @@ use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 
 use super::check_extensions::{validate_tlv_and_get_frozen, MintExtensionCache};
-use crate::shared::token_input::set_input_compressed_account;
+use crate::{shared::token_input::set_input_compressed_account, MAX_COMPRESSIONS};
 
 /// Process input compressed accounts and return compression-to-input lookup.
-/// Returns `[Option<u8>; 32]` where `compression_to_input[compression_idx] = Some(input_idx)`.
+/// Returns `[Option<u8>; MAX_COMPRESSIONS]` where `compression_to_input[compression_idx] = Some(input_idx)`.
 #[profile]
 #[inline(always)]
 pub fn set_input_compressed_accounts<'a>(
@@ -25,9 +25,9 @@ pub fn set_input_compressed_accounts<'a>(
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     all_accounts: &[AccountInfo],
     mint_cache: &'a MintExtensionCache,
-) -> Result<[Option<u8>; 32], ProgramError> {
+) -> Result<[Option<u8>; MAX_COMPRESSIONS], ProgramError> {
     // compression_to_input[compression_index] = Some(input_index), None means unset
-    let mut compression_to_input: [Option<u8>; 32] = [None; 32];
+    let mut compression_to_input: [Option<u8>; MAX_COMPRESSIONS] = [None; MAX_COMPRESSIONS];
 
     for (i, input_data) in inputs.in_token_data.iter().enumerate() {
         let input_lamports = if let Some(lamports) = inputs.in_lamports.as_ref() {

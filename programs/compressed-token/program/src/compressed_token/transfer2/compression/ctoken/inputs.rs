@@ -10,7 +10,7 @@ use light_ctoken_interface::instructions::{
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
 
-use crate::extensions::MintExtensionChecks;
+use crate::{extensions::MintExtensionChecks, MAX_COMPRESSIONS};
 
 /// Decompress-specific inputs from the input compressed account.
 /// Only required for decompression with CompressedOnly extension.
@@ -36,7 +36,7 @@ impl<'a> DecompressCompressOnlyInputs<'a> {
     pub fn try_extract(
         compression: &ZCompression,
         compression_index: usize,
-        compression_to_input: &[Option<u8>; 32],
+        compression_to_input: &[Option<u8>; MAX_COMPRESSIONS],
         inputs: &'a ZCompressedTokenInstructionDataTransfer2<'a>,
         packed_accounts: &'a ProgramPackedAccounts<'a, AccountInfo>,
     ) -> Result<Option<Self>, ProgramError> {

@@ -156,37 +156,8 @@ async fn test_create_compressed_mint() {
         )
         .await;
     }
-    // // 3. Create SPL mint from compressed mint
-    // // Get compressed mint data before creating SPL mint
-    // {
-    //     let pre_compressed_mint_account = rpc
-    //         .indexer()
-    //         .unwrap()
-    //         .get_compressed_account(compressed_mint_address, None)
-    //         .await
-    //         .unwrap()
-    //         .value.unwrap();
-    //     let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
-    //         &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
-    //     )
-    //     .unwrap();
 
-    //     // Use our create_spl_mint action helper (automatically handles proofs, PDAs, and transaction)
-    //     create_spl_mint(
-    //         &mut rpc,
-    //         compressed_mint_address,
-    //         &mint_seed,
-    //         &mint_authority_keypair,
-    //         &payer,
-    //     )
-    //     .await
-    //     .unwrap();
-
-    //     // Verify SPL mint was created using our assertion helper
-    //     assert_spl_mint(&mut rpc, mint_seed.pubkey(), &pre_compressed_mint).await;
-    // }
-
-    // 4. Transfer compressed tokens to new recipient
+    // 3. Transfer compressed tokens to new recipient
     // Get the compressed token account for decompression
     let compressed_token_accounts = rpc
         .indexer()
@@ -1256,7 +1227,7 @@ async fn test_mint_actions() {
         metadata: CompressedMintMetadata {
             version: 3, // With metadata
             mint: spl_mint_pda.into(),
-            cmint_decompressed: false, // Should be true after CreateSplMint action
+            cmint_decompressed: false, // Becomes true after DecompressMint action
         },
         reserved: [0u8; 49],
         account_type: ACCOUNT_TYPE_MINT,

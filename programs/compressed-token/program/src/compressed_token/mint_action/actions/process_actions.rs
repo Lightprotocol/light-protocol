@@ -86,17 +86,6 @@ pub fn process_actions<'a>(
                 compressed_mint.base.freeze_authority =
                     update_action.new_authority.as_ref().map(|a| **a);
             }
-            // TODO: Remove CreateSplMint - dead code, never activated
-            ZAction::CreateSplMint(_create_spl_action) => {
-                return Err(ErrorCode::MintActionUnsupportedOperation.into());
-                // process_create_spl_mint_action(
-                //     create_spl_action,
-                //     validated_accounts,
-                //     &parsed_instruction_data.mint,
-                //     parsed_instruction_data.token_pool_bump,
-                // )?;
-                // compressed_mint.metadata.cmint_decompressed = true;
-            }
             ZAction::MintToCToken(mint_to_ctoken_action) => {
                 let account_index = mint_to_ctoken_action.account_index as usize;
                 if account_index >= MAX_PACKED_ACCOUNTS {

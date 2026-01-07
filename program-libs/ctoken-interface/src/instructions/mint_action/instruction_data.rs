@@ -3,8 +3,8 @@ use light_compressible::compression_info::CompressionInfo;
 use light_zero_copy::ZeroCopy;
 
 use super::{
-    CompressAndCloseCMintAction, CpiContext, CreateSplMintAction, DecompressMintAction,
-    MintToCTokenAction, MintToCompressedAction, RemoveMetadataKeyAction, UpdateAuthority,
+    CompressAndCloseCMintAction, CpiContext, DecompressMintAction, MintToCTokenAction,
+    MintToCompressedAction, RemoveMetadataKeyAction, UpdateAuthority,
     UpdateMetadataAuthorityAction, UpdateMetadataFieldAction,
 };
 use crate::{
@@ -25,11 +25,6 @@ pub enum Action {
     UpdateMintAuthority(UpdateAuthority),
     /// Update freeze authority of a compressed mint account.
     UpdateFreezeAuthority(UpdateAuthority),
-    /// Create an spl mint for a cmint.
-    /// - existing supply is minted to a token pool account.
-    /// - mint and freeze authority are a ctoken pda.
-    /// - is an spl-token-2022 mint account.
-    CreateSplMint(CreateSplMintAction),
     /// Mint ctokens from a cmint to a ctoken solana account
     /// (tokens are not compressed but not spl tokens).
     MintToCToken(MintToCTokenAction),
