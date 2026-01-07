@@ -1,0 +1,23 @@
+{
+  "name": "@lightprotocol/forester",
+  "version": "0.3.0",
+  "license": "GPL-3.0",
+  "scripts": {
+    "build": "cargo build",
+    "test": "redis-start && TEST_MODE=local TEST_V1_STATE=true TEST_V2_STATE=true TEST_V1_ADDRESS=true TEST_V2_ADDRESS=true RUST_LOG=forester=debug,forester_utils=debug,light_prover_client=debug cargo test --package forester e2e_test -- --nocapture",
+    "test:compressible": "cargo build-sbf -- -p csdk-anchor-full-derived-test && RUST_LOG=forester=debug,light_client=debug cargo test --package forester --test test_compressible_pda --test test_compressible_mint --test test_compressible_ctoken -- --nocapture",
+    "docker:build": "docker build --tag forester -f Dockerfile .."
+  },
+  "devDependencies": {
+    "@lightprotocol/zk-compression-cli": "workspace:*"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": [
+          "{workspaceRoot}/target/release"
+        ]
+      }
+    }
+  }
+}
