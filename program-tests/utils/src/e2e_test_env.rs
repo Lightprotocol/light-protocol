@@ -1129,6 +1129,7 @@ where
                             merkle_tree: state_merkle_tree_bundle.accounts.merkle_tree,
                             queue: state_merkle_tree_bundle.accounts.nullifier_queue,
                             is_rolledover: false,
+                            owner: Default::default(),
                         }
                     })
                     .collect::<Vec<TreeAccounts>>();
@@ -1139,6 +1140,7 @@ where
                             merkle_tree: address_merkle_tree_bundle.accounts.merkle_tree,
                             queue: address_merkle_tree_bundle.accounts.queue,
                             is_rolledover: false,
+                            owner: Default::default(),
                         });
                     },
                 );

@@ -1,5 +1,5 @@
 use account_compression::{
-    utils::check_discriminator::check_discriminator, AddressMerkleTreeAccount,
+    utils::check_discriminator::check_discriminator, AddressMerkleTreeAccount, RegisteredProgram,
     StateMerkleTreeAccount,
 };
 use borsh::BorshDeserialize;
@@ -10,7 +10,7 @@ use light_compressed_account::TreeType;
 use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
 use serde_json::json;
 use solana_sdk::{account::Account, pubkey::Pubkey};
-use tracing::{debug, trace, warn};
+use tracing::{debug, info, trace, warn};
 
 use crate::{errors::AccountDeserializationError, Result};
 
@@ -302,14 +302,48 @@ fn create_tree_accounts(
         metadata.associated_queue.into(),
         tree_type,
         metadata.rollover_metadata.rolledover_slot != u64::MAX,
+        metadata.access_metadata.owner.into(),
     );
 
     trace!(
-        "{:?} Merkle Tree account found. Pubkey: {}. Queue pubkey: {}. Rolledover: {}",
+        "{:?} Merkle Tree account found. Pubkey: {}. Queue pubkey: {}. Rolledover: {}. Owner: {}",
         tree_type,
         pubkey,
         tree_accounts.queue,
-        tree_accounts.is_rolledover
+        tree_accounts.is_rolledover,
+        tree_accounts.owner
     );
     tree_accounts
+}
+
+pub fn get_registered_program_pda(program_id: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        &[program_id.to_bytes().as_slice()],
+        &account_compression::ID,
+    )
+    .0
+}
+
+pub async fn fetch_protocol_group_authority<R: Rpc>(rpc: &R) -> Result<Pubkey> {
+    let registered_program_pda = get_registered_program_pda(&light_registry::ID);
+
+    let account = rpc
+        .get_account(registered_program_pda)
+        .await?
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "RegisteredProgram PDA not found for light_registry at {}",
+                registered_program_pda
+            )
+        })?;
+
+    let registered_program = RegisteredProgram::deserialize(&mut &account.data[8..])
+        .map_err(|e| anyhow::anyhow!("Failed to deserialize RegisteredProgram: {}", e))?;
+
+    info!(
+        "Fetched protocol group authority: {}",
+        registered_program.group_authority_pda
+    );
+
+    Ok(registered_program.group_authority_pda)
 }

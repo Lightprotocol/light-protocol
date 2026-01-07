@@ -2,10 +2,12 @@ use std::{fmt, marker::PhantomData, mem, pin::Pin};
 
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use light_client::rpc::Rpc;
-use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
+use light_concurrent_merkle_tree::{
+    copy::ConcurrentMerkleTreeCopy, errors::ConcurrentMerkleTreeError,
+};
 use light_hash_set::HashSet;
 use light_hasher::Hasher;
-use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
+use light_indexed_merkle_tree::{copy::IndexedMerkleTreeCopy, errors::IndexedMerkleTreeError};
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 use solana_sdk::account::Account;
 
@@ -90,4 +92,59 @@ where
     let account = rpc.get_account(pubkey).await.unwrap().unwrap();
 
     IndexedMerkleTreeCopy::from_bytes_copy(&account.data[8 + mem::size_of::<T>()..]).unwrap()
+}
+
+/// Parse ConcurrentMerkleTree from raw account data bytes.
+pub fn parse_concurrent_merkle_tree_from_bytes<T, H, const HEIGHT: usize>(
+    data: &[u8],
+) -> Result<ConcurrentMerkleTreeCopy<H, HEIGHT>, ConcurrentMerkleTreeError>
+where
+    H: Hasher,
+{
+    let offset = 8 + mem::size_of::<T>();
+    if data.len() <= offset {
+        return Err(ConcurrentMerkleTreeError::BufferSize(offset, data.len()));
+    }
+    ConcurrentMerkleTreeCopy::from_bytes_copy(&data[offset..])
+}
+
+/// Parse IndexedMerkleTree from raw account data byte
+pub fn parse_indexed_merkle_tree_from_bytes<T, H, I, const HEIGHT: usize, const NET_HEIGHT: usize>(
+    data: &[u8],
+) -> Result<IndexedMerkleTreeCopy<H, I, HEIGHT, NET_HEIGHT>, IndexedMerkleTreeError>
+where
+    H: Hasher,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
+    usize: From<I>,
+{
+    let offset = 8 + mem::size_of::<T>();
+    if data.len() <= offset {
+        return Err(IndexedMerkleTreeError::ConcurrentMerkleTree(
+            ConcurrentMerkleTreeError::BufferSize(offset, data.len()),
+        ));
+    }
+    IndexedMerkleTreeCopy::from_bytes_copy(&data[offset..])
+}
+
+/// Parse HashSet from raw queue account data bytes
+///
+/// # Safety
+/// Same safety requirements as `get_hash_set`.
+pub unsafe fn parse_hash_set_from_bytes<T>(
+    data: &[u8],
+) -> Result<HashSet, light_hash_set::HashSetError> {
+    let offset = 8 + mem::size_of::<T>();
+    if data.len() <= offset {
+        return Err(light_hash_set::HashSetError::BufferSize(offset, data.len()));
+    }
+    let mut data_copy = data[offset..].to_vec();
+    HashSet::from_bytes_copy(&mut data_copy)
 }
