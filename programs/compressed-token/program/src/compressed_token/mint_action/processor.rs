@@ -150,7 +150,7 @@ pub fn process_mint_action(
             false, // no sol_pool_pda
             None,
             executing.system.cpi_context.map(|x| *x.key()),
-            false, // write to cpi context account
+            false, // don't write to cpi context account
         )
     } else {
         if validated_accounts.write_to_cpi_context_system.is_none() {

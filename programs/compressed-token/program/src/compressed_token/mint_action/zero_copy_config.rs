@@ -47,7 +47,7 @@ pub fn get_zero_copy_configs(
             ZAction::UpdateFreezeAuthority(_) => {}
             ZAction::RemoveMetadataKey(_) => {}
             ZAction::UpdateMetadataAuthority(auth_action) => {
-                // Update output config for authority revocation
+                // Validate extension index for authority revocation
                 if auth_action.new_authority.to_bytes() == [0u8; 32] {
                     let extension_index = auth_action.extension_index as usize;
                     if extension_index >= output_extensions_config.len() {

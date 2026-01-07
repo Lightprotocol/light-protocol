@@ -197,7 +197,7 @@ pub fn initialize_ctoken_account(
     let mut token_account_data = AccountInfoTrait::try_borrow_mut_data(token_account_info)?;
 
     // Use new_zero_copy to initialize the token account
-    // This sets mint, owner, state, compression_only, account_type, and extensions
+    // This sets mint, owner, state, account_type, and extensions
     let (mut ctoken, _) =
         CToken::new_zero_copy(&mut token_account_data, zc_config).map_err(|e| {
             msg!("Failed to initialize CToken: {:?}", e);

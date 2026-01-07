@@ -41,8 +41,7 @@ pub fn process_mint_to_ctoken_action(
     let token_account_info =
         packed_accounts.get_u8(action.account_index, "ctoken mint to recipient")?;
 
-    // Authority check now performed above - safe to proceed with decompression
-    // Use the mint_ctokens constructor for simple decompression operations
+    // Authority check performed above - proceed with minting to CToken account
     let inputs = CTokenCompressionInputs::mint_ctokens(
         amount,
         mint.to_bytes(),

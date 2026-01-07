@@ -13,7 +13,7 @@ use pinocchio::account_info::AccountInfo;
 use super::check_extensions::validate_tlv_and_get_frozen;
 use crate::shared::token_output::set_output_compressed_account;
 
-/// Process output compressed accounts and return total output lamports
+/// Process output compressed accounts
 #[profile]
 #[inline(always)]
 pub fn set_output_compressed_accounts<'a>(

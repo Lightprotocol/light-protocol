@@ -84,8 +84,8 @@ pub fn compress_or_decompress_ctokens(
         ZCompressionMode::Decompress => {
             apply_decompress_extension_state(&mut ctoken, token_account_info, decompress_inputs)?;
 
-            // Decompress: add to solana account
-            // Update the balance in the compressed token account
+            // Decompress: add to CToken account
+            // Update the balance in the CToken solana account
             ctoken.base.amount.set(
                 current_balance
                     .checked_add(amount)

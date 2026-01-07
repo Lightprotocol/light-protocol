@@ -51,7 +51,7 @@ pub struct TransferAccounts<'a> {
 }
 
 /// Process transfer extensions for CTokenTransfer instruction.
-/// Restricted extensions are NOT allowed (and will fail anyway due to missing mint).
+/// Restricted extensions are NOT allowed (requires mint account which is not provided).
 #[inline(always)]
 #[profile]
 pub fn process_transfer_extensions_transfer(
@@ -78,7 +78,7 @@ pub fn process_transfer_extensions_transfer_checked(
 ///
 /// # Arguments
 /// * `transfer_accounts` - Account references for source, destination, authority, and optional mint
-/// * `max_top_up` - Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
+/// * `max_top_up` - Maximum lamports for top-up. Transaction fails if exceeded. (0 = no limit)
 /// * `deny_restricted_extensions` - If true, reject source accounts with restricted T22 extensions
 ///
 /// Returns:

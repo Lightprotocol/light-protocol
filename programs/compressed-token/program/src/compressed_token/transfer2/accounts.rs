@@ -105,7 +105,7 @@ impl<'info> Transfer2Accounts<'info> {
     }
 
     /// Extract CPI accounts slice for light-system-program invocation
-    /// Includes static accounts + tree accounts based on highest tree index
+    /// Includes static accounts + tree accounts identified by owner
     /// Returns (cpi_accounts_slice, tree_accounts)
     #[profile]
     #[inline(always)]
@@ -137,7 +137,7 @@ impl<'info> Transfer2Accounts<'info> {
     }
 }
 
-/// Extract tree accounts by finding the highest tree index and using it as closing offset
+/// Extract tree accounts by checking account owner matches account-compression program
 #[profile]
 #[inline(always)]
 pub fn extract_tree_accounts<'info>(

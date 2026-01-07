@@ -122,7 +122,7 @@ pub fn process_update_metadata_authority_action(
     Ok(())
 }
 
-/// Only checks authority, the key is removed during data allocation.
+/// Removes a metadata key from additional_metadata after authority check.
 #[profile]
 pub fn process_remove_metadata_key_action(
     action: &ZRemoveMetadataKeyAction,

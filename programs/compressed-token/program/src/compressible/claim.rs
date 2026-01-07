@@ -39,7 +39,7 @@ impl<'a> ClaimAccounts<'a> {
             .map_err(ProgramError::from)?;
 
         if *config_account.compression_authority.as_array() != *compression_authority.key() {
-            msg!("invalid rent authority");
+            msg!("invalid compression authority");
             return Err(ErrorCode::InvalidCompressAuthority.into());
         }
         if *config_account.rent_sponsor.as_array() != *rent_sponsor.key() {

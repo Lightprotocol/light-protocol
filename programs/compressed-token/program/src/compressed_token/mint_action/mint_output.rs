@@ -22,7 +22,7 @@ use crate::{
     shared::{convert_program_error, transfer_lamports::transfer_lamports},
 };
 
-/// Processes the output compressed mint account and returns the modified mint for CMint sync.
+/// Processes the output compressed mint account, syncing to CMint if decompressed.
 #[profile]
 pub fn process_output_compressed_account<'a>(
     parsed_instruction_data: &ZMintActionCompressedInstructionData,
@@ -97,7 +97,6 @@ fn serialize_compressed_mint<'a>(
         // of a closed compressed account without any data.
         ([0u8; 8], [0u8; 32])
     } else {
-        // Serialize compressed mint for compressed account
         let data = compressed_mint
             .try_to_vec()
             .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
@@ -110,7 +109,6 @@ fn serialize_compressed_mint<'a>(
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Copy data and compute hash
         compressed_account_data
             .data
             .copy_from_slice(data.as_slice());
@@ -148,10 +146,7 @@ fn serialize_decompressed_mint(
     // Skip top-up calculation if decompress mint action is present
     // (rent was just paid during account creation).
     if !accounts_config.has_decompress_mint_action {
-        // Handle top-up for compressed mint (compression info is now embedded directly)
-        // Get current slot for top-up calculation
         let current_slot = Clock::get().map_err(convert_program_error)?.slot;
-        // Calculate top-up amount using embedded compression info
         let top_up = compressed_mint
             .compression
             .calculate_top_up_lamports(num_bytes, current_slot, current_lamports, rent_exemption)

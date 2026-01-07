@@ -71,10 +71,9 @@ pub fn process_compress_and_close_cmint_action(
         return Err(ErrorCode::InvalidCMintAccount.into());
     }
 
-    // 4. Access compression info directly (all cmints now have embedded compression)
     let compression_info = &compressed_mint.compression;
 
-    // 5. Verify rent_sponsor matches compression info
+    // 4. Verify rent_sponsor matches compression info
     if !pubkey_eq(rent_sponsor.key(), &compression_info.rent_sponsor) {
         msg!("Rent sponsor does not match compression info");
         return Err(ErrorCode::InvalidRentSponsor.into());

@@ -67,10 +67,9 @@ pub fn allocate_cpi_bytes(
         output_accounts.push((false, data_len)); // Token accounts don't have addresses
     }
 
-    // Add extra output account for change account if needed (no delegate, no token data)
+    // Add extra output account for change account if needed (no delegate)
     if inputs.with_lamports_change_account_merkle_tree_index != 0 {
         output_accounts.push((false, compressed_token_data_len(false)));
-        // No delegate
     }
 
     let mut input_accounts = ArrayVec::new();

@@ -18,15 +18,8 @@ use crate::{
 /// ## Process Steps
 /// 1. **Authority Validation**: Verify signer matches current mint authority from compressed mint state
 /// 2. **Amount Calculation**: Sum recipient amounts with overflow protection
-/// 3. **Lamports Calculation**: Calculate total lamports for compressed accounts (if specified)
-/// 4. **Supply Update**: Calculate new total supply with overflow protection
-/// 5. **SPL Mint Synchronization**: For initialized SPL mints, validate accounts and mint equivalent tokens to token pool via CPI
-/// 6. **Compressed Account Creation**: Create new compressed token account for each recipient
-///
-/// ## SPL Mint Synchronization
-/// When `compressed_mint.metadata.cmint_decompressed` is true and an SPL mint exists for this compressed mint,
-/// the function maintains consistency between the compressed token supply and the underlying SPL mint supply
-/// by minting equivalent tokens to a program-controlled token pool account via CPI to SPL Token 2022.
+/// 3. **Supply Update**: Calculate new total supply with overflow protection
+/// 4. **Compressed Account Creation**: Create new compressed token account for each recipient
 #[allow(clippy::too_many_arguments)]
 #[profile]
 pub fn process_mint_to_compressed_action<'a>(

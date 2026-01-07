@@ -71,7 +71,7 @@ pub fn process_withdraw_funding_pool(
     account_infos: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
-    // Parse instruction data: [bump: u8][amount: u64]
+    // Parse instruction data: [amount: u64]
     if instruction_data.len() < 8 {
         msg!("Invalid instruction data length");
         return Err(ProgramError::InvalidInstructionData);
@@ -98,7 +98,7 @@ pub fn process_withdraw_funding_pool(
         return Err(ProgramError::InsufficientFunds);
     }
 
-    // Prepare seeds for invoke_signed - the pool PDA is derived from [b"pool", compression_authority]
+    // Prepare seeds for invoke_signed - rent_sponsor PDA is derived from [b"rent_sponsor", version, bump]
     let bump_bytes = [rent_sponsor_bump];
     let seed_array = [
         Seed::from(b"rent_sponsor".as_slice()),

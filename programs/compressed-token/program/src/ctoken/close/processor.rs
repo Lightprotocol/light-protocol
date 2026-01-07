@@ -32,7 +32,7 @@ pub fn process_close_token_account(
 }
 
 /// Validates that a ctoken solana account is ready to be closed.
-/// The rent authority cannot close the account.
+/// Only the owner or close_authority can close the account.
 #[profile]
 pub fn validate_token_account_close_instruction(
     accounts: &CloseTokenAccountAccounts,

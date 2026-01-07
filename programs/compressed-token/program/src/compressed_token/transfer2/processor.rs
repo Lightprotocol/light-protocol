@@ -37,12 +37,11 @@ use crate::{
 /// 1.  Unpack compressed input accounts and input token data, this uses
 ///     standardized signer / delegate and will fail in proof verification in
 ///     case either is invalid.
-/// 2.  Check that compressed accounts are of same mint.
-/// 3.  Check that sum of input compressed accounts is equal to sum of output
-///     compressed accounts
-/// 4.  create_output_compressed_accounts
-/// 5.  Serialize and add token_data data to in compressed_accounts.
-/// 6.  Invoke light_system_program::execute_compressed_transaction.
+/// 2.  Check that sum of input compressed accounts equals sum of output
+///     compressed accounts (supports multi-mint)
+/// 3.  create_output_compressed_accounts
+/// 4.  Serialize and add token_data data to in compressed_accounts.
+/// 5.  Invoke light_system_program::execute_compressed_transaction.
 #[profile]
 pub fn process_transfer2(
     accounts: &[AccountInfo],

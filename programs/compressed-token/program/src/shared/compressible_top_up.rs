@@ -15,7 +15,7 @@ use super::{
 };
 
 /// Calculate and execute top-up transfers for compressible CMint and CToken accounts.
-/// Both accounts are optional - if an account doesn't have compressible extension, it's skipped.
+/// CMint always has compression info. CToken requires Compressible extension or errors.
 ///
 /// # Arguments
 /// * `cmint` - The CMint account (may or may not have Compressible extension)
@@ -99,7 +99,6 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
 }
 
 /// Process compression top-up using embedded compression info.
-/// All ctoken accounts now have compression info embedded directly in meta.
 #[inline(always)]
 pub fn process_compression_top_up<T: light_compressible::compression_info::CalculateTopUp>(
     compression: &T,

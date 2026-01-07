@@ -38,7 +38,7 @@ pub(crate) const MAX_PACKED_ACCOUNTS: usize = 40;
 /// Used for compression_to_input lookup array sizing.
 pub(crate) const MAX_COMPRESSIONS: usize = 32;
 
-// Custom ctoken instructions start at 100 to skip spl-token program instrutions.
+// Instruction discriminators use SPL Token values (3-18) for compatibility plus custom values (100+).
 // When adding new instructions check anchor discriminators for collisions!
 #[repr(u8)]
 pub enum InstructionType {

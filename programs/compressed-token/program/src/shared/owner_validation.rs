@@ -108,6 +108,6 @@ pub fn check_ctoken_owner(
         }
     }
 
-    // Authority is neither owner, account delegate, nor permanent delegate
+    // Authority is neither owner nor permanent delegate
     Err(ErrorCode::OwnerMismatch.into())
 }

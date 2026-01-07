@@ -59,7 +59,7 @@ pub fn process_decompress_mint_action(
         return Err(ErrorCode::CMintAlreadyExists.into());
     }
 
-    // rent_payment == 1 is rejected - epoch boundary edge case
+    // 2. rent_payment == 1 is rejected - epoch boundary edge case
     if action.rent_payment == 1 {
         msg!("Prefunding for exactly 1 epoch is not allowed. Use 0 or 2+ epochs.");
         return Err(ErrorCode::OneEpochPrefundingNotAllowed.into());
@@ -79,7 +79,7 @@ pub fn process_decompress_mint_action(
         .compressible_config
         .ok_or(ErrorCode::MissingCompressibleConfig)?;
 
-    // 5. Validate write_top_up doesn't exceed max_top_up
+    // 4. Validate write_top_up doesn't exceed max_top_up
     if action.write_top_up > config.rent_config.max_top_up as u32 {
         msg!(
             "write_top_up {} exceeds max_top_up {}",
@@ -89,7 +89,7 @@ pub fn process_decompress_mint_action(
         return Err(ErrorCode::WriteTopUpExceedsMaximum.into());
     }
 
-    // 6. Get rent_sponsor and verify it matches config
+    // Get rent_sponsor and verify it matches config
     let rent_sponsor = executing
         .rent_sponsor
         .ok_or(ErrorCode::MissingRentSponsor)?;
@@ -99,12 +99,12 @@ pub fn process_decompress_mint_action(
         return Err(ErrorCode::InvalidRentSponsor.into());
     }
 
-    // 7. Get current slot for last_claimed_slot
+    // Get current slot for last_claimed_slot
     let current_slot = Clock::get()
         .map_err(|_| ProgramError::UnsupportedSysvar)?
         .slot;
 
-    // 8. Set compression info directly on compressed_mint (all cmints now have embedded compression)
+    // 5. Set compression info on compressed_mint
     compressed_mint.compression = CompressionInfo {
         config_account_version: config.version,
         compress_to_pubkey: 0, // Not applicable for CMint
@@ -122,7 +122,7 @@ pub fn process_decompress_mint_action(
         },
     };
 
-    // 9. Verify PDA derivation
+    // 6. Verify PDA derivation
     let seeds: [&[u8]; 2] = [COMPRESSED_MINT_SEED, mint_signer.key()];
     verify_pda(
         cmint.key(),
@@ -131,17 +131,18 @@ pub fn process_decompress_mint_action(
         &crate::LIGHT_CPI_SIGNER.program_id,
     )?;
 
-    // 10. Calculate account size AFTER adding extension (using borsh serialization)
+    // 7. Account creation: rent_sponsor pays rent exemption, fee_payer pays Light rent
+    // 7a. Calculate account size AFTER adding extension (using borsh serialization)
     let account_size = borsh::to_vec(compressed_mint)
         .map_err(|_| ErrorCode::MintActionOutputSerializationFailed)?
         .len();
 
-    // 11. Calculate Light Protocol rent (base_rent + bytes * lamports_per_byte * epochs + compression_cost)
+    // 7b. Calculate Light Protocol rent (base_rent + bytes * lamports_per_byte * epochs + compression_cost)
     let light_rent = config
         .rent_config
         .get_rent_with_compression_cost(account_size as u64, action.rent_payment as u64);
 
-    // 12. Build seeds for rent_sponsor PDA (to sign the transfer)
+    // 7c. Build seeds for rent_sponsor PDA (to sign the transfer)
     let version_bytes = config.version.to_le_bytes();
     let rent_sponsor_bump_bytes = [config.rent_sponsor_bump];
     let rent_sponsor_seeds = [
@@ -150,7 +151,7 @@ pub fn process_decompress_mint_action(
         Seed::from(rent_sponsor_bump_bytes.as_ref()),
     ];
 
-    // 13. Build seeds for CMint PDA
+    // 7d. Build seeds for CMint PDA
     let cmint_bump_bytes = [action.cmint_bump];
     let cmint_seeds = [
         Seed::from(COMPRESSED_MINT_SEED),
@@ -158,7 +159,7 @@ pub fn process_decompress_mint_action(
         Seed::from(cmint_bump_bytes.as_ref()),
     ];
 
-    // 14. Create CMint PDA account
+    // 7e. Create CMint PDA account
     // rent_sponsor pays ONLY the rent exemption (minimum_balance)
     // additional_lamports = None means create_pda_account only pays rent exemption
     create_pda_account(
@@ -170,7 +171,7 @@ pub fn process_decompress_mint_action(
         None,                                // rent_sponsor pays ONLY rent exemption
     )?;
 
-    // 15. fee_payer pays the Light Protocol rent
+    // 7f. fee_payer pays the Light Protocol rent
     Transfer {
         from: fee_payer,
         to: cmint,
@@ -179,7 +180,7 @@ pub fn process_decompress_mint_action(
     .invoke()
     .map_err(convert_program_error)?;
 
-    // 16. Set the cmint_decompressed flag
+    // 8. Set the cmint_decompressed flag
     compressed_mint.metadata.cmint_decompressed = true;
 
     Ok(())
