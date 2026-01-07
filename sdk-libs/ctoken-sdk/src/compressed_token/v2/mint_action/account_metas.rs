@@ -116,7 +116,7 @@ impl MintActionMetaConfig {
     }
 
     /// Set the mint_signer account with signing required.
-    /// Use for create_mint and create_spl_mint actions.
+    /// Use for create_mint actions.
     pub fn with_mint_signer(mut self, mint_signer: Pubkey) -> Self {
         self.mint_signer = Some(mint_signer);
         self.mint_signer_must_sign = true;
@@ -158,7 +158,7 @@ impl MintActionMetaConfig {
 
         // mint_signer is present when creating a new mint or decompressing
         if let Some(mint_signer) = self.mint_signer {
-            // mint_signer needs to sign for create_mint/create_spl_mint, not for decompress_mint
+            // mint_signer needs to sign for create_mint, not for decompress_mint
             metas.push(AccountMeta::new_readonly(
                 mint_signer,
                 self.mint_signer_must_sign,

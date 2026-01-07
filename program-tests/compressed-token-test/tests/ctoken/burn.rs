@@ -103,12 +103,12 @@ async fn test_burn_success_cases() {
 // Burn Failure Cases
 // ============================================================================
 
-/// Error codes used in burn validation
+/// Error codes used in burn validation (mapped to ErrorCode enum variants)
 mod error_codes {
-    /// Insufficient funds to complete the operation (SPL Token code 1)
-    pub const INSUFFICIENT_FUNDS: u32 = 1;
-    /// Authority doesn't match token account owner (SPL Token code 4)
-    pub const OWNER_MISMATCH: u32 = 4;
+    /// Insufficient funds to complete the operation (SplInsufficientFunds = 6154)
+    pub const INSUFFICIENT_FUNDS: u32 = 6154;
+    /// Authority doesn't match token account owner (OwnerMismatch = 6075)
+    pub const OWNER_MISMATCH: u32 = 6075;
 }
 
 #[tokio::test]
@@ -142,8 +142,8 @@ async fn test_burn_fails() {
             )
             .await;
 
-        // Non-existent CMint returns GenericError (code 0)
-        assert_rpc_error(result, 0, 0).unwrap();
+        // Non-existent CMint returns NotRentExempt (SPL Token code 0 -> 6153)
+        assert_rpc_error(result, 0, 6153).unwrap();
         println!("test_burn_fails: wrong mint passed");
     }
 
@@ -172,8 +172,8 @@ async fn test_burn_fails() {
             )
             .await;
 
-        // Non-existent CToken account returns GenericError (code 0)
-        assert_rpc_error(result, 0, 0).unwrap();
+        // Non-existent CToken account returns NotRentExempt (SPL Token code 0 -> 6153)
+        assert_rpc_error(result, 0, 6153).unwrap();
         println!("test_burn_fails: non-existent account passed");
     }
 
@@ -399,8 +399,8 @@ async fn setup_burn_test() -> BurnTestContext {
 
 use light_ctoken_sdk::ctoken::BurnCTokenChecked;
 
-/// MintDecimalsMismatch error code (SPL Token code 18)
-const MINT_DECIMALS_MISMATCH: u32 = 18;
+/// MintDecimalsMismatch error code (SplMintDecimalsMismatch = 6166)
+const MINT_DECIMALS_MISMATCH: u32 = 6166;
 
 #[tokio::test]
 #[serial]

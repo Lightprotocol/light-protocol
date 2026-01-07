@@ -73,7 +73,7 @@ Every instruction description must include the sections:
 
 6. **MintAction** - [`docs/instructions/MINT_ACTION.md`](docs/instructions/MINT_ACTION.md)
    - Batch instruction for compressed mint management and mint operations (discriminator: 103, enum: `InstructionType::MintAction`)
-   - Supports 9 action types: CreateCompressedMint, MintTo, UpdateMintAuthority, UpdateFreezeAuthority, CreateSplMint, MintToCToken, UpdateMetadataField, UpdateMetadataAuthority, RemoveMetadataKey
+   - Supports 10 action types: CreateCompressedMint, MintTo, UpdateMintAuthority, UpdateFreezeAuthority, MintToCToken, UpdateMetadataField, UpdateMetadataAuthority, RemoveMetadataKey, DecompressMint, CompressAndCloseCMint
    - Handles both compressed and decompressed token minting
 
 7. **CTokenTransfer** - [`docs/instructions/CTOKEN_TRANSFER.md`](docs/instructions/CTOKEN_TRANSFER.md)
@@ -115,29 +115,59 @@ Every instruction description must include the sections:
 
 # Source Code Structure (`src/`)
 
-## Core Instructions
-- **`create_token_account.rs`** - Create regular ctoken accounts with optional compressible extension
-- **`create_associated_token_account.rs`** - Create deterministic ATA accounts
-- **`close_token_account/`** - Close ctoken accounts, handle rent distribution
-- **`transfer/`** - SPL-compatible transfers between decompressed accounts
-  - `default.rs` - CTokenTransfer (discriminator: 3)
-  - `checked.rs` - CTokenTransferChecked (discriminator: 12)
-  - `shared.rs` - Common transfer utilities
+```
+src/
+├── compressed_token/       # Operations on compressed accounts (in Merkle trees)
+│   ├── mint_action/           # MintAction instruction (103)
+│   └── transfer2/             # Transfer2 instruction (101)
+├── compressible/           # Rent management
+│   ├── claim.rs               # Claim instruction (104)
+│   └── withdraw_funding_pool.rs  # WithdrawFundingPool instruction (105)
+├── ctoken/                 # Operations on CToken Solana accounts (decompressed)
+│   ├── approve_revoke.rs      # CTokenApprove (4), CTokenRevoke (5), CTokenApproveChecked (13)
+│   ├── burn.rs                # CTokenBurn (8), CTokenBurnChecked (15)
+│   ├── close/                 # CloseTokenAccount instruction (9)
+│   ├── create.rs              # CreateTokenAccount instruction (18)
+│   ├── create_ata.rs          # CreateAssociatedCTokenAccount (100, 102)
+│   ├── freeze_thaw.rs         # CTokenFreezeAccount (10), CTokenThawAccount (11)
+│   ├── mint_to.rs             # CTokenMintTo (7), CTokenMintToChecked (14)
+│   └── transfer/              # CTokenTransfer (3), CTokenTransferChecked (12)
+├── extensions/             # Extension handling
+├── shared/                 # Common utilities
+├── convert_account_infos.rs
+└── lib.rs                  # Entry point and instruction dispatch
+```
 
-## Token Operations
+## Compressed Token Operations (`compressed_token/`)
+Operations on compressed accounts stored in Merkle trees.
+
+- **`mint_action/`** - MintAction instruction for compressed mint management
+  - `processor.rs` - Main instruction processor
+  - `accounts.rs` - Account validation and parsing
+  - `actions/` - Individual action handlers (create_mint, mint_to, decompress_mint, etc.)
 - **`transfer2/`** - Unified transfer instruction supporting multiple modes
   - `compression/` - Compress & decompress functionality
     - `ctoken/` - CToken-specific compression (compress_and_close.rs, decompress.rs, etc.)
     - `spl.rs` - SPL token compression
   - `processor.rs` - Main instruction processor
   - `accounts.rs` - Account validation and parsing
-- **`mint_action/`** - Mint tokens to compressed/decompressed accounts
-- **`ctoken_approve_revoke.rs`** - CTokenApprove (4), CTokenRevoke (5), CTokenApproveChecked (13)
-- **`ctoken_mint_to.rs`** - CTokenMintTo (7), CTokenMintToChecked (14)
-- **`ctoken_burn.rs`** - CTokenBurn (8), CTokenBurnChecked (15)
-- **`ctoken_freeze_thaw.rs`** - CTokenFreezeAccount (10), CTokenThawAccount (11)
 
-## Rent Management
+## CToken Operations (`ctoken/`)
+Operations on CToken Solana accounts (decompressed compressed tokens).
+
+- **`create.rs`** - Create regular ctoken accounts with optional compressible extension
+- **`create_ata.rs`** - Create deterministic ATA accounts
+- **`close/`** - Close ctoken accounts, handle rent distribution
+- **`transfer/`** - SPL-compatible transfers between decompressed accounts
+  - `default.rs` - CTokenTransfer (discriminator: 3)
+  - `checked.rs` - CTokenTransferChecked (discriminator: 12)
+  - `shared.rs` - Common transfer utilities
+- **`approve_revoke.rs`** - CTokenApprove (4), CTokenRevoke (5), CTokenApproveChecked (13)
+- **`mint_to.rs`** - CTokenMintTo (7), CTokenMintToChecked (14)
+- **`burn.rs`** - CTokenBurn (8), CTokenBurnChecked (15)
+- **`freeze_thaw.rs`** - CTokenFreezeAccount (10), CTokenThawAccount (11)
+
+## Rent Management (`compressible/`)
 - **`claim.rs`** - Claim rent from expired compressible accounts
 - **`withdraw_funding_pool.rs`** - Withdraw funds from rent recipient pool
 
@@ -175,6 +205,55 @@ Custom error codes are defined in **`programs/compressed-token/anchor/src/lib.rs
 - Contains all program-specific error codes used across compressed token operations
 - Errors are returned as `ProgramError::Custom(error_code as u32)` on-chain
 - CToken-specific errors are also defined in **`program-libs/ctoken-interface/src/error.rs`** (`CTokenError` enum)
+
+### Error Conversion Functions (`shared/convert_program_error.rs`)
+
+Two functions exist for converting pinocchio errors to anchor ProgramError:
+
+| Function | Use Case | Error Mapping |
+|----------|----------|---------------|
+| `convert_pinocchio_token_error` | SPL Token operations via pinocchio_token_program processors | Maps SPL Token error codes (0-18) to named ErrorCode variants |
+| `convert_token_error` | Functions returning TokenError directly (e.g., unpack_amount_and_decimals) | Maps SPL Token error codes (0-18) to named ErrorCode variants |
+| `convert_program_error` | System program, data access, lamport transfers | Adds +6000 offset to raw error code |
+
+**When to use each:**
+
+```rust
+// SPL Token operations - use convert_pinocchio_token_error
+process_transfer(accounts, data).map_err(convert_pinocchio_token_error)?;
+process_burn(accounts, data).map_err(convert_pinocchio_token_error)?;
+process_mint_to(accounts, data).map_err(convert_pinocchio_token_error)?;
+
+// System/internal operations - use convert_program_error
+transfer_lamports_via_cpi(...).map_err(convert_program_error)?;
+account.try_borrow_mut_data().map_err(convert_program_error)?;
+
+// ErrorCode variants - use ProgramError::from directly
+sum_check_multi_mint(...).map_err(ProgramError::from)?;
+validate_mint_uniqueness(...).map_err(ProgramError::from)?;
+```
+
+**SPL Token Error Code Mapping:**
+| SPL Code | ErrorCode Variant | Description |
+|----------|-------------------|-------------|
+| 0 | NotRentExempt | Lamport balance below rent-exempt threshold |
+| 1 | InsufficientFunds | Insufficient funds for the operation |
+| 2 | InvalidMint | Invalid mint account |
+| 3 | MintMismatch | Account not associated with this Mint |
+| 4 | OwnerMismatch | Owner does not match |
+| 5 | FixedSupply | Token supply is fixed |
+| 6 | AlreadyInUse | Account already in use |
+| 7-8 | InvalidNumberOf*Signers | Signer count mismatch |
+| 9 | UninitializedState | State is uninitialized |
+| 10 | NativeNotSupported | Native tokens not supported |
+| 11 | NonNativeHasBalance | Non-native account has balance |
+| 12 | InvalidInstruction | Invalid instruction |
+| 13 | InvalidState | State is invalid |
+| 14 | Overflow | Operation overflowed |
+| 15 | AuthorityTypeNotSupported | Authority type not supported |
+| 16 | MintHasNoFreezeAuthority | Mint cannot freeze |
+| 17 | AccountFrozen | Account is frozen |
+| 18 | MintDecimalsMismatch | Decimals mismatch |
 
 ## SDKs (`sdk-libs/`)
 - **`ctoken-sdk/`** - SDK for programs to interact with compressed tokens (CPIs, instruction builders)

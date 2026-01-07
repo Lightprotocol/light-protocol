@@ -89,6 +89,59 @@ async fn test_create_compressible_token_account_instruction() {
         create_and_assert_token_account(&mut context, compressible_data, "No lamports_per_write")
             .await;
     }
+
+    // Test 6: Maximum prepaid epochs (255) - boundary test
+    {
+        context.token_account_keypair = Keypair::new();
+        let compressible_data = CompressibleData {
+            compression_authority: context.compression_authority,
+            rent_sponsor: payer_pubkey, // Use payer as rent sponsor for large epoch payment
+            num_prepaid_epochs: 255,    // Maximum u8 value
+            lamports_per_write: Some(100),
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compress_to_pubkey: false,
+            payer: payer_pubkey,
+        };
+        create_and_assert_token_account(&mut context, compressible_data, "max_prepaid_epochs_255")
+            .await;
+    }
+
+    // Test 7: Exactly max_top_up for lamports_per_write - boundary test
+    {
+        context.token_account_keypair = Keypair::new();
+        let max_top_up = RentConfig::default().max_top_up as u32;
+        let compressible_data = CompressibleData {
+            compression_authority: context.compression_authority,
+            rent_sponsor: context.rent_sponsor,
+            num_prepaid_epochs: 2,
+            lamports_per_write: Some(max_top_up), // Exactly at limit (should succeed)
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compress_to_pubkey: false,
+            payer: payer_pubkey,
+        };
+        create_and_assert_token_account(
+            &mut context,
+            compressible_data,
+            "exactly_max_top_up_lamports_per_write",
+        )
+        .await;
+    }
+
+    // Test 8: Zero lamports_per_write - edge case
+    {
+        context.token_account_keypair = Keypair::new();
+        let compressible_data = CompressibleData {
+            compression_authority: context.compression_authority,
+            rent_sponsor: context.rent_sponsor,
+            num_prepaid_epochs: 2,
+            lamports_per_write: Some(0), // Zero (should succeed)
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compress_to_pubkey: false,
+            payer: payer_pubkey,
+        };
+        create_and_assert_token_account(&mut context, compressible_data, "zero_lamports_per_write")
+            .await;
+    }
 }
 
 #[tokio::test]
@@ -452,5 +505,193 @@ async fn test_create_compressible_token_account_failing() {
 
         // Should fail with MissingRequiredSignature (8)
         light_program_test::utils::assert::assert_rpc_error(result, 0, 8).unwrap();
+    }
+
+    // Test 10: Non-compressible account for mint with restricted extensions
+    // Mints with restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook)
+    // require the compression_only marker which is part of the Compressible extension.
+    // Error: 6115 (MissingCompressibleConfig)
+    {
+        use forester_utils::instructions::create_account::create_account_instruction;
+        use light_test_utils::mint_2022::create_mint_22_with_extension_types;
+        use solana_sdk::instruction::{AccountMeta, Instruction};
+        use spl_token_2022::extension::ExtensionType;
+
+        println!("Test 10: Non-compressible account for mint with restricted extensions");
+
+        // Create a Token-2022 mint with TransferFeeConfig (a restricted extension)
+        let (mint_keypair, _config) = create_mint_22_with_extension_types(
+            &mut context.rpc,
+            &context.payer,
+            9, // decimals
+            &[ExtensionType::TransferFeeConfig],
+        )
+        .await;
+        let mint_with_restricted_ext = mint_keypair.pubkey();
+
+        // Pre-allocate 200-byte token account owned by ctoken program
+        let token_account_keypair = Keypair::new();
+        let token_account_pubkey = token_account_keypair.pubkey();
+        let account_size = 200usize;
+
+        let create_account_ix = create_account_instruction(
+            &payer_pubkey,
+            account_size,
+            context
+                .rpc
+                .get_minimum_balance_for_rent_exemption(account_size)
+                .await
+                .unwrap(),
+            &light_compressed_token::ID,
+            Some(&token_account_keypair),
+        );
+
+        context
+            .rpc
+            .create_and_send_transaction(
+                &[create_account_ix],
+                &payer_pubkey,
+                &[&context.payer, &token_account_keypair],
+            )
+            .await
+            .unwrap();
+
+        // Build manual instruction for non-compressible path:
+        // - discriminator: 18 (InitializeAccount3)
+        // - data: just 32 bytes (owner pubkey) - triggers non-compressible path
+        // - accounts: token_account (mutable), mint (non-mutable)
+        let owner_pubkey = context.owner_keypair.pubkey();
+        let mut instruction_data = vec![18u8]; // discriminator
+        instruction_data.extend_from_slice(&owner_pubkey.to_bytes()); // 32-byte owner
+
+        let create_non_compressible_ix = Instruction {
+            program_id: light_compressed_token::ID,
+            accounts: vec![
+                AccountMeta::new(token_account_pubkey, false), // token_account (mutable, not signer)
+                AccountMeta::new_readonly(mint_with_restricted_ext, false), // mint
+            ],
+            data: instruction_data,
+        };
+
+        let result = context
+            .rpc
+            .create_and_send_transaction(
+                &[create_non_compressible_ix],
+                &payer_pubkey,
+                &[&context.payer],
+            )
+            .await;
+
+        // Should fail with MissingCompressibleConfig (6115)
+        // Rationale: Mints with restricted extensions must be marked as compression_only,
+        // and that marker is part of the Compressible extension
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 6115).unwrap();
+    }
+
+    // Test 11: Token account passed as mint
+    // Passing a valid T22 token account instead of a mint should fail validation.
+    // The is_valid_mint function checks AccountType at offset 165 - token accounts have AccountType=2.
+    // Error: 3 (InstructionError::InvalidAccountData)
+    {
+        use light_test_utils::mint_2022::{
+            create_mint_22_with_extension_types, create_token_22_account,
+        };
+        use spl_token_2022::extension::ExtensionType;
+
+        println!("Test 11: Token account passed as mint");
+
+        context.token_account_keypair = Keypair::new();
+
+        // Create a real T22 mint
+        let (mint_keypair, _config) = create_mint_22_with_extension_types(
+            &mut context.rpc,
+            &context.payer,
+            9,
+            &[ExtensionType::TransferFeeConfig],
+        )
+        .await;
+        let real_mint = mint_keypair.pubkey();
+
+        // Create a T22 token account for that mint
+        let t22_token_account =
+            create_token_22_account(&mut context.rpc, &context.payer, &real_mint, &payer_pubkey)
+                .await;
+
+        // Try to create CToken with the token account as mint (should fail)
+        let compressible_params = CompressibleParams {
+            compressible_config: context.compressible_config,
+            rent_sponsor: context.rent_sponsor,
+            pre_pay_num_epochs: 2,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: true, // Required for restricted extensions
+        };
+
+        let create_token_account_ix = CreateCTokenAccount::new(
+            payer_pubkey,
+            context.token_account_keypair.pubkey(),
+            t22_token_account, // Token account, not mint!
+            context.owner_keypair.pubkey(),
+        )
+        .with_compressible(compressible_params)
+        .instruction()
+        .unwrap();
+
+        let result = context
+            .rpc
+            .create_and_send_transaction(
+                &[create_token_account_ix],
+                &payer_pubkey,
+                &[&context.payer, &context.token_account_keypair],
+            )
+            .await;
+
+        // Should fail with InstructionError::InvalidAccountData (3) because is_valid_mint returns false
+        // for token accounts (AccountType=2 at offset 165)
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 3).unwrap();
+    }
+
+    // Test 12: Invalid token_account_version
+    // Only version 3 (ShaFlat) is supported. V1 and V2 are rejected.
+    // Error: 2 (InstructionError::InvalidInstructionData)
+    {
+        println!("Test 12: Invalid token_account_version");
+
+        context.token_account_keypair = Keypair::new();
+
+        // Build instruction using SDK with V1 version (not supported for create)
+        let compressible_params = CompressibleParams {
+            compressible_config: context.compressible_config,
+            rent_sponsor: context.rent_sponsor,
+            pre_pay_num_epochs: 2,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::V1, // Not supported!
+            compression_only: false,
+        };
+
+        let create_ix = CreateCTokenAccount::new(
+            payer_pubkey,
+            context.token_account_keypair.pubkey(),
+            context.mint_pubkey,
+            context.owner_keypair.pubkey(),
+        )
+        .with_compressible(compressible_params)
+        .instruction()
+        .unwrap();
+
+        let result = context
+            .rpc
+            .create_and_send_transaction(
+                &[create_ix],
+                &payer_pubkey,
+                &[&context.payer, &context.token_account_keypair],
+            )
+            .await;
+
+        // Should fail with InstructionError::InvalidInstructionData (2)
+        // Only version 3 (ShaFlat) is supported for compressible accounts
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 2).unwrap();
     }
 }

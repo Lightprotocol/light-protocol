@@ -1,5 +1,6 @@
 pub mod accounts;
 pub mod compressible_top_up;
+pub mod config_account;
 mod convert_program_error;
 pub mod cpi;
 pub mod cpi_bytes_size;
@@ -12,8 +13,12 @@ pub mod token_output;
 pub mod transfer_lamports;
 pub mod validate_ata_derivation;
 
-pub use convert_program_error::convert_program_error;
+pub use config_account::{next_config_account, parse_config_account};
+pub use convert_program_error::{
+    convert_pinocchio_token_error, convert_program_error, convert_token_error,
+};
 pub use create_pda_account::{create_pda_account, verify_pda};
+pub use initialize_ctoken_account::create_compressible_account;
 pub use light_account_checks::AccountIterator;
 pub use mint_to_token_pool::mint_to_token_pool;
 pub use transfer_lamports::*;

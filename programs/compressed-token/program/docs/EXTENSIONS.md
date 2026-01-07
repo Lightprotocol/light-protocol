@@ -136,7 +136,7 @@ The compressed token program supports 16 Token-2022 extension types. **5 restric
 **Validation paths:**
 - `programs/compressed-token/program/src/extensions/check_mint_extensions.rs:77-84` - Extracts delegate pubkey in `parse_mint_extensions()`
 - `programs/compressed-token/program/src/shared/owner_validation.rs:30-78` - `verify_owner_or_delegate_signer()` validates delegate/permanent delegate signer
-- `programs/compressed-token/program/src/transfer/shared.rs:164-179` - `validate_permanent_delegate()`
+- `programs/compressed-token/program/src/ctoken/transfer/shared.rs:164-179` - `validate_permanent_delegate()`
 
 **Unchecked instructions:**
 1. CTokenApprove
@@ -247,7 +247,7 @@ pub struct CompressedOnlyExtensionInstructionData {
 
 ### When Created (CompressAndClose)
 
-**Path:** `programs/compressed-token/program/src/transfer2/compression/ctoken/compress_and_close.rs`
+**Path:** `programs/compressed-token/program/src/compressed_token/transfer2/compression/ctoken/compress_and_close.rs`
 
 **Trigger:** `ZCompressionMode::CompressAndClose` with `compression_only=true` on source CToken account.
 
@@ -274,7 +274,7 @@ ctoken.base.set_initialized();
 
 ### When Consumed (Decompress)
 
-**Path:** `programs/compressed-token/program/src/transfer2/compression/ctoken/decompress.rs`
+**Path:** `programs/compressed-token/program/src/compressed_token/transfer2/compression/ctoken/decompress.rs`
 
 **Trigger:** Decompressing a compressed token that has CompressedOnly extension.
 
@@ -409,7 +409,7 @@ MintExtensionChecks {
 ---
 
 ### `build_mint_extension_cache()`
-**Path:** `programs/compressed-token/program/src/transfer2/check_extensions.rs:77-145`
+**Path:** `programs/compressed-token/program/src/compressed_token/transfer2/check_extensions.rs:77-145`
 
 **Used by:** Transfer2 (batch validation)
 
@@ -458,7 +458,7 @@ MintExtensionChecks {
 - CompressAndClose still requires CompressedOnly output extension for restricted mints (lines 116-137)
 - If missing → `CompressAndCloseMissingCompressedOnlyExtension` (6133)
 
-**Path:** `programs/compressed-token/program/src/transfer2/processor.rs:61` calls `build_mint_extension_cache()`
+**Path:** `programs/compressed-token/program/src/compressed_token/transfer2/processor.rs:61` calls `build_mint_extension_cache()`
 
 ### Anchor Instructions
 

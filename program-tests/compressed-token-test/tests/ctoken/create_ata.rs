@@ -123,6 +123,78 @@ async fn test_create_compressible_ata() {
         )
         .await;
     }
+
+    // Test 6: Maximum prepaid epochs (255) - boundary test
+    {
+        // Use different mint for sixth ATA
+        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+
+        let compressible_data = CompressibleData {
+            compression_authority: context.compression_authority,
+            rent_sponsor: payer_pubkey, // Use payer as rent sponsor for large epoch payment
+            num_prepaid_epochs: 255,    // Maximum u8 value
+            lamports_per_write: Some(100),
+            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compress_to_pubkey: false,
+            payer: payer_pubkey,
+        };
+
+        create_and_assert_ata(
+            &mut context,
+            Some(compressible_data),
+            false, // Non-idempotent
+            "max_prepaid_epochs_255",
+        )
+        .await;
+    }
+
+    // Test 7: Owner equals mint pubkey - edge case
+    // This is an unusual but valid configuration where the owner of the ATA
+    // is the same pubkey as the mint. Should succeed.
+    {
+        // Use a new unique pubkey that will serve as both owner and mint
+        let owner_and_mint = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = owner_and_mint;
+
+        // Temporarily change the owner keypair to use the same pubkey as mint
+        // Note: This is a degenerate case but should still work
+        let compressible_params = CompressibleParams {
+            compressible_config: context.compressible_config,
+            rent_sponsor: context.rent_sponsor,
+            pre_pay_num_epochs: 2,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: true,
+        };
+
+        let create_ata_ix = CreateAssociatedCTokenAccount::new(
+            payer_pubkey,
+            owner_and_mint, // Owner == Mint
+            owner_and_mint, // Mint == Owner
+        )
+        .with_compressible(compressible_params)
+        .instruction()
+        .unwrap();
+
+        context
+            .rpc
+            .create_and_send_transaction(&[create_ata_ix], &payer_pubkey, &[&context.payer])
+            .await
+            .unwrap();
+
+        // Verify ATA was created at the expected address
+        let (expected_ata, _) = derive_ctoken_ata(&owner_and_mint, &owner_and_mint);
+        let account = context.rpc.get_account(expected_ata).await.unwrap();
+        assert!(
+            account.is_some(),
+            "ATA with owner==mint should be created successfully"
+        );
+        println!(
+            "Successfully created ATA with owner==mint at {}",
+            expected_ata
+        );
+    }
 }
 
 #[tokio::test]
@@ -698,6 +770,131 @@ async fn test_create_ata_failing() {
         // seeds that derive to the correct PDA, but the account passed is a different address.
         // Solana runtime rejects this as unauthorized signer privilege escalation.
         light_program_test::utils::assert::assert_rpc_error(result, 0, 19).unwrap();
+    }
+
+    // Test 11: Non-compressible ATA for mint with restricted extensions
+    // Mints with restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook)
+    // require the compression_only marker which is part of the Compressible extension.
+    // Error: 6115 (MissingCompressibleConfig)
+    {
+        use anchor_lang::prelude::borsh::BorshSerialize;
+        use light_ctoken_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
+        use light_test_utils::mint_2022::create_mint_22_with_extension_types;
+        use solana_sdk::instruction::Instruction;
+        use spl_token_2022::extension::ExtensionType;
+
+        println!("Test 11: Non-compressible ATA for mint with restricted extensions");
+
+        // Create a Token-2022 mint with TransferFeeConfig (a restricted extension)
+        let (mint_keypair, _config) = create_mint_22_with_extension_types(
+            &mut context.rpc,
+            &context.payer,
+            9, // decimals
+            &[ExtensionType::TransferFeeConfig],
+        )
+        .await;
+        let mint_with_restricted_ext = mint_keypair.pubkey();
+
+        // Use a new owner for this test
+        let owner = solana_sdk::pubkey::Pubkey::new_unique();
+
+        // Derive ATA address
+        let (ata_pubkey, bump) = derive_ctoken_ata(&owner, &mint_with_restricted_ext);
+
+        // Build instruction data with compressible_config: None (non-compressible)
+        let instruction_data = CreateAssociatedTokenAccountInstructionData {
+            bump,
+            compressible_config: None, // Non-compressible!
+        };
+
+        let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
+        instruction_data.serialize(&mut data).unwrap();
+
+        // Account order: owner, mint, payer, ata, system_program
+        let ix = Instruction {
+            program_id: light_compressed_token::ID,
+            accounts: vec![
+                solana_sdk::instruction::AccountMeta::new_readonly(owner, false),
+                solana_sdk::instruction::AccountMeta::new_readonly(mint_with_restricted_ext, false),
+                solana_sdk::instruction::AccountMeta::new(payer_pubkey, true),
+                solana_sdk::instruction::AccountMeta::new(ata_pubkey, false),
+                solana_sdk::instruction::AccountMeta::new_readonly(
+                    solana_sdk::pubkey::Pubkey::default(),
+                    false,
+                ),
+            ],
+            data,
+        };
+
+        let result = context
+            .rpc
+            .create_and_send_transaction(&[ix], &payer_pubkey, &[&context.payer])
+            .await;
+
+        // Should fail with MissingCompressibleConfig (6115)
+        // Rationale: Mints with restricted extensions must be marked as compression_only,
+        // and that marker is part of the Compressible extension
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 6115).unwrap();
+    }
+
+    // Test 12: Token account passed as mint
+    // Passing a valid T22 token account instead of a mint should fail validation.
+    // The is_valid_mint function checks AccountType at offset 165 - token accounts have AccountType=2.
+    // Error: 3 (InstructionError::InvalidAccountData)
+    {
+        use light_test_utils::mint_2022::{
+            create_mint_22_with_extension_types, create_token_22_account,
+        };
+        use spl_token_2022::extension::ExtensionType;
+
+        println!("Test 12: Token account passed as mint (ATA)");
+
+        // Create a real T22 mint
+        let (mint_keypair, _config) = create_mint_22_with_extension_types(
+            &mut context.rpc,
+            &context.payer,
+            9,
+            &[ExtensionType::TransferFeeConfig],
+        )
+        .await;
+        let real_mint = mint_keypair.pubkey();
+
+        // Create a T22 token account for that mint
+        let t22_token_account =
+            create_token_22_account(&mut context.rpc, &context.payer, &real_mint, &payer_pubkey)
+                .await;
+
+        // Use a new owner for this test
+        let owner = solana_sdk::pubkey::Pubkey::new_unique();
+
+        // Try to create ATA with the token account as mint (should fail)
+        let compressible_params = CompressibleParams {
+            compressible_config: context.compressible_config,
+            rent_sponsor: context.rent_sponsor,
+            pre_pay_num_epochs: 2,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            compression_only: true, // Required for restricted extensions
+        };
+
+        let create_ata_ix = CreateAssociatedCTokenAccount::new(
+            payer_pubkey,
+            owner,
+            t22_token_account, // Token account, not mint!
+        )
+        .with_compressible(compressible_params)
+        .instruction()
+        .unwrap();
+
+        let result = context
+            .rpc
+            .create_and_send_transaction(&[create_ata_ix], &payer_pubkey, &[&context.payer])
+            .await;
+
+        // Should fail with InstructionError::InvalidAccountData (3) because is_valid_mint returns false
+        // for token accounts (AccountType=2 at offset 165)
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 3).unwrap();
     }
 }
 

@@ -4,11 +4,11 @@ use light_compressed_account::{
     Pubkey,
 };
 use light_compressed_token::{
-    constants::COMPRESSED_MINT_DISCRIMINATOR,
-    mint_action::{
+    compressed_token::mint_action::{
         accounts::AccountsConfig, mint_input::create_input_compressed_mint_account,
         zero_copy_config::get_zero_copy_configs,
     },
+    constants::COMPRESSED_MINT_DISCRIMINATOR,
 };
 use light_ctoken_interface::{
     instructions::{
