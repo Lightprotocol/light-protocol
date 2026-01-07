@@ -173,7 +173,6 @@ const ActionLayoutV1 = rustEnum([
     MintToCompressedActionLayout.replicate('mintToCompressed'),
     UpdateAuthorityLayout.replicate('updateMintAuthority'),
     UpdateAuthorityLayout.replicate('updateFreezeAuthority'),
-    CreateSplMintActionLayout.replicate('createSplMint'),
     MintToCTokenActionLayout.replicate('mintToCToken'),
     UpdateMetadataFieldActionLayout.replicate('updateMetadataField'),
     UpdateMetadataAuthorityActionLayout.replicate('updateMetadataAuthority'),
