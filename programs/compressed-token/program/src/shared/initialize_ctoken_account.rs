@@ -301,7 +301,6 @@ fn configure_compression_info(
     // Only try to read decimals if mint has data (is initialized)
     if !mint_data.is_empty() {
         let owner = mint_account.owner();
-        let decimals = mint_data.get(44);
 
         if !is_valid_mint(owner, &mint_data)? {
             msg!("Invalid mint account: not a valid mint");
@@ -310,7 +309,7 @@ fn configure_compression_info(
 
         // Mint layout: decimals at byte 44 for all token programs
         // (mint_authority option: 36, supply: 8) = 44
-        compressible_ext.set_decimals(decimals.copied());
+        compressible_ext.set_decimals(mint_data.get(44).copied());
     }
 
     Ok(())

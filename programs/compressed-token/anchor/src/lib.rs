@@ -580,6 +580,8 @@ pub enum ErrorCode {
     AuthorityTypeNotSupported, // 6165 (SPL Token code 15)
     #[msg("Mint decimals mismatch between the client and mint")]
     MintDecimalsMismatch, // 6166 (SPL Token code 18)
+    #[msg("Failed to calculate rent exemption for CMint")]
+    CMintRentExemptionFailed, // 6167
 }
 
 /// Anchor error code offset - error codes start at 6000

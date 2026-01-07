@@ -90,8 +90,9 @@ pub fn process_create_token_account(
             false,
         )?)
     } else {
-        // Non-compressible account: token_account must already exist and be owned by our program
-        // This is SPL-compatible initialize_account3 behavior
+        // Non-compressible account: token_account must already exist and be owned by CToken program.
+        // Unlike SPL initialize_account3 (which expects System-owned), this expects a pre-existing
+        // CToken-owned account. Ownership is implicitly validated when writing to the account.
         None
     };
 

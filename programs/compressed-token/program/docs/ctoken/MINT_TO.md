@@ -13,7 +13,7 @@ Account layouts:
 - `CompressionInfo` extension defined in: program-libs/compressible/src/compression_info.rs
 
 **Instruction data:**
-Path: programs/compressed-token/program/src/ctoken/mint_to.rs (lines 10-47)
+Path: programs/compressed-token/program/src/ctoken/mint_to.rs (see `process_ctoken_mint_to` function)
 
 Byte layout:
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to mint

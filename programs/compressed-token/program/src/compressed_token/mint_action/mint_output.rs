@@ -140,8 +140,8 @@ fn serialize_decompressed_mint(
         .ok_or(ErrorCode::CMintNotFound)?;
     let num_bytes = cmint_account.data_len() as u64;
     let current_lamports = cmint_account.lamports();
-    let rent_exemption = get_rent_exemption_lamports(num_bytes)
-        .map_err(|_| ErrorCode::CMintTopUpCalculationFailed)?;
+    let rent_exemption =
+        get_rent_exemption_lamports(num_bytes).map_err(|_| ErrorCode::CMintRentExemptionFailed)?;
 
     // Skip top-up calculation if decompress mint action is present
     // (rent was just paid during account creation).

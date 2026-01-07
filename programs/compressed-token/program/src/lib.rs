@@ -25,7 +25,9 @@ use ctoken::{
 };
 
 use crate::{
-    compressed_token::mint_action::processor::process_mint_action,
+    compressed_token::{
+        mint_action::processor::process_mint_action, transfer2::processor::process_transfer2,
+    },
     convert_account_infos::convert_account_infos,
 };
 
@@ -125,8 +127,6 @@ impl From<u8> for InstructionType {
 
 #[cfg(not(feature = "cpi"))]
 use pinocchio::program_entrypoint;
-
-use crate::compressed_token::transfer2::processor::process_transfer2;
 
 #[cfg(not(feature = "cpi"))]
 program_entrypoint!(process_instruction);
