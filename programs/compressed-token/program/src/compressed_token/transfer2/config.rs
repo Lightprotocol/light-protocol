@@ -24,7 +24,6 @@ pub struct Transfer2Config {
 
 impl Transfer2Config {
     /// Create configuration from instruction data
-    /// Centralizes the boolean logic that was previously scattered in processor
     pub fn from_instruction_data(
         inputs: &ZCompressedTokenInstructionDataTransfer2,
     ) -> Result<Self, ProgramError> {

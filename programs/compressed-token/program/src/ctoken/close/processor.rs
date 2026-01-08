@@ -1,6 +1,9 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
-use light_account_checks::{checks::check_signer, AccountInfoTrait};
+use light_account_checks::{
+    checks::{check_owner, check_signer},
+    AccountInfoTrait,
+};
 use light_compressible::rent::{get_rent_exemption_lamports, AccountRentState};
 use light_ctoken_interface::state::{AccountState, CToken, ZCTokenMut};
 use light_program_profiler::profile;
@@ -10,7 +13,10 @@ use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
 use spl_pod::solana_msg::msg;
 
 use super::accounts::CloseTokenAccountAccounts;
-use crate::shared::{convert_program_error, transfer_lamports};
+use crate::{
+    shared::{convert_program_error, transfer_lamports},
+    LIGHT_CPI_SIGNER,
+};
 
 /// Process the close token account instruction
 #[profile]
@@ -67,15 +73,18 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
         if u64::from(ctoken.amount) != 0 {
             return Err(ErrorCode::NonNativeHasBalance.into());
         }
-        // TODO: Non-zero transfer fees not yet supported. If fees != 0 support is added:
+        // Note: Non-zero transfer fees are not yet supported. If fees != 0 support is added:
         // - Check TransferFeeAccount.withheld_amount == 0 before allowing close
         // - Implement harvest_withheld_fees instruction to extract fees first
         // - T22 blocks close when withheld_amount > 0 to prevent fee loss
     }
     // Check for Compressible extension
     let compressible = ctoken.get_compressible_extension();
-
+    // TODO: extract into separate function and remove const generic
     if COMPRESS_AND_CLOSE {
+        if accounts.token_account.key() == accounts.destination.key() {
+            return Err(ProgramError::InvalidAccountData);
+        }
         // CompressAndClose requires Compressible extension
         let compression = compressible.ok_or_else(|| {
             msg!("compress and close requires compressible extension");
@@ -91,19 +100,16 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // For CompressAndClose: ONLY compression_authority can compress and close
         if compression.info.compression_authority != *accounts.authority.key() {
             msg!("compress and close requires compression authority");
             return Err(ProgramError::InvalidAccountData);
         }
 
         #[cfg(target_os = "solana")]
-        let current_slot = pinocchio::sysvars::clock::Clock::get()
-            .map_err(convert_program_error)?
-            .slot;
-
-        #[cfg(target_os = "solana")]
         {
+            let current_slot = pinocchio::sysvars::clock::Clock::get()
+                .map_err(convert_program_error)?
+                .slot;
             let is_compressible = compression
                 .info
                 .is_compressible(
@@ -124,7 +130,7 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
         return Ok(compression.info.compress_to_pubkey() || compression.is_ata != 0);
     }
 
-    // For regular close: validate rent_sponsor if compressible
+    // For regular close: validate rent_sponsor if it has a compressible extension
     if let Some(compression) = compressible {
         let rent_sponsor = accounts
             .rent_sponsor
@@ -186,6 +192,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
     })?;
     // Check for compressible extension and handle lamport distribution
 
+    check_owner(&LIGHT_CPI_SIGNER.program_id, accounts.token_account)?;
     let token_account_data = AccountInfoTrait::try_borrow_data(accounts.token_account)?;
     let (ctoken, _) = CToken::zero_copy_at_checked(&token_account_data)?;
 

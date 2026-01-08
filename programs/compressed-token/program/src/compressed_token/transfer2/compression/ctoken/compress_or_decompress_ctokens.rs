@@ -135,13 +135,13 @@ fn validate_ctoken(
     }
 
     // Reject uninitialized accounts (state == 0)
-    if ctoken.base.state == 0 {
+    if !ctoken.is_initialized() {
         msg!("Account is uninitialized");
         return Err(CTokenError::InvalidAccountState.into());
     }
     // Check if account is frozen (SPL Token-2022 compatibility)
     // Frozen accounts cannot have their balance modified except for CompressAndClose
-    else if ctoken.base.state == 2 && !mode.is_compress_and_close() {
+    else if ctoken.is_frozen() && !mode.is_compress_and_close() {
         msg!("Cannot modify frozen account");
         return Err(ErrorCode::AccountFrozen.into());
     }

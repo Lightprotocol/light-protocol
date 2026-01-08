@@ -39,7 +39,6 @@ pub fn process_create_token_account(
 
     let is_compressible = inputs.compressible_config.is_some();
 
-    // Parse and validate accounts
     let mut iter = AccountIterator::new(account_infos);
 
     // For compressible accounts: token_account must be signer (account created via CPI)

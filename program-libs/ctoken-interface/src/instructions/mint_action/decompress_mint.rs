@@ -12,11 +12,10 @@ use crate::{AnchorDeserialize, AnchorSerialize};
 pub struct DecompressMintAction {
     /// PDA bump for CMint account verification
     pub cmint_bump: u8,
-    /// Rent payment in epochs (prepaid). REQUIRED field.
-    /// CMint is ALWAYS compressible - must be >= 2.
-    /// NOTE: rent_payment == 0 or 1 is REJECTED.
+    /// Rent payment in epochs (prepaid).
     pub rent_payment: u8,
     /// Lamports allocated for future write operations (top-up per write).
     /// Must not exceed config.rent_config.max_top_up.
     pub write_top_up: u32,
+    // TODO: mint signer shouldnt need to sign for decompress_mint
 }

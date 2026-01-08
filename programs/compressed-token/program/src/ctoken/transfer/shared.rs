@@ -34,6 +34,7 @@ impl AccountExtensionInfo {
             || self.flags.has_permanent_delegate != other.flags.has_permanent_delegate
             || self.flags.has_transfer_fee != other.flags.has_transfer_fee
             || self.flags.has_transfer_hook != other.flags.has_transfer_hook
+            || self.flags.has_default_account_state != other.flags.has_default_account_state
         {
             Err(ProgramError::InvalidInstructionData)
         } else {
@@ -162,6 +163,7 @@ fn validate_sender(
 
     // Get mint checks if any account has extensions (single mint deserialization)
     let mint_checks = if sender_info.flags.has_restricted_extensions() {
+        // Transfer instruction with ctoken account with restricted extensions will fail here.
         let mint_account = transfer_accounts
             .mint
             .ok_or(ErrorCode::MintRequiredForTransfer)?;
@@ -219,6 +221,7 @@ fn process_account_extensions(
     current_slot: &mut u64,
     mint: Option<&AccountInfo>,
 ) -> Result<AccountExtensionInfo, ProgramError> {
+    // TODO: replace with from_account_info_checked
     let mut account_data = account
         .try_borrow_mut_data()
         .map_err(convert_program_error)?;

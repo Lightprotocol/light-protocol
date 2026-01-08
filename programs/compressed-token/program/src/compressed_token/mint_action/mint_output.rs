@@ -153,6 +153,7 @@ fn serialize_decompressed_mint(
                 .as_ref()
                 .map(|exec| exec.system.fee_payer)
                 .ok_or(ProgramError::NotEnoughAccountKeys)?;
+            // TODO: unify with other transfer and move top up after resize to calculate based on new size.
             transfer_lamports(top_up, fee_payer, cmint_account).map_err(convert_program_error)?;
         }
     }
@@ -163,7 +164,7 @@ fn serialize_decompressed_mint(
     let required_size = serialized.len();
 
     // Resize if needed (e.g., metadata extensions added)
-    if cmint_account.data_len() < required_size {
+    if cmint_account.data_len() != required_size {
         cmint_account
             .resize(required_size)
             .map_err(|_| ErrorCode::CMintResizeFailed)?;

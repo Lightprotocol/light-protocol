@@ -40,7 +40,7 @@ pub fn process_compress_and_close_cmint_action(
 ) -> Result<(), ProgramError> {
     // NOTE: CompressAndCloseCMint is permissionless - anyone can compress if is_compressible() returns true
     // All lamports returned to rent_sponsor
-
+    // TODO: test idempotent, it should exit the complete instruction silently.
     // 1. Idempotent check - if CMint doesn't exist and idempotent is set, succeed silently
     if action.is_idempotent() && !compressed_mint.metadata.cmint_decompressed {
         return Ok(());

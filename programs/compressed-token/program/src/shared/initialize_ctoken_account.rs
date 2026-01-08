@@ -152,7 +152,7 @@ pub fn initialize_ctoken_account(
 
     // Build extensions Vec from boolean flags
     // +1 for potential Compressible extension
-    let mut extensions = Vec::with_capacity(mint_extensions.num_extensions() + 1);
+    let mut extensions = Vec::with_capacity(mint_extensions.num_token_account_extensions() + 1);
     // Add Compressible extension if compression is enabled
     if compressible.is_some() {
         extensions.push(ExtensionStructConfig::Compressible(

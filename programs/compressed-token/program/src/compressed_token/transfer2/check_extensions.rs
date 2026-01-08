@@ -1,3 +1,5 @@
+use core::panic;
+
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
@@ -101,7 +103,6 @@ pub fn build_mint_extension_cache<'a>(
     if let Some(compressions) = inputs.compressions.as_ref() {
         for compression in compressions.iter() {
             let mint_index = compression.mint;
-
             if cache.get_by_key(&mint_index).is_none() {
                 let mint_account = packed_accounts.get_u8(mint_index, "mint cache: compression")?;
                 let checks = if compression.mode.is_compress_and_close() || no_compressed_outputs {
@@ -111,7 +112,10 @@ pub fn build_mint_extension_cache<'a>(
                 } else {
                     check_mint_extensions(mint_account, deny_restricted_extensions)?
                 };
+                cache.insert(mint_index, checks, ErrorCode::MintCacheCapacityExceeded)?;
+            }
 
+            if let Some(checks) = cache.get_by_key(&mint_index) {
                 // CompressAndClose with restricted extensions requires CompressedOnly output.
                 // Compress/Decompress don't need additional validation here:
                 // - Compress: blocked by check_mint_extensions when outputs exist
@@ -134,8 +138,9 @@ pub fn build_mint_extension_cache<'a>(
                         );
                     }
                 }
-
-                cache.insert(mint_index, checks, ErrorCode::MintCacheCapacityExceeded)?;
+            } else {
+                // TODO: double check.
+                panic!("Mint cache: compression: mint index not found");
             }
         }
     }

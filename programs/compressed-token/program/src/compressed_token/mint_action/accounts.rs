@@ -312,6 +312,7 @@ impl<'info> MintActionAccounts<'info> {
             .as_ref()
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
+        // TODO: check whether we can simplify or move to decompress action processor.
         // When cmint_pubkey is provided, verify CMint account matches
         // When None (mint data from CMint), skip - CMint is validated when reading its data
         if let (Some(cmint_account), Some(expected_pubkey)) = (accounts.cmint, cmint_pubkey) {
@@ -390,7 +391,7 @@ impl AccountsConfig {
     /// decompress_mint only needs mint_signer.key() for PDA derivation.
     #[inline(always)]
     pub fn mint_signer_must_sign(&self) -> bool {
-        self.with_mint_signer && !self.has_decompress_mint_action
+        self.create_mint
     }
 
     /// Initialize AccountsConfig based in instruction data.  -
@@ -455,19 +456,19 @@ impl AccountsConfig {
                 msg!("Mint to ctokens not allowed when writing to cpi context");
                 return Err(ErrorCode::CpiContextSetNotUsable.into());
             }
-            if has_decompress_mint_action || cmint_decompressed {
+            if has_decompress_mint_action {
                 msg!("Decompress mint not allowed when writing to cpi context");
+                return Err(ErrorCode::CpiContextSetNotUsable.into());
+            }
+
+            if cmint_decompressed {
+                msg!("CMint decompressed not allowed when writing to cpi context");
                 return Err(ErrorCode::CpiContextSetNotUsable.into());
             }
             let has_mint_to_actions = parsed_instruction_data
                 .actions
                 .iter()
                 .any(|action| matches!(action, ZAction::MintToCompressed(_)));
-            if cmint_decompressed && has_mint_to_actions {
-                msg!("Mint to compressed not allowed if cmint decompressed when writing to cpi context");
-                return Err(ErrorCode::CpiContextSetNotUsable.into());
-            }
-
             Ok(AccountsConfig {
                 with_cpi_context,
                 write_to_cpi_context,
@@ -491,7 +492,7 @@ impl AccountsConfig {
                 with_cpi_context,
                 write_to_cpi_context,
                 cmint_decompressed,
-                has_mint_to_actions,
+                has_mint_to_actions, // TODO: evaluate wether to rename to require token output queue
                 with_mint_signer,
                 create_mint: parsed_instruction_data.create_mint.is_some(),
                 has_decompress_mint_action,

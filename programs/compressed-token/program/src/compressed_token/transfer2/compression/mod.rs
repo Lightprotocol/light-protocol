@@ -116,7 +116,7 @@ pub fn process_token_compression<'a>(
                 SPL_TOKEN_2022_ID => {
                     // CompressedOnly inputs must decompress to CToken accounts to preserve
                     // extension state (frozen, delegated, withheld fees).
-                    if compression.mode.is_decompress()
+                    if compression.mode.is_decompress() // TODO: double check that we need decompress check here.
                         && compression_to_input[compression_index].is_some()
                     {
                         msg!("CompressedOnly inputs must decompress to CToken account");

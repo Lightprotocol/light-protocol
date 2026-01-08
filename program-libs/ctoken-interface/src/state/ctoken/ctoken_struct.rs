@@ -83,6 +83,7 @@ impl CToken {
         let data = account_info
             .try_borrow_data()
             .map_err(|_| ZeroCopyError::Size)?;
+        // TODO: check account is a ctoken account
         Self::amount_from_slice(&data)
     }
 

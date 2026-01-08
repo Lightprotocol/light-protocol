@@ -110,6 +110,7 @@ impl<'a> ZeroCopyNew<'a> for CToken {
         bytes: &'a mut [u8],
         config: Self::ZeroCopyConfig,
     ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
+        // TODO: check that this function fails if the account is already initialized
         // Use derived new_zero_copy for base struct (config type is () for fixed-size struct)
         let (mut base, mut remaining) =
             <CTokenZeroCopyMeta as ZeroCopyNew<'a>>::new_zero_copy(bytes, ())?;
@@ -157,9 +158,12 @@ impl<'a> ZeroCopyNew<'a> for CToken {
             remaining = write_remaining;
             (ACCOUNT_TYPE_TOKEN_ACCOUNT, Some(parsed_extensions))
         } else {
+            // TODO: remaining bytes should be checked to be zero
             (ACCOUNT_TYPE_TOKEN_ACCOUNT, None)
         };
-
+        if !remaining.is_empty() {
+            return Err(light_zero_copy::errors::ZeroCopyError::Size);
+        }
         Ok((
             ZCTokenMut {
                 base,
@@ -181,7 +185,8 @@ impl<'a> ZeroCopyAt<'a> for CToken {
         let (base, bytes) = <CTokenZeroCopyMeta as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
 
         // Check if there are extensions by looking at account_type byte at position 165
-        if !bytes.is_empty() && bytes[0] == ACCOUNT_TYPE_TOKEN_ACCOUNT {
+        if !bytes.is_empty() {
+            // && bytes[0] == ACCOUNT_TYPE_TOKEN_ACCOUNT  should throw an error
             let account_type = bytes[0];
             // Skip account_type byte
             let bytes = &bytes[1..];
@@ -221,7 +226,8 @@ impl<'a> ZeroCopyAtMut<'a> for CToken {
         let (base, bytes) = <CTokenZeroCopyMeta as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
 
         // Check if there are extensions by looking at account_type byte at position 165
-        if !bytes.is_empty() && bytes[0] == ACCOUNT_TYPE_TOKEN_ACCOUNT {
+        if !bytes.is_empty() {
+            // && bytes[0] == ACCOUNT_TYPE_TOKEN_ACCOUNT  should throw an error
             let account_type = bytes[0];
             // Skip account_type byte
             let bytes = &mut bytes[1..];

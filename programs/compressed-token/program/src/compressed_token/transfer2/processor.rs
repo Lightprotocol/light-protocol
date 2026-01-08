@@ -61,7 +61,7 @@ pub fn process_transfer2(
 
     if transfer_config.no_compressed_accounts {
         // No compressed accounts are invalidated or created in this transaction
-        //  -> no need to invoke the light system program.
+        // so no need to invoke the light system program.
         process_no_system_program_cpi(&inputs, &validated_accounts, &mint_cache)
     } else {
         process_with_system_program_cpi(
@@ -140,7 +140,7 @@ pub fn validate_instruction_data(
         if !allowed {
             return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
         }
-        // All out_token_data must be version 3 if tlv is present.
+        // All out_token_data must be version 3 (sha flat) if tlv is present.
         let allowed = inputs.out_token_data.iter().all(|c| c.version == 3);
         if !allowed {
             return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);

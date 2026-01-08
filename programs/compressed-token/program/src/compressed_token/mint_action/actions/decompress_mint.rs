@@ -1,5 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
+use light_array_map::pubkey_eq;
 use light_compressible::compression_info::CompressionInfo;
 use light_ctoken_interface::{
     instructions::mint_action::ZDecompressMintAction, state::CompressedMint, COMPRESSED_MINT_SEED,
@@ -116,6 +117,11 @@ pub fn process_decompress_mint_action(
         action.cmint_bump,
         &crate::LIGHT_CPI_SIGNER.program_id,
     )?;
+    // 6b. Verify CMint account matches compressed_mint.metadata.mint
+    if !pubkey_eq(cmint.key(), &compressed_mint.metadata.mint.to_bytes()) {
+        msg!("CMint account does not match compressed_mint.metadata.mint");
+        return Err(ErrorCode::InvalidCMintAccount.into());
+    }
 
     // 7. Account creation: rent_sponsor pays rent exemption, fee_payer pays Light rent
     // 7a. Calculate account size AFTER adding extension (using borsh serialization)
