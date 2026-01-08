@@ -142,6 +142,7 @@ export const CompressedMintMetadataLayout = struct([
     u8('version'),
     bool('cmintDecompressed'),
     publicKey('mint'),
+    array(u8(), 32, 'compressedAddress'),
 ]);
 
 export const CompressedMintInstructionDataLayout = struct([
@@ -157,9 +158,6 @@ export const MintActionCompressedInstructionDataLayout = struct([
     u32('leafIndex'),
     bool('proveByIndex'),
     u16('rootIndex'),
-    array(u8(), 32, 'compressedAddress'),
-    u8('tokenPoolBump'),
-    u8('tokenPoolIndex'),
     u16('maxTopUp'),
     option(CreateMintLayout, 'createMint'),
     vec(ActionLayout, 'actions'),
@@ -311,6 +309,7 @@ export interface CompressedMintMetadata {
     version: number;
     cmintDecompressed: boolean;
     mint: PublicKey;
+    compressedAddress: number[];
 }
 
 export interface CompressedMintInstructionData {
@@ -326,9 +325,6 @@ export interface MintActionCompressedInstructionData {
     leafIndex: number;
     proveByIndex: boolean;
     rootIndex: number;
-    compressedAddress: number[];
-    tokenPoolBump: number;
-    tokenPoolIndex: number;
     maxTopUp: number;
     createMint: CreateMint | null;
     actions: Action[];

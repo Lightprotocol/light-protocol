@@ -27,9 +27,6 @@ describe('MintActionCompressedInstructionData Layout', () => {
                 leafIndex: 0,
                 proveByIndex: false,
                 rootIndex: 42,
-                compressedAddress: Array.from(new Uint8Array(32).fill(1)),
-                tokenPoolBump: 0,
-                tokenPoolIndex: 0,
                 maxTopUp: 0,
                 createMint: {
                     readOnlyAddressTrees: [0, 0, 0, 0],
@@ -49,6 +46,7 @@ describe('MintActionCompressedInstructionData Layout', () => {
                         version: TokenDataVersion.ShaFlat,
                         cmintDecompressed: false,
                         mint: mintSigner.publicKey,
+                        compressedAddress: Array.from(new Uint8Array(32).fill(1)),
                     },
                     mintAuthority: mintAuthority.publicKey,
                     freezeAuthority: null,
@@ -65,11 +63,6 @@ describe('MintActionCompressedInstructionData Layout', () => {
             expect(decoded.leafIndex).toBe(instructionData.leafIndex);
             expect(decoded.proveByIndex).toBe(instructionData.proveByIndex);
             expect(decoded.rootIndex).toBe(instructionData.rootIndex);
-            expect(decoded.compressedAddress).toEqual(
-                instructionData.compressedAddress,
-            );
-            expect(decoded.tokenPoolBump).toBe(instructionData.tokenPoolBump);
-            expect(decoded.tokenPoolIndex).toBe(instructionData.tokenPoolIndex);
             expect(decoded.maxTopUp).toBe(instructionData.maxTopUp);
             expect(decoded.createMint).toEqual(instructionData.createMint);
             expect(decoded.actions).toEqual([]);
@@ -77,6 +70,9 @@ describe('MintActionCompressedInstructionData Layout', () => {
             expect(decoded.cpiContext).toBeNull();
             expect(decoded.mint).toBeDefined();
             expect(decoded.mint!.decimals).toBe(9);
+            expect(decoded.mint!.metadata.compressedAddress).toEqual(
+                instructionData.mint!.metadata.compressedAddress,
+            );
         });
 
         it('should encode createMint without proof (null proof)', () => {
@@ -87,9 +83,6 @@ describe('MintActionCompressedInstructionData Layout', () => {
                 leafIndex: 0,
                 proveByIndex: false,
                 rootIndex: 0,
-                compressedAddress: Array.from(new Uint8Array(32).fill(0)),
-                tokenPoolBump: 0,
-                tokenPoolIndex: 0,
                 maxTopUp: 0,
                 createMint: {
                     readOnlyAddressTrees: [0, 0, 0, 0],
@@ -105,6 +98,7 @@ describe('MintActionCompressedInstructionData Layout', () => {
                         version: TokenDataVersion.ShaFlat,
                         cmintDecompressed: false,
                         mint: mintSigner.publicKey,
+                        compressedAddress: Array.from(new Uint8Array(32).fill(0)),
                     },
                     mintAuthority: mintAuthority.publicKey,
                     freezeAuthority: null,
@@ -128,9 +122,6 @@ describe('MintActionCompressedInstructionData Layout', () => {
                 leafIndex: 0,
                 proveByIndex: false,
                 rootIndex: 100,
-                compressedAddress: Array.from(new Uint8Array(32).fill(5)),
-                tokenPoolBump: 0,
-                tokenPoolIndex: 0,
                 maxTopUp: 0,
                 createMint: {
                     readOnlyAddressTrees: [0, 0, 0, 0],
@@ -150,6 +141,7 @@ describe('MintActionCompressedInstructionData Layout', () => {
                         version: TokenDataVersion.ShaFlat,
                         cmintDecompressed: false,
                         mint: mintSigner.publicKey,
+                        compressedAddress: Array.from(new Uint8Array(32).fill(5)),
                     },
                     mintAuthority: mintAuthority.publicKey,
                     freezeAuthority: freezeAuthority.publicKey,
@@ -174,9 +166,6 @@ describe('MintActionCompressedInstructionData Layout', () => {
                 leafIndex: 0,
                 proveByIndex: false,
                 rootIndex: 50,
-                compressedAddress: Array.from(new Uint8Array(32).fill(6)),
-                tokenPoolBump: 0,
-                tokenPoolIndex: 0,
                 maxTopUp: 0,
                 createMint: {
                     readOnlyAddressTrees: [0, 0, 0, 0],
@@ -196,6 +185,7 @@ describe('MintActionCompressedInstructionData Layout', () => {
                         version: TokenDataVersion.ShaFlat,
                         cmintDecompressed: false,
                         mint: mintSigner.publicKey,
+                        compressedAddress: Array.from(new Uint8Array(32).fill(6)),
                     },
                     mintAuthority: mintAuthority.publicKey,
                     freezeAuthority: null,
@@ -236,9 +226,6 @@ describe('MintActionCompressedInstructionData Layout', () => {
                 leafIndex: 0,
                 proveByIndex: false,
                 rootIndex: 0,
-                compressedAddress: Array(32).fill(0),
-                tokenPoolBump: 0,
-                tokenPoolIndex: 0,
                 maxTopUp: 0,
                 createMint: {
                     readOnlyAddressTrees: [0, 0, 0, 0],
@@ -254,6 +241,7 @@ describe('MintActionCompressedInstructionData Layout', () => {
                         version: 0,
                         cmintDecompressed: false,
                         mint: mintSigner,
+                        compressedAddress: Array(32).fill(0),
                     },
                     mintAuthority: mintAuthority,
                     freezeAuthority: null,
@@ -286,26 +274,17 @@ describe('MintActionCompressedInstructionData Layout', () => {
             // Next 2 bytes should be rootIndex (0 as u16 little-endian)
             expect(encoded1.slice(6, 8)).toEqual(Buffer.from([0, 0]));
 
-            // Next 32 bytes should be compressedAddress (all zeros)
-            expect(encoded1.slice(8, 40)).toEqual(Buffer.alloc(32, 0));
+            // maxTopUp at bytes 8-9 (u16 little-endian)
+            expect(encoded1.slice(8, 10)).toEqual(Buffer.from([0, 0]));
 
-            // tokenPoolBump at byte 40
-            expect(encoded1[40]).toBe(0);
+            // createMint Option: byte 10 should be 1 (Some)
+            expect(encoded1[10]).toBe(1);
 
-            // tokenPoolIndex at byte 41
-            expect(encoded1[41]).toBe(0);
+            // createMint.readOnlyAddressTrees: bytes 11-14
+            expect(encoded1.slice(11, 15)).toEqual(Buffer.from([0, 0, 0, 0]));
 
-            // maxTopUp at bytes 42-43 (u16 little-endian)
-            expect(encoded1.slice(42, 44)).toEqual(Buffer.from([0, 0]));
-
-            // createMint Option: byte 44 should be 1 (Some)
-            expect(encoded1[44]).toBe(1);
-
-            // createMint.readOnlyAddressTrees: bytes 45-48
-            expect(encoded1.slice(45, 49)).toEqual(Buffer.from([0, 0, 0, 0]));
-
-            // createMint.readOnlyAddressTreeRootIndices: bytes 49-56 (4 x u16)
-            expect(encoded1.slice(49, 57)).toEqual(
+            // createMint.readOnlyAddressTreeRootIndices: bytes 15-22 (4 x u16)
+            expect(encoded1.slice(15, 23)).toEqual(
                 Buffer.from([0, 0, 0, 0, 0, 0, 0, 0]),
             );
         });
