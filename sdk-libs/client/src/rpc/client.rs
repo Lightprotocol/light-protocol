@@ -466,6 +466,37 @@ impl Rpc for LightClient {
         .await
     }
 
+    async fn get_program_accounts_with_discriminator(
+        &self,
+        program_id: &Pubkey,
+        discriminator: &[u8],
+    ) -> Result<Vec<(Pubkey, Account)>, RpcError> {
+        use solana_rpc_client_api::{
+            config::{RpcAccountInfoConfig, RpcProgramAccountsConfig},
+            filter::{Memcmp, RpcFilterType},
+        };
+
+        let discriminator = discriminator.to_vec();
+        self.retry(|| async {
+            let config = RpcProgramAccountsConfig {
+                filters: Some(vec![RpcFilterType::Memcmp(Memcmp::new_base58_encoded(
+                    0,
+                    &discriminator,
+                ))]),
+                account_config: RpcAccountInfoConfig {
+                    encoding: Some(solana_account_decoder_client_types::UiAccountEncoding::Base64),
+                    commitment: Some(self.client.commitment()),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            self.client
+                .get_program_accounts_with_config(program_id, config)
+                .map_err(RpcError::from)
+        })
+        .await
+    }
+
     async fn process_transaction(
         &mut self,
         transaction: Transaction,

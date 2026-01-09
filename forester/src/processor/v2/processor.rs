@@ -26,7 +26,9 @@ use crate::{
     },
 };
 
-const MAX_BATCHES_PER_TREE: usize = 20;
+/// Maximum batches to process per tree per iteration.
+/// This is stored in BatchContext and configured via CLI.
+const MAX_BATCHES_PER_TREE: usize = 4;
 
 #[derive(Debug, Default, Clone)]
 struct BatchTimings {

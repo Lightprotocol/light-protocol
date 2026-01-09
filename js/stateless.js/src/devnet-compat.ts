@@ -21,4 +21,3 @@ export function setDevnetCompat(enabled: boolean): void {
 export function isDevnetCompat(): boolean {
     return _useDevnetFormat;
 }
-

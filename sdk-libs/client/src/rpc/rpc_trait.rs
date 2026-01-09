@@ -97,6 +97,13 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         &self,
         program_id: &Pubkey,
     ) -> Result<Vec<(Pubkey, Account)>, RpcError>;
+
+    async fn get_program_accounts_with_discriminator(
+        &self,
+        program_id: &Pubkey,
+        discriminator: &[u8],
+    ) -> Result<Vec<(Pubkey, Account)>, RpcError>;
+
     // TODO: add send transaction with config
 
     async fn confirm_transaction(&self, signature: Signature) -> Result<bool, RpcError>;

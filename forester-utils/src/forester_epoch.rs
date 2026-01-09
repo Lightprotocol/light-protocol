@@ -62,6 +62,7 @@ pub struct TreeAccounts {
     // TODO: evaluate whether we need
     pub is_rolledover: bool,
     pub tree_type: TreeType,
+    pub owner: Pubkey,
 }
 
 impl TreeAccounts {
@@ -70,12 +71,14 @@ impl TreeAccounts {
         queue: Pubkey,
         tree_type: TreeType,
         is_rolledover: bool,
+        owner: Pubkey,
     ) -> Self {
         Self {
             merkle_tree,
             queue,
             tree_type,
             is_rolledover,
+            owner,
         }
     }
 }
@@ -170,9 +173,15 @@ impl TreeForesterSchedule {
             tree_accounts: *tree_accounts,
             slots: Vec::new(),
         };
+        // V2 trees use merkle_tree pubkey for eligibility check on-chain,
+        // V1 trees use queue pubkey. Must match on-chain check_forester logic.
+        let eligibility_pubkey = match tree_accounts.tree_type {
+            TreeType::StateV2 | TreeType::AddressV2 => &tree_accounts.merkle_tree,
+            _ => &tree_accounts.queue,
+        };
         _self.slots = get_schedule_for_forester_in_queue(
             solana_slot,
-            &_self.tree_accounts.queue,
+            eligibility_pubkey,
             epoch_pda.registered_weight,
             forester_epoch_pda,
         )?;

@@ -241,6 +241,7 @@ async fn e2e_test() {
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
             queue_polling_mode: Default::default(),
+            group_authority: None,
         },
         rpc_pool_config: RpcPoolConfig {
             max_size: 50,

@@ -876,12 +876,14 @@ async fn test_register_and_update_forester_pda() {
             merkle_tree: env.v1_state_trees[0].merkle_tree,
             queue: env.v1_state_trees[0].nullifier_queue,
             is_rolledover: false,
+            owner: Default::default(),
         },
         TreeAccounts {
             tree_type: TreeType::AddressV1,
             merkle_tree: env.v1_address_trees[0].merkle_tree,
             queue: env.v1_address_trees[0].queue,
             is_rolledover: false,
+            owner: Default::default(),
         },
     ];
 
