@@ -85,13 +85,7 @@ pub struct TreeStatus {
     pub owner: String,
 }
 
-pub fn get_forester_status_blocking(rpc_url: &str) -> crate::Result<ForesterStatus> {
-    tokio::runtime::Runtime::new()
-        .context("Failed to create tokio runtime")?
-        .block_on(get_forester_status_async(rpc_url))
-}
-
-async fn get_forester_status_async(rpc_url: &str) -> crate::Result<ForesterStatus> {
+pub async fn get_forester_status(rpc_url: &str) -> crate::Result<ForesterStatus> {
     let rpc = LightClient::new(LightClientConfig {
         url: rpc_url.to_string(),
         photon_url: None,
