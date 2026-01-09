@@ -47,7 +47,7 @@ pub fn process_compress_and_close(
         compress_and_close_inputs.ok_or(ErrorCode::CompressAndCloseDestinationMissing)?;
 
     // Validate token account - only compressible accounts with compression_authority are allowed
-    let compress_to_pubkey = validate_token_account_for_close(
+    let compress_to_pubkey = validate_ctoken_account(
         &CloseTokenAccountAccounts {
             token_account: token_account_info,
             destination: close_inputs.destination,
@@ -274,7 +274,7 @@ pub fn close_for_compress_and_close(
 /// Validates that a ctoken solana account is ready to be closed.
 /// The rent authority can close the account.
 #[profile]
-pub fn validate_token_account_for_close(
+pub fn validate_ctoken_account(
     accounts: &CloseTokenAccountAccounts,
     ctoken: &ZCTokenMut<'_>,
 ) -> Result<bool, ProgramError> {

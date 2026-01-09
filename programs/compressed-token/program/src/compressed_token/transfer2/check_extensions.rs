@@ -1,5 +1,3 @@
-use core::panic;
-
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
@@ -118,32 +116,29 @@ pub fn build_mint_extension_cache<'a>(
                 cache.insert(mint_index, checks, ErrorCode::MintCacheCapacityExceeded)?;
             }
 
-            if let Some(checks) = cache.get_by_key(&mint_index) {
-                // CompressAndClose with restricted extensions requires CompressedOnly output.
-                // Compress/Decompress don't need additional validation here:
-                // - Compress: blocked by check_mint_extensions when outputs exist
-                // - Decompress: no check it restores existing state
-                if checks.has_restricted_extensions && compression.mode.is_compress_and_close() {
-                    let output_idx = compression.get_compressed_token_account_index()?;
-                    let has_compressed_only = inputs
-                        .out_tlv
-                        .as_ref()
-                        .and_then(|tlvs| tlvs.get(output_idx as usize))
-                        .map(|tlv| {
-                            tlv.iter()
-                                .any(|e| matches!(e, ZExtensionInstructionData::CompressedOnly(_)))
-                        })
-                        .unwrap_or(false);
-                    if !has_compressed_only {
-                        msg!("Mint has restricted extensions - CompressedOnly output required");
-                        return Err(
-                            ErrorCode::CompressAndCloseMissingCompressedOnlyExtension.into()
-                        );
-                    }
+            // SAFETY: mint_index was just inserted above if not already present
+            let checks = cache.get_by_key(&mint_index).unwrap();
+            // CompressAndClose with restricted extensions requires CompressedOnly output.
+            // Compress/Decompress don't need additional validation here:
+            // - Compress: blocked by check_mint_extensions when outputs exist
+            // - Decompress: no check it restores existing state
+            if checks.has_restricted_extensions && compression.mode.is_compress_and_close() {
+                let output_idx = compression.get_compressed_token_account_index()?;
+                let has_compressed_only = inputs
+                    .out_tlv
+                    .as_ref()
+                    .and_then(|tlvs| tlvs.get(output_idx as usize))
+                    .map(|tlv| {
+                        tlv.iter()
+                            .any(|e| matches!(e, ZExtensionInstructionData::CompressedOnly(_)))
+                    })
+                    .unwrap_or(false);
+                if !has_compressed_only {
+                    msg!("Mint has restricted extensions - CompressedOnly output required");
+                    return Err(
+                        ErrorCode::CompressAndCloseMissingCompressedOnlyExtension.into()
+                    );
                 }
-            } else {
-                // TODO: double check.
-                panic!("Mint cache: compression: mint index not found");
             }
         }
     }

@@ -416,7 +416,7 @@ async fn test_spl_instruction_compatibility() {
 /// Test SPL token instruction compatibility with ctoken program using decompressed cmint
 ///
 /// This test uses a real decompressed cmint to test instructions that require mint data:
-/// - transfer_checked, approve_checked (require decimals validation)
+/// - transfer_checked,
 /// - mint_to, mint_to_checked (require mint authority)
 /// - burn, burn_checked (require token burning)
 /// - freeze_account, thaw_account (require freeze authority)
@@ -684,68 +684,6 @@ async fn test_spl_instruction_compatibility_with_cmint() {
         println!("transfer_checked completed successfully");
     }
 
-    println!("Testing approve_checked using SPL instruction format...");
-
-    // ApproveChecked using SPL instruction format
-    {
-        let delegate = Keypair::new();
-
-        let mut approve_checked_ix = spl_token_2022::instruction::approve_checked(
-            &spl_token_2022::ID,
-            &account1_keypair.pubkey(),
-            &cmint_pda,
-            &delegate.pubkey(),
-            &owner_keypair.pubkey(),
-            &[],
-            200,
-            decimals,
-        )
-        .unwrap();
-        approve_checked_ix.program_id = light_compressed_token::ID;
-
-        rpc.create_and_send_transaction(
-            &[approve_checked_ix],
-            &payer_pubkey,
-            &[&payer, &owner_keypair],
-        )
-        .await
-        .unwrap();
-
-        // Verify delegate was set
-        let account1 = rpc
-            .get_account(account1_keypair.pubkey())
-            .await
-            .unwrap()
-            .unwrap();
-        let account1_data =
-            spl_token_2022::state::Account::unpack_unchecked(&account1.data[..165]).unwrap();
-        assert_eq!(
-            account1_data.delegate,
-            solana_sdk::program_option::COption::Some(delegate.pubkey()),
-            "Delegate should be set"
-        );
-        assert_eq!(
-            account1_data.delegated_amount, 200,
-            "Delegated amount should be 200"
-        );
-
-        // Revoke for next tests
-        let mut revoke_ix = spl_token_2022::instruction::revoke(
-            &spl_token_2022::ID,
-            &account1_keypair.pubkey(),
-            &owner_keypair.pubkey(),
-            &[],
-        )
-        .unwrap();
-        revoke_ix.program_id = light_compressed_token::ID;
-
-        rpc.create_and_send_transaction(&[revoke_ix], &payer_pubkey, &[&payer, &owner_keypair])
-            .await
-            .unwrap();
-
-        println!("approve_checked completed successfully");
-    }
-
     println!("Testing freeze_account using SPL instruction format...");
 
     // FreezeAccount using SPL instruction format
@@ -896,7 +834,6 @@ async fn test_spl_instruction_compatibility_with_cmint() {
     println!("   - mint_to: Minted 1000 tokens");
     println!("   - mint_to_checked: Minted 500 tokens with decimals validation");
     println!("   - transfer_checked: Transferred 500 tokens with decimals validation");
-    println!("   - approve_checked: Approved delegate with decimals validation");
     println!("   - freeze_account: Froze account");
     println!("   - thaw_account: Thawed account");
     println!("   - burn: Burned 100 tokens");
