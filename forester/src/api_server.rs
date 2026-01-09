@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 use warp::{http::Response, Filter};
 
-use crate::{forester_status::get_forester_status_blocking, metrics::REGISTRY};
+use crate::{forester_status::get_forester_status, metrics::REGISTRY};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthResponse {
@@ -49,23 +49,12 @@ pub fn spawn_api_server(rpc_url: String, port: u16) {
             let status_route = warp::path("status").and(warp::get()).and_then(move || {
                 let rpc_url = rpc_url.clone();
                 async move {
-                    match tokio::task::spawn_blocking(move || {
-                        get_forester_status_blocking(&rpc_url)
-                    })
-                    .await
-                    {
-                        Ok(Ok(status)) => Ok::<_, warp::Rejection>(warp::reply::json(&status)),
-                        Ok(Err(e)) => {
+                    match get_forester_status(&rpc_url).await {
+                        Ok(status) => Ok::<_, warp::Rejection>(warp::reply::json(&status)),
+                        Err(e) => {
                             error!("Failed to get forester status: {:?}", e);
                             let error_response = ErrorResponse {
                                 error: format!("Failed to get forester status: {}", e),
-                            };
-                            Ok(warp::reply::json(&error_response))
-                        }
-                        Err(e) => {
-                            error!("Task join error: {:?}", e);
-                            let error_response = ErrorResponse {
-                                error: format!("Task join error: {}", e),
                             };
                             Ok(warp::reply::json(&error_response))
                         }
