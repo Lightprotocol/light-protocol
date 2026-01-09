@@ -679,6 +679,8 @@
     </div>
 
     <script>
+        const SLOT_SECONDS = 0.46;
+
         let lastUpdateTime = null;
         let typeFilter = null; // null = show all, or 'StateV2', 'AddressV2', etc.
         let cachedData = null;
@@ -743,8 +745,12 @@
         }
 
         function showError(message) {
-            document.getElementById('errorContainer').innerHTML =
-                `<div class="error-message">Error: ${message}</div>`;
+            const container = document.getElementById('errorContainer');
+            container.textContent = '';
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = 'Error: ' + message;
+            container.appendChild(errorDiv);
         }
 
         function clearError() {
@@ -767,10 +773,10 @@
             return `${days}d ${remainingHours}h`;
         }
 
-        // Format slots to hours:minutes (each slot ~460ms)
+        // Format slots to hours:minutes
         function formatSlotsToTime(slots) {
             if (slots === null || slots === undefined) return '-';
-            const totalSeconds = Math.floor(slots * 0.46);
+            const totalSeconds = Math.floor(slots * SLOT_SECONDS);
             const hours = Math.floor(totalSeconds / 3600);
             const minutes = Math.floor((totalSeconds % 3600) / 60);
 
@@ -1017,7 +1023,7 @@
                             <div class="metric">
                                 <div class="metric-value">${data.current_light_slot !== null ? data.current_light_slot : '-'}${data.total_light_slots ? `<span style="font-size: 14px; color: #86868b;">/${data.total_light_slots}</span>` : ''}</div>
                                 <div class="metric-label">Light Slot</div>
-                                ${data.slots_until_next_light_slot ? `<div class="metric-sub">${(data.slots_until_next_light_slot * 0.46).toFixed(0)}s to next</div>` : ''}
+                                ${data.slots_until_next_light_slot ? `<div class="metric-sub">${(data.slots_until_next_light_slot * SLOT_SECONDS).toFixed(0)}s to next</div>` : ''}
                             </div>
                             <div class="metric">
                                 <div class="metric-value">${formatSlotsToTime(data.active_phase_length - data.active_epoch_progress)}</div>
@@ -1192,8 +1198,8 @@
             // If we have light slot info, refresh when slot changes
             if (cachedData && cachedData.slots_until_next_light_slot) {
                 const slotsRemaining = cachedData.slots_until_next_light_slot;
-                // ~460ms per slot, refresh slightly after slot change
-                const msUntilChange = Math.max(1000, slotsRemaining * 460 + 500);
+                // Convert slots to milliseconds, refresh slightly after slot change
+                const msUntilChange = Math.max(1000, slotsRemaining * SLOT_SECONDS * 1000 + 500);
                 // But cap at 10 seconds max
                 const refreshIn = Math.min(msUntilChange, 10000);
                 refreshTimeout = setTimeout(() => {

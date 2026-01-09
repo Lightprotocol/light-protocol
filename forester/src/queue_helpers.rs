@@ -36,6 +36,52 @@ pub struct BatchInfo {
     pub items_in_current_zkp_batch: u64,
 }
 
+#[derive(Debug, Clone)]
+pub struct ParsedBatchData {
+    pub batch_infos: Vec<BatchInfo>,
+    pub total_pending_batches: u64,
+    pub zkp_batch_size: u64,
+    pub items_in_current_zkp_batch: u64,
+}
+
+pub fn parse_batch_metadata(batches: &[light_batched_merkle_tree::batch::Batch]) -> ParsedBatchData {
+    use light_batched_merkle_tree::constants::DEFAULT_ZKP_BATCH_SIZE;
+
+    let mut zkp_batch_size = DEFAULT_ZKP_BATCH_SIZE;
+    let mut total_pending_batches = 0u64;
+    let mut batch_infos = Vec::with_capacity(batches.len());
+    let mut items_in_current_zkp_batch = 0u64;
+
+    for (batch_idx, batch) in batches.iter().enumerate() {
+        zkp_batch_size = batch.zkp_batch_size;
+        let num_inserted = batch.get_num_inserted_zkps();
+        let current_index = batch.get_current_zkp_batch_index();
+        let pending_in_batch = current_index.saturating_sub(num_inserted);
+
+        if batch.get_state() == BatchState::Fill {
+            items_in_current_zkp_batch = batch.get_num_inserted_zkp_batch();
+        }
+
+        batch_infos.push(BatchInfo {
+            batch_index: batch_idx,
+            state: format!("{:?}", batch.get_state()),
+            num_inserted,
+            current_index,
+            pending: pending_in_batch,
+            items_in_current_zkp_batch: batch.get_num_inserted_zkp_batch(),
+        });
+
+        total_pending_batches += pending_in_batch;
+    }
+
+    ParsedBatchData {
+        batch_infos,
+        total_pending_batches,
+        zkp_batch_size,
+        items_in_current_zkp_batch,
+    }
+}
+
 pub fn parse_state_v2_queue_info(
     merkle_tree: &BatchedMerkleTreeAccount,
     output_queue_data: &mut [u8],
@@ -194,7 +240,7 @@ pub async fn fetch_queue_item_data<R: Rpc>(
         .map(|(index, hash, _)| QueueItemData { hash, index })
         .collect();
 
-    tracing::info!(
+    tracing::debug!(
         "Queue {}: total_items={}, total_pending={}, range={}..{}, filtered_result={}",
         queue_pubkey,
         total_items,
@@ -215,37 +261,32 @@ pub async fn print_state_v2_output_queue_info<R: Rpc>(
         let output_queue = BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice())?;
         let metadata = output_queue.get_metadata();
         let next_index = metadata.batch_metadata.next_index;
+        let zkp_batch_size = metadata.batch_metadata.zkp_batch_size;
 
-        let mut zkp_batch_size = DEFAULT_ZKP_BATCH_SIZE;
-        let mut total_unprocessed = 0;
+        let parsed = parse_batch_metadata(&metadata.batch_metadata.batches);
+
+        // Calculate completed and pending operations (in items, not batches)
+        let mut total_completed_operations = 0u64;
+        let mut total_unprocessed = 0u64;
         let mut batch_details = Vec::new();
-        let mut total_completed_operations = 0;
 
-        for (batch_idx, batch) in metadata.batch_metadata.batches.iter().enumerate() {
-            zkp_batch_size = batch.zkp_batch_size;
-            let num_inserted = batch.get_num_inserted_zkps();
-            let current_index = batch.get_current_zkp_batch_index();
-            let pending_in_batch = current_index.saturating_sub(num_inserted);
-
-            let completed_operations_in_batch =
-                num_inserted * metadata.batch_metadata.zkp_batch_size;
+        for batch_info in &parsed.batch_infos {
+            let completed_operations_in_batch = batch_info.num_inserted * zkp_batch_size;
             total_completed_operations += completed_operations_in_batch;
 
-            let pending_operations_in_batch =
-                pending_in_batch * metadata.batch_metadata.zkp_batch_size;
+            let pending_operations_in_batch = batch_info.pending * zkp_batch_size;
+            total_unprocessed += pending_operations_in_batch;
 
             batch_details.push(format!(
-                "batch_{}: state={:?}, zkp_inserted={}, zkp_current={}, zkp_pending={}, items_completed={}, items_pending={}",
-                batch_idx,
-                batch.get_state(),
-                num_inserted,
-                current_index,
-                pending_in_batch,
+                "batch_{}: state={}, zkp_inserted={}, zkp_current={}, zkp_pending={}, items_completed={}, items_pending={}",
+                batch_info.batch_index,
+                batch_info.state,
+                batch_info.num_inserted,
+                batch_info.current_index,
+                batch_info.pending,
                 completed_operations_in_batch,
                 pending_operations_in_batch
             ));
-
-            total_unprocessed += pending_operations_in_batch;
         }
 
         println!("StateV2 {} APPEND:", output_queue_pubkey);
@@ -259,10 +300,7 @@ pub async fn print_state_v2_output_queue_info<R: Rpc>(
             "  pending_batch_index: {}",
             metadata.batch_metadata.pending_batch_index
         );
-        println!(
-            "  zkp_batch_size: {}",
-            metadata.batch_metadata.zkp_batch_size
-        );
+        println!("  zkp_batch_size: {}", zkp_batch_size);
         println!(
             "  SUMMARY: {} items added, {} items processed, {} items pending",
             next_index, total_completed_operations, total_unprocessed
@@ -272,7 +310,7 @@ pub async fn print_state_v2_output_queue_info<R: Rpc>(
         }
         println!(
             "  Total pending APPEND operations: {}",
-            total_unprocessed / zkp_batch_size
+            parsed.total_pending_batches
         );
 
         Ok(total_unprocessed as usize)
@@ -435,44 +473,17 @@ pub async fn get_state_v2_output_queue_info<R: Rpc>(
         let queue = BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice())?;
         let next_index = queue.batch_metadata.next_index;
 
-        let mut zkp_batch_size = DEFAULT_ZKP_BATCH_SIZE;
-        let mut total_unprocessed = 0;
-        let mut batch_infos = Vec::new();
-        let mut output_items_in_current_zkp_batch = 0u64;
-
-        for (batch_idx, batch) in queue.batch_metadata.batches.iter().enumerate() {
-            zkp_batch_size = batch.zkp_batch_size;
-            let num_inserted = batch.get_num_inserted_zkps();
-            let current_index = batch.get_current_zkp_batch_index();
-            let pending_in_batch = current_index.saturating_sub(num_inserted);
-
-            if batch.get_state() == BatchState::Fill {
-                output_items_in_current_zkp_batch = batch.get_num_inserted_zkp_batch();
-            }
-
-            batch_infos.push(BatchInfo {
-                batch_index: batch_idx,
-                state: format!("{:?}", batch.get_state()),
-                num_inserted,
-                current_index,
-                pending: pending_in_batch,
-                items_in_current_zkp_batch: batch.get_num_inserted_zkp_batch(),
-            });
-
-            total_unprocessed += pending_in_batch;
-        }
-
-        let pending_batches = total_unprocessed;
+        let parsed = parse_batch_metadata(&queue.batch_metadata.batches);
 
         Ok(V2QueueInfo {
             next_index,
             pending_batch_index: queue.batch_metadata.pending_batch_index,
-            zkp_batch_size,
-            batches: batch_infos,
+            zkp_batch_size: parsed.zkp_batch_size,
+            batches: parsed.batch_infos,
             input_pending_batches: 0,
-            output_pending_batches: pending_batches,
+            output_pending_batches: parsed.total_pending_batches,
             input_items_in_current_zkp_batch: 0,
-            output_items_in_current_zkp_batch,
+            output_items_in_current_zkp_batch: parsed.items_in_current_zkp_batch,
         })
     } else {
         Err(anyhow::anyhow!("account not found"))
