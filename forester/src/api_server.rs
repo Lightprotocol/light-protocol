@@ -29,7 +29,13 @@ const DASHBOARD_HTML: &str = include_str!("../static/dashboard.html");
 
 pub fn spawn_api_server(rpc_url: String, port: u16) {
     std::thread::spawn(move || {
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = match tokio::runtime::Runtime::new() {
+            Ok(rt) => rt,
+            Err(e) => {
+                error!("Failed to create tokio runtime for API server: {}", e);
+                return;
+            }
+        };
         rt.block_on(async move {
             let addr = SocketAddr::from(([0, 0, 0, 0], port));
             info!("Starting HTTP API server on {}", addr);
@@ -62,28 +68,41 @@ pub fn spawn_api_server(rpc_url: String, port: u16) {
                 }
             });
 
-            let metrics_route = warp::path!("metrics" / "json").and(warp::get()).map(|| {
-                let metrics = get_metrics_json();
-                warp::reply::json(&metrics)
-            });
+            let metrics_route =
+                warp::path!("metrics" / "json")
+                    .and(warp::get())
+                    .and_then(|| async move {
+                        match get_metrics_json() {
+                            Ok(metrics) => Ok::<_, warp::Rejection>(warp::reply::json(&metrics)),
+                            Err(e) => {
+                                error!("Failed to encode metrics: {}", e);
+                                let error_response = ErrorResponse {
+                                    error: format!("Failed to encode metrics: {}", e),
+                                };
+                                Ok(warp::reply::json(&error_response))
+                            }
+                        }
+                    });
 
             let routes = dashboard_route
                 .or(health_route)
                 .or(status_route)
                 .or(metrics_route);
 
+            // warp::serve().run() will panic if binding fails.
+            // The panic message will be logged by the thread.
             warp::serve(routes).run(addr).await;
         });
     });
 }
 
-fn get_metrics_json() -> MetricsResponse {
+fn get_metrics_json() -> Result<MetricsResponse, prometheus::Error> {
     use prometheus::Encoder;
 
     let encoder = prometheus::TextEncoder::new();
     let metric_families = REGISTRY.gather();
     let mut buffer = Vec::new();
-    let _ = encoder.encode(&metric_families, &mut buffer);
+    encoder.encode(&metric_families, &mut buffer)?;
     let text = String::from_utf8_lossy(&buffer);
 
     let mut transactions_processed: HashMap<String, u64> = HashMap::new();
@@ -122,13 +141,13 @@ fn get_metrics_json() -> MetricsResponse {
         }
     }
 
-    MetricsResponse {
+    Ok(MetricsResponse {
         transactions_processed_total: transactions_processed,
         transaction_rate,
         last_run_timestamp,
         forester_balances,
         queue_lengths,
-    }
+    })
 }
 
 fn extract_label(metric_part: &str, label_name: &str) -> Option<String> {

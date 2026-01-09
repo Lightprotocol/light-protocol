@@ -258,7 +258,16 @@ pub async fn get_forester_status(rpc_url: &str) -> crate::Result<ForesterStatus>
 
                 // Build full schedule for each tree
                 for status in &mut tree_statuses {
-                    let queue_pubkey: Pubkey = status.queue.parse().unwrap_or_default();
+                    let queue_pubkey: Pubkey = match status.queue.parse() {
+                        Ok(pk) => pk,
+                        Err(e) => {
+                            warn!(
+                                "Failed to parse queue pubkey '{}': {}, skipping schedule computation",
+                                status.queue, e
+                            );
+                            continue;
+                        }
+                    };
                     let mut schedule: Vec<Option<usize>> =
                         Vec::with_capacity(total_light_slots as usize);
 
@@ -329,30 +338,45 @@ async fn fetch_registry_accounts_filtered<R: Rpc>(
     let mut epoch_pdas = Vec::new();
     let mut protocol_config_pdas = Vec::new();
 
-    if let Ok(accounts) = forester_result {
-        for (_, account) in accounts {
-            let mut data: &[u8] = &account.data;
-            if let Ok(pda) = ForesterEpochPda::try_deserialize_unchecked(&mut data) {
-                forester_epoch_pdas.push(pda);
+    match forester_result {
+        Ok(accounts) => {
+            for (_, account) in accounts {
+                let mut data: &[u8] = &account.data;
+                if let Ok(pda) = ForesterEpochPda::try_deserialize_unchecked(&mut data) {
+                    forester_epoch_pdas.push(pda);
+                }
             }
+        }
+        Err(e) => {
+            warn!("Failed to fetch forester epoch accounts: {:?}", e);
         }
     }
 
-    if let Ok(accounts) = epoch_result {
-        for (_, account) in accounts {
-            let mut data: &[u8] = &account.data;
-            if let Ok(pda) = EpochPda::try_deserialize_unchecked(&mut data) {
-                epoch_pdas.push(pda);
+    match epoch_result {
+        Ok(accounts) => {
+            for (_, account) in accounts {
+                let mut data: &[u8] = &account.data;
+                if let Ok(pda) = EpochPda::try_deserialize_unchecked(&mut data) {
+                    epoch_pdas.push(pda);
+                }
             }
+        }
+        Err(e) => {
+            warn!("Failed to fetch epoch accounts: {:?}", e);
         }
     }
 
-    if let Ok(accounts) = config_result {
-        for (_, account) in accounts {
-            let mut data: &[u8] = &account.data;
-            if let Ok(pda) = ProtocolConfigPda::try_deserialize_unchecked(&mut data) {
-                protocol_config_pdas.push(pda);
+    match config_result {
+        Ok(accounts) => {
+            for (_, account) in accounts {
+                let mut data: &[u8] = &account.data;
+                if let Ok(pda) = ProtocolConfigPda::try_deserialize_unchecked(&mut data) {
+                    protocol_config_pdas.push(pda);
+                }
             }
+        }
+        Err(e) => {
+            warn!("Failed to fetch protocol config accounts: {:?}", e);
         }
     }
 
@@ -577,7 +601,13 @@ fn parse_tree_status(
                 Some(v2_info),
             )
         }
-        TreeType::Unknown => (0.0, 0, 0, None, None),
+        TreeType::Unknown => {
+            warn!(
+                "Encountered unknown tree type for merkle_tree={}, queue={}",
+                tree.merkle_tree, tree.queue
+            );
+            (0.0, 0, 0, None, None)
+        }
     };
 
     Ok(TreeStatus {
