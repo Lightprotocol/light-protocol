@@ -407,6 +407,11 @@ impl<R: Rpc> TxSender<R> {
                 });
             }
 
+            // Use biased select to ensure the 1-second sleep branch is checked first.
+            // This guarantees periodic re-evaluation of sender eligibility even when
+            // proof_rx.recv() would otherwise block indefinitely waiting for proofs.
+            // Near epoch boundaries, this prevents getting stuck waiting on proofs
+            // when the forester's eligibility window is about to end.
             let result = tokio::select! {
                 biased;
                 _ = tokio::time::sleep(Duration::from_secs(1)) => {

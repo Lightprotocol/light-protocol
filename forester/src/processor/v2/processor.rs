@@ -26,7 +26,8 @@ use crate::{
     },
 };
 
-// TODO: switch back to 20 after merging https://github.com/helius-labs/photon/pull/317
+/// Maximum batches to process per tree per iteration.
+/// This is stored in BatchContext and configured via CLI.
 const MAX_BATCHES_PER_TREE: usize = 4;
 
 #[derive(Debug, Default, Clone)]

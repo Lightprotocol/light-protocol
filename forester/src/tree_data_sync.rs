@@ -318,7 +318,9 @@ fn create_tree_accounts(
 
 pub async fn fetch_protocol_group_authority<R: Rpc>(rpc: &R) -> Result<Pubkey> {
     let registered_program_pda =
-        light_registry::account_compression_cpi::sdk::get_registered_program_pda(&light_registry::ID);
+        light_registry::account_compression_cpi::sdk::get_registered_program_pda(
+            &light_registry::ID,
+        );
 
     let account = rpc
         .get_account(registered_program_pda)

@@ -22,6 +22,8 @@ use tracing::{info, warn};
 use crate::metrics::{update_indexer_proof_count, update_indexer_response_time};
 
 const ADDRESS_PROOF_BATCH_SIZE: usize = 100;
+const ADDRESS_PROOF_MAX_RETRIES: u32 = 3;
+const ADDRESS_PROOF_RETRY_BASE_DELAY_MS: u64 = 500;
 
 use crate::{
     epoch_manager::{MerkleProofType, WorkItem},
@@ -106,49 +108,81 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
 
         for (batch_idx, batch) in addresses.chunks(ADDRESS_PROOF_BATCH_SIZE).enumerate() {
             let batch_start = Instant::now();
+            // Pass slice directly if indexer accepts it, otherwise clone
             let batch_addresses: Vec<[u8; 32]> = batch.to_vec();
             let batch_size = batch_addresses.len();
 
-            match rpc
-                .indexer()?
-                .get_multiple_new_address_proofs(merkle_tree, batch_addresses, None)
-                .await
-            {
-                Ok(response) => {
-                    let batch_duration = batch_start.elapsed();
-                    let proofs_received = response.value.items.len();
-
-                    info!(
-                        "Address proof batch {}: requested={}, received={}, duration={:.3}s",
-                        batch_idx,
-                        batch_size,
-                        proofs_received,
-                        batch_duration.as_secs_f64()
-                    );
-
-                    if proofs_received != batch_size {
-                        warn!(
-                            "Address proof count mismatch in batch {}: requested={}, received={}",
-                            batch_idx, batch_size, proofs_received
-                        );
-                    }
-
-                    all_proofs.extend(response.value.items);
-                }
-                Err(e) => {
-                    let batch_duration = batch_start.elapsed();
+            // Retry loop for transient network errors
+            let mut last_error = None;
+            for attempt in 0..=ADDRESS_PROOF_MAX_RETRIES {
+                if attempt > 0 {
+                    // Exponential backoff: 500ms, 1000ms, 2000ms
+                    let delay_ms = ADDRESS_PROOF_RETRY_BASE_DELAY_MS * (1 << (attempt - 1));
                     warn!(
-                        "Failed to get address proofs for batch {} after {:.3}s: {}",
+                        "Retrying address proof batch {} (attempt {}/{}), waiting {}ms",
                         batch_idx,
-                        batch_duration.as_secs_f64(),
-                        e
+                        attempt + 1,
+                        ADDRESS_PROOF_MAX_RETRIES + 1,
+                        delay_ms
                     );
-                    return Err(anyhow::anyhow!(
-                        "Failed to get address proofs for batch {}: {}",
-                        batch_idx,
-                        e
-                    ));
+                    tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
                 }
+
+                match rpc
+                    .indexer()?
+                    .get_multiple_new_address_proofs(merkle_tree, batch_addresses.clone(), None)
+                    .await
+                {
+                    Ok(response) => {
+                        let batch_duration = batch_start.elapsed();
+                        let proofs_received = response.value.items.len();
+
+                        info!(
+                            "Address proof batch {}: requested={}, received={}, duration={:.3}s{}",
+                            batch_idx,
+                            batch_size,
+                            proofs_received,
+                            batch_duration.as_secs_f64(),
+                            if attempt > 0 {
+                                format!(" (after {} retries)", attempt)
+                            } else {
+                                String::new()
+                            }
+                        );
+
+                        if proofs_received != batch_size {
+                            warn!(
+                                "Address proof count mismatch in batch {}: requested={}, received={}",
+                                batch_idx, batch_size, proofs_received
+                            );
+                        }
+
+                        all_proofs.extend(response.value.items);
+                        last_error = None;
+                        break;
+                    }
+                    Err(e) => {
+                        last_error = Some(e);
+                    }
+                }
+            }
+
+            // If we exhausted all retries, return the last error
+            if let Some(e) = last_error {
+                let batch_duration = batch_start.elapsed();
+                warn!(
+                    "Failed to get address proofs for batch {} after {} attempts ({:.3}s): {}",
+                    batch_idx,
+                    ADDRESS_PROOF_MAX_RETRIES + 1,
+                    batch_duration.as_secs_f64(),
+                    e
+                );
+                return Err(anyhow::anyhow!(
+                    "Failed to get address proofs for batch {} after {} retries: {}",
+                    batch_idx,
+                    ADDRESS_PROOF_MAX_RETRIES,
+                    e
+                ));
             }
         }
 

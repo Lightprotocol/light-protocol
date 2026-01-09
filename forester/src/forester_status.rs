@@ -85,7 +85,21 @@ pub struct TreeStatus {
     pub owner: String,
 }
 
+/// Get forester status with optional group authority filtering.
+///
+/// # Arguments
+/// * `rpc_url` - RPC URL to connect to
+/// * `filter_by_group_authority` - If true, filter trees by protocol group authority.
+///   If false, show all trees without filtering.
 pub async fn get_forester_status(rpc_url: &str) -> crate::Result<ForesterStatus> {
+    get_forester_status_with_options(rpc_url, true).await
+}
+
+/// Get forester status with explicit control over group authority filtering.
+pub async fn get_forester_status_with_options(
+    rpc_url: &str,
+    filter_by_group_authority: bool,
+) -> crate::Result<ForesterStatus> {
     let rpc = LightClient::new(LightClientConfig {
         url: rpc_url.to_string(),
         photon_url: None,
@@ -198,18 +212,31 @@ pub async fn get_forester_status(rpc_url: &str) -> crate::Result<ForesterStatus>
         }
     };
 
-    // Filter trees by protocol group authority
-    if let Ok(group_authority) = fetch_protocol_group_authority(&rpc).await {
-        let before_count = trees.len();
-        trees.retain(|tree| tree.owner == group_authority);
+    // Filter trees by protocol group authority if enabled
+    if filter_by_group_authority {
+        match fetch_protocol_group_authority(&rpc).await {
+            Ok(group_authority) => {
+                let before_count = trees.len();
+                trees.retain(|tree| tree.owner == group_authority);
+                debug!(
+                    "Group authority filtering enabled: filtered by {} ({} -> {} trees)",
+                    group_authority,
+                    before_count,
+                    trees.len()
+                );
+            }
+            Err(e) => {
+                warn!(
+                    "Group authority filtering enabled but fetch failed: {:?}. Showing all trees.",
+                    e
+                );
+            }
+        }
+    } else {
         debug!(
-            "Filtered trees by group authority {}: {} -> {} trees",
-            group_authority,
-            before_count,
+            "Group authority filtering disabled, showing all {} trees",
             trees.len()
         );
-    } else {
-        warn!("Failed to fetch protocol group authority, showing all trees");
     }
 
     // Phase 3: Batch fetch all tree and queue accounts using Rpc trait
@@ -258,12 +285,23 @@ pub async fn get_forester_status(rpc_url: &str) -> crate::Result<ForesterStatus>
 
                 // Build full schedule for each tree
                 for status in &mut tree_statuses {
-                    let queue_pubkey: Pubkey = match status.queue.parse() {
+                    // V2 trees use the merkle tree pubkey as seed for eligibility,
+                    // while V1 trees use the queue pubkey
+                    let is_v2_tree =
+                        status.tree_type == "StateV2" || status.tree_type == "AddressV2";
+                    let seed_pubkey_str = if is_v2_tree {
+                        &status.merkle_tree
+                    } else {
+                        &status.queue
+                    };
+                    let seed_pubkey: Pubkey = match seed_pubkey_str.parse() {
                         Ok(pk) => pk,
                         Err(e) => {
                             warn!(
-                                "Failed to parse queue pubkey '{}': {}, skipping schedule computation",
-                                status.queue, e
+                                "Failed to parse {} pubkey '{}': {}, skipping schedule computation",
+                                if is_v2_tree { "merkle tree" } else { "queue" },
+                                seed_pubkey_str,
+                                e
                             );
                             continue;
                         }
@@ -274,7 +312,7 @@ pub async fn get_forester_status(rpc_url: &str) -> crate::Result<ForesterStatus>
                     for light_slot_idx in 0..total_light_slots {
                         let forester_idx = ForesterEpochPda::get_eligible_forester_index(
                             light_slot_idx,
-                            &queue_pubkey,
+                            &seed_pubkey,
                             total_epoch_weight,
                             current_active_epoch,
                         )
@@ -328,55 +366,36 @@ async fn fetch_registry_accounts_filtered<R: Rpc>(
 ) -> crate::Result<(Vec<ForesterEpochPda>, Vec<EpochPda>, Vec<ProtocolConfigPda>)> {
     let program_id = light_registry::ID;
 
-    let (forester_result, epoch_result, config_result) = tokio::join!(
+    // Use try_join! to propagate RPC errors instead of silently returning empty data
+    let (forester_accounts, epoch_accounts, config_accounts) = tokio::try_join!(
         rpc.get_program_accounts_with_discriminator(&program_id, ForesterEpochPda::DISCRIMINATOR),
         rpc.get_program_accounts_with_discriminator(&program_id, EpochPda::DISCRIMINATOR),
         rpc.get_program_accounts_with_discriminator(&program_id, ProtocolConfigPda::DISCRIMINATOR),
-    );
+    )
+    .context("Failed to fetch registry program accounts")?;
 
     let mut forester_epoch_pdas = Vec::new();
     let mut epoch_pdas = Vec::new();
     let mut protocol_config_pdas = Vec::new();
 
-    match forester_result {
-        Ok(accounts) => {
-            for (_, account) in accounts {
-                let mut data: &[u8] = &account.data;
-                if let Ok(pda) = ForesterEpochPda::try_deserialize_unchecked(&mut data) {
-                    forester_epoch_pdas.push(pda);
-                }
-            }
-        }
-        Err(e) => {
-            warn!("Failed to fetch forester epoch accounts: {:?}", e);
+    for (_, account) in forester_accounts {
+        let mut data: &[u8] = &account.data;
+        if let Ok(pda) = ForesterEpochPda::try_deserialize_unchecked(&mut data) {
+            forester_epoch_pdas.push(pda);
         }
     }
 
-    match epoch_result {
-        Ok(accounts) => {
-            for (_, account) in accounts {
-                let mut data: &[u8] = &account.data;
-                if let Ok(pda) = EpochPda::try_deserialize_unchecked(&mut data) {
-                    epoch_pdas.push(pda);
-                }
-            }
-        }
-        Err(e) => {
-            warn!("Failed to fetch epoch accounts: {:?}", e);
+    for (_, account) in epoch_accounts {
+        let mut data: &[u8] = &account.data;
+        if let Ok(pda) = EpochPda::try_deserialize_unchecked(&mut data) {
+            epoch_pdas.push(pda);
         }
     }
 
-    match config_result {
-        Ok(accounts) => {
-            for (_, account) in accounts {
-                let mut data: &[u8] = &account.data;
-                if let Ok(pda) = ProtocolConfigPda::try_deserialize_unchecked(&mut data) {
-                    protocol_config_pdas.push(pda);
-                }
-            }
-        }
-        Err(e) => {
-            warn!("Failed to fetch protocol config accounts: {:?}", e);
+    for (_, account) in config_accounts {
+        let mut data: &[u8] = &account.data;
+        if let Ok(pda) = ProtocolConfigPda::try_deserialize_unchecked(&mut data) {
+            protocol_config_pdas.push(pda);
         }
     }
 
