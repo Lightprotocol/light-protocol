@@ -3,7 +3,7 @@
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo "${PWD}")"
 
 # Versions extracted from source files (automatic)
-export RUST_VERSION=$(grep 'channel' "${REPO_ROOT}/rust-toolchain.toml" | sed 's/.*"\(.*\)".*/\1/' | cut -d'.' -f1,2)
+export RUST_VERSION=$(grep 'channel' "${REPO_ROOT}/rust-toolchain.toml" | sed 's/.*"\(.*\)".*/\1/')
 export GO_VERSION=$(grep '^go ' "${REPO_ROOT}/prover/server/go.mod" | awk '{print $2}')
 export PNPM_VERSION=$(grep 'packageManager' "${REPO_ROOT}/package.json" | sed 's/.*pnpm@\([^"]*\).*/\1/')
 
