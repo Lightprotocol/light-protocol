@@ -245,6 +245,14 @@ pub struct StartArgs {
 
     #[arg(
         long,
+        env = "API_SERVER_PUBLIC_BIND",
+        help = "Bind API server to 0.0.0.0 instead of 127.0.0.1",
+        default_value = "false"
+    )]
+    pub api_server_public_bind: bool,
+
+    #[arg(
+        long,
         env = "GROUP_AUTHORITY",
         help = "Filter trees by group authority pubkey. Only process trees owned by this authority."
     )]

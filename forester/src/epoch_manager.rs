@@ -367,7 +367,9 @@ impl<R: Rpc> EpochManager<R> {
             }
         }
 
-        Err(anyhow!("Epoch monitor channel closed - forester cannot function without it"))
+        Err(anyhow!(
+            "Epoch monitor channel closed - forester cannot function without it"
+        ))
     }
 
     async fn check_sol_balance_periodically(self: Arc<Self>) -> Result<()> {
@@ -519,13 +521,11 @@ impl<R: Rpc> EpochManager<R> {
                             "Epoch monitor: failed to get slot/epoch: {:?}. Retrying in {:?}",
                             e, backoff
                         );
-                    } else {
-                        if consecutive_failures % 10 == 0 {
-                            error!(
-                                "Epoch monitor: {} consecutive failures, last error: {:?}. Still retrying every {:?}",
-                                consecutive_failures, e, backoff
-                            );
-                        }
+                    } else if consecutive_failures.is_multiple_of(10) {
+                        error!(
+                            "Epoch monitor: {} consecutive failures, last error: {:?}. Still retrying every {:?}",
+                            consecutive_failures, e, backoff
+                        );
                     }
 
                     tokio::time::sleep(backoff).await;
@@ -765,10 +765,8 @@ impl<R: Rpc> EpochManager<R> {
         Ok(())
     }
 
-    #[instrument(level = "debug", skip(self), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch
-    ))]
+    #[instrument(level = "debug", skip(self), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch))]
     async fn process_epoch(&self, epoch: u64) -> Result<()> {
-        
         // Clone the Arc immediately to release the DashMap shard lock.
         // Without .clone(), the RefMut guard would be held across async operations,
         // blocking other epochs from accessing the DashMap if they hash to the same shard.
