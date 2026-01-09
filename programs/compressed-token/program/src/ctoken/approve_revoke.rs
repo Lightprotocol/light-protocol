@@ -161,7 +161,7 @@ fn process_compressible_top_up(
 /// 2: delegate (immutable) - the delegate authority
 /// 3: owner (signer, writable) - owner of source, payer for top-ups
 #[inline(always)]
-pub fn process_ctoken_approve_checked(
+pub fn process_ctoken_approve_checked( // TODO: remove this function
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {

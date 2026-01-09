@@ -83,6 +83,7 @@ pub fn set_input_compressed_account<'a>(
             .find_map(|ext| {
                 if let ZExtensionInstructionData::CompressedOnly(data) = ext {
                     if data.is_ata != 0 {
+                        // TODO: move ata derivation here, all signer checks must be in the input validation
                         // Get wallet owner from owner_index
                         packed_accounts.get(data.owner_index as usize)
                     } else {

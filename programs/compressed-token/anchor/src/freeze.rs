@@ -75,7 +75,7 @@ pub fn process_freeze_or_thaw<
             ctx.remaining_accounts,
             version,
         )?;
-    // TODO: discuss
+
     let proof = if inputs.proof == CompressedProof::default() {
         None
     } else {

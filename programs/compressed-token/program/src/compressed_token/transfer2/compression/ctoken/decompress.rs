@@ -32,61 +32,73 @@ fn validate_decompression_destination(
 ) -> Result<(), ProgramError> {
     // Owner must match (for non-ATA) or ATA must be correctly derived (for ATA)
     if ext_data.is_ata != 0 {
-        // For ATA decompress, we need the wallet_owner
-        let wallet_owner = wallet_owner.ok_or_else(|| {
-            msg!("ATA decompress requires wallet_owner from owner_index");
-            CTokenError::DecompressDestinationMismatch
-        })?;
+        // Move to input validation and pass in instruction token data
+        {
+            // For ATA decompress, we need the wallet_owner
+            let wallet_owner = wallet_owner.ok_or_else(|| {
+                msg!("ATA decompress requires wallet_owner from owner_index");
+                CTokenError::DecompressDestinationMismatch
+            })?;
 
-        // Wallet owner must be a signer
-        if !wallet_owner.is_signer() {
-            msg!("Wallet owner must be signer for ATA decompress");
-            return Err(CTokenError::DecompressDestinationMismatch.into());
+            // Wallet owner must be a signer
+            if !wallet_owner.is_signer() {
+                msg!("Wallet owner must be signer for ATA decompress");
+                return Err(CTokenError::DecompressDestinationMismatch.into());
+            }
+
+            // For ATA decompress, verify the destination is the correct ATA
+            // by deriving the ATA address from wallet_owner and comparing
+            let wallet_owner_bytes = wallet_owner.key();
+            let mint_pubkey = ctoken.base.mint.to_bytes();
+            let bump = ext_data.bump;
+
+            // ATA seeds: [wallet_owner, program_id, mint, bump]
+            let bump_seed = [bump];
+            let ata_seeds: [&[u8]; 4] = [
+                wallet_owner_bytes.as_ref(),
+                crate::LIGHT_CPI_SIGNER.program_id.as_ref(),
+                mint_pubkey.as_ref(),
+                bump_seed.as_ref(),
+            ];
+
+            // Derive ATA address and verify it matches the destination
+            let derived_ata = pinocchio::pubkey::create_program_address(
+                &ata_seeds,
+                &crate::LIGHT_CPI_SIGNER.program_id,
+            )
+            .map_err(|_| {
+                msg!("Failed to derive ATA address for decompress");
+                ProgramError::InvalidSeeds
+            })?;
+
+            // Verify derived ATA matches destination account pubkey
+            if !pubkey_eq(&derived_ata, destination_account.key()) {
+                msg!(
+                    "Decompress ATA mismatch: derived {:?} != destination {:?}",
+                    solana_pubkey::Pubkey::new_from_array(derived_ata),
+                    solana_pubkey::Pubkey::new_from_array(*destination_account.key())
+                );
+                return Err(CTokenError::DecompressDestinationMismatch.into());
+            }
+
+            // Verify the compressed account's owner (input_owner) matches the derived ATA
+            // This proves the compressed account belongs to this ATA
+            let input_owner_bytes = input_owner.to_bytes();
+            if !pubkey_eq(&input_owner_bytes, &derived_ata) {
+                msg!(
+                    "Decompress ATA: compressed owner {:?} != derived ATA {:?}",
+                    solana_pubkey::Pubkey::new_from_array(input_owner_bytes),
+                    solana_pubkey::Pubkey::new_from_array(derived_ata)
+                );
+                return Err(CTokenError::DecompressDestinationMismatch.into());
+            }
         }
 
-        // For ATA decompress, verify the destination is the correct ATA
-        // by deriving the ATA address from wallet_owner and comparing
-        let wallet_owner_bytes = wallet_owner.key();
-        let mint_pubkey = ctoken.base.mint.to_bytes();
-        let bump = ext_data.bump;
-
-        // ATA seeds: [wallet_owner, program_id, mint, bump]
-        let bump_seed = [bump];
-        let ata_seeds: [&[u8]; 4] = [
-            wallet_owner_bytes.as_ref(),
-            crate::LIGHT_CPI_SIGNER.program_id.as_ref(),
-            mint_pubkey.as_ref(),
-            bump_seed.as_ref(),
-        ];
-
-        // Derive ATA address and verify it matches the destination
-        let derived_ata = pinocchio::pubkey::create_program_address(
-            &ata_seeds,
-            &crate::LIGHT_CPI_SIGNER.program_id,
-        )
-        .map_err(|_| {
-            msg!("Failed to derive ATA address for decompress");
-            ProgramError::InvalidSeeds
-        })?;
-
-        // Verify derived ATA matches destination account pubkey
-        if !pubkey_eq(&derived_ata, destination_account.key()) {
+        if !pubkey_eq(&input_owner_bytes, destination_account.key()) {
             msg!(
                 "Decompress ATA mismatch: derived {:?} != destination {:?}",
                 solana_pubkey::Pubkey::new_from_array(derived_ata),
                 solana_pubkey::Pubkey::new_from_array(*destination_account.key())
-            );
-            return Err(CTokenError::DecompressDestinationMismatch.into());
-        }
-
-        // Verify the compressed account's owner (input_owner) matches the derived ATA
-        // This proves the compressed account belongs to this ATA
-        let input_owner_bytes = input_owner.to_bytes();
-        if !pubkey_eq(&input_owner_bytes, &derived_ata) {
-            msg!(
-                "Decompress ATA: compressed owner {:?} != derived ATA {:?}",
-                solana_pubkey::Pubkey::new_from_array(input_owner_bytes),
-                solana_pubkey::Pubkey::new_from_array(derived_ata)
             );
             return Err(CTokenError::DecompressDestinationMismatch.into());
         }
@@ -123,7 +135,7 @@ fn validate_decompression_destination(
 pub fn apply_decompress_extension_state(
     ctoken: &mut ZCTokenMut,
     destination_account: &AccountInfo,
-    decompress_inputs: Option<DecompressCompressOnlyInputs>,
+    decompress_inputs: Option<DecompressCompressOnlyInputs>, // TODO: pass in instruction data token data
 ) -> Result<(), ProgramError> {
     // If no decompress inputs, nothing to transfer
     let Some(inputs) = decompress_inputs else {
@@ -174,7 +186,7 @@ pub fn apply_decompress_extension_state(
             // Add delegated_amount (only when we're setting the delegate)
             if delegated_amount > 0 {
                 let current = ctoken.base.delegated_amount.get();
-                ctoken.base.delegated_amount.set(current + delegated_amount);
+                ctoken.base.delegated_amount.set(current + delegated_amount); // TODO: use checked_add
             }
         }
     }

@@ -7,7 +7,7 @@ use light_ctoken_interface::{
         extensions::ZExtensionInstructionData,
         transfer2::{ZCompression, ZCompressionMode, ZMultiTokenTransferOutputData},
     },
-    state::{ZCTokenMut, ZExtensionStructMut},
+    state::{TokenDataVersion, ZCTokenMut, ZExtensionStructMut},
     CTokenError,
 };
 use light_program_profiler::profile;
@@ -68,11 +68,14 @@ pub fn process_compress_and_close(
         token_account_info.key(),
         close_inputs.tlv,
     )?;
-
-    ctoken.base.amount.set(0);
-    // Unfreeze the account if frozen (frozen state is preserved in compressed token TLV)
-    // This allows the close_token_account validation to pass for frozen accounts
-    ctoken.base.set_initialized();
+    // TODO: remove once we separated close logic for compress and close
+    //TODO: introduce ready to close state and set it here
+    {
+        ctoken.base.amount.set(0);
+        // Unfreeze the account if frozen (frozen state is preserved in compressed token TLV)
+        // This allows the close_token_account validation to pass for frozen accounts
+        ctoken.base.set_initialized();
+    }
     Ok(())
 }
 
@@ -86,8 +89,13 @@ fn validate_compressed_token_account(
     token_account_pubkey: &Pubkey,
     out_tlv: Option<&[ZExtensionInstructionData<'_>]>,
 ) -> Result<(), ProgramError> {
+    let compression = ctoken
+        .get_compressible_extension()
+        .ok_or::<ProgramError>(CTokenError::MissingCompressibleExtension.into())?;
+    let is_ata = compression.is_ata != 0;
     // Owners should match if not compressing to pubkey
-    if compress_to_pubkey {
+    if compress_to_pubkey || is_ata {
+        // what about is ata?
         // Owner should match token account pubkey if compressing to pubkey
         if *packed_accounts
             .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
@@ -155,16 +163,13 @@ fn validate_compressed_token_account(
     }
 
     // Version should be ShaFlat
-    if compressed_token_account.version != 3 {
+    if compressed_token_account.version != TokenDataVersion::ShaFlat as u8 {
         return Err(ErrorCode::CompressAndCloseInvalidVersion.into());
     }
-    let compression = ctoken
-        .get_compressible_extension()
-        .ok_or::<ProgramError>(CTokenError::MissingCompressibleExtension.into())?;
+
     // Version should also match what's specified in the embedded compression info
     let expected_version = compression.info.account_version;
     let compression_only = compression.compression_only();
-    let is_ata = compression.is_ata != 0;
 
     if compressed_token_account.version != expected_version {
         return Err(ErrorCode::CompressAndCloseInvalidVersion.into());
@@ -248,14 +253,10 @@ fn validate_compressed_token_account(
         }
 
         // Frozen state must match between CToken and extension data
-        // AccountState::Frozen = 2 in CToken
-        // ZeroCopy converts bool to u8: 0 = false, non-zero = true
-        let ctoken_is_frozen = ctoken.state == 2;
-        let extension_is_frozen = compression_only_extension.is_frozen != 0;
-        if extension_is_frozen != ctoken_is_frozen {
+        if ctoken.state != compression_only_extension.is_frozen {
             msg!(
                 "is_frozen mismatch: ctoken {} != extension {}",
-                ctoken_is_frozen,
+                ctoken.state,
                 compression_only_extension.is_frozen
             );
             return Err(ErrorCode::CompressAndCloseFrozenMismatch.into());

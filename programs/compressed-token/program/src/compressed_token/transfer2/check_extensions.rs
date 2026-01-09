@@ -4,8 +4,11 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_array_map::ArrayMap;
-use light_ctoken_interface::instructions::{
-    extensions::ZExtensionInstructionData, transfer2::ZCompressedTokenInstructionDataTransfer2,
+use light_ctoken_interface::{
+    instructions::{
+        extensions::ZExtensionInstructionData, transfer2::ZCompressedTokenInstructionDataTransfer2,
+    },
+    state::TokenDataVersion,
 };
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
@@ -23,7 +26,7 @@ pub fn validate_tlv_and_get_frozen(
     version: u8,
 ) -> Result<bool, ProgramError> {
     // Validate TLV is only used with version 3 (ShaFlat)
-    if tlv_data.is_some_and(|v| !v.is_empty() && version != 3) {
+    if tlv_data.is_some_and(|v| !v.is_empty() && version != TokenDataVersion::ShaFlat as u8) {
         msg!("TLV extensions only supported with version 3 (ShaFlat)");
         return Err(ErrorCode::TlvRequiresVersion3.into());
     }
