@@ -198,17 +198,19 @@ fn validate_permanent_delegate(
     mint_checks: Option<&MintExtensionChecks>,
     authority: &AccountInfo,
 ) -> Result<bool, ProgramError> {
-    if let Some(checks) = mint_checks {
-        if let Some(permanent_delegate_pubkey) = checks.permanent_delegate {
-            if pubkey_eq(authority.key(), &permanent_delegate_pubkey) {
-                if !authority.is_signer() {
-                    return Err(ProgramError::MissingRequiredSignature);
-                }
-                return Ok(true);
-            }
-        }
+    let Some(checks) = mint_checks else {
+        return Ok(false);
+    };
+    let Some(permanent_delegate_pubkey) = checks.permanent_delegate else {
+        return Ok(false);
+    };
+    if !pubkey_eq(authority.key(), &permanent_delegate_pubkey) {
+        return Ok(false);
     }
-    Ok(false)
+    if !authority.is_signer() {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    Ok(true)
 }
 
 /// Process account extensions with mutable access.
@@ -221,14 +223,7 @@ fn process_account_extensions(
     current_slot: &mut u64,
     mint: Option<&AccountInfo>,
 ) -> Result<AccountExtensionInfo, ProgramError> {
-    // TODO: replace with from_account_info_checked
-    let mut account_data = account
-        .try_borrow_mut_data()
-        .map_err(convert_program_error)?;
-    let (token, remaining) = CToken::zero_copy_at_mut_checked(&mut account_data)?;
-    if !remaining.is_empty() {
-        return Err(ProgramError::InvalidAccountData);
-    }
+    let token = CToken::from_account_info_mut_checked(account)?;
 
     // Validate mint account matches token's mint field
     if let Some(mint_account) = mint {
@@ -277,7 +272,7 @@ fn process_account_extensions(
                 ZExtensionStructMut::PermanentDelegateAccount(_) => {
                     info.flags.has_permanent_delegate = true;
                 }
-                ZExtensionStructMut::TransferFeeAccount(_transfer_fee_ext) => {
+                ZExtensionStructMut::TransferFeeAccount(_) => {
                     info.flags.has_transfer_fee = true;
                     // Note: Non-zero transfer fees are rejected by check_mint_extensions,
                     // so no fee withholding is needed here.

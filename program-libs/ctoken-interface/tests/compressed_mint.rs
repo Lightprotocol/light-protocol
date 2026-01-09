@@ -391,3 +391,25 @@ fn test_base_mint_in_compressed_mint_spl_format() {
     let base_mint = BaseMint::deserialize(&mut base_mint_bytes.to_vec().as_slice()).unwrap();
     assert_eq!(mint.base, base_mint);
 }
+
+#[test]
+fn test_compressed_mint_new_zero_copy_fails_if_already_initialized() {
+    let config = CompressedMintConfig { extensions: None };
+    let byte_len = CompressedMint::byte_len(&config).unwrap();
+    let mut buffer = vec![0u8; byte_len];
+
+    // First initialization should succeed
+    let _ = CompressedMint::new_zero_copy(&mut buffer, config.clone())
+        .expect("First init should succeed");
+
+    // Second initialization should fail because account is already initialized
+    let result = CompressedMint::new_zero_copy(&mut buffer, config);
+    assert!(
+        result.is_err(),
+        "new_zero_copy should fail if account is already initialized"
+    );
+    assert_eq!(
+        result.unwrap_err(),
+        light_zero_copy::errors::ZeroCopyError::MemoryNotZeroed
+    );
+}

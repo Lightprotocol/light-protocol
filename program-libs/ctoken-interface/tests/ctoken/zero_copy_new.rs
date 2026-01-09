@@ -111,3 +111,24 @@ fn test_compressed_token_byte_len_consistency() {
 
     assert!(size_with_ext > size_no_ext);
 }
+
+#[test]
+fn test_new_zero_copy_fails_if_already_initialized() {
+    let config = default_config();
+    let required_size = CToken::byte_len(&config).unwrap();
+    let mut buffer = vec![0u8; required_size];
+
+    // First initialization should succeed
+    let _ = CToken::new_zero_copy(&mut buffer, config.clone()).expect("First init should succeed");
+
+    // Second initialization should fail because account is already initialized
+    let result = CToken::new_zero_copy(&mut buffer, config);
+    assert!(
+        result.is_err(),
+        "new_zero_copy should fail if account is already initialized"
+    );
+    assert_eq!(
+        result.unwrap_err(),
+        light_zero_copy::errors::ZeroCopyError::MemoryNotZeroed
+    );
+}

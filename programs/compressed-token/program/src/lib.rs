@@ -18,10 +18,10 @@ use compressible::{process_claim, process_withdraw_funding_pool};
 use ctoken::{
     process_close_token_account, process_create_associated_token_account,
     process_create_associated_token_account_idempotent, process_create_token_account,
-    process_ctoken_approve, process_ctoken_approve_checked, process_ctoken_burn,
-    process_ctoken_burn_checked, process_ctoken_freeze_account, process_ctoken_mint_to,
-    process_ctoken_mint_to_checked, process_ctoken_revoke, process_ctoken_thaw_account,
-    process_ctoken_transfer, process_ctoken_transfer_checked,
+    process_ctoken_approve, process_ctoken_burn, process_ctoken_burn_checked,
+    process_ctoken_freeze_account, process_ctoken_mint_to, process_ctoken_mint_to_checked,
+    process_ctoken_revoke, process_ctoken_thaw_account, process_ctoken_transfer,
+    process_ctoken_transfer_checked,
 };
 
 use crate::{
@@ -62,8 +62,6 @@ pub enum InstructionType {
     CTokenThawAccount = 11,
     /// CToken TransferChecked - transfer with decimals validation (SPL compatible)
     CTokenTransferChecked = 12,
-    /// CToken ApproveChecked - approve with decimals validation (SPL compatible)
-    CTokenApproveChecked = 13,
     /// CToken MintToChecked - mint with decimals validation
     CTokenMintToChecked = 14,
     /// CToken BurnChecked - burn with decimals validation
@@ -110,7 +108,6 @@ impl From<u8> for InstructionType {
             10 => InstructionType::CTokenFreezeAccount,
             11 => InstructionType::CTokenThawAccount,
             12 => InstructionType::CTokenTransferChecked,
-            13 => InstructionType::CTokenApproveChecked,
             14 => InstructionType::CTokenMintToChecked,
             15 => InstructionType::CTokenBurnChecked,
             18 => InstructionType::CreateTokenAccount,
@@ -164,10 +161,6 @@ pub fn process_instruction(
         InstructionType::CTokenBurn => {
             msg!("CTokenBurn");
             process_ctoken_burn(accounts, &instruction_data[1..])?;
-        }
-        InstructionType::CTokenApproveChecked => {
-            msg!("CTokenApproveChecked");
-            process_ctoken_approve_checked(accounts, &instruction_data[1..])?;
         }
         InstructionType::CTokenMintToChecked => {
             msg!("CTokenMintToChecked");

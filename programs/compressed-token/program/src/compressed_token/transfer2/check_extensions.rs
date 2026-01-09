@@ -135,9 +135,7 @@ pub fn build_mint_extension_cache<'a>(
                     .unwrap_or(false);
                 if !has_compressed_only {
                     msg!("Mint has restricted extensions - CompressedOnly output required");
-                    return Err(
-                        ErrorCode::CompressAndCloseMissingCompressedOnlyExtension.into()
-                    );
+                    return Err(ErrorCode::CompressAndCloseMissingCompressedOnlyExtension.into());
                 }
             }
         }

@@ -191,6 +191,12 @@ pub enum CTokenError {
 
     #[error("Missing required payer account")]
     MissingPayer,
+
+    #[error("Failed to borrow account data")]
+    BorrowFailed,
+
+    #[error("CToken account has invalid owner")]
+    InvalidCTokenOwner,
 }
 
 impl From<CTokenError> for u32 {
@@ -257,6 +263,8 @@ impl From<CTokenError> for u32 {
             CTokenError::DecompressDelegatedAmountWithoutDelegate => 18059,
             CTokenError::DecompressWithheldFeeWithoutExtension => 18060,
             CTokenError::MissingPayer => 18061,
+            CTokenError::BorrowFailed => 18062,
+            CTokenError::InvalidCTokenOwner => 18063,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

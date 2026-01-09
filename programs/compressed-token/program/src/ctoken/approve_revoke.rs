@@ -12,12 +12,6 @@ use crate::shared::{
 const APPROVE_ACCOUNT_SOURCE: usize = 0;
 const APPROVE_ACCOUNT_OWNER: usize = 2; // owner is payer for top-up
 
-/// Account indices for approve_checked instruction (static 4-account layout)
-const APPROVE_CHECKED_ACCOUNT_SOURCE: usize = 0;
-const APPROVE_CHECKED_ACCOUNT_MINT: usize = 1;
-const APPROVE_CHECKED_ACCOUNT_DELEGATE: usize = 2;
-const APPROVE_CHECKED_ACCOUNT_OWNER: usize = 3;
-
 /// Account indices for revoke instruction
 const REVOKE_ACCOUNT_SOURCE: usize = 0;
 const REVOKE_ACCOUNT_OWNER: usize = 1; // owner is payer for top-up
@@ -105,11 +99,7 @@ fn process_compressible_top_up(
     payer: Option<&AccountInfo>,
     max_top_up: u16,
 ) -> Result<(), ProgramError> {
-    // Borrow account data to get extensions
-    let mut account_data = account
-        .try_borrow_mut_data()
-        .map_err(convert_program_error)?;
-    let (ctoken, _) = CToken::zero_copy_at_mut_checked(&mut account_data)?;
+    let ctoken = CToken::from_account_info_mut_checked(account)?;
 
     // Only process top-up if account has Compressible extension
     let transfer_amount = if let Some(compressible) = ctoken.get_compressible_extension() {
@@ -131,9 +121,6 @@ fn process_compressible_top_up(
     } else {
         0
     };
-
-    // Drop borrow before CPI
-    drop(account_data);
 
     if transfer_amount > 0 {
         let payer = payer.ok_or(CTokenError::MissingPayer)?;

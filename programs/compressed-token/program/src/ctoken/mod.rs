@@ -7,9 +7,7 @@ pub mod freeze_thaw;
 pub mod mint_to;
 pub mod transfer;
 
-pub use approve_revoke::{
-    process_ctoken_approve, process_ctoken_approve_checked, process_ctoken_revoke,
-};
+pub use approve_revoke::{process_ctoken_approve, process_ctoken_revoke};
 pub use burn::{process_ctoken_burn, process_ctoken_burn_checked};
 pub use close::processor::process_close_token_account;
 pub use create::process_create_token_account;

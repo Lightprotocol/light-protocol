@@ -11,20 +11,17 @@ use light_ctoken_interface::{
     CTokenError,
 };
 use light_program_profiler::profile;
-#[cfg(target_os = "solana")]
-use pinocchio::sysvars::Sysvar;
 use pinocchio::{
     account_info::AccountInfo,
     pubkey::{pubkey_eq, Pubkey},
+    sysvars::Sysvar,
 };
 use spl_pod::solana_msg::msg;
 
 use super::inputs::CompressAndCloseInputs;
-#[cfg(target_os = "solana")]
-use crate::shared::convert_program_error;
 use crate::{
     compressed_token::transfer2::accounts::Transfer2Accounts,
-    ctoken::close::accounts::CloseTokenAccountAccounts,
+    ctoken::close::accounts::CloseTokenAccountAccounts, shared::convert_program_error,
 };
 
 /// Process compress and close operation for a ctoken account.
@@ -47,13 +44,10 @@ pub fn process_compress_and_close(
         compress_and_close_inputs.ok_or(ErrorCode::CompressAndCloseDestinationMissing)?;
 
     // Validate token account - only compressible accounts with compression_authority are allowed
-    let compress_to_pubkey = validate_ctoken_account(
-        &CloseTokenAccountAccounts {
-            token_account: token_account_info,
-            destination: close_inputs.destination,
-            authority,
-            rent_sponsor: Some(close_inputs.rent_sponsor),
-        },
+    validate_ctoken_account(
+        token_account_info,
+        authority,
+        close_inputs.rent_sponsor,
         ctoken,
     )?;
 
@@ -66,18 +60,15 @@ pub fn process_compress_and_close(
         amount,
         compressed_account,
         ctoken,
-        compress_to_pubkey,
         token_account_info.key(),
         close_inputs.tlv,
     )?;
-    // TODO: remove once we separated close logic for compress and close
-    //TODO: introduce ready to close state and set it here
-    {
-        ctoken.base.amount.set(0);
-        // Unfreeze the account if frozen (frozen state is preserved in compressed token TLV)
-        // This allows the close_token_account validation to pass for frozen accounts
-        ctoken.base.set_initialized();
-    }
+
+    ctoken.base.amount.set(0);
+    // Unfreeze the account if frozen (frozen state is preserved in compressed token TLV)
+    // This allows the close_token_account validation to pass for frozen accounts
+    ctoken.base.set_initialized();
+
     Ok(())
 }
 
@@ -100,7 +91,6 @@ fn validate_compressed_token_account(
     compression_amount: u64,
     compressed_token_account: &ZMultiTokenTransferOutputData<'_>,
     ctoken: &ZCTokenMut,
-    compress_to_pubkey: bool,
     token_account_pubkey: &Pubkey,
     out_tlv: Option<&[ZExtensionInstructionData<'_>]>,
 ) -> Result<(), ProgramError> {
@@ -109,10 +99,11 @@ fn validate_compressed_token_account(
         .ok_or::<ProgramError>(CTokenError::MissingCompressibleExtension.into())?;
 
     // 1. Owner validation
+    // compress_to_pubkey is derived from the extension (already fetched above)
     let output_owner = packed_accounts
         .get_u8(compressed_token_account.owner, "owner")?
         .key();
-    let expected_owner = if compress_to_pubkey || compression.is_ata() {
+    let expected_owner = if compression.info.compress_to_pubkey() || compression.is_ata() {
         token_account_pubkey
     } else {
         &ctoken.owner.to_bytes()
@@ -271,17 +262,15 @@ pub fn close_for_compress_and_close(
     Ok(())
 }
 
-/// Validates that a ctoken solana account is ready to be closed.
-/// The rent authority can close the account.
+/// Validates that a ctoken solana account is ready to be compressed and closed.
+/// Only the compression_authority can compress the account.
 #[profile]
-pub fn validate_ctoken_account(
-    accounts: &CloseTokenAccountAccounts,
+fn validate_ctoken_account(
+    token_account: &AccountInfo,
+    authority: &AccountInfo,
+    rent_sponsor: &AccountInfo,
     ctoken: &ZCTokenMut<'_>,
-) -> Result<bool, ProgramError> {
-    if accounts.token_account.key() == accounts.destination.key() {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
+) -> Result<(), ProgramError> {
     // Check for Compressible extension
     let compressible = ctoken.get_compressible_extension();
 
@@ -292,40 +281,31 @@ pub fn validate_ctoken_account(
     })?;
 
     // Validate rent_sponsor matches
-    let rent_sponsor = accounts
-        .rent_sponsor
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
     if compression.info.rent_sponsor != *rent_sponsor.key() {
         msg!("rent recipient mismatch");
         return Err(ProgramError::InvalidAccountData);
     }
 
-    if compression.info.compression_authority != *accounts.authority.key() {
+    if compression.info.compression_authority != *authority.key() {
         msg!("compress and close requires compression authority");
         return Err(ProgramError::InvalidAccountData);
     }
 
-    #[cfg(target_os = "solana")]
-    {
-        let current_slot = pinocchio::sysvars::clock::Clock::get()
-            .map_err(convert_program_error)?
-            .slot;
-        let is_compressible = compression
-            .info
-            .is_compressible(
-                accounts.token_account.data_len() as u64,
-                current_slot,
-                accounts.token_account.lamports(),
-            )
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        if is_compressible.is_none() {
+    let current_slot = pinocchio::sysvars::clock::Clock::get()
+        .map_err(convert_program_error)?
+        .slot;
+    compression
+        .info
+        .is_compressible(
+            token_account.data_len() as u64,
+            current_slot,
+            token_account.lamports(),
+        )
+        .map_err(|_| ProgramError::InvalidAccountData)?
+        .ok_or_else(|| {
             msg!("account not compressible");
-            return Err(ProgramError::InvalidAccountData);
-        }
-    }
+            ProgramError::InvalidAccountData
+        })?;
 
-    // Return true if either compress_to_pubkey is set OR this is an ATA
-    // When true, the compressed account owner will be the token account pubkey
-    Ok(compression.info.compress_to_pubkey() || compression.is_ata())
+    Ok(())
 }

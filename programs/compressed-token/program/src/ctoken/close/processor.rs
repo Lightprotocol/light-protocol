@@ -1,9 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
-use light_account_checks::{
-    checks::{check_owner, check_signer},
-    AccountInfoTrait,
-};
+use light_account_checks::{checks::check_signer, AccountInfoTrait};
 use light_compressible::rent::{get_rent_exemption_lamports, AccountRentState};
 use light_ctoken_interface::state::{AccountState, CToken, ZCTokenMut};
 use light_program_profiler::profile;
@@ -13,10 +10,7 @@ use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
 use spl_pod::solana_msg::msg;
 
 use super::accounts::CloseTokenAccountAccounts;
-use crate::{
-    shared::{convert_program_error, transfer_lamports},
-    LIGHT_CPI_SIGNER,
-};
+use crate::shared::{convert_program_error, transfer_lamports};
 
 /// Process the close token account instruction
 #[profile]
@@ -28,9 +22,7 @@ pub fn process_close_token_account(
     let accounts = CloseTokenAccountAccounts::validate_and_parse(account_infos)?;
     {
         // Try to parse as CToken using zero-copy deserialization
-        let token_account_data =
-            &mut AccountInfoTrait::try_borrow_mut_data(accounts.token_account)?;
-        let (ctoken, _) = CToken::zero_copy_at_mut_checked(token_account_data)?;
+        let ctoken = CToken::from_account_info_mut_checked(accounts.token_account)?;
         validate_token_account_close(&accounts, &ctoken)?;
     }
     close_token_account(&accounts)?;
@@ -122,9 +114,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
     })?;
     // Check for compressible extension and handle lamport distribution
 
-    check_owner(&LIGHT_CPI_SIGNER.program_id, accounts.token_account)?;
-    let token_account_data = AccountInfoTrait::try_borrow_data(accounts.token_account)?;
-    let (ctoken, _) = CToken::zero_copy_at_checked(&token_account_data)?;
+    let ctoken = CToken::from_account_info_checked(accounts.token_account)?;
 
     // Check for Compressible extension
     let compressible = ctoken.get_compressible_extension();

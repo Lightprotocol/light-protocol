@@ -9,7 +9,7 @@ use light_ctoken_interface::{
 };
 use light_hasher::{sha256::Sha256BE, Hasher};
 use light_program_profiler::profile;
-use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
+use pinocchio::sysvars::{clock::Clock, Sysvar};
 use spl_pod::solana_msg::msg;
 
 use crate::{
@@ -133,64 +133,54 @@ fn serialize_decompressed_mint(
     let cmint_account = validated_accounts
         .get_cmint()
         .ok_or(ErrorCode::CMintNotFound)?;
-    let num_bytes = cmint_account.data_len() as u64;
+
+    // STEP 1: Serialize FIRST to know final size
+    let serialized = compressed_mint
+        .try_to_vec()
+        .map_err(|_| ErrorCode::MintActionOutputSerializationFailed)?;
+    let required_size = serialized.len();
+
+    // STEP 2: Resize if needed (before lamport calculations)
+    if cmint_account.data_len() != required_size {
+        cmint_account
+            .resize(required_size)
+            .map_err(|_| ErrorCode::CMintResizeFailed)?;
+    }
+
+    // STEP 3: Calculate rent exemption deficit FIRST (based on final size)
+    let num_bytes = required_size as u64;
     let current_lamports = cmint_account.lamports();
     let rent_exemption =
         get_rent_exemption_lamports(num_bytes).map_err(|_| ErrorCode::CMintRentExemptionFailed)?;
 
-    // Skip top-up calculation if decompress mint action is present
-    // (rent was just paid during account creation).
+    // Start with rent exemption deficit
+    let mut deficit = rent_exemption.saturating_sub(current_lamports);
+
+    // STEP 4: Add compressible top-up if not a fresh decompress
     if !accounts_config.has_decompress_mint_action {
         let current_slot = Clock::get().map_err(convert_program_error)?.slot;
         let top_up = compressed_mint
             .compression
             .calculate_top_up_lamports(num_bytes, current_slot, current_lamports, rent_exemption)
             .map_err(|_| ErrorCode::CMintTopUpCalculationFailed)?;
-
-        if top_up > 0 {
-            let fee_payer = validated_accounts
-                .executing
-                .as_ref()
-                .map(|exec| exec.system.fee_payer)
-                .ok_or(ProgramError::NotEnoughAccountKeys)?;
-            // TODO: unify with other transfer and move top up after resize to calculate based on new size.
-            transfer_lamports(top_up, fee_payer, cmint_account).map_err(convert_program_error)?;
-        }
+        // Add compressible top-up to rent deficit
+        deficit = deficit.saturating_add(top_up);
     }
 
-    let serialized = compressed_mint
-        .try_to_vec()
-        .map_err(|_| ErrorCode::MintActionOutputSerializationFailed)?;
-    let required_size = serialized.len();
-
-    // Resize if needed (e.g., metadata extensions added)
-    if cmint_account.data_len() != required_size {
-        cmint_account
-            .resize(required_size)
-            .map_err(|_| ErrorCode::CMintResizeFailed)?;
-
-        // Transfer additional lamports for rent if resized
-        let rent = Rent::get().map_err(|_| ProgramError::UnsupportedSysvar)?;
-        let required_lamports = rent.minimum_balance(required_size);
-        if cmint_account.lamports() < required_lamports {
-            let fee_payer = validated_accounts
-                .executing
-                .as_ref()
-                .map(|exec| exec.system.fee_payer)
-                .ok_or(ProgramError::NotEnoughAccountKeys)?;
-            transfer_lamports(
-                required_lamports - cmint_account.lamports(),
-                fee_payer,
-                cmint_account,
-            )
-            .map_err(convert_program_error)?;
-        }
+    // STEP 5: Single unified transfer if needed
+    if deficit > 0 {
+        let fee_payer = validated_accounts
+            .executing
+            .as_ref()
+            .map(|exec| exec.system.fee_payer)
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        transfer_lamports(deficit, fee_payer, cmint_account).map_err(convert_program_error)?;
     }
 
+    // STEP 6: Write serialized data
     let mut cmint_data = cmint_account
         .try_borrow_mut_data()
         .map_err(|_| ProgramError::AccountBorrowFailed)?;
-    // SAFETY: we previously resized the account if needed
     cmint_data[..serialized.len()].copy_from_slice(&serialized);
 
     Ok(())

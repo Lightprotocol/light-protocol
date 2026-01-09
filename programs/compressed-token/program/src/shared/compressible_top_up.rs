@@ -67,9 +67,7 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
 
     // Calculate CToken top-up (only if not 165 bytes - 165 means no extensions)
     if ctoken.data_len() != 165 {
-        check_owner(&LIGHT_CPI_SIGNER.program_id, ctoken)?; // TODO: add from account info
-        let account_data = ctoken.try_borrow_data().map_err(convert_program_error)?;
-        let (token, _) = CToken::zero_copy_at_checked(&account_data)?;
+        let token = CToken::from_account_info_checked(ctoken)?;
         // Check for Compressible extension
         let compressible = token
             .get_compressible_extension()
