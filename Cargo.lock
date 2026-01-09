@@ -2351,6 +2351,7 @@ version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
+ "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "anyhow",
  "async-channel 2.5.0",
  "async-trait",
