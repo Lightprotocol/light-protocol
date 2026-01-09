@@ -12,15 +12,19 @@ use spl_pod::solana_msg::msg;
 
 use super::inputs::DecompressCompressOnlyInputs;
 
-/// Validates that the destination CToken matches the source account for ATA decompress.
-/// For ATA decompress (is_ata=true), verifies the destination is the correct ATA.
-/// For non-ATA decompress, just validates owner matches.
+/// Validates that the destination CToken matches the source account for decompress.
+/// ATA derivation and signer checks are done in input validation (token_input.rs).
+///
+/// Checks:
+/// - For ATA: destination account ADDRESS == input_owner (ATA pubkey from token data)
+/// - For ATA: destination CToken owner field == wallet_owner
+/// - For non-ATA: destination CToken owner field == input_owner (wallet pubkey)
 ///
 /// # Arguments
-/// * `ctoken` - Destination CToken account
-/// * `destination_account` - Destination account info
-/// * `input_owner` - Compressed account owner (ATA pubkey for is_ata)
-/// * `wallet_owner` - Wallet owner who signs (from owner_index, only for is_ata)
+/// * `destination_account` - Destination CToken account info (for address check)
+/// * `ctoken` - Destination CToken account data
+/// * `input_owner` - Compressed account owner (ATA pubkey for is_ata, wallet for non-ATA)
+/// * `wallet_owner` - Wallet owner (from owner_index, only for is_ata)
 /// * `ext_data` - CompressedOnly extension data
 #[inline(always)]
 fn validate_decompression_destination(
@@ -30,92 +34,35 @@ fn validate_decompression_destination(
     wallet_owner: Option<&AccountInfo>,
     ext_data: &ZCompressedOnlyExtensionInstructionData,
 ) -> Result<(), ProgramError> {
-    // Owner must match (for non-ATA) or ATA must be correctly derived (for ATA)
     if ext_data.is_ata != 0 {
-        // Move to input validation and pass in instruction token data
-        {
-            // For ATA decompress, we need the wallet_owner
-            let wallet_owner = wallet_owner.ok_or_else(|| {
-                msg!("ATA decompress requires wallet_owner from owner_index");
-                CTokenError::DecompressDestinationMismatch
-            })?;
-
-            // Wallet owner must be a signer
-            if !wallet_owner.is_signer() {
-                msg!("Wallet owner must be signer for ATA decompress");
-                return Err(CTokenError::DecompressDestinationMismatch.into());
-            }
-
-            // For ATA decompress, verify the destination is the correct ATA
-            // by deriving the ATA address from wallet_owner and comparing
-            let wallet_owner_bytes = wallet_owner.key();
-            let mint_pubkey = ctoken.base.mint.to_bytes();
-            let bump = ext_data.bump;
-
-            // ATA seeds: [wallet_owner, program_id, mint, bump]
-            let bump_seed = [bump];
-            let ata_seeds: [&[u8]; 4] = [
-                wallet_owner_bytes.as_ref(),
-                crate::LIGHT_CPI_SIGNER.program_id.as_ref(),
-                mint_pubkey.as_ref(),
-                bump_seed.as_ref(),
-            ];
-
-            // Derive ATA address and verify it matches the destination
-            let derived_ata = pinocchio::pubkey::create_program_address(
-                &ata_seeds,
-                &crate::LIGHT_CPI_SIGNER.program_id,
-            )
-            .map_err(|_| {
-                msg!("Failed to derive ATA address for decompress");
-                ProgramError::InvalidSeeds
-            })?;
-
-            // Verify derived ATA matches destination account pubkey
-            if !pubkey_eq(&derived_ata, destination_account.key()) {
-                msg!(
-                    "Decompress ATA mismatch: derived {:?} != destination {:?}",
-                    solana_pubkey::Pubkey::new_from_array(derived_ata),
-                    solana_pubkey::Pubkey::new_from_array(*destination_account.key())
-                );
-                return Err(CTokenError::DecompressDestinationMismatch.into());
-            }
-
-            // Verify the compressed account's owner (input_owner) matches the derived ATA
-            // This proves the compressed account belongs to this ATA
-            let input_owner_bytes = input_owner.to_bytes();
-            if !pubkey_eq(&input_owner_bytes, &derived_ata) {
-                msg!(
-                    "Decompress ATA: compressed owner {:?} != derived ATA {:?}",
-                    solana_pubkey::Pubkey::new_from_array(input_owner_bytes),
-                    solana_pubkey::Pubkey::new_from_array(derived_ata)
-                );
-                return Err(CTokenError::DecompressDestinationMismatch.into());
-            }
-        }
-
-        if !pubkey_eq(&input_owner_bytes, destination_account.key()) {
+        // For ATA decompress:
+        // 1. Verify destination account ADDRESS == input_owner (ATA pubkey from token data)
+        if !pubkey_eq(destination_account.key(), &input_owner.to_bytes()) {
             msg!(
-                "Decompress ATA mismatch: derived {:?} != destination {:?}",
-                solana_pubkey::Pubkey::new_from_array(derived_ata),
-                solana_pubkey::Pubkey::new_from_array(*destination_account.key())
+                "Decompress ATA: destination address {:?} != token data owner {:?}",
+                solana_pubkey::Pubkey::new_from_array(*destination_account.key()),
+                solana_pubkey::Pubkey::new_from_array(input_owner.to_bytes())
             );
             return Err(CTokenError::DecompressDestinationMismatch.into());
         }
 
-        // Also verify destination CToken owner matches wallet_owner
-        // (destination should be wallet's ATA, owned by wallet)
-        if !pubkey_eq(wallet_owner_bytes, &ctoken.base.owner.to_bytes()) {
+        // 2. Verify CToken owner field == wallet_owner
+        let wallet_owner = wallet_owner.ok_or_else(|| {
+            msg!("ATA decompress requires wallet_owner from owner_index");
+            CTokenError::DecompressDestinationMismatch
+        })?;
+
+        if !pubkey_eq(wallet_owner.key(), &ctoken.base.owner.to_bytes()) {
             msg!(
-                "Decompress ATA: wallet owner {:?} != destination owner {:?}",
-                solana_pubkey::Pubkey::new_from_array(*wallet_owner_bytes),
+                "Decompress ATA: wallet owner {:?} != destination owner field {:?}",
+                solana_pubkey::Pubkey::new_from_array(*wallet_owner.key()),
                 solana_pubkey::Pubkey::new_from_array(ctoken.base.owner.to_bytes())
             );
             return Err(CTokenError::DecompressDestinationMismatch.into());
         }
     } else {
-        // For non-ATA decompress, owner must match
-        if ctoken.base.owner.to_bytes() != input_owner.to_bytes() {
+        // For non-ATA decompress, CToken owner field must match input_owner (wallet pubkey)
+        if !pubkey_eq(&ctoken.base.owner.to_bytes(), &input_owner.to_bytes()) {
             msg!("Decompress destination owner mismatch");
             return Err(CTokenError::DecompressDestinationMismatch.into());
         }
@@ -128,14 +75,13 @@ fn validate_decompression_destination(
 /// This transfers delegate, delegated_amount, and withheld_transfer_fee from
 /// the compressed account's CompressedOnly extension to the CToken account.
 ///
-/// For ATA decompress with is_ata=true, validates the destination matches the
-/// derived ATA address. Existing delegate/amount on destination is preserved
-/// and added to rather than overwritten.
+/// ATA derivation validation is done in input validation (token_input.rs).
+/// This validates destination matches token data owner and applies extension state.
 #[inline(always)]
 pub fn apply_decompress_extension_state(
-    ctoken: &mut ZCTokenMut,
     destination_account: &AccountInfo,
-    decompress_inputs: Option<DecompressCompressOnlyInputs>, // TODO: pass in instruction data token data
+    ctoken: &mut ZCTokenMut,
+    decompress_inputs: Option<DecompressCompressOnlyInputs>,
 ) -> Result<(), ProgramError> {
     // If no decompress inputs, nothing to transfer
     let Some(inputs) = decompress_inputs else {
@@ -156,7 +102,7 @@ pub fn apply_decompress_extension_state(
         return Ok(());
     };
 
-    // Validate destination matches expected (ATA derivation or owner match)
+    // Validate destination matches token data owner
     validate_decompression_destination(
         ctoken,
         destination_account,
@@ -212,7 +158,7 @@ pub fn apply_decompress_extension_state(
     }
 
     // Handle is_frozen - restore frozen state from compressed token
-    if ext_data.is_frozen != 0 {
+    if ext_data.is_frozen() {
         ctoken.base.set_frozen();
     }
 

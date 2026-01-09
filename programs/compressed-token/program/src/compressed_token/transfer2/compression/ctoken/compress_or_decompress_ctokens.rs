@@ -82,7 +82,7 @@ pub fn compress_or_decompress_ctokens(
             Ok(())
         }
         ZCompressionMode::Decompress => {
-            apply_decompress_extension_state(&mut ctoken, token_account_info, decompress_inputs)?;
+            apply_decompress_extension_state(token_account_info, &mut ctoken, decompress_inputs)?;
 
             // Decompress: add to CToken account
             // Update the balance in the CToken solana account
@@ -135,13 +135,13 @@ fn validate_ctoken(
     }
 
     // Reject uninitialized accounts (state == 0)
-    if !ctoken.is_initialized() {
+    if ctoken.base.is_uninitialized() {
         msg!("Account is uninitialized");
         return Err(CTokenError::InvalidAccountState.into());
     }
-    // Check if account is frozen (SPL Token-2022 compatibility)
-    // Frozen accounts cannot have their balance modified except for CompressAndClose
-    else if ctoken.is_frozen() && !mode.is_compress_and_close() {
+
+    // Frozen accounts can only be modified via CompressAndClose
+    if ctoken.is_frozen() && !mode.is_compress_and_close() {
         msg!("Cannot modify frozen account");
         return Err(ErrorCode::AccountFrozen.into());
     }

@@ -11,18 +11,21 @@ use light_ctoken_interface::{
     CTokenError,
 };
 use light_program_profiler::profile;
+#[cfg(target_os = "solana")]
+use pinocchio::sysvars::Sysvar;
 use pinocchio::{
     account_info::AccountInfo,
     pubkey::{pubkey_eq, Pubkey},
 };
+
+#[cfg(target_os = "solana")]
+use crate::shared::convert_program_error;
 use spl_pod::solana_msg::msg;
 
 use super::inputs::CompressAndCloseInputs;
 use crate::{
     compressed_token::transfer2::accounts::Transfer2Accounts,
-    ctoken::close::{
-        accounts::CloseTokenAccountAccounts, processor::validate_token_account_for_close_transfer2,
-    },
+    ctoken::close::accounts::CloseTokenAccountAccounts,
 };
 
 /// Process compress and close operation for a ctoken account.
@@ -45,7 +48,7 @@ pub fn process_compress_and_close(
         compress_and_close_inputs.ok_or(ErrorCode::CompressAndCloseDestinationMissing)?;
 
     // Validate token account - only compressible accounts with compression_authority are allowed
-    let compress_to_pubkey = validate_token_account_for_close_transfer2(
+    let compress_to_pubkey = validate_token_account_for_close(
         &CloseTokenAccountAccounts {
             token_account: token_account_info,
             destination: close_inputs.destination,
@@ -79,7 +82,20 @@ pub fn process_compress_and_close(
     Ok(())
 }
 
-/// Validate compressed token account for compress and close operation
+/// Validate compressed token account for compress and close operation.
+///
+/// Validations:
+/// 1. Owner - output owner matches ctoken owner (or token account pubkey for ATA/compress_to_pubkey)
+/// 2. Amount - compression_amount == output_amount == ctoken.amount
+/// 3. Mint - output mint matches ctoken mint
+/// 4. Version - must be ShaFlat
+/// 5. Extension required - CompressedOnly extension required for compression_only or ATA accounts
+/// 6. Without extension: account must not be frozen, must not have delegate
+/// 7. With extension (via `validate_compressed_only_ext`):
+///    7a. Delegated amount must match
+///    7b. Delegate pubkey must match (if present)
+///    7c. Withheld fee must match
+///    7d. Frozen state must match
 fn validate_compressed_token_account(
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     compression_amount: u64,
@@ -92,198 +108,110 @@ fn validate_compressed_token_account(
     let compression = ctoken
         .get_compressible_extension()
         .ok_or::<ProgramError>(CTokenError::MissingCompressibleExtension.into())?;
-    let is_ata = compression.is_ata != 0;
-    // Owners should match if not compressing to pubkey
-    if compress_to_pubkey || is_ata {
-        // what about is ata?
-        // Owner should match token account pubkey if compressing to pubkey
-        if *packed_accounts
-            .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
-            .key()
-            != *token_account_pubkey
-        {
-            msg!(
-                "compress_to_pubkey: packed_accounts owner {:?} should match token_account_pubkey: {:?}",
-                solana_pubkey::Pubkey::new_from_array(
-                    *packed_accounts
-                        .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
-                        .key()
-                ),
-                solana_pubkey::Pubkey::new_from_array(*token_account_pubkey)
-            );
-            return Err(ErrorCode::CompressAndCloseInvalidOwner.into());
-        }
-    } else if ctoken.owner.to_bytes()
-        != *packed_accounts
-            .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
-            .key()
-    {
-        msg!(
-            "*ctoken.owner {:?} packed_accounts owner: {:?}",
-            solana_pubkey::Pubkey::new_from_array(ctoken.owner.to_bytes()),
-            solana_pubkey::Pubkey::new_from_array(
-                *packed_accounts
-                    .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
-                    .key()
-            )
-        );
+
+    // 1. Owner validation
+    let output_owner = packed_accounts
+        .get_u8(compressed_token_account.owner, "owner")?
+        .key();
+    let expected_owner = if compress_to_pubkey || compression.is_ata() {
+        token_account_pubkey
+    } else {
+        &ctoken.owner.to_bytes()
+    };
+    if output_owner != expected_owner {
         return Err(ErrorCode::CompressAndCloseInvalidOwner.into());
     }
 
-    // Compression amount must match the output amount
-    if compression_amount != compressed_token_account.amount.get() {
-        msg!(
-            "compression_amount {} != compressed token account amount {}",
-            compression_amount,
-            compressed_token_account.amount.get()
-        );
+    // 2. Amount validation
+    let output_amount = compressed_token_account.amount.get();
+    if compression_amount != output_amount || ctoken.amount.get() != output_amount {
         return Err(ErrorCode::CompressAndCloseAmountMismatch.into());
     }
-    // Token balance must match the compressed output amount
-    if ctoken.amount.get() != compressed_token_account.amount.get() {
-        msg!(
-            "output ctoken.amount {} != compressed token account amount {}",
-            ctoken.amount.get(),
-            compressed_token_account.amount.get()
-        );
-        return Err(ErrorCode::CompressAndCloseBalanceMismatch.into());
-    }
 
-    // Mint must match
+    // 3. Mint validation
     let output_mint = packed_accounts
-        .get_u8(compressed_token_account.mint, "CompressAndClose: mint")?
+        .get_u8(compressed_token_account.mint, "mint")?
         .key();
     if *output_mint != ctoken.mint.to_bytes() {
-        msg!(
-            "mint mismatch: ctoken {:?} != output {:?}",
-            solana_pubkey::Pubkey::new_from_array(ctoken.mint.to_bytes()),
-            solana_pubkey::Pubkey::new_from_array(*output_mint)
-        );
         return Err(ErrorCode::CompressAndCloseInvalidMint.into());
     }
 
-    // Version should be ShaFlat
+    // 4. Version validation
     if compressed_token_account.version != TokenDataVersion::ShaFlat as u8 {
         return Err(ErrorCode::CompressAndCloseInvalidVersion.into());
     }
 
-    // Version should also match what's specified in the embedded compression info
-    let expected_version = compression.info.account_version;
-    let compression_only = compression.compression_only();
-
-    if compressed_token_account.version != expected_version {
-        return Err(ErrorCode::CompressAndCloseInvalidVersion.into());
-    }
-    let compression_only_extension = out_tlv.as_ref().and_then(|ext| {
-        ext.iter()
-            .find(|e| matches!(e, ZExtensionInstructionData::CompressedOnly(_)))
+    // 5. Extension required for compression_only or ATA accounts
+    let compression_only_ext = out_tlv.and_then(|tlv| {
+        tlv.iter().find_map(|e| match e {
+            ZExtensionInstructionData::CompressedOnly(ext) => Some(ext),
+            _ => None,
+        })
     });
-
-    // CompressedOnly extension is required for:
-    // - compression_only accounts (cannot decompress to SPL)
-    // - ATA accounts (need is_ata flag for proper decompress authorization)
-    if (compression_only || is_ata) && compression_only_extension.is_none() {
+    if (compression.compression_only() || compression.is_ata()) && compression_only_ext.is_none() {
         return Err(ErrorCode::CompressAndCloseMissingCompressedOnlyExtension.into());
     }
 
-    if let Some(ZExtensionInstructionData::CompressedOnly(compression_only_extension)) =
-        compression_only_extension
-    {
-        // Note: is_ata validation happens during decompress, not compress_and_close.
-        // During compress_and_close we just store the is_ata flag from the Compressible extension.
-        // The decompress instruction validates the ATA derivation using the stored is_ata and bump.
-
-        // Delegated amounts must match
-        if u64::from(compression_only_extension.delegated_amount) != ctoken.delegated_amount.get() {
-            msg!(
-                "delegated_amount mismatch: ctoken {} != extension {}",
-                ctoken.delegated_amount.get(),
-                u64::from(compression_only_extension.delegated_amount)
-            );
-            return Err(ErrorCode::CompressAndCloseDelegatedAmountMismatch.into());
-        }
-        // Delegate must be preserved for exact state restoration during decompress
-        if ctoken.delegate().is_some() || compression_only_extension.delegated_amount != 0 {
-            let delegate = ctoken
-                .delegate()
-                .ok_or(ErrorCode::CompressAndCloseInvalidDelegate)?;
-            if !compressed_token_account.has_delegate() {
-                msg!("ctoken has delegate but compressed token output does not");
-                return Err(ErrorCode::CompressAndCloseInvalidDelegate.into());
-            }
-            let token_data_delegate = packed_accounts.get_u8(
-                compressed_token_account.delegate,
-                "compressed_token_account delegate",
-            )?;
-            if !pubkey_eq(token_data_delegate.key(), &delegate.to_bytes()) {
-                msg!(
-                    "delegate mismatch: ctoken {:?} != output {:?}",
-                    solana_pubkey::Pubkey::new_from_array(delegate.to_bytes()),
-                    solana_pubkey::Pubkey::new_from_array(*token_data_delegate.key())
-                );
-                return Err(ErrorCode::CompressAndCloseInvalidDelegate.into());
-            }
-        }
-        // if ctoken has fee extension withheld amount must match
-        let ctoken_withheld_fee = ctoken.extensions.as_ref().and_then(|exts| {
-            exts.iter().find_map(|ext| {
-                if let ZExtensionStructMut::TransferFeeAccount(fee_ext) = ext {
-                    Some(fee_ext.withheld_amount)
-                } else {
-                    None
-                }
-            })
-        });
-
-        if let Some(withheld_fee) = ctoken_withheld_fee {
-            if compression_only_extension.withheld_transfer_fee != withheld_fee {
-                msg!(
-                    "withheld_transfer_fee mismatch: ctoken {} != extension {}",
-                    withheld_fee,
-                    u64::from(compression_only_extension.withheld_transfer_fee)
-                );
-                return Err(ErrorCode::CompressAndCloseWithheldFeeMismatch.into());
-            }
-        } else if u64::from(compression_only_extension.withheld_transfer_fee) != 0 {
-            msg!(
-                "withheld_transfer_fee must be 0 when ctoken has no fee extension, got {}",
-                u64::from(compression_only_extension.withheld_transfer_fee)
-            );
-            return Err(ErrorCode::CompressAndCloseWithheldFeeMismatch.into());
-        }
-
-        // Frozen state must match between CToken and extension data
-        if ctoken.state != compression_only_extension.is_frozen {
-            msg!(
-                "is_frozen mismatch: ctoken {} != extension {}",
-                ctoken.state,
-                compression_only_extension.is_frozen
-            );
-            return Err(ErrorCode::CompressAndCloseFrozenMismatch.into());
-        }
-    } else {
-        // Frozen accounts require CompressedOnly extension to preserve frozen state
-        // AccountState::Frozen = 2 in CToken
-        let ctoken_is_frozen = ctoken.state == 2;
-        if ctoken_is_frozen {
-            msg!("Frozen account requires CompressedOnly extension with is_frozen=true");
+    // 6. Without extension: must not be frozen, must not have delegate
+    let Some(ext) = compression_only_ext else {
+        if ctoken.is_frozen() {
             return Err(ErrorCode::CompressAndCloseMissingCompressedOnlyExtension.into());
         }
+        if ctoken.delegate().is_some() || compressed_token_account.has_delegate() {
+            return Err(ErrorCode::CompressAndCloseDelegateNotAllowed.into());
+        }
+        return Ok(());
+    };
 
-        // Source token account must not have a delegate
-        // Compressed tokens don't support delegation, so we reject accounts with delegates
-        if ctoken.delegate().is_some() {
-            msg!("Source token account has delegate, cannot compress and close");
-            return Err(ErrorCode::CompressAndCloseDelegateNotAllowed.into());
-        }
+    // 7. With extension: validate delegate, withheld_fee, frozen
+    validate_compressed_only_ext(packed_accounts, compressed_token_account, ctoken, ext)
+}
 
-        // Delegate should be None
-        if compressed_token_account.has_delegate() {
-            return Err(ErrorCode::CompressAndCloseDelegateNotAllowed.into());
+/// Validate CompressedOnly extension fields match ctoken state.
+/// Called from validation 7 in `validate_compressed_token_account`.
+fn validate_compressed_only_ext(
+    packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
+    compressed_token_account: &ZMultiTokenTransferOutputData<'_>,
+    ctoken: &ZCTokenMut,
+    ext: &light_ctoken_interface::instructions::extensions::compressed_only::ZCompressedOnlyExtensionInstructionData,
+) -> Result<(), ProgramError> {
+    // 7a. Delegated amount must match
+    let ext_delegated: u64 = ext.delegated_amount.into();
+    if ext_delegated != ctoken.delegated_amount.get() {
+        return Err(ErrorCode::CompressAndCloseDelegatedAmountMismatch.into());
+    }
+
+    // 7b. Delegate pubkey must match (if present)
+    if let Some(delegate) = ctoken.delegate() {
+        if !compressed_token_account.has_delegate() {
+            return Err(ErrorCode::CompressAndCloseInvalidDelegate.into());
         }
-        if compressed_token_account.delegate != 0 {
-            return Err(ErrorCode::CompressAndCloseDelegateNotAllowed.into());
+        let output_delegate = packed_accounts
+            .get_u8(compressed_token_account.delegate, "delegate")?
+            .key();
+        if !pubkey_eq(output_delegate, &delegate.to_bytes()) {
+            return Err(ErrorCode::CompressAndCloseInvalidDelegate.into());
         }
+    }
+
+    // 7c. Withheld fee must match
+    let ctoken_fee = ctoken
+        .extensions
+        .as_ref()
+        .and_then(|exts| {
+            exts.iter().find_map(|e| match e {
+                ZExtensionStructMut::TransferFeeAccount(f) => Some(f.withheld_amount.get()),
+                _ => None,
+            })
+        })
+        .unwrap_or(0);
+    if u64::from(ext.withheld_transfer_fee) != ctoken_fee {
+        return Err(ErrorCode::CompressAndCloseWithheldFeeMismatch.into());
+    }
+
+    // 7d. Frozen state must match
+    if ctoken.is_frozen() != ext.is_frozen() {
+        return Err(ErrorCode::CompressAndCloseFrozenMismatch.into());
     }
 
     Ok(())
@@ -292,7 +220,7 @@ fn validate_compressed_token_account(
 /// Close ctoken accounts after compress and close operations
 pub fn close_for_compress_and_close(
     compressions: &[ZCompression<'_>],
-    _validated_accounts: &Transfer2Accounts,
+    validated_accounts: &Transfer2Accounts,
 ) -> Result<(), ProgramError> {
     // Track used compressed account indices for CompressAndClose to prevent duplicate outputs
     let mut used_compressed_account_indices = [0u8; 32]; // 256 bits
@@ -318,32 +246,87 @@ pub fn close_for_compress_and_close(
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        #[cfg(target_os = "solana")]
-        {
-            let validated_accounts = _validated_accounts;
-            let token_account_info = validated_accounts.packed_accounts.get_u8(
-                compression.source_or_recipient,
-                "CompressAndClose: source_or_recipient",
-            )?;
-            let destination = validated_accounts.packed_accounts.get_u8(
-                compression.get_destination_index()?,
-                "CompressAndClose: destination",
-            )?;
-            let rent_sponsor = validated_accounts.packed_accounts.get_u8(
-                compression.get_rent_sponsor_index()?,
-                "CompressAndClose: rent_sponsor",
-            )?;
-            let authority = validated_accounts
-                .packed_accounts
-                .get_u8(compression.authority, "CompressAndClose: authority")?;
-            use crate::ctoken::close::processor::close_token_account;
-            close_token_account(&CloseTokenAccountAccounts {
-                token_account: token_account_info,
-                destination,
-                authority,
-                rent_sponsor: Some(rent_sponsor),
-            })?;
-        }
+        let token_account_info = validated_accounts.packed_accounts.get_u8(
+            compression.source_or_recipient,
+            "CompressAndClose: source_or_recipient",
+        )?;
+        let destination = validated_accounts.packed_accounts.get_u8(
+            compression.get_destination_index()?,
+            "CompressAndClose: destination",
+        )?;
+        let rent_sponsor = validated_accounts.packed_accounts.get_u8(
+            compression.get_rent_sponsor_index()?,
+            "CompressAndClose: rent_sponsor",
+        )?;
+        let authority = validated_accounts
+            .packed_accounts
+            .get_u8(compression.authority, "CompressAndClose: authority")?;
+        use crate::ctoken::close::processor::close_token_account;
+        close_token_account(&CloseTokenAccountAccounts {
+            token_account: token_account_info,
+            destination,
+            authority,
+            rent_sponsor: Some(rent_sponsor),
+        })?;
     }
     Ok(())
+}
+
+/// Validates that a ctoken solana account is ready to be closed.
+/// The rent authority can close the account.
+#[profile]
+pub fn validate_token_account_for_close(
+    accounts: &CloseTokenAccountAccounts,
+    ctoken: &ZCTokenMut<'_>,
+) -> Result<bool, ProgramError> {
+    if accounts.token_account.key() == accounts.destination.key() {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    // Check for Compressible extension
+    let compressible = ctoken.get_compressible_extension();
+
+    // CompressAndClose requires Compressible extension
+    let compression = compressible.ok_or_else(|| {
+        msg!("compress and close requires compressible extension");
+        ProgramError::InvalidAccountData
+    })?;
+
+    // Validate rent_sponsor matches
+    let rent_sponsor = accounts
+        .rent_sponsor
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    if compression.info.rent_sponsor != *rent_sponsor.key() {
+        msg!("rent recipient mismatch");
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    if compression.info.compression_authority != *accounts.authority.key() {
+        msg!("compress and close requires compression authority");
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    #[cfg(target_os = "solana")]
+    {
+        let current_slot = pinocchio::sysvars::clock::Clock::get()
+            .map_err(convert_program_error)?
+            .slot;
+        let is_compressible = compression
+            .info
+            .is_compressible(
+                accounts.token_account.data_len() as u64,
+                current_slot,
+                accounts.token_account.lamports(),
+            )
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        if is_compressible.is_none() {
+            msg!("account not compressible");
+            return Err(ProgramError::InvalidAccountData);
+        }
+    }
+
+    // Return true if either compress_to_pubkey is set OR this is an ATA
+    // When true, the compressed account owner will be the token account pubkey
+    Ok(compression.info.compress_to_pubkey() || compression.is_ata())
 }

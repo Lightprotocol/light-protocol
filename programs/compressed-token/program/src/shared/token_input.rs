@@ -78,14 +78,35 @@ pub fn set_input_compressed_account<'a>(
 
     // For ATA decompress (is_ata=true), verify the wallet owner from owner_index instead
     // of the compressed account owner (which is the ATA pubkey that can't sign).
+    // Also verify that owner_account (the ATA) matches the derived ATA from wallet_owner + mint + bump.
     let signer_account = if let Some(exts) = tlv_data {
         exts.iter()
             .find_map(|ext| {
                 if let ZExtensionInstructionData::CompressedOnly(data) = ext {
                     if data.is_ata != 0 {
-                        // TODO: move ata derivation here, all signer checks must be in the input validation
                         // Get wallet owner from owner_index
-                        packed_accounts.get(data.owner_index as usize)
+                        let wallet_owner = packed_accounts.get(data.owner_index as usize)?;
+
+                        // Derive ATA and verify owner_account matches
+                        let bump_seed = [data.bump];
+                        let ata_seeds: [&[u8]; 4] = [
+                            wallet_owner.key().as_ref(),
+                            crate::LIGHT_CPI_SIGNER.program_id.as_ref(),
+                            mint_account.key().as_ref(),
+                            bump_seed.as_ref(),
+                        ];
+                        let derived_ata = pinocchio::pubkey::create_program_address(
+                            &ata_seeds,
+                            &crate::LIGHT_CPI_SIGNER.program_id,
+                        )
+                        .ok()?;
+
+                        // owner_account.key() IS the ATA - verify it matches derived
+                        if !pinocchio::pubkey::pubkey_eq(owner_account.key(), &derived_ata) {
+                            return None; // Will cause error below
+                        }
+
+                        Some(wallet_owner)
                     } else {
                         None
                     }

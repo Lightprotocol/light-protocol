@@ -351,6 +351,12 @@ impl<'a> ZCTokenMut<'a> {
 
 // Getters on ZCTokenZeroCopyMeta (immutable)
 impl ZCTokenZeroCopyMeta<'_> {
+    /// Checks if account is uninitialized (state == 0)
+    #[inline(always)]
+    pub fn is_uninitialized(&self) -> bool {
+        self.state == 0
+    }
+
     /// Checks if account is initialized (state == 1)
     #[inline(always)]
     pub fn is_initialized(&self) -> bool {
@@ -396,6 +402,12 @@ impl ZCTokenZeroCopyMeta<'_> {
 
 // Getters on ZCTokenZeroCopyMetaMut (mutable)
 impl ZCTokenZeroCopyMetaMut<'_> {
+    /// Checks if account is uninitialized (state == 0)
+    #[inline(always)]
+    pub fn is_uninitialized(&self) -> bool {
+        self.state == 0
+    }
+
     /// Checks if account is initialized (state == 1)
     #[inline(always)]
     pub fn is_initialized(&self) -> bool {

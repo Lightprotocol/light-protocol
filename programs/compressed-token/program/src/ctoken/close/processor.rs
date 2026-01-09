@@ -31,7 +31,7 @@ pub fn process_close_token_account(
         let token_account_data =
             &mut AccountInfoTrait::try_borrow_mut_data(accounts.token_account)?;
         let (ctoken, _) = CToken::zero_copy_at_mut_checked(token_account_data)?;
-        validate_token_account_close_instruction(&accounts, &ctoken)?;
+        validate_token_account_close(&accounts, &ctoken)?;
     }
     close_token_account(&accounts)?;
     Ok(())
@@ -40,95 +40,25 @@ pub fn process_close_token_account(
 /// Validates that a ctoken solana account is ready to be closed.
 /// Only the owner or close_authority can close the account.
 #[profile]
-pub fn validate_token_account_close_instruction(
+fn validate_token_account_close(
     accounts: &CloseTokenAccountAccounts,
     ctoken: &ZCTokenMut<'_>,
 ) -> Result<(), ProgramError> {
-    validate_token_account::<false>(accounts, ctoken)?;
-    Ok(())
-}
-
-/// Validates that a ctoken solana account is ready to be closed.
-/// The rent authority can close the account.
-#[profile]
-pub fn validate_token_account_for_close_transfer2(
-    accounts: &CloseTokenAccountAccounts,
-    ctoken: &ZCTokenMut<'_>,
-) -> Result<bool, ProgramError> {
-    validate_token_account::<true>(accounts, ctoken)
-}
-
-#[inline(always)]
-fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
-    accounts: &CloseTokenAccountAccounts,
-    ctoken: &ZCTokenMut<'_>,
-) -> Result<bool, ProgramError> {
     if accounts.token_account.key() == accounts.destination.key() {
         return Err(ProgramError::InvalidAccountData);
     }
 
-    // For compress and close we compress the balance and close.
-    if !COMPRESS_AND_CLOSE {
-        // Check that the account has zero balance
-        if u64::from(ctoken.amount) != 0 {
-            return Err(ErrorCode::NonNativeHasBalance.into());
-        }
-        // Note: Non-zero transfer fees are not yet supported. If fees != 0 support is added:
-        // - Check TransferFeeAccount.withheld_amount == 0 before allowing close
-        // - Implement harvest_withheld_fees instruction to extract fees first
-        // - T22 blocks close when withheld_amount > 0 to prevent fee loss
+    // Check that the account has zero balance
+    if u64::from(ctoken.amount) != 0 {
+        return Err(ErrorCode::NonNativeHasBalance.into());
     }
+    // Note: Non-zero transfer fees are not yet supported. If fees != 0 support is added:
+    // - Check TransferFeeAccount.withheld_amount == 0 before allowing close
+    // - Implement harvest_withheld_fees instruction to extract fees first
+    // - T22 blocks close when withheld_amount > 0 to prevent fee loss
+
     // Check for Compressible extension
     let compressible = ctoken.get_compressible_extension();
-    // TODO: extract into separate function and remove const generic
-    if COMPRESS_AND_CLOSE {
-        if accounts.token_account.key() == accounts.destination.key() {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        // CompressAndClose requires Compressible extension
-        let compression = compressible.ok_or_else(|| {
-            msg!("compress and close requires compressible extension");
-            ProgramError::InvalidAccountData
-        })?;
-
-        // Validate rent_sponsor matches
-        let rent_sponsor = accounts
-            .rent_sponsor
-            .ok_or(ProgramError::NotEnoughAccountKeys)?;
-        if compression.info.rent_sponsor != *rent_sponsor.key() {
-            msg!("rent recipient mismatch");
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        if compression.info.compression_authority != *accounts.authority.key() {
-            msg!("compress and close requires compression authority");
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        #[cfg(target_os = "solana")]
-        {
-            let current_slot = pinocchio::sysvars::clock::Clock::get()
-                .map_err(convert_program_error)?
-                .slot;
-            let is_compressible = compression
-                .info
-                .is_compressible(
-                    accounts.token_account.data_len() as u64,
-                    current_slot,
-                    accounts.token_account.lamports(),
-                )
-                .map_err(|_| ProgramError::InvalidAccountData)?;
-
-            if is_compressible.is_none() {
-                msg!("account not compressible");
-                return Err(ProgramError::InvalidAccountData);
-            }
-        }
-
-        // Return true if either compress_to_pubkey is set OR this is an ATA
-        // When true, the compressed account owner will be the token account pubkey
-        return Ok(compression.info.compress_to_pubkey() || compression.is_ata != 0);
-    }
 
     // For regular close: validate rent_sponsor if it has a compressible extension
     if let Some(compression) = compressible {
@@ -174,7 +104,7 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
             return Err(ErrorCode::OwnerMismatch.into());
         }
     }
-    Ok(false)
+    Ok(())
 }
 
 pub fn close_token_account(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(), ProgramError> {
