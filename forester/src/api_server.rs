@@ -112,31 +112,43 @@ fn get_metrics_json() -> Result<MetricsResponse, prometheus::Error> {
     let mut queue_lengths: HashMap<String, i64> = HashMap::new();
 
     for line in text.lines() {
+        let line = line.trim();
         if line.starts_with('#') || line.is_empty() {
             continue;
         }
 
-        if let Some((metric_part, value_str)) = line.rsplit_once(' ') {
-            let value: f64 = value_str.parse().unwrap_or(0.0);
+        // Split into tokens and get the last one as value
+        let tokens: Vec<&str> = line.split_whitespace().collect();
+        if tokens.len() < 2 {
+            continue;
+        }
 
-            if metric_part.starts_with("forester_transactions_processed_total") {
-                if let Some(epoch) = extract_label(metric_part, "epoch") {
-                    transactions_processed.insert(epoch, value as u64);
-                }
-            } else if metric_part.starts_with("forester_transaction_rate") {
-                if let Some(epoch) = extract_label(metric_part, "epoch") {
-                    transaction_rate.insert(epoch, value);
-                }
-            } else if metric_part.starts_with("forester_last_run_timestamp") {
-                last_run_timestamp = value as i64;
-            } else if metric_part.starts_with("forester_sol_balance") {
-                if let Some(pubkey) = extract_label(metric_part, "pubkey") {
-                    forester_balances.insert(pubkey, value);
-                }
-            } else if metric_part.starts_with("queue_length") {
-                if let Some(tree_pubkey) = extract_label(metric_part, "tree_pubkey") {
-                    queue_lengths.insert(tree_pubkey, value as i64);
-                }
+        let value_str = tokens[tokens.len() - 1];
+        let value: f64 = match value_str.parse() {
+            Ok(v) => v,
+            Err(_) => continue, // Skip line on parse failure
+        };
+
+        // Reconstruct metric_part by joining all tokens except the last
+        let metric_part = tokens[..tokens.len() - 1].join(" ");
+
+        if metric_part.starts_with("forester_transactions_processed_total") {
+            if let Some(epoch) = extract_label(&metric_part, "epoch") {
+                transactions_processed.insert(epoch, value as u64);
+            }
+        } else if metric_part.starts_with("forester_transaction_rate") {
+            if let Some(epoch) = extract_label(&metric_part, "epoch") {
+                transaction_rate.insert(epoch, value);
+            }
+        } else if metric_part.starts_with("forester_last_run_timestamp") {
+            last_run_timestamp = value as i64;
+        } else if metric_part.starts_with("forester_sol_balance") {
+            if let Some(pubkey) = extract_label(&metric_part, "pubkey") {
+                forester_balances.insert(pubkey, value);
+            }
+        } else if metric_part.starts_with("queue_length") {
+            if let Some(tree_pubkey) = extract_label(&metric_part, "tree_pubkey") {
+                queue_lengths.insert(tree_pubkey, value as i64);
             }
         }
     }
