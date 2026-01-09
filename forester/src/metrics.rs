@@ -81,6 +81,28 @@ lazy_static! {
         error!("Failed to create metric REGISTERED_FORESTERS: {:?}", e);
         std::process::exit(1);
     });
+    pub static ref INDEXER_RESPONSE_TIME: GaugeVec = GaugeVec::new(
+        prometheus::opts!(
+            "forester_indexer_response_time_seconds",
+            "Response time for indexer proof requests in seconds"
+        ),
+        &["operation", "tree_type"]
+    )
+    .unwrap_or_else(|e| {
+        error!("Failed to create metric INDEXER_RESPONSE_TIME: {:?}", e);
+        std::process::exit(1);
+    });
+    pub static ref INDEXER_PROOF_COUNT: IntGaugeVec = IntGaugeVec::new(
+        prometheus::opts!(
+            "forester_indexer_proof_count",
+            "Number of proofs requested vs received from indexer"
+        ),
+        &["tree_type", "metric"]
+    )
+    .unwrap_or_else(|e| {
+        error!("Failed to create metric INDEXER_PROOF_COUNT: {:?}", e);
+        std::process::exit(1);
+    });
     static ref METRIC_UPDATES: Mutex<Vec<(u64, usize, std::time::Duration)>> =
         Mutex::new(Vec::new());
 }
@@ -108,6 +130,12 @@ pub fn register_metrics() {
         }
         if let Err(e) = REGISTRY.register(Box::new(REGISTERED_FORESTERS.clone())) {
             error!("Failed to register metric REGISTERED_FORESTERS: {:?}", e);
+        }
+        if let Err(e) = REGISTRY.register(Box::new(INDEXER_RESPONSE_TIME.clone())) {
+            error!("Failed to register metric INDEXER_RESPONSE_TIME: {:?}", e);
+        }
+        if let Err(e) = REGISTRY.register(Box::new(INDEXER_PROOF_COUNT.clone())) {
+            error!("Failed to register metric INDEXER_PROOF_COUNT: {:?}", e);
         }
     });
 }
@@ -178,6 +206,25 @@ pub fn update_registered_foresters(epoch: u64, authority: &str) {
     REGISTERED_FORESTERS
         .with_label_values(&[epoch_str.as_str(), authority_str.as_str()])
         .set(1.0);
+}
+
+pub fn update_indexer_response_time(operation: &str, tree_type: &str, duration_secs: f64) {
+    INDEXER_RESPONSE_TIME
+        .with_label_values(&[operation, tree_type])
+        .set(duration_secs);
+    debug!(
+        "Indexer {} for {} took {:.3}s",
+        operation, tree_type, duration_secs
+    );
+}
+
+pub fn update_indexer_proof_count(tree_type: &str, requested: i64, received: i64) {
+    INDEXER_PROOF_COUNT
+        .with_label_values(&[tree_type, "requested"])
+        .set(requested);
+    INDEXER_PROOF_COUNT
+        .with_label_values(&[tree_type, "received"])
+        .set(received);
 }
 
 pub async fn push_metrics(url: &Option<String>) -> Result<()> {

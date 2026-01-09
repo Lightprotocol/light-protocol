@@ -21,7 +21,9 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use tokio::time::Instant;
-use tracing::{error, trace, warn};
+use tracing::{error, info, trace, warn};
+
+const WORK_ITEM_BATCH_SIZE: usize = 100;
 
 use crate::{
     epoch_manager::WorkItem,
@@ -90,12 +92,16 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
         .unwrap_or(1)
         .max(1);
 
-    trace!(tree = %tree_accounts.merkle_tree, "Starting transaction sending loop. Timeout: {:?}. Max concurrent sends: {}", config.retry_config.timeout, max_concurrent_sends);
+    info!(
+        tree = %tree_accounts.merkle_tree,
+        "Starting transaction sending loop. work_items={}, work_batch_size={}, timeout={:?}, max_concurrent_sends={}",
+        data.work_items.len(),
+        WORK_ITEM_BATCH_SIZE,
+        config.retry_config.timeout,
+        max_concurrent_sends
+    );
 
-    for work_chunk in data
-        .work_items
-        .chunks(config.build_transaction_batch_config.batch_size as usize)
-    {
+    for work_chunk in data.work_items.chunks(WORK_ITEM_BATCH_SIZE) {
         if operation_cancel_signal.load(Ordering::SeqCst) {
             trace!(tree = %tree_accounts.merkle_tree, "Global cancellation signal received, stopping batch processing.");
             break;

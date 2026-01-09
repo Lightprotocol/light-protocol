@@ -26,7 +26,8 @@ use crate::{
     },
 };
 
-const MAX_BATCHES_PER_TREE: usize = 20;
+// TODO: switch back to 20 after merging https://github.com/helius-labs/photon/pull/317
+const MAX_BATCHES_PER_TREE: usize = 4;
 
 #[derive(Debug, Default, Clone)]
 struct BatchTimings {
