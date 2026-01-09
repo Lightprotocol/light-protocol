@@ -388,9 +388,36 @@ impl<R: Rpc> TxSender<R> {
                 break;
             }
 
-            let result = match proof_rx.recv().await {
-                Some(r) => r,
-                None => break,
+            let current_slot = self.context.slot_tracker.estimated_current_slot();
+            if !self.is_still_eligible_at(current_slot) {
+                let proofs_saved = self.save_proofs_to_cache(&mut proof_rx, None).await;
+                info!(
+                    "Active phase ended for epoch {}, stopping tx sender before recv (saved {} proofs to cache)",
+                    self.context.epoch, proofs_saved
+                );
+                drop(batch_tx);
+                let (items_processed, tx_sending_duration) = sender_handle
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Sender panic: {}", e))??;
+                return Ok(TxSenderResult {
+                    items_processed,
+                    proof_timings: self.proof_timings,
+                    proofs_saved_to_cache: proofs_saved,
+                    tx_sending_duration,
+                });
+            }
+
+            let result = tokio::select! {
+                biased;
+                _ = tokio::time::sleep(Duration::from_secs(1)) => {
+                    continue;
+                }
+                result = proof_rx.recv() => {
+                    match result {
+                        Some(r) => r,
+                        None => break,
+                    }
+                }
             };
 
             let current_slot = self.context.slot_tracker.estimated_current_slot();

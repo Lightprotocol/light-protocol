@@ -282,7 +282,7 @@ impl<R: Rpc> EpochManager<R> {
         let (tx, mut rx) = mpsc::channel(100);
         let tx = Arc::new(tx);
 
-        let monitor_handle = tokio::spawn({
+        let mut monitor_handle = tokio::spawn({
             let self_clone = Arc::clone(&self);
             let tx_clone = Arc::clone(&tx);
             async move { self_clone.monitor_epochs(tx_clone).await }
@@ -311,32 +311,63 @@ impl<R: Rpc> EpochManager<R> {
 
         let _guard = scopeguard::guard(
             (
-                monitor_handle,
                 current_previous_handle,
                 new_tree_handle,
                 balance_check_handle,
             ),
-            |(h1, h2, h3, h4)| {
+            |(h2, h3, h4)| {
                 info!("Aborting EpochManager background tasks");
-                h1.abort();
                 h2.abort();
                 h3.abort();
                 h4.abort();
             },
         );
 
-        while let Some(epoch) = rx.recv().await {
-            debug!("Received new epoch: {}", epoch);
-
-            let self_clone = Arc::clone(&self);
-            tokio::spawn(async move {
-                if let Err(e) = self_clone.process_epoch(epoch).await {
-                    error!("Error processing epoch {}: {:?}", epoch, e);
+        loop {
+            tokio::select! {
+                epoch_opt = rx.recv() => {
+                    match epoch_opt {
+                        Some(epoch) => {
+                            debug!("Received new epoch: {}", epoch);
+                            let self_clone = Arc::clone(&self);
+                            tokio::spawn(async move {
+                                if let Err(e) = self_clone.process_epoch(epoch).await {
+                                    error!("Error processing epoch {}: {:?}", epoch, e);
+                                }
+                            });
+                        }
+                        None => {
+                            error!("Epoch monitor channel closed unexpectedly!");
+                            break;
+                        }
+                    }
                 }
-            });
+                result = &mut monitor_handle => {
+                    match result {
+                        Ok(Ok(())) => {
+                            error!("Epoch monitor exited unexpectedly with Ok(())");
+                        }
+                        Ok(Err(e)) => {
+                            error!("Epoch monitor exited with error: {:?}", e);
+                        }
+                        Err(e) => {
+                            error!("Epoch monitor task panicked or was cancelled: {:?}", e);
+                        }
+                    }
+                    if let Some(pagerduty_key) = &self.config.external_services.pagerduty_routing_key {
+                        let _ = send_pagerduty_alert(
+                            pagerduty_key,
+                            "critical",
+                            &format!("Forester epoch monitor died unexpectedly on {}", self.config.payer_keypair.pubkey()),
+                            "epoch_monitor_dead",
+                        ).await;
+                    }
+                    return Err(anyhow!("Epoch monitor exited unexpectedly - forester cannot function without it"));
+                }
+            }
         }
 
-        Ok(())
+        Err(anyhow!("Epoch monitor channel closed - forester cannot function without it"))
     }
 
     async fn check_sol_balance_periodically(self: Arc<Self>) -> Result<()> {
@@ -461,10 +492,47 @@ impl<R: Rpc> EpochManager<R> {
     #[instrument(level = "debug", skip(self, tx))]
     async fn monitor_epochs(&self, tx: Arc<mpsc::Sender<u64>>) -> Result<()> {
         let mut last_epoch: Option<u64> = None;
-        debug!("Starting epoch monitor");
+        let mut consecutive_failures = 0u32;
+        const MAX_BACKOFF_SECS: u64 = 60;
+
+        info!("Starting epoch monitor");
 
         loop {
-            let (slot, current_epoch) = self.get_current_slot_and_epoch().await?;
+            let (slot, current_epoch) = match self.get_current_slot_and_epoch().await {
+                Ok(result) => {
+                    if consecutive_failures > 0 {
+                        info!(
+                            "Epoch monitor recovered after {} consecutive failures",
+                            consecutive_failures
+                        );
+                    }
+                    consecutive_failures = 0;
+                    result
+                }
+                Err(e) => {
+                    consecutive_failures += 1;
+                    let backoff_secs = 2u64.pow(consecutive_failures.min(6)).min(MAX_BACKOFF_SECS);
+                    let backoff = Duration::from_secs(backoff_secs);
+
+                    if consecutive_failures == 1 {
+                        warn!(
+                            "Epoch monitor: failed to get slot/epoch: {:?}. Retrying in {:?}",
+                            e, backoff
+                        );
+                    } else {
+                        if consecutive_failures % 10 == 0 {
+                            error!(
+                                "Epoch monitor: {} consecutive failures, last error: {:?}. Still retrying every {:?}",
+                                consecutive_failures, e, backoff
+                            );
+                        }
+                    }
+
+                    tokio::time::sleep(backoff).await;
+                    continue;
+                }
+            };
+
             debug!(
                 "last_epoch: {:?}, current_epoch: {:?}, slot: {:?}",
                 last_epoch, current_epoch, slot
@@ -477,10 +545,10 @@ impl<R: Rpc> EpochManager<R> {
                     debug!("Sending current epoch {} for processing", current_epoch);
                     if let Err(e) = tx.send(current_epoch).await {
                         error!(
-                            "Failed to send current epoch {} for processing: {:?}",
+                            "Failed to send current epoch {} for processing: {:?}. Channel closed, exiting.",
                             current_epoch, e
                         );
-                        return Ok(());
+                        return Err(anyhow!("Epoch channel closed: {}", e));
                     }
                     last_epoch = Some(current_epoch);
                 }
@@ -612,10 +680,12 @@ impl<R: Rpc> EpochManager<R> {
 
         let forester_epoch_pda_pubkey =
             get_forester_epoch_pda_from_authority(&self.config.derivation_pubkey, epoch).0;
-        let rpc = self.rpc_pool.get_connection().await?;
-        let existing_pda = rpc
-            .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
-            .await?;
+
+        let existing_pda = {
+            let rpc = self.rpc_pool.get_connection().await?;
+            rpc.get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
+                .await?
+        };
 
         existing_pda
             .map(|pda| async move {
@@ -698,12 +768,15 @@ impl<R: Rpc> EpochManager<R> {
     #[instrument(level = "debug", skip(self), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch
     ))]
     async fn process_epoch(&self, epoch: u64) -> Result<()> {
-        info!("Entering process_epoch");
-
+        
+        // Clone the Arc immediately to release the DashMap shard lock.
+        // Without .clone(), the RefMut guard would be held across async operations,
+        // blocking other epochs from accessing the DashMap if they hash to the same shard.
         let processing_flag = self
             .processing_epochs
             .entry(epoch)
-            .or_insert_with(|| Arc::new(AtomicBool::new(false)));
+            .or_insert_with(|| Arc::new(AtomicBool::new(false)))
+            .clone();
 
         if processing_flag
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -713,6 +786,7 @@ impl<R: Rpc> EpochManager<R> {
             debug!("Epoch {} is already being processed, skipping", epoch);
             return Ok(());
         }
+
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
         // Attempt to recover registration info
@@ -1214,7 +1288,9 @@ impl<R: Rpc> EpochManager<R> {
             handles.push(handle);
         }
 
-        for result in join_all(handles).await {
+        info!("Waiting for {} tree processing tasks", handles.len());
+        let results = join_all(handles).await;
+        for result in results {
             match result {
                 Ok(Ok(())) => {
                     debug!("Queue processed successfully");
