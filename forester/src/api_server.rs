@@ -1,8 +1,9 @@
-use std::{collections::HashMap, net::SocketAddr};
+use std::{collections::HashMap, net::SocketAddr, thread::JoinHandle, time::Duration};
 
 use serde::{Deserialize, Serialize};
-use tracing::{error, info};
-use warp::{http::Response, Filter};
+use tokio::sync::oneshot;
+use tracing::{error, info, warn};
+use warp::{http::StatusCode, Filter};
 
 use crate::{forester_status::get_forester_status, metrics::REGISTRY};
 
@@ -27,8 +28,42 @@ pub struct MetricsResponse {
 
 const DASHBOARD_HTML: &str = include_str!("../static/dashboard.html");
 
-pub fn spawn_api_server(rpc_url: String, port: u16) {
-    std::thread::spawn(move || {
+/// Default timeout for status endpoint in seconds
+const STATUS_TIMEOUT_SECS: u64 = 30;
+
+/// Handle returned by spawn_api_server for graceful shutdown
+pub struct ApiServerHandle {
+    /// Thread handle for the API server
+    pub thread_handle: JoinHandle<()>,
+    /// Sender to trigger graceful shutdown
+    pub shutdown_tx: oneshot::Sender<()>,
+}
+
+impl ApiServerHandle {
+    /// Trigger graceful shutdown and wait for the server to stop
+    pub fn shutdown(self) {
+        // Send shutdown signal (ignore error if receiver already dropped)
+        let _ = self.shutdown_tx.send(());
+        // Wait for the thread to finish
+        if let Err(e) = self.thread_handle.join() {
+            error!("API server thread panicked: {:?}", e);
+        }
+    }
+}
+
+/// Spawn the HTTP API server with graceful shutdown support.
+///
+/// # Arguments
+/// * `rpc_url` - RPC URL for forester status endpoint
+/// * `port` - Port to bind to
+/// * `allow_public_bind` - If true, binds to 0.0.0.0; if false, binds to 127.0.0.1
+///
+/// # Returns
+/// An `ApiServerHandle` that can be used to trigger graceful shutdown
+pub fn spawn_api_server(rpc_url: String, port: u16, allow_public_bind: bool) -> ApiServerHandle {
+    let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+
+    let thread_handle = std::thread::spawn(move || {
         let rt = match tokio::runtime::Runtime::new() {
             Ok(rt) => rt,
             Err(e) => {
@@ -37,14 +72,20 @@ pub fn spawn_api_server(rpc_url: String, port: u16) {
             }
         };
         rt.block_on(async move {
-            let addr = SocketAddr::from(([0, 0, 0, 0], port));
+            let addr = if allow_public_bind {
+                warn!(
+                    "API server binding to 0.0.0.0:{} - endpoints /status and /metrics/json will be publicly accessible",
+                    port
+                );
+                SocketAddr::from(([0, 0, 0, 0], port))
+            } else {
+                SocketAddr::from(([127, 0, 0, 1], port))
+            };
             info!("Starting HTTP API server on {}", addr);
 
-            let dashboard_route = warp::path::end().and(warp::get()).map(|| {
-                Response::builder()
-                    .header("content-type", "text/html; charset=utf-8")
-                    .body(DASHBOARD_HTML)
-            });
+            let dashboard_route = warp::path::end()
+                .and(warp::get())
+                .map(|| warp::reply::html(DASHBOARD_HTML));
 
             let health_route = warp::path("health").and(warp::get()).map(|| {
                 warp::reply::json(&HealthResponse {
@@ -55,14 +96,39 @@ pub fn spawn_api_server(rpc_url: String, port: u16) {
             let status_route = warp::path("status").and(warp::get()).and_then(move || {
                 let rpc_url = rpc_url.clone();
                 async move {
-                    match get_forester_status(&rpc_url).await {
-                        Ok(status) => Ok::<_, warp::Rejection>(warp::reply::json(&status)),
-                        Err(e) => {
+                    let timeout_duration = Duration::from_secs(STATUS_TIMEOUT_SECS);
+                    match tokio::time::timeout(timeout_duration, get_forester_status(&rpc_url))
+                        .await
+                    {
+                        Ok(Ok(status)) => Ok::<_, warp::Rejection>(warp::reply::with_status(
+                            warp::reply::json(&status),
+                            StatusCode::OK,
+                        )),
+                        Ok(Err(e)) => {
                             error!("Failed to get forester status: {:?}", e);
                             let error_response = ErrorResponse {
                                 error: format!("Failed to get forester status: {}", e),
                             };
-                            Ok(warp::reply::json(&error_response))
+                            Ok(warp::reply::with_status(
+                                warp::reply::json(&error_response),
+                                StatusCode::INTERNAL_SERVER_ERROR,
+                            ))
+                        }
+                        Err(_elapsed) => {
+                            error!(
+                                "Forester status request timed out after {}s",
+                                STATUS_TIMEOUT_SECS
+                            );
+                            let error_response = ErrorResponse {
+                                error: format!(
+                                    "Request timed out after {} seconds",
+                                    STATUS_TIMEOUT_SECS
+                                ),
+                            };
+                            Ok(warp::reply::with_status(
+                                warp::reply::json(&error_response),
+                                StatusCode::GATEWAY_TIMEOUT,
+                            ))
                         }
                     }
                 }
@@ -73,13 +139,19 @@ pub fn spawn_api_server(rpc_url: String, port: u16) {
                     .and(warp::get())
                     .and_then(|| async move {
                         match get_metrics_json() {
-                            Ok(metrics) => Ok::<_, warp::Rejection>(warp::reply::json(&metrics)),
+                            Ok(metrics) => Ok::<_, warp::Rejection>(warp::reply::with_status(
+                                warp::reply::json(&metrics),
+                                StatusCode::OK,
+                            )),
                             Err(e) => {
                                 error!("Failed to encode metrics: {}", e);
                                 let error_response = ErrorResponse {
                                     error: format!("Failed to encode metrics: {}", e),
                                 };
-                                Ok(warp::reply::json(&error_response))
+                                Ok(warp::reply::with_status(
+                                    warp::reply::json(&error_response),
+                                    StatusCode::INTERNAL_SERVER_ERROR,
+                                ))
                             }
                         }
                     });
@@ -89,21 +161,29 @@ pub fn spawn_api_server(rpc_url: String, port: u16) {
                 .or(status_route)
                 .or(metrics_route);
 
-            // warp::serve().run() will panic if binding fails.
-            // The panic message will be logged by the thread.
-            warp::serve(routes).run(addr).await;
+            warp::serve(routes)
+                .bind(addr)
+                .await
+                .graceful(async {
+                    let _ = shutdown_rx.await;
+                    info!("API server received shutdown signal");
+                })
+                .run()
+                .await;
+            info!("API server shut down gracefully");
         });
     });
+
+    ApiServerHandle {
+        thread_handle,
+        shutdown_tx,
+    }
 }
 
-fn get_metrics_json() -> Result<MetricsResponse, prometheus::Error> {
-    use prometheus::Encoder;
+fn get_metrics_json() -> Result<MetricsResponse, String> {
+    use prometheus::proto::MetricType;
 
-    let encoder = prometheus::TextEncoder::new();
     let metric_families = REGISTRY.gather();
-    let mut buffer = Vec::new();
-    encoder.encode(&metric_families, &mut buffer)?;
-    let text = String::from_utf8_lossy(&buffer);
 
     let mut transactions_processed: HashMap<String, u64> = HashMap::new();
     let mut transaction_rate: HashMap<String, f64> = HashMap::new();
@@ -111,44 +191,63 @@ fn get_metrics_json() -> Result<MetricsResponse, prometheus::Error> {
     let mut forester_balances: HashMap<String, f64> = HashMap::new();
     let mut queue_lengths: HashMap<String, i64> = HashMap::new();
 
-    for line in text.lines() {
-        let line = line.trim();
-        if line.starts_with('#') || line.is_empty() {
-            continue;
-        }
+    for mf in metric_families {
+        let name = mf.name();
+        let metric_type = mf.get_field_type();
 
-        // Split into tokens and get the last one as value
-        let tokens: Vec<&str> = line.split_whitespace().collect();
-        if tokens.len() < 2 {
-            continue;
-        }
+        for metric in mf.get_metric() {
+            // Extract labels into a map for easy lookup
+            let labels: HashMap<&str, &str> = metric
+                .get_label()
+                .iter()
+                .map(|lp| (lp.name(), lp.value()))
+                .collect();
 
-        let value_str = tokens[tokens.len() - 1];
-        let value: f64 = match value_str.parse() {
-            Ok(v) => v,
-            Err(_) => continue, // Skip line on parse failure
-        };
+            // Get the metric value based on type
+            let value = match metric_type {
+                MetricType::COUNTER => metric.get_counter().value(),
+                MetricType::GAUGE => metric.get_gauge().value(),
+                MetricType::HISTOGRAM => {
+                    // For histogram, use sample_sum as a representative value
+                    metric.get_histogram().get_sample_sum()
+                }
+                MetricType::SUMMARY => {
+                    // For summary, use sample_sum as a representative value
+                    metric.get_summary().sample_sum()
+                }
+                _ => continue,
+            };
 
-        // Reconstruct metric_part by joining all tokens except the last
-        let metric_part = tokens[..tokens.len() - 1].join(" ");
-
-        if metric_part.starts_with("forester_transactions_processed_total") {
-            if let Some(epoch) = extract_label(&metric_part, "epoch") {
-                transactions_processed.insert(epoch, value as u64);
+            // Skip NaN and Inf values
+            if value.is_nan() || value.is_infinite() {
+                continue;
             }
-        } else if metric_part.starts_with("forester_transaction_rate") {
-            if let Some(epoch) = extract_label(&metric_part, "epoch") {
-                transaction_rate.insert(epoch, value);
-            }
-        } else if metric_part.starts_with("forester_last_run_timestamp") {
-            last_run_timestamp = value as i64;
-        } else if metric_part.starts_with("forester_sol_balance") {
-            if let Some(pubkey) = extract_label(&metric_part, "pubkey") {
-                forester_balances.insert(pubkey, value);
-            }
-        } else if metric_part.starts_with("queue_length") {
-            if let Some(tree_pubkey) = extract_label(&metric_part, "tree_pubkey") {
-                queue_lengths.insert(tree_pubkey, value as i64);
+
+            match name {
+                "forester_transactions_processed_total" => {
+                    if let Some(epoch) = labels.get("epoch") {
+                        transactions_processed.insert((*epoch).to_string(), value as u64);
+                    }
+                }
+                "forester_transaction_rate" => {
+                    if let Some(epoch) = labels.get("epoch") {
+                        transaction_rate.insert((*epoch).to_string(), value);
+                    }
+                }
+                "forester_last_run_timestamp" => {
+                    last_run_timestamp = value as i64;
+                }
+                "forester_sol_balance" => {
+                    if let Some(pubkey) = labels.get("pubkey") {
+                        forester_balances.insert((*pubkey).to_string(), value);
+                    }
+                }
+                "queue_length" => {
+                    if let Some(tree_pubkey) = labels.get("tree_pubkey") {
+                        queue_lengths.insert((*tree_pubkey).to_string(), value as i64);
+                    }
+                }
+                _ => {}
             }
         }
     }
@@ -160,15 +259,4 @@ fn get_metrics_json() -> Result<MetricsResponse, prometheus::Error> {
         forester_balances,
         queue_lengths,
     })
-}
-
-fn extract_label(metric_part: &str, label_name: &str) -> Option<String> {
-    let label_pattern = format!("{}=\"", label_name);
-    if let Some(start) = metric_part.find(&label_pattern) {
-        let value_start = start + label_pattern.len();
-        if let Some(end) = metric_part[value_start..].find('"') {
-            return Some(metric_part[value_start..value_start + end].to_string());
-        }
-    }
-    None
 }

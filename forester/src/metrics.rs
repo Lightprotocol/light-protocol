@@ -209,6 +209,8 @@ pub fn update_registered_foresters(epoch: u64, authority: &str) {
 }
 
 pub fn update_indexer_response_time(operation: &str, tree_type: &str, duration_secs: f64) {
+    // Ensure metrics are registered before updating (idempotent via Once)
+    register_metrics();
     INDEXER_RESPONSE_TIME
         .with_label_values(&[operation, tree_type])
         .set(duration_secs);
@@ -219,6 +221,8 @@ pub fn update_indexer_response_time(operation: &str, tree_type: &str, duration_s
 }
 
 pub fn update_indexer_proof_count(tree_type: &str, requested: i64, received: i64) {
+    // Ensure metrics are registered before updating (idempotent via Once)
+    register_metrics();
     INDEXER_PROOF_COUNT
         .with_label_values(&[tree_type, "requested"])
         .set(requested);

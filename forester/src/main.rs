@@ -111,7 +111,11 @@ async fn main() -> Result<(), ForesterError> {
             }
 
             let rpc_url_for_api: String = config.external_services.rpc_url.to_string();
-            spawn_api_server(rpc_url_for_api, args.api_server_port);
+            let _api_server_handle = spawn_api_server(
+                rpc_url_for_api,
+                args.api_server_port,
+                args.api_server_public_bind,
+            );
 
             run_pipeline::<LightClient>(
                 config,

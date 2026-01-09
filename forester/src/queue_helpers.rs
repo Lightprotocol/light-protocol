@@ -44,7 +44,9 @@ pub struct ParsedBatchData {
     pub items_in_current_zkp_batch: u64,
 }
 
-pub fn parse_batch_metadata(batches: &[light_batched_merkle_tree::batch::Batch]) -> ParsedBatchData {
+pub fn parse_batch_metadata(
+    batches: &[light_batched_merkle_tree::batch::Batch],
+) -> ParsedBatchData {
     use light_batched_merkle_tree::constants::DEFAULT_ZKP_BATCH_SIZE;
 
     let mut zkp_batch_size = DEFAULT_ZKP_BATCH_SIZE;
