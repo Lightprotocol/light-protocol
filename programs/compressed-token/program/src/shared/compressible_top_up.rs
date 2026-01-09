@@ -10,12 +10,11 @@ use pinocchio::{
     sysvars::{clock::Clock, rent::Rent, Sysvar},
 };
 
-use crate::LIGHT_CPI_SIGNER;
-
 use super::{
     convert_program_error,
     transfer_lamports::{multi_transfer_lamports, Transfer},
 };
+use crate::LIGHT_CPI_SIGNER;
 
 /// Calculate and execute top-up transfers for compressible CMint and CToken accounts.
 /// CMint always has compression info. CToken requires Compressible extension or errors.

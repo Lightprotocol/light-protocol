@@ -89,7 +89,6 @@ pub fn process_token_compression<'a>(
                             compression_index,
                             compression_to_input,
                             inputs,
-                            packed_accounts,
                         )?;
 
                     ctoken::process_ctoken_compressions(

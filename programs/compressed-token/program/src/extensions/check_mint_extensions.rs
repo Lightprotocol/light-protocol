@@ -55,7 +55,7 @@ pub fn parse_mint_extensions(
 ) -> Result<MintExtensionChecks, ProgramError> {
     // Only Token-2022 mints can have extensions
     if !mint_account.is_owned_by(&SPL_TOKEN_2022_ID) {
-        return Err(ProgramError::InvalidAccountOwner);
+        return Ok(MintExtensionChecks::default());
     }
 
     let mint_data = AccountInfoTrait::try_borrow_data(mint_account)?;

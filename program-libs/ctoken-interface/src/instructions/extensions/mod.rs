@@ -1,7 +1,9 @@
 pub mod compressed_only;
 pub mod compressible;
 pub mod token_metadata;
-pub use compressed_only::CompressedOnlyExtensionInstructionData;
+pub use compressed_only::{
+    CompressedOnlyExtensionInstructionData, ZCompressedOnlyExtensionInstructionData,
+};
 pub use compressible::{CompressToPubkey, CompressibleExtensionInstructionData};
 use light_compressible::compression_info::CompressionInfo;
 use light_zero_copy::ZeroCopy;
@@ -50,4 +52,15 @@ pub enum ExtensionInstructionData {
     /// Compressible extension - reuses CompressionInfo from light_compressible
     /// Position 32 matches ExtensionStruct::Compressible
     Compressible(CompressionInfo),
+}
+
+/// Find the CompressedOnly extension from a TLV slice.
+#[inline(always)]
+pub fn find_compressed_only<'a>(
+    tlv: &'a [ZExtensionInstructionData<'a>],
+) -> Option<&'a ZCompressedOnlyExtensionInstructionData<'a>> {
+    tlv.iter().find_map(|ext| match ext {
+        ZExtensionInstructionData::CompressedOnly(data) => Some(data),
+        _ => None,
+    })
 }

@@ -4,7 +4,7 @@ use light_ctoken_interface::instructions::{
     extensions::ZExtensionInstructionData,
     transfer2::{
         ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode,
-        ZMultiTokenTransferOutputData,
+        ZMultiInputTokenDataWithContext, ZMultiTokenTransferOutputData,
     },
 };
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
@@ -17,20 +17,14 @@ use crate::{extensions::MintExtensionChecks, MAX_COMPRESSIONS};
 pub struct DecompressCompressOnlyInputs<'a> {
     /// Input TLV for decompress operations (from the input compressed account being consumed).
     pub tlv: &'a [ZExtensionInstructionData<'a>],
-    /// Delegate pubkey from input compressed account (for decompress extension state transfer).
-    pub delegate: Option<&'a AccountInfo>,
-    /// Owner pubkey from input compressed account (for decompress destination validation).
-    /// For is_ata=true, this is the ATA pubkey (not the wallet owner).
-    pub owner: &'a AccountInfo,
-    /// Wallet owner for ATA decompress (from owner_index in CompressedOnly extension).
-    /// Only set when is_ata=true. Used for ATA derivation validation.
-    pub wallet_owner: Option<&'a AccountInfo>,
+    /// The input compressed token data being consumed.
+    pub input_token_data: &'a ZMultiInputTokenDataWithContext<'a>,
 }
 
 impl<'a> DecompressCompressOnlyInputs<'a> {
     /// Extract decompress inputs for CompressedOnly extension state transfer.
     ///
-    /// Extracts TLV, delegate, and owner from the input compressed account for decompress
+    /// Extracts TLV and input_token_data from the input compressed account for decompress
     /// operations. Also validates compression-input consistency (mode and mint match).
     #[inline(always)]
     pub fn try_extract(
@@ -38,7 +32,6 @@ impl<'a> DecompressCompressOnlyInputs<'a> {
         compression_index: usize,
         compression_to_input: &[Option<u8>; MAX_COMPRESSIONS],
         inputs: &'a ZCompressedTokenInstructionDataTransfer2<'a>,
-        packed_accounts: &'a ProgramPackedAccounts<'a, AccountInfo>,
     ) -> Result<Option<Self>, ProgramError> {
         let Some(input_idx) = compression_to_input[compression_index] else {
             return Ok(None);
@@ -55,11 +48,11 @@ impl<'a> DecompressCompressOnlyInputs<'a> {
         }
 
         // Validate mint matches between compression and input
-        let input_data = inputs
+        let input_token_data = inputs
             .in_token_data
             .get(idx)
             .ok_or(ProgramError::InvalidInstructionData)?;
-        if compression.mint != input_data.mint {
+        if compression.mint != input_token_data.mint {
             msg!(
                 "Mint mismatch between compression and input at index {}",
                 compression_index
@@ -75,37 +68,9 @@ impl<'a> DecompressCompressOnlyInputs<'a> {
             .map(|v| v.as_slice())
             .unwrap_or(&[]);
 
-        // Get delegate (optional, only if input has delegate)
-        let delegate = if input_data.has_delegate() {
-            Some(packed_accounts.get_u8(input_data.delegate, "input delegate")?)
-        } else {
-            None
-        };
-
-        // Get owner (required for DecompressCompressOnlyInputs)
-        let owner = packed_accounts.get_u8(input_data.owner, "input owner")?;
-
-        // For is_ata decompress, extract wallet_owner from owner_index in CompressedOnly extension
-        let wallet_owner = tlv.iter().find_map(|ext| {
-            if let ZExtensionInstructionData::CompressedOnly(data) = ext {
-                if data.is_ata != 0 {
-                    // Get wallet owner from owner_index
-                    packed_accounts
-                        .get_u8(data.owner_index, "wallet owner")
-                        .ok()
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        });
-
         Ok(Some(DecompressCompressOnlyInputs {
             tlv,
-            delegate,
-            owner,
-            wallet_owner,
+            input_token_data,
         }))
     }
 }

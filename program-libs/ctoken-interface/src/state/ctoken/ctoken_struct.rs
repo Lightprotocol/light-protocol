@@ -65,13 +65,12 @@ impl CToken {
     pub fn amount_from_slice(data: &[u8]) -> Result<u64, ZeroCopyError> {
         const AMOUNT_OFFSET: usize = 64; // 32 (mint) + 32 (owner)
 
-        check_token_account(&data)?;
+        check_token_account(data)?;
 
         #[inline(always)]
         fn check_token_account(bytes: &[u8]) -> Result<(), ZeroCopyError> {
-            if bytes.len() == 165 {
-                Ok(())
-            } else if bytes.len() > 165 && bytes[165] == ACCOUNT_TYPE_TOKEN_ACCOUNT {
+            if bytes.len() == 165 || (bytes.len() > 165 && bytes[165] == ACCOUNT_TYPE_TOKEN_ACCOUNT)
+            {
                 Ok(())
             } else {
                 Err(ZeroCopyError::InvalidConversion)

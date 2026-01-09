@@ -17,12 +17,11 @@ use pinocchio::{
     account_info::AccountInfo,
     pubkey::{pubkey_eq, Pubkey},
 };
-
-#[cfg(target_os = "solana")]
-use crate::shared::convert_program_error;
 use spl_pod::solana_msg::msg;
 
 use super::inputs::CompressAndCloseInputs;
+#[cfg(target_os = "solana")]
+use crate::shared::convert_program_error;
 use crate::{
     compressed_token::transfer2::accounts::Transfer2Accounts,
     ctoken::close::accounts::CloseTokenAccountAccounts,

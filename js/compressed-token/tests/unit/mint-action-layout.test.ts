@@ -46,7 +46,9 @@ describe('MintActionCompressedInstructionData Layout', () => {
                         version: TokenDataVersion.ShaFlat,
                         cmintDecompressed: false,
                         mint: mintSigner.publicKey,
-                        compressedAddress: Array.from(new Uint8Array(32).fill(1)),
+                        compressedAddress: Array.from(
+                            new Uint8Array(32).fill(1),
+                        ),
                     },
                     mintAuthority: mintAuthority.publicKey,
                     freezeAuthority: null,
@@ -98,7 +100,9 @@ describe('MintActionCompressedInstructionData Layout', () => {
                         version: TokenDataVersion.ShaFlat,
                         cmintDecompressed: false,
                         mint: mintSigner.publicKey,
-                        compressedAddress: Array.from(new Uint8Array(32).fill(0)),
+                        compressedAddress: Array.from(
+                            new Uint8Array(32).fill(0),
+                        ),
                     },
                     mintAuthority: mintAuthority.publicKey,
                     freezeAuthority: null,
@@ -141,7 +145,9 @@ describe('MintActionCompressedInstructionData Layout', () => {
                         version: TokenDataVersion.ShaFlat,
                         cmintDecompressed: false,
                         mint: mintSigner.publicKey,
-                        compressedAddress: Array.from(new Uint8Array(32).fill(5)),
+                        compressedAddress: Array.from(
+                            new Uint8Array(32).fill(5),
+                        ),
                     },
                     mintAuthority: mintAuthority.publicKey,
                     freezeAuthority: freezeAuthority.publicKey,
@@ -185,7 +191,9 @@ describe('MintActionCompressedInstructionData Layout', () => {
                         version: TokenDataVersion.ShaFlat,
                         cmintDecompressed: false,
                         mint: mintSigner.publicKey,
-                        compressedAddress: Array.from(new Uint8Array(32).fill(6)),
+                        compressedAddress: Array.from(
+                            new Uint8Array(32).fill(6),
+                        ),
                     },
                     mintAuthority: mintAuthority.publicKey,
                     freezeAuthority: null,
