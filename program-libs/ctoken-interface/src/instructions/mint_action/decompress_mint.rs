@@ -17,5 +17,4 @@ pub struct DecompressMintAction {
     /// Lamports allocated for future write operations (top-up per write).
     /// Must not exceed config.rent_config.max_top_up.
     pub write_top_up: u32,
-    // TODO: mint signer shouldnt need to sign for decompress_mint
 }

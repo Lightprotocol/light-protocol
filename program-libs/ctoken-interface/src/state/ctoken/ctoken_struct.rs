@@ -65,8 +65,17 @@ impl CToken {
     pub fn amount_from_slice(data: &[u8]) -> Result<u64, ZeroCopyError> {
         const AMOUNT_OFFSET: usize = 64; // 32 (mint) + 32 (owner)
 
-        if data.len() < AMOUNT_OFFSET + 8 {
-            return Err(ZeroCopyError::Size);
+        check_token_account(&data)?;
+
+        #[inline(always)]
+        fn check_token_account(bytes: &[u8]) -> Result<(), ZeroCopyError> {
+            if bytes.len() == 165 {
+                Ok(())
+            } else if bytes.len() > 165 && bytes[165] == ACCOUNT_TYPE_TOKEN_ACCOUNT {
+                Ok(())
+            } else {
+                Err(ZeroCopyError::InvalidConversion)
+            }
         }
 
         let amount_bytes = &data[AMOUNT_OFFSET..AMOUNT_OFFSET + 8];
@@ -83,7 +92,6 @@ impl CToken {
         let data = account_info
             .try_borrow_data()
             .map_err(|_| ZeroCopyError::Size)?;
-        // TODO: check account is a ctoken account
         Self::amount_from_slice(&data)
     }
 
