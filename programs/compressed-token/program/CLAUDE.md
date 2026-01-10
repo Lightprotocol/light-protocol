@@ -45,68 +45,65 @@ Every instruction description must include the sections:
 ## Instruction Index
 
 ### Account Management
-1. **Create CToken Account** - [`docs/instructions/CREATE_TOKEN_ACCOUNT.md`](docs/instructions/CREATE_TOKEN_ACCOUNT.md)
+1. **Create CToken Account** - [`docs/ctoken/CREATE.md`](docs/ctoken/CREATE.md)
    - Create regular token account (discriminator: 18, enum: `InstructionType::CreateTokenAccount`)
    - Create associated token account (discriminator: 100, enum: `InstructionType::CreateAssociatedCTokenAccount`)
    - Create associated token account idempotent (discriminator: 102, enum: `InstructionType::CreateAssociatedTokenAccountIdempotent`)
    - **Config validation:** Requires ACTIVE config only
 
-2. **Close Token Account** - [`docs/instructions/CLOSE_TOKEN_ACCOUNT.md`](docs/instructions/CLOSE_TOKEN_ACCOUNT.md) (discriminator: 9, enum: `InstructionType::CloseTokenAccount`)
+2. **Close Token Account** - [`docs/ctoken/CLOSE.md`](docs/ctoken/CLOSE.md) (discriminator: 9, enum: `InstructionType::CloseTokenAccount`)
    - Close decompressed token accounts
    - Returns rent exemption to rent recipient if compressible
    - Returns remaining lamports to destination account
 
 ### Rent Management
-3. **Claim** - [`docs/instructions/CLAIM.md`](docs/instructions/CLAIM.md)
+3. **Claim** - [`docs/compressible/CLAIM.md`](docs/compressible/CLAIM.md)
    - Claims rent from expired compressible accounts (discriminator: 104, enum: `InstructionType::Claim`)
    - **Config validation:** Not inactive (active or deprecated OK)
 
-4. **Withdraw Funding Pool** - [`docs/instructions/WITHDRAW_FUNDING_POOL.md`](docs/instructions/WITHDRAW_FUNDING_POOL.md)
+4. **Withdraw Funding Pool** - [`docs/compressible/WITHDRAW_FUNDING_POOL.md`](docs/compressible/WITHDRAW_FUNDING_POOL.md)
    - Withdraws funds from rent recipient pool (discriminator: 105, enum: `InstructionType::WithdrawFundingPool`)
    - **Config validation:** Not inactive (active or deprecated OK)
 
 ### Token Operations
-5. **Transfer2** - [`docs/instructions/TRANSFER2.md`](docs/instructions/TRANSFER2.md)
+5. **Transfer2** - [`docs/compressed_token/TRANSFER2.md`](docs/compressed_token/TRANSFER2.md)
    - Batch transfer instruction for compressed/decompressed operations (discriminator: 101, enum: `InstructionType::Transfer2`)
    - Supports Compress, Decompress, CompressAndClose operations
    - Multi-mint support with sum checks
 
-6. **MintAction** - [`docs/instructions/MINT_ACTION.md`](docs/instructions/MINT_ACTION.md)
+6. **MintAction** - [`docs/compressed_token/MINT_ACTION.md`](docs/compressed_token/MINT_ACTION.md)
    - Batch instruction for compressed mint management and mint operations (discriminator: 103, enum: `InstructionType::MintAction`)
    - Supports 10 action types: CreateCompressedMint, MintTo, UpdateMintAuthority, UpdateFreezeAuthority, MintToCToken, UpdateMetadataField, UpdateMetadataAuthority, RemoveMetadataKey, DecompressMint, CompressAndCloseCMint
    - Handles both compressed and decompressed token minting
 
-7. **CTokenTransfer** - [`docs/instructions/CTOKEN_TRANSFER.md`](docs/instructions/CTOKEN_TRANSFER.md)
+7. **CTokenTransfer** - [`docs/ctoken/TRANSFER.md`](docs/ctoken/TRANSFER.md)
    - Transfer between decompressed accounts (discriminator: 3, enum: `InstructionType::CTokenTransfer`)
 
-8. **CTokenTransferChecked** - [`docs/instructions/CTOKEN_TRANSFER_CHECKED.md`](docs/instructions/CTOKEN_TRANSFER_CHECKED.md)
+8. **CTokenTransferChecked** - [`docs/ctoken/TRANSFER_CHECKED.md`](docs/ctoken/TRANSFER_CHECKED.md)
    - Transfer with decimals validation (discriminator: 12, enum: `InstructionType::CTokenTransferChecked`)
 
-9. **CTokenApprove** - [`docs/instructions/CTOKEN_APPROVE.md`](docs/instructions/CTOKEN_APPROVE.md)
+9. **CTokenApprove** - [`docs/ctoken/APPROVE.md`](docs/ctoken/APPROVE.md)
    - Approve delegate on decompressed CToken account (discriminator: 4, enum: `InstructionType::CTokenApprove`)
 
-10. **CTokenRevoke** - [`docs/instructions/CTOKEN_REVOKE.md`](docs/instructions/CTOKEN_REVOKE.md)
+10. **CTokenRevoke** - [`docs/ctoken/REVOKE.md`](docs/ctoken/REVOKE.md)
    - Revoke delegate on decompressed CToken account (discriminator: 5, enum: `InstructionType::CTokenRevoke`)
 
-11. **CTokenMintTo** - [`docs/instructions/CTOKEN_MINT_TO.md`](docs/instructions/CTOKEN_MINT_TO.md)
+11. **CTokenMintTo** - [`docs/ctoken/MINT_TO.md`](docs/ctoken/MINT_TO.md)
    - Mint tokens to decompressed CToken account (discriminator: 7, enum: `InstructionType::CTokenMintTo`)
 
-12. **CTokenBurn** - [`docs/instructions/CTOKEN_BURN.md`](docs/instructions/CTOKEN_BURN.md)
+12. **CTokenBurn** - [`docs/ctoken/BURN.md`](docs/ctoken/BURN.md)
    - Burn tokens from decompressed CToken account (discriminator: 8, enum: `InstructionType::CTokenBurn`)
 
-13. **CTokenFreezeAccount** - [`docs/instructions/CTOKEN_FREEZE_ACCOUNT.md`](docs/instructions/CTOKEN_FREEZE_ACCOUNT.md)
+13. **CTokenFreezeAccount** - [`docs/ctoken/FREEZE_ACCOUNT.md`](docs/ctoken/FREEZE_ACCOUNT.md)
    - Freeze decompressed CToken account (discriminator: 10, enum: `InstructionType::CTokenFreezeAccount`)
 
-14. **CTokenThawAccount** - [`docs/instructions/CTOKEN_THAW_ACCOUNT.md`](docs/instructions/CTOKEN_THAW_ACCOUNT.md)
+14. **CTokenThawAccount** - [`docs/ctoken/THAW_ACCOUNT.md`](docs/ctoken/THAW_ACCOUNT.md)
    - Thaw frozen decompressed CToken account (discriminator: 11, enum: `InstructionType::CTokenThawAccount`)
 
-15. **CTokenApproveChecked** - [`docs/instructions/CTOKEN_APPROVE_CHECKED.md`](docs/instructions/CTOKEN_APPROVE_CHECKED.md)
-   - Approve delegate with decimals validation (discriminator: 13, enum: `InstructionType::CTokenApproveChecked`)
-
-16. **CTokenMintToChecked** - [`docs/instructions/CTOKEN_MINT_TO_CHECKED.md`](docs/instructions/CTOKEN_MINT_TO_CHECKED.md)
+15. **CTokenMintToChecked** - [`docs/ctoken/MINT_TO_CHECKED.md`](docs/ctoken/MINT_TO_CHECKED.md)
    - Mint tokens with decimals validation (discriminator: 14, enum: `InstructionType::CTokenMintToChecked`)
 
-17. **CTokenBurnChecked** - [`docs/instructions/CTOKEN_BURN_CHECKED.md`](docs/instructions/CTOKEN_BURN_CHECKED.md)
+16. **CTokenBurnChecked** - [`docs/ctoken/BURN_CHECKED.md`](docs/ctoken/BURN_CHECKED.md)
    - Burn tokens with decimals validation (discriminator: 15, enum: `InstructionType::CTokenBurnChecked`)
 
 ## Config State Requirements Summary
@@ -124,7 +121,7 @@ src/
 │   ├── claim.rs               # Claim instruction (104)
 │   └── withdraw_funding_pool.rs  # WithdrawFundingPool instruction (105)
 ├── ctoken/                 # Operations on CToken Solana accounts (decompressed)
-│   ├── approve_revoke.rs      # CTokenApprove (4), CTokenRevoke (5), CTokenApproveChecked (13)
+│   ├── approve_revoke.rs      # CTokenApprove (4), CTokenRevoke (5)
 │   ├── burn.rs                # CTokenBurn (8), CTokenBurnChecked (15)
 │   ├── close/                 # CloseTokenAccount instruction (9)
 │   ├── create.rs              # CreateTokenAccount instruction (18)
@@ -162,7 +159,7 @@ Operations on CToken Solana accounts (decompressed compressed tokens).
   - `default.rs` - CTokenTransfer (discriminator: 3)
   - `checked.rs` - CTokenTransferChecked (discriminator: 12)
   - `shared.rs` - Common transfer utilities
-- **`approve_revoke.rs`** - CTokenApprove (4), CTokenRevoke (5), CTokenApproveChecked (13)
+- **`approve_revoke.rs`** - CTokenApprove (4), CTokenRevoke (5)
 - **`mint_to.rs`** - CTokenMintTo (7), CTokenMintToChecked (14)
 - **`burn.rs`** - CTokenBurn (8), CTokenBurnChecked (15)
 - **`freeze_thaw.rs`** - CTokenFreezeAccount (10), CTokenThawAccount (11)

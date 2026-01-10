@@ -73,32 +73,35 @@
     - Otherwise, deserialize as `CreateTokenAccountInstructionData`
   2. Parse and check accounts based on is_compressible flag
     - For compressible: token_account must be signer
-    - Validate CompressibleConfig is active (not inactive or deprecated)
   3. Check mint extensions using `has_mint_extensions()`
   4. If with compressible account:
-    4.1. Validate rent_payment is not exactly 1 epoch (must cover more than the current rent epoch or be 0)
+    4.1. Parse payer, config, system_program, and rent_payer accounts
+    4.2. Validate CompressibleConfig is active (not inactive or deprecated)
+        - Error: `CompressibleError::InvalidState` if not active
+    4.3. If with compress_to_pubkey:
+        - Validates: derives address from provided seeds/bump and verifies it matches token_account pubkey
+        - Security: ensures account is a derivable PDA, preventing compression to non-signable addresses
+    4.4. Validate compression_only requirement for restricted extensions:
+        - If mint has restricted extensions (e.g., TransferFee) and compression_only == 0
+        - Error: `ErrorCode::CompressionOnlyRequired`
+    4.5. Validate compression_only is only set for mints with restricted extensions:
+        - If compression_only != 0 and mint has no restricted extensions
+        - Error: `ErrorCode::CompressionOnlyNotAllowed`
+    4.6. Validate rent_payment is not exactly 1 epoch (must cover more than the current rent epoch or be 0)
         - Check: `compressible_config.rent_payment != 1`
         - Error: `ErrorCode::OneEpochPrefundingNotAllowed` if validation fails
         - Purpose: Prevent accounts from becoming immediately compressible due to epoch boundary timing
-    4.2. If with compress_to_pubkey:
-        - Validates: derives address from provided seeds/bump and verifies it matches token_account pubkey
-        - Security: ensures account is a derivable PDA, preventing compression to non-signable addresses
-    4.3. Validate compression_only requirement for restricted extensions:
-        - If mint has restricted extensions (e.g., TransferFee) and compression_only == 0
-        - Error: `ErrorCode::CompressionOnlyRequired`
-    4.3.1. Validate compression_only is only set for mints with restricted extensions:
-        - If compression_only != 0 and mint has no restricted extensions
-        - Error: `ErrorCode::CompressionOnlyNotAllowed`
-    4.4. Calculate account size based on mint extensions (includes Compressible extension)
-    4.5. Calculate rent (rent exemption + prepaid epochs rent + compression incentive)
-    4.6. Check whether rent_payer is custom fee payer (rent_payer != config.rent_sponsor)
-    4.7. If custom rent payer:
+    4.7. Calculate account size based on mint extensions (includes Compressible extension)
+    4.8. Calculate rent (rent exemption + prepaid epochs rent + compression incentive)
+    4.9. Check whether rent_payer is custom fee payer (rent_payer != config.rent_sponsor)
+    4.10. If custom rent payer:
         - Verify rent_payer is signer (prevents executable accounts as rent_sponsor)
         - Create account with custom rent_payer via CPI (pays both rent exemption + additional lamports)
-    4.8. If using protocol rent_sponsor:
+    4.11. If using protocol rent_sponsor:
         - Create account with rent_sponsor PDA as fee payer via CPI (pays only rent exemption)
         - Transfer compression incentive to created ctoken account from payer via CPI
-    4.9. `initialize_ctoken_account` (programs/compressed-token/program/src/shared/initialize_ctoken_account.rs)
+    4.12. `initialize_ctoken_account` (programs/compressed-token/program/src/shared/initialize_ctoken_account.rs)
+        - Build extensions Vec including Compressible extension and any mint extension markers
         - Copy version from config (used to match config PDA version in subsequent instructions)
         - If custom fee payer, set custom fee payer as ctoken account rent_sponsor
         - Else set config.rent_sponsor as ctoken account rent_sponsor
@@ -197,9 +200,6 @@
   4. Verify account is system-owned (uninitialized)
     - Error: `ProgramError::IllegalOwner` if not owned by system program
   5. If compressible:
-    - Validate rent_payment is not exactly 1 epoch (same as create ctoken account step 4.1)
-      - Check: `compressible_config.rent_payment != 1`
-      - Error: `ErrorCode::OneEpochPrefundingNotAllowed` if validation fails
     - Reject if compress_to_account_pubkey is Some (not allowed for ATAs)
       - Error: `ProgramError::InvalidInstructionData` if compress_to_account_pubkey is Some
     - Validate compression_only is set (required for compressible ATAs)
@@ -207,6 +207,9 @@
       - Error: `ErrorCode::AtaRequiresCompressionOnly` if compression_only == 0
     - Parse additional accounts: config, rent_payer
     - Validate CompressibleConfig is active (not inactive or deprecated)
+    - Validate rent_payment is not exactly 1 epoch (same as create ctoken account step 4.6)
+      - Check: `compressible_config.rent_payment != 1`
+      - Error: `ErrorCode::OneEpochPrefundingNotAllowed` if validation fails
     - Calculate account size based on mint extensions (includes Compressible extension)
     - Calculate rent (rent exemption + prepaid epochs rent + compression incentive)
     - Check if custom rent payer (rent_payer != config.rent_sponsor)
@@ -222,7 +225,7 @@
         - Error: `ErrorCode::MissingCompressibleConfig` if mint has restricted extensions
         - Rationale: Mints with restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook) must be marked as compression_only, and that marker is part of the Compressible extension
     6.2. Create ATA PDA with fee_payer paying rent exemption (base 165-byte SPL layout)
-  7. Initialize token account with is_ata flag set (same as ## 1. create ctoken account step 3.6, but with is_ata=true)
+  7. Initialize token account with is_ata flag set (same as ## 1. create ctoken account step 4.12, but with is_ata=true)
 
   **Errors:**
   Same as create ctoken account with additions:

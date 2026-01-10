@@ -39,7 +39,7 @@ Token pool pda is renamed to spl interface pda in the light-token-sdk.
    - Token program interface (SPL Token or Token-2022)
 6. cpi_authority_pda
    - CPI authority PDA
-   - PDA derivation: seeds=[b"light_cpi_authority"], program=light_compressed_token
+   - PDA derivation: seeds=[b"cpi_authority"], program=light_compressed_token
    - Becomes the owner/authority of the token pool account
 
 **Instruction Logic and Checks:**

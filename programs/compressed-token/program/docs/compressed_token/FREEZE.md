@@ -69,7 +69,7 @@ Supports multiple hashing versions via an optional trailing version byte:
    - Return `InvalidFreezeAuthority` if authority doesn't match
 
 4. **Build input compressed accounts:**
-   - Call `get_input_compressed_accounts_with_merkle_context_and_check_signer::<false>` (FROZEN_INPUTS=false)
+   - Call `get_input_compressed_accounts_with_merkle_context_and_check_signer::<false>` (IS_FROZEN=false)
    - Reconstruct token data from inputs using owner from instruction data
    - Set input state to Initialized (expected input state)
 

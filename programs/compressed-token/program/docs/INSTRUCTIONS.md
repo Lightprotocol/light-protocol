@@ -1,37 +1,35 @@
-# Documentation Structure
+# Instructions Reference
 
 ## Overview
-This documentation is organized to provide clear navigation through the compressed token program's functionality.
+This file contains the discriminator reference table and instruction index for the compressed token program.
 
-## Structure
-- **`CLAUDE.md`** (this file) - Documentation structure guide
+## Related Documentation
+- **`CLAUDE.md`** - Documentation structure guide
 - **`../CLAUDE.md`** (parent) - Main entry point with summary and instruction index
 - **`ACCOUNTS.md`** - Complete account layouts and data structures
-- **`instructions/`** - Detailed instruction documentation
-  - **`compressed_token/`** - Compressed token operations (Merkle tree accounts)
-    - `TRANSFER2.md` - Batch transfer with compress/decompress operations
-    - `MINT_ACTION.md` - Mint operations and compressed mint management
-    - `FREEZE.md` - Freeze compressed token accounts (Anchor)
-    - `THAW.md` - Thaw frozen compressed token accounts (Anchor)
-  - **`compressible/`** - Rent management for compressible accounts
-    - `CLAIM.md` - Claim rent from expired compressible accounts
-    - `WITHDRAW_FUNDING_POOL.md` - Withdraw funds from rent recipient pool
-  - **`ctoken/`** - CToken (decompressed) account operations
-    - `CREATE.md` - Create token account & associated token account
-    - `CLOSE.md` - Close decompressed token accounts
-    - `TRANSFER.md` - Transfer between decompressed accounts
-    - `TRANSFER_CHECKED.md` - Transfer with decimals validation
-    - `APPROVE.md` - Approve delegate
-    - `APPROVE_CHECKED.md` - Approve with decimals validation
-    - `REVOKE.md` - Revoke delegate
-    - `MINT_TO.md` - Mint tokens to CToken account
-    - `MINT_TO_CHECKED.md` - Mint with decimals validation
-    - `BURN.md` - Burn tokens from CToken account
-    - `BURN_CHECKED.md` - Burn with decimals validation
-    - `FREEZE_ACCOUNT.md` - Freeze CToken account
-    - `THAW_ACCOUNT.md` - Thaw frozen CToken account
+- **`compressed_token/`** - Compressed token operations (Merkle tree accounts)
+  - `TRANSFER2.md` - Batch transfer with compress/decompress operations
+  - `MINT_ACTION.md` - Mint operations and compressed mint management
+  - `FREEZE.md` - Freeze compressed token accounts (Anchor)
+  - `THAW.md` - Thaw frozen compressed token accounts (Anchor)
   - `CREATE_TOKEN_POOL.md` - Create initial token pool for SPL/T22 mint compression
   - `ADD_TOKEN_POOL.md` - Add additional token pools (up to 5 per mint)
+- **`compressible/`** - Rent management for compressible accounts
+  - `CLAIM.md` - Claim rent from expired compressible accounts
+  - `WITHDRAW_FUNDING_POOL.md` - Withdraw funds from rent recipient pool
+- **`ctoken/`** - CToken (decompressed) account operations
+  - `CREATE.md` - Create token account & associated token account
+  - `CLOSE.md` - Close decompressed token accounts
+  - `TRANSFER.md` - Transfer between decompressed accounts
+  - `TRANSFER_CHECKED.md` - Transfer with decimals validation
+  - `APPROVE.md` - Approve delegate
+  - `REVOKE.md` - Revoke delegate
+  - `MINT_TO.md` - Mint tokens to CToken account
+  - `MINT_TO_CHECKED.md` - Mint with decimals validation
+  - `BURN.md` - Burn tokens from CToken account
+  - `BURN_CHECKED.md` - Burn with decimals validation
+  - `FREEZE_ACCOUNT.md` - Freeze CToken account
+  - `THAW_ACCOUNT.md` - Thaw frozen CToken account
 
 ## Discriminator Reference
 
@@ -46,7 +44,6 @@ This documentation is organized to provide clear navigation through the compress
 | CTokenFreezeAccount | 10 | `InstructionType::CTokenFreezeAccount` | FreezeAccount |
 | CTokenThawAccount | 11 | `InstructionType::CTokenThawAccount` | ThawAccount |
 | CTokenTransferChecked | 12 | `InstructionType::CTokenTransferChecked` | TransferChecked |
-| CTokenApproveChecked | 13 | `InstructionType::CTokenApproveChecked` | ApproveChecked |
 | CTokenMintToChecked | 14 | `InstructionType::CTokenMintToChecked` | MintToChecked |
 | CTokenBurnChecked | 15 | `InstructionType::CTokenBurnChecked` | BurnChecked |
 | CreateTokenAccount | 18 | `InstructionType::CreateTokenAccount` | InitializeAccount3 |
@@ -65,8 +62,8 @@ This documentation is organized to provide clear navigation through the compress
 - CToken-specific instructions (100+) have no SPL Token equivalent
 
 ## Navigation Tips
-- Start with `../../CLAUDE.md` for the instruction index and overview
-- Use `../ACCOUNTS.md` for account structure reference
+- Start with `../CLAUDE.md` for the instruction index and overview
+- Use `ACCOUNTS.md` for account structure reference
 - Refer to specific instruction docs for implementation details
 
 
@@ -95,7 +92,7 @@ every instruction description must include the sections:
 9. **MintTo** - Mint tokens to decompressed CToken account
 10. **Burn** - Burn tokens from decompressed CToken account
 11. **Freeze/Thaw** - Freeze and thaw decompressed CToken accounts
-12. **Checked Operations** - TransferChecked, ApproveChecked, MintToChecked, BurnChecked
+12. **Checked Operations** - TransferChecked, MintToChecked, BurnChecked
 
 ## Compressible Operations (`compressible/`)
 13. **Claim** - Rent reclamation from expired compressible accounts

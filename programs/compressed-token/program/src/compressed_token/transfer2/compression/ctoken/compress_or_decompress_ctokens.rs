@@ -12,7 +12,7 @@ use pinocchio::pubkey::pubkey_eq;
 use spl_pod::solana_msg::msg;
 
 use super::{
-    compress_and_close::process_compress_and_close, decompress::apply_decompress_extension_state,
+    compress_and_close::process_compress_and_close, decompress::validate_and_apply_compressed_only,
     inputs::CTokenCompressionInputs,
 };
 use crate::shared::{
@@ -81,7 +81,7 @@ pub fn compress_or_decompress_ctokens(
             Ok(())
         }
         ZCompressionMode::Decompress => {
-            apply_decompress_extension_state(
+            validate_and_apply_compressed_only(
                 token_account_info,
                 &mut ctoken,
                 decompress_inputs,

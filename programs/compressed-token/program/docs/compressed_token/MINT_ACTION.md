@@ -30,8 +30,8 @@ This instruction supports 10 total actions - one creation action (controlled by 
 10. `CompressAndCloseCMint` - Compress and close a CMint Solana account. Permissionless - anyone can call if is_compressible() returns true (rent expired).
 
 Key concepts integrated:
-- **Compressed mint (cmint)**: Mint state stored in compressed account with deterministic address derived from associated SPL mint pubkey
-- **SPL mint synchronization**: When SPL mint exists, supply is tracked in both compressed mint and SPL mint through token pool PDAs
+- **Compressed mint (cmint)**: Mint state stored in compressed account with deterministic address derived from a mint signer PDA
+- **Decompressed mint (CMint)**: When a compressed mint is decompressed, a CMint Solana account becomes the source of truth
 - **Authority validation**: All actions require appropriate authority (mint/freeze/metadata) to be transaction signer
 - **Batch processing**: Multiple actions execute sequentially with state updates persisted between actions
 
@@ -41,10 +41,7 @@ Key concepts integrated:
    **Core fields:**
    - `leaf_index`: u32 - Merkle tree leaf index of existing compressed mint (only used if create_mint is None)
    - `prove_by_index`: bool - Use proof-by-index for existing mint validation (only used if create_mint is None)
-   - `root_index`: u16 - Root index for address proof (create) or validity proof (update)
-   - `compressed_address`: [u8; 32] - Deterministic address derived from SPL mint pubkey
-   - `token_pool_bump`: u8 - Token pool PDA bump (required for SPL mint operations)
-   - `token_pool_index`: u8 - Token pool PDA index (required for SPL mint operations)
+   - `root_index`: u16 - Root index for address proof (create) or validity proof (update). Not used if proof by index.
    - `max_top_up`: u16 - Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
    - `create_mint`: Option<CreateMint> - Configuration for creating new compressed mint (None for existing mint operations)
    - `actions`: Vec<Action> - Ordered list of actions to execute
@@ -64,32 +61,36 @@ Key concepts integrated:
    - `CompressAndCloseCMint(CompressAndCloseCMintAction)` - Compress and close CMint Solana account (compress_and_close_cmint.rs)
 
 **Accounts:**
+
+The account ordering differs based on whether writing to CPI context or executing.
+
+**Always present:**
 1. light_system_program
    - non-mutable
-   - Light Protocol system program for cpi to create or update the compressed mint account.
+   - Light Protocol system program for CPI to create or update the compressed mint account.
 
-Optional accounts (based on configuration):
-2. mint_signer
-   - (signer) - required if create_mint is Some or DecompressMint action present
-   - PDA seed for SPL mint creation (seeds from compressed mint randomness)
+2. mint_signer (optional)
+   - (signer if create_mint is Some, non-signer for DecompressMint)
+   - Required if create_mint is Some or DecompressMint action is present
+   - PDA seed derivation from compressed mint randomness
 
 3. authority
    - (signer)
    - Must match current mint/freeze/metadata authority for respective actions
 
-For execution (when not writing to CPI context):
-4. mint
-   - (mutable) - optional, required for SPL mint supply synchronization
-   - SPL Token 2022 mint account for supply synchronization
+**For execution (when not writing to CPI context):**
 
-5. token_pool_pda
-   - (mutable) - optional, required for SPL mint supply synchronization
-   - Token pool PDA that holds SPL tokens backing compressed supply
-   - Derivation: [mint, token_pool_index] with token_pool_bump
+4. compressible_config (optional)
+   - Required when DecompressMint or CompressAndCloseCMint action is present
+   - CompressibleConfig account - parsed and validated for active state
 
-6. token_program
-   - non-mutable - optional, required for SPL mint supply synchronization
-   - Must be SPL Token 2022 program (validated in accounts.rs:126)
+5. cmint (optional)
+   - (mutable) - CMint Solana account (decompressed compressed mint)
+   - Required when cmint_decompressed=true OR DecompressMint OR CompressAndCloseCMint action present
+
+6. rent_sponsor (optional)
+   - (mutable) - Required when DecompressMint or CompressAndCloseCMint action is present
+   - Rent sponsor PDA that pays for CMint account creation
 
 7-12. Light system accounts (standard set):
    - fee_payer (signer, mutable)
@@ -98,6 +99,9 @@ For execution (when not writing to CPI context):
    - account_compression_authority
    - account_compression_program
    - system_program
+   - sol_pool_pda (optional)
+   - sol_decompression_recipient (optional)
+   - cpi_context (optional)
 
 13. out_output_queue
    - (mutable)
@@ -116,10 +120,13 @@ For execution (when not writing to CPI context):
    - (mutable) - optional, required for MintToCompressed actions
    - Output queue for newly minted compressed token accounts
 
-For CPI context write (when write_to_cpi_context=true):
-4-6. CPI context accounts only
+**For CPI context write (when write_to_cpi_context=true):**
+4-6. CPI context accounts:
+   - fee_payer (signer, mutable)
+   - cpi_authority_pda
+   - cpi_context
 
-Packed accounts (remaining accounts):
+**Packed accounts (remaining accounts):**
 - Merkle tree and queue accounts for compressed storage
 - Recipient ctoken accounts for MintToCToken action
 
@@ -132,15 +139,17 @@ Packed accounts (remaining accounts):
 
 2. **Validate and parse accounts:**
    - Check authority is signer
-   - If SPL mint initialized: validate token pool PDA derivation
-   - Validate mint account matches expected cmint pubkey
+   - Validate CMint account matches expected mint pubkey (when cmint_pubkey provided)
    - For create_mint: validate address_merkle_tree is CMINT_ADDRESS_TREE
+   - Parse compressible config when DecompressMint or CompressAndCloseCMint action present
    - Extract packed accounts for dynamic operations
 
 3. **Process mint creation or input:**
    - If create_mint is Some:
-     - Derive SPL mint PDA from compressed address
-     - Set create address in CPI instruction
+     - Derive mint PDA from mint_signer key: `find_program_address([COMPRESSED_MINT_SEED, mint_signer], program_id)`
+     - Validate mint.metadata.mint matches derived PDA
+     - Validate compressed address derivation (especially with CPI context)
+     - Set new address params in CPI instruction
    - If create_mint is None:
      - Hash existing compressed mint account
      - Set input with merkle context (tree, queue, leaf_index, proof)
@@ -152,7 +161,6 @@ Packed accounts (remaining accounts):
    - Validate: mint authority matches signer
    - Calculate: sum recipient amounts with overflow protection
    - Update: mint supply += sum_amounts
-   - If SPL mint exists: mint equivalent tokens to pool via CPI
    - Create: compressed token accounts for each recipient
 
    **UpdateMintAuthority / UpdateFreezeAuthority:**
@@ -161,10 +169,9 @@ Packed accounts (remaining accounts):
 
    **MintToCToken:**
    - Validate: mint authority matches signer
-   - Calculate: sum recipient amounts
-   - Update: mint supply += sum_amounts
-   - If SPL mint exists: mint to pool, then transfer to recipients
-   - If no SPL mint: directly update ctoken account balances
+   - Calculate: sum recipient amount
+   - Update: mint supply += amount
+   - Update ctoken account balance via decompress operation
 
    **UpdateMetadataField:**
    - Validate: metadata authority matches signer (defaults to mint authority)
@@ -204,23 +211,34 @@ Packed accounts (remaining accounts):
 
 - `ProgramError::InvalidInstructionData` (error code: 3) - Failed to deserialize instruction data or invalid action configuration
 - `ProgramError::InvalidAccountData` (error code: 4) - Account validation failures (wrong program ownership, invalid PDA derivation)
-- `ProgramError::InvalidArgument` (error code: 1) - Invalid authority or action parameters
+- `ProgramError::NotEnoughAccountKeys` - Missing required accounts
 - `ErrorCode::MintActionProofMissing` (error code: 6055) - ZK proof required but not provided
 - `ErrorCode::InvalidAuthorityMint` (error code: 6018) - Signer doesn't match mint authority
 - `ErrorCode::MintActionAmountTooLarge` (error code: 6069) - Arithmetic overflow in mint amount calculations
-- `ErrorCode::MintAccountMismatch` (error code: 6051) - SPL mint account doesn't match expected cmint
+- `ErrorCode::MintAccountMismatch` (error code: 6051) - CMint account doesn't match expected mint
 - `ErrorCode::InvalidAddressTree` (error code: 6094) - Wrong address merkle tree for mint creation
-- `ErrorCode::MintActionMissingSplMintSigner` (error code: 6045) - Missing mint signer for SPL mint creation
-- `ErrorCode::MintActionMissingMintAccount` (error code: 6048) - Missing SPL mint account when required
-- `ErrorCode::MintActionMissingTokenPoolAccount` (error code: 6049) - Missing token pool PDA when required
-- `ErrorCode::MintActionMissingTokenProgram` (error code: 6050) - Missing token program when required
+- `ErrorCode::MintActionMissingMintSigner` (error code: 6108) - Missing mint signer account
+- `ErrorCode::MintActionMissingCMintAccount` (error code: 6109) - Missing CMint account for decompress mint action
 - `ErrorCode::MintActionInvalidExtensionIndex` (error code: 6059) - Extension index out of bounds
 - `ErrorCode::MintActionInvalidExtensionType` (error code: 6062) - Extension is not TokenMetadata type
 - `ErrorCode::MintActionMetadataKeyNotFound` (error code: 6063) - Metadata key not found for removal
 - `ErrorCode::MintActionMissingExecutingAccounts` (error code: 6064) - Missing required execution accounts
+- `ErrorCode::MintActionInvalidMintPda` (error code: 6066) - Invalid mint PDA derivation
+- `ErrorCode::MintActionOutputSerializationFailed` (error code: 6068) - Account data serialization failed
+- `ErrorCode::MintActionInvalidInitialSupply` (error code: 6070) - Initial supply must be 0 for new mint creation
+- `ErrorCode::MintActionUnsupportedVersion` (error code: 6071) - Mint version not supported
+- `ErrorCode::MintActionInvalidCompressionState` (error code: 6072) - New mint must start as compressed
+- `ErrorCode::MintActionUnsupportedOperation` (error code: 6073) - Unsupported operation
 - `ErrorCode::CpiContextExpected` (error code: 6085) - CPI context required but not provided
-- `AccountError::InvalidSigner` (error code: 12015) - Required signer account is not signing
-- `AccountError::NotEnoughAccountKeys` (error code: 12020) - Missing required accounts
+- `ErrorCode::TooManyCompressionTransfers` (error code: 6095) - Account index out of bounds for MintToCToken
+- `ErrorCode::MintActionInvalidCpiContextForCreateMint` (error code: 6104) - Invalid CPI context for create mint operation
+- `ErrorCode::MintActionInvalidCpiContextAddressTreePubkey` (error code: 6105) - Invalid address tree pubkey in CPI context
+- `ErrorCode::MintActionInvalidCompressedMintAddress` (error code: 6103) - Invalid compressed mint address derivation
+- `ErrorCode::MintDataRequired` (error code: 6125) - Mint data required in instruction when not decompressed
+- `ErrorCode::CannotDecompressAndCloseInSameInstruction` (error code: 6123) - Cannot combine DecompressMint and CompressAndCloseCMint in same instruction
+- `ErrorCode::CompressAndCloseCMintMustBeOnlyAction` (error code: 6169) - CompressAndCloseCMint must be the only action in the instruction
+- `ErrorCode::CpiContextSetNotUsable` (error code: 6035) - Mint to ctokens or decompress mint not allowed when writing to CPI context
+- `CTokenError::MaxTopUpExceeded` - Max top-up budget exceeded
 
 ### Spl mint migration
 - cmint to spl mint migration is unimplemented and not planned.

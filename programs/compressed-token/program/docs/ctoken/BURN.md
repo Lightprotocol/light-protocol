@@ -67,20 +67,23 @@ Format 2 (10 bytes):
       - Initialize lamports_budget to max_top_up + 1 (allowing exact match when total == max_top_up)
 
    b. **Calculate CMint top-up:**
-      - Borrow CMint data and deserialize using `CompressedMint::zero_copy_at`
-      - Access compression info directly from mint.base.compression (embedded in all CMints)
-      - Lazy load Clock sysvar for current_slot and Rent sysvar if not yet loaded (current_slot == 0)
-      - Call `compression.calculate_top_up_lamports(data_len, current_slot, lamports, rent_exemption)`
-      - Subtract calculated top-up from lamports_budget
+      - Call optimized `cmint_top_up_lamports_from_account_info(cmint, current_slot, program_id)`
+      - Verifies account owner matches expected program ID
+      - Validates minimum size (262 bytes) and account_type field
+      - Reads CompressionInfo directly from fixed byte offset (166)
+      - Lazy loads Clock sysvar if current_slot == 0
+      - Calls `calculate_top_up_lamports(data_len, current_slot, lamports)`
+      - Returns None if any validation fails (no error, gracefully skipped)
+      - Subtracts calculated top-up from lamports_budget
 
    c. **Calculate CToken top-up:**
-      - Skip if CToken data length is 165 bytes (no extensions, standard SPL token account)
-      - Borrow CToken data and deserialize using `CToken::zero_copy_at_checked`
-      - Get Compressible extension via `token.get_compressible_extension()`
-      - Fail with MissingCompressibleExtension if CToken has extensions but no Compressible extension
-      - Lazy load Clock sysvar for current_slot and Rent sysvar if not yet loaded (current_slot == 0)
-      - Call `compressible.info.calculate_top_up_lamports(data_len, current_slot, lamports, rent_exemption)`
-      - Subtract calculated top-up from lamports_budget
+      - Call optimized `top_up_lamports_from_account_info_unchecked(ctoken, current_slot)`
+      - Validates minimum size (272 bytes), account_type, Option discriminator, and first extension type
+      - Reads CompressionInfo directly from fixed byte offset (176)
+      - Returns None if CToken is 165 bytes (no extensions) or lacks Compressible as first extension
+      - Lazy loads Clock sysvar if current_slot == 0
+      - Calls `calculate_top_up_lamports(data_len, current_slot, lamports)`
+      - Subtracts calculated top-up from lamports_budget
 
    d. **Validate budget:**
       - If no compressible accounts were found (current_slot == 0), exit early
@@ -88,6 +91,7 @@ Format 2 (10 bytes):
       - If max_top_up != 0 and lamports_budget == 0, fail with MaxTopUpExceeded
 
    e. **Execute transfers:**
+      - Fail with MissingPayer if payer account is not provided
       - Call `multi_transfer_lamports(payer, &transfers)` to atomically transfer lamports
       - Updates account balances for both CMint and CToken if needed
 
@@ -96,18 +100,12 @@ Format 2 (10 bytes):
 - `ProgramError::NotEnoughAccountKeys` (error code: 11) - Less than 3 accounts provided
 - `ProgramError::InvalidInstructionData` (error code: 3) - Instruction data length is not 8 or 10 bytes
 - `ProgramError::InsufficientFunds` (error code: 6) - Source CToken balance less than burn amount (from pinocchio burn), or payer has insufficient funds for top-up transfers
-- `ProgramError::ArithmeticOverflow` (error code: 24) - Overflow when calculating total top-up amount
 - Pinocchio token errors (converted to ProgramError::Custom):
   - `TokenError::OwnerMismatch` (error code: 4) - Authority is not owner or delegate
   - `TokenError::MintMismatch` (error code: 3) - CToken mint doesn't match CMint
   - `TokenError::AccountFrozen` (error code: 17) - CToken account is frozen
-- `CTokenError::CMintDeserializationFailed` (error code: 18047) - Failed to deserialize CMint account using zero-copy
-- `CTokenError::InvalidAccountData` (error code: 18002) - Account data length is too small, calculate top-up failed, or invalid account format
-- `CTokenError::InvalidAccountState` (error code: 18036) - CToken account is not initialized (from zero-copy parsing)
-- `CTokenError::InvalidAccountType` (error code: 18053) - Account is not a CToken account type (from zero-copy parsing)
-- `CTokenError::SysvarAccessError` (error code: 18020) - Failed to get Clock or Rent sysvar for top-up calculation
 - `CTokenError::MaxTopUpExceeded` (error code: 18043) - Total top-up amount (CMint + CToken) exceeds max_top_up limit
-- `CTokenError::MissingCompressibleExtension` (error code: 18056) - CToken account has extensions but missing required Compressible extension
+- `CTokenError::MissingPayer` (error code: 18061) - Payer account not provided but top-up is required
 
 ## Comparison with Token-2022
 

@@ -14,6 +14,9 @@ When accounts require rent top-up, lamports are transferred directly from the au
 - **SPL-compatible:** When using 9-byte instruction data (amount + decimals) with no top-up needed
 - **Extended format:** When using 11-byte instruction data (amount + decimals + max_top_up) for compressible accounts
 
+**Hot path optimization:**
+When both source and destination accounts are exactly 165 bytes (no extensions), the instruction bypasses all extension processing and directly calls pinocchio process_transfer_checked for maximum performance.
+
 **description:**
 Transfers tokens between decompressed ctoken solana accounts with mint decimals validation, fully compatible with SPL Token TransferChecked semantics. Account layout `CToken` is defined in program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs. Compression info for rent top-up is defined in program-libs/compressible/src/compression_info.rs. Uses pinocchio-token-program to process the transfer (lightweight SPL-compatible implementation). After the transfer, automatically tops up compressible accounts with additional lamports if needed based on current slot and account balance. Top-up prevents accounts from becoming compressible during normal operations. Supports standard SPL Token transfer features including delegate authority and permanent delegate (multisig not supported). The transfer amount, authority validation, and decimals validation follow SPL Token TransferChecked rules exactly. Validates that mint decimals match the provided decimals parameter. Difference from CTokenTransfer: Requires mint account (4 accounts vs 3) for decimals validation and T22 extension validation.
 
@@ -55,22 +58,28 @@ Transfers tokens between decompressed ctoken solana accounts with mint decimals 
 **Instruction Logic and Checks:**
 
 1. **Validate minimum accounts:**
-   - Require exactly 4 accounts (source, mint, destination, authority)
+   - Require at least 4 accounts (source, mint, destination, authority)
    - Return NotEnoughAccountKeys if insufficient
 
-2. **Validate instruction data:**
+2. **Hot path for accounts without extensions:**
+   - If both source and destination are exactly 165 bytes (no extensions):
+     - Directly call pinocchio process_transfer_checked with first 9 bytes of instruction data
+     - Skip all extension processing for maximum performance
+     - Return immediately
+
+3. **Validate instruction data:**
    - Must be at least 9 bytes (amount + decimals)
    - If 11 bytes, parse max_top_up from bytes [9..11]
    - If 9 bytes, set max_top_up = 0 (legacy, no limit)
    - Any other length returns InvalidInstructionData
 
-3. **Parse max_top_up parameter:**
+4. **Parse max_top_up parameter:**
    - 0 = no limit on top-up lamports
    - Non-zero = maximum combined lamports for source + destination top-up
    - Transaction fails if calculated top-up exceeds max_top_up
 
-4. **Process transfer extensions:**
-   - Call process_transfer_extensions from shared.rs with source, destination, authority, mint, and max_top_up
+5. **Process transfer extensions:**
+   - Call process_transfer_extensions_transfer_checked from shared.rs with source, destination, authority, mint, and max_top_up
    - Validate sender (source account):
      - Deserialize source account (CToken) and extract extension information
      - Validate mint account matches source token's mint field
@@ -89,19 +98,18 @@ Transfers tokens between decompressed ctoken solana accounts with mint decimals 
    - Verify sender and destination have matching T22 extension markers
    - Calculate top-up amounts for both accounts based on compression info:
      - Get current slot from Clock sysvar (lazy loaded once)
-     - Get rent exemption from Rent sysvar
      - Call calculate_top_up_lamports for each account
    - Transfer lamports from authority to accounts if top-up needed:
      - Check max_top_up budget if set (non-zero)
      - Execute multi_transfer_lamports atomically
-   - Return (signer_is_validated, decimals) tuple
+   - Return (signer_is_validated, extension_decimals) tuple
 
-5. **Extract decimals and execute transfer:**
+6. **Extract decimals and execute transfer:**
    - Parse amount and decimals from instruction data using unpack_amount_and_decimals
    - If source account has cached decimals in compressible extension (extension_decimals is Some):
      - Validate extension_decimals == instruction decimals parameter
      - Create accounts slice without mint: [source, destination, authority]
-     - Call pinocchio process_transfer with expected_decimals = None
+     - Call pinocchio process_transfer with expected_decimals = None (3 accounts)
      - signer_is_validated flag from permanent delegate check skips redundant owner/delegate validation
    - If no cached decimals (extension_decimals is None):
      - Validate mint account owner is token program
@@ -122,7 +130,7 @@ Transfers tokens between decompressed ctoken solana accounts with mint decimals 
 - `ProgramError::InvalidInstructionData` (error code: 3) - Instruction data is not 9 or 11 bytes, or decimals validation failed
 - `ProgramError::MissingRequiredSignature` (error code: 8) - Authority is permanent delegate but not a signer
 - `CTokenError::InvalidAccountData` (error code: 18002) - Failed to deserialize CToken account, mint mismatch, or invalid extension data
-- `CTokenError::SysvarAccessError` (error code: 18020) - Failed to get Clock or Rent sysvar for top-up calculation
+- `CTokenError::SysvarAccessError` (error code: 18020) - Failed to get Clock sysvar for top-up calculation
 - `CTokenError::MaxTopUpExceeded` (error code: 18043) - Calculated top-up exceeds max_top_up limit
 - `ProgramError::InsufficientFunds` (error code: 6) - Source balance less than amount (pinocchio error)
 - Pinocchio token errors (converted to ProgramError::Custom):
@@ -140,8 +148,10 @@ Transfers tokens between decompressed ctoken solana accounts with mint decimals 
 
 ### Functional Parity
 
-CToken delegates core logic to `pinocchio_token_program::processor::transfer_checked::process_transfer_checked`, which implements SPL Token-compatible transfer semantics:
-- Authority validation, balance updates, frozen check, mint matching, decimals validation
+CToken delegates core logic to `pinocchio_token_program::processor::shared::transfer::process_transfer`, which implements SPL Token-compatible transfer semantics. When `expected_decimals` is Some, it performs decimals validation against the mint account:
+- Authority validation, balance updates, frozen check, mint matching, decimals validation (when expected_decimals is Some)
+
+Note: For the hot path (165-byte accounts without extensions), `pinocchio_token_program::processor::transfer_checked::process_transfer_checked` is called directly.
 
 ### CToken-Specific Features
 

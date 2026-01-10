@@ -1,7 +1,7 @@
 ## Close Token Account
 
 **discriminator:** 9
-**enum:** `CTokenInstruction::CloseTokenAccount`
+**enum:** `InstructionType::CloseTokenAccount`
 **path:** programs/compressed-token/program/src/ctoken/close/
 
 **description:**
@@ -9,8 +9,8 @@
 2. Account layout `CToken` is defined in path: program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs
 3. Supports both regular (non-compressible) and compressible token accounts (with compressible extension)
 4. For compressible accounts (with compressible extension):
-   - Rent exemption + unclaimed rent lamports are returned to the rent_sponsor
-   - Remaining user lamports are returned to the destination account
+   - Completed epoch rent lamports are returned to the rent_sponsor
+   - Partial/unutilized epoch lamports are returned to the destination account (user)
    - Only the owner or close_authority (if set) can close using this instruction (balance must be zero)
    - **Note:** To compress and close with non-zero balance, use CompressAndClose mode in Transfer2 (compression_authority only)
    - **Note:** It is impossible to set a close authority.
@@ -45,31 +45,29 @@
 
 4. rent_sponsor (optional, required for compressible accounts)
    - (mutable)
-   - Receives rent exemption + unclaimed rent for compressible accounts
+   - Receives completed epoch rent lamports for compressible accounts
    - Must match the rent_sponsor field in the compressible extension
    - Not required for non-compressible accounts (only 3 accounts needed)
 
 **Instruction Logic and Checks:**
 
 1. **Parse and validate accounts** (`validate_and_parse` in `accounts.rs`):
-   - Extract token_account (index 0), destination (index 1), authority (index 2)
-   - Extract rent_sponsor (index 3) if accounts.len() >= 4 (required for compressible accounts)
-   - Verify token_account is mutable via `check_mut`
+   - Extract token_account (index 0) via `iter.next_mut()` (validates mutability)
    - Verify token_account is owned by ctoken program via `check_owner`
-   - Verify destination is mutable via `check_mut`
-   - Verify authority is a signer via `check_signer`
-   - If rent_sponsor provided: verify rent_sponsor is mutable via `check_mut`
+   - Extract destination (index 1) via `iter.next_mut()` (validates mutability)
+   - Extract authority (index 2) via `iter.next_signer()` (validates signer)
+   - If accounts.len() >= 4: extract rent_sponsor (index 3) via `iter.next_mut()` (validates mutability)
 
 2. **Deserialize and validate token account** (`process_close_token_account` in `processor.rs`):
    - Borrow token account data mutably
-   - Parse as `CToken` using `zero_copy_at_mut_checked` (validates initialized state and account type)
-   - Call `validate_token_account<false>` (CHECK_RENT_AUTH=false for regular close)
+   - Parse as `CToken` using `CToken::from_account_info_mut_checked` (validates program ownership, initialized state and account type)
+   - Call `validate_token_account_close` to validate closure requirements
 
-3. **Validate closure requirements** (`validate_token_account<COMPRESS_AND_CLOSE: bool>`):
+3. **Validate closure requirements** (`validate_token_account_close` in `processor.rs`):
    3.1. **Basic validation**:
       - Verify token_account.key() != destination.key() (prevents self-transfer)
 
-   3.2. **Balance check** (only when COMPRESS_AND_CLOSE=false):
+   3.2. **Balance check**:
       - Convert ctoken.amount from U64 to u64
       - Verify amount == 0 (non-zero returns `ErrorCode::NonNativeHasBalance`)
 
@@ -80,7 +78,8 @@
         - Fall through to close_authority/owner check (compression_authority cannot use this instruction)
 
    3.4. **Account state check**:
-      - Check account state field equals AccountState::Initialized (value 1):
+      - Note: `from_account_info_mut_checked` already validates that state == Initialized (1)
+      - Additional validation for frozen/uninitialized states (redundant but explicit):
         - If state == AccountState::Frozen (value 2): return `ErrorCode::AccountFrozen`
         - If state is any other value: return `ProgramError::UninitializedAccount`
 
@@ -97,25 +96,21 @@
 
    4.2. **Check for compressible extension**:
       - Borrow token account data (read-only this time)
-      - Parse as CToken using `zero_copy_at_checked`
-      - Look for `ZExtensionStruct::Compressible` in extensions
+      - Parse as CToken using `CToken::from_account_info_checked`
+      - Look for `ZExtensionStruct::Compressible` in extensions via `get_compressible_extension()`
 
    4.3. **For compressible accounts** (if extension found):
       - Get current_slot from Clock::get() sysvar
-      - Calculate base_lamports using `get_rent_exemption_lamports(account.data_len)`
+      - Calculate base_lamports from `compression.info.rent_exemption_paid`
       - Create `AccountRentState` with:
         - num_bytes, current_slot, current_lamports, last_claimed_slot
       - Call `calculate_close_distribution` with:
         - rent_config, base_lamports
       - Returns `CloseDistribution { to_rent_sponsor, to_user }`
       - Get rent_sponsor account from accounts (error if missing)
-      - For regular close (owner/close_authority):
-        - Transfer to_rent_sponsor lamports to rent_sponsor via `transfer_lamports` (if > 0)
-        - Transfer to_user lamports to destination via `transfer_lamports` (if > 0)
-      - For CompressAndClose (compression_authority in Transfer2):
-        - Extract compression_cost from rent_sponsor portion as forester reward
-        - Add to_user to rent_sponsor portion (unused funds go to rent_sponsor)
-        - Transfer adjusted lamports to rent_sponsor and compression_cost to destination (forester)
+      - Check if authority is compression_authority:
+        - If compression_authority: Extract compression_cost from rent_sponsor portion as forester reward, add to_user to rent_sponsor portion (unused funds go to rent_sponsor), transfer adjusted lamports to rent_sponsor and compression_cost to destination (forester)
+        - Otherwise (owner/close_authority): Transfer to_rent_sponsor lamports to rent_sponsor via `transfer_lamports` (if > 0), transfer to_user lamports to destination via `transfer_lamports` (if > 0)
       - Return early (skip non-compressible path)
 
    4.4. **For non-compressible accounts**:
@@ -132,17 +127,30 @@
       - Maps resize error to ProgramError::Custom if fails
 
 **Errors:**
-- `ProgramError::InvalidAccountData` (error code: 4) - token_account == destination, rent_sponsor doesn't match extension, compression_authority mismatch, or account not compressible
-- `ProgramError::NotEnoughAccountKeys` (error code: 11) - Missing rent_sponsor account for compressible accounts
-- `AccountError::InvalidSigner` (error code: 12015) - Authority is not a signer
+
+*Account parsing errors (from `validate_and_parse`):*
 - `AccountError::AccountNotMutable` (error code: 12008) - token_account, destination, or rent_sponsor is not mutable
+- `AccountError::InvalidSigner` (error code: 12015) - Authority is not a signer
 - `AccountError::AccountOwnedByWrongProgram` (error code: 12007) - token_account is not owned by ctoken program
 - `AccountError::NotEnoughAccountKeys` (error code: 12020) - Not enough accounts provided
+
+*CToken deserialization errors (from `from_account_info_mut_checked`):*
+- `CTokenError::InvalidCTokenOwner` (error code: 18063) - token_account not owned by ctoken program
+- `CTokenError::BorrowFailed` (error code: 18062) - Failed to borrow account data
+- `CTokenError::InvalidAccountState` (error code: 18036) - Account state is not Initialized (state != 1)
+- `CTokenError::InvalidAccountType` (error code: 18053) - Account type discriminator is invalid
+- `CTokenError::InvalidAccountData` (error code: 18002) - Account has trailing bytes after CToken structure
+
+*Validation errors (from `validate_token_account_close`):*
+- `ProgramError::InvalidAccountData` (error code: 4) - token_account == destination, or rent_sponsor doesn't match extension
+- `ProgramError::NotEnoughAccountKeys` (error code: 11) - Missing rent_sponsor account for compressible accounts
+- `ErrorCode::NonNativeHasBalance` (error code: 6074) - Account has non-zero token balance
 - `ErrorCode::AccountFrozen` (error code: 6076) - Account state is Frozen
 - `ProgramError::UninitializedAccount` (error code: 10) - Account state is Uninitialized or invalid
-- `ErrorCode::NonNativeHasBalance` (error code: 6074) - Account has non-zero token balance
 - `ErrorCode::OwnerMismatch` (error code: 6075) - Authority doesn't match owner or close_authority
-- `ProgramError::InsufficientFunds` (error code: 6) - Insufficient funds for lamport transfer during rent calculation
+
+*Lamport distribution errors (from `distribute_lamports`):*
+- `ProgramError::InsufficientFunds` (error code: 6) - Insufficient funds for compression_cost subtraction
 
 **Edge Cases and Considerations:**
 - Only the close_authority (if set) or owner (if close_authority is None) can use this instruction (CloseTokenAccount)

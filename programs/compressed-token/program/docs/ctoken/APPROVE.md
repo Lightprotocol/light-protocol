@@ -14,10 +14,10 @@ If the CToken account has a compressible extension and requires a rent top-up, t
 - **NOT SPL-compatible (system program required):** Compressible accounts that need rent top-up based on current slot
 
 **description:**
-Delegates a specified amount to a delegate authority on a decompressed ctoken account (account layout `CToken` defined in program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs). Before the approve operation, automatically tops up compressible accounts (extension layout `CompressionInfo` defined in program-libs/compressible/src/compression_info.rs) with additional lamports if needed to prevent accounts from becoming compressible during normal operations. The instruction supports a max_top_up parameter (0 = no limit) that enforces transaction failure if the calculated top-up exceeds this limit. Uses pinocchio-token-program for SPL-compatible approve semantics. Supports backwards-compatible instruction data format (8 bytes legacy vs 10 bytes with max_top_up).
+Delegates a specified amount to a delegate authority on a decompressed ctoken account (account layout `CToken` defined in program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs). After the SPL approve operation, automatically tops up compressible accounts (extension layout `CompressionInfo` defined in program-libs/compressible/src/compression_info.rs) with additional lamports if needed to prevent accounts from becoming compressible during normal operations. The instruction supports a max_top_up parameter (0 = no limit) that enforces transaction failure if the calculated top-up exceeds this limit. Uses pinocchio-token-program for SPL-compatible approve semantics. Supports backwards-compatible instruction data format (8 bytes legacy vs 10 bytes with max_top_up).
 
 **Instruction data:**
-Path: programs/compressed-token/program/src/ctoken/approve_revoke.rs (lines 34-66)
+Path: programs/compressed-token/program/src/ctoken/approve_revoke.rs (lines 14-15, 98-106)
 
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to delegate
 - Bytes 8-9 (optional): `max_top_up` (u16, little-endian) - Maximum lamports for top-up (0 = no limit, default for legacy format)
@@ -41,41 +41,38 @@ Path: programs/compressed-token/program/src/ctoken/approve_revoke.rs (lines 34-6
 
 **Instruction Logic and Checks:**
 
-1. **Validate minimum accounts:**
-   - Require source account (index 0) and owner account (index 2)
-   - Return NotEnoughAccountKeys if either account is missing
-   - Note: delegate (index 1) is validated by pinocchio during SPL approve
+1. **Validate minimum accounts and instruction data:**
+   - Return NotEnoughAccountKeys if accounts array is empty
+   - Return InvalidInstructionData if instruction data is less than 8 bytes
+   - Note: delegate (index 1) and owner (index 2) are validated by pinocchio during SPL approve
 
-2. **Parse instruction data:**
-   - If 8 bytes: legacy format, set max_top_up = 0 (no limit)
-   - If 10 bytes: parse amount (first 8 bytes) and max_top_up (last 2 bytes)
-   - Return InvalidInstructionData for any other length
-
-3. **Process compressible top-up:**
-   - Borrow source account data mutably
-   - Deserialize CToken using zero-copy validation
-   - Initialize lamports_budget based on max_top_up:
-     - If max_top_up == 0: budget = u64::MAX (no limit)
-     - Otherwise: budget = max_top_up + 1 (allows exact match)
-   - Call process_compression_top_up with source account's compression info
-   - Drop borrow before CPI
-   - If transfer_amount > 0:
-     - Check that transfer_amount <= lamports_budget
-     - Return MaxTopUpExceeded if budget exceeded
-     - Transfer lamports from owner to source via CPI
-
-4. **Process SPL approve:**
+2. **Process SPL approve:**
    - Pass only first 8 bytes (amount) to pinocchio-token-program
    - Call process_approve with accounts and amount data
    - Delegate is granted spending rights for the specified amount
 
+3. **Handle compressible top-up (hot path optimization):**
+   - If source account data length is exactly 165 bytes, skip top-up (no extensions)
+   - Otherwise, call process_compressible_top_up
+
+4. **Process compressible top-up (cold path):**
+   - Parse max_top_up from instruction data:
+     - If 8 bytes: legacy format, set max_top_up = 0 (no limit)
+     - If 10 bytes: parse max_top_up from last 2 bytes
+     - Return InvalidInstructionData for any other length
+   - Read CompressionInfo directly from account bytes using bytemuck (no full CToken deserialization)
+   - Calculate transfer_amount using `top_up_lamports_from_account_info_unchecked`
+   - If transfer_amount > 0:
+     - If max_top_up > 0 and transfer_amount > max_top_up: return MaxTopUpExceeded
+     - Get payer account (index 2), return MissingPayer if not present
+     - Transfer lamports from payer to source via CPI
+
 **Errors:**
 
 - `ProgramError::InvalidInstructionData` (error code: 3) - Instruction data is not 8 or 10 bytes
-- `ProgramError::NotEnoughAccountKeys` (error code: 11) - Less than 3 accounts provided
-- `CTokenError::InvalidAccountData` (error code: 18002) - Failed to deserialize CToken account
-- `CTokenError::SysvarAccessError` (error code: 18020) - Failed to get Clock or Rent sysvar for top-up calculation
+- `ProgramError::NotEnoughAccountKeys` (error code: 11) - No accounts provided
 - `CTokenError::MaxTopUpExceeded` (error code: 18043) - Calculated top-up exceeds max_top_up parameter
+- `CTokenError::MissingPayer` (error code: 18061) - Payer account (index 2) not provided when top-up is required
 - `ProgramError::MissingRequiredSignature` (error code: 8) - Owner did not sign the transaction (SPL Token error)
 - Pinocchio token errors (converted to ProgramError::Custom):
   - `TokenError::OwnerMismatch` (error code: 4) - Authority doesn't match account owner
@@ -102,27 +99,31 @@ CToken Approve maintains compatibility with SPL Token-2022's core approve functi
 
 **1. Compressible Extension Top-Up Logic**
 
-CToken Approve includes automatic rent top-up for accounts with the Compressible extension:
+CToken Approve includes automatic rent top-up for accounts with the Compressible extension. The top-up happens AFTER the SPL approve operation:
 
 ```rust
-// Before SPL approve operation
-process_compression_top_up(
-    &ctoken.base.compression,
-    account,
-    &mut 0,
-    &mut transfer_amount,
-    &mut lamports_budget,
-)?;
+// After SPL approve operation succeeds
+// Hot path: 165-byte accounts have no extensions, skip top-up
+if source.data_len() == 165 {
+    return Ok(());
+}
 
-// Transfer lamports from owner to source if needed
+// Cold path: calculate and transfer top-up if needed
+let transfer_amount = top_up_lamports_from_account_info_unchecked(account, &mut current_slot)
+    .unwrap_or(0);
+
 if transfer_amount > 0 {
+    if max_top_up > 0 && transfer_amount > max_top_up as u64 {
+        return Err(CTokenError::MaxTopUpExceeded.into());
+    }
+    let payer = payer.ok_or(CTokenError::MissingPayer)?;
     transfer_lamports_via_cpi(transfer_amount, payer, account)?;
 }
 ```
 
 **Purpose**: Prevents accounts from becoming compressible during normal operations by maintaining minimum rent balance.
 
-**Reference**: See `/home/ananas/dev/light-protocol/program-libs/compressible/docs/RENT.md` for rent calculation details.
+**Reference**: See `program-libs/compressible/docs/RENT.md` for rent calculation details.
 
 **2. max_top_up Parameter**
 
@@ -132,14 +133,8 @@ Extended instruction data format (10 bytes total):
 
 **Enforcement**:
 ```rust
-let lamports_budget = if max_top_up == 0 {
-    u64::MAX  // No limit
-} else {
-    (max_top_up as u64).saturating_add(1)  // Allow exact match
-};
-
-if lamports_budget != 0 && transfer_amount > lamports_budget {
-    return Err(CTokenError::MaxTopUpExceeded);
+if max_top_up > 0 && transfer_amount > max_top_up as u64 {
+    return Err(CTokenError::MaxTopUpExceeded.into());
 }
 ```
 
@@ -152,4 +147,4 @@ if lamports_budget != 0 && transfer_amount > lamports_budget {
 
 ### Related Instructions
 
-**ApproveChecked:** CToken implements CTokenApproveChecked (discriminator: 13) with full decimals validation. See `CTOKEN_APPROVE_CHECKED.md`.
+**Note:** Unlike SPL Token/Token-2022, CToken does NOT implement ApproveChecked (discriminator 13). Only the basic Approve instruction is supported.

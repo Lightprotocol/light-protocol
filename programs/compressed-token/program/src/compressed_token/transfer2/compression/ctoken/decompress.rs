@@ -11,9 +11,9 @@ use spl_pod::solana_msg::msg;
 
 use super::inputs::DecompressCompressOnlyInputs;
 
-/// Apply extension state from compressed account to CToken during decompress.
+/// Validate and apply CompressedOnly extension state from compressed account to CToken during decompress.
 #[inline(always)]
-pub fn apply_decompress_extension_state(
+pub fn validate_and_apply_compressed_only(
     destination_account: &AccountInfo,
     ctoken: &mut ZCTokenMut,
     decompress_inputs: Option<DecompressCompressOnlyInputs>,

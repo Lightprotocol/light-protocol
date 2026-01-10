@@ -9,9 +9,9 @@
 2. The rent_sponsor PDA holds funds collected from rent claims and compression incentives
 3. Only the compression_authority from CompressibleConfig can execute withdrawals
 4. **Config validation:** Config must not be inactive (active or deprecated allowed)
-5. The rent_sponsor PDA is derived from ["rent_sponsor", version_bytes, bump] where version comes from CompressibleConfig
+5. The rent_sponsor PDA is derived from ["rent_sponsor", version_bytes, bump] where version is a u16 from CompressibleConfig serialized as little-endian bytes
 6. Enables protocol operators to manage collected rent and redirect funds for operational needs
-7. The instruction validates PDA derivation matches the config's rent_sponsor
+7. The instruction validates rent_sponsor and compression_authority match the config
 
 **Instruction data:**
 - First 8 bytes: withdrawal amount (u64, little-endian)
@@ -38,7 +38,7 @@
 4. system_program
    - (non-mutable)
    - System program for lamport transfer
-   - Required for system_instruction::transfer
+   - Required for pinocchio_system Transfer instruction
 
 5. config
    - (non-mutable)
@@ -54,14 +54,15 @@
    - Error if instruction data length < 8 bytes
 
 2. **Validate and parse accounts:**
-   - Parse all required accounts with correct mutability
+   - Parse all required accounts with correct mutability using AccountIterator
    - Verify compression_authority is signer
    - Parse and validate CompressibleConfig:
-     - Deserialize using parse_config_account helper
+     - Check owner is Registry program
+     - Validate discriminator and deserialize using bytemuck
      - Check config is not inactive (validate_not_inactive)
    - Verify compression_authority matches config
    - Verify rent_sponsor matches config
-   - Extract rent_sponsor_bump and version for PDA derivation
+   - Extract rent_sponsor_bump and version (u16 as little-endian bytes) for PDA derivation
 
 3. **Verify sufficient funds:**
    - Get current pool balance from rent_sponsor.lamports()
@@ -69,8 +70,8 @@
    - Error if insufficient funds
 
 4. **Execute transfer:**
-   - Create system_instruction::transfer from rent_sponsor to destination
-   - Prepare PDA signer seeds: ["rent_sponsor", version_bytes, bump]
+   - Create pinocchio_system Transfer struct from rent_sponsor to destination
+   - Prepare PDA signer seeds: [b"rent_sponsor", version_bytes (2 bytes), bump (1 byte)]
    - Invoke system program with PDA as signer using invoke_signed
    - Transfer specified amount to destination
 

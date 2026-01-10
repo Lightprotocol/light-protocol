@@ -203,6 +203,9 @@ pub enum CTokenError {
 
     #[error("Compression index exceeds maximum allowed value")]
     CompressionIndexOutOfBounds,
+
+    #[error("ATA derivation failed or mismatched for is_ata compressed token")]
+    InvalidAtaDerivation,
 }
 
 impl From<CTokenError> for u32 {
@@ -273,6 +276,7 @@ impl From<CTokenError> for u32 {
             CTokenError::InvalidCTokenOwner => 18063,
             CTokenError::DecompressAmountMismatch => 18064,
             CTokenError::CompressionIndexOutOfBounds => 18065,
+            CTokenError::InvalidAtaDerivation => 18066,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

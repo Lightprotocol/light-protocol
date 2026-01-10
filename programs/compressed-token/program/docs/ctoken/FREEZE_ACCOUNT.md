@@ -51,17 +51,17 @@ No instruction data required beyond the discriminator byte.
      - Verifies mint.freeze_authority == Some(freeze_authority.key())
      - Verifies token_account state is Initialized (not already Frozen)
      - Updates token_account.state to AccountState::Frozen
-   - Map any errors from u64 to ProgramError::Custom(u32)
+   - Map SPL Token errors via `convert_pinocchio_token_error` to ErrorCode variants
 
 **Errors:**
 - `ProgramError::NotEnoughAccountKeys` (error code: 11) - Less than 2 accounts provided (cannot get mint account)
 - `ProgramError::IncorrectProgramId` (error code: 7) - Mint is not owned by a valid token program (SPL Token, Token-2022, or CToken)
-- SPL Token errors from pinocchio-token-program (converted from u64 to ProgramError::Custom(u32)):
-  - `TokenError::MintCannotFreeze` (error code: 16) - Mint's freeze_authority is None
-  - `TokenError::OwnerMismatch` (error code: 4) - freeze_authority doesn't match mint's freeze_authority
-  - `TokenError::MintMismatch` (error code: 3) - token_account's mint doesn't match provided mint
-  - `TokenError::InvalidState` (error code: 13) - Account is already frozen or uninitialized
-  - `ProgramError::InvalidAccountData` (error code: 4) - Account data is malformed
+- SPL Token errors from pinocchio-token-program (converted via `convert_pinocchio_token_error` to ErrorCode variants):
+  - `ErrorCode::MintHasNoFreezeAuthority` (error code: 6026) - Mint's freeze_authority is None
+  - `ErrorCode::OwnerMismatch` (error code: 6075) - freeze_authority doesn't match mint's freeze_authority
+  - `ErrorCode::MintMismatch` (error code: 6155) - token_account's mint doesn't match provided mint
+  - `ErrorCode::InvalidState` (error code: 6163) - Account is already frozen or uninitialized
+  - `ErrorCode::InvalidMint` (error code: 6126) - Account data is malformed (SPL Token code 2)
 
 ## Comparison with SPL Token
 

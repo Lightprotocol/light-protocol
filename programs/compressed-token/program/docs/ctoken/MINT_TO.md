@@ -68,14 +68,14 @@ Format variants:
 4. **Calculate top-up requirements:**
    For both CMint and destination CToken accounts:
 
-   a. **Deserialize account using zero-copy:**
-      - CMint: Use `CompressedMint::zero_copy_at`
-      - CToken: Use `CToken::zero_copy_at_checked`
-      - Access compression info directly from embedded field (all accounts now have compression embedded)
+   a. **Access CompressionInfo using optimized byte access:**
+      - CMint: Use `cmint_top_up_lamports_from_account_info` which reads CompressionInfo at fixed byte offset (166)
+      - CToken: Use `top_up_lamports_from_account_info_unchecked` which reads CompressionInfo at fixed byte offset (176)
+      - Returns None if account lacks CompressionInfo (CMint without compression, or CToken without Compressible extension as first extension)
 
    b. **Calculate top-up amount:**
-      - Get current slot from Clock sysvar (lazy loaded, only if needed)
-      - Get rent exemption from Rent sysvar
+      - Get current slot from Clock sysvar (lazy loaded on first compressible account)
+      - Uses stored rent_exemption_paid from CompressionInfo (not Rent sysvar)
       - Call `calculate_top_up_lamports` which:
         - Checks if account is compressible
         - Calculates rent deficit if any
@@ -83,7 +83,7 @@ Format variants:
         - Returns 0 if account is well-funded
 
    c. **Track lamports budget:**
-      - Initialize budget to max_top_up + 1 (allowing exact match)
+      - Initialize budget to max_top_up.saturating_add(1) (allowing exact match)
       - Subtract CMint top-up amount from budget
       - Subtract CToken top-up amount from budget
       - If budget reaches 0 and max_top_up is not 0, fail with MaxTopUpExceeded
@@ -102,11 +102,8 @@ Format variants:
   - `TokenError::MintMismatch` (error code: 3) - CToken mint doesn't match CMint
   - `TokenError::OwnerMismatch` (error code: 4) - Authority doesn't match CMint mint_authority
   - `TokenError::AccountFrozen` (error code: 17) - CToken account is frozen
-- `CTokenError::CMintDeserializationFailed` (error code: 18047) - Failed to deserialize CMint account using zero-copy
-- `CTokenError::InvalidAccountData` (error code: 18002) - Failed to deserialize CToken account or calculate top-up amount
-- `CTokenError::SysvarAccessError` (error code: 18020) - Failed to get Clock or Rent sysvar for top-up calculation
 - `CTokenError::MaxTopUpExceeded` (error code: 18043) - Total top-up amount (CMint + CToken) exceeds max_top_up limit
-- `CTokenError::MissingCompressibleExtension` (error code: 18056) - CToken account (not 165 bytes) is missing the Compressible extension
+- `CTokenError::MissingPayer` (error code: 18061) - Payer account missing when top-ups are needed
 
 ---
 
@@ -116,7 +113,7 @@ Format variants:
 
 CToken delegates core logic to `pinocchio_token_program::processor::mint_to::process_mint_to`, which implements SPL Token-compatible mint semantics:
 - Authority validation, balance/supply updates, frozen check, mint matching, overflow protection
-- **MintToChecked:** CToken implements CTokenMintToChecked (discriminator: 14) with full decimals validation. See `CTOKEN_MINT_TO_CHECKED.md`.
+- **MintToChecked:** CToken implements CTokenMintToChecked (discriminator: 14) with full decimals validation. See `MINT_TO_CHECKED.md`.
 
 ### CToken-Specific Features
 

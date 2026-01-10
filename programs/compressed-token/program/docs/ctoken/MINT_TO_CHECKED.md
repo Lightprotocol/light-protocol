@@ -13,7 +13,8 @@ Account layouts:
 - `CompressionInfo` extension defined in: program-libs/compressible/src/compression_info.rs
 
 **Instruction data:**
-Path: programs/compressed-token/program/src/ctoken/mint_to.rs (lines 62-112, function `process_ctoken_mint_to_checked`)
+Path: programs/compressed-token/program/src/ctoken/mint_to.rs (function `process_ctoken_mint_to_checked`)
+Shared implementation: programs/compressed-token/program/src/ctoken/burn.rs (function `process_ctoken_supply_change_inner`)
 
 Byte layout:
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to mint
@@ -66,28 +67,25 @@ Format variants:
    - Checks destination CToken is not frozen
    - Increases destination CToken balance by amount
    - Increases CMint supply by amount
-   - Errors are converted from pinocchio errors to ProgramError::Custom
+   - Errors are converted from pinocchio errors to ErrorCode variants
 
 4. **Calculate and execute top-up transfers:**
-   - Calculate lamports needed for CMint based on compression state
-   - Calculate lamports needed for CToken based on compression state
+   - Calculate lamports needed for CMint based on compression state (skipped if not compressible)
+   - Calculate lamports needed for CToken based on compression state (skipped if no Compressible extension)
    - Validate total against max_top_up budget
    - Transfer lamports from authority to both accounts if needed
 
 **Errors:**
 
-- `ProgramError::NotEnoughAccountKeys` (error code: 11) - Less than 3 accounts provided
-- `ProgramError::InvalidInstructionData` (error code: 3) - Instruction data length is not 9 or 11 bytes
-- Pinocchio token errors (converted to ProgramError::Custom):
-  - `TokenError::MintMismatch` (error code: 3) - CToken mint doesn't match CMint
-  - `TokenError::OwnerMismatch` (error code: 4) - Authority doesn't match CMint mint_authority
-  - `TokenError::MintDecimalsMismatch` (error code: 18) - Decimals don't match CMint's decimals
-  - `TokenError::AccountFrozen` (error code: 17) - CToken account is frozen
-- `CTokenError::CMintDeserializationFailed` (error code: 18047) - Failed to deserialize CMint account using zero-copy
-- `CTokenError::InvalidAccountData` (error code: 18002) - Failed to deserialize CToken account or calculate top-up amount
-- `CTokenError::SysvarAccessError` (error code: 18020) - Failed to get Clock or Rent sysvar for top-up calculation
-- `CTokenError::MaxTopUpExceeded` (error code: 18043) - Total top-up amount (CMint + CToken) exceeds max_top_up limit
-- `CTokenError::MissingCompressibleExtension` (error code: 18056) - CToken account (not 165 bytes) is missing the Compressible extension
+- `ProgramError::NotEnoughAccountKeys` - Less than 3 accounts provided
+- `ProgramError::InvalidInstructionData` - Instruction data length is not 9 or 11 bytes
+- Pinocchio token errors (converted to ErrorCode variants via `convert_pinocchio_token_error`):
+  - `ErrorCode::MintMismatch` (6155) - CToken mint doesn't match CMint
+  - `ErrorCode::OwnerMismatch` (6075) - Authority doesn't match CMint mint_authority
+  - `ErrorCode::MintDecimalsMismatch` (6166) - Decimals don't match CMint's decimals
+  - `ErrorCode::AccountFrozen` (6076) - CToken account is frozen
+- `CTokenError::MaxTopUpExceeded` (18043) - Total top-up amount (CMint + CToken) exceeds max_top_up limit
+- `CTokenError::MissingPayer` (18061) - Payer account not provided but top-ups are needed
 
 ---
 

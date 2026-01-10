@@ -790,11 +790,13 @@ async fn test_decompress_skips_delegate_if_destination_has_delegate() {
 async fn test_ata_decompress_with_mismatched_amount_fails() {
     use borsh::BorshSerialize;
     use light_compressed_account::compressed_account::PackedMerkleContext;
-    use light_ctoken_interface::instructions::transfer2::{
-        CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,
-        MultiInputTokenDataWithContext,
+    use light_ctoken_interface::{
+        instructions::transfer2::{
+            CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,
+            MultiInputTokenDataWithContext,
+        },
+        TRANSFER2,
     };
-    use light_ctoken_interface::TRANSFER2;
     use light_ctoken_sdk::compressed_token::transfer2::account_metas::{
         get_transfer2_instruction_account_metas, Transfer2AccountsMetaConfig,
     };
@@ -852,14 +854,16 @@ async fn test_ata_decompress_with_mismatched_amount_fails() {
     let tree_index = packed_accounts.insert_or_get(merkle_tree);
     let queue_index = packed_accounts.insert_or_get(queue);
 
-    // Add mint and owner
+    // Add mint and wallet owner (for signing and TLV owner_index)
     let mint_index = packed_accounts.insert_or_get_read_only(compressed_account.token.mint);
-    let owner_index = packed_accounts.insert_or_get_config(context.owner.pubkey(), true, false);
+    let wallet_owner_index =
+        packed_accounts.insert_or_get_config(context.owner.pubkey(), true, false);
 
-    // Add CToken ATA recipient account
+    // Add CToken ATA recipient account - this is also the compressed token owner for ATAs
     let ctoken_ata_index = packed_accounts.insert_or_get_config(context.ata_pubkey, false, true);
 
     // Create input token data with FULL amount (what merkle proof verifies)
+    // For ATA compressed tokens, owner is the ATA pubkey (not wallet)
     let has_delegate = compressed_account.token.delegate.is_some();
     let delegate_index = if has_delegate {
         packed_accounts
@@ -869,7 +873,7 @@ async fn test_ata_decompress_with_mismatched_amount_fails() {
     };
 
     let input_token_data = vec![MultiInputTokenDataWithContext {
-        owner: owner_index,
+        owner: ctoken_ata_index, // ATA pubkey is the compressed token owner
         amount: compressed_account.token.amount, // Full amount for merkle proof
         has_delegate,
         delegate: delegate_index,
@@ -913,6 +917,7 @@ async fn test_ata_decompress_with_mismatched_amount_fails() {
     ];
 
     // Build in_tlv for CompressedOnly extension
+    // owner_index in TLV is the wallet owner (who can sign), not the ATA
     let in_tlv = vec![vec![ExtensionInstructionData::CompressedOnly(
         CompressedOnlyExtensionInstructionData {
             delegated_amount: 0,
@@ -921,7 +926,7 @@ async fn test_ata_decompress_with_mismatched_amount_fails() {
             compression_index: 0,
             is_ata: true,
             bump: context.ata_bump,
-            owner_index,
+            owner_index: wallet_owner_index,
         },
     )]];
 

@@ -25,7 +25,7 @@ When accounts require rent top-up, lamports are transferred directly from the au
    - Top-up prevents accounts from becoming compressible during normal operations
 6. Supports standard SPL Token transfer features including delegate authority and permanent delegate (multisig not supported)
 7. The transfer amount and authority validation follow SPL Token rules exactly
-8. Validates T22 extension markers match between source and destination (pausable, permanent_delegate, transfer_fee, transfer_hook)
+8. Validates T22 extension markers match between source and destination (pausable, permanent_delegate, transfer_fee, transfer_hook, default_account_state)
 
 **Instruction data:**
 After discriminator byte, the following formats are supported:
@@ -60,24 +60,32 @@ Note: The authority account (index 2) also serves as the payer for top-ups when 
    - Require at least 3 accounts (source, destination, authority)
    - Return NotEnoughAccountKeys if insufficient
 
-2. **Validate instruction data:**
+2. **Validate minimum instruction data:**
    - Must be at least 8 bytes (amount)
+   - Return InvalidInstructionData if less than 8 bytes
+
+3. **Hot path optimization (no extensions):**
+   - If both source and destination accounts are exactly 165 bytes (standard SPL token account size without extensions):
+     - Skip all extension processing and max_top_up validation
+     - Pass only the first 8 bytes (amount) directly to pinocchio SPL transfer
+     - This is the fast path for accounts without compressible or T22 extensions
+
+4. **Parse max_top_up (extended path only):**
    - If 10 bytes, parse max_top_up from bytes [8..10]
    - If 8 bytes, set max_top_up = 0 (legacy, no limit)
    - Any other length returns InvalidInstructionData
 
-3. **Process transfer extensions:**
+5. **Process transfer extensions:**
    - Call `process_transfer_extensions` from shared.rs with source, destination, authority (no mint)
 
    a. **Validate sender (source account):**
       - Deserialize source account (CToken) using zero-copy
       - Check for T22 restricted extensions (pausable, permanent_delegate, transfer_fee, transfer_hook, default_account_state)
-      - If source has restricted extensions, deserialize and validate mint extensions:
-        - Mint must not be paused
-        - Transfer fees must be zero
-        - Transfer hooks must have nil program_id
-        - Extract permanent delegate if present
-      - Validate permanent delegate authority if applicable
+      - If source has restricted extension markers:
+        - Require mint account (MintRequiredForTransfer error if not provided)
+        - Fail with MintHasRestrictedExtensions if mint has any restricted extensions
+        - Note: CTokenTransfer does NOT support restricted extensions; use CTokenTransferChecked instead
+      - Validate permanent delegate authority if applicable (from mint extension)
       - Calculate top-up lamports from compression info
 
    b. **Validate recipient (destination account):**
@@ -93,8 +101,9 @@ Note: The authority account (index 2) also serves as the payer for top-ups when 
       - Check max_top_up budget if set (non-zero)
       - Execute multi_transfer_lamports from authority to accounts
 
-4. **Process SPL transfer:**
+6. **Process SPL transfer:**
    - Call pinocchio_token_program::processor::transfer::process_transfer
+   - Pass only the first 8 bytes (amount) to the processor
    - Pass signer_is_validated flag if permanent delegate was validated
 
 **Errors:**
@@ -109,9 +118,7 @@ Note: The authority account (index 2) also serves as the payer for top-ups when 
   - `TokenError::AccountFrozen` (error code: 17) - Source or destination account is frozen
   - `TokenError::InsufficientFunds` (error code: 1) - Delegate has insufficient allowance
 - `CTokenError::InvalidAccountData` (error code: 18002) - Failed to deserialize CToken account, mint mismatch, or invalid extension data
-- `CTokenError::SysvarAccessError` (error code: 18020) - Failed to get Clock or Rent sysvar for top-up calculation
+- `CTokenError::SysvarAccessError` (error code: 18020) - Failed to get Clock sysvar for top-up calculation
 - `CTokenError::MaxTopUpExceeded` (error code: 18043) - Calculated top-up exceeds max_top_up limit
-- `ErrorCode::MintRequiredForTransfer` (error code: 6128) - Account has restricted extensions but mint account not provided
-- `ErrorCode::MintPaused` (error code: 6127) - Mint has pausable extension and is currently paused
-- `ErrorCode::NonZeroTransferFeeNotSupported` (error code: 6129) - Mint has non-zero transfer fee configured
-- `ErrorCode::TransferHookNotSupported` (error code: 6130) - Mint has transfer hook with non-nil program_id
+- `ErrorCode::MintRequiredForTransfer` (error code: 6128) - Source account has restricted extension markers but mint account not provided
+- `ErrorCode::MintHasRestrictedExtensions` (error code: 6142) - Mint has restricted extensions; CTokenTransfer does not support restricted extensions (use CTokenTransferChecked instead)

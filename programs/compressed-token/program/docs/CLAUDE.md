@@ -27,7 +27,6 @@ This documentation is organized to provide clear navigation through the compress
   - `TRANSFER.md` - Transfer between decompressed accounts
   - `TRANSFER_CHECKED.md` - Transfer with decimals validation
   - `APPROVE.md` - Approve delegate
-  - `APPROVE_CHECKED.md` - Approve with decimals validation
   - `REVOKE.md` - Revoke delegate
   - `MINT_TO.md` - Mint tokens to CToken account
   - `MINT_TO_CHECKED.md` - Mint with decimals validation
