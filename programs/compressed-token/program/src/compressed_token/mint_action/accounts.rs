@@ -438,6 +438,12 @@ impl AccountsConfig {
             return Err(ErrorCode::CannotDecompressAndCloseInSameInstruction.into());
         }
 
+        // Validation: CompressAndCloseCMint must be the only action
+        if has_compress_and_close_cmint_action && parsed_instruction_data.actions.len() != 1 {
+            msg!("CompressAndCloseCMint must be the only action in the instruction");
+            return Err(ErrorCode::CompressAndCloseCMintMustBeOnlyAction.into());
+        }
+
         // We need mint signer if create mint or decompress mint.
         // CompressAndCloseCMint does NOT need mint_signer - it verifies CMint by compressed_mint.metadata.mint
         let with_mint_signer =

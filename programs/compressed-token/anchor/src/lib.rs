@@ -582,6 +582,12 @@ pub enum ErrorCode {
     MintDecimalsMismatch, // 6166 (SPL Token code 18)
     #[msg("Failed to calculate rent exemption for CMint")]
     CMintRentExemptionFailed, // 6167
+    #[msg("CompressAndClose: is_ata mismatch between CompressibleExtension and CompressedOnly extension")]
+    CompressAndCloseIsAtaMismatch, // 6168
+    #[msg("CompressAndCloseCMint must be the only action in the instruction")]
+    CompressAndCloseCMintMustBeOnlyAction, // 6169
+    #[msg("Idempotent early exit - not a real error, used to skip CPI")]
+    IdempotentEarlyExit, // 6170
 }
 
 /// Anchor error code offset - error codes start at 6000
@@ -591,6 +597,11 @@ impl From<ErrorCode> for ProgramError {
     fn from(e: ErrorCode) -> Self {
         ProgramError::Custom(ERROR_CODE_OFFSET + e as u32)
     }
+}
+
+/// Checks if an error is the IdempotentEarlyExit error (used to skip CPI)
+pub fn is_idempotent_early_exit(err: &ProgramError) -> bool {
+    matches!(err, ProgramError::Custom(code) if *code == ERROR_CODE_OFFSET + ErrorCode::IdempotentEarlyExit as u32)
 }
 
 /// Checks if CPI context usage is valid for the current instruction

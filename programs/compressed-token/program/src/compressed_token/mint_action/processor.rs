@@ -1,4 +1,4 @@
-use anchor_compressed_token::ErrorCode;
+use anchor_compressed_token::{is_idempotent_early_exit, ErrorCode};
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 use light_ctoken_interface::{
@@ -135,7 +135,7 @@ pub fn process_mint_action(
         )?;
     };
 
-    process_output_compressed_account(
+    let result = process_output_compressed_account(
         &parsed_instruction_data,
         &validated_accounts,
         &mut cpi_instruction_struct.output_compressed_accounts,
@@ -143,7 +143,15 @@ pub fn process_mint_action(
         &queue_indices,
         mint,
         &accounts_config,
-    )?;
+    );
+
+    // Check for idempotent early exit - skip CPI and return success
+    if let Err(ref err) = result {
+        if is_idempotent_early_exit(err) {
+            return Ok(());
+        }
+    }
+    result?;
 
     let cpi_accounts = validated_accounts.get_cpi_accounts(queue_indices.deduplicated, accounts)?;
     if let Some(executing) = validated_accounts.executing.as_ref() {

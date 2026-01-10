@@ -1530,6 +1530,123 @@ async fn test_create_compressed_mint_with_cmint() {
     println!("CompressAndCloseCMint test completed successfully!");
 }
 
+/// Test idempotent behavior of CompressAndCloseCMint.
+/// When CMint is already compressed, calling with idempotent=true should succeed silently.
+#[tokio::test]
+#[serial]
+async fn test_compress_and_close_cmint_idempotent() {
+    use light_program_test::program_test::TestRpc;
+
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let decimals = 9u8;
+    let mint_seed = Keypair::new();
+    let mint_authority = Keypair::new();
+    let freeze_authority = Keypair::new();
+
+    rpc.airdrop_lamports(&mint_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
+    let compressed_mint_address =
+        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (cmint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+
+    // 1. Create compressed mint WITH CMint (decompress_mint = true)
+    light_token_client::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        Some(DecompressMintParams::default()),
+        false,
+        vec![],
+        vec![],
+        None,
+        None,
+        Some(light_token_client::instructions::mint_action::NewMint {
+            decimals,
+            supply: 0,
+            mint_authority: mint_authority.pubkey(),
+            freeze_authority: Some(freeze_authority.pubkey()),
+            metadata: None,
+            version: 3,
+        }),
+    )
+    .await
+    .unwrap();
+
+    // Warp to epoch 2 so that rent expires
+    rpc.warp_to_slot(SLOTS_PER_EPOCH * 2).unwrap();
+
+    // 2. Compress and close CMint (first time - should succeed)
+    light_token_client::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        None,
+        true, // compress_and_close_cmint = true
+        vec![],
+        vec![],
+        None,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+
+    // Verify CMint is closed
+    let cmint_after_close = rpc.get_account(cmint_pda).await.unwrap();
+    assert!(
+        cmint_after_close.is_none(),
+        "CMint should be closed after CompressAndCloseCMint"
+    );
+
+    // 3. Try CompressAndCloseCMint again with idempotent=true (should succeed silently)
+    // Use a very low compute budget (10k) to verify the CPI is being skipped.
+    // If CPI was executed, this would fail due to insufficient compute units.
+    use light_client::rpc::Rpc;
+    use solana_sdk::compute_budget::ComputeBudgetInstruction;
+
+    let mint_action_ix =
+        light_token_client::instructions::mint_action::create_mint_action_instruction(
+            &mut rpc,
+            light_token_client::instructions::mint_action::MintActionParams {
+                compressed_mint_address,
+                mint_seed: mint_seed.pubkey(),
+                authority: mint_authority.pubkey(),
+                payer: payer.pubkey(),
+                actions: vec![MintActionType::CompressAndCloseCMint { idempotent: true }],
+                new_mint: None,
+            },
+        )
+        .await
+        .unwrap();
+
+    let compute_budget_ix = ComputeBudgetInstruction::set_compute_unit_limit(10_000);
+
+    let result = rpc
+        .create_and_send_transaction(
+            &[compute_budget_ix, mint_action_ix],
+            &payer.pubkey(),
+            &[&payer, &mint_authority],
+        )
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "CompressAndCloseCMint with idempotent=true should succeed with only 10k compute units when CPI is skipped: {:?}",
+        result.err()
+    );
+
+    println!("CompressAndCloseCMint idempotent test completed successfully!");
+}
+
 /// Test decompressing an existing compressed mint to CMint
 /// 1. Create compressed mint without CMint
 /// 2. Mint tokens to recipients

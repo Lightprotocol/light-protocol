@@ -86,6 +86,7 @@ pub fn compress_or_decompress_ctokens(
                 &mut ctoken,
                 decompress_inputs,
                 packed_accounts,
+                amount,
             )?;
 
             // Decompress: add to CToken account

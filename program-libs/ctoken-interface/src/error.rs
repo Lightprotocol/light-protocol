@@ -197,6 +197,9 @@ pub enum CTokenError {
 
     #[error("CToken account has invalid owner")]
     InvalidCTokenOwner,
+
+    #[error("Decompress amount mismatch between compression instruction and input token data")]
+    DecompressAmountMismatch,
 }
 
 impl From<CTokenError> for u32 {
@@ -265,6 +268,7 @@ impl From<CTokenError> for u32 {
             CTokenError::MissingPayer => 18061,
             CTokenError::BorrowFailed => 18062,
             CTokenError::InvalidCTokenOwner => 18063,
+            CTokenError::DecompressAmountMismatch => 18064,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

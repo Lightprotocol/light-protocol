@@ -40,10 +40,9 @@ pub fn process_compress_and_close_cmint_action(
 ) -> Result<(), ProgramError> {
     // NOTE: CompressAndCloseCMint is permissionless - anyone can compress if is_compressible() returns true
     // All lamports returned to rent_sponsor
-    // TODO: test idempotent, it should exit the complete instruction silently.
-    // 1. Idempotent check - if CMint doesn't exist and idempotent is set, succeed silently
+    // 1. Idempotent check - if CMint doesn't exist and idempotent is set, return early exit error to skip CPI
     if action.is_idempotent() && !compressed_mint.metadata.cmint_decompressed {
-        return Ok(());
+        return Err(ErrorCode::IdempotentEarlyExit.into());
     }
 
     // 2. Check CMint exists (is decompressed)
@@ -91,7 +90,7 @@ pub fn process_compress_and_close_cmint_action(
 
     if is_compressible.is_none() {
         if action.is_idempotent() {
-            return Ok(());
+            return Err(ErrorCode::IdempotentEarlyExit.into());
         }
         msg!("CMint is not compressible (rent not expired)");
         return Err(ErrorCode::CMintNotCompressible.into());

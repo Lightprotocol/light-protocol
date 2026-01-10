@@ -18,6 +18,7 @@ pub fn apply_decompress_extension_state(
     ctoken: &mut ZCTokenMut,
     decompress_inputs: Option<DecompressCompressOnlyInputs>,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
+    compression_amount: u64,
 ) -> Result<(), ProgramError> {
     let Some(inputs) = decompress_inputs else {
         return Ok(());
@@ -26,6 +27,23 @@ pub fn apply_decompress_extension_state(
     let Some(ext_data) = find_compressed_only(inputs.tlv) else {
         return Ok(());
     };
+
+    // === VALIDATE amount matches for ATA or compress_to_pubkey decompress ===
+    let compress_to_pubkey = ctoken
+        .get_compressible_extension()
+        .map(|ext| ext.info.compress_to_pubkey())
+        .unwrap_or(false);
+    if ext_data.is_ata() || compress_to_pubkey {
+        let input_amount: u64 = inputs.input_token_data.amount.into();
+        if compression_amount != input_amount {
+            msg!(
+                "Decompress: amount mismatch (compression: {}, input: {})",
+                compression_amount,
+                input_amount
+            );
+            return Err(CTokenError::DecompressAmountMismatch.into());
+        }
+    }
 
     // === VALIDATE destination ownership ===
     let input_owner = packed_accounts.get_u8(inputs.input_token_data.owner, "input owner")?;
