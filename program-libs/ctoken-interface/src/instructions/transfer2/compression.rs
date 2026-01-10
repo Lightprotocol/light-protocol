@@ -13,7 +13,7 @@ pub enum CompressionMode {
     Compress,
     Decompress,
     /// Compresses ctoken account and closes it
-    /// Signer must be owner or rent authority, if rent authority ctoken account must be compressible
+    /// Signer must be rent authority, ctoken account must be compressible
     /// Not implemented for spl token accounts.
     CompressAndClose,
 }

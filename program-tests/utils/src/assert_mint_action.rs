@@ -268,13 +268,9 @@ pub async fn assert_mint_action(
             // Calculate expected top-up using embedded compression info
             let current_slot = rpc.get_slot().await.unwrap();
             let account_size = pre_account.data.len() as u64;
-            let rent_exemption = rpc
-                .get_minimum_balance_for_rent_exemption(pre_account.data.len())
-                .await
-                .unwrap();
 
             let expected_top_up = compression_info
-                .calculate_top_up_lamports(account_size, current_slot, pre_lamports, rent_exemption)
+                .calculate_top_up_lamports(account_size, current_slot, pre_lamports)
                 .unwrap();
 
             let actual_lamport_change = post_lamports

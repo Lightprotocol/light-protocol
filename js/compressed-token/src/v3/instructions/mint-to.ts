@@ -51,9 +51,6 @@ function encodeMintToCTokenInstructionData(
         leafIndex: params.leafIndex,
         proveByIndex: true,
         rootIndex: params.rootIndex,
-        compressedAddress: Array.from(compressedAddress.toBytes()),
-        tokenPoolBump: 0,
-        tokenPoolIndex: 0,
         maxTopUp: 0,
         createMint: null,
         actions: [
@@ -73,6 +70,7 @@ function encodeMintToCTokenInstructionData(
                 version: params.mintData.version,
                 cmintDecompressed: params.mintData.cmintDecompressed,
                 mint: params.mintData.splMint,
+                compressedAddress: Array.from(compressedAddress.toBytes()),
             },
             mintAuthority: params.mintData.mintAuthority,
             freezeAuthority: params.mintData.freezeAuthority,

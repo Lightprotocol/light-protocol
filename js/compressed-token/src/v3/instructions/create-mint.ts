@@ -126,9 +126,6 @@ export function encodeCreateMintInstructionData(
         leafIndex: 0,
         proveByIndex: false,
         rootIndex: params.rootIndex,
-        compressedAddress: Array.from(compressedAddress.toBytes()),
-        tokenPoolBump: 0,
-        tokenPoolIndex: 0,
         maxTopUp: 0,
         createMint: {
             readOnlyAddressTrees: [0, 0, 0, 0],
@@ -144,6 +141,7 @@ export function encodeCreateMintInstructionData(
                 version: TokenDataVersion.ShaFlat,
                 cmintDecompressed: false,
                 mint: splMintPda,
+                compressedAddress: Array.from(compressedAddress.toBytes()),
             },
             mintAuthority: params.mintAuthority,
             freezeAuthority: params.freezeAuthority,

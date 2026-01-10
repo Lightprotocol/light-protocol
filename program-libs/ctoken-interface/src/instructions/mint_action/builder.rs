@@ -22,6 +22,7 @@ impl InstructionDiscriminator for MintActionCompressedInstructionData {
 impl LightInstructionData for MintActionCompressedInstructionData {}
 
 impl MintActionCompressedInstructionData {
+    /// Create instruction data from CompressedMintWithContext (for existing mints)
     pub fn new(
         mint_with_context: CompressedMintWithContext,
         proof: Option<CompressedProof>,
@@ -30,9 +31,6 @@ impl MintActionCompressedInstructionData {
             leaf_index: mint_with_context.leaf_index,
             prove_by_index: mint_with_context.prove_by_index,
             root_index: mint_with_context.root_index,
-            compressed_address: mint_with_context.address,
-            token_pool_bump: 0,
-            token_pool_index: 0,
             max_top_up: 0, // No limit by default
             create_mint: None,
             actions: Vec::new(),
@@ -42,19 +40,16 @@ impl MintActionCompressedInstructionData {
         }
     }
 
+    /// Create instruction data for new mint creation
     pub fn new_mint(
-        compressed_address: [u8; 32],
-        root_index: u16,
+        address_merkle_tree_root_index: u16,
         proof: CompressedProof,
         mint: CompressedMintInstructionData,
     ) -> Self {
         Self {
-            leaf_index: 0,
-            prove_by_index: false,
-            root_index,
-            compressed_address,
-            token_pool_bump: 0,
-            token_pool_index: 0,
+            leaf_index: 0,         // New mint has no existing leaf
+            prove_by_index: false, // Using address proof, not validity proof
+            root_index: address_merkle_tree_root_index,
             max_top_up: 0, // No limit by default
             create_mint: Some(CreateMint::default()),
             actions: Vec::new(),
@@ -64,19 +59,16 @@ impl MintActionCompressedInstructionData {
         }
     }
 
+    /// Create instruction data for new mint creation via CPI context write
     pub fn new_mint_write_to_cpi_context(
-        compressed_address: [u8; 32],
-        root_index: u16,
+        address_merkle_tree_root_index: u16,
         mint: CompressedMintInstructionData,
         cpi_context: CpiContext,
     ) -> Self {
         Self {
-            leaf_index: 0,
-            prove_by_index: false,
-            root_index,
-            compressed_address,
-            token_pool_bump: 0,
-            token_pool_index: 0,
+            leaf_index: 0,         // New mint has no existing leaf
+            prove_by_index: false, // Using address proof, not validity proof
+            root_index: address_merkle_tree_root_index,
             max_top_up: 0, // No limit by default
             create_mint: Some(CreateMint::default()),
             actions: Vec::new(),

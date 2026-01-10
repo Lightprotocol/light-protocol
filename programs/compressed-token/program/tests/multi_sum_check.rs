@@ -6,7 +6,7 @@ use light_account_checks::{
     account_info::test_account_info::pinocchio::get_account_info,
     packed_accounts::ProgramPackedAccounts,
 };
-use light_compressed_token::transfer2::sum_check::{
+use light_compressed_token::compressed_token::transfer2::sum_check::{
     sum_check_multi_mint, validate_mint_uniqueness,
 };
 use light_ctoken_interface::instructions::transfer2::{

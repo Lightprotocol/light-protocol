@@ -133,22 +133,13 @@ pub async fn assert_ctoken_mint_to(
 }
 
 async fn calculate_expected_lamport_change(
-    rpc: &mut LightProgramTest,
+    _rpc: &mut LightProgramTest,
     compression: &light_compressible::compression_info::CompressionInfo,
     data_len: usize,
     current_slot: u64,
     current_lamports: u64,
 ) -> u64 {
-    let rent_exemption = rpc
-        .get_minimum_balance_for_rent_exemption(data_len)
-        .await
-        .unwrap();
     compression
-        .calculate_top_up_lamports(
-            data_len as u64,
-            current_slot,
-            current_lamports,
-            rent_exemption,
-        )
+        .calculate_top_up_lamports(data_len as u64, current_slot, current_lamports)
         .unwrap()
 }

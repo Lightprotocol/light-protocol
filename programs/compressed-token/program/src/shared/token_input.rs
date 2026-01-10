@@ -12,12 +12,13 @@ use light_ctoken_interface::{
     state::{
         CompressedOnlyExtension, CompressedTokenAccountState, ExtensionStruct, TokenDataVersion,
     },
+    CTokenError,
 };
 use pinocchio::account_info::AccountInfo;
 
 use crate::{
+    compressed_token::transfer2::check_extensions::MintExtensionCache,
     shared::owner_validation::verify_owner_or_delegate_signer,
-    transfer2::check_extensions::MintExtensionCache,
 };
 
 /// Creates an input compressed account using zero-copy patterns and index-based account lookup.
@@ -78,26 +79,13 @@ pub fn set_input_compressed_account<'a>(
 
     // For ATA decompress (is_ata=true), verify the wallet owner from owner_index instead
     // of the compressed account owner (which is the ATA pubkey that can't sign).
+    // Also verify that owner_account (the ATA) matches the derived ATA from wallet_owner + mint + bump.
     let signer_account = if let Some(exts) = tlv_data {
-        exts.iter()
-            .find_map(|ext| {
-                if let ZExtensionInstructionData::CompressedOnly(data) = ext {
-                    if data.is_ata != 0 {
-                        // Get wallet owner from owner_index
-                        packed_accounts.get(data.owner_index as usize)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(owner_account)
+        resolve_ata_signer(exts, packed_accounts, mint_account, owner_account)?
     } else {
         owner_account
     };
 
-    // TODO: allow freeze authority to decompress if has CompressOnlyExtension
     verify_owner_or_delegate_signer(
         signer_account,
         delegate_account,
@@ -115,30 +103,10 @@ pub fn set_input_compressed_account<'a>(
                     CompressedTokenAccountState::Initialized as u8
                 };
                 // Convert instruction TLV data to state TLV
-                let tlv: Option<Vec<ExtensionStruct>> = match tlv_data {
-                    Some(exts) => {
-                        let mut result = Vec::with_capacity(exts.len());
-                        for ext in exts.iter() {
-                            match ext {
-                                ZExtensionInstructionData::CompressedOnly(data) => {
-                                    result.push(ExtensionStruct::CompressedOnly(
-                                        CompressedOnlyExtension {
-                                            delegated_amount: data.delegated_amount.into(),
-                                            withheld_transfer_fee: data
-                                                .withheld_transfer_fee
-                                                .into(),
-                                            is_ata: if data.is_ata() { 1 } else { 0 },
-                                        },
-                                    ));
-                                }
-                                _ => {
-                                    return Err(ErrorCode::UnsupportedTlvExtensionType.into());
-                                }
-                            }
-                        }
-                        Some(result)
-                    }
-                    None => None,
+                let tlv: Option<Vec<ExtensionStruct>> = if let Some(exts) = tlv_data {
+                    Some(convert_tlv_to_extension_structs(exts)?)
+                } else {
+                    None
                 };
                 let token_data = TokenData {
                     mint: mint_account.key().into(),
@@ -188,6 +156,85 @@ pub fn set_input_compressed_account<'a>(
         None,
     )?;
     Ok(())
+}
+
+/// Convert instruction TLV data to state TLV extension structs for hashing.
+#[cold]
+fn convert_tlv_to_extension_structs(
+    exts: &[ZExtensionInstructionData],
+) -> Result<Vec<ExtensionStruct>, ProgramError> {
+    let mut result = Vec::with_capacity(exts.len());
+    for ext in exts.iter() {
+        match ext {
+            ZExtensionInstructionData::CompressedOnly(data) => {
+                result.push(ExtensionStruct::CompressedOnly(CompressedOnlyExtension {
+                    delegated_amount: data.delegated_amount.into(),
+                    withheld_transfer_fee: data.withheld_transfer_fee.into(),
+                    is_ata: if data.is_ata() { 1 } else { 0 },
+                }));
+            }
+            _ => {
+                return Err(ErrorCode::UnsupportedTlvExtensionType.into());
+            }
+        }
+    }
+    Ok(result)
+}
+
+/// Resolve the signer account for ATA decompress operations.
+///
+/// For non-ATA tokens: returns owner_account (the compressed token owner)
+/// For ATA tokens (is_ata=true): validates ATA derivation and returns wallet_owner
+///
+/// Returns explicit error if ATA derivation fails or mismatches.
+#[cold]
+fn resolve_ata_signer<'a>(
+    exts: &[ZExtensionInstructionData],
+    packed_accounts: &'a [AccountInfo],
+    mint_account: &AccountInfo,
+    owner_account: &'a AccountInfo,
+) -> Result<&'a AccountInfo, ProgramError> {
+    for ext in exts.iter() {
+        if let ZExtensionInstructionData::CompressedOnly(data) = ext {
+            if data.is_ata() {
+                // Get wallet owner from owner_index
+                let wallet_owner =
+                    packed_accounts
+                        .get(data.owner_index as usize)
+                        .ok_or_else(|| {
+                            print_on_error_pubkey(
+                                data.owner_index,
+                                "wallet_owner",
+                                Location::caller(),
+                            );
+                            ProgramError::Custom(AccountError::NotEnoughAccountKeys.into())
+                        })?;
+
+                // Derive ATA and verify owner_account matches
+                let bump_seed = [data.bump];
+                let ata_seeds: [&[u8]; 4] = [
+                    wallet_owner.key().as_ref(),
+                    crate::LIGHT_CPI_SIGNER.program_id.as_ref(),
+                    mint_account.key().as_ref(),
+                    bump_seed.as_ref(),
+                ];
+                let derived_ata = pinocchio::pubkey::create_program_address(
+                    &ata_seeds,
+                    &crate::LIGHT_CPI_SIGNER.program_id,
+                )
+                .map_err(|_| CTokenError::InvalidAtaDerivation)?;
+
+                // owner_account.key() IS the ATA - verify it matches derived
+                if !pinocchio::pubkey::pubkey_eq(owner_account.key(), &derived_ata) {
+                    return Err(CTokenError::InvalidAtaDerivation.into());
+                }
+
+                return Ok(wallet_owner);
+            }
+        }
+    }
+
+    Ok(owner_account)
 }
 
 #[cold]

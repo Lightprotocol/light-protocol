@@ -644,7 +644,7 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
 
         let compressed_account = InAccount {
             lamports: input_token_data.lamports.unwrap_or_default(),
-            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, // We override the discriminator in add_data_hash_to_input_compressed_accounts_with_version
             merkle_context: input_token_data.merkle_context,
             root_index: input_token_data.root_index,
             data_hash: [0u8; 32],
@@ -656,6 +656,7 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
         } else {
             CompressedTokenAccountState::Initialized as u8
         };
+        // TODO: add const generic to wrap this check
         // if input_token_data.tlv.is_some() {
         //     unimplemented!("Tlv is unimplemented.");
         // }

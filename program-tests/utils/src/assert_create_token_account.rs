@@ -205,6 +205,8 @@ pub async fn assert_create_token_account_internal(
                 info: CompressionInfo {
                     config_account_version: 1,
                     last_claimed_slot: current_slot,
+                    rent_exemption_paid: rent_exemption as u32,
+                    _reserved: 0,
                     rent_config: RentConfig::default(),
                     lamports_per_write: compressible_info.lamports_per_write.unwrap_or(0),
                     compression_authority: compressible_info.compression_authority.to_bytes(),
@@ -214,9 +216,9 @@ pub async fn assert_create_token_account_internal(
                 },
             };
 
-            // Add Compressible extension to extensions list
+            // Add Compressible extension to extensions list (at beginning, matching program order)
             let mut all_extensions = final_extensions.unwrap_or_default();
-            all_extensions.push(ExtensionStruct::Compressible(compressible_ext));
+            all_extensions.insert(0, ExtensionStruct::Compressible(compressible_ext));
 
             // Create expected compressible token account with embedded compression info
             let expected_token_account = CToken {

@@ -98,4 +98,10 @@ impl ZCompressibleExtensionMut<'_> {
             }
         }
     }
+
+    /// Returns whether this account is an ATA
+    #[inline(always)]
+    pub fn is_ata(&self) -> bool {
+        self.is_ata != 0
+    }
 }

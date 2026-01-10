@@ -21,6 +21,7 @@ pub fn get_rent_exemption_lamports(_num_bytes: u64) -> u64 {
 #[test]
 fn test_claim_method() {
     // Test the claim method updates state correctly
+    let rent_exemption = get_rent_exemption_lamports(TEST_BYTES) as u32;
     let extension_data = CompressionInfo {
         account_version: 3,
         config_account_version: 1,
@@ -29,6 +30,8 @@ fn test_claim_method() {
         last_claimed_slot: 0,
         lamports_per_write: 0,
         compress_to_pubkey: 0,
+        rent_exemption_paid: rent_exemption,
+        _reserved: 0,
         rent_config: test_rent_config(),
     };
 
@@ -46,12 +49,7 @@ fn test_claim_method() {
         get_rent_exemption_lamports(TEST_BYTES)
     );
     let claimed = z_extension
-        .claim(
-            TEST_BYTES,
-            current_slot,
-            current_lamports,
-            get_rent_exemption_lamports(TEST_BYTES),
-        )
+        .claim(TEST_BYTES, current_slot, current_lamports)
         .unwrap();
     assert_eq!(
         claimed.unwrap(),
@@ -75,7 +73,6 @@ fn test_claim_method() {
             TEST_BYTES,
             current_slot,
             current_lamports - claimed.unwrap_or(0),
-            get_rent_exemption_lamports(TEST_BYTES),
         )
         .unwrap();
     assert_eq!(claimed_again, None, "Should not claim again in same epoch");
@@ -84,12 +81,7 @@ fn test_claim_method() {
         let current_slot = SLOTS_PER_EPOCH * 3 + 100;
         let current_lamports = current_lamports - claimed.unwrap_or(0) + RENT_PER_EPOCH - 1;
         let claimed_again_in_third_epoch = z_extension
-            .claim(
-                TEST_BYTES,
-                current_slot,
-                current_lamports,
-                get_rent_exemption_lamports(TEST_BYTES),
-            )
+            .claim(TEST_BYTES, current_slot, current_lamports)
             .unwrap();
         assert_eq!(
             claimed_again_in_third_epoch, None,
@@ -101,12 +93,7 @@ fn test_claim_method() {
         let current_slot = SLOTS_PER_EPOCH * 3 + 100;
         let current_lamports = current_lamports - claimed.unwrap_or(0) + RENT_PER_EPOCH;
         let claimed_again_in_third_epoch = z_extension
-            .claim(
-                TEST_BYTES,
-                current_slot,
-                current_lamports,
-                get_rent_exemption_lamports(TEST_BYTES),
-            )
+            .claim(TEST_BYTES, current_slot, current_lamports)
             .unwrap();
         assert_eq!(
             claimed_again_in_third_epoch,
@@ -119,12 +106,7 @@ fn test_claim_method() {
         let current_slot = SLOTS_PER_EPOCH * 4 + 100;
         let current_lamports = current_lamports - claimed.unwrap_or(0) + 10 * RENT_PER_EPOCH;
         let claimed_again_in_third_epoch = z_extension
-            .claim(
-                TEST_BYTES,
-                current_slot,
-                current_lamports,
-                get_rent_exemption_lamports(TEST_BYTES),
-            )
+            .claim(TEST_BYTES, current_slot, current_lamports)
             .unwrap();
         assert_eq!(
             claimed_again_in_third_epoch,
@@ -149,6 +131,8 @@ fn test_get_last_paid_epoch() {
             last_claimed_slot: 0, // Created in epoch 0
             lamports_per_write: 0,
             compress_to_pubkey: 0,
+            rent_exemption_paid: 0,
+            _reserved: 0,
             rent_config: test_rent_config(),
         };
 
@@ -174,6 +158,8 @@ fn test_get_last_paid_epoch() {
             last_claimed_slot: SLOTS_PER_EPOCH - 1, // Created in epoch 0
             lamports_per_write: 0,
             compress_to_pubkey: 0,
+            rent_exemption_paid: 0,
+            _reserved: 0,
             rent_config: test_rent_config(),
         };
 
@@ -199,6 +185,8 @@ fn test_get_last_paid_epoch() {
             last_claimed_slot: SLOTS_PER_EPOCH, // Created in epoch 1
             lamports_per_write: 0,
             compress_to_pubkey: 0,
+            rent_exemption_paid: 0,
+            _reserved: 0,
             rent_config: test_rent_config(),
         };
 
@@ -221,6 +209,8 @@ fn test_get_last_paid_epoch() {
         last_claimed_slot: SLOTS_PER_EPOCH * 2, // Created in epoch 2
         lamports_per_write: 0,
         compress_to_pubkey: 0,
+        rent_exemption_paid: 0,
+        _reserved: 0,
         rent_config: test_rent_config(),
     };
 
@@ -243,6 +233,8 @@ fn test_get_last_paid_epoch() {
             last_claimed_slot: 0,
             lamports_per_write: 0,
             compress_to_pubkey: 0,
+            rent_exemption_paid: 0,
+            _reserved: 0,
             rent_config: test_rent_config(),
         };
 
@@ -263,6 +255,8 @@ fn test_get_last_paid_epoch() {
             last_claimed_slot: SLOTS_PER_EPOCH * 5, // Created in epoch 5
             lamports_per_write: 0,
             compress_to_pubkey: 0,
+            rent_exemption_paid: 0,
+            _reserved: 0,
             rent_config: test_rent_config(),
         };
 
@@ -287,6 +281,8 @@ fn test_get_last_paid_epoch() {
             last_claimed_slot: 0,
             lamports_per_write: 0,
             compress_to_pubkey: 0,
+            rent_exemption_paid: 0,
+            _reserved: 0,
             rent_config: test_rent_config(),
         };
 
@@ -312,6 +308,8 @@ fn test_get_last_paid_epoch() {
             last_claimed_slot: SLOTS_PER_EPOCH * 3, // Epoch 3
             lamports_per_write: 100,
             compress_to_pubkey: 0,
+            rent_exemption_paid: 0,
+            _reserved: 0,
             rent_config: test_rent_config(),
         };
 

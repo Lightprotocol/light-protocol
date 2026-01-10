@@ -74,7 +74,7 @@ pub struct MintExtensionFlags {
 }
 
 impl MintExtensionFlags {
-    pub fn num_extensions(&self) -> usize {
+    pub fn num_token_account_extensions(&self) -> usize {
         let mut count = 0;
         if self.has_pausable {
             count += 1;

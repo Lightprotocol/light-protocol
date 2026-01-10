@@ -670,6 +670,7 @@ pub async fn create_user_record_and_game_session(
                         version: 3,
                         mint: spl_mint.into(),
                         cmint_decompressed: false,
+                        compressed_address: compressed_mint_address,
                     },
                     mint_authority: Some(mint_authority.into()),
                     freeze_authority: Some(freeze_authority.into()),

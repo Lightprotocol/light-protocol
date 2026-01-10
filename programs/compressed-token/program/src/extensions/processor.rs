@@ -8,7 +8,6 @@ use light_program_profiler::profile;
 use crate::extensions::token_metadata::create_output_token_metadata;
 
 /// Set extensions state in output compressed account.
-/// Compute extensions hash chain.
 #[inline(always)]
 #[profile]
 pub fn extensions_state_in_output_compressed_account(

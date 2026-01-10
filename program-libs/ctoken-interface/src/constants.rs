@@ -7,7 +7,7 @@ pub const CTOKEN_PROGRAM_ID: [u8; 32] =
 /// Account size constants
 /// Size of a CToken account with embedded compression info (no extensions).
 /// CTokenZeroCopy includes: SPL token layout (165) + account_type (1) + decimal_option_prefix (1)
-/// + decimals (1) + compression_only (1) + CompressionInfo (88) + has_extensions (1)
+/// + decimals (1) + compression_only (1) + CompressionInfo (96) + has_extensions (1)
 pub use crate::state::BASE_TOKEN_ACCOUNT_SIZE;
 
 /// Extension metadata overhead: Vec length (4) - added when any extensions are present

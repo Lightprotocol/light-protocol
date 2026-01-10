@@ -4,11 +4,11 @@ use light_compressed_account::{
     Pubkey,
 };
 use light_compressed_token::{
-    constants::COMPRESSED_MINT_DISCRIMINATOR,
-    mint_action::{
+    compressed_token::mint_action::{
         accounts::AccountsConfig, mint_input::create_input_compressed_mint_account,
         zero_copy_config::get_zero_copy_configs,
     },
+    constants::COMPRESSED_MINT_DISCRIMINATOR,
 };
 use light_ctoken_interface::{
     instructions::{
@@ -119,6 +119,7 @@ fn test_rnd_create_compressed_mint_account() {
                 version,
                 mint: mint_pda,
                 cmint_decompressed,
+                compressed_address: compressed_account_address,
             },
             mint_authority: Some(mint_authority),
             freeze_authority,
@@ -128,14 +129,10 @@ fn test_rnd_create_compressed_mint_account() {
         // Step 3: Create MintActionCompressedInstructionData
         let mint_action_data = MintActionCompressedInstructionData {
             create_mint: None, // We're testing with existing mint
-
             leaf_index,
             prove_by_index,
             root_index,
-            compressed_address: compressed_account_address,
             mint: Some(mint_instruction_data.clone()),
-            token_pool_bump: 0,
-            token_pool_index: 0,
             actions: vec![], // No actions for basic test
             proof: None,
             cpi_context: None,
@@ -176,9 +173,10 @@ fn test_rnd_create_compressed_mint_account() {
 
             create_input_compressed_mint_account(
                 input_account,
-                &parsed_instruction_data,
+                root_index.into(),
                 merkle_context,
                 &accounts_config,
+                &cmint,
             )
             .unwrap();
 
@@ -380,8 +378,9 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
             version: 3u8,
             mint: Pubkey::new_from_array([3; 32]),
             cmint_decompressed: false,
+            compressed_address: [5; 32],
         },
-        reserved: [0u8; 49],
+        reserved: [0u8; 17],
         account_type: ACCOUNT_TYPE_MINT,
         extensions: Some(vec![ExtensionStruct::TokenMetadata(token_metadata)]),
     };
@@ -409,6 +408,8 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
                 compression_authority: zc.compression_authority,
                 rent_sponsor: zc.rent_sponsor,
                 last_claimed_slot: u64::from(zc.last_claimed_slot),
+                rent_exemption_paid: u32::from(zc.rent_exemption_paid),
+                _reserved: u32::from(zc._reserved),
                 rent_config: light_compressible::rent::RentConfig {
                     base_rent: u16::from(zc.rent_config.base_rent),
                     compression_cost: u16::from(zc.rent_config.compression_cost),
@@ -432,6 +433,7 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
                 version: zc_mint.base.metadata.version,
                 mint: zc_mint.base.metadata.mint,
                 cmint_decompressed: zc_mint.base.metadata.cmint_decompressed != 0,
+                compressed_address: zc_mint.base.metadata.compressed_address,
             },
             reserved: *zc_mint.base.reserved,
             account_type: zc_mint.base.account_type,

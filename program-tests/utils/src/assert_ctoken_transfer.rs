@@ -74,17 +74,8 @@ pub async fn assert_compressible_for_account(
                 name
             );
             let current_slot = rpc.get_slot().await.unwrap();
-            let rent_exemption = rpc
-                .get_minimum_balance_for_rent_exemption(data_before.len())
-                .await
-                .unwrap();
             let top_up = compression_before
-                .calculate_top_up_lamports(
-                    data_before.len() as u64,
-                    current_slot,
-                    lamports_before,
-                    rent_exemption,
-                )
+                .calculate_top_up_lamports(data_before.len() as u64, current_slot, lamports_before)
                 .unwrap();
             // Check if top-up was applied
             if top_up != 0 {

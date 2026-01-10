@@ -17,9 +17,6 @@ describe('layout-mint-action', () => {
                 leafIndex: 100,
                 proveByIndex: true,
                 rootIndex: 5,
-                compressedAddress: Array(32).fill(1),
-                tokenPoolBump: 255,
-                tokenPoolIndex: 0,
                 maxTopUp: 1000,
                 createMint: null,
                 actions: [],
@@ -32,6 +29,7 @@ describe('layout-mint-action', () => {
                         version: 1,
                         cmintDecompressed: true,
                         mint,
+                        compressedAddress: Array(32).fill(1),
                     },
                     mintAuthority: mint,
                     freezeAuthority: null,
@@ -49,7 +47,6 @@ describe('layout-mint-action', () => {
             expect(decoded.leafIndex).toBe(100);
             expect(decoded.proveByIndex).toBe(true);
             expect(decoded.rootIndex).toBe(5);
-            expect(decoded.tokenPoolBump).toBe(255);
             expect(decoded.maxTopUp).toBe(1000);
             expect(decoded.actions.length).toBe(0);
             expect(decoded.mint.decimals).toBe(9);
@@ -74,9 +71,6 @@ describe('layout-mint-action', () => {
                 leafIndex: 50,
                 proveByIndex: false,
                 rootIndex: 10,
-                compressedAddress: Array(32).fill(2),
-                tokenPoolBump: 254,
-                tokenPoolIndex: 1,
                 maxTopUp: 500,
                 createMint: null,
                 actions: [mintToCompressedAction],
@@ -89,6 +83,7 @@ describe('layout-mint-action', () => {
                         version: 1,
                         cmintDecompressed: false,
                         mint,
+                        compressedAddress: Array(32).fill(2),
                     },
                     mintAuthority: mint,
                     freezeAuthority: null,
@@ -126,9 +121,6 @@ describe('layout-mint-action', () => {
                 leafIndex: 0,
                 proveByIndex: true,
                 rootIndex: 0,
-                compressedAddress: Array(32).fill(0),
-                tokenPoolBump: 253,
-                tokenPoolIndex: 0,
                 maxTopUp: 0,
                 createMint: null,
                 actions: [mintToCTokenAction],
@@ -141,6 +133,7 @@ describe('layout-mint-action', () => {
                         version: 1,
                         cmintDecompressed: true,
                         mint,
+                        compressedAddress: Array(32).fill(0),
                     },
                     mintAuthority: mint,
                     freezeAuthority: null,
@@ -174,9 +167,6 @@ describe('layout-mint-action', () => {
                 leafIndex: 10,
                 proveByIndex: true,
                 rootIndex: 2,
-                compressedAddress: Array(32).fill(5),
-                tokenPoolBump: 250,
-                tokenPoolIndex: 0,
                 maxTopUp: 100,
                 createMint: null,
                 actions: [updateAction],
@@ -189,6 +179,7 @@ describe('layout-mint-action', () => {
                         version: 1,
                         cmintDecompressed: true,
                         mint,
+                        compressedAddress: Array(32).fill(5),
                     },
                     mintAuthority: mint,
                     freezeAuthority: null,
@@ -201,62 +192,6 @@ describe('layout-mint-action', () => {
 
             expect(decoded.actions.length).toBe(1);
             expect('updateMintAuthority' in decoded.actions[0]).toBe(true);
-        });
-
-        it('should encode and decode with createSplMint action', () => {
-            const mint = Keypair.generate().publicKey;
-
-            const createSplMintAction: Action = {
-                createSplMint: {
-                    mintBump: 254,
-                },
-            };
-
-            const data: MintActionCompressedInstructionData = {
-                leafIndex: 0,
-                proveByIndex: false,
-                rootIndex: 0,
-                compressedAddress: Array(32).fill(0),
-                tokenPoolBump: 255,
-                tokenPoolIndex: 0,
-                maxTopUp: 0,
-                createMint: {
-                    readOnlyAddressTrees: [1, 2, 3, 4],
-                    readOnlyAddressTreeRootIndices: [10, 20, 30, 40],
-                },
-                actions: [createSplMintAction],
-                proof: {
-                    a: Array(32).fill(1),
-                    b: Array(64).fill(2),
-                    c: Array(32).fill(3),
-                },
-                cpiContext: null,
-                mint: {
-                    supply: 0n,
-                    decimals: 9,
-                    metadata: {
-                        version: 1,
-                        cmintDecompressed: false,
-                        mint,
-                    },
-                    mintAuthority: mint,
-                    freezeAuthority: null,
-                    extensions: null,
-                },
-            };
-
-            const encoded = encodeMintActionInstructionData(data);
-            const decoded = decodeMintActionInstructionData(encoded);
-
-            expect(decoded.actions.length).toBe(1);
-            expect('createSplMint' in decoded.actions[0]).toBe(true);
-
-            const action = decoded.actions[0] as {
-                createSplMint: { mintBump: number };
-            };
-            expect(action.createSplMint.mintBump).toBe(254);
-            expect(decoded.createMint).not.toBe(null);
-            expect(decoded.proof).not.toBe(null);
         });
 
         it('should encode and decode with multiple actions', () => {
@@ -281,9 +216,6 @@ describe('layout-mint-action', () => {
                 leafIndex: 5,
                 proveByIndex: true,
                 rootIndex: 1,
-                compressedAddress: Array(32).fill(7),
-                tokenPoolBump: 200,
-                tokenPoolIndex: 2,
                 maxTopUp: 50,
                 createMint: null,
                 actions,
@@ -296,6 +228,7 @@ describe('layout-mint-action', () => {
                         version: 1,
                         cmintDecompressed: true,
                         mint,
+                        compressedAddress: Array(32).fill(7),
                     },
                     mintAuthority: mint,
                     freezeAuthority: null,
@@ -317,9 +250,6 @@ describe('layout-mint-action', () => {
                 leafIndex: 0,
                 proveByIndex: true,
                 rootIndex: 0,
-                compressedAddress: Array(32).fill(0),
-                tokenPoolBump: 255,
-                tokenPoolIndex: 0,
                 maxTopUp: 0,
                 createMint: null,
                 actions: [],
@@ -332,6 +262,7 @@ describe('layout-mint-action', () => {
                         version: 1,
                         cmintDecompressed: true,
                         mint,
+                        compressedAddress: Array(32).fill(0),
                     },
                     mintAuthority: mint,
                     freezeAuthority: null,
@@ -353,9 +284,6 @@ describe('layout-mint-action', () => {
                 leafIndex: 0,
                 proveByIndex: true,
                 rootIndex: 0,
-                compressedAddress: Array(32).fill(0),
-                tokenPoolBump: 255,
-                tokenPoolIndex: 0,
                 maxTopUp: 0,
                 createMint: null,
                 actions: [],
@@ -378,6 +306,7 @@ describe('layout-mint-action', () => {
                         version: 1,
                         cmintDecompressed: true,
                         mint,
+                        compressedAddress: Array(32).fill(0),
                     },
                     mintAuthority: mint,
                     freezeAuthority: null,

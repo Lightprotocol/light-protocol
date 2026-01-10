@@ -157,12 +157,16 @@ export interface CompressionInfo {
     rentSponsor: PublicKey;
     /** Last slot rent was claimed */
     lastClaimedSlot: bigint;
+    /** Rent exemption lamports paid at account creation */
+    rentExemptionPaid: number;
+    /** Reserved for future use */
+    reserved: number;
     /** Rent configuration */
     rentConfig: RentConfig;
 }
 
 /** Byte length of CompressionInfo */
-export const COMPRESSION_INFO_SIZE = 88; // 2 + 1 + 1 + 4 + 32 + 32 + 8 + 8
+export const COMPRESSION_INFO_SIZE = 96; // 2 + 1 + 1 + 4 + 32 + 32 + 8 + 4 + 4 + 8
 
 /**
  * Calculate the byte length of a TokenMetadata extension from buffer.
@@ -256,6 +260,12 @@ function deserializeCompressionInfo(
     const lastClaimedSlot = buffer.readBigUInt64LE(offset);
     offset += 8;
 
+    // Read rent_exemption_paid (u32) and _reserved (u32)
+    const rentExemptionPaid = buffer.readUInt32LE(offset);
+    offset += 4;
+    const reserved = buffer.readUInt32LE(offset);
+    offset += 4;
+
     // Read RentConfig (8 bytes)
     const baseRent = buffer.readUInt16LE(offset);
     offset += 2;
@@ -284,6 +294,8 @@ function deserializeCompressionInfo(
         compressionAuthority,
         rentSponsor,
         lastClaimedSlot,
+        rentExemptionPaid,
+        reserved,
         rentConfig,
     };
 
@@ -415,6 +427,12 @@ function serializeCompressionInfo(compression: CompressionInfo): Buffer {
 
     buffer.writeBigUInt64LE(compression.lastClaimedSlot, offset);
     offset += 8;
+
+    // Write rent_exemption_paid (u32) and _reserved (u32)
+    buffer.writeUInt32LE(compression.rentExemptionPaid, offset);
+    offset += 4;
+    buffer.writeUInt32LE(compression.reserved, offset);
+    offset += 4;
 
     // Write RentConfig (8 bytes)
     buffer.writeUInt16LE(compression.rentConfig.baseRent, offset);

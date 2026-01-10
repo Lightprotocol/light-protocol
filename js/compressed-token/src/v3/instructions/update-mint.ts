@@ -73,9 +73,6 @@ function encodeUpdateMintInstructionData(
         leafIndex: params.leafIndex,
         proveByIndex: params.proveByIndex,
         rootIndex: params.rootIndex,
-        compressedAddress: Array.from(compressedAddress.toBytes()),
-        tokenPoolBump: 0,
-        tokenPoolIndex: 0,
         maxTopUp: 0,
         createMint: null,
         actions: [action],
@@ -89,6 +86,7 @@ function encodeUpdateMintInstructionData(
                 cmintDecompressed:
                     params.mintInterface.mintContext!.cmintDecompressed,
                 mint: params.mintInterface.mintContext!.splMint,
+                compressedAddress: Array.from(compressedAddress.toBytes()),
             },
             mintAuthority: params.mintInterface.mint.mintAuthority,
             freezeAuthority: params.mintInterface.mint.freezeAuthority,

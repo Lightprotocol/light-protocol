@@ -223,8 +223,8 @@ async fn test_ctoken_mint_to_checked_wrong_decimals() {
         )
         .await;
 
-    // Should fail with MintDecimalsMismatch (error code 18 in pinocchio)
+    // Should fail with MintDecimalsMismatch (error code 18 in pinocchio mapped to 6166)
     assert!(result.is_err(), "Mint with wrong decimals should fail");
-    light_program_test::utils::assert::assert_rpc_error(result, 0, 18).unwrap();
+    light_program_test::utils::assert::assert_rpc_error(result, 0, 6166).unwrap();
     println!("test_ctoken_mint_to_checked_wrong_decimals: passed");
 }

@@ -37,8 +37,6 @@ export const UpdateAuthorityLayout = struct([
     option(publicKey(), 'newAuthority'),
 ]);
 
-export const CreateSplMintActionLayout = struct([u8('mintBump')]);
-
 export const MintToCTokenActionLayout = struct([
     u8('accountIndex'),
     u64('amount'),
@@ -74,7 +72,6 @@ export const ActionLayout = rustEnum([
     MintToCompressedActionLayout.replicate('mintToCompressed'),
     UpdateAuthorityLayout.replicate('updateMintAuthority'),
     UpdateAuthorityLayout.replicate('updateFreezeAuthority'),
-    CreateSplMintActionLayout.replicate('createSplMint'),
     MintToCTokenActionLayout.replicate('mintToCToken'),
     UpdateMetadataFieldActionLayout.replicate('updateMetadataField'),
     UpdateMetadataAuthorityActionLayout.replicate('updateMetadataAuthority'),
@@ -145,6 +142,7 @@ export const CompressedMintMetadataLayout = struct([
     u8('version'),
     bool('cmintDecompressed'),
     publicKey('mint'),
+    array(u8(), 32, 'compressedAddress'),
 ]);
 
 export const CompressedMintInstructionDataLayout = struct([
@@ -160,9 +158,6 @@ export const MintActionCompressedInstructionDataLayout = struct([
     u32('leafIndex'),
     bool('proveByIndex'),
     u16('rootIndex'),
-    array(u8(), 32, 'compressedAddress'),
-    u8('tokenPoolBump'),
-    u8('tokenPoolIndex'),
     u16('maxTopUp'),
     option(CreateMintLayout, 'createMint'),
     vec(ActionLayout, 'actions'),
@@ -176,7 +171,6 @@ const ActionLayoutV1 = rustEnum([
     MintToCompressedActionLayout.replicate('mintToCompressed'),
     UpdateAuthorityLayout.replicate('updateMintAuthority'),
     UpdateAuthorityLayout.replicate('updateFreezeAuthority'),
-    CreateSplMintActionLayout.replicate('createSplMint'),
     MintToCTokenActionLayout.replicate('mintToCToken'),
     UpdateMetadataFieldActionLayout.replicate('updateMetadataField'),
     UpdateMetadataAuthorityActionLayout.replicate('updateMetadataAuthority'),
@@ -233,10 +227,6 @@ export interface UpdateAuthority {
     newAuthority: PublicKey | null;
 }
 
-export interface CreateSplMintAction {
-    mintBump: number;
-}
-
 export interface MintToCTokenAction {
     accountIndex: number;
     amount: bigint;
@@ -274,7 +264,6 @@ export type Action =
     | { mintToCompressed: MintToCompressedAction }
     | { updateMintAuthority: UpdateAuthority }
     | { updateFreezeAuthority: UpdateAuthority }
-    | { createSplMint: CreateSplMintAction }
     | { mintToCToken: MintToCTokenAction }
     | { updateMetadataField: UpdateMetadataFieldAction }
     | { updateMetadataAuthority: UpdateMetadataAuthorityAction }
@@ -320,6 +309,7 @@ export interface CompressedMintMetadata {
     version: number;
     cmintDecompressed: boolean;
     mint: PublicKey;
+    compressedAddress: number[];
 }
 
 export interface CompressedMintInstructionData {
@@ -335,9 +325,6 @@ export interface MintActionCompressedInstructionData {
     leafIndex: number;
     proveByIndex: boolean;
     rootIndex: number;
-    compressedAddress: number[];
-    tokenPoolBump: number;
-    tokenPoolIndex: number;
     maxTopUp: number;
     createMint: CreateMint | null;
     actions: Action[];

@@ -33,17 +33,17 @@ pub struct LightSystemAccounts<'info> {
     pub cpi_authority_pda: &'info AccountInfo,
     /// Registered program PDA (index 2) - non-mutable
     pub registered_program_pda: &'info AccountInfo,
-    /// Account compression authority (index 4) - non-mutable
+    /// Account compression authority (index 3) - non-mutable
     pub account_compression_authority: &'info AccountInfo,
-    /// Account compression program (index 5) - non-mutable
+    /// Account compression program (index 4) - non-mutable
     pub account_compression_program: &'info AccountInfo,
-    /// System program (index 9) - non-mutable
+    /// System program (index 5) - non-mutable
     pub system_program: &'info AccountInfo,
-    /// Sol pool PDA (index 7) - optional, mutable if present
+    /// Sol pool PDA (index 6) - optional, mutable if present
     pub sol_pool_pda: Option<&'info AccountInfo>,
-    /// SOL decompression recipient (index 8) - optional, mutable, for SOL decompression
+    /// SOL decompression recipient (index 7) - optional, mutable, for SOL decompression
     pub sol_decompression_recipient: Option<&'info AccountInfo>,
-    /// CPI context account (index 10) - optional, non-mutable
+    /// CPI context account (index 8) - optional, mutable
     pub cpi_context: Option<&'info AccountInfo>,
 }
 

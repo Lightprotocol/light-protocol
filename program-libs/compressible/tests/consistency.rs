@@ -54,12 +54,7 @@ impl RentState {
             rent_exemption_lamports,
         );
         let top_up = compression_info
-            .calculate_top_up_lamports(
-                state.num_bytes,
-                state.current_slot,
-                state.current_lamports,
-                rent_exemption_lamports,
-            )
+            .calculate_top_up_lamports(state.num_bytes, state.current_slot, state.current_lamports)
             .unwrap();
 
         Self {
@@ -182,6 +177,8 @@ fn test_consistency_16_epochs_progression() {
             last_claimed_slot,
             lamports_per_write,
             compress_to_pubkey: 0,
+            rent_exemption_paid: rent_exemption_lamports as u32,
+            _reserved: 0,
             rent_config: test_rent_config(),
         };
 

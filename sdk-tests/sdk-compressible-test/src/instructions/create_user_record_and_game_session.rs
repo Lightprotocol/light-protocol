@@ -124,7 +124,6 @@ pub fn create_user_record_and_game_session<'info>(
     let proof = compression_params.proof.0.unwrap_or_default();
     let mut instruction_data =
         light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
-            compression_params.mint_with_context.address,
             0, // root_index
             proof,
             compression_params.mint_with_context.mint.clone().unwrap(),

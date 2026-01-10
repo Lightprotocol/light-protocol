@@ -17,7 +17,6 @@ pub fn process_mint_action<'a, 'info>(
 ) -> Result<()> {
     // Build instruction data using builder pattern
     let mut instruction_data = MintActionCompressedInstructionData::new_mint(
-        input.compressed_mint_with_context.address,
         input.compressed_mint_with_context.root_index,
         light_compressed_account::instruction_data::compressed_proof::CompressedProof::default(), // Dummy proof for CPI write
         input.compressed_mint_with_context.mint.clone().unwrap(),
