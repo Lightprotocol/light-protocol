@@ -1,6 +1,9 @@
 pub mod close;
 pub mod compression_info;
 pub mod config;
+pub mod finalize;
+
+pub use finalize::LightFinalize;
 
 #[cfg(feature = "v2")]
 pub mod compress_account;

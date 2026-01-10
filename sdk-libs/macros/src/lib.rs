@@ -3,7 +3,7 @@ use accounts::{process_light_accounts, process_light_system_accounts};
 use discriminator::discriminator;
 use hasher::{derive_light_hasher, derive_light_hasher_sha};
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput, ItemStruct};
+use syn::{parse_macro_input, DeriveInput, ItemFn, ItemStruct};
 use traits::process_light_traits;
 use utils::into_token_stream;
 
@@ -11,6 +11,7 @@ mod account;
 mod accounts;
 mod compressible;
 mod discriminator;
+mod finalize;
 mod hasher;
 mod program;
 mod rent_sponsor;
@@ -572,4 +573,167 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ItemMod);
     into_token_stream(program::program(input))
+}
+
+/// Generates `LightFinalize` trait implementation for compressible accounts and light-mints.
+///
+/// This derive macro works alongside Anchor's `#[derive(Accounts)]` to add
+/// compression finalize logic for:
+/// - Accounts marked with `#[compressible(...)]` (compressible PDAs)
+/// - Accounts marked with `#[light_mint(...)]` (light-mint creation)
+///
+/// The trait is defined in `light_sdk::compressible::LightFinalize`.
+///
+/// ## Usage - Compressible PDAs
+///
+/// ```ignore
+/// #[derive(Accounts, LightFinalize)]
+/// #[instruction(params: CompressionParams)]
+/// pub struct CreateCompressible<'info> {
+///     #[account(mut)]
+///     pub fee_payer: Signer<'info>,
+///     
+///     #[account(init, payer = fee_payer, space = 8 + MyData::INIT_SPACE)]
+///     #[compressible(
+///         address_tree_info = params.address_tree_info,
+///         output_tree = 0
+///     )]
+///     pub my_account: Account<'info, MyData>,
+///     
+///     /// CHECK: Compression config
+///     pub compression_config: AccountInfo<'info>,
+/// }
+/// ```
+///
+/// ## Usage - Light Mints
+///
+/// ```ignore
+/// #[derive(Accounts, LightFinalize)]
+/// #[instruction(params: MintParams)]
+/// pub struct CreateMint<'info> {
+///     #[account(mut)]
+///     pub fee_payer: Signer<'info>,
+///     
+///     #[account(init, /* ... */)]
+///     #[light_mint(
+///         mint_signer = mint_signer,
+///         authority = authority,
+///         decimals = 9,
+///         address_tree_info = params.address_tree_info,
+///         output_tree = 0
+///     )]
+///     pub mint: InterfaceAccount<'info, Mint>,
+///     
+///     pub mint_signer: Signer<'info>,
+///     pub authority: Signer<'info>,
+/// }
+/// ```
+///
+/// ## Usage - Mixed (PDAs + Mints)
+///
+/// Multiple compressible PDAs and light-mints can be created in the same instruction.
+/// They are batched together using CPI context for a single proof execution.
+///
+/// ```ignore
+/// #[derive(Accounts, LightFinalize)]
+/// #[instruction(params: InitParams)]
+/// pub struct Initialize<'info> {
+///     #[account(mut)]
+///     pub fee_payer: Signer<'info>,
+///     
+///     #[account(init, payer = fee_payer, space = 8 + Config::INIT_SPACE)]
+///     #[compressible(address_tree_info = params.address_tree_info, output_tree = 0)]
+///     pub config: Account<'info, Config>,
+///     
+///     #[account(init, /* ... */)]
+///     #[light_mint(
+///         mint_signer = mint_signer,
+///         authority = authority,
+///         decimals = 9,
+///         address_tree_info = params.address_tree_info,
+///         output_tree = 1
+///     )]
+///     pub token_mint: InterfaceAccount<'info, Mint>,
+///     
+///     // ... other accounts
+/// }
+///
+/// #[light_instruction(params)]
+/// pub fn initialize(ctx: Context<Initialize>, params: InitParams) -> Result<()> {
+///     // Your logic
+///     Ok(())
+///     // light_finalize auto-called: batches PDA + mint creation with single proof
+/// }
+/// ```
+///
+/// ## Attributes
+///
+/// ### `#[compressible(...)]` for PDAs:
+/// - `address_tree_info` (required): Expression for address tree info
+/// - `output_tree` (required): Output state tree index
+///
+/// ### `#[light_mint(...)]` for mints:
+/// - `mint_signer` (required): The signer account used as mint seed
+/// - `authority` (required): Mint authority
+/// - `decimals` (required): Token decimals
+/// - `address_tree_info` (required): Address tree info expression
+/// - `output_tree` (required): Output state tree index
+/// - `freeze_authority` (optional): Freeze authority
+///
+/// ## Requirements
+///
+/// Your program must define:
+/// - `LIGHT_CPI_SIGNER`: CPI signer pubkey constant
+/// - `ID`: Program ID (from declare_id!)
+///
+/// The struct should have fields named `fee_payer` (or `payer`) and `compression_config`.
+#[proc_macro_derive(LightFinalize, attributes(compressible, light_mint, instruction))]
+pub fn light_finalize_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    into_token_stream(finalize::derive_light_finalize(input))
+}
+
+/// Attribute macro that auto-calls `light_finalize()` at end of instruction handler.
+///
+/// This macro wraps your instruction handler to automatically call the
+/// `LightFinalize::light_finalize()` method before returning, which executes
+/// the compression CPIs. This runs BEFORE Anchor's `exit()` hook.
+///
+/// ## Usage
+///
+/// ```ignore
+/// use anchor_lang::prelude::*;
+/// use light_sdk_macros::light_instruction;
+///
+/// // The argument is the name of the parameter containing compression data
+/// #[light_instruction(params)]
+/// pub fn create_compressible(ctx: Context<CreateCompressible>, params: CompressionParams) -> Result<()> {
+///     // Your business logic
+///     ctx.accounts.my_account.value = params.value;
+///     
+///     // light_finalize() is auto-called here before returning
+///     Ok(())
+/// }
+/// ```
+///
+/// ## How It Works
+///
+/// The macro transforms your function to:
+/// 1. Execute your original function body
+/// 2. On success, call `ctx.accounts.light_finalize(ctx.remaining_accounts, &params)`
+/// 3. Return the result
+///
+/// This ensures compression CPIs run after your logic but before Anchor serializes accounts.
+///
+/// ## Important Notes
+///
+/// - The `params` argument must match a parameter name in your function signature
+/// - Your accounts struct must derive `LightFinalize`
+/// - Use `?` operator for error handling (not explicit `return Err(...)`)
+/// - Errors will skip `light_finalize` and propagate normally
+#[proc_macro_attribute]
+pub fn light_instruction(args: TokenStream, input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(args as finalize::instruction::LightInstructionArgs);
+    let item = parse_macro_input!(input as ItemFn);
+    into_token_stream(finalize::instruction::light_instruction_impl(args, item))
 }
