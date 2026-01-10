@@ -30,6 +30,7 @@ impl<'info> light_sdk::compressible::DecompressContext<'info>
 {
     type CompressedData = CompressedAccountData;
     type PackedTokenData = PackedCTokenData<CTokenAccountVariant>;
+    type CompressedMintData = light_ctoken_sdk::compat::CompressedMintData;
     type CompressedMeta = CompressedAccountMetaNoLamportsNoAddress;
     type SeedParams = SeedParams;
 

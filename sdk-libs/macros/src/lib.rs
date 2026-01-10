@@ -3,7 +3,7 @@ use accounts::{process_light_accounts, process_light_system_accounts};
 use discriminator::discriminator;
 use hasher::{derive_light_hasher, derive_light_hasher_sha};
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput, ItemStruct};
+use syn::{parse_macro_input, DeriveInput, ItemFn, ItemStruct};
 use traits::process_light_traits;
 use utils::into_token_stream;
 
@@ -11,6 +11,7 @@ mod account;
 mod accounts;
 mod compressible;
 mod discriminator;
+mod finalize;
 mod hasher;
 mod program;
 mod rent_sponsor;
@@ -19,6 +20,10 @@ mod utils;
 
 /// Adds required fields to your anchor instruction for applying a zk-compressed
 /// state transition.
+///
+/// ## DEPRECATED
+/// This macro is deprecated. Use the newer compressible instructions
+/// approach with `#[add_compressible_instructions]` instead.
 ///
 /// ## Usage
 /// Add `#[light_system_accounts]` to your struct. Ensure it's applied before Anchor's
@@ -57,18 +62,23 @@ mod utils;
 /// - `account_compression_program`:    Called by light_system_program. Updates
 ///   state trees.
 /// - `system_program`:                 The Solana System program.
+#[deprecated(note = "Use #[add_compressible_instructions] instead")]
 #[proc_macro_attribute]
 pub fn light_system_accounts(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     into_token_stream(process_light_system_accounts(input))
 }
 
+/// DEPRECATED: Use `#[add_compressible_instructions]` instead.
+#[deprecated(note = "Use #[add_compressible_instructions] instead")]
 #[proc_macro_attribute]
 pub fn light_accounts(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     into_token_stream(process_light_accounts(input))
 }
 
+/// DEPRECATED: Use `#[add_compressible_instructions]` instead.
+#[deprecated(note = "Use #[add_compressible_instructions] instead")]
 #[proc_macro_derive(LightAccounts, attributes(light_account))]
 pub fn light_accounts_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
@@ -134,6 +144,8 @@ pub fn light_accounts_derive(input: TokenStream) -> TokenStream {
 ///     pub system_program: Program<'info, System>,
 /// }
 /// ```
+/// DEPRECATED: Use `#[add_compressible_instructions]` instead.
+#[deprecated(note = "Use #[add_compressible_instructions] instead")]
 #[proc_macro_derive(
     LightTraits,
     attributes(self_program, fee_payer, authority, cpi_context)
@@ -220,13 +232,6 @@ pub fn light_hasher(input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro_derive(LightHasherSha, attributes(hash, skip))]
 pub fn light_hasher_sha(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as ItemStruct);
-    into_token_stream(derive_light_hasher_sha(input))
-}
-
-/// Alias of `LightHasher`.
-#[proc_macro_derive(DataHasher, attributes(skip, hash))]
-pub fn data_hasher(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     into_token_stream(derive_light_hasher_sha(input))
 }
@@ -342,6 +347,56 @@ pub fn add_compressible_instructions(args: TokenStream, input: TokenStream) -> T
     ))
 }
 
+/// Program-level registration of compressible accounts with auto-generated instructions.
+///
+/// This is an alias for `#[add_compressible_instructions]` with a cleaner name.
+/// Use this on your program module to register compressible account types and their seeds.
+///
+/// ## Usage
+///
+/// ```ignore
+/// use anchor_lang::prelude::*;
+/// use light_sdk_macros::compressible;
+///
+/// #[compressible(
+///     // PDAs: AccountType = (SEED_CONST, ctx.accounts.field, data.param, ...)
+///     PoolState = (POOL_SEED, ctx.accounts.amm_config, ctx.accounts.token_0_mint, ctx.accounts.token_1_mint),
+///     
+///     // Tokens: is_token flag + seeds + authority (required for CPI signing)
+///     Token0Vault = (is_token, POOL_VAULT_SEED, ctx.accounts.pool_state, ctx.accounts.token_0_mint, authority = AUTH_SEED),
+///     
+///     // Instruction data fields (when using data.*)
+///     owner = Pubkey,
+///     session_id = u64,
+/// )]
+/// #[program]
+/// pub mod my_program {
+///     use super::*;
+///     // Your instructions here - compress/decompress instructions are auto-generated
+/// }
+/// ```
+///
+/// ## What Gets Generated
+///
+/// - `DecompressAccountsIdempotent` - Accounts struct with optional seed accounts
+/// - `CompressAccountsIdempotent` - Accounts struct for compression
+/// - `SeedParams` - Struct for instruction data used in seeds
+/// - `CompressedAccountVariant` - Enum of all compressible account types
+/// - `CTokenAccountVariant` - Enum of token account types
+/// - `decompress_accounts_idempotent` - Instruction handler
+/// - `compress_accounts_idempotent` - Instruction handler
+/// - `initialize_compression_config` - Config initialization
+/// - `update_compression_config` - Config update
+/// - Client helper functions for PDA derivation
+#[proc_macro_attribute]
+pub fn compressible(args: TokenStream, input: TokenStream) -> TokenStream {
+    let module = syn::parse_macro_input!(input as syn::ItemMod);
+    into_token_stream(compressible::instructions::add_compressible_instructions(
+        args.into(),
+        module,
+    ))
+}
+
 #[proc_macro_attribute]
 pub fn account(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
@@ -419,6 +474,54 @@ pub fn compressible_derive(input: TokenStream) -> TokenStream {
 pub fn compressible_pack(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     into_token_stream(compressible::pack_unpack::derive_compressible_pack(input))
+}
+
+/// Consolidates all required traits for compressible accounts into a single derive.
+///
+/// This macro is equivalent to deriving:
+/// - `LightHasherSha` (SHA256/ShaFlat hashing - type 3)
+/// - `LightDiscriminator` (unique discriminator)
+/// - `Compressible` (HasCompressionInfo + CompressAs + Size + CompressedInitSpace)
+/// - `CompressiblePack` (Pack + Unpack + Packed struct generation)
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk_macros::LightCompressible;
+/// use light_sdk::compressible::CompressionInfo;
+/// use solana_pubkey::Pubkey;
+///
+/// #[derive(Default, Debug, InitSpace, LightCompressible)]
+/// #[account]
+/// pub struct UserRecord {
+///     pub owner: Pubkey,
+///     #[max_len(32)]
+///     pub name: String,
+///     pub score: u64,
+///     pub compression_info: Option<CompressionInfo>,
+/// }
+/// ```
+///
+/// This is equivalent to:
+/// ```ignore
+/// #[derive(Default, Debug, InitSpace, LightHasherSha, LightDiscriminator, Compressible, CompressiblePack)]
+/// #[account]
+/// pub struct UserRecord { ... }
+/// ```
+///
+/// ## Attributes
+///
+/// - `#[compress_as(...)]` - Optional: specify field values to reset during compression
+///
+/// ## Notes
+///
+/// - The `compression_info` field is auto-detected and handled (no `#[skip]` needed)
+/// - SHA256 (ShaFlat) hashes the entire serialized struct (no `#[hash]` needed)
+/// - The struct must have a `compression_info: Option<CompressionInfo>` field
+#[proc_macro_derive(LightCompressible, attributes(compress_as))]
+pub fn light_compressible(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    into_token_stream(compressible::light_compressible::derive_light_compressible(input))
 }
 
 // DEPRECATED: compressed_account_variant macro is now integrated into add_compressible_instructions
@@ -546,7 +649,8 @@ pub fn derive_light_rent_sponsor_pda(input: TokenStream) -> TokenStream {
 pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
     rent_sponsor::derive_light_rent_sponsor(input)
 }
-/// Generates a Light program for the given module.
+/// DEPRECATED: This macro is not used. Use standard Anchor `#[program]` with
+/// `#[add_compressible_instructions]` instead.
 ///
 /// ## Example
 ///
@@ -568,8 +672,172 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 /// ```
+#[deprecated(note = "Use standard Anchor #[program] with #[add_compressible_instructions] instead")]
 #[proc_macro_attribute]
 pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ItemMod);
     into_token_stream(program::program(input))
+}
+
+/// Generates `LightFinalize` trait implementation for compressible accounts and light-mints.
+///
+/// This derive macro works alongside Anchor's `#[derive(Accounts)]` to add
+/// compression finalize logic for:
+/// - Accounts marked with `#[compressible(...)]` (compressible PDAs)
+/// - Accounts marked with `#[light_mint(...)]` (light-mint creation)
+///
+/// The trait is defined in `light_sdk::compressible::LightFinalize`.
+///
+/// ## Usage - Compressible PDAs
+///
+/// ```ignore
+/// #[derive(Accounts, LightFinalize)]
+/// #[instruction(params: CompressionParams)]
+/// pub struct CreateCompressible<'info> {
+///     #[account(mut)]
+///     pub fee_payer: Signer<'info>,
+///     
+///     #[account(init, payer = fee_payer, space = 8 + MyData::INIT_SPACE)]
+///     #[compressible(
+///         address_tree_info = params.address_tree_info,
+///         output_tree = 0
+///     )]
+///     pub my_account: Account<'info, MyData>,
+///     
+///     /// CHECK: Compression config
+///     pub compression_config: AccountInfo<'info>,
+/// }
+/// ```
+///
+/// ## Usage - Light Mints
+///
+/// ```ignore
+/// #[derive(Accounts, LightFinalize)]
+/// #[instruction(params: MintParams)]
+/// pub struct CreateMint<'info> {
+///     #[account(mut)]
+///     pub fee_payer: Signer<'info>,
+///     
+///     #[account(init, /* ... */)]
+///     #[light_mint(
+///         mint_signer = mint_signer,
+///         authority = authority,
+///         decimals = 9,
+///         address_tree_info = params.address_tree_info,
+///         output_tree = 0
+///     )]
+///     pub mint: InterfaceAccount<'info, Mint>,
+///     
+///     pub mint_signer: Signer<'info>,
+///     pub authority: Signer<'info>,
+/// }
+/// ```
+///
+/// ## Usage - Mixed (PDAs + Mints)
+///
+/// Multiple compressible PDAs and light-mints can be created in the same instruction.
+/// They are batched together using CPI context for a single proof execution.
+///
+/// ```ignore
+/// #[derive(Accounts, LightFinalize)]
+/// #[instruction(params: InitParams)]
+/// pub struct Initialize<'info> {
+///     #[account(mut)]
+///     pub fee_payer: Signer<'info>,
+///     
+///     #[account(init, payer = fee_payer, space = 8 + Config::INIT_SPACE)]
+///     #[compressible(address_tree_info = params.address_tree_info, output_tree = 0)]
+///     pub config: Account<'info, Config>,
+///     
+///     #[account(init, /* ... */)]
+///     #[light_mint(
+///         mint_signer = mint_signer,
+///         authority = authority,
+///         decimals = 9,
+///         address_tree_info = params.address_tree_info,
+///         output_tree = 1
+///     )]
+///     pub token_mint: InterfaceAccount<'info, Mint>,
+///     
+///     // ... other accounts
+/// }
+///
+/// #[light_instruction(params)]
+/// pub fn initialize(ctx: Context<Initialize>, params: InitParams) -> Result<()> {
+///     // Your logic
+///     Ok(())
+///     // light_finalize auto-called: batches PDA + mint creation with single proof
+/// }
+/// ```
+///
+/// ## Attributes
+///
+/// ### `#[compressible(...)]` for PDAs:
+/// - `address_tree_info` (required): Expression for address tree info
+/// - `output_tree` (required): Output state tree index
+///
+/// ### `#[light_mint(...)]` for mints:
+/// - `mint_signer` (required): The signer account used as mint seed
+/// - `authority` (required): Mint authority
+/// - `decimals` (required): Token decimals
+/// - `address_tree_info` (required): Address tree info expression
+/// - `output_tree` (required): Output state tree index
+/// - `freeze_authority` (optional): Freeze authority
+///
+/// ## Requirements
+///
+/// Your program must define:
+/// - `LIGHT_CPI_SIGNER`: CPI signer pubkey constant
+/// - `ID`: Program ID (from declare_id!)
+///
+/// The struct should have fields named `fee_payer` (or `payer`) and `compression_config`.
+#[proc_macro_derive(LightFinalize, attributes(compressible, light_mint, instruction))]
+pub fn light_finalize_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    into_token_stream(finalize::derive_light_finalize(input))
+}
+
+/// Attribute macro that auto-calls `light_finalize()` at end of instruction handler.
+///
+/// This macro wraps your instruction handler to automatically call the
+/// `LightFinalize::light_finalize()` method before returning, which executes
+/// the compression CPIs. This runs BEFORE Anchor's `exit()` hook.
+///
+/// ## Usage
+///
+/// ```ignore
+/// use anchor_lang::prelude::*;
+/// use light_sdk_macros::light_instruction;
+///
+/// // The argument is the name of the parameter containing compression data
+/// #[light_instruction(params)]
+/// pub fn create_compressible(ctx: Context<CreateCompressible>, params: CompressionParams) -> Result<()> {
+///     // Your business logic
+///     ctx.accounts.my_account.value = params.value;
+///     
+///     // light_finalize() is auto-called here before returning
+///     Ok(())
+/// }
+/// ```
+///
+/// ## How It Works
+///
+/// The macro transforms your function to:
+/// 1. Execute your original function body
+/// 2. On success, call `ctx.accounts.light_finalize(ctx.remaining_accounts, &params)`
+/// 3. Return the result
+///
+/// This ensures compression CPIs run after your logic but before Anchor serializes accounts.
+///
+/// ## Important Notes
+///
+/// - The `params` argument must match a parameter name in your function signature
+/// - Your accounts struct must derive `LightFinalize`
+/// - Use `?` operator for error handling (not explicit `return Err(...)`)
+/// - Errors will skip `light_finalize` and propagate normally
+#[proc_macro_attribute]
+pub fn light_instruction(args: TokenStream, input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(args as finalize::instruction::LightInstructionArgs);
+    let item = parse_macro_input!(input as ItemFn);
+    into_token_stream(finalize::instruction::light_instruction_impl(args, item))
 }

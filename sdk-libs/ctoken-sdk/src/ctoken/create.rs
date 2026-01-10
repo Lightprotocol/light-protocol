@@ -158,6 +158,84 @@ impl<'info> CreateCTokenAccountCpi<'info> {
         ];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
+
+    /// Creates a program-owned CToken account with compress_to derived from signer seeds.
+    ///
+    /// This is the most CU-efficient way to create program-owned compressible token accounts
+    /// (vaults). Seeds are passed once and used for both signing and compress_to derivation.
+    ///
+    /// Uses default compressible params:
+    /// - `pre_pay_num_epochs: 16` (24 hours rent)
+    /// - `lamports_per_write: Some(766)` (3 hours top-up on writes)
+    /// - `compression_only: false`
+    ///
+    /// # Example
+    /// ```ignore
+    /// CreateCTokenAccountCpi::new_v2_signed(
+    ///     ctx.accounts.payer.to_account_info(),
+    ///     ctx.accounts.vault.to_account_info(),
+    ///     ctx.accounts.mint.to_account_info(),
+    ///     ctx.accounts.vault_authority.key(),
+    ///     ctx.accounts.ctoken_config.to_account_info(),
+    ///     ctx.accounts.rent_sponsor.to_account_info(),
+    ///     ctx.accounts.system_program.to_account_info(),
+    ///     &crate::ID,
+    ///     &[b"vault", mint.key().as_ref(), &[bump]],
+    /// )?;
+    /// ```
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_v2_signed(
+        payer: AccountInfo<'info>,
+        account: AccountInfo<'info>,
+        mint: AccountInfo<'info>,
+        owner: Pubkey,
+        compressible_config: AccountInfo<'info>,
+        rent_sponsor: AccountInfo<'info>,
+        system_program: AccountInfo<'info>,
+        program_id: &Pubkey,
+        signer_seeds: &[&[u8]],
+    ) -> Result<(), ProgramError> {
+        use light_ctoken_interface::instructions::extensions::CompressToPubkey;
+
+        let defaults = CompressibleParams::default();
+
+        // Build CompressToPubkey from signer seeds
+        let bump = signer_seeds
+            .last()
+            .and_then(|s| s.first())
+            .copied()
+            .unwrap_or(0);
+
+        let seeds: Vec<Vec<u8>> = signer_seeds
+            .iter()
+            .take(signer_seeds.len().saturating_sub(1))
+            .map(|s| s.to_vec())
+            .collect();
+
+        let compress_to = CompressToPubkey {
+            bump,
+            program_id: program_id.to_bytes(),
+            seeds,
+        };
+
+        Self {
+            payer,
+            account,
+            mint,
+            owner,
+            compressible: CompressibleParamsCpi {
+                compressible_config,
+                rent_sponsor,
+                system_program,
+                pre_pay_num_epochs: defaults.pre_pay_num_epochs,
+                lamports_per_write: defaults.lamports_per_write,
+                compress_to_account_pubkey: Some(compress_to),
+                token_account_version: defaults.token_account_version,
+                compression_only: defaults.compression_only,
+            },
+        }
+        .invoke_signed(&[signer_seeds])
+    }
 }
 
 impl<'info> From<&CreateCTokenAccountCpi<'info>> for CreateCTokenAccount {

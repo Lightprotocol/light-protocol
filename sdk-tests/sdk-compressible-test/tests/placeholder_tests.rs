@@ -432,6 +432,7 @@ pub async fn compress_placeholder_record(
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(program_id, 0).0,
                 rent_sponsor: RENT_SPONSOR,
+                compression_authority: payer.pubkey(),
             }
             .to_account_metas(None),
             rpc_result,
@@ -516,6 +517,7 @@ pub async fn compress_placeholder_record_for_double_test(
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(program_id, 0).0,
                 rent_sponsor: RENT_SPONSOR,
+                compression_authority: payer.pubkey(),
             }
             .to_account_metas(None),
             rpc_result,

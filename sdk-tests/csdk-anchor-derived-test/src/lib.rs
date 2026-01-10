@@ -13,7 +13,8 @@ pub mod variant;
 
 pub use instruction_accounts::*;
 pub use state::{
-    AccountCreationData, CompressionParams, GameSession, PlaceholderRecord, UserRecord,
+    AccountCreationData, CompressionParams, ConsolidatedRecord, GameSession, PlaceholderRecord,
+    UserRecord,
 };
 pub use variant::{CTokenAccountVariant, CompressedAccountData, CompressedAccountVariant};
 

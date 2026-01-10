@@ -2,7 +2,8 @@ use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof, traits::LightInstructionData,
 };
 use light_ctoken_interface::instructions::mint_action::{
-    CompressedMintWithContext, DecompressMintAction, MintActionCompressedInstructionData,
+    CompressedMintWithContext, CpiContext, DecompressMintAction,
+    MintActionCompressedInstructionData,
 };
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
@@ -233,5 +234,241 @@ impl<'info> TryFrom<&DecompressCMintCpi<'info>> for DecompressCMint {
             rent_payment: cpi.rent_payment,
             write_top_up: cpi.write_top_up,
         })
+    }
+}
+
+/// Decompress a compressed mint with CPI context support.
+///
+/// For use in multi-operation ixns where mints are decompressed
+/// along with PDAs and token accounts using a single proof.
+#[derive(Debug, Clone)]
+pub struct DecompressCMintWithCpiContext {
+    /// Mint seed pubkey (used to derive CMint PDA)
+    pub mint_seed_pubkey: Pubkey,
+    /// Fee payer
+    pub payer: Pubkey,
+    /// Mint authority (must sign)
+    pub authority: Pubkey,
+    /// State tree for the compressed mint
+    pub state_tree: Pubkey,
+    /// Input queue for reading compressed mint
+    pub input_queue: Pubkey,
+    /// Output queue for updated compressed mint
+    pub output_queue: Pubkey,
+    /// Compressed mint with context (from indexer)
+    pub compressed_mint_with_context: CompressedMintWithContext,
+    /// Validity proof for the compressed mint
+    pub proof: ValidityProof,
+    /// Rent payment in epochs (must be >= 2)
+    pub rent_payment: u8,
+    /// Lamports for future write operations
+    pub write_top_up: u32,
+    /// CPI context account
+    pub cpi_context_pubkey: Pubkey,
+    /// CPI context flags
+    pub cpi_context: CpiContext,
+    /// Compressible config account (ctoken's config)
+    pub compressible_config: Pubkey,
+    /// Rent sponsor account (ctoken's rent sponsor)
+    pub rent_sponsor: Pubkey,
+}
+
+impl DecompressCMintWithCpiContext {
+    pub fn instruction(self) -> Result<Instruction, ProgramError> {
+        // Derive CMint PDA
+        let (cmint_pda, cmint_bump) = find_cmint_address(&self.mint_seed_pubkey);
+
+        // Build DecompressMintAction
+        let action = DecompressMintAction {
+            cmint_bump,
+            rent_payment: self.rent_payment,
+            write_top_up: self.write_top_up,
+        };
+
+        // Build instruction data with CPI context
+        let instruction_data = MintActionCompressedInstructionData::new(
+            self.compressed_mint_with_context,
+            self.proof.0,
+        )
+        .with_decompress_mint(action)
+        .with_cpi_context(self.cpi_context.clone());
+
+        // Build account metas with compressible CMint and CPI context
+        // Use provided config/rent_sponsor instead of hardcoded defaults
+        let mut meta_config = MintActionMetaConfig::new(
+            self.payer,
+            self.authority,
+            self.state_tree,
+            self.input_queue,
+            self.output_queue,
+        )
+        .with_compressible_cmint(cmint_pda, self.compressible_config, self.rent_sponsor)
+        .with_mint_signer_no_sign(self.mint_seed_pubkey);
+
+        meta_config.cpi_context = Some(self.cpi_context_pubkey);
+
+        let account_metas = meta_config.to_account_metas();
+
+        let data = instruction_data
+            .data()
+            .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+
+        Ok(Instruction {
+            program_id: Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+            accounts: account_metas,
+            data,
+        })
+    }
+}
+
+/// CPI struct for decompressing a mint with CPI context.
+pub struct DecompressCMintCpiWithContext<'info> {
+    /// Mint seed account (used to derive CMint PDA, does not sign)
+    pub mint_seed: AccountInfo<'info>,
+    /// Mint authority (must sign)
+    pub authority: AccountInfo<'info>,
+    /// Fee payer
+    pub payer: AccountInfo<'info>,
+    /// CMint PDA account (writable)
+    pub cmint: AccountInfo<'info>,
+    /// CompressibleConfig account
+    pub compressible_config: AccountInfo<'info>,
+    /// Rent sponsor PDA account
+    pub rent_sponsor: AccountInfo<'info>,
+    /// State tree for the compressed mint
+    pub state_tree: AccountInfo<'info>,
+    /// Input queue for reading compressed mint
+    pub input_queue: AccountInfo<'info>,
+    /// Output queue for updated compressed mint
+    pub output_queue: AccountInfo<'info>,
+    /// CPI context account
+    pub cpi_context_account: AccountInfo<'info>,
+    /// System accounts for Light Protocol
+    pub system_accounts: SystemAccountInfos<'info>,
+    /// CToken program's CPI authority (GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy)
+    /// This is separate from system_accounts.cpi_authority_pda which is the calling program's authority
+    pub ctoken_cpi_authority: AccountInfo<'info>,
+    /// Compressed mint with context (from indexer)
+    pub compressed_mint_with_context: CompressedMintWithContext,
+    /// Validity proof for the compressed mint
+    pub proof: ValidityProof,
+    /// Rent payment in epochs (must be >= 2)
+    pub rent_payment: u8,
+    /// Lamports for future write operations
+    pub write_top_up: u32,
+    /// CPI context flags
+    pub cpi_context: CpiContext,
+}
+
+impl<'info> DecompressCMintCpiWithContext<'info> {
+    pub fn instruction(&self) -> Result<Instruction, ProgramError> {
+        DecompressCMintWithCpiContext {
+            mint_seed_pubkey: *self.mint_seed.key,
+            payer: *self.payer.key,
+            authority: *self.authority.key,
+            state_tree: *self.state_tree.key,
+            input_queue: *self.input_queue.key,
+            output_queue: *self.output_queue.key,
+            compressed_mint_with_context: self.compressed_mint_with_context.clone(),
+            proof: self.proof,
+            rent_payment: self.rent_payment,
+            write_top_up: self.write_top_up,
+            cpi_context_pubkey: *self.cpi_context_account.key,
+            cpi_context: self.cpi_context.clone(),
+            compressible_config: *self.compressible_config.key,
+            rent_sponsor: *self.rent_sponsor.key,
+        }
+        .instruction()
+    }
+
+    pub fn invoke(self) -> Result<(), ProgramError> {
+        let instruction = self.instruction()?;
+        let account_infos = self.build_account_infos();
+        invoke(&instruction, &account_infos)
+    }
+
+    pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
+        let instruction = self.instruction()?;
+        let account_infos = self.build_account_infos();
+        invoke_signed(&instruction, &account_infos, signer_seeds)
+    }
+
+    fn build_account_infos(&self) -> Vec<AccountInfo<'info>> {
+        vec![
+            self.system_accounts.light_system_program.clone(),
+            self.mint_seed.clone(),
+            self.authority.clone(),
+            self.compressible_config.clone(),
+            self.cmint.clone(),
+            self.rent_sponsor.clone(),
+            self.payer.clone(),
+            // Use ctoken's CPI authority for the CPI, not the calling program's authority
+            self.ctoken_cpi_authority.clone(),
+            self.system_accounts.registered_program_pda.clone(),
+            self.system_accounts.account_compression_authority.clone(),
+            self.system_accounts.account_compression_program.clone(),
+            self.system_accounts.system_program.clone(),
+            self.cpi_context_account.clone(),
+            self.output_queue.clone(),
+            self.state_tree.clone(),
+            self.input_queue.clone(),
+        ]
+    }
+}
+
+/// Helper to create CPI context for first write (first_set_context = true)
+pub fn create_decompress_mint_cpi_context_first(
+    address_tree_pubkey: [u8; 32],
+    tree_index: u8,
+    queue_index: u8,
+) -> CpiContext {
+    CpiContext {
+        first_set_context: true,
+        set_context: false,
+        in_tree_index: tree_index,
+        in_queue_index: queue_index,
+        out_queue_index: queue_index,
+        token_out_queue_index: 0,
+        assigned_account_index: 0,
+        read_only_address_trees: [0; 4],
+        address_tree_pubkey,
+    }
+}
+
+/// Helper to create CPI context for subsequent writes (set_context = true)
+pub fn create_decompress_mint_cpi_context_set(
+    address_tree_pubkey: [u8; 32],
+    tree_index: u8,
+    queue_index: u8,
+) -> CpiContext {
+    CpiContext {
+        first_set_context: false,
+        set_context: true,
+        in_tree_index: tree_index,
+        in_queue_index: queue_index,
+        out_queue_index: queue_index,
+        token_out_queue_index: 0,
+        assigned_account_index: 0,
+        read_only_address_trees: [0; 4],
+        address_tree_pubkey,
+    }
+}
+
+/// Helper to create CPI context for execution (both false - consumes context)
+pub fn create_decompress_mint_cpi_context_execute(
+    address_tree_pubkey: [u8; 32],
+    tree_index: u8,
+    queue_index: u8,
+) -> CpiContext {
+    CpiContext {
+        first_set_context: false,
+        set_context: false,
+        in_tree_index: tree_index,
+        in_queue_index: queue_index,
+        out_queue_index: queue_index,
+        token_out_queue_index: 0,
+        assigned_account_index: 0,
+        read_only_address_trees: [0; 4],
+        address_tree_pubkey,
     }
 }

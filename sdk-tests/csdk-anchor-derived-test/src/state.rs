@@ -5,7 +5,7 @@ use light_sdk::{
     instruction::{PackedAddressTreeInfo, ValidityProof},
     LightDiscriminator, LightHasher,
 };
-use light_sdk_macros::{Compressible, CompressiblePack};
+use light_sdk_macros::{Compressible, CompressiblePack, LightCompressible};
 
 #[derive(
     Default, Debug, LightHasher, LightDiscriminator, InitSpace, Compressible, CompressiblePack,
@@ -53,6 +53,21 @@ pub struct PlaceholderRecord {
     pub placeholder_id: u64,
 }
 
+/// Test struct using the new consolidated LightCompressible derive.
+/// This demonstrates that `#[derive(LightCompressible)]` is equivalent to
+/// `#[derive(LightHasherSha, LightDiscriminator, Compressible, CompressiblePack)]`
+/// No #[hash] or #[skip] attributes needed - SHA256 hashes entire struct, compression_info auto-skipped.
+#[derive(Default, Debug, InitSpace, LightCompressible)]
+#[account]
+pub struct ConsolidatedRecord {
+    pub compression_info: Option<CompressionInfo>,
+    pub owner: Pubkey,
+    #[max_len(64)]
+    pub description: String,
+    pub counter: u64,
+    pub active: bool,
+}
+
 // Implement PdaSeedDerivation for UserRecord
 impl<A, S> light_sdk::compressible::PdaSeedDerivation<A, S> for UserRecord {
     fn derive_pda_seeds_with_accounts(
@@ -88,6 +103,19 @@ impl<A, S> light_sdk::compressible::PdaSeedDerivation<A, S> for PlaceholderRecor
         Ok(crate::seeds::get_placeholder_record_seeds(
             self.placeholder_id,
         ))
+    }
+}
+
+// Implement PdaSeedDerivation for ConsolidatedRecord (using LightCompressible)
+impl<A, S> light_sdk::compressible::PdaSeedDerivation<A, S> for ConsolidatedRecord {
+    fn derive_pda_seeds_with_accounts(
+        &self,
+        _program_id: &Pubkey,
+        _accounts: &A,
+        _seed_params: &S,
+    ) -> std::result::Result<(Vec<Vec<u8>>, Pubkey), anchor_lang::prelude::ProgramError> {
+        // Use owner as seed (same pattern as UserRecord)
+        Ok(crate::seeds::get_consolidated_record_seeds(&self.owner))
     }
 }
 

@@ -15,11 +15,34 @@ pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Re
         }
     });
 
+    // Generate is_ata match arms for the IsAta trait impl
+    let is_ata_match_arms: Vec<_> = token_seeds
+        .iter()
+        .map(|spec| {
+            let variant_name = &spec.variant;
+            let is_ata = spec.is_ata;
+            quote! {
+                CTokenAccountVariant::#variant_name => #is_ata,
+            }
+        })
+        .collect();
+
     Ok(quote! {
         #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
         #[repr(u8)]
         pub enum CTokenAccountVariant {
             #(#variants)*
+        }
+
+        // Implement IsAta trait for Pack to detect ATAs during client-side packing.
+        // This enables unified decompression of ATAs alongside PDAs by ensuring
+        // the ATA address is included in packed_accounts.
+        impl light_ctoken_sdk::IsAta for CTokenAccountVariant {
+            fn is_ata(&self) -> bool {
+                match self {
+                    #(#is_ata_match_arms)*
+                }
+            }
         }
     })
 }
@@ -33,11 +56,16 @@ pub fn generate_ctoken_seed_provider_implementation(
     for spec in token_seeds {
         let variant_name = &spec.variant;
 
+        // For ATA variants, get_seeds() and get_authority_seeds() should never be called
+        // because process_decompress_tokens_runtime checks is_ata() first and uses
+        // derive_ctoken_ata() directly. These error arms are safety guards.
         if spec.is_ata {
             let get_seeds_arm = quote! {
                 CTokenAccountVariant::#variant_name => {
+                    // ATAs use ctoken's standard derivation (wallet + ctoken_program + mint)
+                    // This should never be called - runtime checks is_ata() first
                     Err(anchor_lang::prelude::ProgramError::Custom(
-                        CompressibleInstructionError::AtaDoesNotUseSeedDerivation.into()
+                        CompressibleInstructionError::MissingSeedAccount.into()
                     ).into())
                 }
             };
@@ -45,8 +73,10 @@ pub fn generate_ctoken_seed_provider_implementation(
 
             let authority_arm = quote! {
                 CTokenAccountVariant::#variant_name => {
+                    // ATAs are signed by wallet owner, not program
+                    // This should never be called - runtime checks is_ata() first
                     Err(anchor_lang::prelude::ProgramError::Custom(
-                        CompressibleInstructionError::AtaDoesNotUseSeedDerivation.into()
+                        CompressibleInstructionError::MissingSeedAccount.into()
                     ).into())
                 }
             };
@@ -336,6 +366,18 @@ pub fn generate_ctoken_seed_provider_implementation(
         }
     }
 
+    // Generate is_ata match arms
+    let is_ata_match_arms: Vec<_> = token_seeds
+        .iter()
+        .map(|spec| {
+            let variant_name = &spec.variant;
+            let is_ata = spec.is_ata;
+            quote! {
+                CTokenAccountVariant::#variant_name => #is_ata,
+            }
+        })
+        .collect();
+
     Ok(quote! {
         impl ctoken_seed_system::CTokenSeedProvider for CTokenAccountVariant {
             fn get_seeds<'a, 'info>(
@@ -359,6 +401,12 @@ pub fn generate_ctoken_seed_provider_implementation(
                     _ => Err(anchor_lang::prelude::ProgramError::Custom(
                         CompressibleInstructionError::MissingSeedAccount.into()
                     ).into())
+                }
+            }
+
+            fn is_ata(&self) -> bool {
+                match self {
+                    #(#is_ata_match_arms)*
                 }
             }
         }
@@ -403,10 +451,6 @@ pub fn generate_client_seed_functions(
     if let Some(token_seed_specs) = token_seeds {
         for spec in token_seed_specs {
             let variant_name = &spec.variant;
-
-            if spec.is_ata {
-                continue;
-            }
 
             let function_name =
                 format_ident!("get_{}_seeds", variant_name.to_string().to_lowercase());

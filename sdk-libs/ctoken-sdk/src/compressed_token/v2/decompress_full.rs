@@ -33,6 +33,9 @@ pub struct DecompressFullIndices {
     /// TLV extensions for this compressed account (e.g., CompressedOnly extension).
     /// Used to transfer extension state during decompress.
     pub tlv: Option<Vec<ExtensionInstructionData>>,
+    /// Whether this is an ATA decompression. For ATAs, the source.owner is the ATA address
+    /// (not the wallet), so it should NOT be marked as a signer - the wallet signs the tx instead.
+    pub is_ata: bool,
 }
 
 /// Decompress full balance from compressed token accounts with pre-computed indices
@@ -90,7 +93,11 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
         if owner_idx >= signer_flags.len() {
             return Err(CTokenSdkError::InvalidAccountData);
         }
-        signer_flags[owner_idx] = true;
+        // For ATAs, the owner is the ATA address (a PDA that can't sign).
+        // The wallet signs the transaction instead, so don't mark the owner as signer.
+        if !idx.is_ata {
+            signer_flags[owner_idx] = true;
+        }
     }
 
     let mut packed_account_metas = Vec::with_capacity(packed_accounts.len());
@@ -187,6 +194,7 @@ pub fn pack_for_decompress_full(
         source,
         destination_index: packed_accounts.insert_or_get(destination),
         tlv,
+        is_ata: false, // Non-ATA: owner is a signer
     }
 }
 
@@ -235,6 +243,7 @@ pub fn pack_for_decompress_full_with_ata(
         source,
         destination_index: packed_accounts.insert_or_get(destination),
         tlv,
+        is_ata,
     }
 }
 

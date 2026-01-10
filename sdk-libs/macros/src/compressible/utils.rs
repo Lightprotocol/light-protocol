@@ -112,5 +112,11 @@ pub(crate) fn generate_empty_ctoken_enum() -> proc_macro2::TokenStream {
         #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Debug, Clone, Copy)]
         #[repr(u8)]
         pub enum CTokenAccountVariant {}
+
+        impl light_ctoken_sdk::IsAta for CTokenAccountVariant {
+            fn is_ata(&self) -> bool {
+                false // Empty enum has no variants
+            }
+        }
     }
 }

@@ -45,3 +45,14 @@ pub fn get_ctoken_signer_seeds(user: &Pubkey, mint: &Pubkey) -> (Vec<Vec<u8>>, P
     seeds_vec.push(vec![bump]);
     (seeds_vec, pda)
 }
+
+pub fn get_consolidated_record_seeds(owner: &Pubkey) -> (Vec<Vec<u8>>, Pubkey) {
+    let seeds: &[&[u8]] = &[b"consolidated_record", owner.as_ref()];
+    let (pda, bump) = Pubkey::find_program_address(seeds, &crate::ID);
+    let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
+    for seed in seeds {
+        seeds_vec.push(seed.to_vec());
+    }
+    seeds_vec.push(vec![bump]);
+    (seeds_vec, pda)
+}

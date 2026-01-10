@@ -134,6 +134,7 @@ pub use transfer_spl_ctoken::{TransferSplToCtoken, TransferSplToCtokenCpi};
 /// - `account_compression_authority` - Compression authority
 /// - `account_compression_program` - Account Compression Program
 /// - `system_program` - Solana System Program
+#[derive(Clone)]
 pub struct SystemAccountInfos<'info> {
     pub light_system_program: AccountInfo<'info>,
     pub cpi_authority_pda: AccountInfo<'info>,

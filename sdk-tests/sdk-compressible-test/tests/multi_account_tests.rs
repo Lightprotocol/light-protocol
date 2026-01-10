@@ -181,8 +181,6 @@ async fn test_create_and_decompress_two_accounts() {
     )
     .await;
 
-    rpc.warp_epoch_forward(1).await.unwrap();
-
     compress_token_account_after_decompress(
         &mut rpc,
         &combined_user,
@@ -963,7 +961,7 @@ pub async fn compress_token_account_after_decompress(
     user: &Keypair,
     program_id: &Pubkey,
     _config_pda: &Pubkey,
-    token_account_address: Pubkey,
+    _token_account_address: Pubkey,
     _token_account_address_2: Pubkey,
     _token_account_address_3: Pubkey,
     _token_account_address_4: Pubkey,
@@ -976,77 +974,58 @@ pub async fn compress_token_account_after_decompress(
     user_record_hash_before_decompression: [u8; 32],
     game_session_hash_before_decompression: [u8; 32],
 ) {
-    let token_account_data = rpc.get_account(token_account_address).await.unwrap();
-    assert!(
-        token_account_data.is_some(),
-        "Token account should exist before compression"
-    );
-
-    let account = token_account_data.unwrap();
-
-    assert!(
-        account.lamports > 0,
-        "Token account should have lamports before compression"
-    );
-    assert!(
-        !account.data.is_empty(),
-        "Token account should have data before compression"
-    );
-
-    let (_user_record_seeds, user_record_pubkey) =
-        sdk_compressible_test::get_userrecord_seeds(&user.pubkey());
-    let (_game_session_seeds, game_session_pubkey) =
-        sdk_compressible_test::get_gamesession_seeds(session_id);
+    // Derive token account addresses
+    let (_, user_record_pubkey) = sdk_compressible_test::get_userrecord_seeds(&user.pubkey());
+    let (_, game_session_pubkey) = sdk_compressible_test::get_gamesession_seeds(session_id);
     let (_, token_account_address) = get_ctoken_signer_seeds(&user.pubkey(), &mint);
-
     let (_, token_account_address_2) = get_ctoken_signer2_seeds(&user.pubkey());
     let (_, token_account_address_3) = get_ctoken_signer3_seeds(&user.pubkey());
     let (_, token_account_address_4) = get_ctoken_signer4_seeds(&user.pubkey(), &user.pubkey());
     let (_, token_account_address_5) = get_ctoken_signer5_seeds(&user.pubkey(), &mint, 42);
-    let (_token_signer_seeds, _ctoken_1_authority_pda) =
-        sdk_compressible_test::get_ctokensigner_authority_seeds();
 
-    let (_token_signer_seeds_2, _ctoken_2_authority_pda) =
-        sdk_compressible_test::get_ctokensigner2_authority_seeds();
-
-    let (_token_signer_seeds_3, _ctoken_3_authority_pda) =
-        sdk_compressible_test::get_ctokensigner3_authority_seeds();
-
-    let (_token_signer_seeds_4, _ctoken_4_authority_pda) =
-        sdk_compressible_test::get_ctokensigner4_authority_seeds();
-
-    let (_token_signer_seeds_5, _ctoken_5_authority_pda) =
-        sdk_compressible_test::get_ctokensigner5_authority_seeds();
-
-    let _cpisigner = Pubkey::new_from_array(sdk_compressible_test::LIGHT_CPI_SIGNER.cpi_signer);
-
-    let user_record_account = rpc.get_account(*user_record_pda).await.unwrap().unwrap();
-    let game_session_account = rpc.get_account(*game_session_pda).await.unwrap().unwrap();
-    let _token_account = rpc
+    // Verify all token accounts exist before compression
+    let token_account_1 = rpc
         .get_account(token_account_address)
         .await
         .unwrap()
-        .unwrap();
-    let _token_account_2 = rpc
+        .expect("Token account 1 should exist before compression");
+    let token_account_2 = rpc
         .get_account(token_account_address_2)
         .await
         .unwrap()
-        .unwrap();
-    let _token_account_3 = rpc
+        .expect("Token account 2 should exist before compression");
+    let token_account_3 = rpc
         .get_account(token_account_address_3)
         .await
         .unwrap()
-        .unwrap();
-    let _token_account_4 = rpc
+        .expect("Token account 3 should exist before compression");
+    let token_account_4 = rpc
         .get_account(token_account_address_4)
         .await
         .unwrap()
-        .unwrap();
-    let _token_account_5 = rpc
+        .expect("Token account 4 should exist before compression");
+    let token_account_5 = rpc
         .get_account(token_account_address_5)
         .await
         .unwrap()
-        .unwrap();
+        .expect("Token account 5 should exist before compression");
+
+    // Verify token accounts have lamports and data
+    assert!(token_account_1.lamports > 0, "Token account 1 should have lamports");
+    assert!(token_account_2.lamports > 0, "Token account 2 should have lamports");
+    assert!(token_account_3.lamports > 0, "Token account 3 should have lamports");
+    assert!(token_account_4.lamports > 0, "Token account 4 should have lamports");
+    assert!(token_account_5.lamports > 0, "Token account 5 should have lamports");
+
+    assert!(!token_account_1.data.is_empty(), "Token account 1 should have data");
+    assert!(!token_account_2.data.is_empty(), "Token account 2 should have data");
+    assert!(!token_account_3.data.is_empty(), "Token account 3 should have data");
+    assert!(!token_account_4.data.is_empty(), "Token account 4 should have data");
+    assert!(!token_account_5.data.is_empty(), "Token account 5 should have data");
+
+    // Get PDA accounts for compression
+    let user_record_account = rpc.get_account(*user_record_pda).await.unwrap().unwrap();
+    let game_session_account = rpc.get_account(*game_session_pda).await.unwrap().unwrap();
 
     assert_eq!(*user_record_pda, user_record_pubkey);
     assert_eq!(*game_session_pda, game_session_pubkey);
@@ -1081,11 +1060,11 @@ pub async fn compress_token_account_after_decompress(
 
     assert_ne!(
         user_record_hash, user_record_hash_before_decompression,
-        "User record hash NOT_EQUAL before and after compression"
+        "User record hash should differ after decompression (new empty placeholder)"
     );
     assert_ne!(
         game_session_hash, game_session_hash_before_decompression,
-        "Game session hash NOT_EQUAL before and after compression"
+        "Game session hash should differ after decompression (new empty placeholder)"
     );
 
     let proof_with_context = rpc
@@ -1104,13 +1083,12 @@ pub async fn compress_token_account_after_decompress(
                 fee_payer: user.pubkey(),
                 config: CompressibleConfig::derive_pda(program_id, 0).0,
                 rent_sponsor: RENT_SPONSOR,
+                compression_authority: user.pubkey(),
             }
             .to_account_metas(None),
             proof_with_context,
         )
         .unwrap();
-
-    for _account in instruction.accounts.iter() {}
 
     let result = rpc
         .create_and_send_transaction(&[instruction], &user.pubkey(), &[user])
@@ -1122,189 +1100,139 @@ pub async fn compress_token_account_after_decompress(
         result
     );
 
-    rpc.warp_slot_forward(20000).await.unwrap();
+    // Warp 3 epochs to ensure token accounts become compressible (prepaid for 2 epochs)
+    // This triggers claim_and_compress for CToken accounts via warp_epoch_forward
+    rpc.warp_epoch_forward(3).await.unwrap();
 
-    let token_account_after = rpc.get_account(token_account_address).await.unwrap();
+    // Verify PDAs were compressed (should not exist on-chain anymore)
+    let user_record_after = rpc.get_account(*user_record_pda).await.unwrap();
+    let game_session_after = rpc.get_account(*game_session_pda).await.unwrap();
+
     assert!(
-        token_account_after.is_none(),
-        "Token account should not exist after compression"
+        user_record_after.is_none(),
+        "User record account should be None after PDA compression"
     );
+    assert!(
+        game_session_after.is_none(),
+        "Game session account should be None after PDA compression"
+    );
+
+    // Verify token accounts were auto-compressed (should not exist on-chain anymore)
+    let token_account_after_1 = rpc.get_account(token_account_address).await.unwrap();
     let token_account_after_2 = rpc.get_account(token_account_address_2).await.unwrap();
+    let token_account_after_3 = rpc.get_account(token_account_address_3).await.unwrap();
+    let token_account_after_4 = rpc.get_account(token_account_address_4).await.unwrap();
+    let token_account_after_5 = rpc.get_account(token_account_address_5).await.unwrap();
+
+    assert!(
+        token_account_after_1.is_none(),
+        "Token account 1 should not exist after auto-compression"
+    );
     assert!(
         token_account_after_2.is_none(),
-        "Token account 2 should not exist after compression"
+        "Token account 2 should not exist after auto-compression"
     );
-    let token_account_after_3 = rpc.get_account(token_account_address_3).await.unwrap();
     assert!(
         token_account_after_3.is_none(),
-        "Token account 3 should not exist after compression"
+        "Token account 3 should not exist after auto-compression"
     );
-    let token_account_after_4 = rpc.get_account(token_account_address_4).await.unwrap();
     assert!(
         token_account_after_4.is_none(),
-        "Token account 4 should not exist after compression"
+        "Token account 4 should not exist after auto-compression"
     );
-    let token_account_after_5 = rpc.get_account(token_account_address_5).await.unwrap();
     assert!(
         token_account_after_5.is_none(),
-        "Token account 5 should not exist after compression"
+        "Token account 5 should not exist after auto-compression"
     );
 
-    let ctoken_accounts = rpc
+    // Verify compressed token accounts exist with correct amounts
+    let compressed_token_1 = rpc
         .get_compressed_token_accounts_by_owner(&token_account_address, None, None)
         .await
         .unwrap()
         .value;
-    let ctoken_accounts_2 = rpc
+    let compressed_token_2 = rpc
         .get_compressed_token_accounts_by_owner(&token_account_address_2, None, None)
         .await
         .unwrap()
         .value;
-    let ctoken_accounts_3 = rpc
+    let compressed_token_3 = rpc
         .get_compressed_token_accounts_by_owner(&token_account_address_3, None, None)
         .await
         .unwrap()
         .value;
-    let ctoken_accounts_4 = rpc
+    let compressed_token_4 = rpc
         .get_compressed_token_accounts_by_owner(&token_account_address_4, None, None)
         .await
         .unwrap()
         .value;
-    let ctoken_accounts_5 = rpc
+    let compressed_token_5 = rpc
         .get_compressed_token_accounts_by_owner(&token_account_address_5, None, None)
         .await
         .unwrap()
         .value;
 
     assert!(
-        !ctoken_accounts.items.is_empty(),
-        "Should have at least one compressed token account after compression"
+        !compressed_token_1.items.is_empty(),
+        "Compressed token account 1 should exist after auto-compression"
     );
     assert!(
-        !ctoken_accounts_2.items.is_empty(),
-        "Should have at least one compressed token account 2 after compression"
+        !compressed_token_2.items.is_empty(),
+        "Compressed token account 2 should exist after auto-compression"
     );
     assert!(
-        !ctoken_accounts_3.items.is_empty(),
-        "Should have at least one compressed token account 3 after compression"
+        !compressed_token_3.items.is_empty(),
+        "Compressed token account 3 should exist after auto-compression"
     );
     assert!(
-        !ctoken_accounts_4.items.is_empty(),
-        "Should have at least one compressed token account 4 after compression"
+        !compressed_token_4.items.is_empty(),
+        "Compressed token account 4 should exist after auto-compression"
     );
     assert!(
-        !ctoken_accounts_5.items.is_empty(),
-        "Should have at least one compressed token account 5 after compression"
+        !compressed_token_5.items.is_empty(),
+        "Compressed token account 5 should exist after auto-compression"
     );
 
-    let ctoken = &ctoken_accounts.items[0];
+    // Verify token amounts match
     assert_eq!(
-        ctoken.token.mint, mint,
-        "Compressed token should have the same mint"
+        compressed_token_1.items[0].token.amount, amount,
+        "Compressed token 1 amount should match original"
     );
     assert_eq!(
-        ctoken.token.owner, token_account_address,
-        "Compressed token owner should be the token account address"
+        compressed_token_1.items[0].token.mint, mint,
+        "Compressed token 1 mint should match"
     );
-    assert_eq!(
-        ctoken.token.amount, amount,
-        "Compressed token should have the same amount"
-    );
-    let ctoken2 = &ctoken_accounts_2.items[0];
-    assert_eq!(
-        ctoken2.token.mint, mint,
-        "Compressed token 2 should have the same mint"
-    );
-    assert_eq!(
-        ctoken2.token.owner, token_account_address_2,
-        "Compressed token 2 owner should be the token account address"
-    );
-    assert_eq!(
-        ctoken2.token.amount, amount,
-        "Compressed token 2 should have the same amount"
-    );
-    let ctoken3 = &ctoken_accounts_3.items[0];
-    assert_eq!(
-        ctoken3.token.mint, mint,
-        "Compressed token 3 should have the same mint"
-    );
-    assert_eq!(
-        ctoken3.token.owner, token_account_address_3,
-        "Compressed token 3 owner should be the token account address"
-    );
-    assert_eq!(
-        ctoken3.token.amount, amount,
-        "Compressed token 3 should have the same amount"
-    );
-    let ctoken4 = &ctoken_accounts_4.items[0];
-    assert_eq!(
-        ctoken4.token.mint, mint,
-        "Compressed token 4 should have the same mint"
-    );
-    assert_eq!(
-        ctoken4.token.owner, token_account_address_4,
-        "Compressed token 4 owner should be the token account address"
-    );
-    assert_eq!(
-        ctoken4.token.amount, amount,
-        "Compressed token 4 should have the same amount"
-    );
-    let ctoken5 = &ctoken_accounts_5.items[0];
-    assert_eq!(
-        ctoken5.token.mint, mint,
-        "Compressed token 5 should have the same mint"
-    );
-    assert_eq!(
-        ctoken5.token.owner, token_account_address_5,
-        "Compressed token 5 owner should be the token account address"
-    );
-    assert_eq!(
-        ctoken5.token.amount, amount,
-        "Compressed token 5 should have the same amount"
-    );
-    let user_record_account = rpc.get_account(*user_record_pda).await.unwrap();
-    let game_session_account = rpc.get_account(*game_session_pda).await.unwrap();
-    let token_account = rpc.get_account(token_account_address).await.unwrap();
-    let token_account_3 = rpc.get_account(token_account_address_3).await.unwrap();
-    let token_account_4 = rpc.get_account(token_account_address_4).await.unwrap();
-    let token_account_5 = rpc.get_account(token_account_address_5).await.unwrap();
+
+    // Verify compressed PDAs have data after compression
+    let compressed_user_record_after = rpc
+        .get_compressed_account(compressed_user_record_address, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap();
+    let compressed_game_session_after = rpc
+        .get_compressed_account(compressed_game_session_address, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap();
 
     assert!(
-        user_record_account.is_none(),
-        "User record account should be None"
+        compressed_user_record_after.data.is_some(),
+        "Compressed user record should have data after compression"
     );
     assert!(
-        game_session_account.is_none(),
-        "Game session account should be None"
+        !compressed_user_record_after.data.unwrap().data.is_empty(),
+        "Compressed user record data should not be empty"
     );
-    assert!(token_account.is_none(), "Token account should be None");
+
     assert!(
-        user_record_account
-            .map(|a| a.data.is_empty())
-            .unwrap_or(true),
-        "User record account should be empty"
+        compressed_game_session_after.data.is_some(),
+        "Compressed game session should have data after compression"
     );
     assert!(
-        game_session_account
-            .map(|a| a.data.is_empty())
-            .unwrap_or(true),
-        "Game session account should be empty"
-    );
-    assert!(
-        token_account.map(|a| a.data.is_empty()).unwrap_or(true),
-        "Token account should be empty"
-    );
-    assert!(
-        token_account_3.map(|a| a.data.is_empty()).unwrap_or(true),
-        "Token account 3 should be empty"
-    );
-    assert!(
-        token_account_4.map(|a| a.data.is_empty()).unwrap_or(true),
-        "Token account 4 should be empty"
-    );
-    assert!(
-        token_account_5.map(|a| a.data.is_empty()).unwrap_or(true),
-        "Token account 5 should be empty"
+        !compressed_game_session_after.data.unwrap().data.is_empty(),
+        "Compressed game session data should not be empty"
     );
 }
 

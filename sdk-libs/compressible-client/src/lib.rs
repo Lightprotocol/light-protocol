@@ -234,19 +234,20 @@ pub mod compressible_instruction {
 
         let mut typed_compressed_accounts = Vec::with_capacity(compressed_accounts.len());
 
-        for (compressed_account, data) in compressed_accounts {
-            let queue_index = remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
+        // The compressed_accounts are expected to be in the SAME ORDER as the
+        // validity_proof_with_context.accounts. This is because both are derived
+        // from the same hash order passed to get_validity_proof().
+        // We use index-based matching instead of queue+leaf_index to handle
+        // accounts on different trees with potentially colliding indices.
+        for (i, (compressed_account, data)) in compressed_accounts.iter().enumerate() {
+            // Insert the queue for this account (needed for the packed context)
+            let _queue_index =
+                remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
 
-            let tree_info = packed_tree_infos_slice
-                .iter()
-                .find(|pti| {
-                    pti.queue_pubkey_index == queue_index
-                        && pti.leaf_index == compressed_account.leaf_index
-                })
-                .copied()
-                .ok_or(
-                    "Matching PackedStateTreeInfo (queue_pubkey_index + leaf_index) not found",
-                )?;
+            // Use index-based matching - the i-th compressed account uses the i-th tree info
+            let tree_info = packed_tree_infos_slice.get(i).copied().ok_or(
+                "Tree info index out of bounds - compressed_accounts length must match validity proof accounts length",
+            )?;
 
             let packed_data = data.pack(&mut remaining_accounts);
             typed_compressed_accounts.push(CompressedAccountData {

@@ -83,7 +83,8 @@ fn generate_has_compression_info_impl(struct_name: &Ident) -> TokenStream {
     }
 }
 
-/// Generates field assignments for CompressAs trait, handling overrides and copy types
+/// Generates field assignments for CompressAs trait, handling overrides and copy types.
+/// Auto-skips `compression_info` field and fields marked with `#[skip]`.
 fn generate_compress_as_field_assignments(
     fields: &Punctuated<Field, Token![,]>,
     compress_as_fields: &Option<CompressAsFields>,
@@ -94,6 +95,12 @@ fn generate_compress_as_field_assignments(
         let field_name = field.ident.as_ref().unwrap();
         let field_type = &field.ty;
 
+        // Auto-skip compression_info field (handled separately in CompressAs impl)
+        if field_name == "compression_info" {
+            continue;
+        }
+
+        // Also skip fields explicitly marked with #[skip]
         if field.attrs.iter().any(|attr| attr.path().is_ident("skip")) {
             continue;
         }
@@ -147,13 +154,20 @@ fn generate_compress_as_impl(
     }
 }
 
-/// Generates size calculation fields for the Size trait
+/// Generates size calculation fields for the Size trait.
+/// Auto-skips `compression_info` field and fields marked with `#[skip]`.
 fn generate_size_fields(fields: &Punctuated<Field, Token![,]>) -> Vec<TokenStream> {
     let mut size_fields = Vec::new();
 
     for field in fields.iter() {
         let field_name = field.ident.as_ref().unwrap();
 
+        // Auto-skip compression_info field (handled separately in Size impl)
+        if field_name == "compression_info" {
+            continue;
+        }
+
+        // Also skip fields explicitly marked with #[skip]
         if field.attrs.iter().any(|attr| attr.path().is_ident("skip")) {
             continue;
         }

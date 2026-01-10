@@ -1,6 +1,9 @@
 pub mod close;
 pub mod compression_info;
 pub mod config;
+pub mod finalize;
+
+pub use finalize::{LightFinalize, LightPreInit};
 
 #[cfg(feature = "v2")]
 pub mod compress_account;
@@ -10,7 +13,7 @@ pub mod compress_account_on_init;
 pub mod compress_runtime;
 #[cfg(feature = "v2")]
 pub mod decompress_idempotent;
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "cpi-context"))]
 pub mod decompress_runtime;
 #[cfg(feature = "v2")]
 pub use close::close;
@@ -33,7 +36,7 @@ pub use config::{
 pub use decompress_idempotent::{
     into_compressed_meta_with_address, prepare_account_for_decompression_idempotent,
 };
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "cpi-context"))]
 pub use decompress_runtime::{
     check_account_types, handle_packed_pda_variant, process_decompress_accounts_idempotent,
     CTokenSeedProvider, DecompressContext, HasTokenVariant, PdaSeedDerivation,

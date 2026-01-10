@@ -199,6 +199,76 @@ impl<'info> CreateAssociatedCTokenAccountCpi<'info> {
         ];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
+
+    /// Creates an associated CToken account (non-idempotent).
+    ///
+    /// Uses ATA defaults internally:
+    /// - `pre_pay_num_epochs: 16` (24 hours rent)
+    /// - `lamports_per_write: Some(766)` (3 hours top-up on writes)
+    /// - `compression_only: true`
+    /// - `compress_to_account_pubkey: None`
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_v2(
+        owner: AccountInfo<'info>,
+        mint: AccountInfo<'info>,
+        payer: AccountInfo<'info>,
+        associated_token_account: AccountInfo<'info>,
+        bump: u8,
+        system_program: AccountInfo<'info>,
+        compressible_config: AccountInfo<'info>,
+        rent_sponsor: AccountInfo<'info>,
+    ) -> Result<(), ProgramError> {
+        Self {
+            owner,
+            mint,
+            payer,
+            associated_token_account,
+            system_program: system_program.clone(),
+            bump,
+            compressible: CompressibleParamsCpi::new_ata(
+                compressible_config,
+                rent_sponsor,
+                system_program,
+            ),
+            idempotent: false,
+        }
+        .invoke()
+    }
+
+    /// Creates an associated CToken account (idempotent - won't fail if already exists).
+    ///
+    /// Uses ATA defaults internally:
+    /// - `pre_pay_num_epochs: 16` (24 hours rent)
+    /// - `lamports_per_write: Some(766)` (3 hours top-up on writes)
+    /// - `compression_only: true`
+    /// - `compress_to_account_pubkey: None`
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_v2_idempotent(
+        owner: AccountInfo<'info>,
+        mint: AccountInfo<'info>,
+        payer: AccountInfo<'info>,
+        associated_token_account: AccountInfo<'info>,
+        bump: u8,
+        system_program: AccountInfo<'info>,
+        compressible_config: AccountInfo<'info>,
+        rent_sponsor: AccountInfo<'info>,
+    ) -> Result<(), ProgramError> {
+        Self {
+            owner,
+            mint,
+            payer,
+            associated_token_account,
+            system_program: system_program.clone(),
+            bump,
+            compressible: CompressibleParamsCpi::new_ata(
+                compressible_config,
+                rent_sponsor,
+                system_program,
+            ),
+            idempotent: true,
+        }
+        .invoke()
+    }
 }
 
 impl<'info> From<&CreateAssociatedCTokenAccountCpi<'info>> for CreateAssociatedCTokenAccount {

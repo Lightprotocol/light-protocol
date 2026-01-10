@@ -172,6 +172,8 @@ pub struct CompressAccountsIdempotent<'info> {
     /// CHECK: Rent recipient is validated against the config
     #[account(mut)]
     pub rent_sponsor: AccountInfo<'info>,
+    /// CHECK: Compression authority is validated by the SDK
+    pub compression_authority: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
