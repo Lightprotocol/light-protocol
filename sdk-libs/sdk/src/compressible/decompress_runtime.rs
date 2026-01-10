@@ -1,6 +1,5 @@
 //! Traits and processor for decompress_accounts_idempotent instruction.
 use light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo;
-#[cfg(feature = "cpi-context")]
 use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
 use light_sdk_types::{
     cpi_accounts::CpiAccountsConfig,
@@ -19,10 +18,14 @@ use crate::{
     AnchorDeserialize, AnchorSerialize, LightDiscriminator,
 };
 
-/// Trait for account variants that can be checked for token vs PDA type.
+/// Trait for account variants that can be checked for token, mint, or PDA type.
 pub trait HasTokenVariant {
     /// Returns true if this variant represents a token account (PackedCTokenData).
     fn is_packed_ctoken(&self) -> bool;
+    /// Returns true if this variant represents a compressed mint.
+    fn is_compressed_mint(&self) -> bool {
+        false // default impl for backwards compatibility
+    }
 }
 
 /// Trait for CToken seed providers.
@@ -54,6 +57,9 @@ pub trait DecompressContext<'info> {
 
     /// Packed token data type
     type PackedTokenData;
+
+    /// Compressed mint data type for mint decompression
+    type CompressedMintData: Clone;
 
     /// Compressed account metadata type (standardized)
     type CompressedMeta: Clone;
@@ -106,6 +112,54 @@ pub trait DecompressContext<'info> {
         post_system_accounts: &[AccountInfo<'info>],
         has_pdas: bool,
     ) -> Result<(), ProgramError>;
+
+    /// Process mint decompression.
+    ///
+    /// Caller program-specific: handles mint account decompression via CPI to ctoken program.
+    /// Default implementation returns Ok(()) for programs that don't handle mints.
+    #[allow(clippy::too_many_arguments)]
+    fn process_mints<'b>(
+        &self,
+        _cpi_accounts: &CpiAccounts<'b, 'info>,
+        _cmint_accounts: Vec<(Self::CompressedMintData, Self::CompressedMeta)>,
+        _proof: crate::instruction::ValidityProof,
+        _has_prior_context: bool,
+        _has_tokens: bool,
+    ) -> Result<(), ProgramError> {
+        // Default: no mint handling
+        Ok(())
+    }
+
+    /// Collect and categorize compressed accounts into PDAs, tokens, and mints.
+    ///
+    /// Returns (pda_infos, token_accounts, mint_accounts).
+    /// Default implementation delegates to collect_pda_and_token and returns empty mints.
+    #[allow(clippy::type_complexity)]
+    #[allow(clippy::too_many_arguments)]
+    fn collect_all_accounts<'b>(
+        &self,
+        cpi_accounts: &CpiAccounts<'b, 'info>,
+        address_space: Pubkey,
+        compressed_accounts: Vec<Self::CompressedData>,
+        solana_accounts: &[AccountInfo<'info>],
+        seed_params: Option<&Self::SeedParams>,
+    ) -> Result<
+        (
+            Vec<CompressedAccountInfo>,
+            Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
+            Vec<(Self::CompressedMintData, Self::CompressedMeta)>,
+        ),
+        ProgramError,
+    > {
+        let (pdas, tokens) = self.collect_pda_and_token(
+            cpi_accounts,
+            address_space,
+            compressed_accounts,
+            solana_accounts,
+            seed_params,
+        )?;
+        Ok((pdas, tokens, Vec::new()))
+    }
 }
 
 /// Trait for PDA types that can derive seeds with full account context access.
@@ -127,21 +181,23 @@ pub trait PdaSeedDerivation<A, S> {
     ) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
 }
 
-/// Check compressed accounts to determine if we have tokens and/or PDAs.
+/// Check compressed accounts to determine if we have tokens, mints, and/or PDAs.
 #[inline(never)]
-pub fn check_account_types<T: HasTokenVariant>(compressed_accounts: &[T]) -> (bool, bool) {
-    let (mut has_tokens, mut has_pdas) = (false, false);
+pub fn check_account_types<T: HasTokenVariant>(compressed_accounts: &[T]) -> (bool, bool, bool) {
+    let (mut has_tokens, mut has_pdas, mut has_mints) = (false, false, false);
     for account in compressed_accounts {
         if account.is_packed_ctoken() {
             has_tokens = true;
+        } else if account.is_compressed_mint() {
+            has_mints = true;
         } else {
             has_pdas = true;
         }
-        if has_tokens && has_pdas {
+        if has_tokens && has_pdas && has_mints {
             break;
         }
     }
-    (has_tokens, has_pdas)
+    (has_tokens, has_pdas, has_mints)
 }
 
 /// Handler for unpacking and preparing a single PDA variant for decompression.
@@ -221,6 +277,11 @@ where
 }
 
 /// Processor for decompress_accounts_idempotent.
+///
+/// Handles decompression of PDAs, tokens, and mints in the correct CPI context order:
+/// 1. PDAs write to CPI context (if batching with tokens/mints)
+/// 2. Mints process with CPI context
+/// 3. Tokens execute (consuming the CPI context)
 #[inline(never)]
 #[allow(clippy::too_many_arguments)]
 pub fn process_decompress_accounts_idempotent<'info, Ctx>(
@@ -240,8 +301,8 @@ where
         crate::compressible::CompressibleConfig::load_checked(ctx.config(), program_id)?;
     let address_space = compression_config.address_space[0];
 
-    let (has_tokens, has_pdas) = check_account_types(&compressed_accounts);
-    if !has_tokens && !has_pdas {
+    let (has_tokens, has_pdas, has_mints) = check_account_types(&compressed_accounts);
+    if !has_tokens && !has_pdas && !has_mints {
         return Ok(());
     }
 
@@ -250,7 +311,9 @@ where
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    let cpi_accounts = if has_tokens {
+    // Use CPI context if we have tokens OR mints (need batching)
+    let needs_cpi_context = has_tokens || has_mints;
+    let cpi_accounts = if needs_cpi_context {
         CpiAccounts::new_with_config(
             ctx.fee_payer(),
             &remaining_accounts[system_accounts_offset_usize..],
@@ -271,32 +334,40 @@ where
     let solana_accounts = remaining_accounts
         .get(pda_accounts_start..)
         .ok_or_else(|| ProgramError::from(crate::error::LightSdkError::ConstraintViolation))?;
-    let post_system_offset = cpi_accounts.system_accounts_end_offset();
-    let all_infos = cpi_accounts.account_infos();
-    let post_system_accounts = all_infos
-        .get(post_system_offset..)
-        .ok_or_else(|| ProgramError::from(crate::error::LightSdkError::ConstraintViolation))?;
 
-    // Call trait method for program-specific collection
-    let (compressed_pda_infos, compressed_token_accounts) = ctx.collect_pda_and_token(
-        &cpi_accounts,
-        address_space,
-        compressed_accounts,
-        solana_accounts,
-        seed_params,
-    )?;
+    // Call trait method for program-specific collection (handles PDAs, tokens, and mints)
+    let (compressed_pda_infos, compressed_token_accounts, compressed_mint_accounts) = ctx
+        .collect_all_accounts(
+            &cpi_accounts,
+            address_space,
+            compressed_accounts,
+            solana_accounts,
+            seed_params,
+        )?;
 
     let has_pdas = !compressed_pda_infos.is_empty();
     let has_tokens = !compressed_token_accounts.is_empty();
-    if !has_pdas && !has_tokens {
+    let has_mints = !compressed_mint_accounts.is_empty();
+
+    if !has_pdas && !has_tokens && !has_mints {
         return Ok(());
     }
 
+    // CPI context batching order:
+    // 1. PDAs write to context (first_set_context if batching)
+    // 2. Mints write to context (set_context) or execute (if last)
+    // 3. Tokens execute (consuming the context)
+
     let fee_payer = ctx.fee_payer();
 
-    // Decompress PDAs via LightSystemProgram
-    #[cfg(feature = "cpi-context")]
-    if has_pdas && has_tokens {
+    // Case 1: PDAs only - execute directly
+    if has_pdas && !has_tokens && !has_mints {
+        LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
+            .with_account_infos(&compressed_pda_infos)
+            .invoke(cpi_accounts.clone())?;
+    }
+    // Case 2: PDAs + tokens/mints - write PDAs to context first
+    else if has_pdas && (has_tokens || has_mints) {
         let authority = cpi_accounts
             .authority()
             .map_err(|_| ProgramError::MissingRequiredSignature)?;
@@ -314,22 +385,27 @@ where
             .with_account_infos(&compressed_pda_infos)
             .write_to_cpi_context_first()
             .invoke_write_to_cpi_context_first(system_cpi_accounts)?;
-    } else if has_pdas {
-        LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
-            .with_account_infos(&compressed_pda_infos)
-            .invoke(cpi_accounts.clone())?;
     }
 
-    // TODO: fix this
-    #[cfg(not(feature = "cpi-context"))]
-    if has_pdas {
-        LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
-            .with_account_infos(&compressed_pda_infos)
-            .invoke(cpi_accounts.clone())?;
+    // Case 3: Process mints (if any) - they write to or execute context
+    if has_mints {
+        ctx.process_mints(
+            &cpi_accounts,
+            compressed_mint_accounts,
+            proof,
+            has_pdas,   // has_prior_context
+            has_tokens, // has_tokens (will execute after)
+        )?;
     }
 
-    // Decompress tokens via trait method
+    // Case 4: Process tokens (if any) - they execute the context
     if has_tokens {
+        let post_system_offset = cpi_accounts.system_accounts_end_offset();
+        let all_infos = cpi_accounts.account_infos();
+        let post_system_accounts = all_infos
+            .get(post_system_offset..)
+            .ok_or_else(|| ProgramError::from(crate::error::LightSdkError::ConstraintViolation))?;
+
         let ctoken_program = ctx
             .ctoken_program()
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
@@ -355,7 +431,7 @@ where
             proof,
             &cpi_accounts,
             post_system_accounts,
-            has_pdas,
+            has_pdas || has_mints, // has_prior_context
         )?;
     }
 

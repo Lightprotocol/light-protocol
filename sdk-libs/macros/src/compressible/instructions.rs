@@ -525,6 +525,10 @@ pub fn add_compressible_instructions(
                 fn is_packed_ctoken(&self) -> bool {
                     matches!(self.data, CompressedAccountVariant::PackedCTokenData(_))
                 }
+
+                fn is_compressed_mint(&self) -> bool {
+                    matches!(self.data, CompressedAccountVariant::CompressedMint(_))
+                }
             }
 
             impl light_sdk::compressible::CTokenSeedProvider for CTokenAccountVariant {
@@ -650,7 +654,8 @@ pub fn add_compressible_instructions(
             use crate::state::*;  // Import Packed* types from state module
             #(#helper_packed_fns)*
                 #[inline(never)]
-                pub fn collect_pda_and_token<'a, 'b, 'info>(
+                #[allow(clippy::type_complexity)]
+                pub fn collect_all_accounts<'a, 'b, 'info>(
                     accounts: &DecompressAccountsIdempotent<'info>,
                     cpi_accounts: &light_sdk::cpi::v2::CpiAccounts<'b, 'info>,
                     address_space: solana_pubkey::Pubkey,
@@ -663,6 +668,10 @@ pub fn add_compressible_instructions(
                         light_ctoken_sdk::compat::PackedCTokenData<CTokenAccountVariant>,
                         light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                     )>,
+                    Vec<(
+                        light_ctoken_sdk::compat::CompressedMintData,
+                        light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                    )>,
                 ), solana_program_error::ProgramError> {
                     let post_system_offset = cpi_accounts.system_accounts_end_offset();
                     let all_infos = cpi_accounts.account_infos();
@@ -671,6 +680,10 @@ pub fn add_compressible_instructions(
                     let mut compressed_pda_infos = Vec::with_capacity(estimated_capacity);
                     let mut compressed_token_accounts: Vec<(
                         light_ctoken_sdk::compat::PackedCTokenData<CTokenAccountVariant>,
+                        light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                    )> = Vec::with_capacity(estimated_capacity);
+                    let mut compressed_mint_accounts: Vec<(
+                        light_ctoken_sdk::compat::CompressedMintData,
                         light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                     )> = Vec::with_capacity(estimated_capacity);
 
@@ -686,10 +699,13 @@ pub fn add_compressible_instructions(
                             CompressedAccountVariant::CTokenData(_) => {
                                 unreachable!();
                             }
+                            CompressedAccountVariant::CompressedMint(data) => {
+                                compressed_mint_accounts.push((data, meta));
+                            }
                         }
                     }
 
-                    std::result::Result::Ok((compressed_pda_infos, compressed_token_accounts))
+                    std::result::Result::Ok((compressed_pda_infos, compressed_token_accounts, compressed_mint_accounts))
                 }
             }
         }

@@ -85,7 +85,13 @@ pub fn generate_finalize_impl(parsed: &ParsedCompressibleStruct) -> TokenStream 
 
     // Generate LightFinalize impl
     let finalize_body = if has_pdas {
-        generate_finalize_pdas(parsed, params_ident, &fee_payer, &compression_config, has_mints)
+        generate_finalize_pdas(
+            parsed,
+            params_ident,
+            &fee_payer,
+            &compression_config,
+            has_mints,
+        )
     } else if has_mints {
         // Mints only, no PDAs - execute the mints written in pre_init
         generate_finalize_mints_only(parsed, params_ident, &fee_payer)
@@ -127,13 +133,16 @@ fn generate_pre_init_mints(
     params_ident: &syn::Ident,
     fee_payer: &TokenStream,
 ) -> TokenStream {
-    let mint_count = parsed.light_mint_fields.len();
-    
     // All mints write to CPI context (first uses first_set_context, rest use set_context)
-    let mint_writes: Vec<TokenStream> = parsed.light_mint_fields.iter().enumerate().map(|(idx, mint)| {
-        let is_first = idx == 0;
-        generate_mint_cpi_write(mint, params_ident, fee_payer, is_first)
-    }).collect();
+    let mint_writes: Vec<TokenStream> = parsed
+        .light_mint_fields
+        .iter()
+        .enumerate()
+        .map(|(idx, mint)| {
+            let is_first = idx == 0;
+            generate_mint_cpi_write(mint, params_ident, fee_payer, is_first)
+        })
+        .collect();
 
     quote! {
         // Build CPI accounts WITH CPI context for batching
@@ -336,6 +345,13 @@ fn generate_finalize_mints_only(
         quote! { &[] }
     };
 
+    // Build freeze_authority expression
+    let freeze_authority_tokens = if let Some(freeze_auth) = &last_mint.freeze_authority {
+        quote! { Some(*self.#freeze_auth.to_account_info().key) }
+    } else {
+        quote! { None }
+    };
+
     quote! {
         // Build CPI accounts WITH CPI context (mints already written in pre_init)
         let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new_with_config(
@@ -372,6 +388,8 @@ fn generate_finalize_mints_only(
             let __proof: light_ctoken_sdk::CompressedProof = #params_ident.proof.0.clone()
                 .expect("proof is required for mint creation");
 
+            let __freeze_authority: Option<solana_pubkey::Pubkey> = #freeze_authority_tokens;
+
             let __mint_params = light_ctoken_sdk::ctoken::CreateCMintParams {
                 decimals: #decimals,
                 address_merkle_tree_root_index: __tree_info.root_index,
@@ -379,7 +397,7 @@ fn generate_finalize_mints_only(
                 proof: __proof,
                 compression_address,
                 mint: mint_pda,
-                freeze_authority: None,
+                freeze_authority: __freeze_authority,
                 extensions: None,
             };
 
@@ -510,4 +528,3 @@ fn extract_inner_account_type(ty: &syn::Type) -> TokenStream {
         _ => quote! { #ty },
     }
 }
-

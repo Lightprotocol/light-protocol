@@ -43,6 +43,8 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
             #(#account_variants)*
             PackedCTokenData(light_ctoken_sdk::compat::PackedCTokenData<CTokenAccountVariant>),
             CTokenData(light_ctoken_sdk::compat::CTokenData<CTokenAccountVariant>),
+            /// Compressed mint data for decompression
+            CompressedMint(light_ctoken_sdk::compat::CompressedMintData),
         }
     };
 
@@ -70,6 +72,7 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#hash_match_arms)*
                     Self::PackedCTokenData(_) => unreachable!(),
                     Self::CTokenData(_) => unreachable!(),
+                    Self::CompressedMint(_) => unreachable!(),
                 }
             }
         }
@@ -121,6 +124,7 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#compression_info_match_arms)*
                     Self::PackedCTokenData(_) => unreachable!(),
                     Self::CTokenData(_) => unreachable!(),
+                    Self::CompressedMint(_) => unreachable!(),
                 }
             }
 
@@ -129,6 +133,7 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#compression_info_mut_match_arms)*
                     Self::PackedCTokenData(_) => unreachable!(),
                     Self::CTokenData(_) => unreachable!(),
+                    Self::CompressedMint(_) => unreachable!(),
                 }
             }
 
@@ -137,6 +142,7 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#compression_info_mut_opt_match_arms)*
                     Self::PackedCTokenData(_) => unreachable!(),
                     Self::CTokenData(_) => unreachable!(),
+                    Self::CompressedMint(_) => unreachable!(),
                 }
             }
 
@@ -145,6 +151,7 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#set_compression_info_none_match_arms)*
                     Self::PackedCTokenData(_) => unreachable!(),
                     Self::CTokenData(_) => unreachable!(),
+                    Self::CompressedMint(_) => unreachable!(),
                 }
             }
         }
@@ -165,6 +172,7 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#size_match_arms)*
                     Self::PackedCTokenData(_) => unreachable!(),
                     Self::CTokenData(_) => unreachable!(),
+                    Self::CompressedMint(_) => unreachable!(),
                 }
             }
         }
@@ -189,6 +197,7 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     Self::CTokenData(data) => {
                         Self::PackedCTokenData(light_ctoken_sdk::pack::Pack::pack(data, remaining_accounts))
                     }
+                    Self::CompressedMint(data) => Self::CompressedMint(data.clone()), // Mints don't need packing
                 }
             }
         }
@@ -214,6 +223,7 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#unpack_match_arms)*
                     Self::PackedCTokenData(_data) => Ok(self.clone()),
                     Self::CTokenData(_data) => unreachable!(),
+                    Self::CompressedMint(_data) => Ok(self.clone()), // Mints don't need unpacking
                 }
             }
         }

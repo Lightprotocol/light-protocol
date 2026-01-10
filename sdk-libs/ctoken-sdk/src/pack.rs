@@ -326,4 +326,38 @@ pub mod compat {
     pub type PackedCompressibleTokenDataWithVariant<V> = PackedCTokenDataWithVariant<V>;
     pub type CTokenData<V> = CTokenDataWithVariant<V>;
     pub type PackedCTokenData<V> = PackedCTokenDataWithVariant<V>;
+
+    /// Compressed mint data for decompression.
+    /// Contains all data needed to decompress a mint account.
+    #[derive(Clone, Debug, AnchorDeserialize, AnchorSerialize)]
+    pub struct CompressedMintData {
+        /// Mint seed pubkey (used to derive CMint PDA)
+        pub mint_seed_pubkey: Pubkey,
+        /// Compressed mint with context (from indexer)
+        pub compressed_mint_with_context:
+            light_ctoken_interface::instructions::mint_action::CompressedMintWithContext,
+        /// Rent payment in epochs (must be >= 2)
+        pub rent_payment: u8,
+        /// Lamports for future write operations
+        pub write_top_up: u32,
+    }
+
+    impl Pack for CompressedMintData {
+        type Packed = Self;
+
+        fn pack(&self, _remaining_accounts: &mut PackedAccounts) -> Self::Packed {
+            self.clone() // Mints don't need packing
+        }
+    }
+
+    impl Unpack for CompressedMintData {
+        type Unpacked = Self;
+
+        fn unpack(
+            &self,
+            _remaining_accounts: &[AccountInfo],
+        ) -> std::result::Result<Self::Unpacked, ProgramError> {
+            Ok(self.clone()) // Mints don't need unpacking
+        }
+    }
 }

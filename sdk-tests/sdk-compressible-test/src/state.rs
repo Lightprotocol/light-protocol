@@ -38,6 +38,8 @@ pub enum CompressedAccountVariant {
     PackedPlaceholderRecord(PackedPlaceholderRecord),
     PackedCTokenData(light_ctoken_sdk::compat::PackedCTokenData<CTokenAccountVariant>),
     CTokenData(light_ctoken_sdk::compat::CTokenData<CTokenAccountVariant>),
+    /// Compressed mint data for decompression
+    CompressedMint(CompressedMintData),
 }
 
 impl Default for CompressedAccountVariant {
@@ -62,6 +64,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::CTokenData(_) => unreachable!(),
             Self::PackedGameSession(_) => unreachable!(),
             Self::PackedPlaceholderRecord(_) => unreachable!(),
+            Self::CompressedMint(_) => unreachable!(),
         }
     }
 
@@ -75,6 +78,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::CTokenData(_) => unreachable!(),
             Self::PackedGameSession(_) => unreachable!(),
             Self::PackedPlaceholderRecord(_) => unreachable!(),
+            Self::CompressedMint(_) => unreachable!(),
         }
     }
 
@@ -88,6 +92,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::CTokenData(_) => unreachable!(),
             Self::PackedGameSession(_) => unreachable!(),
             Self::PackedPlaceholderRecord(_) => unreachable!(),
+            Self::CompressedMint(_) => unreachable!(),
         }
     }
 
@@ -101,6 +106,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::CTokenData(_) => unreachable!(),
             Self::PackedGameSession(_) => unreachable!(),
             Self::PackedPlaceholderRecord(_) => unreachable!(),
+            Self::CompressedMint(_) => unreachable!(),
         }
     }
 }
@@ -116,6 +122,7 @@ impl Size for CompressedAccountVariant {
             Self::CTokenData(_) => unreachable!(),
             Self::PackedGameSession(_) => unreachable!(),
             Self::PackedPlaceholderRecord(_) => unreachable!(),
+            Self::CompressedMint(_) => unreachable!(),
         }
     }
 }
@@ -137,6 +144,7 @@ impl SdkPack for CompressedAccountVariant {
             Self::CTokenData(data) => Self::PackedCTokenData(data.pack(remaining_accounts)),
             Self::PackedGameSession(_) => unreachable!(),
             Self::PackedPlaceholderRecord(_) => unreachable!(),
+            Self::CompressedMint(data) => Self::CompressedMint(data.clone()), // Mints don't need packing
         }
     }
 }
@@ -161,8 +169,23 @@ impl SdkUnpack for CompressedAccountVariant {
             Self::CTokenData(_data) => unreachable!(),         // as-is
             Self::PackedGameSession(_data) => unreachable!(),
             Self::PackedPlaceholderRecord(_data) => unreachable!(),
+            Self::CompressedMint(_data) => Ok(self.clone()),   // Mints don't need unpacking
         }
     }
+}
+
+/// Compressed mint data for decompression
+/// Contains the data needed to decompress a mint account
+#[derive(Clone, Debug, AnchorSerialize, AnchorDeserialize)]
+pub struct CompressedMintData {
+    /// Mint seed pubkey (used to derive CMint PDA)
+    pub mint_seed_pubkey: Pubkey,
+    /// Compressed mint with context (from indexer)
+    pub compressed_mint_with_context: CompressedMintWithContext,
+    /// Rent payment in epochs (must be >= 2)
+    pub rent_payment: u8,
+    /// Lamports for future write operations
+    pub write_top_up: u32,
 }
 
 // Auto-derived via macro. Ix data implemented for Variant.

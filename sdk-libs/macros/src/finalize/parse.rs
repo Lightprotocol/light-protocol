@@ -21,15 +21,12 @@ pub struct ParsedCompressibleStruct {
 pub struct CompressibleField {
     pub ident: Ident,
     pub ty: Type,
-    pub is_boxed: bool,
     pub address_tree_info: Expr,
     pub output_tree: Expr,
 }
 
 /// A field marked with #[light_mint(...)]
 pub struct LightMintField {
-    pub ident: Ident,
-    pub ty: Type,
     /// The mint_signer field (AccountInfo that seeds the mint PDA)
     pub mint_signer: Expr,
     /// The authority for mint operations
@@ -38,8 +35,6 @@ pub struct LightMintField {
     pub decimals: Expr,
     /// Address tree info expression
     pub address_tree_info: Expr,
-    /// Output state tree index
-    pub output_tree: Expr,
     /// Optional freeze authority
     pub freeze_authority: Option<Expr>,
     /// Signer seeds for the mint_signer PDA (required if mint_signer is a PDA)
@@ -90,7 +85,6 @@ struct LightMintArgs {
     authority: Option<Expr>,
     decimals: Option<Expr>,
     address_tree_info: Option<Expr>,
-    output_tree: Option<Expr>,
     freeze_authority: Option<Expr>,
     signer_seeds: Option<Expr>,
 }
@@ -102,7 +96,6 @@ impl Parse for LightMintArgs {
             authority: None,
             decimals: None,
             address_tree_info: None,
-            output_tree: None,
             freeze_authority: None,
             signer_seeds: None,
         };
@@ -115,7 +108,6 @@ impl Parse for LightMintArgs {
                 "authority" => args.authority = Some(arg.value),
                 "decimals" => args.decimals = Some(arg.value),
                 "address_tree_info" => args.address_tree_info = Some(arg.value),
-                "output_tree" => args.output_tree = Some(arg.value),
                 "freeze_authority" => args.freeze_authority = Some(arg.value),
                 "signer_seeds" => args.signer_seeds = Some(arg.value),
                 other => {
@@ -261,8 +253,8 @@ pub fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCompressib
                     .output_tree
                     .ok_or_else(|| Error::new_spanned(attr, "compressible requires output_tree"))?;
 
-                // Check if this is an Account type
-                let (is_boxed, _) = extract_account_type(&field.ty).ok_or_else(|| {
+                // Validate this is an Account type
+                let _ = extract_account_type(&field.ty).ok_or_else(|| {
                     Error::new_spanned(
                         &field.ty,
                         "#[compressible] can only be applied to Account<...> fields",
@@ -272,7 +264,6 @@ pub fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCompressib
                 compressible_fields.push(CompressibleField {
                     ident: field_ident.clone(),
                     ty: field.ty.clone(),
-                    is_boxed,
                     address_tree_info,
                     output_tree,
                 });
@@ -296,18 +287,12 @@ pub fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCompressib
                 let address_tree_info = args.address_tree_info.ok_or_else(|| {
                     Error::new_spanned(attr, "light_mint requires address_tree_info")
                 })?;
-                let output_tree = args
-                    .output_tree
-                    .ok_or_else(|| Error::new_spanned(attr, "light_mint requires output_tree"))?;
 
                 light_mint_fields.push(LightMintField {
-                    ident: field_ident.clone(),
-                    ty: field.ty.clone(),
                     mint_signer,
                     authority,
                     decimals,
                     address_tree_info,
-                    output_tree,
                     freeze_authority: args.freeze_authority,
                     signer_seeds: args.signer_seeds,
                 });
