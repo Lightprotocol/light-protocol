@@ -3,7 +3,7 @@ pub mod compression_info;
 pub mod config;
 pub mod finalize;
 
-pub use finalize::LightFinalize;
+pub use finalize::{LightFinalize, LightPreInit};
 
 #[cfg(feature = "v2")]
 pub mod compress_account;

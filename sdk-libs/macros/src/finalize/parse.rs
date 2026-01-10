@@ -42,6 +42,8 @@ pub struct LightMintField {
     pub output_tree: Expr,
     /// Optional freeze authority
     pub freeze_authority: Option<Expr>,
+    /// Signer seeds for the mint_signer PDA (required if mint_signer is a PDA)
+    pub signer_seeds: Option<Expr>,
 }
 
 /// Instruction argument from #[instruction(...)]
@@ -90,6 +92,7 @@ struct LightMintArgs {
     address_tree_info: Option<Expr>,
     output_tree: Option<Expr>,
     freeze_authority: Option<Expr>,
+    signer_seeds: Option<Expr>,
 }
 
 impl Parse for LightMintArgs {
@@ -101,6 +104,7 @@ impl Parse for LightMintArgs {
             address_tree_info: None,
             output_tree: None,
             freeze_authority: None,
+            signer_seeds: None,
         };
 
         let content: Punctuated<KeyValueArg, Token![,]> = Punctuated::parse_terminated(input)?;
@@ -113,6 +117,7 @@ impl Parse for LightMintArgs {
                 "address_tree_info" => args.address_tree_info = Some(arg.value),
                 "output_tree" => args.output_tree = Some(arg.value),
                 "freeze_authority" => args.freeze_authority = Some(arg.value),
+                "signer_seeds" => args.signer_seeds = Some(arg.value),
                 other => {
                     return Err(Error::new(
                         arg.name.span(),
@@ -211,20 +216,6 @@ fn extract_account_type(ty: &Type) -> Option<(bool, &syn::Path)> {
     }
 }
 
-/// Check if a type is InterfaceAccount<...> (for mints)
-fn is_interface_account(ty: &Type) -> bool {
-    match ty {
-        Type::Path(type_path) => {
-            if let Some(segment) = type_path.path.segments.last() {
-                segment.ident == "InterfaceAccount"
-            } else {
-                false
-            }
-        }
-        _ => false,
-    }
-}
-
 /// Parse a struct to extract compressible and light_mint fields
 pub fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCompressibleStruct, Error> {
     let struct_name = input.ident.clone();
@@ -266,9 +257,9 @@ pub fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCompressib
                 let address_tree_info = args.address_tree_info.ok_or_else(|| {
                     Error::new_spanned(attr, "compressible requires address_tree_info")
                 })?;
-                let output_tree = args.output_tree.ok_or_else(|| {
-                    Error::new_spanned(attr, "compressible requires output_tree")
-                })?;
+                let output_tree = args
+                    .output_tree
+                    .ok_or_else(|| Error::new_spanned(attr, "compressible requires output_tree"))?;
 
                 // Check if this is an Account type
                 let (is_boxed, _) = extract_account_type(&field.ty).ok_or_else(|| {
@@ -293,29 +284,21 @@ pub fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCompressib
                 let args: LightMintArgs = attr.parse_args()?;
 
                 // Validate required fields
-                let mint_signer = args.mint_signer.ok_or_else(|| {
-                    Error::new_spanned(attr, "light_mint requires mint_signer")
-                })?;
-                let authority = args.authority.ok_or_else(|| {
-                    Error::new_spanned(attr, "light_mint requires authority")
-                })?;
-                let decimals = args.decimals.ok_or_else(|| {
-                    Error::new_spanned(attr, "light_mint requires decimals")
-                })?;
+                let mint_signer = args
+                    .mint_signer
+                    .ok_or_else(|| Error::new_spanned(attr, "light_mint requires mint_signer"))?;
+                let authority = args
+                    .authority
+                    .ok_or_else(|| Error::new_spanned(attr, "light_mint requires authority"))?;
+                let decimals = args
+                    .decimals
+                    .ok_or_else(|| Error::new_spanned(attr, "light_mint requires decimals"))?;
                 let address_tree_info = args.address_tree_info.ok_or_else(|| {
                     Error::new_spanned(attr, "light_mint requires address_tree_info")
                 })?;
-                let output_tree = args.output_tree.ok_or_else(|| {
-                    Error::new_spanned(attr, "light_mint requires output_tree")
-                })?;
-
-                // Check if this is an InterfaceAccount type
-                if !is_interface_account(&field.ty) {
-                    return Err(Error::new_spanned(
-                        &field.ty,
-                        "#[light_mint] can only be applied to InterfaceAccount<...> fields",
-                    ));
-                }
+                let output_tree = args
+                    .output_tree
+                    .ok_or_else(|| Error::new_spanned(attr, "light_mint requires output_tree"))?;
 
                 light_mint_fields.push(LightMintField {
                     ident: field_ident.clone(),
@@ -326,6 +309,7 @@ pub fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCompressib
                     address_tree_info,
                     output_tree,
                     freeze_authority: args.freeze_authority,
+                    signer_seeds: args.signer_seeds,
                 });
                 break;
             }

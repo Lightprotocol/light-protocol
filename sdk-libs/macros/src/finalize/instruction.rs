@@ -1,7 +1,10 @@
 //! The #[light_instruction] attribute macro.
 //!
-//! Wraps instruction handlers to automatically call `light_finalize()`
-//! at the end of successful execution, before Anchor's exit hook.
+//! Wraps instruction handlers to automatically call:
+//! - `light_pre_init()` at the START (creates mints via CPI context write)
+//! - `light_finalize()` at the END (compresses PDAs and executes with proof)
+//!
+//! This two-phase design allows mints to be used during the instruction body.
 
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -72,30 +75,28 @@ pub fn light_instruction_impl(
         ));
     }
 
-    // Generate the wrapped function
-    //
-    // Strategy: We wrap the original body in a closure to capture the result,
-    // then call light_finalize on success before returning.
-    //
-    // IMPORTANT: `return` statements inside the original body will return from
-    // the closure, not the outer function. This is acceptable because:
-    // - Error returns (return Err(...)) will result in light_finalize NOT being called
-    // - Success returns (return Ok(())) will result in light_finalize being called
-    // - The `?` operator works correctly for error propagation
-    //
-    // Users should avoid explicit `return Ok(value)` for non-unit returns if they
-    // have code after the return that shouldn't run. Use normal control flow instead.
+    // Generate the wrapped function with two-phase compression:
+    // 1. light_pre_init() at START - creates mints via CPI context write
+    // 2. light_finalize() at END - compresses PDAs and executes with proof
     Ok(quote! {
         #(#fn_attrs)*
         #fn_vis #fn_sig {
+            // Phase 1: Pre-init mints (writes to CPI context, does NOT execute yet)
+            // This allows mint accounts to be used during the instruction body
+            use light_sdk::compressible::{LightPreInit, LightFinalize};
+            let __has_pre_init = ctx.accounts.light_pre_init(ctx.remaining_accounts, &#params_ident)
+                .map_err(|e| {
+                    let pe: solana_program_error::ProgramError = e.into();
+                    pe
+                })?;
+
             // Execute the original handler body in a closure
             let __light_handler_result = (|| #fn_block)();
 
-            // On success, call light_finalize before returning
+            // Phase 2: On success, finalize compression (compresses PDAs + executes proof)
             // This runs BEFORE Anchor's exit() hook which serializes account data
             if __light_handler_result.is_ok() {
-                use light_sdk::compressible::LightFinalize;
-                ctx.accounts.light_finalize(ctx.remaining_accounts, &#params_ident)
+                ctx.accounts.light_finalize(ctx.remaining_accounts, &#params_ident, __has_pre_init)
                     .map_err(|e| {
                         let pe: solana_program_error::ProgramError = e.into();
                         pe

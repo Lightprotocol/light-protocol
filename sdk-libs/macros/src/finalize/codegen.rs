@@ -1,17 +1,16 @@
-//! Code generation for LightFinalize trait implementation.
+//! Code generation for LightFinalize and LightPreInit trait implementations.
 //!
-//! Currently supports:
-//! - Compressible PDAs via `#[compressible(...)]` attribute
+//! Two-phase design:
+//! - LightPreInit: Creates mints at START via CPI context write
+//! - LightFinalize: Compresses PDAs at END and executes with proof
 //!
-//! NOT YET SUPPORTED:
-//! - `#[light_mint(...)]` attribute (use light_ctoken_sdk directly)
-//! - Mixed PDAs + mints
+//! This allows mints to be used during instruction body (for vault creation, minting, etc.)
 
-use super::parse::{CompressibleField, ParsedCompressibleStruct};
+use super::parse::{CompressibleField, LightMintField, ParsedCompressibleStruct};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-/// Generate the LightFinalize trait implementation
+/// Generate both trait implementations
 pub fn generate_finalize_impl(parsed: &ParsedCompressibleStruct) -> TokenStream {
     let struct_name = &parsed.struct_name;
     let (impl_generics, ty_generics, where_clause) = parsed.generics.split_for_impl();
@@ -26,14 +25,26 @@ pub fn generate_finalize_impl(parsed: &ParsedCompressibleStruct) -> TokenStream 
     let params_type = match params_type {
         Some(ty) => ty,
         None => {
-            // No instruction args - generate no-op impl
+            // No instruction args - generate no-op impls
             return quote! {
+                #[automatically_derived]
+                impl #impl_generics light_sdk::compressible::LightPreInit<'info, ()> for #struct_name #ty_generics #where_clause {
+                    fn light_pre_init(
+                        &mut self,
+                        _remaining: &[solana_account_info::AccountInfo<'info>],
+                        _params: &(),
+                    ) -> std::result::Result<bool, light_sdk::error::LightSdkError> {
+                        Ok(false)
+                    }
+                }
+
                 #[automatically_derived]
                 impl #impl_generics light_sdk::compressible::LightFinalize<'info, ()> for #struct_name #ty_generics #where_clause {
                     fn light_finalize(
                         &mut self,
                         _remaining: &[solana_account_info::AccountInfo<'info>],
                         _params: &(),
+                        _has_pre_init: bool,
                     ) -> std::result::Result<(), light_sdk::error::LightSdkError> {
                         Ok(())
                     }
@@ -52,22 +63,6 @@ pub fn generate_finalize_impl(parsed: &ParsedCompressibleStruct) -> TokenStream 
     let has_pdas = !parsed.compressible_fields.is_empty();
     let has_mints = !parsed.light_mint_fields.is_empty();
 
-    // If nothing to process, generate no-op
-    if !has_pdas && !has_mints {
-        return quote! {
-            #[automatically_derived]
-            impl #impl_generics light_sdk::compressible::LightFinalize<'info, #params_type> for #struct_name #ty_generics #where_clause {
-                fn light_finalize(
-                    &mut self,
-                    _remaining: &[solana_account_info::AccountInfo<'info>],
-                    _params: &#params_type,
-                ) -> std::result::Result<(), light_sdk::error::LightSdkError> {
-                    Ok(())
-                }
-            }
-        };
-    }
-
     // Get fee payer field
     let fee_payer = parsed
         .fee_payer_field
@@ -81,110 +76,336 @@ pub fn generate_finalize_impl(parsed: &ParsedCompressibleStruct) -> TokenStream 
         .map(|f| quote! { #f })
         .unwrap_or_else(|| quote! { compression_config });
 
-    // Generate the finalize body based on what we have
-    let finalize_body = if has_pdas && has_mints {
-        generate_mixed_finalize(parsed, params_ident, &fee_payer, &compression_config)
-    } else if has_pdas {
-        generate_pda_only_finalize(parsed, params_ident, &fee_payer, &compression_config)
+    // Generate LightPreInit impl
+    let pre_init_body = if has_mints {
+        generate_pre_init_mints(parsed, params_ident, &fee_payer)
     } else {
-        generate_mint_only_finalize(parsed, params_ident, &fee_payer)
+        quote! { Ok(false) }
+    };
+
+    // Generate LightFinalize impl
+    let finalize_body = if has_pdas {
+        generate_finalize_pdas(parsed, params_ident, &fee_payer, &compression_config, has_mints)
+    } else if has_mints {
+        // Mints only, no PDAs - execute the mints written in pre_init
+        generate_finalize_mints_only(parsed, params_ident, &fee_payer)
+    } else {
+        quote! { Ok(()) }
     };
 
     quote! {
+        #[automatically_derived]
+        impl #impl_generics light_sdk::compressible::LightPreInit<'info, #params_type> for #struct_name #ty_generics #where_clause {
+            fn light_pre_init(
+                &mut self,
+                _remaining: &[solana_account_info::AccountInfo<'info>],
+                #params_ident: &#params_type,
+            ) -> std::result::Result<bool, light_sdk::error::LightSdkError> {
+                use anchor_lang::ToAccountInfo;
+                #pre_init_body
+            }
+        }
+
         #[automatically_derived]
         impl #impl_generics light_sdk::compressible::LightFinalize<'info, #params_type> for #struct_name #ty_generics #where_clause {
             fn light_finalize(
                 &mut self,
                 _remaining: &[solana_account_info::AccountInfo<'info>],
                 #params_ident: &#params_type,
+                _has_pre_init: bool,
             ) -> std::result::Result<(), light_sdk::error::LightSdkError> {
                 use anchor_lang::ToAccountInfo;
                 #finalize_body
-                Ok(())
             }
         }
     }
 }
 
-/// Generate finalize code for PDAs only (no mints)
-/// 
-/// PDAs-only does NOT need CPI context - Light System Program handles
-/// multiple PDAs in a single call via with_new_addresses(&[...])
-fn generate_pda_only_finalize(
+/// Generate LightPreInit body that writes mints to CPI context
+fn generate_pre_init_mints(
+    parsed: &ParsedCompressibleStruct,
+    params_ident: &syn::Ident,
+    fee_payer: &TokenStream,
+) -> TokenStream {
+    let mint_count = parsed.light_mint_fields.len();
+    
+    // All mints write to CPI context (first uses first_set_context, rest use set_context)
+    let mint_writes: Vec<TokenStream> = parsed.light_mint_fields.iter().enumerate().map(|(idx, mint)| {
+        let is_first = idx == 0;
+        generate_mint_cpi_write(mint, params_ident, fee_payer, is_first)
+    }).collect();
+
+    quote! {
+        // Build CPI accounts WITH CPI context for batching
+        let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new_with_config(
+            &self.#fee_payer,
+            _remaining,
+            light_sdk_types::cpi_accounts::CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
+        );
+
+        // Build SystemAccountInfos from CpiAccounts
+        let system_accounts = light_ctoken_sdk::ctoken::SystemAccountInfos {
+            light_system_program: cpi_accounts.get_account_info(0)?.clone(),
+            cpi_authority_pda: cpi_accounts.authority()?.clone(),
+            registered_program_pda: cpi_accounts.registered_program_pda()?.clone(),
+            account_compression_authority: cpi_accounts.account_compression_authority()?.clone(),
+            account_compression_program: cpi_accounts.account_compression_program()?.clone(),
+            system_program: cpi_accounts.system_program()?.clone(),
+        };
+
+        let cpi_context_account = cpi_accounts.cpi_context()?.clone();
+
+        // Write all mints to CPI context
+        #(#mint_writes)*
+
+        Ok(true) // Signal that CPI context was used
+    }
+}
+
+/// Generate a single mint CPI context write
+fn generate_mint_cpi_write(
+    mint: &LightMintField,
+    _params_ident: &syn::Ident,
+    fee_payer: &TokenStream,
+    is_first: bool,
+) -> TokenStream {
+    let mint_signer = &mint.mint_signer;
+    let authority = &mint.authority;
+    let decimals = &mint.decimals;
+    let address_tree_info = &mint.address_tree_info;
+
+    let first_set_context = is_first;
+    let set_context = !is_first;
+
+    // Use explicit signer_seeds if provided, otherwise empty (for non-PDA signers)
+    let signer_seeds_tokens = if let Some(seeds) = &mint.signer_seeds {
+        quote! { &[#seeds] }
+    } else {
+        quote! { &[] }
+    };
+
+    quote! {
+        {
+            let __tree_info = &#address_tree_info;
+            let __tree_account = cpi_accounts.get_tree_account_info(__tree_info.address_merkle_tree_pubkey_index as usize)?;
+            let __tree_pubkey: solana_pubkey::Pubkey = light_sdk::light_account_checks::AccountInfoTrait::pubkey(__tree_account);
+            let mint_signer_key = self.#mint_signer.to_account_info().key;
+            let compression_address = light_ctoken_sdk::ctoken::derive_cmint_compressed_address(
+                mint_signer_key,
+                &__tree_pubkey,
+            );
+            let (mint_pda, _) = light_ctoken_sdk::ctoken::find_cmint_address(mint_signer_key);
+
+            let cpi_ctx = light_ctoken_interface::instructions::mint_action::CpiContext {
+                first_set_context: #first_set_context,
+                set_context: #set_context,
+                in_tree_index: __tree_info.address_merkle_tree_pubkey_index,
+                in_queue_index: __tree_info.address_queue_pubkey_index,
+                out_queue_index: __tree_info.address_queue_pubkey_index,
+                token_out_queue_index: 0,
+                assigned_account_index: 0,
+                read_only_address_trees: [0; 4],
+                address_tree_pubkey: __tree_pubkey.to_bytes(),
+            };
+
+            let write_params = light_ctoken_sdk::ctoken::CreateCMintCpiWriteParams::new(
+                #decimals,
+                __tree_info.root_index,
+                *self.#authority.to_account_info().key,
+                compression_address,
+                mint_pda,
+                cpi_ctx,
+            );
+
+            light_ctoken_sdk::ctoken::CreateCompressedMintCpiWriteCpi {
+                mint_signer: self.#mint_signer.to_account_info(),
+                authority: self.#authority.to_account_info(),
+                payer: self.#fee_payer.to_account_info(),
+                cpi_context_account: cpi_context_account.clone(),
+                system_accounts: light_ctoken_sdk::ctoken::SystemAccountInfos {
+                    light_system_program: system_accounts.light_system_program.clone(),
+                    cpi_authority_pda: system_accounts.cpi_authority_pda.clone(),
+                    registered_program_pda: system_accounts.registered_program_pda.clone(),
+                    account_compression_authority: system_accounts.account_compression_authority.clone(),
+                    account_compression_program: system_accounts.account_compression_program.clone(),
+                    system_program: system_accounts.system_program.clone(),
+                },
+                params: write_params,
+            }.invoke_signed(#signer_seeds_tokens)?;
+        }
+    }
+}
+
+/// Generate LightFinalize body for PDAs (with optional CPI context from pre_init)
+fn generate_finalize_pdas(
     parsed: &ParsedCompressibleStruct,
     params_ident: &syn::Ident,
     fee_payer: &TokenStream,
     compression_config: &TokenStream,
+    has_mints: bool,
 ) -> TokenStream {
     let (compress_blocks, new_addr_idents) =
-        generate_pda_compress_blocks(&parsed.compressible_fields);
+        generate_pda_compress_blocks(&parsed.compressible_fields, params_ident);
     let compressible_count = parsed.compressible_fields.len() as u8;
 
+    if has_mints {
+        // PDAs + mints: Write PDAs to CPI context, execute with proof
+        quote! {
+            // Build CPI accounts WITH CPI context (mints already written in pre_init)
+            let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new_with_config(
+                &self.#fee_payer,
+                _remaining,
+                light_sdk_types::cpi_accounts::CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
+            );
+
+            // Load compression config
+            let compression_config_data = light_sdk::compressible::CompressibleConfig::load_checked(
+                &self.#compression_config,
+                &crate::ID
+            )?;
+
+            // Collect compressed infos for all compressible accounts
+            let mut all_compressed_infos = Vec::with_capacity(#compressible_count as usize);
+            #(#compress_blocks)*
+
+            // Write PDAs to CPI context (mints already written), then execute
+            use light_sdk::cpi::{InvokeLightSystemProgram, LightCpiInstruction};
+            light_sdk::cpi::v2::LightSystemProgramCpi::new_cpi(
+                crate::LIGHT_CPI_SIGNER,
+                #params_ident.proof.clone()
+            )
+                .with_new_addresses(&[#(#new_addr_idents),*])
+                .with_account_infos(&all_compressed_infos)
+                .invoke_execute_cpi_context(cpi_accounts)?;
+
+            Ok(())
+        }
+    } else {
+        // PDAs only: Direct invoke (no CPI context needed)
+        quote! {
+            // Build CPI accounts (no CPI context needed for PDAs-only)
+            let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new(
+                &self.#fee_payer,
+                _remaining,
+                crate::LIGHT_CPI_SIGNER,
+            );
+
+            // Load compression config
+            let compression_config_data = light_sdk::compressible::CompressibleConfig::load_checked(
+                &self.#compression_config,
+                &crate::ID
+            )?;
+
+            // Collect compressed infos for all compressible accounts
+            let mut all_compressed_infos = Vec::with_capacity(#compressible_count as usize);
+            #(#compress_blocks)*
+
+            // Execute Light System Program CPI directly with proof
+            use light_sdk::cpi::{InvokeLightSystemProgram, LightCpiInstruction};
+            light_sdk::cpi::v2::LightSystemProgramCpi::new_cpi(
+                crate::LIGHT_CPI_SIGNER,
+                #params_ident.proof.clone()
+            )
+                .with_new_addresses(&[#(#new_addr_idents),*])
+                .with_account_infos(&all_compressed_infos)
+                .invoke(cpi_accounts)?;
+
+            Ok(())
+        }
+    }
+}
+
+/// Generate LightFinalize body for mints-only (no PDAs)
+/// Executes the mints that were written to CPI context in pre_init
+fn generate_finalize_mints_only(
+    parsed: &ParsedCompressibleStruct,
+    params_ident: &syn::Ident,
+    fee_payer: &TokenStream,
+) -> TokenStream {
+    // Use the last mint to execute with CPI context
+    let last_mint = &parsed.light_mint_fields[parsed.light_mint_fields.len() - 1];
+    let mint_signer = &last_mint.mint_signer;
+    let authority = &last_mint.authority;
+    let decimals = &last_mint.decimals;
+    let address_tree_info = &last_mint.address_tree_info;
+
+    // Use explicit signer_seeds if provided, otherwise empty
+    let signer_seeds_tokens = if let Some(seeds) = &last_mint.signer_seeds {
+        quote! { &[#seeds] }
+    } else {
+        quote! { &[] }
+    };
+
     quote! {
-        // Build CPI accounts (no CPI context needed for PDAs-only)
-        let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new(
+        // Build CPI accounts WITH CPI context (mints already written in pre_init)
+        let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new_with_config(
             &self.#fee_payer,
             _remaining,
-            crate::LIGHT_CPI_SIGNER,
+            light_sdk_types::cpi_accounts::CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
         );
 
-        // Load compression config
-        let compression_config_data = light_sdk::compressible::CompressibleConfig::load_checked(
-            &self.#compression_config,
-            &crate::ID
-        )?;
+        let system_accounts = light_ctoken_sdk::ctoken::SystemAccountInfos {
+            light_system_program: cpi_accounts.get_account_info(0)?.clone(),
+            cpi_authority_pda: cpi_accounts.authority()?.clone(),
+            registered_program_pda: cpi_accounts.registered_program_pda()?.clone(),
+            account_compression_authority: cpi_accounts.account_compression_authority()?.clone(),
+            account_compression_program: cpi_accounts.account_compression_program()?.clone(),
+            system_program: cpi_accounts.system_program()?.clone(),
+        };
 
-        // Collect compressed infos for all compressible accounts
-        let mut all_compressed_infos = Vec::with_capacity(#compressible_count as usize);
-        #(#compress_blocks)*
+        let cpi_context_account = cpi_accounts.cpi_context()?.clone();
 
-        // Execute Light System Program CPI directly with proof
-        // No CPI context needed - single call handles all PDAs
-        use light_sdk::cpi::{InvokeLightSystemProgram, LightCpiInstruction};
-        light_sdk::cpi::v2::LightSystemProgramCpi::new_cpi(
-            crate::LIGHT_CPI_SIGNER,
-            #params_ident.proof.clone()
-        )
-            .with_new_addresses(&[#(#new_addr_idents),*])
-            .with_account_infos(&all_compressed_infos)
-            .invoke(cpi_accounts)?;
-    }
-}
+        // Execute with the last mint
+        {
+            let __tree_info = &#address_tree_info;
+            let address_tree = cpi_accounts.get_tree_account_info(__tree_info.address_merkle_tree_pubkey_index as usize)?;
+            let output_queue = cpi_accounts.get_tree_account_info(__tree_info.address_queue_pubkey_index as usize)?;
+            let __tree_pubkey: solana_pubkey::Pubkey = light_sdk::light_account_checks::AccountInfoTrait::pubkey(address_tree);
 
-/// Generate finalize code for mints only (no PDAs)
-///
-/// NOTE: light_mint support is currently disabled due to incomplete implementation.
-/// Users should use the ctoken-sdk directly for mint creation.
-fn generate_mint_only_finalize(
-    _parsed: &ParsedCompressibleStruct,
-    _params_ident: &syn::Ident,
-    _fee_payer: &TokenStream,
-) -> TokenStream {
-    // light_mint support is incomplete - SystemAccountInfos::try_from_remaining_accounts doesn't exist
-    // Return a compile error if this path is reached
-    quote! {
-        compile_error!("#[light_mint] attribute is not yet supported. Use light_ctoken_sdk directly for mint creation.");
-    }
-}
+            let mint_signer_key = self.#mint_signer.to_account_info().key;
+            let compression_address = light_ctoken_sdk::ctoken::derive_cmint_compressed_address(
+                mint_signer_key,
+                &__tree_pubkey,
+            );
+            let (mint_pda, _) = light_ctoken_sdk::ctoken::find_cmint_address(mint_signer_key);
 
-/// Generate finalize code for mixed PDAs + mints
-///
-/// NOTE: light_mint support is currently disabled due to incomplete implementation.
-/// Users should use the ctoken-sdk directly for mint creation.
-fn generate_mixed_finalize(
-    _parsed: &ParsedCompressibleStruct,
-    _params_ident: &syn::Ident,
-    _fee_payer: &TokenStream,
-    _compression_config: &TokenStream,
-) -> TokenStream {
-    // Mixed PDA + mint support is incomplete - requires light_mint which isn't implemented
-    quote! {
-        compile_error!("Mixed #[compressible] and #[light_mint] attributes are not yet supported. Use light_ctoken_sdk directly for mint creation.");
+            let __proof: light_ctoken_sdk::CompressedProof = #params_ident.proof.0.clone()
+                .expect("proof is required for mint creation");
+
+            let __mint_params = light_ctoken_sdk::ctoken::CreateCMintParams {
+                decimals: #decimals,
+                address_merkle_tree_root_index: __tree_info.root_index,
+                mint_authority: *self.#authority.to_account_info().key,
+                proof: __proof,
+                compression_address,
+                mint: mint_pda,
+                freeze_authority: None,
+                extensions: None,
+            };
+
+            // Execute with CPI context
+            light_ctoken_sdk::ctoken::CreateCMintCpi {
+                mint_seed: self.#mint_signer.to_account_info(),
+                authority: self.#authority.to_account_info(),
+                payer: self.#fee_payer.to_account_info(),
+                address_tree: address_tree.clone(),
+                output_queue: output_queue.clone(),
+                system_accounts,
+                cpi_context: None,
+                cpi_context_account: Some(cpi_context_account),
+                params: __mint_params,
+            }.invoke_signed(#signer_seeds_tokens)?;
+        }
+
+        Ok(())
     }
 }
 
 /// Generate compression blocks for PDA fields
-fn generate_pda_compress_blocks(fields: &[CompressibleField]) -> (Vec<TokenStream>, Vec<TokenStream>) {
+fn generate_pda_compress_blocks(
+    fields: &[CompressibleField],
+    _params_ident: &syn::Ident,
+) -> (Vec<TokenStream>, Vec<TokenStream>) {
     let mut blocks = Vec::new();
     let mut addr_idents = Vec::new();
 
@@ -193,31 +414,43 @@ fn generate_pda_compress_blocks(fields: &[CompressibleField]) -> (Vec<TokenStrea
         let ident = &field.ident;
         let addr_tree_info = &field.address_tree_info;
         let output_tree = &field.output_tree;
+        let acc_ty_path = extract_inner_account_type(&field.ty);
 
-        let tree_info_ident = format_ident!("{}_tree_info", ident);
-        let new_addr_params_ident = format_ident!("{}_new_address_params", ident);
-        let compressed_address_ident = format_ident!("{}_compressed_address", ident);
-        let compressed_infos_ident = format_ident!("{}_compressed_infos", ident);
+        let new_addr_params_ident = format_ident!("__new_addr_params_{}", idx);
+        let compressed_infos_ident = format_ident!("__compressed_infos_{}", idx);
+        let address_ident = format_ident!("__address_{}", idx);
+        let account_info_ident = format_ident!("__account_info_{}", idx);
+        let account_key_ident = format_ident!("__account_key_{}", idx);
+        let account_data_ident = format_ident!("__account_data_{}", idx);
 
         addr_idents.push(quote! { #new_addr_params_ident });
 
-        let acc_ty_path = extract_inner_account_type(&field.ty);
-        let acc_expr = if field.is_boxed {
-            quote! { &mut **self.#ident }
-        } else {
-            quote! { &mut *self.#ident }
-        };
-
         blocks.push(quote! {
-            let #tree_info_ident = #addr_tree_info;
-            let #new_addr_params_ident = #tree_info_ident
-                .into_new_address_params_assigned_packed(
-                    light_sdk_types::address::AddressSeed(self.#ident.key().to_bytes()),
-                    Some(#idx_lit),
-                );
+            // Get account info early before any mutable borrows
+            let #account_info_ident = self.#ident.to_account_info();
+            let #account_key_ident = #account_info_ident.key.to_bytes();
 
-            let #compressed_address_ident = light_compressed_account::address::derive_address(
-                &self.#ident.key().to_bytes(),
+            let #new_addr_params_ident = {
+                let tree_info = &#addr_tree_info;
+                let __seed: [u8; 32] = light_sdk::address::v1::derive_address_seed(
+                    &[
+                        #account_key_ident.as_ref(),
+                    ],
+                    &crate::ID,
+                ).into();
+                light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked {
+                    seed: __seed,
+                    address_merkle_tree_account_index: tree_info.address_merkle_tree_pubkey_index,
+                    address_queue_account_index: tree_info.address_queue_pubkey_index,
+                    address_merkle_tree_root_index: tree_info.root_index,
+                    assigned_to_account: true,
+                    assigned_account_index: #idx_lit,
+                }
+            };
+
+            // Derive the compressed address
+            let #address_ident = light_compressed_account::address::derive_address(
+                &#account_key_ident,
                 &cpi_accounts
                     .get_tree_account_info(#new_addr_params_ident.address_merkle_tree_account_index as usize)?
                     .key()
@@ -225,11 +458,14 @@ fn generate_pda_compress_blocks(fields: &[CompressibleField]) -> (Vec<TokenStrea
                 &crate::ID.to_bytes(),
             );
 
+            // Get mutable reference to inner account data
+            let #account_data_ident = &mut **self.#ident;
+
             let #compressed_infos_ident = light_sdk::compressible::prepare_compressed_account_on_init::<#acc_ty_path>(
-                &self.#ident.to_account_info(),
-                #acc_expr,
+                &#account_info_ident,
+                #account_data_ident,
                 &compression_config_data,
-                #compressed_address_ident,
+                #address_ident,
                 #new_addr_params_ident,
                 #output_tree,
                 &cpi_accounts,
@@ -242,14 +478,6 @@ fn generate_pda_compress_blocks(fields: &[CompressibleField]) -> (Vec<TokenStrea
 
     (blocks, addr_idents)
 }
-
-// NOTE: light_mint functionality has been disabled. The following functions were removed:
-// - generate_single_mint_block
-// - generate_mint_blocks
-// - generate_mint_blocks_with_context
-// - generate_mint_blocks_impl
-// These require SystemAccountInfos::try_from_remaining_accounts which doesn't exist.
-// For mint creation, use light_ctoken_sdk directly.
 
 /// Extract the inner type T from Account<'info, T> or Box<Account<'info, T>>
 fn extract_inner_account_type(ty: &syn::Type) -> TokenStream {
@@ -282,3 +510,4 @@ fn extract_inner_account_type(ty: &syn::Type) -> TokenStream {
         _ => quote! { #ty },
     }
 }
+
