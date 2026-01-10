@@ -53,7 +53,10 @@ pub fn set_input_compressed_accounts<'a>(
             for ext in tlv {
                 if let ZExtensionInstructionData::CompressedOnly(co) = ext {
                     let idx = co.compression_index as usize;
-                    // TODO check that it is not out of bounds
+                    // Check bounds before array access
+                    if idx >= MAX_COMPRESSIONS {
+                        return Err(CTokenError::CompressionIndexOutOfBounds.into());
+                    }
                     // Check uniqueness - error if compression_index already used
                     if compression_to_input[idx].is_some() {
                         return Err(CTokenError::DuplicateCompressionIndex.into());

@@ -200,6 +200,9 @@ pub enum CTokenError {
 
     #[error("Decompress amount mismatch between compression instruction and input token data")]
     DecompressAmountMismatch,
+
+    #[error("Compression index exceeds maximum allowed value")]
+    CompressionIndexOutOfBounds,
 }
 
 impl From<CTokenError> for u32 {
@@ -269,6 +272,7 @@ impl From<CTokenError> for u32 {
             CTokenError::BorrowFailed => 18062,
             CTokenError::InvalidCTokenOwner => 18063,
             CTokenError::DecompressAmountMismatch => 18064,
+            CTokenError::CompressionIndexOutOfBounds => 18065,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),
