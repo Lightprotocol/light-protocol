@@ -75,9 +75,9 @@ fn extract_compression_info(data: &[u8]) -> Option<(CompressionInfo, u8, bool)> 
             Some((compression_info, account_type, compression_only))
         }
         ACCOUNT_TYPE_MINT => {
-            let mint = Mint::deserialize(&mut &data[..]).ok()?;
-            // Mint accounts don't have compression_only, default to false
-            Some((mint.compression, account_type, false))
+            let cmint = Mint::deserialize(&mut &data[..]).ok()?;
+            // CMint accounts don't have compression_only, default to false
+            Some((cmint.compression, account_type, false))
         }
         _ => None,
     }
@@ -414,7 +414,7 @@ async fn compress_cmint_forester(
     use light_compressible::config::CompressibleConfig;
     use light_token_interface::{
         instructions::mint_action::{
-            CompressAndCloseMintAction, MintActionCompressedInstructionData, MintWithContext,
+            CompressAndCloseCMintAction, MintActionCompressedInstructionData, MintWithContext,
         },
         LIGHT_TOKEN_PROGRAM_ID,
     };
@@ -426,12 +426,12 @@ async fn compress_cmint_forester(
         RpcError::CustomError(format!("CMint account {} not found", cmint_pubkey))
     })?;
 
-    // Deserialize Mint to get compressed_address and rent_sponsor
-    let mint: Mint = BorshDeserialize::deserialize(&mut cmint_account.data.as_slice())
-        .map_err(|e| RpcError::CustomError(format!("Failed to deserialize Mint: {:?}", e)))?;
+    // Deserialize CMint to get compressed_address and rent_sponsor
+    let cmint: Mint = BorshDeserialize::deserialize(&mut cmint_account.data.as_slice())
+        .map_err(|e| RpcError::CustomError(format!("Failed to deserialize CMint: {:?}", e)))?;
 
-    let compressed_mint_address = mint.metadata.compressed_address();
-    let rent_sponsor = Pubkey::from(mint.compression.rent_sponsor);
+    let compressed_mint_address = cmint.metadata.compressed_address();
+    let rent_sponsor = Pubkey::from(cmint.compression.rent_sponsor);
 
     // Get the compressed mint account from indexer
     let compressed_mint_account = rpc
@@ -464,12 +464,12 @@ async fn compress_cmint_forester(
         mint: None, // CMint is decompressed, data lives in CMint account
     };
 
-    // Build instruction data with CompressAndCloseMint action
+    // Build instruction data with CompressAndCloseCMint action
     let instruction_data = MintActionCompressedInstructionData::new(
         compressed_mint_inputs,
         rpc_proof_result.proof.into(),
     )
-    .with_compress_and_close_mint(CompressAndCloseMintAction { idempotent: 1 });
+    .with_compress_and_close_mint(CompressAndCloseCMintAction { idempotent: 1 });
 
     // Get state tree info
     let state_tree_info = rpc_proof_result.accounts[0].tree_info;

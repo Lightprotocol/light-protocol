@@ -4,13 +4,10 @@ use light_compressed_account::instruction_data::{
 use light_token_interface::instructions::mint_action::{
     CpiContext, DecompressMintAction, MintActionCompressedInstructionData, MintWithContext,
 };
-use solana_account_info::AccountInfo;
-use solana_cpi::{invoke, invoke_signed};
 use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use super::{config_pda, rent_sponsor_pda, SystemAccountInfos};
 use crate::compressed_token::mint_action::MintActionMetaConfig;
 
 /// Decompress a compressed mint to a Mint Solana account.
@@ -28,8 +25,8 @@ use crate::compressed_token::mint_action::MintActionMetaConfig;
 ///     output_queue,
 ///     compressed_mint_with_context,
 ///     proof,
-///     rent_payment: 16,       // epochs (~24 hours rent)
-///     write_top_up: 766,      // lamports (~3 hours rent per write)
+///     rent_payment: 16,
+///     write_top_up: 766,
 /// }.instruction()?;
 /// ```
 #[derive(Debug, Clone)]
@@ -101,6 +98,7 @@ impl DecompressMint {
     }
 }
 
+<<<<<<< HEAD
 // ============================================================================
 // CPI Struct: DecompressMintCpi
 // ============================================================================
@@ -228,6 +226,14 @@ impl<'info> TryFrom<&DecompressMintCpi<'info>> for DecompressMint {
             write_top_up: cpi.write_top_up,
         })
     }
+=======
+fn config_pda() -> Pubkey {
+    super::config_pda()
+}
+
+fn rent_sponsor_pda() -> Pubkey {
+    super::rent_sponsor_pda()
+>>>>>>> 7d4ae004e (wip)
 }
 
 /// Decompress a compressed mint with CPI context support.

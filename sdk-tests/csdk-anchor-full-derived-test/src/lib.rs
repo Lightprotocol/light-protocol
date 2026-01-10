@@ -107,7 +107,11 @@ pub mod csdk_anchor_full_derived_test {
 
         if params.vault_mint_amount > 0 {
             CTokenMintToCpi {
+<<<<<<< HEAD
                 mint: ctx.accounts.cmint.to_account_info(),
+=======
+                cmint: ctx.accounts.cmint.to_account_info(),
+>>>>>>> 7d4ae004e (wip)
                 destination: ctx.accounts.vault.to_account_info(),
                 amount: params.vault_mint_amount,
                 authority: ctx.accounts.mint_authority.to_account_info(),
@@ -119,7 +123,11 @@ pub mod csdk_anchor_full_derived_test {
 
         if params.user_ata_mint_amount > 0 {
             CTokenMintToCpi {
+<<<<<<< HEAD
                 mint: ctx.accounts.cmint.to_account_info(),
+=======
+                cmint: ctx.accounts.cmint.to_account_info(),
+>>>>>>> 7d4ae004e (wip)
                 destination: ctx.accounts.user_ata.to_account_info(),
                 amount: params.user_ata_mint_amount,
                 authority: ctx.accounts.mint_authority.to_account_info(),

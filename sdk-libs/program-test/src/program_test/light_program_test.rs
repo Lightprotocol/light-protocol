@@ -437,194 +437,6 @@ impl LightProgramTest {
     /// Always returns `AtaInterface` with `data` populated so clients can
     /// access `amount`, `delegate`, etc. regardless of hot/cold state.
     ///
-    /// Fetches raw ATA account interface with Account bytes always present.
-    ///
-    /// For hot accounts: actual on-chain bytes.
-    /// For cold accounts: synthetic SPL Token Account format bytes.
-    ///
-    /// Use `parse_token_account_interface()` to extract typed `TokenData`.
-    ///
-    /// # Example
-    /// ```ignore
-    /// // 1. Fetch raw account interface (async)
-    /// let account = rpc.get_ata_account_interface(&mint, &owner).await?;
-    ///
-    /// // 2. Parse into token account interface (sync)
-    /// let parsed = parse_token_account_interface(&account)?;
-    ///
-    /// // 3. Check if cold and act accordingly
-    /// if parsed.is_cold {
-    ///     let proof = rpc.get_validity_proof(vec![parsed.hash().unwrap()], vec![], None).await?;
-    ///     let ixs = build_decompress_token_accounts(&[parsed], fee_payer, Some(proof.value))?;
-    /// }
-    /// ```
-    pub async fn get_ata_account_interface(
-        &self,
-        mint: &solana_sdk::pubkey::Pubkey,
-        owner: &solana_sdk::pubkey::Pubkey,
-    ) -> Result<light_compressible_client::AtaAccountInterface, RpcError> {
-        use light_client::indexer::{GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer};
-        use light_compressible_client::{
-            pack_token_data_to_spl_bytes, AtaAccountInterface, AtaDecompressionContext,
-        };
-        use light_sdk::constants::LIGHT_TOKEN_PROGRAM_ID;
-        use light_token_sdk::token::derive_token_ata;
-
-        let (ata, bump) = derive_token_ata(owner, mint);
-
-        // Check on-chain first
-        if let Some(account) = self.context.get_account(&ata) {
-            return Ok(AtaAccountInterface {
-                pubkey: ata,
-                account,
-                is_cold: false,
-                decompression_context: None,
-            });
-        }
-
-        // Check compressed state
-        let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions::new(
-            Some(*mint),
-        ));
-        let result = self
-            .get_compressed_token_accounts_by_owner(&ata, options, None)
-            .await?;
-
-        if let Some(compressed) = result.value.items.into_iter().next() {
-            // Synthesize SPL Token Account bytes from TokenData
-            let token_data = &compressed.token;
-            let data = pack_token_data_to_spl_bytes(mint, &ata, token_data).to_vec();
-
-            // Create synthetic Account
-            let account = solana_sdk::account::Account {
-                lamports: 0, // Compressed accounts don't have lamports
-                data,
-                owner: LIGHT_TOKEN_PROGRAM_ID.into(),
-                executable: false,
-                rent_epoch: 0,
-            };
-
-            return Ok(AtaAccountInterface {
-                pubkey: ata,
-                account,
-                is_cold: true,
-                decompression_context: Some(AtaDecompressionContext {
-                    compressed,
-                    wallet_owner: *owner,
-                    mint: *mint,
-                    bump,
-                }),
-            });
-        }
-
-        // Doesn't exist - return empty synthetic account
-        let data = vec![0u8; 165];
-        let account = solana_sdk::account::Account {
-            lamports: 0,
-            data,
-            owner: LIGHT_TOKEN_PROGRAM_ID.into(),
-            executable: false,
-            rent_epoch: 0,
-        };
-
-        Ok(AtaAccountInterface {
-            pubkey: ata,
-            account,
-            is_cold: false,
-            decompression_context: None,
-        })
-    }
-
-    /// Legacy: Fetches AtaInterface (unified ATA representation).
-    /// Prefer `get_ata_account_interface()` + `parse_token_account_interface()` for new code.
-    pub async fn get_ata_interface(
-        &self,
-        mint: &solana_sdk::pubkey::Pubkey,
-        owner: &solana_sdk::pubkey::Pubkey,
-    ) -> Result<light_compressible_client::AtaInterface, RpcError> {
-        use light_client::indexer::{GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer};
-        use light_compressible_client::{AtaInterface, DecompressionContext, TokenData};
-        use light_token_sdk::{compat::AccountState, token::derive_token_ata};
-
-        let (ata, bump) = derive_token_ata(owner, mint);
-
-        // Check on-chain first
-        if let Some(account) = self.context.get_account(&ata) {
-            use solana_sdk::program_pack::Pack;
-            let token_data = if account.data.len() >= 165 {
-                let spl_account = spl_token_2022::state::Account::unpack(&account.data[..165])
-                    .unwrap_or_default();
-                TokenData {
-                    mint: spl_account.mint,
-                    owner: spl_account.owner,
-                    amount: spl_account.amount,
-                    delegate: spl_account.delegate.into(),
-                    state: match spl_account.state {
-                        spl_token_2022::state::AccountState::Frozen => AccountState::Frozen,
-                        _ => AccountState::Initialized,
-                    },
-                    tlv: None,
-                }
-            } else {
-                TokenData {
-                    mint: *mint,
-                    owner: ata,
-                    ..Default::default()
-                }
-            };
-
-            return Ok(AtaInterface {
-                ata,
-                owner: *owner,
-                mint: *mint,
-                bump,
-                is_cold: false,
-                token_data,
-                raw_account: Some(account),
-                decompression: None,
-            });
-        }
-
-        // Check compressed state
-        let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions::new(
-            Some(*mint),
-        ));
-        let result = self
-            .get_compressed_token_accounts_by_owner(&ata, options, None)
-            .await?;
-
-        if let Some(compressed) = result.value.items.into_iter().next() {
-            let token_data = compressed.token.clone();
-
-            return Ok(AtaInterface {
-                ata,
-                owner: *owner,
-                mint: *mint,
-                bump,
-                is_cold: true,
-                token_data,
-                raw_account: None,
-                decompression: Some(DecompressionContext { compressed }),
-            });
-        }
-
-        // Doesn't exist
-        Ok(AtaInterface {
-            ata,
-            owner: *owner,
-            mint: *mint,
-            bump,
-            is_cold: false,
-            token_data: TokenData {
-                mint: *mint,
-                owner: ata,
-                ..Default::default()
-            },
-            raw_account: None,
-            decompression: None,
-        })
-    }
-
     /// Fetches MintInterface for a mint signer pubkey.
     ///
     /// Checks on-chain first, then compressed state.
@@ -702,6 +514,194 @@ impl LightProgramTest {
             compressed_address,
             state: MintState::None,
         })
+    }
+
+    // ========================================================================
+    // New unified interface functions (mirror TypeScript SDK)
+    // ========================================================================
+
+    /// Fetches AccountInfoInterface for a compressible PDA.
+    ///
+    /// Checks on-chain first, then compressed state.
+    /// Returns unified interface with:
+    /// - `account`: Always present (real or synthetic bytes)
+    /// - `is_cold`: True if needs decompression
+    /// - `load_context`: Decompression context if cold
+    ///
+    /// # Example
+    /// ```ignore
+    /// let account = rpc.get_account_info_interface(&pda, &program_id).await?;
+    /// if account.is_cold {
+    ///     // Need to decompress before use
+    /// }
+    /// ```
+    pub async fn get_account_info_interface(
+        &self,
+        address: &solana_sdk::pubkey::Pubkey,
+        program_id: &solana_sdk::pubkey::Pubkey,
+    ) -> Result<light_compressible_client::AccountInfoInterface, RpcError> {
+        use light_client::indexer::Indexer;
+        use light_client::rpc::Rpc as RpcTrait;
+        use light_compressed_account::address::derive_address;
+        use light_compressible_client::AccountInfoInterface;
+
+        let address_tree = self.get_address_tree_v2().tree;
+        let compressed_address = derive_address(
+            &address.to_bytes(),
+            &address_tree.to_bytes(),
+            &program_id.to_bytes(),
+        );
+
+        // Check on-chain first
+        if let Some(account) = self.context.get_account(address) {
+            return Ok(AccountInfoInterface::hot(*address, account));
+        }
+
+        // Check compressed state
+        let result = self
+            .get_compressed_account(compressed_address, None)
+            .await?;
+
+        if let Some(compressed) = result.value {
+            if compressed
+                .data
+                .as_ref()
+                .map_or(false, |d| !d.data.is_empty())
+            {
+                return Ok(AccountInfoInterface::cold(
+                    *address,
+                    compressed,
+                    *program_id,
+                ));
+            }
+        }
+
+        // Doesn't exist - return empty synthetic account
+        let account = solana_sdk::account::Account {
+            lamports: 0,
+            data: vec![],
+            owner: *program_id,
+            executable: false,
+            rent_epoch: 0,
+        };
+
+        Ok(AccountInfoInterface::hot(*address, account))
+    }
+
+    /// Fetches TokenAccountInterface for a token account address.
+    ///
+    /// Checks on-chain first, then compressed state.
+    /// Uses standard SPL types:
+    /// - `account`: `solana_sdk::account::Account`
+    /// - `parsed`: `spl_token_2022::state::Account`
+    ///
+    /// # Example
+    /// ```ignore
+    /// let token = rpc.get_token_account_interface(&token_account).await?;
+    /// println!("Amount: {}", token.amount());
+    /// if token.is_cold {
+    ///     // Need to decompress
+    /// }
+    /// ```
+    pub async fn get_token_account_interface(
+        &self,
+        address: &solana_sdk::pubkey::Pubkey,
+    ) -> Result<light_compressible_client::account_interface::TokenAccountInterface, RpcError> {
+        use light_client::indexer::Indexer;
+        use light_compressible_client::account_interface::TokenAccountInterface;
+        use light_sdk::constants::LIGHT_TOKEN_PROGRAM_ID;
+
+        // Check on-chain first
+        if let Some(account) = self.context.get_account(address) {
+            return TokenAccountInterface::hot(*address, account).map_err(|e| {
+                RpcError::CustomError(format!("Failed to parse token account: {}", e))
+            });
+        }
+
+        // Check compressed state by owner (address is the token account owner for ctoken)
+        let result = self
+            .get_compressed_token_accounts_by_owner(address, None, None)
+            .await?;
+
+        if let Some(compressed) = result.value.items.into_iter().next() {
+            // Extract mint before moving compressed
+            let mint = compressed.token.mint;
+            // For token accounts fetched by address, we use the address as both
+            // the pubkey and owner (common pattern for PDA-owned token accounts)
+            return Ok(TokenAccountInterface::cold(
+                *address,
+                compressed,
+                *address, // wallet_owner = address for non-ATA token accounts
+                mint,
+                0, // bump not applicable for non-ATA
+                LIGHT_TOKEN_PROGRAM_ID.into(),
+            ));
+        }
+
+        Err(RpcError::CustomError(format!(
+            "Token account not found: {}",
+            address
+        )))
+    }
+
+    /// Fetches AtaInterface for an (owner, mint) pair.
+    ///
+    /// Uses standard SPL types and provides unified hot/cold interface.
+    /// The ATA address is derived from owner + mint.
+    ///
+    /// # Example
+    /// ```ignore
+    /// let ata = rpc.get_ata_interface(&owner, &mint).await?;
+    /// println!("Amount: {}", ata.amount());
+    /// println!("Mint: {}", ata.mint());
+    /// if ata.is_cold() {
+    ///     // Need to decompress
+    /// }
+    /// ```
+    pub async fn get_ata_interface(
+        &self,
+        owner: &solana_sdk::pubkey::Pubkey,
+        mint: &solana_sdk::pubkey::Pubkey,
+    ) -> Result<light_compressible_client::account_interface::AtaInterface, RpcError> {
+        use light_client::indexer::{GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer};
+        use light_compressible_client::account_interface::{AtaInterface, TokenAccountInterface};
+        use light_sdk::constants::LIGHT_TOKEN_PROGRAM_ID;
+        use light_token_sdk::token::derive_token_ata;
+
+        let (ata, bump) = derive_token_ata(owner, mint);
+
+        // Check on-chain first
+        if let Some(account) = self.context.get_account(&ata) {
+            let inner = TokenAccountInterface::hot(ata, account)
+                .map_err(|e| RpcError::CustomError(format!("Failed to parse ATA: {}", e)))?;
+            return Ok(AtaInterface::new(inner));
+        }
+
+        // Check compressed state
+        let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions::new(
+            Some(*mint),
+        ));
+        // Query by ATA address (token account owner for c-token ATAs)
+        let result = self
+            .get_compressed_token_accounts_by_owner(&ata, options, None)
+            .await?;
+
+        if let Some(compressed) = result.value.items.into_iter().next() {
+            let inner = TokenAccountInterface::cold(
+                ata,
+                compressed,
+                *owner,
+                *mint,
+                bump,
+                LIGHT_TOKEN_PROGRAM_ID.into(),
+            );
+            return Ok(AtaInterface::new(inner));
+        }
+
+        Err(RpcError::CustomError(format!(
+            "ATA not found for owner {} mint {}",
+            owner, mint
+        )))
     }
 }
 
