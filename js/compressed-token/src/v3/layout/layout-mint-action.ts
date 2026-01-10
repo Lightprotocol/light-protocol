@@ -146,7 +146,7 @@ export const CompressedMintMetadataLayout = struct([
     u8('bump'),
 ]);
 
-export const CompressedMintInstructionDataLayout = struct([
+export const MintInstructionDataLayout = struct([
     u64('supply'),
     u8('decimals'),
     CompressedMintMetadataLayout.replicate('metadata'),
@@ -164,7 +164,7 @@ export const MintActionCompressedInstructionDataLayout = struct([
     vec(ActionLayout, 'actions'),
     option(CompressedProofLayout, 'proof'),
     option(CpiContextLayout, 'cpiContext'),
-    option(CompressedMintInstructionDataLayout, 'mint'),
+    option(MintInstructionDataLayout, 'mint'),
 ]);
 
 // TODO: Remove V1 layouts after devnet program update
@@ -184,7 +184,7 @@ const CompressedMintMetadataLayoutV1 = struct([
     publicKey('mint'),
 ]);
 // TODO: Remove V1 layouts after devnet program update
-const CompressedMintInstructionDataLayoutV1 = struct([
+const MintInstructionDataLayoutV1 = struct([
     u64('supply'),
     u8('decimals'),
     CompressedMintMetadataLayoutV1.replicate('metadata'),
@@ -205,7 +205,7 @@ const MintActionCompressedInstructionDataLayoutV1 = struct([
     vec(ActionLayoutV1, 'actions'),
     option(CompressedProofLayout, 'proof'),
     option(CpiContextLayout, 'cpiContext'),
-    CompressedMintInstructionDataLayoutV1.replicate('mint'), // V1: not optional
+    MintInstructionDataLayoutV1.replicate('mint'), // V1: not optional
 ]);
 
 export interface ValidityProof {
@@ -314,7 +314,7 @@ export interface CompressedMintMetadata {
     bump: number;
 }
 
-export interface CompressedMintInstructionData {
+export interface MintInstructionData {
     supply: bigint;
     decimals: number;
     metadata: CompressedMintMetadata;
@@ -332,7 +332,7 @@ export interface MintActionCompressedInstructionData {
     actions: Action[];
     proof: ValidityProof | null;
     cpiContext: CpiContext | null;
-    mint: CompressedMintInstructionData | null;
+    mint: MintInstructionData | null;
 }
 
 /**

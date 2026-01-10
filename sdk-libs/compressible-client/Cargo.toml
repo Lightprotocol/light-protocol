@@ -26,5 +26,7 @@ light-compressible = { workspace = true }
 
 anchor-lang = { workspace = true, features = ["idl-build"], optional = true }
 borsh = { workspace = true }
+futures = { workspace = true }
+smallvec = "1.15"
 
 thiserror = { workspace = true }
