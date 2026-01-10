@@ -1,11 +1,22 @@
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
+use pinocchio::program_error::ProgramError as PinocchioProgramError;
 use pinocchio_token_program::processor::{burn::process_burn, burn_checked::process_burn_checked};
 
 use crate::shared::{
     compressible_top_up::calculate_and_execute_compressible_top_ups, convert_pinocchio_token_error,
 };
+
+pub(crate) type ProcessorFn = fn(&[AccountInfo], &[u8]) -> Result<(), PinocchioProgramError>;
+
+/// Base instruction data length constants
+pub(crate) const BASE_LEN_UNCHECKED: usize = 8;
+pub(crate) const BASE_LEN_CHECKED: usize = 9;
+
+/// Burn account indices: [ctoken=0, cmint=1, authority=2]
+const BURN_CMINT_IDX: usize = 1;
+const BURN_CTOKEN_IDX: usize = 0;
 
 /// Process ctoken burn instruction
 ///
@@ -23,40 +34,11 @@ pub fn process_ctoken_burn(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 3 {
-        msg!(
-            "CToken burn: expected at least 3 accounts received {}",
-            accounts.len()
-        );
-        return Err(ProgramError::NotEnoughAccountKeys);
-    }
-
-    if instruction_data.len() < 8 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-
-    // Parse max_top_up
-    let max_top_up = match instruction_data.len() {
-        8 => 0u16,
-        10 => u16::from_le_bytes(
-            instruction_data[8..10]
-                .try_into()
-                .map_err(|_| ProgramError::InvalidInstructionData)?,
-        ),
-        _ => return Err(ProgramError::InvalidInstructionData),
-    };
-
-    // Call pinocchio burn - handles balance/supply updates, authority check, frozen check
-    process_burn(accounts, &instruction_data[..8]).map_err(convert_pinocchio_token_error)?;
-
-    // Calculate and execute top-ups for both CMint and CToken
-    // burn account order: [ctoken, cmint, authority] - reverse of mint_to
-    // SAFETY: accounts.len() >= 3 validated at function entry
-    let ctoken = &accounts[0];
-    let cmint = &accounts[1];
-    let payer = accounts.get(2);
-
-    calculate_and_execute_compressible_top_ups(cmint, ctoken, payer, max_top_up)
+    process_ctoken_supply_change_inner::<BASE_LEN_UNCHECKED, BURN_CMINT_IDX, BURN_CTOKEN_IDX>(
+        accounts,
+        instruction_data,
+        process_burn,
+    )
 }
 
 /// Process ctoken burn_checked instruction
@@ -75,38 +57,59 @@ pub fn process_ctoken_burn_checked(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
+    process_ctoken_supply_change_inner::<BASE_LEN_CHECKED, BURN_CMINT_IDX, BURN_CTOKEN_IDX>(
+        accounts,
+        instruction_data,
+        process_burn_checked,
+    )
+}
+
+/// Shared inner implementation for ctoken mint_to and burn variants.
+///
+/// # Type Parameters
+/// * `BASE_LEN` - Base instruction data length (8 for unchecked, 9 for checked)
+/// * `CMINT_IDX` - Index of CMint account (0 for mint_to, 1 for burn)
+/// * `CTOKEN_IDX` - Index of CToken account (1 for mint_to, 0 for burn)
+///
+/// # Arguments
+/// * `accounts` - Account layout: [cmint/ctoken, ctoken/cmint, authority]
+/// * `instruction_data` - Serialized instruction data
+/// * `processor` - Pinocchio processor function
+#[inline(always)]
+pub(crate) fn process_ctoken_supply_change_inner<
+    const BASE_LEN: usize,
+    const CMINT_IDX: usize,
+    const CTOKEN_IDX: usize,
+>(
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+    processor: ProcessorFn,
+) -> Result<(), ProgramError> {
     if accounts.len() < 3 {
-        msg!(
-            "CToken burn_checked: expected at least 3 accounts received {}",
-            accounts.len()
-        );
+        msg!("CToken: expected at least 3 accounts received {}", accounts.len());
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    if instruction_data.len() < 9 {
+    if instruction_data.len() < BASE_LEN {
         return Err(ProgramError::InvalidInstructionData);
     }
 
-    // Parse max_top_up from bytes 9-10 if present
     let max_top_up = match instruction_data.len() {
-        9 => 0u16, // Legacy: no max_top_up
-        11 => u16::from_le_bytes(
-            instruction_data[9..11]
+        len if len == BASE_LEN => 0u16,
+        len if len == BASE_LEN + 2 => u16::from_le_bytes(
+            instruction_data[BASE_LEN..BASE_LEN + 2]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidInstructionData)?,
         ),
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
-    // Call pinocchio burn_checked - validates decimals against CMint, handles balance/supply updates
-    process_burn_checked(accounts, &instruction_data[..9])
-        .map_err(convert_pinocchio_token_error)?;
+    processor(accounts, &instruction_data[..BASE_LEN]).map_err(convert_pinocchio_token_error)?;
 
     // Calculate and execute top-ups for both CMint and CToken
-    // burn account order: [ctoken, cmint, authority] - reverse of mint_to
     // SAFETY: accounts.len() >= 3 validated at function entry
-    let ctoken = &accounts[0];
-    let cmint = &accounts[1];
+    let cmint = &accounts[CMINT_IDX];
+    let ctoken = &accounts[CTOKEN_IDX];
     let payer = accounts.get(2);
 
     calculate_and_execute_compressible_top_ups(cmint, ctoken, payer, max_top_up)

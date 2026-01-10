@@ -8,16 +8,16 @@ use crate::shared::{
     convert_program_error, transfer_lamports_via_cpi,
 };
 
-/// Account indices for approve instruction
-const APPROVE_ACCOUNT_SOURCE: usize = 0;
-const APPROVE_ACCOUNT_OWNER: usize = 2; // owner is payer for top-up
+/// Approve: 8-byte base (amount), payer at index 2
+const APPROVE_BASE_LEN: usize = 8;
+const APPROVE_PAYER_IDX: usize = 2;
 
-/// Account indices for revoke instruction
-const REVOKE_ACCOUNT_SOURCE: usize = 0;
-const REVOKE_ACCOUNT_OWNER: usize = 1; // owner is payer for top-up
+/// Revoke: 0-byte base, payer at index 1
+const REVOKE_BASE_LEN: usize = 0;
+const REVOKE_PAYER_IDX: usize = 1;
 
 /// Process CToken approve instruction.
-/// Handles compressible extension top-up before delegating to pinocchio.
+/// Handles compressible extension top-up after delegating to pinocchio.
 ///
 /// Instruction data format (backwards compatible):
 /// - 8 bytes: amount (legacy, no max_top_up enforcement)
@@ -27,32 +27,19 @@ pub fn process_ctoken_approve(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
-    let source = accounts
-        .get(APPROVE_ACCOUNT_SOURCE)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    process_approve(accounts, &instruction_data[..8]).map_err(convert_pinocchio_token_error)?;
-    // Hot path: 165-byte accounts have no extensions, just call pinocchio directly
-    if source.data_len() == 165 {
-        return Ok(());
+    if accounts.is_empty() {
+        return Err(ProgramError::NotEnoughAccountKeys);
     }
-
-    let payer = accounts.get(APPROVE_ACCOUNT_OWNER);
-
-    // Parse max_top_up based on instruction data length (0 = no limit)
-    let max_top_up = match instruction_data.len() {
-        8 => 0u16, // Legacy: no max_top_up
-        10 => u16::from_le_bytes(
-            instruction_data[8..10]
-                .try_into()
-                .map_err(|_| ProgramError::InvalidInstructionData)?,
-        ),
-        _ => return Err(ProgramError::InvalidInstructionData),
-    };
-    process_compressible_top_up(source, payer, max_top_up)
+    if instruction_data.len() < APPROVE_BASE_LEN {
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    process_approve(accounts, &instruction_data[..APPROVE_BASE_LEN])
+        .map_err(convert_pinocchio_token_error)?;
+    handle_compressible_top_up::<APPROVE_BASE_LEN, APPROVE_PAYER_IDX>(accounts, instruction_data)
 }
 
 /// Process CToken revoke instruction.
-/// Handles compressible extension top-up before delegating to pinocchio.
+/// Handles compressible extension top-up after delegating to pinocchio.
 ///
 /// Instruction data format (backwards compatible):
 /// - 0 bytes: legacy, no max_top_up enforcement
@@ -62,43 +49,56 @@ pub fn process_ctoken_revoke(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
-    let source = accounts
-        .get(REVOKE_ACCOUNT_SOURCE)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-
+    if accounts.is_empty() {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
     process_revoke(accounts).map_err(convert_pinocchio_token_error)?;
+    handle_compressible_top_up::<REVOKE_BASE_LEN, REVOKE_PAYER_IDX>(accounts, instruction_data)
+}
+
+/// Handle compressible extension top-up after pinocchio processing.
+///
+/// # Type Parameters
+/// * `BASE_LEN` - Base instruction data length (8 for approve, 0 for revoke)
+/// * `PAYER_IDX` - Index of payer account (2 for approve, 1 for revoke)
+#[inline(always)]
+fn handle_compressible_top_up<const BASE_LEN: usize, const PAYER_IDX: usize>(
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> Result<(), ProgramError> {
+    let source = &accounts[0];
 
     // Hot path: 165-byte accounts have no extensions
     if source.data_len() == 165 {
         return Ok(());
     }
 
-    let payer = accounts.get(REVOKE_ACCOUNT_OWNER);
+    process_compressible_top_up::<BASE_LEN, PAYER_IDX>(source, accounts, instruction_data)
+}
 
-    // Parse max_top_up based on instruction data length (0 = no limit)
+/// Calculate and transfer compressible top-up for a single ctoken account.
+///
+/// # Type Parameters
+/// * `BASE_LEN` - Base instruction data length (8 for approve, 0 for revoke)
+/// * `PAYER_IDX` - Index of payer account (2 for approve, 1 for revoke)
+#[cold]
+fn process_compressible_top_up<const BASE_LEN: usize, const PAYER_IDX: usize>(
+    account: &AccountInfo,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> Result<(), ProgramError> {
+    let payer = accounts.get(PAYER_IDX);
+
     let max_top_up = match instruction_data.len() {
-        0 => 0u16, // Legacy: no max_top_up
-        2 => u16::from_le_bytes(
-            instruction_data[0..2]
+        len if len == BASE_LEN => 0u16,
+        len if len == BASE_LEN + 2 => u16::from_le_bytes(
+            instruction_data[BASE_LEN..BASE_LEN + 2]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidInstructionData)?,
         ),
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
-    process_compressible_top_up(source, payer, max_top_up)
-}
-
-/// Calculate and transfer compressible top-up for a single account.
-///
-/// # Arguments
-/// * `max_top_up` - Maximum lamports for top-up. Transaction fails if exceeded. (0 = no limit)
-#[inline(always)]
-fn process_compressible_top_up(
-    account: &AccountInfo,
-    payer: Option<&AccountInfo>,
-    max_top_up: u16,
-) -> Result<(), ProgramError> {
     let ctoken = CToken::from_account_info_mut_checked(account)?;
 
     // Only process top-up if account has Compressible extension
