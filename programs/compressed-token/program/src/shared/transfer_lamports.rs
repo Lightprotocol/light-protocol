@@ -38,7 +38,7 @@ pub fn transfer_lamports(
 
 /// Transfer lamports using CPI to system program
 /// This is needed when transferring from accounts not owned by our program
-#[inline(always)]
+#[cold]
 #[profile]
 pub fn transfer_lamports_via_cpi(
     amount: u64,

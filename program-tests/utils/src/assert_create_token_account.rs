@@ -205,6 +205,8 @@ pub async fn assert_create_token_account_internal(
                 info: CompressionInfo {
                     config_account_version: 1,
                     last_claimed_slot: current_slot,
+                    rent_exemption_paid: rent_exemption as u32,
+                    _reserved: 0,
                     rent_config: RentConfig::default(),
                     lamports_per_write: compressible_info.lamports_per_write.unwrap_or(0),
                     compression_authority: compressible_info.compression_authority.to_bytes(),

@@ -124,10 +124,7 @@ async fn assert_compressible_extension(
 
     // Calculate expected lamport distribution using the same function as the program
     let account_size = account_data_before_close.len() as u64;
-    let base_lamports = rpc
-        .get_minimum_balance_for_rent_exemption(account_size as usize)
-        .await
-        .unwrap();
+    let base_lamports: u64 = compression.rent_exemption_paid.into();
 
     // Create AccountRentState and use the method to calculate distribution
     let state = AccountRentState {

@@ -1,19 +1,20 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_account_checks::checks::check_owner;
-use light_ctoken_interface::{
-    state::{CToken, CompressedMint},
-    CTokenError,
+#[cfg(target_os = "solana")]
+use light_ctoken_interface::state::{
+    cmint_top_up_lamports_from_account_info, top_up_lamports_from_account_info_unchecked,
 };
+use light_ctoken_interface::CTokenError;
 use light_program_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
-    sysvars::{clock::Clock, rent::Rent, Sysvar},
+    sysvars::{clock::Clock, Sysvar},
 };
 
 use super::{
     convert_program_error,
     transfer_lamports::{multi_transfer_lamports, Transfer},
 };
+#[cfg(target_os = "solana")]
 use crate::LIGHT_CPI_SIGNER;
 
 /// Calculate and execute top-up transfers for compressible CMint and CToken accounts.
@@ -26,6 +27,7 @@ use crate::LIGHT_CPI_SIGNER;
 /// * `max_top_up` - Maximum lamports for top-ups combined (0 = no limit)
 #[inline(always)]
 #[profile]
+#[allow(unused_mut)]
 pub fn calculate_and_execute_compressible_top_ups<'a>(
     cmint: &'a AccountInfo,
     ctoken: &'a AccountInfo,
@@ -44,43 +46,30 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
     ];
 
     let mut current_slot = 0;
-    let mut rent: Option<Rent> = None;
 
     // Initialize budget: +1 allows exact match (total == max_top_up)
     let mut lamports_budget = (max_top_up as u64).saturating_add(1);
 
-    // Calculate CMint top-up
-    {
-        check_owner(&LIGHT_CPI_SIGNER.program_id, cmint)?;
-        let cmint_data = cmint.try_borrow_data().map_err(convert_program_error)?;
-        let (mint, _) = CompressedMint::zero_copy_at_checked(&cmint_data)
-            .map_err(|_| CTokenError::CMintDeserializationFailed)?;
-        process_compression_top_up(
-            &mint.base.compression,
-            cmint,
-            &mut current_slot,
-            &mut transfers[0].amount,
-            &mut lamports_budget,
-            &mut rent,
-        )?;
+    // Calculate CMint top-up using optimized function (owner check inside)
+    #[cfg(target_os = "solana")]
+    if let Some(amount) = cmint_top_up_lamports_from_account_info(
+        cmint,
+        &mut current_slot,
+        &LIGHT_CPI_SIGNER.program_id,
+    ) {
+        transfers[0].amount = amount;
+        lamports_budget = lamports_budget.saturating_sub(amount);
     }
 
-    // Calculate CToken top-up (only if not 165 bytes - 165 means no extensions)
-    if ctoken.data_len() != 165 {
-        let token = CToken::from_account_info_checked(ctoken)?;
-        // Check for Compressible extension
-        let compressible = token
-            .get_compressible_extension()
-            .ok_or::<ProgramError>(CTokenError::MissingCompressibleExtension.into())?;
-        process_compression_top_up(
-            &compressible.info,
-            ctoken,
-            &mut current_slot,
-            &mut transfers[1].amount,
-            &mut lamports_budget,
-            &mut rent,
-        )?;
+    // Calculate CToken top-up using optimized function
+    // Returns None if no Compressible extension (165 bytes or missing extension)
+    #[cfg(target_os = "solana")]
+    if let Some(amount) = top_up_lamports_from_account_info_unchecked(ctoken, &mut current_slot) {
+        transfers[1].amount = amount;
+        lamports_budget = lamports_budget.saturating_sub(amount);
     }
+    #[cfg(not(target_os = "solana"))]
+    let _ = (cmint, ctoken, &mut current_slot); // Suppress unused warnings
 
     // Exit early if no compressible accounts
     if current_slot == 0 {
@@ -101,6 +90,7 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
 }
 
 /// Process compression top-up using embedded compression info.
+/// Uses stored rent_exemption_paid from CompressionInfo instead of querying Rent sysvar.
 #[inline(always)]
 pub fn process_compression_top_up<T: light_compressible::compression_info::CalculateTopUp>(
     compression: &T,
@@ -108,7 +98,6 @@ pub fn process_compression_top_up<T: light_compressible::compression_info::Calcu
     current_slot: &mut u64,
     transfer_amount: &mut u64,
     lamports_budget: &mut u64,
-    rent: &mut Option<Rent>,
 ) -> Result<(), ProgramError> {
     if *transfer_amount != 0 {
         return Ok(());
@@ -119,20 +108,12 @@ pub fn process_compression_top_up<T: light_compressible::compression_info::Calcu
             .map_err(|_| CTokenError::SysvarAccessError)?
             .slot;
     }
-    if rent.is_none() {
-        *rent = Some(Rent::get().map_err(|_| CTokenError::SysvarAccessError)?);
-    }
-    let rent_exemption = rent
-        .as_ref()
-        .unwrap()
-        .minimum_balance(account_info.data_len());
 
     *transfer_amount = compression
         .calculate_top_up_lamports(
             account_info.data_len() as u64,
             *current_slot,
             account_info.lamports(),
-            rent_exemption,
         )
         .map_err(|_| CTokenError::InvalidAccountData)?;
 

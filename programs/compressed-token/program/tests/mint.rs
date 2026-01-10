@@ -408,6 +408,8 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
                 compression_authority: zc.compression_authority,
                 rent_sponsor: zc.rent_sponsor,
                 last_claimed_slot: u64::from(zc.last_claimed_slot),
+                rent_exemption_paid: u32::from(zc.rent_exemption_paid),
+                _reserved: u32::from(zc._reserved),
                 rent_config: light_compressible::rent::RentConfig {
                     base_rent: u16::from(zc.rent_config.base_rent),
                     compression_cost: u16::from(zc.rent_config.compression_cost),

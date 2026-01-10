@@ -237,25 +237,16 @@ fn process_account_extensions(
     // Only calculate top-up if account has Compressible extension
     if let Some(compression) = token.get_compressible_extension() {
         // Get current slot for compressible top-up calculation
-        use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
+        use pinocchio::sysvars::{clock::Clock, Sysvar};
         if *current_slot == 0 {
             *current_slot = Clock::get()
                 .map_err(|_| CTokenError::SysvarAccessError)?
                 .slot;
         }
 
-        let rent_exemption = Rent::get()
-            .map_err(|_| CTokenError::SysvarAccessError)?
-            .minimum_balance(account.data_len());
-
         info.top_up_amount = compression
             .info
-            .calculate_top_up_lamports(
-                account.data_len() as u64,
-                *current_slot,
-                account.lamports(),
-                rent_exemption,
-            )
+            .calculate_top_up_lamports(account.data_len() as u64, *current_slot, account.lamports())
             .map_err(|_| CTokenError::InvalidAccountData)?;
 
         // Extract cached decimals if set

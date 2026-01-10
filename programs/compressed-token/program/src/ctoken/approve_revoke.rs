@@ -1,12 +1,14 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_ctoken_interface::{state::CToken, CTokenError};
 use pinocchio::account_info::AccountInfo;
 use pinocchio_token_program::processor::{approve::process_approve, revoke::process_revoke};
-
-use crate::shared::{
-    compressible_top_up::process_compression_top_up, convert_pinocchio_token_error,
-    convert_program_error, transfer_lamports_via_cpi,
+#[cfg(target_os = "solana")]
+use {
+    crate::shared::{convert_program_error, transfer_lamports_via_cpi},
+    light_ctoken_interface::state::top_up_lamports_from_account_info_unchecked,
+    light_ctoken_interface::CTokenError,
 };
+
+use crate::shared::convert_pinocchio_token_error;
 
 /// Approve: 8-byte base (amount), payer at index 2
 const APPROVE_BASE_LEN: usize = 8;
@@ -82,50 +84,40 @@ fn handle_compressible_top_up<const BASE_LEN: usize, const PAYER_IDX: usize>(
 /// * `BASE_LEN` - Base instruction data length (8 for approve, 0 for revoke)
 /// * `PAYER_IDX` - Index of payer account (2 for approve, 1 for revoke)
 #[cold]
+#[allow(unused)]
 fn process_compressible_top_up<const BASE_LEN: usize, const PAYER_IDX: usize>(
     account: &AccountInfo,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
-    let payer = accounts.get(PAYER_IDX);
+    // Returns None if no Compressible extension, Some(amount) otherwise
+    #[cfg(target_os = "solana")]
+    {
+        let payer = accounts.get(PAYER_IDX);
 
-    let max_top_up = match instruction_data.len() {
-        len if len == BASE_LEN => 0u16,
-        len if len == BASE_LEN + 2 => u16::from_le_bytes(
-            instruction_data[BASE_LEN..BASE_LEN + 2]
-                .try_into()
-                .map_err(|_| ProgramError::InvalidInstructionData)?,
-        ),
-        _ => return Err(ProgramError::InvalidInstructionData),
-    };
+        let max_top_up = match instruction_data.len() {
+            len if len == BASE_LEN => 0u16,
+            len if len == BASE_LEN + 2 => u16::from_le_bytes(
+                instruction_data[BASE_LEN..BASE_LEN + 2]
+                    .try_into()
+                    .map_err(|_| ProgramError::InvalidInstructionData)?,
+            ),
+            _ => return Err(ProgramError::InvalidInstructionData),
+        };
 
-    let ctoken = CToken::from_account_info_mut_checked(account)?;
+        let transfer_amount = {
+            let mut current_slot = 0;
+            top_up_lamports_from_account_info_unchecked(account, &mut current_slot).unwrap_or(0)
+        };
 
-    // Only process top-up if account has Compressible extension
-    let transfer_amount = if let Some(compressible) = ctoken.get_compressible_extension() {
-        let mut transfer_amount = 0u64;
-
-        process_compression_top_up(
-            &compressible.info,
-            account,
-            &mut 0,
-            &mut transfer_amount,
-            &mut 0,
-            &mut None,
-        )?;
-
-        if max_top_up > 0 && (max_top_up as u64) < transfer_amount {
-            return Err(CTokenError::MaxTopUpExceeded.into());
+        if transfer_amount > 0 {
+            if max_top_up > 0 && transfer_amount > max_top_up as u64 {
+                return Err(CTokenError::MaxTopUpExceeded.into());
+            }
+            let payer = payer.ok_or(CTokenError::MissingPayer)?;
+            transfer_lamports_via_cpi(transfer_amount, payer, account)
+                .map_err(convert_program_error)?;
         }
-        transfer_amount
-    } else {
-        0
-    };
-
-    if transfer_amount > 0 {
-        let payer = payer.ok_or(CTokenError::MissingPayer)?;
-        transfer_lamports_via_cpi(transfer_amount, payer, account)
-            .map_err(convert_program_error)?;
     }
 
     Ok(())

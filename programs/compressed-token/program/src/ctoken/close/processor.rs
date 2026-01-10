@@ -1,7 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{checks::check_signer, AccountInfoTrait};
-use light_compressible::rent::{get_rent_exemption_lamports, AccountRentState};
+use light_compressible::rent::AccountRentState;
 use light_ctoken_interface::state::{AccountState, CToken, ZCTokenMut};
 use light_program_profiler::profile;
 #[cfg(target_os = "solana")]
@@ -130,9 +130,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
         let compression_cost: u64 = compression.info.rent_config.compression_cost.into();
 
         let (mut lamports_to_rent_sponsor, mut lamports_to_destination) = {
-            let base_lamports =
-                get_rent_exemption_lamports(accounts.token_account.data_len() as u64)
-                    .map_err(|_| ProgramError::InvalidAccountData)?;
+            let base_lamports: u64 = compression.info.rent_exemption_paid.into();
 
             let state = AccountRentState {
                 num_bytes: accounts.token_account.data_len() as u64,

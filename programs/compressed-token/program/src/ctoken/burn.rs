@@ -1,7 +1,6 @@
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
 use light_program_profiler::profile;
-use pinocchio::account_info::AccountInfo;
-use pinocchio::program_error::ProgramError as PinocchioProgramError;
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError as PinocchioProgramError};
 use pinocchio_token_program::processor::{burn::process_burn, burn_checked::process_burn_checked};
 
 use crate::shared::{
@@ -86,7 +85,10 @@ pub(crate) fn process_ctoken_supply_change_inner<
     processor: ProcessorFn,
 ) -> Result<(), ProgramError> {
     if accounts.len() < 3 {
-        msg!("CToken: expected at least 3 accounts received {}", accounts.len());
+        msg!(
+            "CToken: expected at least 3 accounts received {}",
+            accounts.len()
+        );
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 

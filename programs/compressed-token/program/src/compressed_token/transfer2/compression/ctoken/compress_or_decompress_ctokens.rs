@@ -76,7 +76,6 @@ pub fn compress_or_decompress_ctokens(
                     &mut current_slot,
                     transfer_amount,
                     lamports_budget,
-                    &mut None,
                 )?;
             }
             Ok(())
@@ -104,7 +103,6 @@ pub fn compress_or_decompress_ctokens(
                     &mut current_slot,
                     transfer_amount,
                     lamports_budget,
-                    &mut None,
                 )?;
             }
             Ok(())

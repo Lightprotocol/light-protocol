@@ -153,15 +153,21 @@ fn serialize_decompressed_mint(
     let rent_exemption =
         get_rent_exemption_lamports(num_bytes).map_err(|_| ErrorCode::CMintRentExemptionFailed)?;
 
-    // Start with rent exemption deficit
-    let mut deficit = rent_exemption.saturating_sub(current_lamports);
+    // Only update rent_exemption_paid if new rent exemption is higher
+    // (sponsor should get back what they originally paid)
+    let rent_exemption_u32 = rent_exemption as u32;
+    let mut deficit = 0u64;
+    if rent_exemption_u32 > compressed_mint.compression.rent_exemption_paid {
+        deficit = (rent_exemption_u32 - compressed_mint.compression.rent_exemption_paid) as u64;
+        compressed_mint.compression.rent_exemption_paid = rent_exemption_u32;
+    }
 
     // STEP 4: Add compressible top-up if not a fresh decompress
     if !accounts_config.has_decompress_mint_action {
         let current_slot = Clock::get().map_err(convert_program_error)?.slot;
         let top_up = compressed_mint
             .compression
-            .calculate_top_up_lamports(num_bytes, current_slot, current_lamports, rent_exemption)
+            .calculate_top_up_lamports(num_bytes, current_slot, current_lamports)
             .map_err(|_| ErrorCode::CMintTopUpCalculationFailed)?;
         // Add compressible top-up to rent deficit
         deficit = deficit.saturating_add(top_up);

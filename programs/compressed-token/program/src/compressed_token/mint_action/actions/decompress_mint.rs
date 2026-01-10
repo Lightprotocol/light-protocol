@@ -9,7 +9,7 @@ use light_program_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::Seed,
-    sysvars::{clock::Clock, Sysvar},
+    sysvars::{clock::Clock, rent::Rent, Sysvar},
 };
 use pinocchio_system::instructions::Transfer;
 use spl_pod::solana_msg::msg;
@@ -97,7 +97,7 @@ pub fn process_decompress_mint_action(
         .map_err(|_| ProgramError::UnsupportedSysvar)?
         .slot;
 
-    // 5. Set compression info on compressed_mint
+    // 5. Set compression info on compressed_mint (rent_exemption_paid set after account_size calculation)
     compressed_mint.compression = CompressionInfo {
         config_account_version: config.version,
         compress_to_pubkey: 0, // Not applicable for CMint
@@ -106,6 +106,8 @@ pub fn process_decompress_mint_action(
         compression_authority: config.compression_authority.to_bytes(),
         rent_sponsor: config.rent_sponsor.to_bytes(),
         last_claimed_slot: current_slot,
+        rent_exemption_paid: 0, // Updated below after account_size calculation
+        _reserved: 0,
         rent_config: config.rent_config,
     };
 
@@ -128,6 +130,12 @@ pub fn process_decompress_mint_action(
     let account_size = borsh::to_vec(compressed_mint)
         .map_err(|_| ErrorCode::MintActionOutputSerializationFailed)?
         .len();
+
+    // 7a.1. Store rent exemption at creation (only query Rent sysvar here, never again)
+    let rent_exemption_paid = Rent::get()
+        .map_err(|_| ProgramError::UnsupportedSysvar)?
+        .minimum_balance(account_size) as u32;
+    compressed_mint.compression.rent_exemption_paid = rent_exemption_paid;
 
     // 7b. Calculate Light Protocol rent (base_rent + bytes * lamports_per_byte * epochs + compression_cost)
     let light_rent = config

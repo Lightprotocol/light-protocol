@@ -5,9 +5,7 @@ use pinocchio_token_program::processor::{
     mint_to::process_mint_to, mint_to_checked::process_mint_to_checked,
 };
 
-use super::burn::{
-    process_ctoken_supply_change_inner, BASE_LEN_CHECKED, BASE_LEN_UNCHECKED,
-};
+use super::burn::{process_ctoken_supply_change_inner, BASE_LEN_CHECKED, BASE_LEN_UNCHECKED};
 
 /// Mint account indices: [cmint=0, ctoken=1, authority=2]
 pub(crate) const MINT_CMINT_IDX: usize = 0;

@@ -8,10 +8,7 @@ use zerocopy::U64;
 use crate::{
     config::CompressibleConfig,
     error::CompressibleError,
-    rent::{
-        get_last_funded_epoch, get_rent_exemption_lamports, AccountRentState, RentConfig,
-        SLOTS_PER_EPOCH,
-    },
+    rent::{get_last_funded_epoch, AccountRentState, RentConfig, SLOTS_PER_EPOCH},
     AnchorDeserialize, AnchorSerialize,
 };
 
@@ -22,7 +19,6 @@ pub trait CalculateTopUp {
         num_bytes: u64,
         current_slot: u64,
         current_lamports: u64,
-        rent_exemption_lamports: u64,
     ) -> Result<u64, CompressibleError>;
 }
 
@@ -60,6 +56,12 @@ pub struct CompressionInfo {
     pub rent_sponsor: [u8; 32],
     /// Last slot rent was claimed from this account.
     pub last_claimed_slot: u64,
+    /// Rent exemption lamports paid at account creation.
+    /// Used instead of querying the Rent sysvar to ensure rent sponsor
+    /// gets back exactly what they paid regardless of future rent changes.
+    pub rent_exemption_paid: u32,
+    /// Reserved for future use.
+    pub _reserved: u32,
     /// Rent function parameters,
     /// used to calculate whether the account is compressible.
     pub rent_config: RentConfig,
@@ -81,7 +83,8 @@ macro_rules! impl_is_compressible {
                 current_slot: u64,
                 current_lamports: u64,
             ) -> Result<Option<u64>, CompressibleError> {
-                let rent_exemption_lamports = get_rent_exemption_lamports(bytes)?;
+                let rent_exemption_paid: u32 = self.rent_exemption_paid.into();
+                let rent_exemption_lamports: u64 = rent_exemption_paid as u64;
                 Ok(crate::rent::AccountRentState {
                     num_bytes: bytes,
                     current_slot,
@@ -106,9 +109,10 @@ macro_rules! impl_is_compressible {
                 num_bytes: u64,
                 current_slot: u64,
                 current_lamports: u64,
-                rent_exemption_lamports: u64,
             ) -> Result<u64, CompressibleError> {
                 let lamports_per_write: u32 = self.lamports_per_write.into();
+                let rent_exemption_paid: u32 = self.rent_exemption_paid.into();
+                let rent_exemption_lamports: u64 = rent_exemption_paid as u64;
 
                 // Calculate rent status using AccountRentState
                 let state = crate::rent::AccountRentState {
@@ -150,16 +154,9 @@ macro_rules! impl_calculate_top_up {
                 num_bytes: u64,
                 current_slot: u64,
                 current_lamports: u64,
-                rent_exemption_lamports: u64,
             ) -> Result<u64, CompressibleError> {
                 // Delegate to the inherent method
-                Self::calculate_top_up_lamports(
-                    self,
-                    num_bytes,
-                    current_slot,
-                    current_lamports,
-                    rent_exemption_lamports,
-                )
+                Self::calculate_top_up_lamports(self, num_bytes, current_slot, current_lamports)
             }
         }
     };
@@ -214,8 +211,9 @@ impl ZCompressionInfoMut<'_> {
         num_bytes: u64,
         current_slot: u64,
         current_lamports: u64,
-        rent_exemption_lamports: u64,
     ) -> Result<Option<u64>, CompressibleError> {
+        let rent_exemption_paid: u32 = self.rent_exemption_paid.into();
+        let rent_exemption_lamports: u64 = rent_exemption_paid as u64;
         let state = AccountRentState {
             num_bytes,
             current_slot,
@@ -274,14 +272,7 @@ impl ZCompressionInfoMut<'_> {
             return Err(CompressibleError::InvalidVersion);
         }
 
-        let rent_exemption_lamports = get_rent_exemption_lamports(bytes)?;
-
-        let claim_result = self.claim(
-            bytes,
-            current_slot,
-            current_lamports,
-            rent_exemption_lamports,
-        )?;
+        let claim_result = self.claim(bytes, current_slot, current_lamports)?;
 
         // Update RentConfig after claim calculation (even if claim_result is None)
         self.rent_config.set(&config_account.rent_config);

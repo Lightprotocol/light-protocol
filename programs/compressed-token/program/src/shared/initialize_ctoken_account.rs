@@ -5,14 +5,14 @@ use light_ctoken_interface::{
     instructions::extensions::CompressibleExtensionInstructionData,
     state::{
         ctoken::CompressedTokenConfig, AccountState, CToken, CompressibleExtensionConfig,
-        CompressionInfoConfig, ExtensionStructConfig,
+        CompressionInfoConfig, ExtensionStructConfig, ACCOUNT_TYPE_MINT,
     },
     CTokenError, CTOKEN_PROGRAM_ID,
 };
 use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyNew;
 #[cfg(target_os = "solana")]
-use pinocchio::sysvars::{clock::Clock, Sysvar};
+use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
 use pinocchio::{account_info::AccountInfo, instruction::Seed, msg, pubkey::Pubkey};
 
 use crate::{
@@ -29,8 +29,6 @@ const SPL_MINT_LEN: usize = 82;
 /// Token-2022 pads mints to BASE_ACCOUNT_LENGTH (165 bytes) before AccountType
 /// Layout: 82 bytes mint data + 83 bytes padding + 1 byte AccountType
 const T22_ACCOUNT_TYPE_OFFSET: usize = 165;
-/// AccountType::Mint discriminator value
-const ACCOUNT_TYPE_MINT: u8 = 1;
 
 /// Configuration for compressible accounts
 pub struct CompressibleInitData<'a> {
@@ -42,6 +40,8 @@ pub struct CompressibleInitData<'a> {
     pub custom_rent_payer: Option<Pubkey>,
     /// Whether this account is an ATA (determined by instruction path, not ix data)
     pub is_ata: bool,
+    /// Rent exemption lamports paid at account creation (from Rent sysvar)
+    pub rent_exemption_paid: u32,
 }
 
 /// Configuration for initializing a CToken account
@@ -77,6 +77,14 @@ pub fn create_compressible_account<'info>(
 
     // Calculate account size (includes Compressible extension)
     let account_size = mint_extensions.calculate_account_size(true)?;
+
+    // Get rent exemption from Rent sysvar (only place we query it - store for later use)
+    #[cfg(target_os = "solana")]
+    let rent_exemption_paid = Rent::get()
+        .map_err(|_| ProgramError::UnsupportedSysvar)?
+        .minimum_balance(account_size as usize) as u32;
+    #[cfg(not(target_os = "solana"))]
+    let rent_exemption_paid = 0;
 
     // Calculate rent with compression cost
     let rent = config_account
@@ -134,6 +142,7 @@ pub fn create_compressible_account<'info>(
             None
         },
         is_ata,
+        rent_exemption_paid,
     })
 }
 
@@ -226,6 +235,7 @@ fn configure_compression_info(
         config_account,
         custom_rent_payer,
         is_ata,
+        rent_exemption_paid,
     } = compressible;
 
     // Get the Compressible extension (must exist since we added it)
@@ -255,6 +265,9 @@ fn configure_compression_info(
     compressible_ext.info.rent_config.max_funded_epochs =
         config_account.rent_config.max_funded_epochs;
     compressible_ext.info.rent_config.max_top_up = config_account.rent_config.max_top_up.into();
+
+    // Set rent exemption paid at account creation (store once, never query Rent sysvar again)
+    compressible_ext.info.rent_exemption_paid = rent_exemption_paid.into();
 
     // Set the compression_authority, rent_sponsor and lamports_per_write
     compressible_ext.info.compression_authority = config_account.compression_authority.to_bytes();

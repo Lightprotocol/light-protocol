@@ -62,12 +62,12 @@ async fn test_create_ctoken_with_frozen_default_state() {
         .await
         .unwrap();
 
-    // Verify account was created with correct size (266 bytes = 166 base + 7 metadata + 90 compressible + 3 markers)
+    // Verify account was created with correct size (274 bytes = 166 base + 7 metadata + 98 compressible + 3 markers)
     let account = rpc.get_account(account_pubkey).await.unwrap().unwrap();
     assert_eq!(
         account.data.len(),
-        266,
-        "CToken account should be 266 bytes"
+        274,
+        "CToken account should be 274 bytes"
     );
 
     // Deserialize the CToken account using borsh

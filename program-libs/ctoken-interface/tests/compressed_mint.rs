@@ -2,6 +2,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_compressible::compression_info::CompressionInfo;
 use light_ctoken_interface::state::{
+    cmint_top_up_lamports_from_slice,
     extensions::{AdditionalMetadata, ExtensionStruct, TokenMetadata},
     BaseMint, CompressedMint, CompressedMintConfig, CompressedMintMetadata, ACCOUNT_TYPE_MINT,
 };
@@ -411,5 +412,50 @@ fn test_compressed_mint_new_zero_copy_fails_if_already_initialized() {
     assert_eq!(
         result.unwrap_err(),
         light_zero_copy::errors::ZeroCopyError::MemoryNotZeroed
+    );
+}
+
+/// Test that cmint_top_up_lamports_from_slice produces identical results to full deserialization.
+#[test]
+fn test_cmint_top_up_lamports_matches_full_deserialization() {
+    // Create a CMint using zero-copy
+    let config = CompressedMintConfig { extensions: None };
+    let byte_len = CompressedMint::byte_len(&config).unwrap();
+    let mut buffer = vec![0u8; byte_len];
+    let (mut cmint, _) = CompressedMint::new_zero_copy(&mut buffer, config).unwrap();
+
+    // Set known values in CompressionInfo
+    cmint.base.compression.lamports_per_write = 1000.into();
+    cmint.base.compression.last_claimed_slot = 13500.into(); // Epoch 1
+    cmint.base.compression.rent_exemption_paid = 50_000.into();
+    cmint.base.compression.rent_config.base_rent = 128.into();
+    cmint.base.compression.rent_config.compression_cost = 11000.into();
+    cmint
+        .base
+        .compression
+        .rent_config
+        .lamports_per_byte_per_epoch = 1;
+    cmint.base.compression.rent_config.max_funded_epochs = 2;
+
+    // Test parameters
+    let current_slot = 27000u64; // Epoch 2
+    let current_lamports = 100_000u64;
+
+    // Calculate using optimized function
+    let optimized_result =
+        cmint_top_up_lamports_from_slice(&buffer, current_lamports, current_slot)
+            .expect("Should return Some");
+
+    // Calculate using full deserialization
+    let (cmint_read, _) = CompressedMint::zero_copy_at(&buffer).unwrap();
+    let full_deser_result = cmint_read
+        .base
+        .compression
+        .calculate_top_up_lamports(buffer.len() as u64, current_slot, current_lamports)
+        .expect("Should succeed");
+
+    assert_eq!(
+        optimized_result, full_deser_result,
+        "Optimized result should match full deserialization"
     );
 }
