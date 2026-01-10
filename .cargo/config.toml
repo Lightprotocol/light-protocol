@@ -1,6 +1,9 @@
 [alias]
 xtask = "run --package xtask --"
 
+[resolver]
+incompatible-rust-versions = "fallback"
+
 # On Windows
 # ```
 # cargo install -f cargo-binutils

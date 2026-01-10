@@ -52,6 +52,13 @@ where
         + Clone
         + HasCompressionInfo,
 {
+    // TODO: consider not supporting yet.
+    // Fail-fast: with_data=true is not yet supported in macro-generated code
+    // if with_data {
+    //     msg!("with_data=true is not supported yet");
+    //     return Err(LightSdkError::ConstraintViolation.into());
+    // }
+
     let tree = cpi_accounts
         .get_tree_account_info(new_address_param.address_merkle_tree_account_index as usize)
         .map_err(|_| {

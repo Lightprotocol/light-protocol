@@ -3,10 +3,17 @@
 //!
 //! ## Account Creation
 //!
+<<<<<<< HEAD:sdk-libs/token-sdk/src/token/mod.rs
 //! - [`CreateAssociatedTokenAccount`] - Create associated ctoken account (ATA) instruction
 //! - [`CreateAssociatedTokenAccountCpi`] - Create associated ctoken account (ATA) via CPI
 //! - [`CreateTokenAccount`] - Create ctoken account instruction
 //! - [`CreateTokenAccountCpi`] - Create ctoken account via CPI
+=======
+//! - [`CreateAssociatedCTokenAccount`] - Create associated ctoken account (ATA) instruction
+//! - [`CreateCTokenAtaCpi`] - Create associated ctoken account (ATA) via CPI
+//! - [`CreateCTokenAccount`] - Create ctoken account instruction
+//! - [`CreateCTokenAccountCpi`] - Create ctoken account via CPI
+>>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/ctoken/mod.rs
 //!
 //! ## Transfers
 //!
@@ -49,26 +56,51 @@
 //! # Ok::<(), solana_program_error::ProgramError>(())
 //! ```
 //!
-//! # Example: Create cToken Account CPI
+//! # Example: Create rent-free ATA via CPI
 //!
 //! ```rust,ignore
+<<<<<<< HEAD:sdk-libs/token-sdk/src/token/mod.rs
 //! use light_token_sdk::token::{CreateAssociatedTokenAccountCpi, CompressibleParamsCpi};
 //!
 //! CreateAssociatedTokenAccountCpi {
+=======
+//! use light_ctoken_sdk::ctoken::CreateCTokenAtaCpi;
+//!
+//! CreateCTokenAtaCpi {
+//!     payer: ctx.accounts.payer.to_account_info(),
+>>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/ctoken/mod.rs
 //!     owner: ctx.accounts.owner.to_account_info(),
 //!     mint: ctx.accounts.mint.to_account_info(),
-//!     payer: ctx.accounts.payer.to_account_info(),
-//!     associated_token_account: ctx.accounts.ctoken_account.to_account_info(),
-//!     system_program: ctx.accounts.system_program.to_account_info(),
+//!     ata: ctx.accounts.user_ata.to_account_info(),
 //!     bump,
-//!     compressible: Some(CompressibleParamsCpi::default_with_accounts(
-//!         ctx.accounts.compressible_config.to_account_info(),
-//!         ctx.accounts.rent_sponsor.to_account_info(),
-//!         ctx.accounts.system_program.to_account_info(),
-//!     )),
-//!     idempotent: true,
 //! }
+//! .idempotent()
+//! .rent_free(
+//!     ctx.accounts.ctoken_config.to_account_info(),
+//!     ctx.accounts.rent_sponsor.to_account_info(),
+//!     ctx.accounts.system_program.to_account_info(),
+//! )
 //! .invoke()?;
+//! ```
+//!
+//! # Example: Create rent-free vault via CPI (with PDA signing)
+//!
+//! ```rust,ignore
+//! use light_ctoken_sdk::ctoken::CreateCTokenAccountCpi;
+//!
+//! CreateCTokenAccountCpi {
+//!     payer: ctx.accounts.payer.to_account_info(),
+//!     account: ctx.accounts.vault.to_account_info(),
+//!     mint: ctx.accounts.mint.to_account_info(),
+//!     owner: ctx.accounts.vault_authority.key(),
+//! }
+//! .rent_free(
+//!     ctx.accounts.ctoken_config.to_account_info(),
+//!     ctx.accounts.rent_sponsor.to_account_info(),
+//!     ctx.accounts.system_program.to_account_info(),
+//!     &crate::ID,
+//! )
+//! .invoke_signed(&[b"vault", mint.key().as_ref(), &[bump]])?;
 //! ```
 //!
 
@@ -139,6 +171,7 @@ pub use transfer_to_spl::{TransferToSpl, TransferToSplCpi};
 /// - `account_compression_authority` - Compression authority
 /// - `account_compression_program` - Account Compression Program
 /// - `system_program` - Solana System Program
+#[derive(Clone)]
 pub struct SystemAccountInfos<'info> {
     pub light_system_program: AccountInfo<'info>,
     pub cpi_authority_pda: AccountInfo<'info>,

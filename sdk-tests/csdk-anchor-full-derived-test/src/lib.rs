@@ -2,7 +2,7 @@
 
 use anchor_lang::prelude::*;
 use light_sdk::{derive_light_cpi_signer, derive_light_rent_sponsor_pda};
-use light_sdk_macros::add_compressible_instructions;
+use light_sdk_macros::{light_instruction, rentfree_program};
 use light_sdk_types::CpiSigner;
 
 pub mod errors;
@@ -10,12 +10,8 @@ pub mod instruction_accounts;
 pub mod state;
 
 pub use instruction_accounts::*;
-pub use state::{
-    AccountCreationData, CompressionParams, GameSession, PackedGameSession,
-    PackedPlaceholderRecord, PackedUserRecord, PlaceholderRecord, UserRecord,
-};
+pub use state::{GameSession, PackedGameSession, PackedUserRecord, PlaceholderRecord, UserRecord};
 
-// Example helper expression usable in seeds
 #[inline]
 pub fn max_key(left: &Pubkey, right: &Pubkey) -> [u8; 32] {
     if left > right {
@@ -30,16 +26,15 @@ declare_id!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
 
-/// Derive a program-owned rent sponsor PDA (version = 1 by default).
 pub const PROGRAM_RENT_SPONSOR_DATA: ([u8; 32], u8) =
     derive_light_rent_sponsor_pda!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah", 1);
 
-/// Returns the program's rent sponsor PDA as a Pubkey.
 #[inline]
 pub fn program_rent_sponsor() -> Pubkey {
     Pubkey::from(PROGRAM_RENT_SPONSOR_DATA.0)
 }
 
+<<<<<<< HEAD
 #[add_compressible_instructions(
     // Complex PDA account types with seed specifications using BOTH ctx.accounts.* AND data.*
     // UserRecord: uses ctx accounts (authority, mint_authority) + data fields (owner, category_id)
@@ -80,42 +75,47 @@ pub mod csdk_anchor_full_derived_test {
     use light_token_sdk::compressed_token::{
         create_compressed_mint::find_mint_address, mint_action::MintActionMetaConfig,
     };
+=======
+pub const GAME_SESSION_SEED: &str = "game_session";
+
+#[rentfree_program]
+#[program]
+pub mod csdk_anchor_full_derived_test {
+    #![allow(clippy::too_many_arguments)]
+>>>>>>> a606eb113 (wip)
 
     use super::*;
     use crate::{
-        errors::ErrorCode,
+        instruction_accounts::CreatePdasAndMintAuto,
         state::{GameSession, UserRecord},
-        LIGHT_CPI_SIGNER,
+        FullAutoWithMintParams, LIGHT_CPI_SIGNER,
     };
 
-    pub fn create_user_record_and_game_session<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateUserRecordAndGameSession<'info>>,
-        account_data: AccountCreationData,
-        compression_params: CompressionParams,
+    #[light_instruction]
+    pub fn create_pdas_and_mint_auto<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreatePdasAndMintAuto<'info>>,
+        params: FullAutoWithMintParams,
     ) -> Result<()> {
+        use anchor_lang::solana_program::sysvar::clock::Clock;
+        use light_ctoken_sdk::ctoken::{
+            CTokenMintToCpi, CreateCTokenAccountCpi, CreateCTokenAtaCpi,
+        };
+
         let user_record = &mut ctx.accounts.user_record;
+        user_record.owner = params.owner;
+        user_record.name = "Auto Created User With Mint".to_string();
+        user_record.score = 0;
+        user_record.category_id = params.category_id;
+
         let game_session = &mut ctx.accounts.game_session;
-
-        let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)?;
-
-        if ctx.accounts.rent_sponsor.key() != config.rent_sponsor {
-            return Err(ErrorCode::RentRecipientMismatch.into());
-        }
-
-        // Populate UserRecord
-        user_record.owner = account_data.owner;
-        user_record.name = account_data.user_name.clone();
-        user_record.score = 11;
-        user_record.category_id = account_data.category_id;
-
-        // Populate GameSession
-        game_session.session_id = account_data.session_id;
-        game_session.player = ctx.accounts.user.key();
-        game_session.game_type = account_data.game_type.clone();
+        game_session.session_id = params.session_id;
+        game_session.player = ctx.accounts.fee_payer.key();
+        game_session.game_type = "Auto Game With Mint".to_string();
         game_session.start_time = Clock::get()?.unix_timestamp as u64;
         game_session.end_time = None;
         game_session.score = 0;
 
+<<<<<<< HEAD
         let cpi_accounts = CpiAccounts::new_with_config(
             ctx.accounts.user.as_ref(),
             ctx.remaining_accounts,
@@ -207,19 +207,55 @@ pub mod csdk_anchor_full_derived_test {
                 read_only_address_trees: [0; 4],
             },
         );
-
-        // Build account metas
-        let mut config = MintActionMetaConfig::new_create_mint(
-            ctx.accounts.user.key(),           // fee_payer
-            ctx.accounts.mint_authority.key(), // authority (mint authority)
-            ctx.accounts.mint_signer.key(),    // mint_signer
-            address_tree_pubkey,
-            output_queue,
+=======
+        let cmint_key = ctx.accounts.cmint.key();
+        CreateCTokenAccountCpi {
+            payer: ctx.accounts.fee_payer.to_account_info(),
+            account: ctx.accounts.vault.to_account_info(),
+            mint: ctx.accounts.cmint.to_account_info(),
+            owner: ctx.accounts.vault_authority.key(),
+        }
+        .rent_free(
+            ctx.accounts.ctoken_compressible_config.to_account_info(),
+            ctx.accounts.ctoken_rent_sponsor.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+            &crate::ID,
         )
-        .with_mint_compressed_tokens();
+        .invoke_signed(&[
+            crate::instruction_accounts::VAULT_SEED,
+            cmint_key.as_ref(),
+            &[params.vault_bump],
+        ])?;
+>>>>>>> a606eb113 (wip)
 
-        config.cpi_context = Some(cpi_context_pubkey);
+        CreateCTokenAtaCpi {
+            payer: ctx.accounts.fee_payer.to_account_info(),
+            owner: ctx.accounts.fee_payer.to_account_info(),
+            mint: ctx.accounts.cmint.to_account_info(),
+            ata: ctx.accounts.user_ata.to_account_info(),
+            bump: params.user_ata_bump,
+        }
+        .idempotent()
+        .rent_free(
+            ctx.accounts.ctoken_compressible_config.to_account_info(),
+            ctx.accounts.ctoken_rent_sponsor.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+        )
+        .invoke()?;
 
+        if params.vault_mint_amount > 0 {
+            CTokenMintToCpi {
+                cmint: ctx.accounts.cmint.to_account_info(),
+                destination: ctx.accounts.vault.to_account_info(),
+                amount: params.vault_mint_amount,
+                authority: ctx.accounts.mint_authority.to_account_info(),
+                system_program: ctx.accounts.system_program.to_account_info(),
+                max_top_up: None,
+            }
+            .invoke()?;
+        }
+
+<<<<<<< HEAD
         let account_metas = config.to_account_metas();
 
         // Serialize instruction data
@@ -247,6 +283,19 @@ pub mod csdk_anchor_full_derived_test {
 
         user_record.close(ctx.accounts.rent_sponsor.to_account_info())?;
         game_session.close(ctx.accounts.rent_sponsor.to_account_info())?;
+=======
+        if params.user_ata_mint_amount > 0 {
+            CTokenMintToCpi {
+                cmint: ctx.accounts.cmint.to_account_info(),
+                destination: ctx.accounts.user_ata.to_account_info(),
+                amount: params.user_ata_mint_amount,
+                authority: ctx.accounts.mint_authority.to_account_info(),
+                system_program: ctx.accounts.system_program.to_account_info(),
+                max_top_up: None,
+            }
+            .invoke()?;
+        }
+>>>>>>> a606eb113 (wip)
 
         Ok(())
     }

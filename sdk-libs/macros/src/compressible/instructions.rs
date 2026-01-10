@@ -8,6 +8,22 @@ use syn::{
     Expr, Ident, Item, ItemMod, LitStr, Result, Token,
 };
 
+/// Convert PascalCase to snake_case (e.g., UserRecord -> user_record)
+fn to_snake_case(s: &str) -> String {
+    let mut result = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if c.is_uppercase() {
+            if i > 0 {
+                result.push('_');
+            }
+            result.push(c.to_ascii_lowercase());
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
+
 macro_rules! macro_error {
     ($span:expr, $msg:expr) => {
         syn::Error::new_spanned(
@@ -45,145 +61,100 @@ pub struct TokenSeedSpec {
     pub variant: Ident,
     pub _eq: Token![=],
     pub is_token: Option<bool>,
-    pub is_ata: bool,
     pub seeds: Punctuated<SeedElement, Token![,]>,
     pub authority: Option<Vec<SeedElement>>,
 }
 
 impl Parse for TokenSeedSpec {
     fn parse(input: ParseStream) -> Result<Self> {
-        let variant = input.parse()?;
-        let _eq = input.parse()?;
+        let variant: Ident = input.parse()?;
+        let _eq: Token![=] = input.parse()?;
 
         let content;
         syn::parenthesized!(content in input);
 
-        let (is_token, is_ata, seeds, authority) = if content.peek(Ident) {
-            let first_ident: Ident = content.parse()?;
+        // New explicit syntax:
+        //   PDA:   TypeName = (seeds = (...))
+        //   Token: TypeName = (is_token, seeds = (...), authority = (...))
+        let mut is_token = None;
+        let mut seeds = Punctuated::new();
+        let mut authority = None;
 
-            match first_ident.to_string().as_str() {
-                "is_token" => {
-                    let _comma: Token![,] = content.parse()?;
+        while !content.is_empty() {
+            if content.peek(Ident) {
+                let ident: Ident = content.parse()?;
+                let ident_str = ident.to_string();
 
-                    if content.peek(Ident) {
-                        let fork = content.fork();
-                        if let Ok(second_ident) = fork.parse::<Ident>() {
-                            if second_ident == "is_ata" {
-                                let _: Ident = content.parse()?;
-                                return Ok(TokenSeedSpec {
-                                    variant,
-                                    _eq,
-                                    is_token: Some(true),
-                                    is_ata: true,
-                                    seeds: Punctuated::new(),
-                                    authority: None,
-                                });
-                            }
-                        }
+                match ident_str.as_str() {
+                    "is_token" | "true" => {
+                        is_token = Some(true);
                     }
-
-                    let (seeds, authority) = parse_seeds_with_authority(&content)?;
-                    (Some(true), false, seeds, authority)
-                }
-                "true" => {
-                    let _comma: Token![,] = content.parse()?;
-                    let (seeds, authority) = parse_seeds_with_authority(&content)?;
-                    (Some(true), false, seeds, authority)
-                }
-                "is_pda" | "false" => {
-                    let _comma: Token![,] = content.parse()?;
-                    let (seeds, authority) = parse_seeds_with_authority(&content)?;
-                    (Some(false), false, seeds, authority)
-                }
-                _ => {
-                    let mut seeds = Punctuated::new();
-                    // Allow function-call expressions starting with an identifier, e.g. max_key(...)
-                    if content.peek(syn::token::Paren) {
-                        let args_tokens;
-                        syn::parenthesized!(args_tokens in content);
-                        let inner_ts: proc_macro2::TokenStream = args_tokens.parse()?;
-                        let call_expr: syn::Expr =
-                            syn::parse2(quote! { #first_ident( #inner_ts ) })?;
-                        seeds.push(SeedElement::Expression(Box::new(call_expr)));
-                    } else {
-                        seeds.push(SeedElement::Expression(Box::new(syn::Expr::Path(
-                            syn::ExprPath {
-                                attrs: vec![],
-                                qself: None,
-                                path: syn::Path::from(first_ident),
-                            },
-                        ))));
+                    "is_pda" | "false" => {
+                        is_token = Some(false);
                     }
-
-                    if content.peek(Token![,]) {
-                        let _comma: Token![,] = content.parse()?;
-                        let (rest, authority) = parse_seeds_with_authority(&content)?;
-                        seeds.extend(rest);
-                        (None, false, seeds, authority)
-                    } else {
-                        (None, false, seeds, None)
+                    "seeds" => {
+                        let _eq: Token![=] = content.parse()?;
+                        let seeds_content;
+                        syn::parenthesized!(seeds_content in content);
+                        seeds = parse_seed_elements(&seeds_content)?;
+                    }
+                    "authority" => {
+                        let _eq: Token![=] = content.parse()?;
+                        authority = Some(parse_authority_seeds(&content)?);
+                    }
+                    _ => {
+                        return Err(syn::Error::new_spanned(
+                            &ident,
+                            format!(
+                                "Unknown keyword '{}'. Expected: is_token, seeds, or authority.\n\
+                                 Use explicit syntax: TypeName = (seeds = (\"seed\", ctx.account, ...))\n\
+                                 For tokens: TypeName = (is_token, seeds = (...), authority = (...))",
+                                ident_str
+                            ),
+                        ));
                     }
                 }
+            } else {
+                return Err(syn::Error::new(
+                    content.span(),
+                    "Expected keyword (is_token, seeds, or authority). Use explicit syntax:\n\
+                     - PDA: TypeName = (seeds = (\"seed\", ctx.account, ...))\n\
+                     - Token: TypeName = (is_token, seeds = (...), authority = (...))",
+                ));
             }
-        } else {
-            let (seeds, authority) = parse_seeds_with_authority(&content)?;
-            (None, false, seeds, authority)
-        };
+
+            if content.peek(Token![,]) {
+                let _comma: Token![,] = content.parse()?;
+            } else {
+                break;
+            }
+        }
+
+        if seeds.is_empty() {
+            return Err(syn::Error::new_spanned(
+                &variant,
+                format!(
+                    "Missing seeds for '{}'. Use: {} = (seeds = (\"seed\", ctx.account, ...))",
+                    variant, variant
+                ),
+            ));
+        }
 
         Ok(TokenSeedSpec {
             variant,
             _eq,
             is_token,
-            is_ata,
             seeds,
             authority,
         })
     }
 }
 
-#[allow(clippy::type_complexity)]
-fn parse_seeds_with_authority(
-    content: ParseStream,
-) -> Result<(Punctuated<SeedElement, Token![,]>, Option<Vec<SeedElement>>)> {
+/// Parse seed elements from within seeds = (...)
+fn parse_seed_elements(content: ParseStream) -> Result<Punctuated<SeedElement, Token![,]>> {
     let mut seeds = Punctuated::new();
-    let mut authority = None;
 
     while !content.is_empty() {
-        if content.peek(Ident) {
-            let fork = content.fork();
-            if let Ok(ident) = fork.parse::<Ident>() {
-                if ident == "authority" && fork.peek(Token![=]) {
-                    let _: Ident = content.parse()?;
-                    let _: Token![=] = content.parse()?;
-
-                    if content.peek(syn::token::Paren) {
-                        let auth_content;
-                        syn::parenthesized!(auth_content in content);
-                        let mut auth_seeds = Vec::new();
-
-                        while !auth_content.is_empty() {
-                            auth_seeds.push(auth_content.parse::<SeedElement>()?);
-                            if auth_content.peek(Token![,]) {
-                                let _: Token![,] = auth_content.parse()?;
-                            } else {
-                                break;
-                            }
-                        }
-                        authority = Some(auth_seeds);
-                    } else {
-                        authority = Some(vec![content.parse::<SeedElement>()?]);
-                    }
-
-                    if content.peek(Token![,]) {
-                        let _: Token![,] = content.parse()?;
-                        continue;
-                    } else {
-                        break;
-                    }
-                }
-            }
-        }
-
         seeds.push(content.parse::<SeedElement>()?);
 
         if content.peek(Token![,]) {
@@ -196,7 +167,29 @@ fn parse_seeds_with_authority(
         }
     }
 
-    Ok((seeds, authority))
+    Ok(seeds)
+}
+
+/// Parse authority seeds - either parenthesized tuple or single expression
+fn parse_authority_seeds(content: ParseStream) -> Result<Vec<SeedElement>> {
+    if content.peek(syn::token::Paren) {
+        let auth_content;
+        syn::parenthesized!(auth_content in content);
+        let mut auth_seeds = Vec::new();
+
+        while !auth_content.is_empty() {
+            auth_seeds.push(auth_content.parse::<SeedElement>()?);
+            if auth_content.peek(Token![,]) {
+                let _: Token![,] = auth_content.parse()?;
+            } else {
+                break;
+            }
+        }
+        Ok(auth_seeds)
+    } else {
+        // Single expression (e.g., LIGHT_CPI_SIGNER)
+        Ok(vec![content.parse::<SeedElement>()?])
+    }
 }
 
 #[derive(Clone)]
@@ -213,6 +206,142 @@ impl Parse for SeedElement {
             Ok(SeedElement::Expression(input.parse()?))
         }
     }
+}
+
+/// Recursively extract all ctx.XXX or ctx.accounts.XXX field names from an expression.
+/// Handles nested expressions like function calls: max_key(&ctx.user.key(), &ctx.authority.key())
+fn extract_ctx_fields_from_expr(expr: &syn::Expr, fields: &mut Vec<Ident>) {
+    match expr {
+        syn::Expr::Field(field_expr) => {
+            if let syn::Member::Named(field_name) = &field_expr.member {
+                // Check for ctx.XXX pattern (direct field access)
+                if let syn::Expr::Path(path) = &*field_expr.base {
+                    if let Some(segment) = path.path.segments.first() {
+                        if segment.ident == "ctx" {
+                            fields.push(field_name.clone());
+                            return;
+                        }
+                    }
+                }
+                // Check for ctx.accounts.XXX pattern (nested field access)
+                if let syn::Expr::Field(nested_field) = &*field_expr.base {
+                    if let syn::Member::Named(base_name) = &nested_field.member {
+                        if base_name == "accounts" {
+                            if let syn::Expr::Path(path) = &*nested_field.base {
+                                if let Some(segment) = path.path.segments.first() {
+                                    if segment.ident == "ctx" {
+                                        fields.push(field_name.clone());
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Recurse into base expression
+            extract_ctx_fields_from_expr(&field_expr.base, fields);
+        }
+        syn::Expr::MethodCall(method) => {
+            // Recurse into receiver and args
+            extract_ctx_fields_from_expr(&method.receiver, fields);
+            for arg in &method.args {
+                extract_ctx_fields_from_expr(arg, fields);
+            }
+        }
+        syn::Expr::Call(call) => {
+            // Recurse into function args
+            for arg in &call.args {
+                extract_ctx_fields_from_expr(arg, fields);
+            }
+        }
+        syn::Expr::Reference(ref_expr) => {
+            extract_ctx_fields_from_expr(&ref_expr.expr, fields);
+        }
+        syn::Expr::Paren(paren) => {
+            extract_ctx_fields_from_expr(&paren.expr, fields);
+        }
+        _ => {}
+    }
+}
+
+/// Extract ctx.XXX or ctx.accounts.XXX field names from a seed element.
+fn extract_ctx_account_fields(seed: &SeedElement) -> Vec<Ident> {
+    let mut fields = Vec::new();
+    if let SeedElement::Expression(expr) = seed {
+        extract_ctx_fields_from_expr(expr, &mut fields);
+    }
+    fields
+}
+
+/// Extract all ctx.accounts.XXX field names from a list of seed elements.
+/// Deduplicates the fields.
+pub fn extract_ctx_seed_fields(seeds: &syn::punctuated::Punctuated<SeedElement, Token![,]>) -> Vec<Ident> {
+    let mut all_fields = Vec::new();
+    for seed in seeds {
+        all_fields.extend(extract_ctx_account_fields(seed));
+    }
+    // Deduplicate while preserving order
+    let mut seen = std::collections::HashSet::new();
+    all_fields
+        .into_iter()
+        .filter(|f| seen.insert(f.to_string()))
+        .collect()
+}
+
+/// Phase 5: Extract data.XXX field names from an expression recursively.
+fn extract_data_fields_from_expr(expr: &syn::Expr, fields: &mut Vec<Ident>) {
+    match expr {
+        syn::Expr::Field(field_expr) => {
+            if let syn::Member::Named(field_name) = &field_expr.member {
+                // Check for data.XXX pattern
+                if let syn::Expr::Path(path) = &*field_expr.base {
+                    if let Some(segment) = path.path.segments.first() {
+                        if segment.ident == "data" {
+                            fields.push(field_name.clone());
+                            return;
+                        }
+                    }
+                }
+            }
+            // Recurse into base expression
+            extract_data_fields_from_expr(&field_expr.base, fields);
+        }
+        syn::Expr::MethodCall(method) => {
+            extract_data_fields_from_expr(&method.receiver, fields);
+            for arg in &method.args {
+                extract_data_fields_from_expr(arg, fields);
+            }
+        }
+        syn::Expr::Call(call) => {
+            for arg in &call.args {
+                extract_data_fields_from_expr(arg, fields);
+            }
+        }
+        syn::Expr::Reference(ref_expr) => {
+            extract_data_fields_from_expr(&ref_expr.expr, fields);
+        }
+        syn::Expr::Paren(paren) => {
+            extract_data_fields_from_expr(&paren.expr, fields);
+        }
+        _ => {}
+    }
+}
+
+/// Phase 5: Extract all data.XXX field names from a list of seed elements.
+pub fn extract_data_seed_fields(seeds: &syn::punctuated::Punctuated<SeedElement, Token![,]>) -> Vec<Ident> {
+    let mut all_fields = Vec::new();
+    for seed in seeds {
+        if let SeedElement::Expression(expr) = seed {
+            extract_data_fields_from_expr(expr, &mut all_fields);
+        }
+    }
+    // Deduplicate while preserving order
+    let mut seen = std::collections::HashSet::new();
+    all_fields
+        .into_iter()
+        .filter(|f| seen.insert(f.to_string()))
+        .collect()
 }
 
 pub struct InstructionDataSpec {
@@ -233,6 +362,7 @@ impl Parse for InstructionDataSpec {
     }
 }
 
+<<<<<<< HEAD
 struct EnhancedMacroArgs {
     account_types: Vec<Ident>,
     pda_seeds: Vec<TokenSeedSpec>,
@@ -882,16 +1012,18 @@ pub fn add_compressible_instructions(
     })
 }
 
+=======
+>>>>>>> a606eb113 (wip)
 pub fn generate_decompress_context_impl(
     _variant: InstructionVariant,
-    pda_type_idents: Vec<Ident>,
+    pda_ctx_seeds: Vec<crate::compressible::variant_enum::PdaCtxSeedInfo>,
     token_variant_ident: Ident,
 ) -> Result<syn::ItemMod> {
     let lifetime: syn::Lifetime = syn::parse_quote!('info);
 
     let trait_impl =
         crate::compressible::decompress_context::generate_decompress_context_trait_impl(
-            pda_type_idents,
+            pda_ctx_seeds,
             token_variant_ident,
             lifetime,
         )?;
@@ -907,27 +1039,17 @@ pub fn generate_decompress_context_impl(
 
 pub fn generate_process_decompress_accounts_idempotent(
     _variant: InstructionVariant,
-    instruction_data: &[InstructionDataSpec],
+    _instruction_data: &[InstructionDataSpec],
 ) -> Result<syn::ItemFn> {
-    // If we have seed parameters, accept them as a single struct
-    let (params, seed_params_arg) = if !instruction_data.is_empty() {
-        (
-            quote! { seed_data: SeedParams, },
-            quote! { std::option::Option::Some(&seed_data) },
-        )
-    } else {
-        (quote! {}, quote! { std::option::Option::None })
-    };
-
+    // Phase 4: seed_data removed - data.* seeds come from unpacked account data, ctx.* from variant idx
     Ok(syn::parse_quote! {
         #[inline(never)]
         pub fn process_decompress_accounts_idempotent<'info>(
             accounts: &DecompressAccountsIdempotent<'info>,
             remaining_accounts: &[solana_account_info::AccountInfo<'info>],
             proof: light_sdk::instruction::ValidityProof,
-            compressed_accounts: Vec<CompressedAccountData>,
+            compressed_accounts: Vec<RentFreeAccountData>,
             system_accounts_offset: u8,
-            #params
         ) -> Result<()> {
             light_sdk::compressible::process_decompress_accounts_idempotent(
                 accounts,
@@ -937,7 +1059,7 @@ pub fn generate_process_decompress_accounts_idempotent(
                 system_accounts_offset,
                 LIGHT_CPI_SIGNER,
                 &crate::ID,
-                #seed_params_arg,
+                std::option::Option::None::<&()>,
             )
             .map_err(|e: solana_program_error::ProgramError| -> anchor_lang::error::Error { e.into() })
         }
@@ -946,23 +1068,17 @@ pub fn generate_process_decompress_accounts_idempotent(
 
 pub fn generate_decompress_instruction_entrypoint(
     _variant: InstructionVariant,
-    instruction_data: &[InstructionDataSpec],
+    _instruction_data: &[InstructionDataSpec],
 ) -> Result<syn::ItemFn> {
-    // If we have seed parameters, pass them as a single struct
-    let (params, args) = if !instruction_data.is_empty() {
-        (quote! { seed_data: SeedParams, }, quote! { seed_data, })
-    } else {
-        (quote! {}, quote! {})
-    };
+    // Phase 4: seed_data removed - data.* seeds come from unpacked account data, ctx.* from variant idx
 
     Ok(syn::parse_quote! {
         #[inline(never)]
         pub fn decompress_accounts_idempotent<'info>(
             ctx: Context<'_, '_, '_, 'info, DecompressAccountsIdempotent<'info>>,
             proof: light_sdk::instruction::ValidityProof,
-            compressed_accounts: Vec<CompressedAccountData>,
+            compressed_accounts: Vec<RentFreeAccountData>,
             system_accounts_offset: u8,
-            #params
         ) -> Result<()> {
             __processor_functions::process_decompress_accounts_idempotent(
                 &ctx.accounts,
@@ -970,7 +1086,6 @@ pub fn generate_decompress_instruction_entrypoint(
                 proof,
                 compressed_accounts,
                 system_accounts_offset,
-                #args
             )
         }
     })
@@ -1014,60 +1129,8 @@ pub fn generate_compress_context_impl(
                     cpi_accounts,
                     &compression_config.address_space,
                 )?;
-                // Compute rent-based close distribution and transfer lamports:
-                // - Completed epochs to rent sponsor
-                // - Partial epoch (unused) to fee payer (user refund)
-                #[cfg(target_os = "solana")]
-                let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()
-                    .map_err(|_| anchor_lang::prelude::ProgramError::UnsupportedSysvar)?
-                    .slot;
-                #[cfg(not(target_os = "solana"))]
-                let current_slot = 0;
-                let bytes = account_info.data_len() as u64;
-                let current_lamports = account_info.lamports();
-                let rent_exemption = anchor_lang::solana_program::sysvar::rent::Rent::get()
-                    .map_err(|_| anchor_lang::prelude::ProgramError::UnsupportedSysvar)?
-                    .minimum_balance(bytes as usize);
-                let ci_ref = account_data.compression_info();
-                let state = light_compressible::rent::AccountRentState {
-                    num_bytes: bytes,
-                    current_slot,
-                    current_lamports,
-                    last_claimed_slot: ci_ref.last_claimed_slot(),
-                };
-                let dist = state.calculate_close_distribution(&ci_ref.rent_config, rent_exemption);
-                // Transfer partial epoch back to fee payer (user)
-                if dist.to_user > 0 {
-                    let fee_payer_info = self.fee_payer.to_account_info();
-                    let mut src = account_info.try_borrow_mut_lamports().map_err(|e| {
-                        let err: anchor_lang::error::Error = e.into();
-                        let program_error: anchor_lang::prelude::ProgramError = err.into();
-                        program_error
-                    })?;
-                    let mut dst = fee_payer_info.try_borrow_mut_lamports().map_err(|e| {
-                        let err: anchor_lang::error::Error = e.into();
-                        let program_error: anchor_lang::prelude::ProgramError = err.into();
-                        program_error
-                    })?;
-                    **src = src.checked_sub(dist.to_user).ok_or(anchor_lang::prelude::ProgramError::InsufficientFunds)?;
-                    **dst = dst.checked_add(dist.to_user).ok_or(anchor_lang::prelude::ProgramError::Custom(0))?;
-                }
-                // Transfer completed epochs (and base) to rent sponsor
-                if dist.to_rent_sponsor > 0 {
-                    let rent_sponsor_info = self.rent_sponsor.to_account_info();
-                    let mut src = account_info.try_borrow_mut_lamports().map_err(|e| {
-                        let err: anchor_lang::error::Error = e.into();
-                        let program_error: anchor_lang::prelude::ProgramError = err.into();
-                        program_error
-                    })?;
-                    let mut dst = rent_sponsor_info.try_borrow_mut_lamports().map_err(|e| {
-                        let err: anchor_lang::error::Error = e.into();
-                        let program_error: anchor_lang::prelude::ProgramError = err.into();
-                        program_error
-                    })?;
-                    **src = src.checked_sub(dist.to_rent_sponsor).ok_or(anchor_lang::prelude::ProgramError::InsufficientFunds)?;
-                    **dst = dst.checked_add(dist.to_rent_sponsor).ok_or(anchor_lang::prelude::ProgramError::Custom(0))?;
-                }
+                // Lamport transfers are handled by close() in process_compress_pda_accounts_idempotent
+                // All lamports go to rent_sponsor for simplicity
                 Ok(Some(compressed_info))
             }
         }
@@ -1179,34 +1242,41 @@ pub fn generate_compress_instruction_entrypoint(
     })
 }
 
+/// Phase 3: Generate PDA seed derivation that uses CtxSeeds struct instead of DecompressAccountsIdempotent.
+/// Maps ctx.field -> ctx_seeds.field (direct Pubkey access, no Option unwrapping needed)
 #[inline(never)]
-fn generate_pda_seed_derivation_for_trait(
+fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
     spec: &TokenSeedSpec,
     _instruction_data: &[InstructionDataSpec],
+    ctx_seed_fields: &[syn::Ident],
 ) -> Result<TokenStream> {
     let mut bindings: Vec<TokenStream> = Vec::new();
     let mut seed_refs = Vec::new();
 
+    // Convert ctx_seed_fields to a set for quick lookup
+    let ctx_field_names: std::collections::HashSet<String> =
+        ctx_seed_fields.iter().map(|f| f.to_string()).collect();
+
     // Recursively rewrite expressions:
-    // - `data.<field>` -> `seed_params.<field>` (from instruction params, not struct fields!)
-    // - `ctx.accounts.<account>` -> `accounts.<account>`
-    // - `ctx.<field>` -> `accounts.<field>`
-    // While preserving function/method calls and references.
-    fn map_pda_expr_to_params(expr: &syn::Expr) -> syn::Expr {
+    // - `data.<field>` -> `self.<field>` (from unpacked compressed account data - Phase 4)
+    // - `ctx.accounts.<account>` -> `ctx_seeds.<account>` (direct Pubkey on CtxSeeds struct)
+    // - `ctx.<field>` -> `ctx_seeds.<field>` (direct Pubkey on CtxSeeds struct)
+    fn map_pda_expr_to_ctx_seeds(
+        expr: &syn::Expr,
+        ctx_field_names: &std::collections::HashSet<String>,
+    ) -> syn::Expr {
         match expr {
             syn::Expr::Field(field_expr) => {
                 if let syn::Member::Named(field_name) = &field_expr.member {
-                    // Handle nested field access: ctx.accounts.field_name -> accounts.field_name.as_ref().ok_or(...)?.key()
+                    // Handle nested field access: ctx.accounts.field_name -> ctx_seeds.field_name
                     if let syn::Expr::Field(nested_field) = &*field_expr.base {
                         if let syn::Member::Named(base_name) = &nested_field.member {
                             if base_name == "accounts" {
                                 if let syn::Expr::Path(path) = &*nested_field.base {
                                     if let Some(segment) = path.path.segments.first() {
                                         if segment.ident == "ctx" {
-                                            return syn::parse_quote! { accounts.#field_name.as_ref().ok_or_else(|| -> solana_program_error::ProgramError {
-                                                let err: anchor_lang::error::Error = CompressibleInstructionError::MissingSeedAccount.into();
-                                                err.into()
-                                            })?.key() };
+                                            // ctx.accounts.field -> ctx_seeds.field (direct Pubkey)
+                                            return syn::parse_quote! { ctx_seeds.#field_name };
                                         }
                                     }
                                 }
@@ -1217,14 +1287,14 @@ fn generate_pda_seed_derivation_for_trait(
                     if let syn::Expr::Path(path) = &*field_expr.base {
                         if let Some(segment) = path.path.segments.first() {
                             if segment.ident == "data" {
-                                // data.field -> seed_params.field (from instruction params!)
-                                return syn::parse_quote! { seed_params.#field_name };
+                                // Phase 4: data.field -> self.field (from unpacked compressed account data)
+                                return syn::parse_quote! { self.#field_name };
                             } else if segment.ident == "ctx" {
-                                // ctx.field -> accounts.field.as_ref().ok_or(...)?.key() (error if optional account is missing)
-                                return syn::parse_quote! { accounts.#field_name.as_ref().ok_or_else(|| -> solana_program_error::ProgramError {
-                                    let err: anchor_lang::error::Error = CompressibleInstructionError::MissingSeedAccount.into();
-                                    err.into()
-                                })?.key() };
+                                let field_str = field_name.to_string();
+                                if ctx_field_names.contains(&field_str) {
+                                    // ctx.field -> ctx_seeds.field (direct Pubkey)
+                                    return syn::parse_quote! { ctx_seeds.#field_name };
+                                }
                             }
                         }
                     }
@@ -1232,32 +1302,32 @@ fn generate_pda_seed_derivation_for_trait(
                 expr.clone()
             }
             syn::Expr::MethodCall(method_call) => {
-                // Special case: ctx.accounts.account_name.key() -> accounts.account_name.key()
-                // This is already handled by the Field case transforming ctx.accounts.X -> accounts.X
                 let mut new_method_call = method_call.clone();
-                new_method_call.receiver = Box::new(map_pda_expr_to_params(&method_call.receiver));
+                new_method_call.receiver =
+                    Box::new(map_pda_expr_to_ctx_seeds(&method_call.receiver, ctx_field_names));
                 new_method_call.args = method_call
                     .args
                     .iter()
-                    .map(map_pda_expr_to_params)
+                    .map(|a| map_pda_expr_to_ctx_seeds(a, ctx_field_names))
                     .collect();
                 syn::Expr::MethodCall(new_method_call)
             }
             syn::Expr::Call(call_expr) => {
-                // Map function args recursively. We do not transform the function path.
                 let mut new_call_expr = call_expr.clone();
-                new_call_expr.args = call_expr.args.iter().map(map_pda_expr_to_params).collect();
+                new_call_expr.args = call_expr
+                    .args
+                    .iter()
+                    .map(|a| map_pda_expr_to_ctx_seeds(a, ctx_field_names))
+                    .collect();
                 syn::Expr::Call(new_call_expr)
             }
             syn::Expr::Reference(ref_expr) => {
                 let mut new_ref_expr = ref_expr.clone();
-                new_ref_expr.expr = Box::new(map_pda_expr_to_params(&ref_expr.expr));
+                new_ref_expr.expr =
+                    Box::new(map_pda_expr_to_ctx_seeds(&ref_expr.expr, ctx_field_names));
                 syn::Expr::Reference(new_ref_expr)
             }
-            _ => {
-                // For other expressions (constants, literals, paths), leave as-is
-                expr.clone()
-            }
+            _ => expr.clone(),
         }
     }
 
@@ -1268,22 +1338,31 @@ fn generate_pda_seed_derivation_for_trait(
                 seed_refs.push(quote! { #value.as_bytes() });
             }
             SeedElement::Expression(expr) => {
+                // Handle byte string literals: b"seed" -> use directly (no .as_bytes())
+                if let syn::Expr::Lit(lit_expr) = &**expr {
+                    if let syn::Lit::ByteStr(byte_str) = &lit_expr.lit {
+                        let bytes = byte_str.value();
+                        seed_refs.push(quote! { &[#(#bytes),*] });
+                        continue;
+                    }
+                }
+
+                // Handle uppercase constants
                 if let syn::Expr::Path(path_expr) = &**expr {
                     if let Some(ident) = path_expr.path.get_ident() {
                         let ident_str = ident.to_string();
                         if ident_str.chars().all(|c| c.is_uppercase() || c == '_') {
-                            seed_refs.push(quote! { #ident.as_bytes() });
+                            seed_refs.push(
+                                quote! { { let __seed: &[u8] = crate::#ident.as_ref(); __seed } },
+                            );
                             continue;
                         }
                     }
                 }
 
-                // Generic solution: rewrite any `data.*` occurrences recursively to `self.*`,
-                // then bind the result to a local to ensure lifetimes are valid,
-                // and use `.as_ref()` to convert into a seed `&[u8]`.
                 let binding_name =
                     syn::Ident::new(&format!("seed_{}", i), proc_macro2::Span::call_site());
-                let mapped_expr = map_pda_expr_to_params(expr);
+                let mapped_expr = map_pda_expr_to_ctx_seeds(expr, &ctx_field_names);
                 bindings.push(quote! {
                     let #binding_name = #mapped_expr;
                 });
@@ -1305,127 +1384,6 @@ fn generate_pda_seed_derivation_for_trait(
         seeds_vec.push(vec![bump]);
         Ok((seeds_vec, pda))
     })
-}
-
-#[inline(never)]
-fn extract_required_accounts_from_seeds(
-    pda_seeds: &Option<Vec<TokenSeedSpec>>,
-    token_seeds: &Option<Vec<TokenSeedSpec>>,
-) -> Result<Vec<String>> {
-    let mut required_accounts: Vec<String> = Vec::new();
-
-    #[inline(always)]
-    fn push_unique(list: &mut Vec<String>, value: String) {
-        if !list.iter().any(|v| v == &value) {
-            list.push(value);
-        }
-    }
-
-    #[inline(never)]
-    fn extract_accounts_from_seed_spec(
-        spec: &TokenSeedSpec,
-        ordered_accounts: &mut Vec<String>,
-    ) -> Result<Vec<String>> {
-        let mut spec_accounts = Vec::new();
-        for seed in &spec.seeds {
-            if let SeedElement::Expression(expr) = seed {
-                let mut local_accounts = Vec::new();
-                extract_account_from_expr(expr, &mut local_accounts);
-                for acc in local_accounts {
-                    push_unique(ordered_accounts, acc.clone());
-                    push_unique(&mut spec_accounts, acc);
-                }
-            }
-        }
-        if let Some(authority_seeds) = &spec.authority {
-            for seed in authority_seeds {
-                if let SeedElement::Expression(expr) = seed {
-                    let mut local_accounts = Vec::new();
-                    extract_account_from_expr(expr, &mut local_accounts);
-                    for acc in local_accounts {
-                        push_unique(ordered_accounts, acc.clone());
-                        push_unique(&mut spec_accounts, acc);
-                    }
-                }
-            }
-        }
-        Ok(spec_accounts)
-    }
-
-    if let Some(pda_seed_specs) = pda_seeds {
-        for spec in pda_seed_specs {
-            let _required_seeds = extract_accounts_from_seed_spec(spec, &mut required_accounts)?;
-        }
-    }
-
-    if let Some(token_seed_specs) = token_seeds {
-        for spec in token_seed_specs {
-            let _required_seeds = extract_accounts_from_seed_spec(spec, &mut required_accounts)?;
-        }
-    }
-
-    Ok(required_accounts)
-}
-
-#[inline(never)]
-fn extract_account_from_expr(expr: &syn::Expr, ordered_accounts: &mut Vec<String>) {
-    #[inline(always)]
-    fn push_unique(list: &mut Vec<String>, value: String) {
-        if !list.iter().any(|v| v == &value) {
-            list.push(value);
-        }
-    }
-
-    match expr {
-        syn::Expr::MethodCall(method_call) => {
-            extract_account_from_expr(&method_call.receiver, ordered_accounts);
-        }
-        syn::Expr::Field(field_expr) => {
-            if let syn::Member::Named(field_name) = &field_expr.member {
-                if let syn::Expr::Field(nested_field) = &*field_expr.base {
-                    if let syn::Member::Named(base_name) = &nested_field.member {
-                        if base_name == "accounts" {
-                            if let syn::Expr::Path(path) = &*nested_field.base {
-                                if let Some(segment) = path.path.segments.first() {
-                                    if segment.ident == "ctx" {
-                                        push_unique(ordered_accounts, field_name.to_string());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else if let syn::Expr::Path(path) = &*field_expr.base {
-                    if let Some(segment) = path.path.segments.first() {
-                        if segment.ident == "ctx" && field_name != "accounts" {
-                            push_unique(ordered_accounts, field_name.to_string());
-                        }
-                    }
-                }
-            }
-        }
-        syn::Expr::Path(path_expr) => {
-            if let Some(ident) = path_expr.path.get_ident() {
-                let name = ident.to_string();
-                if name != "ctx"
-                    && name != "data"
-                    && !name
-                        .chars()
-                        .all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit())
-                {
-                    push_unique(ordered_accounts, name);
-                }
-            }
-        }
-        syn::Expr::Call(call_expr) => {
-            for arg in &call_expr.args {
-                extract_account_from_expr(arg, ordered_accounts);
-            }
-        }
-        syn::Expr::Reference(ref_expr) => {
-            extract_account_from_expr(&ref_expr.expr, ordered_accounts);
-        }
-        _ => {}
-    }
 }
 
 #[inline(never)]
@@ -1507,8 +1465,10 @@ fn generate_decompress_accounts_struct(
     for account_name in required_accounts {
         if !standard_fields.contains(&account_name.as_str()) {
             let account_ident = syn::Ident::new(account_name, proc_macro2::Span::call_site());
+            // Mark seed accounts as writable to support CPI calls that may need them writable
             account_fields.push(quote! {
-                /// CHECK: optional seed account
+                /// CHECK: optional seed account - may be used in CPIs
+                #[account(mut)]
                 pub #account_ident: Option<UncheckedAccount<'info>>
             });
         }
@@ -1549,8 +1509,8 @@ fn generate_error_codes(variant: InstructionVariant) -> Result<TokenStream> {
             InvalidRentSponsor,
         #[msg("Missing seed account")]
         MissingSeedAccount,
-        #[msg("ATA uses SPL ATA derivation")]
-        AtaDoesNotUseSeedDerivation,
+        #[msg("Seed value does not match account data")]
+        SeedMismatch,
     };
 
     let variant_specific_errors = match variant {
@@ -1575,4 +1535,606 @@ fn generate_error_codes(variant: InstructionVariant) -> Result<TokenStream> {
             #variant_specific_errors
         }
     })
+}
+
+/// Convert ClassifiedSeed to SeedElement (Punctuated)
+fn convert_classified_to_seed_elements(
+    seeds: &[crate::compressible::anchor_seeds::ClassifiedSeed],
+) -> Punctuated<SeedElement, Token![,]> {
+    use crate::compressible::anchor_seeds::ClassifiedSeed;
+    
+    let mut result = Punctuated::new();
+    for seed in seeds {
+        let elem = match seed {
+            ClassifiedSeed::Literal(bytes) => {
+                // Convert to string literal
+                if let Ok(s) = std::str::from_utf8(bytes) {
+                    SeedElement::Literal(syn::LitStr::new(s, proc_macro2::Span::call_site()))
+                } else {
+                    // Byte array - use expression
+                    let byte_values: Vec<_> = bytes.iter().map(|b| quote!(#b)).collect();
+                    let expr: Expr = syn::parse_quote!(&[#(#byte_values),*]);
+                    SeedElement::Expression(Box::new(expr))
+                }
+            }
+            ClassifiedSeed::Constant(path) => {
+                let expr: Expr = syn::parse_quote!(#path);
+                SeedElement::Expression(Box::new(expr))
+            }
+            ClassifiedSeed::CtxAccount(ident) => {
+                let expr: Expr = syn::parse_quote!(ctx.#ident);
+                SeedElement::Expression(Box::new(expr))
+            }
+            ClassifiedSeed::DataField { field_name, conversion: None } => {
+                let expr: Expr = syn::parse_quote!(data.#field_name);
+                SeedElement::Expression(Box::new(expr))
+            }
+            ClassifiedSeed::DataField { field_name, conversion: Some(method) } => {
+                let expr: Expr = syn::parse_quote!(data.#field_name.#method());
+                SeedElement::Expression(Box::new(expr))
+            }
+            ClassifiedSeed::FunctionCall { func, ctx_args } => {
+                let args: Vec<Expr> = ctx_args.iter().map(|arg| {
+                    syn::parse_quote!(&ctx.#arg.key())
+                }).collect();
+                let expr: Expr = syn::parse_quote!(#func(#(#args),*));
+                SeedElement::Expression(Box::new(expr))
+            }
+        };
+        result.push(elem);
+    }
+    result
+}
+
+fn convert_classified_to_seed_elements_vec(
+    seeds: &[crate::compressible::anchor_seeds::ClassifiedSeed],
+) -> Vec<SeedElement> {
+    convert_classified_to_seed_elements(seeds).into_iter().collect()
+}
+
+/// Generate all code from extracted seeds (shared logic with add_compressible_instructions)
+#[inline(never)]
+fn generate_from_extracted_seeds(
+    module: &mut ItemMod,
+    account_types: Vec<Ident>,
+    pda_seeds: Option<Vec<TokenSeedSpec>>,
+    token_seeds: Option<Vec<TokenSeedSpec>>,
+    instruction_data: Vec<InstructionDataSpec>,
+) -> Result<TokenStream> {
+    let size_validation_checks = validate_compressed_account_sizes(&account_types)?;
+
+    let content = module.content.as_mut().unwrap();
+    let ctoken_enum = if let Some(ref token_seed_specs) = token_seeds {
+        if !token_seed_specs.is_empty() {
+            crate::compressible::seed_providers::generate_ctoken_account_variant_enum(
+                token_seed_specs,
+            )?
+        } else {
+            crate::compressible::utils::generate_empty_ctoken_enum()
+        }
+    } else {
+        crate::compressible::utils::generate_empty_ctoken_enum()
+    };
+
+    if let Some(ref token_seed_specs) = token_seeds {
+        for spec in token_seed_specs {
+            if spec.authority.is_none() {
+                return Err(macro_error!(
+                    &spec.variant,
+                    "Token account '{}' must specify authority = <seed_expr> for compression signing.",
+                    spec.variant
+                ));
+            }
+        }
+    }
+
+    let pda_ctx_seeds: Vec<crate::compressible::variant_enum::PdaCtxSeedInfo> = pda_seeds
+        .as_ref()
+        .map(|specs| {
+            specs
+                .iter()
+                .map(|spec| {
+                    let ctx_fields = extract_ctx_seed_fields(&spec.seeds);
+                    crate::compressible::variant_enum::PdaCtxSeedInfo::new(
+                        spec.variant.clone(),
+                        ctx_fields,
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let account_type_refs: Vec<&Ident> = account_types.iter().collect();
+    let enum_and_traits =
+        crate::compressible::variant_enum::compressed_account_variant_with_ctx_seeds(
+            &account_type_refs,
+            &pda_ctx_seeds,
+        )?;
+
+    let seed_params_struct = quote! {
+        #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Clone, Debug, Default)]
+        pub struct SeedParams;
+    };
+
+    let instruction_data_types: std::collections::HashMap<String, &syn::Type> = instruction_data
+        .iter()
+        .map(|spec| (spec.field_name.to_string(), &spec.field_type))
+        .collect();
+
+    let seeds_structs_and_constructors: Vec<TokenStream> = if let Some(ref pda_seed_specs) = pda_seeds {
+        pda_seed_specs
+            .iter()
+            .zip(pda_ctx_seeds.iter())
+            .map(|(spec, ctx_info)| {
+                let type_name = &spec.variant;
+                let seeds_struct_name = format_ident!("{}Seeds", type_name);
+                let constructor_name = format_ident!("{}", to_snake_case(&type_name.to_string()));
+                
+                let ctx_fields = &ctx_info.ctx_seed_fields;
+                let ctx_field_decls: Vec<_> = ctx_fields.iter().map(|field| {
+                    quote! { pub #field: solana_pubkey::Pubkey }
+                }).collect();
+                
+                let data_fields = extract_data_seed_fields(&spec.seeds);
+                let data_field_decls: Vec<_> = data_fields.iter().filter_map(|field| {
+                    let field_str = field.to_string();
+                    instruction_data_types.get(&field_str).map(|ty| {
+                        quote! { pub #field: #ty }
+                    })
+                }).collect();
+                
+                let data_verifications: Vec<_> = data_fields.iter().map(|field| {
+                    quote! {
+                        if data.#field != seeds.#field {
+                            return std::result::Result::Err(CompressibleInstructionError::SeedMismatch.into());
+                        }
+                    }
+                }).collect();
+                
+                quote! {
+                    #[derive(Clone, Debug)]
+                    pub struct #seeds_struct_name {
+                        #(#ctx_field_decls,)*
+                        #(#data_field_decls,)*
+                    }
+                    
+                    impl RentFreeAccountVariant {
+                        pub fn #constructor_name(
+                            account_data: &[u8],
+                            seeds: #seeds_struct_name,
+                        ) -> std::result::Result<Self, anchor_lang::error::Error> {
+                            use anchor_lang::AnchorDeserialize;
+                            let data = #type_name::deserialize(&mut &account_data[..])?;
+                            
+                            #(#data_verifications)*
+                            
+                            std::result::Result::Ok(Self::#type_name {
+                                data,
+                                #(#ctx_fields: seeds.#ctx_fields,)*
+                            })
+                        }
+                    }
+                    
+                    impl light_sdk::compressible::IntoVariant<RentFreeAccountVariant> for #seeds_struct_name {
+                        fn into_variant(self, data: &[u8]) -> std::result::Result<RentFreeAccountVariant, anchor_lang::error::Error> {
+                            RentFreeAccountVariant::#constructor_name(data, self)
+                        }
+                    }
+                }
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    let has_pda_seeds = pda_seeds.as_ref().map(|p| !p.is_empty()).unwrap_or(false);
+    let has_token_seeds = token_seeds.as_ref().map(|t| !t.is_empty()).unwrap_or(false);
+
+    let instruction_variant = match (has_pda_seeds, has_token_seeds) {
+        (true, true) => InstructionVariant::Mixed,
+        (true, false) => InstructionVariant::PdaOnly,
+        (false, true) => InstructionVariant::TokenOnly,
+        (false, false) => {
+            return Err(macro_error!(
+                module,
+                "At least one PDA or token seed specification must be provided"
+            ))
+        }
+    };
+
+    let error_codes = generate_error_codes(instruction_variant)?;
+    let decompress_accounts = generate_decompress_accounts_struct(&[], instruction_variant)?;
+
+    let pda_seed_provider_impls: Result<Vec<_>> = account_types
+        .iter()
+        .zip(pda_ctx_seeds.iter())
+        .map(|(name, ctx_info)| {
+            let name_str = name.to_string();
+            let spec = if let Some(ref pda_seed_specs) = pda_seeds {
+                pda_seed_specs
+                    .iter()
+                    .find(|s| s.variant == name_str)
+                    .ok_or_else(|| {
+                        macro_error!(name, "No seed specification for account type '{}'", name_str)
+                    })?
+            } else {
+                return Err(macro_error!(name, "No seed specifications provided"));
+            };
+            
+            let ctx_seeds_struct_name = format_ident!("{}CtxSeeds", name);
+            let ctx_fields = &ctx_info.ctx_seed_fields;
+            let ctx_fields_decl: Vec<_> = ctx_fields.iter().map(|field| {
+                quote! { pub #field: solana_pubkey::Pubkey }
+            }).collect();
+            
+            let ctx_seeds_struct = if ctx_fields.is_empty() {
+                quote! {
+                    #[derive(Default)]
+                    pub struct #ctx_seeds_struct_name;
+                }
+            } else {
+                quote! {
+                    #[derive(Default)]
+                    pub struct #ctx_seeds_struct_name {
+                        #(#ctx_fields_decl),*
+                    }
+                }
+            };
+            
+            let seed_derivation = generate_pda_seed_derivation_for_trait_with_ctx_seeds(spec, &instruction_data, ctx_fields)?;
+            Ok(quote! {
+                #ctx_seeds_struct
+                
+                impl light_sdk::compressible::PdaSeedDerivation<#ctx_seeds_struct_name, ()> for #name {
+                    fn derive_pda_seeds_with_accounts(
+                        &self,
+                        program_id: &solana_pubkey::Pubkey,
+                        ctx_seeds: &#ctx_seeds_struct_name,
+                        _seed_params: &(),
+                    ) -> std::result::Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey), solana_program_error::ProgramError> {
+                        #seed_derivation
+                    }
+                }
+            })
+        })
+        .collect();
+    let pda_seed_provider_impls = pda_seed_provider_impls?;
+
+    let trait_impls: syn::ItemMod = syn::parse_quote! {
+        mod __trait_impls {
+            use super::*;
+
+            impl light_sdk::compressible::HasTokenVariant for RentFreeAccountData {
+                fn is_packed_ctoken(&self) -> bool {
+                    matches!(self.data, RentFreeAccountVariant::PackedCTokenData(_))
+                }
+            }
+        }
+    };
+
+    let token_variant_name = format_ident!("CTokenAccountVariant");
+
+    let decompress_context_impl = generate_decompress_context_impl(
+        instruction_variant,
+        pda_ctx_seeds.clone(),
+        token_variant_name,
+    )?;
+    let decompress_processor_fn = generate_process_decompress_accounts_idempotent(instruction_variant, &instruction_data)?;
+    let decompress_instruction = generate_decompress_instruction_entrypoint(instruction_variant, &instruction_data)?;
+
+    let compress_accounts: syn::ItemStruct = match instruction_variant {
+        InstructionVariant::PdaOnly => unreachable!(),
+        InstructionVariant::TokenOnly => unreachable!(),
+        InstructionVariant::Mixed => syn::parse_quote! {
+            #[derive(Accounts)]
+            pub struct CompressAccountsIdempotent<'info> {
+                #[account(mut)]
+                pub fee_payer: Signer<'info>,
+                /// CHECK: Checked by SDK
+                pub config: AccountInfo<'info>,
+                /// CHECK: Checked by SDK
+                #[account(mut)]
+                pub rent_sponsor: AccountInfo<'info>,
+                /// CHECK: Checked by SDK
+                #[account(mut)]
+                pub compression_authority: AccountInfo<'info>,
+            }
+        },
+    };
+
+    let compress_context_impl = generate_compress_context_impl(instruction_variant, account_types.clone())?;
+    let compress_processor_fn = generate_process_compress_accounts_idempotent(instruction_variant)?;
+    let compress_instruction = generate_compress_instruction_entrypoint(instruction_variant)?;
+
+    let module_tokens = quote! {
+        mod __processor_functions {
+            use super::*;
+            #decompress_processor_fn
+            #compress_processor_fn
+        }
+    };
+    let processor_module: syn::ItemMod = syn::parse2(module_tokens)?;
+
+    let init_config_accounts: syn::ItemStruct = syn::parse_quote! {
+        #[derive(Accounts)]
+        pub struct InitializeCompressionConfig<'info> {
+            #[account(mut)]
+            pub payer: Signer<'info>,
+            /// CHECK: Checked by SDK
+            #[account(mut)]
+            pub config: AccountInfo<'info>,
+            /// CHECK: Checked by SDK
+            pub program_data: AccountInfo<'info>,
+            pub authority: Signer<'info>,
+            pub system_program: Program<'info, System>,
+        }
+    };
+
+    let update_config_accounts: syn::ItemStruct = syn::parse_quote! {
+        #[derive(Accounts)]
+        pub struct UpdateCompressionConfig<'info> {
+            /// CHECK: Checked by SDK
+            #[account(mut)]
+            pub config: AccountInfo<'info>,
+            pub update_authority: Signer<'info>,
+        }
+    };
+
+    let init_config_instruction: syn::ItemFn = syn::parse_quote! {
+        #[inline(never)]
+        #[allow(clippy::too_many_arguments)]
+        pub fn initialize_compression_config<'info>(
+            ctx: Context<'_, '_, '_, 'info, InitializeCompressionConfig<'info>>,
+            write_top_up: u32,
+            rent_sponsor: Pubkey,
+            compression_authority: Pubkey,
+            rent_config: light_compressible::rent::RentConfig,
+            address_space: Vec<Pubkey>,
+        ) -> Result<()> {
+            light_sdk::compressible::process_initialize_compression_config_checked(
+                &ctx.accounts.config.to_account_info(),
+                &ctx.accounts.authority.to_account_info(),
+                &ctx.accounts.program_data.to_account_info(),
+                &rent_sponsor,
+                &compression_authority,
+                rent_config,
+                write_top_up,
+                address_space,
+                0,
+                &ctx.accounts.payer.to_account_info(),
+                &ctx.accounts.system_program.to_account_info(),
+                &crate::ID,
+            )?;
+            Ok(())
+        }
+    };
+
+    let update_config_instruction: syn::ItemFn = syn::parse_quote! {
+        #[inline(never)]
+        #[allow(clippy::too_many_arguments)]
+        pub fn update_compression_config<'info>(
+            ctx: Context<'_, '_, '_, 'info, UpdateCompressionConfig<'info>>,
+            new_rent_sponsor: Option<Pubkey>,
+            new_compression_authority: Option<Pubkey>,
+            new_rent_config: Option<light_compressible::rent::RentConfig>,
+            new_write_top_up: Option<u32>,
+            new_address_space: Option<Vec<Pubkey>>,
+            new_update_authority: Option<Pubkey>,
+        ) -> Result<()> {
+            light_sdk::compressible::process_update_compression_config(
+                ctx.accounts.config.as_ref(),
+                ctx.accounts.update_authority.as_ref(),
+                new_update_authority.as_ref(),
+                new_rent_sponsor.as_ref(),
+                new_compression_authority.as_ref(),
+                new_rent_config,
+                new_write_top_up,
+                new_address_space,
+                &crate::ID,
+            )?;
+            Ok(())
+        }
+    };
+
+    let client_functions = crate::compressible::seed_providers::generate_client_seed_functions(
+        &account_types,
+        &pda_seeds,
+        &token_seeds,
+        &instruction_data,
+    )?;
+
+    // Insert SeedParams struct
+    let seed_params_item: Item = syn::parse2(seed_params_struct)?;
+    content.1.push(seed_params_item);
+
+    // Insert XxxSeeds structs and RentFreeAccountVariant constructors
+    for seeds_tokens in seeds_structs_and_constructors.into_iter() {
+        let wrapped: syn::File = syn::parse2(seeds_tokens)?;
+        for item in wrapped.items {
+            content.1.push(item);
+        }
+    }
+
+    content.1.push(Item::Verbatim(size_validation_checks));
+    content.1.push(Item::Verbatim(enum_and_traits));
+    content.1.push(Item::Verbatim(ctoken_enum));
+    content.1.push(Item::Struct(decompress_accounts));
+    content.1.push(Item::Mod(trait_impls));
+    content.1.push(Item::Mod(decompress_context_impl));
+    content.1.push(Item::Mod(processor_module));
+    content.1.push(Item::Fn(decompress_instruction));
+    content.1.push(Item::Struct(compress_accounts));
+    content.1.push(Item::Mod(compress_context_impl));
+    content.1.push(Item::Fn(compress_instruction));
+    content.1.push(Item::Struct(init_config_accounts));
+    content.1.push(Item::Struct(update_config_accounts));
+    content.1.push(Item::Fn(init_config_instruction));
+    content.1.push(Item::Fn(update_config_instruction));
+
+    // Add pda seed provider impls
+    for pda_impl in pda_seed_provider_impls.into_iter() {
+        let wrapped: syn::File = syn::parse2(pda_impl)?;
+        for item in wrapped.items {
+            content.1.push(item);
+        }
+    }
+
+    // Add ctoken seed provider impl
+    if let Some(ref seeds) = token_seeds {
+        if !seeds.is_empty() {
+            let impl_code = crate::compressible::seed_providers::generate_ctoken_seed_provider_implementation(seeds)?;
+            let ctoken_impl: syn::ItemImpl = syn::parse2(impl_code)?;
+            content.1.push(Item::Impl(ctoken_impl));
+        }
+    }
+
+    // Add error codes
+    let error_item: syn::ItemEnum = syn::parse2(error_codes)?;
+    content.1.push(Item::Enum(error_item));
+
+    // Add client functions (module + pub use statement)
+    let client_file: syn::File = syn::parse2(client_functions)?;
+    for item in client_file.items {
+        content.1.push(item);
+    }
+
+    Ok(quote! { #module })
+}
+
+// =============================================================================
+// COMPRESSIBLE_PROGRAM: Auto-discovers seeds from external module files
+// =============================================================================
+
+/// Main entry point for #[compressible_program] macro.
+///
+/// This macro reads external module files to extract seed information from
+/// Accounts structs with #[compressible] fields. No explicit type list needed!
+///
+/// Usage:
+/// ```ignore
+/// #[compressible_program]
+/// #[program]
+/// pub mod my_program {
+///     pub mod instruction_accounts;  // Macro reads this file!
+///     pub mod state;
+///     
+///     use instruction_accounts::*;
+///     use state::*;
+///     
+///     #[light_instruction]
+///     pub fn create_user(ctx: Context<CreateUser>, params: Params) -> Result<()> {
+///         // ...
+///     }
+/// }
+/// ```
+#[inline(never)]
+pub fn compressible_program_impl(
+    _args: TokenStream,
+    mut module: ItemMod,
+) -> Result<TokenStream> {
+    use crate::compressible::anchor_seeds::get_data_fields;
+    use crate::compressible::file_scanner::{resolve_crate_src_path, scan_module_for_compressible};
+
+    if module.content.is_none() {
+        return Err(macro_error!(&module, "Module must have a body"));
+    }
+
+    // Resolve the crate's src/ directory
+    let base_path = resolve_crate_src_path();
+
+    // Scan the module (and external files) for compressible fields
+    let scanned = scan_module_for_compressible(&module, &base_path)?;
+
+    // Report any errors from file scanning
+    if !scanned.errors.is_empty() {
+        let error_msg = scanned.errors.join("\n");
+        return Err(macro_error!(
+            &module,
+            "Errors while scanning for rentfree types:\n{}",
+            error_msg
+        ));
+    }
+
+    // Check if we found anything
+    if scanned.pda_specs.is_empty() && scanned.token_specs.is_empty() {
+        return Err(macro_error!(
+            &module,
+            "No #[rentfree] or #[rentfree_token] fields found in any Accounts struct.\n\
+             Ensure your Accounts structs are in modules declared with `pub mod xxx;`"
+        ));
+    }
+
+    // Convert extracted specs to the format expected by generate_from_extracted_seeds
+    let mut found_pda_seeds: Vec<TokenSeedSpec> = Vec::new();
+    let mut found_data_fields: Vec<InstructionDataSpec> = Vec::new();
+    let mut account_types: Vec<Ident> = Vec::new();
+
+    for pda in &scanned.pda_specs {
+        account_types.push(pda.inner_type.clone());
+
+        let seed_elements = convert_classified_to_seed_elements(&pda.seeds);
+
+        // Extract data field types from seeds
+        for (field_name, conversion) in get_data_fields(&pda.seeds) {
+            let field_type: syn::Type = if conversion.is_some() {
+                syn::parse_quote!(u64)
+            } else {
+                syn::parse_quote!(solana_pubkey::Pubkey)
+            };
+
+            if !found_data_fields.iter().any(|f| f.field_name == field_name) {
+                found_data_fields.push(InstructionDataSpec {
+                    field_name,
+                    field_type,
+                });
+            }
+        }
+
+        found_pda_seeds.push(TokenSeedSpec {
+            variant: pda.inner_type.clone(),
+            _eq: syn::parse_quote!(=),
+            is_token: Some(false),
+            seeds: seed_elements,
+            authority: None,
+        });
+    }
+
+    // Convert token specs
+    let mut found_token_seeds: Vec<TokenSeedSpec> = Vec::new();
+    for token in &scanned.token_specs {
+        let seed_elements = convert_classified_to_seed_elements(&token.seeds);
+        let authority_elements = token
+            .authority_seeds
+            .as_ref()
+            .map(|seeds| convert_classified_to_seed_elements_vec(seeds));
+
+        found_token_seeds.push(TokenSeedSpec {
+            variant: token.variant_name.clone(),
+            _eq: syn::parse_quote!(=),
+            is_token: Some(true),
+            seeds: seed_elements,
+            authority: authority_elements,
+        });
+    }
+
+    let pda_seeds = if found_pda_seeds.is_empty() {
+        None
+    } else {
+        Some(found_pda_seeds)
+    };
+
+    let token_seeds = if found_token_seeds.is_empty() {
+        None
+    } else {
+        Some(found_token_seeds)
+    };
+
+    // Use the shared generation logic
+    generate_from_extracted_seeds(
+        &mut module,
+        account_types,
+        pda_seeds,
+        token_seeds,
+        found_data_fields,
+    )
 }

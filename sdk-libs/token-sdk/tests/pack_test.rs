@@ -68,7 +68,7 @@ fn test_token_data_with_variant_packing() {
 
     // Pack the wrapper
     let packed: PackedCTokenDataWithVariant<MyVariant> =
-        token_with_variant.pack(&mut remaining_accounts);
+        token_with_variant.pack(&mut remaining_accounts).unwrap();
 
     // Verify variant is unchanged
     assert!(matches!(packed.variant, MyVariant::TypeA));

@@ -1634,41 +1634,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "csdk-anchor-derived-test"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl 0.31.1 (git+https://github.com/lightprotocol/anchor?rev=d8a2b3d9)",
- "bincode",
- "borsh 0.10.4",
- "light-client",
- "light-compressed-account",
- "light-compressible",
- "light-compressible-client",
- "light-hasher",
- "light-macros",
- "light-program-test",
- "light-sdk",
- "light-sdk-macros",
- "light-sdk-types",
- "light-test-utils",
- "light-token-client",
- "light-token-interface",
- "light-token-sdk",
- "light-token-types",
- "solana-account",
- "solana-instruction",
- "solana-keypair",
- "solana-logger",
- "solana-program",
- "solana-pubkey 2.4.0",
- "solana-sdk",
- "solana-signature",
- "solana-signer",
- "tokio",
-]
-
-[[package]]
 name = "csdk-anchor-full-derived-test"
 version = "0.1.0"
 dependencies = [
@@ -3701,6 +3666,7 @@ dependencies = [
  "light-heap",
  "light-macros",
  "light-program-profiler",
+ "light-sdk-types",
  "light-zero-copy",
  "pinocchio",
  "pinocchio-pubkey",
@@ -3720,10 +3686,17 @@ dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
  "light-client",
+ "light-compressed-account",
+ "light-compressible",
+ "light-ctoken-interface",
+ "light-ctoken-sdk",
  "light-sdk",
  "solana-account",
  "solana-instruction",
+ "solana-program",
+ "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
+ "spl-token-2022 7.0.0",
  "thiserror 2.0.17",
 ]
 
@@ -6039,42 +6012,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdk-compressible-test"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl 0.31.1 (git+https://github.com/lightprotocol/anchor?rev=d8a2b3d9)",
- "bincode",
- "borsh 0.10.4",
- "light-client",
- "light-compressed-account",
- "light-compressible",
- "light-compressible-client",
- "light-hasher",
- "light-macros",
- "light-program-test",
- "light-sdk",
- "light-sdk-types",
- "light-test-utils",
- "light-token-client",
- "light-token-interface",
- "light-token-sdk",
- "light-token-types",
- "solana-account",
- "solana-instruction",
- "solana-keypair",
- "solana-logger",
- "solana-program",
- "solana-pubkey 2.4.0",
- "solana-sdk",
- "solana-signature",
- "solana-signer",
- "solana-system-interface 1.0.0",
- "tokio",
-]
-
-[[package]]
-name = "sdk-light-token-test"
+name = "sdk-ctoken-test"
 version = "0.1.0"
 dependencies = [
  "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
