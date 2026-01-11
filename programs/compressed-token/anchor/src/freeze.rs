@@ -122,7 +122,9 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
     }
 
     let (mut compressed_input_accounts, input_token_data, _) =
-        get_input_compressed_accounts_with_merkle_context_and_check_signer_for_freeze::<FROZEN_INPUTS>(
+        get_input_compressed_accounts_with_merkle_context_and_check_signer_for_freeze::<
+            FROZEN_INPUTS,
+        >(
             // The signer in this case is the freeze authority. The owner is not
             // required to sign for this instruction. Hence, we pass the owner
             // from a variable instead of an account to still reproduce value

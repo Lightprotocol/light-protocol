@@ -599,7 +599,10 @@ pub struct CompressedTokenInstructionDataTransfer {
     pub with_transaction_hash: bool,
 }
 
-fn get_input_compressed_accounts_with_merkle_context_and_check_signer_inner<const IS_FROZEN: bool, const CHECK_TLV: bool>(
+fn get_input_compressed_accounts_with_merkle_context_and_check_signer_inner<
+    const IS_FROZEN: bool,
+    const CHECK_TLV: bool,
+>(
     signer: &Pubkey,
     signer_is_delegate: &Option<DelegatedTransfer>,
     remaining_accounts: &[AccountInfo<'_>],

@@ -162,7 +162,6 @@ impl<'a> ZeroCopyNew<'a> for CToken {
             remaining = write_remaining;
             (ACCOUNT_TYPE_TOKEN_ACCOUNT, Some(parsed_extensions))
         } else {
-            // TODO: remaining bytes should be checked to be zero
             (ACCOUNT_TYPE_TOKEN_ACCOUNT, None)
         };
         if !remaining.is_empty() {

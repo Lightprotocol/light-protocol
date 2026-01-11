@@ -136,7 +136,7 @@ impl<'info> MintActionAccounts<'info> {
             let in_output_queue = iter.next_option("in_output_queue", !config.create_mint)?;
             // Only needed for minting to compressed token accounts
             let tokens_out_queue =
-                iter.next_option("tokens_out_queue", config.has_mint_to_actions)?;
+                iter.next_option("tokens_out_queue", config.require_token_output_queue)?;
 
             let mint_accounts = MintActionAccounts {
                 mint_signer,
@@ -349,7 +349,7 @@ pub struct AccountsConfig {
     ///    When true, the CMint account is the decompressed (compressed account is empty).
     pub cmint_decompressed: bool,
     /// 5. Mint
-    pub has_mint_to_actions: bool,
+    pub require_token_output_queue: bool,
     /// 6. Compressed mint is created or DecompressMint action is present.
     pub with_mint_signer: bool,
     /// 7. Compressed mint is created.
@@ -471,7 +471,7 @@ impl AccountsConfig {
                 msg!("CMint decompressed not allowed when writing to cpi context");
                 return Err(ErrorCode::CpiContextSetNotUsable.into());
             }
-            let has_mint_to_actions = parsed_instruction_data
+            let require_token_output_queue = parsed_instruction_data
                 .actions
                 .iter()
                 .any(|action| matches!(action, ZAction::MintToCompressed(_)));
@@ -479,7 +479,7 @@ impl AccountsConfig {
                 with_cpi_context,
                 write_to_cpi_context,
                 cmint_decompressed,
-                has_mint_to_actions,
+                require_token_output_queue,
                 with_mint_signer,
                 create_mint: parsed_instruction_data.create_mint.is_some(),
                 has_decompress_mint_action,
@@ -489,7 +489,7 @@ impl AccountsConfig {
             // For MintToCompressed actions
             // - needed for tokens_out_queue (only MintToCompressed creates new compressed outputs)
             // - MintToCToken mints to existing decompressed accounts, doesn't need tokens_out_queue
-            let has_mint_to_actions = parsed_instruction_data
+            let require_token_output_queue = parsed_instruction_data
                 .actions
                 .iter()
                 .any(|action| matches!(action, ZAction::MintToCompressed(_)));
@@ -498,7 +498,7 @@ impl AccountsConfig {
                 with_cpi_context,
                 write_to_cpi_context,
                 cmint_decompressed,
-                has_mint_to_actions, // TODO: evaluate wether to rename to require token output queue
+                require_token_output_queue,
                 with_mint_signer,
                 create_mint: parsed_instruction_data.create_mint.is_some(),
                 has_decompress_mint_action,

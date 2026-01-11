@@ -215,9 +215,8 @@ fn compute_expected_config(data: &MintActionCompressedInstructionData) -> Accoun
         .map(|ctx| ctx.first_set_context || ctx.set_context)
         .unwrap_or(false);
 
-    // 3. has_mint_to_actions
-    // Only MintToCompressed counts - MintToCToken mints to existing decompressed accounts
-    let has_mint_to_actions = data
+    // 3. require_token_output_queue (only MintToCompressed creates new compressed outputs)
+    let require_token_output_queue = data
         .actions
         .iter()
         .any(|action| matches!(action, Action::MintToCompressed(_)));
@@ -249,7 +248,7 @@ fn compute_expected_config(data: &MintActionCompressedInstructionData) -> Accoun
         has_compress_and_close_cmint_action,
         write_to_cpi_context,
         cmint_decompressed,
-        has_mint_to_actions,
+        require_token_output_queue,
         with_mint_signer,
         create_mint,
     }
@@ -332,7 +331,7 @@ fn check_if_config_should_error(instruction_data: &MintActionCompressedInstructi
             .any(|action| matches!(action, Action::MintToCToken(_)));
 
         // Check for MintToCompressed actions
-        let has_mint_to_actions = instruction_data
+        let require_token_output_queue = instruction_data
             .actions
             .iter()
             .any(|action| matches!(action, Action::MintToCompressed(_)));
@@ -347,8 +346,8 @@ fn check_if_config_should_error(instruction_data: &MintActionCompressedInstructi
 
         // Error conditions matching AccountsConfig::new:
         // 1. has_mint_to_ctoken (MintToCToken actions not allowed)
-        // 2. cmint_decompressed && has_mint_to_actions (mint decompressed + MintToCompressed not allowed)
-        has_mint_to_ctoken || (cmint_decompressed && has_mint_to_actions)
+        // 2. cmint_decompressed && require_token_output_queue (mint decompressed + MintToCompressed not allowed)
+        has_mint_to_ctoken || (cmint_decompressed && require_token_output_queue)
     } else {
         false
     }
