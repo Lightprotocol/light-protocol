@@ -180,8 +180,9 @@ fn validate_compressed_only_ext(
         return Err(ErrorCode::CompressAndCloseDelegatedAmountMismatch.into());
     }
 
-    // 7b. Delegate pubkey must match (if present)
+    // 7b. Delegate pubkey must match (bidirectional check)
     if let Some(delegate) = ctoken.delegate() {
+        // CToken has delegate - output must have matching delegate
         if !compressed_token_account.has_delegate() {
             return Err(ErrorCode::CompressAndCloseInvalidDelegate.into());
         }
@@ -191,6 +192,9 @@ fn validate_compressed_only_ext(
         if !pubkey_eq(output_delegate, &delegate.to_bytes()) {
             return Err(ErrorCode::CompressAndCloseInvalidDelegate.into());
         }
+    } else if compressed_token_account.has_delegate() {
+        // CToken has no delegate - output must not have delegate
+        return Err(ErrorCode::CompressAndCloseInvalidDelegate.into());
     }
 
     // 7c. Withheld fee must match

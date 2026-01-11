@@ -599,7 +599,7 @@ pub struct CompressedTokenInstructionDataTransfer {
     pub with_transaction_hash: bool,
 }
 
-pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const IS_FROZEN: bool>(
+fn get_input_compressed_accounts_with_merkle_context_and_check_signer_inner<const IS_FROZEN: bool, const CHECK_TLV: bool>(
     signer: &Pubkey,
     signer_is_delegate: &Option<DelegatedTransfer>,
     remaining_accounts: &[AccountInfo<'_>],
@@ -656,10 +656,9 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
         } else {
             CompressedTokenAccountState::Initialized as u8
         };
-        // TODO: add const generic to wrap this check
-        // if input_token_data.tlv.is_some() {
-        //     unimplemented!("Tlv is unimplemented.");
-        // }
+        if CHECK_TLV && input_token_data.tlv.is_some() {
+            unimplemented!("Tlv is unimplemented.");
+        }
         let token_data = TokenData {
             mint: (*mint).into(),
             owner: owner.into(),
@@ -680,6 +679,42 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
         input_token_data_vec,
         sum_lamports,
     ))
+}
+
+/// Get input compressed accounts - for freeze/thaw (skips TLV check, handles it separately)
+pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer_for_freeze<
+    const IS_FROZEN: bool,
+>(
+    signer: &Pubkey,
+    signer_is_delegate: &Option<DelegatedTransfer>,
+    remaining_accounts: &[AccountInfo<'_>],
+    input_token_data_with_context: &[InputTokenDataWithContext],
+    mint: &Pubkey,
+) -> Result<(Vec<InAccount>, Vec<TokenData>, u64)> {
+    get_input_compressed_accounts_with_merkle_context_and_check_signer_inner::<IS_FROZEN, false>(
+        signer,
+        signer_is_delegate,
+        remaining_accounts,
+        input_token_data_with_context,
+        mint,
+    )
+}
+
+/// Get input compressed accounts - for all other instructions (checks TLV)
+pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const IS_FROZEN: bool>(
+    signer: &Pubkey,
+    signer_is_delegate: &Option<DelegatedTransfer>,
+    remaining_accounts: &[AccountInfo<'_>],
+    input_token_data_with_context: &[InputTokenDataWithContext],
+    mint: &Pubkey,
+) -> Result<(Vec<InAccount>, Vec<TokenData>, u64)> {
+    get_input_compressed_accounts_with_merkle_context_and_check_signer_inner::<IS_FROZEN, true>(
+        signer,
+        signer_is_delegate,
+        remaining_accounts,
+        input_token_data_with_context,
+        mint,
+    )
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]

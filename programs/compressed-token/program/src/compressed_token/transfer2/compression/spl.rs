@@ -14,7 +14,7 @@ use pinocchio::{
 };
 
 use super::validate_compression_mode_fields;
-use crate::constants::BUMP_CPI_AUTHORITY;
+use crate::{constants::BUMP_CPI_AUTHORITY, shared::convert_pinocchio_token_error};
 
 /// Process compression/decompression for SPL token accounts
 #[profile]
@@ -168,11 +168,11 @@ fn spl_token_transfer_checked_common(
     match signers {
         Some(signers) => {
             pinocchio::cpi::slice_invoke_signed(&instruction, account_infos, signers)
-                .map_err(|_| ProgramError::InvalidArgument)?;
+                .map_err(convert_pinocchio_token_error)?;
         }
         None => {
             pinocchio::cpi::slice_invoke(&instruction, account_infos)
-                .map_err(|_| ProgramError::InvalidArgument)?;
+                .map_err(convert_pinocchio_token_error)?;
         }
     }
 

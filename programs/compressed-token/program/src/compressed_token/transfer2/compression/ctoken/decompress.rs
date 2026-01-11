@@ -133,7 +133,11 @@ fn apply_delegate(
             .set_delegate(Some(Pubkey::from(*delegate_acc.key())))?;
         if delegated_amount > 0 {
             let current = ctoken.base.delegated_amount.get();
-            ctoken.base.delegated_amount.set(current + delegated_amount);
+            ctoken.base.delegated_amount.set(
+                current
+                    .checked_add(delegated_amount)
+                    .ok_or(ProgramError::ArithmeticOverflow)?,
+            );
         }
     } else if delegated_amount > 0 {
         msg!("Decompress: delegated_amount > 0 but no delegate");
