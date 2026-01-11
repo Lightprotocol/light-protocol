@@ -47,7 +47,7 @@ pub fn cmint_top_up_lamports_from_slice(
 }
 
 /// Calculate top-up lamports from a CMint AccountInfo.
-/// Verifies account owner matches expected program. Returns None if owner mismatch or invalid.
+/// Verifies account owner is the CToken program. Returns None if owner mismatch or invalid.
 /// Pass `current_slot` as 0 to fetch from Clock sysvar; non-zero values are used directly.
 #[cfg(target_os = "solana")]
 #[inline(always)]
@@ -55,12 +55,11 @@ pub fn cmint_top_up_lamports_from_slice(
 pub fn cmint_top_up_lamports_from_account_info(
     account_info: &AccountInfo,
     current_slot: &mut u64,
-    program_id: &[u8; 32],
 ) -> Option<u64> {
     use pinocchio::sysvars::{clock::Clock, Sysvar};
 
-    // Check owner matches expected program
-    if !account_info.is_owned_by(program_id) {
+    // Check owner is CToken program
+    if !account_info.is_owned_by(&crate::CTOKEN_PROGRAM_ID) {
         return None;
     }
 

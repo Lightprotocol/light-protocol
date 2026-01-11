@@ -189,7 +189,6 @@ impl<'a> ZeroCopyAt<'a> for CToken {
 
         // Check if there are extensions by looking at account_type byte at position 165
         if !bytes.is_empty() {
-            // && bytes[0] == ACCOUNT_TYPE_TOKEN_ACCOUNT  should throw an error
             let account_type = bytes[0];
             // Skip account_type byte
             let bytes = &bytes[1..];
@@ -230,7 +229,6 @@ impl<'a> ZeroCopyAtMut<'a> for CToken {
 
         // Check if there are extensions by looking at account_type byte at position 165
         if !bytes.is_empty() {
-            // && bytes[0] == ACCOUNT_TYPE_TOKEN_ACCOUNT  should throw an error
             let account_type = bytes[0];
             // Skip account_type byte
             let bytes = &mut bytes[1..];
@@ -529,7 +527,6 @@ impl CToken {
     }
 
     /// Deserialize a CToken from account info with validation using zero-copy.
-    /// Uses unsafe lifetime extension to avoid returning the borrow guard.
     ///
     /// Checks:
     /// 1. Account is owned by the CTOKEN program
@@ -575,10 +572,6 @@ impl CToken {
     /// 2. Account is initialized (state != 0)
     /// 3. Account type is ACCOUNT_TYPE_TOKEN_ACCOUNT (byte 165 == 2)
     /// 4. No trailing bytes after the CToken structure
-    ///
-    /// Safety: The returned ZCTokenMut references the account data which is valid
-    /// for the duration of the transaction. The caller must ensure the account
-    /// is not accessed through other means while this mutable reference exists.
     #[inline(always)]
     pub fn from_account_info_mut_checked<'a>(
         account_info: &pinocchio::account_info::AccountInfo,

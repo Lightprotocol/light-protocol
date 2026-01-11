@@ -3,10 +3,13 @@ use light_compressed_account::Pubkey;
 use light_compressible::compression_info::CompressionInfo;
 use light_hasher::{sha256::Sha256BE, Hasher};
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
+use pinocchio::account_info::AccountInfo;
 #[cfg(feature = "solana")]
 use solana_msg::msg;
 
-use crate::{state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError};
+use crate::{
+    state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError, CTOKEN_PROGRAM_ID,
+};
 
 /// AccountType::Mint discriminator value
 pub const ACCOUNT_TYPE_MINT: u8 = 1;
@@ -72,7 +75,6 @@ pub struct CompressedMintMetadata {
     /// Pda with seed address of compressed mint
     pub mint: Pubkey,
     /// Address of the compressed account the mint is stored in.
-    /// Derived from the associated spl mint pubkey.
     pub compressed_address: [u8; 32],
 }
 
@@ -96,12 +98,9 @@ impl CompressedMint {
     ///
     /// Note: CMint accounts follow SPL token mint pattern (no discriminator).
     /// Validation is done via owner check + PDA derivation (caller responsibility).
-    pub fn from_account_info_checked(
-        program_id: &[u8; 32],
-        account_info: &pinocchio::account_info::AccountInfo,
-    ) -> Result<Self, CTokenError> {
+    pub fn from_account_info_checked(account_info: &AccountInfo) -> Result<Self, CTokenError> {
         // 1. Check program ownership
-        if !account_info.is_owned_by(program_id) {
+        if !account_info.is_owned_by(&CTOKEN_PROGRAM_ID) {
             #[cfg(feature = "solana")]
             msg!("CMint account has invalid owner");
             return Err(CTokenError::InvalidCMintOwner);

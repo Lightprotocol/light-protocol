@@ -14,8 +14,6 @@ use super::{
     convert_program_error,
     transfer_lamports::{multi_transfer_lamports, Transfer},
 };
-#[cfg(target_os = "solana")]
-use crate::LIGHT_CPI_SIGNER;
 
 /// Calculate and execute top-up transfers for compressible CMint and CToken accounts.
 /// CMint always has compression info. CToken requires Compressible extension or errors.
@@ -27,7 +25,7 @@ use crate::LIGHT_CPI_SIGNER;
 /// * `max_top_up` - Maximum lamports for top-ups combined (0 = no limit)
 #[inline(always)]
 #[profile]
-#[allow(unused_mut)]
+#[allow(unused)]
 pub fn calculate_and_execute_compressible_top_ups<'a>(
     cmint: &'a AccountInfo,
     ctoken: &'a AccountInfo,
@@ -52,11 +50,7 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
 
     // Calculate CMint top-up using optimized function (owner check inside)
     #[cfg(target_os = "solana")]
-    if let Some(amount) = cmint_top_up_lamports_from_account_info(
-        cmint,
-        &mut current_slot,
-        &LIGHT_CPI_SIGNER.program_id,
-    ) {
+    if let Some(amount) = cmint_top_up_lamports_from_account_info(cmint, &mut current_slot) {
         transfers[0].amount = amount;
         lamports_budget = lamports_budget.saturating_sub(amount);
     }
@@ -68,10 +62,8 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
         transfers[1].amount = amount;
         lamports_budget = lamports_budget.saturating_sub(amount);
     }
-    #[cfg(not(target_os = "solana"))]
-    let _ = (cmint, ctoken, &mut current_slot); // Suppress unused warnings
 
-    // Exit early if no compressible accounts
+    // Exit early if no compressible accounts (current_slot remains 0 if no top-ups calculated)
     if current_slot == 0 {
         return Ok(());
     }
@@ -92,8 +84,8 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
 /// Process compression top-up using embedded compression info.
 /// Uses stored rent_exemption_paid from CompressionInfo instead of querying Rent sysvar.
 #[inline(always)]
-pub fn process_compression_top_up<T: light_compressible::compression_info::CalculateTopUp>(
-    compression: &T,
+pub fn process_compression_top_up(
+    compression: &light_compressible::compression_info::ZCompressionInfoMut<'_>,
     account_info: &AccountInfo,
     current_slot: &mut u64,
     transfer_amount: &mut u64,

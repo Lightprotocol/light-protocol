@@ -65,10 +65,7 @@ pub fn process_mint_action(
         let cmint_account = validated_accounts
             .get_cmint()
             .ok_or(ErrorCode::MintActionMissingCMintAccount)?;
-        CompressedMint::from_account_info_checked(
-            &crate::LIGHT_CPI_SIGNER.program_id,
-            cmint_account,
-        )?
+        CompressedMint::from_account_info_checked(cmint_account)?
     };
 
     let (config, mut cpi_bytes, _) =

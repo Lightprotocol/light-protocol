@@ -12,16 +12,6 @@ use crate::{
     AnchorDeserialize, AnchorSerialize,
 };
 
-/// Trait for types that can calculate top-up lamports for compressible accounts.
-pub trait CalculateTopUp {
-    fn calculate_top_up_lamports(
-        &self,
-        num_bytes: u64,
-        current_slot: u64,
-        current_lamports: u64,
-    ) -> Result<u64, CompressibleError>;
-}
-
 /// Compressible extension for ctoken accounts.
 #[derive(
     Debug,
@@ -143,28 +133,6 @@ macro_rules! impl_is_compressible {
 impl_is_compressible!(CompressionInfo);
 impl_is_compressible!(ZCompressionInfo<'_>);
 impl_is_compressible!(ZCompressionInfoMut<'_>);
-
-// Implement CalculateTopUp trait for all compressible extension types
-macro_rules! impl_calculate_top_up {
-    ($struct_name:ty) => {
-        impl CalculateTopUp for $struct_name {
-            #[inline(always)]
-            fn calculate_top_up_lamports(
-                &self,
-                num_bytes: u64,
-                current_slot: u64,
-                current_lamports: u64,
-            ) -> Result<u64, CompressibleError> {
-                // Delegate to the inherent method
-                Self::calculate_top_up_lamports(self, num_bytes, current_slot, current_lamports)
-            }
-        }
-    };
-}
-
-impl_calculate_top_up!(CompressionInfo);
-impl_calculate_top_up!(ZCompressionInfo<'_>);
-impl_calculate_top_up!(ZCompressionInfoMut<'_>);
 
 // Unified macro to implement get_last_funded_epoch for all extension types
 macro_rules! impl_get_last_paid_epoch {
