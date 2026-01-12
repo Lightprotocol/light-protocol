@@ -10,8 +10,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
 use light_token_interface::state::{
-    AccountState, BaseMint, Token, CompressedMint, CompressedMintMetadata, CompressibleExtension,
-    ExtensionStruct, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+    AccountState, BaseMint, CompressedMint, CompressedMintMetadata, CompressibleExtension,
+    ExtensionStruct, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
 };
 
 const ACCOUNT_TYPE_OFFSET: usize = 165;

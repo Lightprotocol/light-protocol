@@ -6,7 +6,7 @@ use light_compressed_account::instruction_data::{
 use crate::instructions::mint_action::{
     Action, CompressAndCloseCMintAction, CompressedMintInstructionData, CompressedMintWithContext,
     CpiContext, CreateMint, DecompressMintAction, MintActionCompressedInstructionData,
-    MintToTokenAction, MintToCompressedAction, RemoveMetadataKeyAction, UpdateAuthority,
+    MintToCompressedAction, MintToTokenAction, RemoveMetadataKeyAction, UpdateAuthority,
     UpdateMetadataAuthorityAction, UpdateMetadataFieldAction,
 };
 

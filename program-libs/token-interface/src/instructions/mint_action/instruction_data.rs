@@ -3,9 +3,9 @@ use light_compressible::compression_info::CompressionInfo;
 use light_zero_copy::ZeroCopy;
 
 use super::{
-    CompressAndCloseCMintAction, CpiContext, DecompressMintAction, MintToTokenAction,
-    MintToCompressedAction, RemoveMetadataKeyAction, UpdateAuthority,
-    UpdateMetadataAuthorityAction, UpdateMetadataFieldAction,
+    CompressAndCloseCMintAction, CpiContext, DecompressMintAction, MintToCompressedAction,
+    MintToTokenAction, RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
+    UpdateMetadataFieldAction,
 };
 use crate::{
     instructions::extensions::{ExtensionInstructionData, ZExtensionInstructionData},

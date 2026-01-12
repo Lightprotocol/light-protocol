@@ -2,6 +2,7 @@ use light_client::{
     indexer::{CompressedTokenAccount, Indexer},
     rpc::Rpc,
 };
+use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
 use light_token_interface::{
     instructions::{
         extensions::ExtensionInstructionData,
@@ -10,7 +11,7 @@ use light_token_interface::{
     state::TokenDataVersion,
     LIGHT_TOKEN_PROGRAM_ID,
 };
-use light_ctoken_sdk::{
+use light_token_sdk::{
     compressed_token::{
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
@@ -18,10 +19,9 @@ use light_ctoken_sdk::{
         },
         CTokenAccount2,
     },
-    error::CTokenSdkError,
+    error::TokenSdkError,
     spl_interface::find_spl_interface_pda_with_index,
 };
-use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
@@ -84,7 +84,7 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
     solana_token_account: Pubkey,
     payer: Pubkey,
     decimals: u8,
-) -> Result<Instruction, CTokenSdkError> {
+) -> Result<Instruction, TokenSdkError> {
     create_generic_transfer2_instruction(
         rpc,
         vec![Transfer2InstructionType::Decompress(DecompressInput {
@@ -168,7 +168,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     actions: Vec<Transfer2InstructionType>,
     payer: Pubkey,
     should_filter_zero_outputs: bool,
-) -> Result<Instruction, CTokenSdkError> {
+) -> Result<Instruction, TokenSdkError> {
     // // Get a single shared output queue for ALL compress/compress-and-close operations
     // // This prevents reordering issues caused by the sort_by_key at the end
     // let shared_output_queue = rpc
@@ -252,7 +252,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                             )
                             .map(|(account, rpc_account)| {
                                 if input.to != account.token.owner {
-                                    return Err(CTokenSdkError::InvalidCompressInputOwner);
+                                    return Err(TokenSdkError::InvalidCompressInputOwner);
                                 }
                                 Ok(pack_input_token_account(
                                     account,
@@ -488,7 +488,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 if token_data.is_empty() {
                     // When no input accounts, create recipient account directly
                     // This requires mint to be specified in the input
-                    let mint = input.mint.ok_or(CTokenSdkError::InvalidAccountData)?;
+                    let mint = input.mint.ok_or(TokenSdkError::InvalidAccountData)?;
 
                     let recipient_index = packed_tree_accounts.insert_or_get(input.to);
                     let mint_index = packed_tree_accounts.insert_or_get_read_only(mint);
@@ -589,14 +589,14 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 let token_account_info = rpc
                     .get_account(input.solana_ctoken_account)
                     .await
-                    .map_err(|_| CTokenSdkError::InvalidAccountData)?
-                    .ok_or(CTokenSdkError::InvalidAccountData)?;
+                    .map_err(|_| TokenSdkError::InvalidAccountData)?
+                    .ok_or(TokenSdkError::InvalidAccountData)?;
 
                 // Parse the compressed token account using zero-copy deserialization
                 use light_token_interface::state::Token;
                 use light_zero_copy::traits::ZeroCopyAt;
                 let (compressed_token, _) = Token::zero_copy_at(&token_account_info.data)
-                    .map_err(|_| CTokenSdkError::InvalidAccountData)?;
+                    .map_err(|_| TokenSdkError::InvalidAccountData)?;
                 let mint = compressed_token.mint;
                 let balance: u64 = compressed_token.amount.into();
                 let owner = compressed_token.owner;
@@ -604,7 +604,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 // Extract rent_sponsor, compression_authority, and compress_to_pubkey from Compressible extension
                 let compressible_ext = compressed_token
                     .get_compressible_extension()
-                    .ok_or(CTokenSdkError::MissingCompressibleExtension)?;
+                    .ok_or(TokenSdkError::MissingCompressibleExtension)?;
                 let rent_sponsor = compressible_ext.info.rent_sponsor;
                 let _compression_authority = compressible_ext.info.compression_authority;
                 let compress_to_pubkey = compressible_ext.info.compress_to_pubkey == 1;

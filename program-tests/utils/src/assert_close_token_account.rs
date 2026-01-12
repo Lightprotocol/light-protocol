@@ -1,7 +1,7 @@
 use light_client::rpc::Rpc;
 use light_compressible::rent::AccountRentState;
-use light_token_interface::state::token::Token;
 use light_program_test::LightProgramTest;
+use light_token_interface::state::token::Token;
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_sdk::{pubkey::Pubkey, signer::Signer};
 

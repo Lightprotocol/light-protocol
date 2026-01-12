@@ -9,16 +9,6 @@
 
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_client::indexer::Indexer;
-use light_token_interface::{
-    find_spl_interface_pda_with_index,
-    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
-    state::TokenDataVersion,
-};
-use light_ctoken_sdk::{
-    constants::CPI_AUTHORITY_PDA,
-    ctoken::{CompressibleParams, CreateCTokenAccount, TransferCTokenToSpl, TransferSplToCtoken},
-    spl_interface::find_spl_interface_pda_with_index as sdk_find_spl_interface_pda,
-};
 use light_program_test::{
     program_test::{LightProgramTest, TestRpc},
     utils::assert::assert_rpc_error,
@@ -29,6 +19,16 @@ use light_test_utils::mint_2022::{
 };
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+};
+use light_token_interface::{
+    find_spl_interface_pda_with_index,
+    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
+    state::TokenDataVersion,
+};
+use light_token_sdk::{
+    constants::CPI_AUTHORITY_PDA,
+    ctoken::{CompressibleParams, CreateTokenAccount, TransferSplToToken, TransferTokenToSpl},
+    spl_interface::find_spl_interface_pda_with_index as sdk_find_spl_interface_pda,
 };
 use serial_test::serial;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -264,7 +264,7 @@ async fn setup_ctoken_for_bypass_test(
     let ctoken_account = account_keypair.pubkey();
 
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: context
                     .rpc
@@ -295,7 +295,7 @@ async fn setup_ctoken_for_bypass_test(
     let (spl_interface_pda, spl_interface_pda_bump) =
         sdk_find_spl_interface_pda(&mint_pubkey, 0, true);
 
-    let transfer_ix = TransferSplToCtoken {
+    let transfer_ix = TransferSplToToken {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,
@@ -348,7 +348,7 @@ async fn test_ctoken_to_spl_bypasses_non_zero_fee() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         sdk_find_spl_interface_pda(&mint_pubkey, 0, true);
 
-    let transfer_ix = TransferCTokenToSpl {
+    let transfer_ix = TransferTokenToSpl {
         source_ctoken_account: ctoken_account,
         destination_spl_token_account: spl_dest,
         amount: 100_000_000,
@@ -518,7 +518,7 @@ async fn test_decompress_bypasses_non_zero_fee() {
     let dest_account = dest_keypair.pubkey();
 
     let create_dest_ix =
-        CreateCTokenAccount::new(payer.pubkey(), dest_account, mint_pubkey, owner.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), dest_account, mint_pubkey, owner.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: context
                     .rpc
@@ -625,7 +625,7 @@ async fn test_decompress_bypasses_non_nil_hook() {
     let dest_account = dest_keypair.pubkey();
 
     let create_dest_ix =
-        CreateCTokenAccount::new(payer.pubkey(), dest_account, mint_pubkey, owner.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), dest_account, mint_pubkey, owner.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: context
                     .rpc

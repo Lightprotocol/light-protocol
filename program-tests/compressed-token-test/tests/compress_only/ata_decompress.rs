@@ -4,17 +4,6 @@
 //! decompressed to the exact same ATA pubkey that was originally compressed.
 
 use light_client::indexer::Indexer;
-use light_token_interface::{
-    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
-    state::{ExtensionStruct, TokenDataVersion},
-};
-use light_ctoken_sdk::{
-    ctoken::{
-        derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount, CreateCTokenAccount,
-        TransferSplToCtoken,
-    },
-    spl_interface::find_spl_interface_pda_with_index,
-};
 use light_program_test::{
     program_test::TestRpc, utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig,
 };
@@ -27,6 +16,17 @@ use light_test_utils::{
 };
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+};
+use light_token_interface::{
+    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
+    state::{ExtensionStruct, TokenDataVersion},
+};
+use light_token_sdk::{
+    ctoken::{
+        derive_token_ata, CompressibleParams, CreateAssociatedCTokenAccount, CreateTokenAccount,
+        TransferSplToToken,
+    },
+    spl_interface::find_spl_interface_pda_with_index,
 };
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -76,7 +76,7 @@ async fn setup_ata_compressed_token(
 
     // Create ATA with compression_only=true
     let owner = Keypair::new();
-    let (ata_pubkey, ata_bump) = derive_ctoken_ata(&owner.pubkey(), &mint_pubkey);
+    let (ata_pubkey, ata_bump) = derive_token_ata(&owner.pubkey(), &mint_pubkey);
 
     let create_ata_ix =
         CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint_pubkey)
@@ -107,7 +107,7 @@ async fn setup_ata_compressed_token(
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted);
 
-    let transfer_ix = TransferSplToCtoken {
+    let transfer_ix = TransferSplToToken {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,
@@ -345,7 +345,7 @@ async fn test_ata_decompress_to_different_ata_fails() {
     let mint2_pubkey = mint2_keypair.pubkey();
 
     // Create ATA for same owner but different mint
-    let (ata2_pubkey, _ata2_bump) = derive_ctoken_ata(&context.owner.pubkey(), &mint2_pubkey);
+    let (ata2_pubkey, _ata2_bump) = derive_token_ata(&context.owner.pubkey(), &mint2_pubkey);
 
     let create_ata2_ix = CreateAssociatedCTokenAccount::new(
         context.payer.pubkey(),
@@ -420,7 +420,7 @@ async fn test_ata_decompress_to_non_ata_fails() {
 
     // Create a regular (non-ATA) CToken account with same owner
     let regular_account_keypair = Keypair::new();
-    let create_regular_ix = CreateCTokenAccount::new(
+    let create_regular_ix = CreateTokenAccount::new(
         context.payer.pubkey(),
         regular_account_keypair.pubkey(),
         context.mint_pubkey,
@@ -790,6 +790,7 @@ async fn test_decompress_skips_delegate_if_destination_has_delegate() {
 async fn test_ata_decompress_with_mismatched_amount_fails() {
     use borsh::BorshSerialize;
     use light_compressed_account::compressed_account::PackedMerkleContext;
+    use light_sdk::instruction::PackedAccounts;
     use light_token_interface::{
         instructions::transfer2::{
             CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,
@@ -797,10 +798,9 @@ async fn test_ata_decompress_with_mismatched_amount_fails() {
         },
         TRANSFER2,
     };
-    use light_ctoken_sdk::compressed_token::transfer2::account_metas::{
+    use light_token_sdk::compressed_token::transfer2::account_metas::{
         get_transfer2_instruction_account_metas, Transfer2AccountsMetaConfig,
     };
-    use light_sdk::instruction::PackedAccounts;
     use solana_sdk::instruction::Instruction;
 
     let mut context = setup_ata_compressed_token(&[ExtensionType::Pausable], None, false)
@@ -1012,7 +1012,7 @@ async fn test_ata_multiple_compress_decompress_cycles() {
 
     // Setup wallet owner and derive ATA
     let wallet = Keypair::new();
-    let (ata_pubkey, ata_bump) = derive_ctoken_ata(&wallet.pubkey(), &mint_pubkey);
+    let (ata_pubkey, ata_bump) = derive_token_ata(&wallet.pubkey(), &mint_pubkey);
 
     let amount1 = 100_000_000u64;
     let amount2 = 200_000_000u64;
@@ -1049,7 +1049,7 @@ async fn test_ata_multiple_compress_decompress_cycles() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted);
 
-    let transfer_ix1 = TransferSplToCtoken {
+    let transfer_ix1 = TransferSplToToken {
         amount: amount1,
         spl_interface_pda_bump,
         decimals: 9,
@@ -1104,7 +1104,7 @@ async fn test_ata_multiple_compress_decompress_cycles() {
         .unwrap();
 
     // Transfer tokens from SPL to ATA
-    let transfer_ix2 = TransferSplToCtoken {
+    let transfer_ix2 = TransferSplToToken {
         amount: amount2,
         spl_interface_pda_bump,
         decimals: 9,
@@ -1343,7 +1343,7 @@ async fn test_non_ata_compress_only_decompress() {
     let ctoken_account = account_keypair.pubkey();
 
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: context
                     .rpc
@@ -1377,7 +1377,7 @@ async fn test_non_ata_compress_only_decompress() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted);
 
-    let transfer_ix = TransferSplToCtoken {
+    let transfer_ix = TransferSplToToken {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,
@@ -1438,7 +1438,7 @@ async fn test_non_ata_compress_only_decompress() {
 
     // Create new CToken account with SAME owner for decompress
     let new_account_keypair = Keypair::new();
-    let create_new_ix = CreateCTokenAccount::new(
+    let create_new_ix = CreateTokenAccount::new(
         payer.pubkey(),
         new_account_keypair.pubkey(),
         mint_pubkey,

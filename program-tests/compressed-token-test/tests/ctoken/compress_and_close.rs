@@ -163,9 +163,9 @@ async fn test_compress_and_close_owner_scenarios() {
         .await;
 
         // Set token balance on ATA
-        use light_ctoken_sdk::ctoken::derive_ctoken_ata;
+        use light_token_sdk::token::derive_token_ata;
         let (ata_pubkey, _bump) =
-            derive_ctoken_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
+            derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
         let mut ata_account = context.rpc.get_account(ata_pubkey).await.unwrap().unwrap();
 
@@ -546,7 +546,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
         compression_only: false,
     };
 
-    let create_token_account_ix = CreateCTokenAccount::new(
+    let create_token_account_ix = CreateTokenAccount::new(
         payer_pubkey,
         token_account_pubkey,
         context.mint_pubkey,

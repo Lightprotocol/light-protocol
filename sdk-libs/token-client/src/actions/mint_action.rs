@@ -3,7 +3,7 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_token_interface::instructions::mint_action::Recipient;
-use light_ctoken_sdk::compressed_token::create_compressed_mint::{
+use light_token_sdk::compressed_token::create_compressed_mint::{
     derive_cmint_compressed_address, find_cmint_address,
 };
 use solana_keypair::Keypair;
@@ -105,13 +105,13 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     }
 
     if !mint_to_decompressed_recipients.is_empty() {
-        use light_ctoken_sdk::ctoken::derive_ctoken_ata;
+        use light_token_sdk::token::derive_token_ata;
 
         let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
 
         for recipient in mint_to_decompressed_recipients {
             let recipient_pubkey = solana_pubkey::Pubkey::from(recipient.recipient.to_bytes());
-            let (ata_address, _) = derive_ctoken_ata(&recipient_pubkey, &spl_mint_pda);
+            let (ata_address, _) = derive_token_ata(&recipient_pubkey, &spl_mint_pda);
 
             actions.push(MintActionType::MintToCToken {
                 account: ata_address,

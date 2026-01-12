@@ -7,15 +7,6 @@ use light_client::indexer::{CompressedTokenAccount, Indexer};
 use light_compressed_token::freeze::sdk::{
     create_instruction, CreateInstructionInputs as FreezeInputs,
 };
-use light_token_interface::{
-    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
-    state::TokenDataVersion,
-};
-use light_ctoken_sdk::{
-    compat::{AccountState, TokenDataWithMerkleContext},
-    ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
-    spl_interface::find_spl_interface_pda_with_index,
-};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     conversions::sdk_to_program_token_data,
@@ -27,6 +18,15 @@ use light_test_utils::{
 };
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+};
+use light_token_interface::{
+    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
+    state::TokenDataVersion,
+};
+use light_token_sdk::{
+    compat::{AccountState, TokenDataWithMerkleContext},
+    ctoken::{CompressibleParams, CreateTokenAccount, TransferSplToToken},
+    spl_interface::find_spl_interface_pda_with_index,
 };
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -185,7 +185,7 @@ async fn run_freeze_thaw_compressed_only_test(
     let ctoken_account = account_keypair.pubkey();
 
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: context
                     .rpc
@@ -217,7 +217,7 @@ async fn run_freeze_thaw_compressed_only_test(
         .any(|ext| RESTRICTED_EXTENSIONS.contains(ext));
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted);
-    let transfer_ix = TransferSplToCtoken {
+    let transfer_ix = TransferSplToToken {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,
@@ -331,7 +331,7 @@ async fn run_freeze_thaw_compressed_only_test(
 
     // 11. Create destination CToken account for decompress
     let dest_account_keypair = Keypair::new();
-    let create_dest_ix = CreateCTokenAccount::new(
+    let create_dest_ix = CreateTokenAccount::new(
         payer.pubkey(),
         dest_account_keypair.pubkey(),
         mint_pubkey,

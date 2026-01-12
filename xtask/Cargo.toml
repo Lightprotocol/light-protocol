@@ -37,5 +37,5 @@ light-batched-merkle-tree = { workspace = true }
 light-registry = { workspace = true }
 light-compressible = { workspace = true }
 anchor-lang = { workspace = true }
-light-ctoken-sdk = { workspace = true }
+light-token-sdk = { workspace = true }
 chrono = "0.4"

@@ -1,7 +1,7 @@
-use light_ctoken_sdk::ctoken::{
+use light_test_utils::assert_create_token_account::assert_create_associated_token_account;
+use light_token_sdk::token::{
     CloseCTokenAccount, CompressibleParams, CreateAssociatedCTokenAccount,
 };
-use light_test_utils::assert_create_token_account::assert_create_associated_token_account;
 
 use super::shared::*;
 
@@ -119,7 +119,7 @@ async fn test_associated_token_account_operations() {
 
     // Test closing compressible ATA
     let (compressible_ata_pubkey, _) =
-        derive_ctoken_ata(&compressible_owner_pubkey, &context.mint_pubkey);
+        derive_token_ata(&compressible_owner_pubkey, &context.mint_pubkey);
 
     // Create a separate destination account
     let destination = Keypair::new();
@@ -274,7 +274,7 @@ async fn test_create_ata_with_prefunded_lamports() {
     let owner_pubkey = context.owner_keypair.pubkey();
 
     // Derive ATA address
-    let (ata, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
+    let (ata, bump) = derive_token_ata(&owner_pubkey, &context.mint_pubkey);
 
     // Pre-fund the ATA address with lamports (simulating attacker donation DoS attempt)
     let prefund_amount = 1_000; // 1000 lamports
@@ -401,7 +401,7 @@ async fn test_create_token_account_with_prefunded_lamports() {
         compression_only: false, // Must be false for non-restricted mints (non-ATA accounts)
     };
 
-    let create_token_account_ix = CreateCTokenAccount::new(
+    let create_token_account_ix = CreateTokenAccount::new(
         payer_pubkey,
         token_account_pubkey,
         context.mint_pubkey,

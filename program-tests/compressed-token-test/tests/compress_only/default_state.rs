@@ -4,12 +4,12 @@
 //! the DefaultAccountState extension set to either Initialized or Frozen.
 
 use borsh::BorshDeserialize;
-use light_token_interface::state::{AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     mint_2022::{create_mint_22_with_extension_types, create_mint_22_with_frozen_default_state},
     Rpc,
 };
+use light_token_interface::state::{AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
 use spl_token_2022::extension::ExtensionType;
@@ -20,7 +20,7 @@ use spl_token_2022::extension::ExtensionType;
 #[serial]
 async fn test_create_ctoken_with_frozen_default_state() {
     use light_token_interface::state::TokenDataVersion;
-    use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
+    use light_token_sdk::token::{CompressibleParams, CreateTokenAccount};
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
@@ -42,7 +42,7 @@ async fn test_create_ctoken_with_frozen_default_state() {
     let account_pubkey = account_keypair.pubkey();
 
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), account_pubkey, mint_pubkey, payer.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), account_pubkey, mint_pubkey, payer.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: rpc
                     .test_accounts
@@ -108,7 +108,7 @@ async fn test_create_ctoken_with_frozen_default_state() {
 #[serial]
 async fn test_create_ctoken_with_initialized_default_state() {
     use light_token_interface::state::TokenDataVersion;
-    use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
+    use light_token_sdk::token::{CompressibleParams, CreateTokenAccount};
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
@@ -135,7 +135,7 @@ async fn test_create_ctoken_with_initialized_default_state() {
     let account_pubkey = account_keypair.pubkey();
 
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), account_pubkey, mint_pubkey, payer.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), account_pubkey, mint_pubkey, payer.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: rpc
                     .test_accounts

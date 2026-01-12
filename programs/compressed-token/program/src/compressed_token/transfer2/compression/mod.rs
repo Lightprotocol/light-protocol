@@ -3,13 +3,13 @@ use anchor_lang::prelude::ProgramError;
 use arrayvec::ArrayVec;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::pubkey::AsPubkey;
+use light_program_profiler::profile;
 use light_token_interface::{
     instructions::transfer2::{
         ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode,
     },
     TokenError,
 };
-use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 

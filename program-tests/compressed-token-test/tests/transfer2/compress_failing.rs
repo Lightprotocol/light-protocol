@@ -35,10 +35,15 @@
 // 1. create and mint to one ctoken compressed account
 //
 
+use light_program_test::{
+    utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
+};
+use light_sdk::instruction::PackedAccounts;
+use light_test_utils::RpcError;
 use light_token_interface::{
     instructions::mint_action::Recipient, state::TokenDataVersion, TokenError,
 };
-use light_ctoken_sdk::{
+use light_token_sdk::{
     compressed_token::{
         create_compressed_mint::find_cmint_address,
         transfer2::{
@@ -47,14 +52,9 @@ use light_ctoken_sdk::{
         },
         CTokenAccount2,
     },
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
+    ctoken::{derive_token_ata, CompressibleParams, CreateAssociatedCTokenAccount},
     ValidityProof,
 };
-use light_program_test::{
-    utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
-};
-use light_sdk::instruction::PackedAccounts;
-use light_test_utils::RpcError;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 // ============================================================================
 // Test Setup
@@ -89,7 +89,7 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
 
     // Derive mint and ATA addresses
     let (mint, _) = find_cmint_address(&mint_seed.pubkey());
-    let (ctoken_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
+    let (ctoken_ata, _) = derive_token_ata(&owner.pubkey(), &mint);
 
     // Create compressible CToken ATA for owner
     let compressible_params = CompressibleParams {
@@ -598,7 +598,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
 
     // Derive mint and ATA addresses
     let (mint, _) = find_cmint_address(&mint_seed.pubkey());
-    let (ctoken_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
+    let (ctoken_ata, _) = derive_token_ata(&owner.pubkey(), &mint);
 
     // Create compressible CToken ATA with pre_pay_num_epochs = 0 (NO prepaid rent)
     // This means any write operation will require immediate rent top-up

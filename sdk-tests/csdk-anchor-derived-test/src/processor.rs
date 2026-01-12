@@ -1,12 +1,12 @@
 use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo;
-use light_ctoken_sdk::compat::PackedCTokenData;
 use light_sdk::{
     compressible::{compress_account::prepare_account_for_compression, CompressibleConfig},
     cpi::v2::CpiAccounts,
     instruction::{account_meta::CompressedAccountMetaNoLamportsNoAddress, ValidityProof},
     LightDiscriminator,
 };
+use light_token_sdk::compat::PackedCTokenData;
 
 use crate::{
     instruction_accounts::{CompressAccountsIdempotent, DecompressAccountsIdempotent},
@@ -16,7 +16,7 @@ use crate::{
 };
 
 impl light_sdk::compressible::HasTokenVariant for CompressedAccountData {
-    fn is_packed_ctoken(&self) -> bool {
+    fn is_packed_token(&self) -> bool {
         matches!(self.data, CompressedAccountVariant::PackedCTokenData(_))
     }
 }
@@ -45,19 +45,19 @@ impl<'info> light_sdk::compressible::DecompressContext<'info>
         self.rent_sponsor.as_ref()
     }
 
-    fn ctoken_rent_sponsor(&self) -> Option<&AccountInfo<'info>> {
+    fn token_rent_sponsor(&self) -> Option<&AccountInfo<'info>> {
         self.ctoken_rent_sponsor.as_ref()
     }
 
-    fn ctoken_program(&self) -> Option<&AccountInfo<'info>> {
+    fn token_program(&self) -> Option<&AccountInfo<'info>> {
         self.ctoken_program.as_ref()
     }
 
-    fn ctoken_cpi_authority(&self) -> Option<&AccountInfo<'info>> {
+    fn token_cpi_authority(&self) -> Option<&AccountInfo<'info>> {
         self.ctoken_cpi_authority.as_ref()
     }
 
-    fn ctoken_config(&self) -> Option<&AccountInfo<'info>> {
+    fn token_config(&self) -> Option<&AccountInfo<'info>> {
         self.ctoken_config.as_ref()
     }
 
@@ -168,31 +168,31 @@ impl<'info> light_sdk::compressible::DecompressContext<'info>
         &self,
         _remaining_accounts: &[AccountInfo<'info>],
         _fee_payer: &AccountInfo<'info>,
-        _ctoken_program: &AccountInfo<'info>,
-        _ctoken_rent_sponsor: &AccountInfo<'info>,
-        _ctoken_cpi_authority: &AccountInfo<'info>,
-        _ctoken_config: &AccountInfo<'info>,
+        _token_program: &AccountInfo<'info>,
+        _token_rent_sponsor: &AccountInfo<'info>,
+        _token_cpi_authority: &AccountInfo<'info>,
+        _token_config: &AccountInfo<'info>,
         _config: &AccountInfo<'info>,
-        ctoken_accounts: Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
+        token_accounts: Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
         proof: light_sdk::instruction::ValidityProof,
         cpi_accounts: &CpiAccounts<'b, 'info>,
         post_system_accounts: &[AccountInfo<'info>],
         has_pdas: bool,
     ) -> std::result::Result<(), ProgramError> {
-        if ctoken_accounts.is_empty() {
+        if token_accounts.is_empty() {
             return Ok(());
         }
 
-        light_ctoken_sdk::compressible::process_decompress_tokens_runtime::<CTokenAccountVariant, _>(
+        light_token_sdk::compressible::process_decompress_tokens_runtime::<CTokenAccountVariant, _>(
             self,
             _remaining_accounts,
             _fee_payer,
-            _ctoken_program,
-            _ctoken_rent_sponsor,
-            _ctoken_cpi_authority,
-            _ctoken_config,
+            _token_program,
+            _token_rent_sponsor,
+            _token_cpi_authority,
+            _token_config,
             _config,
-            ctoken_accounts,
+            token_accounts,
             proof,
             cpi_accounts,
             post_system_accounts,

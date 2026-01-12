@@ -138,7 +138,7 @@ let mut rpc = LightClient::new(LightClientConfig::local()).await?; // or devnet/
 2. Create a compressible ATA
 
 ```rust
-use light_ctoken_sdk::instructions::{
+use light_token_sdk::instructions::{
   create_compressible_associated_token_account, CreateCompressibleAssociatedTokenAccountInputs
 };
 
@@ -157,7 +157,7 @@ let ix = create_compressible_associated_token_account(CreateCompressibleAssociat
 3. Create a cMint and mint to recipients
 
 ```rust
-use light_ctoken_sdk::instructions::{
+use light_token_sdk::instructions::{
   create_compressed_mint, CreateCompressedMintInputs,
   create_mint_to_compressed_instruction, MintToCompressedInputs
 };

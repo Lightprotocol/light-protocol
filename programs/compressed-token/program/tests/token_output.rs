@@ -19,6 +19,7 @@ use light_compressed_token::{
         token_output::set_output_compressed_account,
     },
 };
+use light_hasher::Hasher;
 use light_token_interface::{
     hash_cache::HashCache,
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
@@ -27,7 +28,6 @@ use light_token_interface::{
         ExtensionStructConfig, TokenData, TokenDataConfig,
     },
 };
-use light_hasher::Hasher;
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 
 #[test]

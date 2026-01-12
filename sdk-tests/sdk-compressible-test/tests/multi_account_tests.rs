@@ -4,18 +4,6 @@ use anchor_lang::{
 use light_client::indexer::CompressedAccount;
 use light_compressed_account::address::derive_address;
 use light_compressible_client::compressible_instruction;
-use light_token_interface::{
-    instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
-    state::CompressedMintMetadata,
-};
-use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::{
-        derive_cmint_compressed_address, find_cmint_address,
-    },
-    ctoken,
-    pack::compat::CTokenDataWithVariant,
-};
-use light_token_types::CPI_AUTHORITY_PDA;
 use light_program_test::{
     program_test::{
         initialize_compression_config, setup_mock_program_data, LightProgramTest, TestRpc,
@@ -26,7 +14,19 @@ use light_sdk::{
     compressible::CompressibleConfig,
     instruction::{PackedAccounts, SystemAccountMetaConfig},
 };
-use light_sdk_types::C_TOKEN_PROGRAM_ID;
+use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
+use light_token_interface::{
+    instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
+    state::CompressedMintMetadata,
+};
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::{
+        derive_cmint_compressed_address, find_cmint_address,
+    },
+    ctoken,
+    pack::compat::CTokenDataWithVariant,
+};
+use light_token_types::CPI_AUTHORITY_PDA;
 use sdk_compressible_test::{
     get_ctoken_signer2_seeds, get_ctoken_signer3_seeds, get_ctoken_signer4_seeds,
     get_ctoken_signer5_seeds, get_ctoken_signer_seeds, CTokenAccountVariant,
@@ -246,7 +246,7 @@ pub async fn create_user_record_and_game_session(
         user_record: *user_record_pda,
         game_session: *game_session_pda,
         mint_signer: mint_signer.pubkey(),
-        ctoken_program: C_TOKEN_PROGRAM_ID.into(),
+        ctoken_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
         config: *config_pda,
         rent_sponsor: RENT_SPONSOR,
@@ -740,7 +740,7 @@ pub async fn decompress_multiple_pdas_with_ctoken(
         !token_account_data.data.is_empty(),
         "Token account should have data"
     );
-    assert_eq!(token_account_data.owner, C_TOKEN_PROGRAM_ID.into());
+    assert_eq!(token_account_data.owner, LIGHT_TOKEN_PROGRAM_ID.into());
 
     let compressed_user_record_data = rpc
         .get_compressed_account(c_user_pda.clone().address.unwrap(), None)

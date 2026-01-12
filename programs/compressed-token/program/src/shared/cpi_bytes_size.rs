@@ -9,8 +9,8 @@ use light_compressed_account::{
         },
     },
 };
-use light_token_interface::state::CompressedMint;
 use light_program_profiler::profile;
+use light_token_interface::state::CompressedMint;
 use light_zero_copy::ZeroCopyNew;
 use pinocchio::program_error::ProgramError;
 use tinyvec::ArrayVec;

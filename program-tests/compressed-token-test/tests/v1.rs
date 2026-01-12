@@ -37,7 +37,6 @@ use light_compressed_token::{
     },
     ErrorCode, TokenData,
 };
-use light_ctoken_sdk::compat::{AccountState, TokenDataWithMerkleContext};
 use light_program_test::{
     accounts::{test_accounts::TestAccounts, test_keypairs::TestKeypairs},
     indexer::{TestIndexer, TestIndexerExtensions},
@@ -61,6 +60,7 @@ use light_test_utils::{
     },
     LightClient, Rpc, RpcError,
 };
+use light_token_sdk::compat::{AccountState, TokenDataWithMerkleContext};
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use serial_test::serial;
 #[allow(deprecated)]
@@ -5099,7 +5099,7 @@ async fn batch_compress_with_batched_tree() {
                 .into();
             assert_eq!(recipient_compressed_token_accounts.len(), 1);
             let recipient_compressed_token_account = &recipient_compressed_token_accounts[0];
-            let expected_token_data = light_ctoken_sdk::compat::TokenData {
+            let expected_token_data = light_token_sdk::compat::TokenData {
                 mint,
                 owner: recipients[i as usize],
                 amount: (i + 1),
@@ -5166,7 +5166,7 @@ async fn batch_compress_with_batched_tree() {
                 .into();
             assert_eq!(recipient_compressed_token_accounts.len(), 1);
             let recipient_compressed_token_account = &recipient_compressed_token_accounts[0];
-            let expected_token_data = light_ctoken_sdk::compat::TokenData {
+            let expected_token_data = light_token_sdk::compat::TokenData {
                 mint,
                 owner: *recipient,
                 amount,

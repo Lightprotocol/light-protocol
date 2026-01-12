@@ -1,10 +1,10 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
+use light_program_profiler::profile;
 use light_token_interface::{
     state::{Token, ZExtensionStructMut},
-    TokenError, MintExtensionFlags,
+    MintExtensionFlags, TokenError,
 };
-use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
 
 use crate::{

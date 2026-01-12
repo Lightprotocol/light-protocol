@@ -1,13 +1,13 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::Pubkey;
+use light_program_profiler::profile;
 use light_token_interface::{
     instructions::mint_action::{
         ZRemoveMetadataKeyAction, ZUpdateMetadataAuthorityAction, ZUpdateMetadataFieldAction,
     },
     state::{CompressedMint, ExtensionStruct, TokenMetadata},
 };
-use light_program_profiler::profile;
 use spl_pod::solana_msg::msg;
 
 use crate::compressed_token::mint_action::check_authority;

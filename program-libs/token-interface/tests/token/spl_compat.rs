@@ -7,8 +7,8 @@
 
 use light_compressed_account::Pubkey;
 use light_token_interface::state::{
-    token::{Token, TokenConfig, ZToken, ZTokenMut, BASE_TOKEN_ACCOUNT_SIZE},
     extensions::ExtensionStructConfig,
+    token::{Token, TokenConfig, ZToken, ZTokenMut, BASE_TOKEN_ACCOUNT_SIZE},
     ACCOUNT_TYPE_TOKEN_ACCOUNT,
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
@@ -399,8 +399,8 @@ fn test_account_type_compatibility_with_spl_parsing() {
 #[test]
 fn test_pausable_extension_partial_eq() {
     use light_token_interface::state::{
-        token::AccountState as CtokenAccountState,
         extensions::{ExtensionStruct, PausableAccountExtension},
+        token::AccountState as CtokenAccountState,
     };
 
     let config = TokenConfig {

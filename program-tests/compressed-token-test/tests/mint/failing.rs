@@ -2,13 +2,6 @@
 
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
-use light_token_interface::state::{extensions::AdditionalMetadata, CompressedMint};
-use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::{
-        derive_cmint_compressed_address, find_cmint_address,
-    },
-    ctoken::{CompressibleParams, CreateAssociatedCTokenAccount},
-};
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
@@ -16,6 +9,13 @@ use light_test_utils::{
 use light_token_client::{
     actions::create_mint,
     instructions::mint_action::{MintActionType, MintToRecipient},
+};
+use light_token_interface::state::{extensions::AdditionalMetadata, CompressedMint};
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::{
+        derive_cmint_compressed_address, find_cmint_address,
+    },
+    token::{CompressibleParams, CreateAssociatedTokenAccount},
 };
 use serial_test::serial;
 use solana_sdk::{
@@ -406,7 +406,7 @@ async fn functional_and_failing_tests() {
         let recipient = Keypair::new();
 
         let create_ata_ix =
-            CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+            CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
                 .instruction()
                 .unwrap();
 
@@ -461,7 +461,7 @@ async fn functional_and_failing_tests() {
         let recipient2 = Keypair::new();
 
         let create_ata_ix2 =
-            CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient2.pubkey(), spl_mint_pda)
+            CreateAssociatedTokenAccount::new(payer.pubkey(), recipient2.pubkey(), spl_mint_pda)
                 .instruction()
                 .unwrap();
 
@@ -470,7 +470,7 @@ async fn functional_and_failing_tests() {
             .unwrap();
 
         let recipient_ata =
-            light_ctoken_sdk::ctoken::derive_ctoken_ata(&recipient2.pubkey(), &spl_mint_pda).0;
+            light_token_sdk::token::derive_token_ata(&recipient2.pubkey(), &spl_mint_pda).0;
 
         // Try to mint with valid NEW authority (since we updated it)
         let result = light_token_client::actions::mint_action_comprehensive(
@@ -820,7 +820,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
         state::TokenDataVersion,
         LIGHT_TOKEN_PROGRAM_ID,
     };
-    use light_ctoken_sdk::compressed_token::{
+    use light_token_sdk::compressed_token::{
         create_compressed_mint::derive_cmint_compressed_address, mint_action::MintActionMetaConfig,
     };
 
@@ -874,7 +874,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
     };
 
     let create_ata_ix =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
             .with_compressible(compressible_params)
             .instruction()
             .unwrap();
@@ -883,8 +883,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
         .await
         .unwrap();
 
-    let ctoken_ata =
-        light_ctoken_sdk::ctoken::derive_ctoken_ata(&recipient.pubkey(), &spl_mint_pda).0;
+    let ctoken_ata = light_token_sdk::token::derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0;
 
     // 3. Build MintToCToken instruction with max_top_up = 1 (too low)
     // Get current compressed mint state
@@ -1026,9 +1025,9 @@ async fn test_create_mint_non_signer_mint_signer() {
 #[serial]
 async fn test_compress_and_close_cmint_must_be_only_action() {
     use light_compressible::rent::SLOTS_PER_EPOCH;
-    use light_ctoken_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address;
     use light_program_test::program_test::TestRpc;
     use light_token_client::instructions::mint_action::DecompressMintParams;
+    use light_token_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address;
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await

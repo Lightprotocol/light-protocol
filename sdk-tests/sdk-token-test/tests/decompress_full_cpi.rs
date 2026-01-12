@@ -4,14 +4,14 @@ use anchor_lang::{AnchorDeserialize, InstructionData};
 /// Test input range for multi-input tests
 const TEST_INPUT_RANGE: [usize; 4] = [1, 2, 3, 4];
 
-use light_token_interface::instructions::mint_action::{CompressedMintWithContext, Recipient};
-use light_ctoken_sdk::compressed_token::{
-    create_compressed_mint::find_cmint_address, decompress_full::DecompressFullAccounts,
-};
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::airdrop_lamports;
 use light_token_client::{actions::mint_action_comprehensive, instructions::mint_action::NewMint};
+use light_token_interface::instructions::mint_action::{CompressedMintWithContext, Recipient};
+use light_token_sdk::compressed_token::{
+    create_compressed_mint::find_cmint_address, decompress_full::DecompressFullAccounts,
+};
 use sdk_token_test::mint_compressed_tokens_cpi_write::MintCompressedTokensCpiWriteParams;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -54,8 +54,8 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
         .await
         .unwrap();
 
-    use light_ctoken_sdk::ctoken::{
-        derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount,
+    use light_token_sdk::token::{
+        derive_token_ata, CompressibleParams, CreateAssociatedCTokenAccount,
     };
 
     let mut destination_accounts = Vec::with_capacity(num_inputs);
@@ -71,7 +71,7 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
             additional_owner.pubkey()
         };
 
-        let (destination_account, _) = derive_ctoken_ata(&destination_owner, &mint_pubkey);
+        let (destination_account, _) = derive_token_ata(&destination_owner, &mint_pubkey);
 
         let compressible_params = CompressibleParams {
             compressible_config: rpc
@@ -240,7 +240,7 @@ async fn test_decompress_full_cpi() {
             .zip(ctx.destination_accounts.iter())
             .zip(versions.iter())
             .map(|(((token, tree_info), &dest_pubkey), &version)| {
-                light_ctoken_sdk::compressed_token::decompress_full::pack_for_decompress_full(
+                light_token_sdk::compressed_token::decompress_full::pack_for_decompress_full(
                     token,
                     tree_info,
                     dest_pubkey,
@@ -350,7 +350,7 @@ async fn test_decompress_full_cpi_with_context() {
 
         let address_tree_info = rpc.get_address_tree_v2();
         let compressed_mint_address =
-            light_ctoken_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address(
+            light_token_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address(
                 &ctx.mint_seed.pubkey(),
                 &address_tree_info.tree,
             );
@@ -447,7 +447,7 @@ async fn test_decompress_full_cpi_with_context() {
             .zip(ctx.destination_accounts.iter())
             .zip(versions.iter())
             .map(|(((token, tree_info), &dest_pubkey), &version)| {
-                light_ctoken_sdk::compressed_token::decompress_full::pack_for_decompress_full(
+                light_token_sdk::compressed_token::decompress_full::pack_for_decompress_full(
                     token,
                     tree_info,
                     dest_pubkey,

@@ -1,11 +1,11 @@
-use light_token_interface::instructions::mint_action::Recipient;
-use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::find_cmint_address,
-    ctoken::{derive_ctoken_ata, BurnCToken, CreateAssociatedCTokenAccount},
-};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{assert_ctoken_burn::assert_ctoken_burn, Rpc};
 use light_token_client::instructions::mint_action::DecompressMintParams;
+use light_token_interface::instructions::mint_action::Recipient;
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::find_cmint_address,
+    token::{derive_token_ata, BurnToken, CreateAssociatedTokenAccount},
+};
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
@@ -40,10 +40,10 @@ async fn setup_burn_test(mint_amount: u64) -> BurnTestContext {
     let (cmint_pda, _) = find_cmint_address(&mint_seed.pubkey());
 
     // Step 1: Create CToken ATA for owner first (needed before minting)
-    let (ctoken_ata, _) = derive_ctoken_ata(&owner_keypair.pubkey(), &cmint_pda);
+    let (ctoken_ata, _) = derive_token_ata(&owner_keypair.pubkey(), &cmint_pda);
 
     let create_ata_ix =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner_keypair.pubkey(), cmint_pda)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner_keypair.pubkey(), cmint_pda)
             .instruction()
             .unwrap();
 
@@ -94,7 +94,7 @@ async fn test_ctoken_burn() {
     let mut ctx = setup_burn_test(1000).await;
 
     // First burn: 500 tokens (half)
-    let burn_ix_1 = BurnCToken {
+    let burn_ix_1 = BurnToken {
         source: ctx.ctoken_account,
         cmint: ctx.cmint_pda,
         amount: 500,
@@ -116,7 +116,7 @@ async fn test_ctoken_burn() {
     assert_ctoken_burn(&mut ctx.rpc, ctx.ctoken_account, ctx.cmint_pda, 500).await;
 
     // Second burn: 500 tokens (remaining half)
-    let burn_ix_2 = BurnCToken {
+    let burn_ix_2 = BurnToken {
         source: ctx.ctoken_account,
         cmint: ctx.cmint_pda,
         amount: 500,

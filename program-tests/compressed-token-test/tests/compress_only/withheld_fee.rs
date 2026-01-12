@@ -5,17 +5,6 @@
 
 use borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
-use light_token_interface::{
-    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
-    state::{
-        Token, CompressedOnlyExtension, CompressedTokenAccountState, ExtensionStruct, TokenData,
-        TokenDataVersion,
-    },
-};
-use light_ctoken_sdk::{
-    ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
-    spl_interface::find_spl_interface_pda_with_index,
-};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     mint_2022::{create_mint_22_with_extension_types, create_token_22_account, mint_spl_tokens_22},
@@ -23,6 +12,17 @@ use light_test_utils::{
 };
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+};
+use light_token_interface::{
+    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
+    state::{
+        CompressedOnlyExtension, CompressedTokenAccountState, ExtensionStruct, Token, TokenData,
+        TokenDataVersion,
+    },
+};
+use light_token_sdk::{
+    ctoken::{CompressibleParams, CreateTokenAccount, TransferSplToToken},
+    spl_interface::find_spl_interface_pda_with_index,
 };
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
@@ -57,7 +57,7 @@ async fn test_roundtrip_withheld_transfer_fee_preserved() -> Result<(), RpcError
     let ctoken_account = account_keypair.pubkey();
 
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: rpc
                     .test_accounts
@@ -79,7 +79,7 @@ async fn test_roundtrip_withheld_transfer_fee_preserved() -> Result<(), RpcError
     // 4. Transfer tokens to CToken
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true); // true = restricted
-    let transfer_ix = TransferSplToCtoken {
+    let transfer_ix = TransferSplToToken {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,
@@ -173,7 +173,7 @@ async fn test_roundtrip_withheld_transfer_fee_preserved() -> Result<(), RpcError
     let decompress_dest_keypair = Keypair::new();
     let decompress_dest_account = decompress_dest_keypair.pubkey();
 
-    let create_dest_ix = CreateCTokenAccount::new(
+    let create_dest_ix = CreateTokenAccount::new(
         payer.pubkey(),
         decompress_dest_account,
         mint_pubkey,

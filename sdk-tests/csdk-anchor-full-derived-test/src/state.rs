@@ -1,11 +1,11 @@
 use anchor_lang::prelude::*;
-use light_token_interface::instructions::mint_action::CompressedMintWithContext;
 use light_sdk::{
     compressible::CompressionInfo,
     instruction::{PackedAddressTreeInfo, ValidityProof},
     LightDiscriminator, LightHasher,
 };
 use light_sdk_macros::{Compressible, CompressiblePack};
+use light_token_interface::instructions::mint_action::CompressedMintWithContext;
 
 #[derive(
     Default, Debug, LightHasher, LightDiscriminator, InitSpace, Compressible, CompressiblePack,

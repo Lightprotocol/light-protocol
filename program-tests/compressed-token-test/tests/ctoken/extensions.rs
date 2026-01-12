@@ -3,10 +3,6 @@
 //! This module tests the creation and verification of Token 2022 mints
 //! with all supported extensions.
 
-use light_token_interface::state::{
-    ExtensionStruct, PausableAccountExtension, PermanentDelegateAccountExtension,
-    TransferFeeAccountExtension, TransferHookAccountExtension, ACCOUNT_TYPE_TOKEN_ACCOUNT,
-};
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     mint_2022::{
@@ -17,6 +13,10 @@ use light_test_utils::{
 };
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, CompressInput, Transfer2InstructionType,
+};
+use light_token_interface::state::{
+    ExtensionStruct, PausableAccountExtension, PermanentDelegateAccountExtension,
+    TransferFeeAccountExtension, TransferHookAccountExtension, ACCOUNT_TYPE_TOKEN_ACCOUNT,
 };
 use serial_test::serial;
 use solana_sdk::{
@@ -80,9 +80,9 @@ async fn test_setup_mint_22_with_all_extensions() {
 #[serial]
 async fn test_mint_and_compress_with_extensions() {
     use light_token_interface::state::TokenDataVersion;
-    use light_ctoken_sdk::{
-        ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
+    use light_token_sdk::{
         spl_interface::find_spl_interface_pda_with_index,
+        token::{CompressibleParams, CreateTokenAccount, TransferSplToToken},
     };
 
     let mut context = setup_extensions_test().await.unwrap();
@@ -111,7 +111,7 @@ async fn test_mint_and_compress_with_extensions() {
     // 3. Create CToken account with extensions (destination for hot path transfer)
     let owner = Keypair::new();
     let account_keypair = Keypair::new();
-    let create_ix = CreateCTokenAccount::new(
+    let create_ix = CreateTokenAccount::new(
         payer.pubkey(),
         account_keypair.pubkey(),
         mint_pubkey,
@@ -149,7 +149,7 @@ async fn test_mint_and_compress_with_extensions() {
                                           // Use restricted=true because this mint has restricted extensions (PermanentDelegate, etc.)
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
-    let transfer_ix = TransferSplToCtoken {
+    let transfer_ix = TransferSplToToken {
         amount: transfer_amount,
         spl_interface_pda_bump,
         source_spl_token_account: spl_account,
@@ -199,11 +199,11 @@ async fn test_mint_and_compress_with_extensions() {
 #[tokio::test]
 #[serial]
 async fn test_create_ctoken_with_extensions() {
-    use light_token_interface::state::TokenDataVersion;
-    use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
     use light_test_utils::assert_create_token_account::{
         assert_create_token_account, CompressibleData,
     };
+    use light_token_interface::state::TokenDataVersion;
+    use light_token_sdk::token::{CompressibleParams, CreateTokenAccount};
 
     let mut context = setup_extensions_test().await.unwrap();
     let payer = context.payer.insecure_clone();
@@ -230,7 +230,7 @@ async fn test_create_ctoken_with_extensions() {
         .compression_authority_pda;
 
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), account_pubkey, mint_pubkey, payer.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), account_pubkey, mint_pubkey, payer.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config,
                 rent_sponsor,
@@ -285,9 +285,9 @@ async fn test_transfer_with_permanent_delegate() {
     use anchor_lang::prelude::AccountMeta;
     use anchor_spl::token_2022::spl_token_2022;
     use light_token_interface::state::TokenDataVersion;
-    use light_ctoken_sdk::{
-        ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
+    use light_token_sdk::{
         spl_interface::find_spl_interface_pda_with_index,
+        token::{CompressibleParams, CreateTokenAccount, TransferSplToToken},
     };
     use solana_sdk::{instruction::Instruction, program_pack::Pack};
 
@@ -315,7 +315,7 @@ async fn test_transfer_with_permanent_delegate() {
     let account_a_keypair = Keypair::new();
     let account_a_pubkey = account_a_keypair.pubkey();
 
-    let create_a_ix = CreateCTokenAccount::new(
+    let create_a_ix = CreateTokenAccount::new(
         payer.pubkey(),
         account_a_pubkey,
         mint_pubkey,
@@ -354,7 +354,7 @@ async fn test_transfer_with_permanent_delegate() {
     let account_b_keypair = Keypair::new();
     let account_b_pubkey = account_b_keypair.pubkey();
 
-    let create_b_ix = CreateCTokenAccount::new(
+    let create_b_ix = CreateTokenAccount::new(
         payer.pubkey(),
         account_b_pubkey,
         mint_pubkey,
@@ -394,7 +394,7 @@ async fn test_transfer_with_permanent_delegate() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
-    let transfer_spl_to_ctoken_ix = TransferSplToCtoken {
+    let transfer_spl_to_ctoken_ix = TransferSplToToken {
         amount: mint_amount,
         spl_interface_pda_bump,
         source_spl_token_account: spl_account,
@@ -486,9 +486,9 @@ async fn test_transfer_with_owner_authority() {
     use anchor_spl::token_2022::spl_token_2022;
     use borsh::BorshDeserialize;
     use light_token_interface::state::{AccountState, Token, TokenDataVersion};
-    use light_ctoken_sdk::{
-        ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
+    use light_token_sdk::{
         spl_interface::find_spl_interface_pda_with_index,
+        token::{CompressibleParams, CreateTokenAccount, TransferSplToToken},
     };
     use solana_sdk::{instruction::Instruction, program_pack::Pack};
 
@@ -520,7 +520,7 @@ async fn test_transfer_with_owner_authority() {
     let account_a_keypair = Keypair::new();
     let account_a_pubkey = account_a_keypair.pubkey();
 
-    let create_a_ix = CreateCTokenAccount::new(
+    let create_a_ix = CreateTokenAccount::new(
         payer.pubkey(),
         account_a_pubkey,
         mint_pubkey,
@@ -559,7 +559,7 @@ async fn test_transfer_with_owner_authority() {
     let account_b_keypair = Keypair::new();
     let account_b_pubkey = account_b_keypair.pubkey();
 
-    let create_b_ix = CreateCTokenAccount::new(
+    let create_b_ix = CreateTokenAccount::new(
         payer.pubkey(),
         account_b_pubkey,
         mint_pubkey,
@@ -622,7 +622,7 @@ async fn test_transfer_with_owner_authority() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
-    let transfer_spl_to_ctoken_ix = TransferSplToCtoken {
+    let transfer_spl_to_ctoken_ix = TransferSplToToken {
         amount: mint_amount,
         spl_interface_pda_bump,
         source_spl_token_account: spl_account,

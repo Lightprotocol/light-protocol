@@ -3,7 +3,7 @@ use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::Pubkey;
 use light_token_interface::{
     instructions::extensions::{find_compressed_only, ZCompressedOnlyExtensionInstructionData},
-    state::{ZTokenMut, ZExtensionStructMut},
+    state::{ZExtensionStructMut, ZTokenMut},
     TokenError,
 };
 use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};

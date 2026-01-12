@@ -3,10 +3,10 @@
 //! This module tests the full compress -> decompress cycle with all extensions enabled.
 
 use borsh::BorshDeserialize;
-use light_token_interface::state::{
-    AccountState, Token, ExtensionStruct, ACCOUNT_TYPE_TOKEN_ACCOUNT,
-};
 use light_program_test::program_test::TestRpc;
+use light_token_interface::state::{
+    AccountState, ExtensionStruct, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+};
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
 
@@ -20,19 +20,19 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     #[allow(unused_imports)]
     use light_client::indexer::CompressedTokenAccount;
     use light_client::indexer::Indexer;
+    use light_test_utils::mint_2022::{create_token_22_account, mint_spl_tokens_22};
+    use light_token_client::instructions::transfer2::{
+        create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+    };
     use light_token_interface::{
         instructions::extensions::{
             CompressedOnlyExtensionInstructionData, ExtensionInstructionData,
         },
         state::TokenDataVersion,
     };
-    use light_ctoken_sdk::{
-        ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
+    use light_token_sdk::{
+        ctoken::{CompressibleParams, CreateTokenAccount, TransferSplToToken},
         spl_interface::find_spl_interface_pda_with_index,
-    };
-    use light_test_utils::mint_2022::{create_token_22_account, mint_spl_tokens_22};
-    use light_token_client::instructions::transfer2::{
-        create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
     };
 
     let mut context = setup_extensions_test(ALL_EXTENSIONS).await.unwrap();
@@ -58,7 +58,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     let ctoken_account = account_keypair.pubkey();
 
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: context
                     .rpc
@@ -88,7 +88,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     // 3. Transfer tokens to CToken using hot path (required for mints with restricted extensions)
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
-    let transfer_ix = TransferSplToCtoken {
+    let transfer_ix = TransferSplToToken {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,
@@ -178,7 +178,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     let decompress_dest_keypair = Keypair::new();
     let decompress_dest_account = decompress_dest_keypair.pubkey();
 
-    let create_dest_ix = CreateCTokenAccount::new(
+    let create_dest_ix = CreateTokenAccount::new(
         payer.pubkey(),
         decompress_dest_account,
         mint_pubkey,

@@ -2,15 +2,15 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use bitvec::prelude::*;
 use light_account_checks::{checks::check_signer, packed_accounts::ProgramPackedAccounts};
+use light_program_profiler::profile;
 use light_token_interface::{
     instructions::{
         extensions::ZExtensionInstructionData,
         transfer2::{ZCompression, ZCompressionMode, ZMultiTokenTransferOutputData},
     },
-    state::{TokenDataVersion, ZTokenMut, ZExtensionStructMut},
+    state::{TokenDataVersion, ZExtensionStructMut, ZTokenMut},
     TokenError,
 };
-use light_program_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
     pubkey::{pubkey_eq, Pubkey},

@@ -1,10 +1,10 @@
-use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::find_cmint_address,
-    ctoken::{derive_ctoken_ata, CTokenMintTo, CreateAssociatedCTokenAccount},
-};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{assert_ctoken_mint_to::assert_ctoken_mint_to, Rpc};
 use light_token_client::instructions::mint_action::DecompressMintParams;
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::find_cmint_address,
+    token::{derive_token_ata, CreateAssociatedTokenAccount, TokenMintTo},
+};
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
@@ -38,10 +38,10 @@ async fn setup_mint_to_test() -> MintToTestContext {
     let (cmint_pda, _) = find_cmint_address(&mint_seed.pubkey());
 
     // Step 1: Create CToken ATA for owner first
-    let (ctoken_ata, _) = derive_ctoken_ata(&owner_keypair.pubkey(), &cmint_pda);
+    let (ctoken_ata, _) = derive_token_ata(&owner_keypair.pubkey(), &cmint_pda);
 
     let create_ata_ix =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner_keypair.pubkey(), cmint_pda)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner_keypair.pubkey(), cmint_pda)
             .instruction()
             .unwrap();
 
@@ -49,7 +49,7 @@ async fn setup_mint_to_test() -> MintToTestContext {
         .await
         .unwrap();
 
-    // Step 2: Create compressed mint + CMint (no recipients - we'll mint via CTokenMintTo)
+    // Step 2: Create compressed mint + CMint (no recipients - we'll mint via TokenMintTo)
     light_token_client::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
@@ -89,7 +89,7 @@ async fn test_ctoken_mint_to() {
     let mut ctx = setup_mint_to_test().await;
 
     // First mint: 500 tokens
-    let mint_ix_1 = CTokenMintTo {
+    let mint_ix_1 = TokenMintTo {
         cmint: ctx.cmint_pda,
         destination: ctx.ctoken_account,
         amount: 500,
@@ -111,7 +111,7 @@ async fn test_ctoken_mint_to() {
     assert_ctoken_mint_to(&mut ctx.rpc, ctx.ctoken_account, ctx.cmint_pda, 500).await;
 
     // Second mint: 500 tokens
-    let mint_ix_2 = CTokenMintTo {
+    let mint_ix_2 = TokenMintTo {
         cmint: ctx.cmint_pda,
         destination: ctx.ctoken_account,
         amount: 500,
@@ -153,7 +153,7 @@ async fn test_ctoken_mint_to() {
 // MintTo Checked Tests
 // ============================================================================
 
-use light_ctoken_sdk::ctoken::CTokenMintToChecked;
+use light_token_sdk::token::TokenMintToChecked;
 
 #[tokio::test]
 #[serial]
@@ -161,7 +161,7 @@ async fn test_ctoken_mint_to_checked_success() {
     let mut ctx = setup_mint_to_test().await;
 
     // Mint 500 tokens with correct decimals (8)
-    let mint_ix = CTokenMintToChecked {
+    let mint_ix = TokenMintToChecked {
         cmint: ctx.cmint_pda,
         destination: ctx.ctoken_account,
         amount: 500,
@@ -203,7 +203,7 @@ async fn test_ctoken_mint_to_checked_wrong_decimals() {
     let mut ctx = setup_mint_to_test().await;
 
     // Try to mint with wrong decimals (7 instead of 8)
-    let mint_ix = CTokenMintToChecked {
+    let mint_ix = TokenMintToChecked {
         cmint: ctx.cmint_pda,
         destination: ctx.ctoken_account,
         amount: 500,

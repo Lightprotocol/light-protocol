@@ -8,7 +8,7 @@ use light_client::indexer::{CompressedAccount, TreeInfo, ValidityProofWithContex
 pub use light_sdk::compressible::config::CompressibleConfig;
 use light_sdk::{
     compressible::{compression_info::CompressedAccountData, Pack},
-    constants::C_TOKEN_PROGRAM_ID,
+    constants::LIGHT_TOKEN_PROGRAM_ID,
     instruction::{
         account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts,
         SystemAccountMetaConfig, ValidityProof,
@@ -185,7 +185,7 @@ pub mod compressible_instruction {
         let mut has_tokens = false;
         let mut has_pdas = false;
         for (compressed_account, _) in compressed_accounts.iter() {
-            if compressed_account.owner == C_TOKEN_PROGRAM_ID.into() {
+            if compressed_account.owner == LIGHT_TOKEN_PROGRAM_ID.into() {
                 has_tokens = true;
             } else {
                 has_pdas = true;

@@ -3,7 +3,7 @@ use light_token_interface::instructions::mint_action::{
     CompressedMintWithContext, MintActionCompressedInstructionData, MintToCompressedAction,
     Recipient,
 };
-use light_ctoken_sdk::compressed_token::{
+use light_token_sdk::compressed_token::{
     ctoken_instruction::CTokenInstruction, mint_action::MintActionCpiWriteAccounts,
     transfer2::Transfer2CpiAccounts,
 };

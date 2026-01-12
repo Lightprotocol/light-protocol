@@ -2,6 +2,8 @@ use anchor_lang::InstructionData;
 use compressed_token_test::ID as WRAPPER_PROGRAM_ID;
 use light_client::indexer::Indexer;
 use light_compressed_account::instruction_data::traits::LightInstructionData;
+use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
+use light_test_utils::Rpc;
 use light_token_interface::{
     instructions::mint_action::{
         CompressedMintInstructionData, CompressedMintWithContext, CpiContext, DecompressMintAction,
@@ -10,15 +12,13 @@ use light_token_interface::{
     state::CompressedMintMetadata,
     CMINT_ADDRESS_TREE, LIGHT_TOKEN_PROGRAM_ID,
 };
-use light_ctoken_sdk::compressed_token::{
+use light_token_sdk::compressed_token::{
     create_compressed_mint::{derive_cmint_compressed_address, find_cmint_address},
     mint_action::{
         get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
         MintActionMetaConfigCpiWrite,
     },
 };
-use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
-use light_test_utils::Rpc;
 use light_verifier::CompressedProof;
 use serial_test::serial;
 use solana_sdk::{

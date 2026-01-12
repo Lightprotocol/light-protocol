@@ -4,6 +4,8 @@ use anchor_lang::{
 use anchor_spl::token_interface::spl_token_2022;
 use light_client::indexer::Indexer;
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
+use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
+use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use light_token_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData,
@@ -12,15 +14,13 @@ use light_token_interface::{
     state::{extensions::AdditionalMetadata, CompressedMintMetadata},
     LIGHT_TOKEN_PROGRAM_ID,
 };
-use light_ctoken_sdk::{
+use light_token_sdk::{
     compressed_token::create_compressed_mint::{
         derive_cmint_compressed_address, find_cmint_address,
     },
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
+    ctoken::{derive_token_ata, CompressibleParams, CreateAssociatedCTokenAccount},
 };
 use light_token_types::CPI_AUTHORITY_PDA;
-use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
-use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use sdk_token_test::{ChainedCtokenInstructionData, PdaCreationData, ID};
 use solana_sdk::{
     pubkey::Pubkey,
@@ -200,7 +200,7 @@ pub async fn create_mint(
     let (mint, _) = find_cmint_address(&mint_seed.pubkey());
 
     // Create compressed token associated token account for the mint authority
-    let (token_account, _) = derive_ctoken_ata(&mint_authority.pubkey(), &mint);
+    let (token_account, _) = derive_token_ata(&mint_authority.pubkey(), &mint);
     println!("Created token_account (ATA): {:?}", token_account);
 
     let compressible_params = CompressibleParams {

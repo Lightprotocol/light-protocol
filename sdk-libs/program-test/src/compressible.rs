@@ -16,11 +16,11 @@ use light_compressible::rent::RentConfig;
 #[cfg(feature = "devenv")]
 use light_compressible::rent::SLOTS_PER_EPOCH;
 #[cfg(feature = "devenv")]
-use light_token_interface::state::{
-    Token, CompressedMint, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
-};
-#[cfg(feature = "devenv")]
 use light_sdk::compressible::CompressibleConfig as CpdaCompressibleConfig;
+#[cfg(feature = "devenv")]
+use light_token_interface::state::{
+    CompressedMint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+};
 #[cfg(feature = "devenv")]
 use solana_pubkey::Pubkey;
 

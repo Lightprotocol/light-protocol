@@ -1,8 +1,8 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::rpc::Rpc;
 use light_compressible::compression_info::CompressionInfo;
-use light_token_interface::state::{extensions::ExtensionStruct, Token, CompressedMint};
 use light_program_test::LightProgramTest;
+use light_token_interface::state::{extensions::ExtensionStruct, CompressedMint, Token};
 use solana_sdk::pubkey::Pubkey;
 
 /// Extract CompressionInfo from CToken's Compressible extension

@@ -18,20 +18,20 @@ cpi = ["no-entrypoint"]
 test-sbf = ["profile-program"]
 default = []
 profile-program = [
-    "light-ctoken-sdk/profile-program",
+    "light-token-sdk/profile-program",
     "light-program-profiler/profile-program",
     "light-compressed-account/profile-program",
     "light-token-interface/profile-program",
 ]
 profile-heap = [
-    "light-ctoken-sdk/profile-heap",
+    "light-token-sdk/profile-heap",
     "light-program-profiler/profile-heap",
     "light-compressed-account/profile-heap",
     "light-token-interface/profile-heap",
 ]
 
 [dependencies]
-light-ctoken-sdk = { workspace = true, features = ["anchor", "cpi-context", "v1"] }
+light-token-sdk = { workspace = true, features = ["anchor", "cpi-context", "v1"] }
 light-token-types = { workspace = true }
 anchor-lang = { workspace = true }
 light-hasher = { workspace = true }

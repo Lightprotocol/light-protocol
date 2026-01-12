@@ -36,5 +36,5 @@ pub use decompress_idempotent::{
 #[cfg(feature = "v2")]
 pub use decompress_runtime::{
     check_account_types, handle_packed_pda_variant, process_decompress_accounts_idempotent,
-    CTokenSeedProvider, DecompressContext, HasTokenVariant, PdaSeedDerivation,
+    DecompressContext, HasTokenVariant, PdaSeedDerivation, TokenSeedProvider,
 };

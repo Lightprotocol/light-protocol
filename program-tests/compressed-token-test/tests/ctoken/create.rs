@@ -262,7 +262,7 @@ async fn test_create_compressible_token_account_failing() {
             compression_only: false,
         };
 
-        let create_token_account_ix = CreateCTokenAccount::new(
+        let create_token_account_ix = CreateTokenAccount::new(
             poor_payer_pubkey,
             token_account_pubkey.pubkey(),
             context.mint_pubkey,
@@ -317,7 +317,7 @@ async fn test_create_compressible_token_account_failing() {
             compression_only: false,
         };
 
-        let create_token_account_ix = CreateCTokenAccount::new(
+        let create_token_account_ix = CreateTokenAccount::new(
             payer_pubkey,
             token_account_pubkey,
             context.mint_pubkey,
@@ -368,7 +368,7 @@ async fn test_create_compressible_token_account_failing() {
             compression_only: false,
         };
 
-        let create_token_account_ix = CreateCTokenAccount::new(
+        let create_token_account_ix = CreateTokenAccount::new(
             payer_pubkey,
             context.token_account_keypair.pubkey(),
             context.mint_pubkey,
@@ -440,7 +440,7 @@ async fn test_create_compressible_token_account_failing() {
             compression_only: false,
         };
 
-        let create_token_account_ix = CreateCTokenAccount::new(
+        let create_token_account_ix = CreateTokenAccount::new(
             payer_pubkey,
             context.token_account_keypair.pubkey(),
             context.mint_pubkey,
@@ -484,7 +484,7 @@ async fn test_create_compressible_token_account_failing() {
             compression_only: false,
         };
 
-        let create_token_account_ix = CreateCTokenAccount::new(
+        let create_token_account_ix = CreateTokenAccount::new(
             payer_pubkey,
             context.token_account_keypair.pubkey(),
             context.mint_pubkey,
@@ -628,7 +628,7 @@ async fn test_create_compressible_token_account_failing() {
             compression_only: true, // Required for restricted extensions
         };
 
-        let create_token_account_ix = CreateCTokenAccount::new(
+        let create_token_account_ix = CreateTokenAccount::new(
             payer_pubkey,
             context.token_account_keypair.pubkey(),
             t22_token_account, // Token account, not mint!
@@ -671,7 +671,7 @@ async fn test_create_compressible_token_account_failing() {
             compression_only: false,
         };
 
-        let create_ix = CreateCTokenAccount::new(
+        let create_ix = CreateTokenAccount::new(
             payer_pubkey,
             context.token_account_keypair.pubkey(),
             context.mint_pubkey,

@@ -2,8 +2,8 @@
 
 use light_compressed_account::Pubkey;
 use light_token_interface::state::{
-    top_up_lamports_from_slice, Token, TokenConfig, CompressibleExtensionConfig,
-    CompressionInfoConfig, ExtensionStructConfig,
+    top_up_lamports_from_slice, CompressibleExtensionConfig, CompressionInfoConfig,
+    ExtensionStructConfig, Token, TokenConfig,
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
 

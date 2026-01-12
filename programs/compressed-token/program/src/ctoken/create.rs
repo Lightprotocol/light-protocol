@@ -2,8 +2,8 @@ use anchor_lang::prelude::ProgramError;
 use borsh::BorshDeserialize;
 use light_account_checks::AccountIterator;
 use light_compressed_account::Pubkey;
-use light_token_interface::instructions::create_token_account::CreateTokenAccountInstructionData;
 use light_program_profiler::profile;
+use light_token_interface::instructions::create_token_account::CreateTokenAccountInstructionData;
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 

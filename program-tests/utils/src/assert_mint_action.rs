@@ -4,11 +4,11 @@ use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
 use light_compressed_account::compressed_account::CompressedAccountData;
 use light_compressible::compression_info::CompressionInfo;
-use light_token_interface::state::{
-    extensions::AdditionalMetadata, Token, CompressedMint, ExtensionStruct,
-};
 use light_program_test::{LightProgramTest, Rpc};
 use light_token_client::instructions::mint_action::MintActionType;
+use light_token_interface::state::{
+    extensions::AdditionalMetadata, CompressedMint, ExtensionStruct, Token,
+};
 use solana_sdk::pubkey::Pubkey;
 
 /// Extract CompressionInfo from CToken's Compressible extension

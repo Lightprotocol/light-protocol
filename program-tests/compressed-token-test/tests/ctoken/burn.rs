@@ -16,16 +16,16 @@
 //! This is different from approve/revoke which only modify the CToken account.
 //!
 //! **Note**: Max top-up exceeded test requires compressible accounts with time warp.
-//! For comprehensive max_top_up testing, see sdk-tests/sdk-ctoken-test/tests/test_burn.rs
-use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::find_cmint_address,
-    ctoken::{derive_ctoken_ata, BurnCToken, CTokenMintTo, CreateAssociatedCTokenAccount},
-};
+//! For comprehensive max_top_up testing, see sdk-tests/sdk-light-token-test/tests/test_burn.rs
 use light_program_test::{
     program_test::TestRpc, utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig,
 };
 use light_test_utils::assert_ctoken_burn::assert_ctoken_burn;
 use light_token_client::instructions::mint_action::DecompressMintParams;
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::find_cmint_address,
+    token::{derive_token_ata, BurnToken, CreateAssociatedTokenAccount, TokenMintTo},
+};
 
 use super::shared::*;
 
@@ -42,7 +42,7 @@ async fn test_burn_success_cases() {
         let burn_amount = 50u64;
 
         // Burn 50 tokens
-        let burn_ix = BurnCToken {
+        let burn_ix = BurnToken {
             source: ctx.ctoken_account,
             cmint: ctx.cmint_pda,
             amount: burn_amount,
@@ -73,7 +73,7 @@ async fn test_burn_success_cases() {
         let burn_amount = 100u64;
 
         // Burn all 100 tokens
-        let burn_ix = BurnCToken {
+        let burn_ix = BurnToken {
             source: ctx.ctoken_account,
             cmint: ctx.cmint_pda,
             amount: burn_amount,
@@ -123,7 +123,7 @@ async fn test_burn_fails() {
         let (other_cmint_pda, _) = find_cmint_address(&other_mint_seed.pubkey());
 
         // Try to burn with wrong mint
-        let burn_ix = BurnCToken {
+        let burn_ix = BurnToken {
             source: ctx.ctoken_account,
             cmint: other_cmint_pda, // Wrong mint
             amount: 50,
@@ -153,7 +153,7 @@ async fn test_burn_fails() {
 
         let non_existent = Pubkey::new_unique();
 
-        let burn_ix = BurnCToken {
+        let burn_ix = BurnToken {
             source: non_existent,
             cmint: ctx.cmint_pda,
             amount: 50,
@@ -199,7 +199,7 @@ async fn test_burn_fails() {
         ctx.rpc
             .set_account(wrong_owner_account.pubkey(), account_with_wrong_owner);
 
-        let burn_ix = BurnCToken {
+        let burn_ix = BurnToken {
             source: wrong_owner_account.pubkey(),
             cmint: ctx.cmint_pda,
             amount: 50,
@@ -229,7 +229,7 @@ async fn test_burn_fails() {
         let mut ctx = setup_burn_test().await;
 
         // Try to burn more than balance (100 tokens)
-        let burn_ix = BurnCToken {
+        let burn_ix = BurnToken {
             source: ctx.ctoken_account,
             cmint: ctx.cmint_pda,
             amount: 200, // More than 100 balance
@@ -264,7 +264,7 @@ async fn test_burn_fails() {
             .await
             .unwrap();
 
-        let burn_ix = BurnCToken {
+        let burn_ix = BurnToken {
             source: ctx.ctoken_account,
             cmint: ctx.cmint_pda,
             amount: 50,
@@ -292,7 +292,7 @@ async fn test_burn_fails() {
     // Note: This requires compressible accounts that need top-up after time warp.
     // The current setup creates non-compressible accounts, so max_top_up test
     // would need additional setup. For comprehensive max_top_up testing, see
-    // sdk-tests/sdk-ctoken-test/tests/test_burn.rs
+    // sdk-tests/sdk-light-token-test/tests/test_burn.rs
 }
 
 // ============================================================================
@@ -329,10 +329,10 @@ async fn setup_burn_test() -> BurnTestContext {
     let (cmint_pda, _) = find_cmint_address(&mint_seed.pubkey());
 
     // Step 1: Create CToken ATA for owner
-    let (ctoken_ata, _) = derive_ctoken_ata(&owner_keypair.pubkey(), &cmint_pda);
+    let (ctoken_ata, _) = derive_token_ata(&owner_keypair.pubkey(), &cmint_pda);
 
     let create_ata_ix =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner_keypair.pubkey(), cmint_pda)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner_keypair.pubkey(), cmint_pda)
             .instruction()
             .unwrap();
 
@@ -365,7 +365,7 @@ async fn setup_burn_test() -> BurnTestContext {
     .unwrap();
 
     // Step 3: Mint 100 tokens to the CToken account
-    let mint_ix = CTokenMintTo {
+    let mint_ix = TokenMintTo {
         cmint: cmint_pda,
         destination: ctoken_ata,
         amount: 100,
@@ -397,7 +397,7 @@ async fn setup_burn_test() -> BurnTestContext {
 // Burn Checked Tests
 // ============================================================================
 
-use light_ctoken_sdk::ctoken::BurnCTokenChecked;
+use light_token_sdk::token::BurnTokenChecked;
 
 /// MintDecimalsMismatch error code (SplMintDecimalsMismatch = 6166)
 const MINT_DECIMALS_MISMATCH: u32 = 6166;
@@ -409,7 +409,7 @@ async fn test_burn_checked_success() {
     let burn_amount = 50u64;
 
     // Burn 50 tokens with correct decimals (8)
-    let burn_ix = BurnCTokenChecked {
+    let burn_ix = BurnTokenChecked {
         source: ctx.ctoken_account,
         cmint: ctx.cmint_pda,
         amount: burn_amount,
@@ -441,7 +441,7 @@ async fn test_burn_checked_wrong_decimals() {
     let mut ctx = setup_burn_test().await;
 
     // Try to burn with wrong decimals (7 instead of 8)
-    let burn_ix = BurnCTokenChecked {
+    let burn_ix = BurnTokenChecked {
         source: ctx.ctoken_account,
         cmint: ctx.cmint_pda,
         amount: 50,

@@ -22,7 +22,7 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
         compression_only: false,
     };
 
-    let create_ix = CreateCTokenAccount::new(
+    let create_ix = CreateTokenAccount::new(
         payer_pubkey,
         token_account_pubkey,
         context.mint_pubkey,
@@ -71,7 +71,7 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
     let destination_pubkey = destination_keypair.pubkey();
 
     // Close account using SPL SDK compatible instruction
-    let close_account_ix = CloseCTokenAccount::new(
+    let close_account_ix = CloseTokenAccount::new(
         light_compressed_token::ID,
         token_account_pubkey,
         destination_pubkey,
@@ -156,7 +156,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         compression_only: false,
     };
 
-    let create_token_account_ix = CreateCTokenAccount::new(
+    let create_token_account_ix = CreateTokenAccount::new(
         payer_pubkey,
         token_account_pubkey,
         context.mint_pubkey,
@@ -302,7 +302,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         .unwrap();
 
     // Close compressible account using owner
-    let close_account_ix = CloseCTokenAccount::new(
+    let close_account_ix = CloseTokenAccount::new(
         light_compressed_token::ID,
         token_account_pubkey,
         destination.pubkey(),           // destination for user funds

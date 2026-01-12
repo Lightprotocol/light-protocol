@@ -2,8 +2,8 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{checks::check_signer, AccountInfoTrait};
 use light_compressible::rent::AccountRentState;
-use light_token_interface::state::{AccountState, Token, ZTokenMut};
 use light_program_profiler::profile;
+use light_token_interface::state::{AccountState, Token, ZTokenMut};
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::Sysvar;
 use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};

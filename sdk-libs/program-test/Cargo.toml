@@ -20,7 +20,7 @@ light-concurrent-merkle-tree = { workspace = true, optional = true }
 light-hasher = { workspace = true, features = ["poseidon", "sha256", "keccak", "std"] }
 light-token-interface = { workspace = true, optional = true }
 light-compressible = { workspace = true, optional = true }
-light-ctoken-sdk = { workspace = true }
+light-token-sdk = { workspace = true }
 light-compressed-account = { workspace = true, features = ["anchor", "poseidon"] }
 light-batched-merkle-tree = { workspace = true, features = ["test-only"], optional = true }
 light-event = { workspace = true }

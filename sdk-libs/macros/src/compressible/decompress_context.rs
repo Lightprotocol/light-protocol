@@ -71,7 +71,7 @@ pub fn generate_decompress_context_trait_impl(
     Ok(quote! {
         impl<#lifetime> light_sdk::compressible::DecompressContext<#lifetime> for DecompressAccountsIdempotent<#lifetime> {
             type CompressedData = CompressedAccountData;
-            type PackedTokenData = light_ctoken_sdk::compat::PackedCTokenData<#token_variant_ident>;
+            type PackedTokenData = light_token_sdk::compat::PackedCTokenData<#token_variant_ident>;
             type CompressedMeta = light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
             type SeedParams = SeedParams;
 
@@ -87,19 +87,19 @@ pub fn generate_decompress_context_trait_impl(
                 &self.rent_sponsor
             }
 
-            fn ctoken_rent_sponsor(&self) -> std::option::Option<&solana_account_info::AccountInfo<#lifetime>> {
+            fn token_rent_sponsor(&self) -> std::option::Option<&solana_account_info::AccountInfo<#lifetime>> {
                 self.ctoken_rent_sponsor.as_ref()
             }
 
-            fn ctoken_program(&self) -> std::option::Option<&solana_account_info::AccountInfo<#lifetime>> {
+            fn token_program(&self) -> std::option::Option<&solana_account_info::AccountInfo<#lifetime>> {
                 self.ctoken_program.as_ref().map(|a| &**a)
             }
 
-            fn ctoken_cpi_authority(&self) -> std::option::Option<&solana_account_info::AccountInfo<#lifetime>> {
+            fn token_cpi_authority(&self) -> std::option::Option<&solana_account_info::AccountInfo<#lifetime>> {
                 self.ctoken_cpi_authority.as_ref().map(|a| &**a)
             }
 
-            fn ctoken_config(&self) -> std::option::Option<&solana_account_info::AccountInfo<#lifetime>> {
+            fn token_config(&self) -> std::option::Option<&solana_account_info::AccountInfo<#lifetime>> {
                 self.ctoken_config.as_ref().map(|a| &**a)
             }
 
@@ -145,27 +145,27 @@ pub fn generate_decompress_context_trait_impl(
                 &self,
                 remaining_accounts: &[solana_account_info::AccountInfo<#lifetime>],
                 fee_payer: &solana_account_info::AccountInfo<#lifetime>,
-                ctoken_program: &solana_account_info::AccountInfo<#lifetime>,
-                ctoken_rent_sponsor: &solana_account_info::AccountInfo<#lifetime>,
-                ctoken_cpi_authority: &solana_account_info::AccountInfo<#lifetime>,
-                ctoken_config: &solana_account_info::AccountInfo<#lifetime>,
+                token_program: &solana_account_info::AccountInfo<#lifetime>,
+                token_rent_sponsor: &solana_account_info::AccountInfo<#lifetime>,
+                token_cpi_authority: &solana_account_info::AccountInfo<#lifetime>,
+                token_config: &solana_account_info::AccountInfo<#lifetime>,
                 config: &solana_account_info::AccountInfo<#lifetime>,
-                ctoken_accounts: Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
+                token_accounts: Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
                 proof: light_sdk::instruction::ValidityProof,
                 cpi_accounts: &light_sdk::cpi::v2::CpiAccounts<'b, #lifetime>,
                 post_system_accounts: &[solana_account_info::AccountInfo<#lifetime>],
                 has_pdas: bool,
             ) -> std::result::Result<(), solana_program_error::ProgramError> {
-                light_ctoken_sdk::compressible::process_decompress_tokens_runtime(
+                light_token_sdk::compressible::process_decompress_tokens_runtime(
                     self,
                     remaining_accounts,
                     fee_payer,
-                    ctoken_program,
-                    ctoken_rent_sponsor,
-                    ctoken_cpi_authority,
-                    ctoken_config,
+                    token_program,
+                    token_rent_sponsor,
+                    token_cpi_authority,
+                    token_config,
                     config,
-                    ctoken_accounts,
+                    token_accounts,
                     proof,
                     cpi_accounts,
                     post_system_accounts,

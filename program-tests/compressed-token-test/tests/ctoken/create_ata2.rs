@@ -11,7 +11,7 @@ async fn create_and_assert_ata2(
     let payer_pubkey = context.payer.pubkey();
     let owner_pubkey = context.owner_keypair.pubkey();
 
-    let (ata_pubkey, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
+    let (ata_pubkey, bump) = derive_token_ata(&owner_pubkey, &context.mint_pubkey);
 
     let create_ata_ix = if let Some(compressible) = compressible_data.as_ref() {
         let compressible_params = CompressibleParams {
@@ -25,7 +25,7 @@ async fn create_and_assert_ata2(
         };
 
         let mut builder =
-            CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+            CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
                 .with_compressible(compressible_params);
 
         if idempotent {
@@ -35,7 +35,7 @@ async fn create_and_assert_ata2(
         builder.instruction().unwrap()
     } else {
         // Create non-compressible account
-        let mut builder = CreateAssociatedCTokenAccount {
+        let mut builder = CreateAssociatedTokenAccount {
             idempotent: false,
             bump,
             payer: payer_pubkey,
@@ -161,13 +161,12 @@ async fn test_create_ata2_idempotent() {
         calculate_token_account_size, CompressibleExtensionConfig, CompressionInfoConfig,
         ExtensionStructConfig,
     };
-    let expected_size =
-        calculate_token_account_size(Some(&[ExtensionStructConfig::Compressible(
-            CompressibleExtensionConfig {
-                info: CompressionInfoConfig { rent_config: () },
-            },
-        )]))
-        .unwrap();
+    let expected_size = calculate_token_account_size(Some(&[ExtensionStructConfig::Compressible(
+        CompressibleExtensionConfig {
+            info: CompressionInfoConfig { rent_config: () },
+        },
+    )]))
+    .unwrap();
 
     assert_eq!(
         account.data.len(),

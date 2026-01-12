@@ -11,15 +11,15 @@ use light_compressed_token::{
     mint_sdk::create_create_token_pool_instruction, process_transfer::get_cpi_authority_pda,
     spl_compression::check_spl_token_pool_derivation_with_index, ErrorCode,
 };
-use light_token_interface::{
-    find_spl_interface_pda, find_spl_interface_pda_with_index, has_restricted_extensions,
-};
-use light_ctoken_sdk::spl_interface::CreateSplInterfacePda;
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     spl::{create_additional_token_pools, create_mint_22_helper, create_mint_helper},
     Rpc, RpcError,
 };
+use light_token_interface::{
+    find_spl_interface_pda, find_spl_interface_pda_with_index, has_restricted_extensions,
+};
+use light_token_sdk::spl_interface::CreateSplInterfacePda;
 use serial_test::serial;
 use solana_sdk::{
     instruction::Instruction,

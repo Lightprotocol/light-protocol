@@ -6,13 +6,13 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressible::config::CompressibleConfig;
-use light_ctoken_sdk::compressed_token::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
 use light_registry::{
     accounts::CompressAndCloseContext as CompressAndCloseAccounts,
     compressible::compressed_token::CompressAndCloseIndices, instruction::CompressAndClose,
     utils::get_forester_epoch_pda_from_authority,
 };
 use light_sdk::instruction::PackedAccounts;
+use light_token_sdk::compressed_token::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,

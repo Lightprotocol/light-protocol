@@ -424,9 +424,9 @@ async fn test_spl_instruction_compatibility() {
 #[serial]
 #[allow(deprecated)]
 async fn test_spl_instruction_compatibility_with_cmint() {
-    use light_ctoken_sdk::compressed_token::create_compressed_mint::find_cmint_address;
     use light_program_test::ProgramTestConfig;
     use light_token_client::instructions::mint_action::DecompressMintParams;
+    use light_token_sdk::compressed_token::create_compressed_mint::find_cmint_address;
 
     // Set up test environment
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))

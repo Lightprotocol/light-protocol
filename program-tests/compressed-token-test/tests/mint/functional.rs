@@ -1,22 +1,6 @@
 use anchor_lang::{prelude::borsh::BorshDeserialize, solana_program::program_pack::Pack};
 use light_client::indexer::Indexer;
 use light_compressible::{compression_info::CompressionInfo, rent::SLOTS_PER_EPOCH};
-use light_token_interface::{
-    instructions::{
-        extensions::token_metadata::TokenMetadataInstructionData, mint_action::Recipient,
-    },
-    state::{
-        extensions::AdditionalMetadata, BaseMint, CompressedMint, CompressedMintMetadata,
-        TokenDataVersion, ACCOUNT_TYPE_MINT,
-    },
-    COMPRESSED_MINT_SEED,
-};
-use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::{
-        derive_cmint_compressed_address, find_cmint_address,
-    },
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
-};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_ctoken_transfer::assert_ctoken_transfer,
@@ -38,6 +22,22 @@ use light_token_client::{
             DecompressInput, Transfer2InstructionType, TransferInput,
         },
     },
+};
+use light_token_interface::{
+    instructions::{
+        extensions::token_metadata::TokenMetadataInstructionData, mint_action::Recipient,
+    },
+    state::{
+        extensions::AdditionalMetadata, BaseMint, CompressedMint, CompressedMintMetadata,
+        TokenDataVersion, ACCOUNT_TYPE_MINT,
+    },
+    COMPRESSED_MINT_SEED,
+};
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::{
+        derive_cmint_compressed_address, find_cmint_address,
+    },
+    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
 };
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -216,8 +216,8 @@ async fn test_create_compressed_mint() {
 
     // 5. Decompress compressed tokens to ctokens
     // Create non-compressible token associated token account for decompression
-    let (ctoken_ata_pubkey, bump) = derive_ctoken_ata(&new_recipient, &spl_mint_pda);
-    let create_ata_instruction = CreateAssociatedCTokenAccount {
+    let (ctoken_ata_pubkey, bump) = derive_token_ata(&new_recipient, &spl_mint_pda);
+    let create_ata_instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump,
         payer: payer.pubkey(),
@@ -418,13 +418,13 @@ async fn test_create_compressed_mint() {
     let compress_from_spl_recipient = Keypair::new();
 
     // Create SPL token account for compression source
-    let (compress_source_ata, _) = derive_ctoken_ata(&new_recipient, &spl_mint_pda);
+    let (compress_source_ata, _) = derive_token_ata(&new_recipient, &spl_mint_pda);
     // This already exists from our previous test
 
     // Create non-compressible SPL token account for decompression destination
     let (decompress_dest_ata, decompress_bump) =
-        derive_ctoken_ata(&decompress_recipient.pubkey(), &spl_mint_pda);
-    let create_decompress_ata_instruction = CreateAssociatedCTokenAccount {
+        derive_token_ata(&decompress_recipient.pubkey(), &spl_mint_pda);
+    let create_decompress_ata_instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump: decompress_bump,
         payer: payer.pubkey(),
@@ -690,7 +690,7 @@ async fn test_ctoken_transfer() {
     let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
 
     // Create compressed token ATA for recipient
-    let (recipient_ata, _) = derive_ctoken_ata(&recipient_keypair.pubkey(), &spl_mint_pda);
+    let (recipient_ata, _) = derive_token_ata(&recipient_keypair.pubkey(), &spl_mint_pda);
     let compressible_params = CompressibleParams {
         compressible_config: rpc
             .test_accounts
@@ -704,14 +704,11 @@ async fn test_ctoken_transfer() {
         compression_only: true,
     };
 
-    let create_ata_instruction = CreateAssociatedCTokenAccount::new(
-        payer.pubkey(),
-        recipient_keypair.pubkey(),
-        spl_mint_pda,
-    )
-    .with_compressible(compressible_params)
-    .instruction()
-    .unwrap();
+    let create_ata_instruction =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), recipient_keypair.pubkey(), spl_mint_pda)
+            .with_compressible(compressible_params)
+            .instruction()
+            .unwrap();
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
@@ -765,13 +762,13 @@ async fn test_ctoken_transfer() {
     // === CREATE SECOND RECIPIENT FOR TRANSFER TEST ===
     let second_recipient_keypair = Keypair::new();
     let (second_recipient_ata, second_recipient_ata_bump) =
-        derive_ctoken_ata(&second_recipient_keypair.pubkey(), &spl_mint_pda);
+        derive_token_ata(&second_recipient_keypair.pubkey(), &spl_mint_pda);
 
     rpc.airdrop_lamports(&second_recipient_keypair.pubkey(), 10_000_000_000)
         .await
         .unwrap();
 
-    let create_second_ata_instruction = CreateAssociatedCTokenAccount {
+    let create_second_ata_instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump: second_recipient_ata_bump,
         payer: payer.pubkey(),
@@ -1053,7 +1050,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
         &light_compressed_token::ID,
     );
     let compressed_mint_address =
-        light_ctoken_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address(
+        light_token_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address(
             &mint_seed.pubkey(),
             &address_tree_pubkey,
         );

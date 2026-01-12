@@ -2,11 +2,11 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{checks::check_owner, AccountInfoTrait, AccountIterator};
 use light_compressible::{compression_info::ClaimAndUpdate, config::CompressibleConfig};
+use light_program_profiler::profile;
 use light_token_interface::{
-    state::{Token, CompressedMint, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT},
+    state::{CompressedMint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT},
     TokenError,
 };
-use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};
 use spl_pod::solana_msg::msg;
 

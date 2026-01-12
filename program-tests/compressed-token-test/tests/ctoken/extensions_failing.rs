@@ -2,17 +2,12 @@
 //!
 //! This module tests extension validation for operations that FAIL with invalid state:
 //! 1. CTokenTransfer(Checked) - transfers between CToken accounts
-//! 2. SPL → CToken (TransferSplToCtoken) - entering via Compress mode
+//! 2. SPL → CToken (TransferSplToToken) - entering via Compress mode
 //!
-//! Note: CToken → SPL (TransferCTokenToSpl) is a BYPASS operation and is tested
+//! Note: CToken → SPL (TransferTokenToSpl) is a BYPASS operation and is tested
 //! in compress_only/invalid_extension_state.rs. It succeeds with invalid extension
 //! state because it exits compressed state without creating new compressed accounts.
 
-use light_token_interface::state::TokenDataVersion;
-use light_ctoken_sdk::{
-    ctoken::{CompressibleParams, CreateCTokenAccount, TransferCTokenChecked, TransferSplToCtoken},
-    spl_interface::find_spl_interface_pda_with_index,
-};
 use light_program_test::utils::assert::assert_rpc_error;
 use light_test_utils::{
     mint_2022::{
@@ -20,6 +15,11 @@ use light_test_utils::{
         set_mint_transfer_hook,
     },
     Rpc,
+};
+use light_token_interface::state::TokenDataVersion;
+use light_token_sdk::{
+    spl_interface::find_spl_interface_pda_with_index,
+    token::{CompressibleParams, CreateTokenAccount, TransferSplToToken, TransferTokenChecked},
 };
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -63,7 +63,7 @@ async fn setup_ctoken_accounts_for_transfer(
     // Create source CToken account
     let account_a_keypair = Keypair::new();
     let account_a_pubkey = account_a_keypair.pubkey();
-    let create_a_ix = CreateCTokenAccount::new(
+    let create_a_ix = CreateTokenAccount::new(
         payer.pubkey(),
         account_a_pubkey,
         mint_pubkey,
@@ -102,7 +102,7 @@ async fn setup_ctoken_accounts_for_transfer(
     // Create destination CToken account
     let account_b_keypair = Keypair::new();
     let account_b_pubkey = account_b_keypair.pubkey();
-    let create_b_ix = CreateCTokenAccount::new(
+    let create_b_ix = CreateTokenAccount::new(
         payer.pubkey(),
         account_b_pubkey,
         mint_pubkey,
@@ -142,7 +142,7 @@ async fn setup_ctoken_accounts_for_transfer(
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
-    let transfer_spl_to_ctoken_ix = TransferSplToCtoken {
+    let transfer_spl_to_ctoken_ix = TransferSplToToken {
         amount: mint_amount,
         spl_interface_pda_bump,
         source_spl_token_account: spl_account,
@@ -188,7 +188,7 @@ async fn test_ctoken_transfer_fails_when_mint_paused() {
     pause_mint(&mut context.rpc, &mint_pubkey).await;
 
     // Attempt transfer - should fail with MintPaused
-    let transfer_ix = TransferCTokenChecked {
+    let transfer_ix = TransferTokenChecked {
         source,
         mint: mint_pubkey,
         destination,
@@ -235,7 +235,7 @@ async fn test_ctoken_transfer_fails_with_non_zero_transfer_fee() {
     set_mint_transfer_fee(&mut context.rpc, &mint_pubkey, 100, 1000).await;
 
     // Attempt transfer - should fail with NonZeroTransferFeeNotSupported
-    let transfer_ix = TransferCTokenChecked {
+    let transfer_ix = TransferTokenChecked {
         source,
         mint: mint_pubkey,
         destination,
@@ -283,7 +283,7 @@ async fn test_ctoken_transfer_fails_with_non_nil_transfer_hook() {
     set_mint_transfer_hook(&mut context.rpc, &mint_pubkey, dummy_hook_program).await;
 
     // Attempt transfer - should fail with TransferHookNotSupported
-    let transfer_ix = TransferCTokenChecked {
+    let transfer_ix = TransferTokenChecked {
         source,
         mint: mint_pubkey,
         destination,
@@ -309,7 +309,7 @@ async fn test_ctoken_transfer_fails_with_non_nil_transfer_hook() {
 }
 
 // ============================================================================
-// SPL → CToken Transfer Tests (TransferSplToCtoken)
+// SPL → CToken Transfer Tests (TransferSplToToken)
 // These should FAIL when extension state is invalid (entering compressed state)
 // ============================================================================
 
@@ -340,7 +340,7 @@ async fn setup_spl_to_ctoken_accounts(
     let ctoken_keypair = Keypair::new();
     let ctoken_pubkey = ctoken_keypair.pubkey();
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), ctoken_pubkey, mint_pubkey, owner.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), ctoken_pubkey, mint_pubkey, owner.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: context
                     .rpc
@@ -390,7 +390,7 @@ async fn test_spl_to_ctoken_fails_when_mint_paused() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
-    let transfer_ix = TransferSplToCtoken {
+    let transfer_ix = TransferSplToToken {
         amount: 100_000_000,
         spl_interface_pda_bump,
         source_spl_token_account: spl_account,
@@ -432,7 +432,7 @@ async fn test_spl_to_ctoken_fails_with_non_zero_transfer_fee() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
-    let transfer_ix = TransferSplToCtoken {
+    let transfer_ix = TransferSplToToken {
         amount: 100_000_000,
         spl_interface_pda_bump,
         source_spl_token_account: spl_account,

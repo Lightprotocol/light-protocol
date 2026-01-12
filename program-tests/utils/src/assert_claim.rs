@@ -1,8 +1,8 @@
 use light_client::rpc::Rpc;
-use light_token_interface::state::{
-    Token, CompressedMint, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
-};
 use light_program_test::LightProgramTest;
+use light_token_interface::state::{
+    CompressedMint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+};
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 use solana_sdk::{clock::Clock, pubkey::Pubkey};
 

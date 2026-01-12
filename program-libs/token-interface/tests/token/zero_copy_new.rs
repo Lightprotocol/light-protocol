@@ -7,11 +7,10 @@
 
 use light_compressed_account::Pubkey;
 use light_token_interface::state::{
-    token::{
-        AccountState, Token, TokenConfig, ACCOUNT_TYPE_TOKEN_ACCOUNT,
-        BASE_TOKEN_ACCOUNT_SIZE,
-    },
     extensions::{ExtensionStruct, ExtensionStructConfig, PausableAccountExtension},
+    token::{
+        AccountState, Token, TokenConfig, ACCOUNT_TYPE_TOKEN_ACCOUNT, BASE_TOKEN_ACCOUNT_SIZE,
+    },
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
 

@@ -3,8 +3,6 @@
 // hasCompressionInfo implementions.
 
 use anchor_lang::prelude::*;
-use light_token_interface::instructions::mint_action::CompressedMintWithContext;
-use light_ctoken_sdk::pack::Pack as _TokenPack;
 use light_sdk::{
     account::Size,
     compressible::{
@@ -17,6 +15,8 @@ use light_sdk::{
     },
     LightDiscriminator, LightHasher,
 };
+use light_token_interface::instructions::mint_action::CompressedMintWithContext;
+use light_token_sdk::pack::Pack as _TokenPack;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
 #[repr(u8)]
@@ -36,8 +36,8 @@ pub enum CompressedAccountVariant {
     PackedGameSession(PackedGameSession),
     PlaceholderRecord(PlaceholderRecord),
     PackedPlaceholderRecord(PackedPlaceholderRecord),
-    PackedCTokenData(light_ctoken_sdk::compat::PackedCTokenData<CTokenAccountVariant>),
-    CTokenData(light_ctoken_sdk::compat::CTokenData<CTokenAccountVariant>),
+    PackedCTokenData(light_token_sdk::compat::PackedCTokenData<CTokenAccountVariant>),
+    CTokenData(light_token_sdk::compat::CTokenData<CTokenAccountVariant>),
 }
 
 impl Default for CompressedAccountVariant {

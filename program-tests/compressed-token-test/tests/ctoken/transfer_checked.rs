@@ -4,19 +4,19 @@
 //! TransferFee, TransferHook) cannot use CTokenTransfer and must use CTokenTransferChecked.
 
 use anchor_spl::token_2022::spl_token_2022;
-use light_token_interface::state::TokenDataVersion;
-use light_ctoken_sdk::{
-    ctoken::{
-        CompressibleParams, CreateCTokenAccount, TransferCToken, TransferCTokenChecked,
-        TransferSplToCtoken,
-    },
-    spl_interface::find_spl_interface_pda_with_index,
-};
 use light_program_test::utils::assert::assert_rpc_error;
 use light_test_utils::{
     assert_ctoken_transfer::assert_ctoken_transfer,
     mint_2022::{create_token_22_account, mint_spl_tokens_22},
     Rpc,
+};
+use light_token_interface::state::TokenDataVersion;
+use light_token_sdk::{
+    spl_interface::find_spl_interface_pda_with_index,
+    token::{
+        CompressibleParams, CreateTokenAccount, TransferSplToToken, TransferToken,
+        TransferTokenChecked,
+    },
 };
 use serial_test::serial;
 use solana_sdk::{native_token::LAMPORTS_PER_SOL, signature::Keypair, signer::Signer};
@@ -57,7 +57,7 @@ async fn test_transfer_requires_checked_for_restricted_extensions() {
     let account_a_keypair = Keypair::new();
     let account_a_pubkey = account_a_keypair.pubkey();
 
-    let create_a_ix = CreateCTokenAccount::new(
+    let create_a_ix = CreateTokenAccount::new(
         payer.pubkey(),
         account_a_pubkey,
         mint_pubkey,
@@ -96,7 +96,7 @@ async fn test_transfer_requires_checked_for_restricted_extensions() {
     let account_b_keypair = Keypair::new();
     let account_b_pubkey = account_b_keypair.pubkey();
 
-    let create_b_ix = CreateCTokenAccount::new(
+    let create_b_ix = CreateTokenAccount::new(
         payer.pubkey(),
         account_b_pubkey,
         mint_pubkey,
@@ -136,7 +136,7 @@ async fn test_transfer_requires_checked_for_restricted_extensions() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
-    let transfer_spl_to_ctoken_ix = TransferSplToCtoken {
+    let transfer_spl_to_ctoken_ix = TransferSplToToken {
         amount: mint_amount,
         spl_interface_pda_bump,
         source_spl_token_account: spl_account,
@@ -160,7 +160,7 @@ async fn test_transfer_requires_checked_for_restricted_extensions() {
     // Step 4: Try CTokenTransfer (discriminator 3) - should FAIL with MintRequiredForTransfer (6128)
     let transfer_amount = 500_000_000u64;
 
-    let transfer_ix = TransferCToken {
+    let transfer_ix = TransferToken {
         source: account_a_pubkey,
         destination: account_b_pubkey,
         amount: transfer_amount,
@@ -181,7 +181,7 @@ async fn test_transfer_requires_checked_for_restricted_extensions() {
     println!("CTokenTransfer correctly rejected with MintRequiredForTransfer (6128)");
 
     // Step 5: Use CTokenTransferChecked (discriminator 12) - should SUCCEED
-    let transfer_checked_ix = TransferCTokenChecked {
+    let transfer_checked_ix = TransferTokenChecked {
         source: account_a_pubkey,
         mint: mint_pubkey,
         destination: account_b_pubkey,

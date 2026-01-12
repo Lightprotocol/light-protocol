@@ -1,13 +1,13 @@
 use anchor_lang::prelude::*;
-use light_ctoken_sdk::{
-    compat::{CTokenData, PackedCTokenData},
-    pack::Pack as TokenPack,
-};
 use light_sdk::{
     account::Size,
     compressible::{CompressionInfo, HasCompressionInfo, Pack as SdkPack, Unpack as SdkUnpack},
     instruction::{account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts},
     LightDiscriminator,
+};
+use light_token_sdk::{
+    compat::{CTokenData, PackedCTokenData},
+    pack::Pack as TokenPack,
 };
 
 use crate::{
@@ -25,7 +25,7 @@ pub enum CTokenAccountVariant {
     CTokenSigner = 0,
 }
 
-impl light_ctoken_sdk::compressible::CTokenSeedProvider for CTokenAccountVariant {
+impl light_token_sdk::compressible::TokenSeedProvider for CTokenAccountVariant {
     type Accounts<'info> = DecompressAccountsIdempotent<'info>;
 
     fn get_seeds<'a, 'info>(

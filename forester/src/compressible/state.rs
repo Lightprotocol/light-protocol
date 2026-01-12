@@ -11,11 +11,7 @@ use crate::Result;
 
 /// Calculate the slot at which an account becomes compressible
 /// Returns the last funded slot; accounts are compressible when current_slot > this value
-fn calculate_compressible_slot(
-    account: &Token,
-    lamports: u64,
-    account_size: usize,
-) -> Result<u64> {
+fn calculate_compressible_slot(account: &Token, lamports: u64, account_size: usize) -> Result<u64> {
     use light_compressible::rent::SLOTS_PER_EPOCH;
     use light_token_interface::state::extensions::ExtensionStruct;
 

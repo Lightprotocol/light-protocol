@@ -585,7 +585,7 @@ async fn test_ctoken_transfer_max_top_up_exceeded() {
 // Transfer Checked Helper Functions
 // ============================================================================
 
-use light_ctoken_sdk::ctoken::TransferCTokenChecked;
+use light_token_sdk::token::TransferTokenChecked;
 
 /// Setup context with two token accounts for transfer_checked tests using a real SPL Token mint
 async fn setup_transfer_checked_test_with_spl_mint(
@@ -617,7 +617,7 @@ async fn setup_transfer_checked_test_with_spl_mint(
             compression_only: false,
         };
 
-        let create_token_account_ix = CreateCTokenAccount::new(
+        let create_token_account_ix = CreateTokenAccount::new(
             payer_pubkey,
             source_pubkey,
             context.mint_pubkey,
@@ -651,7 +651,7 @@ async fn setup_transfer_checked_test_with_spl_mint(
             compression_only: false,
         };
 
-        let create_token_account_ix = CreateCTokenAccount::new(
+        let create_token_account_ix = CreateTokenAccount::new(
             payer_pubkey,
             destination_pubkey,
             context.mint_pubkey,
@@ -720,7 +720,7 @@ async fn transfer_checked_and_assert(
 
     let payer_pubkey = context.payer.pubkey();
 
-    let transfer_ix = TransferCTokenChecked {
+    let transfer_ix = TransferTokenChecked {
         source,
         mint,
         destination,
@@ -761,7 +761,7 @@ async fn transfer_checked_and_assert_fails(
 
     let payer_pubkey = context.payer.pubkey();
 
-    let transfer_ix = TransferCTokenChecked {
+    let transfer_ix = TransferTokenChecked {
         source,
         mint,
         destination,
@@ -808,7 +808,7 @@ async fn test_ctoken_transfer_checked_with_spl_mint() {
     .await;
 }
 
-// Note: Token-2022 mint tests are covered in sdk-tests/sdk-ctoken-test/tests/test_transfer_checked.rs
+// Note: Token-2022 mint tests are covered in sdk-tests/sdk-light-token-test/tests/test_transfer_checked.rs
 // The T22 mint requires additional setup (extensions, token pool, etc.) that is handled there.
 
 #[tokio::test]
@@ -933,7 +933,7 @@ async fn test_ctoken_transfer_checked_max_top_up_exceeded() {
     let owner_keypair = context.owner_keypair.insecure_clone();
     let payer_pubkey = context.payer.pubkey();
 
-    let transfer_ix = TransferCTokenChecked {
+    let transfer_ix = TransferTokenChecked {
         source,
         mint,
         destination,

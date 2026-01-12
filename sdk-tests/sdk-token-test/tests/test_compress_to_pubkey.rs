@@ -1,10 +1,10 @@
 use anchor_lang::InstructionData;
-use light_ctoken_sdk::ctoken::CTOKEN_PROGRAM_ID;
 use light_program_test::{
     program_test::TestRpc, Indexer, LightProgramTest, ProgramTestConfig, Rpc,
 };
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::spl::create_mint_helper;
+use light_token_sdk::token::LIGHT_TOKEN_PROGRAM_ID;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -53,7 +53,7 @@ async fn test_compress_to_pubkey() {
     )); // System program
     remaining_accounts.add_pre_accounts_meta(AccountMeta::new(rent_sponsor, false)); // Rent recipient
     remaining_accounts
-        .add_pre_accounts_meta(AccountMeta::new_readonly(CTOKEN_PROGRAM_ID.into(), false));
+        .add_pre_accounts_meta(AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false));
     let (account_metas, _, _) = remaining_accounts.to_account_metas();
 
     let instruction_data = sdk_token_test::instruction::CreateCtokenWithCompressToPubkey {

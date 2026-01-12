@@ -1,15 +1,15 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountInfoTrait;
 use light_compressible::config::CompressibleConfig;
+use light_program_profiler::profile;
 use light_token_interface::{
     instructions::extensions::CompressibleExtensionInstructionData,
     state::{
-        token::TokenConfig, AccountState, Token, CompressibleExtensionConfig,
-        CompressionInfoConfig, ExtensionStructConfig, ACCOUNT_TYPE_MINT,
+        token::TokenConfig, AccountState, CompressibleExtensionConfig, CompressionInfoConfig,
+        ExtensionStructConfig, Token, ACCOUNT_TYPE_MINT,
     },
     TokenError, LIGHT_TOKEN_PROGRAM_ID,
 };
-use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyNew;
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};

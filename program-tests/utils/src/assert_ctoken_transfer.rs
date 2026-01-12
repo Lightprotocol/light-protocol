@@ -1,7 +1,7 @@
 use anchor_spl::token_2022::spl_token_2022::{self, solana_program::program_pack::Pack};
 use light_client::rpc::Rpc;
-use light_token_interface::state::Token;
 use light_program_test::LightProgramTest;
+use light_token_interface::state::Token;
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_sdk::pubkey::Pubkey;
 

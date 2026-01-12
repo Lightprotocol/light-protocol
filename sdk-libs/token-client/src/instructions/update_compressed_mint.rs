@@ -7,7 +7,7 @@ use light_token_interface::{
     instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
     state::CompressedMint,
 };
-use light_ctoken_sdk::compressed_token::update_compressed_mint::{
+use light_token_sdk::compressed_token::update_compressed_mint::{
     update_compressed_mint, UpdateCompressedMintInputs,
 };
 use light_token_types::CompressedMintAuthorityType;

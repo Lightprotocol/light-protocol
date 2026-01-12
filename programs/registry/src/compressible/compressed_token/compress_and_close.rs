@@ -1,5 +1,6 @@
 use anchor_lang::{prelude::ProgramError, pubkey, AnchorDeserialize, AnchorSerialize, Result};
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
+use light_program_profiler::profile;
 use light_token_interface::{
     instructions::{
         extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
@@ -10,7 +11,6 @@ use light_token_interface::{
     },
     state::{Token, ZExtensionStruct},
 };
-use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_account_info::AccountInfo;
 use solana_instruction::{AccountMeta, Instruction};

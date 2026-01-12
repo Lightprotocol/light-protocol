@@ -1,13 +1,6 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_client::indexer::Indexer;
-use light_token_interface::state::{extensions::AdditionalMetadata, CompressedMint};
-use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::{
-        derive_cmint_compressed_address, find_cmint_address,
-    },
-    ctoken::CreateAssociatedCTokenAccount,
-};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
@@ -15,6 +8,13 @@ use light_test_utils::{
 use light_token_client::{
     actions::create_mint,
     instructions::mint_action::{MintActionType, MintToRecipient},
+};
+use light_token_interface::state::{extensions::AdditionalMetadata, CompressedMint};
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::{
+        derive_cmint_compressed_address, find_cmint_address,
+    },
+    token::CreateAssociatedTokenAccount,
 };
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
@@ -131,7 +131,7 @@ async fn test_random_mint_action() {
     for _ in 0..5 {
         let recipient = Keypair::new();
         let create_ata_ix =
-            CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+            CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
                 .instruction()
                 .unwrap();
 
@@ -139,7 +139,7 @@ async fn test_random_mint_action() {
             .await
             .unwrap();
 
-        let ata = light_ctoken_sdk::ctoken::derive_ctoken_ata(&recipient.pubkey(), &spl_mint_pda).0;
+        let ata = light_token_sdk::token::derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0;
 
         ctoken_atas.push(ata);
     }

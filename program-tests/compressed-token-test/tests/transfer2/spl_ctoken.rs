@@ -1,21 +1,6 @@
 use anchor_lang::prelude::{AccountMeta, ProgramError};
 // Re-export all necessary imports for test modules
 pub use anchor_spl::token_2022::spl_token_2022;
-use light_token_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
-pub use light_ctoken_sdk::ctoken::{
-    derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount,
-};
-use light_ctoken_sdk::{
-    compressed_token::{
-        transfer2::{
-            create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config,
-            Transfer2Inputs,
-        },
-        CTokenAccount2,
-    },
-    spl_interface::find_spl_interface_pda_with_index,
-    ValidityProof,
-};
 use light_program_test::utils::assert::assert_rpc_error;
 pub use light_program_test::{LightProgramTest, ProgramTestConfig};
 pub use light_test_utils::{
@@ -26,6 +11,21 @@ pub use light_test_utils::{
     Rpc, RpcError,
 };
 pub use light_token_client::actions::transfer2::{self};
+use light_token_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
+pub use light_token_sdk::token::{
+    derive_token_ata, CompressibleParams, CreateAssociatedCTokenAccount,
+};
+use light_token_sdk::{
+    compressed_token::{
+        transfer2::{
+            create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config,
+            Transfer2Inputs,
+        },
+        CTokenAccount2,
+    },
+    spl_interface::find_spl_interface_pda_with_index,
+    ValidityProof,
+};
 use solana_sdk::pubkey::Pubkey;
 pub use solana_sdk::{instruction::Instruction, signature::Keypair, signer::Signer};
 pub use spl_token_2022::pod::PodAccount;
@@ -78,7 +78,7 @@ async fn test_spl_to_ctoken_transfer() {
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let associated_token_account = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
+    let associated_token_account = derive_token_ata(&recipient.pubkey(), &mint).0;
 
     // Get initial SPL token balance
     let spl_account_data = rpc
@@ -243,7 +243,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         .unwrap();
 
     // Create compressible token ATA for recipient (ATAs require compression_only=true)
-    let (associated_token_account, bump) = derive_ctoken_ata(&recipient.pubkey(), &mint);
+    let (associated_token_account, bump) = derive_token_ata(&recipient.pubkey(), &mint);
     let instruction = CreateAssociatedCTokenAccount {
         idempotent: false,
         bump,

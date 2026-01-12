@@ -1,6 +1,7 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut;
+use light_program_profiler::profile;
 use light_token_interface::{
     hash_cache::HashCache,
     instructions::{
@@ -8,7 +9,6 @@ use light_token_interface::{
     },
     TokenError,
 };
-use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 
 use super::check_extensions::{validate_tlv_and_get_frozen, MintExtensionCache};

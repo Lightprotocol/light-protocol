@@ -1,6 +1,6 @@
 use anchor_compressed_token::ErrorCode;
-use light_token_interface::instructions::mint_action::ZCpiContext;
 use light_program_profiler::profile;
+use light_token_interface::instructions::mint_action::ZCpiContext;
 
 #[derive(Debug, PartialEq)]
 pub struct QueueIndices {

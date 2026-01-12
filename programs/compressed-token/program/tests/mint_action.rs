@@ -10,7 +10,7 @@ use light_token_interface::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
         mint_action::{
             Action, CompressedMintInstructionData, CpiContext, CreateMint,
-            MintActionCompressedInstructionData, MintToTokenAction, MintToCompressedAction,
+            MintActionCompressedInstructionData, MintToCompressedAction, MintToTokenAction,
             Recipient, RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
             UpdateMetadataFieldAction,
         },

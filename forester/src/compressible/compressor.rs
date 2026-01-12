@@ -5,13 +5,13 @@ use forester_utils::rpc_pool::SolanaRpcPool;
 use light_client::{indexer::TreeInfo, rpc::Rpc};
 use light_compressed_account::TreeType;
 use light_compressible::config::CompressibleConfig;
-use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
-use light_ctoken_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenAccounts;
 use light_registry::{
     accounts::CompressAndCloseContext, compressible::compressed_token::CompressAndCloseIndices,
     instruction::CompressAndClose,
 };
 use light_sdk::instruction::PackedAccounts;
+use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
+use light_token_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenAccounts;
 use solana_pubkey::pubkey;
 use solana_sdk::{
     instruction::Instruction,

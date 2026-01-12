@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 
-use crate::state::{AccountState, Token, ExtensionStruct, ACCOUNT_TYPE_TOKEN_ACCOUNT};
+use crate::state::{AccountState, ExtensionStruct, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
 
 // Manual implementation of BorshSerialize for SPL compatibility
 impl BorshSerialize for Token {

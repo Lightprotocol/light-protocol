@@ -2,6 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_array_map::ArrayMap;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
+use light_program_profiler::profile;
 use light_token_interface::{
     hash_cache::HashCache,
     instructions::{
@@ -13,7 +14,6 @@ use light_token_interface::{
     },
     TokenError,
 };
-use light_program_profiler::profile;
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;

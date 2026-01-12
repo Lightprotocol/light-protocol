@@ -168,7 +168,7 @@ async fn test_create_compressible_ata() {
             compression_only: true,
         };
 
-        let create_ata_ix = CreateAssociatedCTokenAccount::new(
+        let create_ata_ix = CreateAssociatedTokenAccount::new(
             payer_pubkey,
             owner_and_mint, // Owner == Mint
             owner_and_mint, // Mint == Owner
@@ -184,7 +184,7 @@ async fn test_create_compressible_ata() {
             .unwrap();
 
         // Verify ATA was created at the expected address
-        let (expected_ata, _) = derive_ctoken_ata(&owner_and_mint, &owner_and_mint);
+        let (expected_ata, _) = derive_token_ata(&owner_and_mint, &owner_and_mint);
         let account = context.rpc.get_account(expected_ata).await.unwrap();
         assert!(
             account.is_some(),
@@ -388,7 +388,7 @@ async fn test_create_ata_failing() {
             compression_only: true,
         };
 
-        let create_ata_ix = CreateAssociatedCTokenAccount::new(
+        let create_ata_ix = CreateAssociatedTokenAccount::new(
             poor_payer_pubkey,
             new_owner.pubkey(),
             context.mint_pubkey,
@@ -420,7 +420,7 @@ async fn test_create_ata_failing() {
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
         let (ata_pubkey, bump) =
-            derive_ctoken_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
+            derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
         // Manually build instruction data with compress_to_account_pubkey (forbidden for ATAs)
         let compress_to_pubkey = CompressToPubkey {
@@ -441,7 +441,7 @@ async fn test_create_ata_failing() {
             }),
         };
 
-        let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
+        let mut data = vec![100]; // CreateAssociatedTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
         // Account order: mint, payer, ata, system_program, config, rent_sponsor
@@ -491,7 +491,7 @@ async fn test_create_ata_failing() {
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
         let (ata_pubkey, correct_bump) =
-            derive_ctoken_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
+            derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
         // Manually build instruction data with WRONG bump
         let wrong_bump = if correct_bump == 255 {
@@ -513,7 +513,7 @@ async fn test_create_ata_failing() {
             }),
         };
 
-        let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
+        let mut data = vec![100]; // CreateAssociatedTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
         // Account order: owner, mint, payer, ata, system_program, config, rent_sponsor
@@ -577,7 +577,7 @@ async fn test_create_ata_failing() {
             compression_only: true,
         };
 
-        let create_ata_ix = CreateAssociatedCTokenAccount::new(
+        let create_ata_ix = CreateAssociatedTokenAccount::new(
             payer_pubkey,
             context.owner_keypair.pubkey(),
             context.mint_pubkey,
@@ -647,7 +647,7 @@ async fn test_create_ata_failing() {
             compression_only: true,
         };
 
-        let create_ata_ix = CreateAssociatedCTokenAccount::new(
+        let create_ata_ix = CreateAssociatedTokenAccount::new(
             payer_pubkey,
             context.owner_keypair.pubkey(),
             context.mint_pubkey,
@@ -686,7 +686,7 @@ async fn test_create_ata_failing() {
             compression_only: true,
         };
 
-        let create_ata_ix = CreateAssociatedCTokenAccount::new(
+        let create_ata_ix = CreateAssociatedTokenAccount::new(
             payer_pubkey,
             context.owner_keypair.pubkey(),
             context.mint_pubkey,
@@ -721,7 +721,7 @@ async fn test_create_ata_failing() {
 
         // Get the correct PDA and bump
         let (_correct_ata_pubkey, correct_bump) =
-            derive_ctoken_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
+            derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
         // Create an arbitrary keypair (NOT the correct PDA)
         let fake_ata_keypair = solana_sdk::signature::Keypair::new();
@@ -734,7 +734,7 @@ async fn test_create_ata_failing() {
             compressible_config: None,
         };
 
-        let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
+        let mut data = vec![100]; // CreateAssociatedTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
         // Account order: owner, mint, payer, ata (fake!), system_program, compressible_config, rent_sponsor
@@ -778,8 +778,8 @@ async fn test_create_ata_failing() {
     // Error: 6115 (MissingCompressibleConfig)
     {
         use anchor_lang::prelude::borsh::BorshSerialize;
-        use light_token_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
         use light_test_utils::mint_2022::create_mint_22_with_extension_types;
+        use light_token_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
         use solana_sdk::instruction::Instruction;
         use spl_token_2022::extension::ExtensionType;
 
@@ -799,7 +799,7 @@ async fn test_create_ata_failing() {
         let owner = solana_sdk::pubkey::Pubkey::new_unique();
 
         // Derive ATA address
-        let (ata_pubkey, bump) = derive_ctoken_ata(&owner, &mint_with_restricted_ext);
+        let (ata_pubkey, bump) = derive_token_ata(&owner, &mint_with_restricted_ext);
 
         // Build instruction data with compressible_config: None (non-compressible)
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
@@ -807,7 +807,7 @@ async fn test_create_ata_failing() {
             compressible_config: None, // Non-compressible!
         };
 
-        let mut data = vec![100]; // CreateAssociatedCTokenAccount discriminator
+        let mut data = vec![100]; // CreateAssociatedTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
         // Account order: owner, mint, payer, ata, system_program
@@ -878,7 +878,7 @@ async fn test_create_ata_failing() {
             compression_only: true, // Required for restricted extensions
         };
 
-        let create_ata_ix = CreateAssociatedCTokenAccount::new(
+        let create_ata_ix = CreateAssociatedTokenAccount::new(
             payer_pubkey,
             owner,
             t22_token_account, // Token account, not mint!
@@ -955,9 +955,9 @@ async fn test_ata_multiple_mints_same_owner() {
     assert_ne!(ata2, ata3, "ATA for mint2 and mint3 should be different");
 
     // Verify each ATA is derived correctly for its mint
-    let (expected_ata1, _) = derive_ctoken_ata(&owner, &mint1);
-    let (expected_ata2, _) = derive_ctoken_ata(&owner, &mint2);
-    let (expected_ata3, _) = derive_ctoken_ata(&owner, &mint3);
+    let (expected_ata1, _) = derive_token_ata(&owner, &mint1);
+    let (expected_ata2, _) = derive_token_ata(&owner, &mint2);
+    let (expected_ata3, _) = derive_token_ata(&owner, &mint3);
 
     assert_eq!(ata1, expected_ata1, "ATA1 should match expected derivation");
     assert_eq!(ata2, expected_ata2, "ATA2 should match expected derivation");
@@ -999,7 +999,7 @@ async fn test_ata_multiple_owners_same_mint() {
         compression_only: true,
     };
 
-    let create_ata_ix1 = CreateAssociatedCTokenAccount::new(payer_pubkey, owner1, mint)
+    let create_ata_ix1 = CreateAssociatedTokenAccount::new(payer_pubkey, owner1, mint)
         .with_compressible(compressible_params.clone())
         .instruction()
         .unwrap();
@@ -1010,7 +1010,7 @@ async fn test_ata_multiple_owners_same_mint() {
         .await
         .unwrap();
 
-    let (ata1, _) = derive_ctoken_ata(&owner1, &mint);
+    let (ata1, _) = derive_token_ata(&owner1, &mint);
 
     // Assert ATA1 was created correctly
     assert_create_associated_token_account(
@@ -1022,7 +1022,7 @@ async fn test_ata_multiple_owners_same_mint() {
     )
     .await;
 
-    let create_ata_ix2 = CreateAssociatedCTokenAccount::new(payer_pubkey, owner2, mint)
+    let create_ata_ix2 = CreateAssociatedTokenAccount::new(payer_pubkey, owner2, mint)
         .with_compressible(compressible_params.clone())
         .instruction()
         .unwrap();
@@ -1033,7 +1033,7 @@ async fn test_ata_multiple_owners_same_mint() {
         .await
         .unwrap();
 
-    let (ata2, _) = derive_ctoken_ata(&owner2, &mint);
+    let (ata2, _) = derive_token_ata(&owner2, &mint);
 
     // Assert ATA2 was created correctly
     assert_create_associated_token_account(
@@ -1045,7 +1045,7 @@ async fn test_ata_multiple_owners_same_mint() {
     )
     .await;
 
-    let create_ata_ix3 = CreateAssociatedCTokenAccount::new(payer_pubkey, owner3, mint)
+    let create_ata_ix3 = CreateAssociatedTokenAccount::new(payer_pubkey, owner3, mint)
         .with_compressible(compressible_params)
         .instruction()
         .unwrap();
@@ -1056,7 +1056,7 @@ async fn test_ata_multiple_owners_same_mint() {
         .await
         .unwrap();
 
-    let (ata3, _) = derive_ctoken_ata(&owner3, &mint);
+    let (ata3, _) = derive_token_ata(&owner3, &mint);
 
     // Assert ATA3 was created correctly
     assert_create_associated_token_account(
@@ -1074,9 +1074,9 @@ async fn test_ata_multiple_owners_same_mint() {
     assert_ne!(ata2, ata3, "ATA for owner2 and owner3 should be different");
 
     // Verify each ATA is derived correctly for its owner
-    let (expected_ata1, _) = derive_ctoken_ata(&owner1, &mint);
-    let (expected_ata2, _) = derive_ctoken_ata(&owner2, &mint);
-    let (expected_ata3, _) = derive_ctoken_ata(&owner3, &mint);
+    let (expected_ata1, _) = derive_token_ata(&owner1, &mint);
+    let (expected_ata2, _) = derive_token_ata(&owner2, &mint);
+    let (expected_ata3, _) = derive_token_ata(&owner3, &mint);
 
     assert_eq!(ata1, expected_ata1, "ATA1 should match expected derivation");
     assert_eq!(ata2, expected_ata2, "ATA2 should match expected derivation");

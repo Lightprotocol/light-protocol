@@ -32,8 +32,10 @@ impl<'a, A: AccountInfoTrait + Clone> Transfer2CpiAccounts<'a, A> {
     #[inline(always)]
     pub fn try_from_account_infos(fee_payer: A, accounts: &'a [A]) -> Result<Self, AccountError> {
         let mut iter = AccountIterator::new(accounts);
-        let compressed_token_program =
-            iter.next_checked_pubkey("compressed_token_program", LIGHT_TOKEN_PROGRAM_ID.to_bytes())?;
+        let compressed_token_program = iter.next_checked_pubkey(
+            "compressed_token_program",
+            LIGHT_TOKEN_PROGRAM_ID.to_bytes(),
+        )?;
 
         let compressed_token_cpi_authority = iter.next_account("compressed_token_cpi_authority")?;
 

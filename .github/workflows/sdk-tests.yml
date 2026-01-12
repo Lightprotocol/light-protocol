@@ -48,13 +48,13 @@ jobs:
       matrix:
         include:
           - program: native
-            sub-tests: '["cargo-test-sbf -p sdk-native-test", "cargo-test-sbf -p sdk-v1-native-test", "cargo-test-sbf -p sdk-ctoken-test", "cargo-test-sbf -p client-test"]'
+            sub-tests: '["cargo-test-sbf -p sdk-native-test", "cargo-test-sbf -p sdk-v1-native-test", "cargo-test-sbf -p sdk-light-token-test", "cargo-test-sbf -p client-test"]'
           - program: anchor & pinocchio
             sub-tests: '["cargo-test-sbf -p sdk-anchor-test", "cargo-test-sbf -p sdk-compressible-test", "cargo-test-sbf -p csdk-anchor-derived-test", "cargo-test-sbf -p csdk-anchor-full-derived-test", "cargo-test-sbf -p sdk-pinocchio-v1-test", "cargo-test-sbf -p sdk-pinocchio-v2-test", "cargo-test-sbf -p pinocchio-nostd-test"]'
           - program: token test
             sub-tests: '["cargo-test-sbf -p sdk-token-test"]'
           - program: sdk-libs
-            packages: light-sdk-macros light-sdk light-program-test light-client light-ctoken-types light-ctoken-sdk
+            packages: light-sdk-macros light-sdk light-program-test light-client light-token-types light-token-sdk
             test_cmd: |
               cargo test -p light-sdk-macros
               cargo test -p light-sdk-macros --all-features
@@ -63,8 +63,8 @@ jobs:
               cargo test -p light-program-test
               cargo test -p light-client
               cargo test -p light-sparse-merkle-tree
-              cargo test -p light-ctoken-types
-              cargo test -p light-ctoken-sdk --all-features
+              cargo test -p light-token-types
+              cargo test -p light-token-sdk --all-features
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6

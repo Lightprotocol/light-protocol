@@ -1,8 +1,8 @@
 #![cfg(feature = "poseidon")]
 
 use light_compressed_account::{hash_to_bn254_field_size_be, Pubkey};
-use light_token_interface::state::{CompressedTokenAccountState, TokenData};
 use light_hasher::HasherError;
+use light_token_interface::state::{CompressedTokenAccountState, TokenData};
 use num_bigint::BigUint;
 use rand::Rng;
 

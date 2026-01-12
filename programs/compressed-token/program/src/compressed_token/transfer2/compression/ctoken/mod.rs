@@ -1,8 +1,8 @@
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
+use light_program_profiler::profile;
 use light_token_interface::instructions::transfer2::{
     ZCompressedTokenInstructionDataTransfer2, ZCompression,
 };
-use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 
 use super::validate_compression_mode_fields;

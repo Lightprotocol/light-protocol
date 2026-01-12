@@ -1,10 +1,10 @@
 use anchor_lang::solana_program::program_error::ProgramError;
+use light_program_profiler::profile;
 #[cfg(target_os = "solana")]
 use light_token_interface::state::{
     cmint_top_up_lamports_from_account_info, top_up_lamports_from_account_info_unchecked,
 };
 use light_token_interface::TokenError;
-use light_program_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
     sysvars::{clock::Clock, Sysvar},

@@ -6,6 +6,7 @@ pub mod token_metadata;
 pub use check_mint_extensions::{
     check_mint_extensions, has_mint_extensions, parse_mint_extensions, MintExtensionChecks,
 };
+use light_program_profiler::profile;
 // Import from light-token-interface instead of local modules
 use light_token_interface::{
     instructions::mint_action::ZAction,
@@ -20,7 +21,6 @@ pub use light_token_interface::{
     is_restricted_extension, MintExtensionFlags, ALLOWED_EXTENSION_TYPES,
     RESTRICTED_EXTENSION_TYPES,
 };
-use light_program_profiler::profile;
 use light_zero_copy::ZeroCopyNew;
 use spl_pod::solana_msg::msg;
 

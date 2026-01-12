@@ -10,7 +10,7 @@ use light_zero_copy::{
 
 use crate::{
     state::{
-        Token, ExtensionStruct, ExtensionStructConfig, ZExtensionStruct, ZExtensionStructMut,
+        ExtensionStruct, ExtensionStructConfig, Token, ZExtensionStruct, ZExtensionStructMut,
         ACCOUNT_TYPE_TOKEN_ACCOUNT,
     },
     AnchorDeserialize, AnchorSerialize,

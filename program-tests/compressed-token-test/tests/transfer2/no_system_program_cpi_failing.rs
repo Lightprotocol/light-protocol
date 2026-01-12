@@ -43,17 +43,17 @@
 //
 // ============================================================================
 
-use light_token_interface::instructions::{mint_action::Recipient, transfer2::Compression};
-use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::find_cmint_address,
-    ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount},
-    ValidityProof,
-};
 use light_program_test::{
     utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
 };
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::{airdrop_lamports, RpcError};
+use light_token_interface::instructions::{mint_action::Recipient, transfer2::Compression};
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::find_cmint_address,
+    ctoken::{derive_token_ata, CreateAssociatedCTokenAccount},
+    ValidityProof,
+};
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 // ============================================================================
@@ -102,8 +102,8 @@ async fn setup_no_system_program_cpi_test(
     // Create compressed mint seed
     let mint_seed = Keypair::new();
     let (mint, _) = find_cmint_address(&mint_seed.pubkey());
-    let (source_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
-    let (recipient_ata, _) = derive_ctoken_ata(&recipient.pubkey(), &mint);
+    let (source_ata, _) = derive_token_ata(&owner.pubkey(), &mint);
+    let (recipient_ata, _) = derive_token_ata(&recipient.pubkey(), &mint);
 
     // Create CToken ATA for owner (source)
     let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
@@ -708,8 +708,8 @@ async fn test_too_many_mints() {
         // Create new mint seed
         let mint_seed = Keypair::new();
         let (mint, _) = find_cmint_address(&mint_seed.pubkey());
-        let (source_ata, _) = derive_ctoken_ata(&context.owner.pubkey(), &mint);
-        let (recipient_ata, _) = derive_ctoken_ata(&context.recipient.pubkey(), &mint);
+        let (source_ata, _) = derive_token_ata(&context.owner.pubkey(), &mint);
+        let (recipient_ata, _) = derive_token_ata(&context.recipient.pubkey(), &mint);
 
         // Create source ATA
         let instruction = CreateAssociatedCTokenAccount::new(

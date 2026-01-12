@@ -5,14 +5,6 @@
 //! - Spec #14: CompressedOnly inputs must decompress complete account (no change output)
 
 use light_client::indexer::Indexer;
-use light_token_interface::{
-    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
-    state::TokenDataVersion,
-};
-use light_ctoken_sdk::{
-    ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
-    spl_interface::find_spl_interface_pda_with_index,
-};
 use light_program_test::{
     program_test::{LightProgramTest, TestRpc},
     utils::assert::assert_rpc_error,
@@ -24,6 +16,14 @@ use light_test_utils::mint_2022::{
 };
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+};
+use light_token_interface::{
+    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
+    state::TokenDataVersion,
+};
+use light_token_sdk::{
+    ctoken::{CompressibleParams, CreateTokenAccount, TransferSplToToken},
+    spl_interface::find_spl_interface_pda_with_index,
 };
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -68,7 +68,7 @@ async fn setup_compressed_token_for_decompress(
     let ctoken_account = account_keypair.pubkey();
 
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: rpc
                     .test_accounts
@@ -94,7 +94,7 @@ async fn setup_compressed_token_for_decompress(
         .any(|ext| RESTRICTED_EXTENSIONS.contains(ext));
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted);
-    let transfer_ix = TransferSplToCtoken {
+    let transfer_ix = TransferSplToToken {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,
@@ -206,7 +206,7 @@ async fn test_decompress_compressed_only_rejects_partial_decompress() {
     let dest_keypair = Keypair::new();
     let destination_pubkey = dest_keypair.pubkey();
 
-    let create_dest_ix = CreateCTokenAccount::new(
+    let create_dest_ix = CreateTokenAccount::new(
         payer.pubkey(),
         destination_pubkey,
         mint_pubkey,

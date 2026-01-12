@@ -2,13 +2,13 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_array_map::ArrayMap;
+use light_program_profiler::profile;
 use light_token_interface::{
     instructions::{
         extensions::ZExtensionInstructionData, transfer2::ZCompressedTokenInstructionDataTransfer2,
     },
     state::TokenDataVersion,
 };
-use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 

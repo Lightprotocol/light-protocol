@@ -10,7 +10,7 @@ use light_token_interface::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
         mint_action::{
             CompressAndCloseCMintAction, CompressedMintWithContext, DecompressMintAction,
-            MintActionCompressedInstructionData, MintToTokenAction, MintToCompressedAction,
+            MintActionCompressedInstructionData, MintToCompressedAction, MintToTokenAction,
             Recipient, RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
             UpdateMetadataFieldAction,
         },
@@ -18,7 +18,7 @@ use light_token_interface::{
     state::CompressedMint,
     LIGHT_TOKEN_PROGRAM_ID,
 };
-use light_ctoken_sdk::compressed_token::{
+use light_token_sdk::compressed_token::{
     create_compressed_mint::{derive_cmint_compressed_address, find_cmint_address},
     mint_action::MintActionMetaConfig,
 };

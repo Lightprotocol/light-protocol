@@ -1,8 +1,8 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::check_signer;
-use light_token_interface::{state::ZTokenMut, LIGHT_TOKEN_PROGRAM_ID};
 use light_program_profiler::profile;
+use light_token_interface::{state::ZTokenMut, LIGHT_TOKEN_PROGRAM_ID};
 use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
 
 use crate::extensions::MintExtensionChecks;

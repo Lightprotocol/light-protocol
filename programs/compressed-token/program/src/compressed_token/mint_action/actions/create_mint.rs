@@ -1,11 +1,11 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut;
+use light_program_profiler::profile;
 use light_token_interface::{
     instructions::mint_action::ZMintActionCompressedInstructionData, CMINT_ADDRESS_TREE,
     COMPRESSED_MINT_SEED,
 };
-use light_program_profiler::profile;
 use pinocchio::pubkey::pubkey_eq;
 use spl_pod::solana_msg::msg;
 

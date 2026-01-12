@@ -340,10 +340,10 @@ async fn test_revoke_fails() {
 // ============================================================================
 
 use anchor_lang::AnchorDeserialize;
-use light_token_interface::state::{Token, TokenDataVersion};
-use light_ctoken_sdk::ctoken::{ApproveCToken, CreateCTokenAccount, RevokeCToken};
 use light_program_test::program_test::TestRpc;
 use light_test_utils::RpcError;
+use light_token_interface::state::{Token, TokenDataVersion};
+use light_token_sdk::token::{ApproveToken, CreateTokenAccount, RevokeToken};
 use solana_sdk::program_pack::Pack;
 
 use super::extensions::setup_extensions_test;
@@ -371,7 +371,7 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
     let account_pubkey = account_keypair.pubkey();
 
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), account_pubkey, mint_pubkey, owner.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), account_pubkey, mint_pubkey, owner.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: context
                     .rpc
@@ -431,7 +431,7 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
 
     // 3. Approve 10 tokens to delegate
     let approve_amount = 10u64;
-    let approve_ix = ApproveCToken {
+    let approve_ix = ApproveToken {
         token_account: account_pubkey,
         delegate: delegate.pubkey(),
         owner: owner.pubkey(),
@@ -457,7 +457,7 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
     .await;
 
     // 5. Revoke delegation
-    let revoke_ix = RevokeCToken {
+    let revoke_ix = RevokeToken {
         token_account: account_pubkey,
         owner: owner.pubkey(),
     }

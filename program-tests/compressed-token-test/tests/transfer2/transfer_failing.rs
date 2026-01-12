@@ -5,11 +5,17 @@
 // ============================================================================
 
 use light_client::indexer::{CompressedTokenAccount, Indexer};
+use light_program_test::{
+    utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
+};
+use light_sdk::instruction::PackedAccounts;
+use light_test_utils::{airdrop_lamports, RpcError};
+use light_token_client::actions::{create_mint, mint_to_compressed, transfer2::approve};
 use light_token_interface::{
     instructions::{mint_action::Recipient, transfer2::MultiInputTokenDataWithContext},
     state::TokenDataVersion,
 };
-use light_ctoken_sdk::{
+use light_token_sdk::{
     compressed_token::{
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
@@ -19,12 +25,6 @@ use light_ctoken_sdk::{
     },
     ValidityProof,
 };
-use light_program_test::{
-    utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
-};
-use light_sdk::instruction::PackedAccounts;
-use light_test_utils::{airdrop_lamports, RpcError};
-use light_token_client::actions::{create_mint, mint_to_compressed, transfer2::approve};
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 // ============================================================================
 // Test Setup
@@ -72,7 +72,7 @@ async fn setup_transfer_test(
     )
     .await?;
 
-    let mint = light_ctoken_sdk::compressed_token::create_compressed_mint::find_cmint_address(
+    let mint = light_token_sdk::compressed_token::create_compressed_mint::find_cmint_address(
         &mint_seed.pubkey(),
     )
     .0;
@@ -683,7 +683,7 @@ async fn setup_transfer_test_with_delegate(
     )
     .await?;
 
-    let mint = light_ctoken_sdk::compressed_token::create_compressed_mint::find_cmint_address(
+    let mint = light_token_sdk::compressed_token::create_compressed_mint::find_cmint_address(
         &mint_seed.pubkey(),
     )
     .0;

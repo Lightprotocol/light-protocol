@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use light_program_test::LightProgramTest;
 use light_token_client::instructions::transfer2::{
     CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
 };
+use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
 use crate::{
@@ -89,12 +89,12 @@ pub async fn assert_transfer2_with_delegate(
                 };
 
                 // Get mint from the source compressed token account
-                let expected_recipient_token_data = light_ctoken_sdk::compat::TokenData {
+                let expected_recipient_token_data = light_token_sdk::compat::TokenData {
                     mint: source_mint,
                     owner: transfer_input.to,
                     amount: transfer_input.amount,
                     delegate: None,
-                    state: light_ctoken_sdk::compat::AccountState::Initialized,
+                    state: light_token_sdk::compat::AccountState::Initialized,
                     tlv: None,
                 };
 
@@ -157,12 +157,12 @@ pub async fn assert_transfer2_with_delegate(
                             None // No delegate to preserve
                         };
 
-                    let expected_change_token = light_ctoken_sdk::compat::TokenData {
+                    let expected_change_token = light_token_sdk::compat::TokenData {
                         mint: source_mint,
                         owner: source_owner,
                         amount: change_amount,
                         delegate: expected_delegate,
-                        state: light_ctoken_sdk::compat::AccountState::Initialized,
+                        state: light_token_sdk::compat::AccountState::Initialized,
                         tlv: None,
                     };
 
@@ -216,12 +216,12 @@ pub async fn assert_transfer2_with_delegate(
                         None // Default to None if no authority specified
                     };
 
-                    let expected_change_token = light_ctoken_sdk::compat::TokenData {
+                    let expected_change_token = light_token_sdk::compat::TokenData {
                         mint: source_mint,
                         owner: source_owner,
                         amount: change_amount,
                         delegate: expected_delegate,
-                        state: light_ctoken_sdk::compat::AccountState::Initialized,
+                        state: light_token_sdk::compat::AccountState::Initialized,
                         tlv: None,
                     };
 
@@ -278,12 +278,12 @@ pub async fn assert_transfer2_with_delegate(
                         .value
                         .items;
 
-                    let expected_change_token = light_ctoken_sdk::compat::TokenData {
+                    let expected_change_token = light_token_sdk::compat::TokenData {
                         mint: source_mint,
                         owner: source_owner,
                         amount: change_amount,
                         delegate: Some(approve_input.delegate),
-                        state: light_ctoken_sdk::compat::AccountState::Initialized,
+                        state: light_token_sdk::compat::AccountState::Initialized,
                         tlv: None,
                     };
 
@@ -336,12 +336,12 @@ pub async fn assert_transfer2_with_delegate(
                     .map(|accounts| accounts.iter().map(|a| a.token.amount).sum::<u64>())
                     .unwrap_or(0);
 
-                let expected_recipient_token_data = light_ctoken_sdk::compat::TokenData {
+                let expected_recipient_token_data = light_token_sdk::compat::TokenData {
                     mint: compress_input.mint,
                     owner: compress_input.to,
                     amount: compress_input.amount + compressed_input_amount,
                     delegate: None,
-                    state: light_ctoken_sdk::compat::AccountState::Initialized,
+                    state: light_token_sdk::compat::AccountState::Initialized,
                     tlv: None,
                 };
                 recipient_accounts.iter().for_each(|account| {
@@ -451,9 +451,9 @@ pub async fn assert_transfer2_with_delegate(
                 let is_frozen =
                     pre_token_account.state == spl_token_2022::state::AccountState::Frozen;
                 let expected_state = if is_frozen {
-                    light_ctoken_sdk::compat::AccountState::Frozen
+                    light_token_sdk::compat::AccountState::Frozen
                 } else {
-                    light_ctoken_sdk::compat::AccountState::Initialized
+                    light_token_sdk::compat::AccountState::Initialized
                 };
 
                 // Delegate is preserved from the original account
@@ -488,7 +488,7 @@ pub async fn assert_transfer2_with_delegate(
                 };
 
                 // Build expected token data for single assert comparison
-                let expected_token = light_ctoken_sdk::compat::TokenData {
+                let expected_token = light_token_sdk::compat::TokenData {
                     mint: expected_mint,
                     owner: expected_owner,
                     amount: expected_amount,

@@ -4,14 +4,14 @@
 //! for both basic mints and Token-2022 mints with extensions.
 
 use anchor_lang::AnchorDeserialize;
-use light_token_interface::state::{AccountState, Token, TokenDataVersion};
-use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount, FreezeCToken, ThawCToken};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_ctoken_freeze_thaw::{assert_ctoken_freeze, assert_ctoken_thaw},
     spl::create_mint_helper,
     Rpc, RpcError,
 };
+use light_token_interface::state::{AccountState, Token, TokenDataVersion};
+use light_token_sdk::token::{CompressibleParams, CreateTokenAccount, FreezeToken, ThawToken};
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
 
@@ -46,7 +46,7 @@ async fn test_freeze_thaw_with_basic_mint() -> Result<(), RpcError> {
         compression_only: false,
     };
 
-    let create_ix = CreateCTokenAccount::new(
+    let create_ix = CreateTokenAccount::new(
         payer.pubkey(),
         token_account_pubkey,
         mint_pubkey,
@@ -74,7 +74,7 @@ async fn test_freeze_thaw_with_basic_mint() -> Result<(), RpcError> {
     );
 
     // 3. Freeze the account
-    let freeze_ix = FreezeCToken {
+    let freeze_ix = FreezeToken {
         token_account: token_account_pubkey,
         mint: mint_pubkey,
         freeze_authority: payer.pubkey(),
@@ -89,7 +89,7 @@ async fn test_freeze_thaw_with_basic_mint() -> Result<(), RpcError> {
     assert_ctoken_freeze(&mut rpc, token_account_pubkey).await;
 
     // 5. Thaw the account
-    let thaw_ix = ThawCToken {
+    let thaw_ix = ThawToken {
         token_account: token_account_pubkey,
         mint: mint_pubkey,
         freeze_authority: payer.pubkey(),
@@ -122,7 +122,7 @@ async fn test_freeze_thaw_with_extensions() -> Result<(), RpcError> {
     let account_pubkey = account_keypair.pubkey();
 
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), account_pubkey, mint_pubkey, owner.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), account_pubkey, mint_pubkey, owner.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: context
                     .rpc
@@ -170,7 +170,7 @@ async fn test_freeze_thaw_with_extensions() -> Result<(), RpcError> {
     );
 
     // 2. Freeze the account
-    let freeze_ix = FreezeCToken {
+    let freeze_ix = FreezeToken {
         token_account: account_pubkey,
         mint: mint_pubkey,
         freeze_authority: payer.pubkey(),
@@ -187,7 +187,7 @@ async fn test_freeze_thaw_with_extensions() -> Result<(), RpcError> {
     assert_ctoken_freeze(&mut context.rpc, account_pubkey).await;
 
     // 4. Thaw the account
-    let thaw_ix = ThawCToken {
+    let thaw_ix = ThawToken {
         token_account: account_pubkey,
         mint: mint_pubkey,
         freeze_authority: payer.pubkey(),

@@ -1,9 +1,5 @@
 // Re-export all necessary imports for test modules
 pub use light_compressible::rent::{RentConfig, SLOTS_PER_EPOCH};
-pub use light_ctoken_sdk::ctoken::{
-    derive_ctoken_ata, ApproveCToken, CloseCTokenAccount, CompressibleParams,
-    CreateAssociatedCTokenAccount, CreateCTokenAccount, RevokeCToken,
-};
 pub use light_program_test::{
     forester::compress_and_close_forester, program_test::TestRpc, LightProgramTest,
     ProgramTestConfig,
@@ -20,6 +16,10 @@ pub use light_test_utils::{
 };
 pub use light_token_client::{
     actions::transfer2::compress, instructions::transfer2::CompressInput,
+};
+pub use light_token_sdk::token::{
+    derive_token_ata, ApproveToken, CloseTokenAccount, CompressibleParams,
+    CreateAssociatedTokenAccount, CreateTokenAccount, RevokeToken,
 };
 pub use serial_test::serial;
 pub use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -98,7 +98,7 @@ pub async fn create_and_assert_token_account(
         compression_only: false,
     };
 
-    let create_token_account_ix = CreateCTokenAccount::new(
+    let create_token_account_ix = CreateTokenAccount::new(
         payer_pubkey,
         token_account_pubkey,
         context.mint_pubkey,
@@ -154,7 +154,7 @@ pub async fn create_and_assert_token_account_fails(
         compression_only: false,
     };
 
-    let create_token_account_ix = CreateCTokenAccount::new(
+    let create_token_account_ix = CreateTokenAccount::new(
         payer_pubkey,
         token_account_pubkey,
         context.mint_pubkey,
@@ -232,7 +232,7 @@ pub async fn create_non_compressible_token_account(
         compression_only: false,
     };
 
-    let create_ix = CreateCTokenAccount::new(
+    let create_ix = CreateTokenAccount::new(
         payer_pubkey,
         token_account_pubkey,
         context.mint_pubkey,
@@ -302,7 +302,7 @@ pub async fn close_and_assert_token_account(
         .expect("CToken should have Compressible extension");
     let rent_sponsor = Pubkey::from(compressible.info.rent_sponsor);
 
-    let close_ix = CloseCTokenAccount {
+    let close_ix = CloseTokenAccount {
         token_program: light_compressed_token::ID,
         account: token_account_pubkey,
         destination,
@@ -349,7 +349,7 @@ pub async fn close_and_assert_token_account_fails(
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
-    let mut close_ix = CloseCTokenAccount {
+    let mut close_ix = CloseTokenAccount {
         token_program: light_compressed_token::ID,
         account: token_account_pubkey,
         destination,
@@ -386,7 +386,7 @@ pub async fn create_and_assert_ata(
     let owner_pubkey = context.owner_keypair.pubkey();
 
     // Derive ATA address
-    let (ata_pubkey, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
+    let (ata_pubkey, bump) = derive_token_ata(&owner_pubkey, &context.mint_pubkey);
 
     // Build instruction based on whether it's compressible
     let create_ata_ix = if let Some(compressible) = compressible_data.as_ref() {
@@ -401,7 +401,7 @@ pub async fn create_and_assert_ata(
         };
 
         let mut builder =
-            CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+            CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
                 .with_compressible(compressible_params);
 
         if idempotent {
@@ -411,7 +411,7 @@ pub async fn create_and_assert_ata(
         builder.instruction().unwrap()
     } else {
         // Create account with default compressible params (ATAs use default_ata)
-        let mut builder = CreateAssociatedCTokenAccount {
+        let mut builder = CreateAssociatedTokenAccount {
             idempotent: false,
             bump,
             payer: payer_pubkey,
@@ -477,7 +477,7 @@ pub async fn create_and_assert_ata_fails(
     };
 
     let mut builder =
-        CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+        CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
             .with_compressible(compressible_params);
 
     if idempotent {
@@ -656,12 +656,12 @@ pub async fn compress_and_close_forester_with_invalid_output(
 
     use anchor_lang::{InstructionData, ToAccountMetas};
     use light_compressible::config::CompressibleConfig;
-    use light_token_interface::state::Token;
     use light_registry::{
         accounts::CompressAndCloseContext as CompressAndCloseAccounts,
         instruction::CompressAndClose, utils::get_forester_epoch_pda_from_authority,
     };
     use light_sdk::instruction::PackedAccounts;
+    use light_token_interface::state::Token;
     use light_zero_copy::traits::ZeroCopyAt;
     use solana_sdk::instruction::Instruction;
 
@@ -739,7 +739,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
     };
 
     // Add system accounts
-    use light_ctoken_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
+    use light_token_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
     let config = CTokenCompressAndCloseAccounts {
         compressed_token_program: compressed_token_program_id,
         cpi_authority_pda: Pubkey::find_program_address(
@@ -894,8 +894,8 @@ pub async fn approve_and_assert(
 ) {
     println!("Approve initiated for: {}", name);
 
-    // Use light-ctoken-sdk
-    let approve_ix = ApproveCToken {
+    // Use light-token-sdk
+    let approve_ix = ApproveToken {
         token_account: context.token_account_keypair.pubkey(),
         delegate,
         owner: context.owner_keypair.pubkey(),
@@ -939,7 +939,7 @@ pub async fn approve_and_assert_fails(
     println!("Approve (expecting failure) initiated for: {}", name);
 
     // Build using SDK, then modify if needed for max_top_up
-    let mut instruction = ApproveCToken {
+    let mut instruction = ApproveToken {
         token_account,
         delegate,
         owner: authority.pubkey(),
@@ -969,8 +969,8 @@ pub async fn approve_and_assert_fails(
 pub async fn revoke_and_assert(context: &mut AccountTestContext, name: &str) {
     println!("Revoke initiated for: {}", name);
 
-    // Use light-ctoken-sdk
-    let revoke_ix = RevokeCToken {
+    // Use light-token-sdk
+    let revoke_ix = RevokeToken {
         token_account: context.token_account_keypair.pubkey(),
         owner: context.owner_keypair.pubkey(),
     }
@@ -1003,7 +1003,7 @@ pub async fn revoke_and_assert_fails(
     println!("Revoke (expecting failure) initiated for: {}", name);
 
     // Build using SDK, then modify if needed for max_top_up
-    let mut instruction = RevokeCToken {
+    let mut instruction = RevokeToken {
         token_account,
         owner: authority.pubkey(),
     }
@@ -1101,4 +1101,4 @@ pub async fn setup_account_test_with_spl_mint(
 }
 
 // Note: Token-2022 mint setup is more complex and requires additional handling.
-// Tests for Token-2022 mints are covered in sdk-tests/sdk-ctoken-test/tests/test_transfer_checked.rs
+// Tests for Token-2022 mints are covered in sdk-tests/sdk-light-token-test/tests/test_transfer_checked.rs

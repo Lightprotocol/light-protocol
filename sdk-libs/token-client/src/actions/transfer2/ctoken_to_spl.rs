@@ -2,8 +2,8 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_ctoken_sdk::{
-    constants::SPL_TOKEN_PROGRAM_ID, ctoken::TransferCTokenToSpl,
+use light_token_sdk::{
+    constants::SPL_TOKEN_PROGRAM_ID, ctoken::TransferTokenToSpl,
     spl_interface::find_spl_interface_pda,
 };
 use solana_keypair::Keypair;
@@ -25,7 +25,7 @@ pub async fn transfer_ctoken_to_spl<R: Rpc + Indexer>(
 ) -> Result<Signature, RpcError> {
     let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda(&mint, false);
 
-    let transfer_ix = TransferCTokenToSpl {
+    let transfer_ix = TransferTokenToSpl {
         source_ctoken_account,
         destination_spl_token_account,
         amount,

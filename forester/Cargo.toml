@@ -28,7 +28,7 @@ light-sdk = { workspace = true, features = ["anchor"] }
 light-program-test = { workspace = true }
 light-compressible = { workspace = true }
 light-token-interface = { workspace = true }
-light-ctoken-sdk = { workspace = true }
+light-token-sdk = { workspace = true }
 solana-rpc-client-api = { workspace = true }
 solana-transaction-status = { workspace = true }
 bb8 = { workspace = true }
