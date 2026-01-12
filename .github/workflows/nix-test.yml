@@ -1,0 +1,44 @@
+name: Nix Build Test
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths:
+      - 'nix/**'
+      - '.github/workflows/nix-test.yml'
+      - '.github/actions/setup-nix/**'
+  workflow_dispatch:
+
+jobs:
+  test-nix-devshell:
+    name: Test Nix Devshell
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+
+      - name: Verify tools
+        run: |
+          nix develop ./nix/devenv --command bash -c '
+            echo "=== Tool Versions ==="
+            solana --version
+            anchor --version
+            go version
+            node --version
+            pnpm --version
+            echo "=== All tools working ==="
+          '
+
+      - name: Test cargo build-sbf
+        run: |
+          nix develop ./nix/devenv --command bash -c '
+            cd programs/system
+            cargo build-sbf 2>&1 | tail -5
+          '
