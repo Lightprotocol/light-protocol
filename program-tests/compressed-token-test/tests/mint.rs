@@ -22,3 +22,6 @@ mod burn;
 
 #[path = "mint/ctoken_mint_to.rs"]
 mod ctoken_mint_to;
+
+#[path = "mint/cmint_resize.rs"]
+mod cmint_resize;

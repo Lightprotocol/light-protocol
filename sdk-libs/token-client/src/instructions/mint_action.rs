@@ -221,6 +221,9 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         )
     };
 
+    // Check if mint data is None (for later use in determining CMint accounts)
+    let mint_data_is_none = compressed_mint_inputs.mint.is_none();
+
     // Build instruction data using builder pattern
     let mut instruction_data = if is_creating_mint {
         MintActionCompressedInstructionData::new_mint(
@@ -348,6 +351,9 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         config = config.with_ctoken_accounts(ctoken_accounts);
     }
 
+    // Check if mint is already decompressed (compressed account has empty data)
+    let cmint_decompressed = mint_data_is_none && !is_creating_mint;
+
     // Add compressible CMint accounts if DecompressMint or CompressAndCloseCMint action is present
     if has_decompress_mint || has_compress_and_close_cmint {
         let (cmint_pda, _) = find_cmint_address(&params.mint_seed);
@@ -373,6 +379,10 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         if has_decompress_mint && !is_creating_mint {
             config = config.with_mint_signer(params.mint_seed);
         }
+    } else if cmint_decompressed {
+        // Mint is already decompressed - only need CMint account (no compressible config or rent sponsor)
+        let (cmint_pda, _) = find_cmint_address(&params.mint_seed);
+        config = config.with_cmint(cmint_pda);
     }
 
     // Get account metas

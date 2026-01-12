@@ -141,40 +141,53 @@ pub async fn assert_mint_action(
         .iter()
         .any(|a| matches!(a, MintActionType::CompressAndCloseCMint { .. }));
 
-    if post_decompressed {
-        // === CASE 1 & 2: CMint is source of truth after actions ===
-        // (Either DecompressMint happened OR was already decompressed)
+    // Fetch actual mint state from source of truth
+    let actual_mint: CompressedMint = if post_decompressed {
+        // CMint PDA is source of truth when decompressed
         let cmint_pda = Pubkey::from(expected_mint.metadata.mint);
-
         let cmint_account = rpc
             .get_account(cmint_pda)
             .await
             .expect("Failed to fetch CMint account")
             .expect("CMint PDA account should exist when decompressed");
 
-        let cmint: CompressedMint =
-            BorshDeserialize::deserialize(&mut cmint_account.data.as_slice())
-                .expect("Failed to deserialize CMint account");
+        BorshDeserialize::deserialize(&mut cmint_account.data.as_slice())
+            .expect("Failed to deserialize CMint account")
+    } else {
+        // Compressed account is source of truth when not decompressed
+        let actual_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value
+            .expect("Compressed mint account not found");
 
-        // CMint base and metadata should match expected
-        assert_eq!(
-            cmint.base, expected_mint.base,
-            "CMint base should match expected mint base"
-        );
-        assert_eq!(
-            cmint.metadata, expected_mint.metadata,
-            "CMint metadata should match expected mint metadata"
-        );
+        BorshDeserialize::deserialize(&mut actual_mint_account.data.unwrap().data.as_slice())
+            .expect("Failed to deserialize compressed mint")
+    };
 
-        // CMint compression info should be set (non-default) when decompressed
+    // When decompressed, copy compression info from actual (slot/rent values are set at runtime)
+    if post_decompressed {
+        // Verify compression info is set (non-default) before copying
         assert_ne!(
-            cmint.compression,
-            light_compressible::compression_info::CompressionInfo::default(),
+            actual_mint.compression,
+            CompressionInfo::default(),
             "CMint compression info should be set when decompressed"
         );
+        expected_mint.compression = actual_mint.compression;
+    }
 
-        // Compressed account should have zero sentinel values
-        let actual_mint_account = rpc
+    // Single assert_eq validates entire mint state (base, metadata, extensions, compression)
+    assert_eq!(
+        actual_mint, expected_mint,
+        "Mint state should match expected after applying actions"
+    );
+
+    // Verify compressed account has sentinel values when decompressed
+    if post_decompressed {
+        let sentinel_account = rpc
             .indexer()
             .unwrap()
             .get_compressed_account(compressed_mint_address, None)
@@ -183,37 +196,9 @@ pub async fn assert_mint_action(
             .value
             .expect("Compressed mint account not found");
         assert_eq!(
-            *actual_mint_account.data.as_ref().unwrap(),
+            *sentinel_account.data.as_ref().unwrap(),
             CompressedAccountData::default(),
-            "Compressed mint should have zero sentinel values when CMint is source of truth"
-        );
-    } else {
-        // === CASE 3 & 4: Compressed account is source of truth after actions ===
-        // (Either CompressAndCloseCMint happened OR was never decompressed)
-        let actual_mint_account = rpc
-            .indexer()
-            .unwrap()
-            .get_compressed_account(compressed_mint_address, None)
-            .await
-            .unwrap()
-            .value
-            .expect("Compressed mint account not found");
-
-        let actual_mint: CompressedMint =
-            BorshDeserialize::deserialize(&mut actual_mint_account.data.unwrap().data.as_slice())
-                .expect("Failed to deserialize compressed mint");
-
-        // Compressed mint state should match expected
-        assert_eq!(
-            actual_mint, expected_mint,
-            "Compressed mint state after mint_action should match expected"
-        );
-
-        // Compressed mint compression info should be default (not set)
-        assert_eq!(
-            actual_mint.compression,
-            light_compressible::compression_info::CompressionInfo::default(),
-            "Compressed mint compression info should be default when compressed"
+            "Compressed mint should have sentinel values when CMint is source of truth"
         );
     }
 
@@ -232,6 +217,11 @@ pub async fn assert_mint_action(
         );
     }
     // Verify CToken accounts for MintToCToken actions
+    assert_ctoken_balances(rpc, ctoken_mints).await;
+}
+
+/// Verify CToken account balances after MintToCToken actions
+async fn assert_ctoken_balances(rpc: &mut LightProgramTest, ctoken_mints: HashMap<Pubkey, u64>) {
     for (account_pubkey, total_minted_amount) in ctoken_mints {
         // Get pre-transaction account state
         let pre_account = rpc
@@ -284,7 +274,7 @@ pub async fn assert_mint_action(
             );
 
             println!(
-                "✓ Lamport top-up validated: {} lamports transferred to compressible ctoken account {}",
+                "Lamport top-up validated: {} lamports transferred to compressible ctoken account {}",
                 expected_top_up, account_pubkey
             );
         }
