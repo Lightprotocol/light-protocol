@@ -6,7 +6,7 @@ pub mod token_metadata;
 pub use check_mint_extensions::{
     check_mint_extensions, has_mint_extensions, parse_mint_extensions, MintExtensionChecks,
 };
-// Import from ctoken-types instead of local modules
+// Import from light-token-interface instead of local modules
 use light_token_interface::{
     instructions::mint_action::ZAction,
     state::{

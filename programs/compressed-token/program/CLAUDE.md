@@ -253,9 +253,9 @@ validate_mint_uniqueness(...).map_err(ProgramError::from)?;
 | 18 | MintDecimalsMismatch | Decimals mismatch |
 
 ## SDKs (`sdk-libs/`)
-- **`ctoken-sdk/`** - SDK for programs to interact with compressed tokens (CPIs, instruction builders)
+- **`token-sdk/`** - SDK for programs to interact with compressed tokens (CPIs, instruction builders)
 - **`token-client/`** - Client SDK for Rust applications (test helpers, transaction builders)
-- **`ctoken-types/`** - Lightweight types for client-side usage
+- **`light-token-interface/`** - Lightweight types for client-side usage
 
 ## Compressible Extension Documentation
 When working with ctoken accounts that have the compressible extension (rent management), you **MUST** read:
