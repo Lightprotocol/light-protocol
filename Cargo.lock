@@ -2400,6 +2400,7 @@ dependencies = [
  "solana-pubkey 2.4.0",
  "solana-rpc-client-api",
  "solana-sdk",
+ "solana-system-interface 1.0.0",
  "solana-transaction-status",
  "thiserror 2.0.17",
  "tokio",

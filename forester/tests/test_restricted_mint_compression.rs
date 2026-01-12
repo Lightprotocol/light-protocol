@@ -29,10 +29,8 @@ use light_token_client::actions::{
     create_compressible_token_account, CreateCompressibleTokenAccountInputs,
 };
 use serial_test::serial;
-use solana_sdk::{
-    pubkey::Pubkey, signature::Keypair, signer::Signer, system_instruction,
-    transaction::Transaction,
-};
+use solana_sdk::{signature::Keypair, signer::Signer, transaction::Transaction};
+use solana_system_interface::instruction as system_instruction;
 use spl_token_2022::extension::ExtensionType;
 use tokio::time::sleep;
 
@@ -438,12 +436,12 @@ async fn test_restricted_mint_compression() {
 
     let compressed_account = &compressed_accounts[0];
     assert_eq!(
-        Pubkey::from(compressed_account.token_data.mint),
+        compressed_account.token_data.mint,
         mint.pubkey(),
         "Compressed account mint should match"
     );
     assert_eq!(
-        Pubkey::from(compressed_account.token_data.owner),
+        compressed_account.token_data.owner,
         owner_keypair.pubkey(),
         "Compressed account owner should match"
     );
