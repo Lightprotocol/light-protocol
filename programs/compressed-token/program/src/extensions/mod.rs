@@ -7,16 +7,16 @@ pub use check_mint_extensions::{
     check_mint_extensions, has_mint_extensions, parse_mint_extensions, MintExtensionChecks,
 };
 // Import from ctoken-types instead of local modules
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::mint_action::ZAction,
     state::{
         AdditionalMetadata, AdditionalMetadataConfig, ExtensionStruct, ExtensionStructConfig,
         TokenMetadata, TokenMetadataConfig,
     },
-    CTokenError,
+    TokenError,
 };
-// Re-export from ctoken-interface (consolidated types)
-pub use light_ctoken_interface::{
+// Re-export from token-interface (consolidated types)
+pub use light_token_interface::{
     is_restricted_extension, MintExtensionFlags, ALLOWED_EXTENSION_TYPES,
     RESTRICTED_EXTENSION_TYPES,
 };
@@ -36,7 +36,7 @@ pub fn should_include_in_compressed_output(extension: &ExtensionStruct) -> bool 
 pub fn process_extensions_config_with_actions(
     extensions: Option<&Vec<ExtensionStruct>>,
     actions: &[ZAction],
-) -> Result<(bool, Vec<ExtensionStructConfig>, usize), CTokenError> {
+) -> Result<(bool, Vec<ExtensionStructConfig>, usize), TokenError> {
     let mut additional_mint_data_len = 0;
     let mut config_vec = Vec::new();
 
@@ -58,7 +58,7 @@ pub fn process_extensions_config_with_actions(
                         extension_index,
                     )?
                 }
-                _ => return Err(CTokenError::UnsupportedExtension),
+                _ => return Err(TokenError::UnsupportedExtension),
             }
         }
     }
@@ -77,14 +77,14 @@ fn process_token_metadata_config_with_actions(
     token_metadata: &TokenMetadata,
     actions: &[ZAction],
     extension_index: usize,
-) -> Result<(), CTokenError> {
+) -> Result<(), TokenError> {
     // Early validation - no allocations needed
     if token_metadata.additional_metadata.len() > 20 {
         msg!(
             "Too many additional metadata elements: {} (max 20)",
             token_metadata.additional_metadata.len()
         );
-        return Err(CTokenError::TooManyAdditionalMetadata);
+        return Err(TokenError::TooManyAdditionalMetadata);
     }
 
     // Check for duplicate keys (O(n^2) but acceptable for max 20 items)
@@ -94,7 +94,7 @@ fn process_token_metadata_config_with_actions(
                 == token_metadata.additional_metadata[j].key
             {
                 msg!("Duplicate metadata key found at positions {} and {}", i, j);
-                return Err(CTokenError::DuplicateMetadataKey);
+                return Err(TokenError::DuplicateMetadataKey);
             }
         }
     }

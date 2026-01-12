@@ -1,7 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_array_map::ArrayMap;
-use light_ctoken_interface::instructions::transfer2::{
+use light_token_interface::instructions::transfer2::{
     ZCompression, ZCompressionMode, ZMultiInputTokenDataWithContext, ZMultiTokenTransferOutputData,
 };
 use light_program_profiler::profile;

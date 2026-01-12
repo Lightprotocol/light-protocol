@@ -1,7 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::Pubkey;
-use light_ctoken_interface::{
+use light_token_interface::{
     hash_cache::HashCache, instructions::mint_action::ZMintToCompressedAction,
     state::CompressedMint,
 };

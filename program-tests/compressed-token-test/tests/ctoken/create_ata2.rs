@@ -81,7 +81,7 @@ async fn test_create_ata2_basic() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -104,7 +104,7 @@ async fn test_create_ata2_basic() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 0,
             lamports_per_write: None,
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -128,7 +128,7 @@ async fn test_create_ata2_idempotent() {
         rent_sponsor: context.rent_sponsor,
         num_prepaid_epochs: 2,
         lamports_per_write: Some(100),
-        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compress_to_pubkey: false,
         payer: payer_pubkey,
     };
@@ -157,12 +157,12 @@ async fn test_create_ata2_idempotent() {
     let account = context.rpc.get_account(ata_pubkey).await.unwrap().unwrap();
 
     // Calculate expected size for account with Compressible extension
-    use light_ctoken_interface::state::{
-        calculate_ctoken_account_size, CompressibleExtensionConfig, CompressionInfoConfig,
+    use light_token_interface::state::{
+        calculate_token_account_size, CompressibleExtensionConfig, CompressionInfoConfig,
         ExtensionStructConfig,
     };
     let expected_size =
-        calculate_ctoken_account_size(Some(&[ExtensionStructConfig::Compressible(
+        calculate_token_account_size(Some(&[ExtensionStructConfig::Compressible(
             CompressibleExtensionConfig {
                 info: CompressionInfoConfig { rent_config: () },
             },

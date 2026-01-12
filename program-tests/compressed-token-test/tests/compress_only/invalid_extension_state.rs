@@ -9,7 +9,7 @@
 
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_client::indexer::Indexer;
-use light_ctoken_interface::{
+use light_token_interface::{
     find_spl_interface_pda_with_index,
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
     state::TokenDataVersion,

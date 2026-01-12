@@ -1,7 +1,7 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut;
-use light_ctoken_interface::{
+use light_token_interface::{
     hash_cache::HashCache,
     instructions::{
         extensions::ZExtensionInstructionData, transfer2::ZCompressedTokenInstructionDataTransfer2,

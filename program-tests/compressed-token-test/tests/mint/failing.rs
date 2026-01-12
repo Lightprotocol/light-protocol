@@ -2,7 +2,7 @@
 
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
-use light_ctoken_interface::state::{extensions::AdditionalMetadata, CompressedMint};
+use light_token_interface::state::{extensions::AdditionalMetadata, CompressedMint};
 use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::{
         derive_cmint_compressed_address, find_cmint_address,
@@ -72,7 +72,7 @@ async fn functional_and_failing_tests() {
         8, // decimals
         &mint_authority,
         Some(freeze_authority.pubkey()),
-        Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+        Some(light_token_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
             update_authority: Some(metadata_authority.pubkey().into()),
             name: "Test Token".as_bytes().to_vec(),
             symbol: "TEST".as_bytes().to_vec(),
@@ -102,7 +102,7 @@ async fn functional_and_failing_tests() {
         8,
         mint_authority.pubkey(),
         freeze_authority.pubkey(),
-        Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+        Some(light_token_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
             update_authority: Some(metadata_authority.pubkey().into()),
             name: "Test Token".as_bytes().to_vec(),
             symbol: "TEST".as_bytes().to_vec(),
@@ -124,7 +124,7 @@ async fn functional_and_failing_tests() {
             8, // decimals
             &mint_authority,
             Some(freeze_authority.pubkey()),
-            Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+            Some(light_token_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
                 update_authority: Some(metadata_authority.pubkey().into()),
                 name: "Test Token".as_bytes().to_vec(),
                 symbol: "TEST".as_bytes().to_vec(),
@@ -149,7 +149,7 @@ async fn functional_and_failing_tests() {
         .await;
 
         assert_rpc_error(
-            result, 0, 18040, // CTokenError::DuplicateMetadataKey = 18040
+            result, 0, 18040, // TokenError::DuplicateMetadataKey = 18040
         )
         .unwrap();
     }
@@ -192,12 +192,12 @@ async fn functional_and_failing_tests() {
             &mut rpc,
             spl_mint_pda,
             vec![
-                light_ctoken_interface::instructions::mint_action::Recipient::new(
+                light_token_interface::instructions::mint_action::Recipient::new(
                     Keypair::new().pubkey(),
                     1000u64,
                 ),
             ],
-            light_ctoken_interface::state::TokenDataVersion::V2,
+            light_token_interface::state::TokenDataVersion::V2,
             &invalid_mint_authority, // Invalid authority
             &payer,
         )
@@ -230,11 +230,11 @@ async fn functional_and_failing_tests() {
             &mut rpc,
             spl_mint_pda,
             vec![
-                light_ctoken_interface::instructions::mint_action::Recipient::new(
+                light_token_interface::instructions::mint_action::Recipient::new(
                     recipient, 1000u64,
                 ),
             ],
-            light_ctoken_interface::state::TokenDataVersion::V2,
+            light_token_interface::state::TokenDataVersion::V2,
             &mint_authority, // Valid authority
             &payer,
         )
@@ -252,7 +252,7 @@ async fn functional_and_failing_tests() {
                     recipient,
                     amount: 1000u64,
                 }],
-                token_account_version: light_ctoken_interface::state::TokenDataVersion::V2 as u8,
+                token_account_version: light_token_interface::state::TokenDataVersion::V2 as u8,
             }],
         )
         .await;
@@ -424,7 +424,7 @@ async fn functional_and_failing_tests() {
             false,  // compress_and_close_cmint
             vec![], // No compressed recipients
             vec![
-                light_ctoken_interface::instructions::mint_action::Recipient::new(
+                light_token_interface::instructions::mint_action::Recipient::new(
                     recipient.pubkey(),
                     1000u64,
                 ),
@@ -482,7 +482,7 @@ async fn functional_and_failing_tests() {
             false,  // compress_and_close_cmint
             vec![], // No compressed recipients
             vec![
-                light_ctoken_interface::instructions::mint_action::Recipient::new(
+                light_token_interface::instructions::mint_action::Recipient::new(
                     recipient2.pubkey(),
                     2000u64,
                 ),
@@ -813,12 +813,12 @@ async fn functional_and_failing_tests() {
 #[serial]
 async fn test_mint_to_ctoken_max_top_up_exceeded() {
     use light_compressed_account::instruction_data::traits::LightInstructionData;
-    use light_ctoken_interface::{
+    use light_token_interface::{
         instructions::mint_action::{
-            CompressedMintWithContext, MintActionCompressedInstructionData, MintToCTokenAction,
+            CompressedMintWithContext, MintActionCompressedInstructionData, MintToTokenAction,
         },
         state::TokenDataVersion,
-        CTOKEN_PROGRAM_ID,
+        LIGHT_TOKEN_PROGRAM_ID,
     };
     use light_ctoken_sdk::compressed_token::{
         create_compressed_mint::derive_cmint_compressed_address, mint_action::MintActionMetaConfig,
@@ -897,7 +897,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
         .value
         .unwrap();
 
-    let compressed_mint: light_ctoken_interface::state::CompressedMint =
+    let compressed_mint: light_token_interface::state::CompressedMint =
         BorshDeserialize::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
             .unwrap();
 
@@ -922,7 +922,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
     // Build instruction data with max_top_up = 1 (too low to cover rent top-up)
     let instruction_data =
         MintActionCompressedInstructionData::new(compressed_mint_inputs, rpc_proof_result.proof.0)
-            .with_mint_to_ctoken(MintToCTokenAction {
+            .with_mint_to_token(MintToTokenAction {
                 account_index: 0,
                 amount: 1000u64,
             })
@@ -945,7 +945,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
 
     // Build final instruction
     let ix = Instruction {
-        program_id: CTOKEN_PROGRAM_ID.into(),
+        program_id: LIGHT_TOKEN_PROGRAM_ID.into(),
         accounts: account_metas,
         data,
     };
@@ -956,7 +956,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
         .await;
 
     assert_rpc_error(
-        result, 0, 18043, // CTokenError::MaxTopUpExceeded = 18043
+        result, 0, 18043, // TokenError::MaxTopUpExceeded = 18043
     )
     .unwrap();
 }

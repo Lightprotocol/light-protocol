@@ -11,7 +11,7 @@ use light_client::{
     local_test_validator::{spawn_validator, LightValidatorConfig},
     rpc::{LightClient, LightClientConfig, Rpc},
 };
-use light_ctoken_interface::state::TokenDataVersion;
+use light_token_interface::state::TokenDataVersion;
 use light_ctoken_sdk::compressed_token::create_compressed_mint;
 use light_registry::{
     protocol_config::state::ProtocolConfigPda,
@@ -538,10 +538,10 @@ async fn run_bootstrap_test(
                 account_state.pubkey
             );
 
-            // Verify account is a valid CToken
+            // Verify account is a valid Token
             assert!(
-                account_state.account.is_ctoken_account(),
-                "Account {} should be a valid CToken account",
+                account_state.account.is_token_account(),
+                "Account {} should be a valid Token account",
                 account_state.pubkey
             );
 

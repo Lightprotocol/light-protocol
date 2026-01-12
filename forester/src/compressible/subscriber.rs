@@ -1,7 +1,7 @@
 use std::{str::FromStr, sync::Arc};
 
 use futures::StreamExt;
-use light_ctoken_interface::CTOKEN_PROGRAM_ID;
+use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::{
     nonblocking::pubsub_client::PubsubClient,
@@ -53,7 +53,7 @@ impl AccountSubscriber {
             .await
             .map_err(|e| anyhow::anyhow!("Failed to connect to WebSocket: {}", e))?;
 
-        let program_id = Pubkey::new_from_array(CTOKEN_PROGRAM_ID);
+        let program_id = Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID);
         // Subscribe to compressed token program accounts with filter for account_type = 2 at position 165
         // This indicates a CToken account with extensions (e.g., Compressible)
         // "3" is base58 encoding of byte value 2 (ACCOUNT_TYPE_TOKEN_ACCOUNT)

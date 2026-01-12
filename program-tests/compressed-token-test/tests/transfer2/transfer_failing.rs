@@ -5,7 +5,7 @@
 // ============================================================================
 
 use light_client::indexer::{CompressedTokenAccount, Indexer};
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::{mint_action::Recipient, transfer2::MultiInputTokenDataWithContext},
     state::TokenDataVersion,
 };

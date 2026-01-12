@@ -3,7 +3,7 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::mint_action::{CompressedMintWithContext, Recipient},
     state::{CompressedMint, TokenDataVersion},
 };

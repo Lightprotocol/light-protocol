@@ -74,7 +74,7 @@ impl MintActionMetaConfig {
 
     /// Create a new MintActionMetaConfig for CPI context operations.
     pub fn new_cpi_context(
-        instruction_data: &light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData,
+        instruction_data: &light_token_interface::instructions::mint_action::MintActionCompressedInstructionData,
         fee_payer: Pubkey,
         authority: Pubkey,
         cpi_context_pubkey: Pubkey,

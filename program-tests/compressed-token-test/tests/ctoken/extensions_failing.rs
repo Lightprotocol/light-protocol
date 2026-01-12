@@ -8,7 +8,7 @@
 //! in compress_only/invalid_extension_state.rs. It succeeds with invalid extension
 //! state because it exits compressed state without creating new compressed accounts.
 
-use light_ctoken_interface::state::TokenDataVersion;
+use light_token_interface::state::TokenDataVersion;
 use light_ctoken_sdk::{
     ctoken::{CompressibleParams, CreateCTokenAccount, TransferCTokenChecked, TransferSplToCtoken},
     spl_interface::find_spl_interface_pda_with_index,

@@ -5,7 +5,7 @@ mod shared;
 use borsh::BorshDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressible::compression_info::CompressionInfo;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::mint_action::CompressedMintWithContext, state::CompressedMint,
 };
 use light_ctoken_sdk::ctoken::{find_cmint_address, DecompressCMint};
@@ -301,7 +301,7 @@ async fn setup_create_compressed_mint_with_freeze_authority_only(
 /// Test decompressing a compressed mint with TokenMetadata extension
 #[tokio::test]
 async fn test_decompress_cmint_with_token_metadata() {
-    use light_ctoken_interface::instructions::extensions::{
+    use light_token_interface::instructions::extensions::{
         ExtensionInstructionData, TokenMetadataInstructionData,
     };
 
@@ -433,7 +433,7 @@ async fn setup_create_compressed_mint_with_extensions(
     mint_authority: Pubkey,
     freeze_authority: Option<Pubkey>,
     decimals: u8,
-    extensions: Vec<light_ctoken_interface::instructions::extensions::ExtensionInstructionData>,
+    extensions: Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>,
 ) -> (Pubkey, [u8; 32], Keypair) {
     use light_ctoken_sdk::ctoken::{CreateCMint, CreateCMintParams};
 
@@ -551,7 +551,7 @@ async fn test_decompress_cmint_cpi_invoke_signed() {
             .value;
 
         let compressed_token_program_id =
-            Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+            Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
         let default_pubkeys = light_ctoken_sdk::utils::CTokenDefaultAccounts::default();
 
         let create_cmint_data = CreateCmintData {
@@ -655,7 +655,7 @@ async fn test_decompress_cmint_cpi_invoke_signed() {
         ]
         .concat();
 
-        let ctoken_program_id = Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+        let ctoken_program_id = Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
         let wrapper_accounts = vec![
             AccountMeta::new_readonly(mint_signer_pda, false),
             AccountMeta::new_readonly(pda_mint_authority, false),

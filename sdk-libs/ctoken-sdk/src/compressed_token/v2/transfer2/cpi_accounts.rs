@@ -1,5 +1,5 @@
 use light_account_checks::{AccountError, AccountInfoTrait, AccountIterator};
-use light_ctoken_interface::CTOKEN_PROGRAM_ID;
+use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use light_ctoken_types::CPI_AUTHORITY_PDA;
 use light_program_profiler::profile;
 use light_sdk_types::{
@@ -55,7 +55,7 @@ impl<'a, A: AccountInfoTrait + Clone> Transfer2CpiAccounts<'a, A> {
         let mut iter = AccountIterator::new(accounts);
 
         let compressed_token_program =
-            iter.next_checked_pubkey("compressed_token_program", CTOKEN_PROGRAM_ID)?;
+            iter.next_checked_pubkey("compressed_token_program", LIGHT_TOKEN_PROGRAM_ID)?;
 
         let invoking_program_cpi_authority =
             iter.next_option("CPI_SIGNER.cpi_authority", light_system_cpi_authority)?;

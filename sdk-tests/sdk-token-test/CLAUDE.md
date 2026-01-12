@@ -1,7 +1,7 @@
 ## TLDR
 - this is a test program that tests ctoken instructions with light-ctoken-sdk functions in integration tests
 - light-ctoken-sdk: sdk-libs/compressed-token-sdk
-- light-ctoken-interface: program-libs/ctoken-types
+- light-token-interface: program-libs/ctoken-types
 - light-compressed-token-program: programs/compressed-token/program/
 
 

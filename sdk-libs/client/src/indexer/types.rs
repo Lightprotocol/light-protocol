@@ -7,7 +7,7 @@ use light_compressed_account::{
     instruction_data::compressed_proof::CompressedProof,
     TreeType,
 };
-use light_ctoken_interface::state::ExtensionStruct;
+use light_token_interface::state::ExtensionStruct;
 use light_ctoken_sdk::compat::{AccountState, TokenData};
 use light_indexed_merkle_tree::array::IndexedElement;
 use light_sdk::instruction::{

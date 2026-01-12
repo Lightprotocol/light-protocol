@@ -4,7 +4,7 @@ use anchor_lang::{AnchorDeserialize, InstructionData};
 /// Test input range for multi-input tests
 const TEST_INPUT_RANGE: [usize; 4] = [1, 2, 3, 4];
 
-use light_ctoken_interface::instructions::mint_action::{CompressedMintWithContext, Recipient};
+use light_token_interface::instructions::mint_action::{CompressedMintWithContext, Recipient};
 use light_ctoken_sdk::compressed_token::{
     create_compressed_mint::find_cmint_address, decompress_full::DecompressFullAccounts,
 };
@@ -82,7 +82,7 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
             pre_pay_num_epochs: 0,
             lamports_per_write: None,
             compress_to_account_pubkey: None,
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compression_only: true,
         };
 
@@ -186,9 +186,9 @@ async fn test_decompress_full_cpi() {
                 .await
                 .unwrap()
                 .unwrap();
-            use light_ctoken_interface::state::CToken;
+            use light_token_interface::state::Token;
             use light_zero_copy::traits::ZeroCopyAt;
-            let (dest_token, _) = CToken::zero_copy_at(&dest_account.data).unwrap();
+            let (dest_token, _) = Token::zero_copy_at(&dest_account.data).unwrap();
             assert_eq!(
                 u64::from(dest_token.amount),
                 0,
@@ -222,7 +222,7 @@ async fn test_decompress_full_cpi() {
             .iter()
             .map(|acc| {
                 let discriminator = acc.account.data.as_ref().unwrap().discriminator;
-                light_ctoken_interface::state::TokenDataVersion::from_discriminator(discriminator)
+                light_token_interface::state::TokenDataVersion::from_discriminator(discriminator)
                     .unwrap() as u8
             })
             .collect();
@@ -287,9 +287,9 @@ async fn test_decompress_full_cpi() {
                 .await
                 .unwrap()
                 .unwrap();
-            use light_ctoken_interface::state::CToken;
+            use light_token_interface::state::Token;
             use light_zero_copy::traits::ZeroCopyAt;
-            let (dest_token_after, _) = CToken::zero_copy_at(&dest_account_after.data).unwrap();
+            let (dest_token_after, _) = Token::zero_copy_at(&dest_account_after.data).unwrap();
             assert_eq!(
                 u64::from(dest_token_after.amount),
                 ctx.compressed_amount_per_account,
@@ -333,9 +333,9 @@ async fn test_decompress_full_cpi_with_context() {
                 .await
                 .unwrap()
                 .unwrap();
-            use light_ctoken_interface::state::CToken;
+            use light_token_interface::state::Token;
             use light_zero_copy::traits::ZeroCopyAt;
-            let (dest_token_before, _) = CToken::zero_copy_at(&dest_account_before.data).unwrap();
+            let (dest_token_before, _) = Token::zero_copy_at(&dest_account_before.data).unwrap();
             assert_eq!(
                 u64::from(dest_token_before.amount),
                 0,
@@ -387,7 +387,7 @@ async fn test_decompress_full_cpi_with_context() {
             .unwrap()
             .value;
 
-        use light_ctoken_interface::state::CompressedMint;
+        use light_token_interface::state::CompressedMint;
         let compressed_mint =
             CompressedMint::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
                 .unwrap();
@@ -403,7 +403,7 @@ async fn test_decompress_full_cpi_with_context() {
         let mint_params = MintCompressedTokensCpiWriteParams {
             compressed_mint_with_context,
             recipients: mint_recipients,
-            cpi_context: light_ctoken_interface::instructions::mint_action::CpiContext {
+            cpi_context: light_token_interface::instructions::mint_action::CpiContext {
                 set_context: false,
                 first_set_context: true, // First operation sets the context
                 in_tree_index: remaining_accounts
@@ -429,7 +429,7 @@ async fn test_decompress_full_cpi_with_context() {
             .iter()
             .map(|acc| {
                 let discriminator = acc.account.data.as_ref().unwrap().discriminator;
-                light_ctoken_interface::state::TokenDataVersion::from_discriminator(discriminator)
+                light_token_interface::state::TokenDataVersion::from_discriminator(discriminator)
                     .unwrap() as u8
             })
             .collect();
@@ -516,9 +516,9 @@ async fn test_decompress_full_cpi_with_context() {
                 .await
                 .unwrap()
                 .unwrap();
-            use light_ctoken_interface::state::CToken;
+            use light_token_interface::state::Token;
             use light_zero_copy::traits::ZeroCopyAt;
-            let (dest_token_after, _) = CToken::zero_copy_at(&dest_account_after.data).unwrap();
+            let (dest_token_after, _) = Token::zero_copy_at(&dest_account_after.data).unwrap();
             assert_eq!(
                 u64::from(dest_token_after.amount),
                 ctx.compressed_amount_per_account,

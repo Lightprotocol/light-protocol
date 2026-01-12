@@ -6,7 +6,7 @@ This document describes how Token-2022 extensions are validated across compresse
 
 The compressed token program supports 16 Token-2022 extension types. **5 restricted extensions** require instruction-level validation checks. Pure mint extensions (metadata, group, etc.) are allowed without explicit instruction support.
 
-**Allowed extensions** (defined in `program-libs/ctoken-interface/src/token_2022_extensions.rs:17-44`):
+**Allowed extensions** (defined in `program-libs/token-interface/src/token_2022_extensions.rs:17-44`):
 
 1. MetadataPointer
 2. TokenMetadata
@@ -221,7 +221,7 @@ The CompressedOnly extension preserves CToken account state during CompressAndCl
 
 ### Data Structures
 
-**State Extension** (`program-libs/ctoken-interface/src/state/extensions/compressed_only.rs`):
+**State Extension** (`program-libs/token-interface/src/state/extensions/compressed_only.rs`):
 ```rust
 pub struct CompressedOnlyExtension {
     /// The delegated amount from the source CToken account's delegate field.
@@ -233,7 +233,7 @@ pub struct CompressedOnlyExtension {
 }
 ```
 
-**Instruction Data** (`program-libs/ctoken-interface/src/instructions/extensions/compressed_only.rs`):
+**Instruction Data** (`program-libs/token-interface/src/instructions/extensions/compressed_only.rs`):
 ```rust
 pub struct CompressedOnlyExtensionInstructionData {
     /// The delegated amount from the source CToken account's delegate field.
@@ -361,7 +361,7 @@ ctoken.base.set_initialized();
 6. Check if DefaultAccountState is set to Frozen (lines 213-220)
 7. Return `MintExtensionFlags` with boolean flags
 
-**Returns** (defined in `program-libs/ctoken-interface/src/token_2022_extensions.rs:59-75`):
+**Returns** (defined in `program-libs/token-interface/src/token_2022_extensions.rs:59-75`):
 ```rust
 MintExtensionFlags {
     has_pausable: bool,

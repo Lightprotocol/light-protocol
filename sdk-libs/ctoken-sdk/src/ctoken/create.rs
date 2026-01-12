@@ -1,6 +1,6 @@
 use borsh::BorshSerialize;
-use light_ctoken_interface::instructions::{
-    create_ctoken_account::CreateTokenAccountInstructionData,
+use light_token_interface::instructions::{
+    create_token_account::CreateTokenAccountInstructionData,
     extensions::CompressibleExtensionInstructionData,
 };
 use solana_account_info::AccountInfo;
@@ -77,7 +77,7 @@ impl CreateCTokenAccount {
         ];
 
         Ok(Instruction {
-            program_id: Pubkey::from(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+            program_id: Pubkey::from(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
             accounts,
             data,
         })

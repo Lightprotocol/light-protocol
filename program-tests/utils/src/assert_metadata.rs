@@ -3,7 +3,7 @@ use light_client::{
     indexer::{CompressedAccount, Indexer},
     rpc::{Rpc, RpcError},
 };
-use light_ctoken_interface::state::{
+use light_token_interface::state::{
     extensions::{AdditionalMetadata, ExtensionStruct, TokenMetadata},
     CompressedMint,
 };

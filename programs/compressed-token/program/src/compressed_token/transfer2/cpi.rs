@@ -1,5 +1,5 @@
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::{
         extensions::ZExtensionInstructionData, transfer2::ZCompressedTokenInstructionDataTransfer2,
     },

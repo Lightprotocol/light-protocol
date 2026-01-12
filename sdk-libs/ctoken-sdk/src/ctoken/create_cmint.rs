@@ -1,7 +1,7 @@
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, traits::LightInstructionData,
 };
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::{
         extensions::ExtensionInstructionData,
         mint_action::{CompressedMintInstructionData, CpiContext},
@@ -117,7 +117,7 @@ impl CreateCMint {
         let compressed_mint_instruction_data = CompressedMintInstructionData {
             supply: 0,
             decimals: self.params.decimals,
-            metadata: light_ctoken_interface::state::CompressedMintMetadata {
+            metadata: light_token_interface::state::CompressedMintMetadata {
                 version: 3,
                 mint: self.params.mint.to_bytes().into(),
                 cmint_decompressed: false,
@@ -132,7 +132,7 @@ impl CreateCMint {
         };
 
         let mut instruction_data =
-            light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
+            light_token_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
                 self.params.address_merkle_tree_root_index,
                 self.params.proof,
                 compressed_mint_instruction_data,
@@ -160,7 +160,7 @@ impl CreateCMint {
             .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
 
         Ok(Instruction {
-            program_id: Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+            program_id: Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
             accounts: account_metas,
             data,
         })
@@ -258,7 +258,7 @@ impl CreateCompressedMintCpiWrite {
         let compressed_mint_instruction_data = CompressedMintInstructionData {
             supply: 0,
             decimals: self.params.decimals,
-            metadata: light_ctoken_interface::state::CompressedMintMetadata {
+            metadata: light_token_interface::state::CompressedMintMetadata {
                 version: self.params.version,
                 mint: self.params.mint.to_bytes().into(),
                 cmint_decompressed: false,
@@ -273,7 +273,7 @@ impl CreateCompressedMintCpiWrite {
         };
 
         let instruction_data =
-            light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint_write_to_cpi_context(
+            light_token_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint_write_to_cpi_context(
                 self.params.address_merkle_tree_root_index,
                 compressed_mint_instruction_data,
                 self.params.cpi_context,
@@ -293,7 +293,7 @@ impl CreateCompressedMintCpiWrite {
             .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
 
         Ok(Instruction {
-            program_id: Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+            program_id: Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
             accounts: account_metas,
             data,
         })
@@ -518,7 +518,7 @@ pub fn derive_cmint_compressed_address(
     light_compressed_account::address::derive_address(
         &find_cmint_address(mint_seed).0.to_bytes(),
         &address_tree_pubkey.to_bytes(),
-        &light_ctoken_interface::CTOKEN_PROGRAM_ID,
+        &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
     )
 }
 
@@ -527,7 +527,7 @@ pub fn derive_cmint_from_spl_mint(mint: &Pubkey, address_tree_pubkey: &Pubkey) -
     light_compressed_account::address::derive_address(
         &mint.to_bytes(),
         &address_tree_pubkey.to_bytes(),
-        &light_ctoken_interface::CTOKEN_PROGRAM_ID,
+        &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
     )
 }
 
@@ -535,6 +535,6 @@ pub fn derive_cmint_from_spl_mint(mint: &Pubkey, address_tree_pubkey: &Pubkey) -
 pub fn find_cmint_address(mint_seed: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_seed.as_ref()],
-        &Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+        &Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
     )
 }

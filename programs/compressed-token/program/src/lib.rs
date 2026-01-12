@@ -1,7 +1,7 @@
 use std::mem::ManuallyDrop;
 
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_ctoken_interface::CTOKEN_PROGRAM_ID;
+use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 use pinocchio::{account_info::AccountInfo, msg};
 
@@ -134,7 +134,7 @@ pub fn process_instruction(
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     let discriminator = InstructionType::from(instruction_data[0]);
-    if *program_id != CTOKEN_PROGRAM_ID {
+    if *program_id != LIGHT_TOKEN_PROGRAM_ID {
         return Err(ProgramError::IncorrectProgramId);
     }
     match discriminator {

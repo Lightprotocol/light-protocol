@@ -1,12 +1,12 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::rpc::Rpc;
 use light_compressible::compression_info::CompressionInfo;
-use light_ctoken_interface::state::{extensions::ExtensionStruct, CToken, CompressedMint};
+use light_token_interface::state::{extensions::ExtensionStruct, Token, CompressedMint};
 use light_program_test::LightProgramTest;
 use solana_sdk::pubkey::Pubkey;
 
 /// Extract CompressionInfo from CToken's Compressible extension
-fn get_ctoken_compression_info(ctoken: &CToken) -> Option<CompressionInfo> {
+fn get_ctoken_compression_info(ctoken: &Token) -> Option<CompressionInfo> {
     ctoken
         .extensions
         .as_ref()?
@@ -58,10 +58,10 @@ pub async fn assert_ctoken_burn(
         .expect("CMint account should exist after transaction");
 
     // Parse accounts using Borsh
-    let ctoken_parsed_before: CToken =
+    let ctoken_parsed_before: Token =
         BorshDeserialize::deserialize(&mut ctoken_before.data.as_slice())
             .expect("Failed to deserialize CToken before");
-    let ctoken_parsed_after: CToken =
+    let ctoken_parsed_after: Token =
         BorshDeserialize::deserialize(&mut ctoken_after.data.as_slice())
             .expect("Failed to deserialize CToken after");
     let cmint_parsed_before: CompressedMint =

@@ -5,7 +5,7 @@
 **path:** programs/compressed-token/program/src/ctoken/freeze_thaw.rs
 
 **description:**
-Freezes a decompressed ctoken account, preventing transfers and other operations while frozen. This is a pass-through instruction that validates mint ownership (must be owned by SPL Token, Token-2022, or CToken program) before delegating to pinocchio-token-program for standard SPL Token freeze validation. After freezing, the account's state field is set to AccountState::Frozen, and only the freeze_authority of the mint can freeze accounts (mint must have freeze_authority set). The account layout `CToken` is defined in program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs.
+Freezes a decompressed ctoken account, preventing transfers and other operations while frozen. This is a pass-through instruction that validates mint ownership (must be owned by SPL Token, Token-2022, or CToken program) before delegating to pinocchio-token-program for standard SPL Token freeze validation. After freezing, the account's state field is set to AccountState::Frozen, and only the freeze_authority of the mint can freeze accounts (mint must have freeze_authority set). The account layout `CToken` is defined in program-libs/token-interface/src/state/ctoken/ctoken_struct.rs.
 
 **Instruction data:**
 No instruction data required beyond the discriminator byte.

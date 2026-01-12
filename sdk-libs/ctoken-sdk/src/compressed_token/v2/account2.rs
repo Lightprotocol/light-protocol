@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use light_ctoken_interface::instructions::transfer2::{
+use light_token_interface::instructions::transfer2::{
     Compression, CompressionMode, MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
 };
 use light_program_profiler::profile;
@@ -166,7 +166,7 @@ impl CTokenAccount2 {
 
     // TODO: consider this might be confusing because it must not be used in combination with fn compress()
     #[profile]
-    pub fn compress_ctoken(
+    pub fn compress_token(
         &mut self,
         amount: u64,
         source_or_recipient_index: u8,
@@ -178,7 +178,7 @@ impl CTokenAccount2 {
         }
 
         self.output.amount += amount;
-        self.compression = Some(Compression::compress_ctoken(
+        self.compression = Some(Compression::compress_token(
             amount,
             self.output.mint,
             source_or_recipient_index,
@@ -224,7 +224,7 @@ impl CTokenAccount2 {
 
     // TODO: consider this might be confusing because it must not be used in combination with fn decompress()
     #[profile]
-    pub fn decompress_ctoken(
+    pub fn decompress_token(
         &mut self,
         amount: u64,
         source_index: u8,
@@ -239,7 +239,7 @@ impl CTokenAccount2 {
         }
         self.output.amount -= amount;
 
-        self.compression = Some(Compression::decompress_ctoken(
+        self.compression = Some(Compression::decompress_token(
             amount,
             self.output.mint,
             source_index,
@@ -337,7 +337,7 @@ impl CTokenAccount2 {
         self.output.amount += amount;
 
         // Use the compress_and_close method from Compression
-        self.compression = Some(Compression::compress_and_close_ctoken(
+        self.compression = Some(Compression::compress_and_close_token(
             amount,
             self.output.mint,
             source_or_recipient_index,

@@ -4,7 +4,7 @@ mod shared;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
-use light_ctoken_interface::state::CToken;
+use light_token_interface::state::Token;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_sdk_types::C_TOKEN_PROGRAM_ID;
 use native_ctoken_examples::{BurnData, InstructionType, ID, TOKEN_ACCOUNT_SEED};
@@ -39,7 +39,7 @@ async fn test_burn_invoke() {
 
     // Get initial state
     let ata_account_before = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_before = CToken::deserialize(&mut &ata_account_before.data[..]).unwrap();
+    let ctoken_before = Token::deserialize(&mut &ata_account_before.data[..]).unwrap();
 
     // Build burn instruction via wrapper program
     let mut instruction_data = vec![InstructionType::BurnInvoke as u8];
@@ -67,7 +67,7 @@ async fn test_burn_invoke() {
 
     // Verify with single assert_eq
     let ata_account_after = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_after = CToken::deserialize(&mut &ata_account_after.data[..]).unwrap();
+    let ctoken_after = Token::deserialize(&mut &ata_account_after.data[..]).unwrap();
 
     let mut expected_ctoken = ctoken_before;
     expected_ctoken.amount = 700; // 1000 - 300
@@ -105,7 +105,7 @@ async fn test_burn_invoke_signed() {
 
     // Get initial state
     let ata_account_before = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_before = CToken::deserialize(&mut &ata_account_before.data[..]).unwrap();
+    let ctoken_before = Token::deserialize(&mut &ata_account_before.data[..]).unwrap();
 
     // Build burn instruction via wrapper program using invoke_signed
     let mut instruction_data = vec![InstructionType::BurnInvokeSigned as u8];
@@ -133,7 +133,7 @@ async fn test_burn_invoke_signed() {
 
     // Verify with single assert_eq
     let ata_account_after = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_after = CToken::deserialize(&mut &ata_account_after.data[..]).unwrap();
+    let ctoken_after = Token::deserialize(&mut &ata_account_after.data[..]).unwrap();
 
     let mut expected_ctoken = ctoken_before;
     expected_ctoken.amount = 500; // 1000 - 500

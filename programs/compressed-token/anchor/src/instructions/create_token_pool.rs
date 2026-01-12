@@ -1,7 +1,7 @@
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
-use light_ctoken_interface::{is_restricted_extension, ALLOWED_EXTENSION_TYPES};
+use light_token_interface::{is_restricted_extension, ALLOWED_EXTENSION_TYPES};
 use spl_token_2022::{
     extension::{
         transfer_fee::TransferFeeConfig, transfer_hook::TransferHook, BaseStateWithExtensions,

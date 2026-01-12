@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anchor_lang::AnchorDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::{mint_action::Recipient, transfer2::CompressedTokenInstructionDataTransfer2},
     state::TokenDataVersion,
 };

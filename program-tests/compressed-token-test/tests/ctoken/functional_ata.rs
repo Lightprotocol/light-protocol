@@ -26,7 +26,7 @@ async fn test_associated_token_account_operations() {
         pre_pay_num_epochs: 0,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compression_only: true,
     };
 
@@ -49,7 +49,7 @@ async fn test_associated_token_account_operations() {
         rent_sponsor: context.rent_sponsor,
         num_prepaid_epochs: 0,
         lamports_per_write: None,
-        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compress_to_pubkey: false,
         payer: payer_pubkey,
     };
@@ -76,7 +76,7 @@ async fn test_associated_token_account_operations() {
         pre_pay_num_epochs: num_prepaid_epochs,
         lamports_per_write,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compression_only: true,
     };
 
@@ -110,7 +110,7 @@ async fn test_associated_token_account_operations() {
             num_prepaid_epochs, // Use actual balance with rent
             lamports_per_write,
             compress_to_pubkey: false,
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
         None,
@@ -177,7 +177,7 @@ async fn test_create_ata_idempotent() {
         pre_pay_num_epochs: 0,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compression_only: true,
     };
 
@@ -199,7 +199,7 @@ async fn test_create_ata_idempotent() {
         rent_sponsor: context.rent_sponsor,
         num_prepaid_epochs: 0,
         lamports_per_write: None,
-        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compress_to_pubkey: false,
         payer: payer_pubkey,
     };
@@ -253,7 +253,7 @@ async fn test_create_ata_idempotent() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 0,
             lamports_per_write: None,
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         }),
@@ -305,7 +305,7 @@ async fn test_create_ata_with_prefunded_lamports() {
         pre_pay_num_epochs: 0,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compression_only: true,
     };
 
@@ -337,7 +337,7 @@ async fn test_create_ata_with_prefunded_lamports() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 0,
             lamports_per_write: None,
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         }),
@@ -397,7 +397,7 @@ async fn test_create_token_account_with_prefunded_lamports() {
         pre_pay_num_epochs: 0,
         lamports_per_write: Some(100),
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compression_only: false, // Must be false for non-restricted mints (non-ATA accounts)
     };
 
@@ -433,7 +433,7 @@ async fn test_create_token_account_with_prefunded_lamports() {
             num_prepaid_epochs: 0,
             lamports_per_write: Some(100),
             compress_to_pubkey: false,
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
         None,

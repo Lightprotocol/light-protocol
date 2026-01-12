@@ -2,7 +2,7 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_ctoken_interface::instructions::extensions::{
+use light_token_interface::instructions::extensions::{
     token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,
 };
 use light_ctoken_sdk::ctoken::{

@@ -5,7 +5,7 @@
 //! - Spec #14: CompressedOnly inputs must decompress complete account (no change output)
 
 use light_client::indexer::Indexer;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
     state::TokenDataVersion,
 };

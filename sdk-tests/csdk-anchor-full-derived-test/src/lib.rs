@@ -62,7 +62,7 @@ pub mod csdk_anchor_full_derived_test {
     #![allow(clippy::too_many_arguments)]
     use anchor_lang::solana_program::{program::invoke, sysvar::clock::Clock};
     use light_compressed_account::instruction_data::traits::LightInstructionData;
-    use light_ctoken_interface::instructions::mint_action::{
+    use light_token_interface::instructions::mint_action::{
         MintActionCompressedInstructionData, MintToCompressedAction, Recipient,
     };
     use light_ctoken_sdk::compressed_token::{
@@ -195,7 +195,7 @@ pub mod csdk_anchor_full_derived_test {
             recipients: vec![Recipient::new(token_account_address, 1000)],
         })
         .with_cpi_context(
-            light_ctoken_interface::instructions::mint_action::CpiContext {
+            light_token_interface::instructions::mint_action::CpiContext {
                 address_tree_pubkey: address_tree_pubkey.to_bytes(),
                 set_context: false,
                 first_set_context: false,
@@ -227,7 +227,7 @@ pub mod csdk_anchor_full_derived_test {
 
         // Build mint action instruction
         let mint_action_instruction = solana_program::instruction::Instruction {
-            program_id: light_ctoken_interface::CTOKEN_PROGRAM_ID.into(),
+            program_id: light_token_interface::LIGHT_TOKEN_PROGRAM_ID.into(),
             accounts: account_metas,
             data,
         };

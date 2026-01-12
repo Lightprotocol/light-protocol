@@ -1,6 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::mint_action::ZCompressAndCloseCMintAction, state::CompressedMint,
 };
 use light_program_profiler::profile;

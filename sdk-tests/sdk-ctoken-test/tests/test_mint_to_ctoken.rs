@@ -85,7 +85,7 @@ async fn test_mint_to_ctoken() {
         .expect("Compressed mint should exist");
 
     // Deserialize the compressed mint data
-    use light_ctoken_interface::state::CompressedMint;
+    use light_token_interface::state::CompressedMint;
     let compressed_mint =
         CompressedMint::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
             .unwrap();
@@ -103,7 +103,7 @@ async fn test_mint_to_ctoken() {
 
         // Build CompressedMintWithContext from the compressed account
         let compressed_mint_with_context =
-            light_ctoken_interface::instructions::mint_action::CompressedMintWithContext {
+            light_token_interface::instructions::mint_action::CompressedMintWithContext {
                 address: compression_address,
                 leaf_index: compressed_mint_account.leaf_index,
                 prove_by_index: true,
@@ -124,7 +124,7 @@ async fn test_mint_to_ctoken() {
 
         // Build wrapper instruction with compressed token program as first account
         let compressed_token_program_id =
-            Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+            Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
 
         let mut wrapper_accounts = vec![AccountMeta::new_readonly(
             compressed_token_program_id,
@@ -160,8 +160,8 @@ async fn test_mint_to_ctoken() {
         .unwrap();
 
     // Parse the account data to verify balance
-    use light_ctoken_interface::state::CToken;
-    let account_state = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
+    use light_token_interface::state::Token;
+    let account_state = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     assert_eq!(account_state.amount, amount, "Token amount should match");
     assert_eq!(
         account_state.mint.to_bytes(),
@@ -221,7 +221,7 @@ async fn test_mint_to_ctoken_invoke_signed() {
         .value;
 
     let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+        Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
     let default_pubkeys = light_ctoken_sdk::utils::CTokenDefaultAccounts::default();
 
     // Step 1: Create compressed mint with PDA authority using wrapper program (discriminator 14)
@@ -320,7 +320,7 @@ async fn test_mint_to_ctoken_invoke_signed() {
         .expect("Compressed mint should exist");
 
     // Deserialize the compressed mint data
-    use light_ctoken_interface::state::CompressedMint;
+    use light_token_interface::state::CompressedMint;
     let compressed_mint =
         CompressedMint::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
             .unwrap();
@@ -338,7 +338,7 @@ async fn test_mint_to_ctoken_invoke_signed() {
 
         // Build CompressedMintWithContext from the compressed account
         let compressed_mint_with_context =
-            light_ctoken_interface::instructions::mint_action::CompressedMintWithContext {
+            light_token_interface::instructions::mint_action::CompressedMintWithContext {
                 address: compression_address,
                 leaf_index: compressed_mint_account.leaf_index,
                 prove_by_index: true,
@@ -362,7 +362,7 @@ async fn test_mint_to_ctoken_invoke_signed() {
         // Build accounts manually since SDK marks authority as signer, but we need it as non-signer
         // for invoke_signed (the wrapper program signs via CPI)
         let compressed_token_program_id =
-            Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+            Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
         let default_pubkeys = light_ctoken_sdk::utils::CTokenDefaultAccounts::default();
 
         let wrapper_accounts = vec![
@@ -401,8 +401,8 @@ async fn test_mint_to_ctoken_invoke_signed() {
         .unwrap();
 
     // Parse the account data to verify balance
-    use light_ctoken_interface::state::CToken;
-    let account_state = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
+    use light_token_interface::state::Token;
+    let account_state = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     assert_eq!(account_state.amount, amount, "Token amount should match");
     assert_eq!(
         account_state.mint.to_bytes(),

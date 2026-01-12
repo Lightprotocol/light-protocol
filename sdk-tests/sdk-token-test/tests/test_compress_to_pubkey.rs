@@ -1,5 +1,5 @@
 use anchor_lang::InstructionData;
-use light_ctoken_interface::CTOKEN_PROGRAM_ID;
+use light_ctoken_sdk::ctoken::CTOKEN_PROGRAM_ID;
 use light_program_test::{
     program_test::TestRpc, Indexer, LightProgramTest, ProgramTestConfig, Rpc,
 };

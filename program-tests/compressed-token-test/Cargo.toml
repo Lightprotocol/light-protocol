@@ -43,7 +43,7 @@ spl-token = { workspace = true }
 anchor-spl = { workspace = true }
 rand = { workspace = true }
 serial_test = { workspace = true }
-light-ctoken-interface = { workspace = true }
+light-token-interface = { workspace = true }
 light-token-client = { workspace = true }
 light-compressible = { workspace = true }
 light-ctoken-sdk = { workspace = true }

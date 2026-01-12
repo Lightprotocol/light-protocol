@@ -1,5 +1,5 @@
 use borsh::BorshSerialize;
-use light_ctoken_interface::instructions::{
+use light_token_interface::instructions::{
     create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
     extensions::CompressibleExtensionInstructionData,
 };
@@ -18,10 +18,10 @@ pub fn derive_ctoken_ata(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[
             owner.as_ref(),
-            light_ctoken_interface::CTOKEN_PROGRAM_ID.as_ref(),
+            light_token_interface::LIGHT_TOKEN_PROGRAM_ID.as_ref(),
             mint.as_ref(),
         ],
-        &Pubkey::from(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+        &Pubkey::from(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
     )
 }
 
@@ -125,7 +125,7 @@ impl CreateAssociatedCTokenAccount {
         ];
 
         Ok(Instruction {
-            program_id: Pubkey::from(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+            program_id: Pubkey::from(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
             accounts,
             data,
         })

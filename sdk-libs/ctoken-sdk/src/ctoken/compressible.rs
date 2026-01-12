@@ -1,4 +1,4 @@
-use light_ctoken_interface::{instructions::extensions::CompressToPubkey, state::TokenDataVersion};
+use light_token_interface::{instructions::extensions::CompressToPubkey, state::TokenDataVersion};
 use solana_account_info::AccountInfo;
 use solana_pubkey::Pubkey;
 

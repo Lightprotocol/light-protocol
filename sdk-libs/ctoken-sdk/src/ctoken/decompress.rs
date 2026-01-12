@@ -1,5 +1,5 @@
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
     state::{ExtensionStruct, TokenDataVersion},
 };
@@ -156,7 +156,7 @@ impl DecompressToCtoken {
         let mut token_account = CTokenAccount2::new(vec![indices.source])
             .map_err(|_| ProgramError::InvalidAccountData)?;
         token_account
-            .decompress_ctoken(self.token_data.amount, indices.destination_index)
+            .decompress_token(self.token_data.amount, indices.destination_index)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         // Build instruction inputs

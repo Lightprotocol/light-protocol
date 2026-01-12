@@ -5,18 +5,18 @@ use light_client::{
 };
 use light_compressed_account::instruction_data::traits::LightInstructionData;
 use light_compressible::config::CompressibleConfig;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
         mint_action::{
             CompressAndCloseCMintAction, CompressedMintWithContext, DecompressMintAction,
-            MintActionCompressedInstructionData, MintToCTokenAction, MintToCompressedAction,
+            MintActionCompressedInstructionData, MintToTokenAction, MintToCompressedAction,
             Recipient, RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
             UpdateMetadataFieldAction,
         },
     },
     state::CompressedMint,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
 };
 use light_ctoken_sdk::compressed_token::{
     create_compressed_mint::{derive_cmint_compressed_address, find_cmint_address},
@@ -150,10 +150,10 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         })?;
 
         let mint_data =
-            light_ctoken_interface::instructions::mint_action::CompressedMintInstructionData {
+            light_token_interface::instructions::mint_action::CompressedMintInstructionData {
                 supply: new_mint.supply,
                 decimals: new_mint.decimals,
-                metadata: light_ctoken_interface::state::CompressedMintMetadata {
+                metadata: light_token_interface::state::CompressedMintMetadata {
                     version: new_mint.version,
                     mint: find_cmint_address(&params.mint_seed).0.to_bytes().into(),
                     // false for new mint - on-chain sets to true after DecompressMint
@@ -263,7 +263,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                 let current_index = ctoken_account_index;
                 ctoken_account_index += 1;
 
-                instruction_data.with_mint_to_ctoken(MintToCTokenAction {
+                instruction_data.with_mint_to_token(MintToTokenAction {
                     account_index: current_index,
                     amount,
                 })
@@ -385,7 +385,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
 
     // Build final instruction
     Ok(Instruction {
-        program_id: CTOKEN_PROGRAM_ID.into(),
+        program_id: LIGHT_TOKEN_PROGRAM_ID.into(),
         accounts: account_metas,
         data,
     })

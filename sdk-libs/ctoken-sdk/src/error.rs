@@ -1,5 +1,5 @@
 use light_account_checks::AccountError;
-use light_ctoken_interface::CTokenError;
+use light_token_interface::TokenError;
 use light_ctoken_types::error::LightTokenSdkTypeError;
 use light_sdk::error::LightSdkError;
 use light_sdk_types::error::LightSdkTypesError;
@@ -78,7 +78,7 @@ pub enum CTokenSdkError {
     #[error(transparent)]
     CompressedTokenTypes(#[from] LightTokenSdkTypeError),
     #[error(transparent)]
-    CTokenError(#[from] CTokenError),
+    TokenError(#[from] TokenError),
     #[error(transparent)]
     LightSdkError(#[from] LightSdkError),
     #[error(transparent)]
@@ -137,7 +137,7 @@ impl From<CTokenSdkError> for u32 {
             CTokenSdkError::MissingCompressibleExtension => 17031,
             CTokenSdkError::InvalidCTokenAccount => 17032,
             CTokenSdkError::CompressedTokenTypes(e) => e.into(),
-            CTokenSdkError::CTokenError(e) => e.into(),
+            CTokenSdkError::TokenError(e) => e.into(),
             CTokenSdkError::LightSdkTypesError(e) => e.into(),
             CTokenSdkError::LightSdkError(e) => e.into(),
             CTokenSdkError::ZeroCopyError(e) => e.into(),

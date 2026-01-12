@@ -3,11 +3,11 @@ use anchor_lang::prelude::ProgramError;
 use arrayvec::ArrayVec;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::pubkey::AsPubkey;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::transfer2::{
         ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode,
     },
-    CTokenError,
+    TokenError,
 };
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
@@ -175,7 +175,7 @@ pub fn process_token_compression<'a>(
         if !transfers.is_empty() {
             // Check budget wasn't exhausted (0 means exceeded max_top_up)
             if max_top_up != 0 && lamports_budget == 0 {
-                return Err(CTokenError::MaxTopUpExceeded.into());
+                return Err(TokenError::MaxTopUpExceeded.into());
             }
             multi_transfer_lamports(fee_payer, &transfers).map_err(convert_program_error)?
         }

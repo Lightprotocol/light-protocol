@@ -1,7 +1,7 @@
 use anchor_lang::prelude::{AccountMeta, ProgramError};
 // Re-export all necessary imports for test modules
 pub use anchor_spl::token_2022::spl_token_2022;
-use light_ctoken_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
+use light_token_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
 pub use light_ctoken_sdk::ctoken::{
     derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount,
 };
@@ -356,7 +356,7 @@ impl CtokenToSplTransferAndClose {
         let compress_to_pool = CTokenAccount2 {
             inputs: vec![],
             output: MultiTokenTransferOutputData::default(),
-            compression: Some(Compression::compress_and_close_ctoken(
+            compression: Some(Compression::compress_and_close_token(
                 self.amount,
                 0, // mint index
                 1, // source ctoken account index

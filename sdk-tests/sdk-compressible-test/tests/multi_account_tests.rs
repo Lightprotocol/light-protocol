@@ -4,7 +4,7 @@ use anchor_lang::{
 use light_client::indexer::CompressedAccount;
 use light_compressed_account::address::derive_address;
 use light_compressible_client::compressible_instruction;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
     state::CompressedMintMetadata,
 };

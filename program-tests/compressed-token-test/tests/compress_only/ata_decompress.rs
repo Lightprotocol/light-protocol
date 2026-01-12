@@ -4,7 +4,7 @@
 //! decompressed to the exact same ATA pubkey that was originally compressed.
 
 use light_client::indexer::Indexer;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
     state::{ExtensionStruct, TokenDataVersion},
 };
@@ -312,14 +312,14 @@ async fn test_ata_decompress_to_correct_ata_succeeds() {
 
     // Verify ATA has tokens restored
     use borsh::BorshDeserialize;
-    use light_ctoken_interface::state::CToken;
+    use light_token_interface::state::Token;
     let dest_account = context
         .rpc
         .get_account(context.ata_pubkey)
         .await
         .unwrap()
         .unwrap();
-    let dest_ctoken = CToken::deserialize(&mut &dest_account.data[..]).unwrap();
+    let dest_ctoken = Token::deserialize(&mut &dest_account.data[..]).unwrap();
     assert_eq!(
         dest_ctoken.amount, context.amount,
         "Decompressed amount should match"
@@ -655,14 +655,14 @@ async fn test_decompress_to_account_with_balance_adds() {
 
     // Verify final balance is sum of existing + decompressed
     use borsh::BorshDeserialize;
-    use light_ctoken_interface::state::CToken;
+    use light_token_interface::state::Token;
     let dest_account = context
         .rpc
         .get_account(context.ata_pubkey)
         .await
         .unwrap()
         .unwrap();
-    let dest_ctoken = CToken::deserialize(&mut &dest_account.data[..]).unwrap();
+    let dest_ctoken = Token::deserialize(&mut &dest_account.data[..]).unwrap();
     assert_eq!(
         dest_ctoken.amount,
         pre_existing_amount + context.amount,
@@ -763,14 +763,14 @@ async fn test_decompress_skips_delegate_if_destination_has_delegate() {
 
     // Verify destination delegate is still Bob (not Alice)
     use borsh::BorshDeserialize;
-    use light_ctoken_interface::state::CToken;
+    use light_token_interface::state::Token;
     let dest_account = context
         .rpc
         .get_account(context.ata_pubkey)
         .await
         .unwrap()
         .unwrap();
-    let dest_ctoken = CToken::deserialize(&mut &dest_account.data[..]).unwrap();
+    let dest_ctoken = Token::deserialize(&mut &dest_account.data[..]).unwrap();
 
     assert_eq!(
         dest_ctoken.delegate,
@@ -790,7 +790,7 @@ async fn test_decompress_skips_delegate_if_destination_has_delegate() {
 async fn test_ata_decompress_with_mismatched_amount_fails() {
     use borsh::BorshSerialize;
     use light_compressed_account::compressed_account::PackedMerkleContext;
-    use light_ctoken_interface::{
+    use light_token_interface::{
         instructions::transfer2::{
             CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,
             MultiInputTokenDataWithContext,
@@ -963,7 +963,7 @@ async fn test_ata_decompress_with_mismatched_amount_fails() {
     let instruction_account_metas = get_transfer2_instruction_account_metas(meta_config);
 
     let decompress_ix = Instruction {
-        program_id: light_ctoken_interface::CTOKEN_PROGRAM_ID.into(),
+        program_id: light_token_interface::LIGHT_TOKEN_PROGRAM_ID.into(),
         accounts: instruction_account_metas,
         data,
     };
@@ -1278,10 +1278,10 @@ async fn test_ata_multiple_compress_decompress_cycles() {
 
     // Verify ATA has combined balance
     use borsh::BorshDeserialize;
-    use light_ctoken_interface::state::CToken;
+    use light_token_interface::state::Token;
 
     let ata_account = rpc.get_account(ata_pubkey).await.unwrap().unwrap();
-    let ata_ctoken = CToken::deserialize(&mut &ata_account.data[..]).unwrap();
+    let ata_ctoken = Token::deserialize(&mut &ata_account.data[..]).unwrap();
 
     assert_eq!(
         ata_ctoken.amount,
@@ -1505,13 +1505,13 @@ async fn test_non_ata_compress_only_decompress() {
 
     // Verify tokens restored
     use borsh::BorshDeserialize;
-    use light_ctoken_interface::state::CToken;
+    use light_token_interface::state::Token;
     let dest_account = context
         .rpc
         .get_account(new_account_keypair.pubkey())
         .await
         .unwrap()
         .unwrap();
-    let dest_ctoken = CToken::deserialize(&mut &dest_account.data[..]).unwrap();
+    let dest_ctoken = Token::deserialize(&mut &dest_account.data[..]).unwrap();
     assert_eq!(dest_ctoken.amount, mint_amount);
 }

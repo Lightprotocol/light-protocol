@@ -4,7 +4,7 @@
 //! when the mint has restricted extensions (Pausable, PermanentDelegate, TransferFeeConfig,
 //! TransferHook, DefaultAccountState).
 
-use light_ctoken_interface::state::TokenDataVersion;
+use light_token_interface::state::TokenDataVersion;
 use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
 use light_program_test::{
     program_test::LightProgramTest, utils::assert::assert_rpc_error, ProgramTestConfig, Rpc,

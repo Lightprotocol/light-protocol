@@ -1,7 +1,7 @@
 use anchor_lang::{AccountDeserialize, AnchorDeserialize, InstructionData, ToAccountMetas};
 use csdk_anchor_derived_test::{AccountCreationData, CompressionParams, GameSession, UserRecord};
 use light_compressed_account::address::derive_address;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
     state::CompressedMintMetadata,
 };

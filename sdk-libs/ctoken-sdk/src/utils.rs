@@ -1,7 +1,7 @@
 //! Utility functions and default account configurations.
 
-use light_ctoken_interface::{
-    instructions::transfer2::MultiInputTokenDataWithContext, state::CToken,
+use light_token_interface::{
+    instructions::transfer2::MultiInputTokenDataWithContext, state::Token,
 };
 use light_sdk_types::C_TOKEN_PROGRAM_ID;
 use solana_account_info::AccountInfo;
@@ -14,7 +14,7 @@ pub fn get_token_account_balance(token_account_info: &AccountInfo) -> Result<u64
     let data = token_account_info
         .try_borrow_data()
         .map_err(|_| CTokenSdkError::AccountBorrowFailed)?;
-    CToken::amount_from_slice(&data).map_err(|_| CTokenSdkError::InvalidAccountData)
+    Token::amount_from_slice(&data).map_err(|_| CTokenSdkError::InvalidAccountData)
 }
 
 pub fn is_ctoken_account(account_info: &AccountInfo) -> Result<bool, CTokenSdkError> {

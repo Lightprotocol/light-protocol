@@ -91,7 +91,7 @@ pub fn process_compress_full_and_close<'info>(
     invoke(&instruction, account_infos.as_slice())?;
 
     let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+        Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
     // Create close instruction with rent_sponsor for compressible accounts
     let close_instruction = CloseCTokenAccount::new(
         compressed_token_program_id,

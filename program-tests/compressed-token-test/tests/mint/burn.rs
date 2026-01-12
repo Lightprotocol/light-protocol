@@ -1,4 +1,4 @@
-use light_ctoken_interface::instructions::mint_action::Recipient;
+use light_token_interface::instructions::mint_action::Recipient;
 use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::find_cmint_address,
     ctoken::{derive_ctoken_ata, BurnCToken, CreateAssociatedCTokenAccount},
@@ -139,14 +139,14 @@ async fn test_ctoken_burn() {
 
     // Verify final balance is 0
     use anchor_lang::prelude::borsh::BorshDeserialize;
-    use light_ctoken_interface::state::CToken;
+    use light_token_interface::state::Token;
     let ctoken_after = ctx
         .rpc
         .get_account(ctx.ctoken_account)
         .await
         .unwrap()
         .unwrap();
-    let token_account: CToken =
+    let token_account: Token =
         BorshDeserialize::deserialize(&mut ctoken_after.data.as_slice()).unwrap();
     assert_eq!(
         token_account.amount, 0,

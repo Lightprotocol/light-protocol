@@ -163,7 +163,7 @@ async fn test_approve_fails() {
             100,
             Some(1), // max_top_up too low
             "max_topup_exceeded",
-            18043, // CTokenError::MaxTopUpExceeded
+            18043, // TokenError::MaxTopUpExceeded
         )
         .await;
     }
@@ -329,7 +329,7 @@ async fn test_revoke_fails() {
             &owner,
             Some(1), // max_top_up too low
             "max_topup_exceeded",
-            18043, // CTokenError::MaxTopUpExceeded
+            18043, // TokenError::MaxTopUpExceeded
         )
         .await;
     }
@@ -340,7 +340,7 @@ async fn test_revoke_fails() {
 // ============================================================================
 
 use anchor_lang::AnchorDeserialize;
-use light_ctoken_interface::state::{CToken, TokenDataVersion};
+use light_token_interface::state::{Token, TokenDataVersion};
 use light_ctoken_sdk::ctoken::{ApproveCToken, CreateCTokenAccount, RevokeCToken};
 use light_program_test::program_test::TestRpc;
 use light_test_utils::RpcError;
@@ -417,7 +417,7 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
 
     // Verify initial state
     let account_data_initial = context.rpc.get_account(account_pubkey).await?.unwrap();
-    let ctoken_initial = CToken::deserialize(&mut &account_data_initial.data[..])
+    let ctoken_initial = Token::deserialize(&mut &account_data_initial.data[..])
         .expect("Failed to deserialize CToken");
     assert_eq!(ctoken_initial.amount, token_balance);
     assert!(ctoken_initial.delegate.is_none());

@@ -4,7 +4,7 @@ mod shared;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
-use light_ctoken_interface::state::CToken;
+use light_token_interface::state::Token;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_sdk_types::C_TOKEN_PROGRAM_ID;
 use native_ctoken_examples::{ApproveData, InstructionType, ID, TOKEN_ACCOUNT_SEED};
@@ -64,7 +64,7 @@ async fn test_approve_invoke() {
 
     // Verify the delegate was set
     let ata_account = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken = CToken::deserialize(&mut &ata_account.data[..]).unwrap();
+    let ctoken = Token::deserialize(&mut &ata_account.data[..]).unwrap();
 
     assert_eq!(
         ctoken.delegate,
@@ -123,7 +123,7 @@ async fn test_approve_invoke_signed() {
 
     // Verify the delegate was set
     let ata_account = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken = CToken::deserialize(&mut &ata_account.data[..]).unwrap();
+    let ctoken = Token::deserialize(&mut &ata_account.data[..]).unwrap();
 
     assert_eq!(
         ctoken.delegate,
@@ -186,7 +186,7 @@ async fn test_revoke_invoke() {
     // Verify delegate was set
     let ata_account_after_approve = rpc.get_account(ata).await.unwrap().unwrap();
     let ctoken_after_approve =
-        CToken::deserialize(&mut &ata_account_after_approve.data[..]).unwrap();
+        Token::deserialize(&mut &ata_account_after_approve.data[..]).unwrap();
     assert!(
         ctoken_after_approve.delegate.is_some(),
         "Delegate should be set"
@@ -212,7 +212,7 @@ async fn test_revoke_invoke() {
 
     // Verify the delegate was cleared
     let ata_account_after_revoke = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_after_revoke = CToken::deserialize(&mut &ata_account_after_revoke.data[..]).unwrap();
+    let ctoken_after_revoke = Token::deserialize(&mut &ata_account_after_revoke.data[..]).unwrap();
 
     assert_eq!(
         ctoken_after_revoke.delegate, None,
@@ -272,7 +272,7 @@ async fn test_revoke_invoke_signed() {
     // Verify delegate was set
     let ata_account_after_approve = rpc.get_account(ata).await.unwrap().unwrap();
     let ctoken_after_approve =
-        CToken::deserialize(&mut &ata_account_after_approve.data[..]).unwrap();
+        Token::deserialize(&mut &ata_account_after_approve.data[..]).unwrap();
     assert!(
         ctoken_after_approve.delegate.is_some(),
         "Delegate should be set"
@@ -298,7 +298,7 @@ async fn test_revoke_invoke_signed() {
 
     // Verify the delegate was cleared
     let ata_account_after_revoke = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_after_revoke = CToken::deserialize(&mut &ata_account_after_revoke.data[..]).unwrap();
+    let ctoken_after_revoke = Token::deserialize(&mut &ata_account_after_revoke.data[..]).unwrap();
 
     assert_eq!(
         ctoken_after_revoke.delegate, None,

@@ -3,7 +3,7 @@
 //! This module tests the creation and verification of Token 2022 mints
 //! with all supported extensions.
 
-use light_ctoken_interface::state::{
+use light_token_interface::state::{
     ExtensionStruct, PausableAccountExtension, PermanentDelegateAccountExtension,
     TransferFeeAccountExtension, TransferHookAccountExtension, ACCOUNT_TYPE_TOKEN_ACCOUNT,
 };
@@ -79,7 +79,7 @@ async fn test_setup_mint_22_with_all_extensions() {
 #[tokio::test]
 #[serial]
 async fn test_mint_and_compress_with_extensions() {
-    use light_ctoken_interface::state::TokenDataVersion;
+    use light_token_interface::state::TokenDataVersion;
     use light_ctoken_sdk::{
         ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
         spl_interface::find_spl_interface_pda_with_index,
@@ -199,7 +199,7 @@ async fn test_mint_and_compress_with_extensions() {
 #[tokio::test]
 #[serial]
 async fn test_create_ctoken_with_extensions() {
-    use light_ctoken_interface::state::TokenDataVersion;
+    use light_token_interface::state::TokenDataVersion;
     use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
     use light_test_utils::assert_create_token_account::{
         assert_create_token_account, CompressibleData,
@@ -284,7 +284,7 @@ async fn test_create_ctoken_with_extensions() {
 async fn test_transfer_with_permanent_delegate() {
     use anchor_lang::prelude::AccountMeta;
     use anchor_spl::token_2022::spl_token_2022;
-    use light_ctoken_interface::state::TokenDataVersion;
+    use light_token_interface::state::TokenDataVersion;
     use light_ctoken_sdk::{
         ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
         spl_interface::find_spl_interface_pda_with_index,
@@ -485,7 +485,7 @@ async fn test_transfer_with_owner_authority() {
     use anchor_lang::prelude::AccountMeta;
     use anchor_spl::token_2022::spl_token_2022;
     use borsh::BorshDeserialize;
-    use light_ctoken_interface::state::{AccountState, CToken, TokenDataVersion};
+    use light_token_interface::state::{AccountState, Token, TokenDataVersion};
     use light_ctoken_sdk::{
         ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
         spl_interface::find_spl_interface_pda_with_index,
@@ -698,12 +698,12 @@ async fn test_transfer_with_owner_authority() {
     );
 
     // Deserialize and verify TransferFeeAccount extension on both accounts
-    let ctoken_a = CToken::deserialize(&mut &account_a.data[..]).unwrap();
-    let ctoken_b = CToken::deserialize(&mut &account_b.data[..]).unwrap();
+    let ctoken_a = Token::deserialize(&mut &account_a.data[..]).unwrap();
+    let ctoken_b = Token::deserialize(&mut &account_b.data[..]).unwrap();
 
-    // Build expected CToken accounts
+    // Build expected Token accounts
     // Compression fields are now in the Compressible extension
-    let expected_ctoken_a = CToken {
+    let expected_token_a = Token {
         mint: mint_pubkey.to_bytes().into(),
         owner: owner.pubkey().to_bytes().into(),
         amount: mint_amount - transfer_amount,
@@ -716,7 +716,7 @@ async fn test_transfer_with_owner_authority() {
         extensions: ctoken_a.extensions.clone(),
     };
 
-    let expected_ctoken_b = CToken {
+    let expected_token_b = Token {
         mint: mint_pubkey.to_bytes().into(),
         owner: owner.pubkey().to_bytes().into(),
         amount: transfer_amount,
@@ -730,11 +730,11 @@ async fn test_transfer_with_owner_authority() {
     };
 
     assert_eq!(
-        ctoken_a, expected_ctoken_a,
+        ctoken_a, expected_token_a,
         "Account A should match expected with withheld_amount=0"
     );
     assert_eq!(
-        ctoken_b, expected_ctoken_b,
+        ctoken_b, expected_token_b,
         "Account B should match expected with withheld_amount=0"
     );
 

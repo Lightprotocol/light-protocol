@@ -36,7 +36,7 @@ Key concepts integrated:
 - **Batch processing**: Multiple actions execute sequentially with state updates persisted between actions
 
 **Instruction data:**
-1. instruction data is defined in path: program-libs/ctoken-interface/src/instructions/mint_action/instruction_data.rs
+1. instruction data is defined in path: program-libs/token-interface/src/instructions/mint_action/instruction_data.rs
 
    **Core fields:**
    - `leaf_index`: u32 - Merkle tree leaf index of existing compressed mint (only used if create_mint is None)
@@ -49,7 +49,7 @@ Key concepts integrated:
    - `cpi_context`: Option<CpiContext> - For cross-program invocation support
    - `mint`: Option<CompressedMintInstructionData> - Full mint state including supply, decimals, metadata, authorities, and extensions (None when reading from decompressed CMint)
 
-2. Action types (path: program-libs/ctoken-interface/src/instructions/mint_action/):
+2. Action types (path: program-libs/token-interface/src/instructions/mint_action/):
    - `MintToCompressed(MintToCompressedAction)` - Mint tokens to compressed accounts (mint_to_compressed.rs)
    - `UpdateMintAuthority(UpdateAuthority)` - Update mint authority (update_mint.rs)
    - `UpdateFreezeAuthority(UpdateAuthority)` - Update freeze authority (update_mint.rs)

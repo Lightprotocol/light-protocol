@@ -1,13 +1,13 @@
 //! SPL interface PDA derivation utilities.
 //!
-//! Re-exports from `light_ctoken_interface` with convenience wrappers.
+//! Re-exports from `light_token_interface` with convenience wrappers.
 
-use light_ctoken_interface::{
+use light_token_interface::{
     discriminator::{ADD_TOKEN_POOL, CREATE_TOKEN_POOL},
-    CPI_AUTHORITY, CTOKEN_PROGRAM_ID,
+    CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID,
 };
-// Re-export derivation functions from ctoken-interface
-pub use light_ctoken_interface::{
+// Re-export derivation functions from token-interface
+pub use light_token_interface::{
     find_spl_interface_pda, find_spl_interface_pda_with_index, get_spl_interface_pda,
     has_restricted_extensions, is_valid_spl_interface_pda, NUM_MAX_POOL_ACCOUNTS,
 };
@@ -100,7 +100,7 @@ impl CreateSplInterfacePda {
         if self.index == 0 {
             // CreateTokenPool instruction
             Instruction {
-                program_id: Pubkey::from(CTOKEN_PROGRAM_ID),
+                program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
                 accounts: vec![
                     AccountMeta::new(self.fee_payer, true),
                     AccountMeta::new(self.spl_interface_pda, false),
@@ -116,7 +116,7 @@ impl CreateSplInterfacePda {
             let mut data = ADD_TOKEN_POOL.to_vec();
             data.push(self.index);
             Instruction {
-                program_id: Pubkey::from(CTOKEN_PROGRAM_ID),
+                program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
                 accounts: vec![
                     AccountMeta::new(self.fee_payer, true),
                     AccountMeta::new(self.spl_interface_pda, false),

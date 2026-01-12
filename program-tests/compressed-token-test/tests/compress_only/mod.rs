@@ -4,7 +4,7 @@
 //! with Token-2022 mints that have restricted extensions.
 
 use borsh::BorshDeserialize;
-use light_ctoken_interface::state::{AccountState, CToken, ExtensionStruct};
+use light_token_interface::state::{AccountState, Token, ExtensionStruct};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 pub use light_test_utils::{mint_2022::ALL_EXTENSIONS, Rpc};
 use light_test_utils::{
@@ -108,16 +108,16 @@ pub async fn set_ctoken_withheld_fee(
     account_pubkey: Pubkey,
     withheld_amount: u64,
 ) -> Result<(), RpcError> {
-    use light_ctoken_interface::state::{ExtensionStruct, TransferFeeAccountExtension};
+    use light_token_interface::state::{ExtensionStruct, TransferFeeAccountExtension};
 
     let mut account_info = rpc
         .get_account(account_pubkey)
         .await?
         .ok_or_else(|| RpcError::CustomError("Account not found".to_string()))?;
 
-    // Deserialize CToken to find and modify TransferFeeAccount extension
-    let mut ctoken = CToken::deserialize(&mut &account_info.data[..])
-        .map_err(|e| RpcError::CustomError(format!("Failed to deserialize CToken: {:?}", e)))?;
+    // Deserialize Token to find and modify TransferFeeAccount extension
+    let mut ctoken = Token::deserialize(&mut &account_info.data[..])
+        .map_err(|e| RpcError::CustomError(format!("Failed to deserialize Token: {:?}", e)))?;
 
     // Find and update TransferFeeAccount extension
     let mut found = false;
@@ -133,15 +133,15 @@ pub async fn set_ctoken_withheld_fee(
 
     if !found {
         return Err(RpcError::CustomError(
-            "TransferFeeAccount extension not found in CToken".to_string(),
+            "TransferFeeAccount extension not found in Token".to_string(),
         ));
     }
 
-    // Serialize the modified CToken back
+    // Serialize the modified Token back
     use borsh::BorshSerialize;
     let serialized = ctoken
         .try_to_vec()
-        .map_err(|e| RpcError::CustomError(format!("Failed to serialize CToken: {:?}", e)))?;
+        .map_err(|e| RpcError::CustomError(format!("Failed to serialize Token: {:?}", e)))?;
 
     // Update account data
     account_info.data = serialized;
@@ -154,7 +154,7 @@ pub async fn run_compress_and_close_extension_test(
     config: CompressAndCloseTestConfig,
 ) -> Result<(), RpcError> {
     use light_client::indexer::Indexer;
-    use light_ctoken_interface::{
+    use light_token_interface::{
         instructions::extensions::{
             CompressedOnlyExtensionInstructionData, ExtensionInstructionData,
         },
@@ -446,8 +446,8 @@ pub async fn run_compress_and_close_extension_test(
         .await?
         .ok_or_else(|| RpcError::CustomError("Dest account not found".to_string()))?;
 
-    let dest_ctoken = CToken::deserialize(&mut &dest_account_data.data[..])
-        .map_err(|e| RpcError::CustomError(format!("Failed to deserialize CToken: {:?}", e)))?;
+    let dest_ctoken = Token::deserialize(&mut &dest_account_data.data[..])
+        .map_err(|e| RpcError::CustomError(format!("Failed to deserialize Token: {:?}", e)))?;
 
     // Verify state matches config
     let expected_ctoken_state = if config.is_frozen {

@@ -11,17 +11,17 @@ default = []
 v1 = []
 compressible = []
 
-anchor = ["anchor-lang", "light-ctoken-types/anchor",  "light-ctoken-interface/anchor"]
+anchor = ["anchor-lang", "light-ctoken-types/anchor",  "light-token-interface/anchor"]
 cpi-context = ["light-sdk/cpi-context"]
 profile-program = [
     "light-program-profiler/profile-program",
     "light-compressed-account/profile-program",
-    "light-ctoken-interface/profile-program",
+    "light-token-interface/profile-program",
 ]
 profile-heap = [
     "light-program-profiler/profile-heap",
     "light-compressed-account/profile-heap",
-    "light-ctoken-interface/profile-heap",
+    "light-token-interface/profile-heap",
 ]
 
 [dependencies]
@@ -29,7 +29,7 @@ profile-heap = [
 light-ctoken-types = { workspace = true }
 light-compressed-account = { workspace = true, features = ["std"] }
 light-compressible = { workspace = true }
-light-ctoken-interface = { workspace = true }
+light-token-interface = { workspace = true }
 light-sdk = { workspace = true, features = ["v2"] }
 light-macros = { workspace = true }
 thiserror = { workspace = true }

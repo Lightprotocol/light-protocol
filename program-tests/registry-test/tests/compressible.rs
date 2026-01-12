@@ -7,10 +7,10 @@ use light_compressible::{
     compression_info::CompressionInfo, config::CompressibleConfig, error::CompressibleError,
     rent::SLOTS_PER_EPOCH,
 };
-use light_ctoken_interface::state::{extensions::ExtensionStruct, CToken};
+use light_token_interface::state::{extensions::ExtensionStruct, Token};
 
-/// Extract CompressionInfo from CToken's Compressible extension
-fn get_ctoken_compression_info(ctoken: &CToken) -> Option<CompressionInfo> {
+/// Extract CompressionInfo from Token's Compressible extension
+fn get_ctoken_compression_info(ctoken: &Token) -> Option<CompressionInfo> {
     ctoken
         .extensions
         .as_ref()?
@@ -129,7 +129,7 @@ async fn test_claim_rent_for_completed_epochs() -> Result<(), RpcError> {
             payer: &payer,
             token_account_keypair: None,
             lamports_per_write,
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         },
     )
     .await
@@ -188,7 +188,7 @@ async fn test_claim_multiple_accounts_different_epochs() {
                 payer: &payer,
                 token_account_keypair: None,
                 lamports_per_write: Some(100),
-                token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+                token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             },
         )
         .await
@@ -665,7 +665,7 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
         pre_pay_num_epochs: 2,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compression_only: true,
     };
 
@@ -755,7 +755,7 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
         pre_pay_num_epochs: 10,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compression_only: true,
     };
 
@@ -803,7 +803,7 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
         pre_pay_num_epochs: 2,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compression_only: true,
     };
 
@@ -1130,12 +1130,12 @@ async fn assert_not_compressible<R: Rpc>(
         .get_minimum_balance_for_rent_exemption(account.data.len())
         .await?;
 
-    let ctoken = CToken::deserialize(&mut account.data.as_slice())
-        .map_err(|e| RpcError::AssertRpcError(format!("Failed to deserialize CToken: {:?}", e)))?;
+    let ctoken = Token::deserialize(&mut account.data.as_slice())
+        .map_err(|e| RpcError::AssertRpcError(format!("Failed to deserialize Token: {:?}", e)))?;
 
     // Get CompressionInfo from the Compressible extension
     let compression_info = get_ctoken_compression_info(&ctoken).ok_or_else(|| {
-        RpcError::AssertRpcError("CToken should have Compressible extension".to_string())
+        RpcError::AssertRpcError("Token should have Compressible extension".to_string())
     })?;
     let current_slot = rpc.get_slot().await?;
 
@@ -1182,7 +1182,7 @@ async fn assert_not_compressible_cmint<R: Rpc>(
     name: &str,
 ) -> Result<(), RpcError> {
     use borsh::BorshDeserialize;
-    use light_ctoken_interface::state::CompressedMint;
+    use light_token_interface::state::CompressedMint;
 
     let account = rpc
         .get_account(account_pubkey)
@@ -1331,7 +1331,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
             payer: &payer,
             token_account_keypair: None,
             lamports_per_write: Some(400),
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         },
     )
     .await
@@ -1347,7 +1347,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
             payer: &payer,
             token_account_keypair: None,
             lamports_per_write: Some(400),
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         },
     )
     .await
@@ -1366,12 +1366,12 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     .await?;
 
     let account_a_data = rpc.get_account(account_a).await?.unwrap();
-    let ctoken_a = CToken::deserialize(&mut account_a_data.data.as_slice())
-        .map_err(|e| RpcError::AssertRpcError(format!("Failed to deserialize CToken: {:?}", e)))?;
+    let ctoken_a = Token::deserialize(&mut account_a_data.data.as_slice())
+        .map_err(|e| RpcError::AssertRpcError(format!("Failed to deserialize Token: {:?}", e)))?;
 
     // CompressionInfo is accessed via the Compressible extension
     let compression =
-        get_ctoken_compression_info(&ctoken_a).expect("CToken should have Compressible extension");
+        get_ctoken_compression_info(&ctoken_a).expect("Token should have Compressible extension");
     let rent_config = compression.rent_config;
 
     let account_size = account_a_data.data.len() as u64;
@@ -1388,18 +1388,18 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     let initial_slot = rpc.get_slot().await?;
 
     let get_last_claimed_slot_ctoken = |account_data: &[u8]| -> Result<u64, RpcError> {
-        let ctoken = CToken::deserialize(&mut &account_data[..]).map_err(|e| {
-            RpcError::AssertRpcError(format!("Failed to deserialize CToken: {:?}", e))
+        let ctoken = Token::deserialize(&mut &account_data[..]).map_err(|e| {
+            RpcError::AssertRpcError(format!("Failed to deserialize Token: {:?}", e))
         })?;
         let compression = get_ctoken_compression_info(&ctoken).ok_or_else(|| {
-            RpcError::AssertRpcError("CToken should have Compressible extension".to_string())
+            RpcError::AssertRpcError("Token should have Compressible extension".to_string())
         })?;
         Ok(compression.last_claimed_slot)
     };
 
     let get_last_claimed_slot_cmint = |account_data: &[u8]| -> Result<u64, RpcError> {
         use borsh::BorshDeserialize;
-        use light_ctoken_interface::state::CompressedMint;
+        use light_token_interface::state::CompressedMint;
         let cmint = CompressedMint::deserialize(&mut &account_data[..]).map_err(|e| {
             RpcError::AssertRpcError(format!("Failed to deserialize CMint: {:?}", e))
         })?;
@@ -1416,7 +1416,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     // Get CMint size and rent config for final verification
     let cmint_account = rpc.get_account(cmint_pda).await?.unwrap();
     let cmint_size = cmint_account.data.len() as u64;
-    let cmint_data = light_ctoken_interface::state::CompressedMint::deserialize(
+    let cmint_data = light_token_interface::state::CompressedMint::deserialize(
         &mut cmint_account.data.as_slice(),
     )
     .map_err(|e| RpcError::AssertRpcError(format!("Failed to deserialize CMint: {:?}", e)))?;
@@ -1611,7 +1611,7 @@ async fn test_claim_mixed_ctoken_and_cmint() -> Result<(), RpcError> {
             payer: &payer,
             token_account_keypair: None,
             lamports_per_write: Some(100),
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         },
     )
     .await

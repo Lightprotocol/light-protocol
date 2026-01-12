@@ -37,7 +37,7 @@ async fn setup_transfer_test(
             rent_sponsor,
             num_prepaid_epochs: source_epochs,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -53,7 +53,7 @@ async fn setup_transfer_test(
             rent_sponsor,
             num_prepaid_epochs: dest_epochs,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -343,7 +343,7 @@ async fn test_ctoken_transfer_frozen_source() {
     let owner_keypair = context.owner_keypair.insecure_clone();
 
     // Try to transfer from frozen account
-    // Expected error: CTokenError::InvalidAccountState (frozen accounts rejected by zero_copy_at_mut_checked)
+    // Expected error: TokenError::InvalidAccountState (frozen accounts rejected by zero_copy_at_mut_checked)
     transfer_and_assert_fails(
         &mut context,
         source,
@@ -351,7 +351,7 @@ async fn test_ctoken_transfer_frozen_source() {
         500,
         &owner_keypair,
         "frozen_source_transfer",
-        18036, // CTokenError::InvalidAccountState
+        18036, // TokenError::InvalidAccountState
     )
     .await;
 }
@@ -371,7 +371,7 @@ async fn test_ctoken_transfer_frozen_destination() {
     let owner_keypair = context.owner_keypair.insecure_clone();
 
     // Try to transfer to frozen account
-    // Expected error: CTokenError::InvalidAccountState (frozen accounts rejected by zero_copy_at_mut_checked)
+    // Expected error: TokenError::InvalidAccountState (frozen accounts rejected by zero_copy_at_mut_checked)
     transfer_and_assert_fails(
         &mut context,
         source,
@@ -379,7 +379,7 @@ async fn test_ctoken_transfer_frozen_destination() {
         500,
         &owner_keypair,
         "frozen_destination_transfer",
-        18036, // CTokenError::InvalidAccountState
+        18036, // TokenError::InvalidAccountState
     )
     .await;
 }
@@ -478,7 +478,7 @@ async fn test_ctoken_transfer_mixed_compressible_non_compressible() {
         rent_sponsor: context.rent_sponsor,
         num_prepaid_epochs: 5, // More epochs with higher lamports_per_write
         lamports_per_write: Some(100),
-        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compress_to_pubkey: false,
         payer: payer_pubkey,
     };
@@ -494,7 +494,7 @@ async fn test_ctoken_transfer_mixed_compressible_non_compressible() {
         rent_sponsor: context.rent_sponsor,
         num_prepaid_epochs: 3, // Standard 3 epochs sufficient for no top-up
         lamports_per_write: None,
-        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compress_to_pubkey: false,
         payer: payer_pubkey,
     };
@@ -613,7 +613,7 @@ async fn setup_transfer_checked_test_with_spl_mint(
             pre_pay_num_epochs: source_epochs,
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compression_only: false,
         };
 
@@ -647,7 +647,7 @@ async fn setup_transfer_checked_test_with_spl_mint(
             pre_pay_num_epochs: dest_epochs,
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
-            token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compression_only: false,
         };
 
@@ -887,7 +887,7 @@ async fn test_ctoken_transfer_checked_wrong_mint() {
         9,
         &owner_keypair,
         "wrong_mint_transfer_checked",
-        18002, // CTokenError::MintMismatch
+        18002, // TokenError::MintMismatch
     )
     .await;
 }

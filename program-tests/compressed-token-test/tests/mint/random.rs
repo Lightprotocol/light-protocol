@@ -1,7 +1,7 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_client::indexer::Indexer;
-use light_ctoken_interface::state::{extensions::AdditionalMetadata, CompressedMint};
+use light_token_interface::state::{extensions::AdditionalMetadata, CompressedMint};
 use light_ctoken_sdk::{
     compressed_token::create_compressed_mint::{
         derive_cmint_compressed_address, find_cmint_address,
@@ -84,7 +84,7 @@ async fn test_random_mint_action() {
         8, // decimals
         &authority,
         Some(authority.pubkey()),
-        Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+        Some(light_token_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
             update_authority: Some(authority.pubkey().into()),
             name: "Test Token".as_bytes().to_vec(),
             symbol: "TEST".as_bytes().to_vec(),
@@ -111,7 +111,7 @@ async fn test_random_mint_action() {
         8,
         authority.pubkey(),
         authority.pubkey(),
-        Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+        Some(light_token_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
             update_authority: Some(authority.pubkey().into()),
             name: "Test Token".as_bytes().to_vec(),
             symbol: "TEST".as_bytes().to_vec(),

@@ -32,7 +32,7 @@
 //
 
 use light_client::indexer::{CompressedTokenAccount, Indexer};
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::{mint_action::Recipient, transfer2::MultiInputTokenDataWithContext},
     state::TokenDataVersion,
 };
@@ -253,7 +253,7 @@ async fn create_decompression_inputs(
 
     // Add decompression
     token_account
-        .decompress_ctoken(decompress_amount, ctoken_ata_index)
+        .decompress_token(decompress_amount, ctoken_ata_index)
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to decompress: {:?}", e)))?;
 
     // Get account metas

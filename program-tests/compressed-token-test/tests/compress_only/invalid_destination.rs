@@ -8,7 +8,7 @@
 
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::indexer::Indexer;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
     state::TokenDataVersion,
 };

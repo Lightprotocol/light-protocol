@@ -1,7 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
     state::{CompressedMint, CompressedMintConfig},
 };

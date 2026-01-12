@@ -4,7 +4,7 @@ mod shared;
 
 use borsh::BorshSerialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::extensions::{
         token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,
     },
@@ -39,7 +39,7 @@ async fn test_create_compressed_mint() {
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+        Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
 
     // Use SDK helper to derive the compression address correctly
     let compression_address = light_ctoken_sdk::ctoken::derive_cmint_compressed_address(
@@ -147,7 +147,7 @@ async fn test_create_compressed_mint_invoke_signed() {
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+        Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
 
     // Use SDK helper to derive the compression address correctly
     let compression_address = light_ctoken_sdk::ctoken::derive_cmint_compressed_address(

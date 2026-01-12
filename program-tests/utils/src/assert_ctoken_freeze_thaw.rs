@@ -6,7 +6,7 @@
 
 use anchor_lang::AnchorDeserialize;
 use light_client::rpc::Rpc;
-use light_ctoken_interface::state::{AccountState, CToken};
+use light_token_interface::state::{AccountState, Token};
 use light_program_test::LightProgramTest;
 use solana_sdk::pubkey::Pubkey;
 
@@ -33,12 +33,12 @@ pub async fn assert_ctoken_freeze(rpc: &mut LightProgramTest, token_account: Pub
 
     // Parse pre and post CToken states
     let pre_ctoken =
-        CToken::deserialize(&mut &pre_account.data[..]).expect("Failed to deserialize pre CToken");
-    let post_ctoken = CToken::deserialize(&mut &post_account.data[..])
+        Token::deserialize(&mut &pre_account.data[..]).expect("Failed to deserialize pre CToken");
+    let post_ctoken = Token::deserialize(&mut &post_account.data[..])
         .expect("Failed to deserialize post CToken");
 
     // Build expected by modifying only the changed fields from pre-state
-    let expected_ctoken = CToken {
+    let expected_ctoken = Token {
         state: AccountState::Frozen,
         ..pre_ctoken
     };
@@ -72,12 +72,12 @@ pub async fn assert_ctoken_thaw(rpc: &mut LightProgramTest, token_account: Pubke
 
     // Parse pre and post CToken states
     let pre_ctoken =
-        CToken::deserialize(&mut &pre_account.data[..]).expect("Failed to deserialize pre CToken");
-    let post_ctoken = CToken::deserialize(&mut &post_account.data[..])
+        Token::deserialize(&mut &pre_account.data[..]).expect("Failed to deserialize pre CToken");
+    let post_ctoken = Token::deserialize(&mut &post_account.data[..])
         .expect("Failed to deserialize post CToken");
 
     // Build expected by modifying only the changed fields from pre-state
-    let expected_ctoken = CToken {
+    let expected_ctoken = Token {
         state: AccountState::Initialized,
         ..pre_ctoken
     };

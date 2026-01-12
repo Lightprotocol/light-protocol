@@ -4,7 +4,7 @@
 //! TransferFee, TransferHook) cannot use CTokenTransfer and must use CTokenTransferChecked.
 
 use anchor_spl::token_2022::spl_token_2022;
-use light_ctoken_interface::state::TokenDataVersion;
+use light_token_interface::state::TokenDataVersion;
 use light_ctoken_sdk::{
     ctoken::{
         CompressibleParams, CreateCTokenAccount, TransferCToken, TransferCTokenChecked,

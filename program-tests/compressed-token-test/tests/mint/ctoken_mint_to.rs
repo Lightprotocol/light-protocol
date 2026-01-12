@@ -134,14 +134,14 @@ async fn test_ctoken_mint_to() {
 
     // Verify final balance is 1000
     use anchor_lang::prelude::borsh::BorshDeserialize;
-    use light_ctoken_interface::state::CToken;
+    use light_token_interface::state::Token;
     let ctoken_after = ctx
         .rpc
         .get_account(ctx.ctoken_account)
         .await
         .unwrap()
         .unwrap();
-    let token_account: CToken =
+    let token_account: Token =
         BorshDeserialize::deserialize(&mut ctoken_after.data.as_slice()).unwrap();
     assert_eq!(
         token_account.amount, 1000,
@@ -183,14 +183,14 @@ async fn test_ctoken_mint_to_checked_success() {
 
     // Verify balance
     use anchor_lang::prelude::borsh::BorshDeserialize;
-    use light_ctoken_interface::state::CToken;
+    use light_token_interface::state::Token;
     let ctoken_after = ctx
         .rpc
         .get_account(ctx.ctoken_account)
         .await
         .unwrap()
         .unwrap();
-    let token_account: CToken =
+    let token_account: Token =
         BorshDeserialize::deserialize(&mut ctoken_after.data.as_slice()).unwrap();
     assert_eq!(token_account.amount, 500, "Balance should be 500");
 

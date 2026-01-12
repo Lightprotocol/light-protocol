@@ -21,13 +21,13 @@ profile-program = [
     "light-ctoken-sdk/profile-program",
     "light-program-profiler/profile-program",
     "light-compressed-account/profile-program",
-    "light-ctoken-interface/profile-program",
+    "light-token-interface/profile-program",
 ]
 profile-heap = [
     "light-ctoken-sdk/profile-heap",
     "light-program-profiler/profile-heap",
     "light-compressed-account/profile-heap",
-    "light-ctoken-interface/profile-heap",
+    "light-token-interface/profile-heap",
 ]
 
 [dependencies]
@@ -40,7 +40,7 @@ light-sdk-types = { workspace = true, features = ["cpi-context"] }
 light-compressed-account = { workspace = true, features = ["std"] }
 arrayvec = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
-light-ctoken-interface = { workspace = true, features = ["anchor"] }
+light-token-interface = { workspace = true, features = ["anchor"] }
 light-zero-copy = { workspace = true }
 light-program-profiler = { workspace = true }
 

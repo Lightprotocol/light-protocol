@@ -103,12 +103,12 @@ pub use decompress::DecompressToCtoken;
 pub use decompress_cmint::*;
 pub use freeze::*;
 use light_compressible::config::CompressibleConfig;
-pub use light_ctoken_interface::{
+pub use light_token_interface::{
     instructions::{
         extensions::{CompressToPubkey, ExtensionInstructionData},
         mint_action::CompressedMintWithContext,
     },
-    state::{CToken, TokenDataVersion},
+    state::{Token, TokenDataVersion},
 };
 use light_ctoken_types::POOL_SEED;
 pub use mint_to::*;

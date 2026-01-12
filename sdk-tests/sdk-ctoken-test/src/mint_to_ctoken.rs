@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_ctoken_interface::instructions::mint_action::CompressedMintWithContext;
+use light_token_interface::instructions::mint_action::CompressedMintWithContext;
 use light_ctoken_sdk::ctoken::{MintToCTokenCpi, MintToCTokenParams, SystemAccountInfos};
 use light_sdk::instruction::ValidityProof;
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};

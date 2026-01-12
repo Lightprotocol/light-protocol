@@ -1,7 +1,7 @@
 //! Pack implementation for TokenData types for c-tokens.
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
-pub use light_ctoken_interface::state::TokenData;
-use light_ctoken_interface::state::TokenDataVersion;
+pub use light_token_interface::state::TokenData;
+use light_token_interface::state::TokenDataVersion;
 use light_sdk::{
     instruction::PackedAccounts,
     light_hasher::{sha256::Sha256BE, HasherError},
@@ -25,7 +25,7 @@ pub trait Unpack {
 }
 
 impl Pack for TokenData {
-    type Packed = light_ctoken_interface::instructions::transfer2::MultiTokenTransferOutputData;
+    type Packed = light_token_interface::instructions::transfer2::MultiTokenTransferOutputData;
 
     fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
         Self::Packed {
@@ -68,14 +68,14 @@ pub mod compat {
         Frozen = 1,
     }
 
-    impl From<AccountState> for light_ctoken_interface::state::CompressedTokenAccountState {
+    impl From<AccountState> for light_token_interface::state::CompressedTokenAccountState {
         fn from(state: AccountState) -> Self {
             match state {
                 AccountState::Initialized => {
-                    light_ctoken_interface::state::CompressedTokenAccountState::Initialized
+                    light_token_interface::state::CompressedTokenAccountState::Initialized
                 }
                 AccountState::Frozen => {
-                    light_ctoken_interface::state::CompressedTokenAccountState::Frozen
+                    light_token_interface::state::CompressedTokenAccountState::Frozen
                 }
             }
         }
@@ -109,7 +109,7 @@ pub mod compat {
         /// The account's state
         pub state: AccountState,
         /// TLV extensions for compressed token accounts
-        pub tlv: Option<Vec<light_ctoken_interface::state::ExtensionStruct>>,
+        pub tlv: Option<Vec<light_token_interface::state::ExtensionStruct>>,
     }
 
     impl TokenData {
@@ -146,7 +146,7 @@ pub mod compat {
 
     impl From<TokenData> for crate::pack::TokenData {
         fn from(data: TokenData) -> Self {
-            use light_ctoken_interface::state::CompressedTokenAccountState;
+            use light_token_interface::state::CompressedTokenAccountState;
 
             Self {
                 mint: data.mint.to_bytes().into(),
@@ -321,7 +321,7 @@ pub mod compat {
 
     // TODO: remove aliases in separate PR
     pub type InputTokenDataCompressible =
-        light_ctoken_interface::instructions::transfer2::MultiTokenTransferOutputData;
+        light_token_interface::instructions::transfer2::MultiTokenTransferOutputData;
     pub type CompressibleTokenDataWithVariant<V> = CTokenDataWithVariant<V>;
     pub type PackedCompressibleTokenDataWithVariant<V> = PackedCTokenDataWithVariant<V>;
     pub type CTokenData<V> = CTokenDataWithVariant<V>;

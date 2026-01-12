@@ -19,7 +19,7 @@ use light_compressed_token::{
         token_output::set_output_compressed_account,
     },
 };
-use light_ctoken_interface::{
+use light_token_interface::{
     hash_cache::HashCache,
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
     state::{

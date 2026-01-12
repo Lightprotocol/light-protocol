@@ -10,7 +10,7 @@ use light_compressed_token::{
     },
     constants::COMPRESSED_MINT_DISCRIMINATOR,
 };
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::{
         extensions::{ExtensionInstructionData, TokenMetadataInstructionData},
         mint_action::{CompressedMintInstructionData, MintActionCompressedInstructionData},
@@ -240,7 +240,7 @@ fn test_rnd_create_compressed_mint_account() {
             for (zc_ext, orig_ext) in zc_extensions.iter().zip(orig_extensions.iter()) {
                 match (zc_ext, orig_ext) {
                     (
-                        light_ctoken_interface::instructions::extensions::ZExtensionInstructionData::TokenMetadata(zc_metadata),
+                        light_token_interface::instructions::extensions::ZExtensionInstructionData::TokenMetadata(zc_metadata),
                         ExtensionInstructionData::TokenMetadata(orig_metadata),
                     ) => {
                         assert_eq!(zc_metadata.name, orig_metadata.name.as_slice());

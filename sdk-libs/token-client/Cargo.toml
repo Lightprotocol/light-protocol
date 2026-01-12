@@ -10,7 +10,7 @@ edition = { workspace = true }
 light-ctoken-types = { workspace = true }
 light-compressed-account = { workspace = true, features = ["std"] }
 light-compressible = { workspace = true, features = ["anchor"] }
-light-ctoken-interface = { workspace = true }
+light-token-interface = { workspace = true }
 light-sdk = { workspace = true }
 light-client = { workspace = true, features = ["v2"] }
 light-ctoken-sdk = { workspace = true }

@@ -10,7 +10,7 @@ pub mod process_mint;
 pub mod process_transfer;
 use process_compress_spl_token_account::process_compress_spl_token_account;
 pub mod spl_compression;
-pub use light_ctoken_interface::state::TokenData;
+pub use light_token_interface::state::TokenData;
 pub use process_mint::*;
 pub mod delegation;
 pub mod freeze;
@@ -38,7 +38,7 @@ pub mod light_compressed_token {
 
     use constants::{NOT_FROZEN, NUM_MAX_POOL_ACCOUNTS};
     use instructions::create_token_pool::restricted_seed;
-    use light_ctoken_interface::is_valid_spl_interface_pda;
+    use light_token_interface::is_valid_spl_interface_pda;
     use light_zero_copy::traits::ZeroCopyAt;
 
     use super::*;

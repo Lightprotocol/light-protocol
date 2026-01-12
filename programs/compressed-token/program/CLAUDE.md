@@ -184,7 +184,7 @@ Operations on CToken Solana accounts (decompressed compressed tokens).
 - **`lib.rs`** - Main entry point and instruction dispatch (contains `InstructionType` enum)
 
 ## Data Structures
-All state and instruction data structures are defined in **`program-libs/ctoken-interface/`** (`light-ctoken-interface` crate):
+All state and instruction data structures are defined in **`program-libs/token-interface/`** (`light-token-interface` crate):
 - **`state/`** - Account state structures
   - `compressed_token/` - TokenData, hashing
   - `ctoken/` - CToken (decompressed account) structure
@@ -201,7 +201,7 @@ All state and instruction data structures are defined in **`program-libs/ctoken-
 Custom error codes are defined in **`programs/compressed-token/anchor/src/lib.rs`** (`anchor_compressed_token::ErrorCode` enum):
 - Contains all program-specific error codes used across compressed token operations
 - Errors are returned as `ProgramError::Custom(error_code as u32)` on-chain
-- CToken-specific errors are also defined in **`program-libs/ctoken-interface/src/error.rs`** (`CTokenError` enum)
+- CToken-specific errors are also defined in **`program-libs/token-interface/src/error.rs`** (`CTokenError` enum)
 
 ### Error Conversion Functions (`shared/convert_program_error.rs`)
 

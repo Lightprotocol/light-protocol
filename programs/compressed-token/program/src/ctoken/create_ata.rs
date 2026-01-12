@@ -1,7 +1,7 @@
 use anchor_lang::prelude::ProgramError;
 use borsh::BorshDeserialize;
 use light_account_checks::AccountIterator;
-use light_ctoken_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
+use light_token_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
 use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, instruction::Seed};
 use spl_pod::solana_msg::msg;
@@ -115,7 +115,7 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     } else {
         // Non-compressible path: fee_payer pays for account creation directly
         // Non-compressible accounts have no extensions (base 165-byte SPL layout)
-        let account_size = light_ctoken_interface::BASE_TOKEN_ACCOUNT_SIZE as usize;
+        let account_size = light_token_interface::BASE_TOKEN_ACCOUNT_SIZE as usize;
 
         create_pda_account(
             fee_payer,

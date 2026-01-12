@@ -4,7 +4,7 @@ mod shared;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
-use light_ctoken_interface::state::CToken;
+use light_token_interface::state::Token;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_sdk_types::C_TOKEN_PROGRAM_ID;
 use native_ctoken_examples::{InstructionType, MintToData, ID, MINT_AUTHORITY_SEED};
@@ -39,7 +39,7 @@ async fn test_ctoken_mint_to_invoke() {
 
     // Get initial state
     let ata_account_before = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_before = CToken::deserialize(&mut &ata_account_before.data[..]).unwrap();
+    let ctoken_before = Token::deserialize(&mut &ata_account_before.data[..]).unwrap();
 
     // Build mint instruction via wrapper program
     let mut instruction_data = vec![InstructionType::CTokenMintToInvoke as u8];
@@ -69,7 +69,7 @@ async fn test_ctoken_mint_to_invoke() {
 
     // Verify with single assert_eq
     let ata_account_after = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_after = CToken::deserialize(&mut &ata_account_after.data[..]).unwrap();
+    let ctoken_after = Token::deserialize(&mut &ata_account_after.data[..]).unwrap();
 
     let mut expected_ctoken = ctoken_before;
     expected_ctoken.amount = 500; // 0 + 500
@@ -90,7 +90,7 @@ async fn test_ctoken_mint_to_invoke() {
 #[tokio::test]
 async fn test_ctoken_mint_to_invoke_signed() {
     use light_client::indexer::Indexer;
-    use light_ctoken_interface::{
+    use light_token_interface::{
         instructions::mint_action::CompressedMintWithContext, state::CompressedMint,
     };
     use light_ctoken_sdk::ctoken::CreateAssociatedCTokenAccount;
@@ -135,7 +135,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
             .value;
 
         let compressed_token_program_id =
-            Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+            Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
         let default_pubkeys = light_ctoken_sdk::utils::CTokenDefaultAccounts::default();
 
         let create_cmint_data = CreateCmintData {
@@ -249,7 +249,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
         // 13: account_compression_program (readonly)
         // 14: system_program (readonly)
         // 15: ctoken_program (readonly) - required for CPI
-        let ctoken_program_id = Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+        let ctoken_program_id = Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
         let wrapper_accounts = vec![
             AccountMeta::new_readonly(mint_signer_pda, false),
             AccountMeta::new_readonly(pda_mint_authority, false),
@@ -299,7 +299,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
 
     // Get initial state
     let ata_account_before = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_before = CToken::deserialize(&mut &ata_account_before.data[..]).unwrap();
+    let ctoken_before = Token::deserialize(&mut &ata_account_before.data[..]).unwrap();
 
     // Step 4: Mint tokens using PDA authority via invoke_signed
     let mut instruction_data = vec![InstructionType::CTokenMintToInvokeSigned as u8];
@@ -328,7 +328,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
 
     // Verify with single assert_eq
     let ata_account_after = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_after = CToken::deserialize(&mut &ata_account_after.data[..]).unwrap();
+    let ctoken_after = Token::deserialize(&mut &ata_account_after.data[..]).unwrap();
 
     let mut expected_ctoken = ctoken_before;
     expected_ctoken.amount = 1000; // 0 + 1000

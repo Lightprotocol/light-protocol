@@ -1,5 +1,5 @@
 use light_compressed_account::compressed_account::PackedMerkleContext;
-use light_ctoken_interface::instructions::{
+use light_token_interface::instructions::{
     extensions::ExtensionInstructionData,
     transfer2::{CompressedCpiContext, MultiInputTokenDataWithContext},
 };
@@ -75,7 +75,7 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
         let mut token_account = CTokenAccount2::new(vec![idx.source])?;
 
         // Set up decompress_full - decompress entire balance to destination ctoken account
-        token_account.decompress_ctoken(idx.source.amount, idx.destination_index)?;
+        token_account.decompress_token(idx.source.amount, idx.destination_index)?;
         token_accounts.push(token_account);
 
         // Collect TLV data for this input

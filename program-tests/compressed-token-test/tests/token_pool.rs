@@ -11,7 +11,7 @@ use light_compressed_token::{
     mint_sdk::create_create_token_pool_instruction, process_transfer::get_cpi_authority_pda,
     spl_compression::check_spl_token_pool_derivation_with_index, ErrorCode,
 };
-use light_ctoken_interface::{
+use light_token_interface::{
     find_spl_interface_pda, find_spl_interface_pda_with_index, has_restricted_extensions,
 };
 use light_ctoken_sdk::spl_interface::CreateSplInterfacePda;

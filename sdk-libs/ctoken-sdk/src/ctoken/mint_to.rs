@@ -1,8 +1,8 @@
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof, traits::LightInstructionData,
 };
-use light_ctoken_interface::instructions::mint_action::{
-    CompressedMintWithContext, CpiContext, MintToCTokenAction,
+use light_token_interface::instructions::mint_action::{
+    CompressedMintWithContext, CpiContext, MintToTokenAction,
 };
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
@@ -19,7 +19,7 @@ use crate::compressed_token::mint_action::{
 #[derive(Debug, Clone)]
 pub struct MintToCTokenParams {
     pub compressed_mint_inputs: CompressedMintWithContext,
-    pub mint_to_actions: Vec<MintToCTokenAction>,
+    pub mint_to_actions: Vec<MintToTokenAction>,
     pub mint_authority: Pubkey,
     pub proof: ValidityProof,
 }
@@ -33,7 +33,7 @@ impl MintToCTokenParams {
     ) -> Self {
         Self {
             compressed_mint_inputs,
-            mint_to_actions: vec![MintToCTokenAction {
+            mint_to_actions: vec![MintToTokenAction {
                 account_index: 0, // TODO: make dynamic
                 amount,
             }],
@@ -43,7 +43,7 @@ impl MintToCTokenParams {
     }
 
     pub fn add_mint_to_action(mut self, account_index: u8, amount: u64) -> Self {
-        self.mint_to_actions.push(MintToCTokenAction {
+        self.mint_to_actions.push(MintToTokenAction {
             account_index,
             amount,
         });
@@ -123,14 +123,14 @@ impl MintToCToken {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         // Build instruction data with mint_to_ctoken actions
         let mut instruction_data =
-            light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new(
+            light_token_interface::instructions::mint_action::MintActionCompressedInstructionData::new(
                 self.params.compressed_mint_inputs.clone(),
                 self.params.proof.0,
             );
 
         // Add all mint_to_ctoken actions
         for action in self.params.mint_to_actions {
-            instruction_data = instruction_data.with_mint_to_ctoken(action);
+            instruction_data = instruction_data.with_mint_to_token(action);
         }
 
         if let Some(ctx) = self.cpi_context {
@@ -162,7 +162,7 @@ impl MintToCToken {
             .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
 
         Ok(Instruction {
-            program_id: Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+            program_id: Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
             accounts: account_metas,
             data,
         })
@@ -176,7 +176,7 @@ impl MintToCToken {
 #[derive(Debug, Clone)]
 pub struct MintToCTokenCpiWriteParams {
     pub compressed_mint_inputs: CompressedMintWithContext,
-    pub mint_to_actions: Vec<MintToCTokenAction>,
+    pub mint_to_actions: Vec<MintToTokenAction>,
     pub mint_authority: Pubkey,
     pub cpi_context: CpiContext,
 }
@@ -190,7 +190,7 @@ impl MintToCTokenCpiWriteParams {
     ) -> Self {
         Self {
             compressed_mint_inputs,
-            mint_to_actions: vec![MintToCTokenAction {
+            mint_to_actions: vec![MintToTokenAction {
                 account_index: 0, // TODO: make dynamic
                 amount,
             }],
@@ -200,7 +200,7 @@ impl MintToCTokenCpiWriteParams {
     }
 
     pub fn add_mint_to_action(mut self, account_index: u8, amount: u64) -> Self {
-        self.mint_to_actions.push(MintToCTokenAction {
+        self.mint_to_actions.push(MintToTokenAction {
             account_index,
             amount,
         });
@@ -246,14 +246,14 @@ impl MintToCTokenCpiWrite {
 
         // Build instruction data with mint_to_ctoken actions
         let mut instruction_data =
-            light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new(
+            light_token_interface::instructions::mint_action::MintActionCompressedInstructionData::new(
                 self.params.compressed_mint_inputs.clone(),
                 None, // No proof for CPI write
             );
 
         // Add all mint_to_ctoken actions
         for action in self.params.mint_to_actions {
-            instruction_data = instruction_data.with_mint_to_ctoken(action);
+            instruction_data = instruction_data.with_mint_to_token(action);
         }
 
         instruction_data = instruction_data.with_cpi_context(self.params.cpi_context);
@@ -272,7 +272,7 @@ impl MintToCTokenCpiWrite {
             .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
 
         Ok(Instruction {
-            program_id: Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+            program_id: Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
             accounts: account_metas,
             data,
         })

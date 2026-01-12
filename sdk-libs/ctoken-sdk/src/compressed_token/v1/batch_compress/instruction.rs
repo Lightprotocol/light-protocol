@@ -1,4 +1,4 @@
-use light_ctoken_interface;
+use light_token_interface;
 use light_ctoken_types::{
     instruction::batch_compress::BatchCompressInstructionData, BATCH_COMPRESS,
 };
@@ -78,7 +78,7 @@ pub fn create_batch_compress_instruction(inputs: BatchCompressInputs) -> Result<
     let account_metas = get_batch_compress_instruction_account_metas(meta_config);
 
     Ok(Instruction {
-        program_id: Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+        program_id: Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
         accounts: account_metas,
         data,
     })

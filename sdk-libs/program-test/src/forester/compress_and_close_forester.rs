@@ -83,7 +83,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     packed_accounts.insert_or_get(output_queue);
 
     // Parse the ctoken account to get required pubkeys
-    use light_ctoken_interface::state::CToken;
+    use light_token_interface::state::Token;
     use light_zero_copy::traits::ZeroCopyAt;
 
     let mut indices_vec = Vec::with_capacity(solana_ctoken_accounts.len());
@@ -108,7 +108,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
                 ))
             })?;
 
-        let (ctoken_account, _) = CToken::zero_copy_at(ctoken_solana_account.data.as_slice())
+        let (ctoken_account, _) = Token::zero_copy_at(ctoken_solana_account.data.as_slice())
             .map_err(|e| {
                 RpcError::CustomError(format!(
                     "Failed to parse ctoken account {}: {:?}",

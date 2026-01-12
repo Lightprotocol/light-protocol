@@ -1,5 +1,5 @@
 //! Runtime helpers for token decompression.
-use light_ctoken_interface::instructions::{
+use light_token_interface::instructions::{
     extensions::CompressToPubkey, transfer2::MultiInputTokenDataWithContext,
 };
 use light_sdk::{cpi::v2::CpiAccounts, instruction::ValidityProof};
@@ -155,7 +155,7 @@ where
                 pre_pay_num_epochs: 2,
                 lamports_per_write: None,
                 compress_to_account_pubkey: compress_to_pubkey,
-                token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+                token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
                 compression_only: false,
             },
         }

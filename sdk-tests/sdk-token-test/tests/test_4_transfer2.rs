@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::AccountMeta, InstructionData};
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::{
         mint_action::{CompressedMintWithContext, Recipient},
         transfer2::MultiInputTokenDataWithContext,
@@ -156,7 +156,7 @@ async fn create_compressed_mint_helper(
 
     // Find mint PDA
     let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+        Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
     let (mint_pda, _) = Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_signer.pubkey().as_ref()],
         &compressed_token_program_id,
@@ -229,7 +229,7 @@ async fn mint_compressed_tokens(
         .unwrap();
 
     // Create expected compressed mint for the input
-    let expected_compressed_mint = light_ctoken_interface::state::CompressedMint {
+    let expected_compressed_mint = light_token_interface::state::CompressedMint {
         base: BaseMint {
             mint_authority: Some(payer.pubkey().into()),
             supply: 0,

@@ -3,7 +3,7 @@
 //! This module provides actions for working with SPL interface PDAs (token pools).
 
 use light_client::rpc::{Rpc, RpcError};
-use light_ctoken_interface::has_restricted_extensions;
+use light_token_interface::has_restricted_extensions;
 use light_ctoken_sdk::spl_interface::{find_spl_interface_pda, CreateSplInterfacePda};
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;

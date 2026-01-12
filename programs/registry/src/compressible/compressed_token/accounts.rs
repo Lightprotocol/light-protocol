@@ -4,8 +4,8 @@ use light_account_checks::{
 use light_program_profiler::profile;
 
 use super::{
-    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, CTOKEN_PROGRAM_ID,
-    LIGHT_SYSTEM_PROGRAM_ID,
+    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
 };
 
 /// Parsed Transfer2 CPI accounts for structured access
@@ -33,7 +33,7 @@ impl<'a, A: AccountInfoTrait + Clone> Transfer2CpiAccounts<'a, A> {
     pub fn try_from_account_infos(fee_payer: A, accounts: &'a [A]) -> Result<Self, AccountError> {
         let mut iter = AccountIterator::new(accounts);
         let compressed_token_program =
-            iter.next_checked_pubkey("compressed_token_program", CTOKEN_PROGRAM_ID.to_bytes())?;
+            iter.next_checked_pubkey("compressed_token_program", LIGHT_TOKEN_PROGRAM_ID.to_bytes())?;
 
         let compressed_token_cpi_authority = iter.next_account("compressed_token_cpi_authority")?;
 

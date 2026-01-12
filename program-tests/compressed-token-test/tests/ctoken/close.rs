@@ -171,7 +171,7 @@ async fn test_close_token_account_fails() {
             rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: context.payer.pubkey(),
         };
@@ -188,9 +188,9 @@ async fn test_close_token_account_fails() {
             .unwrap();
 
         // Deserialize, modify amount, serialize back
-        use light_ctoken_interface::state::ctoken::CToken;
+        use light_token_interface::state::token::Token;
         use light_zero_copy::traits::ZeroCopyAtMut;
-        let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut account.data).unwrap();
+        let (mut ctoken, _) = Token::zero_copy_at_mut(&mut account.data).unwrap();
         ctoken.amount.set(1u64);
         drop(ctoken);
 
@@ -224,7 +224,7 @@ async fn test_close_token_account_fails() {
             rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: context.payer.pubkey(),
         };
@@ -241,10 +241,10 @@ async fn test_close_token_account_fails() {
             .unwrap();
 
         // Deserialize, modify state to Uninitialized, serialize back
-        use light_ctoken_interface::state::ctoken::CToken;
+        use light_token_interface::state::token::Token;
         use light_zero_copy::traits::ZeroCopyAtMut;
         use spl_token_2022::state::AccountState;
-        let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut account.data).unwrap();
+        let (mut ctoken, _) = Token::zero_copy_at_mut(&mut account.data).unwrap();
         ctoken.state = AccountState::Uninitialized as u8;
         drop(ctoken);
 
@@ -264,12 +264,12 @@ async fn test_close_token_account_fails() {
             &owner_keypair,
             rent_sponsor,
             "uninitialized_account",
-            18036, // CTokenError::InvalidAccountState
+            18036, // TokenError::InvalidAccountState
         )
         .await;
     }
 
-    // Test 11: Frozen account → Error 18036 (CTokenError::InvalidAccountState)
+    // Test 11: Frozen account → Error 18036 (TokenError::InvalidAccountState)
     {
         // Create a fresh account for this test
         context.token_account_keypair = Keypair::new();
@@ -278,7 +278,7 @@ async fn test_close_token_account_fails() {
             rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: context.payer.pubkey(),
         };
@@ -294,10 +294,10 @@ async fn test_close_token_account_fails() {
             .unwrap();
 
         // Deserialize, modify state to Frozen, serialize back
-        use light_ctoken_interface::state::ctoken::CToken;
+        use light_token_interface::state::token::Token;
         use light_zero_copy::traits::ZeroCopyAtMut;
         use spl_token_2022::state::AccountState;
-        let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut account.data).unwrap();
+        let (mut ctoken, _) = Token::zero_copy_at_mut(&mut account.data).unwrap();
         ctoken.state = AccountState::Frozen as u8;
         drop(ctoken);
 
@@ -317,7 +317,7 @@ async fn test_close_token_account_fails() {
             &owner_keypair,
             rent_sponsor,
             "frozen_account",
-            18036, // CTokenError::InvalidAccountState (frozen accounts rejected by zero_copy_at_mut_checked)
+            18036, // TokenError::InvalidAccountState (frozen accounts rejected by zero_copy_at_mut_checked)
         )
         .await;
     }

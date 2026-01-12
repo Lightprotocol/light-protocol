@@ -6,7 +6,7 @@
 
 **description:**
 1. Closes decompressed ctoken solana accounts and distributes remaining lamports to destination account.
-2. Account layout `CToken` is defined in path: program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs
+2. Account layout `CToken` is defined in path: program-libs/token-interface/src/state/ctoken/ctoken_struct.rs
 3. Supports both regular (non-compressible) and compressible token accounts (with compressible extension)
 4. For compressible accounts (with compressible extension):
    - Completed epoch rent lamports are returned to the rent_sponsor

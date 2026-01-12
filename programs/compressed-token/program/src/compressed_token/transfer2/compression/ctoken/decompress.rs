@@ -1,10 +1,10 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::Pubkey;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::extensions::{find_compressed_only, ZCompressedOnlyExtensionInstructionData},
-    state::{ZCTokenMut, ZExtensionStructMut},
-    CTokenError,
+    state::{ZTokenMut, ZExtensionStructMut},
+    TokenError,
 };
 use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
 use spl_pod::solana_msg::msg;
@@ -15,7 +15,7 @@ use super::inputs::DecompressCompressOnlyInputs;
 #[inline(always)]
 pub fn validate_and_apply_compressed_only(
     destination_account: &AccountInfo,
-    ctoken: &mut ZCTokenMut,
+    ctoken: &mut ZTokenMut,
     decompress_inputs: Option<DecompressCompressOnlyInputs>,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     compression_amount: u64,
@@ -41,7 +41,7 @@ pub fn validate_and_apply_compressed_only(
                 compression_amount,
                 input_amount
             );
-            return Err(CTokenError::DecompressAmountMismatch.into());
+            return Err(TokenError::DecompressAmountMismatch.into());
         }
     }
 
@@ -75,7 +75,7 @@ pub fn validate_and_apply_compressed_only(
 /// For ATA: destination address == input_owner (ATA pubkey), and CToken owner == wallet_owner
 #[inline(always)]
 fn validate_destination(
-    ctoken: &ZCTokenMut,
+    ctoken: &ZTokenMut,
     destination: &AccountInfo,
     input_owner_key: &[u8; 32],
     ext_data: &ZCompressedOnlyExtensionInstructionData,
@@ -85,7 +85,7 @@ fn validate_destination(
     if !ext_data.is_ata() {
         if !pubkey_eq(ctoken.base.owner.array_ref(), input_owner_key) {
             msg!("Decompress destination owner mismatch");
-            return Err(CTokenError::DecompressDestinationMismatch.into());
+            return Err(TokenError::DecompressDestinationMismatch.into());
         }
         return Ok(());
     }
@@ -93,14 +93,14 @@ fn validate_destination(
     // ATA: destination address == input_owner (ATA pubkey)
     if !pubkey_eq(destination.key(), input_owner_key) {
         msg!("Decompress ATA: destination address mismatch");
-        return Err(CTokenError::DecompressDestinationMismatch.into());
+        return Err(TokenError::DecompressDestinationMismatch.into());
     }
 
     // ATA: wallet owner == CToken owner field
     let wallet = packed_accounts.get_u8(ext_data.owner_index, "wallet owner")?;
     if !pubkey_eq(wallet.key(), ctoken.base.owner.array_ref()) {
         msg!("Decompress ATA: wallet owner mismatch");
-        return Err(CTokenError::DecompressDestinationMismatch.into());
+        return Err(TokenError::DecompressDestinationMismatch.into());
     }
     Ok(())
 }
@@ -108,7 +108,7 @@ fn validate_destination(
 /// Apply delegate state. Resolves delegate only when needed (inside the check).
 #[inline(always)]
 fn apply_delegate(
-    ctoken: &mut ZCTokenMut,
+    ctoken: &mut ZTokenMut,
     ext_data: &ZCompressedOnlyExtensionInstructionData,
     inputs: &DecompressCompressOnlyInputs,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
@@ -141,7 +141,7 @@ fn apply_delegate(
         }
     } else if delegated_amount > 0 {
         msg!("Decompress: delegated_amount > 0 but no delegate");
-        return Err(CTokenError::DecompressDelegatedAmountWithoutDelegate.into());
+        return Err(TokenError::DecompressDelegatedAmountWithoutDelegate.into());
     }
 
     Ok(())
@@ -150,7 +150,7 @@ fn apply_delegate(
 /// Apply withheld transfer fee to TransferFeeAccount extension.
 #[inline(always)]
 fn apply_withheld_fee(
-    ctoken: &mut ZCTokenMut,
+    ctoken: &mut ZTokenMut,
     ext_data: &ZCompressedOnlyExtensionInstructionData,
 ) -> Result<(), ProgramError> {
     let fee: u64 = ext_data.withheld_transfer_fee.into();
@@ -169,7 +169,7 @@ fn apply_withheld_fee(
         Some(f) => Ok(f.add_withheld_amount(fee)?),
         None => {
             msg!("Decompress: withheld fee but no TransferFeeAccount extension");
-            Err(CTokenError::DecompressWithheldFeeWithoutExtension.into())
+            Err(TokenError::DecompressWithheldFeeWithoutExtension.into())
         }
     }
 }

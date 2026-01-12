@@ -1,4 +1,4 @@
-use light_ctoken_interface::CTOKEN_PROGRAM_ID;
+use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use light_ctoken_types::{
     constants::TRANSFER, instruction::transfer::CompressedTokenInstructionDataTransfer,
     CompressedCpiContext, ValidityProof,
@@ -132,7 +132,7 @@ pub fn create_transfer_instruction_raw(
         account_metas.push(AccountMeta::new(tree_pubkey, false));
     }
     Ok(Instruction {
-        program_id: Pubkey::from(CTOKEN_PROGRAM_ID),
+        program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
         accounts: account_metas,
         data,
     })

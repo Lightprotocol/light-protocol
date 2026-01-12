@@ -40,6 +40,6 @@ light-account-checks = { workspace = true }
 light-ctoken-sdk = { workspace = true }
 light-compressible = { workspace = true }
 light-token-client = { workspace = true }
-light-ctoken-interface = { workspace = true }
+light-token-interface = { workspace = true }
 light-zero-copy = { workspace = true }
 borsh = { workspace = true }

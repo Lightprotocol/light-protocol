@@ -217,7 +217,7 @@ pub fn decompress_accounts_idempotent<'info>(
                     .cloned()
                     .collect();
                 let compress_to_pubkey =
-                    light_ctoken_interface::instructions::extensions::CompressToPubkey {
+                    light_token_interface::instructions::extensions::CompressToPubkey {
                         bump,
                         program_id: crate::ID.to_bytes(),
                         seeds: seeds_without_bump,
@@ -236,7 +236,7 @@ pub fn decompress_accounts_idempotent<'info>(
                         lamports_per_write: None,
                         compress_to_account_pubkey: Some(compress_to_pubkey),
                         token_account_version:
-                            light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+                            light_token_interface::state::TokenDataVersion::ShaFlat,
                         compression_only: false,
                     },
                 }
@@ -245,7 +245,7 @@ pub fn decompress_accounts_idempotent<'info>(
 
             // Construct MultiInputTokenDataWithContext from token data and meta
             let source =
-                light_ctoken_interface::instructions::transfer2::MultiInputTokenDataWithContext {
+                light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext {
                     owner: token_data.token_data.owner,
                     amount: token_data.token_data.amount,
                     has_delegate: token_data.token_data.has_delegate,

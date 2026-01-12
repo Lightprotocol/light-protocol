@@ -4,7 +4,7 @@
 //! for both basic mints and Token-2022 mints with extensions.
 
 use anchor_lang::AnchorDeserialize;
-use light_ctoken_interface::state::{AccountState, CToken, TokenDataVersion};
+use light_token_interface::state::{AccountState, Token, TokenDataVersion};
 use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount, FreezeCToken, ThawCToken};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
@@ -66,7 +66,7 @@ async fn test_freeze_thaw_with_basic_mint() -> Result<(), RpcError> {
     // Verify initial state is Initialized
     let account_data = rpc.get_account(token_account_pubkey).await?.unwrap();
     let ctoken_before =
-        CToken::deserialize(&mut &account_data.data[..]).expect("Failed to deserialize CToken");
+        Token::deserialize(&mut &account_data.data[..]).expect("Failed to deserialize CToken");
     assert_eq!(
         ctoken_before.state,
         AccountState::Initialized,
@@ -161,7 +161,7 @@ async fn test_freeze_thaw_with_extensions() -> Result<(), RpcError> {
     );
 
     // Deserialize and verify initial state
-    let ctoken_initial = CToken::deserialize(&mut &account_data_initial.data[..])
+    let ctoken_initial = Token::deserialize(&mut &account_data_initial.data[..])
         .expect("Failed to deserialize CToken");
     assert_eq!(
         ctoken_initial.state,

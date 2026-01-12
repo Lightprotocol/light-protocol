@@ -1,5 +1,5 @@
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-use light_ctoken_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
+use light_token_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
 use solana_instruction::{AccountMeta, Instruction};
@@ -195,7 +195,7 @@ impl TransferSplToCtoken {
         let ctoken_account = CTokenAccount2 {
             inputs: vec![],
             output: MultiTokenTransferOutputData::default(),
-            compression: Some(Compression::decompress_ctoken(self.amount, 0, 1)),
+            compression: Some(Compression::decompress_token(self.amount, 0, 1)),
             delegate_is_set: false,
             method_used: true,
         };

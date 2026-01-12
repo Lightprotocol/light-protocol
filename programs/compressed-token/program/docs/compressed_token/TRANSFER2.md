@@ -21,8 +21,8 @@
 1. Batch transfer instruction supporting multiple token operations in a single transaction with up to 5 different mints (cmints or spl)
 
 2. Account types and data layouts:
-   - Compressed accounts: `TokenData` (program-libs/ctoken-interface/src/state/compressed_token/token_data.rs)
-   - Decompressed Solana accounts: `CToken` for ctokens (program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs) or standard SPL token accounts
+   - Compressed accounts: `TokenData` (program-libs/token-interface/src/state/compressed_token/token_data.rs)
+   - Decompressed Solana accounts: `CToken` for ctokens (program-libs/token-interface/src/state/ctoken/ctoken_struct.rs) or standard SPL token accounts
    - SPL tokens when compressed are backed by tokens stored in ctoken pool PDAs
 
 3. Compression modes:
@@ -41,7 +41,7 @@
    - Execute mode: All operations supported including compress/decompress
 
 **Instruction data:**
-1. instruction data is defined in path: program-libs/ctoken-interface/src/instructions/transfer2/instruction_data.rs
+1. instruction data is defined in path: program-libs/token-interface/src/instructions/transfer2/instruction_data.rs
    - `with_transaction_hash`: Compute transaction hash for the complete transaction and include in compressed account data, enables ZK proofs over how compressed accounts are spent
    - `with_lamports_change_account_merkle_tree_index`: bool - Track lamport changes in specified tree (placeholder, unimplemented)
    - `lamports_change_account_merkle_tree_index`: u8 - Merkle tree index for lamport change account (placeholder, unimplemented)
@@ -58,7 +58,7 @@
    - `in_tlv`: Optional TLV data for input accounts (used for CompressedOnly extension during decompress)
    - `out_tlv`: Optional TLV data for output accounts (used for CompressedOnly extension during CompressAndClose)
 
-2. Compression struct fields (path: program-libs/ctoken-interface/src/instructions/transfer2/compression.rs):
+2. Compression struct fields (path: program-libs/token-interface/src/instructions/transfer2/compression.rs):
    - `mode`: CompressionMode enum (Compress, Decompress, CompressAndClose)
    - `amount`: u64 - Amount to compress/decompress
    - `mint`: u8 - Index of mint account in packed accounts

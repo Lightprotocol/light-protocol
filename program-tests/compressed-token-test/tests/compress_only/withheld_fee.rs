@@ -5,10 +5,10 @@
 
 use borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
     state::{
-        CToken, CompressedOnlyExtension, CompressedTokenAccountState, ExtensionStruct, TokenData,
+        Token, CompressedOnlyExtension, CompressedTokenAccountState, ExtensionStruct, TokenData,
         TokenDataVersion,
     },
 };
@@ -105,7 +105,7 @@ async fn test_roundtrip_withheld_transfer_fee_preserved() -> Result<(), RpcError
 
     // Verify the withheld_amount was set correctly
     let account_before = rpc.get_account(ctoken_account).await?.unwrap();
-    let ctoken_before = CToken::deserialize(&mut &account_before.data[..])
+    let ctoken_before = Token::deserialize(&mut &account_before.data[..])
         .map_err(|e| RpcError::CustomError(format!("Failed to deserialize CToken: {:?}", e)))?;
 
     let withheld_before = ctoken_before
@@ -242,7 +242,7 @@ async fn test_roundtrip_withheld_transfer_fee_preserved() -> Result<(), RpcError
         .await?
         .ok_or_else(|| RpcError::CustomError("Dest account not found".to_string()))?;
 
-    let dest_ctoken = CToken::deserialize(&mut &dest_account_data.data[..])
+    let dest_ctoken = Token::deserialize(&mut &dest_account_data.data[..])
         .map_err(|e| RpcError::CustomError(format!("Failed to deserialize CToken: {:?}", e)))?;
 
     let withheld_after = dest_ctoken

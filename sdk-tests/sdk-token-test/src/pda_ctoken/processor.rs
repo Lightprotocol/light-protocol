@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_ctoken_interface::instructions::mint_action::{CompressedMintWithContext, Recipient};
+use light_token_interface::instructions::mint_action::{CompressedMintWithContext, Recipient};
 use light_ctoken_sdk::ValidityProof;
 
 use super::{

@@ -1,6 +1,6 @@
 use light_client::rpc::Rpc;
-use light_ctoken_interface::state::{
-    CToken, CompressedMint, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+use light_token_interface::state::{
+    Token, CompressedMint, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
 };
 use light_program_test::LightProgramTest;
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
@@ -42,7 +42,7 @@ fn extract_pre_compression_mut(
 
     match account_type {
         ACCOUNT_TYPE_TOKEN_ACCOUNT => {
-            let (mut ctoken, _) = CToken::zero_copy_at_mut(data)
+            let (mut ctoken, _) = Token::zero_copy_at_mut(data)
                 .unwrap_or_else(|e| panic!("Failed to parse ctoken account {}: {:?}", pubkey, e));
             let compressible = ctoken
                 .get_compressible_extension_mut()
@@ -91,7 +91,7 @@ fn extract_post_compression(data: &[u8], pubkey: &Pubkey) -> u64 {
 
     match account_type {
         ACCOUNT_TYPE_TOKEN_ACCOUNT => {
-            let (ctoken, _) = CToken::zero_copy_at(data)
+            let (ctoken, _) = Token::zero_copy_at(data)
                 .unwrap_or_else(|e| panic!("Failed to parse ctoken account {}: {:?}", pubkey, e));
             let compressible = ctoken
                 .get_compressible_extension()

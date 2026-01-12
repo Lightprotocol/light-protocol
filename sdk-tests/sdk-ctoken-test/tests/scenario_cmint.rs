@@ -16,7 +16,7 @@ mod shared;
 use borsh::BorshDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_ctoken_sdk::ctoken::{
-    CToken, CreateAssociatedCTokenAccount, DecompressToCtoken, TransferCToken,
+    CreateAssociatedCTokenAccount, DecompressToCtoken, Token, TransferCToken,
 };
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use solana_sdk::{signature::Keypair, signer::Signer};
@@ -66,12 +66,12 @@ async fn test_cmint_to_ctoken_scenario() {
 
     // 4. Verify initial balances
     let ctoken_account_data = rpc.get_account(ctoken_ata1).await.unwrap().unwrap();
-    let ctoken_account = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
+    let ctoken_account = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     let balance1 = ctoken_account.amount;
     assert_eq!(balance1, mint_amount1, "cToken account 1 initial balance");
 
     let ctoken_account_data = rpc.get_account(ctoken_ata2).await.unwrap().unwrap();
-    let ctoken_account = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
+    let ctoken_account = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     let balance2 = ctoken_account.amount;
     assert_eq!(balance2, mint_amount2, "cToken account 2 initial balance");
 
@@ -103,7 +103,7 @@ async fn test_cmint_to_ctoken_scenario() {
 
     // 6. Verify balances after transfer
     let ctoken_account_data = rpc.get_account(ctoken_ata1).await.unwrap().unwrap();
-    let ctoken_account = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
+    let ctoken_account = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     let balance1_after = ctoken_account.amount;
     assert_eq!(
         balance1_after,
@@ -112,7 +112,7 @@ async fn test_cmint_to_ctoken_scenario() {
     );
 
     let ctoken_account_data = rpc.get_account(ctoken_ata2).await.unwrap().unwrap();
-    let ctoken_account = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
+    let ctoken_account = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     let balance2_after = ctoken_account.amount;
     assert_eq!(
         balance2_after,
@@ -206,7 +206,7 @@ async fn test_cmint_to_ctoken_scenario() {
         "cToken ATA should exist after recreation"
     );
     println!("  - cToken ATA recreated: {}", ctoken_ata2);
-    let deserialized_ata = CToken::try_from_slice(ctoken_account_data.data.as_slice()).unwrap();
+    let deserialized_ata = Token::try_from_slice(ctoken_account_data.data.as_slice()).unwrap();
     println!("deserialized ata {:?}", deserialized_ata);
 
     // 10. Get validity proof for the compressed account
@@ -278,7 +278,7 @@ async fn test_cmint_to_ctoken_scenario() {
 
     // 13. Verify cToken account has tokens again
     let ctoken_account_data = rpc.get_account(ctoken_ata2).await.unwrap().unwrap();
-    let ctoken_account = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
+    let ctoken_account = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     let decompressed_balance = ctoken_account.amount;
     assert_eq!(
         decompressed_balance,

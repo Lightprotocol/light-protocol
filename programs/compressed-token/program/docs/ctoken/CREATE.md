@@ -10,9 +10,9 @@
 
   **description:**
   1. creates ctoken solana accounts with and without Compressible extension
-  2. account layout `CToken` is defined in path: program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs
+  2. account layout `CToken` is defined in path: program-libs/token-interface/src/state/ctoken/ctoken_struct.rs
   3. extension layout `CompressionInfo` is defined in path:
-  program-libs/ctoken-interface/src/state/extensions/compressible.rs
+  program-libs/token-interface/src/state/extensions/compressible.rs
   4. A compressible token means that the ctoken solana account can be compressed by the rent authority as soon as the account balance is insufficient.
   5. Account creation without the compressible extension:
     - Initializes an existing 165-byte solana account as a ctoken account (SPL-compatible size)
@@ -24,11 +24,11 @@
     - if the payer is not the rent recipient the fee payer pays the rent and becomes the rent recipient (the rent recipient is a ctoken program pda that funds rent exemption for compressible ctoken solana accounts)
 
   **Instruction data:**
-  1. instruction data is defined in path: program-libs/ctoken-interface/src/instructions/create_ctoken_account.rs
+  1. instruction data is defined in path: program-libs/token-interface/src/instructions/create_ctoken_account.rs
     - `owner`: The owner pubkey for the token account (32 bytes)
     - `compressible_config`: Optional `CompressibleExtensionInstructionData` (None = non-compressible account)
   2. Instruction data with compressible extension
-  program-libs/ctoken-interface/src/instructions/extensions/compressible.rs
+  program-libs/token-interface/src/instructions/extensions/compressible.rs
     - `token_account_version`: Version of the compressed token account hashing scheme (u8). Must be 3 (ShaFlat) - only version 3 is supported.
     - `rent_payment`: Number of epochs to prepay for rent (u8)
       - `rent_payment = 1` is explicitly forbidden to prevent epoch boundary timing edge case (its rent for the current rent epoch)
@@ -159,7 +159,7 @@
   7. ATAs for mints with restricted extensions must be compressible (the compression_only marker is part of the Compressible extension)
 
   **Instruction data:**
-  1. instruction data is defined in path: program-libs/ctoken-interface/src/instructions/create_associated_token_account.rs
+  1. instruction data is defined in path: program-libs/token-interface/src/instructions/create_associated_token_account.rs
     - `bump`: PDA bump seed for derivation (u8)
     - `compressible_config`: Optional `CompressibleExtensionInstructionData`, same as create ctoken account but:
       - `compress_to_account_pubkey` must be None (ATAs always compress to owner)

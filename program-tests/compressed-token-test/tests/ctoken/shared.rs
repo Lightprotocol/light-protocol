@@ -199,7 +199,7 @@ pub async fn setup_account_test_with_created_account(
             rent_sponsor,
             num_prepaid_epochs: epochs,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: context.payer.pubkey(),
         };
@@ -228,7 +228,7 @@ pub async fn create_non_compressible_token_account(
         pre_pay_num_epochs: 0,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compression_only: false,
     };
 
@@ -259,7 +259,7 @@ pub async fn create_non_compressible_token_account(
         num_prepaid_epochs: 0,
         lamports_per_write: None,
         compress_to_pubkey: false,
-        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         payer: payer_pubkey,
     };
     assert_create_token_account(
@@ -293,10 +293,10 @@ pub async fn close_and_assert_token_account(
         .unwrap();
 
     // Read rent_sponsor from the account's Compressible extension
-    use light_ctoken_interface::state::CToken;
+    use light_token_interface::state::Token;
     use light_zero_copy::traits::ZeroCopyAt;
 
-    let (ctoken, _) = CToken::zero_copy_at(&account_info.data).unwrap();
+    let (ctoken, _) = Token::zero_copy_at(&account_info.data).unwrap();
     let compressible = ctoken
         .get_compressible_extension()
         .expect("CToken should have Compressible extension");
@@ -656,7 +656,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
 
     use anchor_lang::{InstructionData, ToAccountMetas};
     use light_compressible::config::CompressibleConfig;
-    use light_ctoken_interface::state::CToken;
+    use light_token_interface::state::Token;
     use light_registry::{
         accounts::CompressAndCloseContext as CompressAndCloseAccounts,
         instruction::CompressAndClose, utils::get_forester_epoch_pda_from_authority,
@@ -694,7 +694,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
         .unwrap()
         .unwrap();
 
-    let (ctoken, _) = CToken::zero_copy_at(&token_account_info.data).unwrap();
+    let (ctoken, _) = Token::zero_copy_at(&token_account_info.data).unwrap();
     let mint_pubkey = Pubkey::from(ctoken.mint.to_bytes());
 
     // Extract compression info from Compressible extension

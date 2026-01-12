@@ -4,15 +4,15 @@ use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
 use light_compressed_account::compressed_account::CompressedAccountData;
 use light_compressible::compression_info::CompressionInfo;
-use light_ctoken_interface::state::{
-    extensions::AdditionalMetadata, CToken, CompressedMint, ExtensionStruct,
+use light_token_interface::state::{
+    extensions::AdditionalMetadata, Token, CompressedMint, ExtensionStruct,
 };
 use light_program_test::{LightProgramTest, Rpc};
 use light_token_client::instructions::mint_action::MintActionType;
 use solana_sdk::pubkey::Pubkey;
 
 /// Extract CompressionInfo from CToken's Compressible extension
-fn get_ctoken_compression_info(ctoken: &CToken) -> Option<CompressionInfo> {
+fn get_ctoken_compression_info(ctoken: &Token) -> Option<CompressionInfo> {
     ctoken
         .extensions
         .as_ref()?
@@ -239,7 +239,7 @@ pub async fn assert_mint_action(
             .expect("CToken account should exist before minting");
 
         // Parse pre-transaction CToken state
-        let mut pre_ctoken: CToken =
+        let mut pre_ctoken: Token =
             BorshDeserialize::deserialize(&mut &pre_account.data[..]).unwrap();
 
         // Apply the total minted amount (handles multiple mints to same account)
@@ -250,7 +250,7 @@ pub async fn assert_mint_action(
 
         // Get actual post-transaction account
         let account_data = rpc.context.get_account(&account_pubkey).unwrap();
-        let post_ctoken: CToken =
+        let post_ctoken: Token =
             BorshDeserialize::deserialize(&mut &account_data.data[..]).unwrap();
 
         // Assert token amount matches expected

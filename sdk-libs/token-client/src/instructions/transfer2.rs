@@ -2,13 +2,13 @@ use light_client::{
     indexer::{CompressedTokenAccount, Indexer},
     rpc::Rpc,
 };
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::{
         extensions::ExtensionInstructionData,
         transfer2::{MultiInputTokenDataWithContext, MultiTokenTransferOutputData},
     },
     state::TokenDataVersion,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
 };
 use light_ctoken_sdk::{
     compressed_token::{
@@ -303,7 +303,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     .unwrap()
                     .owner;
 
-                if source_account_owner.to_bytes() != CTOKEN_PROGRAM_ID {
+                if source_account_owner.to_bytes() != LIGHT_TOKEN_PROGRAM_ID {
                     // For SPL compression, get mint first
                     let mint = input.mint;
 
@@ -329,7 +329,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     )?;
                 } else {
                     // Regular compression for compressed token accounts
-                    token_account.compress_ctoken(input.amount, source_index, authority_index)?;
+                    token_account.compress_token(input.amount, source_index, authority_index)?;
                 }
                 token_accounts.push(token_account);
             }
@@ -366,11 +366,11 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 // For is_ata, the compressed account owner is the ATA pubkey (stored during compress_and_close)
                 // We keep that for hash calculation. The wallet owner signs instead of ATA pubkey.
                 // Get the wallet owner from the destination CToken account and add as signer.
-                if is_ata && recipient_account_owner.to_bytes() == CTOKEN_PROGRAM_ID {
-                    // Deserialize CToken to get wallet owner
+                if is_ata && recipient_account_owner.to_bytes() == LIGHT_TOKEN_PROGRAM_ID {
+                    // Deserialize Token to get wallet owner
                     use borsh::BorshDeserialize;
-                    use light_ctoken_interface::state::CToken;
-                    if let Ok(ctoken) = CToken::deserialize(&mut &recipient_account.data[..]) {
+                    use light_token_interface::state::Token;
+                    if let Ok(ctoken) = Token::deserialize(&mut &recipient_account.data[..]) {
                         let wallet_owner = Pubkey::from(ctoken.owner.to_bytes());
                         // Add wallet owner as signer and get its index
                         let wallet_owner_index =
@@ -418,7 +418,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 inputs_offset += token_data.len();
                 let mut token_account = CTokenAccount2::new(token_data)?;
 
-                if recipient_account_owner.to_bytes() != CTOKEN_PROGRAM_ID {
+                if recipient_account_owner.to_bytes() != LIGHT_TOKEN_PROGRAM_ID {
                     // For SPL decompression, get mint first
                     let mint = input.compressed_token_account[0].token.mint;
 
@@ -443,7 +443,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     )?;
                 } else {
                     // Use the new SPL-specific decompress method
-                    token_account.decompress_ctoken(input.decompress_amount, recipient_index)?;
+                    token_account.decompress_token(input.decompress_amount, recipient_index)?;
                 }
 
                 out_lamports.push(
@@ -593,9 +593,9 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     .ok_or(CTokenSdkError::InvalidAccountData)?;
 
                 // Parse the compressed token account using zero-copy deserialization
-                use light_ctoken_interface::state::CToken;
+                use light_token_interface::state::Token;
                 use light_zero_copy::traits::ZeroCopyAt;
-                let (compressed_token, _) = CToken::zero_copy_at(&token_account_info.data)
+                let (compressed_token, _) = Token::zero_copy_at(&token_account_info.data)
                     .map_err(|_| CTokenSdkError::InvalidAccountData)?;
                 let mint = compressed_token.mint;
                 let balance: u64 = compressed_token.amount.into();

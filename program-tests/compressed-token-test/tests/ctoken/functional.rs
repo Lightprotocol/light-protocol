@@ -18,7 +18,7 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
         pre_pay_num_epochs: 0,
         lamports_per_write: None,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compression_only: false,
     };
 
@@ -51,7 +51,7 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
         rent_sponsor: context.rent_sponsor,
         num_prepaid_epochs: 0,
         lamports_per_write: None,
-        account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compress_to_pubkey: false,
         payer: payer_pubkey,
     };
@@ -123,12 +123,12 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         .lamports;
 
     // Calculate expected size for account with Compressible extension
-    use light_ctoken_interface::state::{
-        calculate_ctoken_account_size, CompressibleExtensionConfig, CompressionInfoConfig,
+    use light_token_interface::state::{
+        calculate_token_account_size, CompressibleExtensionConfig, CompressionInfoConfig,
         ExtensionStructConfig,
     };
     let compressible_account_size =
-        calculate_ctoken_account_size(Some(&[ExtensionStructConfig::Compressible(
+        calculate_token_account_size(Some(&[ExtensionStructConfig::Compressible(
             CompressibleExtensionConfig {
                 info: CompressionInfoConfig { rent_config: () },
             },
@@ -152,7 +152,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         pre_pay_num_epochs: num_prepaid_epochs,
         lamports_per_write,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compression_only: false,
     };
 
@@ -202,7 +202,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
             num_prepaid_epochs,
             lamports_per_write,
             compress_to_pubkey: false,
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
         None,

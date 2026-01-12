@@ -7,7 +7,7 @@ use light_client::indexer::{CompressedTokenAccount, Indexer};
 use light_compressed_token::freeze::sdk::{
     create_instruction, CreateInstructionInputs as FreezeInputs,
 };
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
     state::TokenDataVersion,
 };
@@ -405,15 +405,15 @@ async fn run_freeze_thaw_compressed_only_test(
         .create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &[&payer, &owner])
         .await?;
 
-    // 14. Verify CToken account has tokens
+    // 14. Verify Token account has tokens
     use borsh::BorshDeserialize;
-    use light_ctoken_interface::state::CToken;
+    use light_token_interface::state::Token;
     let dest_account = context
         .rpc
         .get_account(dest_account_keypair.pubkey())
         .await?
         .unwrap();
-    let dest_ctoken = CToken::deserialize(&mut &dest_account.data[..]).unwrap();
+    let dest_ctoken = Token::deserialize(&mut &dest_account.data[..]).unwrap();
     assert_eq!(
         dest_ctoken.amount, mint_amount,
         "Decompressed amount should match"

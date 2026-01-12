@@ -1,5 +1,5 @@
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-use light_ctoken_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
+use light_token_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
 use light_program_profiler::profile;
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
@@ -171,7 +171,7 @@ impl TransferCTokenToSpl {
         let compress_to_pool = CTokenAccount2 {
             inputs: vec![],
             output: MultiTokenTransferOutputData::default(),
-            compression: Some(Compression::compress_ctoken(
+            compression: Some(Compression::compress_token(
                 self.amount,
                 0, // mint index
                 1, // source ctoken account index

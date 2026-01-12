@@ -1,4 +1,4 @@
-use light_ctoken_interface::{instructions::transfer2::CompressedCpiContext, state::CToken};
+use light_token_interface::{instructions::transfer2::CompressedCpiContext, state::Token};
 use light_program_profiler::profile;
 use light_sdk::{
     error::LightSdkError,
@@ -41,7 +41,7 @@ pub fn pack_for_compress_and_close(
     ctoken_account_data: &[u8],
     packed_accounts: &mut PackedAccounts,
 ) -> Result<CompressAndCloseIndices, CTokenSdkError> {
-    let (ctoken_account, _) = CToken::zero_copy_at(ctoken_account_data)?;
+    let (ctoken_account, _) = Token::zero_copy_at(ctoken_account_data)?;
     let source_index = packed_accounts.insert_or_get(ctoken_account_pubkey);
     let mint_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
     let owner_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.owner.to_bytes()));
@@ -165,7 +165,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             .try_borrow_data()
             .map_err(|_| CTokenSdkError::AccountBorrowFailed)?;
 
-        let amount = light_ctoken_interface::state::CToken::amount_from_slice(&account_data)?;
+        let amount = light_token_interface::state::Token::amount_from_slice(&account_data)?;
 
         // Create CTokenAccount2 for CompressAndClose operation
         let mut token_account = CTokenAccount2::new_empty(idx.owner_index, idx.mint_index);
@@ -264,9 +264,9 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             .try_borrow_data()
             .map_err(|_| CTokenSdkError::AccountBorrowFailed)?;
 
-        // Deserialize the full CToken including extensions
+        // Deserialize the full Token including extensions
         let (compressed_token, _) =
-            light_ctoken_interface::state::CToken::zero_copy_at(&account_data)
+            light_token_interface::state::Token::zero_copy_at(&account_data)
                 .map_err(|_| CTokenSdkError::InvalidAccountData)?;
 
         // Extract pubkeys from the deserialized account

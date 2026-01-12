@@ -4,7 +4,7 @@ mod shared;
 use anchor_spl::token::{spl_token, Mint};
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
-use light_ctoken_interface::state::CToken;
+use light_token_interface::state::Token;
 use light_ctoken_sdk::{
     ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount, TransferSplToCtoken},
     spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
@@ -163,11 +163,11 @@ async fn test_ctoken_transfer_checked_spl_mint() {
 
     // Verify balances
     let source_data = rpc.get_account(source_ata).await.unwrap().unwrap();
-    let source_state = CToken::deserialize(&mut &source_data.data[..]).unwrap();
+    let source_state = Token::deserialize(&mut &source_data.data[..]).unwrap();
     assert_eq!(source_state.amount, 500);
 
     let dest_data = rpc.get_account(dest_ata).await.unwrap().unwrap();
-    let dest_state = CToken::deserialize(&mut &dest_data.data[..]).unwrap();
+    let dest_state = Token::deserialize(&mut &dest_data.data[..]).unwrap();
     assert_eq!(dest_state.amount, 500);
 }
 
@@ -268,11 +268,11 @@ async fn test_ctoken_transfer_checked_t22_mint() {
 
     // Verify balances
     let source_data = rpc.get_account(source_ata).await.unwrap().unwrap();
-    let source_state = CToken::deserialize(&mut &source_data.data[..]).unwrap();
+    let source_state = Token::deserialize(&mut &source_data.data[..]).unwrap();
     assert_eq!(source_state.amount, 500);
 
     let dest_data = rpc.get_account(dest_ata).await.unwrap().unwrap();
-    let dest_state = CToken::deserialize(&mut &dest_data.data[..]).unwrap();
+    let dest_state = Token::deserialize(&mut &dest_data.data[..]).unwrap();
     assert_eq!(dest_state.amount, 500);
 }
 
@@ -329,10 +329,10 @@ async fn test_ctoken_transfer_checked_cmint() {
 
     // Verify balances
     let source_data = rpc.get_account(source_ata).await.unwrap().unwrap();
-    let source_state = CToken::deserialize(&mut &source_data.data[..]).unwrap();
+    let source_state = Token::deserialize(&mut &source_data.data[..]).unwrap();
     assert_eq!(source_state.amount, 500);
 
     let dest_data = rpc.get_account(dest_ata).await.unwrap().unwrap();
-    let dest_state = CToken::deserialize(&mut &dest_data.data[..]).unwrap();
+    let dest_state = Token::deserialize(&mut &dest_data.data[..]).unwrap();
     assert_eq!(dest_state.amount, 500);
 }

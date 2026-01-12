@@ -4,8 +4,8 @@ use pinocchio_token_program::processor::{approve::process_approve, revoke::proce
 #[cfg(target_os = "solana")]
 use {
     crate::shared::{convert_program_error, transfer_lamports_via_cpi},
-    light_ctoken_interface::state::top_up_lamports_from_account_info_unchecked,
-    light_ctoken_interface::CTokenError,
+    light_token_interface::state::top_up_lamports_from_account_info_unchecked,
+    light_token_interface::TokenError,
 };
 
 use crate::shared::convert_pinocchio_token_error;
@@ -112,9 +112,9 @@ fn process_compressible_top_up<const BASE_LEN: usize, const PAYER_IDX: usize>(
 
         if transfer_amount > 0 {
             if max_top_up > 0 && transfer_amount > max_top_up as u64 {
-                return Err(CTokenError::MaxTopUpExceeded.into());
+                return Err(TokenError::MaxTopUpExceeded.into());
             }
-            let payer = payer.ok_or(CTokenError::MissingPayer)?;
+            let payer = payer.ok_or(TokenError::MissingPayer)?;
             transfer_lamports_via_cpi(transfer_amount, payer, account)
                 .map_err(convert_program_error)?;
         }

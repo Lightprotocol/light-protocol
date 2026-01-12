@@ -7,7 +7,7 @@ use light_client::indexer::{CompressedTokenAccount, Indexer};
 use light_compressed_token::freeze::sdk::{
     create_instruction, CreateInstructionInputs as FreezeInputs,
 };
-use light_ctoken_interface::state::TokenDataVersion;
+use light_token_interface::state::TokenDataVersion;
 use light_ctoken_sdk::compat::{AccountState, TokenDataWithMerkleContext};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_prover_client::prover::spawn_prover;

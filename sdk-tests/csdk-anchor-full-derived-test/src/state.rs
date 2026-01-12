@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_ctoken_interface::instructions::mint_action::CompressedMintWithContext;
+use light_token_interface::instructions::mint_action::CompressedMintWithContext;
 use light_sdk::{
     compressible::CompressionInfo,
     instruction::{PackedAddressTreeInfo, ValidityProof},

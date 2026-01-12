@@ -4,7 +4,7 @@ mod shared;
 
 use borsh::BorshDeserialize;
 use light_client::rpc::Rpc;
-use light_ctoken_interface::state::{AccountState, CToken};
+use light_token_interface::state::{AccountState, Token};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_sdk_types::C_TOKEN_PROGRAM_ID;
 use native_ctoken_examples::{InstructionType, FREEZE_AUTHORITY_SEED, ID};
@@ -41,7 +41,7 @@ async fn test_freeze_invoke() {
 
     // Verify account is initially unfrozen
     let ata_account_before = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_before = CToken::deserialize(&mut &ata_account_before.data[..]).unwrap();
+    let ctoken_before = Token::deserialize(&mut &ata_account_before.data[..]).unwrap();
     assert_eq!(
         ctoken_before.state,
         AccountState::Initialized,
@@ -74,7 +74,7 @@ async fn test_freeze_invoke() {
 
     // Verify the account is now frozen
     let ata_account_after = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_after = CToken::deserialize(&mut &ata_account_after.data[..]).unwrap();
+    let ctoken_after = Token::deserialize(&mut &ata_account_after.data[..]).unwrap();
 
     assert_eq!(
         ctoken_after.state,
@@ -129,7 +129,7 @@ async fn test_freeze_invoke_signed() {
 
     // Verify the account is now frozen
     let ata_account_after = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_after = CToken::deserialize(&mut &ata_account_after.data[..]).unwrap();
+    let ctoken_after = Token::deserialize(&mut &ata_account_after.data[..]).unwrap();
 
     assert_eq!(
         ctoken_after.state,
@@ -185,7 +185,7 @@ async fn test_thaw_invoke() {
 
     // Verify account is frozen
     let ata_account_after_freeze = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_after_freeze = CToken::deserialize(&mut &ata_account_after_freeze.data[..]).unwrap();
+    let ctoken_after_freeze = Token::deserialize(&mut &ata_account_after_freeze.data[..]).unwrap();
     assert_eq!(
         ctoken_after_freeze.state,
         AccountState::Frozen,
@@ -215,7 +215,7 @@ async fn test_thaw_invoke() {
 
     // Verify the account is now thawed (initialized)
     let ata_account_after_thaw = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_after_thaw = CToken::deserialize(&mut &ata_account_after_thaw.data[..]).unwrap();
+    let ctoken_after_thaw = Token::deserialize(&mut &ata_account_after_thaw.data[..]).unwrap();
 
     assert_eq!(
         ctoken_after_thaw.state,
@@ -268,7 +268,7 @@ async fn test_thaw_invoke_signed() {
 
     // Verify account is frozen
     let ata_account_after_freeze = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_after_freeze = CToken::deserialize(&mut &ata_account_after_freeze.data[..]).unwrap();
+    let ctoken_after_freeze = Token::deserialize(&mut &ata_account_after_freeze.data[..]).unwrap();
     assert_eq!(
         ctoken_after_freeze.state,
         AccountState::Frozen,
@@ -294,7 +294,7 @@ async fn test_thaw_invoke_signed() {
 
     // Verify the account is now thawed (initialized)
     let ata_account_after_thaw = rpc.get_account(ata).await.unwrap().unwrap();
-    let ctoken_after_thaw = CToken::deserialize(&mut &ata_account_after_thaw.data[..]).unwrap();
+    let ctoken_after_thaw = Token::deserialize(&mut &ata_account_after_thaw.data[..]).unwrap();
 
     assert_eq!(
         ctoken_after_thaw.state,

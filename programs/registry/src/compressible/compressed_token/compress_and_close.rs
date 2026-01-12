@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::ProgramError, pubkey, AnchorDeserialize, AnchorSerialize, Result};
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::{
         extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
         transfer2::{
@@ -8,7 +8,7 @@ use light_ctoken_interface::{
             MultiTokenTransferOutputData,
         },
     },
-    state::{CToken, ZExtensionStruct},
+    state::{Token, ZExtensionStruct},
 };
 use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAt;
@@ -21,8 +21,8 @@ use crate::errors::RegistryError;
 
 const TRANSFER2_DISCRIMINATOR: u8 = 101;
 use super::{
-    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, CTOKEN_PROGRAM_ID,
-    LIGHT_SYSTEM_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
+    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
 };
 
 pub const CPI_AUTHORITY_PDA: Pubkey = pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
@@ -92,14 +92,14 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             .try_borrow_data()
             .map_err(|_| RegistryError::BorrowAccountDataFailed)?;
 
-        let amount = CToken::amount_from_slice(&account_data).map_err(|e| {
-            anchor_lang::prelude::msg!("Failed to read amount from CToken: {:?}", e);
+        let amount = Token::amount_from_slice(&account_data).map_err(|e| {
+            anchor_lang::prelude::msg!("Failed to read amount from Token: {:?}", e);
             RegistryError::InvalidTokenAccountData
         })?;
 
-        // Parse the full CToken to check for marker extensions
-        let (ctoken, _) = CToken::zero_copy_at(&account_data).map_err(|e| {
-            anchor_lang::prelude::msg!("Failed to parse CToken: {:?}", e);
+        // Parse the full Token to check for marker extensions
+        let (ctoken, _) = Token::zero_copy_at(&account_data).map_err(|e| {
+            anchor_lang::prelude::msg!("Failed to parse Token: {:?}", e);
             RegistryError::InvalidSigner
         })?;
 
@@ -107,7 +107,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         let mut has_marker_extensions = false;
         let mut withheld_transfer_fee: u64 = 0;
         let delegated_amount: u64 = ctoken.delegated_amount.get();
-        // AccountState::Frozen = 2 in CToken
+        // AccountState::Frozen = 2 in Token
         let is_frozen = ctoken.state == 2;
 
         // Frozen accounts require CompressedOnly extension to preserve frozen state
@@ -263,7 +263,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
     account_metas.extend(packed_account_metas);
 
     Ok(Instruction {
-        program_id: CTOKEN_PROGRAM_ID,
+        program_id: LIGHT_TOKEN_PROGRAM_ID,
         accounts: account_metas,
         data,
     })

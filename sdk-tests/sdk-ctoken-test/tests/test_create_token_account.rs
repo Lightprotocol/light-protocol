@@ -73,8 +73,8 @@ async fn test_create_token_account_invoke() {
         .unwrap();
 
     // Parse and verify account data
-    use light_ctoken_interface::state::CToken;
-    let account_state = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
+    use light_token_interface::state::Token;
+    let account_state = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     assert_eq!(
         account_state.mint.to_bytes(),
         mint_pda.to_bytes(),
@@ -146,8 +146,8 @@ async fn test_create_token_account_invoke_signed() {
     let ctoken_account_data = rpc.get_account(ctoken_account_pda).await.unwrap().unwrap();
 
     // Parse and verify account data
-    use light_ctoken_interface::state::CToken;
-    let account_state = CToken::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
+    use light_token_interface::state::Token;
+    let account_state = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     assert_eq!(
         account_state.mint.to_bytes(),
         mint_pda.to_bytes(),

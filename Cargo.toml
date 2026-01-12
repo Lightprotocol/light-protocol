@@ -8,7 +8,7 @@ members = [
     "program-libs/batched-merkle-tree",
     "program-libs/bloom-filter",
     "program-libs/compressible",
-    "program-libs/ctoken-interface",
+    "program-libs/token-interface",
     "program-libs/hasher",
     "program-libs/verifier",
     "program-libs/merkle-tree-metadata",
@@ -191,7 +191,7 @@ light-sdk-types = { path = "sdk-libs/sdk-types", version = "0.17.1", default-fea
 light-compressed-account = { path = "program-libs/compressed-account", version = "0.7.0", default-features = false }
 light-compressible = { path = "program-libs/compressible", version = "0.2.0" }
 light-compressible-client = { path = "sdk-libs/compressible-client", version = "0.17.1" }
-light-ctoken-interface = { path = "program-libs/ctoken-interface", version = "0.1.0" }
+light-token-interface = { path = "program-libs/token-interface", version = "0.1.0" }
 light-account-checks = { path = "program-libs/account-checks", version = "0.6.0", default-features = false }
 light-verifier = { path = "program-libs/verifier", version = "6.0.0" }
 light-zero-copy = { path = "program-libs/zero-copy", version = "0.5.0", default-features = false }

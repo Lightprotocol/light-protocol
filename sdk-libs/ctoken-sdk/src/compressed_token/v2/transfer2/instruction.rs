@@ -1,10 +1,10 @@
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::{
         extensions::ExtensionInstructionData,
         transfer2::{CompressedCpiContext, CompressedTokenInstructionDataTransfer2},
     },
-    CTOKEN_PROGRAM_ID, TRANSFER2,
+    LIGHT_TOKEN_PROGRAM_ID, TRANSFER2,
 };
 use light_program_profiler::profile;
 use solana_instruction::Instruction;
@@ -147,7 +147,7 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
     let account_metas = get_transfer2_instruction_account_metas(meta_config);
 
     Ok(Instruction {
-        program_id: Pubkey::from(CTOKEN_PROGRAM_ID),
+        program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
         accounts: account_metas,
         data,
     })

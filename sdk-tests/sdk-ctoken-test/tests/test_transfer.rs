@@ -60,13 +60,13 @@ async fn test_ctoken_transfer_invoke() {
         .unwrap();
 
     // Verify final balances
-    use light_ctoken_interface::state::CToken;
+    use light_token_interface::state::Token;
     let source_data_after = rpc.get_account(source_ata).await.unwrap().unwrap();
-    let source_state_after = CToken::deserialize(&mut &source_data_after.data[..]).unwrap();
+    let source_state_after = Token::deserialize(&mut &source_data_after.data[..]).unwrap();
     assert_eq!(source_state_after.amount, 500);
 
     let dest_data_after = rpc.get_account(dest_ata).await.unwrap().unwrap();
-    let dest_state_after = CToken::deserialize(&mut &dest_data_after.data[..]).unwrap();
+    let dest_state_after = Token::deserialize(&mut &dest_data_after.data[..]).unwrap();
     assert_eq!(dest_state_after.amount, 500);
 }
 
@@ -117,12 +117,12 @@ async fn test_ctoken_transfer_invoke_signed() {
         .unwrap();
 
     // Verify final balances
-    use light_ctoken_interface::state::CToken;
+    use light_token_interface::state::Token;
     let source_data_after = rpc.get_account(source_ata).await.unwrap().unwrap();
-    let source_state_after = CToken::deserialize(&mut &source_data_after.data[..]).unwrap();
+    let source_state_after = Token::deserialize(&mut &source_data_after.data[..]).unwrap();
     assert_eq!(source_state_after.amount, 700);
 
     let dest_data_after = rpc.get_account(dest_ata).await.unwrap().unwrap();
-    let dest_state_after = CToken::deserialize(&mut &dest_data_after.data[..]).unwrap();
+    let dest_state_after = Token::deserialize(&mut &dest_data_after.data[..]).unwrap();
     assert_eq!(dest_state_after.amount, 300);
 }

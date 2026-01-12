@@ -4,7 +4,7 @@ use pinocchio::pubkey::Pubkey;
 
 const SPL_TOKEN_ID: Pubkey = spl_token::ID.to_bytes();
 const SPL_TOKEN_2022_ID: Pubkey = spl_token_2022::ID.to_bytes();
-const CTOKEN_PROGRAM_ID: Pubkey = light_ctoken_interface::CTOKEN_PROGRAM_ID;
+const CTOKEN_PROGRAM_ID: Pubkey = light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 const SYSTEM_PROGRAM_ID: Pubkey = [0u8; 32];
 const RANDOM_PROGRAM_ID: Pubkey = [42u8; 32];
 

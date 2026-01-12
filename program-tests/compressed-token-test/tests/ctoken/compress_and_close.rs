@@ -149,7 +149,7 @@ async fn test_compress_and_close_owner_scenarios() {
             rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs: 2,
             lamports_per_write: Some(100),
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             compress_to_pubkey: false,
             payer: payer_pubkey,
         };
@@ -244,12 +244,12 @@ async fn test_compress_and_close_rent_authority_scenarios() {
         let token_account_pubkey = context.token_account_keypair.pubkey();
 
         // Calculate compressible account size
-        use light_ctoken_interface::state::{
-            calculate_ctoken_account_size, CompressibleExtensionConfig, CompressionInfoConfig,
+        use light_token_interface::state::{
+            calculate_token_account_size, CompressibleExtensionConfig, CompressionInfoConfig,
             ExtensionStructConfig,
         };
         let compressible_account_size =
-            calculate_ctoken_account_size(Some(&[ExtensionStructConfig::Compressible(
+            calculate_token_account_size(Some(&[ExtensionStructConfig::Compressible(
                 CompressibleExtensionConfig {
                     info: CompressionInfoConfig { rent_config: () },
                 },
@@ -443,10 +443,10 @@ async fn test_compress_and_close_compress_to_pubkey() {
             .unwrap()
             .unwrap();
 
-        use light_ctoken_interface::state::ctoken::CToken;
+        use light_token_interface::state::token::Token;
 
         // Parse the CToken account
-        let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut token_account.data)
+        let (mut ctoken, _) = Token::zero_copy_at_mut(&mut token_account.data)
             .expect("Failed to deserialize ctoken account");
 
         // Modify compress_to_pubkey in the Compressible extension
@@ -513,12 +513,12 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
     // Calculate expected size for account with Compressible extension
-    use light_ctoken_interface::state::{
-        calculate_ctoken_account_size, CompressibleExtensionConfig, CompressionInfoConfig,
+    use light_token_interface::state::{
+        calculate_token_account_size, CompressibleExtensionConfig, CompressionInfoConfig,
         ExtensionStructConfig,
     };
     let compressible_account_size =
-        calculate_ctoken_account_size(Some(&[ExtensionStructConfig::Compressible(
+        calculate_token_account_size(Some(&[ExtensionStructConfig::Compressible(
             CompressibleExtensionConfig {
                 info: CompressionInfoConfig { rent_config: () },
             },
@@ -542,7 +542,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
         pre_pay_num_epochs: num_prepaid_epochs,
         lamports_per_write,
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compression_only: false,
     };
 
@@ -586,7 +586,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
             num_prepaid_epochs,
             lamports_per_write,
             compress_to_pubkey: false,
-            account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
             payer: payer_pubkey,
         }),
         None,
@@ -793,10 +793,10 @@ async fn test_compress_and_close_output_validation_errors() {
             .unwrap()
             .unwrap();
 
-        use light_ctoken_interface::state::ctoken::CToken;
+        use light_token_interface::state::token::Token;
 
         // Parse and modify the CToken account
-        let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut token_account.data)
+        let (mut ctoken, _) = Token::zero_copy_at_mut(&mut token_account.data)
             .expect("Failed to deserialize ctoken account");
 
         // Set compress_to_pubkey=true in the Compressible extension

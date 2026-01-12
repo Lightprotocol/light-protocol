@@ -1,6 +1,6 @@
 # Add Token Pool
 
-**discriminator:** `[114, 143, 210, 73, 96, 115, 1, 228]` program-libs/ctoken-interface/src/discriminator.rs
+**discriminator:** `[114, 143, 210, 73, 96, 115, 1, 228]` program-libs/token-interface/src/discriminator.rs
 
 **enum:** Not applicable - this is an Anchor instruction, not part of the custom `InstructionType` enum
 
@@ -50,7 +50,7 @@ Token pool pda is renamed to spl interface pda in the light-token-sdk.
    - Error: InvalidTokenPoolBump if index >= 5
 2. Determine if mint has restricted extensions via `restricted_seed()` (programs/compressed-token/anchor/src/instructions/create_token_pool.rs:21-39)
    - Checks for: Pausable, PermanentDelegate, TransferFeeConfig, TransferHook, DefaultAccountState extensions
-3. Validate previous pool exists via `is_valid_spl_interface_pda()` (program-libs/ctoken-interface/src/pool_derivation.rs:95-148)
+3. Validate previous pool exists via `is_valid_spl_interface_pda()` (program-libs/token-interface/src/pool_derivation.rs:95-148)
    - Uses `token_pool_index.saturating_sub(1)` as the previous index
    - Verifies existing_token_pool_pda matches PDA derivation with (token_pool_index - 1)
    - Uses the same restricted/regular derivation path as the new pool

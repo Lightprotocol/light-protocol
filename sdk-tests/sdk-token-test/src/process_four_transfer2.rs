@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_ctoken_interface::instructions::transfer2::MultiInputTokenDataWithContext;
+use light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext;
 use light_ctoken_sdk::compressed_token::{
     transfer2::{
         account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
@@ -180,7 +180,7 @@ pub fn process_four_transfer2<'info>(
             four_invokes_params.compress_1.mint,
         );
         token_account_compress
-            .compress_ctoken(
+            .compress_token(
                 four_invokes_params.compress_1.amount,
                 four_invokes_params.compress_1.solana_token_account,
                 four_invokes_params.compress_1.authority,
@@ -217,7 +217,7 @@ pub fn process_four_transfer2<'info>(
             validity_proof: proof,
             transfer_config: Transfer2Config {
                 cpi_context: Some(
-                    light_ctoken_interface::instructions::transfer2::CompressedCpiContext {
+                    light_token_interface::instructions::transfer2::CompressedCpiContext {
                         set_context: false,
                         first_set_context: false,
                     },

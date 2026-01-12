@@ -1,7 +1,7 @@
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof, traits::LightInstructionData,
 };
-use light_ctoken_interface::instructions::mint_action::{
+use light_token_interface::instructions::mint_action::{
     CompressedMintWithContext, DecompressMintAction, MintActionCompressedInstructionData,
 };
 use solana_account_info::AccountInfo;
@@ -95,7 +95,7 @@ impl DecompressCMint {
             .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
 
         Ok(Instruction {
-            program_id: Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+            program_id: Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
             accounts: account_metas,
             data,
         })

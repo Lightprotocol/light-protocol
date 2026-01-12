@@ -1,8 +1,8 @@
 use light_client::rpc::Rpc;
 use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
-use light_ctoken_interface::{
+use light_token_interface::{
     state::{
-        ctoken::CToken, extensions::CompressibleExtension, AccountState, ExtensionStruct,
+        token::Token, extensions::CompressibleExtension, AccountState, ExtensionStruct,
         PausableAccountExtension, PermanentDelegateAccountExtension, TransferFeeAccountExtension,
         TransferHookAccountExtension, ACCOUNT_TYPE_TOKEN_ACCOUNT,
     },
@@ -28,7 +28,7 @@ pub struct CompressibleData {
     pub num_prepaid_epochs: u8,
     pub lamports_per_write: Option<u32>,
     pub compress_to_pubkey: bool,
-    pub account_version: light_ctoken_interface::state::TokenDataVersion,
+    pub account_version: light_token_interface::state::TokenDataVersion,
     pub payer: Pubkey,
 }
 
@@ -172,7 +172,7 @@ pub async fn assert_create_token_account_internal(
             );
 
             // Use zero-copy deserialization for compressible account
-            let (actual_token_account, _) = CToken::zero_copy_at(&account_info.data)
+            let (actual_token_account, _) = Token::zero_copy_at(&account_info.data)
                 .expect("Failed to deserialize compressible token account with zero-copy");
 
             // Get current slot for validation (program sets this to current slot)
@@ -221,7 +221,7 @@ pub async fn assert_create_token_account_internal(
             all_extensions.insert(0, ExtensionStruct::Compressible(compressible_ext));
 
             // Create expected compressible token account with embedded compression info
-            let expected_token_account = CToken {
+            let expected_token_account = Token {
                 mint: mint_pubkey.into(),
                 owner: owner_pubkey.into(),
                 amount: 0,

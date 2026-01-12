@@ -3,8 +3,8 @@
 //! This module tests the full compress -> decompress cycle with all extensions enabled.
 
 use borsh::BorshDeserialize;
-use light_ctoken_interface::state::{
-    AccountState, CToken, ExtensionStruct, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+use light_token_interface::state::{
+    AccountState, Token, ExtensionStruct, ACCOUNT_TYPE_TOKEN_ACCOUNT,
 };
 use light_program_test::program_test::TestRpc;
 use serial_test::serial;
@@ -20,7 +20,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     #[allow(unused_imports)]
     use light_client::indexer::CompressedTokenAccount;
     use light_client::indexer::Indexer;
-    use light_ctoken_interface::{
+    use light_token_interface::{
         instructions::extensions::{
             CompressedOnlyExtensionInstructionData, ExtensionInstructionData,
         },
@@ -149,7 +149,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     // Build expected TokenData with CompressedOnly extension
     // The CToken had marker extensions (PausableAccount, PermanentDelegateAccount),
     // so the compressed token should have CompressedOnly TLV extension
-    use light_ctoken_interface::state::{
+    use light_token_interface::state::{
         CompressedOnlyExtension, CompressedTokenAccountState, TokenData,
     };
 
@@ -265,12 +265,12 @@ async fn test_compress_and_close_ctoken_with_extensions() {
         .unwrap()
         .unwrap();
 
-    let dest_ctoken = CToken::deserialize(&mut &dest_account_data.data[..])
+    let dest_ctoken = Token::deserialize(&mut &dest_account_data.data[..])
         .expect("Failed to deserialize destination CToken account");
 
     // Build expected CToken account
     // Compression fields are now in the Compressible extension
-    let expected_dest_ctoken = CToken {
+    let expected_dest_token = Token {
         mint: mint_pubkey.to_bytes().into(),
         owner: owner.pubkey().to_bytes().into(),
         amount: mint_amount,
@@ -285,7 +285,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     };
 
     assert_eq!(
-        dest_ctoken, expected_dest_ctoken,
+        dest_ctoken, expected_dest_token,
         "Decompressed CToken account should match expected with all extensions"
     );
 

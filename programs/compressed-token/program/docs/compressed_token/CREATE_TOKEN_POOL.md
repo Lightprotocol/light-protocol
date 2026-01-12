@@ -1,6 +1,6 @@
 # Create Token Pool
 
-**discriminator:** `[23, 169, 27, 122, 147, 169, 209, 152]` program-libs/ctoken-interface/src/discriminator.rs
+**discriminator:** `[23, 169, 27, 122, 147, 169, 209, 152]` program-libs/token-interface/src/discriminator.rs
 
 **enum:** Not applicable - this is an Anchor instruction, not part of the custom `InstructionType` enum
 
@@ -44,7 +44,7 @@ Token pool pda is renamed to spl interface pda in the light-token-sdk.
 
 **Instruction Logic and Checks:**
 1. Validate mint extensions via `assert_mint_extensions()` (programs/compressed-token/anchor/src/instructions/create_token_pool.rs:129-165)
-   - All extensions must be in ALLOWED_EXTENSION_TYPES (program-libs/ctoken-interface/src/token_2022_extensions.rs:24-44)
+   - All extensions must be in ALLOWED_EXTENSION_TYPES (program-libs/token-interface/src/token_2022_extensions.rs:24-44)
    - Allowed extensions (16 types): MetadataPointer, TokenMetadata, InterestBearingConfig, GroupPointer, GroupMemberPointer, TokenGroup, TokenGroupMember, MintCloseAuthority, TransferFeeConfig, DefaultAccountState, PermanentDelegate, TransferHook, Pausable, ConfidentialTransferMint, ConfidentialTransferFeeConfig, ConfidentialMintBurn
    - **Restricted extensions (5 types) require compression_only mode:**
      - `Pausable` - pause state checked at transfer time from SPL mint

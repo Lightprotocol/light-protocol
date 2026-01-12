@@ -1,5 +1,5 @@
 use borsh::BorshSerialize;
-use light_ctoken_interface::CTOKEN_PROGRAM_ID;
+use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use light_ctoken_types::{
     instruction::delegation::CompressedTokenInstructionDataApprove, ValidityProof,
 };
@@ -76,7 +76,7 @@ pub fn create_approve_instruction(inputs: ApproveInputs) -> Result<Instruction> 
     let account_metas = get_approve_instruction_account_metas(meta_config);
 
     Ok(Instruction {
-        program_id: Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
+        program_id: Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
         accounts: account_metas,
         data: serialized_data,
     })

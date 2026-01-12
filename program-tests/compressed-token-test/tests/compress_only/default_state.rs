@@ -4,7 +4,7 @@
 //! the DefaultAccountState extension set to either Initialized or Frozen.
 
 use borsh::BorshDeserialize;
-use light_ctoken_interface::state::{AccountState, CToken, ACCOUNT_TYPE_TOKEN_ACCOUNT};
+use light_token_interface::state::{AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     mint_2022::{create_mint_22_with_extension_types, create_mint_22_with_frozen_default_state},
@@ -19,7 +19,7 @@ use spl_token_2022::extension::ExtensionType;
 #[tokio::test]
 #[serial]
 async fn test_create_ctoken_with_frozen_default_state() {
-    use light_ctoken_interface::state::TokenDataVersion;
+    use light_token_interface::state::TokenDataVersion;
     use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
@@ -72,11 +72,11 @@ async fn test_create_ctoken_with_frozen_default_state() {
 
     // Deserialize the CToken account using borsh
     let ctoken =
-        CToken::deserialize(&mut &account.data[..]).expect("Failed to deserialize CToken account");
+        Token::deserialize(&mut &account.data[..]).expect("Failed to deserialize Token account");
 
     // Build expected CToken account for comparison
     // Compression fields are now in the Compressible extension
-    let expected_ctoken = CToken {
+    let expected_token = Token {
         mint: mint_pubkey.to_bytes().into(),
         owner: payer.pubkey().to_bytes().into(),
         amount: 0,
@@ -91,7 +91,7 @@ async fn test_create_ctoken_with_frozen_default_state() {
     };
 
     assert_eq!(
-        ctoken, expected_ctoken,
+        ctoken, expected_token,
         "CToken account should match expected"
     );
 
@@ -107,7 +107,7 @@ async fn test_create_ctoken_with_frozen_default_state() {
 #[tokio::test]
 #[serial]
 async fn test_create_ctoken_with_initialized_default_state() {
-    use light_ctoken_interface::state::TokenDataVersion;
+    use light_token_interface::state::TokenDataVersion;
     use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
@@ -160,11 +160,11 @@ async fn test_create_ctoken_with_initialized_default_state() {
 
     // Deserialize the CToken account using borsh
     let ctoken =
-        CToken::deserialize(&mut &account.data[..]).expect("Failed to deserialize CToken account");
+        Token::deserialize(&mut &account.data[..]).expect("Failed to deserialize Token account");
 
     // Build expected CToken account for comparison
     // Extensions include Compressible (for compression fields)
-    let expected_ctoken = CToken {
+    let expected_token = Token {
         mint: mint_pubkey.to_bytes().into(),
         owner: payer.pubkey().to_bytes().into(),
         amount: 0,
@@ -178,7 +178,7 @@ async fn test_create_ctoken_with_initialized_default_state() {
     };
 
     assert_eq!(
-        ctoken, expected_ctoken,
+        ctoken, expected_token,
         "CToken account should match expected"
     );
 
