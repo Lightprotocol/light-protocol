@@ -235,7 +235,7 @@ bytemuck = { version = "1.19.0" }
 arrayvec = "0.7"
 smallvec = "1.15"
 tinyvec = "1.10.0"
-pinocchio-token-program = { git= "https://github.com/Lightprotocol/token", rev="9ea04560a039d1a44f0411b5eaa7c0b79ed575ab" }
+pinocchio-token-program = { git= "https://github.com/Lightprotocol/token", rev="f7bee9bbc8039c224a88ea76e9ae2edd78e0f9c3" }
 # Math and crypto
 num-bigint = "0.4.6"
 tabled = "0.20"
