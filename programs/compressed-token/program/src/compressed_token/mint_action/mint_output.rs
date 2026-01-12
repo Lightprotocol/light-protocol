@@ -19,7 +19,7 @@ use crate::{
         queue_indices::QueueIndices,
     },
     constants::COMPRESSED_MINT_DISCRIMINATOR,
-    shared::{convert_program_error, transfer_lamports::transfer_lamports},
+    shared::{convert_program_error, transfer_lamports::transfer_lamports_via_cpi},
 };
 
 /// Processes the output compressed mint account.
@@ -175,14 +175,15 @@ fn serialize_decompressed_mint(
         deficit = deficit.saturating_add(top_up);
     }
 
-    // STEP 5: Transfer lamports if needed
+    // STEP 5: Transfer lamports if needed (via CPI since fee_payer is owned by system program)
     if deficit > 0 {
         let fee_payer = validated_accounts
             .executing
             .as_ref()
             .map(|exec| exec.system.fee_payer)
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
-        transfer_lamports(deficit, fee_payer, cmint_account).map_err(convert_program_error)?;
+        transfer_lamports_via_cpi(deficit, fee_payer, cmint_account)
+            .map_err(convert_program_error)?;
     }
 
     // STEP 6: Write serialized data
