@@ -4,13 +4,14 @@
 
 | I want to... | Go to |
 |-------------|-------|
-| Transfer compressed tokens | → [Path B](#path-b-with-compressed-accounts-full-transfer-operations) (line 184) + [System accounts](#system-accounts-when-compressed-accounts-involved) (line 77) |
-| Only compress/decompress (no transfers) | → [Path A](#path-a-no-compressed-accounts-compressions-only-operations) (line 157) + [Compressions-only accounts](#compressions-only-accounts-when-no_compressed_accounts) (line 112) |
-| Compress SPL tokens | → [SPL compression](#spl-token-compressiondecompression) (line 240) |
-| Compress CToken accounts | → [CToken compression](#ctoken-compressiondecompression-srctransfer2compressionctoken) (line 250) |
-| Close compressible account (forester) | → [CompressAndClose](#for-compressandclose) (line 274) - compression_authority only |
-| Use CPI context | → [Write mode](#cpi-context-write-path) (line 215) or [Execute mode](#cpi-context-support-for-cross-program-invocations) (line 38) |
-| Debug errors | → [Error reference](#errors) (line 329) |
+| Understand which accounts to pass | → [Path Selection and Account Requirements](#path-selection-and-account-requirements) |
+| Transfer compressed tokens | → [Path B](#path-b-with-compressed-accounts-full-transfer-operations) + [System accounts](#system-accounts-when-compressed-accounts-involved) |
+| Only compress/decompress (no transfers) | → [Path A](#path-a-no-compressed-accounts-compressions-only-operations) + [Compressions-only accounts](#compressions-only-accounts-path-a-when-no_compressed_accountstrue) |
+| Compress SPL tokens | → [SPL compression](#spl-token-compressiondecompression) |
+| Compress CToken accounts | → [CToken compression](#ctoken-compressiondecompression-srctransfer2compressionctoken) |
+| Close compressible account (forester) | → [CompressAndClose](#for-compressandclose) - compression_authority only |
+| Use CPI context | → [Write mode](#cpi-context-write-path) or [Execute mode](#cpi-context-support-for-cross-program-invocations) |
+| Debug errors | → [Error reference](#errors) |
 
 **discriminator:** 101
 **enum:** `InstructionType::Transfer2`
@@ -109,16 +110,61 @@ System accounts (when compressed accounts involved):
     - (mutable)
     - For storing CPI context data for later execution
 
-Compressions-only accounts (when no_compressed_accounts):
-Note: In compressions-only mode, these accounts replace the system accounts above
+---
 
-11. compressions_only_cpi_authority_pda
-    - PDA for compression operations
+### Path Selection and Account Requirements
+
+**Path selection logic:** The instruction determines which path to execute based on the `no_compressed_accounts` flag computed from instruction data:
+```
+no_compressed_accounts = in_token_data.is_empty() && out_token_data.is_empty()
+```
+
+When `no_compressed_accounts=true`, the instruction executes **Path A** (compressions-only).
+When `no_compressed_accounts=false`, the instruction executes **Path B** (full transfer with system CPI).
+
+**Account layout is mutually exclusive:** Callers must pass EITHER the Path A accounts OR the Path B accounts, never both. The account parser reads accounts sequentially and expects a specific layout based on the path:
+
+- **Path A layout:** `[cpi_authority_pda, fee_payer, ...packed_accounts]`
+- **Path B layout:** `[light_system_program, fee_payer, cpi_authority_pda, registered_program_pda, account_compression_authority, account_compression_program, system_program, (optional accounts...), ...packed_accounts]`
+
+**Account Requirements by Path:**
+
+| Account | Path A (compressions-only) | Path B (with compressed accounts) |
+|---------|---------------------------|----------------------------------|
+| light_system_program | Not used | Required (position 0) |
+| fee_payer | Required (position 1, signer) | Required (position 1, signer) |
+| cpi_authority_pda | Required (position 0) | Required (position 2) |
+| registered_program_pda | Not used | Required (position 3) |
+| account_compression_authority | Not used | Required (position 4) |
+| account_compression_program | Not used | Required (position 5) |
+| system_program | Not used | Required (position 6) |
+| sol_pool_pda | Not used | Optional (when lamport imbalance) |
+| sol_decompression_recipient | Not used | Optional (when decompressing SOL) |
+| cpi_context_account | Not used | Optional (for CPI context) |
+| packed_accounts | After position 1 | After system/optional accounts |
+
+**Note:** `cpi_authority_pda` is the **same PDA** in both paths (seeds: `[CPI_AUTHORITY_SEED]`), just at different positions.
+
+---
+
+### Compressions-only accounts (Path A: when no_compressed_accounts=true)
+
+When `no_compressed_accounts=true`, pass ONLY these accounts (do NOT include the Path B system accounts):
+
+1. cpi_authority_pda (position 0)
+    - PDA for signing SPL token transfers during compress/decompress
     - Seeds: [CPI_AUTHORITY_SEED]
+    - Same PDA as Path B, different position
 
-12. compressions_only_fee_payer
+2. fee_payer (position 1)
     - (signer, mutable)
     - Pays for compression/decompression operations
+
+**Path A errors:**
+- `CompressionsOnlyMissingCpiAuthority` (6097): cpi_authority_pda not provided at position 0
+- `CompressionsOnlyMissingFeePayer` (6096): fee_payer not provided at position 1
+
+---
 
 Packed accounts (dynamic indexing):
 - merkle tree and queue accounts - For compressed account storage, nullifier tracking and output storage (must come first, identified by ACCOUNT_COMPRESSION_PROGRAM ownership)

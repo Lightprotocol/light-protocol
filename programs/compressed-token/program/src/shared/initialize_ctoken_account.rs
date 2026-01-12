@@ -80,9 +80,11 @@ pub fn create_compressible_account<'info>(
 
     // Get rent exemption from Rent sysvar (only place we query it - store for later use)
     #[cfg(target_os = "solana")]
-    let rent_exemption_paid = Rent::get()
+    let rent_exemption_paid: u32 = Rent::get()
         .map_err(|_| ProgramError::UnsupportedSysvar)?
-        .minimum_balance(account_size as usize) as u32;
+        .minimum_balance(account_size as usize)
+        .try_into()
+        .map_err(|_| ProgramError::ArithmeticOverflow)?;
     #[cfg(not(target_os = "solana"))]
     let rent_exemption_paid = 0;
 

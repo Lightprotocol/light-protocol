@@ -132,9 +132,11 @@ pub fn process_decompress_mint_action(
         .len();
 
     // 7a.1. Store rent exemption at creation (only query Rent sysvar here, never again)
-    let rent_exemption_paid = Rent::get()
+    let rent_exemption_paid: u32 = Rent::get()
         .map_err(|_| ProgramError::UnsupportedSysvar)?
-        .minimum_balance(account_size) as u32;
+        .minimum_balance(account_size)
+        .try_into()
+        .map_err(|_| ProgramError::ArithmeticOverflow)?;
     compressed_mint.compression.rent_exemption_paid = rent_exemption_paid;
 
     // 7b. Calculate Light Protocol rent (base_rent + bytes * lamports_per_byte * epochs + compression_cost)
