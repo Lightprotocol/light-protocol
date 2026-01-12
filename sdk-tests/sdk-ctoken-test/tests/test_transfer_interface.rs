@@ -8,7 +8,7 @@ use light_ctoken_sdk::{
     ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
     spl_interface::find_spl_interface_pda_with_index,
 };
-use light_ctoken_types::CPI_AUTHORITY_PDA;
+use light_token_types::CPI_AUTHORITY_PDA;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::spl::{
     create_mint_helper, create_token_2022_account, mint_spl_tokens, CREATE_MINT_HELPER_DECIMALS,

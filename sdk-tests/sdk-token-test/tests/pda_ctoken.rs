@@ -18,7 +18,7 @@ use light_ctoken_sdk::{
     },
     ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
 };
-use light_ctoken_types::CPI_AUTHORITY_PDA;
+use light_token_types::CPI_AUTHORITY_PDA;
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use sdk_token_test::{ChainedCtokenInstructionData, PdaCreationData, ID};

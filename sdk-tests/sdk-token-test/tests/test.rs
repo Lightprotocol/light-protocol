@@ -14,7 +14,7 @@ use light_ctoken_sdk::{
     },
     spl_interface::{find_spl_interface_pda_with_index, get_spl_interface_pda},
 };
-use light_ctoken_types::{TokenAccountMeta, SPL_TOKEN_PROGRAM_ID};
+use light_token_types::{TokenAccountMeta, SPL_TOKEN_PROGRAM_ID};
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::{

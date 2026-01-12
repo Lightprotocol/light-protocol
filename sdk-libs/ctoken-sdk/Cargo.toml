@@ -11,7 +11,7 @@ default = []
 v1 = []
 compressible = []
 
-anchor = ["anchor-lang", "light-ctoken-types/anchor",  "light-token-interface/anchor"]
+anchor = ["anchor-lang", "light-token-types/anchor",  "light-token-interface/anchor"]
 cpi-context = ["light-sdk/cpi-context"]
 profile-program = [
     "light-program-profiler/profile-program",
@@ -26,7 +26,7 @@ profile-heap = [
 
 [dependencies]
 # Light Protocol dependencies
-light-ctoken-types = { workspace = true }
+light-token-types = { workspace = true }
 light-compressed-account = { workspace = true, features = ["std"] }
 light-compressible = { workspace = true }
 light-token-interface = { workspace = true }

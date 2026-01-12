@@ -32,7 +32,7 @@ profile-heap = [
 
 [dependencies]
 light-ctoken-sdk = { workspace = true, features = ["anchor", "cpi-context", "v1"] }
-light-ctoken-types = { workspace = true }
+light-token-types = { workspace = true }
 anchor-lang = { workspace = true }
 light-hasher = { workspace = true }
 light-sdk = { workspace = true, features = ["v2", "cpi-context"] }

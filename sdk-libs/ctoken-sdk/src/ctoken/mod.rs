@@ -110,7 +110,7 @@ pub use light_token_interface::{
     },
     state::{Token, TokenDataVersion},
 };
-use light_ctoken_types::POOL_SEED;
+use light_token_types::POOL_SEED;
 pub use mint_to::*;
 pub use revoke::*;
 use solana_account_info::AccountInfo;

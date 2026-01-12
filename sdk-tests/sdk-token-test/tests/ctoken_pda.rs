@@ -12,7 +12,7 @@ use light_token_interface::{
 use light_ctoken_sdk::compressed_token::create_compressed_mint::{
     derive_cmint_compressed_address, find_cmint_address,
 };
-use light_ctoken_types::CPI_AUTHORITY_PDA;
+use light_token_types::CPI_AUTHORITY_PDA;
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use sdk_token_test::{ChainedCtokenInstructionData, PdaCreationData, ID};

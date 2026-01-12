@@ -10,7 +10,7 @@ use light_token_interface::{
 use light_ctoken_sdk::compressed_token::update_compressed_mint::{
     update_compressed_mint, UpdateCompressedMintInputs,
 };
-use light_ctoken_types::CompressedMintAuthorityType;
+use light_token_types::CompressedMintAuthorityType;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;

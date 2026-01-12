@@ -2,8 +2,8 @@ use light_compressed_account::instruction_data::traits::LightInstructionData;
 use light_token_interface::instructions::mint_action::{
     CompressedMintWithContext, CpiContext, Recipient,
 };
-pub use light_ctoken_types::account_infos::mint_to_compressed::DecompressedMintConfig;
-use light_ctoken_types::CompressedProof;
+pub use light_token_types::account_infos::mint_to_compressed::DecompressedMintConfig;
+use light_token_types::CompressedProof;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 

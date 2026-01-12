@@ -15,7 +15,7 @@ use light_ctoken_sdk::{
     ctoken,
     pack::compat::CTokenDataWithVariant,
 };
-use light_ctoken_types::CPI_AUTHORITY_PDA;
+use light_token_types::CPI_AUTHORITY_PDA;
 use light_program_test::{
     program_test::{
         initialize_compression_config, setup_mock_program_data, LightProgramTest, TestRpc,

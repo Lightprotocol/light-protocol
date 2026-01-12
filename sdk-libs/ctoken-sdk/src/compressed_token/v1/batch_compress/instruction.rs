@@ -1,5 +1,5 @@
 use light_token_interface;
-use light_ctoken_types::{
+use light_token_types::{
     instruction::batch_compress::BatchCompressInstructionData, BATCH_COMPRESS,
 };
 use solana_instruction::Instruction;

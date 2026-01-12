@@ -9,6 +9,7 @@ use light_ctoken_sdk::compressed_token::create_compressed_mint::{
     derive_cmint_compressed_address, find_cmint_address,
 };
 use light_macros::pubkey;
+use light_token_types::CPI_AUTHORITY_PDA;
 use light_program_test::{
     program_test::{
         initialize_compression_config, setup_mock_program_data, LightProgramTest, TestRpc,
@@ -586,7 +587,7 @@ pub async fn create_user_record_and_game_session(
         config: *config_pda,
         rent_sponsor: RENT_SPONSOR,
         mint_authority,
-        compress_token_program_cpi_authority: light_ctoken_types::CPI_AUTHORITY_PDA.into(),
+        compress_token_program_cpi_authority: CPI_AUTHORITY_PDA.into(),
     };
 
     let user_compressed_address = derive_address(

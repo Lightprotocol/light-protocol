@@ -1646,7 +1646,6 @@ dependencies = [
  "light-compressible",
  "light-compressible-client",
  "light-ctoken-sdk",
- "light-ctoken-types",
  "light-hasher",
  "light-macros",
  "light-program-test",
@@ -1656,6 +1655,7 @@ dependencies = [
  "light-test-utils",
  "light-token-client",
  "light-token-interface",
+ "light-token-types",
  "solana-account",
  "solana-instruction",
  "solana-keypair",
@@ -1681,7 +1681,6 @@ dependencies = [
  "light-compressible",
  "light-compressible-client",
  "light-ctoken-sdk",
- "light-ctoken-types",
  "light-hasher",
  "light-macros",
  "light-program-test",
@@ -1691,6 +1690,7 @@ dependencies = [
  "light-test-utils",
  "light-token-client",
  "light-token-interface",
+ "light-token-types",
  "solana-account",
  "solana-account-info",
  "solana-instruction",
@@ -3759,12 +3759,12 @@ dependencies = [
  "light-compressed-account",
  "light-compressed-token",
  "light-compressible",
- "light-ctoken-types",
  "light-macros",
  "light-program-profiler",
  "light-sdk",
  "light-sdk-types",
  "light-token-interface",
+ "light-token-types",
  "light-zero-copy",
  "pinocchio",
  "solana-account-info",
@@ -3775,20 +3775,6 @@ dependencies = [
  "solana-pubkey 2.4.0",
  "spl-pod",
  "spl-token-2022 7.0.0",
- "thiserror 2.0.17",
-]
-
-[[package]]
-name = "light-ctoken-types"
-version = "0.2.1"
-dependencies = [
- "anchor-lang",
- "borsh 0.10.4",
- "light-account-checks",
- "light-compressed-account",
- "light-macros",
- "light-sdk-types",
- "solana-msg 2.2.1",
  "thiserror 2.0.17",
 ]
 
@@ -4253,9 +4239,9 @@ dependencies = [
  "light-compressed-account",
  "light-compressible",
  "light-ctoken-sdk",
- "light-ctoken-types",
  "light-sdk",
  "light-token-interface",
+ "light-token-types",
  "light-zero-copy",
  "solana-instruction",
  "solana-keypair",
@@ -4301,6 +4287,20 @@ dependencies = [
  "thiserror 2.0.17",
  "tinyvec",
  "zerocopy",
+]
+
+[[package]]
+name = "light-token-types"
+version = "0.2.1"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "light-account-checks",
+ "light-compressed-account",
+ "light-macros",
+ "light-sdk-types",
+ "solana-msg 2.2.1",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -6051,7 +6051,6 @@ dependencies = [
  "light-compressible",
  "light-compressible-client",
  "light-ctoken-sdk",
- "light-ctoken-types",
  "light-hasher",
  "light-macros",
  "light-program-test",
@@ -6060,6 +6059,7 @@ dependencies = [
  "light-test-utils",
  "light-token-client",
  "light-token-interface",
+ "light-token-types",
  "solana-account",
  "solana-instruction",
  "solana-keypair",
@@ -6084,12 +6084,12 @@ dependencies = [
  "light-compressible",
  "light-compressible-client",
  "light-ctoken-sdk",
- "light-ctoken-types",
  "light-program-test",
  "light-sdk",
  "light-sdk-types",
  "light-test-utils",
  "light-token-interface",
+ "light-token-types",
  "solana-program",
  "solana-sdk",
  "spl-pod",
@@ -6160,7 +6160,6 @@ dependencies = [
  "light-compressed-account",
  "light-compressible",
  "light-ctoken-sdk",
- "light-ctoken-types",
  "light-hasher",
  "light-program-profiler",
  "light-program-test",
@@ -6169,6 +6168,7 @@ dependencies = [
  "light-test-utils",
  "light-token-client",
  "light-token-interface",
+ "light-token-types",
  "light-zero-copy",
  "serial_test",
  "solana-sdk",

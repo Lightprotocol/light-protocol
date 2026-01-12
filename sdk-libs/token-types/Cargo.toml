@@ -1,5 +1,5 @@
 [package]
-name = "light-ctoken-types"
+name = "light-token-types"
 version = "0.2.1"
 edition = "2021"
 description = "ctoken and compressed token types for Light Protocol"

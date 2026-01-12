@@ -11,6 +11,7 @@ use light_ctoken_sdk::compressed_token::create_compressed_mint::{
     derive_cmint_compressed_address, find_cmint_address,
 };
 use light_macros::pubkey;
+use light_token_types::CPI_AUTHORITY_PDA;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest},
     AddressWithTree, Indexer, ProgramTestConfig, Rpc,
@@ -237,7 +238,7 @@ pub async fn create_user_record_and_game_session(
         mint_authority,
         some_account: some_account.pubkey(),
         ctoken_program: C_TOKEN_PROGRAM_ID.into(),
-        compress_token_program_cpi_authority: light_ctoken_types::CPI_AUTHORITY_PDA.into(),
+        compress_token_program_cpi_authority: CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
         config: *config_pda,
         rent_sponsor: RENT_SPONSOR,

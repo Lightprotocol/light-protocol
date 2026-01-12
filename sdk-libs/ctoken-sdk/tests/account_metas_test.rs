@@ -9,7 +9,7 @@ use light_ctoken_sdk::{
     },
     utils::CTokenDefaultAccounts,
 };
-use light_ctoken_types::constants::{
+use light_token_types::constants::{
     ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA, LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID,
     PROGRAM_ID as CTOKEN_PROGRAM_ID,
 };

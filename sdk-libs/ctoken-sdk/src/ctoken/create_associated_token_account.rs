@@ -1,5 +1,5 @@
 use borsh::BorshSerialize;
-use light_ctoken_types::{
+use light_token_types::{
     instructions::{
         create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
         create_associated_token_account2::CreateAssociatedTokenAccount2InstructionData,
@@ -221,7 +221,7 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
     }
 
     Ok(Instruction {
-        program_id: Pubkey::from(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::from(light_token_types::COMPRESSED_TOKEN_PROGRAM_ID),
         accounts,
         data,
     })
@@ -231,10 +231,10 @@ pub fn derive_ctoken_ata(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[
             owner.as_ref(),
-            light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID.as_ref(),
+            light_token_types::COMPRESSED_TOKEN_PROGRAM_ID.as_ref(),
             mint.as_ref(),
         ],
-        &Pubkey::from(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        &Pubkey::from(light_token_types::COMPRESSED_TOKEN_PROGRAM_ID),
     )
 }
 
@@ -397,7 +397,7 @@ fn create_ata2_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: b
     }
 
     Ok(Instruction {
-        program_id: Pubkey::from(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::from(light_token_types::COMPRESSED_TOKEN_PROGRAM_ID),
         accounts,
         data,
     })

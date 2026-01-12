@@ -9,7 +9,7 @@ use light_ctoken_sdk::{
     spl_interface::get_spl_interface_pda,
     utils::CTokenDefaultAccounts,
 };
-use light_ctoken_types::SPL_TOKEN_PROGRAM_ID;
+use light_token_types::SPL_TOKEN_PROGRAM_ID;
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::{
     address::v1::derive_address,

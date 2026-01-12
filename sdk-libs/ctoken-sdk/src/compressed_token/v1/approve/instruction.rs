@@ -1,6 +1,6 @@
 use borsh::BorshSerialize;
 use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
-use light_ctoken_types::{
+use light_token_types::{
     instruction::delegation::CompressedTokenInstructionDataApprove, ValidityProof,
 };
 use solana_instruction::Instruction;

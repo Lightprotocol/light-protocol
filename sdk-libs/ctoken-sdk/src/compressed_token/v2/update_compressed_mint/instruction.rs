@@ -5,7 +5,7 @@ use light_token_interface::{
     self,
     instructions::mint_action::{CompressedMintWithContext, CpiContext},
 };
-use light_ctoken_types::CompressedMintAuthorityType;
+use light_token_types::CompressedMintAuthorityType;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
