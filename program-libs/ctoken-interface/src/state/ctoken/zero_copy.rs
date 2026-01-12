@@ -110,6 +110,11 @@ impl<'a> ZeroCopyNew<'a> for CToken {
         bytes: &'a mut [u8],
         config: Self::ZeroCopyConfig,
     ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
+        // Check that the account is not already initialized (state byte at offset 108)
+        const STATE_OFFSET: usize = 108;
+        if bytes.len() > STATE_OFFSET && bytes[STATE_OFFSET] != 0 {
+            return Err(light_zero_copy::errors::ZeroCopyError::MemoryNotZeroed);
+        }
         // Use derived new_zero_copy for base struct (config type is () for fixed-size struct)
         let (mut base, mut remaining) =
             <CTokenZeroCopyMeta as ZeroCopyNew<'a>>::new_zero_copy(bytes, ())?;
@@ -159,7 +164,9 @@ impl<'a> ZeroCopyNew<'a> for CToken {
         } else {
             (ACCOUNT_TYPE_TOKEN_ACCOUNT, None)
         };
-
+        if !remaining.is_empty() {
+            return Err(light_zero_copy::errors::ZeroCopyError::Size);
+        }
         Ok((
             ZCTokenMut {
                 base,
@@ -181,7 +188,7 @@ impl<'a> ZeroCopyAt<'a> for CToken {
         let (base, bytes) = <CTokenZeroCopyMeta as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
 
         // Check if there are extensions by looking at account_type byte at position 165
-        if !bytes.is_empty() && bytes[0] == ACCOUNT_TYPE_TOKEN_ACCOUNT {
+        if !bytes.is_empty() {
             let account_type = bytes[0];
             // Skip account_type byte
             let bytes = &bytes[1..];
@@ -221,7 +228,7 @@ impl<'a> ZeroCopyAtMut<'a> for CToken {
         let (base, bytes) = <CTokenZeroCopyMeta as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
 
         // Check if there are extensions by looking at account_type byte at position 165
-        if !bytes.is_empty() && bytes[0] == ACCOUNT_TYPE_TOKEN_ACCOUNT {
+        if !bytes.is_empty() {
             let account_type = bytes[0];
             // Skip account_type byte
             let bytes = &mut bytes[1..];
@@ -345,6 +352,12 @@ impl<'a> ZCTokenMut<'a> {
 
 // Getters on ZCTokenZeroCopyMeta (immutable)
 impl ZCTokenZeroCopyMeta<'_> {
+    /// Checks if account is uninitialized (state == 0)
+    #[inline(always)]
+    pub fn is_uninitialized(&self) -> bool {
+        self.state == 0
+    }
+
     /// Checks if account is initialized (state == 1)
     #[inline(always)]
     pub fn is_initialized(&self) -> bool {
@@ -390,6 +403,12 @@ impl ZCTokenZeroCopyMeta<'_> {
 
 // Getters on ZCTokenZeroCopyMetaMut (mutable)
 impl ZCTokenZeroCopyMetaMut<'_> {
+    /// Checks if account is uninitialized (state == 0)
+    #[inline(always)]
+    pub fn is_uninitialized(&self) -> bool {
+        self.state == 0
+    }
+
     /// Checks if account is initialized (state == 1)
     #[inline(always)]
     pub fn is_initialized(&self) -> bool {
@@ -505,6 +524,79 @@ impl CToken {
         }
 
         Ok((ctoken, remaining))
+    }
+
+    /// Deserialize a CToken from account info with validation using zero-copy.
+    ///
+    /// Checks:
+    /// 1. Account is owned by the CTOKEN program
+    /// 2. Account is initialized (state != 0)
+    /// 3. Account type is ACCOUNT_TYPE_TOKEN_ACCOUNT (byte 165 == 2)
+    /// 4. No trailing bytes after the CToken structure
+    ///
+    /// Safety: The returned ZCToken references the account data which is valid
+    /// for the duration of the transaction. The caller must ensure the account
+    /// is not modified through other means while this reference exists.
+    #[inline(always)]
+    pub fn from_account_info_checked<'a>(
+        account_info: &pinocchio::account_info::AccountInfo,
+    ) -> Result<ZCToken<'a>, crate::error::CTokenError> {
+        // 1. Check program ownership
+        if !account_info.is_owned_by(&crate::CTOKEN_PROGRAM_ID) {
+            return Err(crate::error::CTokenError::InvalidCTokenOwner);
+        }
+
+        let data = account_info
+            .try_borrow_data()
+            .map_err(|_| crate::error::CTokenError::BorrowFailed)?;
+
+        // Extend lifetime to 'a - safe because account data lives for transaction duration
+        let data_slice: &'a [u8] =
+            unsafe { core::slice::from_raw_parts(data.as_ptr(), data.len()) };
+
+        let (ctoken, remaining) = CToken::zero_copy_at_checked(data_slice)?;
+
+        // 4. Check no trailing bytes
+        if !remaining.is_empty() {
+            return Err(crate::error::CTokenError::InvalidAccountData);
+        }
+
+        Ok(ctoken)
+    }
+
+    /// Mutable version of from_account_info_checked.
+    /// Deserialize a CToken from account info with validation using zero-copy.
+    ///
+    /// Checks:
+    /// 1. Account is owned by the CTOKEN program
+    /// 2. Account is initialized (state != 0)
+    /// 3. Account type is ACCOUNT_TYPE_TOKEN_ACCOUNT (byte 165 == 2)
+    /// 4. No trailing bytes after the CToken structure
+    #[inline(always)]
+    pub fn from_account_info_mut_checked<'a>(
+        account_info: &pinocchio::account_info::AccountInfo,
+    ) -> Result<ZCTokenMut<'a>, crate::error::CTokenError> {
+        // 1. Check program ownership
+        if !account_info.is_owned_by(&crate::CTOKEN_PROGRAM_ID) {
+            return Err(crate::error::CTokenError::InvalidCTokenOwner);
+        }
+
+        let mut data = account_info
+            .try_borrow_mut_data()
+            .map_err(|_| crate::error::CTokenError::BorrowFailed)?;
+
+        // Extend lifetime to 'a - safe because account data lives for transaction duration
+        let data_slice: &'a mut [u8] =
+            unsafe { core::slice::from_raw_parts_mut(data.as_mut_ptr(), data.len()) };
+
+        let (ctoken, remaining) = CToken::zero_copy_at_mut_checked(data_slice)?;
+
+        // 4. Check no trailing bytes
+        if !remaining.is_empty() {
+            return Err(crate::error::CTokenError::InvalidAccountData);
+        }
+
+        Ok(ctoken)
     }
 }
 

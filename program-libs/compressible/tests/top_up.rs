@@ -257,6 +257,8 @@ fn test_calculate_top_up_lamports() {
             last_claimed_slot: test_case.last_claimed_slot,
             lamports_per_write: test_case.lamports_per_write,
             compress_to_pubkey: 0,
+            rent_exemption_paid: rent_exemption_lamports as u32,
+            _reserved: 0,
             rent_config: test_rent_config(),
         };
 
@@ -265,7 +267,6 @@ fn test_calculate_top_up_lamports() {
                 TEST_BYTES,
                 test_case.current_slot,
                 test_case.current_lamports,
-                rent_exemption_lamports,
             )
             .unwrap();
 
@@ -297,6 +298,8 @@ fn test_default_scenario_16_epochs_with_2_epoch_topup() {
         last_claimed_slot: start_slot,
         lamports_per_write,
         compress_to_pubkey: 0,
+        rent_exemption_paid: rent_exemption_lamports as u32,
+        _reserved: 0,
         rent_config: test_rent_config(), // max_funded_epochs = 2
     };
 
@@ -305,12 +308,7 @@ fn test_default_scenario_16_epochs_with_2_epoch_topup() {
         let current_slot = start_slot + (SLOTS_PER_EPOCH * epoch_offset);
 
         let top_up = extension
-            .calculate_top_up_lamports(
-                TEST_BYTES,
-                current_slot,
-                initial_lamports,
-                rent_exemption_lamports,
-            )
+            .calculate_top_up_lamports(TEST_BYTES, current_slot, initial_lamports)
             .unwrap();
 
         assert_eq!(
@@ -325,12 +323,7 @@ fn test_default_scenario_16_epochs_with_2_epoch_topup() {
     // Epoch 14 - should require top-up (only 1 epoch funded ahead < max_funded_epochs=2)
     let epoch_14_slot = start_slot + (SLOTS_PER_EPOCH * 14);
     let top_up = extension
-        .calculate_top_up_lamports(
-            TEST_BYTES,
-            epoch_14_slot,
-            initial_lamports,
-            rent_exemption_lamports,
-        )
+        .calculate_top_up_lamports(TEST_BYTES, epoch_14_slot, initial_lamports)
         .unwrap();
 
     assert_eq!(
@@ -346,12 +339,7 @@ fn test_default_scenario_16_epochs_with_2_epoch_topup() {
         let current_slot = start_slot + (SLOTS_PER_EPOCH * epoch_offset);
 
         let top_up = extension
-            .calculate_top_up_lamports(
-                TEST_BYTES,
-                current_slot,
-                lamports_after_write,
-                rent_exemption_lamports,
-            )
+            .calculate_top_up_lamports(TEST_BYTES, current_slot, lamports_after_write)
             .unwrap();
 
         assert_eq!(
@@ -364,12 +352,7 @@ fn test_default_scenario_16_epochs_with_2_epoch_topup() {
     // Epoch 16 - should require top-up again
     let epoch_16_slot = start_slot + (SLOTS_PER_EPOCH * 16);
     let top_up = extension
-        .calculate_top_up_lamports(
-            TEST_BYTES,
-            epoch_16_slot,
-            lamports_after_write,
-            rent_exemption_lamports,
-        )
+        .calculate_top_up_lamports(TEST_BYTES, epoch_16_slot, lamports_after_write)
         .unwrap();
 
     assert_eq!(

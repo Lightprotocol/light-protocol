@@ -2,6 +2,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_compressible::compression_info::CompressionInfo;
 use light_ctoken_interface::state::{
+    cmint_top_up_lamports_from_slice,
     extensions::{AdditionalMetadata, ExtensionStruct, TokenMetadata},
     BaseMint, CompressedMint, CompressedMintConfig, CompressedMintMetadata, ACCOUNT_TYPE_MINT,
 };
@@ -77,8 +78,9 @@ fn generate_random_compressed_mint(rng: &mut impl Rng, with_extensions: bool) ->
             version: 3,
             mint,
             cmint_decompressed: rng.gen_bool(0.5),
+            compressed_address: rng.gen(),
         },
-        reserved: [0u8; 49],
+        reserved: [0u8; 17],
         account_type: ACCOUNT_TYPE_MINT,
         compression: CompressionInfo::default(),
         extensions,
@@ -146,6 +148,7 @@ fn test_compressed_mint_borsh_zerocopy_compatibility() {
         } else {
             0
         };
+        zc_mint.base.metadata.compressed_address = original_mint.metadata.compressed_address;
         // account_type is already set in new_zero_copy
         // Set compression fields
         zc_mint.base.compression.config_account_version =
@@ -257,8 +260,9 @@ fn test_compressed_mint_edge_cases() {
             version: 3,
             mint: Pubkey::from([0xff; 32]),
             cmint_decompressed: false,
+            compressed_address: [0u8; 32],
         },
-        reserved: [0u8; 49],
+        reserved: [0u8; 17],
         account_type: ACCOUNT_TYPE_MINT,
         compression: CompressionInfo::default(),
         extensions: None,
@@ -290,6 +294,7 @@ fn test_compressed_mint_edge_cases() {
     zc_mint.base.metadata.version = mint_no_auth.metadata.version;
     zc_mint.base.metadata.mint = mint_no_auth.metadata.mint;
     zc_mint.base.metadata.cmint_decompressed = 0;
+    zc_mint.base.metadata.compressed_address = mint_no_auth.metadata.compressed_address;
     // account_type is already set in new_zero_copy
     // Set compression fields
     zc_mint.base.compression.config_account_version =
@@ -334,8 +339,9 @@ fn test_compressed_mint_edge_cases() {
             version: 255,
             mint: Pubkey::from([0xbb; 32]),
             cmint_decompressed: true,
+            compressed_address: [0xcc; 32],
         },
-        reserved: [0u8; 49],
+        reserved: [0u8; 17],
         account_type: ACCOUNT_TYPE_MINT,
         compression: CompressionInfo::default(),
         extensions: None,
@@ -361,8 +367,9 @@ fn test_base_mint_in_compressed_mint_spl_format() {
             version: 3,
             mint: Pubkey::from([3; 32]),
             cmint_decompressed: false,
+            compressed_address: [4u8; 32],
         },
-        reserved: [0u8; 49],
+        reserved: [0u8; 17],
         account_type: ACCOUNT_TYPE_MINT,
         compression: CompressionInfo::default(),
         extensions: None,
@@ -384,4 +391,71 @@ fn test_base_mint_in_compressed_mint_spl_format() {
     // Deserialize as BaseMint to verify format
     let base_mint = BaseMint::deserialize(&mut base_mint_bytes.to_vec().as_slice()).unwrap();
     assert_eq!(mint.base, base_mint);
+}
+
+#[test]
+fn test_compressed_mint_new_zero_copy_fails_if_already_initialized() {
+    let config = CompressedMintConfig { extensions: None };
+    let byte_len = CompressedMint::byte_len(&config).unwrap();
+    let mut buffer = vec![0u8; byte_len];
+
+    // First initialization should succeed
+    let _ = CompressedMint::new_zero_copy(&mut buffer, config.clone())
+        .expect("First init should succeed");
+
+    // Second initialization should fail because account is already initialized
+    let result = CompressedMint::new_zero_copy(&mut buffer, config);
+    assert!(
+        result.is_err(),
+        "new_zero_copy should fail if account is already initialized"
+    );
+    assert_eq!(
+        result.unwrap_err(),
+        light_zero_copy::errors::ZeroCopyError::MemoryNotZeroed
+    );
+}
+
+/// Test that cmint_top_up_lamports_from_slice produces identical results to full deserialization.
+#[test]
+fn test_cmint_top_up_lamports_matches_full_deserialization() {
+    // Create a CMint using zero-copy
+    let config = CompressedMintConfig { extensions: None };
+    let byte_len = CompressedMint::byte_len(&config).unwrap();
+    let mut buffer = vec![0u8; byte_len];
+    let (mut cmint, _) = CompressedMint::new_zero_copy(&mut buffer, config).unwrap();
+
+    // Set known values in CompressionInfo
+    cmint.base.compression.lamports_per_write = 1000.into();
+    cmint.base.compression.last_claimed_slot = 13500.into(); // Epoch 1
+    cmint.base.compression.rent_exemption_paid = 50_000.into();
+    cmint.base.compression.rent_config.base_rent = 128.into();
+    cmint.base.compression.rent_config.compression_cost = 11000.into();
+    cmint
+        .base
+        .compression
+        .rent_config
+        .lamports_per_byte_per_epoch = 1;
+    cmint.base.compression.rent_config.max_funded_epochs = 2;
+
+    // Test parameters
+    let current_slot = 27000u64; // Epoch 2
+    let current_lamports = 100_000u64;
+
+    // Calculate using optimized function
+    let optimized_result =
+        cmint_top_up_lamports_from_slice(&buffer, current_lamports, current_slot)
+            .expect("Should return Some");
+
+    // Calculate using full deserialization
+    let (cmint_read, _) = CompressedMint::zero_copy_at(&buffer).unwrap();
+    let full_deser_result = cmint_read
+        .base
+        .compression
+        .calculate_top_up_lamports(buffer.len() as u64, current_slot, current_lamports)
+        .expect("Should succeed");
+
+    assert_eq!(
+        optimized_result, full_deser_result,
+        "Optimized result should match full deserialization"
+    );
 }

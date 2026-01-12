@@ -4,12 +4,12 @@
 /// that the derived configuration matches expected values based on instruction content.
 use borsh::BorshSerialize;
 use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
-use light_compressed_token::mint_action::accounts::AccountsConfig;
+use light_compressed_token::compressed_token::mint_action::accounts::AccountsConfig;
 use light_ctoken_interface::{
     instructions::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
         mint_action::{
-            Action, CompressedMintInstructionData, CpiContext, CreateMint, CreateSplMintAction,
+            Action, CompressedMintInstructionData, CpiContext, CreateMint,
             MintActionCompressedInstructionData, MintToCTokenAction, MintToCompressedAction,
             Recipient, RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
             UpdateMetadataFieldAction,
@@ -42,6 +42,7 @@ fn random_compressed_mint_metadata(rng: &mut StdRng) -> CompressedMintMetadata {
         version: rng.gen_range(1..=3) as u8,
         cmint_decompressed: rng.gen_bool(0.5),
         mint: random_pubkey(rng),
+        compressed_address: rng.gen::<[u8; 32]>(),
     }
 }
 
@@ -83,12 +84,6 @@ fn random_update_authority_action(rng: &mut StdRng) -> UpdateAuthority {
     }
 }
 
-fn random_create_spl_mint_action(rng: &mut StdRng) -> CreateSplMintAction {
-    CreateSplMintAction {
-        mint_bump: rng.gen::<u8>(),
-    }
-}
-
 fn random_update_metadata_field_action(rng: &mut StdRng) -> UpdateMetadataFieldAction {
     UpdateMetadataFieldAction {
         extension_index: rng.gen_range(0..=2) as u8,
@@ -114,15 +109,14 @@ fn random_remove_metadata_key_action(rng: &mut StdRng) -> RemoveMetadataKeyActio
 }
 
 fn random_action(rng: &mut StdRng) -> Action {
-    match rng.gen_range(0..8) {
+    match rng.gen_range(0..7) {
         0 => Action::MintToCompressed(random_mint_to_action(rng)),
         1 => Action::UpdateMintAuthority(random_update_authority_action(rng)),
         2 => Action::UpdateFreezeAuthority(random_update_authority_action(rng)),
-        3 => Action::CreateSplMint(random_create_spl_mint_action(rng)),
-        4 => Action::MintToCToken(random_mint_to_decompressed_action(rng)),
-        5 => Action::UpdateMetadataField(random_update_metadata_field_action(rng)),
-        6 => Action::UpdateMetadataAuthority(random_update_metadata_authority_action(rng)),
-        7 => Action::RemoveMetadataKey(random_remove_metadata_key_action(rng)),
+        3 => Action::MintToCToken(random_mint_to_decompressed_action(rng)),
+        4 => Action::UpdateMetadataField(random_update_metadata_field_action(rng)),
+        5 => Action::UpdateMetadataAuthority(random_update_metadata_authority_action(rng)),
+        6 => Action::RemoveMetadataKey(random_remove_metadata_key_action(rng)),
         _ => unreachable!(),
     }
 }
@@ -182,9 +176,6 @@ fn generate_random_instruction_data(
         leaf_index: rng.gen::<u32>(),
         prove_by_index: rng.gen_bool(0.5),
         root_index: rng.gen::<u16>(),
-        compressed_address: rng.gen::<[u8; 32]>(),
-        token_pool_bump: rng.gen::<u8>(),
-        token_pool_index: rng.gen::<u8>(),
         max_top_up: rng.gen::<u16>(),
         actions,
         proof: if rng.gen_bool(0.6) {
@@ -224,24 +215,17 @@ fn compute_expected_config(data: &MintActionCompressedInstructionData) -> Accoun
         .map(|ctx| ctx.first_set_context || ctx.set_context)
         .unwrap_or(false);
 
-    // 3. has_mint_to_actions
-    // Only MintToCompressed counts - MintToCToken mints to existing decompressed accounts
-    let has_mint_to_actions = data
+    // 3. require_token_output_queue (only MintToCompressed creates new compressed outputs)
+    let require_token_output_queue = data
         .actions
         .iter()
         .any(|action| matches!(action, Action::MintToCompressed(_)));
 
-    // 4. create_spl_mint (for with_mint_signer only)
-    let create_spl_mint = data
-        .actions
-        .iter()
-        .any(|action| matches!(action, Action::CreateSplMint(_)));
-
-    // 5. cmint_decompressed - only based on metadata flag (matches AccountsConfig::new)
+    // 4. cmint_decompressed - only based on metadata flag (matches AccountsConfig::new)
     let cmint_decompressed = data.mint.as_ref().unwrap().metadata.cmint_decompressed;
 
-    // 6. with_mint_signer
-    let with_mint_signer = data.create_mint.is_some() || create_spl_mint;
+    // 5. with_mint_signer
+    let with_mint_signer = data.create_mint.is_some();
 
     // 7. create_mint
     let create_mint = data.create_mint.is_some();
@@ -264,7 +248,7 @@ fn compute_expected_config(data: &MintActionCompressedInstructionData) -> Accoun
         has_compress_and_close_cmint_action,
         write_to_cpi_context,
         cmint_decompressed,
-        has_mint_to_actions,
+        require_token_output_queue,
         with_mint_signer,
         create_mint,
     }
@@ -346,14 +330,8 @@ fn check_if_config_should_error(instruction_data: &MintActionCompressedInstructi
             .iter()
             .any(|action| matches!(action, Action::MintToCToken(_)));
 
-        // Check for CreateSplMint actions
-        let create_spl_mint = instruction_data
-            .actions
-            .iter()
-            .any(|action| matches!(action, Action::CreateSplMint(_)));
-
         // Check for MintToCompressed actions
-        let has_mint_to_actions = instruction_data
+        let require_token_output_queue = instruction_data
             .actions
             .iter()
             .any(|action| matches!(action, Action::MintToCompressed(_)));
@@ -368,9 +346,8 @@ fn check_if_config_should_error(instruction_data: &MintActionCompressedInstructi
 
         // Error conditions matching AccountsConfig::new:
         // 1. has_mint_to_ctoken (MintToCToken actions not allowed)
-        // 2. create_spl_mint (CreateSplMint actions not allowed)
-        // 3. cmint_decompressed && has_mint_to_actions (mint decompressed + MintToCompressed not allowed)
-        has_mint_to_ctoken || create_spl_mint || (cmint_decompressed && has_mint_to_actions)
+        // 2. cmint_decompressed && require_token_output_queue (mint decompressed + MintToCompressed not allowed)
+        has_mint_to_ctoken || (cmint_decompressed && require_token_output_queue)
     } else {
         false
     }

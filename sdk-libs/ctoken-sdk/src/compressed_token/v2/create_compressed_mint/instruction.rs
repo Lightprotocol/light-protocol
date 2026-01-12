@@ -52,6 +52,7 @@ pub fn create_compressed_mint_cpi(
             version: input.version,
             mint: find_cmint_address(&input.mint_signer).0.to_bytes().into(),
             cmint_decompressed: false,
+            compressed_address: mint_address,
         },
         mint_authority: Some(input.mint_authority.to_bytes().into()),
         freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
@@ -59,7 +60,6 @@ pub fn create_compressed_mint_cpi(
     };
 
     let mut instruction_data = light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
-        mint_address,
         input.address_merkle_tree_root_index,
         input.proof,
         compressed_mint_instruction_data,
@@ -134,6 +134,7 @@ pub fn create_compressed_mint_cpi_write(
             version: input.version,
             mint: find_cmint_address(&input.mint_signer).0.to_bytes().into(),
             cmint_decompressed: false,
+            compressed_address: input.mint_address,
         },
         mint_authority: Some(input.mint_authority.to_bytes().into()),
         freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
@@ -141,9 +142,9 @@ pub fn create_compressed_mint_cpi_write(
     };
 
     let instruction_data = light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint_write_to_cpi_context(
-        input.mint_address,
         input.address_merkle_tree_root_index,
-        compressed_mint_instruction_data,input.cpi_context
+        compressed_mint_instruction_data,
+        input.cpi_context,
     );
 
     let meta_config = MintActionMetaConfigCpiWrite {

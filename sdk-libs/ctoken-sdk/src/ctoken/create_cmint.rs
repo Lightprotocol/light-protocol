@@ -121,6 +121,7 @@ impl CreateCMint {
                 version: 3,
                 mint: self.params.mint.to_bytes().into(),
                 cmint_decompressed: false,
+                compressed_address: compression_address,
             },
             mint_authority: Some(self.params.mint_authority.to_bytes().into()),
             freeze_authority: self
@@ -132,7 +133,6 @@ impl CreateCMint {
 
         let mut instruction_data =
             light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
-                compression_address,
                 self.params.address_merkle_tree_root_index,
                 self.params.proof,
                 compressed_mint_instruction_data,
@@ -262,6 +262,7 @@ impl CreateCompressedMintCpiWrite {
                 version: self.params.version,
                 mint: self.params.mint.to_bytes().into(),
                 cmint_decompressed: false,
+                compressed_address: self.params.compression_address,
             },
             mint_authority: Some(self.params.mint_authority.to_bytes().into()),
             freeze_authority: self
@@ -273,7 +274,6 @@ impl CreateCompressedMintCpiWrite {
 
         let instruction_data =
             light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint_write_to_cpi_context(
-                self.params.compression_address,
                 self.params.address_merkle_tree_root_index,
                 compressed_mint_instruction_data,
                 self.params.cpi_context,

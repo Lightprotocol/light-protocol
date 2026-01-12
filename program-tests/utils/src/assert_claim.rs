@@ -35,7 +35,6 @@ fn extract_pre_compression_mut(
     account_size: u64,
     current_slot: u64,
     account_lamports: u64,
-    base_lamports: u64,
     pubkey: &Pubkey,
 ) -> CompressionAssertData {
     let account_type = determine_account_type(data)
@@ -52,8 +51,7 @@ fn extract_pre_compression_mut(
             let last_claimed_slot = u64::from(compression.last_claimed_slot);
             let compression_authority = Pubkey::from(compression.compression_authority);
             let rent_sponsor = Pubkey::from(compression.rent_sponsor);
-            let lamports_result =
-                compression.claim(account_size, current_slot, account_lamports, base_lamports);
+            let lamports_result = compression.claim(account_size, current_slot, account_lamports);
             let claim_failed = lamports_result.is_err();
             let claimable_lamports = lamports_result.ok().flatten();
             CompressionAssertData {
@@ -71,8 +69,7 @@ fn extract_pre_compression_mut(
             let last_claimed_slot = u64::from(compression.last_claimed_slot);
             let compression_authority = Pubkey::from(compression.compression_authority);
             let rent_sponsor = Pubkey::from(compression.rent_sponsor);
-            let lamports_result =
-                compression.claim(account_size, current_slot, account_lamports, base_lamports);
+            let lamports_result = compression.claim(account_size, current_slot, account_lamports);
             let claim_failed = lamports_result.is_err();
             let claimable_lamports = lamports_result.ok().flatten();
             CompressionAssertData {
@@ -137,10 +134,6 @@ pub async fn assert_claim(
         let account_size = pre_token_account.data.len() as u64;
         let account_lamports = pre_token_account.lamports;
         let current_slot = rpc.pre_context.as_ref().unwrap().get_sysvar::<Clock>().slot;
-        let base_lamports = rpc
-            .get_minimum_balance_for_rent_exemption(account_size as usize)
-            .await
-            .unwrap();
 
         // Extract compression info (handles both CToken and CMint)
         let pre_data = extract_pre_compression_mut(
@@ -148,7 +141,6 @@ pub async fn assert_claim(
             account_size,
             current_slot,
             account_lamports,
-            base_lamports,
             token_account_pubkey,
         );
 

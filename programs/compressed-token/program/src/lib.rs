@@ -5,41 +5,30 @@ use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 use pinocchio::{account_info::AccountInfo, msg};
 
-pub mod claim;
-pub mod close_token_account;
+pub mod compressed_token;
+pub mod compressible;
 pub mod convert_account_infos;
-pub mod create_associated_token_account;
-pub mod create_token_account;
-pub mod ctoken_approve_revoke;
-pub mod ctoken_burn;
-pub mod ctoken_freeze_thaw;
-pub mod ctoken_mint_to;
+pub mod ctoken;
 pub mod extensions;
-pub mod mint_action;
 pub mod shared;
-pub mod transfer;
-pub mod transfer2;
-pub mod withdraw_funding_pool;
 
 // Reexport the wrapped anchor program.
 pub use ::anchor_compressed_token::*;
-use claim::process_claim;
-use close_token_account::processor::process_close_token_account;
-use create_associated_token_account::{
-    process_create_associated_token_account, process_create_associated_token_account_idempotent,
+use compressible::{process_claim, process_withdraw_funding_pool};
+use ctoken::{
+    process_close_token_account, process_create_associated_token_account,
+    process_create_associated_token_account_idempotent, process_create_token_account,
+    process_ctoken_approve, process_ctoken_burn, process_ctoken_burn_checked,
+    process_ctoken_freeze_account, process_ctoken_mint_to, process_ctoken_mint_to_checked,
+    process_ctoken_revoke, process_ctoken_thaw_account, process_ctoken_transfer,
+    process_ctoken_transfer_checked,
 };
-use create_token_account::process_create_token_account;
-use ctoken_approve_revoke::{
-    process_ctoken_approve, process_ctoken_approve_checked, process_ctoken_revoke,
-};
-use ctoken_burn::{process_ctoken_burn, process_ctoken_burn_checked};
-use ctoken_freeze_thaw::{process_ctoken_freeze_account, process_ctoken_thaw_account};
-use ctoken_mint_to::{process_ctoken_mint_to, process_ctoken_mint_to_checked};
-use transfer::{process_ctoken_transfer, process_ctoken_transfer_checked};
-use withdraw_funding_pool::process_withdraw_funding_pool;
 
 use crate::{
-    convert_account_infos::convert_account_infos, mint_action::processor::process_mint_action,
+    compressed_token::{
+        mint_action::processor::process_mint_action, transfer2::processor::process_transfer2,
+    },
+    convert_account_infos::convert_account_infos,
 };
 
 pub const LIGHT_CPI_SIGNER: CpiSigner =
@@ -47,8 +36,11 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 
 pub const MAX_ACCOUNTS: usize = 30;
 pub(crate) const MAX_PACKED_ACCOUNTS: usize = 40;
+/// Maximum number of compression operations per instruction.
+/// Used for compression_to_input lookup array sizing.
+pub(crate) const MAX_COMPRESSIONS: usize = 32;
 
-// Custom ctoken instructions start at 100 to skip spl-token program instrutions.
+// Instruction discriminators use SPL Token values (3-18) for compatibility plus custom values (100+).
 // When adding new instructions check anchor discriminators for collisions!
 #[repr(u8)]
 pub enum InstructionType {
@@ -70,8 +62,6 @@ pub enum InstructionType {
     CTokenThawAccount = 11,
     /// CToken TransferChecked - transfer with decimals validation (SPL compatible)
     CTokenTransferChecked = 12,
-    /// CToken ApproveChecked - approve with decimals validation (SPL compatible)
-    CTokenApproveChecked = 13,
     /// CToken MintToChecked - mint with decimals validation
     CTokenMintToChecked = 14,
     /// CToken BurnChecked - burn with decimals validation
@@ -91,11 +81,12 @@ pub enum InstructionType {
     ///     2. MintTo
     ///     3. UpdateMintAuthority
     ///     4. UpdateFreezeAuthority
-    ///     5. CreateSplMint
-    ///     6. MintToCToken
-    ///     7. UpdateMetadataField
-    ///     8. UpdateMetadataAuthority
-    ///     9. RemoveMetadataKey
+    ///     5. MintToCToken
+    ///     6. UpdateMetadataField
+    ///     7. UpdateMetadataAuthority
+    ///     8. RemoveMetadataKey
+    ///     9. DecompressMint
+    ///     10. CompressAndCloseCMint
     MintAction = 103,
     /// Claim rent for past completed epochs from compressible token account
     Claim = 104,
@@ -117,7 +108,6 @@ impl From<u8> for InstructionType {
             10 => InstructionType::CTokenFreezeAccount,
             11 => InstructionType::CTokenThawAccount,
             12 => InstructionType::CTokenTransferChecked,
-            13 => InstructionType::CTokenApproveChecked,
             14 => InstructionType::CTokenMintToChecked,
             15 => InstructionType::CTokenBurnChecked,
             18 => InstructionType::CreateTokenAccount,
@@ -134,8 +124,6 @@ impl From<u8> for InstructionType {
 
 #[cfg(not(feature = "cpi"))]
 use pinocchio::program_entrypoint;
-
-use crate::transfer2::processor::process_transfer2;
 
 #[cfg(not(feature = "cpi"))]
 program_entrypoint!(process_instruction);
@@ -173,10 +161,6 @@ pub fn process_instruction(
         InstructionType::CTokenBurn => {
             msg!("CTokenBurn");
             process_ctoken_burn(accounts, &instruction_data[1..])?;
-        }
-        InstructionType::CTokenApproveChecked => {
-            msg!("CTokenApproveChecked");
-            process_ctoken_approve_checked(accounts, &instruction_data[1..])?;
         }
         InstructionType::CTokenMintToChecked => {
             msg!("CTokenMintToChecked");

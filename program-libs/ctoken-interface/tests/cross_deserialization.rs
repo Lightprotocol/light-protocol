@@ -29,8 +29,9 @@ fn create_test_cmint() -> CompressedMint {
             version: 3,
             mint: Pubkey::new_from_array([2; 32]),
             cmint_decompressed: false,
+            compressed_address: [5u8; 32],
         },
-        reserved: [0u8; 49],
+        reserved: [0u8; 17],
         account_type: ACCOUNT_TYPE_MINT,
         compression: CompressionInfo {
             config_account_version: 1,
@@ -40,6 +41,8 @@ fn create_test_cmint() -> CompressedMint {
             compression_authority: [3u8; 32],
             rent_sponsor: [4u8; 32],
             last_claimed_slot: 100,
+            rent_exemption_paid: 0,
+            _reserved: 0,
             rent_config: RentConfig {
                 base_rent: 0,
                 compression_cost: 0,
@@ -77,6 +80,8 @@ fn create_test_ctoken_with_extension() -> CToken {
                 compression_authority: [3u8; 32],
                 rent_sponsor: [4u8; 32],
                 last_claimed_slot: 100,
+                rent_exemption_paid: 0,
+                _reserved: 0,
                 rent_config: RentConfig {
                     base_rent: 0,
                     compression_cost: 0,

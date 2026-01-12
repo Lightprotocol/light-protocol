@@ -188,6 +188,24 @@ pub enum CTokenError {
         "Decompress has withheld_transfer_fee but destination lacks TransferFeeAccount extension"
     )]
     DecompressWithheldFeeWithoutExtension,
+
+    #[error("Missing required payer account")]
+    MissingPayer,
+
+    #[error("Failed to borrow account data")]
+    BorrowFailed,
+
+    #[error("CToken account has invalid owner")]
+    InvalidCTokenOwner,
+
+    #[error("Decompress amount mismatch between compression instruction and input token data")]
+    DecompressAmountMismatch,
+
+    #[error("Compression index exceeds maximum allowed value")]
+    CompressionIndexOutOfBounds,
+
+    #[error("ATA derivation failed or mismatched for is_ata compressed token")]
+    InvalidAtaDerivation,
 }
 
 impl From<CTokenError> for u32 {
@@ -253,6 +271,12 @@ impl From<CTokenError> for u32 {
             CTokenError::MintMismatch => 18058,
             CTokenError::DecompressDelegatedAmountWithoutDelegate => 18059,
             CTokenError::DecompressWithheldFeeWithoutExtension => 18060,
+            CTokenError::MissingPayer => 18061,
+            CTokenError::BorrowFailed => 18062,
+            CTokenError::InvalidCTokenOwner => 18063,
+            CTokenError::DecompressAmountMismatch => 18064,
+            CTokenError::CompressionIndexOutOfBounds => 18065,
+            CTokenError::InvalidAtaDerivation => 18066,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

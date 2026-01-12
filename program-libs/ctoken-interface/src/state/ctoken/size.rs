@@ -7,8 +7,8 @@ use crate::{
 
 /// Calculates the size of a ctoken account based on which extensions are present.
 ///
-/// Note: Compression info is now embedded in the base struct (CTokenZeroCopyMeta),
-/// so there's no separate compressible extension parameter.
+/// Note: Compressible extension is required if the T22 mint has restricted extensions
+/// (Pausable, PermanentDelegate, TransferFee, TransferHook).
 ///
 /// # Arguments
 /// * `extensions` - Optional slice of extension configs

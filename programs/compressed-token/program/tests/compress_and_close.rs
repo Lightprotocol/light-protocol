@@ -4,7 +4,7 @@ use light_account_checks::{
     account_info::test_account_info::pinocchio::get_account_info,
     packed_accounts::ProgramPackedAccounts,
 };
-use light_compressed_token::transfer2::{
+use light_compressed_token::compressed_token::transfer2::{
     accounts::Transfer2Accounts, compression::ctoken::close_for_compress_and_close,
 };
 use light_ctoken_interface::{

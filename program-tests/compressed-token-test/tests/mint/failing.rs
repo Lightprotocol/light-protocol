@@ -1019,3 +1019,89 @@ async fn test_create_mint_non_signer_mint_signer() {
     )
     .unwrap();
 }
+
+/// Test that CompressAndCloseCMint must be the only action in the instruction.
+/// Attempting to combine CompressAndCloseCMint with UpdateMintAuthority should fail.
+#[tokio::test]
+#[serial]
+async fn test_compress_and_close_cmint_must_be_only_action() {
+    use light_compressible::rent::SLOTS_PER_EPOCH;
+    use light_ctoken_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address;
+    use light_program_test::program_test::TestRpc;
+    use light_token_client::instructions::mint_action::DecompressMintParams;
+
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+
+    let payer = Keypair::new();
+    rpc.airdrop_lamports(&payer.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    let mint_seed = Keypair::new();
+    let mint_authority = Keypair::new();
+    rpc.airdrop_lamports(&mint_authority.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
+    let compressed_mint_address =
+        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+
+    // 1. Create compressed mint with CMint (decompressed)
+    light_token_client::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        Some(DecompressMintParams::default()),
+        false,
+        vec![],
+        vec![],
+        None,
+        None,
+        Some(light_token_client::instructions::mint_action::NewMint {
+            decimals: 9,
+            supply: 0,
+            mint_authority: mint_authority.pubkey(),
+            freeze_authority: None,
+            metadata: None,
+            version: 3,
+        }),
+    )
+    .await
+    .unwrap();
+
+    // Warp to epoch 2 so that rent expires
+    rpc.warp_to_slot(SLOTS_PER_EPOCH * 2).unwrap();
+
+    // 2. Try to combine CompressAndCloseCMint with UpdateMintAuthority
+    let new_authority = Keypair::new();
+    let result = light_token_client::actions::mint_action(
+        &mut rpc,
+        light_token_client::instructions::mint_action::MintActionParams {
+            compressed_mint_address,
+            mint_seed: mint_seed.pubkey(),
+            authority: mint_authority.pubkey(),
+            payer: payer.pubkey(),
+            actions: vec![
+                MintActionType::CompressAndCloseCMint { idempotent: false },
+                MintActionType::UpdateMintAuthority {
+                    new_authority: Some(new_authority.pubkey()),
+                },
+            ],
+            new_mint: None,
+        },
+        &mint_authority,
+        &payer,
+        None,
+    )
+    .await;
+
+    // Should fail with CompressAndCloseCMintMustBeOnlyAction (error code 6169)
+    assert_rpc_error(
+        result, 0, 6169, // CompressAndCloseCMintMustBeOnlyAction
+    )
+    .unwrap();
+}

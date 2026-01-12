@@ -190,6 +190,8 @@ const CompressionInfoLayout = struct([
     array(u8(), 32, 'compressionAuthority'),
     array(u8(), 32, 'rentSponsor'),
     u64('lastClaimedSlot'),
+    u32('rentExemptionPaid'),
+    u32('reserved'),
     RentConfigLayout.replicate('rentConfig'),
 ]);
 
@@ -255,6 +257,8 @@ function serializeExtensionInstructionData(
             ),
             rentSponsor: Array.from(ext.data.rentSponsor.toBytes()),
             lastClaimedSlot: bn(ext.data.lastClaimedSlot.toString()),
+            rentExemptionPaid: ext.data.rentExemptionPaid,
+            reserved: ext.data.reserved,
             rentConfig: ext.data.rentConfig,
         };
         offset += CompressionInfoLayout.encode(data, buffer, offset);

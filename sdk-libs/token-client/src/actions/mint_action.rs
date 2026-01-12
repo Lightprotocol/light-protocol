@@ -23,7 +23,7 @@ use crate::instructions::mint_action::{
 /// * `params` - Parameters for the mint action
 /// * `authority` - Authority keypair for the mint operations
 /// * `payer` - Account that pays for the transaction
-/// * `mint_signer` - Optional mint signer for CreateSplMint action
+/// * `mint_signer` - Optional mint signer for create_mint or DecompressMint action
 pub async fn mint_action<R: Rpc + Indexer>(
     rpc: &mut R,
     params: MintActionParams,
@@ -49,7 +49,7 @@ pub async fn mint_action<R: Rpc + Indexer>(
         signers.push(authority);
     }
 
-    // Add mint signer if needed for CreateSplMint
+    // Add mint signer if needed for create_mint or DecompressMint
     if let Some(signer) = mint_signer {
         if !signers.iter().any(|s| s.pubkey() == signer.pubkey()) {
             signers.push(signer);

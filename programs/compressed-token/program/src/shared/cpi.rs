@@ -130,7 +130,7 @@ pub fn execute_cpi_invoke(
     Ok(())
 }
 
-/// Eqivalent to pinocchio::cpi::slice_invoke_signed except:
+/// Equivalent to pinocchio::cpi::slice_invoke_signed except:
 /// 1. account_infos: &[&AccountInfo] ->  &[AccountInfo]
 /// 2. Error prints
 #[inline]

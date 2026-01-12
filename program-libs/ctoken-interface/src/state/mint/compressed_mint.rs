@@ -3,10 +3,13 @@ use light_compressed_account::Pubkey;
 use light_compressible::compression_info::CompressionInfo;
 use light_hasher::{sha256::Sha256BE, Hasher};
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
+use pinocchio::account_info::AccountInfo;
 #[cfg(feature = "solana")]
 use solana_msg::msg;
 
-use crate::{state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError};
+use crate::{
+    state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError, CTOKEN_PROGRAM_ID,
+};
 
 /// AccountType::Mint discriminator value
 pub const ACCOUNT_TYPE_MINT: u8 = 1;
@@ -17,7 +20,7 @@ pub struct CompressedMint {
     pub base: BaseMint,
     pub metadata: CompressedMintMetadata,
     /// Reserved bytes for T22 layout compatibility (padding to reach byte 165)
-    pub reserved: [u8; 49],
+    pub reserved: [u8; 17],
     /// Account type discriminator at byte 165 (1 = Mint, 2 = Account)
     pub account_type: u8,
     /// Compression info embedded directly in the mint
@@ -30,7 +33,7 @@ impl Default for CompressedMint {
         Self {
             base: BaseMint::default(),
             metadata: CompressedMintMetadata::default(),
-            reserved: [0u8; 49],
+            reserved: [0u8; 17],
             account_type: ACCOUNT_TYPE_MINT,
             compression: CompressionInfo::default(),
             extensions: None,
@@ -71,6 +74,8 @@ pub struct CompressedMintMetadata {
     pub cmint_decompressed: bool,
     /// Pda with seed address of compressed mint
     pub mint: Pubkey,
+    /// Address of the compressed account the mint is stored in.
+    pub compressed_address: [u8; 32],
 }
 
 impl CompressedMint {
@@ -93,12 +98,9 @@ impl CompressedMint {
     ///
     /// Note: CMint accounts follow SPL token mint pattern (no discriminator).
     /// Validation is done via owner check + PDA derivation (caller responsibility).
-    pub fn from_account_info_checked(
-        program_id: &[u8; 32],
-        account_info: &pinocchio::account_info::AccountInfo,
-    ) -> Result<Self, CTokenError> {
+    pub fn from_account_info_checked(account_info: &AccountInfo) -> Result<Self, CTokenError> {
         // 1. Check program ownership
-        if !account_info.is_owned_by(program_id) {
+        if !account_info.is_owned_by(&CTOKEN_PROGRAM_ID) {
             #[cfg(feature = "solana")]
             msg!("CMint account has invalid owner");
             return Err(CTokenError::InvalidCMintOwner);
@@ -117,6 +119,12 @@ impl CompressedMint {
             #[cfg(feature = "solana")]
             msg!("CMint account is not initialized");
             return Err(CTokenError::CMintNotInitialized);
+        }
+
+        if !mint.is_cmint_account() {
+            #[cfg(feature = "solana")]
+            msg!("CMint account is not a CMint account");
+            return Err(CTokenError::MintMismatch);
         }
 
         Ok(mint)

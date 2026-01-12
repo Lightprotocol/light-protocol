@@ -45,7 +45,7 @@ struct CompressedMintZeroCopyMeta {
     // CompressedMintMetadata
     pub metadata: CompressedMintMetadata,
     /// Reserved bytes for T22 layout compatibility (padding to reach byte 165)
-    pub reserved: [u8; 49],
+    pub reserved: [u8; 17],
     /// Account type discriminator at byte 165 (1 = Mint, 2 = Account)
     pub account_type: u8,
     /// Compression info embedded directly in the mint
@@ -107,6 +107,11 @@ impl<'a> ZeroCopyNew<'a> for CompressedMint {
         bytes: &'a mut [u8],
         config: Self::ZeroCopyConfig,
     ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
+        // Check that the account is not already initialized (is_initialized byte at offset 45)
+        const IS_INITIALIZED_OFFSET: usize = 45; // 4 + 32 + 8 + 1 = 45
+        if bytes.len() > IS_INITIALIZED_OFFSET && bytes[IS_INITIALIZED_OFFSET] != 0 {
+            return Err(light_zero_copy::errors::ZeroCopyError::MemoryNotZeroed);
+        }
         // Use derived new_zero_copy for meta struct
         let meta_config = CompressedMintZeroCopyMetaConfig {
             metadata: (),
@@ -422,6 +427,7 @@ impl ZCompressedMintMut<'_> {
         self.base.metadata.version = ix_data.metadata.version;
         self.base.metadata.mint = ix_data.metadata.mint;
         self.base.metadata.cmint_decompressed = if cmint_decompressed { 1 } else { 0 };
+        self.base.metadata.compressed_address = ix_data.metadata.compressed_address;
 
         // Set base fields
         self.base.supply = ix_data.supply;

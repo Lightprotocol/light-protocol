@@ -34,7 +34,7 @@ This document compares the behavior of 5 restricted Token-2022 extensions betwee
 |-------------------|--------------------------------------------------|--------------------------------------------------|
 | Fee handling      | Deducted from transfer, withheld in destination  | Must be 0, otherwise `NonZeroTransferFeeNotSupported` |
 | CloseAccount      | Blocked if `withheld_amount > 0`                 | No withheld check (fees always 0)                |
-| Account extension | TransferFeeAmount with `withheld_amount` field   | TransferFeeAccount marker (no withheld tracking) |
+| Account extension | TransferFeeAmount with `withheld_amount` field   | TransferFeeAccountExtension with `withheld_amount` field |
 
 ### T22 Features Not Implemented
 
@@ -115,7 +115,7 @@ CToken adds an account marker to identify accounts belonging to mints with perma
 |-------------------|-----------------------------------------------|----------------------------------------------|
 | Hook execution    | CPI to program_id after balance update        | No CPI (program_id must be nil)              |
 | Reentrancy guard  | `transferring` flag in TransferHookAccount    | No guard needed (no CPI)                     |
-| Account extension | TransferHookAccount with `transferring` field | TransferHookAccount marker (no transferring) |
+| Account extension | TransferHookAccount with `transferring` field | TransferHookAccountExtension with `transferring` field (always false) |
 
 ### T22 Features Not Implemented
 
@@ -193,11 +193,14 @@ Enables:
 ### CompressAndClose/Decompress Bypass (CToken-specific)
 
 ```rust
-// Path: src/transfer2/check_extensions.rs:106-114
-let is_full_decompress =
-    compression.mode.is_decompress() && inputs.out_token_data.is_empty();
-let checks = if compression.mode.is_compress_and_close() || is_full_decompress {
-    // CompressAndClose and Decompress bypass extension state checks
+// Path: src/compressed_token/transfer2/check_extensions.rs (build_mint_extension_cache function)
+let no_compressed_outputs = inputs.out_token_data.is_empty();
+
+// For compressions, bypass state checks when:
+// - CompressAndClose mode, or
+// - No compressed outputs (full decompress / CToken-to-SPL)
+let checks = if compression.mode.is_compress_and_close() || no_compressed_outputs {
+    // Bypass extension state checks (paused, non-zero fees, non-nil transfer hook)
     parse_mint_extensions(mint_account)?  // Extract data only
 } else {
     check_mint_extensions(mint_account, deny_restricted_extensions)?  // Validate state
@@ -215,15 +218,18 @@ This allows:
 
 ### Account Extension Markers
 
-| Extension           | T22 Adds Marker     | CToken Adds Marker               |
-|---------------------|---------------------|----------------------------------|
-| TransferFeeConfig   | TransferFeeAmount   | TransferFeeAccount               |
-| DefaultAccountState | None                | None                             |
-| PermanentDelegate   | None                | PermanentDelegateAccountExtension |
-| TransferHook        | TransferHookAccount | TransferHookAccount              |
-| Pausable            | PausableAccount     | PausableAccount                  |
+| Extension           | T22 Adds Marker     | CToken Adds Marker                 |
+|---------------------|---------------------|------------------------------------|
+| TransferFeeConfig   | TransferFeeAmount   | TransferFeeAccountExtension        |
+| DefaultAccountState | None                | None                               |
+| PermanentDelegate   | None                | PermanentDelegateAccountExtension  |
+| TransferHook        | TransferHookAccount | TransferHookAccountExtension       |
+| Pausable            | PausableAccount     | PausableAccountExtension           |
 
-**Key difference:** T22's TransferFeeAmount and TransferHookAccount have data fields. CToken uses zero-sized markers.
+**Key differences:**
+- T22's TransferFeeAmount has `withheld_amount` field. CToken's TransferFeeAccountExtension also has `withheld_amount` for state preservation during compress/decompress cycles.
+- T22's TransferHookAccount has `transferring` flag for reentrancy guard. CToken's TransferHookAccountExtension has the same field but it's always false (no CPI invocation).
+- PermanentDelegateAccountExtension and PausableAccountExtension are zero-sized markers in CToken.
 
 ### Validation Function Comparison
 
