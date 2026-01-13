@@ -80,6 +80,8 @@ pub struct TransactionConfig {
     pub confirmation_max_attempts: u32,
     /// Interval between confirmation polling attempts in milliseconds.
     pub confirmation_poll_interval_ms: u64,
+    /// Maximum zkp batches to fetch from indexer per v2 tree per iteration
+    pub max_batches_per_tree: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -195,6 +197,7 @@ impl Default for TransactionConfig {
             ops_cache_ttl_seconds: 180,
             confirmation_max_attempts: 60,
             confirmation_poll_interval_ms: 500,
+            max_batches_per_tree: 4,
         }
     }
 }
@@ -298,6 +301,7 @@ impl ForesterConfig {
                 ops_cache_ttl_seconds: args.ops_cache_ttl_seconds,
                 confirmation_max_attempts: args.confirmation_max_attempts,
                 confirmation_poll_interval_ms: args.confirmation_poll_interval_ms,
+                max_batches_per_tree: args.max_batches_per_tree,
             },
             general_config: GeneralConfig {
                 slot_update_interval_seconds: args.slot_update_interval_seconds,

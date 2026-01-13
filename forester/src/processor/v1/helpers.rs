@@ -199,7 +199,7 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
             "AddressV1",
             total_duration.as_secs_f64(),
         );
-        update_indexer_proof_count("AddressV1", total_addresses as i64, all_proofs.len() as i64);
+        update_indexer_proof_count("AddressV1", total_addresses as u64, all_proofs.len() as u64);
 
         all_proofs
     } else {
@@ -211,48 +211,90 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
         info!("Fetching {} state proofs", total_states);
 
         let start_time = Instant::now();
-        match rpc
-            .indexer()?
-            .get_multiple_compressed_account_proofs(states, None)
-            .await
-        {
-            Ok(response) => {
-                let duration = start_time.elapsed();
-                let proofs_received = response.value.items.len();
 
-                info!(
-                    "State proofs complete: requested={}, received={}, duration={:.3}s",
-                    total_states,
-                    proofs_received,
-                    duration.as_secs_f64()
-                );
+        // Retry loop for transient network errors
+        let mut last_error = None;
+        let mut proofs = None;
 
-                if proofs_received != total_states {
-                    warn!(
-                        "State proof count mismatch: requested={}, received={}",
-                        total_states, proofs_received
-                    );
-                }
-
-                update_indexer_response_time(
-                    "get_multiple_compressed_account_proofs",
-                    "StateV1",
-                    duration.as_secs_f64(),
-                );
-                update_indexer_proof_count("StateV1", total_states as i64, proofs_received as i64);
-
-                response.value.items
-            }
-            Err(e) => {
-                let duration = start_time.elapsed();
+        for attempt in 0..=ADDRESS_PROOF_MAX_RETRIES {
+            if attempt > 0 {
+                // Exponential backoff: 500ms, 1000ms, 2000ms
+                let delay_ms = ADDRESS_PROOF_RETRY_BASE_DELAY_MS * (1 << (attempt - 1));
                 warn!(
-                    "Failed to get state proofs after {:.3}s: {}",
-                    duration.as_secs_f64(),
-                    e
+                    "Retrying state proofs (attempt {}/{}), waiting {}ms",
+                    attempt + 1,
+                    ADDRESS_PROOF_MAX_RETRIES + 1,
+                    delay_ms
                 );
-                return Err(anyhow::anyhow!("Failed to get state proofs: {}", e));
+                tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
+            }
+
+            match rpc
+                .indexer()?
+                .get_multiple_compressed_account_proofs(states.clone(), None)
+                .await
+            {
+                Ok(response) => {
+                    let duration = start_time.elapsed();
+                    let proofs_received = response.value.items.len();
+
+                    info!(
+                        "State proofs complete: requested={}, received={}, duration={:.3}s{}",
+                        total_states,
+                        proofs_received,
+                        duration.as_secs_f64(),
+                        if attempt > 0 {
+                            format!(" (after {} retries)", attempt)
+                        } else {
+                            String::new()
+                        }
+                    );
+
+                    if proofs_received != total_states {
+                        warn!(
+                            "State proof count mismatch: requested={}, received={}",
+                            total_states, proofs_received
+                        );
+                    }
+
+                    update_indexer_response_time(
+                        "get_multiple_compressed_account_proofs",
+                        "StateV1",
+                        duration.as_secs_f64(),
+                    );
+                    update_indexer_proof_count(
+                        "StateV1",
+                        total_states as u64,
+                        proofs_received as u64,
+                    );
+
+                    proofs = Some(response.value.items);
+                    last_error = None;
+                    break;
+                }
+                Err(e) => {
+                    last_error = Some(e);
+                }
             }
         }
+
+        // If we exhausted all retries, return the last error
+        if let Some(e) = last_error {
+            let duration = start_time.elapsed();
+            warn!(
+                "Failed to get state proofs after {} attempts ({:.3}s): {}",
+                ADDRESS_PROOF_MAX_RETRIES + 1,
+                duration.as_secs_f64(),
+                e
+            );
+            return Err(anyhow::anyhow!(
+                "Failed to get state proofs after {} retries: {}",
+                ADDRESS_PROOF_MAX_RETRIES,
+                e
+            ));
+        }
+
+        proofs.unwrap_or_default()
     } else {
         Vec::new()
     };

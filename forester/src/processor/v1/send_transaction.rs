@@ -194,7 +194,7 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
         fetch_queue_item_data(&mut *rpc, &tree_accounts.queue, queue_fetch_start_index)
             .await
             .map_err(|e| {
-                error!(tree = %tree_id_str, "Failed to fetch queue item data: {:?}", e);
+                warn!(tree = %tree_id_str, "Failed to fetch queue item data: {:?}", e);
                 ForesterError::General {
                     error: format!("Fetch queue data failed for {}: {}", tree_id_str, e),
                 }

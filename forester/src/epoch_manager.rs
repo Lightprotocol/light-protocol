@@ -323,7 +323,7 @@ impl<R: Rpc> EpochManager<R> {
             },
         );
 
-        loop {
+        let result = loop {
             tokio::select! {
                 epoch_opt = rx.recv() => {
                     match epoch_opt {
@@ -338,7 +338,9 @@ impl<R: Rpc> EpochManager<R> {
                         }
                         None => {
                             error!("Epoch monitor channel closed unexpectedly!");
-                            break;
+                            break Err(anyhow!(
+                                "Epoch monitor channel closed - forester cannot function without it"
+                            ));
                         }
                     }
                 }
@@ -362,14 +364,14 @@ impl<R: Rpc> EpochManager<R> {
                             "epoch_monitor_dead",
                         ).await;
                     }
-                    return Err(anyhow!("Epoch monitor exited unexpectedly - forester cannot function without it"));
+                    break Err(anyhow!("Epoch monitor exited unexpectedly - forester cannot function without it"));
                 }
             }
-        }
+        };
 
-        Err(anyhow!(
-            "Epoch monitor channel closed - forester cannot function without it"
-        ))
+        // Abort monitor_handle on exit
+        monitor_handle.abort();
+        result
     }
 
     async fn check_sol_balance_periodically(self: Arc<Self>) -> Result<()> {
@@ -2025,6 +2027,7 @@ impl<R: Rpc> EpochManager<R> {
             confirmation_poll_interval: Duration::from_millis(
                 self.config.transaction_config.confirmation_poll_interval_ms,
             ),
+            max_batches_per_tree: self.config.transaction_config.max_batches_per_tree,
         }
     }
 
