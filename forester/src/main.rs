@@ -71,29 +71,6 @@ async fn main() -> Result<(), ForesterError> {
             let (shutdown_sender_service, shutdown_receiver_service) = oneshot::channel();
             let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
-            // Create compressible shutdown channels if compressible is enabled
-            let (shutdown_receiver_compressible, shutdown_receiver_bootstrap) =
-                if config.compressible_config.is_some() {
-                    let (shutdown_sender_compressible, shutdown_receiver_compressible) =
-                        tokio::sync::broadcast::channel(1);
-                    let (shutdown_sender_bootstrap, shutdown_receiver_bootstrap) =
-                        oneshot::channel();
-                    spawn_shutdown_handler(
-                        shutdown_sender_service,
-                        Some(move || {
-                            let _ = shutdown_sender_compressible.send(());
-                            let _ = shutdown_sender_bootstrap.send(());
-                        }),
-                    );
-                    (
-                        Some(shutdown_receiver_compressible),
-                        Some(shutdown_receiver_bootstrap),
-                    )
-                } else {
-                    spawn_shutdown_handler::<fn()>(shutdown_sender_service, None);
-                    (None, None)
-                };
-
             tokio::spawn(async move {
                 while let Some(report) = work_report_receiver.recv().await {
                     debug!("Work Report: {:?}", report);
@@ -111,11 +88,40 @@ async fn main() -> Result<(), ForesterError> {
             }
 
             let rpc_url_for_api: String = config.external_services.rpc_url.to_string();
-            let _api_server_handle = spawn_api_server(
+            let api_server_handle = spawn_api_server(
                 rpc_url_for_api,
                 args.api_server_port,
                 args.api_server_public_bind,
             );
+
+            // Create compressible shutdown channels if compressible is enabled
+            let (shutdown_receiver_compressible, shutdown_receiver_bootstrap) =
+                if config.compressible_config.is_some() {
+                    let (shutdown_sender_compressible, shutdown_receiver_compressible) =
+                        tokio::sync::broadcast::channel(1);
+                    let (shutdown_sender_bootstrap, shutdown_receiver_bootstrap) =
+                        oneshot::channel();
+                    spawn_shutdown_handler(
+                        shutdown_sender_service,
+                        Some(move || {
+                            let _ = shutdown_sender_compressible.send(());
+                            let _ = shutdown_sender_bootstrap.send(());
+                            api_server_handle.shutdown();
+                        }),
+                    );
+                    (
+                        Some(shutdown_receiver_compressible),
+                        Some(shutdown_receiver_bootstrap),
+                    )
+                } else {
+                    spawn_shutdown_handler(
+                        shutdown_sender_service,
+                        Some(move || {
+                            api_server_handle.shutdown();
+                        }),
+                    );
+                    (None, None)
+                };
 
             run_pipeline::<LightClient>(
                 config,

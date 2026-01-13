@@ -1,6 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
-use account_compression::{AddressMerkleTreeAccount, QueueAccount, StateMerkleTreeAccount};
+use account_compression::{
+    utils::constants::{ADDRESS_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_HEIGHT},
+    AddressMerkleTreeAccount, QueueAccount, StateMerkleTreeAccount,
+};
 use anchor_lang::{AccountDeserialize, Discriminator};
 use anyhow::Context;
 use borsh::BorshDeserialize;
@@ -34,6 +37,8 @@ use crate::{
     tree_data_sync::{fetch_protocol_group_authority, fetch_trees},
     ForesterConfig,
 };
+
+const INDEXED_MERKLE_TREE_V1_INITIAL_LEAVES: usize = 3;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ForesterInfo {
@@ -511,7 +516,7 @@ fn parse_tree_status(
             let tree_account = StateMerkleTreeAccount::deserialize(&mut &merkle_account.data[8..])
                 .map_err(|e| anyhow::anyhow!("Failed to deserialize StateV1 metadata: {}", e))?;
 
-            let height = 26u64;
+            let height = STATE_MERKLE_TREE_HEIGHT;
             let capacity = 1u64 << height;
             let threshold_val = capacity
                 .saturating_mul(tree_account.metadata.rollover_metadata.rollover_threshold)
@@ -539,7 +544,7 @@ fn parse_tree_status(
             (fullness, next_index, threshold_val, queue_len, None)
         }
         TreeType::AddressV1 => {
-            let height = 26u64;
+            let height = ADDRESS_MERKLE_TREE_HEIGHT;
             let capacity = 1u64 << height;
 
             let threshold_val = queue_account
@@ -559,7 +564,10 @@ fn parse_tree_status(
             >(&merkle_account.data)
             .map_err(|e| anyhow::anyhow!("Failed to parse AddressV1 tree: {:?}", e))?;
 
-            let next_index = merkle_tree.next_index().saturating_sub(3) as u64;
+            let next_index = merkle_tree
+                .next_index()
+                .saturating_sub(INDEXED_MERKLE_TREE_V1_INITIAL_LEAVES)
+                as u64;
             let fullness = next_index as f64 / capacity as f64 * 100.0;
 
             let queue_len = queue_account.and_then(|acc| {

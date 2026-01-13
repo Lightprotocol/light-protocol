@@ -26,10 +26,6 @@ use crate::{
     },
 };
 
-/// Maximum batches to process per tree per iteration.
-/// This is stored in BatchContext and configured via CLI.
-const MAX_BATCHES_PER_TREE: usize = 4;
-
 #[derive(Debug, Default, Clone)]
 struct BatchTimings {
     append_circuit_inputs: Duration,
@@ -116,7 +112,7 @@ where
     }
 
     pub async fn process(&mut self) -> crate::Result<ProcessingResult> {
-        let queue_size = self.zkp_batch_size * MAX_BATCHES_PER_TREE as u64;
+        let queue_size = self.zkp_batch_size * self.context.max_batches_per_tree as u64;
         self.process_queue_update(queue_size).await
     }
 
@@ -151,7 +147,7 @@ where
                     if actual_available == usize::MAX { "max".to_string() } else { actual_available.to_string() }
                 );
 
-                let batches_to_process = remaining.min(MAX_BATCHES_PER_TREE);
+                let batches_to_process = remaining.min(self.context.max_batches_per_tree);
                 let queue_data = QueueData {
                     staging_tree: cached.staging_tree,
                     initial_root: self.current_root,
@@ -170,9 +166,9 @@ where
         }
 
         let available_batches = (queue_size / self.zkp_batch_size) as usize;
-        let fetch_batches = available_batches.min(MAX_BATCHES_PER_TREE);
+        let fetch_batches = available_batches.min(self.context.max_batches_per_tree);
 
-        if available_batches > MAX_BATCHES_PER_TREE {
+        if available_batches > self.context.max_batches_per_tree {
             debug!(
                 "Queue has {} batches available, fetching {} for {} iterations",
                 available_batches,
@@ -199,7 +195,7 @@ where
 
         if self.current_root == [0u8; 32] || queue_data.initial_root == self.current_root {
             let total_batches = queue_data.num_batches;
-            let process_now = total_batches.min(MAX_BATCHES_PER_TREE);
+            let process_now = total_batches.min(self.context.max_batches_per_tree);
             return self
                 .process_batches(queue_data, 0, process_now, total_batches)
                 .await;
@@ -209,7 +205,7 @@ where
         match reconcile_roots(self.current_root, queue_data.initial_root, onchain_root) {
             RootReconcileDecision::Proceed => {
                 let total_batches = queue_data.num_batches;
-                let process_now = total_batches.min(MAX_BATCHES_PER_TREE);
+                let process_now = total_batches.min(self.context.max_batches_per_tree);
                 self.process_batches(queue_data, 0, process_now, total_batches)
                     .await
             }
@@ -230,7 +226,7 @@ where
                 self.current_root = root;
                 self.cached_state = None;
                 let total_batches = queue_data.num_batches;
-                let process_now = total_batches.min(MAX_BATCHES_PER_TREE);
+                let process_now = total_batches.min(self.context.max_batches_per_tree);
                 self.process_batches(queue_data, 0, process_now, total_batches)
                     .await
             }
@@ -505,7 +501,8 @@ where
             return Ok(ProcessingResult::default());
         }
 
-        let max_batches = ((queue_size / self.zkp_batch_size) as usize).min(MAX_BATCHES_PER_TREE);
+        let max_batches =
+            ((queue_size / self.zkp_batch_size) as usize).min(self.context.max_batches_per_tree);
 
         if self.worker_pool.is_none() {
             let job_tx = spawn_proof_workers(&self.context.prover_config);
@@ -534,7 +531,7 @@ where
             return Ok(ProcessingResult::default());
         }
 
-        let max_batches = max_batches.min(MAX_BATCHES_PER_TREE);
+        let max_batches = max_batches.min(self.context.max_batches_per_tree);
 
         if self.worker_pool.is_none() {
             let job_tx = spawn_proof_workers(&self.context.prover_config);

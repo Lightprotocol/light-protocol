@@ -106,6 +106,14 @@ pub struct StartArgs {
 
     #[arg(
         long,
+        env = "MAX_BATCHES_PER_TREE",
+        default_value = "4",
+        help = "Maximum batches to process per tree per iteration (1-20, default: 4)"
+    )]
+    pub max_batches_per_tree: usize,
+
+    #[arg(
+        long,
         env = "TX_CACHE_TTL_SECONDS",
         default_value = "180",
         help = "TTL in seconds to prevent duplicate transaction processing"

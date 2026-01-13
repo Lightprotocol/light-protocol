@@ -54,6 +54,7 @@ async fn test_priority_fee_request() {
         legacy_ixs_per_tx: 1,
         transaction_max_concurrent_batches: 20,
         max_concurrent_sends: 50,
+        max_batches_per_tree: 4,
         tx_cache_ttl_seconds: 15,
         ops_cache_ttl_seconds: 180,
         confirmation_max_attempts: 30,
@@ -89,7 +90,6 @@ async fn test_priority_fee_request() {
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");
 
-    // Setup RPC connection using config
     let mut rpc = LightClient::new(LightClientConfig::local()).await.unwrap();
     rpc.payer = config.payer_keypair.insecure_clone();
 

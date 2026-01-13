@@ -680,10 +680,12 @@
 
     <script>
         const SLOT_SECONDS = 0.46;
+        const MIN_REFRESH_MS = 2000; // Minimum 2 seconds between refreshes
 
         let lastUpdateTime = null;
         let typeFilter = null; // null = show all, or 'StateV2', 'AddressV2', etc.
         let cachedData = null;
+        let isRefreshing = false; // Guard against overlapping fetches
 
         // Color palette for foresters - distinct, colorblind-friendly colors
         const FORESTER_COLORS = [
@@ -712,6 +714,12 @@
         }
 
         async function fetchStatus() {
+            // Guard against overlapping fetches
+            if (isRefreshing) {
+                return;
+            }
+
+            isRefreshing = true;
             try {
                 const response = await fetch('/status');
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -728,6 +736,8 @@
             } catch (error) {
                 showError(error.message);
                 updateStatusBadge('error', 'Error');
+            } finally {
+                isRefreshing = false;
             }
         }
 
@@ -1199,19 +1209,20 @@
             if (cachedData && cachedData.slots_until_next_light_slot) {
                 const slotsRemaining = cachedData.slots_until_next_light_slot;
                 // Convert slots to milliseconds, refresh slightly after slot change
-                const msUntilChange = Math.max(1000, slotsRemaining * SLOT_SECONDS * 1000 + 500);
-                // But cap at 10 seconds max
-                const refreshIn = Math.min(msUntilChange, 10000);
+                const msUntilChange = slotsRemaining * SLOT_SECONDS * 1000 + 500;
+                // Enforce minimum refresh interval and cap at 10 seconds max
+                const refreshIn = Math.max(MIN_REFRESH_MS, Math.min(msUntilChange, 10000));
                 refreshTimeout = setTimeout(() => {
                     fetchStatus();
                     scheduleNextRefresh();
                 }, refreshIn);
             } else {
-                // Fallback to 10 second refresh
+                // Fallback to 10 second refresh (respecting minimum)
+                const refreshIn = Math.max(MIN_REFRESH_MS, 10000);
                 refreshTimeout = setTimeout(() => {
                     fetchStatus();
                     scheduleNextRefresh();
-                }, 10000);
+                }, refreshIn);
             }
         }
 
