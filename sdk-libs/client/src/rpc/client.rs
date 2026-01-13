@@ -144,7 +144,7 @@ impl LightClient {
             RpcUrl::ZKTestnet
         } else {
             // Default to mainnet for production URLs and custom URLs
-            RpcUrl::Custom(url.to_string())
+            RpcUrl::Custom(url)
         }
     }
 
@@ -238,7 +238,6 @@ impl LightClient {
                 .transaction
                 .transaction
                 .decode()
-                .clone()
                 .unwrap();
             let account_keys = decoded_transaction.message.static_account_keys();
             let meta = transaction.transaction.meta.as_ref().ok_or_else(|| {
