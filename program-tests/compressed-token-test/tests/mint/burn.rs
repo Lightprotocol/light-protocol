@@ -4,7 +4,7 @@ use light_token_client::instructions::mint_action::DecompressMintParams;
 use light_token_interface::instructions::mint_action::Recipient;
 use light_token_sdk::{
     compressed_token::create_compressed_mint::find_cmint_address,
-    token::{derive_token_ata, BurnToken, CreateAssociatedTokenAccount},
+    token::{derive_token_ata, Burn, CreateAssociatedTokenAccount},
 };
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -94,7 +94,7 @@ async fn test_ctoken_burn() {
     let mut ctx = setup_burn_test(1000).await;
 
     // First burn: 500 tokens (half)
-    let burn_ix_1 = BurnToken {
+    let burn_ix_1 = Burn {
         source: ctx.ctoken_account,
         cmint: ctx.cmint_pda,
         amount: 500,
@@ -116,7 +116,7 @@ async fn test_ctoken_burn() {
     assert_ctoken_burn(&mut ctx.rpc, ctx.ctoken_account, ctx.cmint_pda, 500).await;
 
     // Second burn: 500 tokens (remaining half)
-    let burn_ix_2 = BurnToken {
+    let burn_ix_2 = Burn {
         source: ctx.ctoken_account,
         cmint: ctx.cmint_pda,
         amount: 500,

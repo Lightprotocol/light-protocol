@@ -84,8 +84,8 @@ impl MintActionCompressedInstructionData {
         self
     }
 
-    #[must_use = "with_mint_to_token returns a new value"]
-    pub fn with_mint_to_token(mut self, action: MintToTokenAction) -> Self {
+    #[must_use = "with_mint_to returns a new value"]
+    pub fn with_mint_to(mut self, action: MintToTokenAction) -> Self {
         self.actions.push(Action::MintToToken(action));
         self
     }

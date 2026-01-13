@@ -16,8 +16,7 @@ pub async fn setup_create_compressed_mint(
     recipients: Vec<(u64, Pubkey)>,
 ) -> (Pubkey, [u8; 32], Vec<Pubkey>, Keypair) {
     use light_token_sdk::token::{
-        CreateAssociatedTokenAccount, CreateCMint, CreateCMintParams, MintToToken,
-        MintToTokenParams,
+        CreateAssociatedTokenAccount, CreateCMint, CreateCMintParams, MintTo, MintToParams,
     };
 
     let mint_seed = Keypair::new();
@@ -150,7 +149,7 @@ pub async fn setup_create_compressed_mint(
 
         // Build mint params with first recipient
         let (first_idx, (first_amount, _)) = recipients_with_amount[0];
-        let mut mint_params = MintToTokenParams::new(
+        let mut mint_params = MintToParams::new(
             compressed_mint_with_context,
             *first_amount,
             mint_authority,
@@ -165,7 +164,7 @@ pub async fn setup_create_compressed_mint(
         }
 
         // Build MintToToken instruction
-        let mint_to_ctoken = MintToToken::new(
+        let mint_to_ctoken = MintTo::new(
             mint_params,
             payer.pubkey(),
             compressed_mint_account.tree_info.tree,
@@ -195,8 +194,7 @@ pub async fn setup_create_compressed_mint_with_freeze_authority(
     recipients: Vec<(u64, Pubkey)>,
 ) -> (Pubkey, [u8; 32], Vec<Pubkey>) {
     use light_token_sdk::token::{
-        CreateAssociatedTokenAccount, CreateCMint, CreateCMintParams, MintToToken,
-        MintToTokenParams,
+        CreateAssociatedTokenAccount, CreateCMint, CreateCMintParams, MintTo, MintToParams,
     };
 
     let mint_seed = Keypair::new();
@@ -521,7 +519,7 @@ pub async fn setup_create_compressed_mint_with_compression_only(
 
         // Build mint params with first recipient
         let (first_idx, (first_amount, _)) = recipients_with_amount[0];
-        let mut mint_params = MintToTokenParams::new(
+        let mut mint_params = MintToParams::new(
             compressed_mint_with_context,
             *first_amount,
             mint_authority,
@@ -536,7 +534,7 @@ pub async fn setup_create_compressed_mint_with_compression_only(
         }
 
         // Build MintToToken instruction
-        let mint_to_ctoken = MintToToken::new(
+        let mint_to_ctoken = MintTo::new(
             mint_params,
             payer.pubkey(),
             compressed_mint_account.tree_info.tree,

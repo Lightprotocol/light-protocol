@@ -55,7 +55,7 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
         .unwrap();
 
     use light_token_sdk::token::{
-        derive_token_ata, CompressibleParams, CreateAssociatedCTokenAccount,
+        derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
     };
 
     let mut destination_accounts = Vec::with_capacity(num_inputs);
@@ -87,7 +87,7 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
         };
 
         let create_token_account_ix =
-            CreateAssociatedCTokenAccount::new(payer.pubkey(), destination_owner, mint_pubkey)
+            CreateAssociatedTokenAccount::new(payer.pubkey(), destination_owner, mint_pubkey)
                 .with_compressible(compressible_params)
                 .instruction()
                 .unwrap();

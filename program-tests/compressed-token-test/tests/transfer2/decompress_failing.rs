@@ -50,7 +50,7 @@ use light_token_sdk::{
         },
         CTokenAccount2,
     },
-    ctoken::{derive_token_ata, CompressibleParams, CreateAssociatedCTokenAccount},
+    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
     ValidityProof,
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -106,7 +106,7 @@ async fn setup_decompression_test(
     };
 
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA: {:?}", e)))?;

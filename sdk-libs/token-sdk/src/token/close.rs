@@ -9,16 +9,16 @@ use crate::token::RENT_SPONSOR;
 /// # Create a close ctoken account instruction:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::{CloseTokenAccount, LIGHT_TOKEN_PROGRAM_ID};
+/// # use light_token_sdk::token::{CloseAccount, LIGHT_TOKEN_PROGRAM_ID};
 /// # let account = Pubkey::new_unique();
 /// # let destination = Pubkey::new_unique();
 /// # let owner = Pubkey::new_unique();
 /// let instruction =
-///     CloseTokenAccount::new(LIGHT_TOKEN_PROGRAM_ID, account, destination, owner)
+///     CloseAccount::new(LIGHT_TOKEN_PROGRAM_ID, account, destination, owner)
 ///     .instruction()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct CloseTokenAccount {
+pub struct CloseAccount {
     pub token_program: Pubkey,
     pub account: Pubkey,
     pub destination: Pubkey,
@@ -26,7 +26,7 @@ pub struct CloseTokenAccount {
     pub rent_sponsor: Pubkey,
 }
 
-impl CloseTokenAccount {
+impl CloseAccount {
     pub fn new(token_program: Pubkey, account: Pubkey, destination: Pubkey, owner: Pubkey) -> Self {
         Self {
             token_program,
@@ -63,7 +63,7 @@ impl CloseTokenAccount {
 
 /// # Close a ctoken account via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::CloseTokenAccountCpi;
+/// # use light_token_sdk::token::CloseAccountCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let token_program: AccountInfo = todo!();
 /// # let account: AccountInfo = todo!();
@@ -71,7 +71,7 @@ impl CloseTokenAccount {
 /// # let owner: AccountInfo = todo!();
 /// // Use ctoken::RENT_SPONSOR or ctoken::rent_sponsor_pda() to get the protocol rent sponsor.
 /// # let rent_sponsor: AccountInfo = todo!();
-/// CloseTokenAccountCpi {
+/// CloseAccountCpi {
 ///     token_program,
 ///     account,
 ///     destination,
@@ -81,7 +81,7 @@ impl CloseTokenAccount {
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct CloseTokenAccountCpi<'info> {
+pub struct CloseAccountCpi<'info> {
     pub token_program: AccountInfo<'info>,
     pub account: AccountInfo<'info>,
     pub destination: AccountInfo<'info>,
@@ -89,9 +89,9 @@ pub struct CloseTokenAccountCpi<'info> {
     pub rent_sponsor: AccountInfo<'info>,
 }
 
-impl<'info> CloseTokenAccountCpi<'info> {
+impl<'info> CloseAccountCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        CloseTokenAccount::from(self).instruction()
+        CloseAccount::from(self).instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
@@ -117,8 +117,8 @@ impl<'info> CloseTokenAccountCpi<'info> {
     }
 }
 
-impl<'info> From<&CloseTokenAccountCpi<'info>> for CloseTokenAccount {
-    fn from(account_infos: &CloseTokenAccountCpi<'info>) -> Self {
+impl<'info> From<&CloseAccountCpi<'info>> for CloseAccount {
+    fn from(account_infos: &CloseAccountCpi<'info>) -> Self {
         Self {
             token_program: *account_infos.token_program.key,
             account: *account_infos.account.key,

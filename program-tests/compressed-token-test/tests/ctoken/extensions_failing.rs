@@ -2,7 +2,7 @@
 //!
 //! This module tests extension validation for operations that FAIL with invalid state:
 //! 1. CTokenTransfer(Checked) - transfers between CToken accounts
-//! 2. SPL → CToken (TransferSplToToken) - entering via Compress mode
+//! 2. SPL → CToken (TransferFromSpl) - entering via Compress mode
 //!
 //! Note: CToken → SPL (TransferTokenToSpl) is a BYPASS operation and is tested
 //! in compress_only/invalid_extension_state.rs. It succeeds with invalid extension
@@ -19,7 +19,7 @@ use light_test_utils::{
 use light_token_interface::state::TokenDataVersion;
 use light_token_sdk::{
     spl_interface::find_spl_interface_pda_with_index,
-    token::{CompressibleParams, CreateTokenAccount, TransferSplToToken, TransferTokenChecked},
+    token::{CompressibleParams, CreateTokenAccount, TransferFromSpl, TransferChecked},
 };
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -142,7 +142,7 @@ async fn setup_ctoken_accounts_for_transfer(
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
-    let transfer_spl_to_ctoken_ix = TransferSplToToken {
+    let transfer_spl_to_ctoken_ix = TransferFromSpl {
         amount: mint_amount,
         spl_interface_pda_bump,
         source_spl_token_account: spl_account,
@@ -188,7 +188,7 @@ async fn test_ctoken_transfer_fails_when_mint_paused() {
     pause_mint(&mut context.rpc, &mint_pubkey).await;
 
     // Attempt transfer - should fail with MintPaused
-    let transfer_ix = TransferTokenChecked {
+    let transfer_ix = TransferChecked {
         source,
         mint: mint_pubkey,
         destination,
@@ -235,7 +235,7 @@ async fn test_ctoken_transfer_fails_with_non_zero_transfer_fee() {
     set_mint_transfer_fee(&mut context.rpc, &mint_pubkey, 100, 1000).await;
 
     // Attempt transfer - should fail with NonZeroTransferFeeNotSupported
-    let transfer_ix = TransferTokenChecked {
+    let transfer_ix = TransferChecked {
         source,
         mint: mint_pubkey,
         destination,
@@ -283,7 +283,7 @@ async fn test_ctoken_transfer_fails_with_non_nil_transfer_hook() {
     set_mint_transfer_hook(&mut context.rpc, &mint_pubkey, dummy_hook_program).await;
 
     // Attempt transfer - should fail with TransferHookNotSupported
-    let transfer_ix = TransferTokenChecked {
+    let transfer_ix = TransferChecked {
         source,
         mint: mint_pubkey,
         destination,
@@ -309,7 +309,7 @@ async fn test_ctoken_transfer_fails_with_non_nil_transfer_hook() {
 }
 
 // ============================================================================
-// SPL → CToken Transfer Tests (TransferSplToToken)
+// SPL → CToken Transfer Tests (TransferFromSpl)
 // These should FAIL when extension state is invalid (entering compressed state)
 // ============================================================================
 
@@ -390,7 +390,7 @@ async fn test_spl_to_ctoken_fails_when_mint_paused() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
-    let transfer_ix = TransferSplToToken {
+    let transfer_ix = TransferFromSpl {
         amount: 100_000_000,
         spl_interface_pda_bump,
         source_spl_token_account: spl_account,
@@ -432,7 +432,7 @@ async fn test_spl_to_ctoken_fails_with_non_zero_transfer_fee() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
-    let transfer_ix = TransferSplToToken {
+    let transfer_ix = TransferFromSpl {
         amount: 100_000_000,
         spl_interface_pda_bump,
         source_spl_token_account: spl_account,

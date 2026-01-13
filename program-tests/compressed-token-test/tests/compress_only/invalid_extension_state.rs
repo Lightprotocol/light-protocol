@@ -27,7 +27,7 @@ use light_token_interface::{
 };
 use light_token_sdk::{
     constants::CPI_AUTHORITY_PDA,
-    ctoken::{CompressibleParams, CreateTokenAccount, TransferSplToToken, TransferTokenToSpl},
+    token::{CompressibleParams, CreateTokenAccount, TransferFromSpl, TransferToSpl},
     spl_interface::find_spl_interface_pda_with_index as sdk_find_spl_interface_pda,
 };
 use serial_test::serial;
@@ -295,7 +295,7 @@ async fn setup_ctoken_for_bypass_test(
     let (spl_interface_pda, spl_interface_pda_bump) =
         sdk_find_spl_interface_pda(&mint_pubkey, 0, true);
 
-    let transfer_ix = TransferSplToToken {
+    let transfer_ix = TransferFromSpl {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,
@@ -348,7 +348,7 @@ async fn test_ctoken_to_spl_bypasses_non_zero_fee() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         sdk_find_spl_interface_pda(&mint_pubkey, 0, true);
 
-    let transfer_ix = TransferTokenToSpl {
+    let transfer_ix = TransferToSpl {
         source_ctoken_account: ctoken_account,
         destination_spl_token_account: spl_dest,
         amount: 100_000_000,

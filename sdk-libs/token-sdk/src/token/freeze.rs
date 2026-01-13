@@ -8,18 +8,18 @@ use solana_pubkey::Pubkey;
 /// # Freeze a CToken account:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::FreezeToken;
+/// # use light_token_sdk::token::Freeze;
 /// # let token_account = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
 /// # let freeze_authority = Pubkey::new_unique();
-/// let instruction = FreezeToken {
+/// let instruction = Freeze {
 ///     token_account,
 ///     mint,
 ///     freeze_authority,
 /// }.instruction()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct FreezeToken {
+pub struct Freeze {
     /// CToken account to freeze
     pub token_account: Pubkey,
     /// Mint of the token account
@@ -30,12 +30,12 @@ pub struct FreezeToken {
 
 /// # Freeze CToken via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::FreezeTokenCpi;
+/// # use light_token_sdk::token::FreezeCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let token_account: AccountInfo = todo!();
 /// # let mint: AccountInfo = todo!();
 /// # let freeze_authority: AccountInfo = todo!();
-/// FreezeTokenCpi {
+/// FreezeCpi {
 ///     token_account,
 ///     mint,
 ///     freeze_authority,
@@ -43,32 +43,32 @@ pub struct FreezeToken {
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct FreezeTokenCpi<'info> {
+pub struct FreezeCpi<'info> {
     pub token_account: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
     pub freeze_authority: AccountInfo<'info>,
 }
 
-impl<'info> FreezeTokenCpi<'info> {
+impl<'info> FreezeCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        FreezeToken::from(self).instruction()
+        Freeze::from(self).instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
-        let instruction = FreezeToken::from(&self).instruction()?;
+        let instruction = Freeze::from(&self).instruction()?;
         let account_infos = [self.token_account, self.mint, self.freeze_authority];
         invoke(&instruction, &account_infos)
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
-        let instruction = FreezeToken::from(&self).instruction()?;
+        let instruction = Freeze::from(&self).instruction()?;
         let account_infos = [self.token_account, self.mint, self.freeze_authority];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
 
-impl<'info> From<&FreezeTokenCpi<'info>> for FreezeToken {
-    fn from(cpi: &FreezeTokenCpi<'info>) -> Self {
+impl<'info> From<&FreezeCpi<'info>> for Freeze {
+    fn from(cpi: &FreezeCpi<'info>) -> Self {
         Self {
             token_account: *cpi.token_account.key,
             mint: *cpi.mint.key,
@@ -77,7 +77,7 @@ impl<'info> From<&FreezeTokenCpi<'info>> for FreezeToken {
     }
 }
 
-impl FreezeToken {
+impl Freeze {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         Ok(Instruction {
             program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),

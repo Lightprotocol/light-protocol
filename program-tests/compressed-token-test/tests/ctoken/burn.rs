@@ -24,7 +24,7 @@ use light_test_utils::assert_ctoken_burn::assert_ctoken_burn;
 use light_token_client::instructions::mint_action::DecompressMintParams;
 use light_token_sdk::{
     compressed_token::create_compressed_mint::find_cmint_address,
-    token::{derive_token_ata, BurnToken, CreateAssociatedTokenAccount, TokenMintTo},
+    token::{derive_token_ata, Burn, CreateAssociatedTokenAccount, MintTo},
 };
 
 use super::shared::*;
@@ -42,7 +42,7 @@ async fn test_burn_success_cases() {
         let burn_amount = 50u64;
 
         // Burn 50 tokens
-        let burn_ix = BurnToken {
+        let burn_ix = Burn {
             source: ctx.ctoken_account,
             cmint: ctx.cmint_pda,
             amount: burn_amount,
@@ -73,7 +73,7 @@ async fn test_burn_success_cases() {
         let burn_amount = 100u64;
 
         // Burn all 100 tokens
-        let burn_ix = BurnToken {
+        let burn_ix = Burn {
             source: ctx.ctoken_account,
             cmint: ctx.cmint_pda,
             amount: burn_amount,
@@ -123,7 +123,7 @@ async fn test_burn_fails() {
         let (other_cmint_pda, _) = find_cmint_address(&other_mint_seed.pubkey());
 
         // Try to burn with wrong mint
-        let burn_ix = BurnToken {
+        let burn_ix = Burn {
             source: ctx.ctoken_account,
             cmint: other_cmint_pda, // Wrong mint
             amount: 50,
@@ -153,7 +153,7 @@ async fn test_burn_fails() {
 
         let non_existent = Pubkey::new_unique();
 
-        let burn_ix = BurnToken {
+        let burn_ix = Burn {
             source: non_existent,
             cmint: ctx.cmint_pda,
             amount: 50,
@@ -199,7 +199,7 @@ async fn test_burn_fails() {
         ctx.rpc
             .set_account(wrong_owner_account.pubkey(), account_with_wrong_owner);
 
-        let burn_ix = BurnToken {
+        let burn_ix = Burn {
             source: wrong_owner_account.pubkey(),
             cmint: ctx.cmint_pda,
             amount: 50,
@@ -229,7 +229,7 @@ async fn test_burn_fails() {
         let mut ctx = setup_burn_test().await;
 
         // Try to burn more than balance (100 tokens)
-        let burn_ix = BurnToken {
+        let burn_ix = Burn {
             source: ctx.ctoken_account,
             cmint: ctx.cmint_pda,
             amount: 200, // More than 100 balance
@@ -264,7 +264,7 @@ async fn test_burn_fails() {
             .await
             .unwrap();
 
-        let burn_ix = BurnToken {
+        let burn_ix = Burn {
             source: ctx.ctoken_account,
             cmint: ctx.cmint_pda,
             amount: 50,
@@ -365,7 +365,7 @@ async fn setup_burn_test() -> BurnTestContext {
     .unwrap();
 
     // Step 3: Mint 100 tokens to the CToken account
-    let mint_ix = TokenMintTo {
+    let mint_ix = MintTo {
         cmint: cmint_pda,
         destination: ctoken_ata,
         amount: 100,
@@ -397,7 +397,7 @@ async fn setup_burn_test() -> BurnTestContext {
 // Burn Checked Tests
 // ============================================================================
 
-use light_token_sdk::token::BurnTokenChecked;
+use light_token_sdk::token::BurnChecked;
 
 /// MintDecimalsMismatch error code (SplMintDecimalsMismatch = 6166)
 const MINT_DECIMALS_MISMATCH: u32 = 6166;
@@ -409,7 +409,7 @@ async fn test_burn_checked_success() {
     let burn_amount = 50u64;
 
     // Burn 50 tokens with correct decimals (8)
-    let burn_ix = BurnTokenChecked {
+    let burn_ix = BurnChecked {
         source: ctx.ctoken_account,
         cmint: ctx.cmint_pda,
         amount: burn_amount,
@@ -441,7 +441,7 @@ async fn test_burn_checked_wrong_decimals() {
     let mut ctx = setup_burn_test().await;
 
     // Try to burn with wrong decimals (7 instead of 8)
-    let burn_ix = BurnTokenChecked {
+    let burn_ix = BurnChecked {
         source: ctx.ctoken_account,
         cmint: ctx.cmint_pda,
         amount: 50,

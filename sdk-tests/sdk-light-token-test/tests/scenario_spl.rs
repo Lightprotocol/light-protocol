@@ -24,7 +24,7 @@ use light_token_sdk::{
     spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
     token::{
         derive_token_ata, CreateAssociatedTokenAccount, DecompressToToken, FreezeToken, ThawToken,
-        TransferSplToToken,
+        TransferFromSpl,
     },
 };
 use solana_sdk::{signature::Keypair, signer::Signer};
@@ -153,7 +153,7 @@ async fn test_spl_to_ctoken_scenario() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint, 0, false);
 
-    let transfer_instruction = TransferSplToToken {
+    let transfer_instruction = TransferFromSpl {
         amount: transfer_amount,
         spl_interface_pda_bump,
         decimals,

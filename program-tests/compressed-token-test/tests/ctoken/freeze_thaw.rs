@@ -11,7 +11,7 @@ use light_test_utils::{
     Rpc, RpcError,
 };
 use light_token_interface::state::{AccountState, Token, TokenDataVersion};
-use light_token_sdk::token::{CompressibleParams, CreateTokenAccount, FreezeToken, ThawToken};
+use light_token_sdk::token::{CompressibleParams, CreateTokenAccount, Freeze, Thaw};
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
 
@@ -74,7 +74,7 @@ async fn test_freeze_thaw_with_basic_mint() -> Result<(), RpcError> {
     );
 
     // 3. Freeze the account
-    let freeze_ix = FreezeToken {
+    let freeze_ix = Freeze {
         token_account: token_account_pubkey,
         mint: mint_pubkey,
         freeze_authority: payer.pubkey(),
@@ -89,7 +89,7 @@ async fn test_freeze_thaw_with_basic_mint() -> Result<(), RpcError> {
     assert_ctoken_freeze(&mut rpc, token_account_pubkey).await;
 
     // 5. Thaw the account
-    let thaw_ix = ThawToken {
+    let thaw_ix = Thaw {
         token_account: token_account_pubkey,
         mint: mint_pubkey,
         freeze_authority: payer.pubkey(),
@@ -170,7 +170,7 @@ async fn test_freeze_thaw_with_extensions() -> Result<(), RpcError> {
     );
 
     // 2. Freeze the account
-    let freeze_ix = FreezeToken {
+    let freeze_ix = Freeze {
         token_account: account_pubkey,
         mint: mint_pubkey,
         freeze_authority: payer.pubkey(),
@@ -187,7 +187,7 @@ async fn test_freeze_thaw_with_extensions() -> Result<(), RpcError> {
     assert_ctoken_freeze(&mut context.rpc, account_pubkey).await;
 
     // 4. Thaw the account
-    let thaw_ix = ThawToken {
+    let thaw_ix = Thaw {
         token_account: account_pubkey,
         mint: mint_pubkey,
         freeze_authority: payer.pubkey(),

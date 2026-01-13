@@ -31,7 +31,7 @@
   10. `CTokenMintToChecked` `14`
   11. `CTokenBurnChecked` `15`
   12. `CreateTokenAccount` `18`
-  13. `CreateAssociatedCTokenAccount` `100`
+  13. `CreateAssociatedTokenAccount` `100`
   14. `Transfer2` `101` - `Decompress`, `DecompressAndClose`
   15. `CreateAssociatedTokenAccountIdempotent` `102`
   16. `MintAction` `103` - `MintToCToken`

@@ -585,7 +585,7 @@ async fn test_ctoken_transfer_max_top_up_exceeded() {
 // Transfer Checked Helper Functions
 // ============================================================================
 
-use light_token_sdk::token::TransferTokenChecked;
+use light_token_sdk::token::TransferChecked;
 
 /// Setup context with two token accounts for transfer_checked tests using a real SPL Token mint
 async fn setup_transfer_checked_test_with_spl_mint(
@@ -720,7 +720,7 @@ async fn transfer_checked_and_assert(
 
     let payer_pubkey = context.payer.pubkey();
 
-    let transfer_ix = TransferTokenChecked {
+    let transfer_ix = TransferChecked {
         source,
         mint,
         destination,
@@ -761,7 +761,7 @@ async fn transfer_checked_and_assert_fails(
 
     let payer_pubkey = context.payer.pubkey();
 
-    let transfer_ix = TransferTokenChecked {
+    let transfer_ix = TransferChecked {
         source,
         mint,
         destination,
@@ -933,7 +933,7 @@ async fn test_ctoken_transfer_checked_max_top_up_exceeded() {
     let owner_keypair = context.owner_keypair.insecure_clone();
     let payer_pubkey = context.payer.pubkey();
 
-    let transfer_ix = TransferTokenChecked {
+    let transfer_ix = TransferChecked {
         source,
         mint,
         destination,

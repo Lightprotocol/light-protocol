@@ -134,7 +134,7 @@ impl CreateAssociatedTokenAccount {
 
 /// # Create an associated ctoken account via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::{CreateAssociatedTokenAccountCpi, CompressibleParamsCpi};
+/// # use light_token_sdk::token::{CreateAssociatedAccountCpi, CompressibleParamsCpi};
 /// # use solana_account_info::AccountInfo;
 /// # let owner: AccountInfo = todo!();
 /// # let mint: AccountInfo = todo!();
@@ -143,7 +143,7 @@ impl CreateAssociatedTokenAccount {
 /// # let system_program: AccountInfo = todo!();
 /// # let bump: u8 = todo!();
 /// # let compressible: CompressibleParamsCpi = todo!();
-/// CreateAssociatedTokenAccountCpi {
+/// CreateAssociatedAccountCpi {
 ///     owner,
 ///     mint,
 ///     payer,
@@ -156,7 +156,7 @@ impl CreateAssociatedTokenAccount {
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct CreateAssociatedTokenAccountCpi<'info> {
+pub struct CreateAssociatedAccountCpi<'info> {
     pub owner: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
     pub payer: AccountInfo<'info>,
@@ -167,7 +167,7 @@ pub struct CreateAssociatedTokenAccountCpi<'info> {
     pub idempotent: bool,
 }
 
-impl<'info> CreateAssociatedTokenAccountCpi<'info> {
+impl<'info> CreateAssociatedAccountCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
         CreateAssociatedTokenAccount::from(self).instruction()
     }
@@ -201,8 +201,8 @@ impl<'info> CreateAssociatedTokenAccountCpi<'info> {
     }
 }
 
-impl<'info> From<&CreateAssociatedTokenAccountCpi<'info>> for CreateAssociatedTokenAccount {
-    fn from(account_infos: &CreateAssociatedTokenAccountCpi<'info>) -> Self {
+impl<'info> From<&CreateAssociatedAccountCpi<'info>> for CreateAssociatedTokenAccount {
+    fn from(account_infos: &CreateAssociatedAccountCpi<'info>) -> Self {
         Self {
             payer: *account_infos.payer.key,
             owner: *account_infos.owner.key,

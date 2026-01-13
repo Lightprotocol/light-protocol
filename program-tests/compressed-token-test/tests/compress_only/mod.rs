@@ -166,7 +166,7 @@ pub async fn run_compress_and_close_extension_test(
         },
     };
     use light_token_sdk::{
-        ctoken::{CompressibleParams, CreateTokenAccount, TransferSplToToken},
+        token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
         spl_interface::find_spl_interface_pda_with_index,
     };
 
@@ -229,7 +229,7 @@ pub async fn run_compress_and_close_extension_test(
 
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted_extensions);
-    let transfer_ix = TransferSplToToken {
+    let transfer_ix = TransferFromSpl {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,

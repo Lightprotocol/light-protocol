@@ -68,7 +68,7 @@ pub enum InstructionType {
     CTokenBurnChecked = 15,
     /// Create CToken, equivalent to SPL Token InitializeAccount3
     CreateTokenAccount = 18,
-    CreateAssociatedCTokenAccount = 100,
+    CreateAssociatedTokenAccount = 100,
     /// Batch instruction for ctoken transfers:
     ///     1. transfer compressed tokens
     ///     2. compress ctokens/spl tokens
@@ -111,7 +111,7 @@ impl From<u8> for InstructionType {
             14 => InstructionType::CTokenMintToChecked,
             15 => InstructionType::CTokenBurnChecked,
             18 => InstructionType::CreateTokenAccount,
-            100 => InstructionType::CreateAssociatedCTokenAccount,
+            100 => InstructionType::CreateAssociatedTokenAccount,
             101 => InstructionType::Transfer2,
             102 => InstructionType::CreateAssociatedTokenAccountIdempotent,
             103 => InstructionType::MintAction,
@@ -186,8 +186,8 @@ pub fn process_instruction(
             msg!("CreateTokenAccount");
             process_create_token_account(accounts, &instruction_data[1..])?;
         }
-        InstructionType::CreateAssociatedCTokenAccount => {
-            msg!("CreateAssociatedCTokenAccount");
+        InstructionType::CreateAssociatedTokenAccount => {
+            msg!("CreateAssociatedTokenAccount");
             process_create_associated_token_account(accounts, &instruction_data[1..])?;
         }
         InstructionType::Transfer2 => {

@@ -22,11 +22,11 @@ use light_token_interface::{
     state::{ExtensionStruct, TokenDataVersion},
 };
 use light_token_sdk::{
-    ctoken::{
-        derive_token_ata, CompressibleParams, CreateAssociatedCTokenAccount, CreateTokenAccount,
-        TransferSplToToken,
-    },
     spl_interface::find_spl_interface_pda_with_index,
+    token::{
+        derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, CreateTokenAccount,
+        TransferFromSpl,
+    },
 };
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -79,7 +79,7 @@ async fn setup_ata_compressed_token(
     let (ata_pubkey, ata_bump) = derive_token_ata(&owner.pubkey(), &mint_pubkey);
 
     let create_ata_ix =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint_pubkey)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint_pubkey)
             .with_compressible(CompressibleParams {
                 compressible_config: rpc
                     .test_accounts
@@ -107,7 +107,7 @@ async fn setup_ata_compressed_token(
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted);
 
-    let transfer_ix = TransferSplToToken {
+    let transfer_ix = TransferFromSpl {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,
@@ -248,7 +248,7 @@ async fn test_ata_decompress_to_correct_ata_succeeds() {
         .unwrap();
 
     // Create destination ATA (idempotent - same address)
-    let create_dest_ix = CreateAssociatedCTokenAccount::new(
+    let create_dest_ix = CreateAssociatedTokenAccount::new(
         context.payer.pubkey(),
         context.owner.pubkey(),
         context.mint_pubkey,
@@ -347,7 +347,7 @@ async fn test_ata_decompress_to_different_ata_fails() {
     // Create ATA for same owner but different mint
     let (ata2_pubkey, _ata2_bump) = derive_token_ata(&context.owner.pubkey(), &mint2_pubkey);
 
-    let create_ata2_ix = CreateAssociatedCTokenAccount::new(
+    let create_ata2_ix = CreateAssociatedTokenAccount::new(
         context.payer.pubkey(),
         context.owner.pubkey(),
         mint2_pubkey,
@@ -492,7 +492,7 @@ async fn test_ata_decompress_with_wrong_bump_fails() {
         .unwrap();
 
     // Create destination ATA
-    let create_dest_ix = CreateAssociatedCTokenAccount::new(
+    let create_dest_ix = CreateAssociatedTokenAccount::new(
         context.payer.pubkey(),
         context.owner.pubkey(),
         context.mint_pubkey,
@@ -571,7 +571,7 @@ async fn test_decompress_to_account_with_balance_adds() {
         .unwrap();
 
     // Create destination ATA
-    let create_dest_ix = CreateAssociatedCTokenAccount::new(
+    let create_dest_ix = CreateAssociatedTokenAccount::new(
         context.payer.pubkey(),
         context.owner.pubkey(),
         context.mint_pubkey,
@@ -687,7 +687,7 @@ async fn test_decompress_skips_delegate_if_destination_has_delegate() {
     .unwrap();
 
     // Create destination ATA
-    let create_dest_ix = CreateAssociatedCTokenAccount::new(
+    let create_dest_ix = CreateAssociatedTokenAccount::new(
         context.payer.pubkey(),
         context.owner.pubkey(),
         context.mint_pubkey,
@@ -808,7 +808,7 @@ async fn test_ata_decompress_with_mismatched_amount_fails() {
         .unwrap();
 
     // Create destination ATA
-    let create_dest_ix = CreateAssociatedCTokenAccount::new(
+    let create_dest_ix = CreateAssociatedTokenAccount::new(
         context.payer.pubkey(),
         context.owner.pubkey(),
         context.mint_pubkey,
@@ -1022,7 +1022,7 @@ async fn test_ata_multiple_compress_decompress_cycles() {
 
     // Create ATA with compression_only=true
     let create_ata_ix =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), wallet.pubkey(), mint_pubkey)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), wallet.pubkey(), mint_pubkey)
             .with_compressible(CompressibleParams {
                 compressible_config: rpc
                     .test_accounts
@@ -1049,7 +1049,7 @@ async fn test_ata_multiple_compress_decompress_cycles() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted);
 
-    let transfer_ix1 = TransferSplToToken {
+    let transfer_ix1 = TransferFromSpl {
         amount: amount1,
         spl_interface_pda_bump,
         decimals: 9,
@@ -1083,7 +1083,7 @@ async fn test_ata_multiple_compress_decompress_cycles() {
 
     // Create ATA again (same address)
     let create_ata_ix2 =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), wallet.pubkey(), mint_pubkey)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), wallet.pubkey(), mint_pubkey)
             .with_compressible(CompressibleParams {
                 compressible_config: rpc
                     .test_accounts
@@ -1104,7 +1104,7 @@ async fn test_ata_multiple_compress_decompress_cycles() {
         .unwrap();
 
     // Transfer tokens from SPL to ATA
-    let transfer_ix2 = TransferSplToToken {
+    let transfer_ix2 = TransferFromSpl {
         amount: amount2,
         spl_interface_pda_bump,
         decimals: 9,
@@ -1193,7 +1193,7 @@ async fn test_ata_multiple_compress_decompress_cycles() {
 
     // Create ATA again (destination for decompress)
     let create_ata_ix3 =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), wallet.pubkey(), mint_pubkey)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), wallet.pubkey(), mint_pubkey)
             .with_compressible(CompressibleParams {
                 compressible_config: rpc
                     .test_accounts
@@ -1377,7 +1377,7 @@ async fn test_non_ata_compress_only_decompress() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted);
 
-    let transfer_ix = TransferSplToToken {
+    let transfer_ix = TransferFromSpl {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,

@@ -8,11 +8,11 @@ use solana_pubkey::Pubkey;
 /// # Burn tokens from a ctoken account:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::BurnToken;
+/// # use light_token_sdk::token::Burn;
 /// # let source = Pubkey::new_unique();
 /// # let cmint = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
-/// let instruction = BurnToken {
+/// let instruction = Burn {
 ///     source,
 ///     cmint,
 ///     amount: 100,
@@ -21,7 +21,7 @@ use solana_pubkey::Pubkey;
 /// }.instruction()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct BurnToken {
+pub struct Burn {
     /// CToken account to burn from
     pub source: Pubkey,
     /// CMint account (supply tracking)
@@ -37,12 +37,12 @@ pub struct BurnToken {
 
 /// # Burn ctoken via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::BurnTokenCpi;
+/// # use light_token_sdk::token::BurnCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let source: AccountInfo = todo!();
 /// # let cmint: AccountInfo = todo!();
 /// # let authority: AccountInfo = todo!();
-/// BurnTokenCpi {
+/// BurnCpi {
 ///     source,
 ///     cmint,
 ///     amount: 100,
@@ -52,7 +52,7 @@ pub struct BurnToken {
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct BurnTokenCpi<'info> {
+pub struct BurnCpi<'info> {
     pub source: AccountInfo<'info>,
     pub cmint: AccountInfo<'info>,
     pub amount: u64,
@@ -61,26 +61,26 @@ pub struct BurnTokenCpi<'info> {
     pub max_top_up: Option<u16>,
 }
 
-impl<'info> BurnTokenCpi<'info> {
+impl<'info> BurnCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        BurnToken::from(self).instruction()
+        Burn::from(self).instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
-        let instruction = BurnToken::from(&self).instruction()?;
+        let instruction = Burn::from(&self).instruction()?;
         let account_infos = [self.source, self.cmint, self.authority];
         invoke(&instruction, &account_infos)
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
-        let instruction = BurnToken::from(&self).instruction()?;
+        let instruction = Burn::from(&self).instruction()?;
         let account_infos = [self.source, self.cmint, self.authority];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
 
-impl<'info> From<&BurnTokenCpi<'info>> for BurnToken {
-    fn from(cpi: &BurnTokenCpi<'info>) -> Self {
+impl<'info> From<&BurnCpi<'info>> for Burn {
+    fn from(cpi: &BurnCpi<'info>) -> Self {
         Self {
             source: *cpi.source.key,
             cmint: *cpi.cmint.key,
@@ -91,7 +91,7 @@ impl<'info> From<&BurnTokenCpi<'info>> for BurnToken {
     }
 }
 
-impl BurnToken {
+impl Burn {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         Ok(Instruction {
             program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),

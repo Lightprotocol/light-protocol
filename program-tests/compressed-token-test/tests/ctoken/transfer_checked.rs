@@ -14,8 +14,8 @@ use light_token_interface::state::TokenDataVersion;
 use light_token_sdk::{
     spl_interface::find_spl_interface_pda_with_index,
     token::{
-        CompressibleParams, CreateTokenAccount, TransferSplToToken, TransferToken,
-        TransferTokenChecked,
+        CompressibleParams, CreateTokenAccount, TransferFromSpl, Transfer,
+        TransferChecked,
     },
 };
 use serial_test::serial;
@@ -136,7 +136,7 @@ async fn test_transfer_requires_checked_for_restricted_extensions() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
-    let transfer_spl_to_ctoken_ix = TransferSplToToken {
+    let transfer_spl_to_ctoken_ix = TransferFromSpl {
         amount: mint_amount,
         spl_interface_pda_bump,
         source_spl_token_account: spl_account,
@@ -160,7 +160,7 @@ async fn test_transfer_requires_checked_for_restricted_extensions() {
     // Step 4: Try CTokenTransfer (discriminator 3) - should FAIL with MintRequiredForTransfer (6128)
     let transfer_amount = 500_000_000u64;
 
-    let transfer_ix = TransferToken {
+    let transfer_ix = Transfer {
         source: account_a_pubkey,
         destination: account_b_pubkey,
         amount: transfer_amount,
@@ -181,7 +181,7 @@ async fn test_transfer_requires_checked_for_restricted_extensions() {
     println!("CTokenTransfer correctly rejected with MintRequiredForTransfer (6128)");
 
     // Step 5: Use CTokenTransferChecked (discriminator 12) - should SUCCEED
-    let transfer_checked_ix = TransferTokenChecked {
+    let transfer_checked_ix = TransferChecked {
         source: account_a_pubkey,
         mint: mint_pubkey,
         destination: account_b_pubkey,

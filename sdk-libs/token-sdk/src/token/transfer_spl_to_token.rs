@@ -16,7 +16,7 @@ use crate::compressed_token::{
 /// # Create a transfer SPL to cToken instruction
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::TransferSplToToken;
+/// # use light_token_sdk::token::TransferFromSpl;
 /// # let source_spl_token_account = Pubkey::new_unique();
 /// # let destination_ctoken_account = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
@@ -24,7 +24,7 @@ use crate::compressed_token::{
 /// # let payer = Pubkey::new_unique();
 /// # let spl_interface_pda = Pubkey::new_unique();
 /// # let spl_token_program = Pubkey::new_unique();
-/// let instruction = TransferSplToToken {
+/// let instruction = TransferFromSpl {
 ///     amount: 100,
 ///     spl_interface_pda_bump: 255,
 ///     decimals: 9,
@@ -38,7 +38,7 @@ use crate::compressed_token::{
 /// }.instruction()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct TransferSplToToken {
+pub struct TransferFromSpl {
     pub amount: u64,
     pub spl_interface_pda_bump: u8,
     pub decimals: u8,
@@ -54,7 +54,7 @@ pub struct TransferSplToToken {
 
 /// # Transfer SPL to ctoken via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::TransferSplToTokenCpi;
+/// # use light_token_sdk::token::TransferFromSplCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let source_spl_token_account: AccountInfo = todo!();
 /// # let destination_ctoken_account: AccountInfo = todo!();
@@ -65,7 +65,7 @@ pub struct TransferSplToToken {
 /// # let spl_token_program: AccountInfo = todo!();
 /// # let compressed_token_program_authority: AccountInfo = todo!();
 /// # let system_program: AccountInfo = todo!();
-/// TransferSplToTokenCpi {
+/// TransferFromSplCpi {
 ///     amount: 100,
 ///     spl_interface_pda_bump: 255,
 ///     decimals: 9,
@@ -82,7 +82,7 @@ pub struct TransferSplToToken {
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct TransferSplToTokenCpi<'info> {
+pub struct TransferFromSplCpi<'info> {
     pub amount: u64,
     pub spl_interface_pda_bump: u8,
     pub decimals: u8,
@@ -99,13 +99,13 @@ pub struct TransferSplToTokenCpi<'info> {
     pub system_program: AccountInfo<'info>,
 }
 
-impl<'info> TransferSplToTokenCpi<'info> {
+impl<'info> TransferFromSplCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        TransferSplToToken::from(self).instruction()
+        TransferFromSpl::from(self).instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
-        let instruction = TransferSplToToken::from(&self).instruction()?;
+        let instruction = TransferFromSpl::from(&self).instruction()?;
         // Account order must match instruction metas: cpi_authority_pda, fee_payer, packed_accounts...
         let account_infos = [
             self.compressed_token_program_authority, // CPI authority PDA (first)
@@ -122,7 +122,7 @@ impl<'info> TransferSplToTokenCpi<'info> {
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
-        let instruction = TransferSplToToken::from(&self).instruction()?;
+        let instruction = TransferFromSpl::from(&self).instruction()?;
         // Account order must match instruction metas: cpi_authority_pda, fee_payer, packed_accounts...
         let account_infos = [
             self.compressed_token_program_authority, // CPI authority PDA (first)
@@ -139,8 +139,8 @@ impl<'info> TransferSplToTokenCpi<'info> {
     }
 }
 
-impl<'info> From<&TransferSplToTokenCpi<'info>> for TransferSplToToken {
-    fn from(account_infos: &TransferSplToTokenCpi<'info>) -> Self {
+impl<'info> From<&TransferFromSplCpi<'info>> for TransferFromSpl {
+    fn from(account_infos: &TransferFromSplCpi<'info>) -> Self {
         Self {
             source_spl_token_account: *account_infos.source_spl_token_account.key,
             destination_ctoken_account: *account_infos.destination_ctoken_account.key,
@@ -156,7 +156,7 @@ impl<'info> From<&TransferSplToTokenCpi<'info>> for TransferSplToToken {
     }
 }
 
-impl TransferSplToToken {
+impl TransferFromSpl {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         let packed_accounts = vec![
             // Mint (index 0)

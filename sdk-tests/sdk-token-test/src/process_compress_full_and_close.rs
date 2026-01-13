@@ -8,7 +8,7 @@ use light_token_sdk::{
         },
         CTokenAccount2,
     },
-    ctoken::CloseCTokenAccount,
+    token::CloseAccount,
 };
 
 use crate::Generic;
@@ -93,7 +93,7 @@ pub fn process_compress_full_and_close<'info>(
     let compressed_token_program_id =
         Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
     // Create close instruction with rent_sponsor for compressible accounts
-    let close_instruction = CloseCTokenAccount::new(
+    let close_instruction = CloseAccount::new(
         compressed_token_program_id,
         *token_account_info.key,
         *close_recipient_info.key,

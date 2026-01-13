@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_token_sdk::{
-    ctoken::{CreateCMintCpi, CreateCMintParams, ExtensionInstructionData, SystemAccountInfos},
+    token::{CreateCMintCpi, CreateCMintParams, ExtensionInstructionData, SystemAccountInfos},
     CompressedProof,
 };
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
@@ -193,7 +193,7 @@ pub fn process_create_cmint_with_pda_authority(
     accounts: &[AccountInfo],
     data: CreateCmintData,
 ) -> Result<(), ProgramError> {
-    use crate::mint_to_ctoken::MINT_AUTHORITY_SEED;
+    use crate::MINT_AUTHORITY_SEED;
 
     if accounts.len() < 12 {
         return Err(ProgramError::NotEnoughAccountKeys);

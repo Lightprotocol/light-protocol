@@ -16,9 +16,7 @@ mod shared;
 use borsh::BorshDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
-use light_token_sdk::token::{
-    CreateAssociatedCTokenAccount, DecompressToCtoken, Token, TransferCToken,
-};
+use light_token_sdk::token::{CreateAssociatedTokenAccount, Decompress, Token, Transfer};
 use solana_sdk::{signature::Keypair, signer::Signer};
 
 /// Test the complete cMint to cToken flow using direct SDK calls
@@ -87,7 +85,7 @@ async fn test_cmint_to_ctoken_scenario() {
     );
 
     // 5. Transfer cTokens from account 1 to account 2
-    let transfer_instruction = TransferCToken {
+    let transfer_instruction = Transfer {
         source: ctoken_ata1,
         destination: ctoken_ata2,
         amount: transfer_amount,
@@ -190,7 +188,7 @@ async fn test_cmint_to_ctoken_scenario() {
     // 9. Recreate cToken ATA for decompression (idempotent)
     println!("\nRecreating cToken ATA for decompression...");
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner2.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner2.pubkey(), mint)
             .idempotent()
             .instruction()
             .unwrap();
@@ -238,7 +236,7 @@ async fn test_cmint_to_ctoken_scenario() {
     println!("Decompressing tokens to cToken account...");
     println!("discriminator {:?}", discriminator);
     println!("token_data {:?}", token_data);
-    let decompress_instruction = DecompressToCtoken {
+    let decompress_instruction = Decompress {
         token_data,
         discriminator,
         merkle_tree: account_proof.tree_info.tree,

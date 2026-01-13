@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_token_sdk::token::ApproveTokenCpi;
+use light_token_sdk::token::ApproveCpi;
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{ID, TOKEN_ACCOUNT_SEED};
@@ -26,7 +26,7 @@ pub fn process_approve_invoke(
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    ApproveTokenCpi {
+    ApproveCpi {
         token_account: accounts[0].clone(),
         delegate: accounts[1].clone(),
         owner: accounts[2].clone(),
@@ -63,7 +63,7 @@ pub fn process_approve_invoke_signed(
     }
 
     let signer_seeds: &[&[u8]] = &[TOKEN_ACCOUNT_SEED, &[bump]];
-    ApproveTokenCpi {
+    ApproveCpi {
         token_account: accounts[0].clone(),
         delegate: accounts[1].clone(),
         owner: accounts[2].clone(),

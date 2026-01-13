@@ -46,8 +46,8 @@ use light_token_sdk::{
         },
         CTokenAccount2,
     },
-    ctoken::{derive_token_ata, CreateAssociatedCTokenAccount},
     spl_interface::find_spl_interface_pda_with_index,
+    token::{derive_token_ata, CreateAssociatedTokenAccount},
     ValidityProof,
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -102,7 +102,7 @@ async fn setup_spl_compression_test(
     airdrop_lamports(&mut rpc, &recipient.pubkey(), 1_000_000_000).await?;
 
     // Create compressed token ATA for recipient
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .map_err(|e| {
             RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e))

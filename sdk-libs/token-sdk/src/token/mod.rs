@@ -14,7 +14,7 @@
 //!
 //! ## Decompress
 //!
-//! - [`DecompressToToken`] - Decompress compressed tokens to a cToken account
+//! - [`Decompress`] - Decompress compressed tokens to a cToken account
 //!
 //! ## Close
 //!
@@ -25,7 +25,14 @@
 //! ## Mint
 //!
 //! - [`CreateCMint`] - Create cMint
-//! - [`MintToToken`] - Mint tokens to ctoken accounts
+//! - [`MintTo`] - Mint tokens to ctoken accounts
+//!
+//! ## Revoke and Thaw
+//!
+//! - [`Revoke`] - Revoke delegation for a ctoken account
+//! - [`RevokeCpi`] - Revoke delegation via CPI
+//! - [`Thaw`] - Thaw a frozen ctoken account
+//! - [`ThawCpi`] - Thaw a frozen ctoken account via CPI
 //!
 //! # Example: Create cToken Account Instruction
 //!
@@ -78,10 +85,9 @@ mod decompress;
 mod decompress_cmint;
 mod freeze;
 mod mint_to;
+mod mint_to_checked;
 mod revoke;
 mod thaw;
-mod token_mint_to;
-mod token_mint_to_checked;
 mod transfer_interface;
 mod transfer_spl_to_token;
 mod transfer_token;
@@ -92,12 +98,12 @@ pub use approve::*;
 pub use approve_checked::*;
 pub use burn::*;
 pub use burn_checked::*;
-pub use close::*;
+pub use close::{CloseAccount, CloseAccountCpi};
 pub use compressible::{CompressibleParams, CompressibleParamsCpi};
 pub use create::*;
-pub use create_ata::*;
+pub use create_ata::{derive_token_ata, CreateAssociatedAccountCpi, CreateAssociatedTokenAccount};
 pub use create_cmint::*;
-pub use decompress::DecompressToToken;
+pub use decompress::Decompress;
 pub use decompress_cmint::*;
 pub use freeze::*;
 use light_compressible::config::CompressibleConfig;
@@ -109,18 +115,17 @@ pub use light_token_interface::{
     state::{Token, TokenDataVersion},
 };
 use light_token_types::POOL_SEED;
-pub use mint_to::*;
-pub use revoke::*;
+pub use mint_to::{MintTo, MintToCpi};
+pub use mint_to_checked::*;
+pub use revoke::{Revoke, RevokeCpi};
 use solana_account_info::AccountInfo;
 use solana_pubkey::{pubkey, Pubkey};
-pub use thaw::*;
-pub use token_mint_to::*;
-pub use token_mint_to_checked::*;
+pub use thaw::{Thaw, ThawCpi};
 pub use transfer_interface::{SplInterface, TransferInterfaceCpi};
-pub use transfer_spl_to_token::{TransferSplToToken, TransferSplToTokenCpi};
+pub use transfer_spl_to_token::{TransferFromSpl, TransferFromSplCpi};
 pub use transfer_token::*;
 pub use transfer_token_checked::*;
-pub use transfer_token_to_spl::{TransferTokenToSpl, TransferTokenToSplCpi};
+pub use transfer_token_to_spl::{TransferToSpl, TransferToSplCpi};
 
 /// System accounts required for CPI operations to Light Protocol.
 ///
@@ -230,14 +235,3 @@ pub fn rent_sponsor_pda() -> Pubkey {
 pub fn compression_authority_pda() -> Pubkey {
     CompressibleConfig::light_token_v1_compression_authority_pda()
 }
-
-// Backwards compatibility aliases for old type names
-pub use close::CloseTokenAccount as CloseCTokenAccount;
-pub use create::CreateTokenAccount as CreateCTokenAccount;
-pub use create_ata::{
-    derive_token_ata as derive_ctoken_ata,
-    CreateAssociatedTokenAccount as CreateAssociatedCTokenAccount,
-};
-pub use decompress::DecompressToToken as DecompressToCtoken;
-pub use mint_to::MintToToken as MintToCToken;
-pub use transfer_token::TransferToken as TransferCToken;

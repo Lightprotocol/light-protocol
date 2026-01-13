@@ -25,7 +25,7 @@ use crate::{
 ///
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::DecompressToToken;
+/// # use light_token_sdk::token::Decompress;
 /// # use light_token_sdk::compat::TokenData;
 /// # use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 /// # let destination_ctoken_account = Pubkey::new_unique();
@@ -35,7 +35,7 @@ use crate::{
 /// # let queue = Pubkey::new_unique();
 /// # let token_data = TokenData::default();
 /// # let discriminator = [0, 0, 0, 0, 0, 0, 0, 4]; // ShaFlat
-/// let instruction = DecompressToToken {
+/// let instruction = Decompress {
 ///     token_data,
 ///     discriminator,
 ///     merkle_tree,
@@ -50,7 +50,7 @@ use crate::{
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DecompressToToken {
+pub struct Decompress {
     /// Token data from the compressed account (compat version with solana_pubkey::Pubkey)
     pub token_data: TokenData,
     /// Compressed Token Account discriminator
@@ -73,7 +73,7 @@ pub struct DecompressToToken {
     pub validity_proof: ValidityProof,
 }
 
-impl DecompressToToken {
+impl Decompress {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         // Build packed accounts
         // Note: Don't add system accounts here - Transfer2AccountsMetaConfig adds them

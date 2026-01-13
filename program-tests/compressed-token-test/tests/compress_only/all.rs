@@ -31,7 +31,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
         state::TokenDataVersion,
     };
     use light_token_sdk::{
-        ctoken::{CompressibleParams, CreateTokenAccount, TransferSplToToken},
+        token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
         spl_interface::find_spl_interface_pda_with_index,
     };
 
@@ -88,7 +88,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     // 3. Transfer tokens to CToken using hot path (required for mints with restricted extensions)
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
-    let transfer_ix = TransferSplToToken {
+    let transfer_ix = TransferFromSpl {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,

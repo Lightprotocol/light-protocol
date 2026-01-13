@@ -47,7 +47,7 @@ This file contains the discriminator reference table and instruction index for t
 | CTokenMintToChecked | 14 | `InstructionType::CTokenMintToChecked` | MintToChecked |
 | CTokenBurnChecked | 15 | `InstructionType::CTokenBurnChecked` | BurnChecked |
 | CreateTokenAccount | 18 | `InstructionType::CreateTokenAccount` | InitializeAccount3 |
-| CreateAssociatedCTokenAccount | 100 | `InstructionType::CreateAssociatedCTokenAccount` | - |
+| CreateAssociatedTokenAccount | 100 | `InstructionType::CreateAssociatedTokenAccount` | - |
 | Transfer2 | 101 | `InstructionType::Transfer2` | - |
 | CreateAssociatedTokenAccountIdempotent | 102 | `InstructionType::CreateAssociatedTokenAccountIdempotent` | - |
 | MintAction | 103 | `InstructionType::MintAction` | - |

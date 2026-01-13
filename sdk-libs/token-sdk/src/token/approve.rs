@@ -8,11 +8,11 @@ use solana_pubkey::Pubkey;
 /// # Approve a delegate for a CToken account:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::ApproveToken;
+/// # use light_token_sdk::token::Approve;
 /// # let token_account = Pubkey::new_unique();
 /// # let delegate = Pubkey::new_unique();
 /// # let owner = Pubkey::new_unique();
-/// let instruction = ApproveToken {
+/// let instruction = Approve {
 ///     token_account,
 ///     delegate,
 ///     owner,
@@ -20,7 +20,7 @@ use solana_pubkey::Pubkey;
 /// }.instruction()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct ApproveToken {
+pub struct Approve {
     /// CToken account to approve delegation for
     pub token_account: Pubkey,
     /// Delegate to approve
@@ -33,13 +33,13 @@ pub struct ApproveToken {
 
 /// # Approve CToken via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::ApproveTokenCpi;
+/// # use light_token_sdk::token::ApproveCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let token_account: AccountInfo = todo!();
 /// # let delegate: AccountInfo = todo!();
 /// # let owner: AccountInfo = todo!();
 /// # let system_program: AccountInfo = todo!();
-/// ApproveTokenCpi {
+/// ApproveCpi {
 ///     token_account,
 ///     delegate,
 ///     owner,
@@ -49,7 +49,7 @@ pub struct ApproveToken {
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct ApproveTokenCpi<'info> {
+pub struct ApproveCpi<'info> {
     pub token_account: AccountInfo<'info>,
     pub delegate: AccountInfo<'info>,
     pub owner: AccountInfo<'info>,
@@ -57,13 +57,13 @@ pub struct ApproveTokenCpi<'info> {
     pub amount: u64,
 }
 
-impl<'info> ApproveTokenCpi<'info> {
+impl<'info> ApproveCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        ApproveToken::from(self).instruction()
+        Approve::from(self).instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
-        let instruction = ApproveToken::from(&self).instruction()?;
+        let instruction = Approve::from(&self).instruction()?;
         let account_infos = [
             self.token_account,
             self.delegate,
@@ -74,7 +74,7 @@ impl<'info> ApproveTokenCpi<'info> {
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
-        let instruction = ApproveToken::from(&self).instruction()?;
+        let instruction = Approve::from(&self).instruction()?;
         let account_infos = [
             self.token_account,
             self.delegate,
@@ -85,8 +85,8 @@ impl<'info> ApproveTokenCpi<'info> {
     }
 }
 
-impl<'info> From<&ApproveTokenCpi<'info>> for ApproveToken {
-    fn from(cpi: &ApproveTokenCpi<'info>) -> Self {
+impl<'info> From<&ApproveCpi<'info>> for Approve {
+    fn from(cpi: &ApproveCpi<'info>) -> Self {
         Self {
             token_account: *cpi.token_account.key,
             delegate: *cpi.delegate.key,
@@ -96,7 +96,7 @@ impl<'info> From<&ApproveTokenCpi<'info>> for ApproveToken {
     }
 }
 
-impl ApproveToken {
+impl Approve {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         let mut data = vec![4u8]; // CTokenApprove discriminator
         data.extend_from_slice(&self.amount.to_le_bytes());

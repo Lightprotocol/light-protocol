@@ -1,4 +1,4 @@
-// Tests for TransferSplToTokenCpi and TransferTokenToSplCpi
+// Tests for TransferFromSplCpi and TransferTokenToSplCpi
 
 mod shared;
 
@@ -9,12 +9,12 @@ use light_test_utils::spl::{
     create_mint_helper, create_token_2022_account, mint_spl_tokens, CREATE_MINT_HELPER_DECIMALS,
 };
 use light_token_sdk::{
-    ctoken::{derive_token_ata, CompressibleParams, CreateAssociatedCTokenAccount},
     spl_interface::find_spl_interface_pda_with_index,
+    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
 };
 use light_token_types::CPI_AUTHORITY_PDA;
 use native_ctoken_examples::{
-    TransferSplToTokenData, TransferTokenToSplData, ID, TRANSFER_AUTHORITY_SEED,
+    TransferFromSplData, TransferTokenToSplData, ID, TRANSFER_AUTHORITY_SEED,
 };
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -23,7 +23,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test transferring SPL tokens to CToken using TransferSplToTokenCpi::invoke()
+/// Test transferring SPL tokens to CToken using TransferFromSplCpi::invoke()
 #[tokio::test]
 async fn test_spl_to_ctoken_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -67,7 +67,7 @@ async fn test_spl_to_ctoken_invoke() {
         .await
         .unwrap();
 
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -95,7 +95,7 @@ async fn test_spl_to_ctoken_invoke() {
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
     // Build wrapper instruction for SPL to CToken transfer
-    let data = TransferSplToTokenData {
+    let data = TransferFromSplData {
         amount: transfer_amount,
         spl_interface_pda_bump,
         decimals: CREATE_MINT_HELPER_DECIMALS,
@@ -189,7 +189,7 @@ async fn test_ctoken_to_spl_invoke() {
         .unwrap();
 
     // Create ctoken ATA and fund it via SPL transfer first
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -222,7 +222,7 @@ async fn test_ctoken_to_spl_invoke() {
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
     {
-        let data = TransferSplToTokenData {
+        let data = TransferFromSplData {
             amount,
             spl_interface_pda_bump,
             decimals: CREATE_MINT_HELPER_DECIMALS,
@@ -379,7 +379,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
         .await
         .unwrap();
 
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -395,7 +395,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
     // Build wrapper instruction for SPL to CToken transfer with PDA authority
-    let data = TransferSplToTokenData {
+    let data = TransferFromSplData {
         amount: transfer_amount,
         spl_interface_pda_bump,
         decimals: CREATE_MINT_HELPER_DECIMALS,
@@ -485,7 +485,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
 
     // Create ctoken ATA owned by the PDA
     let (ctoken_account, bump) = derive_token_ata(&authority_pda, &mint);
-    let instruction = CreateAssociatedCTokenAccount {
+    let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump,
         payer: payer.pubkey(),
@@ -535,7 +535,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
     {
-        let data = TransferSplToTokenData {
+        let data = TransferFromSplData {
             amount,
             spl_interface_pda_bump,
             decimals: CREATE_MINT_HELPER_DECIMALS,

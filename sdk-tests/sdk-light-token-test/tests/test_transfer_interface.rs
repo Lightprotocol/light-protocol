@@ -9,7 +9,7 @@ use light_test_utils::spl::{
     create_mint_helper, create_token_2022_account, mint_spl_tokens, CREATE_MINT_HELPER_DECIMALS,
 };
 use light_token_sdk::{
-    ctoken::{derive_token_ata, CompressibleParams, CreateAssociatedCTokenAccount},
+    ctoken::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
     spl_interface::find_spl_interface_pda_with_index,
 };
 use light_token_types::CPI_AUTHORITY_PDA;
@@ -68,7 +68,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke() {
         .await
         .unwrap();
 
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -161,7 +161,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
         .unwrap();
 
     // Create and fund CToken ATA
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -297,7 +297,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
     let transfer_amount = 5000u64;
 
     // Create sender CToken ATA
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), sender.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), sender.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -306,7 +306,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
     let sender_ctoken = derive_token_ata(&sender.pubkey(), &mint).0;
 
     // Create recipient CToken ATA
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -471,7 +471,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke_signed() {
         .await
         .unwrap();
 
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -569,7 +569,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
 
     // Create CToken ATA owned by PDA
     let (ctoken_account, bump) = derive_token_ata(&authority_pda, &mint);
-    let instruction = CreateAssociatedCTokenAccount {
+    let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump,
         payer: payer.pubkey(),
@@ -714,7 +714,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
 
     // Create source CToken ATA owned by PDA
     let (source_ctoken, bump) = derive_token_ata(&authority_pda, &mint);
-    let instruction = CreateAssociatedCTokenAccount {
+    let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump,
         payer: payer.pubkey(),
@@ -734,7 +734,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
     light_test_utils::airdrop_lamports(&mut rpc, &recipient.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])

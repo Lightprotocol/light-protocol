@@ -19,11 +19,11 @@ use light_test_utils::mint_2022::{
     create_mint_22_with_extensions, create_token_22_account, mint_spl_tokens_22,
 };
 use light_token_sdk::{
-    ctoken::{
-        derive_token_ata, CompressibleParams, CreateAssociatedCTokenAccount, DecompressToCtoken,
-        TransferSplToToken,
-    },
     spl_interface::find_spl_interface_pda_with_index,
+    token::{
+        derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, Decompress,
+        TransferFromSpl,
+    },
 };
 use solana_sdk::{signature::Keypair, signer::Signer};
 use spl_token_2022::pod::PodAccount;
@@ -81,7 +81,7 @@ async fn test_t22_restricted_to_ctoken_scenario() {
         ..Default::default()
     };
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .unwrap();
@@ -101,7 +101,7 @@ async fn test_t22_restricted_to_ctoken_scenario() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint, 0, true);
 
-    let transfer_instruction = TransferSplToToken {
+    let transfer_instruction = TransferFromSpl {
         amount: transfer_amount,
         spl_interface_pda_bump,
         decimals,
@@ -221,7 +221,7 @@ async fn test_t22_restricted_to_ctoken_scenario() {
         ..Default::default()
     };
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
             .with_compressible(compressible_params)
             .idempotent()
             .instruction()
@@ -265,7 +265,7 @@ async fn test_t22_restricted_to_ctoken_scenario() {
 
     // 12. Decompress compressed tokens to cToken account
     println!("Decompressing tokens to cToken account...");
-    let decompress_instruction = DecompressToCtoken {
+    let decompress_instruction = Decompress {
         token_data,
         discriminator,
         merkle_tree: account_proof.tree_info.tree,

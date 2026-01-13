@@ -343,7 +343,7 @@ use anchor_lang::AnchorDeserialize;
 use light_program_test::program_test::TestRpc;
 use light_test_utils::RpcError;
 use light_token_interface::state::{Token, TokenDataVersion};
-use light_token_sdk::token::{ApproveToken, CreateTokenAccount, RevokeToken};
+use light_token_sdk::token::{Approve, CreateTokenAccount, Revoke};
 use solana_sdk::program_pack::Pack;
 
 use super::extensions::setup_extensions_test;
@@ -431,7 +431,7 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
 
     // 3. Approve 10 tokens to delegate
     let approve_amount = 10u64;
-    let approve_ix = ApproveToken {
+    let approve_ix = Approve {
         token_account: account_pubkey,
         delegate: delegate.pubkey(),
         owner: owner.pubkey(),
@@ -457,7 +457,7 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
     .await;
 
     // 5. Revoke delegation
-    let revoke_ix = RevokeToken {
+    let revoke_ix = Revoke {
         token_account: account_pubkey,
         owner: owner.pubkey(),
     }

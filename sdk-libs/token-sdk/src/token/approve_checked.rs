@@ -8,12 +8,12 @@ use solana_pubkey::Pubkey;
 /// # Approve a delegate for a CToken account with decimals validation:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::ApproveTokenChecked;
+/// # use light_token_sdk::token::ApproveChecked;
 /// # let token_account = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
 /// # let delegate = Pubkey::new_unique();
 /// # let owner = Pubkey::new_unique();
-/// let instruction = ApproveTokenChecked {
+/// let instruction = ApproveChecked {
 ///     token_account,
 ///     mint,
 ///     delegate,
@@ -24,7 +24,7 @@ use solana_pubkey::Pubkey;
 /// }.instruction()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct ApproveTokenChecked {
+pub struct ApproveChecked {
     /// CToken account to approve delegation for
     pub token_account: Pubkey,
     /// Mint account (for decimals validation - may be skipped if CToken has cached decimals)
@@ -43,14 +43,14 @@ pub struct ApproveTokenChecked {
 
 /// # Approve CToken via CPI with decimals validation:
 /// ```rust,no_run
-/// # use light_token_sdk::token::ApproveTokenCheckedCpi;
+/// # use light_token_sdk::token::ApproveCheckedCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let token_account: AccountInfo = todo!();
 /// # let mint: AccountInfo = todo!();
 /// # let delegate: AccountInfo = todo!();
 /// # let owner: AccountInfo = todo!();
 /// # let system_program: AccountInfo = todo!();
-/// ApproveTokenCheckedCpi {
+/// ApproveCheckedCpi {
 ///     token_account,
 ///     mint,
 ///     delegate,
@@ -63,7 +63,7 @@ pub struct ApproveTokenChecked {
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct ApproveTokenCheckedCpi<'info> {
+pub struct ApproveCheckedCpi<'info> {
     pub token_account: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
     pub delegate: AccountInfo<'info>,
@@ -75,13 +75,13 @@ pub struct ApproveTokenCheckedCpi<'info> {
     pub max_top_up: Option<u16>,
 }
 
-impl<'info> ApproveTokenCheckedCpi<'info> {
+impl<'info> ApproveCheckedCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        ApproveTokenChecked::from(self).instruction()
+        ApproveChecked::from(self).instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
-        let instruction = ApproveTokenChecked::from(&self).instruction()?;
+        let instruction = ApproveChecked::from(&self).instruction()?;
         let account_infos = [
             self.token_account,
             self.mint,
@@ -93,7 +93,7 @@ impl<'info> ApproveTokenCheckedCpi<'info> {
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
-        let instruction = ApproveTokenChecked::from(&self).instruction()?;
+        let instruction = ApproveChecked::from(&self).instruction()?;
         let account_infos = [
             self.token_account,
             self.mint,
@@ -105,8 +105,8 @@ impl<'info> ApproveTokenCheckedCpi<'info> {
     }
 }
 
-impl<'info> From<&ApproveTokenCheckedCpi<'info>> for ApproveTokenChecked {
-    fn from(cpi: &ApproveTokenCheckedCpi<'info>) -> Self {
+impl<'info> From<&ApproveCheckedCpi<'info>> for ApproveChecked {
+    fn from(cpi: &ApproveCheckedCpi<'info>) -> Self {
         Self {
             token_account: *cpi.token_account.key,
             mint: *cpi.mint.key,
@@ -119,7 +119,7 @@ impl<'info> From<&ApproveTokenCheckedCpi<'info>> for ApproveTokenChecked {
     }
 }
 
-impl ApproveTokenChecked {
+impl ApproveChecked {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         let mut data = vec![13u8]; // CTokenApproveChecked discriminator (SPL compatible)
         data.extend_from_slice(&self.amount.to_le_bytes());

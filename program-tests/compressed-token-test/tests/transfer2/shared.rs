@@ -27,7 +27,7 @@ use light_token_interface::{
 };
 use light_token_sdk::{
     compressed_token::create_compressed_mint::find_cmint_address,
-    ctoken::{CompressibleParams, CreateAssociatedCTokenAccount},
+    token::{CompressibleParams, CreateAssociatedTokenAccount},
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
@@ -460,13 +460,13 @@ impl TestContext {
                     token_account_version: TokenDataVersion::ShaFlat, // CompressAndClose requires ShaFlat
                     compression_only: false,
                 };
-                CreateAssociatedCTokenAccount::new(payer.pubkey(), signer.pubkey(), mint)
+                CreateAssociatedTokenAccount::new(payer.pubkey(), signer.pubkey(), mint)
                     .with_compressible(compressible_params)
                     .instruction()
                     .unwrap()
             } else {
                 // Create non-compressible CToken ATA
-                CreateAssociatedCTokenAccount {
+                CreateAssociatedTokenAccount {
                     idempotent: false,
                     bump,
                     payer: payer.pubkey(),

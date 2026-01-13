@@ -18,8 +18,8 @@ pub use light_token_client::{
     actions::transfer2::compress, instructions::transfer2::CompressInput,
 };
 pub use light_token_sdk::token::{
-    derive_token_ata, ApproveToken, CloseTokenAccount, CompressibleParams,
-    CreateAssociatedTokenAccount, CreateTokenAccount, RevokeToken,
+    derive_token_ata, Approve, CloseAccount, CompressibleParams, CreateAssociatedTokenAccount,
+    CreateTokenAccount, Revoke,
 };
 pub use serial_test::serial;
 pub use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -302,7 +302,7 @@ pub async fn close_and_assert_token_account(
         .expect("CToken should have Compressible extension");
     let rent_sponsor = Pubkey::from(compressible.info.rent_sponsor);
 
-    let close_ix = CloseTokenAccount {
+    let close_ix = CloseAccount {
         token_program: light_compressed_token::ID,
         account: token_account_pubkey,
         destination,
@@ -349,7 +349,7 @@ pub async fn close_and_assert_token_account_fails(
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
-    let mut close_ix = CloseTokenAccount {
+    let mut close_ix = CloseAccount {
         token_program: light_compressed_token::ID,
         account: token_account_pubkey,
         destination,
@@ -895,7 +895,7 @@ pub async fn approve_and_assert(
     println!("Approve initiated for: {}", name);
 
     // Use light-token-sdk
-    let approve_ix = ApproveToken {
+    let approve_ix = Approve {
         token_account: context.token_account_keypair.pubkey(),
         delegate,
         owner: context.owner_keypair.pubkey(),
@@ -939,7 +939,7 @@ pub async fn approve_and_assert_fails(
     println!("Approve (expecting failure) initiated for: {}", name);
 
     // Build using SDK, then modify if needed for max_top_up
-    let mut instruction = ApproveToken {
+    let mut instruction = Approve {
         token_account,
         delegate,
         owner: authority.pubkey(),
@@ -970,7 +970,7 @@ pub async fn revoke_and_assert(context: &mut AccountTestContext, name: &str) {
     println!("Revoke initiated for: {}", name);
 
     // Use light-token-sdk
-    let revoke_ix = RevokeToken {
+    let revoke_ix = Revoke {
         token_account: context.token_account_keypair.pubkey(),
         owner: context.owner_keypair.pubkey(),
     }
@@ -1003,7 +1003,7 @@ pub async fn revoke_and_assert_fails(
     println!("Revoke (expecting failure) initiated for: {}", name);
 
     // Build using SDK, then modify if needed for max_top_up
-    let mut instruction = RevokeToken {
+    let mut instruction = Revoke {
         token_account,
         owner: authority.pubkey(),
     }

@@ -20,5 +20,5 @@ mod random;
 #[path = "mint/burn.rs"]
 mod burn;
 
-#[path = "mint/ctoken_mint_to.rs"]
-mod ctoken_mint_to;
+#[path = "mint/mint_to.rs"]
+mod mint_to;

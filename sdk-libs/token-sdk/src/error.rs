@@ -9,9 +9,6 @@ use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, TokenSdkError>;
 
-// Backwards compatibility alias
-pub use TokenSdkError as CTokenSdkError;
-
 #[derive(Debug, Error)]
 pub enum TokenSdkError {
     #[error("Insufficient balance")]

@@ -13,7 +13,7 @@ pub use light_test_utils::{
 pub use light_token_client::actions::transfer2::{self};
 use light_token_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
 pub use light_token_sdk::token::{
-    derive_token_ata, CompressibleParams, CreateAssociatedCTokenAccount,
+    derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
 };
 use light_token_sdk::{
     compressed_token::{
@@ -71,7 +71,7 @@ async fn test_spl_to_ctoken_transfer() {
         .unwrap();
 
     // Create compressed token ATA for recipient
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e)))
         .unwrap();
@@ -244,7 +244,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
 
     // Create compressible token ATA for recipient (ATAs require compression_only=true)
     let (associated_token_account, bump) = derive_token_ata(&recipient.pubkey(), &mint);
-    let instruction = CreateAssociatedCTokenAccount {
+    let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump,
         payer: payer.pubkey(),

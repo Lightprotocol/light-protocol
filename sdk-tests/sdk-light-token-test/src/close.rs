@@ -1,4 +1,4 @@
-use light_token_sdk::token::CloseTokenAccountCpi;
+use light_token_sdk::token::CloseAccountCpi;
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{ID, TOKEN_ACCOUNT_SEED};
@@ -16,7 +16,7 @@ pub fn process_close_account_invoke(accounts: &[AccountInfo]) -> Result<(), Prog
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    CloseTokenAccountCpi {
+    CloseAccountCpi {
         token_program: accounts[0].clone(),
         account: accounts[1].clone(),
         destination: accounts[2].clone(),
@@ -50,7 +50,7 @@ pub fn process_close_account_invoke_signed(accounts: &[AccountInfo]) -> Result<(
     }
 
     let signer_seeds: &[&[u8]] = &[TOKEN_ACCOUNT_SEED, &[bump]];
-    CloseTokenAccountCpi {
+    CloseAccountCpi {
         token_program: accounts[0].clone(),
         account: accounts[1].clone(),
         destination: accounts[2].clone(),

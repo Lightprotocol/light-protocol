@@ -47,7 +47,7 @@ Every instruction description must include the sections:
 ### Account Management
 1. **Create CToken Account** - [`docs/ctoken/CREATE.md`](docs/ctoken/CREATE.md)
    - Create regular token account (discriminator: 18, enum: `InstructionType::CreateTokenAccount`)
-   - Create associated token account (discriminator: 100, enum: `InstructionType::CreateAssociatedCTokenAccount`)
+   - Create associated token account (discriminator: 100, enum: `InstructionType::CreateAssociatedTokenAccount`)
    - Create associated token account idempotent (discriminator: 102, enum: `InstructionType::CreateAssociatedTokenAccountIdempotent`)
    - **Config validation:** Requires ACTIVE config only
 
@@ -125,7 +125,7 @@ src/
 │   ├── burn.rs                # CTokenBurn (8), CTokenBurnChecked (15)
 │   ├── close/                 # CloseTokenAccount instruction (9)
 │   ├── create.rs              # CreateTokenAccount instruction (18)
-│   ├── create_ata.rs          # CreateAssociatedCTokenAccount (100, 102)
+│   ├── create_ata.rs          # CreateAssociatedTokenAccount (100, 102)
 │   ├── freeze_thaw.rs         # CTokenFreezeAccount (10), CTokenThawAccount (11)
 │   ├── mint_to.rs             # CTokenMintTo (7), CTokenMintToChecked (14)
 │   └── transfer/              # CTokenTransfer (3), CTokenTransferChecked (12)

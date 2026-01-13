@@ -17,7 +17,7 @@ use borsh::BorshDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_token_sdk::token::{
-    CompressibleParams, CreateAssociatedCTokenAccount, DecompressToCtoken, Token, TransferCToken,
+    CompressibleParams, CreateAssociatedTokenAccount, DecompressToCtoken, Token, Transfer,
 };
 use solana_sdk::{signature::Keypair, signer::Signer};
 
@@ -89,7 +89,7 @@ async fn test_cmint_to_ctoken_scenario_compression_only() {
     );
 
     // 5. Transfer cTokens from account 1 to account 2
-    let transfer_instruction = TransferCToken {
+    let transfer_instruction = Transfer {
         source: ctoken_ata1,
         destination: ctoken_ata2,
         amount: transfer_amount,
@@ -195,7 +195,7 @@ async fn test_cmint_to_ctoken_scenario_compression_only() {
         ..Default::default()
     };
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner2.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner2.pubkey(), mint)
             .with_compressible(compressible_params)
             .idempotent()
             .instruction()

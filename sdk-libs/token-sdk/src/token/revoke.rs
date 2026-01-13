@@ -8,16 +8,16 @@ use solana_pubkey::Pubkey;
 /// # Revoke delegation for a CToken account:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::RevokeToken;
+/// # use light_token_sdk::token::Revoke;
 /// # let token_account = Pubkey::new_unique();
 /// # let owner = Pubkey::new_unique();
-/// let instruction = RevokeToken {
+/// let instruction = Revoke {
 ///     token_account,
 ///     owner,
 /// }.instruction()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct RevokeToken {
+pub struct Revoke {
     /// CToken account to revoke delegation for
     pub token_account: Pubkey,
     /// Owner of the CToken account (signer, payer for top-up)
@@ -26,12 +26,12 @@ pub struct RevokeToken {
 
 /// # Revoke CToken via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::RevokeTokenCpi;
+/// # use light_token_sdk::token::RevokeCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let token_account: AccountInfo = todo!();
 /// # let owner: AccountInfo = todo!();
 /// # let system_program: AccountInfo = todo!();
-/// RevokeTokenCpi {
+/// RevokeCpi {
 ///     token_account,
 ///     owner,
 ///     system_program,
@@ -39,32 +39,32 @@ pub struct RevokeToken {
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct RevokeTokenCpi<'info> {
+pub struct RevokeCpi<'info> {
     pub token_account: AccountInfo<'info>,
     pub owner: AccountInfo<'info>,
     pub system_program: AccountInfo<'info>,
 }
 
-impl<'info> RevokeTokenCpi<'info> {
+impl<'info> RevokeCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        RevokeToken::from(self).instruction()
+        Revoke::from(self).instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
-        let instruction = RevokeToken::from(&self).instruction()?;
+        let instruction = Revoke::from(&self).instruction()?;
         let account_infos = [self.token_account, self.owner, self.system_program];
         invoke(&instruction, &account_infos)
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
-        let instruction = RevokeToken::from(&self).instruction()?;
+        let instruction = Revoke::from(&self).instruction()?;
         let account_infos = [self.token_account, self.owner, self.system_program];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
 
-impl<'info> From<&RevokeTokenCpi<'info>> for RevokeToken {
-    fn from(cpi: &RevokeTokenCpi<'info>) -> Self {
+impl<'info> From<&RevokeCpi<'info>> for Revoke {
+    fn from(cpi: &RevokeCpi<'info>) -> Self {
         Self {
             token_account: *cpi.token_account.key,
             owner: *cpi.owner.key,
@@ -72,7 +72,7 @@ impl<'info> From<&RevokeTokenCpi<'info>> for RevokeToken {
     }
 }
 
-impl RevokeToken {
+impl Revoke {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         Ok(Instruction {
             program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),

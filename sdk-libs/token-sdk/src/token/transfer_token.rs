@@ -8,11 +8,11 @@ use solana_pubkey::Pubkey;
 /// # Create a transfer ctoken instruction:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::TransferToken;
+/// # use light_token_sdk::token::Transfer;
 /// # let source = Pubkey::new_unique();
 /// # let destination = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
-/// let instruction = TransferToken {
+/// let instruction = Transfer {
 ///     source,
 ///     destination,
 ///     amount: 100,
@@ -21,7 +21,7 @@ use solana_pubkey::Pubkey;
 /// }.instruction()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct TransferToken {
+pub struct Transfer {
     pub source: Pubkey,
     pub destination: Pubkey,
     pub amount: u64,
@@ -33,12 +33,12 @@ pub struct TransferToken {
 
 /// # Transfer ctoken via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::TransferTokenCpi;
+/// # use light_token_sdk::token::TransferCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let source: AccountInfo = todo!();
 /// # let destination: AccountInfo = todo!();
 /// # let authority: AccountInfo = todo!();
-/// TransferTokenCpi {
+/// TransferCpi {
 ///     source,
 ///     destination,
 ///     amount: 100,
@@ -48,7 +48,7 @@ pub struct TransferToken {
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct TransferTokenCpi<'info> {
+pub struct TransferCpi<'info> {
     pub source: AccountInfo<'info>,
     pub destination: AccountInfo<'info>,
     pub amount: u64,
@@ -57,26 +57,26 @@ pub struct TransferTokenCpi<'info> {
     pub max_top_up: Option<u16>,
 }
 
-impl<'info> TransferTokenCpi<'info> {
+impl<'info> TransferCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        TransferToken::from(self).instruction()
+        Transfer::from(self).instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
-        let instruction = TransferToken::from(&self).instruction()?;
+        let instruction = Transfer::from(&self).instruction()?;
         let account_infos = [self.source, self.destination, self.authority];
         invoke(&instruction, &account_infos)
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
-        let instruction = TransferToken::from(&self).instruction()?;
+        let instruction = Transfer::from(&self).instruction()?;
         let account_infos = [self.source, self.destination, self.authority];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
 
-impl<'info> From<&TransferTokenCpi<'info>> for TransferToken {
-    fn from(account_infos: &TransferTokenCpi<'info>) -> Self {
+impl<'info> From<&TransferCpi<'info>> for Transfer {
+    fn from(account_infos: &TransferCpi<'info>) -> Self {
         Self {
             source: *account_infos.source.key,
             destination: *account_infos.destination.key,
@@ -87,7 +87,7 @@ impl<'info> From<&TransferTokenCpi<'info>> for TransferToken {
     }
 }
 
-impl TransferToken {
+impl Transfer {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         // Authority is writable only when max_top_up is set (for compressible top-up lamport transfer)
         let authority_meta = if self.max_top_up.is_some() {

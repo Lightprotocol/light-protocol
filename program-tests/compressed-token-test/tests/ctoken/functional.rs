@@ -71,7 +71,7 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
     let destination_pubkey = destination_keypair.pubkey();
 
     // Close account using SPL SDK compatible instruction
-    let close_account_ix = CloseTokenAccount::new(
+    let close_account_ix = CloseAccount::new(
         light_compressed_token::ID,
         token_account_pubkey,
         destination_pubkey,
@@ -302,7 +302,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         .unwrap();
 
     // Close compressible account using owner
-    let close_account_ix = CloseTokenAccount::new(
+    let close_account_ix = CloseAccount::new(
         light_compressed_token::ID,
         token_account_pubkey,
         destination.pubkey(),           // destination for user funds

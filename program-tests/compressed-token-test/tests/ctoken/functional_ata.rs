@@ -1,7 +1,5 @@
 use light_test_utils::assert_create_token_account::assert_create_associated_token_account;
-use light_token_sdk::token::{
-    CloseCTokenAccount, CompressibleParams, CreateAssociatedCTokenAccount,
-};
+use light_token_sdk::token::{CloseAccount, CompressibleParams, CreateAssociatedTokenAccount};
 
 use super::shared::*;
 
@@ -31,7 +29,7 @@ async fn test_associated_token_account_operations() {
     };
 
     let instruction =
-        CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+        CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
             .with_compressible(compressible_params)
             .instruction()
             .unwrap();
@@ -80,7 +78,7 @@ async fn test_associated_token_account_operations() {
         compression_only: true,
     };
 
-    let compressible_instruction = CreateAssociatedCTokenAccount::new(
+    let compressible_instruction = CreateAssociatedTokenAccount::new(
         payer_pubkey,
         compressible_owner_pubkey,
         context.mint_pubkey,
@@ -130,7 +128,7 @@ async fn test_associated_token_account_operations() {
         .unwrap();
 
     // Close compressible ATA
-    let close_account_ix = CloseCTokenAccount::new(
+    let close_account_ix = CloseAccount::new(
         light_compressed_token::ID,
         compressible_ata_pubkey,
         destination.pubkey(),                // destination for user funds
@@ -182,7 +180,7 @@ async fn test_create_ata_idempotent() {
     };
 
     let instruction =
-        CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+        CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
             .with_compressible(compressible_params)
             .instruction()
             .unwrap();
@@ -215,7 +213,7 @@ async fn test_create_ata_idempotent() {
 
     // Attempt to create the same ATA again using non-idempotent instruction (should fail)
     let instruction =
-        CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+        CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
             .instruction()
             .unwrap();
 
@@ -232,7 +230,7 @@ async fn test_create_ata_idempotent() {
 
     // Now try with idempotent instruction (should succeed)
     let instruction =
-        CreateAssociatedCTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
+        CreateAssociatedTokenAccount::new(payer_pubkey, owner_pubkey, context.mint_pubkey)
             .idempotent()
             .instruction()
             .unwrap();
@@ -309,7 +307,7 @@ async fn test_create_ata_with_prefunded_lamports() {
         compression_only: true,
     };
 
-    let instruction = CreateAssociatedCTokenAccount {
+    let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump,
         payer: payer_pubkey,

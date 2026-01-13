@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_token_sdk::token::BurnTokenCpi;
+use light_token_sdk::token::BurnCpi;
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{ID, TOKEN_ACCOUNT_SEED};
@@ -22,7 +22,7 @@ pub fn process_burn_invoke(accounts: &[AccountInfo], amount: u64) -> Result<(), 
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    BurnTokenCpi {
+    BurnCpi {
         source: accounts[0].clone(),
         cmint: accounts[1].clone(),
         amount,
@@ -58,7 +58,7 @@ pub fn process_burn_invoke_signed(
     }
 
     let signer_seeds: &[&[u8]] = &[TOKEN_ACCOUNT_SEED, &[bump]];
-    BurnTokenCpi {
+    BurnCpi {
         source: accounts[0].clone(),
         cmint: accounts[1].clone(),
         amount,

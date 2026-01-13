@@ -82,7 +82,7 @@ async fn test_mint_and_compress_with_extensions() {
     use light_token_interface::state::TokenDataVersion;
     use light_token_sdk::{
         spl_interface::find_spl_interface_pda_with_index,
-        token::{CompressibleParams, CreateTokenAccount, TransferSplToToken},
+        token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
     };
 
     let mut context = setup_extensions_test().await.unwrap();
@@ -149,7 +149,7 @@ async fn test_mint_and_compress_with_extensions() {
                                           // Use restricted=true because this mint has restricted extensions (PermanentDelegate, etc.)
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
-    let transfer_ix = TransferSplToToken {
+    let transfer_ix = TransferFromSpl {
         amount: transfer_amount,
         spl_interface_pda_bump,
         source_spl_token_account: spl_account,
@@ -287,7 +287,7 @@ async fn test_transfer_with_permanent_delegate() {
     use light_token_interface::state::TokenDataVersion;
     use light_token_sdk::{
         spl_interface::find_spl_interface_pda_with_index,
-        token::{CompressibleParams, CreateTokenAccount, TransferSplToToken},
+        token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
     };
     use solana_sdk::{instruction::Instruction, program_pack::Pack};
 
@@ -394,7 +394,7 @@ async fn test_transfer_with_permanent_delegate() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
-    let transfer_spl_to_ctoken_ix = TransferSplToToken {
+    let transfer_spl_to_ctoken_ix = TransferFromSpl {
         amount: mint_amount,
         spl_interface_pda_bump,
         source_spl_token_account: spl_account,
@@ -488,7 +488,7 @@ async fn test_transfer_with_owner_authority() {
     use light_token_interface::state::{AccountState, Token, TokenDataVersion};
     use light_token_sdk::{
         spl_interface::find_spl_interface_pda_with_index,
-        token::{CompressibleParams, CreateTokenAccount, TransferSplToToken},
+        token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
     };
     use solana_sdk::{instruction::Instruction, program_pack::Pack};
 
@@ -622,7 +622,7 @@ async fn test_transfer_with_owner_authority() {
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
-    let transfer_spl_to_ctoken_ix = TransferSplToToken {
+    let transfer_spl_to_ctoken_ix = TransferFromSpl {
         amount: mint_amount,
         spl_interface_pda_bump,
         source_spl_token_account: spl_account,

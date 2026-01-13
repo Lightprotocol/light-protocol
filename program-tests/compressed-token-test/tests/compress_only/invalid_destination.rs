@@ -25,7 +25,7 @@ use light_token_interface::{
     state::TokenDataVersion,
 };
 use light_token_sdk::{
-    ctoken::{CompressibleParams, CreateTokenAccount, TransferSplToToken},
+    token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
     spl_interface::find_spl_interface_pda_with_index,
 };
 use serial_test::serial;
@@ -130,7 +130,7 @@ async fn setup_compressed_token_for_decompress(
         .any(|ext| RESTRICTED_EXTENSIONS.contains(ext));
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted);
-    let transfer_ix = TransferSplToToken {
+    let transfer_ix = TransferFromSpl {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,

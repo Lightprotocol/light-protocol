@@ -1,4 +1,4 @@
-use light_token_sdk::token::RevokeTokenCpi;
+use light_token_sdk::token::RevokeCpi;
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{ID, TOKEN_ACCOUNT_SEED};
@@ -15,7 +15,7 @@ pub fn process_revoke_invoke(accounts: &[AccountInfo]) -> Result<(), ProgramErro
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    RevokeTokenCpi {
+    RevokeCpi {
         token_account: accounts[0].clone(),
         owner: accounts[1].clone(),
         system_program: accounts[2].clone(),
@@ -46,7 +46,7 @@ pub fn process_revoke_invoke_signed(accounts: &[AccountInfo]) -> Result<(), Prog
     }
 
     let signer_seeds: &[&[u8]] = &[TOKEN_ACCOUNT_SEED, &[bump]];
-    RevokeTokenCpi {
+    RevokeCpi {
         token_account: accounts[0].clone(),
         owner: accounts[1].clone(),
         system_program: accounts[2].clone(),

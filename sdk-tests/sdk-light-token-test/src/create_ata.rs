@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_token_sdk::token::{CompressibleParamsCpi, CreateAssociatedTokenAccountCpi};
+use light_token_sdk::token::{CompressibleParamsCpi, CreateAssociatedAccountCpi};
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{ATA_SEED, ID};
@@ -38,7 +38,7 @@ pub fn process_create_ata_invoke(
     );
 
     // Use the CreateAssociatedCTokenAccountCpi - owner and mint are AccountInfos
-    CreateAssociatedTokenAccountCpi {
+    CreateAssociatedAccountCpi {
         owner: accounts[0].clone(),
         mint: accounts[1].clone(),
         payer: accounts[2].clone(),
@@ -86,8 +86,8 @@ pub fn process_create_ata_invoke_signed(
         accounts[4].clone(),
     );
 
-    // Use the CreateAssociatedCTokenAccountCpi - owner and mint are AccountInfos
-    let account_infos = CreateAssociatedTokenAccountCpi {
+    // Use the CreateAssociatedAccountCpi - owner and mint are AccountInfos
+    let account_infos = CreateAssociatedAccountCpi {
         owner: accounts[0].clone(),
         mint: accounts[1].clone(),
         payer: accounts[2].clone(),

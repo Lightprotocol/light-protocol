@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_token_sdk::token::TransferTokenCheckedCpi;
+use light_token_sdk::token::TransferCheckedCpi;
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{ID, TOKEN_ACCOUNT_SEED};
@@ -26,7 +26,7 @@ pub fn process_transfer_checked_invoke(
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    TransferTokenCheckedCpi {
+    TransferCheckedCpi {
         source: accounts[0].clone(),
         mint: accounts[1].clone(),
         destination: accounts[2].clone(),
@@ -63,7 +63,7 @@ pub fn process_transfer_checked_invoke_signed(
         return Err(ProgramError::InvalidSeeds);
     }
 
-    let transfer_accounts = TransferTokenCheckedCpi {
+    let transfer_accounts = TransferCheckedCpi {
         source: accounts[0].clone(),
         mint: accounts[1].clone(),
         destination: accounts[2].clone(),

@@ -1,11 +1,11 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_token_sdk::{
-    ctoken::{CompressedMintWithContext, DecompressCMintCpi, SystemAccountInfos},
+    token::{CompressedMintWithContext, DecompressCMintCpi, SystemAccountInfos},
     ValidityProof,
 };
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
-use crate::{mint_to_ctoken::MINT_AUTHORITY_SEED, ID};
+use crate::{MINT_AUTHORITY_SEED, ID};
 
 /// Instruction data for DecompressCMint operations
 #[derive(BorshSerialize, BorshDeserialize)]

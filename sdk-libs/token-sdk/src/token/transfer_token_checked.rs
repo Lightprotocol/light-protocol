@@ -8,12 +8,12 @@ use solana_pubkey::Pubkey;
 /// # Create a transfer ctoken checked instruction:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::TransferTokenChecked;
+/// # use light_token_sdk::token::TransferChecked;
 /// # let source = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
 /// # let destination = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
-/// let instruction = TransferTokenChecked {
+/// let instruction = TransferChecked {
 ///     source,
 ///     mint,
 ///     destination,
@@ -24,7 +24,7 @@ use solana_pubkey::Pubkey;
 /// }.instruction()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct TransferTokenChecked {
+pub struct TransferChecked {
     pub source: Pubkey,
     pub mint: Pubkey,
     pub destination: Pubkey,
@@ -38,13 +38,13 @@ pub struct TransferTokenChecked {
 
 /// # Transfer ctoken checked via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::TransferTokenCheckedCpi;
+/// # use light_token_sdk::token::TransferCheckedCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let source: AccountInfo = todo!();
 /// # let mint: AccountInfo = todo!();
 /// # let destination: AccountInfo = todo!();
 /// # let authority: AccountInfo = todo!();
-/// TransferTokenCheckedCpi {
+/// TransferCheckedCpi {
 ///     source,
 ///     mint,
 ///     destination,
@@ -56,7 +56,7 @@ pub struct TransferTokenChecked {
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct TransferTokenCheckedCpi<'info> {
+pub struct TransferCheckedCpi<'info> {
     pub source: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
     pub destination: AccountInfo<'info>,
@@ -67,26 +67,26 @@ pub struct TransferTokenCheckedCpi<'info> {
     pub max_top_up: Option<u16>,
 }
 
-impl<'info> TransferTokenCheckedCpi<'info> {
+impl<'info> TransferCheckedCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        TransferTokenChecked::from(self).instruction()
+        TransferChecked::from(self).instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
-        let instruction = TransferTokenChecked::from(&self).instruction()?;
+        let instruction = TransferChecked::from(&self).instruction()?;
         let account_infos = [self.source, self.mint, self.destination, self.authority];
         invoke(&instruction, &account_infos)
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
-        let instruction = TransferTokenChecked::from(&self).instruction()?;
+        let instruction = TransferChecked::from(&self).instruction()?;
         let account_infos = [self.source, self.mint, self.destination, self.authority];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
 
-impl<'info> From<&TransferTokenCheckedCpi<'info>> for TransferTokenChecked {
-    fn from(account_infos: &TransferTokenCheckedCpi<'info>) -> Self {
+impl<'info> From<&TransferCheckedCpi<'info>> for TransferChecked {
+    fn from(account_infos: &TransferCheckedCpi<'info>) -> Self {
         Self {
             source: *account_infos.source.key,
             mint: *account_infos.mint.key,
@@ -99,7 +99,7 @@ impl<'info> From<&TransferTokenCheckedCpi<'info>> for TransferTokenChecked {
     }
 }
 
-impl TransferTokenChecked {
+impl TransferChecked {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         // Authority is writable only when max_top_up is set (for compressible top-up lamport transfer)
         let authority_meta = if self.max_top_up.is_some() {

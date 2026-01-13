@@ -1,4 +1,4 @@
-use light_token_sdk::token::FreezeTokenCpi;
+use light_token_sdk::token::FreezeCpi;
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{FREEZE_AUTHORITY_SEED, ID};
@@ -15,7 +15,7 @@ pub fn process_freeze_invoke(accounts: &[AccountInfo]) -> Result<(), ProgramErro
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    FreezeTokenCpi {
+    FreezeCpi {
         token_account: accounts[0].clone(),
         mint: accounts[1].clone(),
         freeze_authority: accounts[2].clone(),
@@ -46,7 +46,7 @@ pub fn process_freeze_invoke_signed(accounts: &[AccountInfo]) -> Result<(), Prog
     }
 
     let signer_seeds: &[&[u8]] = &[FREEZE_AUTHORITY_SEED, &[bump]];
-    FreezeTokenCpi {
+    FreezeCpi {
         token_account: accounts[0].clone(),
         mint: accounts[1].clone(),
         freeze_authority: accounts[2].clone(),

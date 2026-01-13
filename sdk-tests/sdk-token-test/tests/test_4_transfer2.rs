@@ -18,7 +18,7 @@ use light_token_sdk::{
         create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
         mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
     },
-    ctoken::CreateAssociatedCTokenAccount,
+    token::CreateAssociatedTokenAccount,
     utils::CTokenDefaultAccounts,
 };
 use solana_sdk::{
@@ -97,7 +97,7 @@ async fn create_compressed_mints_and_tokens(
     let (token_account1_pubkey, _bump) =
         light_token_sdk::token::derive_token_ata(&payer.pubkey(), &mint1_pda);
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), payer.pubkey(), mint1_pda)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), mint1_pda)
             .instruction()
             .unwrap();
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[payer])

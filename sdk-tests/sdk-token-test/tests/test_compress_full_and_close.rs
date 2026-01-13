@@ -17,9 +17,9 @@ use light_token_sdk::{
         create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
         mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
     },
-    ctoken::{
+    token::{
         config_pda, derive_token_ata, rent_sponsor_pda, CompressibleParams,
-        CreateAssociatedCTokenAccount,
+        CreateAssociatedTokenAccount,
     },
 };
 use sdk_token_test::instruction;
@@ -189,7 +189,7 @@ async fn test_compress_full_and_close() {
         rent_sponsor: rent_sponsor_pda(),
         compression_only: true,
     };
-    let create_ata_instruction = CreateAssociatedCTokenAccount::new_with_bump(
+    let create_ata_instruction = CreateAssociatedTokenAccount::new_with_bump(
         payer.pubkey(),
         recipient,
         mint_pda,

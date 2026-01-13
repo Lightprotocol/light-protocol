@@ -45,11 +45,11 @@
 //!
 //! | Operation | Instruction Builder | CPI Builder |
 //! |-----------|----------------|-------------|
-//! | Create Associated cToken Account | [`CreateAssociatedCTokenAccount`](token::CreateAssociatedCTokenAccount) | [`CreateAssociatedCTokenAccountCpi`](token::CreateAssociatedCTokenAccountCpi) |
+//! | Create Associated cToken Account | [`CreateAssociatedTokenAccount`](token::CreateAssociatedTokenAccount) | [`CreateAssociatedCTokenAccountCpi`](token::CreateAssociatedCTokenAccountCpi) |
 //! | Create cToken Account | [`CreateTokenAccount`](token::CreateTokenAccount) | [`CreateTokenAccountCpi`](token::CreateTokenAccountCpi) |
-//! | Transfer cToken | [`TransferCToken`](token::TransferCToken) | [`TransferCTokenCpi`](token::TransferCTokenCpi) |
-//! | Transfer cToken → SPL | [`TransferTokenToSpl`](token::TransferTokenToSpl) | [`TransferTokenToSplCpi`](token::TransferTokenToSplCpi) |
-//! | Transfer SPL → cToken | [`TransferSplToToken`](token::TransferSplToToken) | [`TransferSplToTokenCpi`](token::TransferSplToTokenCpi) |
+//! | Transfer cToken | [`Transfer`](token::Transfer) | [`TransferCTokenCpi`](token::TransferCTokenCpi) |
+//! | Transfer cToken → SPL | [`TransferToSpl`](token::TransferToSpl) | [`TransferToSplCpi`](token::TransferToSplCpi) |
+//! | Transfer SPL → cToken | [`TransferFromSpl`](token::TransferFromSpl) | [`TransferFromSplCpi`](token::TransferFromSplCpi) |
 //! | Transfer (auto-detect) | - | [`TransferInterfaceCpi`](token::TransferInterfaceCpi) |
 //! | Decompress to cToken account | [`DecompressToCtoken`](token::DecompressToCtoken) | - |
 //! | Close cToken account | [`CloseCTokenAccount`](token::CloseCTokenAccount) | [`CloseCTokenAccountCpi`](token::CloseCTokenAccountCpi) |
@@ -63,9 +63,6 @@
 pub mod compressed_token;
 pub mod compressible;
 pub mod token;
-
-// Backwards compatibility alias
-pub use token as ctoken;
 
 pub mod constants;
 pub mod error;

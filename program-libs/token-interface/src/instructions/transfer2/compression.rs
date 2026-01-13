@@ -110,7 +110,7 @@ impl ZCompression<'_> {
 
 impl Compression {
     #[allow(clippy::too_many_arguments)]
-    pub fn compress_and_close_token(
+    pub fn compress_and_close(
         amount: u64,
         mint: u8,
         source: u8,
@@ -155,7 +155,7 @@ impl Compression {
             decimals,
         }
     }
-    pub fn compress_token(amount: u64, mint: u8, source: u8, authority: u8) -> Self {
+    pub fn compress(amount: u64, mint: u8, source: u8, authority: u8) -> Self {
         Compression {
             amount,
             mode: CompressionMode::Compress,
@@ -191,7 +191,7 @@ impl Compression {
         }
     }
 
-    pub fn decompress_token(amount: u64, mint: u8, recipient: u8) -> Self {
+    pub fn decompress(amount: u64, mint: u8, recipient: u8) -> Self {
         Compression {
             amount,
             mode: CompressionMode::Decompress,

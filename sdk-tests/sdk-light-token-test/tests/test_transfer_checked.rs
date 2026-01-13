@@ -11,7 +11,7 @@ use light_test_utils::{
 };
 use light_token_interface::state::Token;
 use light_token_sdk::{
-    ctoken::{derive_token_ata, CreateAssociatedCTokenAccount, TransferSplToToken},
+    ctoken::{derive_token_ata, CreateAssociatedTokenAccount, TransferFromSpl},
     spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
 };
 use native_ctoken_examples::{InstructionType, TransferCheckedData, ID};
@@ -99,10 +99,10 @@ async fn test_ctoken_transfer_checked_spl_mint() {
     let (source_ata, _) = derive_token_ata(&source_owner, &mint);
     let (dest_ata, _) = derive_token_ata(&dest_owner, &mint);
 
-    let create_source_ata = CreateAssociatedCTokenAccount::new(payer.pubkey(), source_owner, mint)
+    let create_source_ata = CreateAssociatedTokenAccount::new(payer.pubkey(), source_owner, mint)
         .instruction()
         .unwrap();
-    let create_dest_ata = CreateAssociatedCTokenAccount::new(payer.pubkey(), dest_owner, mint)
+    let create_dest_ata = CreateAssociatedTokenAccount::new(payer.pubkey(), dest_owner, mint)
         .instruction()
         .unwrap();
 
@@ -117,7 +117,7 @@ async fn test_ctoken_transfer_checked_spl_mint() {
     // Transfer SPL tokens to source cToken ATA
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint, 0, false);
-    let transfer_to_ctoken = TransferSplToToken {
+    let transfer_to_ctoken = TransferFromSpl {
         amount: 1000,
         spl_interface_pda_bump,
         decimals,
@@ -202,11 +202,11 @@ async fn test_ctoken_transfer_checked_t22_mint() {
         ..Default::default()
     };
 
-    let create_source_ata = CreateAssociatedCTokenAccount::new(payer.pubkey(), source_owner, mint)
+    let create_source_ata = CreateAssociatedTokenAccount::new(payer.pubkey(), source_owner, mint)
         .with_compressible(compressible_params.clone())
         .instruction()
         .unwrap();
-    let create_dest_ata = CreateAssociatedCTokenAccount::new(payer.pubkey(), dest_owner, mint)
+    let create_dest_ata = CreateAssociatedTokenAccount::new(payer.pubkey(), dest_owner, mint)
         .with_compressible(compressible_params)
         .instruction()
         .unwrap();
@@ -222,7 +222,7 @@ async fn test_ctoken_transfer_checked_t22_mint() {
     // Transfer T22 tokens to source cToken ATA (use restricted=true for mints with restricted extensions)
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint, 0, true);
-    let transfer_to_ctoken = TransferSplToToken {
+    let transfer_to_ctoken = TransferFromSpl {
         amount: 1000,
         spl_interface_pda_bump,
         decimals,

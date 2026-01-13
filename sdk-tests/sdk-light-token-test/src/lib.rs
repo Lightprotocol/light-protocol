@@ -9,7 +9,6 @@ mod create_token_account;
 mod ctoken_mint_to;
 mod decompress_cmint;
 mod freeze;
-mod mint_to_ctoken;
 mod revoke;
 mod thaw;
 mod transfer;
@@ -35,10 +34,6 @@ pub use ctoken_mint_to::{
 };
 pub use decompress_cmint::{process_decompress_cmint_invoke_signed, DecompressCmintData};
 pub use freeze::{process_freeze_invoke, process_freeze_invoke_signed};
-pub use mint_to_ctoken::{
-    process_mint_to_ctoken, process_mint_to_ctoken_invoke_signed, MintToCTokenData,
-    MINT_AUTHORITY_SEED,
-};
 pub use revoke::{process_revoke_invoke, process_revoke_invoke_signed};
 use solana_program::{
     account_info::AccountInfo, entrypoint, program_error::ProgramError, pubkey, pubkey::Pubkey,
@@ -54,7 +49,7 @@ pub use transfer_interface::{
 };
 pub use transfer_spl_ctoken::{
     process_ctoken_to_spl_invoke, process_ctoken_to_spl_invoke_signed,
-    process_spl_to_ctoken_invoke, process_spl_to_ctoken_invoke_signed, TransferSplToTokenData,
+    process_spl_to_ctoken_invoke, process_spl_to_ctoken_invoke_signed, TransferFromSplData,
     TransferTokenToSplData, TRANSFER_AUTHORITY_SEED,
 };
 
@@ -65,6 +60,7 @@ pub const ID: Pubkey = pubkey!("CToknNtvExmp1eProgram11111111111111111111112");
 pub const TOKEN_ACCOUNT_SEED: &[u8] = b"token_account";
 pub const ATA_SEED: &[u8] = b"ata";
 pub const FREEZE_AUTHORITY_SEED: &[u8] = b"freeze_authority";
+pub const MINT_AUTHORITY_SEED: &[u8] = b"mint_authority";
 
 entrypoint!(process_instruction);
 
@@ -74,8 +70,6 @@ entrypoint!(process_instruction);
 pub enum InstructionType {
     /// Create a compressed mint
     CreateCmint = 0,
-    /// Mint tokens to compressed accounts
-    MintToCtoken = 1,
     /// Create compressible token account (invoke)
     CreateTokenAccountInvoke = 2,
     /// Create compressible token account with PDA ownership (invoke_signed)
@@ -98,8 +92,6 @@ pub enum InstructionType {
     CreateAta2InvokeSigned = 11,
     /// Create a compressed mint with PDA mint signer (invoke_signed)
     CreateCmintInvokeSigned = 12,
-    /// Mint tokens with PDA mint authority (invoke_signed)
-    MintToCtokenInvokeSigned = 13,
     /// Create a compressed mint with PDA mint signer AND PDA authority (invoke_signed)
     CreateCmintWithPdaAuthority = 14,
     /// Transfer SPL tokens to CToken account (invoke)
@@ -152,7 +144,6 @@ impl TryFrom<u8> for InstructionType {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(InstructionType::CreateCmint),
-            1 => Ok(InstructionType::MintToCtoken),
             2 => Ok(InstructionType::CreateTokenAccountInvoke),
             3 => Ok(InstructionType::CreateTokenAccountInvokeSigned),
             4 => Ok(InstructionType::CreateAtaInvoke),
@@ -164,7 +155,6 @@ impl TryFrom<u8> for InstructionType {
             10 => Ok(InstructionType::CreateAta2Invoke),
             11 => Ok(InstructionType::CreateAta2InvokeSigned),
             12 => Ok(InstructionType::CreateCmintInvokeSigned),
-            13 => Ok(InstructionType::MintToCtokenInvokeSigned),
             14 => Ok(InstructionType::CreateCmintWithPdaAuthority),
             15 => Ok(InstructionType::SplToCtokenInvoke),
             16 => Ok(InstructionType::SplToCtokenInvokeSigned),
@@ -216,11 +206,6 @@ pub fn process_instruction(
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_create_cmint(accounts, data)
         }
-        InstructionType::MintToCtoken => {
-            let data = MintToCTokenData::try_from_slice(&instruction_data[1..])
-                .map_err(|_| ProgramError::InvalidInstructionData)?;
-            process_mint_to_ctoken(accounts, data)
-        }
         InstructionType::CreateTokenAccountInvoke => {
             let data = CreateTokenAccountData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
@@ -258,23 +243,18 @@ pub fn process_instruction(
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_create_cmint_invoke_signed(accounts, data)
         }
-        InstructionType::MintToCtokenInvokeSigned => {
-            let data = MintToCTokenData::try_from_slice(&instruction_data[1..])
-                .map_err(|_| ProgramError::InvalidInstructionData)?;
-            process_mint_to_ctoken_invoke_signed(accounts, data)
-        }
         InstructionType::CreateCmintWithPdaAuthority => {
             let data = CreateCmintData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_create_cmint_with_pda_authority(accounts, data)
         }
         InstructionType::SplToCtokenInvoke => {
-            let data = TransferSplToTokenData::try_from_slice(&instruction_data[1..])
+            let data = TransferFromSplData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_spl_to_ctoken_invoke(accounts, data)
         }
         InstructionType::SplToCtokenInvokeSigned => {
-            let data = TransferSplToTokenData::try_from_slice(&instruction_data[1..])
+            let data = TransferFromSplData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_spl_to_ctoken_invoke_signed(accounts, data)
         }
@@ -360,7 +340,6 @@ mod tests {
     #[test]
     fn test_instruction_discriminators() {
         assert_eq!(InstructionType::CreateCmint as u8, 0);
-        assert_eq!(InstructionType::MintToCtoken as u8, 1);
         assert_eq!(InstructionType::CreateTokenAccountInvoke as u8, 2);
         assert_eq!(InstructionType::CreateTokenAccountInvokeSigned as u8, 3);
         assert_eq!(InstructionType::CreateAtaInvoke as u8, 4);
@@ -372,7 +351,6 @@ mod tests {
         assert_eq!(InstructionType::CreateAta2Invoke as u8, 10);
         assert_eq!(InstructionType::CreateAta2InvokeSigned as u8, 11);
         assert_eq!(InstructionType::CreateCmintInvokeSigned as u8, 12);
-        assert_eq!(InstructionType::MintToCtokenInvokeSigned as u8, 13);
         assert_eq!(InstructionType::CreateCmintWithPdaAuthority as u8, 14);
         assert_eq!(InstructionType::SplToCtokenInvoke as u8, 15);
         assert_eq!(InstructionType::SplToCtokenInvokeSigned as u8, 16);
@@ -403,10 +381,7 @@ mod tests {
             InstructionType::try_from(0).unwrap(),
             InstructionType::CreateCmint
         );
-        assert_eq!(
-            InstructionType::try_from(1).unwrap(),
-            InstructionType::MintToCtoken
-        );
+        assert!(InstructionType::try_from(1).is_err());
         assert_eq!(
             InstructionType::try_from(2).unwrap(),
             InstructionType::CreateTokenAccountInvoke
@@ -451,10 +426,7 @@ mod tests {
             InstructionType::try_from(12).unwrap(),
             InstructionType::CreateCmintInvokeSigned
         );
-        assert_eq!(
-            InstructionType::try_from(13).unwrap(),
-            InstructionType::MintToCtokenInvokeSigned
-        );
+        assert!(InstructionType::try_from(13).is_err());
         assert_eq!(
             InstructionType::try_from(14).unwrap(),
             InstructionType::CreateCmintWithPdaAuthority
