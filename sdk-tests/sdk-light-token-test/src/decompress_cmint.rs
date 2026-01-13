@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_token_sdk::{
-    token::{CompressedMintWithContext, DecompressCMintCpi, SystemAccountInfos},
+    token::{CompressedMintWithContext, DecompressMintCpi, SystemAccountInfos},
     ValidityProof,
 };
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
@@ -60,7 +60,7 @@ pub fn process_decompress_cmint_invoke_signed(
     };
 
     let signer_seeds: &[&[u8]] = &[MINT_AUTHORITY_SEED, &[bump]];
-    DecompressCMintCpi {
+    DecompressMintCpi {
         mint_seed: accounts[0].clone(),
         authority: accounts[1].clone(),
         payer: accounts[2].clone(),

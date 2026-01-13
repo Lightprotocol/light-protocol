@@ -12,26 +12,26 @@ pub const TRANSFER_INTERFACE_AUTHORITY_SEED: &[u8] = b"transfer_interface_author
 pub struct TransferInterfaceData {
     pub amount: u64,
     pub decimals: u8,
-    /// Required for SPL<->CToken transfers, None for CToken->CToken
+    /// Required for SPL<->Light Token transfers, None for Light Token->Light Token
     pub spl_interface_pda_bump: Option<u8>,
 }
 
 /// Handler for TransferInterface (invoke)
 ///
 /// This unified interface automatically detects account types and routes to:
-/// - CToken -> CToken transfer
-/// - CToken -> SPL transfer
-/// - SPL -> CToken transfer
+/// - Light Token -> Light Token transfer
+/// - Light Token -> SPL transfer
+/// - SPL -> Light Token transfer
 ///
 /// Account order:
 /// - accounts[0]: compressed_token_program (for CPI)
-/// - accounts[1]: source_account (SPL or CToken)
-/// - accounts[2]: destination_account (SPL or CToken)
+/// - accounts[1]: source_account (SPL or Light Token)
+/// - accounts[2]: destination_account (SPL or Light Token)
 /// - accounts[3]: authority (signer)
 /// - accounts[4]: payer (signer)
 /// - accounts[5]: compressed_token_program_authority
 /// - accounts[6]: system_program
-///   For SPL bridge (optional, required for SPL<->CToken):
+///   For SPL bridge (optional, required for SPL<->Light Token):
 /// - accounts[7]: mint
 /// - accounts[8]: spl_interface_pda
 /// - accounts[9]: spl_token_program
@@ -75,13 +75,13 @@ pub fn process_transfer_interface_invoke(
 ///
 /// Account order:
 /// - accounts[0]: compressed_token_program (for CPI)
-/// - accounts[1]: source_account (SPL or CToken)
-/// - accounts[2]: destination_account (SPL or CToken)
+/// - accounts[1]: source_account (SPL or Light Token)
+/// - accounts[2]: destination_account (SPL or Light Token)
 /// - accounts[3]: authority (PDA, not signer - program signs)
 /// - accounts[4]: payer (signer)
 /// - accounts[5]: compressed_token_program_authority
 /// - accounts[6]: system_program
-///   For SPL bridge (optional, required for SPL<->CToken):
+///   For SPL bridge (optional, required for SPL<->Light Token):
 /// - accounts[7]: mint
 /// - accounts[8]: spl_interface_pda
 /// - accounts[9]: spl_token_program

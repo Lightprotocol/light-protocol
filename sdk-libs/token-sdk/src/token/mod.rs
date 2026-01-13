@@ -24,7 +24,7 @@
 //!
 //! ## Mint
 //!
-//! - [`CreateCMint`] - Create cMint
+//! - [`CreateMint`] - Create cMint
 //! - [`MintTo`] - Mint tokens to ctoken accounts
 //!
 //! ## Revoke and Thaw
@@ -80,9 +80,9 @@ mod close;
 mod compressible;
 mod create;
 mod create_ata;
-mod create_cmint;
+mod create_mint;
 mod decompress;
-mod decompress_cmint;
+mod decompress_mint;
 mod freeze;
 mod mint_to;
 mod mint_to_checked;
@@ -102,9 +102,9 @@ pub use close::{CloseAccount, CloseAccountCpi};
 pub use compressible::{CompressibleParams, CompressibleParamsCpi};
 pub use create::*;
 pub use create_ata::{derive_token_ata, CreateAssociatedAccountCpi, CreateAssociatedTokenAccount};
-pub use create_cmint::*;
+pub use create_mint::*;
 pub use decompress::Decompress;
-pub use decompress_cmint::*;
+pub use decompress_mint::*;
 pub use freeze::*;
 use light_compressible::config::CompressibleConfig;
 pub use light_token_interface::{
@@ -172,8 +172,8 @@ pub struct SystemAccounts {
 
 impl Default for SystemAccounts {
     fn default() -> Self {
-        use crate::utils::CTokenDefaultAccounts;
-        let defaults = CTokenDefaultAccounts::default();
+        use crate::utils::TokenDefaultAccounts;
+        let defaults = TokenDefaultAccounts::default();
         Self {
             light_system_program: defaults.light_system_program,
             cpi_authority_pda: defaults.cpi_authority_pda,

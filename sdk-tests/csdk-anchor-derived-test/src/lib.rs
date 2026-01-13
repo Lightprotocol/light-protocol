@@ -41,7 +41,7 @@ pub mod csdk_anchor_derived_test {
         MintActionCompressedInstructionData, MintToCompressedAction, Recipient,
     };
     use light_token_sdk::compressed_token::{
-        create_compressed_mint::find_cmint_address, mint_action::MintActionMetaConfig,
+        create_compressed_mint::find_mint_address, mint_action::MintActionMetaConfig,
     };
 
     use super::*;
@@ -136,7 +136,7 @@ pub mod csdk_anchor_derived_test {
             .write_to_cpi_context_first()
             .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
 
-        let mint = find_cmint_address(&ctx.accounts.mint_signer.key()).0;
+        let mint = find_mint_address(&ctx.accounts.mint_signer.key()).0;
         let (_, token_account_address) = get_ctoken_signer_seeds(&ctx.accounts.user.key(), &mint);
 
         let output_queue = *cpi_accounts.tree_accounts().unwrap()[0].key;

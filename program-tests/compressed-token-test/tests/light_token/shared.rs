@@ -299,7 +299,7 @@ pub async fn close_and_assert_token_account(
     let (ctoken, _) = Token::zero_copy_at(&account_info.data).unwrap();
     let compressible = ctoken
         .get_compressible_extension()
-        .expect("CToken should have Compressible extension");
+        .expect("Light Token should have Compressible extension");
     let rent_sponsor = Pubkey::from(compressible.info.rent_sponsor);
 
     let close_ix = CloseAccount {
@@ -700,7 +700,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
     // Extract compression info from Compressible extension
     let compressible = ctoken
         .get_compressible_extension()
-        .expect("CToken should have Compressible extension");
+        .expect("Light Token should have Compressible extension");
     let rent_sponsor = Pubkey::from(compressible.info.rent_sponsor);
 
     // Get output queue for compression
@@ -798,7 +798,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
 
 /// Execute SPL-format approve and assert success (uses spl_token_2022 instruction format)
 /// This tests SPL compatibility - building instruction with spl_token_2022 and changing program_id.
-/// Note: CToken requires system_program account for compressible top-up, so we add it here.
+/// Note: Light Token requires system_program account for compressible top-up, so we add it here.
 pub async fn approve_spl_compat_and_assert(
     context: &mut AccountTestContext,
     delegate: Pubkey,
@@ -849,7 +849,7 @@ pub async fn approve_spl_compat_and_assert(
 
 /// Execute SPL-format revoke and assert success (uses spl_token_2022 instruction format)
 /// This tests SPL compatibility - building instruction with spl_token_2022 and changing program_id.
-/// Note: CToken requires system_program account for compressible top-up, so we add it here.
+/// Note: Light Token requires system_program account for compressible top-up, so we add it here.
 pub async fn revoke_spl_compat_and_assert(context: &mut AccountTestContext, name: &str) {
     use anchor_spl::token_2022::spl_token_2022;
     use solana_sdk::instruction::AccountMeta;

@@ -36,7 +36,7 @@ use super::shared::ExtensionType;
 /// Expected error code for DecompressDestinationMismatch (owner or ATA mismatch)
 const DECOMPRESS_DESTINATION_MISMATCH: u32 = 18057;
 
-/// Helper to modify CToken account to have invalid state
+/// Helper to modify Light Token account to have invalid state
 async fn set_invalid_destination_state(
     rpc: &mut LightProgramTest,
     account_pubkey: Pubkey,
@@ -97,7 +97,7 @@ async fn setup_compressed_token_for_decompress(
     let mint_amount = 1_000_000_000u64;
     mint_spl_tokens_22(&mut rpc, &payer, &mint_pubkey, &spl_account, mint_amount).await;
 
-    // Create CToken account with compression_only=true
+    // Create Light Token account with compression_only=true
     let owner = Keypair::new();
     let account_keypair = Keypair::new();
     let ctoken_account = account_keypair.pubkey();
@@ -123,7 +123,7 @@ async fn setup_compressed_token_for_decompress(
         .await
         .unwrap();
 
-    // Transfer tokens to CToken
+    // Transfer tokens to Light Token
     use spl_token_2022::ID as SPL_TOKEN_2022_ID;
     let has_restricted = extensions
         .iter()

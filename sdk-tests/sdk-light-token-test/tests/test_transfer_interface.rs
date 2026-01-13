@@ -25,7 +25,7 @@ use solana_sdk::{
 // INVOKE TESTS (regular signer authority)
 // =============================================================================
 
-/// Test TransferInterfaceCpi: SPL -> CToken (invoke)
+/// Test TransferInterfaceCpi: SPL -> Light Token (invoke)
 #[tokio::test]
 async fn test_transfer_interface_spl_to_ctoken_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -62,7 +62,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke() {
     .await
     .unwrap();
 
-    // Create CToken ATA for recipient
+    // Create Light Token ATA for recipient
     let recipient = Keypair::new();
     light_test_utils::airdrop_lamports(&mut rpc, &recipient.pubkey(), 1_000_000_000)
         .await
@@ -95,7 +95,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke() {
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
         AccountMeta::new(spl_token_account_keypair.pubkey(), false), // source (SPL)
-        AccountMeta::new(ctoken_account, false),                     // destination (CToken)
+        AccountMeta::new(ctoken_account, false),                     // destination (Light Token)
         AccountMeta::new_readonly(sender.pubkey(), true),            // authority (signer)
         AccountMeta::new(payer.pubkey(), true),                      // payer
         AccountMeta::new_readonly(cpi_authority_pda, false), // compressed_token_program_authority
@@ -131,10 +131,10 @@ async fn test_transfer_interface_spl_to_ctoken_invoke() {
         spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165]).unwrap();
     assert_eq!(u64::from(ctoken_state.amount), transfer_amount);
 
-    println!("TransferInterface SPL->CToken invoke test passed");
+    println!("TransferInterface SPL->Light Token invoke test passed");
 }
 
-/// Test TransferInterface: CToken -> SPL (invoke)
+/// Test TransferInterface: Light Token -> SPL (invoke)
 #[tokio::test]
 async fn test_transfer_interface_ctoken_to_spl_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -160,7 +160,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
         .await
         .unwrap();
 
-    // Create and fund CToken ATA
+    // Create and fund Light Token ATA
     let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
         .instruction()
         .unwrap();
@@ -169,7 +169,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
         .unwrap();
     let ctoken_account = derive_token_ata(&owner.pubkey(), &mint).0;
 
-    // Fund CToken via temporary SPL account
+    // Fund Light Token via temporary SPL account
     let temp_spl_keypair = Keypair::new();
     create_token_2022_account(&mut rpc, &mint, &temp_spl_keypair, &owner, false)
         .await
@@ -192,7 +192,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
         Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
-    // Transfer SPL to CToken to fund it
+    // Transfer SPL to Light Token to fund it
     {
         let data = TransferInterfaceData {
             amount,
@@ -222,7 +222,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
             .unwrap();
     }
 
-    // Now test CToken -> SPL transfer
+    // Now test Light Token -> SPL transfer
     let data = TransferInterfaceData {
         amount: transfer_amount,
         spl_interface_pda_bump: Some(spl_interface_pda_bump),
@@ -232,7 +232,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
 
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
-        AccountMeta::new(ctoken_account, false), // source (CToken)
+        AccountMeta::new(ctoken_account, false), // source (Light Token)
         AccountMeta::new(spl_token_account_keypair.pubkey(), false), // destination (SPL)
         AccountMeta::new_readonly(owner.pubkey(), true), // authority
         AccountMeta::new(payer.pubkey(), true),  // payer
@@ -269,10 +269,10 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
         spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165]).unwrap();
     assert_eq!(u64::from(ctoken_state.amount), amount - transfer_amount);
 
-    println!("TransferInterface CToken->SPL invoke test passed");
+    println!("TransferInterface Light Token->SPL invoke test passed");
 }
 
-/// Test TransferInterface: CToken -> CToken (invoke)
+/// Test TransferInterface: Light Token -> Light Token (invoke)
 #[tokio::test]
 async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -296,7 +296,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
     let amount = 10000u64;
     let transfer_amount = 5000u64;
 
-    // Create sender CToken ATA
+    // Create sender Light Token ATA
     let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), sender.pubkey(), mint)
         .instruction()
         .unwrap();
@@ -305,7 +305,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
         .unwrap();
     let sender_ctoken = derive_token_ata(&sender.pubkey(), &mint).0;
 
-    // Create recipient CToken ATA
+    // Create recipient Light Token ATA
     let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .unwrap();
@@ -314,7 +314,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
         .unwrap();
     let recipient_ctoken = derive_token_ata(&recipient.pubkey(), &mint).0;
 
-    // Fund sender CToken via SPL
+    // Fund sender Light Token via SPL
     let temp_spl_keypair = Keypair::new();
     create_token_2022_account(&mut rpc, &mint, &temp_spl_keypair, &sender, false)
         .await
@@ -337,7 +337,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
         Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
-    // Fund sender CToken
+    // Fund sender Light Token
     {
         let data = TransferInterfaceData {
             amount,
@@ -367,19 +367,19 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
             .unwrap();
     }
 
-    // Now test CToken -> CToken transfer (no SPL bridge needed)
+    // Now test Light Token -> Light Token transfer (no SPL bridge needed)
     let data = TransferInterfaceData {
         amount: transfer_amount,
-        spl_interface_pda_bump: None, // Not needed for CToken->CToken
+        spl_interface_pda_bump: None, // Not needed for Light Token->Light Token
         decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
 
-    // For CToken->CToken, we need 7 accounts (no SPL bridge, but system_program is required)
+    // For Light Token->Light Token, we need 7 accounts (no SPL bridge, but system_program is required)
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
-        AccountMeta::new(sender_ctoken, false), // source (CToken)
-        AccountMeta::new(recipient_ctoken, false), // destination (CToken)
+        AccountMeta::new(sender_ctoken, false), // source (Light Token)
+        AccountMeta::new(recipient_ctoken, false), // destination (Light Token)
         AccountMeta::new_readonly(sender.pubkey(), true), // authority
         AccountMeta::new(payer.pubkey(), true), // payer
         AccountMeta::new_readonly(cpi_authority_pda, false),
@@ -409,14 +409,14 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
             .unwrap();
     assert_eq!(u64::from(recipient_state.amount), transfer_amount);
 
-    println!("TransferInterface CToken->CToken invoke test passed");
+    println!("TransferInterface Light Token->Light Token invoke test passed");
 }
 
 // =============================================================================
 // INVOKE_SIGNED TESTS (PDA authority)
 // =============================================================================
 
-/// Test TransferInterface: SPL -> CToken with PDA authority (invoke_signed)
+/// Test TransferInterface: SPL -> Light Token with PDA authority (invoke_signed)
 #[tokio::test]
 async fn test_transfer_interface_spl_to_ctoken_invoke_signed() {
     use anchor_spl::associated_token::{
@@ -465,7 +465,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke_signed() {
     .await
     .unwrap();
 
-    // Create destination CToken ATA
+    // Create destination Light Token ATA
     let recipient = Keypair::new();
     light_test_utils::airdrop_lamports(&mut rpc, &recipient.pubkey(), 1_000_000_000)
         .await
@@ -496,7 +496,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke_signed() {
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
         AccountMeta::new(spl_ata, false), // source (SPL owned by PDA)
-        AccountMeta::new(ctoken_account, false), // destination (CToken)
+        AccountMeta::new(ctoken_account, false), // destination (Light Token)
         AccountMeta::new_readonly(authority_pda, false), // authority (PDA, not signer)
         AccountMeta::new(payer.pubkey(), true), // payer
         AccountMeta::new_readonly(cpi_authority_pda, false), // compressed_token_program_authority
@@ -528,10 +528,10 @@ async fn test_transfer_interface_spl_to_ctoken_invoke_signed() {
         spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165]).unwrap();
     assert_eq!(u64::from(ctoken_state.amount), transfer_amount);
 
-    println!("TransferInterface SPL->CToken invoke_signed test passed");
+    println!("TransferInterface SPL->Light Token invoke_signed test passed");
 }
 
-/// Test TransferInterface: CToken -> SPL with PDA authority (invoke_signed)
+/// Test TransferInterface: Light Token -> SPL with PDA authority (invoke_signed)
 #[tokio::test]
 async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -567,7 +567,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
     .await
     .unwrap();
 
-    // Create CToken ATA owned by PDA
+    // Create Light Token ATA owned by PDA
     let (ctoken_account, bump) = derive_token_ata(&authority_pda, &mint);
     let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
@@ -584,7 +584,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
         .await
         .unwrap();
 
-    // Fund PDA's CToken via temporary SPL account
+    // Fund PDA's Light Token via temporary SPL account
     let temp_spl_keypair = Keypair::new();
     let temp_owner = Keypair::new();
     light_test_utils::airdrop_lamports(&mut rpc, &temp_owner.pubkey(), 1_000_000_000)
@@ -611,7 +611,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
         Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
-    // Fund PDA's CToken
+    // Fund PDA's Light Token
     {
         let data = TransferInterfaceData {
             amount,
@@ -641,7 +641,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
             .unwrap();
     }
 
-    // Now test CToken -> SPL with PDA authority
+    // Now test Light Token -> SPL with PDA authority
     let data = TransferInterfaceData {
         amount: transfer_amount,
         spl_interface_pda_bump: Some(spl_interface_pda_bump),
@@ -652,7 +652,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
 
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
-        AccountMeta::new(ctoken_account, false), // source (CToken owned by PDA)
+        AccountMeta::new(ctoken_account, false), // source (Light Token owned by PDA)
         AccountMeta::new(spl_token_account_keypair.pubkey(), false), // destination (SPL)
         AccountMeta::new_readonly(authority_pda, false), // authority (PDA)
         AccountMeta::new(payer.pubkey(), true),  // payer
@@ -689,10 +689,10 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
         spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165]).unwrap();
     assert_eq!(u64::from(ctoken_state.amount), amount - transfer_amount);
 
-    println!("TransferInterface CToken->SPL invoke_signed test passed");
+    println!("TransferInterface Light Token->SPL invoke_signed test passed");
 }
 
-/// Test TransferInterface: CToken -> CToken with PDA authority (invoke_signed)
+/// Test TransferInterface: Light Token -> Light Token with PDA authority (invoke_signed)
 #[tokio::test]
 async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -712,7 +712,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
     let amount = 10000u64;
     let transfer_amount = 5000u64;
 
-    // Create source CToken ATA owned by PDA
+    // Create source Light Token ATA owned by PDA
     let (source_ctoken, bump) = derive_token_ata(&authority_pda, &mint);
     let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
@@ -729,7 +729,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
         .await
         .unwrap();
 
-    // Create destination CToken ATA
+    // Create destination Light Token ATA
     let recipient = Keypair::new();
     light_test_utils::airdrop_lamports(&mut rpc, &recipient.pubkey(), 1_000_000_000)
         .await
@@ -742,7 +742,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
         .unwrap();
     let dest_ctoken = derive_token_ata(&recipient.pubkey(), &mint).0;
 
-    // Fund source CToken via temporary SPL account
+    // Fund source Light Token via temporary SPL account
     let temp_spl_keypair = Keypair::new();
     let temp_owner = Keypair::new();
     light_test_utils::airdrop_lamports(&mut rpc, &temp_owner.pubkey(), 1_000_000_000)
@@ -769,7 +769,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
         Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
-    // Fund source CToken
+    // Fund source Light Token
     {
         let data = TransferInterfaceData {
             amount,
@@ -799,20 +799,20 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
             .unwrap();
     }
 
-    // Now test CToken -> CToken with PDA authority
+    // Now test Light Token -> Light Token with PDA authority
     let data = TransferInterfaceData {
         amount: transfer_amount,
-        spl_interface_pda_bump: None, // Not needed for CToken->CToken
+        spl_interface_pda_bump: None, // Not needed for Light Token->Light Token
         decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 20 = TransferInterfaceInvokeSigned
     let wrapper_instruction_data = [vec![20u8], data.try_to_vec().unwrap()].concat();
 
-    // For CToken->CToken, we only need 6 accounts (no SPL bridge)
+    // For Light Token->Light Token, we only need 6 accounts (no SPL bridge)
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
-        AccountMeta::new(source_ctoken, false), // source (CToken owned by PDA)
-        AccountMeta::new(dest_ctoken, false),   // destination (CToken)
+        AccountMeta::new(source_ctoken, false), // source (Light Token owned by PDA)
+        AccountMeta::new(dest_ctoken, false),   // destination (Light Token)
         AccountMeta::new_readonly(authority_pda, false), // authority (PDA)
         AccountMeta::new(payer.pubkey(), true), // payer
         AccountMeta::new_readonly(cpi_authority_pda, false),
@@ -841,5 +841,5 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
         spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&dest_ctoken_data.data[..165]).unwrap();
     assert_eq!(u64::from(dest_state.amount), transfer_amount);
 
-    println!("TransferInterface CToken->CToken invoke_signed test passed");
+    println!("TransferInterface Light Token->Light Token invoke_signed test passed");
 }

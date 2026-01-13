@@ -20,7 +20,7 @@ use super::{
     },
 };
 use crate::{
-    compat::TokenData, error::TokenSdkError, utils::CTokenDefaultAccounts, AnchorDeserialize,
+    compat::TokenData, error::TokenSdkError, utils::TokenDefaultAccounts, AnchorDeserialize,
     AnchorSerialize, ValidityProof,
 };
 
@@ -248,16 +248,16 @@ pub struct DecompressFullAccounts {
 impl DecompressFullAccounts {
     pub fn new(cpi_context: Option<Pubkey>) -> Self {
         Self {
-            compressed_token_program: CTokenDefaultAccounts::default().compressed_token_program,
-            cpi_authority_pda: CTokenDefaultAccounts::default().cpi_authority_pda,
+            compressed_token_program: TokenDefaultAccounts::default().compressed_token_program,
+            cpi_authority_pda: TokenDefaultAccounts::default().cpi_authority_pda,
             cpi_context,
             self_program: None,
         }
     }
     pub fn new_with_cpi_context(cpi_context: Option<Pubkey>, self_program: Option<Pubkey>) -> Self {
         Self {
-            compressed_token_program: CTokenDefaultAccounts::default().compressed_token_program,
-            cpi_authority_pda: CTokenDefaultAccounts::default().cpi_authority_pda,
+            compressed_token_program: TokenDefaultAccounts::default().compressed_token_program,
+            cpi_authority_pda: TokenDefaultAccounts::default().cpi_authority_pda,
             cpi_context,
             self_program,
         }

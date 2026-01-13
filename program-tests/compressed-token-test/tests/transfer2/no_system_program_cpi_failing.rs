@@ -18,13 +18,13 @@
 // Missing Required Data/Accounts:
 // 1. Empty compressions array → NoInputsProvided (25)
 //
-// Sum Check Failures - CToken:
+// Sum Check Failures - Light Token:
 // 2. Compress without decompress → SumCheckFailed (6005)
 // 3. Decompress without compress → SumCheckFailed (6005)
 // 4. Compress less, decompress more → SumCheckFailed (6005)
 // 5. Compress more, decompress less → SumCheckFailed (6005)
 //
-// CToken Authority Failures:
+// Light Token Authority Failures:
 // 6. Invalid authority compress → OwnerMismatch (75)
 // 7. Authority not signer compress → InvalidSigner (20009)
 // 8. Insufficient balance compress → ArithmeticOverflow (string match, not error code)
@@ -50,7 +50,7 @@ use light_sdk::instruction::PackedAccounts;
 use light_test_utils::{airdrop_lamports, RpcError};
 use light_token_interface::instructions::{mint_action::Recipient, transfer2::Compression};
 use light_token_sdk::{
-    compressed_token::create_compressed_mint::find_cmint_address,
+    compressed_token::create_compressed_mint::find_mint_address,
     token::{derive_token_ata, CreateAssociatedTokenAccount},
     ValidityProof,
 };
@@ -73,7 +73,7 @@ struct NoSystemProgramCpiTestContext {
     pub packed_accounts: Vec<solana_sdk::instruction::AccountMeta>,
 }
 
-/// Set up test environment with two CToken accounts for compress/decompress testing
+/// Set up test environment with two Light Token accounts for compress/decompress testing
 async fn setup_no_system_program_cpi_test(
     source_token_amount: u64,
 ) -> Result<NoSystemProgramCpiTestContext, RpcError> {
@@ -101,11 +101,11 @@ async fn setup_no_system_program_cpi_test(
 
     // Create compressed mint seed
     let mint_seed = Keypair::new();
-    let (mint, _) = find_cmint_address(&mint_seed.pubkey());
+    let (mint, _) = find_mint_address(&mint_seed.pubkey());
     let (source_ata, _) = derive_token_ata(&owner.pubkey(), &mint);
     let (recipient_ata, _) = derive_token_ata(&recipient.pubkey(), &mint);
 
-    // Create CToken ATA for owner (source)
+    // Create Light Token ATA for owner (source)
     let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
         .instruction()
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to create source ATA: {}", e)))
@@ -114,7 +114,7 @@ async fn setup_no_system_program_cpi_test(
         .await
         .unwrap();
 
-    // Create CToken ATA for recipient
+    // Create Light Token ATA for recipient
     let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to create recipient ATA: {}", e)))
@@ -123,7 +123,7 @@ async fn setup_no_system_program_cpi_test(
         .await
         .unwrap();
 
-    // Create mint and mint tokens to source CToken ATA
+    // Create mint and mint tokens to source Light Token ATA
     let decompressed_recipients = if source_token_amount > 0 {
         vec![Recipient::new(owner.pubkey(), source_token_amount)]
     } else {
@@ -138,7 +138,7 @@ async fn setup_no_system_program_cpi_test(
         None,                    // no decompress mint
         false,                   // no close cmint
         vec![],                  // no compressed recipients
-        decompressed_recipients, // mint to source CToken ATA (empty if token_amount is 0)
+        decompressed_recipients, // mint to source Light Token ATA (empty if token_amount is 0)
         None,
         None,
         Some(light_token_client::instructions::mint_action::NewMint {
@@ -342,7 +342,7 @@ async fn test_empty_compressions_array() -> Result<(), RpcError> {
 }
 
 // ============================================================================
-// Sum Check Failures - CToken
+// Sum Check Failures - Light Token
 // ============================================================================
 
 #[tokio::test]
@@ -501,7 +501,7 @@ async fn test_compress_more_decompress_less() -> Result<(), RpcError> {
 }
 
 // ============================================================================
-// CToken Authority Failures
+// Light Token Authority Failures
 // ============================================================================
 
 #[tokio::test]
@@ -706,7 +706,7 @@ async fn test_too_many_mints() {
     for _ in 0..5 {
         // Create new mint seed
         let mint_seed = Keypair::new();
-        let (mint, _) = find_cmint_address(&mint_seed.pubkey());
+        let (mint, _) = find_mint_address(&mint_seed.pubkey());
         let (source_ata, _) = derive_token_ata(&context.owner.pubkey(), &mint);
         let (recipient_ata, _) = derive_token_ata(&context.recipient.pubkey(), &mint);
 
@@ -735,7 +735,7 @@ async fn test_too_many_mints() {
             .await
             .unwrap();
 
-        // Create mint and mint tokens to source CToken ATA
+        // Create mint and mint tokens to source Light Token ATA
         let decompressed_recipients = vec![Recipient::new(context.owner.pubkey(), 1000)];
 
         light_token_client::actions::mint_action_comprehensive(
@@ -746,7 +746,7 @@ async fn test_too_many_mints() {
             None,                    // no decompress mint
             false,                   // no close cmint
             vec![],                  // no compressed recipients
-            decompressed_recipients, // mint to source CToken ATA
+            decompressed_recipients, // mint to source Light Token ATA
             None,
             None,
             Some(light_token_client::instructions::mint_action::NewMint {

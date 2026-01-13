@@ -1,4 +1,4 @@
-//! Assertion helpers for CToken freeze and thaw operations.
+//! Assertion helpers for Light Token freeze and thaw operations.
 //!
 //! These functions verify that freeze/thaw operations correctly modify
 //! only the state field while preserving all other account state including
@@ -10,7 +10,7 @@ use light_program_test::LightProgramTest;
 use light_token_interface::state::{AccountState, Token};
 use solana_sdk::pubkey::Pubkey;
 
-/// Assert that a CToken freeze operation was successful.
+/// Assert that a Light Token freeze operation was successful.
 ///
 /// Pattern: Get pre-state, build expected by modifying only changed fields,
 /// single assert_eq against post-state.
@@ -31,11 +31,11 @@ pub async fn assert_ctoken_freeze(rpc: &mut LightProgramTest, token_account: Pub
         .expect("Failed to get account after transaction")
         .expect("Token account should exist after transaction");
 
-    // Parse pre and post CToken states
-    let pre_ctoken =
-        Token::deserialize(&mut &pre_account.data[..]).expect("Failed to deserialize pre CToken");
-    let post_ctoken =
-        Token::deserialize(&mut &post_account.data[..]).expect("Failed to deserialize post CToken");
+    // Parse pre and post Light Token states
+    let pre_ctoken = Token::deserialize(&mut &pre_account.data[..])
+        .expect("Failed to deserialize pre Light Token");
+    let post_ctoken = Token::deserialize(&mut &post_account.data[..])
+        .expect("Failed to deserialize post Light Token");
 
     // Build expected by modifying only the changed fields from pre-state
     let expected_ctoken = Token {
@@ -45,11 +45,11 @@ pub async fn assert_ctoken_freeze(rpc: &mut LightProgramTest, token_account: Pub
 
     assert_eq!(
         post_ctoken, expected_ctoken,
-        "CToken after freeze should have state=Frozen, all other fields unchanged"
+        "Light Token after freeze should have state=Frozen, all other fields unchanged"
     );
 }
 
-/// Assert that a CToken thaw operation was successful.
+/// Assert that a Light Token thaw operation was successful.
 ///
 /// Pattern: Get pre-state, build expected by modifying only changed fields,
 /// single assert_eq against post-state.
@@ -70,11 +70,11 @@ pub async fn assert_ctoken_thaw(rpc: &mut LightProgramTest, token_account: Pubke
         .expect("Failed to get account after transaction")
         .expect("Token account should exist after transaction");
 
-    // Parse pre and post CToken states
-    let pre_ctoken =
-        Token::deserialize(&mut &pre_account.data[..]).expect("Failed to deserialize pre CToken");
-    let post_ctoken =
-        Token::deserialize(&mut &post_account.data[..]).expect("Failed to deserialize post CToken");
+    // Parse pre and post Light Token states
+    let pre_ctoken = Token::deserialize(&mut &pre_account.data[..])
+        .expect("Failed to deserialize pre Light Token");
+    let post_ctoken = Token::deserialize(&mut &post_account.data[..])
+        .expect("Failed to deserialize post Light Token");
 
     // Build expected by modifying only the changed fields from pre-state
     let expected_ctoken = Token {
@@ -84,6 +84,6 @@ pub async fn assert_ctoken_thaw(rpc: &mut LightProgramTest, token_account: Pubke
 
     assert_eq!(
         post_ctoken, expected_ctoken,
-        "CToken after thaw should have state=Initialized, all other fields unchanged"
+        "Light Token after thaw should have state=Initialized, all other fields unchanged"
     );
 }

@@ -16,7 +16,7 @@ use light_token_sdk::{
         TokenAccountMeta,
     },
     spl_interface::get_spl_interface_pda,
-    utils::CTokenDefaultAccounts,
+    utils::TokenDefaultAccounts,
 };
 use light_token_types::SPL_TOKEN_PROGRAM_ID;
 use solana_sdk::{
@@ -428,7 +428,7 @@ async fn test_four_invokes_instruction(
     initial_escrow_amount: u64,
     compression_token_account: Pubkey,
 ) -> Result<(), RpcError> {
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
     let mut remaining_accounts = PackedAccounts::default();
     let spl_interface_pda1 = get_spl_interface_pda(&mint1, false);
     // Remaining accounts 0

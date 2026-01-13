@@ -10,7 +10,7 @@ use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-pub use super::find_cmint_address;
+pub use super::find_mint_address;
 use super::{config_pda, rent_sponsor_pda, SystemAccountInfos};
 use crate::compressed_token::mint_action::MintActionMetaConfig;
 
@@ -21,7 +21,7 @@ use crate::compressed_token::mint_action::MintActionMetaConfig;
 ///
 /// # Example
 /// ```rust,ignore
-/// let instruction = DecompressCMint {
+/// let instruction = DecompressMint {
 ///     mint_seed_pubkey,
 ///     payer,
 ///     authority,
@@ -35,7 +35,7 @@ use crate::compressed_token::mint_action::MintActionMetaConfig;
 /// }.instruction()?;
 /// ```
 #[derive(Debug, Clone)]
-pub struct DecompressCMint {
+pub struct DecompressMint {
     /// Mint seed pubkey (used to derive CMint PDA)
     pub mint_seed_pubkey: Pubkey,
     /// Fee payer
@@ -58,10 +58,10 @@ pub struct DecompressCMint {
     pub write_top_up: u32,
 }
 
-impl DecompressCMint {
+impl DecompressMint {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         // Derive CMint PDA
-        let (cmint_pda, cmint_bump) = find_cmint_address(&self.mint_seed_pubkey);
+        let (cmint_pda, cmint_bump) = find_mint_address(&self.mint_seed_pubkey);
 
         // Build DecompressMintAction
         let action = DecompressMintAction {
@@ -85,7 +85,7 @@ impl DecompressCMint {
             self.input_queue,
             self.output_queue,
         )
-        .with_compressible_cmint(cmint_pda, config_pda(), rent_sponsor_pda())
+        .with_compressible_mint(cmint_pda, config_pda(), rent_sponsor_pda())
         .with_mint_signer_no_sign(self.mint_seed_pubkey);
 
         let account_metas = meta_config.to_account_metas();
@@ -103,7 +103,7 @@ impl DecompressCMint {
 }
 
 // ============================================================================
-// CPI Struct: DecompressCMintCpi
+// CPI Struct: DecompressMintCpi
 // ============================================================================
 
 /// Decompress a compressed mint to a CMint Solana account via CPI.
@@ -113,7 +113,7 @@ impl DecompressCMint {
 ///
 /// # Example
 /// ```rust,ignore
-/// DecompressCMintCpi {
+/// DecompressMintCpi {
 ///     mint_seed: mint_seed_account,
 ///     authority: authority_account,
 ///     payer: payer_account,
@@ -131,7 +131,7 @@ impl DecompressCMint {
 /// }
 /// .invoke()?;
 /// ```
-pub struct DecompressCMintCpi<'info> {
+pub struct DecompressMintCpi<'info> {
     /// Mint seed account (used to derive CMint PDA, does not sign)
     pub mint_seed: AccountInfo<'info>,
     /// Mint authority (must sign)
@@ -162,9 +162,9 @@ pub struct DecompressCMintCpi<'info> {
     pub write_top_up: u32,
 }
 
-impl<'info> DecompressCMintCpi<'info> {
+impl<'info> DecompressMintCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        DecompressCMint::try_from(self)?.instruction()
+        DecompressMint::try_from(self)?.instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
@@ -217,10 +217,10 @@ impl<'info> DecompressCMintCpi<'info> {
     }
 }
 
-impl<'info> TryFrom<&DecompressCMintCpi<'info>> for DecompressCMint {
+impl<'info> TryFrom<&DecompressMintCpi<'info>> for DecompressMint {
     type Error = ProgramError;
 
-    fn try_from(cpi: &DecompressCMintCpi<'info>) -> Result<Self, Self::Error> {
+    fn try_from(cpi: &DecompressMintCpi<'info>) -> Result<Self, Self::Error> {
         Ok(Self {
             mint_seed_pubkey: *cpi.mint_seed.key,
             payer: *cpi.payer.key,

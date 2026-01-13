@@ -1,4 +1,4 @@
-//! Assertion helpers for CToken approve and revoke operations.
+//! Assertion helpers for Light Token approve and revoke operations.
 //!
 //! These functions verify that approve/revoke operations correctly modify
 //! only the delegate and delegated_amount fields while preserving all other
@@ -10,7 +10,7 @@ use light_program_test::LightProgramTest;
 use light_token_interface::state::Token;
 use solana_sdk::pubkey::Pubkey;
 
-/// Assert that a CToken approve operation was successful.
+/// Assert that a Light Token approve operation was successful.
 ///
 /// Pattern: Get pre-state, build expected by modifying only changed fields,
 /// single assert_eq against post-state.
@@ -38,11 +38,11 @@ pub async fn assert_ctoken_approve(
         .expect("Failed to get account after transaction")
         .expect("Token account should exist after transaction");
 
-    // Parse pre and post CToken states
-    let pre_ctoken =
-        Token::deserialize(&mut &pre_account.data[..]).expect("Failed to deserialize pre CToken");
-    let post_ctoken =
-        Token::deserialize(&mut &post_account.data[..]).expect("Failed to deserialize post CToken");
+    // Parse pre and post Light Token states
+    let pre_ctoken = Token::deserialize(&mut &pre_account.data[..])
+        .expect("Failed to deserialize pre Light Token");
+    let post_ctoken = Token::deserialize(&mut &post_account.data[..])
+        .expect("Failed to deserialize post Light Token");
 
     // Build expected by modifying only the changed fields from pre-state
     let expected_ctoken = Token {
@@ -53,12 +53,12 @@ pub async fn assert_ctoken_approve(
 
     assert_eq!(
         post_ctoken, expected_ctoken,
-        "CToken after approve should have delegate={} and delegated_amount={}, all other fields unchanged",
+        "Light Token after approve should have delegate={} and delegated_amount={}, all other fields unchanged",
         delegate, amount
     );
 }
 
-/// Assert that a CToken revoke operation was successful.
+/// Assert that a Light Token revoke operation was successful.
 ///
 /// Pattern: Get pre-state, build expected by modifying only changed fields,
 /// single assert_eq against post-state.
@@ -79,11 +79,11 @@ pub async fn assert_ctoken_revoke(rpc: &mut LightProgramTest, token_account: Pub
         .expect("Failed to get account after transaction")
         .expect("Token account should exist after transaction");
 
-    // Parse pre and post CToken states
-    let pre_ctoken =
-        Token::deserialize(&mut &pre_account.data[..]).expect("Failed to deserialize pre CToken");
-    let post_ctoken =
-        Token::deserialize(&mut &post_account.data[..]).expect("Failed to deserialize post CToken");
+    // Parse pre and post Light Token states
+    let pre_ctoken = Token::deserialize(&mut &pre_account.data[..])
+        .expect("Failed to deserialize pre Light Token");
+    let post_ctoken = Token::deserialize(&mut &post_account.data[..])
+        .expect("Failed to deserialize post Light Token");
 
     // Build expected by modifying only the changed fields from pre-state
     let expected_ctoken = Token {
@@ -94,6 +94,6 @@ pub async fn assert_ctoken_revoke(rpc: &mut LightProgramTest, token_account: Pub
 
     assert_eq!(
         post_ctoken, expected_ctoken,
-        "CToken after revoke should have delegate=None and delegated_amount=0, all other fields unchanged"
+        "Light Token after revoke should have delegate=None and delegated_amount=0, all other fields unchanged"
     );
 }

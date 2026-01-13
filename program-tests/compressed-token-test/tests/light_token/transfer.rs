@@ -416,8 +416,8 @@ async fn test_ctoken_transfer_mint_mismatch() {
     let different_mint = Pubkey::new_unique();
     let mut dest_account = context.rpc.get_account(destination).await.unwrap().unwrap();
 
-    // CToken mint is the first 32 bytes after the account type discriminator
-    // The mint field is at bytes 0-32 in the CToken account data
+    // Light Token mint is the first 32 bytes after the account type discriminator
+    // The mint field is at bytes 0-32 in the Light Token account data
     dest_account.data[0..32].copy_from_slice(&different_mint.to_bytes());
     context.rpc.set_account(destination, dest_account);
 

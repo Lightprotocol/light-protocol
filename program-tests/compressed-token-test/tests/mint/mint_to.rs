@@ -2,7 +2,7 @@ use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{assert_ctoken_mint_to::assert_ctoken_mint_to, Rpc};
 use light_token_client::instructions::mint_action::DecompressMintParams;
 use light_token_sdk::{
-    compressed_token::create_compressed_mint::find_cmint_address,
+    compressed_token::create_compressed_mint::find_mint_address,
     token::{derive_token_ata, CreateAssociatedTokenAccount, MintTo},
 };
 use serial_test::serial;
@@ -17,12 +17,12 @@ struct MintToTestContext {
     mint_authority: Keypair,
 }
 
-/// Setup: Create CMint + CToken (without tokens)
+/// Setup: Create CMint + Light Token (without tokens)
 ///
 /// Steps:
 /// 1. Init LightProgramTest
 /// 2. Create compressed mint + CMint via mint_action_comprehensive (no recipients)
-/// 3. Create CToken ATA with compressible extension
+/// 3. Create Light Token ATA with compressible extension
 async fn setup_mint_to_test() -> MintToTestContext {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
@@ -35,9 +35,9 @@ async fn setup_mint_to_test() -> MintToTestContext {
     let owner_keypair = Keypair::new();
 
     // Derive CMint PDA
-    let (cmint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+    let (cmint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
-    // Step 1: Create CToken ATA for owner first
+    // Step 1: Create Light Token ATA for owner first
     let (ctoken_ata, _) = derive_token_ata(&owner_keypair.pubkey(), &cmint_pda);
 
     let create_ata_ix =

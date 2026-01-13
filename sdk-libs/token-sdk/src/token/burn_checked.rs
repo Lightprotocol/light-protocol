@@ -23,7 +23,7 @@ use solana_pubkey::Pubkey;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
 pub struct BurnChecked {
-    /// CToken account to burn from
+    /// Light Token account to burn from
     pub source: Pubkey,
     /// CMint account (supply tracking)
     pub cmint: Pubkey,
@@ -31,7 +31,7 @@ pub struct BurnChecked {
     pub amount: u64,
     /// Expected token decimals
     pub decimals: u8,
-    /// Owner of the CToken account
+    /// Owner of the Light Token account
     pub authority: Pubkey,
     /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
     /// When set to a non-zero value, includes max_top_up in instruction data

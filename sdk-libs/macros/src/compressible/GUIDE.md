@@ -86,8 +86,8 @@ pub mod my_program {}
 - Create a compressed mint:
   - `create_compressed_mint(CreateCompressedMintInputs { decimals, mint_authority, freeze_authority, proof, address_merkle_tree_root_index, mint_signer, payer, address_tree_pubkey, output_queue, extensions, version })`
   - Derive addresses with:
-    - `derive_cmint_compressed_address(&mint_signer, &address_tree_pubkey)`
-    - `find_cmint_address(&mint_signer)`
+    - `derive_mint_compressed_address(&mint_signer, &address_tree_pubkey)`
+    - `find_mint_address(&mint_signer)`
 - Mint tokens to compressed accounts:
   - `create_mint_to_compressed_instruction(MintToCompressedInputs { compressed_mint_inputs, recipients, mint_authority, payer, state_merkle_tree, input_queue, output_queue_cmint, output_queue_tokens, decompressed_mint_config, proof, token_account_version, cpi_context_pubkey, token_pool })`
 
@@ -101,8 +101,8 @@ Keep it simple: create cMint → mint to recipients (compressed accounts or cTok
   - Low-level: `create_compressible_token_account_instruction(CreateCompressibleTokenAccount)`
 - Mints
   - `create_compressed_mint(CreateCompressedMintInputs)`
-  - `derive_cmint_compressed_address(mint_seed, address_tree)`
-  - `find_cmint_address(mint_seed)`
+  - `derive_mint_compressed_address(mint_seed, address_tree)`
+  - `find_mint_address(mint_seed)`
 - Mint to recipients
   - `create_mint_to_compressed_instruction(MintToCompressedInputs)`
   - Types: `Recipient { recipient, amount }`

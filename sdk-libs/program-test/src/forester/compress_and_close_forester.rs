@@ -103,7 +103,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
             })?
             .ok_or_else(|| {
                 RpcError::CustomError(format!(
-                    "CToken account {} not found",
+                    "Light Token account {} not found",
                     solana_ctoken_account_pubkey
                 ))
             })?;
@@ -123,7 +123,9 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
 
         // Get compression info from Compressible extension
         let compressible_ext = ctoken_account.get_compressible_extension().ok_or_else(|| {
-            RpcError::CustomError("Missing Compressible extension on CToken account".to_string())
+            RpcError::CustomError(
+                "Missing Compressible extension on Light Token account".to_string(),
+            )
         })?;
         let current_authority = Pubkey::from(compressible_ext.info.compression_authority);
         let rent_sponsor_pubkey = Pubkey::from(compressible_ext.info.rent_sponsor);

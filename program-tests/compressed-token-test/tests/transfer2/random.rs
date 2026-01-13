@@ -77,7 +77,7 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
             _ => {
                 continue;
             }
-            // 25% chance: Compress (SPL/CToken → compressed)
+            // 25% chance: Compress (SPL/Light Token → compressed)
             300..=549 => {
                 // Simplify: No compressed inputs for now to avoid ownership complexity
                 let num_inputs = 0u8;
@@ -87,7 +87,7 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
                 }
                 total_outputs += estimated_outputs;
 
-                // Use CToken only for now (no SPL)
+                // Use Light Token only for now (no SPL)
                 let use_spl = false;
                 let mint_index = rng.gen_range(0..config.max_supported_mints);
 
@@ -103,7 +103,7 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
                 })
             }
 
-            // 25% chance: Decompress (compressed → SPL/CToken)
+            // 25% chance: Decompress (compressed → SPL/Light Token)
             550..=799 => {
                 // Calculate how many inputs we can still add
                 let max_inputs_remaining = 8u8.saturating_sub(total_inputs);
@@ -116,7 +116,7 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
                 total_outputs += estimated_outputs;
                 total_inputs += num_inputs;
 
-                // For now, only decompress to CToken (to_spl requires SPL-compressed tokens)
+                // For now, only decompress to Light Token (to_spl requires SPL-compressed tokens)
                 let to_spl = false;
                 let mint_index = rng.gen_range(0..config.max_supported_mints);
 
@@ -244,13 +244,13 @@ fn balance_actions(actions: &mut Vec<MetaTransfer2InstructionType>, _config: &Te
             // Append a Compress action to create the missing tokens
             // Order doesn't matter since all actions are batched in one transaction
             let compress_action = MetaTransfer2InstructionType::Compress(MetaCompressInput {
-                num_input_compressed_accounts: 0, // No compressed inputs, compress from CToken
+                num_input_compressed_accounts: 0, // No compressed inputs, compress from Light Token
                 amount: amount_needed,
                 token_data_version: TokenDataVersion::V2, // Default version
                 signer_index: key.0,
                 recipient_index: key.0, // Compress to same signer
                 mint_index: key.1,
-                use_spl: false, // Use CToken ATA
+                use_spl: false, // Use Light Token ATA
                 pool_index: None,
             });
 

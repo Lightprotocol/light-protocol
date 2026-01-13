@@ -3,7 +3,7 @@ use solana_program::{account_info::AccountInfo, program_error::ProgramError, pub
 
 use crate::{ID, TOKEN_ACCOUNT_SEED};
 
-/// Handler for revoking delegation on a CToken account (invoke)
+/// Handler for revoking delegation on a Light Token account (invoke)
 ///
 /// Account order:
 /// - accounts[0]: token_account (writable)
@@ -25,7 +25,7 @@ pub fn process_revoke_invoke(accounts: &[AccountInfo]) -> Result<(), ProgramErro
     Ok(())
 }
 
-/// Handler for revoking delegation on a PDA-owned CToken account (invoke_signed)
+/// Handler for revoking delegation on a PDA-owned Light Token account (invoke_signed)
 ///
 /// Account order:
 /// - accounts[0]: token_account (writable)

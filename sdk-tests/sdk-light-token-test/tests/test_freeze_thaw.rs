@@ -16,7 +16,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test freezing a CToken account using FreezeCTokenCpi::invoke()
+/// Test freezing a Light Token account using FreezeCTokenCpi::invoke()
 #[tokio::test]
 async fn test_freeze_invoke() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
@@ -83,7 +83,7 @@ async fn test_freeze_invoke() {
     );
 }
 
-/// Test freezing a CToken account with PDA freeze authority using FreezeCTokenCpi::invoke_signed()
+/// Test freezing a Light Token account with PDA freeze authority using FreezeCTokenCpi::invoke_signed()
 #[tokio::test]
 async fn test_freeze_invoke_signed() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
@@ -138,7 +138,7 @@ async fn test_freeze_invoke_signed() {
     );
 }
 
-/// Test thawing a frozen CToken account using ThawCTokenCpi::invoke()
+/// Test thawing a frozen Light Token account using ThawCTokenCpi::invoke()
 #[tokio::test]
 async fn test_thaw_invoke() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
@@ -224,7 +224,7 @@ async fn test_thaw_invoke() {
     );
 }
 
-/// Test thawing a frozen CToken account with PDA freeze authority using ThawCTokenCpi::invoke_signed()
+/// Test thawing a frozen Light Token account with PDA freeze authority using ThawCTokenCpi::invoke_signed()
 #[tokio::test]
 async fn test_thaw_invoke_signed() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));

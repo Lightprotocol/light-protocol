@@ -5,7 +5,7 @@ use light_program_test::LightProgramTest;
 use light_token_interface::state::{extensions::ExtensionStruct, CompressedMint, Token};
 use solana_sdk::pubkey::Pubkey;
 
-/// Extract CompressionInfo from CToken's Compressible extension
+/// Extract CompressionInfo from Light Token's Compressible extension
 fn get_ctoken_compression_info(ctoken: &Token) -> Option<CompressionInfo> {
     ctoken
         .extensions
@@ -22,12 +22,12 @@ fn get_ctoken_compression_info(ctoken: &Token) -> Option<CompressionInfo> {
 ///
 /// # Arguments
 /// * `rpc` - RPC client to fetch account data (must be LightProgramTest)
-/// * `ctoken_account` - Source CToken account pubkey
+/// * `ctoken_account` - Source Light Token account pubkey
 /// * `cmint_account` - CMint account pubkey
 /// * `burn_amount` - Amount that was burned
 ///
 /// # Assertions
-/// * CToken balance decreased by burn amount
+/// * Light Token balance decreased by burn amount
 /// * CMint supply decreased by burn amount
 /// * Compressible extensions preserved (if present)
 /// * Lamport top-ups applied correctly (if compressible)
@@ -40,7 +40,7 @@ pub async fn assert_ctoken_burn(
     // Get pre-transaction state from cache
     let ctoken_before = rpc
         .get_pre_transaction_account(&ctoken_account)
-        .expect("CToken account should exist in pre-transaction context");
+        .expect("Light Token account should exist in pre-transaction context");
     let cmint_before = rpc
         .get_pre_transaction_account(&cmint_account)
         .expect("CMint account should exist in pre-transaction context");
@@ -49,8 +49,8 @@ pub async fn assert_ctoken_burn(
     let ctoken_after = rpc
         .get_account(ctoken_account)
         .await
-        .expect("Failed to get CToken account after transaction")
-        .expect("CToken account should exist after transaction");
+        .expect("Failed to get Light Token account after transaction")
+        .expect("Light Token account should exist after transaction");
     let cmint_after = rpc
         .get_account(cmint_account)
         .await
@@ -60,10 +60,10 @@ pub async fn assert_ctoken_burn(
     // Parse accounts using Borsh
     let ctoken_parsed_before: Token =
         BorshDeserialize::deserialize(&mut ctoken_before.data.as_slice())
-            .expect("Failed to deserialize CToken before");
+            .expect("Failed to deserialize Light Token before");
     let ctoken_parsed_after: Token =
         BorshDeserialize::deserialize(&mut ctoken_after.data.as_slice())
-            .expect("Failed to deserialize CToken after");
+            .expect("Failed to deserialize Light Token after");
     let cmint_parsed_before: CompressedMint =
         BorshDeserialize::deserialize(&mut cmint_before.data.as_slice())
             .expect("Failed to deserialize CMint before");
@@ -71,7 +71,7 @@ pub async fn assert_ctoken_burn(
         BorshDeserialize::deserialize(&mut cmint_after.data.as_slice())
             .expect("Failed to deserialize CMint after");
 
-    // Build expected CToken state
+    // Build expected Light Token state
     let mut expected_ctoken = ctoken_parsed_before.clone();
     expected_ctoken.amount -= burn_amount;
 
@@ -79,10 +79,10 @@ pub async fn assert_ctoken_burn(
     let mut expected_cmint = cmint_parsed_before.clone();
     expected_cmint.base.supply -= burn_amount;
 
-    // Assert full CToken struct
+    // Assert full Light Token struct
     assert_eq!(
         ctoken_parsed_after, expected_ctoken,
-        "CToken state mismatch after burn. burn_amount: {}",
+        "Light Token state mismatch after burn. burn_amount: {}",
         burn_amount
     );
 

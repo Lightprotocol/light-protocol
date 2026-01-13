@@ -3,7 +3,7 @@ use light_test_utils::{assert_ctoken_burn::assert_ctoken_burn, Rpc};
 use light_token_client::instructions::mint_action::DecompressMintParams;
 use light_token_interface::instructions::mint_action::Recipient;
 use light_token_sdk::{
-    compressed_token::create_compressed_mint::find_cmint_address,
+    compressed_token::create_compressed_mint::find_mint_address,
     token::{derive_token_ata, Burn, CreateAssociatedTokenAccount},
 };
 use serial_test::serial;
@@ -18,13 +18,13 @@ struct BurnTestContext {
     owner_keypair: Keypair,
 }
 
-/// Setup: Create CMint + CToken with tokens minted
+/// Setup: Create CMint + Light Token with tokens minted
 ///
 /// Steps:
 /// 1. Init LightProgramTest
 /// 2. Create compressed mint + CMint via mint_action_comprehensive
-/// 3. Create CToken ATA with compressible extension
-/// 4. Mint tokens to CToken via mint_action_comprehensive
+/// 3. Create Light Token ATA with compressible extension
+/// 4. Mint tokens to Light Token via mint_action_comprehensive
 async fn setup_burn_test(mint_amount: u64) -> BurnTestContext {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
@@ -37,9 +37,9 @@ async fn setup_burn_test(mint_amount: u64) -> BurnTestContext {
     let owner_keypair = Keypair::new();
 
     // Derive CMint PDA
-    let (cmint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+    let (cmint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
-    // Step 1: Create CToken ATA for owner first (needed before minting)
+    // Step 1: Create Light Token ATA for owner first (needed before minting)
     let (ctoken_ata, _) = derive_token_ata(&owner_keypair.pubkey(), &cmint_pda);
 
     let create_ata_ix =
@@ -63,7 +63,7 @@ async fn setup_burn_test(mint_amount: u64) -> BurnTestContext {
         vec![Recipient {
             recipient: owner_keypair.pubkey().into(),
             amount: mint_amount,
-        }], // Mint to CToken in same tx
+        }], // Mint to Light Token in same tx
         None,                                  // No mint authority update
         None,                                  // No freeze authority update
         Some(light_token_client::instructions::mint_action::NewMint {

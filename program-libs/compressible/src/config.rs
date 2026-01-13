@@ -43,7 +43,7 @@ pub struct CompressibleConfig {
     pub update_authority: Pubkey,
     /// Withdrawal authority can withdraw funds from the rent recipient pda.
     pub withdrawal_authority: Pubkey,
-    /// CToken program pda:
+    /// Light Token program pda:
     /// 1. pays rent exemption at compressible ctoken account creation
     /// 2. receives rent exemption at compressible ctoken account closure
     /// 3. receives rent from compressible ctoken accounts with Claim, or compress and close instructions.

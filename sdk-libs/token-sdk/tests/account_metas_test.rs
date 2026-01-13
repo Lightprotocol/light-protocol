@@ -8,7 +8,7 @@ use light_token_sdk::{
             get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
         },
     },
-    utils::CTokenDefaultAccounts,
+    utils::TokenDefaultAccounts,
 };
 use light_token_types::constants::{
     ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA, LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID,
@@ -23,7 +23,7 @@ fn test_to_compressed_token_account_metas_compress() {
     let fee_payer = Pubkey::new_unique();
     let authority = Pubkey::new_unique();
 
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
     let reference = light_compressed_token::accounts::TransferInstruction {
         fee_payer,
         authority,
@@ -59,7 +59,7 @@ fn test_to_compressed_token_account_metas_with_optional_accounts() {
     let compress_or_decompress_token_account = Pubkey::new_unique();
     let spl_token_program = Pubkey::new_unique();
 
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
     let reference = light_compressed_token::accounts::TransferInstruction {
         fee_payer,
         authority,
@@ -107,7 +107,7 @@ fn test_get_batch_compress_instruction_account_metas() {
         merkle_tree,
         false,
     );
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
 
     let account_metas = get_batch_compress_instruction_account_metas(config);
 

@@ -18,7 +18,7 @@ use light_token_interface::{
     state::CompressedMintMetadata,
 };
 use light_token_sdk::compressed_token::create_compressed_mint::{
-    derive_cmint_compressed_address, find_cmint_address,
+    derive_mint_compressed_address, find_mint_address,
 };
 use light_token_types::CPI_AUTHORITY_PDA;
 use solana_instruction::Instruction;
@@ -179,8 +179,8 @@ async fn test_create_with_complex_seeds() {
     assert_eq!(game_session.score, 0);
     assert!(game_session.compression_info.is_none());
 
-    // Verify CToken account
-    let spl_mint = find_cmint_address(&mint_signer_pubkey).0;
+    // Verify Light Token account
+    let spl_mint = find_mint_address(&mint_signer_pubkey).0;
     let (_, token_account_address) =
         csdk_anchor_full_derived_test::get_ctokensigner_seeds(&payer.pubkey(), &spl_mint);
 
@@ -226,9 +226,9 @@ pub async fn create_user_record_and_game_session(
     let freeze_authority = mint_authority;
     let mint_signer = Keypair::new();
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_signer.pubkey(), &address_tree_pubkey);
+        derive_mint_compressed_address(&mint_signer.pubkey(), &address_tree_pubkey);
 
-    let (spl_mint, mint_bump) = find_cmint_address(&mint_signer.pubkey());
+    let (spl_mint, mint_bump) = find_mint_address(&mint_signer.pubkey());
     let accounts = csdk_anchor_full_derived_test::accounts::CreateUserRecordAndGameSession {
         user: user.pubkey(),
         mint_signer: mint_signer.pubkey(),

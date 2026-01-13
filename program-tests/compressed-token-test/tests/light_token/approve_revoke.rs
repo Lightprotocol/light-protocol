@@ -1,4 +1,4 @@
-//! Approve and Revoke instruction tests for CToken accounts.
+//! Approve and Revoke instruction tests for Light Token accounts.
 //!
 //! ## Test Matrix
 //!
@@ -23,7 +23,7 @@ use super::shared::*;
 #[tokio::test]
 #[serial]
 async fn test_approve_success_cases() {
-    // Test 1: SPL compat (uses SPL instruction format with modifications for CToken)
+    // Test 1: SPL compat (uses SPL instruction format with modifications for Light Token)
     {
         let mut context = setup_account_test_with_created_account(Some((0, false)))
             .await
@@ -88,7 +88,7 @@ async fn test_approve_fails() {
         .await;
     }
 
-    // Test 2: Invalid account - wrong program owner (valid CToken data but wrong owner)
+    // Test 2: Invalid account - wrong program owner (valid Light Token data but wrong owner)
     {
         use anchor_spl::token::spl_token;
         use light_program_test::program_test::TestRpc;
@@ -104,7 +104,7 @@ async fn test_approve_fails() {
             .await
             .unwrap();
 
-        // Get the valid CToken account data
+        // Get the valid Light Token account data
         let valid_account = context
             .rpc
             .get_account(context.token_account_keypair.pubkey())
@@ -176,7 +176,7 @@ async fn test_approve_fails() {
 #[tokio::test]
 #[serial]
 async fn test_revoke_success_cases() {
-    // Test 1: SPL compat (uses SPL instruction format with modifications for CToken)
+    // Test 1: SPL compat (uses SPL instruction format with modifications for Light Token)
     {
         let mut context = setup_account_test_with_created_account(Some((0, false)))
             .await
@@ -258,7 +258,7 @@ async fn test_revoke_fails() {
         .await;
     }
 
-    // Test 2: Invalid account - wrong program owner (valid CToken data but wrong owner)
+    // Test 2: Invalid account - wrong program owner (valid Light Token data but wrong owner)
     {
         use anchor_spl::token::spl_token;
         use light_program_test::program_test::TestRpc;
@@ -274,7 +274,7 @@ async fn test_revoke_fails() {
             .await
             .unwrap();
 
-        // Get the valid CToken account data
+        // Get the valid Light Token account data
         let valid_account = context
             .rpc
             .get_account(context.token_account_keypair.pubkey())
@@ -348,8 +348,8 @@ use solana_sdk::program_pack::Pack;
 
 use super::extensions::setup_extensions_test;
 
-/// Test approve and revoke with a compressible CToken account with extensions.
-/// 1. Create compressible CToken account with all extensions
+/// Test approve and revoke with a compressible Light Token account with extensions.
+/// 1. Create compressible Light Token account with all extensions
 /// 2. Set token balance to 100 using set_account
 /// 3. Approve 10 tokens to delegate
 /// 4. Assert delegate and delegated_amount fields
@@ -366,7 +366,7 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
     let owner = Keypair::new();
     let delegate = Keypair::new();
 
-    // 1. Create compressible CToken account with all extensions
+    // 1. Create compressible Light Token account with all extensions
     let account_keypair = Keypair::new();
     let account_pubkey = account_keypair.pubkey();
 
@@ -418,7 +418,7 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
     // Verify initial state
     let account_data_initial = context.rpc.get_account(account_pubkey).await?.unwrap();
     let ctoken_initial = Token::deserialize(&mut &account_data_initial.data[..])
-        .expect("Failed to deserialize CToken");
+        .expect("Failed to deserialize Light Token");
     assert_eq!(ctoken_initial.amount, token_balance);
     assert!(ctoken_initial.delegate.is_none());
     assert_eq!(ctoken_initial.delegated_amount, 0);
@@ -472,6 +472,6 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
     // 6. Assert delegate cleared and delegated_amount is 0 after revoke
     assert_ctoken_revoke(&mut context.rpc, account_pubkey).await;
 
-    println!("Successfully tested approve and revoke with compressible CToken");
+    println!("Successfully tested approve and revoke with compressible Light Token");
     Ok(())
 }

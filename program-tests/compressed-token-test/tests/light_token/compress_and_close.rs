@@ -445,14 +445,14 @@ async fn test_compress_and_close_compress_to_pubkey() {
 
         use light_token_interface::state::token::Token;
 
-        // Parse the CToken account
+        // Parse the Light Token account
         let (mut ctoken, _) = Token::zero_copy_at_mut(&mut token_account.data)
             .expect("Failed to deserialize ctoken account");
 
         // Modify compress_to_pubkey in the Compressible extension
         let compressible = ctoken
             .get_compressible_extension_mut()
-            .expect("CToken should have Compressible extension");
+            .expect("Light Token should have Compressible extension");
         compressible.info.compress_to_pubkey = 1;
 
         // Write the modified account back
@@ -795,14 +795,14 @@ async fn test_compress_and_close_output_validation_errors() {
 
         use light_token_interface::state::token::Token;
 
-        // Parse and modify the CToken account
+        // Parse and modify the Light Token account
         let (mut ctoken, _) = Token::zero_copy_at_mut(&mut token_account.data)
             .expect("Failed to deserialize ctoken account");
 
         // Set compress_to_pubkey=true in the Compressible extension
         let compressible = ctoken
             .get_compressible_extension_mut()
-            .expect("CToken should have Compressible extension");
+            .expect("Light Token should have Compressible extension");
         compressible.info.compress_to_pubkey = 1;
 
         // Write the modified account back

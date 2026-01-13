@@ -34,9 +34,7 @@ use light_token_interface::{
     COMPRESSED_MINT_SEED,
 };
 use light_token_sdk::{
-    compressed_token::create_compressed_mint::{
-        derive_cmint_compressed_address, find_cmint_address,
-    },
+    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
     token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
 };
 use serial_test::serial;
@@ -68,10 +66,10 @@ async fn test_create_compressed_mint() {
     let mint_seed = Keypair::new();
     // Derive compressed mint address for verification
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint PDA for the rest of the test
-    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+    let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // 1. Create compressed mint (no metadata)
     {
@@ -556,7 +554,7 @@ async fn test_update_compressed_mint_authority() {
     // Get the compressed mint address and info
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Get compressed mint account from indexer
     let compressed_mint_account = rpc
@@ -687,7 +685,7 @@ async fn test_ctoken_transfer() {
         .unwrap();
 
     // Derive addresses
-    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+    let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // Create compressed token ATA for recipient
     let (recipient_ata, _) = derive_token_ata(&recipient_keypair.pubkey(), &spl_mint_pda);
@@ -1050,10 +1048,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
         &light_compressed_token::ID,
     );
     let compressed_mint_address =
-        light_token_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address(
-            &mint_seed.pubkey(),
-            &address_tree_pubkey,
-        );
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Verify the compressed mint was created
     let compressed_mint_account = rpc
@@ -1171,8 +1166,8 @@ async fn test_mint_actions() {
     // Derive addresses
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
     rpc.context.warp_to_slot(1);
     // === SINGLE MINT ACTION INSTRUCTION ===
     // Execute ONE instruction with ALL actions
@@ -1417,8 +1412,8 @@ async fn test_create_compressed_mint_with_cmint() {
     // Derive addresses
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (cmint_pda, _cmint_bump) = find_cmint_address(&mint_seed.pubkey());
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (cmint_pda, _cmint_bump) = find_mint_address(&mint_seed.pubkey());
 
     // Create mint + decompress in single instruction
     let signature = light_token_client::actions::mint_action_comprehensive(
@@ -1550,8 +1545,8 @@ async fn test_compress_and_close_cmint_idempotent() {
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (cmint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (cmint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // 1. Create compressed mint WITH CMint (decompress_mint = true)
     light_token_client::actions::mint_action_comprehensive(
@@ -1673,8 +1668,8 @@ async fn test_decompress_existing_mint_to_cmint() {
     // Derive addresses
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (cmint_pda, cmint_bump) = find_cmint_address(&mint_seed.pubkey());
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (cmint_pda, cmint_bump) = find_mint_address(&mint_seed.pubkey());
 
     // === STEP 1: Create compressed mint WITHOUT CMint ===
     create_mint(
@@ -1709,7 +1704,7 @@ async fn test_decompress_existing_mint_to_cmint() {
     );
 
     // === STEP 2: Mint tokens to recipient ===
-    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+    let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
     mint_to_compressed(
         &mut rpc,
         spl_mint_pda,

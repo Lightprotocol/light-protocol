@@ -13,7 +13,7 @@ export function deriveCMintAddress(
     mintSeed: PublicKey,
     addressTreeInfo: TreeInfo,
 ) {
-    // find_cmint_address returns [CMint, bump], we want CMint
+    // find_mint_address returns [CMint, bump], we want CMint
     // In JS, just use the mintSeed directly as the CMint address
     const address = deriveAddressV2(
         findMintAddress(mintSeed)[0].toBytes(),

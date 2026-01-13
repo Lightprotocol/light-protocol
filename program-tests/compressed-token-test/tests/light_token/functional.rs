@@ -1,6 +1,6 @@
 use super::shared::*;
 /// Test:
-/// 1. SUCCESS: Create CToken account with 0 prepaid epochs (immediately compressible)
+/// 1. SUCCESS: Create Light Token account with 0 prepaid epochs (immediately compressible)
 /// 2. SUCCESS: Verify account structure and ownership using existing assertion helpers
 /// 3. SUCCESS: Close account transferring lamports to destination
 /// 4. SUCCESS: Verify account closure and lamport transfer using existing assertion helpers
@@ -11,7 +11,7 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
-    // Create CToken account with 0 prepaid epochs (immediately compressible)
+    // Create Light Token account with 0 prepaid epochs (immediately compressible)
     let compressible_params = CompressibleParams {
         compressible_config: context.compressible_config,
         rent_sponsor: context.rent_sponsor,

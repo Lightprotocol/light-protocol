@@ -202,7 +202,7 @@ async fn test_spl_to_ctoken_transfer() {
         );
     }
 
-    println!("Successfully completed round-trip transfer: SPL -> CToken -> SPL");
+    println!("Successfully completed round-trip transfer: SPL -> Light Token -> SPL");
 }
 
 #[tokio::test]
@@ -260,7 +260,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         .await
         .unwrap();
 
-    // Transfer SPL to CToken
+    // Transfer SPL to Light Token
     transfer2::spl_to_ctoken_transfer(
         &mut rpc,
         spl_token_account_keypair.pubkey(),
@@ -283,7 +283,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         let ctoken_account =
             spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165])
                 .map_err(|e| {
-                    RpcError::AssertRpcError(format!("Failed to parse CToken account: {}", e))
+                    RpcError::AssertRpcError(format!("Failed to parse Light Token account: {}", e))
                 })
                 .unwrap();
         assert_eq!(

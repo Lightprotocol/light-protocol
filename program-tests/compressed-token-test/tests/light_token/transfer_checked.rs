@@ -43,7 +43,7 @@ async fn test_transfer_requires_checked_for_restricted_extensions() {
     )
     .await;
 
-    // Step 2: Create two compressible CToken accounts (A and B) with all extensions
+    // Step 2: Create two compressible Light Token accounts (A and B) with all extensions
     let owner = Keypair::new();
     context
         .rpc
@@ -129,7 +129,7 @@ async fn test_transfer_requires_checked_for_restricted_extensions() {
         .await
         .unwrap();
 
-    // Step 3: Transfer SPL to CToken account A using hot path
+    // Step 3: Transfer SPL to Light Token account A using hot path
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 

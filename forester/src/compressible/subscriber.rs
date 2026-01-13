@@ -25,7 +25,7 @@ const REGISTRY_PROGRAM_ID_STR: &str = "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEm
 /// Log prefix emitted by registry program when closing accounts
 const COMPRESS_AND_CLOSE_LOG_PREFIX: &str = "compress_and_close:";
 
-/// Subscribes to account changes for all compressible CToken accounts
+/// Subscribes to account changes for all compressible Light Token accounts
 pub struct AccountSubscriber {
     ws_url: String,
     tracker: Arc<CompressibleAccountTracker>,
@@ -55,7 +55,7 @@ impl AccountSubscriber {
 
         let program_id = Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID);
         // Subscribe to compressed token program accounts with filter for account_type = 2 at position 165
-        // This indicates a CToken account with extensions (e.g., Compressible)
+        // This indicates a Light Token account with extensions (e.g., Compressible)
         // "3" is base58 encoding of byte value 2 (ACCOUNT_TYPE_TOKEN_ACCOUNT)
         let (mut subscription, unsubscribe) = pubsub_client
             .program_subscribe(

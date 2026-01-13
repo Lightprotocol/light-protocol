@@ -145,7 +145,7 @@ async fn freeze_or_thaw_compressed<const FREEZE: bool>(
 ///
 /// Flow:
 /// 1. Create mint with restricted extensions
-/// 2. Create compress-only CToken account
+/// 2. Create compress-only Light Token account
 /// 3. Transfer tokens to it
 /// 4. Warp epoch to compress (compress and close)
 /// 5. Freeze the compressed token account
@@ -179,7 +179,7 @@ async fn run_freeze_thaw_compressed_only_test(
     )
     .await;
 
-    // 2. Create CToken account with 0 prepaid epochs (immediately compressible)
+    // 2. Create Light Token account with 0 prepaid epochs (immediately compressible)
     let owner = Keypair::new();
     let account_keypair = Keypair::new();
     let ctoken_account = account_keypair.pubkey();
@@ -211,7 +211,7 @@ async fn run_freeze_thaw_compressed_only_test(
         .create_and_send_transaction(&[create_ix], &payer.pubkey(), &[&payer, &account_keypair])
         .await?;
 
-    // 3. Transfer tokens to CToken using hot path
+    // 3. Transfer tokens to Light Token using hot path
     let has_restricted = extensions
         .iter()
         .any(|ext| RESTRICTED_EXTENSIONS.contains(ext));
@@ -246,7 +246,7 @@ async fn run_freeze_thaw_compressed_only_test(
     let account_after = context.rpc.get_account(ctoken_account).await?;
     assert!(
         account_after.is_none() || account_after.unwrap().lamports == 0,
-        "CToken account should be closed after compression"
+        "Light Token account should be closed after compression"
     );
 
     // 6. Get compressed accounts and verify state
@@ -329,7 +329,7 @@ async fn run_freeze_thaw_compressed_only_test(
         "Token account should be thawed (Initialized)"
     );
 
-    // 11. Create destination CToken account for decompress
+    // 11. Create destination Light Token account for decompress
     let dest_account_keypair = Keypair::new();
     let create_dest_ix = CreateTokenAccount::new(
         payer.pubkey(),
@@ -379,7 +379,7 @@ async fn run_freeze_thaw_compressed_only_test(
         },
     )]];
 
-    // 13. Decompress to CToken account
+    // 13. Decompress to Light Token account
     let compressed_account: CompressedTokenAccount = thawed_accounts[0].clone().try_into().unwrap();
     let decompress_ix = create_generic_transfer2_instruction(
         &mut context.rpc,

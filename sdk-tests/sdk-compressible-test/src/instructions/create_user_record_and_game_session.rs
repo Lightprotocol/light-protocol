@@ -17,7 +17,7 @@ use light_sdk_types::{
 };
 use light_token_interface::instructions::mint_action::{MintToCompressedAction, Recipient};
 use light_token_sdk::compressed_token::{
-    create_compressed_mint::find_cmint_address, mint_action::MintActionMetaConfig,
+    create_compressed_mint::find_mint_address, mint_action::MintActionMetaConfig,
 };
 
 use crate::{errors::ErrorCode, instruction_accounts::*, seeds::*, state::*, LIGHT_CPI_SIGNER};
@@ -115,7 +115,7 @@ pub fn create_user_record_and_game_session<'info>(
 
     // these are custom seeds of the caller program that are used to derive the program owned onchain tokenb account PDA.
     // dual use: as owner of the compressed token account.
-    let mint = find_cmint_address(&ctx.accounts.mint_signer.key()).0;
+    let mint = find_mint_address(&ctx.accounts.mint_signer.key()).0;
     let (_, token_account_address) = get_ctoken_signer_seeds(&ctx.accounts.user.key(), &mint);
 
     let output_queue = *cpi_accounts.tree_accounts().unwrap()[0].key; // Same tree as PDA

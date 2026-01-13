@@ -11,9 +11,7 @@ use light_token_client::{
 };
 use light_token_interface::state::{extensions::AdditionalMetadata, CompressedMint};
 use light_token_sdk::{
-    compressed_token::create_compressed_mint::{
-        derive_cmint_compressed_address, find_cmint_address,
-    },
+    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
     token::CreateAssociatedTokenAccount,
 };
 use serial_test::serial;
@@ -67,10 +65,10 @@ async fn test_random_mint_action() {
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     // Derive compressed mint address for verification
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint PDA for the rest of the test
-    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+    let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // Fund authority first
     rpc.airdrop_lamports(&authority.pubkey(), 10_000_000_000)
@@ -125,7 +123,7 @@ async fn test_random_mint_action() {
         .await
         .unwrap();
 
-    // Create 5 CToken ATAs upfront for MintToCToken actions
+    // Create 5 Light Token ATAs upfront for MintToCToken actions
     let mut ctoken_atas = Vec::new();
 
     for _ in 0..5 {
@@ -366,7 +364,7 @@ async fn test_random_mint_action() {
 
         assert!(result.is_ok(), "All-in-one mint action should succeed");
 
-        // Use the new assert_mint_action function (now also validates CToken account state)
+        // Use the new assert_mint_action function (now also validates Light Token account state)
         assert_mint_action(
             &mut rpc,
             compressed_mint_address,

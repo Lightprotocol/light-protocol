@@ -5,7 +5,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-/// # Approve a delegate for a CToken account with decimals validation:
+/// # Approve a delegate for a Light Token account with decimals validation:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
 /// # use light_token_sdk::token::ApproveChecked;
@@ -25,13 +25,13 @@ use solana_pubkey::Pubkey;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
 pub struct ApproveChecked {
-    /// CToken account to approve delegation for
+    /// Light Token account to approve delegation for
     pub token_account: Pubkey,
-    /// Mint account (for decimals validation - may be skipped if CToken has cached decimals)
+    /// Mint account (for decimals validation - may be skipped if Light Token has cached decimals)
     pub mint: Pubkey,
     /// Delegate to approve
     pub delegate: Pubkey,
-    /// Owner of the CToken account (signer, payer for top-up)
+    /// Owner of the Light Token account (signer, payer for top-up)
     pub owner: Pubkey,
     /// Amount of tokens to delegate
     pub amount: u64,
@@ -41,7 +41,7 @@ pub struct ApproveChecked {
     pub max_top_up: Option<u16>,
 }
 
-/// # Approve CToken via CPI with decimals validation:
+/// # Approve Light Token via CPI with decimals validation:
 /// ```rust,no_run
 /// # use light_token_sdk::token::ApproveCheckedCpi;
 /// # use solana_account_info::AccountInfo;

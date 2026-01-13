@@ -3,7 +3,7 @@ use solana_program::{account_info::AccountInfo, program_error::ProgramError, pub
 
 use crate::{FREEZE_AUTHORITY_SEED, ID};
 
-/// Handler for thawing a frozen CToken account (invoke)
+/// Handler for thawing a frozen Light Token account (invoke)
 ///
 /// Account order:
 /// - accounts[0]: token_account (writable)
@@ -25,7 +25,7 @@ pub fn process_thaw_invoke(accounts: &[AccountInfo]) -> Result<(), ProgramError>
     Ok(())
 }
 
-/// Handler for thawing a frozen CToken account with PDA freeze authority (invoke_signed)
+/// Handler for thawing a frozen Light Token account with PDA freeze authority (invoke_signed)
 ///
 /// Account order:
 /// - accounts[0]: token_account (writable)

@@ -6,7 +6,7 @@ use light_token_interface::instructions::extensions::{
     token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,
 };
 use light_token_sdk::token::{
-    derive_cmint_compressed_address, find_cmint_address, CreateCMint, CreateCMintParams,
+    derive_mint_compressed_address, find_mint_address, CreateMint, CreateMintParams,
 };
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
@@ -41,7 +41,7 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
     let output_queue = rpc.get_random_state_tree_info()?.queue;
 
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Create extensions if metadata is provided
     let extensions = metadata.map(|meta| vec![ExtensionInstructionData::TokenMetadata(meta)]);
@@ -62,19 +62,19 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
     let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
 
     // Build params struct manually
-    let params = CreateCMintParams {
+    let params = CreateMintParams {
         decimals,
         address_merkle_tree_root_index,
         mint_authority,
         proof: rpc_result.proof.0.unwrap(),
         compression_address: compressed_mint_address,
-        mint: find_cmint_address(&mint_seed.pubkey()).0,
+        mint: find_mint_address(&mint_seed.pubkey()).0,
         freeze_authority,
         extensions,
     };
 
     // Create instruction builder
-    let builder = CreateCMint::new(
+    let builder = CreateMint::new(
         params,
         mint_seed.pubkey(),
         payer,

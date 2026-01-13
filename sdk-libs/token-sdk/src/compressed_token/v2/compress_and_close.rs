@@ -20,7 +20,7 @@ use super::{
 };
 use crate::{
     error::TokenSdkError,
-    utils::{AccountInfoToCompress, CTokenDefaultAccounts},
+    utils::{AccountInfoToCompress, TokenDefaultAccounts},
 };
 
 /// Struct to hold all the indices needed for CompressAndClose operation
@@ -374,8 +374,8 @@ pub struct CompressAndCloseAccounts {
 impl Default for CompressAndCloseAccounts {
     fn default() -> Self {
         Self {
-            compressed_token_program: CTokenDefaultAccounts::default().compressed_token_program,
-            cpi_authority_pda: CTokenDefaultAccounts::default().cpi_authority_pda,
+            compressed_token_program: TokenDefaultAccounts::default().compressed_token_program,
+            cpi_authority_pda: TokenDefaultAccounts::default().cpi_authority_pda,
             cpi_context: None,
             self_program: None,
         }
@@ -385,8 +385,8 @@ impl Default for CompressAndCloseAccounts {
 impl CompressAndCloseAccounts {
     pub fn new_with_cpi_context(cpi_context: Option<Pubkey>, self_program: Option<Pubkey>) -> Self {
         Self {
-            compressed_token_program: CTokenDefaultAccounts::default().compressed_token_program,
-            cpi_authority_pda: CTokenDefaultAccounts::default().cpi_authority_pda,
+            compressed_token_program: TokenDefaultAccounts::default().compressed_token_program,
+            cpi_authority_pda: TokenDefaultAccounts::default().cpi_authority_pda,
             cpi_context,
             self_program,
         }

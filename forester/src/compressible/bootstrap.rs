@@ -194,7 +194,7 @@ async fn bootstrap_with_v2_api(
 
         // Build request payload
         // Filter for accounts with account_type = 2 at position 165
-        // This indicates a CToken account with extensions (e.g., Compressible)
+        // This indicates a Light Token account with extensions (e.g., Compressible)
         let mut params = json!([
             program_id.to_string(),
             {
@@ -310,7 +310,7 @@ async fn bootstrap_with_standard_api(
     let program_id = Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID);
 
     // Filter for accounts with account_type = 2 at position 165
-    // This indicates a CToken account with extensions (e.g., Compressible)
+    // This indicates a Light Token account with extensions (e.g., Compressible)
     let payload = json!({
         "jsonrpc": "2.0",
         "id": 1,

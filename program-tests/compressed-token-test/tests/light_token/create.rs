@@ -617,7 +617,7 @@ async fn test_create_compressible_token_account_failing() {
             create_token_22_account(&mut context.rpc, &context.payer, &real_mint, &payer_pubkey)
                 .await;
 
-        // Try to create CToken with the token account as mint (should fail)
+        // Try to create Light Token with the token account as mint (should fail)
         let compressible_params = CompressibleParams {
             compressible_config: context.compressible_config,
             rent_sponsor: context.rent_sponsor,

@@ -13,7 +13,7 @@ pub struct BurnData {
 /// Handler for burning CTokens (invoke)
 ///
 /// Account order:
-/// - accounts[0]: source (CToken account, writable)
+/// - accounts[0]: source (Light Token account, writable)
 /// - accounts[1]: cmint (writable)
 /// - accounts[2]: authority (owner, signer)
 /// - accounts[3]: ctoken_program
@@ -37,7 +37,7 @@ pub fn process_burn_invoke(accounts: &[AccountInfo], amount: u64) -> Result<(), 
 /// Handler for burning CTokens with PDA authority (invoke_signed)
 ///
 /// Account order:
-/// - accounts[0]: source (CToken account, writable)
+/// - accounts[0]: source (Light Token account, writable)
 /// - accounts[1]: cmint (writable)
 /// - accounts[2]: PDA authority (owner, program signs)
 /// - accounts[3]: ctoken_program

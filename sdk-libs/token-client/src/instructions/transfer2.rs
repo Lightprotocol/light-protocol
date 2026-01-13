@@ -33,7 +33,7 @@ pub fn pack_input_token_account(
     in_lamports: &mut Vec<u64>,
     is_delegate_transfer: bool, // Explicitly specify if delegate is signing
     token_data_version: TokenDataVersion,
-    override_owner: Option<Pubkey>, // For is_ata: use destination CToken owner instead
+    override_owner: Option<Pubkey>, // For is_ata: use destination Light Token owner instead
     is_ata: bool,                   // For ATA decompress: owner (ATA pubkey) is not a signer
 ) -> MultiInputTokenDataWithContext {
     // Check if account has a delegate
@@ -56,7 +56,7 @@ pub fn pack_input_token_account(
         in_lamports.push(account.account.lamports);
     }
 
-    // For is_ata, use override_owner (wallet owner from destination CToken)
+    // For is_ata, use override_owner (wallet owner from destination Light Token)
     // For regular accounts, use the compressed account's owner
     let effective_owner = override_owner.unwrap_or(account.token.owner);
 
@@ -143,7 +143,7 @@ pub struct CompressAndCloseInput {
     pub authority: Pubkey,
     pub output_queue: Pubkey,
     pub destination: Option<Pubkey>,
-    pub is_compressible: bool, // If true, account has extensions; if false, regular CToken ATA
+    pub is_compressible: bool, // If true, account has extensions; if false, regular Light Token ATA
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -188,7 +188,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
             }
         }
         Transfer2InstructionType::CompressAndClose(_) => {
-            // CompressAndClose doesn't have compressed inputs, only Solana CToken account
+            // CompressAndClose doesn't have compressed inputs, only Solana Light Token account
         }
         Transfer2InstructionType::Decompress(input) => input
             .compressed_token_account
@@ -346,7 +346,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 }
 
                 // Check if any input has is_ata=true in the TLV
-                // If so, we need to use the destination CToken's owner as the signer
+                // If so, we need to use the destination Light Token's owner as the signer
                 let is_ata = input.in_tlv.as_ref().is_some_and(|tlv| {
                     tlv.iter().flatten().any(|ext| {
                         matches!(ext, ExtensionInstructionData::CompressedOnly(data) if data.is_ata)
@@ -365,7 +365,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
 
                 // For is_ata, the compressed account owner is the ATA pubkey (stored during compress_and_close)
                 // We keep that for hash calculation. The wallet owner signs instead of ATA pubkey.
-                // Get the wallet owner from the destination CToken account and add as signer.
+                // Get the wallet owner from the destination Light Token account and add as signer.
                 if is_ata && recipient_account_owner.to_bytes() == LIGHT_TOKEN_PROGRAM_ID {
                     // Deserialize Token to get wallet owner
                     use borsh::BorshDeserialize;

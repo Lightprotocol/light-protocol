@@ -426,7 +426,7 @@ async fn test_spl_instruction_compatibility() {
 async fn test_spl_instruction_compatibility_with_cmint() {
     use light_program_test::ProgramTestConfig;
     use light_token_client::instructions::mint_action::DecompressMintParams;
-    use light_token_sdk::compressed_token::create_compressed_mint::find_cmint_address;
+    use light_token_sdk::compressed_token::create_compressed_mint::find_mint_address;
 
     // Set up test environment
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
@@ -440,7 +440,7 @@ async fn test_spl_instruction_compatibility_with_cmint() {
     let owner_keypair = Keypair::new();
 
     // Derive CMint PDA
-    let (cmint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+    let (cmint_pda, _) = find_mint_address(&mint_seed.pubkey());
     let decimals: u8 = 8;
 
     println!("Creating decompressed cmint with freeze authority...");
@@ -471,11 +471,11 @@ async fn test_spl_instruction_compatibility_with_cmint() {
 
     println!("CMint created at: {}", cmint_pda);
 
-    // Create two non-compressible CToken accounts (165 bytes) using SPL instruction format
+    // Create two non-compressible Light Token accounts (165 bytes) using SPL instruction format
     let account1_keypair = Keypair::new();
     let account2_keypair = Keypair::new();
 
-    println!("Creating first non-compressible CToken account...");
+    println!("Creating first non-compressible Light Token account...");
 
     // Create first account
     {
@@ -517,7 +517,7 @@ async fn test_spl_instruction_compatibility_with_cmint() {
         println!("First account created");
     }
 
-    println!("Creating second non-compressible CToken account...");
+    println!("Creating second non-compressible Light Token account...");
 
     // Create second account
     {
@@ -830,7 +830,7 @@ async fn test_spl_instruction_compatibility_with_cmint() {
     }
 
     println!("\nSPL instruction compatibility with CMint test passed!");
-    println!("   - Created 2 non-compressible CToken accounts with CMint");
+    println!("   - Created 2 non-compressible Light Token accounts with CMint");
     println!("   - mint_to: Minted 1000 tokens");
     println!("   - mint_to_checked: Minted 500 tokens with decimals validation");
     println!("   - transfer_checked: Transferred 500 tokens with decimals validation");

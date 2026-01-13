@@ -2,7 +2,7 @@ use light_program_profiler::profile;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 
-use crate::utils::CTokenDefaultAccounts;
+use crate::utils::TokenDefaultAccounts;
 
 #[derive(Debug, Clone)]
 pub struct MintActionMetaConfig {
@@ -14,11 +14,11 @@ pub struct MintActionMetaConfig {
     pub input_queue: Option<Pubkey>, // Input queue for existing compressed mint operations
     pub tokens_out_queue: Option<Pubkey>, // Output queue for new token accounts
     pub cpi_context: Option<Pubkey>,
-    pub ctoken_accounts: Vec<Pubkey>, // For mint_to_ctoken actions
-    pub cmint: Option<Pubkey>,        // CMint PDA account for DecompressMint action
+    pub token_accounts: Vec<Pubkey>, // For mint_to_ctoken actions
+    pub cmint: Option<Pubkey>,       // CMint PDA account for DecompressMint action
     pub compressible_config: Option<Pubkey>, // CompressibleConfig account (when creating CMint)
     pub rent_sponsor: Option<Pubkey>, // Rent sponsor PDA (when creating CMint)
-    pub mint_signer_must_sign: bool,  // true for create_mint, false for decompress_mint
+    pub mint_signer_must_sign: bool, // true for create_mint, false for decompress_mint
 }
 
 impl MintActionMetaConfig {
@@ -39,7 +39,7 @@ impl MintActionMetaConfig {
             input_queue: None,
             tokens_out_queue: None,
             cpi_context: None,
-            ctoken_accounts: Vec::new(),
+            token_accounts: Vec::new(),
             cmint: None,
             compressible_config: None,
             rent_sponsor: None,
@@ -64,7 +64,7 @@ impl MintActionMetaConfig {
             input_queue: Some(input_queue),
             tokens_out_queue: None,
             cpi_context: None,
-            ctoken_accounts: Vec::new(),
+            token_accounts: Vec::new(),
             cmint: None,
             compressible_config: None,
             rent_sponsor: None,
@@ -92,7 +92,7 @@ impl MintActionMetaConfig {
             input_queue: None,
             tokens_out_queue: None,
             cpi_context: Some(cpi_context_pubkey),
-            ctoken_accounts: Vec::new(),
+            token_accounts: Vec::new(),
             cmint: None,
             compressible_config: None,
             rent_sponsor: None,
@@ -106,11 +106,11 @@ impl MintActionMetaConfig {
     }
 
     pub fn with_token_accounts(mut self, accounts: Vec<Pubkey>) -> Self {
-        self.ctoken_accounts = accounts;
+        self.token_accounts = accounts;
         self
     }
 
-    pub fn with_cmint(mut self, cmint: Pubkey) -> Self {
+    pub fn with_mint(mut self, cmint: Pubkey) -> Self {
         self.cmint = Some(cmint);
         self
     }
@@ -133,7 +133,7 @@ impl MintActionMetaConfig {
 
     /// Configure compressible CMint with config and rent sponsor.
     /// CMint is always compressible - this sets all required accounts.
-    pub fn with_compressible_cmint(
+    pub fn with_compressible_mint(
         mut self,
         cmint: Pubkey,
         compressible_config: Pubkey,
@@ -148,7 +148,7 @@ impl MintActionMetaConfig {
     /// Get the account metas for a mint action instruction
     #[profile]
     pub fn to_account_metas(self) -> Vec<AccountMeta> {
-        let default_pubkeys = CTokenDefaultAccounts::default();
+        let default_pubkeys = TokenDefaultAccounts::default();
         let mut metas = Vec::new();
 
         metas.push(AccountMeta::new_readonly(
@@ -228,7 +228,7 @@ impl MintActionMetaConfig {
             metas.push(AccountMeta::new(tokens_out_queue, false));
         }
 
-        for token_account in &self.ctoken_accounts {
+        for token_account in &self.token_accounts {
             metas.push(AccountMeta::new(*token_account, false));
         }
 
@@ -249,7 +249,7 @@ pub struct MintActionMetaConfigCpiWrite {
 pub fn get_mint_action_instruction_account_metas_cpi_write(
     config: MintActionMetaConfigCpiWrite,
 ) -> Vec<AccountMeta> {
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
     let mut metas = Vec::new();
 
     metas.push(AccountMeta::new_readonly(

@@ -69,7 +69,7 @@ struct SplCompressionTestContext {
     pub system_accounts_offset: usize,
 }
 
-/// Set up test environment with SPL token account and CToken ATA
+/// Set up test environment with SPL token account and Light Token ATA
 async fn setup_spl_compression_test(
     token_amount: u64,
 ) -> Result<SplCompressionTestContext, RpcError> {
@@ -125,7 +125,7 @@ async fn setup_spl_compression_test(
         spl_token_account_keypair.pubkey(),
         mint,
         sender.pubkey(),
-        ctoken_ata, // Pass CToken ATA, not recipient pubkey
+        ctoken_ata, // Pass Light Token ATA, not recipient pubkey
         token_amount,
         payer.pubkey(),
         output_queue,
@@ -638,7 +638,7 @@ async fn test_spl_compression_mint_out_of_bounds() -> Result<(), RpcError> {
 
 #[tokio::test]
 async fn test_spl_compression_recipient_out_of_bounds() -> Result<(), RpcError> {
-    // Test: Recipient (CToken ATA owner) index out of bounds
+    // Test: Recipient (Light Token ATA owner) index out of bounds
     let SplCompressionTestContext {
         mut rpc,
         payer,

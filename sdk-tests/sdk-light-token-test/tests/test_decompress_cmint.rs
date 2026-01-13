@@ -1,4 +1,4 @@
-// Tests for DecompressCMint SDK instruction
+// Tests for DecompressMint SDK instruction
 
 mod shared;
 
@@ -9,7 +9,7 @@ use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_token_interface::{
     instructions::mint_action::CompressedMintWithContext, state::CompressedMint,
 };
-use light_token_sdk::token::{find_cmint_address, DecompressCMint};
+use light_token_sdk::token::{find_mint_address, DecompressMint};
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 /// Test decompressing a compressed mint to CMint account
@@ -67,8 +67,8 @@ async fn test_decompress_cmint() {
 
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
-    // Build and execute DecompressCMint instruction
-    let decompress_ix = DecompressCMint {
+    // Build and execute DecompressMint instruction
+    let decompress_ix = DecompressMint {
         mint_seed_pubkey: mint_seed.pubkey(),
         payer: payer.pubkey(),
         authority: mint_authority,
@@ -175,8 +175,8 @@ async fn test_decompress_cmint_with_freeze_authority() {
 
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
-    // Build and execute DecompressCMint instruction
-    let decompress_ix = DecompressCMint {
+    // Build and execute DecompressMint instruction
+    let decompress_ix = DecompressMint {
         mint_seed_pubkey: mint_seed.pubkey(),
         payer: payer.pubkey(),
         authority: mint_authority,
@@ -228,19 +228,19 @@ async fn setup_create_compressed_mint_with_freeze_authority_only(
     freeze_authority: Option<Pubkey>,
     decimals: u8,
 ) -> (Pubkey, [u8; 32], Keypair) {
-    use light_token_sdk::token::{CreateCMint, CreateCMintParams};
+    use light_token_sdk::token::{CreateMint, CreateMintParams};
 
     let mint_seed = Keypair::new();
     let address_tree = rpc.get_address_tree_v2();
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     // Derive compression address using SDK helpers
-    let compression_address = light_token_sdk::token::derive_cmint_compressed_address(
+    let compression_address = light_token_sdk::token::derive_mint_compressed_address(
         &mint_seed.pubkey(),
         &address_tree.tree,
     );
 
-    let mint = find_cmint_address(&mint_seed.pubkey()).0;
+    let mint = find_mint_address(&mint_seed.pubkey()).0;
 
     // Get validity proof for the address
     let rpc_result = rpc
@@ -257,7 +257,7 @@ async fn setup_create_compressed_mint_with_freeze_authority_only(
         .value;
 
     // Build params for the SDK
-    let params = CreateCMintParams {
+    let params = CreateMintParams {
         decimals,
         address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
         mint_authority,
@@ -269,7 +269,7 @@ async fn setup_create_compressed_mint_with_freeze_authority_only(
     };
 
     // Create instruction directly using SDK
-    let create_cmint_builder = CreateCMint::new(
+    let create_cmint_builder = CreateMint::new(
         params,
         mint_seed.pubkey(),
         payer.pubkey(),
@@ -374,8 +374,8 @@ async fn test_decompress_cmint_with_token_metadata() {
 
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
-    // Build and execute DecompressCMint instruction
-    let decompress_ix = DecompressCMint {
+    // Build and execute DecompressMint instruction
+    let decompress_ix = DecompressMint {
         mint_seed_pubkey: mint_seed.pubkey(),
         payer: payer.pubkey(),
         authority: mint_authority,
@@ -435,19 +435,19 @@ async fn setup_create_compressed_mint_with_extensions(
     decimals: u8,
     extensions: Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>,
 ) -> (Pubkey, [u8; 32], Keypair) {
-    use light_token_sdk::token::{CreateCMint, CreateCMintParams};
+    use light_token_sdk::token::{CreateMint, CreateMintParams};
 
     let mint_seed = Keypair::new();
     let address_tree = rpc.get_address_tree_v2();
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     // Derive compression address using SDK helpers
-    let compression_address = light_token_sdk::token::derive_cmint_compressed_address(
+    let compression_address = light_token_sdk::token::derive_mint_compressed_address(
         &mint_seed.pubkey(),
         &address_tree.tree,
     );
 
-    let mint = find_cmint_address(&mint_seed.pubkey()).0;
+    let mint = find_mint_address(&mint_seed.pubkey()).0;
 
     // Get validity proof for the address
     let rpc_result = rpc
@@ -464,7 +464,7 @@ async fn setup_create_compressed_mint_with_extensions(
         .value;
 
     // Build params for the SDK
-    let params = CreateCMintParams {
+    let params = CreateMintParams {
         decimals,
         address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
         mint_authority,
@@ -476,7 +476,7 @@ async fn setup_create_compressed_mint_with_extensions(
     };
 
     // Create instruction directly using SDK
-    let create_cmint_builder = CreateCMint::new(
+    let create_cmint_builder = CreateMint::new(
         params,
         mint_seed.pubkey(),
         payer.pubkey(),
@@ -528,12 +528,12 @@ async fn test_decompress_cmint_cpi_invoke_signed() {
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     // Derive compression address using the PDA mint_signer
-    let compression_address = light_token_sdk::token::derive_cmint_compressed_address(
+    let compression_address = light_token_sdk::token::derive_mint_compressed_address(
         &mint_signer_pda,
         &address_tree.tree,
     );
 
-    let mint_pda = find_cmint_address(&mint_signer_pda).0;
+    let mint_pda = find_mint_address(&mint_signer_pda).0;
 
     // Step 1: Create compressed mint with PDA authority using wrapper program (discriminator 14)
     {
@@ -552,7 +552,7 @@ async fn test_decompress_cmint_cpi_invoke_signed() {
 
         let compressed_token_program_id =
             Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
-        let default_pubkeys = light_token_sdk::utils::CTokenDefaultAccounts::default();
+        let default_pubkeys = light_token_sdk::utils::TokenDefaultAccounts::default();
 
         let create_cmint_data = CreateCmintData {
             decimals,
@@ -637,7 +637,7 @@ async fn test_decompress_cmint_cpi_invoke_signed() {
             mint: Some(compressed_mint.clone().try_into().unwrap()),
         };
 
-        let default_pubkeys = light_token_sdk::utils::CTokenDefaultAccounts::default();
+        let default_pubkeys = light_token_sdk::utils::TokenDefaultAccounts::default();
         let compressible_config = light_token_sdk::token::config_pda();
         let rent_sponsor = light_token_sdk::token::rent_sponsor_pda();
 

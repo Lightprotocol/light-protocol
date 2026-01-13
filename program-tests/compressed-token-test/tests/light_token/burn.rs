@@ -1,4 +1,4 @@
-//! Burn instruction tests for CToken accounts.
+//! Burn instruction tests for Light Token accounts.
 //!
 //! ## Test Matrix
 //!
@@ -13,7 +13,7 @@
 //! | Wrong authority | test_burn_fails |
 //!
 //! **Note**: Burn requires a real CMint account (owned by ctoken program) for supply tracking.
-//! This is different from approve/revoke which only modify the CToken account.
+//! This is different from approve/revoke which only modify the Light Token account.
 //!
 //! **Note**: Max top-up exceeded test requires compressible accounts with time warp.
 //! For comprehensive max_top_up testing, see sdk-tests/sdk-light-token-test/tests/test_burn.rs
@@ -23,7 +23,7 @@ use light_program_test::{
 use light_test_utils::assert_ctoken_burn::assert_ctoken_burn;
 use light_token_client::instructions::mint_action::DecompressMintParams;
 use light_token_sdk::{
-    compressed_token::create_compressed_mint::find_cmint_address,
+    compressed_token::create_compressed_mint::find_mint_address,
     token::{derive_token_ata, Burn, CreateAssociatedTokenAccount, MintTo},
 };
 
@@ -120,7 +120,7 @@ async fn test_burn_fails() {
 
         // Create a different CMint
         let other_mint_seed = Keypair::new();
-        let (other_cmint_pda, _) = find_cmint_address(&other_mint_seed.pubkey());
+        let (other_cmint_pda, _) = find_mint_address(&other_mint_seed.pubkey());
 
         // Try to burn with wrong mint
         let burn_ix = Burn {
@@ -172,7 +172,7 @@ async fn test_burn_fails() {
             )
             .await;
 
-        // Non-existent CToken account returns NotRentExempt (SPL Token code 0 -> 6153)
+        // Non-existent Light Token account returns NotRentExempt (SPL Token code 0 -> 6153)
         assert_rpc_error(result, 0, 6153).unwrap();
         println!("test_burn_fails: non-existent account passed");
     }
@@ -183,7 +183,7 @@ async fn test_burn_fails() {
 
         let mut ctx = setup_burn_test().await;
 
-        // Get the valid CToken account data
+        // Get the valid Light Token account data
         let valid_account = ctx
             .rpc
             .get_account(ctx.ctoken_account)
@@ -308,12 +308,12 @@ struct BurnTestContext {
     owner_keypair: Keypair,
 }
 
-/// Setup: Create CMint + CToken with 100 tokens
+/// Setup: Create CMint + Light Token with 100 tokens
 ///
 /// Steps:
 /// 1. Init LightProgramTest
 /// 2. Create compressed mint + CMint via mint_action_comprehensive
-/// 3. Create CToken ATA
+/// 3. Create Light Token ATA
 /// 4. Mint 100 tokens
 async fn setup_burn_test() -> BurnTestContext {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
@@ -326,9 +326,9 @@ async fn setup_burn_test() -> BurnTestContext {
     let owner_keypair = Keypair::new();
 
     // Derive CMint PDA
-    let (cmint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+    let (cmint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
-    // Step 1: Create CToken ATA for owner
+    // Step 1: Create Light Token ATA for owner
     let (ctoken_ata, _) = derive_token_ata(&owner_keypair.pubkey(), &cmint_pda);
 
     let create_ata_ix =
@@ -364,7 +364,7 @@ async fn setup_burn_test() -> BurnTestContext {
     .await
     .unwrap();
 
-    // Step 3: Mint 100 tokens to the CToken account
+    // Step 3: Mint 100 tokens to the Light Token account
     let mint_ix = MintTo {
         cmint: cmint_pda,
         destination: ctoken_ata,

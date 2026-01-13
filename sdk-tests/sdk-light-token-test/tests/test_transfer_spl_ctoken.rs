@@ -23,7 +23,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test transferring SPL tokens to CToken using TransferFromSplCpi::invoke()
+/// Test transferring SPL tokens to Light Token using TransferFromSplCpi::invoke()
 #[tokio::test]
 async fn test_spl_to_ctoken_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -94,7 +94,7 @@ async fn test_spl_to_ctoken_invoke() {
         Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
-    // Build wrapper instruction for SPL to CToken transfer
+    // Build wrapper instruction for SPL to Light Token transfer
     let data = TransferFromSplData {
         amount: transfer_amount,
         spl_interface_pda_bump,
@@ -148,20 +148,20 @@ async fn test_spl_to_ctoken_invoke() {
     let final_spl_balance: u64 = spl_account.amount.into();
     assert_eq!(final_spl_balance, amount - transfer_amount);
 
-    // Verify CToken balance increased
+    // Verify Light Token balance increased
     let ctoken_account_data = rpc.get_account(ctoken_account).await.unwrap().unwrap();
     let ctoken_account_state =
         spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165]).unwrap();
     assert_eq!(
         u64::from(ctoken_account_state.amount),
         transfer_amount,
-        "CToken account should have received tokens"
+        "Light Token account should have received tokens"
     );
 
-    println!("SPL to CToken invoke test passed");
+    println!("SPL to Light Token invoke test passed");
 }
 
-/// Test transferring CToken to SPL tokens using TransferTokenToSplCpi::invoke()
+/// Test transferring Light Token to SPL tokens using TransferTokenToSplCpi::invoke()
 #[tokio::test]
 async fn test_ctoken_to_spl_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -259,7 +259,7 @@ async fn test_ctoken_to_spl_invoke() {
         spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165]).unwrap();
     assert_eq!(u64::from(ctoken_state.amount), amount);
 
-    // Now test CToken to SPL transfer
+    // Now test Light Token to SPL transfer
     let data = TransferTokenToSplData {
         amount: transfer_amount,
         spl_interface_pda_bump,
@@ -311,20 +311,20 @@ async fn test_ctoken_to_spl_invoke() {
     let final_spl_balance: u64 = spl_account.amount.into();
     assert_eq!(final_spl_balance, transfer_amount);
 
-    // Verify CToken balance decreased
+    // Verify Light Token balance decreased
     let ctoken_account_data = rpc.get_account(ctoken_account).await.unwrap().unwrap();
     let ctoken_state =
         spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165]).unwrap();
     assert_eq!(
         u64::from(ctoken_state.amount),
         amount - transfer_amount,
-        "CToken account balance should have decreased"
+        "Light Token account balance should have decreased"
     );
 
-    println!("CToken to SPL invoke test passed");
+    println!("Light Token to SPL invoke test passed");
 }
 
-/// Test transferring SPL tokens to CToken with PDA authority using invoke_signed
+/// Test transferring SPL tokens to Light Token with PDA authority using invoke_signed
 #[tokio::test]
 async fn test_spl_to_ctoken_invoke_signed() {
     use anchor_spl::associated_token::{
@@ -394,7 +394,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
         Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
     let cpi_authority_pda = Pubkey::new_from_array(CPI_AUTHORITY_PDA);
 
-    // Build wrapper instruction for SPL to CToken transfer with PDA authority
+    // Build wrapper instruction for SPL to Light Token transfer with PDA authority
     let data = TransferFromSplData {
         amount: transfer_amount,
         spl_interface_pda_bump,
@@ -434,20 +434,20 @@ async fn test_spl_to_ctoken_invoke_signed() {
     let final_spl_balance: u64 = spl_account.amount.into();
     assert_eq!(final_spl_balance, amount - transfer_amount);
 
-    // Verify CToken balance increased
+    // Verify Light Token balance increased
     let ctoken_account_data = rpc.get_account(ctoken_account).await.unwrap().unwrap();
     let ctoken_account_state =
         spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165]).unwrap();
     assert_eq!(
         u64::from(ctoken_account_state.amount),
         transfer_amount,
-        "CToken account should have received tokens"
+        "Light Token account should have received tokens"
     );
 
-    println!("SPL to CToken invoke_signed test passed");
+    println!("SPL to Light Token invoke_signed test passed");
 }
 
-/// Test transferring CToken to SPL with PDA authority using invoke_signed
+/// Test transferring Light Token to SPL with PDA authority using invoke_signed
 #[tokio::test]
 async fn test_ctoken_to_spl_invoke_signed() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -572,7 +572,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
         spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165]).unwrap();
     assert_eq!(u64::from(ctoken_state.amount), amount);
 
-    // Now test CToken to SPL transfer with PDA authority
+    // Now test Light Token to SPL transfer with PDA authority
     let data = TransferTokenToSplData {
         amount: transfer_amount,
         spl_interface_pda_bump,
@@ -614,15 +614,15 @@ async fn test_ctoken_to_spl_invoke_signed() {
     let final_spl_balance: u64 = spl_account.amount.into();
     assert_eq!(final_spl_balance, transfer_amount);
 
-    // Verify CToken balance decreased
+    // Verify Light Token balance decreased
     let ctoken_account_data = rpc.get_account(ctoken_account).await.unwrap().unwrap();
     let ctoken_state =
         spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165]).unwrap();
     assert_eq!(
         u64::from(ctoken_state.amount),
         amount - transfer_amount,
-        "CToken account balance should have decreased"
+        "Light Token account balance should have decreased"
     );
 
-    println!("CToken to SPL invoke_signed test passed");
+    println!("Light Token to SPL invoke_signed test passed");
 }

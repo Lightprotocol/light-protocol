@@ -239,7 +239,7 @@ async fn test_compressible_ctoken_compression() {
     // Create mint
     let mint_seed = Keypair::new();
     let address_tree = rpc.get_address_tree_v2().tree;
-    let mint = Pubkey::from(create_compressed_mint::derive_cmint_compressed_address(
+    let mint = Pubkey::from(create_compressed_mint::derive_mint_compressed_address(
         &mint_seed.pubkey(),
         &address_tree,
     ));
@@ -395,7 +395,7 @@ async fn test_compressible_ctoken_bootstrap() {
     // Create mint
     let mint_seed = Keypair::new();
     let address_tree = rpc.get_address_tree_v2().tree;
-    let mint = Pubkey::from(create_compressed_mint::derive_cmint_compressed_address(
+    let mint = Pubkey::from(create_compressed_mint::derive_mint_compressed_address(
         &mint_seed.pubkey(),
         &address_tree,
     ));

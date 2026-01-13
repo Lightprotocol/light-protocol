@@ -1,10 +1,10 @@
-//! Tests for extension validation failures in CToken operations.
+//! Tests for extension validation failures in Light Token operations.
 //!
 //! This module tests extension validation for operations that FAIL with invalid state:
-//! 1. CTokenTransfer(Checked) - transfers between CToken accounts
-//! 2. SPL → CToken (TransferFromSpl) - entering via Compress mode
+//! 1. CTokenTransfer(Checked) - transfers between Light Token accounts
+//! 2. SPL → Light Token (TransferFromSpl) - entering via Compress mode
 //!
-//! Note: CToken → SPL (TransferTokenToSpl) is a BYPASS operation and is tested
+//! Note: Light Token → SPL (TransferTokenToSpl) is a BYPASS operation and is tested
 //! in compress_only/invalid_extension_state.rs. It succeeds with invalid extension
 //! state because it exits compressed state without creating new compressed accounts.
 
@@ -35,7 +35,7 @@ const NON_ZERO_TRANSFER_FEE_NOT_SUPPORTED: u32 = 6129;
 /// Expected error code for TransferHookNotSupported
 const TRANSFER_HOOK_NOT_SUPPORTED: u32 = 6130;
 
-/// Set up two CToken accounts with tokens for transfer testing.
+/// Set up two Light Token accounts with tokens for transfer testing.
 /// Returns (source_account, destination_account, owner)
 async fn setup_ctoken_accounts_for_transfer(
     context: &mut ExtensionsTestContext,
@@ -57,10 +57,10 @@ async fn setup_ctoken_accounts_for_transfer(
     )
     .await;
 
-    // Create owner and CToken accounts
+    // Create owner and Light Token accounts
     let owner = Keypair::new();
 
-    // Create source CToken account
+    // Create source Light Token account
     let account_a_keypair = Keypair::new();
     let account_a_pubkey = account_a_keypair.pubkey();
     let create_a_ix = CreateTokenAccount::new(
@@ -99,7 +99,7 @@ async fn setup_ctoken_accounts_for_transfer(
         .await
         .unwrap();
 
-    // Create destination CToken account
+    // Create destination Light Token account
     let account_b_keypair = Keypair::new();
     let account_b_pubkey = account_b_keypair.pubkey();
     let create_b_ix = CreateTokenAccount::new(
@@ -138,7 +138,7 @@ async fn setup_ctoken_accounts_for_transfer(
         .await
         .unwrap();
 
-    // Transfer SPL to source CToken account using hot path
+    // Transfer SPL to source Light Token account using hot path
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
@@ -170,7 +170,7 @@ async fn setup_ctoken_accounts_for_transfer(
 ///
 /// Setup:
 /// 1. Create mint with Pausable extension (not paused initially)
-/// 2. Create token pool, two CToken accounts with tokens
+/// 2. Create token pool, two Light Token accounts with tokens
 /// 3. Pause the mint via set_account
 /// 4. Attempt CTokenTransferChecked
 ///
@@ -217,7 +217,7 @@ async fn test_ctoken_transfer_fails_when_mint_paused() {
 ///
 /// Setup:
 /// 1. Create mint with TransferFeeConfig (zero fees initially)
-/// 2. Create token pool, two CToken accounts with tokens
+/// 2. Create token pool, two Light Token accounts with tokens
 /// 3. Modify mint TransferFeeConfig to have non-zero fees
 /// 4. Attempt CTokenTransferChecked
 ///
@@ -264,7 +264,7 @@ async fn test_ctoken_transfer_fails_with_non_zero_transfer_fee() {
 ///
 /// Setup:
 /// 1. Create mint with TransferHook (nil program initially)
-/// 2. Create token pool, two CToken accounts with tokens
+/// 2. Create token pool, two Light Token accounts with tokens
 /// 3. Modify mint TransferHook to have non-nil program_id
 /// 4. Attempt CTokenTransferChecked
 ///
@@ -309,11 +309,11 @@ async fn test_ctoken_transfer_fails_with_non_nil_transfer_hook() {
 }
 
 // ============================================================================
-// SPL → CToken Transfer Tests (TransferFromSpl)
+// SPL → Light Token Transfer Tests (TransferFromSpl)
 // These should FAIL when extension state is invalid (entering compressed state)
 // ============================================================================
 
-/// Set up SPL account with tokens and empty CToken account for SPL→CToken testing.
+/// Set up SPL account with tokens and empty Light Token account for SPL→Light Token testing.
 /// Returns (spl_account, ctoken_account, owner)
 async fn setup_spl_to_ctoken_accounts(
     context: &mut ExtensionsTestContext,
@@ -335,7 +335,7 @@ async fn setup_spl_to_ctoken_accounts(
     )
     .await;
 
-    // Create CToken account (destination)
+    // Create Light Token account (destination)
     let owner = Keypair::new();
     let ctoken_keypair = Keypair::new();
     let ctoken_pubkey = ctoken_keypair.pubkey();
@@ -370,9 +370,9 @@ async fn setup_spl_to_ctoken_accounts(
     (spl_account, ctoken_pubkey, owner)
 }
 
-/// Test that SPL→CToken transfer fails when the mint is paused.
+/// Test that SPL→Light Token transfer fails when the mint is paused.
 ///
-/// SPL→CToken uses Compress mode which enforces extension state checks.
+/// SPL→Light Token uses Compress mode which enforces extension state checks.
 #[tokio::test]
 #[serial]
 async fn test_spl_to_ctoken_fails_when_mint_paused() {
@@ -386,7 +386,7 @@ async fn test_spl_to_ctoken_fails_when_mint_paused() {
     // Pause the mint
     pause_mint(&mut context.rpc, &mint_pubkey).await;
 
-    // Attempt SPL→CToken transfer - should fail with MintPaused
+    // Attempt SPL→Light Token transfer - should fail with MintPaused
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
@@ -411,10 +411,10 @@ async fn test_spl_to_ctoken_fails_when_mint_paused() {
         .await;
     // fails because of token 2022 check Transferring, minting, and burning is paused on this mint
     assert_rpc_error(result, 0, 67).unwrap();
-    println!("Correctly rejected SPL→CToken when mint is paused");
+    println!("Correctly rejected SPL→Light Token when mint is paused");
 }
 
-/// Test that SPL→CToken transfer fails when the mint has non-zero transfer fees.
+/// Test that SPL→Light Token transfer fails when the mint has non-zero transfer fees.
 #[tokio::test]
 #[serial]
 async fn test_spl_to_ctoken_fails_with_non_zero_transfer_fee() {
@@ -428,7 +428,7 @@ async fn test_spl_to_ctoken_fails_with_non_zero_transfer_fee() {
     // Set non-zero transfer fees
     set_mint_transfer_fee(&mut context.rpc, &mint_pubkey, 100, 1000).await;
 
-    // Attempt SPL→CToken transfer - should fail
+    // Attempt SPL→Light Token transfer - should fail
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
@@ -452,5 +452,5 @@ async fn test_spl_to_ctoken_fails_with_non_zero_transfer_fee() {
         .create_and_send_transaction(&[transfer_ix], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    println!("Correctly rejected SPL→CToken with non-zero transfer fees");
+    println!("Correctly rejected SPL→Light Token with non-zero transfer fees");
 }

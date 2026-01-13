@@ -1,7 +1,7 @@
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 
-use crate::utils::CTokenDefaultAccounts;
+use crate::utils::TokenDefaultAccounts;
 
 /// Account metadata configuration for batch compress instruction
 #[derive(Debug, Copy, Clone)]
@@ -72,7 +72,7 @@ impl BatchCompressMetaConfig {
 pub fn get_batch_compress_instruction_account_metas(
     config: BatchCompressMetaConfig,
 ) -> Vec<AccountMeta> {
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
 
     // Calculate capacity based on whether fee_payer is provided
     // Base accounts:   cpi_authority_pda + spl_interface_pda + token_program + light_system_program +

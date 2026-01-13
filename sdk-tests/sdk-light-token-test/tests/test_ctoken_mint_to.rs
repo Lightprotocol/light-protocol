@@ -15,7 +15,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test minting to CToken using CTokenMintToCpi::invoke()
+/// Test minting to Light Token using CTokenMintToCpi::invoke()
 #[tokio::test]
 async fn test_ctoken_mint_to_invoke() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
@@ -76,11 +76,11 @@ async fn test_ctoken_mint_to_invoke() {
 
     assert_eq!(
         ctoken_after, expected_ctoken,
-        "CToken should match expected state after mint"
+        "Light Token should match expected state after mint"
     );
 }
 
-/// Test minting to CToken with PDA authority using CTokenMintToCpi::invoke_signed()
+/// Test minting to Light Token with PDA authority using CTokenMintToCpi::invoke_signed()
 ///
 /// This test:
 /// 1. Creates a compressed mint with PDA authority via wrapper program (discriminator 14)
@@ -112,12 +112,12 @@ async fn test_ctoken_mint_to_invoke_signed() {
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     // Derive compression address using the PDA mint_signer
-    let compression_address = light_token_sdk::token::derive_cmint_compressed_address(
+    let compression_address = light_token_sdk::token::derive_mint_compressed_address(
         &mint_signer_pda,
         &address_tree.tree,
     );
 
-    let mint_pda = light_token_sdk::token::find_cmint_address(&mint_signer_pda).0;
+    let mint_pda = light_token_sdk::token::find_mint_address(&mint_signer_pda).0;
 
     // Step 1: Create compressed mint with PDA authority using wrapper program (discriminator 14)
     {
@@ -136,7 +136,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
 
         let compressed_token_program_id =
             Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
-        let default_pubkeys = light_token_sdk::utils::CTokenDefaultAccounts::default();
+        let default_pubkeys = light_token_sdk::utils::TokenDefaultAccounts::default();
 
         let create_cmint_data = CreateCmintData {
             decimals,
@@ -214,7 +214,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
             mint: Some(compressed_mint.try_into().unwrap()),
         };
 
-        let default_pubkeys = light_token_sdk::utils::CTokenDefaultAccounts::default();
+        let default_pubkeys = light_token_sdk::utils::TokenDefaultAccounts::default();
         let compressible_config = light_token_sdk::token::config_pda();
         let rent_sponsor = light_token_sdk::token::rent_sponsor_pda();
 
@@ -335,6 +335,6 @@ async fn test_ctoken_mint_to_invoke_signed() {
 
     assert_eq!(
         ctoken_after, expected_ctoken,
-        "CToken should match expected state after mint"
+        "Light Token should match expected state after mint"
     );
 }

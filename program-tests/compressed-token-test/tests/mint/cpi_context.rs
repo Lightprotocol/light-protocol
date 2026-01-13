@@ -13,7 +13,7 @@ use light_token_interface::{
     CMINT_ADDRESS_TREE, LIGHT_TOKEN_PROGRAM_ID,
 };
 use light_token_sdk::compressed_token::{
-    create_compressed_mint::{derive_cmint_compressed_address, find_cmint_address},
+    create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
     mint_action::{
         get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
         MintActionMetaConfigCpiWrite,
@@ -67,8 +67,8 @@ async fn test_setup() -> TestSetup {
 
     // Derive addresses
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree);
-    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree);
+    let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // 3. Build compressed mint inputs
     let compressed_mint_inputs = CompressedMintWithContext {

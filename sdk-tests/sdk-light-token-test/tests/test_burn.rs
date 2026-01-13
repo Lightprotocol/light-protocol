@@ -74,7 +74,7 @@ async fn test_burn_invoke() {
 
     assert_eq!(
         ctoken_after, expected_ctoken,
-        "CToken should match expected state after burn"
+        "Light Token should match expected state after burn"
     );
 }
 
@@ -140,6 +140,6 @@ async fn test_burn_invoke_signed() {
 
     assert_eq!(
         ctoken_after, expected_ctoken,
-        "CToken should match expected state after burn"
+        "Light Token should match expected state after burn"
     );
 }

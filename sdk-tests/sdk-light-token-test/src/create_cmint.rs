@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_token_sdk::{
-    token::{CreateCMintCpi, CreateCMintParams, ExtensionInstructionData, SystemAccountInfos},
+    token::{CreateMintCpi, CreateMintParams, ExtensionInstructionData, SystemAccountInfos},
     CompressedProof,
 };
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
@@ -26,7 +26,7 @@ pub struct CreateCmintData {
 /// Handler for creating a compressed mint (invoke)
 ///
 /// Uses the CreateCMintCpi builder pattern. This demonstrates how to:
-/// 1. Build the CreateCMintParams struct from instruction data
+/// 1. Build the CreateMintParams struct from instruction data
 /// 2. Build the CreateCMintCpi with accounts
 /// 3. Call invoke() which handles instruction building and CPI
 ///
@@ -53,7 +53,7 @@ pub fn process_create_cmint(
     }
 
     // Build the params
-    let params = CreateCMintParams {
+    let params = CreateMintParams {
         decimals: data.decimals,
         address_merkle_tree_root_index: data.address_merkle_tree_root_index,
         mint_authority: data.mint_authority,
@@ -76,7 +76,7 @@ pub fn process_create_cmint(
 
     // Build the account infos struct
     // In this case, payer == authority (accounts[3])
-    CreateCMintCpi {
+    CreateMintCpi {
         mint_seed: accounts[2].clone(),
         authority: accounts[3].clone(),
         payer: accounts[3].clone(),
@@ -128,7 +128,7 @@ pub fn process_create_cmint_invoke_signed(
     }
 
     // Build the params
-    let params = CreateCMintParams {
+    let params = CreateMintParams {
         decimals: data.decimals,
         address_merkle_tree_root_index: data.address_merkle_tree_root_index,
         mint_authority: data.mint_authority,
@@ -151,7 +151,7 @@ pub fn process_create_cmint_invoke_signed(
 
     // Build the account infos struct
     // In this case, payer == authority (accounts[3])
-    let account_infos = CreateCMintCpi {
+    let account_infos = CreateMintCpi {
         mint_seed: accounts[2].clone(),
         authority: accounts[3].clone(),
         payer: accounts[3].clone(),
@@ -217,7 +217,7 @@ pub fn process_create_cmint_with_pda_authority(
     }
 
     // Build the params - authority is the PDA
-    let params = CreateCMintParams {
+    let params = CreateMintParams {
         decimals: data.decimals,
         address_merkle_tree_root_index: data.address_merkle_tree_root_index,
         mint_authority: authority_pda, // Use the derived PDA as authority
@@ -239,7 +239,7 @@ pub fn process_create_cmint_with_pda_authority(
     };
 
     // Build the account infos struct using SDK
-    let account_infos = CreateCMintCpi {
+    let account_infos = CreateMintCpi {
         mint_seed: accounts[2].clone(),
         authority: accounts[3].clone(),
         payer: accounts[4].clone(),

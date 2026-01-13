@@ -35,7 +35,7 @@ use light_token_client::{
     instructions::mint_action::{DecompressMintParams, NewMint},
 };
 use light_token_sdk::{
-    compressed_token::create_compressed_mint::find_cmint_address,
+    compressed_token::create_compressed_mint::find_mint_address,
     token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, MintTo},
 };
 use solana_sdk::{
@@ -1232,7 +1232,7 @@ async fn assert_not_compressible_cmint<R: Rpc>(
     Ok(())
 }
 
-/// Helper function to mint tokens to a CToken account using MintTo instruction
+/// Helper function to mint tokens to a Light Token account using MintTo instruction
 async fn mint_to_token<R: Rpc>(
     rpc: &mut R,
     cmint: Pubkey,
@@ -1264,10 +1264,10 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
         .unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
-    // Create a CMint with compressible config (will be tested alongside CToken accounts)
+    // Create a CMint with compressible config (will be tested alongside Light Token accounts)
     let mint_seed = Keypair::new();
     let mint_authority = payer.insecure_clone();
-    let (cmint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+    let (cmint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // Create CMint with write_top_up for infinite funding
     mint_action_comprehensive(
@@ -1296,7 +1296,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     .await
     .unwrap();
 
-    // Use the CMint PDA as the mint for CToken accounts
+    // Use the CMint PDA as the mint for Light Token accounts
     let mint = cmint_pda;
 
     // Create owner for both accounts
@@ -1476,7 +1476,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     }
 
     println!("Test completed successfully!");
-    println!("All accounts (CToken A, CToken B, CMint) remained well-funded through 100 epochs");
+    println!("All accounts (Light Token A, Light Token B, CMint) remained well-funded through 100 epochs");
 
     // Final verification
     assert_not_compressible(&mut rpc, account_a, "Account A (final)").await?;
@@ -1487,7 +1487,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     let final_rent_sponsor_balance = rpc.get_account(rent_sponsor).await?.unwrap().lamports;
     let total_rent_claimed = final_rent_sponsor_balance - initial_rent_sponsor_balance;
 
-    // Get final last_claimed_slot from all accounts (CToken A, CToken B, CMint)
+    // Get final last_claimed_slot from all accounts (Light Token A, Light Token B, CMint)
     let final_last_claimed_a =
         get_last_claimed_slot_token(&rpc.get_account(account_a).await?.unwrap().data)?;
     let final_last_claimed_b =
@@ -1516,7 +1516,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     // Assert exact match
     assert_eq!(
         total_rent_claimed, expected_total_rent,
-        "Rent claimed should exactly match expected rent (CToken A + CToken B + CMint)"
+        "Rent claimed should exactly match expected rent (Light Token A + Light Token B + CMint)"
     );
 
     Ok(())
@@ -1532,7 +1532,7 @@ async fn test_claim_from_cmint_account() -> Result<(), RpcError> {
     let mint_authority = payer.insecure_clone();
 
     // Create compressed mint + decompress to CMint with rent prepaid
-    let (cmint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+    let (cmint_pda, _) = find_mint_address(&mint_seed.pubkey());
     mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
@@ -1590,7 +1590,7 @@ async fn test_claim_mixed_token_and_cmint() -> Result<(), RpcError> {
         .unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
-    // Create CToken account with prepaid rent
+    // Create Light Token account with prepaid rent
     let token_owner = Keypair::new();
     let mint = Pubkey::new_unique();
     let token_pubkey = create_compressible_token_account(
@@ -1610,7 +1610,7 @@ async fn test_claim_mixed_token_and_cmint() -> Result<(), RpcError> {
 
     // Create CMint account with prepaid rent
     let mint_seed = Keypair::new();
-    let (cmint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+    let (cmint_pda, _) = find_mint_address(&mint_seed.pubkey());
     mint_action_comprehensive(
         &mut rpc,
         &mint_seed,

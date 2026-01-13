@@ -55,7 +55,7 @@ pub async fn assert_transfer2_with_delegate(
                         .get_pre_transaction_account(&pubkey)
                         .expect("SPL token account should exist in pre-transaction context");
 
-                    // CToken accounts are 166 bytes, SPL token expects 165 bytes
+                    // Light Token accounts are 166 bytes, SPL token expects 165 bytes
                     spl_token_2022::state::Account::unpack(&pre_account_data.data[..165])
                         .expect("Failed to unpack SPL token account")
                 });

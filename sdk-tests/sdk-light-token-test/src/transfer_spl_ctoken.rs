@@ -7,7 +7,7 @@ use crate::ID;
 /// PDA seed for authority in invoke_signed variants
 pub const TRANSFER_AUTHORITY_SEED: &[u8] = b"transfer_authority";
 
-/// Instruction data for SPL to CToken transfer
+/// Instruction data for SPL to Light Token transfer
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct TransferFromSplData {
     pub amount: u64,
@@ -15,7 +15,7 @@ pub struct TransferFromSplData {
     pub decimals: u8,
 }
 
-/// Instruction data for CToken to SPL transfer
+/// Instruction data for Light Token to SPL transfer
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct TransferTokenToSplData {
     pub amount: u64,
@@ -23,7 +23,7 @@ pub struct TransferTokenToSplData {
     pub decimals: u8,
 }
 
-/// Handler for transferring SPL tokens to CToken (invoke)
+/// Handler for transferring SPL tokens to Light Token (invoke)
 ///
 /// Account order:
 /// - accounts[0]: compressed_token_program (for CPI)
@@ -63,7 +63,7 @@ pub fn process_spl_to_ctoken_invoke(
     Ok(())
 }
 
-/// Handler for transferring SPL tokens to CToken with PDA authority (invoke_signed)
+/// Handler for transferring SPL tokens to Light Token with PDA authority (invoke_signed)
 ///
 /// The authority is a PDA derived from TRANSFER_AUTHORITY_SEED.
 ///
@@ -117,7 +117,7 @@ pub fn process_spl_to_ctoken_invoke_signed(
     Ok(())
 }
 
-/// Handler for transferring CToken to SPL tokens (invoke)
+/// Handler for transferring Light Token to SPL tokens (invoke)
 ///
 /// Account order:
 /// - accounts[0]: compressed_token_program (for CPI)
@@ -155,7 +155,7 @@ pub fn process_ctoken_to_spl_invoke(
     Ok(())
 }
 
-/// Handler for transferring CToken to SPL tokens with PDA authority (invoke_signed)
+/// Handler for transferring Light Token to SPL tokens with PDA authority (invoke_signed)
 ///
 /// The authority is a PDA derived from TRANSFER_AUTHORITY_SEED.
 ///

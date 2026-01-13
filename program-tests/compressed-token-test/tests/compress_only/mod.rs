@@ -62,8 +62,8 @@ pub struct CompressAndCloseTestConfig {
     pub use_delegate_for_decompress: bool,
 }
 
-/// Helper to modify CToken account state for testing using set_account
-/// Only modifies the SPL token portion (first 165 bytes) - CToken::deserialize reads from there
+/// Helper to modify Light Token account state for testing using set_account
+/// Only modifies the SPL token portion (first 165 bytes) - Light Token::deserialize reads from there
 pub async fn set_ctoken_account_state(
     rpc: &mut LightProgramTest,
     account_pubkey: Pubkey,
@@ -80,7 +80,7 @@ pub async fn set_ctoken_account_state(
         .ok_or_else(|| RpcError::CustomError("Account not found".to_string()))?;
 
     // Update SPL token state (first 165 bytes)
-    // CToken::deserialize reads delegate/delegated_amount/state from the SPL portion
+    // Light Token::deserialize reads delegate/delegated_amount/state from the SPL portion
     let mut spl_account =
         spl_token_2022::state::Account::unpack_unchecked(&account_info.data[..165])
             .map_err(|e| RpcError::CustomError(format!("Failed to unpack SPL account: {:?}", e)))?;
@@ -102,7 +102,7 @@ pub async fn set_ctoken_account_state(
 }
 
 /// Helper to set withheld_amount in TransferFeeAccount extension for testing
-/// Finds the TransferFeeAccount extension in the CToken and modifies the withheld_amount field
+/// Finds the TransferFeeAccount extension in the Light Token and modifies the withheld_amount field
 pub async fn set_ctoken_withheld_fee(
     rpc: &mut LightProgramTest,
     account_pubkey: Pubkey,
@@ -192,7 +192,7 @@ pub async fn run_compress_and_close_extension_test(
     )
     .await;
 
-    // 2. Create CToken account with 0 prepaid epochs (immediately compressible)
+    // 2. Create Light Token account with 0 prepaid epochs (immediately compressible)
     let owner = Keypair::new();
     let account_keypair = Keypair::new();
     let ctoken_account = account_keypair.pubkey();
@@ -224,7 +224,7 @@ pub async fn run_compress_and_close_extension_test(
         .create_and_send_transaction(&[create_ix], &payer.pubkey(), &[&payer, &account_keypair])
         .await?;
 
-    // 3. Transfer tokens to CToken using hot path
+    // 3. Transfer tokens to Light Token using hot path
     // Determine if mint has restricted extensions for pool derivation
 
     let (spl_interface_pda, spl_interface_pda_bump) =
@@ -251,7 +251,7 @@ pub async fn run_compress_and_close_extension_test(
         .create_and_send_transaction(&[transfer_ix], &payer.pubkey(), &[&payer])
         .await?;
 
-    // 4. Modify CToken state based on config BEFORE warp
+    // 4. Modify Light Token state based on config BEFORE warp
     let delegate_pubkey = config.delegate_config.as_ref().map(|(kp, _)| kp.pubkey());
     let delegated_amount = config
         .delegate_config
@@ -277,7 +277,7 @@ pub async fn run_compress_and_close_extension_test(
     let account_after = context.rpc.get_account(ctoken_account).await?;
     assert!(
         account_after.is_none() || account_after.unwrap().lamports == 0,
-        "CToken account should be closed after compression"
+        "Light Token account should be closed after compression"
     );
 
     // 7. Get compressed accounts and verify state
@@ -322,7 +322,7 @@ pub async fn run_compress_and_close_extension_test(
         "Compressed token account should match expected TokenData"
     );
 
-    // 8. Create destination CToken account for decompress
+    // 8. Create destination Light Token account for decompress
     let decompress_dest_keypair = Keypair::new();
     let decompress_dest_account = decompress_dest_keypair.pubkey();
 
@@ -439,7 +439,7 @@ pub async fn run_compress_and_close_extension_test(
         .create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &signers)
         .await?;
 
-    // 11. Verify decompressed CToken state
+    // 11. Verify decompressed Light Token state
     let dest_account_data = context
         .rpc
         .get_account(decompress_dest_account)
@@ -458,24 +458,24 @@ pub async fn run_compress_and_close_extension_test(
 
     assert_eq!(
         dest_ctoken.state, expected_ctoken_state,
-        "Decompressed CToken state should match config"
+        "Decompressed Light Token state should match config"
     );
 
     assert_eq!(
         dest_ctoken.delegated_amount, delegated_amount,
-        "Decompressed CToken delegated_amount should match"
+        "Decompressed Light Token delegated_amount should match"
     );
 
     if let Some((delegate_kp, _)) = &config.delegate_config {
         assert_eq!(
             dest_ctoken.delegate,
             Some(delegate_kp.pubkey().to_bytes().into()),
-            "Decompressed CToken delegate should match"
+            "Decompressed Light Token delegate should match"
         );
     } else {
         assert!(
             dest_ctoken.delegate.is_none(),
-            "Decompressed CToken should have no delegate"
+            "Decompressed Light Token should have no delegate"
         );
     }
 

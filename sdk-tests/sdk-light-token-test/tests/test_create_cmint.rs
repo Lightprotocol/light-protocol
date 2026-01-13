@@ -42,12 +42,12 @@ async fn test_create_compressed_mint() {
         Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
 
     // Use SDK helper to derive the compression address correctly
-    let compression_address = light_token_sdk::token::derive_cmint_compressed_address(
+    let compression_address = light_token_sdk::token::derive_mint_compressed_address(
         &mint_signer.pubkey(),
         &address_tree.tree,
     );
 
-    let mint_pda = light_token_sdk::token::find_cmint_address(&mint_signer.pubkey()).0;
+    let mint_pda = light_token_sdk::token::find_mint_address(&mint_signer.pubkey()).0;
 
     let rpc_result = rpc
         .get_validity_proof(
@@ -150,12 +150,12 @@ async fn test_create_compressed_mint_invoke_signed() {
         Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
 
     // Use SDK helper to derive the compression address correctly
-    let compression_address = light_token_sdk::token::derive_cmint_compressed_address(
+    let compression_address = light_token_sdk::token::derive_mint_compressed_address(
         &mint_signer_pda,
         &address_tree.tree,
     );
 
-    let mint_pda = light_token_sdk::token::find_cmint_address(&mint_signer_pda).0;
+    let mint_pda = light_token_sdk::token::find_mint_address(&mint_signer_pda).0;
 
     let rpc_result = rpc
         .get_validity_proof(

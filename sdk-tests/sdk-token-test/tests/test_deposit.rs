@@ -14,7 +14,7 @@ use light_token_sdk::{
         get_batch_compress_instruction_account_metas, BatchCompressMetaConfig, Recipient,
     },
     spl_interface::find_spl_interface_pda_with_index,
-    utils::CTokenDefaultAccounts,
+    utils::TokenDefaultAccounts,
 };
 use light_token_types::{TokenAccountMeta, SPL_TOKEN_PROGRAM_ID};
 use solana_sdk::{
@@ -165,7 +165,7 @@ async fn create_deposit_compressed_account(
     // let metas = get_transfer_instruction_account_metas(config);
     // remaining_accounts.add_pre_accounts_metas(metas);
     // Alternative even though we pass fewer account infos this is minimally more efficient.
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
     remaining_accounts.add_pre_accounts_meta(AccountMeta::new(
         default_pubkeys.compressed_token_program,
         false,
@@ -278,7 +278,7 @@ async fn update_deposit_compressed_account(
         .value;
     let mut remaining_accounts = PackedAccounts::default();
 
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
     remaining_accounts.add_pre_accounts_meta(AccountMeta::new(
         default_pubkeys.compressed_token_program,
         false,

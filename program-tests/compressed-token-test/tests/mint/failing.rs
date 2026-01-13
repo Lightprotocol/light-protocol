@@ -12,9 +12,7 @@ use light_token_client::{
 };
 use light_token_interface::state::{extensions::AdditionalMetadata, CompressedMint};
 use light_token_sdk::{
-    compressed_token::create_compressed_mint::{
-        derive_cmint_compressed_address, find_cmint_address,
-    },
+    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
     token::{CompressibleParams, CreateAssociatedTokenAccount},
 };
 use serial_test::serial;
@@ -60,10 +58,10 @@ async fn functional_and_failing_tests() {
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     // Derive compressed mint address for verification
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint PDA for the rest of the test
-    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+    let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
     // 1. Create compressed mint with both authorities
     {
         create_mint(
@@ -806,7 +804,7 @@ async fn functional_and_failing_tests() {
 }
 
 /// Test that mint_action fails when max_top_up is exceeded during MintToCToken.
-/// Creates a compressible CToken ATA with pre_pay_num_epochs = 0 (no prepaid rent),
+/// Creates a compressible Light Token ATA with pre_pay_num_epochs = 0 (no prepaid rent),
 /// which requires rent top-up on any mint write. Setting max_top_up = 1 (too low)
 /// should trigger MaxTopUpExceeded error (18043).
 #[tokio::test]
@@ -821,7 +819,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
         LIGHT_TOKEN_PROGRAM_ID,
     };
     use light_token_sdk::compressed_token::{
-        create_compressed_mint::derive_cmint_compressed_address, mint_action::MintActionMetaConfig,
+        create_compressed_mint::derive_mint_compressed_address, mint_action::MintActionMetaConfig,
     };
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
@@ -841,8 +839,8 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // 1. Create compressed mint
     light_token_client::actions::create_mint(
@@ -857,7 +855,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
     .await
     .unwrap();
 
-    // 2. Create compressible CToken ATA with pre_pay_num_epochs = 0 (NO prepaid rent)
+    // 2. Create compressible Light Token ATA with pre_pay_num_epochs = 0 (NO prepaid rent)
     let recipient = Keypair::new();
 
     let compressible_params = CompressibleParams {
@@ -1027,7 +1025,7 @@ async fn test_compress_and_close_cmint_must_be_only_action() {
     use light_compressible::rent::SLOTS_PER_EPOCH;
     use light_program_test::program_test::TestRpc;
     use light_token_client::instructions::mint_action::DecompressMintParams;
-    use light_token_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address;
+    use light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address;
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
@@ -1046,7 +1044,7 @@ async fn test_compress_and_close_cmint_must_be_only_action() {
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // 1. Create compressed mint with CMint (decompressed)
     light_token_client::actions::mint_action_comprehensive(

@@ -19,7 +19,7 @@ use light_token_sdk::{
         mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
     },
     token::CreateAssociatedTokenAccount,
-    utils::CTokenDefaultAccounts,
+    utils::TokenDefaultAccounts,
 };
 use solana_sdk::{
     instruction::Instruction,
@@ -357,7 +357,7 @@ async fn test_four_transfer2_instruction(
     initial_escrow_amount: u64,
     token_account_1: Pubkey,
 ) -> Result<(), RpcError> {
-    let default_pubkeys = CTokenDefaultAccounts::default();
+    let default_pubkeys = TokenDefaultAccounts::default();
     let mut remaining_accounts = PackedAccounts::default();
     // We don't need SPL token accounts for this test since we're using compressed tokens
     // Just add the compressed token program and CPI authority PDA

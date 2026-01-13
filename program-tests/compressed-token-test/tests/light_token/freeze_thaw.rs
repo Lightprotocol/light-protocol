@@ -1,4 +1,4 @@
-//! Tests for CToken freeze and thaw instructions
+//! Tests for Light Token freeze and thaw instructions
 //!
 //! These tests verify that freeze and thaw instructions work correctly
 //! for both basic mints and Token-2022 mints with extensions.
@@ -29,7 +29,7 @@ async fn test_freeze_thaw_with_basic_mint() -> Result<(), RpcError> {
     // 1. Create SPL Token mint with freeze_authority = payer
     let mint_pubkey = create_mint_helper(&mut rpc, &payer).await;
 
-    // 2. Create CToken account with 0 prepaid epochs (immediately compressible)
+    // 2. Create Light Token account with 0 prepaid epochs (immediately compressible)
     let token_account_keypair = Keypair::new();
     let token_account_pubkey = token_account_keypair.pubkey();
 
@@ -66,7 +66,7 @@ async fn test_freeze_thaw_with_basic_mint() -> Result<(), RpcError> {
     // Verify initial state is Initialized
     let account_data = rpc.get_account(token_account_pubkey).await?.unwrap();
     let ctoken_before =
-        Token::deserialize(&mut &account_data.data[..]).expect("Failed to deserialize CToken");
+        Token::deserialize(&mut &account_data.data[..]).expect("Failed to deserialize Light Token");
     assert_eq!(
         ctoken_before.state,
         AccountState::Initialized,
@@ -117,7 +117,7 @@ async fn test_freeze_thaw_with_extensions() -> Result<(), RpcError> {
     let mint_pubkey = context.mint_pubkey;
     let owner = Keypair::new();
 
-    // 1. Create compressible CToken account with all extensions
+    // 1. Create compressible Light Token account with all extensions
     let account_keypair = Keypair::new();
     let account_pubkey = account_keypair.pubkey();
 
@@ -157,12 +157,12 @@ async fn test_freeze_thaw_with_extensions() -> Result<(), RpcError> {
     // The exact size depends on the extensions present. Just verify it's larger than base.
     assert!(
         account_data_initial.data.len() > 165,
-        "CToken account should be larger than base size due to extensions"
+        "Light Token account should be larger than base size due to extensions"
     );
 
     // Deserialize and verify initial state
     let ctoken_initial = Token::deserialize(&mut &account_data_initial.data[..])
-        .expect("Failed to deserialize CToken");
+        .expect("Failed to deserialize Light Token");
     assert_eq!(
         ctoken_initial.state,
         AccountState::Initialized,

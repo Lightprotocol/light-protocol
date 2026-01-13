@@ -263,7 +263,7 @@ async fn test_create_ata_idempotent() {
 }
 
 /// Tests creation of an ATA with 0 prepaid epochs (immediately compressible).
-/// All CToken accounts now have compression infrastructure, so we pass
+/// All Light Token accounts now have compression infrastructure, so we pass
 /// CompressibleData with num_prepaid_epochs: 0.
 #[tokio::test]
 async fn test_create_non_compressible_ata() {

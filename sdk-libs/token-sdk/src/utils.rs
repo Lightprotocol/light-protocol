@@ -64,7 +64,7 @@ use light_token_types::{
 
 /// Standard pubkeys for compressed token instructions
 #[derive(Debug, Copy, Clone)]
-pub struct CTokenDefaultAccounts {
+pub struct TokenDefaultAccounts {
     pub light_system_program: Pubkey,
     pub registered_program_pda: Pubkey,
     pub noop_program: Pubkey,
@@ -76,7 +76,7 @@ pub struct CTokenDefaultAccounts {
     pub compressed_token_program: Pubkey,
 }
 
-impl Default for CTokenDefaultAccounts {
+impl Default for TokenDefaultAccounts {
     fn default() -> Self {
         Self {
             light_system_program: Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),

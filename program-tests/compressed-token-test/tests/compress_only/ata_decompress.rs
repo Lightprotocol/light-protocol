@@ -418,7 +418,7 @@ async fn test_ata_decompress_to_non_ata_fails() {
         .await
         .unwrap();
 
-    // Create a regular (non-ATA) CToken account with same owner
+    // Create a regular (non-ATA) Light Token account with same owner
     let regular_account_keypair = Keypair::new();
     let create_regular_ix = CreateTokenAccount::new(
         context.payer.pubkey(),
@@ -859,7 +859,7 @@ async fn test_ata_decompress_with_mismatched_amount_fails() {
     let wallet_owner_index =
         packed_accounts.insert_or_get_config(context.owner.pubkey(), true, false);
 
-    // Add CToken ATA recipient account - this is also the compressed token owner for ATAs
+    // Add Light Token ATA recipient account - this is also the compressed token owner for ATAs
     let ctoken_ata_index = packed_accounts.insert_or_get_config(context.ata_pubkey, false, true);
 
     // Create input token data with FULL amount (what merkle proof verifies)
@@ -1337,7 +1337,7 @@ async fn test_non_ata_compress_only_decompress() {
     )
     .await;
 
-    // Create regular (non-ATA) CToken account with compression_only=true
+    // Create regular (non-ATA) Light Token account with compression_only=true
     let owner = Keypair::new();
     let account_keypair = Keypair::new();
     let ctoken_account = account_keypair.pubkey();
@@ -1370,7 +1370,7 @@ async fn test_non_ata_compress_only_decompress() {
         .await
         .unwrap();
 
-    // Transfer tokens to CToken
+    // Transfer tokens to Light Token
     let has_restricted = [ExtensionType::Pausable]
         .iter()
         .any(|ext| RESTRICTED_EXTENSIONS.contains(ext));
@@ -1436,7 +1436,7 @@ async fn test_non_ata_compress_only_decompress() {
         "Non-ATA compressed account owner should be wallet owner"
     );
 
-    // Create new CToken account with SAME owner for decompress
+    // Create new Light Token account with SAME owner for decompress
     let new_account_keypair = Keypair::new();
     let create_new_ix = CreateTokenAccount::new(
         payer.pubkey(),

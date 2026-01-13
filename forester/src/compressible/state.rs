@@ -45,7 +45,7 @@ fn calculate_compressible_slot(account: &Token, lamports: u64, account_size: usi
     Ok(last_funded_epoch * SLOTS_PER_EPOCH)
 }
 
-/// Tracker for compressible CToken accounts
+/// Tracker for compressible Light Token accounts
 #[derive(Debug)]
 pub struct CompressibleAccountTracker {
     accounts: Arc<DashMap<Pubkey, CompressibleAccountState>>,
@@ -129,7 +129,7 @@ impl CompressibleAccountTracker {
                 }
             };
 
-        // Create state with full CToken account
+        // Create state with full Light Token account
         let state = CompressibleAccountState {
             pubkey,
             account: ctoken,

@@ -8,7 +8,7 @@ use light_compressed_token::instructions::create_token_pool::find_token_pool_pda
 use light_token_interface::{
     instructions::mint_action::Recipient, state::CompressedMint, LIGHT_TOKEN_PROGRAM_ID,
 };
-use light_token_sdk::compressed_token::create_compressed_mint::derive_cmint_from_spl_mint;
+use light_token_sdk::compressed_token::create_compressed_mint::derive_mint_from_spl_mint;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
 pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
@@ -21,7 +21,7 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
 ) -> Vec<CompressedTokenAccount> {
     // Derive compressed mint address from SPL mint PDA (same as instruction)
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-    let compressed_mint_address = derive_cmint_from_spl_mint(&spl_mint_pda, &address_tree_pubkey);
+    let compressed_mint_address = derive_mint_from_spl_mint(&spl_mint_pda, &address_tree_pubkey);
     // Verify each recipient received their tokens
     let mut all_token_accounts = Vec::new();
     let mut total_minted = 0u64;

@@ -30,7 +30,7 @@ pub use create_token_account::{
     CreateTokenAccountData,
 };
 pub use ctoken_mint_to::{
-    process_ctoken_mint_to_invoke, process_ctoken_mint_to_invoke_signed, MintToData,
+    process_mint_to_invoke, process_mint_to_invoke_signed, MintToData,
 };
 pub use decompress_cmint::{process_decompress_cmint_invoke_signed, DecompressCmintData};
 pub use freeze::{process_freeze_invoke, process_freeze_invoke_signed};
@@ -78,9 +78,9 @@ pub enum InstructionType {
     CreateAtaInvoke = 4,
     /// Create compressible associated token account with PDA ownership (invoke_signed)
     CreateAtaInvokeSigned = 5,
-    /// Transfer compressed tokens CToken->CToken (invoke)
+    /// Transfer compressed tokens Light Token->Light Token (invoke)
     CTokenTransferInvoke = 6,
-    /// Transfer compressed tokens CToken->CToken from PDA-owned account (invoke_signed)
+    /// Transfer compressed tokens Light Token->Light Token from PDA-owned account (invoke_signed)
     CTokenTransferInvokeSigned = 7,
     /// Close compressed token account (invoke)
     CloseAccountInvoke = 8,
@@ -94,41 +94,41 @@ pub enum InstructionType {
     CreateCmintInvokeSigned = 12,
     /// Create a compressed mint with PDA mint signer AND PDA authority (invoke_signed)
     CreateCmintWithPdaAuthority = 14,
-    /// Transfer SPL tokens to CToken account (invoke)
+    /// Transfer SPL tokens to Light Token account (invoke)
     SplToCtokenInvoke = 15,
-    /// Transfer SPL tokens to CToken account with PDA authority (invoke_signed)
+    /// Transfer SPL tokens to Light Token account with PDA authority (invoke_signed)
     SplToCtokenInvokeSigned = 16,
-    /// Transfer CToken to SPL token account (invoke)
+    /// Transfer Light Token to SPL token account (invoke)
     CtokenToSplInvoke = 17,
-    /// Transfer CToken to SPL token account with PDA authority (invoke_signed)
+    /// Transfer Light Token to SPL token account with PDA authority (invoke_signed)
     CtokenToSplInvokeSigned = 18,
     /// Unified transfer interface - auto-detects account types (invoke)
     TransferInterfaceInvoke = 19,
     /// Unified transfer interface with PDA authority (invoke_signed)
     TransferInterfaceInvokeSigned = 20,
-    /// Approve delegate for CToken account (invoke)
+    /// Approve delegate for Light Token account (invoke)
     ApproveInvoke = 21,
-    /// Approve delegate for PDA-owned CToken account (invoke_signed)
+    /// Approve delegate for PDA-owned Light Token account (invoke_signed)
     ApproveInvokeSigned = 22,
-    /// Revoke delegation for CToken account (invoke)
+    /// Revoke delegation for Light Token account (invoke)
     RevokeInvoke = 23,
-    /// Revoke delegation for PDA-owned CToken account (invoke_signed)
+    /// Revoke delegation for PDA-owned Light Token account (invoke_signed)
     RevokeInvokeSigned = 24,
-    /// Freeze CToken account (invoke)
+    /// Freeze Light Token account (invoke)
     FreezeInvoke = 25,
-    /// Freeze CToken account with PDA freeze authority (invoke_signed)
+    /// Freeze Light Token account with PDA freeze authority (invoke_signed)
     FreezeInvokeSigned = 26,
-    /// Thaw frozen CToken account (invoke)
+    /// Thaw frozen Light Token account (invoke)
     ThawInvoke = 27,
-    /// Thaw frozen CToken account with PDA freeze authority (invoke_signed)
+    /// Thaw frozen Light Token account with PDA freeze authority (invoke_signed)
     ThawInvokeSigned = 28,
     /// Burn CTokens (invoke)
     BurnInvoke = 29,
     /// Burn CTokens with PDA authority (invoke_signed)
     BurnInvokeSigned = 30,
-    /// Mint to CToken from decompressed CMint (invoke)
+    /// Mint to Light Token from decompressed CMint (invoke)
     CTokenMintToInvoke = 31,
-    /// Mint to CToken from decompressed CMint with PDA authority (invoke_signed)
+    /// Mint to Light Token from decompressed CMint with PDA authority (invoke_signed)
     CTokenMintToInvokeSigned = 32,
     /// Decompress CMint with PDA authority (invoke_signed)
     DecompressCmintInvokeSigned = 33,
@@ -307,12 +307,12 @@ pub fn process_instruction(
         InstructionType::CTokenMintToInvoke => {
             let data = MintToData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
-            process_ctoken_mint_to_invoke(accounts, data.amount)
+            process_mint_to_invoke(accounts, data.amount)
         }
         InstructionType::CTokenMintToInvokeSigned => {
             let data = MintToData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
-            process_ctoken_mint_to_invoke_signed(accounts, data.amount)
+            process_mint_to_invoke_signed(accounts, data.amount)
         }
         InstructionType::DecompressCmintInvokeSigned => {
             let data = DecompressCmintData::try_from_slice(&instruction_data[1..])

@@ -74,7 +74,7 @@ async fn test_setup_mint_22_with_all_extensions() {
     );
 }
 
-/// Test minting SPL tokens and transferring to CToken using hot path with a Token 2022 mint with all extensions.
+/// Test minting SPL tokens and transferring to Light Token using hot path with a Token 2022 mint with all extensions.
 /// Mints with restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook) require hot path.
 #[tokio::test]
 #[serial]
@@ -108,7 +108,7 @@ async fn test_mint_and_compress_with_extensions() {
 
     println!("Minted {} tokens to {}", mint_amount, spl_account);
 
-    // 3. Create CToken account with extensions (destination for hot path transfer)
+    // 3. Create Light Token account with extensions (destination for hot path transfer)
     let owner = Keypair::new();
     let account_keypair = Keypair::new();
     let create_ix = CreateTokenAccount::new(
@@ -142,9 +142,9 @@ async fn test_mint_and_compress_with_extensions() {
         .await
         .unwrap();
 
-    println!("Created CToken account: {}", account_keypair.pubkey());
+    println!("Created Light Token account: {}", account_keypair.pubkey());
 
-    // 4. Transfer SPL to CToken using hot path (compress + decompress in same tx)
+    // 4. Transfer SPL to Light Token using hot path (compress + decompress in same tx)
     let transfer_amount = 500_000_000u64; // Transfer half
                                           // Use restricted=true because this mint has restricted extensions (PermanentDelegate, etc.)
     let (spl_interface_pda, spl_interface_pda_bump) =
@@ -170,7 +170,7 @@ async fn test_mint_and_compress_with_extensions() {
         .await
         .unwrap();
 
-    // Verify CToken account has the tokens
+    // Verify Light Token account has the tokens
     let ctoken_account_data = context
         .rpc
         .get_account(account_keypair.pubkey())
@@ -184,17 +184,17 @@ async fn test_mint_and_compress_with_extensions() {
     assert_eq!(
         u64::from(ctoken_account.amount),
         transfer_amount,
-        "CToken account should have {} tokens",
+        "Light Token account should have {} tokens",
         transfer_amount
     );
 
     println!(
-        "Successfully transferred {} tokens from SPL to CToken using hot path",
+        "Successfully transferred {} tokens from SPL to Light Token using hot path",
         transfer_amount
     );
 }
 
-/// Test creating a CToken account for a Token-2022 mint with permanent delegate extension
+/// Test creating a Light Token account for a Token-2022 mint with permanent delegate extension
 /// Verifies that the account gets all extensions: compressible, pausable, permanent_delegate, transfer_fee, transfer_hook
 #[tokio::test]
 #[serial]
@@ -209,7 +209,7 @@ async fn test_create_ctoken_with_extensions() {
     let payer = context.payer.insecure_clone();
     let mint_pubkey = context.mint_pubkey;
 
-    // Create a compressible CToken account for the Token-2022 mint
+    // Create a compressible Light Token account for the Token-2022 mint
     let account_keypair = Keypair::new();
     let account_pubkey = account_keypair.pubkey();
 
@@ -275,10 +275,10 @@ async fn test_create_ctoken_with_extensions() {
     )
     .await;
 
-    println!("Successfully created CToken account with all extensions from Token-2022 mint");
+    println!("Successfully created Light Token account with all extensions from Token-2022 mint");
 }
 
-/// Test complete flow: Create Token-2022 mint -> SPL account -> Mint -> Create CToken accounts -> Transfer SPL to CToken (hot path) -> Transfer with permanent delegate
+/// Test complete flow: Create Token-2022 mint -> SPL account -> Mint -> Create Light Token accounts -> Transfer SPL to Light Token (hot path) -> Transfer with permanent delegate
 #[tokio::test]
 #[serial]
 async fn test_transfer_with_permanent_delegate() {
@@ -310,7 +310,7 @@ async fn test_transfer_with_permanent_delegate() {
     )
     .await;
 
-    // Step 2: Create two compressible CToken accounts (A and B) - must be created before transfer
+    // Step 2: Create two compressible Light Token accounts (A and B) - must be created before transfer
     let owner = Keypair::new();
     let account_a_keypair = Keypair::new();
     let account_a_pubkey = account_a_keypair.pubkey();
@@ -390,7 +390,7 @@ async fn test_transfer_with_permanent_delegate() {
         .await
         .unwrap();
 
-    // Step 3: Transfer SPL to CToken account A using hot path (compress + decompress in same tx)
+    // Step 3: Transfer SPL to Light Token account A using hot path (compress + decompress in same tx)
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 
@@ -477,7 +477,7 @@ async fn test_transfer_with_permanent_delegate() {
 // test_create_ctoken_with_frozen_default_state moved to compress_only/default_state.rs
 
 /// Test complete flow with owner as transfer authority:
-/// Create mint -> Create CToken accounts -> Transfer SPL to CToken (hot path) -> Transfer using owner
+/// Create mint -> Create Light Token accounts -> Transfer SPL to Light Token (hot path) -> Transfer using owner
 /// Verifies that transfer works with owner authority and all extensions are preserved
 #[tokio::test]
 #[serial]
@@ -510,7 +510,7 @@ async fn test_transfer_with_owner_authority() {
     )
     .await;
 
-    // Step 2: Create two compressible CToken accounts (A and B) with all extensions
+    // Step 2: Create two compressible Light Token accounts (A and B) with all extensions
     let owner = Keypair::new();
     context
         .rpc
@@ -618,7 +618,7 @@ async fn test_transfer_with_owner_authority() {
         "Account B should be larger than base size due to extensions"
     );
 
-    // Step 3: Transfer SPL to CToken account A using hot path (compress + decompress in same tx)
+    // Step 3: Transfer SPL to Light Token account A using hot path (compress + decompress in same tx)
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
 

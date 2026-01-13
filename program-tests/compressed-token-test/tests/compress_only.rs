@@ -1,6 +1,6 @@
 //! Integration tests for compress_only extension behavior.
 //!
-//! Tests for compression and decompression of CToken accounts with Token-2022 extensions.
+//! Tests for compression and decompression of Light Token accounts with Token-2022 extensions.
 //! These tests verify the compress_only mode behavior for restricted extensions.
 //!
 //! ## Test Coverage (see .claude/test-coverage/transfer2-compress-and-close-tests.md)
@@ -97,7 +97,7 @@ mod invalid_destination;
 mod invalid_extension_state;
 
 // Failing tests for CompressedOnly decompress restrictions
-// - Cannot decompress to SPL Token-2022 account (must use CToken)
+// - Cannot decompress to SPL Token-2022 account (must use Light Token)
 // - Cannot do partial decompress (would create change output)
 #[path = "compress_only/decompress_restrictions.rs"]
 mod decompress_restrictions;

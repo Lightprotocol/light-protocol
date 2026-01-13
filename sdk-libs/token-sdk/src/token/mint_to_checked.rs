@@ -25,7 +25,7 @@ use solana_pubkey::Pubkey;
 pub struct MintToChecked {
     /// CMint account (supply tracking)
     pub cmint: Pubkey,
-    /// Destination CToken account to mint to
+    /// Destination Light Token account to mint to
     pub destination: Pubkey,
     /// Amount of tokens to mint
     pub amount: u64,

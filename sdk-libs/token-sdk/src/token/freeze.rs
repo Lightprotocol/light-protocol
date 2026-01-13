@@ -5,7 +5,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-/// # Freeze a CToken account:
+/// # Freeze a Light Token account:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
 /// # use light_token_sdk::token::Freeze;
@@ -20,7 +20,7 @@ use solana_pubkey::Pubkey;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
 pub struct Freeze {
-    /// CToken account to freeze
+    /// Light Token account to freeze
     pub token_account: Pubkey,
     /// Mint of the token account
     pub mint: Pubkey,
@@ -28,7 +28,7 @@ pub struct Freeze {
     pub freeze_authority: Pubkey,
 }
 
-/// # Freeze CToken via CPI:
+/// # Freeze Light Token via CPI:
 /// ```rust,no_run
 /// # use light_token_sdk::token::FreezeCpi;
 /// # use solana_account_info::AccountInfo;

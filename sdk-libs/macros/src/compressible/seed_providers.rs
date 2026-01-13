@@ -1,4 +1,4 @@
-//! Seed provider generation for PDA and CToken accounts.
+//! Seed provider generation for PDA and Light Token accounts.
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};

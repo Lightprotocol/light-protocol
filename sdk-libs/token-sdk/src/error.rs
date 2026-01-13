@@ -71,7 +71,7 @@ pub enum TokenSdkError {
     InvalidCpiContext,
     #[error("No input accounts provided")]
     NoInputAccounts,
-    #[error("Missing Compressible extension on CToken account")]
+    #[error("Missing Compressible extension on Light Token account")]
     MissingCompressibleExtension,
     #[error("Invalid Token account data")]
     InvalidTokenAccount,

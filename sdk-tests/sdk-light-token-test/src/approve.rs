@@ -10,7 +10,7 @@ pub struct ApproveData {
     pub amount: u64,
 }
 
-/// Handler for approving a delegate for a CToken account (invoke)
+/// Handler for approving a delegate for a Light Token account (invoke)
 ///
 /// Account order:
 /// - accounts[0]: token_account (writable)
@@ -38,7 +38,7 @@ pub fn process_approve_invoke(
     Ok(())
 }
 
-/// Handler for approving a delegate for a PDA-owned CToken account (invoke_signed)
+/// Handler for approving a delegate for a PDA-owned Light Token account (invoke_signed)
 ///
 /// Account order:
 /// - accounts[0]: token_account (writable)

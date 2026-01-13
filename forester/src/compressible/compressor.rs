@@ -134,7 +134,7 @@ impl<R: Rpc> Compressor<R> {
                     })
                 })
                 .ok_or_else(|| {
-                    anyhow::anyhow!("Missing Compressible extension on CToken account")
+                    anyhow::anyhow!("Missing Compressible extension on Light Token account")
                 })?;
 
             // Determine owner based on compress_to_pubkey flag

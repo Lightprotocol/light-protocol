@@ -5,7 +5,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-/// # Approve a delegate for a CToken account:
+/// # Approve a delegate for a Light Token account:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
 /// # use light_token_sdk::token::Approve;
@@ -21,17 +21,17 @@ use solana_pubkey::Pubkey;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
 pub struct Approve {
-    /// CToken account to approve delegation for
+    /// Light Token account to approve delegation for
     pub token_account: Pubkey,
     /// Delegate to approve
     pub delegate: Pubkey,
-    /// Owner of the CToken account (signer, payer for top-up)
+    /// Owner of the Light Token account (signer, payer for top-up)
     pub owner: Pubkey,
     /// Amount of tokens to delegate
     pub amount: u64,
 }
 
-/// # Approve CToken via CPI:
+/// # Approve Light Token via CPI:
 /// ```rust,no_run
 /// # use light_token_sdk::token::ApproveCpi;
 /// # use solana_account_info::AccountInfo;

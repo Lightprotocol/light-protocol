@@ -53,7 +53,7 @@
 //! | Transfer (auto-detect) | - | [`TransferInterfaceCpi`](token::TransferInterfaceCpi) |
 //! | Decompress to cToken account | [`DecompressToCtoken`](token::DecompressToCtoken) | - |
 //! | Close cToken account | [`CloseCTokenAccount`](token::CloseCTokenAccount) | [`CloseCTokenAccountCpi`](token::CloseCTokenAccountCpi) |
-//! | Create cMint | [`CreateCMint`](token::CreateCMint) | [`CreateCMintCpi`](token::CreateCMintCpi) |
+//! | Create cMint | [`CreateMint`](token::CreateMint) | [`CreateCMintCpi`](token::CreateCMintCpi) |
 //! | MintTo cToken account from cMint | [`MintToCToken`](token::MintToCToken) | [`MintToCTokenCpi`](token::MintToCTokenCpi) |
 //!
 //!

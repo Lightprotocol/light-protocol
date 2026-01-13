@@ -1,6 +1,6 @@
 //! Tests for compression_only requirement with restricted extensions.
 //!
-//! These tests verify that CToken accounts cannot be created without compression_only
+//! These tests verify that Light Token accounts cannot be created without compression_only
 //! when the mint has restricted extensions (Pausable, PermanentDelegate, TransferFeeConfig,
 //! TransferHook, DefaultAccountState).
 
@@ -17,7 +17,7 @@ use spl_token_2022::extension::ExtensionType;
 /// Expected error code for CompressionOnlyRequired
 const COMPRESSION_ONLY_REQUIRED: u32 = 6131;
 
-/// Helper to test that creating a CToken account without compression_only fails
+/// Helper to test that creating a Light Token account without compression_only fails
 /// when the mint has the specified extensions.
 async fn test_compression_only_required_for_extensions(extensions: &[ExtensionType]) {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
@@ -30,7 +30,7 @@ async fn test_compression_only_required_for_extensions(extensions: &[ExtensionTy
         create_mint_22_with_extension_types(&mut rpc, &payer, 9, extensions).await;
     let mint_pubkey = mint_keypair.pubkey();
 
-    // Try to create CToken account WITHOUT compression_only (should fail)
+    // Try to create Light Token account WITHOUT compression_only (should fail)
     let token_account_keypair = Keypair::new();
     let token_account_pubkey = token_account_keypair.pubkey();
 
