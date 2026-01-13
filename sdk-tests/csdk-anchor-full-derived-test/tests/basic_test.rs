@@ -24,10 +24,6 @@ use light_sdk::{
     instruction::{PackedAccounts, SystemAccountMetaConfig},
 };
 use light_sdk_types::C_TOKEN_PROGRAM_ID;
-use light_token_client::{
-    actions::mint_action,
-    instructions::mint_action::{MintActionParams, MintActionType},
-};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -771,46 +767,18 @@ async fn test_create_pdas_and_mint_auto() {
     );
     println!("  - User ATA CToken auto-compressed (closed on-chain)");
 
-    // CMint doesn't auto-compress - needs explicit CompressAndCloseCMint action
-    // Use mint_action (lower-level) with the correct compressed_mint_address derived from mint_signer_pda
-    let cmint_before_compress = rpc.get_account(cmint_pda).await.unwrap();
-    assert!(
-        cmint_before_compress.is_some(),
-        "CMint should exist on-chain before compression"
-    );
-    println!("  - CMint on-chain, compressing via CompressAndCloseCMint...");
-
-    // CompressAndCloseCMint is permissionless - no mint_signer needed
-    // Just need correct compressed_mint_address (derived from mint_signer_pda, not a random keypair)
-    mint_action(
-        &mut rpc,
-        MintActionParams {
-            compressed_mint_address: mint_compressed_address,
-            mint_seed: mint_signer_pda, // Just for reference, NOT signing
-            authority: mint_authority.pubkey(),
-            payer: payer.pubkey(),
-            actions: vec![MintActionType::CompressAndCloseCMint { idempotent: false }],
-            new_mint: None,
-        },
-        &mint_authority,
-        &payer,
-        None, // No mint_signer needed for CompressAndCloseCMint
-    )
-    .await
-    .expect("CMint compress and close should succeed");
-
-    // Verify CMint is now closed
-    let cmint_after_compress = rpc.get_account(cmint_pda).await.unwrap();
-    let cmint_closed = cmint_after_compress.is_none()
-        || cmint_after_compress
+    // CMint auto-compression is now handled by warp_slot_forward via compress_cmint_forester
+    let cmint_after_warp = rpc.get_account(cmint_pda).await.unwrap();
+    let cmint_closed = cmint_after_warp.is_none()
+        || cmint_after_warp
             .as_ref()
             .map(|a| a.lamports == 0)
             .unwrap_or(true);
     assert!(
         cmint_closed,
-        "CMint should be closed after CompressAndCloseCMint"
+        "CMint should be auto-compressed (closed) after epoch warp"
     );
-    println!("  - CMint compressed and closed on-chain");
+    println!("  - CMint auto-compressed (closed on-chain)");
 
     // PDAs were already compressed in Phase 1
     println!("  - UserRecord PDA was already compressed in Phase 1");
@@ -858,10 +826,10 @@ async fn test_create_pdas_and_mint_auto() {
         user_ata_mint_amount
     );
 
-    println!("\nSUCCESS: ALL accounts compressed after epoch warp!");
-    println!("  - Vault: on-chain -> compressed (auto)");
-    println!("  - User ATA: on-chain -> compressed (auto)");
-    println!("  - CMint: on-chain -> compressed (explicit CompressAndCloseCMint)");
+    println!("\nSUCCESS: ALL accounts auto-compressed after epoch warp!");
+    println!("  - Vault CToken: auto-compressed");
+    println!("  - User ATA CToken: auto-compressed");
+    println!("  - CMint: auto-compressed");
     println!("  - PDAs: already compressed from creation");
 }
 
