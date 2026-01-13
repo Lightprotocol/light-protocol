@@ -29,7 +29,7 @@ use light_test_utils::{
 };
 use light_token_client::{
     actions::{
-        create_compressible_token_account, mint_action_comprehensive, transfer_token,
+        create_compressible_token_account, mint_action_comprehensive, transfer,
         CreateCompressibleTokenAccountInputs,
     },
     instructions::mint_action::{DecompressMintParams, NewMint},
@@ -1439,7 +1439,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
         };
 
         // Transfer all tokens from source to dest
-        transfer_token(
+        transfer(
             &mut rpc,
             source,
             dest,

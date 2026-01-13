@@ -88,11 +88,11 @@ mod mint_to;
 mod mint_to_checked;
 mod revoke;
 mod thaw;
+mod transfer;
+mod transfer_checked;
+mod transfer_from_spl;
 mod transfer_interface;
-mod transfer_spl_to_token;
-mod transfer_token;
-mod transfer_token_checked;
-mod transfer_token_to_spl;
+mod transfer_to_spl;
 
 pub use approve::*;
 pub use approve_checked::*;
@@ -121,11 +121,11 @@ pub use revoke::{Revoke, RevokeCpi};
 use solana_account_info::AccountInfo;
 use solana_pubkey::{pubkey, Pubkey};
 pub use thaw::{Thaw, ThawCpi};
+pub use transfer::*;
+pub use transfer_checked::*;
+pub use transfer_from_spl::{TransferFromSpl, TransferFromSplCpi};
 pub use transfer_interface::{SplInterface, TransferInterfaceCpi};
-pub use transfer_spl_to_token::{TransferFromSpl, TransferFromSplCpi};
-pub use transfer_token::*;
-pub use transfer_token_checked::*;
-pub use transfer_token_to_spl::{TransferToSpl, TransferToSplCpi};
+pub use transfer_to_spl::{TransferToSpl, TransferToSplCpi};
 
 /// System accounts required for CPI operations to Light Protocol.
 ///

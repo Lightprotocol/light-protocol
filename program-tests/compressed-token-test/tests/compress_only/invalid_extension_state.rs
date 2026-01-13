@@ -300,7 +300,7 @@ async fn setup_ctoken_for_bypass_test(
         spl_interface_pda_bump,
         decimals: 9,
         source_spl_token_account: spl_account,
-        destination_ctoken_account: ctoken_account,
+        destination: ctoken_account,
         authority: payer.pubkey(),
         mint: mint_pubkey,
         payer: payer.pubkey(),
@@ -349,7 +349,7 @@ async fn test_ctoken_to_spl_bypasses_non_zero_fee() {
         sdk_find_spl_interface_pda(&mint_pubkey, 0, true);
 
     let transfer_ix = TransferToSpl {
-        source_ctoken_account: ctoken_account,
+        source: ctoken_account,
         destination_spl_token_account: spl_dest,
         amount: 100_000_000,
         authority: owner.pubkey(),

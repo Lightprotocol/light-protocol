@@ -137,7 +137,7 @@ async fn test_transfer_requires_checked_for_restricted_extensions() {
         amount: mint_amount,
         spl_interface_pda_bump,
         source_spl_token_account: spl_account,
-        destination_ctoken_account: account_a_pubkey,
+        destination: account_a_pubkey,
         authority: payer.pubkey(),
         mint: mint_pubkey,
         payer: payer.pubkey(),

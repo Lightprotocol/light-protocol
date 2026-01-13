@@ -84,7 +84,7 @@ async fn test_roundtrip_withheld_transfer_fee_preserved() -> Result<(), RpcError
         spl_interface_pda_bump,
         decimals: 9,
         source_spl_token_account: spl_account,
-        destination_ctoken_account: ctoken_account,
+        destination: ctoken_account,
         authority: payer.pubkey(),
         mint: mint_pubkey,
         payer: payer.pubkey(),

@@ -92,9 +92,9 @@ async fn test_spl_to_ctoken_transfer() {
     let initial_spl_balance: u64 = spl_account.amount.into();
     assert_eq!(initial_spl_balance, amount);
 
-    // Use the new spl_to_ctoken_transfer action from light-token-client
+    // Use the new spl_to_light_token_transfer action from light-token-client
     // Note: create_mint_helper creates mints with 2 decimals
-    transfer2::spl_to_ctoken_transfer(
+    transfer2::spl_to_light_token_transfer(
         &mut rpc,
         spl_token_account_keypair.pubkey(),
         associated_token_account,
@@ -146,7 +146,7 @@ async fn test_spl_to_ctoken_transfer() {
     println!("Testing reverse transfer: ctoken to SPL");
 
     // Transfer from recipient's compressed token account back to sender's SPL token account
-    transfer2::transfer_ctoken_to_spl(
+    transfer2::transfer_light_token_to_spl(
         &mut rpc,
         associated_token_account,
         spl_token_account_keypair.pubkey(),
@@ -261,7 +261,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         .unwrap();
 
     // Transfer SPL to Light Token
-    transfer2::spl_to_ctoken_transfer(
+    transfer2::spl_to_light_token_transfer(
         &mut rpc,
         spl_token_account_keypair.pubkey(),
         associated_token_account,
@@ -301,7 +301,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         find_spl_interface_pda_with_index(&mint, 0, false);
 
     let transfer_ix = CtokenToSplTransferAndClose {
-        source_ctoken_account: associated_token_account,
+        source: associated_token_account,
         destination_spl_token_account: spl_token_account_keypair.pubkey(),
         amount: transfer_amount,
         authority: recipient.pubkey(),
@@ -323,7 +323,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
 }
 
 pub struct CtokenToSplTransferAndClose {
-    pub source_ctoken_account: Pubkey,
+    pub source: Pubkey,
     pub destination_spl_token_account: Pubkey,
     pub amount: u64,
     pub authority: Pubkey,
@@ -341,7 +341,7 @@ impl CtokenToSplTransferAndClose {
             // Mint (index 0)
             AccountMeta::new_readonly(self.mint, false),
             // Source ctoken account (index 1) - writable
-            AccountMeta::new(self.source_ctoken_account, false),
+            AccountMeta::new(self.source, false),
             // Destination SPL token account (index 2) - writable
             AccountMeta::new(self.destination_spl_token_account, false),
             // Authority (index 3) - signer

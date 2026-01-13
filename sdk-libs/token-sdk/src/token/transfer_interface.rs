@@ -2,8 +2,7 @@ use solana_account_info::AccountInfo;
 use solana_program_error::ProgramError;
 
 use super::{
-    transfer_spl_to_token::TransferFromSplCpi, transfer_token::TransferCpi,
-    transfer_token_to_spl::TransferToSplCpi,
+    transfer::TransferCpi, transfer_from_spl::TransferFromSplCpi, transfer_to_spl::TransferToSplCpi,
 };
 use crate::{error::TokenSdkError, utils::is_token_account};
 
@@ -101,12 +100,12 @@ impl<'info> TransferInterfaceCpi<'info> {
     /// * `UseRegularSplTransfer` - If both source and destination are SPL accounts
     /// * `CannotDetermineAccountType` - If account type cannot be determined
     pub fn invoke(self) -> Result<(), ProgramError> {
-        let source_is_ctoken = is_token_account(&self.source_account)
+        let source_is_light_token = is_token_account(&self.source_account)
             .map_err(|_| ProgramError::Custom(TokenSdkError::CannotDetermineAccountType.into()))?;
-        let dest_is_ctoken = is_token_account(&self.destination_account)
+        let dest_is_light_token = is_token_account(&self.destination_account)
             .map_err(|_| ProgramError::Custom(TokenSdkError::CannotDetermineAccountType.into()))?;
 
-        match (source_is_ctoken, dest_is_ctoken) {
+        match (source_is_light_token, dest_is_light_token) {
             (true, true) => TransferCpi {
                 source: self.source_account.clone(),
                 destination: self.destination_account.clone(),
@@ -122,7 +121,7 @@ impl<'info> TransferInterfaceCpi<'info> {
                 })?;
 
                 TransferToSplCpi {
-                    source_ctoken_account: self.source_account.clone(),
+                    source: self.source_account.clone(),
                     destination_spl_token_account: self.destination_account.clone(),
                     amount: self.amount,
                     authority: self.authority.clone(),
@@ -146,7 +145,7 @@ impl<'info> TransferInterfaceCpi<'info> {
 
                 TransferFromSplCpi {
                     source_spl_token_account: self.source_account.clone(),
-                    destination_ctoken_account: self.destination_account.clone(),
+                    destination: self.destination_account.clone(),
                     amount: self.amount,
                     authority: self.authority.clone(),
                     mint: config.mint.clone(),
@@ -174,12 +173,12 @@ impl<'info> TransferInterfaceCpi<'info> {
     /// * `UseRegularSplTransfer` - If both source and destination are SPL accounts
     /// * `CannotDetermineAccountType` - If account type cannot be determined
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
-        let source_is_ctoken = is_token_account(&self.source_account)
+        let source_is_light_token = is_token_account(&self.source_account)
             .map_err(|_| ProgramError::Custom(TokenSdkError::CannotDetermineAccountType.into()))?;
-        let dest_is_ctoken = is_token_account(&self.destination_account)
+        let dest_is_light_token = is_token_account(&self.destination_account)
             .map_err(|_| ProgramError::Custom(TokenSdkError::CannotDetermineAccountType.into()))?;
 
-        match (source_is_ctoken, dest_is_ctoken) {
+        match (source_is_light_token, dest_is_light_token) {
             (true, true) => TransferCpi {
                 source: self.source_account.clone(),
                 destination: self.destination_account.clone(),
@@ -195,7 +194,7 @@ impl<'info> TransferInterfaceCpi<'info> {
                 })?;
 
                 TransferToSplCpi {
-                    source_ctoken_account: self.source_account.clone(),
+                    source: self.source_account.clone(),
                     destination_spl_token_account: self.destination_account.clone(),
                     amount: self.amount,
                     authority: self.authority.clone(),
@@ -219,7 +218,7 @@ impl<'info> TransferInterfaceCpi<'info> {
 
                 TransferFromSplCpi {
                     source_spl_token_account: self.source_account.clone(),
-                    destination_ctoken_account: self.destination_account.clone(),
+                    destination: self.destination_account.clone(),
                     amount: self.amount,
                     authority: self.authority.clone(),
                     mint: config.mint.clone(),

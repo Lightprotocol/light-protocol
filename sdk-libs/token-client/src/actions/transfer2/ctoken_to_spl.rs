@@ -12,9 +12,9 @@ use solana_signer::Signer;
 
 /// Transfer tokens from a compressed token account to an SPL token account
 #[allow(clippy::too_many_arguments)]
-pub async fn transfer_ctoken_to_spl<R: Rpc + Indexer>(
+pub async fn transfer_light_token_to_spl<R: Rpc + Indexer>(
     rpc: &mut R,
-    source_ctoken_account: Pubkey,
+    source: Pubkey,
     destination_spl_token_account: Pubkey,
     amount: u64,
     authority: &Keypair,
@@ -25,7 +25,7 @@ pub async fn transfer_ctoken_to_spl<R: Rpc + Indexer>(
     let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda(&mint, false);
 
     let transfer_ix = TransferToSpl {
-        source_ctoken_account,
+        source,
         destination_spl_token_account,
         amount,
         authority: authority.pubkey(),

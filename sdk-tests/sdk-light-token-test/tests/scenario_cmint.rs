@@ -243,7 +243,7 @@ async fn test_cmint_to_ctoken_scenario() {
         queue: account_proof.tree_info.queue,
         leaf_index: account_proof.leaf_index as u32,
         root_index: account_proof.root_index.root_index().unwrap_or(0),
-        destination_ctoken_account: ctoken_ata2,
+        destination: ctoken_ata2,
         payer: payer.pubkey(),
         signer: owner2.pubkey(), // Wallet owner is the signer for ATA decompress
         validity_proof: rpc_result.proof,

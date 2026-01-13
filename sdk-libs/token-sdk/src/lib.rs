@@ -45,16 +45,16 @@
 //!
 //! | Operation | Instruction Builder | CPI Builder |
 //! |-----------|----------------|-------------|
-//! | Create Associated cToken Account | [`CreateAssociatedTokenAccount`](token::CreateAssociatedTokenAccount) | [`CreateAssociatedCTokenAccountCpi`](token::CreateAssociatedCTokenAccountCpi) |
-//! | Create cToken Account | [`CreateTokenAccount`](token::CreateTokenAccount) | [`CreateTokenAccountCpi`](token::CreateTokenAccountCpi) |
-//! | Transfer cToken | [`Transfer`](token::Transfer) | [`TransferCTokenCpi`](token::TransferCTokenCpi) |
-//! | Transfer cToken → SPL | [`TransferToSpl`](token::TransferToSpl) | [`TransferToSplCpi`](token::TransferToSplCpi) |
-//! | Transfer SPL → cToken | [`TransferFromSpl`](token::TransferFromSpl) | [`TransferFromSplCpi`](token::TransferFromSplCpi) |
+//! | Create Associated Token Account | [`CreateAssociatedTokenAccount`](token::CreateAssociatedTokenAccount) | [`CreateAssociatedAccountCpi`](token::CreateAssociatedAccountCpi) |
+//! | Create Token Account | [`CreateTokenAccount`](token::CreateTokenAccount) | [`CreateTokenAccountCpi`](token::CreateTokenAccountCpi) |
+//! | Transfer | [`Transfer`](token::Transfer) | [`TransferCpi`](token::TransferCpi) |
+//! | Transfer to SPL | [`TransferToSpl`](token::TransferToSpl) | [`TransferToSplCpi`](token::TransferToSplCpi) |
+//! | Transfer from SPL | [`TransferFromSpl`](token::TransferFromSpl) | [`TransferFromSplCpi`](token::TransferFromSplCpi) |
 //! | Transfer (auto-detect) | - | [`TransferInterfaceCpi`](token::TransferInterfaceCpi) |
-//! | Decompress to cToken account | [`DecompressToCtoken`](token::DecompressToCtoken) | - |
-//! | Close cToken account | [`CloseCTokenAccount`](token::CloseCTokenAccount) | [`CloseCTokenAccountCpi`](token::CloseCTokenAccountCpi) |
-//! | Create cMint | [`CreateMint`](token::CreateMint) | [`CreateCMintCpi`](token::CreateCMintCpi) |
-//! | MintTo cToken account from cMint | [`MintToCToken`](token::MintToCToken) | [`MintToCTokenCpi`](token::MintToCTokenCpi) |
+//! | Decompress to Token account | [`Decompress`](token::Decompress) | - |
+//! | Close Token account | [`CloseAccount`](token::CloseAccount) | [`CloseAccountCpi`](token::CloseAccountCpi) |
+//! | Create Mint | [`CreateMint`](token::CreateMint) | [`CreateMintCpi`](token::CreateMintCpi) |
+//! | MintTo | [`MintTo`](token::MintTo) | [`MintToCpi`](token::MintToCpi) |
 //!
 //!
 //! # Disclaimer

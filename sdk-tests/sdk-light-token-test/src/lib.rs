@@ -29,9 +29,7 @@ pub use create_token_account::{
     process_create_token_account_invoke, process_create_token_account_invoke_signed,
     CreateTokenAccountData,
 };
-pub use ctoken_mint_to::{
-    process_mint_to_invoke, process_mint_to_invoke_signed, MintToData,
-};
+pub use ctoken_mint_to::{process_mint_to_invoke, process_mint_to_invoke_signed, MintToData};
 pub use decompress_cmint::{process_decompress_cmint_invoke_signed, DecompressCmintData};
 pub use freeze::{process_freeze_invoke, process_freeze_invoke_signed};
 pub use revoke::{process_revoke_invoke, process_revoke_invoke_signed};

@@ -19,7 +19,7 @@ const SYSTEM_PROGRAM_ID: [u8; 32] = [0u8; 32];
 ///
 /// # Returns
 /// `Result<Signature, RpcError>` - The transaction signature
-pub async fn transfer_token<R: Rpc>(
+pub async fn transfer<R: Rpc>(
     rpc: &mut R,
     source: Pubkey,
     destination: Pubkey,

@@ -40,12 +40,12 @@ pub fn process_decompress_tokens_runtime<'info, 'a, 'b, V, A>(
     accounts_for_seeds: &A,
     remaining_accounts: &[AccountInfo<'info>],
     fee_payer: &AccountInfo<'info>,
-    ctoken_program: &AccountInfo<'info>,
-    ctoken_rent_sponsor: &AccountInfo<'info>,
-    ctoken_cpi_authority: &AccountInfo<'info>,
-    ctoken_config: &AccountInfo<'info>,
+    token_program: &AccountInfo<'info>,
+    token_rent_sponsor: &AccountInfo<'info>,
+    token_cpi_authority: &AccountInfo<'info>,
+    token_config: &AccountInfo<'info>,
     config: &AccountInfo<'info>,
-    ctoken_accounts: Vec<(
+    token_accounts: Vec<(
         PackedCTokenData<V>,
         CompressedAccountMetaNoLamportsNoAddress,
     )>,
@@ -61,9 +61,8 @@ where
 {
     let mut token_decompress_indices: Vec<
         crate::compressed_token::decompress_full::DecompressFullIndices,
-    > = Vec::with_capacity(ctoken_accounts.len());
-    let mut token_signers_seed_groups: Vec<Vec<Vec<u8>>> =
-        Vec::with_capacity(ctoken_accounts.len());
+    > = Vec::with_capacity(token_accounts.len());
+    let mut token_signers_seed_groups: Vec<Vec<Vec<u8>>> = Vec::with_capacity(token_accounts.len());
     let packed_accounts = post_system_accounts;
 
     let authority = cpi_accounts
@@ -80,7 +79,7 @@ where
         None
     };
 
-    for (token_data, meta) in ctoken_accounts.into_iter() {
+    for (token_data, meta) in token_accounts.into_iter() {
         let owner_index: u8 = token_data.token_data.owner;
         let mint_index: u8 = token_data.token_data.mint;
 
@@ -107,7 +106,7 @@ where
         let owner_info = &packed_accounts[owner_index_usize];
 
         // Use trait method to get seeds (program-specific)
-        let (ctoken_signer_seeds, derived_token_account_address) = token_data
+        let (token_signer_seeds, derived_token_account_address) = token_data
             .variant
             .get_seeds(accounts_for_seeds, remaining_accounts)?;
 
@@ -120,17 +119,17 @@ where
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let seed_refs: Vec<&[u8]> = ctoken_signer_seeds.iter().map(|s| s.as_slice()).collect();
+        let seed_refs: Vec<&[u8]> = token_signer_seeds.iter().map(|s| s.as_slice()).collect();
         let seeds_slice: &[&[u8]] = &seed_refs;
 
         // Build CompressToPubkey from the signer seeds if bump is present
-        let compress_to_pubkey = ctoken_signer_seeds
+        let compress_to_pubkey = token_signer_seeds
             .last()
             .and_then(|b| b.first().copied())
             .map(|bump| {
-                let seeds_without_bump: Vec<Vec<u8>> = ctoken_signer_seeds
+                let seeds_without_bump: Vec<Vec<u8>> = token_signer_seeds
                     .iter()
-                    .take(ctoken_signer_seeds.len().saturating_sub(1))
+                    .take(token_signer_seeds.len().saturating_sub(1))
                     .cloned()
                     .collect();
                 CompressToPubkey {
@@ -146,8 +145,8 @@ where
             mint: (*mint_info).clone(),
             owner: *authority.key,
             compressible: crate::token::CompressibleParamsCpi {
-                compressible_config: ctoken_config.clone(),
-                rent_sponsor: ctoken_rent_sponsor.clone(),
+                compressible_config: token_config.clone(),
+                rent_sponsor: token_rent_sponsor.clone(),
                 system_program: cpi_accounts
                     .system_program()
                     .map_err(|_| ProgramError::InvalidAccountData)?
@@ -177,10 +176,10 @@ where
             tlv: None,
         };
         token_decompress_indices.push(decompress_index);
-        token_signers_seed_groups.push(ctoken_signer_seeds);
+        token_signers_seed_groups.push(token_signer_seeds);
     }
 
-    let ctoken_ix =
+    let token_ix =
         crate::compressed_token::decompress_full::decompress_full_token_accounts_with_indices(
             *fee_payer.key,
             proof,
@@ -193,9 +192,9 @@ where
     let mut all_account_infos: Vec<AccountInfo<'info>> =
         Vec::with_capacity(1 + post_system_accounts.len() + 3);
     all_account_infos.push(fee_payer.clone());
-    all_account_infos.push(ctoken_cpi_authority.clone());
-    all_account_infos.push(ctoken_program.clone());
-    all_account_infos.push(ctoken_rent_sponsor.clone());
+    all_account_infos.push(token_cpi_authority.clone());
+    all_account_infos.push(token_program.clone());
+    all_account_infos.push(token_rent_sponsor.clone());
     all_account_infos.push(config.clone());
     all_account_infos.extend_from_slice(post_system_accounts);
 
@@ -206,7 +205,7 @@ where
     let signer_seed_slices: Vec<&[&[u8]]> = signer_seed_refs.iter().map(|g| g.as_slice()).collect();
 
     solana_cpi::invoke_signed(
-        &ctoken_ix,
+        &token_ix,
         all_account_infos.as_slice(),
         signer_seed_slices.as_slice(),
     )?;

@@ -106,7 +106,7 @@ async fn test_spl_to_ctoken_invoke() {
     // Account order from handler:
     // - accounts[0]: compressed_token_program (for CPI)
     // - accounts[1]: source_spl_token_account
-    // - accounts[2]: destination_ctoken_account (writable)
+    // - accounts[2]: destination (writable)
     // - accounts[3]: authority (signer)
     // - accounts[4]: mint
     // - accounts[5]: payer (signer)
@@ -117,7 +117,7 @@ async fn test_spl_to_ctoken_invoke() {
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
         AccountMeta::new(spl_token_account_keypair.pubkey(), false),
-        AccountMeta::new(ctoken_account, false), // destination_ctoken_account (writable)
+        AccountMeta::new(ctoken_account, false), // destination (writable)
         AccountMeta::new_readonly(sender.pubkey(), true), // authority (signer)
         AccountMeta::new_readonly(mint, false),
         AccountMeta::new(payer.pubkey(), true), // payer (signer)
@@ -231,7 +231,7 @@ async fn test_ctoken_to_spl_invoke() {
         let wrapper_accounts = vec![
             AccountMeta::new_readonly(compressed_token_program_id, false),
             AccountMeta::new(temp_spl_account_keypair.pubkey(), false),
-            AccountMeta::new(ctoken_account, false), // destination_ctoken_account (writable)
+            AccountMeta::new(ctoken_account, false), // destination (writable)
             AccountMeta::new_readonly(owner.pubkey(), true),
             AccountMeta::new_readonly(mint, false),
             AccountMeta::new(payer.pubkey(), true),
@@ -270,7 +270,7 @@ async fn test_ctoken_to_spl_invoke() {
 
     // Account order from handler:
     // - accounts[0]: compressed_token_program (for CPI)
-    // - accounts[1]: source_ctoken_account
+    // - accounts[1]: source
     // - accounts[2]: destination_spl_token_account
     // - accounts[3]: authority (signer)
     // - accounts[4]: mint
@@ -406,7 +406,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
         AccountMeta::new(spl_ata, false),
-        AccountMeta::new(ctoken_account, false), // destination_ctoken_account (writable)
+        AccountMeta::new(ctoken_account, false), // destination (writable)
         AccountMeta::new_readonly(authority_pda, false), // authority is PDA, not signer
         AccountMeta::new_readonly(mint, false),
         AccountMeta::new(payer.pubkey(), true), // payer (signer)
@@ -544,7 +544,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
         let wrapper_accounts = vec![
             AccountMeta::new_readonly(compressed_token_program_id, false),
             AccountMeta::new(temp_spl_account_keypair.pubkey(), false),
-            AccountMeta::new(ctoken_account, false), // destination_ctoken_account (writable)
+            AccountMeta::new(ctoken_account, false), // destination (writable)
             AccountMeta::new_readonly(temp_owner.pubkey(), true),
             AccountMeta::new_readonly(mint, false),
             AccountMeta::new(payer.pubkey(), true),

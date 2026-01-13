@@ -28,7 +28,7 @@ pub struct TransferTokenToSplData {
 /// Account order:
 /// - accounts[0]: compressed_token_program (for CPI)
 /// - accounts[1]: source_spl_token_account
-/// - accounts[2]: destination_ctoken_account (writable)
+/// - accounts[2]: destination (writable)
 /// - accounts[3]: authority (signer)
 /// - accounts[4]: mint
 /// - accounts[5]: payer (signer)
@@ -46,7 +46,7 @@ pub fn process_spl_to_ctoken_invoke(
 
     TransferFromSplCpi {
         source_spl_token_account: accounts[1].clone(),
-        destination_ctoken_account: accounts[2].clone(),
+        destination: accounts[2].clone(),
         amount: data.amount,
         authority: accounts[3].clone(),
         mint: accounts[4].clone(),
@@ -70,7 +70,7 @@ pub fn process_spl_to_ctoken_invoke(
 /// Account order:
 /// - accounts[0]: compressed_token_program (for CPI)
 /// - accounts[1]: source_spl_token_account
-/// - accounts[2]: destination_ctoken_account (writable)
+/// - accounts[2]: destination (writable)
 /// - accounts[3]: authority (PDA, not signer - program signs)
 /// - accounts[4]: mint
 /// - accounts[5]: payer (signer)
@@ -97,7 +97,7 @@ pub fn process_spl_to_ctoken_invoke_signed(
 
     let account_infos = TransferFromSplCpi {
         source_spl_token_account: accounts[1].clone(),
-        destination_ctoken_account: accounts[2].clone(),
+        destination: accounts[2].clone(),
         amount: data.amount,
         authority: accounts[3].clone(),
         mint: accounts[4].clone(),
@@ -121,7 +121,7 @@ pub fn process_spl_to_ctoken_invoke_signed(
 ///
 /// Account order:
 /// - accounts[0]: compressed_token_program (for CPI)
-/// - accounts[1]: source_ctoken_account
+/// - accounts[1]: source
 /// - accounts[2]: destination_spl_token_account
 /// - accounts[3]: authority (signer)
 /// - accounts[4]: mint
@@ -138,7 +138,7 @@ pub fn process_ctoken_to_spl_invoke(
     }
 
     TransferToSplCpi {
-        source_ctoken_account: accounts[1].clone(),
+        source: accounts[1].clone(),
         destination_spl_token_account: accounts[2].clone(),
         amount: data.amount,
         authority: accounts[3].clone(),
@@ -161,7 +161,7 @@ pub fn process_ctoken_to_spl_invoke(
 ///
 /// Account order:
 /// - accounts[0]: compressed_token_program (for CPI)
-/// - accounts[1]: source_ctoken_account
+/// - accounts[1]: source
 /// - accounts[2]: destination_spl_token_account
 /// - accounts[3]: authority (PDA, not signer - program signs)
 /// - accounts[4]: mint
@@ -187,7 +187,7 @@ pub fn process_ctoken_to_spl_invoke_signed(
     }
 
     let account_infos = TransferToSplCpi {
-        source_ctoken_account: accounts[1].clone(),
+        source: accounts[1].clone(),
         destination_spl_token_account: accounts[2].clone(),
         amount: data.amount,
         authority: accounts[3].clone(),

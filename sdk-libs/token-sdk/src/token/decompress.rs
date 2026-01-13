@@ -28,7 +28,7 @@ use crate::{
 /// # use light_token_sdk::token::Decompress;
 /// # use light_token_sdk::compat::TokenData;
 /// # use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-/// # let destination_ctoken_account = Pubkey::new_unique();
+/// # let destination = Pubkey::new_unique();
 /// # let payer = Pubkey::new_unique();
 /// # let signer = Pubkey::new_unique();
 /// # let merkle_tree = Pubkey::new_unique();
@@ -42,7 +42,7 @@ use crate::{
 ///     queue,
 ///     leaf_index: 0,
 ///     root_index: 0,
-///     destination_ctoken_account,
+///     destination,
 ///     payer,
 ///     signer,
 ///     validity_proof: ValidityProof::new(None),
@@ -64,7 +64,7 @@ pub struct Decompress {
     /// Root index
     pub root_index: u16,
     /// Destination cToken account (must exist)
-    pub destination_ctoken_account: Pubkey,
+    pub destination: Pubkey,
     /// Fee payer
     pub payer: Pubkey,
     /// Signer (wallet owner, delegate, or permanent delegate)
@@ -146,7 +146,7 @@ impl Decompress {
         let indices = pack_for_decompress_full_with_ata(
             &self.token_data,
             &tree_info,
-            self.destination_ctoken_account,
+            self.destination,
             &mut packed_accounts,
             tlv,
             version,

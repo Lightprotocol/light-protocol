@@ -13,10 +13,10 @@ use spl_pod::bytemuck::pod_from_bytes;
 use spl_token_2022::pod::PodAccount;
 
 /// Transfer SPL tokens to compressed tokens
-pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
+pub async fn spl_to_light_token_transfer<R: Rpc + Indexer>(
     rpc: &mut R,
     source_spl_token_account: Pubkey,
-    destination_ctoken_account: Pubkey,
+    destination: Pubkey,
     amount: u64,
     authority: &Keypair,
     payer: &Keypair,
@@ -38,7 +38,7 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
         amount,
         spl_interface_pda_bump,
         source_spl_token_account,
-        destination_ctoken_account,
+        destination,
         authority: authority.pubkey(),
         mint,
         payer: payer.pubkey(),
