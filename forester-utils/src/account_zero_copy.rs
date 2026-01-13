@@ -1,6 +1,5 @@
 use std::{fmt, marker::PhantomData, mem, pin::Pin};
 
-use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use light_client::rpc::Rpc;
 use light_concurrent_merkle_tree::{
     copy::ConcurrentMerkleTreeCopy, errors::ConcurrentMerkleTreeError,
@@ -9,7 +8,16 @@ use light_hash_set::HashSet;
 use light_hasher::Hasher;
 use light_indexed_merkle_tree::{copy::IndexedMerkleTreeCopy, errors::IndexedMerkleTreeError};
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
-use solana_sdk::account::Account;
+use solana_sdk::{account::Account, pubkey::Pubkey};
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum AccountZeroCopyError {
+    #[error("RPC error: {0}")]
+    RpcError(String),
+    #[error("Account not found: {0}")]
+    AccountNotFound(Pubkey),
+}
 
 #[derive(Debug, Clone)]
 pub struct AccountZeroCopy<'a, T> {
@@ -19,15 +27,23 @@ pub struct AccountZeroCopy<'a, T> {
 }
 
 impl<'a, T> AccountZeroCopy<'a, T> {
-    pub async fn new<R: Rpc>(rpc: &mut R, address: Pubkey) -> AccountZeroCopy<'a, T> {
-        let account = Box::pin(rpc.get_account(address).await.unwrap().unwrap());
+    pub async fn new<R: Rpc>(
+        rpc: &mut R,
+        address: Pubkey,
+    ) -> Result<AccountZeroCopy<'a, T>, AccountZeroCopyError> {
+        let account = rpc
+            .get_account(address)
+            .await
+            .map_err(|e| AccountZeroCopyError::RpcError(e.to_string()))?
+            .ok_or(AccountZeroCopyError::AccountNotFound(address))?;
+        let account = Box::pin(account);
         let deserialized = account.data[8..].as_ptr() as *const T;
 
-        Self {
+        Ok(Self {
             account,
             deserialized,
             _phantom_data: PhantomData,
-        }
+        })
     }
 
     // Safe method to access `deserialized` ensuring the lifetime is respected
@@ -48,10 +64,19 @@ impl<'a, T> AccountZeroCopy<'a, T> {
 /// * The account data is aligned.
 ///
 /// Is the caller's responsibility.
-pub async unsafe fn get_hash_set<T, R: Rpc>(rpc: &mut R, pubkey: Pubkey) -> HashSet {
-    let mut data = rpc.get_account(pubkey).await.unwrap().unwrap().data.clone();
+pub async unsafe fn get_hash_set<T, R: Rpc>(
+    rpc: &mut R,
+    pubkey: Pubkey,
+) -> Result<HashSet, AccountZeroCopyError> {
+    let account = rpc
+        .get_account(pubkey)
+        .await
+        .map_err(|e| AccountZeroCopyError::RpcError(e.to_string()))?
+        .ok_or(AccountZeroCopyError::AccountNotFound(pubkey))?;
+    let mut data = account.data.clone();
 
-    HashSet::from_bytes_copy(&mut data[8 + mem::size_of::<T>()..]).unwrap()
+    HashSet::from_bytes_copy(&mut data[8 + mem::size_of::<T>()..])
+        .map_err(|e| AccountZeroCopyError::RpcError(format!("HashSet parse error: {:?}", e)))
 }
 
 /// Fetches the given account, then copies and serializes it as a
@@ -59,14 +84,20 @@ pub async unsafe fn get_hash_set<T, R: Rpc>(rpc: &mut R, pubkey: Pubkey) -> Hash
 pub async fn get_concurrent_merkle_tree<T, R, H, const HEIGHT: usize>(
     rpc: &mut R,
     pubkey: Pubkey,
-) -> ConcurrentMerkleTreeCopy<H, HEIGHT>
+) -> Result<ConcurrentMerkleTreeCopy<H, HEIGHT>, AccountZeroCopyError>
 where
     R: Rpc,
     H: Hasher,
 {
-    let account = rpc.get_account(pubkey).await.unwrap().unwrap();
+    let account = rpc
+        .get_account(pubkey)
+        .await
+        .map_err(|e| AccountZeroCopyError::RpcError(e.to_string()))?
+        .ok_or(AccountZeroCopyError::AccountNotFound(pubkey))?;
 
-    ConcurrentMerkleTreeCopy::from_bytes_copy(&account.data[8 + mem::size_of::<T>()..]).unwrap()
+    ConcurrentMerkleTreeCopy::from_bytes_copy(&account.data[8 + mem::size_of::<T>()..]).map_err(
+        |e| AccountZeroCopyError::RpcError(format!("ConcurrentMerkleTree parse error: {:?}", e)),
+    )
 }
 // TODO: do discriminator check
 /// Fetches the given account, then copies and serializes it as an
@@ -74,7 +105,7 @@ where
 pub async fn get_indexed_merkle_tree<T, R, H, I, const HEIGHT: usize, const NET_HEIGHT: usize>(
     rpc: &mut R,
     pubkey: Pubkey,
-) -> IndexedMerkleTreeCopy<H, I, HEIGHT, NET_HEIGHT>
+) -> Result<IndexedMerkleTreeCopy<H, I, HEIGHT, NET_HEIGHT>, AccountZeroCopyError>
 where
     R: Rpc,
     H: Hasher,
@@ -89,9 +120,15 @@ where
         + Unsigned,
     usize: From<I>,
 {
-    let account = rpc.get_account(pubkey).await.unwrap().unwrap();
+    let account = rpc
+        .get_account(pubkey)
+        .await
+        .map_err(|e| AccountZeroCopyError::RpcError(e.to_string()))?
+        .ok_or(AccountZeroCopyError::AccountNotFound(pubkey))?;
 
-    IndexedMerkleTreeCopy::from_bytes_copy(&account.data[8 + mem::size_of::<T>()..]).unwrap()
+    IndexedMerkleTreeCopy::from_bytes_copy(&account.data[8 + mem::size_of::<T>()..]).map_err(|e| {
+        AccountZeroCopyError::RpcError(format!("IndexedMerkleTree parse error: {:?}", e))
+    })
 }
 
 /// Parse ConcurrentMerkleTree from raw account data bytes.

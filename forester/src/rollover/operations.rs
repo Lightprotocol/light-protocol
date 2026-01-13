@@ -65,7 +65,8 @@ pub async fn get_tree_fullness<R: Rpc>(
                     rpc,
                     tree_pubkey,
                 )
-                .await;
+                .await
+                .map_err(|e| ForesterError::Other(anyhow::anyhow!("{}", e)))?;
 
             let height = 26;
             let capacity = 1 << height;
@@ -104,7 +105,8 @@ pub async fn get_tree_fullness<R: Rpc>(
                     rpc,
                     tree_pubkey,
                 )
-                .await;
+                .await
+                .map_err(|e| ForesterError::Other(anyhow::anyhow!("{}", e)))?;
             let height = 26;
             let capacity = 1 << height;
 
@@ -334,7 +336,8 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: Rpc>(
             queue: *nullifier_queue_pubkey,
         },
     )
-    .await;
+    .await
+    .map_err(|e| ForesterError::Other(anyhow::anyhow!("{}", e)))?;
     let (merkle_tree_rent_exemption, queue_rent_exemption) =
         get_rent_exemption_for_address_merkle_tree_and_queue(
             rpc,
@@ -399,7 +402,8 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: Rpc>(
             tree_type: TreeType::StateV1,         // not used.
         },
     )
-    .await;
+    .await
+    .map_err(|e| ForesterError::Other(anyhow::anyhow!("{}", e)))?;
     let (state_merkle_tree_rent_exemption, queue_rent_exemption) =
         get_rent_exemption_for_state_merkle_tree_and_queue(rpc, &merkle_tree_config, &queue_config)
             .await?;
