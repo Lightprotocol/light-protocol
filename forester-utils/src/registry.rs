@@ -23,6 +23,7 @@ use solana_sdk::{
 };
 
 use crate::{
+    account_zero_copy::AccountZeroCopyError,
     address_merkle_tree_config::{get_address_bundle_config, get_state_bundle_config},
     instructions::create_account::create_account_instruction,
 };
@@ -87,13 +88,14 @@ pub async fn get_rent_exemption_for_address_merkle_tree_and_queue<R: Rpc>(
     rpc: &mut R,
     address_merkle_tree_config: &AddressMerkleTreeConfig,
     address_queue_config: &AddressQueueConfig,
-) -> (RentExemption, RentExemption) {
-    let queue_size = QueueAccount::size(address_queue_config.capacity as usize).unwrap();
+) -> Result<(RentExemption, RentExemption), AccountZeroCopyError> {
+    let queue_size = QueueAccount::size(address_queue_config.capacity as usize)
+        .map_err(|e| AccountZeroCopyError::RpcError(format!("Queue size error: {:?}", e)))?;
 
     let queue_rent_exempt_lamports = rpc
         .get_minimum_balance_for_rent_exemption(queue_size)
         .await
-        .unwrap();
+        .map_err(|e| AccountZeroCopyError::RpcError(e.to_string()))?;
     let tree_size = account_compression::state::AddressMerkleTreeAccount::size(
         address_merkle_tree_config.height as usize,
         address_merkle_tree_config.changelog_size as usize,
@@ -104,8 +106,8 @@ pub async fn get_rent_exemption_for_address_merkle_tree_and_queue<R: Rpc>(
     let merkle_tree_rent_exempt_lamports = rpc
         .get_minimum_balance_for_rent_exemption(tree_size)
         .await
-        .unwrap();
-    (
+        .map_err(|e| AccountZeroCopyError::RpcError(e.to_string()))?;
+    Ok((
         RentExemption {
             lamports: merkle_tree_rent_exempt_lamports,
             size: tree_size,
@@ -114,20 +116,21 @@ pub async fn get_rent_exemption_for_address_merkle_tree_and_queue<R: Rpc>(
             lamports: queue_rent_exempt_lamports,
             size: queue_size,
         },
-    )
+    ))
 }
 
 pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: Rpc>(
     rpc: &mut R,
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
-) -> (RentExemption, RentExemption) {
-    let queue_size = QueueAccount::size(queue_config.capacity as usize).unwrap();
+) -> Result<(RentExemption, RentExemption), AccountZeroCopyError> {
+    let queue_size = QueueAccount::size(queue_config.capacity as usize)
+        .map_err(|e| AccountZeroCopyError::RpcError(format!("Queue size error: {:?}", e)))?;
 
     let queue_rent_exempt_lamports = rpc
         .get_minimum_balance_for_rent_exemption(queue_size)
         .await
-        .unwrap();
+        .map_err(|e| AccountZeroCopyError::RpcError(e.to_string()))?;
     let tree_size = account_compression::state::StateMerkleTreeAccount::size(
         merkle_tree_config.height as usize,
         merkle_tree_config.changelog_size as usize,
@@ -137,8 +140,8 @@ pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: Rpc>(
     let merkle_tree_rent_exempt_lamports = rpc
         .get_minimum_balance_for_rent_exemption(tree_size)
         .await
-        .unwrap();
-    (
+        .map_err(|e| AccountZeroCopyError::RpcError(e.to_string()))?;
+    Ok((
         RentExemption {
             lamports: merkle_tree_rent_exempt_lamports,
             size: tree_size,
@@ -147,7 +150,7 @@ pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: Rpc>(
             lamports: queue_rent_exempt_lamports,
             size: queue_size,
         },
-    )
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -161,7 +164,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: Rpc>(
     nullifier_queue_pubkey: &Pubkey,
     epoch: u64,
     is_metadata_forester: bool,
-) -> Vec<Instruction> {
+) -> Result<Vec<Instruction>, AccountZeroCopyError> {
     let (merkle_tree_config, queue_config) = get_address_bundle_config(
         rpc,
         AddressMerkleTreeAccounts {
@@ -169,14 +172,14 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: Rpc>(
             queue: *nullifier_queue_pubkey,
         },
     )
-    .await;
+    .await?;
     let (merkle_tree_rent_exemption, queue_rent_exemption) =
         get_rent_exemption_for_address_merkle_tree_and_queue(
             rpc,
             &merkle_tree_config,
             &queue_config,
         )
-        .await;
+        .await?;
     let create_nullifier_queue_instruction = create_account_instruction(
         authority,
         queue_rent_exemption.size,
@@ -203,11 +206,11 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: Rpc>(
             is_metadata_forester,
         },epoch
     );
-    vec![
+    Ok(vec![
         create_nullifier_queue_instruction,
         create_state_merkle_tree_instruction,
         instruction,
-    ]
+    ])
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -221,7 +224,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: Rpc>(
     nullifier_queue_pubkey: &Pubkey,
     epoch: u64,
     is_metadata_forester: bool,
-) -> Result<(), RpcError> {
+) -> Result<(), AccountZeroCopyError> {
     let instructions = create_rollover_address_merkle_tree_instructions(
         rpc,
         &authority.pubkey(),
@@ -233,7 +236,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: Rpc>(
         epoch,
         is_metadata_forester,
     )
-    .await;
+    .await?;
     rpc.create_and_send_transaction(
         &instructions,
         &authority.pubkey(),
@@ -243,7 +246,8 @@ pub async fn perform_state_merkle_tree_roll_over<R: Rpc>(
             new_state_merkle_tree_keypair,
         ],
     )
-    .await?;
+    .await
+    .map_err(|e| AccountZeroCopyError::RpcError(e.to_string()))?;
     Ok(())
 }
 #[allow(clippy::too_many_arguments)]
@@ -258,7 +262,7 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: Rpc>(
     nullifier_queue_pubkey: &Pubkey,
     epoch: u64,
     is_metadata_forester: bool,
-) -> Vec<Instruction> {
+) -> Result<Vec<Instruction>, AccountZeroCopyError> {
     let (merkle_tree_config, queue_config) = get_state_bundle_config(
         rpc,
         StateMerkleTreeAccounts {
@@ -268,10 +272,10 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: Rpc>(
             tree_type: light_compressed_account::TreeType::StateV1, // not used
         },
     )
-    .await;
+    .await?;
     let (state_merkle_tree_rent_exemption, queue_rent_exemption) =
         get_rent_exemption_for_state_merkle_tree_and_queue(rpc, &merkle_tree_config, &queue_config)
-            .await;
+            .await?;
     let create_nullifier_queue_instruction = create_account_instruction(
         authority,
         queue_rent_exemption.size,
@@ -287,12 +291,14 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: Rpc>(
         Some(new_state_merkle_tree_keypair),
     );
     let account_size: usize = ProtocolConfig::default().cpi_context_size as usize;
+    let cpi_rent = rpc
+        .get_minimum_balance_for_rent_exemption(account_size)
+        .await
+        .map_err(|e| AccountZeroCopyError::RpcError(e.to_string()))?;
     let create_cpi_context_account_instruction = create_account_instruction(
         authority,
         account_size,
-        rpc.get_minimum_balance_for_rent_exemption(account_size)
-            .await
-            .unwrap(),
+        cpi_rent,
         &Pubkey::from(light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID),
         Some(new_cpi_context_keypair),
     );
@@ -309,10 +315,10 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: Rpc>(
         },
         epoch,
     );
-    vec![
+    Ok(vec![
         create_nullifier_queue_instruction,
         create_state_merkle_tree_instruction,
         create_cpi_context_account_instruction,
         instruction,
-    ]
+    ])
 }
