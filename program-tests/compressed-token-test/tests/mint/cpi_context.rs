@@ -7,7 +7,7 @@ use light_test_utils::Rpc;
 use light_token_interface::{
     instructions::mint_action::{
         CompressedMintInstructionData, CompressedMintWithContext, CpiContext, DecompressMintAction,
-        MintActionCompressedInstructionData, MintToTokenAction,
+        MintActionCompressedInstructionData, MintToAction,
     },
     state::CompressedMintMetadata,
     CMINT_ADDRESS_TREE, LIGHT_TOKEN_PROGRAM_ID,
@@ -617,7 +617,7 @@ async fn test_write_to_cpi_context_mint_to_ctoken_fails() {
         CompressedProof::default(),
         compressed_mint_inputs.mint.clone().unwrap(),
     )
-    .with_mint_to_token(MintToTokenAction {
+    .with_mint_to(MintToAction {
         account_index: 0,
         amount: 1000,
     })

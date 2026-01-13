@@ -11,8 +11,8 @@ use light_test_utils::{
 };
 use light_token_interface::state::Token;
 use light_token_sdk::{
-    ctoken::{derive_token_ata, CreateAssociatedTokenAccount, TransferFromSpl},
     spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
+    token::{derive_token_ata, CreateAssociatedTokenAccount, TransferFromSpl},
 };
 use native_ctoken_examples::{InstructionType, TransferCheckedData, ID};
 use shared::*;

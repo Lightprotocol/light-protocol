@@ -171,7 +171,7 @@ impl TransferToSpl {
         let compress_to_pool = CTokenAccount2 {
             inputs: vec![],
             output: MultiTokenTransferOutputData::default(),
-            compression: Some(Compression::compress_token(
+            compression: Some(Compression::compress(
                 self.amount,
                 0, // mint index
                 1, // source ctoken account index

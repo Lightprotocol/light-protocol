@@ -3,9 +3,9 @@ use light_compressible::compression_info::CompressionInfo;
 use light_zero_copy::ZeroCopy;
 
 use super::{
-    CompressAndCloseCMintAction, CpiContext, DecompressMintAction, MintToCompressedAction,
-    MintToTokenAction, RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
-    UpdateMetadataFieldAction,
+    CompressAndCloseCMintAction, CpiContext, DecompressMintAction, MintToAction,
+    MintToCompressedAction, RemoveMetadataKeyAction, UpdateAuthority,
+    UpdateMetadataAuthorityAction, UpdateMetadataFieldAction,
 };
 use crate::{
     instructions::extensions::{ExtensionInstructionData, ZExtensionInstructionData},
@@ -27,7 +27,7 @@ pub enum Action {
     UpdateFreezeAuthority(UpdateAuthority),
     /// Mint tokens from a compressed mint to a token solana account
     /// (tokens are not compressed but not spl tokens).
-    MintToToken(MintToTokenAction),
+    MintTo(MintToAction),
     UpdateMetadataField(UpdateMetadataFieldAction),
     UpdateMetadataAuthority(UpdateMetadataAuthorityAction),
     RemoveMetadataKey(RemoveMetadataKeyAction),

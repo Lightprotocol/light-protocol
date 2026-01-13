@@ -815,7 +815,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
     use light_compressed_account::instruction_data::traits::LightInstructionData;
     use light_token_interface::{
         instructions::mint_action::{
-            CompressedMintWithContext, MintActionCompressedInstructionData, MintToTokenAction,
+            CompressedMintWithContext, MintActionCompressedInstructionData, MintToAction,
         },
         state::TokenDataVersion,
         LIGHT_TOKEN_PROGRAM_ID,
@@ -921,7 +921,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
     // Build instruction data with max_top_up = 1 (too low to cover rent top-up)
     let instruction_data =
         MintActionCompressedInstructionData::new(compressed_mint_inputs, rpc_proof_result.proof.0)
-            .with_mint_to_token(MintToTokenAction {
+            .with_mint_to(MintToAction {
                 account_index: 0,
                 amount: 1000u64,
             })

@@ -196,7 +196,7 @@ fn create_compressions_and_packed_accounts(
     // Create compressions
     let mut compressions = Vec::new();
     if compress_amount > 0 {
-        compressions.push(Compression::compress_token(
+        compressions.push(Compression::compress(
             compress_amount,
             mint_index,
             source_ata_index,
@@ -204,7 +204,7 @@ fn create_compressions_and_packed_accounts(
         ));
     }
     if decompress_amount > 0 {
-        compressions.push(Compression::decompress_token(
+        compressions.push(Compression::decompress(
             decompress_amount,
             mint_index,
             recipient_ata_index,
@@ -533,8 +533,8 @@ async fn test_invalid_authority_compress() {
     let recipient_ata_index = packed_accounts.insert_or_get_config(recipient_ata, false, true);
 
     let compressions = vec![
-        Compression::compress_token(500, mint_index, source_ata_index, wrong_authority_index),
-        Compression::decompress_token(500, mint_index, recipient_ata_index),
+        Compression::compress(500, mint_index, source_ata_index, wrong_authority_index),
+        Compression::decompress(500, mint_index, recipient_ata_index),
     ];
 
     let (account_metas, _, _) = packed_accounts.to_account_metas();
@@ -574,8 +574,8 @@ async fn test_authority_not_signer_compress() {
     let recipient_ata_index = packed_accounts.insert_or_get_config(recipient_ata, false, true);
 
     let compressions = vec![
-        Compression::compress_token(500, mint_index, source_ata_index, owner_index),
-        Compression::decompress_token(500, mint_index, recipient_ata_index),
+        Compression::compress(500, mint_index, source_ata_index, owner_index),
+        Compression::decompress(500, mint_index, recipient_ata_index),
     ];
 
     let (account_metas, _, _) = packed_accounts.to_account_metas();
@@ -651,11 +651,10 @@ async fn test_decompress_with_nonzero_authority() {
 
     // Create compress with valid authority using helper
     let compress_compression =
-        Compression::compress_token(500, mint_index, source_ata_index, owner_index);
+        Compression::compress(500, mint_index, source_ata_index, owner_index);
 
     // Create decompress but manually set authority to non-zero (should be 0)
-    let mut decompress_compression =
-        Compression::decompress_token(500, mint_index, recipient_ata_index);
+    let mut decompress_compression = Compression::decompress(500, mint_index, recipient_ata_index);
     decompress_compression.authority = owner_index; // Invalid: should be 0 for decompress
 
     let compressions = vec![compress_compression, decompress_compression];
@@ -776,17 +775,13 @@ async fn test_too_many_mints() {
     let source_index = packed_accounts.insert_or_get_config(context.source_ata, false, true);
     let recipient_index = packed_accounts.insert_or_get_config(context.recipient_ata, false, true);
 
-    compressions.push(Compression::compress_token(
+    compressions.push(Compression::compress(
         100,
         mint_index,
         source_index,
         owner_index,
     ));
-    compressions.push(Compression::decompress_token(
-        100,
-        mint_index,
-        recipient_index,
-    ));
+    compressions.push(Compression::decompress(100, mint_index, recipient_index));
 
     // Add compressions for the 5 additional mints
     for (mint, source_ata, recipient_ata) in &mints_with_atas {
@@ -794,17 +789,13 @@ async fn test_too_many_mints() {
         let source_index = packed_accounts.insert_or_get_config(*source_ata, false, true);
         let recipient_index = packed_accounts.insert_or_get_config(*recipient_ata, false, true);
 
-        compressions.push(Compression::compress_token(
+        compressions.push(Compression::compress(
             100,
             mint_index,
             source_index,
             owner_index,
         ));
-        compressions.push(Compression::decompress_token(
-            100,
-            mint_index,
-            recipient_index,
-        ));
+        compressions.push(Compression::decompress(100, mint_index, recipient_index));
     }
 
     let (account_metas, _, _) = packed_accounts.to_account_metas();
@@ -854,23 +845,19 @@ async fn test_duplicate_mint_validation() {
 
     // Create compression and decompress for first mint index (balanced)
     let mut compressions = vec![
-        Compression::compress_token(500, mint_index_1, source_index, owner_index),
-        Compression::decompress_token(500, mint_index_1, recipient_index),
+        Compression::compress(500, mint_index_1, source_index, owner_index),
+        Compression::decompress(500, mint_index_1, recipient_index),
     ];
 
     // Create compression and decompress for second mint index (balanced)
     // This is the duplicate - same pubkey as mint_index_1 but different index
-    compressions.push(Compression::compress_token(
+    compressions.push(Compression::compress(
         1,
         mint_index_2,
         source_index,
         owner_index,
     ));
-    compressions.push(Compression::decompress_token(
-        1,
-        mint_index_2,
-        recipient_index,
-    ));
+    compressions.push(Compression::decompress(1, mint_index_2, recipient_index));
 
     // Build instruction
     let instruction = build_compressions_only_instruction(
@@ -913,8 +900,8 @@ async fn test_mint_index_out_of_bounds() {
     let invalid_mint_index = 99u8;
 
     let compressions = vec![
-        Compression::compress_token(500, invalid_mint_index, source_index, owner_index),
-        Compression::decompress_token(500, invalid_mint_index, recipient_index),
+        Compression::compress(500, invalid_mint_index, source_index, owner_index),
+        Compression::decompress(500, invalid_mint_index, recipient_index),
     ];
 
     // Build instruction
@@ -957,8 +944,8 @@ async fn test_account_index_out_of_bounds() {
     let invalid_account_index = 99u8;
 
     let compressions = vec![
-        Compression::compress_token(500, mint_index, invalid_account_index, owner_index),
-        Compression::decompress_token(500, mint_index, invalid_account_index),
+        Compression::compress(500, mint_index, invalid_account_index, owner_index),
+        Compression::decompress(500, mint_index, invalid_account_index),
     ];
 
     // Build instruction
@@ -1003,8 +990,8 @@ async fn test_authority_index_out_of_bounds() {
     let invalid_authority_index = 99u8;
 
     let compressions = vec![
-        Compression::compress_token(500, mint_index, source_index, invalid_authority_index),
-        Compression::decompress_token(500, mint_index, recipient_index),
+        Compression::compress(500, mint_index, source_index, invalid_authority_index),
+        Compression::decompress(500, mint_index, recipient_index),
     ];
 
     // Build instruction

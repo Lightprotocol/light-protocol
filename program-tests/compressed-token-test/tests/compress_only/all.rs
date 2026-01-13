@@ -31,8 +31,8 @@ async fn test_compress_and_close_ctoken_with_extensions() {
         state::TokenDataVersion,
     };
     use light_token_sdk::{
-        token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
         spl_interface::find_spl_interface_pda_with_index,
+        token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
     };
 
     let mut context = setup_extensions_test(ALL_EXTENSIONS).await.unwrap();

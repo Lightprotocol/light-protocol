@@ -195,7 +195,7 @@ impl TransferFromSpl {
         let ctoken_account = CTokenAccount2 {
             inputs: vec![],
             output: MultiTokenTransferOutputData::default(),
-            compression: Some(Compression::decompress_token(self.amount, 0, 1)),
+            compression: Some(Compression::decompress(self.amount, 0, 1)),
             delegate_is_set: false,
             method_used: true,
         };

@@ -25,8 +25,8 @@ use light_token_interface::{
 };
 use light_token_sdk::{
     compat::{AccountState, TokenDataWithMerkleContext},
-    token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
     spl_interface::find_spl_interface_pda_with_index,
+    token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
 };
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};

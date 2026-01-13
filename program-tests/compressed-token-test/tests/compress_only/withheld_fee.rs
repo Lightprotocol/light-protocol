@@ -21,8 +21,8 @@ use light_token_interface::{
     },
 };
 use light_token_sdk::{
-    token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
     spl_interface::find_spl_interface_pda_with_index,
+    token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
 };
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};

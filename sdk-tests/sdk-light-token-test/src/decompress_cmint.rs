@@ -5,7 +5,7 @@ use light_token_sdk::{
 };
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
-use crate::{MINT_AUTHORITY_SEED, ID};
+use crate::{ID, MINT_AUTHORITY_SEED};
 
 /// Instruction data for DecompressCMint operations
 #[derive(BorshSerialize, BorshDeserialize)]

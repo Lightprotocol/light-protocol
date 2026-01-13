@@ -6,7 +6,7 @@ use light_compressed_account::instruction_data::{
 use crate::instructions::mint_action::{
     Action, CompressAndCloseCMintAction, CompressedMintInstructionData, CompressedMintWithContext,
     CpiContext, CreateMint, DecompressMintAction, MintActionCompressedInstructionData,
-    MintToCompressedAction, MintToTokenAction, RemoveMetadataKeyAction, UpdateAuthority,
+    MintToAction, MintToCompressedAction, RemoveMetadataKeyAction, UpdateAuthority,
     UpdateMetadataAuthorityAction, UpdateMetadataFieldAction,
 };
 
@@ -85,8 +85,8 @@ impl MintActionCompressedInstructionData {
     }
 
     #[must_use = "with_mint_to returns a new value"]
-    pub fn with_mint_to(mut self, action: MintToTokenAction) -> Self {
-        self.actions.push(Action::MintToToken(action));
+    pub fn with_mint_to(mut self, action: MintToAction) -> Self {
+        self.actions.push(Action::MintTo(action));
         self
     }
 

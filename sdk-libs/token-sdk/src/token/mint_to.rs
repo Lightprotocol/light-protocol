@@ -115,7 +115,7 @@ impl MintTo {
                 AccountMeta::new_readonly(Pubkey::default(), false), // System program for lamport transfers
             ],
             data: {
-                let mut data = vec![7u8]; // TokenMintTo discriminator
+                let mut data = vec![7u8]; // MintTo discriminator
                 data.extend_from_slice(&self.amount.to_le_bytes());
                 // Include max_top_up if set (10-byte format)
                 if let Some(max_top_up) = self.max_top_up {

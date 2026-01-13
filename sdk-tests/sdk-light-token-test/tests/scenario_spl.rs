@@ -23,8 +23,7 @@ use light_test_utils::spl::{create_token_account, mint_spl_tokens};
 use light_token_sdk::{
     spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
     token::{
-        derive_token_ata, CreateAssociatedTokenAccount, DecompressToToken, FreezeToken, ThawToken,
-        TransferFromSpl,
+        derive_token_ata, CreateAssociatedTokenAccount, Decompress, Freeze, Thaw, TransferFromSpl,
     },
 };
 use solana_sdk::{signature::Keypair, signer::Signer};
@@ -221,7 +220,7 @@ async fn test_spl_to_ctoken_scenario() {
 
     // 8. Freeze the cToken account
     println!("\nFreezing cToken account...");
-    let freeze_instruction = FreezeToken {
+    let freeze_instruction = Freeze {
         token_account: ctoken_ata,
         mint,
         freeze_authority: payer.pubkey(),
@@ -246,7 +245,7 @@ async fn test_spl_to_ctoken_scenario() {
 
     // 9. Thaw the cToken account
     println!("Thawing cToken account...");
-    let thaw_instruction = ThawToken {
+    let thaw_instruction = Thaw {
         token_account: ctoken_ata,
         mint,
         freeze_authority: payer.pubkey(),
@@ -366,7 +365,7 @@ async fn test_spl_to_ctoken_scenario() {
 
     // 13. Decompress compressed tokens to cToken account
     println!("Decompressing tokens to cToken account...");
-    let decompress_instruction = DecompressToToken {
+    let decompress_instruction = Decompress {
         token_data,
         discriminator,
         merkle_tree: account_proof.tree_info.tree,

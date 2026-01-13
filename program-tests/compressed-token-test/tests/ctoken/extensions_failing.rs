@@ -19,7 +19,7 @@ use light_test_utils::{
 use light_token_interface::state::TokenDataVersion;
 use light_token_sdk::{
     spl_interface::find_spl_interface_pda_with_index,
-    token::{CompressibleParams, CreateTokenAccount, TransferFromSpl, TransferChecked},
+    token::{CompressibleParams, CreateTokenAccount, TransferChecked, TransferFromSpl},
 };
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};

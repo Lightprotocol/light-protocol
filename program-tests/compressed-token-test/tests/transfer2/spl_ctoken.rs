@@ -356,7 +356,7 @@ impl CtokenToSplTransferAndClose {
         let compress_to_pool = CTokenAccount2 {
             inputs: vec![],
             output: MultiTokenTransferOutputData::default(),
-            compression: Some(Compression::compress_and_close_token(
+            compression: Some(Compression::compress_and_close(
                 self.amount,
                 0, // mint index
                 1, // source ctoken account index

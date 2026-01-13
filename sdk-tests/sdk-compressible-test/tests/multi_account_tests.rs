@@ -23,8 +23,8 @@ use light_token_sdk::{
     compressed_token::create_compressed_mint::{
         derive_cmint_compressed_address, find_cmint_address,
     },
-    ctoken,
     pack::compat::CTokenDataWithVariant,
+    token,
 };
 use light_token_types::CPI_AUTHORITY_PDA;
 use sdk_compressible_test::{
@@ -559,7 +559,7 @@ pub async fn decompress_multiple_pdas_with_ctoken(
         .unwrap()
         .value;
 
-    let ctoken_config = ctoken::config_pda();
+    let ctoken_config = token::config_pda();
     let instruction =
         light_compressible_client::compressible_instruction::decompress_accounts_idempotent(
             program_id,
@@ -636,10 +636,10 @@ pub async fn decompress_multiple_pdas_with_ctoken(
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(program_id, 0).0,
                 rent_sponsor: payer.pubkey(),
-                ctoken_rent_sponsor: Some(ctoken::rent_sponsor_pda()),
+                ctoken_rent_sponsor: Some(token::rent_sponsor_pda()),
                 ctoken_config: Some(ctoken_config),
-                ctoken_program: Some(ctoken::id()),
-                ctoken_cpi_authority: Some(ctoken::cpi_authority()),
+                ctoken_program: Some(token::id()),
+                ctoken_cpi_authority: Some(token::cpi_authority()),
                 some_mint: ctoken_account.token.mint,
                 system_program: Pubkey::default(),
             }

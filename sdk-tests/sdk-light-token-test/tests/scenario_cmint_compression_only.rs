@@ -17,7 +17,7 @@ use borsh::BorshDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_token_sdk::token::{
-    CompressibleParams, CreateAssociatedTokenAccount, DecompressToCtoken, Token, Transfer,
+    CompressibleParams, CreateAssociatedTokenAccount, Decompress, Token, Transfer,
 };
 use solana_sdk::{signature::Keypair, signer::Signer};
 
@@ -243,7 +243,7 @@ async fn test_cmint_to_ctoken_scenario_compression_only() {
     println!("Decompressing tokens to cToken account...");
     println!("discriminator {:?}", discriminator);
     println!("token_data {:?}", token_data);
-    let decompress_instruction = DecompressToCtoken {
+    let decompress_instruction = Decompress {
         token_data,
         discriminator,
         merkle_tree: account_proof.tree_info.tree,

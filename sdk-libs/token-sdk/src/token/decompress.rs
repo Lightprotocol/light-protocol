@@ -156,7 +156,7 @@ impl Decompress {
         let mut token_account = CTokenAccount2::new(vec![indices.source])
             .map_err(|_| ProgramError::InvalidAccountData)?;
         token_account
-            .decompress_token(self.token_data.amount, indices.destination_index)
+            .decompress(self.token_data.amount, indices.destination_index)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         // Build instruction inputs

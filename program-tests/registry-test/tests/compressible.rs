@@ -36,7 +36,7 @@ use light_token_client::{
 };
 use light_token_sdk::{
     compressed_token::create_compressed_mint::find_cmint_address,
-    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, TokenMintTo},
+    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, MintTo},
 };
 use solana_sdk::{
     instruction::Instruction,
@@ -1232,7 +1232,7 @@ async fn assert_not_compressible_cmint<R: Rpc>(
     Ok(())
 }
 
-/// Helper function to mint tokens to a CToken account using TokenMintTo instruction
+/// Helper function to mint tokens to a CToken account using MintTo instruction
 async fn mint_to_token<R: Rpc>(
     rpc: &mut R,
     cmint: Pubkey,
@@ -1241,7 +1241,7 @@ async fn mint_to_token<R: Rpc>(
     mint_authority: &Keypair,
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
-    let ix = TokenMintTo {
+    let ix = MintTo {
         cmint,
         destination,
         amount,
@@ -1249,9 +1249,7 @@ async fn mint_to_token<R: Rpc>(
         max_top_up: None,
     }
     .instruction()
-    .map_err(|e| {
-        RpcError::CustomError(format!("Failed to create TokenMintTo instruction: {:?}", e))
-    })?;
+    .map_err(|e| RpcError::CustomError(format!("Failed to create MintTo instruction: {:?}", e)))?;
 
     rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &[payer, mint_authority])
         .await
@@ -1346,7 +1344,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     .await
     .unwrap();
 
-    // Mint initial tokens to Account A via TokenMintTo (this also writes to the CMint, triggering top-up)
+    // Mint initial tokens to Account A via MintTo (this also writes to the CMint, triggering top-up)
     let transfer_amount = 1_000_000u64;
     mint_to_token(
         &mut rpc,

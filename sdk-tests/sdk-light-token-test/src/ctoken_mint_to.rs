@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::{program_error::ProgramError, account_info::AccountInfo};
+use solana_program::{account_info::AccountInfo, program_error::ProgramError};
 
 /// Instruction data for CTokenMintTo operations
 #[derive(BorshSerialize, BorshDeserialize)]

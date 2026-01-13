@@ -457,7 +457,7 @@ impl AccountsConfig {
             let has_mint_to_ctoken_actions = parsed_instruction_data
                 .actions
                 .iter()
-                .any(|action| matches!(action, ZAction::MintToToken(_)));
+                .any(|action| matches!(action, ZAction::MintTo(_)));
             if has_mint_to_ctoken_actions {
                 msg!("Mint to ctokens not allowed when writing to cpi context");
                 return Err(ErrorCode::CpiContextSetNotUsable.into());

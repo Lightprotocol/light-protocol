@@ -86,7 +86,7 @@ pub fn process_actions<'a>(
                 compressed_mint.base.freeze_authority =
                     update_action.new_authority.as_ref().map(|a| **a);
             }
-            ZAction::MintToToken(mint_to_ctoken_action) => {
+            ZAction::MintTo(mint_to_ctoken_action) => {
                 let account_index = mint_to_ctoken_action.account_index as usize;
                 if account_index >= MAX_PACKED_ACCOUNTS {
                     msg!(

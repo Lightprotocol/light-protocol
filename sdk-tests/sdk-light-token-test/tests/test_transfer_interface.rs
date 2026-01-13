@@ -9,8 +9,8 @@ use light_test_utils::spl::{
     create_mint_helper, create_token_2022_account, mint_spl_tokens, CREATE_MINT_HELPER_DECIMALS,
 };
 use light_token_sdk::{
-    ctoken::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
     spl_interface::find_spl_interface_pda_with_index,
+    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
 };
 use light_token_types::CPI_AUTHORITY_PDA;
 use native_ctoken_examples::{TransferInterfaceData, ID, TRANSFER_INTERFACE_AUTHORITY_SEED};

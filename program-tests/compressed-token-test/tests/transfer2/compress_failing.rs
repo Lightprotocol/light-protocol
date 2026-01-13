@@ -223,7 +223,7 @@ fn create_compression_inputs(
 
     // Compress tokens from CToken ATA
     compression_account
-        .compress_token(compress_amount, ctoken_ata_index, authority_index)
+        .compress(compress_amount, ctoken_ata_index, authority_index)
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to compress: {:?}", e)))?;
 
     // Get account metas from PackedAccounts
@@ -672,7 +672,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
 
     let mut compression_account = CTokenAccount2::new_empty(recipient_index, mint_index);
     compression_account
-        .compress_token(token_amount, ctoken_ata_index, authority_index)
+        .compress(token_amount, ctoken_ata_index, authority_index)
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to compress: {:?}", e)))?;
 
     let (account_metas, _, _) = packed_accounts.to_account_metas();

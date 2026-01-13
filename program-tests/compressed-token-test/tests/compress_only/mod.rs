@@ -166,8 +166,8 @@ pub async fn run_compress_and_close_extension_test(
         },
     };
     use light_token_sdk::{
-        token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
         spl_interface::find_spl_interface_pda_with_index,
+        token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
     };
 
     let mut context = setup_extensions_test(config.extensions).await?;

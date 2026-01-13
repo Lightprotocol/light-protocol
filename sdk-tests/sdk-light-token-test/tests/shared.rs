@@ -6,6 +6,7 @@ use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 /// Setup helper: Creates a compressed mint directly using the ctoken SDK (not via wrapper program)
 /// Optionally creates ATAs and mints tokens for each recipient.
+/// Note: This decompresses the mint first, then uses MintTo to mint to ctoken accounts.
 /// Returns (mint_pda, compression_address, ata_pubkeys, mint_seed_keypair)
 #[allow(unused)]
 pub async fn setup_create_compressed_mint(
@@ -16,7 +17,7 @@ pub async fn setup_create_compressed_mint(
     recipients: Vec<(u64, Pubkey)>,
 ) -> (Pubkey, [u8; 32], Vec<Pubkey>, Keypair) {
     use light_token_sdk::token::{
-        CreateAssociatedTokenAccount, CreateCMint, CreateCMintParams, MintTo, MintToParams,
+        CreateAssociatedTokenAccount, CreateCMint, CreateCMintParams, MintTo,
     };
 
     let mint_seed = Keypair::new();
@@ -114,7 +115,13 @@ pub async fn setup_create_compressed_mint(
         .collect();
 
     if !recipients_with_amount.is_empty() {
-        // Get the compressed mint account for minting
+        // First, decompress the compressed mint to get a CMint account
+        // Then use MintTo to mint to ctoken accounts
+        use light_token_interface::{
+            instructions::mint_action::CompressedMintWithContext, state::CompressedMint,
+        };
+        use light_token_sdk::token::DecompressCMint;
+
         let compressed_mint_account = rpc
             .get_compressed_account(compression_address, None)
             .await
@@ -122,20 +129,23 @@ pub async fn setup_create_compressed_mint(
             .value
             .expect("Compressed mint should exist");
 
-        use light_token_interface::state::CompressedMint;
-        let compressed_mint =
-            CompressedMint::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
-                .unwrap();
+        let compressed_mint = CompressedMint::deserialize(
+            &mut compressed_mint_account
+                .data
+                .as_ref()
+                .unwrap()
+                .data
+                .as_slice(),
+        )
+        .unwrap();
 
-        // Get validity proof for the mint operation
+        // Get validity proof for the decompress operation
         let rpc_result = rpc
             .get_validity_proof(vec![compressed_mint_account.hash], vec![], None)
             .await
             .unwrap()
             .value;
 
-        // Build CompressedMintWithContext
-        use light_token_interface::instructions::mint_action::CompressedMintWithContext;
         let compressed_mint_with_context = CompressedMintWithContext {
             address: compression_address,
             leaf_index: compressed_mint_account.leaf_index,
@@ -147,36 +157,41 @@ pub async fn setup_create_compressed_mint(
             mint: Some(compressed_mint.try_into().unwrap()),
         };
 
-        // Build mint params with first recipient
-        let (first_idx, (first_amount, _)) = recipients_with_amount[0];
-        let mut mint_params = MintToParams::new(
+        let decompress_ix = DecompressCMint {
+            mint_seed_pubkey: mint_seed.pubkey(),
+            payer: payer.pubkey(),
+            authority: mint_authority,
+            state_tree: compressed_mint_account.tree_info.tree,
+            input_queue: compressed_mint_account.tree_info.queue,
+            output_queue,
             compressed_mint_with_context,
-            *first_amount,
-            mint_authority,
-            rpc_result.proof,
-        );
-        // Override the account_index for the first action
-        mint_params.mint_to_actions[0].account_index = first_idx as u8;
-
-        // Add remaining recipients
-        for (idx, (amount, _)) in recipients_with_amount.iter().skip(1) {
-            mint_params = mint_params.add_mint_to_action(*idx as u8, *amount);
+            proof: rpc_result.proof,
+            rent_payment: 16,  // ~24 hours rent (16 epochs * 1.5h per epoch)
+            write_top_up: 766, // ~3 hours per write
         }
+        .instruction()
+        .unwrap();
 
-        // Build MintToToken instruction
-        let mint_to_ctoken = MintTo::new(
-            mint_params,
-            payer.pubkey(),
-            compressed_mint_account.tree_info.tree,
-            compressed_mint_account.tree_info.queue,
-            compressed_mint_account.tree_info.queue,
-            ata_pubkeys.clone(),
-        );
-        let mint_instruction = mint_to_ctoken.instruction().unwrap();
-
-        rpc.create_and_send_transaction(&[mint_instruction], &payer.pubkey(), &[payer])
+        rpc.create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &[payer])
             .await
             .unwrap();
+
+        // Now mint to each recipient using the decompressed CMint
+        for (idx, (amount, _)) in &recipients_with_amount {
+            let mint_instruction = MintTo {
+                cmint: mint,
+                destination: ata_pubkeys[*idx],
+                amount: *amount,
+                authority: mint_authority,
+                max_top_up: None,
+            }
+            .instruction()
+            .unwrap();
+
+            rpc.create_and_send_transaction(&[mint_instruction], &payer.pubkey(), &[payer])
+                .await
+                .unwrap();
+        }
     }
 
     (mint, compression_address, ata_pubkeys, mint_seed)
@@ -194,7 +209,7 @@ pub async fn setup_create_compressed_mint_with_freeze_authority(
     recipients: Vec<(u64, Pubkey)>,
 ) -> (Pubkey, [u8; 32], Vec<Pubkey>) {
     use light_token_sdk::token::{
-        CreateAssociatedTokenAccount, CreateCMint, CreateCMintParams, MintTo, MintToParams,
+        CreateAssociatedTokenAccount, CreateCMint, CreateCMintParams, MintTo,
     };
 
     let mint_seed = Keypair::new();
@@ -336,8 +351,7 @@ pub async fn setup_create_compressed_mint_with_freeze_authority(
             .unwrap();
     }
 
-    // After decompression, use TokenMintTo (simple 3-account instruction)
-    // instead of MintToToken (which uses compressed mint)
+    // After decompression, use MintTo (simple 3-account instruction)
     let recipients_with_amount: Vec<_> = recipients
         .iter()
         .enumerate()
@@ -345,10 +359,8 @@ pub async fn setup_create_compressed_mint_with_freeze_authority(
         .collect();
 
     if !recipients_with_amount.is_empty() {
-        use light_token_sdk::token::TokenMintTo;
-
         for (idx, (amount, _)) in &recipients_with_amount {
-            let mint_instruction = TokenMintTo {
+            let mint_instruction = MintTo {
                 cmint: mint,
                 destination: ata_pubkeys[*idx],
                 amount: *amount,
@@ -378,8 +390,7 @@ pub async fn setup_create_compressed_mint_with_compression_only(
     compression_only: bool,
 ) -> (Pubkey, [u8; 32], Vec<Pubkey>) {
     use light_token_sdk::token::{
-        CompressibleParams, CreateAssociatedTokenAccount, CreateCMint, CreateCMintParams,
-        MintToToken, MintToTokenParams,
+        CompressibleParams, CreateAssociatedTokenAccount, CreateCMint, CreateCMintParams, MintTo,
     };
 
     let mint_seed = Keypair::new();
@@ -484,7 +495,13 @@ pub async fn setup_create_compressed_mint_with_compression_only(
         .collect();
 
     if !recipients_with_amount.is_empty() {
-        // Get the compressed mint account for minting
+        // First, decompress the compressed mint to get a CMint account
+        // Then use MintTo to mint to ctoken accounts
+        use light_token_interface::{
+            instructions::mint_action::CompressedMintWithContext, state::CompressedMint,
+        };
+        use light_token_sdk::token::DecompressCMint;
+
         let compressed_mint_account = rpc
             .get_compressed_account(compression_address, None)
             .await
@@ -492,20 +509,23 @@ pub async fn setup_create_compressed_mint_with_compression_only(
             .value
             .expect("Compressed mint should exist");
 
-        use light_token_interface::state::CompressedMint;
-        let compressed_mint =
-            CompressedMint::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
-                .unwrap();
+        let compressed_mint = CompressedMint::deserialize(
+            &mut compressed_mint_account
+                .data
+                .as_ref()
+                .unwrap()
+                .data
+                .as_slice(),
+        )
+        .unwrap();
 
-        // Get validity proof for the mint operation
+        // Get validity proof for the decompress operation
         let rpc_result = rpc
             .get_validity_proof(vec![compressed_mint_account.hash], vec![], None)
             .await
             .unwrap()
             .value;
 
-        // Build CompressedMintWithContext
-        use light_token_interface::instructions::mint_action::CompressedMintWithContext;
         let compressed_mint_with_context = CompressedMintWithContext {
             address: compression_address,
             leaf_index: compressed_mint_account.leaf_index,
@@ -517,36 +537,41 @@ pub async fn setup_create_compressed_mint_with_compression_only(
             mint: Some(compressed_mint.try_into().unwrap()),
         };
 
-        // Build mint params with first recipient
-        let (first_idx, (first_amount, _)) = recipients_with_amount[0];
-        let mut mint_params = MintToParams::new(
+        let decompress_ix = DecompressCMint {
+            mint_seed_pubkey: mint_seed.pubkey(),
+            payer: payer.pubkey(),
+            authority: mint_authority,
+            state_tree: compressed_mint_account.tree_info.tree,
+            input_queue: compressed_mint_account.tree_info.queue,
+            output_queue,
             compressed_mint_with_context,
-            *first_amount,
-            mint_authority,
-            rpc_result.proof,
-        );
-        // Override the account_index for the first action
-        mint_params.mint_to_actions[0].account_index = first_idx as u8;
-
-        // Add remaining recipients
-        for (idx, (amount, _)) in recipients_with_amount.iter().skip(1) {
-            mint_params = mint_params.add_mint_to_action(*idx as u8, *amount);
+            proof: rpc_result.proof,
+            rent_payment: 16,  // ~24 hours rent (16 epochs * 1.5h per epoch)
+            write_top_up: 766, // ~3 hours per write
         }
+        .instruction()
+        .unwrap();
 
-        // Build MintToToken instruction
-        let mint_to_ctoken = MintTo::new(
-            mint_params,
-            payer.pubkey(),
-            compressed_mint_account.tree_info.tree,
-            compressed_mint_account.tree_info.queue,
-            compressed_mint_account.tree_info.queue,
-            ata_pubkeys.clone(),
-        );
-        let mint_instruction = mint_to_ctoken.instruction().unwrap();
-
-        rpc.create_and_send_transaction(&[mint_instruction], &payer.pubkey(), &[payer])
+        rpc.create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &[payer])
             .await
             .unwrap();
+
+        // Now mint to each recipient using the decompressed CMint
+        for (idx, (amount, _)) in &recipients_with_amount {
+            let mint_instruction = MintTo {
+                cmint: mint,
+                destination: ata_pubkeys[*idx],
+                amount: *amount,
+                authority: mint_authority,
+                max_top_up: None,
+            }
+            .instruction()
+            .unwrap();
+
+            rpc.create_and_send_transaction(&[mint_instruction], &payer.pubkey(), &[payer])
+                .await
+                .unwrap();
+        }
     }
 
     (mint, compression_address, ata_pubkeys)

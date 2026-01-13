@@ -1,7 +1,7 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_sdk_types::cpi_accounts::v2::CpiAccounts;
 use light_token_interface::instructions::mint_action::{
-    MintActionCompressedInstructionData, MintToCompressedAction, MintToTokenAction, UpdateAuthority,
+    MintActionCompressedInstructionData, MintToAction, MintToCompressedAction, UpdateAuthority,
 };
 use light_token_sdk::compressed_token::{
     ctoken_instruction::CTokenInstruction, mint_action::MintActionCpiAccounts,
@@ -26,7 +26,7 @@ pub fn process_mint_action<'a, 'info>(
         token_account_version: 2,
         recipients: input.token_recipients.clone(),
     })
-    .with_mint_to_token(MintToTokenAction {
+    .with_mint_to(MintToAction {
         account_index: 0, // Index in remaining accounts
         amount: input.token_recipients[0].amount,
     })

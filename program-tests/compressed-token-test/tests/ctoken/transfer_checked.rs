@@ -13,10 +13,7 @@ use light_test_utils::{
 use light_token_interface::state::TokenDataVersion;
 use light_token_sdk::{
     spl_interface::find_spl_interface_pda_with_index,
-    token::{
-        CompressibleParams, CreateTokenAccount, TransferFromSpl, Transfer,
-        TransferChecked,
-    },
+    token::{CompressibleParams, CreateTokenAccount, Transfer, TransferChecked, TransferFromSpl},
 };
 use serial_test::serial;
 use solana_sdk::{native_token::LAMPORTS_PER_SOL, signature::Keypair, signer::Signer};

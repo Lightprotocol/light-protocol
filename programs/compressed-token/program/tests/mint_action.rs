@@ -10,8 +10,8 @@ use light_token_interface::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
         mint_action::{
             Action, CompressedMintInstructionData, CpiContext, CreateMint,
-            MintActionCompressedInstructionData, MintToCompressedAction, MintToTokenAction,
-            Recipient, RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
+            MintActionCompressedInstructionData, MintToAction, MintToCompressedAction, Recipient,
+            RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
             UpdateMetadataFieldAction,
         },
     },
@@ -71,8 +71,8 @@ fn random_mint_to_action(rng: &mut StdRng) -> MintToCompressedAction {
     }
 }
 
-fn random_mint_to_decompressed_action(rng: &mut StdRng) -> MintToTokenAction {
-    MintToTokenAction {
+fn random_mint_to_decompressed_action(rng: &mut StdRng) -> MintToAction {
+    MintToAction {
         amount: rng.gen_range(1..=1_000_000),
         account_index: rng.gen_range(1..=255),
     }
@@ -113,7 +113,7 @@ fn random_action(rng: &mut StdRng) -> Action {
         0 => Action::MintToCompressed(random_mint_to_action(rng)),
         1 => Action::UpdateMintAuthority(random_update_authority_action(rng)),
         2 => Action::UpdateFreezeAuthority(random_update_authority_action(rng)),
-        3 => Action::MintToToken(random_mint_to_decompressed_action(rng)),
+        3 => Action::MintTo(random_mint_to_decompressed_action(rng)),
         4 => Action::UpdateMetadataField(random_update_metadata_field_action(rng)),
         5 => Action::UpdateMetadataAuthority(random_update_metadata_authority_action(rng)),
         6 => Action::RemoveMetadataKey(random_remove_metadata_key_action(rng)),
@@ -328,7 +328,7 @@ fn check_if_config_should_error(instruction_data: &MintActionCompressedInstructi
         let has_mint_to_ctoken = instruction_data
             .actions
             .iter()
-            .any(|action| matches!(action, Action::MintToToken(_)));
+            .any(|action| matches!(action, Action::MintTo(_)));
 
         // Check for MintToCompressed actions
         let require_token_output_queue = instruction_data

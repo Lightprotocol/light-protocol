@@ -10,8 +10,8 @@ use light_token_interface::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
         mint_action::{
             CompressAndCloseCMintAction, CompressedMintWithContext, DecompressMintAction,
-            MintActionCompressedInstructionData, MintToCompressedAction, MintToTokenAction,
-            Recipient, RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
+            MintActionCompressedInstructionData, MintToAction, MintToCompressedAction, Recipient,
+            RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
             UpdateMetadataFieldAction,
         },
     },
@@ -263,7 +263,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                 let current_index = ctoken_account_index;
                 ctoken_account_index += 1;
 
-                instruction_data.with_mint_to_token(MintToTokenAction {
+                instruction_data.with_mint_to(MintToAction {
                     account_index: current_index,
                     amount,
                 })

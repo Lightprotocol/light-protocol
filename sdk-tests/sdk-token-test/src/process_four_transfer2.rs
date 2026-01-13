@@ -180,7 +180,7 @@ pub fn process_four_transfer2<'info>(
             four_invokes_params.compress_1.mint,
         );
         token_account_compress
-            .compress_token(
+            .compress(
                 four_invokes_params.compress_1.amount,
                 four_invokes_params.compress_1.solana_token_account,
                 four_invokes_params.compress_1.authority,
