@@ -228,7 +228,7 @@ pub fn rent_sponsor_pda() -> Pubkey {
 }
 
 pub fn compression_authority_pda() -> Pubkey {
-    CompressibleConfig::ctoken_v1_compression_authority_pda()
+    CompressibleConfig::light_token_v1_compression_authority_pda()
 }
 
 // Backwards compatibility aliases for old type names

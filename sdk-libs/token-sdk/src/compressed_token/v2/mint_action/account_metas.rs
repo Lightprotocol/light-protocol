@@ -105,7 +105,7 @@ impl MintActionMetaConfig {
         self
     }
 
-    pub fn with_ctoken_accounts(mut self, accounts: Vec<Pubkey>) -> Self {
+    pub fn with_token_accounts(mut self, accounts: Vec<Pubkey>) -> Self {
         self.ctoken_accounts = accounts;
         self
     }

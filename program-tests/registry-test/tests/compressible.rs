@@ -29,7 +29,7 @@ use light_test_utils::{
 };
 use light_token_client::{
     actions::{
-        create_compressible_token_account, mint_action_comprehensive, transfer_ctoken,
+        create_compressible_token_account, mint_action_comprehensive, transfer_token,
         CreateCompressibleTokenAccountInputs,
     },
     instructions::mint_action::{DecompressMintParams, NewMint},
@@ -63,10 +63,10 @@ async fn withdraw_funding_pool_via_registry<R: Rpc>(
         Pubkey::from_str("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").unwrap();
     let compressed_token_program_id =
         Pubkey::from_str("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m").unwrap();
-    let config = CompressibleConfig::ctoken_v1(Default::default(), Default::default());
+    let config = CompressibleConfig::light_token_v1(Default::default(), Default::default());
     let compression_authority = config.compression_authority;
     let rent_sponsor = config.rent_sponsor;
-    let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
+    let compressible_config = CompressibleConfig::light_token_v1_config_pda();
 
     // Build accounts using Anchor's account abstraction
     let withdraw_accounts = WithdrawFundingPoolAccounts {
@@ -333,7 +333,7 @@ async fn pause_compressible_config<R: Rpc>(
 ) -> Result<Signature, RpcError> {
     let registry_program_id =
         Pubkey::from_str("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").unwrap();
-    let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
+    let compressible_config = CompressibleConfig::light_token_v1_config_pda();
 
     let accounts = UpdateCompressibleConfigAccounts {
         update_authority: update_authority.pubkey(),
@@ -367,7 +367,7 @@ async fn unpause_compressible_config<R: Rpc>(
 ) -> Result<Signature, RpcError> {
     let registry_program_id =
         Pubkey::from_str("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").unwrap();
-    let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
+    let compressible_config = CompressibleConfig::light_token_v1_config_pda();
 
     let accounts = UpdateCompressibleConfigAccounts {
         update_authority: update_authority.pubkey(),
@@ -401,7 +401,7 @@ async fn deprecate_compressible_config<R: Rpc>(
 ) -> Result<Signature, RpcError> {
     let registry_program_id =
         Pubkey::from_str("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").unwrap();
-    let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
+    let compressible_config = CompressibleConfig::light_token_v1_config_pda();
 
     let accounts = UpdateCompressibleConfigAccounts {
         update_authority: update_authority.pubkey(),
@@ -435,7 +435,7 @@ async fn update_compressible_config_authorities<R: Rpc>(
     new_withdrawal_authority: Option<&Keypair>,
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
-    let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
+    let compressible_config = CompressibleConfig::light_token_v1_config_pda();
 
     let accounts = UpdateCompressibleConfigAccounts {
         update_authority: update_authority.pubkey(),
@@ -484,7 +484,7 @@ async fn test_pause_compressible_config_with_valid_authority() -> Result<(), Rpc
         .unwrap();
 
     // Verify the config state is paused (state = 0)
-    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let compressible_config_pda = CompressibleConfig::light_token_v1_config_pda();
     let account_data = rpc
         .get_account(compressible_config_pda)
         .await?
@@ -580,7 +580,7 @@ async fn test_pause_compressible_config_with_invalid_authority() -> Result<(), R
     );
 
     // Verify the config state is still active (state = 1)
-    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let compressible_config_pda = CompressibleConfig::light_token_v1_config_pda();
     let account_data = rpc
         .get_account(compressible_config_pda)
         .await?
@@ -607,7 +607,7 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
         .unwrap();
 
     // Verify it's paused
-    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let compressible_config_pda = CompressibleConfig::light_token_v1_config_pda();
     let account_data = rpc
         .get_account(compressible_config_pda)
         .await?
@@ -717,7 +717,7 @@ async fn test_unpause_compressible_config_with_invalid_authority() -> Result<(),
     .unwrap();
 
     // Verify the config state is still paused (state = 0)
-    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let compressible_config_pda = CompressibleConfig::light_token_v1_config_pda();
     let account_data = rpc
         .get_account(compressible_config_pda)
         .await?
@@ -777,7 +777,7 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
         .unwrap();
 
     // Verify the config state is deprecated (state = 2)
-    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let compressible_config_pda = CompressibleConfig::light_token_v1_config_pda();
     let account_data = rpc
         .get_account(compressible_config_pda)
         .await?
@@ -884,7 +884,7 @@ async fn test_deprecate_compressible_config_with_invalid_authority() -> Result<(
     );
 
     // Verify the config state is still active (state = 1)
-    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let compressible_config_pda = CompressibleConfig::light_token_v1_config_pda();
     let account_data = rpc
         .get_account(compressible_config_pda)
         .await?
@@ -923,7 +923,7 @@ async fn test_update_compressible_config_update_authority() -> Result<(), RpcErr
     .unwrap();
 
     // Verify the update_authority was updated
-    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let compressible_config_pda = CompressibleConfig::light_token_v1_config_pda();
     let account_data = rpc
         .get_account(compressible_config_pda)
         .await?
@@ -949,7 +949,7 @@ async fn test_update_compressible_config_withdrawal_authority() -> Result<(), Rp
     let payer = rpc.get_payer().insecure_clone();
 
     // Store original withdrawal authority
-    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let compressible_config_pda = CompressibleConfig::light_token_v1_config_pda();
     let account_data_before = rpc
         .get_account(compressible_config_pda)
         .await?
@@ -1031,7 +1031,7 @@ async fn test_update_compressible_config_both_authorities() -> Result<(), RpcErr
     .unwrap();
 
     // Verify both authorities were updated
-    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let compressible_config_pda = CompressibleConfig::light_token_v1_config_pda();
     let account_data = rpc
         .get_account(compressible_config_pda)
         .await?
@@ -1091,7 +1091,7 @@ async fn test_update_compressible_config_invalid_authority() -> Result<(), RpcEr
     .unwrap();
 
     // Verify the update_authority was NOT updated
-    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let compressible_config_pda = CompressibleConfig::light_token_v1_config_pda();
     let account_data = rpc
         .get_account(compressible_config_pda)
         .await?
@@ -1441,7 +1441,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
         };
 
         // Transfer all tokens from source to dest
-        transfer_ctoken(
+        transfer_token(
             &mut rpc,
             source,
             dest,

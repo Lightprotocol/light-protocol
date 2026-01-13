@@ -266,7 +266,7 @@ pub fn decompress_accounts_idempotent<'info>(
         }
 
         let ctoken_ix =
-            light_token_sdk::compressed_token::decompress_full::decompress_full_ctoken_accounts_with_indices(
+            light_token_sdk::compressed_token::decompress_full::decompress_full_token_accounts_with_indices(
                 fee_payer.key(),
                 proof,
                 if has_pdas {

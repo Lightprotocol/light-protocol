@@ -700,7 +700,7 @@ pub mod light_registry {
     ) -> Result<()> {
         ctx.accounts
             .compressible_config
-            .set_inner(CompressibleConfig::new_ctoken(
+            .set_inner(CompressibleConfig::new_light_token(
                 ctx.accounts.config_counter.counter,
                 params.active,
                 params.update_authority,

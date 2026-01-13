@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_token_sdk::compressed_token::{
-    decompress_full::{decompress_full_ctoken_accounts_with_indices, DecompressFullIndices},
+    decompress_full::{decompress_full_token_accounts_with_indices, DecompressFullIndices},
     transfer2::Transfer2CpiAccounts,
 };
 
@@ -35,7 +35,7 @@ pub fn process_decompress_full_cpi_context<'info>(
         process_mint_compressed_tokens_cpi_write(&ctx, params, &cpi_accounts)?;
     }
 
-    let instruction = decompress_full_ctoken_accounts_with_indices(
+    let instruction = decompress_full_token_accounts_with_indices(
         *ctx.accounts.signer.key,
         validity_proof,
         cpi_accounts.cpi_context.map(|x| *x.key),

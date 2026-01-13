@@ -133,7 +133,7 @@ fn find_account_indices(
 /// # Returns
 /// An instruction that compresses and closes all provided token accounts
 #[profile]
-pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
+pub fn compress_and_close_token_accounts_with_indices<'info>(
     fee_payer: Pubkey,
     cpi_context_pubkey: Option<Pubkey>,
     indices: &[CompressAndCloseIndices],
@@ -234,7 +234,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
 /// # Returns
 /// An instruction that compresses and closes all provided token accounts
 #[profile]
-pub fn compress_and_close_ctoken_accounts<'info>(
+pub fn compress_and_close_token_accounts<'info>(
     fee_payer: Pubkey,
     output_queue: AccountInfo<'info>,
     ctoken_solana_accounts: &[&AccountInfo<'info>],
@@ -298,7 +298,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
     packed_accounts_vec.push(output_queue);
     packed_accounts_vec.extend_from_slice(packed_accounts);
 
-    compress_and_close_ctoken_accounts_with_indices(
+    compress_and_close_token_accounts_with_indices(
         fee_payer,
         None,
         &indices_vec,
@@ -308,7 +308,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
 
 /// Compress and close ctoken accounts, and invoke cpi.
 ///
-/// Wraps `compress_and_close_ctoken_accounts`, builds the instruction, and
+/// Wraps `compress_and_close_token_accounts`, builds the instruction, and
 /// calls `invoke_signed` with provided seeds.
 ///
 /// `remaining_accounts` must include required Light system accounts for
@@ -317,7 +317,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
 #[allow(clippy::too_many_arguments)]
 #[profile]
 #[allow(clippy::extra_unused_lifetimes)]
-pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
+pub fn compress_and_close_token_accounts_signed<'b, 'info>(
     token_accounts_to_compress: &[AccountInfoToCompress<'info>],
     fee_payer: AccountInfo<'info>,
     output_queue: AccountInfo<'info>,
@@ -337,7 +337,7 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
         .map(|t| t.account_info.as_ref())
         .collect();
 
-    let instruction = compress_and_close_ctoken_accounts(
+    let instruction = compress_and_close_token_accounts(
         *fee_payer.key,
         output_queue,
         &ctoken_infos,

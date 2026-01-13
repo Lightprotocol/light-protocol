@@ -100,7 +100,7 @@ pub struct FundingPoolConfig {
 #[cfg(feature = "devenv")]
 impl FundingPoolConfig {
     pub fn new(version: u16) -> Self {
-        let config = CtokenCompressibleConfig::new_ctoken(
+        let config = CtokenCompressibleConfig::new_light_token(
             version,
             true,
             Pubkey::default(),

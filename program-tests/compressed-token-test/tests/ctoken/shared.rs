@@ -682,7 +682,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
     let current_epoch = 0;
     let (registered_forester_pda, _) =
         get_forester_epoch_pda_from_authority(&forester_keypair.pubkey(), current_epoch);
-    let config = CompressibleConfig::ctoken_v1(Pubkey::default(), Pubkey::default());
+    let config = CompressibleConfig::light_token_v1(Pubkey::default(), Pubkey::default());
     let compressible_config = CompressibleConfig::derive_v1_config_pda(&registry_program_id).0;
     let compression_authority = config.compression_authority;
 

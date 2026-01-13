@@ -33,8 +33,8 @@ NO_DEFAULT_CRATES=(
     "light-sdk-types"
     "light-sdk-pinocchio"
     "light-sdk-macros"
-    "light-ctoken-sdk"
-    "light-ctoken-types"
+    "light-token-sdk"
+    "light-token-types"
     "light-sdk"
     "sdk-compressible-test"
     "csdk-anchor-derived-test"
@@ -100,8 +100,8 @@ ANCHOR_CRATES=(
     "light-compressible"
     "light-sdk-types"
     "light-sdk"
-    "light-ctoken-sdk"
-    "light-ctoken-types"
+    "light-token-sdk"
+    "light-token-types"
 )
 
 for crate in "${ANCHOR_CRATES[@]}"; do

@@ -53,7 +53,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     let (registered_forester_pda, _) =
         get_forester_epoch_pda_from_authority(&authority.pubkey(), current_epoch);
 
-    let config = CompressibleConfig::ctoken_v1(Pubkey::default(), Pubkey::default());
+    let config = CompressibleConfig::light_token_v1(Pubkey::default(), Pubkey::default());
 
     let compressible_config = CompressibleConfig::derive_v1_config_pda(&registry_program_id).0;
 

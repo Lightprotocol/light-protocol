@@ -331,7 +331,7 @@ pub fn add_compressible_instructions(
 
     let ctoken_enum = if let Some(ref token_seed_specs) = token_seeds {
         if !token_seed_specs.is_empty() {
-            crate::compressible::seed_providers::generate_ctoken_account_variant_enum(
+            crate::compressible::seed_providers::generate_token_account_variant_enum(
                 token_seed_specs,
             )?
         } else {
@@ -844,7 +844,7 @@ pub fn add_compressible_instructions(
     if let Some(ref seeds) = token_seeds {
         if !seeds.is_empty() {
             let impl_code =
-                crate::compressible::seed_providers::generate_ctoken_seed_provider_implementation(
+                crate::compressible::seed_providers::generate_token_seed_provider_implementation(
                     seeds,
                 )?;
             let ctoken_impl: syn::ItemImpl = syn::parse2(impl_code).map_err(|e| {

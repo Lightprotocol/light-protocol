@@ -137,7 +137,7 @@ async fn test_mint_to_ctoken() {
             compressed_mint_account.tree_info.queue,
             compressed_mint_account.tree_info.queue,
         )
-        .with_ctoken_accounts(vec![ctoken_account.pubkey()])
+        .with_token_accounts(vec![ctoken_account.pubkey()])
         .to_account_metas();
         wrapper_accounts.extend(account_metas);
 

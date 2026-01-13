@@ -935,7 +935,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
         rpc_proof_result.accounts[0].tree_info.queue,
         rpc_proof_result.accounts[0].tree_info.queue,
     )
-    .with_ctoken_accounts(vec![ctoken_ata]);
+    .with_token_accounts(vec![ctoken_ata]);
 
     let account_metas = config.to_account_metas();
 

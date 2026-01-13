@@ -7,7 +7,7 @@ use solana_signer::Signer;
 
 const SYSTEM_PROGRAM_ID: [u8; 32] = [0u8; 32];
 
-/// Transfer from one c-token account to another.
+/// Transfer from one token account to another.
 ///
 /// # Arguments
 /// * `rpc` - RPC client
@@ -19,7 +19,7 @@ const SYSTEM_PROGRAM_ID: [u8; 32] = [0u8; 32];
 ///
 /// # Returns
 /// `Result<Signature, RpcError>` - The transaction signature
-pub async fn transfer_ctoken<R: Rpc>(
+pub async fn transfer_token<R: Rpc>(
     rpc: &mut R,
     source: Pubkey,
     destination: Pubkey,
@@ -28,7 +28,7 @@ pub async fn transfer_ctoken<R: Rpc>(
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
     let transfer_instruction =
-        create_transfer_ctoken_instruction(source, destination, amount, authority.pubkey())?;
+        create_transfer_token_instruction(source, destination, amount, authority.pubkey())?;
 
     let mut signers = vec![payer];
     if authority.pubkey() != payer.pubkey() {
@@ -40,7 +40,7 @@ pub async fn transfer_ctoken<R: Rpc>(
 }
 
 // TODO: consume the variant from compressed-token-sdk instead
-/// Create a ctoken transfer instruction.
+/// Create a token transfer instruction.
 ///
 /// # Arguments
 /// * `source` - Source token account
@@ -51,7 +51,7 @@ pub async fn transfer_ctoken<R: Rpc>(
 /// # Returns
 /// `Result<Instruction, RpcError>`
 #[allow(clippy::result_large_err)]
-pub fn create_transfer_ctoken_instruction(
+pub fn create_transfer_token_instruction(
     source: Pubkey,
     destination: Pubkey,
     amount: u64,

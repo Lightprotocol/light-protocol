@@ -14,7 +14,7 @@ use light_test_utils::{
     Rpc,
 };
 use light_token_client::{
-    actions::{create_mint, mint_to_compressed, transfer2, transfer_ctoken},
+    actions::{create_mint, mint_to_compressed, transfer2, transfer_token},
     instructions::{
         mint_action::{DecompressMintParams, MintActionType},
         transfer2::{
@@ -834,7 +834,7 @@ async fn test_ctoken_transfer() {
         second_recipient_ata_balance
     );
     // Execute the decompressed transfer
-    let transfer_result = transfer_ctoken(
+    let transfer_result = transfer_token(
         &mut rpc,
         recipient_ata,        // Source account (has 1000 tokens)
         second_recipient_ata, // Destination account

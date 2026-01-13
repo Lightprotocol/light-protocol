@@ -181,7 +181,7 @@ where
     }
 
     let ctoken_ix =
-        crate::compressed_token::decompress_full::decompress_full_ctoken_accounts_with_indices(
+        crate::compressed_token::decompress_full::decompress_full_token_accounts_with_indices(
             *fee_payer.key,
             proof,
             cpi_context_pubkey,

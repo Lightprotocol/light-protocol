@@ -47,7 +47,7 @@ pub struct DecompressFullIndices {
 /// # Returns
 /// An instruction that decompresses the full balance of all provided token accounts
 #[profile]
-pub fn decompress_full_ctoken_accounts_with_indices<'info>(
+pub fn decompress_full_token_accounts_with_indices<'info>(
     fee_payer: Pubkey,
     validity_proof: ValidityProof,
     cpi_context_pubkey: Option<Pubkey>,
@@ -154,7 +154,7 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
 /// * `version` - TokenDataVersion (1=V1, 2=V2, 3=ShaFlat) for hash computation
 ///
 /// # Returns
-/// Vec of DecompressFullIndices ready to use with decompress_full_ctoken_accounts_with_indices
+/// Vec of DecompressFullIndices ready to use with decompress_full_token_accounts_with_indices
 #[profile]
 pub fn pack_for_decompress_full(
     token: &TokenData,

@@ -122,7 +122,7 @@ impl<'a, T: AccountInfoTrait + Clone> TransferAccountInfos<'a, T> {
         self.authority
     }
 
-    pub fn ctoken_program(&self) -> Result<&'a T> {
+    pub fn light_token_program(&self) -> Result<&'a T> {
         let index = TransferAccountInfosIndex::CTokenProgram as usize;
         self.accounts
             .get(index)

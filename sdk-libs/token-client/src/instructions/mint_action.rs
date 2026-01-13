@@ -345,14 +345,14 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
 
     // Add ctoken accounts if any MintToCToken actions were present
     if !ctoken_accounts.is_empty() {
-        config = config.with_ctoken_accounts(ctoken_accounts);
+        config = config.with_token_accounts(ctoken_accounts);
     }
 
     // Add compressible CMint accounts if DecompressMint or CompressAndCloseCMint action is present
     if has_decompress_mint || has_compress_and_close_cmint {
         let (cmint_pda, _) = find_cmint_address(&params.mint_seed);
         // Get config and rent_sponsor from v1 config PDA
-        let config_address = CompressibleConfig::ctoken_v1_config_pda();
+        let config_address = CompressibleConfig::light_token_v1_config_pda();
         let compressible_config: CompressibleConfig = rpc
             .get_anchor_account(&config_address)
             .await?

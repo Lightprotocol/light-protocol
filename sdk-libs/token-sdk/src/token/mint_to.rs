@@ -152,7 +152,7 @@ impl MintToToken {
                 self.input_queue,
                 self.output_queue,
             )
-            .with_ctoken_accounts(self.ctoken_accounts)
+            .with_token_accounts(self.ctoken_accounts)
         };
 
         let account_metas = meta_config.to_account_metas();
