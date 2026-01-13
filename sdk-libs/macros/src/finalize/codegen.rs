@@ -298,6 +298,7 @@ fn generate_pre_init_pdas_and_mints(
                     version: 3,
                     mint: mint_pda.to_bytes().into(),
                     cmint_decompressed: false,
+                    compressed_address: compression_address,
                 },
                 mint_authority: Some((*self.#authority.to_account_info().key).to_bytes().into()),
                 freeze_authority: __freeze_authority.map(|a| a.to_bytes().into()),
@@ -306,7 +307,6 @@ fn generate_pre_init_pdas_and_mints(
 
             // Build mint action instruction data with decompress
             let mut instruction_data = light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
-                compression_address,
                 __tree_info.root_index,
                 __proof,
                 compressed_mint_data,
@@ -467,6 +467,7 @@ fn generate_pre_init_mints_only(
                     version: 3,
                     mint: mint_pda.to_bytes().into(),
                     cmint_decompressed: false,
+                    compressed_address: compression_address,
                 },
                 mint_authority: Some((*self.#authority.to_account_info().key).to_bytes().into()),
                 freeze_authority: __freeze_authority.map(|a| a.to_bytes().into()),
@@ -475,7 +476,6 @@ fn generate_pre_init_mints_only(
 
             // Build mint action instruction data with decompress (no CPI context)
             let instruction_data = light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
-                compression_address,
                 __tree_info.root_index,
                 __proof,
                 compressed_mint_data,

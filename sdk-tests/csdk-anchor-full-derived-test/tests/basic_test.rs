@@ -24,6 +24,10 @@ use light_sdk::{
     instruction::{PackedAccounts, SystemAccountMetaConfig},
 };
 use light_sdk_types::C_TOKEN_PROGRAM_ID;
+use light_token_client::{
+    actions::mint_action,
+    instructions::mint_action::{MintActionParams, MintActionType},
+};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -767,14 +771,46 @@ async fn test_create_pdas_and_mint_auto() {
     );
     println!("  - User ATA CToken auto-compressed (closed on-chain)");
 
-    // CMint is still on-chain (doesn't auto-compress, needs explicit action)
-    // Note: CMint derived from PDA requires program CPI to compress, not mint_action_comprehensive
-    let cmint_after_warp = rpc.get_account(cmint_pda).await.unwrap();
+    // CMint doesn't auto-compress - needs explicit CompressAndCloseCMint action
+    // Use mint_action (lower-level) with the correct compressed_mint_address derived from mint_signer_pda
+    let cmint_before_compress = rpc.get_account(cmint_pda).await.unwrap();
     assert!(
-        cmint_after_warp.is_some(),
-        "CMint should still exist on-chain (doesn't auto-compress)"
+        cmint_before_compress.is_some(),
+        "CMint should exist on-chain before compression"
     );
-    println!("  - CMint still on-chain (requires explicit compression via program CPI)");
+    println!("  - CMint on-chain, compressing via CompressAndCloseCMint...");
+
+    // CompressAndCloseCMint is permissionless - no mint_signer needed
+    // Just need correct compressed_mint_address (derived from mint_signer_pda, not a random keypair)
+    mint_action(
+        &mut rpc,
+        MintActionParams {
+            compressed_mint_address: mint_compressed_address,
+            mint_seed: mint_signer_pda, // Just for reference, NOT signing
+            authority: mint_authority.pubkey(),
+            payer: payer.pubkey(),
+            actions: vec![MintActionType::CompressAndCloseCMint { idempotent: false }],
+            new_mint: None,
+        },
+        &mint_authority,
+        &payer,
+        None, // No mint_signer needed for CompressAndCloseCMint
+    )
+    .await
+    .expect("CMint compress and close should succeed");
+
+    // Verify CMint is now closed
+    let cmint_after_compress = rpc.get_account(cmint_pda).await.unwrap();
+    let cmint_closed = cmint_after_compress.is_none()
+        || cmint_after_compress
+            .as_ref()
+            .map(|a| a.lamports == 0)
+            .unwrap_or(true);
+    assert!(
+        cmint_closed,
+        "CMint should be closed after CompressAndCloseCMint"
+    );
+    println!("  - CMint compressed and closed on-chain");
 
     // PDAs were already compressed in Phase 1
     println!("  - UserRecord PDA was already compressed in Phase 1");
@@ -822,10 +858,10 @@ async fn test_create_pdas_and_mint_auto() {
         user_ata_mint_amount
     );
 
-    println!("\nSUCCESS: CToken accounts auto-compressed after epoch warp!");
+    println!("\nSUCCESS: ALL accounts compressed after epoch warp!");
     println!("  - Vault: on-chain -> compressed (auto)");
     println!("  - User ATA: on-chain -> compressed (auto)");
-    println!("  - CMint: still on-chain (PDA-derived, needs program CPI to compress)");
+    println!("  - CMint: on-chain -> compressed (explicit CompressAndCloseCMint)");
     println!("  - PDAs: already compressed from creation");
 }
 
@@ -920,6 +956,7 @@ async fn create_user_record_and_game_session(
         additional_metadata: None,
     };
 
+    let (spl_mint, _) = find_cmint_address(&mint_signer.pubkey());
     let mint_data = CompressedMintInstructionData {
         supply: 0,
         decimals: 9,
@@ -929,7 +966,7 @@ async fn create_user_record_and_game_session(
             cmint_decompressed: false,
             compressed_address: mint_compressed_address,
         },
-        mint_authority: Some(mint_authority.into()),
+        mint_authority: Some(mint_authority.pubkey().to_bytes().into()),
         freeze_authority: None,
         extensions: None,
     };
@@ -965,18 +1002,18 @@ async fn create_user_record_and_game_session(
                     leaf_index: 0,
                     prove_by_index: false,
                     root_index: mint_address_tree_info.root_index,
-                    address: compressed_mint_address,
+                    address: mint_compressed_address,
                     mint: Some(CompressedMintInstructionData {
                         supply: 0,
-                        decimals,
+                        decimals: 9,
                         metadata: CompressedMintMetadata {
                             version: 3,
                             mint: spl_mint.into(),
                             cmint_decompressed: false,
-                            compressed_address: compressed_mint_address,
+                            compressed_address: mint_compressed_address,
                         },
-                        mint_authority: Some(mint_authority.into()),
-                        freeze_authority: Some(freeze_authority.into()),
+                        mint_authority: Some(mint_authority.pubkey().to_bytes().into()),
+                        freeze_authority: None,
                         extensions: None,
                     }),
                 },
@@ -1242,11 +1279,11 @@ async fn test_e2e_light_mint_ctoken_pda_full_lifecycle() {
                         decimals: mint_decimals,
                         metadata: CompressedMintMetadata {
                             version: 3,
-                            mint: spl_mint.into(),
+                            mint: cmint_pda.into(),
                             cmint_decompressed: false,
                             compressed_address: mint_compressed_address,
                         },
-                        mint_authority: Some(mint_authority.pubkey().into()),
+                        mint_authority: Some(mint_authority.pubkey().to_bytes().into()),
                         freeze_authority: None,
                         extensions: None,
                     }),

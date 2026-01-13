@@ -63,6 +63,8 @@ fn extract_compression_info(data: &[u8]) -> Option<(CompressionInfo, u8, bool)> 
                 compression_authority: ext.info.compression_authority,
                 rent_sponsor: ext.info.rent_sponsor,
                 last_claimed_slot: ext.info.last_claimed_slot.into(),
+                rent_exemption_paid: ext.info.rent_exemption_paid.into(),
+                _reserved: ext.info._reserved.into(),
                 rent_config: RentConfig {
                     base_rent: ext.info.rent_config.base_rent.into(),
                     compression_cost: ext.info.rent_config.compression_cost.into(),

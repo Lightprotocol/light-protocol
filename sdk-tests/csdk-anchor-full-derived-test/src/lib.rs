@@ -599,7 +599,6 @@ pub mod csdk_anchor_full_derived_test {
 
         let proof = params.proof.0.unwrap_or_default();
         let instruction_data = MintActionCompressedInstructionData::new_mint(
-            params.mint_with_context.address,
             params.mint_address_tree_info.root_index,
             proof,
             params.mint_with_context.mint.clone().unwrap(),
