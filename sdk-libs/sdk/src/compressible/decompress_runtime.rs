@@ -103,6 +103,7 @@ pub trait DecompressContext<'info> {
     /// Process token decompression.
     ///
     /// Caller program-specific: handles token account creation and seed derivation.
+    /// `has_prior_context`: true if PDAs or Mints already wrote to CPI context
     #[allow(clippy::too_many_arguments)]
     fn process_tokens<'b>(
         &self,
@@ -117,7 +118,7 @@ pub trait DecompressContext<'info> {
         proof: crate::instruction::ValidityProof,
         cpi_accounts: &CpiAccounts<'b, 'info>,
         post_system_accounts: &[AccountInfo<'info>],
-        has_pdas: bool,
+        has_prior_context: bool,
     ) -> Result<(), ProgramError>;
 
     /// Process mint decompression.
@@ -289,10 +290,14 @@ where
 
 /// Processor for decompress_accounts_idempotent.
 ///
-/// Handles decompression of PDAs, tokens, and mints in the correct CPI context order:
-/// 1. PDAs write to CPI context (if batching with tokens/mints)
-/// 2. Mints process with CPI context
-/// 3. Tokens execute (includes both program-owned and ATAs - ATAs detected via is_ata())
+/// CPI context batching rules:
+/// - Single type (only PDAs, only mints, or only tokens): execute directly, no CPI context
+/// - 2+ different types: use CPI context batching
+///   - First type writes (first_set_context)
+///   - Middle types write (set_context)
+///   - Last type executes (consumes context)
+///
+/// Order: PDAs -> Mints -> Tokens (tokens always last if present)
 #[inline(never)]
 #[allow(clippy::too_many_arguments)]
 pub fn process_decompress_accounts_idempotent<'info, Ctx>(
@@ -322,8 +327,11 @@ where
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    // Use CPI context if we have tokens or mints (need batching)
-    let needs_cpi_context = has_tokens || has_mints;
+    // Count how many different types we have
+    let type_count = has_tokens as u8 + has_pdas as u8 + has_mints as u8;
+
+    // Use CPI context only if we have 2+ different types (need batching)
+    let needs_cpi_context = type_count >= 2;
     let cpi_accounts = if needs_cpi_context {
         CpiAccounts::new_with_config(
             ctx.fee_payer(),
@@ -364,53 +372,54 @@ where
         return Ok(());
     }
 
-    // CPI context batching order:
-    // 1. PDAs write to context (first_set_context if batching)
-    // 2. Mints write to context (set_context) or execute (if last)
-    // 3. Tokens execute (includes both program-owned and ATAs)
+    // Recalculate type count after collection (may differ from initial check)
+    let type_count = has_tokens as u8 + has_pdas as u8 + has_mints as u8;
 
     let fee_payer = ctx.fee_payer();
 
-    // Case 1: PDAs only - execute directly
-    if has_pdas && !has_tokens && !has_mints {
-        LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
-            .with_account_infos(&compressed_pda_infos)
-            .invoke(cpi_accounts.clone())?;
-    }
-    // Case 2: PDAs + tokens/mints - write PDAs to context first
-    else if has_pdas && (has_tokens || has_mints) {
-        let authority = cpi_accounts
-            .authority()
-            .map_err(|_| ProgramError::MissingRequiredSignature)?;
-        let cpi_context = cpi_accounts
-            .cpi_context()
-            .map_err(|_| ProgramError::MissingRequiredSignature)?;
-        let system_cpi_accounts = CpiContextWriteAccounts {
-            fee_payer,
-            authority,
-            cpi_context,
-            cpi_signer,
-        };
+    // Process PDAs (if any)
+    if has_pdas {
+        if type_count == 1 {
+            // PDAs only - execute directly (no CPI context)
+            LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
+                .with_account_infos(&compressed_pda_infos)
+                .invoke(cpi_accounts.clone())?;
+        } else {
+            // PDAs + other types - write to CPI context first
+            let authority = cpi_accounts
+                .authority()
+                .map_err(|_| ProgramError::MissingRequiredSignature)?;
+            let cpi_context = cpi_accounts
+                .cpi_context()
+                .map_err(|_| ProgramError::MissingRequiredSignature)?;
+            let system_cpi_accounts = CpiContextWriteAccounts {
+                fee_payer,
+                authority,
+                cpi_context,
+                cpi_signer,
+            };
 
-        LightSystemProgramCpi::new_cpi(cpi_signer, proof)
-            .with_account_infos(&compressed_pda_infos)
-            .write_to_cpi_context_first()
-            .invoke_write_to_cpi_context_first(system_cpi_accounts)?;
+            LightSystemProgramCpi::new_cpi(cpi_signer, proof)
+                .with_account_infos(&compressed_pda_infos)
+                .write_to_cpi_context_first()
+                .invoke_write_to_cpi_context_first(system_cpi_accounts)?;
+        }
     }
 
-    // Case 3: Process mints (if any) - they write to or execute context
+    // Process mints (if any)
     if has_mints {
+        // has_prior_context: PDAs already wrote to context
+        // has_subsequent: tokens will execute after
         ctx.process_mints(
             &cpi_accounts,
             compressed_mint_accounts,
             proof,
-            has_pdas,      // has_prior_context
-            has_tokens,    // has_tokens (will execute after)
+            has_pdas,   // has_prior_context
+            has_tokens, // has_subsequent (tokens will execute after)
         )?;
     }
 
-    // Case 4: Process tokens (if any) - includes both program-owned and ATAs
-    // ATAs are detected within process_tokens via is_ata() on the variant
+    // Process tokens (if any) - always last in the chain
     if has_tokens {
         let post_system_offset = cpi_accounts.system_accounts_end_offset();
         let all_infos = cpi_accounts.account_infos();
@@ -443,7 +452,7 @@ where
             proof,
             &cpi_accounts,
             post_system_accounts,
-            has_pdas || has_mints, // has_prior_context
+            has_pdas || has_mints, // has_prior_context: something wrote to CPI context before
         )?;
     }
 

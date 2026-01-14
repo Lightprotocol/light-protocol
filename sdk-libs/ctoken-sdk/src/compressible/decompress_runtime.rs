@@ -74,6 +74,10 @@ pub fn pack_ata_for_unified_decompress(
 /// Handles both program-owned tokens and ATAs in unified flow.
 /// - Program-owned tokens: program signs via CPI with seeds
 /// - ATAs: wallet owner signs on transaction (no program signing needed)
+///
+/// CPI context usage:
+/// - has_prior_context=true: PDAs/Mints already wrote to CPI context, tokens CONSUME it
+/// - has_prior_context=false: tokens-only flow, no CPI context needed
 #[inline(never)]
 #[allow(clippy::too_many_arguments)]
 pub fn process_decompress_tokens_runtime<'info, 'a, 'b, V, A>(
@@ -92,7 +96,7 @@ pub fn process_decompress_tokens_runtime<'info, 'a, 'b, V, A>(
     proof: ValidityProof,
     cpi_accounts: &CpiAccounts<'b, 'info>,
     post_system_accounts: &[AccountInfo<'info>],
-    has_pdas: bool,
+    has_prior_context: bool,
     program_id: &Pubkey,
 ) -> Result<(), ProgramError>
 where
@@ -111,23 +115,18 @@ where
         Vec::with_capacity(ctoken_accounts.len());
     let packed_accounts = post_system_accounts;
 
-    // Check if we should use CPI context for token decompression.
-    // The CPI context is associated with a specific merkle tree. If tokens are on
-    // a different tree than the PDAs (which set up the CPI context), we cannot
-    // reuse the same CPI context - the light system program will reject it.
+    // CPI context usage for token decompression:
+    // - If has_prior_context: PDAs/Mints already wrote to CPI context, tokens CONSUME it
+    // - If !has_prior_context: tokens-only flow, execute directly without CPI context
     //
-    // For now, we only use CPI context when there are NO PDAs (tokens-only flow).
-    // When has_pdas is true, the CPI context was already used for PDAs and may be
-    // associated with a different tree than the tokens.
-    //
-    // TODO: Support cross-tree CPI context by checking if tokens are on the same
-    // tree as the CPI context's associated_merkle_tree.
-    let cpi_context_pubkey = if !has_pdas {
-        // Tokens-only: we can set up the CPI context for the token tree
+    // Note: CPI context supports cross-tree batching. Writes from different trees
+    // are stored without validation. The only constraint is the executor's first
+    // input/output must match the CPI context account's associated_merkle_tree.
+    let cpi_context_pubkey = if has_prior_context {
+        // PDAs/Mints wrote to context, tokens consume it
         cpi_accounts.cpi_context().ok().map(|ctx| *ctx.key)
     } else {
-        // PDAs + tokens: CPI context already used for PDAs, don't reuse for tokens
-        // (they may be on a different tree)
+        // Tokens-only: execute directly without CPI context
         None
     };
 
@@ -463,9 +462,12 @@ where
 
 /// Mint decompression processor.
 ///
-/// Decompresses compressed mints to CMint accounts using CPI context batching.
-/// Each mint is decompressed via CPI to the ctoken program with appropriate
-/// CPI context flags for batching.
+/// Decompresses compressed mints to CMint accounts.
+///
+/// CPI context usage:
+/// - has_prior_context=true: PDAs already wrote to CPI context, mints add to it
+/// - has_prior_context=false && has_tokens=true: mints write to CPI context first
+/// - has_prior_context=false && has_tokens=false: mints-only flow, no CPI context needed
 #[inline(never)]
 #[allow(clippy::too_many_arguments)]
 pub fn process_decompress_mints_runtime<'info, 'a, 'b, A>(
@@ -483,9 +485,20 @@ where
         return Ok(());
     }
 
-    let cpi_context_account = cpi_accounts
-        .cpi_context()
-        .map_err(|_| ProgramError::MissingRequiredSignature)?;
+    // Mints-only flow: no CPI context needed (execute directly like tokens-only)
+    let mints_only = !has_prior_context && !has_tokens;
+
+    // CPI context is only needed if we have prior context or subsequent tokens
+    let cpi_context_account: Option<AccountInfo<'info>> = if mints_only {
+        None
+    } else {
+        Some(
+            cpi_accounts
+                .cpi_context()
+                .map_err(|_| ProgramError::MissingRequiredSignature)?
+                .clone(),
+        )
+    };
 
     let mint_count = cmint_accounts.len();
     let last_mint_idx = mint_count.saturating_sub(1);
@@ -548,62 +561,14 @@ where
         .cmint_authority()
         .unwrap_or_else(|| fee_payer.clone());
 
+    // Get account infos for lookups
+    let all_infos = cpi_accounts.account_infos();
+
     for (idx, (mint_data, _meta)) in cmint_accounts.into_iter().enumerate() {
-        let is_first_operation = !has_prior_context && idx == 0;
-        let is_last_mint = idx == last_mint_idx;
-        let should_execute = is_last_mint && !has_tokens; // Execute if last mint and no tokens after
-
-        // For decompression, the address tree pubkey is typically not needed
-        // as we're consuming an existing compressed account, not creating a new one
-        let address_tree_pubkey = [0u8; 32];
-
-        // Determine CPI context flags
-        let cpi_ctx = if should_execute {
-            // Execute: consume CPI context (both flags false)
-            CpiContext {
-                first_set_context: false,
-                set_context: false,
-                in_tree_index: 0,
-                in_queue_index: 0,
-                out_queue_index: 0,
-                token_out_queue_index: 0,
-                assigned_account_index: 0,
-                read_only_address_trees: [0; 4],
-                address_tree_pubkey,
-            }
-        } else if is_first_operation {
-            // First write to CPI context
-            CpiContext {
-                first_set_context: true,
-                set_context: false,
-                in_tree_index: 0,
-                in_queue_index: 0,
-                out_queue_index: 0,
-                token_out_queue_index: 0,
-                assigned_account_index: 0,
-                read_only_address_trees: [0; 4],
-                address_tree_pubkey,
-            }
-        } else {
-            // Subsequent write to CPI context
-            CpiContext {
-                first_set_context: false,
-                set_context: true,
-                in_tree_index: 0,
-                in_queue_index: 0,
-                out_queue_index: 0,
-                token_out_queue_index: 0,
-                assigned_account_index: 0,
-                read_only_address_trees: [0; 4],
-                address_tree_pubkey,
-            }
-        };
-
         // Derive CMint PDA
         let (cmint_pda, _) = find_cmint_address(&mint_data.mint_seed_pubkey);
 
         // Get mint_seed AccountInfo from remaining accounts
-        let all_infos = cpi_accounts.account_infos();
         let mint_seed_info = all_infos
             .iter()
             .find(|a| *a.key == mint_data.mint_seed_pubkey)
@@ -626,28 +591,104 @@ where
                 ProgramError::NotEnoughAccountKeys
             })?;
 
-        DecompressCMintCpiWithContext {
-            mint_seed: mint_seed_info,
-            authority: authority.clone(), // Use cmint_authority if provided, else fee_payer
-            payer: fee_payer.clone(),
-            cmint: cmint_info,
-            compressible_config: ctoken_config.clone(),
-            rent_sponsor: ctoken_rent_sponsor.clone(),
-            state_tree: state_tree.clone(),
-            input_queue: input_queue.clone(),
-            output_queue: output_queue.clone(),
-            cpi_context_account: cpi_context_account.clone(),
-            system_accounts: system_accounts.clone(),
-            ctoken_cpi_authority: ctoken_cpi_authority.clone(),
-            compressed_mint_with_context: mint_data.compressed_mint_with_context,
-            proof: light_compressed_account::instruction_data::compressed_proof::ValidityProof(
-                proof.0,
-            ),
-            rent_payment: mint_data.rent_payment,
-            write_top_up: mint_data.write_top_up,
-            cpi_context: cpi_ctx,
+        if mints_only {
+            // Mints-only: execute directly without CPI context (like DecompressCMintCpi)
+            crate::ctoken::DecompressCMintCpi {
+                mint_seed: mint_seed_info,
+                authority: authority.clone(),
+                payer: fee_payer.clone(),
+                cmint: cmint_info,
+                compressible_config: ctoken_config.clone(),
+                rent_sponsor: ctoken_rent_sponsor.clone(),
+                state_tree: state_tree.clone(),
+                input_queue: input_queue.clone(),
+                output_queue: output_queue.clone(),
+                system_accounts: system_accounts.clone(),
+                compressed_mint_with_context: mint_data.compressed_mint_with_context,
+                proof: light_compressed_account::instruction_data::compressed_proof::ValidityProof(
+                    proof.0,
+                ),
+                rent_payment: mint_data.rent_payment,
+                write_top_up: mint_data.write_top_up,
+            }
+            .invoke()?;
+        } else {
+            // Multi-type flow: use CPI context batching
+            let is_first_operation = !has_prior_context && idx == 0;
+            let is_last_mint = idx == last_mint_idx;
+            let should_execute = is_last_mint && !has_tokens;
+
+            // For decompression, the address tree pubkey is typically not needed
+            let address_tree_pubkey = [0u8; 32];
+
+            // Determine CPI context flags
+            let cpi_ctx = if should_execute {
+                // Execute: consume CPI context (both flags false)
+                CpiContext {
+                    first_set_context: false,
+                    set_context: false,
+                    in_tree_index: 0,
+                    in_queue_index: 0,
+                    out_queue_index: 0,
+                    token_out_queue_index: 0,
+                    assigned_account_index: 0,
+                    read_only_address_trees: [0; 4],
+                    address_tree_pubkey,
+                }
+            } else if is_first_operation {
+                // First write to CPI context
+                CpiContext {
+                    first_set_context: true,
+                    set_context: false,
+                    in_tree_index: 0,
+                    in_queue_index: 0,
+                    out_queue_index: 0,
+                    token_out_queue_index: 0,
+                    assigned_account_index: 0,
+                    read_only_address_trees: [0; 4],
+                    address_tree_pubkey,
+                }
+            } else {
+                // Subsequent write to CPI context
+                CpiContext {
+                    first_set_context: false,
+                    set_context: true,
+                    in_tree_index: 0,
+                    in_queue_index: 0,
+                    out_queue_index: 0,
+                    token_out_queue_index: 0,
+                    assigned_account_index: 0,
+                    read_only_address_trees: [0; 4],
+                    address_tree_pubkey,
+                }
+            };
+
+            DecompressCMintCpiWithContext {
+                mint_seed: mint_seed_info,
+                authority: authority.clone(),
+                payer: fee_payer.clone(),
+                cmint: cmint_info,
+                compressible_config: ctoken_config.clone(),
+                rent_sponsor: ctoken_rent_sponsor.clone(),
+                state_tree: state_tree.clone(),
+                input_queue: input_queue.clone(),
+                output_queue: output_queue.clone(),
+                cpi_context_account: cpi_context_account
+                    .as_ref()
+                    .expect("CPI context required for multi-type flow")
+                    .clone(),
+                system_accounts: system_accounts.clone(),
+                ctoken_cpi_authority: ctoken_cpi_authority.clone(),
+                compressed_mint_with_context: mint_data.compressed_mint_with_context,
+                proof: light_compressed_account::instruction_data::compressed_proof::ValidityProof(
+                    proof.0,
+                ),
+                rent_payment: mint_data.rent_payment,
+                write_top_up: mint_data.write_top_up,
+                cpi_context: cpi_ctx,
+            }
+            .invoke()?;
         }
-        .invoke()?;
     }
 
     Ok(())

@@ -172,7 +172,7 @@ pub fn decompress_accounts_idempotent<'info>(
         proof: light_sdk::instruction::ValidityProof,
         cpi_accounts: &CpiAccounts<'b, 'info>,
         post_system_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
-        has_pdas: bool,
+        has_prior_context: bool, // true if PDAs or Mints already wrote to CPI context
     ) -> Result<()> {
         let mut token_decompress_indices: Box<
             Vec<light_ctoken_sdk::compressed_token::decompress_full::DecompressFullIndices>,
@@ -279,7 +279,7 @@ pub fn decompress_accounts_idempotent<'info>(
             light_ctoken_sdk::compressed_token::decompress_full::decompress_full_ctoken_accounts_with_indices(
                 fee_payer.key(),
                 proof,
-                if has_pdas {
+                if has_prior_context {
                     Some(cpi_context.key())
                 } else {
                     None
@@ -343,8 +343,9 @@ pub fn decompress_accounts_idempotent<'info>(
     )> = Vec::with_capacity(mint_count);
     let mut compressed_pda_infos = Vec::with_capacity(pda_count);
 
-    // Use CPI context if we have tokens OR mints (they need batching)
-    let needs_cpi_context = has_tokens || has_mints;
+    // Use CPI context only if we have 2+ different types (need batching)
+    let type_count = has_tokens as u8 + has_pdas as u8 + has_mints as u8;
+    let needs_cpi_context = type_count >= 2;
     let cpi_accounts = if needs_cpi_context {
         CpiAccounts::new_with_config(
             ctx.accounts.fee_payer.as_ref(),

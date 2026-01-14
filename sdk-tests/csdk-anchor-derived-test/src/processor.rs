@@ -178,7 +178,7 @@ impl<'info> light_sdk::compressible::DecompressContext<'info>
         proof: light_sdk::instruction::ValidityProof,
         cpi_accounts: &CpiAccounts<'b, 'info>,
         post_system_accounts: &[AccountInfo<'info>],
-        has_pdas: bool,
+        has_prior_context: bool,
     ) -> std::result::Result<(), ProgramError> {
         if ctoken_accounts.is_empty() {
             return Ok(());
@@ -197,7 +197,7 @@ impl<'info> light_sdk::compressible::DecompressContext<'info>
             proof,
             cpi_accounts,
             post_system_accounts,
-            has_pdas,
+            has_prior_context,
             &crate::ID,
         )?;
 

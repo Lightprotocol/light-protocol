@@ -201,7 +201,7 @@ pub fn generate_decompress_context_trait_impl(
                 proof: light_sdk::instruction::ValidityProof,
                 cpi_accounts: &light_sdk::cpi::v2::CpiAccounts<'b, #lifetime>,
                 post_system_accounts: &[solana_account_info::AccountInfo<#lifetime>],
-                has_pdas: bool,
+                has_prior_context: bool,
             ) -> std::result::Result<(), solana_program_error::ProgramError> {
                 light_ctoken_sdk::compressible::process_decompress_tokens_runtime(
                     self,
@@ -216,7 +216,7 @@ pub fn generate_decompress_context_trait_impl(
                     proof,
                     cpi_accounts,
                     post_system_accounts,
-                    has_pdas,
+                    has_prior_context,
                     &crate::ID,
                 )
             }
