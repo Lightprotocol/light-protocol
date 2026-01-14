@@ -77,15 +77,14 @@ async fn main() -> Result<(), ForesterError> {
                 }
             });
 
-            let mut rpc_rate_limiter = None;
-            if let Some(rate_limit) = config.external_services.rpc_rate_limit {
-                rpc_rate_limiter = Some(RateLimiter::new(rate_limit));
-            }
-
-            let mut send_tx_limiter = None;
-            if let Some(rate_limit) = config.external_services.send_tx_rate_limit {
-                send_tx_limiter = Some(RateLimiter::new(rate_limit));
-            }
+            let rpc_rate_limiter = config
+                .external_services
+                .rpc_rate_limit
+                .map(RateLimiter::new);
+            let send_tx_limiter = config
+                .external_services
+                .send_tx_rate_limit
+                .map(RateLimiter::new);
 
             let rpc_url_for_api: String = config.external_services.rpc_url.to_string();
             let api_server_handle = spawn_api_server(
