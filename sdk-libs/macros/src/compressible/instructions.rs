@@ -562,63 +562,6 @@ pub fn add_compressible_instructions(
                     LocalProvider::is_ata(self)
                 }
             }
-
-            impl light_ctoken_sdk::compressible::CTokenSeedProvider for CTokenAccountVariant {
-                type Accounts<'info> = DecompressAccountsIdempotent<'info>;
-
-                fn get_seeds<'a, 'info>(
-                    &self,
-                    accounts: &'a Self::Accounts<'info>,
-                    remaining_accounts: &'a [solana_account_info::AccountInfo<'info>],
-                ) -> std::result::Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey), solana_program_error::ProgramError> {
-                    use super::ctoken_seed_system::{
-                        CTokenSeedContext,
-                        CTokenSeedProvider as LocalProvider,
-                    };
-                    let ctx = CTokenSeedContext {
-                        accounts,
-                        remaining_accounts,
-                    };
-                    LocalProvider::get_seeds(self, &ctx)
-                        .map_err(|e: anchor_lang::error::Error| {
-                            let program_error: anchor_lang::prelude::ProgramError = e.into();
-                            let code = match program_error {
-                                anchor_lang::prelude::ProgramError::Custom(code) => code,
-                                _ => 0,
-                            };
-                            solana_program_error::ProgramError::Custom(code)
-                        })
-                }
-
-                fn get_authority_seeds<'a, 'info>(
-                    &self,
-                    accounts: &'a Self::Accounts<'info>,
-                    remaining_accounts: &'a [solana_account_info::AccountInfo<'info>],
-                ) -> std::result::Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey), solana_program_error::ProgramError> {
-                    use super::ctoken_seed_system::{
-                        CTokenSeedContext,
-                        CTokenSeedProvider as LocalProvider,
-                    };
-                    let ctx = CTokenSeedContext {
-                        accounts,
-                        remaining_accounts,
-                    };
-                    LocalProvider::get_authority_seeds(self, &ctx)
-                        .map_err(|e: anchor_lang::error::Error| {
-                            let program_error: anchor_lang::prelude::ProgramError = e.into();
-                            let code = match program_error {
-                                anchor_lang::prelude::ProgramError::Custom(code) => code,
-                                _ => 0,
-                            };
-                            solana_program_error::ProgramError::Custom(code)
-                        })
-                }
-
-                fn is_ata(&self) -> bool {
-                    use super::ctoken_seed_system::CTokenSeedProvider as LocalProvider;
-                    LocalProvider::is_ata(self)
-                }
-            }
         }
     };
 

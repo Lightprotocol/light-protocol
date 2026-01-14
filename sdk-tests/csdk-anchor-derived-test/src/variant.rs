@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use light_ctoken_sdk::{
     compat::{CTokenData, PackedCTokenData},
-    pack::Pack as TokenPack,
+    pack::{IsAta, Pack as TokenPack},
 };
 use light_sdk::{
     account::Size,
@@ -23,6 +23,12 @@ use crate::{
 #[repr(u8)]
 pub enum CTokenAccountVariant {
     CTokenSigner = 0,
+}
+
+impl IsAta for CTokenAccountVariant {
+    fn is_ata(&self) -> bool {
+        false // CTokenSigner is a program-owned PDA, not a user ATA
+    }
 }
 
 impl light_ctoken_sdk::compressible::CTokenSeedProvider for CTokenAccountVariant {

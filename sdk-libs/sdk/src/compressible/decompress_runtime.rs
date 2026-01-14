@@ -26,11 +26,6 @@ pub trait HasTokenVariant {
     fn is_compressed_mint(&self) -> bool {
         false // default impl for backwards compatibility
     }
-    /// Returns true if this variant represents a user-owned ATA (not program-owned).
-    /// ATAs use standard ctoken derivation and the wallet owner signs.
-    fn is_ata(&self) -> bool {
-        false // default impl for backwards compatibility
-    }
 }
 
 /// Trait for CToken seed providers.
@@ -72,9 +67,6 @@ pub trait DecompressContext<'info> {
 
     /// Compressed mint data type for mint decompression
     type CompressedMintData: Clone;
-
-    /// ATA data type for ATA decompression (user-owned token accounts)
-    type AtaData: Clone;
 
     /// Compressed account metadata type (standardized)
     type CompressedMeta: Clone;
@@ -145,29 +137,10 @@ pub trait DecompressContext<'info> {
         Ok(())
     }
 
-    /// Process ATA (Associated Token Account) decompression.
+    /// Collect and categorize compressed accounts into PDAs, tokens, and mints.
     ///
-    /// Unlike program-owned tokens, ATAs use standard ctoken derivation and
-    /// the wallet owner signs instead of the program.
-    /// Default implementation returns Ok(()) for programs that don't handle ATAs.
-    #[allow(clippy::too_many_arguments)]
-    fn process_atas<'b>(
-        &self,
-        _fee_payer: &AccountInfo<'info>,
-        _ata_accounts: Vec<(Self::AtaData, Self::CompressedMeta)>,
-        _proof: crate::instruction::ValidityProof,
-        _cpi_accounts: &CpiAccounts<'b, 'info>,
-        _post_system_accounts: &[AccountInfo<'info>],
-        _has_prior_context: bool,
-    ) -> Result<(), ProgramError> {
-        // Default: no ATA handling
-        Ok(())
-    }
-
-    /// Collect and categorize compressed accounts into PDAs, tokens, mints, and ATAs.
-    ///
-    /// Returns (pda_infos, token_accounts, mint_accounts, ata_accounts).
-    /// Default implementation delegates to collect_pda_and_token and returns empty mints/atas.
+    /// Returns (pda_infos, token_accounts, mint_accounts).
+    /// Default implementation delegates to collect_pda_and_token and returns empty mints.
     #[allow(clippy::type_complexity)]
     #[allow(clippy::too_many_arguments)]
     fn collect_all_accounts<'b>(
@@ -182,7 +155,6 @@ pub trait DecompressContext<'info> {
             Vec<CompressedAccountInfo>,
             Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
             Vec<(Self::CompressedMintData, Self::CompressedMeta)>,
-            Vec<(Self::AtaData, Self::CompressedMeta)>,
         ),
         ProgramError,
     > {
@@ -193,7 +165,7 @@ pub trait DecompressContext<'info> {
             solana_accounts,
             seed_params,
         )?;
-        Ok((pdas, tokens, Vec::new(), Vec::new()))
+        Ok((pdas, tokens, Vec::new()))
     }
 }
 
@@ -219,25 +191,24 @@ pub trait PdaSeedDerivation<A, S> {
 /// Check compressed accounts to determine if we have tokens, mints, PDAs, and/or ATAs.
 /// Returns (has_tokens, has_pdas, has_mints, has_atas)
 #[inline(never)]
-pub fn check_account_types<T: HasTokenVariant>(compressed_accounts: &[T]) -> (bool, bool, bool, bool) {
-    let (mut has_tokens, mut has_pdas, mut has_mints, mut has_atas) = (false, false, false, false);
+/// Check what types of accounts are in the batch.
+/// Returns (has_tokens, has_pdas, has_mints).
+/// Note: ATAs are handled within the token processing path via `is_ata()` on the variant.
+pub fn check_account_types<T: HasTokenVariant>(compressed_accounts: &[T]) -> (bool, bool, bool) {
+    let (mut has_tokens, mut has_pdas, mut has_mints) = (false, false, false);
     for account in compressed_accounts {
         if account.is_packed_ctoken() {
-            if account.is_ata() {
-                has_atas = true;
-            } else {
-                has_tokens = true;
-            }
+            has_tokens = true;
         } else if account.is_compressed_mint() {
             has_mints = true;
         } else {
             has_pdas = true;
         }
-        if has_tokens && has_pdas && has_mints && has_atas {
+        if has_tokens && has_pdas && has_mints {
             break;
         }
     }
-    (has_tokens, has_pdas, has_mints, has_atas)
+    (has_tokens, has_pdas, has_mints)
 }
 
 /// Handler for unpacking and preparing a single PDA variant for decompression.
@@ -318,11 +289,10 @@ where
 
 /// Processor for decompress_accounts_idempotent.
 ///
-/// Handles decompression of PDAs, tokens, mints, and ATAs in the correct CPI context order:
-/// 1. PDAs write to CPI context (if batching with tokens/mints/atas)
+/// Handles decompression of PDAs, tokens, and mints in the correct CPI context order:
+/// 1. PDAs write to CPI context (if batching with tokens/mints)
 /// 2. Mints process with CPI context
-/// 3. Program-owned tokens execute
-/// 4. ATAs execute (consuming the CPI context)
+/// 3. Tokens execute (includes both program-owned and ATAs - ATAs detected via is_ata())
 #[inline(never)]
 #[allow(clippy::too_many_arguments)]
 pub fn process_decompress_accounts_idempotent<'info, Ctx>(
@@ -342,8 +312,8 @@ where
         crate::compressible::CompressibleConfig::load_checked(ctx.config(), program_id)?;
     let address_space = compression_config.address_space[0];
 
-    let (has_tokens, has_pdas, has_mints, has_atas) = check_account_types(&compressed_accounts);
-    if !has_tokens && !has_pdas && !has_mints && !has_atas {
+    let (has_tokens, has_pdas, has_mints) = check_account_types(&compressed_accounts);
+    if !has_tokens && !has_pdas && !has_mints {
         return Ok(());
     }
 
@@ -352,8 +322,8 @@ where
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    // Use CPI context if we have tokens, mints, OR atas (need batching)
-    let needs_cpi_context = has_tokens || has_mints || has_atas;
+    // Use CPI context if we have tokens or mints (need batching)
+    let needs_cpi_context = has_tokens || has_mints;
     let cpi_accounts = if needs_cpi_context {
         CpiAccounts::new_with_config(
             ctx.fee_payer(),
@@ -376,8 +346,8 @@ where
         .get(pda_accounts_start..)
         .ok_or_else(|| ProgramError::from(crate::error::LightSdkError::ConstraintViolation))?;
 
-    // Call trait method for program-specific collection (handles PDAs, tokens, mints, and ATAs)
-    let (compressed_pda_infos, compressed_token_accounts, compressed_mint_accounts, compressed_ata_accounts) = ctx
+    // Call trait method for program-specific collection (handles PDAs, tokens, mints)
+    let (compressed_pda_infos, compressed_token_accounts, compressed_mint_accounts) = ctx
         .collect_all_accounts(
             &cpi_accounts,
             address_space,
@@ -389,28 +359,26 @@ where
     let has_pdas = !compressed_pda_infos.is_empty();
     let has_tokens = !compressed_token_accounts.is_empty();
     let has_mints = !compressed_mint_accounts.is_empty();
-    let has_atas = !compressed_ata_accounts.is_empty();
 
-    if !has_pdas && !has_tokens && !has_mints && !has_atas {
+    if !has_pdas && !has_tokens && !has_mints {
         return Ok(());
     }
 
     // CPI context batching order:
     // 1. PDAs write to context (first_set_context if batching)
     // 2. Mints write to context (set_context) or execute (if last)
-    // 3. Program-owned tokens execute
-    // 4. ATAs execute (consuming the context)
+    // 3. Tokens execute (includes both program-owned and ATAs)
 
     let fee_payer = ctx.fee_payer();
 
     // Case 1: PDAs only - execute directly
-    if has_pdas && !has_tokens && !has_mints && !has_atas {
+    if has_pdas && !has_tokens && !has_mints {
         LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
             .with_account_infos(&compressed_pda_infos)
             .invoke(cpi_accounts.clone())?;
     }
-    // Case 2: PDAs + tokens/mints/atas - write PDAs to context first
-    else if has_pdas && (has_tokens || has_mints || has_atas) {
+    // Case 2: PDAs + tokens/mints - write PDAs to context first
+    else if has_pdas && (has_tokens || has_mints) {
         let authority = cpi_accounts
             .authority()
             .map_err(|_| ProgramError::MissingRequiredSignature)?;
@@ -436,12 +404,13 @@ where
             &cpi_accounts,
             compressed_mint_accounts,
             proof,
-            has_pdas,                  // has_prior_context
-            has_tokens || has_atas,    // has_tokens_or_atas (will execute after)
+            has_pdas,      // has_prior_context
+            has_tokens,    // has_tokens (will execute after)
         )?;
     }
 
-    // Case 4: Process program-owned tokens (if any)
+    // Case 4: Process tokens (if any) - includes both program-owned and ATAs
+    // ATAs are detected within process_tokens via is_ata() on the variant
     if has_tokens {
         let post_system_offset = cpi_accounts.system_accounts_end_offset();
         let all_infos = cpi_accounts.account_infos();
@@ -475,25 +444,6 @@ where
             &cpi_accounts,
             post_system_accounts,
             has_pdas || has_mints, // has_prior_context
-        )?;
-    }
-
-    // Case 5: Process ATAs (if any) - they execute the context last
-    // ATAs don't need program signing - the wallet owner signs
-    if has_atas {
-        let post_system_offset = cpi_accounts.system_accounts_end_offset();
-        let all_infos = cpi_accounts.account_infos();
-        let post_system_accounts = all_infos
-            .get(post_system_offset..)
-            .ok_or_else(|| ProgramError::from(crate::error::LightSdkError::ConstraintViolation))?;
-
-        ctx.process_atas(
-            fee_payer,
-            compressed_ata_accounts,
-            proof,
-            &cpi_accounts,
-            post_system_accounts,
-            has_pdas || has_mints || has_tokens, // has_prior_context
         )?;
     }
 

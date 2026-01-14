@@ -4,7 +4,7 @@
 
 use anchor_lang::prelude::*;
 use light_ctoken_interface::instructions::mint_action::CompressedMintWithContext;
-use light_ctoken_sdk::pack::Pack as _TokenPack;
+use light_ctoken_sdk::pack::{IsAta, Pack as _TokenPack};
 use light_sdk::{
     account::Size,
     compressible::{
@@ -26,6 +26,12 @@ pub enum CTokenAccountVariant {
     CTokenSigner3 = 2,
     CTokenSigner4 = 3,
     CTokenSigner5 = 4,
+}
+
+impl IsAta for CTokenAccountVariant {
+    fn is_ata(&self) -> bool {
+        false // None of these are user-owned ATAs
+    }
 }
 
 #[derive(Clone, Debug, AnchorSerialize, AnchorDeserialize)]

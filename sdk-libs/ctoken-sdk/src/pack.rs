@@ -1,6 +1,5 @@
 //! Pack implementation for TokenData types for c-tokens.
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
-pub use light_ctoken_interface::state::TokenData;
 use light_ctoken_interface::state::TokenDataVersion;
 use light_sdk::{
     instruction::PackedAccounts,
@@ -11,7 +10,9 @@ use solana_program_error::ProgramError;
 
 use crate::{AnchorDeserialize, AnchorSerialize};
 
-// We define the traits here to circumvent the orphan rule.
+// Note: We define Pack/Unpack traits locally to circumvent the orphan rule.
+// This allows implementing them for external types like TokenData from ctoken-interface.
+// The sdk has identical trait definitions in light_sdk::compressible.
 pub trait Pack {
     type Packed;
     fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed;
@@ -35,36 +36,6 @@ pub trait IsAta {
     /// Returns true if this variant represents a user-owned ATA.
     fn is_ata(&self) -> bool {
         false
-    }
-}
-
-impl Pack for TokenData {
-    type Packed = light_ctoken_interface::instructions::transfer2::MultiTokenTransferOutputData;
-
-    fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
-        Self::Packed {
-            owner: remaining_accounts.insert_or_get(self.owner.to_bytes().into()),
-            mint: remaining_accounts.insert_or_get_read_only(self.mint.to_bytes().into()),
-            amount: self.amount,
-            has_delegate: self.delegate.is_some(),
-            delegate: if let Some(delegate) = self.delegate {
-                remaining_accounts.insert_or_get(delegate.to_bytes().into())
-            } else {
-                0
-            },
-            version: TokenDataVersion::ShaFlat as u8,
-        }
-    }
-}
-
-impl Unpack for TokenData {
-    type Unpacked = Self;
-
-    fn unpack(
-        &self,
-        _remaining_accounts: &[AccountInfo],
-    ) -> std::result::Result<Self::Unpacked, ProgramError> {
-        Ok(self.clone())
     }
 }
 
@@ -158,7 +129,7 @@ pub mod compat {
         }
     }
 
-    impl From<TokenData> for crate::pack::TokenData {
+    impl From<TokenData> for light_ctoken_interface::state::TokenData {
         fn from(data: TokenData) -> Self {
             use light_ctoken_interface::state::CompressedTokenAccountState;
 
@@ -176,8 +147,8 @@ pub mod compat {
         }
     }
 
-    impl From<crate::pack::TokenData> for TokenData {
-        fn from(data: crate::pack::TokenData) -> Self {
+    impl From<light_ctoken_interface::state::TokenData> for TokenData {
+        fn from(data: light_ctoken_interface::state::TokenData) -> Self {
             Self {
                 mint: Pubkey::new_from_array(data.mint.to_bytes()),
                 owner: Pubkey::new_from_array(data.owner.to_bytes()),

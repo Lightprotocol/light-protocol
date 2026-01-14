@@ -20,6 +20,9 @@ use crate::ctoken::{
 };
 use crate::pack::{compat::InputTokenDataCompressible, Pack};
 
+// Re-export CTokenSeedProvider from sdk (canonical definition).
+pub use light_sdk::compressible::CTokenSeedProvider;
+
 /// Pack an ATA for unified decompression with program PDAs.
 ///
 /// This function ensures that ATAs can be included in the same `decompress_accounts_idempotent`
@@ -64,35 +67,6 @@ pub fn pack_ata_for_unified_decompress(
 
     // Use existing Pack trait to convert pubkeys to indices
     token_data.pack(packed_accounts)
-}
-
-/// Trait for getting token account seeds.
-pub trait CTokenSeedProvider: Copy {
-    /// Type of accounts struct needed for seed derivation.
-    type Accounts<'info>;
-
-    /// Get seeds for the token account PDA (used for decompression).
-    fn get_seeds<'a, 'info>(
-        &self,
-        accounts: &'a Self::Accounts<'info>,
-        remaining_accounts: &'a [AccountInfo<'info>],
-    ) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
-
-    /// Get authority seeds for signing during compression.
-    ///
-    /// TODO: consider removing.
-    fn get_authority_seeds<'a, 'info>(
-        &self,
-        accounts: &'a Self::Accounts<'info>,
-        remaining_accounts: &'a [AccountInfo<'info>],
-    ) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
-
-    /// Returns true if this variant represents a user-owned ATA.
-    /// ATAs use standard ctoken derivation (owner + ctoken_program_id + mint)
-    /// and the wallet owner signs instead of the program.
-    fn is_ata(&self) -> bool {
-        false // Default: not an ATA
-    }
 }
 
 /// Token decompression processor.
@@ -675,186 +649,6 @@ where
         }
         .invoke()?;
     }
-
-    Ok(())
-}
-
-/// Data for ATA (Associated Token Account) decompression.
-/// ATAs use standard ctoken derivation (wallet + ctoken_program + mint).
-#[derive(Clone, Debug)]
-pub struct AtaDecompressData {
-    /// Wallet owner pubkey (the user who owns the ATA)
-    pub wallet_owner: Pubkey,
-    /// Mint pubkey
-    pub mint: Pubkey,
-    /// Token amount
-    pub amount: u64,
-    /// ATA PDA derived from (wallet, ctoken_program, mint)
-    pub ata_address: Pubkey,
-    /// Merkle tree info
-    pub merkle_tree: Pubkey,
-    /// Queue pubkey  
-    pub queue: Pubkey,
-    /// Leaf index
-    pub leaf_index: u32,
-    /// Root index
-    pub root_index: u16,
-    /// Token data version
-    pub version: u8,
-}
-
-/// ATA decompression processor.
-///
-/// Decompresses compressed ATAs to on-chain ctoken accounts.
-/// Unlike program-owned tokens, ATAs don't require program signing -
-/// the ctoken program creates ATAs using standard derivation.
-#[inline(never)]
-#[allow(clippy::too_many_arguments)]
-pub fn process_decompress_atas_runtime<'info>(
-    fee_payer: &AccountInfo<'info>,
-    ata_accounts: Vec<(AtaDecompressData, CompressedAccountMetaNoLamportsNoAddress)>,
-    proof: ValidityProof,
-    cpi_accounts: &CpiAccounts<'_, 'info>,
-    post_system_accounts: &[AccountInfo<'info>],
-    has_prior_context: bool,
-) -> Result<(), ProgramError> {
-    use crate::compressed_token::decompress_full::{
-        decompress_full_ctoken_accounts_with_indices, DecompressFullIndices,
-    };
-    use light_compressed_account::compressed_account::PackedMerkleContext;
-    use light_ctoken_interface::instructions::{
-        extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
-        transfer2::MultiInputTokenDataWithContext,
-    };
-
-    if ata_accounts.is_empty() {
-        return Ok(());
-    }
-
-    let cpi_context_pubkey = if has_prior_context {
-        Some(
-            *cpi_accounts
-                .cpi_context()
-                .map_err(|_| ProgramError::MissingRequiredSignature)?
-                .key,
-        )
-    } else {
-        None
-    };
-
-    // Build indices for all ATAs
-    let mut indices: Vec<DecompressFullIndices> = Vec::with_capacity(ata_accounts.len());
-
-    for (ata_data, meta) in ata_accounts.iter() {
-        // Find indices in post_system_accounts
-        let wallet_index = post_system_accounts
-            .iter()
-            .position(|a| *a.key == ata_data.wallet_owner)
-            .ok_or_else(|| {
-                msg!(
-                    "Wallet owner not found in accounts: {:?}",
-                    ata_data.wallet_owner
-                );
-                ProgramError::NotEnoughAccountKeys
-            })? as u8;
-
-        let mint_index = post_system_accounts
-            .iter()
-            .position(|a| *a.key == ata_data.mint)
-            .ok_or_else(|| {
-                msg!("Mint not found in accounts: {:?}", ata_data.mint);
-                ProgramError::NotEnoughAccountKeys
-            })? as u8;
-
-        let ata_index = post_system_accounts
-            .iter()
-            .position(|a| *a.key == ata_data.ata_address)
-            .ok_or_else(|| {
-                msg!("ATA not found in accounts: {:?}", ata_data.ata_address);
-                ProgramError::NotEnoughAccountKeys
-            })? as u8;
-
-        let tree_index = post_system_accounts
-            .iter()
-            .position(|a| *a.key == ata_data.merkle_tree)
-            .ok_or_else(|| {
-                msg!(
-                    "Merkle tree not found in accounts: {:?}",
-                    ata_data.merkle_tree
-                );
-                ProgramError::NotEnoughAccountKeys
-            })? as u8;
-
-        let queue_index = post_system_accounts
-            .iter()
-            .position(|a| *a.key == ata_data.queue)
-            .ok_or_else(|| {
-                msg!("Queue not found in accounts: {:?}", ata_data.queue);
-                ProgramError::NotEnoughAccountKeys
-            })? as u8;
-
-        // Derive ATA bump
-        let (_, ata_bump) = crate::ctoken::get_associated_ctoken_address_and_bump(
-            &ata_data.wallet_owner,
-            &ata_data.mint,
-        );
-
-        // Build source with ATA-specific TLV
-        let source = MultiInputTokenDataWithContext {
-            owner: wallet_index, // For ATAs, owner is wallet (not ATA address)
-            amount: ata_data.amount,
-            has_delegate: false,
-            delegate: 0,
-            mint: mint_index,
-            version: ata_data.version,
-            merkle_context: PackedMerkleContext {
-                merkle_tree_pubkey_index: tree_index,
-                queue_pubkey_index: queue_index,
-                prove_by_index: meta.tree_info.prove_by_index,
-                leaf_index: ata_data.leaf_index,
-            },
-            root_index: ata_data.root_index,
-        };
-
-        // Build TLV with is_ata flag
-        let tlv = vec![ExtensionInstructionData::CompressedOnly(
-            CompressedOnlyExtensionInstructionData {
-                delegated_amount: 0,
-                withheld_transfer_fee: 0,
-                is_frozen: false,
-                compression_index: 0,
-                is_ata: true,
-                bump: ata_bump,
-                owner_index: wallet_index,
-            },
-        )];
-
-        indices.push(DecompressFullIndices {
-            source,
-            destination_index: ata_index,
-            tlv: Some(tlv),
-            is_ata: true,
-        });
-    }
-
-    // Build and invoke the decompress instruction
-    let ctoken_ix = decompress_full_ctoken_accounts_with_indices(
-        *fee_payer.key,
-        proof,
-        cpi_context_pubkey,
-        &indices,
-        post_system_accounts,
-    )
-    .map_err(ProgramError::from)?;
-
-    // Build account infos for invocation (no program signing needed for ATAs)
-    let mut all_account_infos: Vec<AccountInfo<'info>> =
-        Vec::with_capacity(1 + post_system_accounts.len());
-    all_account_infos.push(fee_payer.clone());
-    all_account_infos.extend_from_slice(post_system_accounts);
-
-    // Invoke without signing (wallet owner should already be a signer in the transaction)
-    solana_cpi::invoke(&ctoken_ix, all_account_infos.as_slice())?;
 
     Ok(())
 }

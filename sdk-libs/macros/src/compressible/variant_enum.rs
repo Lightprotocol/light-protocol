@@ -199,7 +199,7 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                         // BEFORE packing the token data. The runtime will derive the same ATA address
                         // and search for it in packed_accounts.
                         // Import the trait that provides is_ata()
-                        use light_ctoken_sdk::compressible::CTokenSeedProvider as _;
+                        use light_sdk::compressible::CTokenSeedProvider as _;
                         if data.variant.is_ata() {
                             let (ata_address, _) = light_ctoken_sdk::ctoken::get_associated_ctoken_address_and_bump(
                                 &data.token_data.owner,
@@ -207,6 +207,7 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                             );
                             remaining_accounts.insert_or_get(ata_address);
                         }
+                        // Use ctoken-sdk's Pack trait for CTokenData (implements locally to avoid orphan rule)
                         Self::PackedCTokenData(light_ctoken_sdk::pack::Pack::pack(data, remaining_accounts))
                     }
                     Self::CompressedMint(data) => Self::CompressedMint(data.clone()), // Mints don't need packing

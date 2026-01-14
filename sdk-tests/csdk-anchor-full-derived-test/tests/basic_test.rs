@@ -436,6 +436,18 @@ async fn test_create_pdas_and_mint_auto() {
         assert!(!accs.is_empty());
         assert_eq!(accs[0].token.amount, expected_amount);
     }
+    async fn assert_compressed_consumed(rpc: &mut LightProgramTest, addr: [u8; 32]) {
+        let result = rpc.get_compressed_account(addr, None).await;
+        let consumed = result.is_err()
+            || result
+                .as_ref()
+                .unwrap()
+                .value
+                .as_ref()
+                .map(|a| a.data.as_ref().map(|d| d.data.is_empty()).unwrap_or(true))
+                .unwrap_or(true);
+        assert!(consumed);
+    }
 
     let program_id = csdk_anchor_full_derived_test::ID;
     let mut config = ProgramTestConfig::new_v2(
@@ -667,8 +679,137 @@ async fn test_create_pdas_and_mint_auto() {
     assert_compressed_token_exists(&mut rpc, &vault_pda, vault_mint_amount).await;
     assert_compressed_token_exists(&mut rpc, &user_ata_pda, user_ata_mint_amount).await;
 
+    // PHASE 3: Decompress PDAs + vault via decompress_accounts_idempotent
+    use anchor_lang::AnchorDeserialize;
+    use csdk_anchor_full_derived_test::{
+        CTokenAccountVariant, CompressedAccountVariant, GameSession, UserRecord,
+    };
+    use light_compressible_client::compressible_instruction;
 
-    
+    // Fetch and deserialize compressed PDA accounts
+    let compressed_user = rpc
+        .get_compressed_account(user_compressed_address, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap();
+    let c_user_record =
+        UserRecord::deserialize(&mut &compressed_user.data.as_ref().unwrap().data[..]).unwrap();
+
+    let compressed_game = rpc
+        .get_compressed_account(game_compressed_address, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap();
+    let c_game_session =
+        GameSession::deserialize(&mut &compressed_game.data.as_ref().unwrap().data[..]).unwrap();
+
+    // Fetch compressed vault token account
+    let compressed_vault_accounts = rpc
+        .get_compressed_token_accounts_by_owner(&vault_pda, None, None)
+        .await
+        .unwrap()
+        .value
+        .items;
+    let compressed_vault = &compressed_vault_accounts[0];
+    let vault_ctoken_data = light_ctoken_sdk::compat::CTokenData {
+        variant: CTokenAccountVariant::Vault,
+        token_data: compressed_vault.token.clone(),
+    };
+
+    // Get validity proof for PDAs + vault
+    let rpc_result = rpc
+        .get_validity_proof(
+            vec![
+                compressed_user.hash,
+                compressed_game.hash,
+                compressed_vault.account.hash,
+            ],
+            vec![],
+            None,
+        )
+        .await
+        .unwrap()
+        .value;
+
+    // Build decompress instruction
+    let mut decompress_instruction = compressible_instruction::decompress_accounts_idempotent(
+        &program_id,
+        &compressible_instruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
+        &[user_record_pda, game_session_pda, vault_pda],
+        &[
+            (
+                compressed_user.clone(),
+                CompressedAccountVariant::UserRecord(c_user_record),
+            ),
+            (
+                compressed_game.clone(),
+                CompressedAccountVariant::GameSession(c_game_session),
+            ),
+            (
+                compressed_vault.account.clone(),
+                CompressedAccountVariant::CTokenData(vault_ctoken_data),
+            ),
+        ],
+        &csdk_anchor_full_derived_test::accounts::DecompressAccountsIdempotent {
+            fee_payer: payer.pubkey(),
+            config: config_pda,
+            rent_sponsor: payer.pubkey(),
+            ctoken_rent_sponsor: Some(CTOKEN_RENT_SPONSOR),
+            ctoken_config: Some(COMPRESSIBLE_CONFIG_V1),
+            ctoken_program: Some(C_TOKEN_PROGRAM_ID.into()),
+            ctoken_cpi_authority: Some(light_ctoken_sdk::ctoken::CTOKEN_CPI_AUTHORITY),
+            cmint_authority: None,
+            authority: Some(authority.pubkey()),
+            some_account: None,
+            mint_authority: Some(mint_authority.pubkey()),
+            user: Some(payer.pubkey()),
+            mint: None,
+            cmint: Some(cmint_pda),
+            mint_signer: None,
+            wallet: None,
+        }
+        .to_account_metas(None),
+        rpc_result,
+    )
+    .unwrap();
+
+    // Append SeedParams to instruction data
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::SeedParams;
+    let seed_params = SeedParams {
+        owner,
+        category_id,
+        session_id,
+        placeholder_id: 0,
+        counter: 0,
+    };
+    let seed_params_data = borsh::to_vec(&seed_params).unwrap();
+    decompress_instruction
+        .data
+        .extend_from_slice(&seed_params_data);
+
+    rpc.create_and_send_transaction(&[decompress_instruction], &payer.pubkey(), &[&payer])
+        .await
+        .expect("PDA + vault decompression should succeed");
+
+    // Assert PDAs are back on-chain
+    assert_onchain_exists(&mut rpc, &user_record_pda).await;
+    assert_onchain_exists(&mut rpc, &game_session_pda).await;
+
+    // Assert vault is back on-chain with correct balance
+    assert_onchain_exists(&mut rpc, &vault_pda).await;
+    let vault_after = parse_ctoken(&rpc.get_account(vault_pda).await.unwrap().unwrap().data);
+    assert_eq!(vault_after.amount, vault_mint_amount);
+
+    // Verify compressed vault token is consumed (no more compressed token accounts for vault)
+    let remaining_vault = rpc
+        .get_compressed_token_accounts_by_owner(&vault_pda, None, None)
+        .await
+        .unwrap()
+        .value
+        .items;
+    assert!(remaining_vault.is_empty());
 }
 
 async fn create_user_record_and_game_session(

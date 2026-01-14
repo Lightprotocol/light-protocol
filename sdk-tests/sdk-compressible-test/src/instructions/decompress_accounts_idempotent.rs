@@ -269,6 +269,7 @@ pub fn decompress_accounts_idempotent<'info>(
                     source,
                     destination_index: owner_index,
                     tlv: None,
+                    is_ata: false, // Program-owned token accounts, not user ATAs
                 };
             token_decompress_indices.push(decompress_index);
             token_signers_seed_groups.push(ctoken_signer_seeds);

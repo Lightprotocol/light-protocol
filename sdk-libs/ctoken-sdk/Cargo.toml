@@ -9,7 +9,7 @@ repository = "https://github.com/Lightprotocol/light-protocol"
 [features]
 default = []
 v1 = []
-compressible = []
+compressible = ["cpi-context"]
 
 anchor = ["anchor-lang", "light-ctoken-types/anchor",  "light-ctoken-interface/anchor"]
 cpi-context = ["light-sdk/cpi-context"]
