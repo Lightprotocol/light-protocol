@@ -784,6 +784,31 @@ async fn test_create_pdas_and_mint_auto() {
     println!("  - UserRecord PDA was already compressed in Phase 1");
     println!("  - GameSession PDA was already compressed in Phase 1");
 
+    let onchain_user_record_account = rpc.get_account(user_record_pda).await.unwrap();
+    assert!(
+        onchain_user_record_account.is_some(),
+        "Should have user record account on chain"
+    );
+    println!(
+        "  - User record account on chain: {:?}",
+        onchain_user_record_account.as_ref().unwrap()
+    );
+    assert!(
+        onchain_user_record_account.as_ref().unwrap().lamports == 0,
+        "User record account should be closed"
+    );
+    let compressed_user_record_accounts = rpc
+        .get_compressed_account(user_record_pda.to_bytes(), None)
+        .await
+        .unwrap()
+        .value
+        .unwrap();
+    assert!(
+        compressed_user_record_accounts.address.is_some(),
+        "Should have compressed user record token account"
+    );
+    println!("  - Verified compressed user record token account with no balance");
+
     // Verify compressed vault token account exists with correct balance
     // compress_to_pubkey sets the compressed owner to vault_pda
     let compressed_vault_accounts = rpc

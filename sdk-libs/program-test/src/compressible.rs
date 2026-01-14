@@ -313,12 +313,12 @@ pub async fn auto_compress_program_pdas(
     // 1. fee_payer (signer, writable)
     // 2. config (read-only)
     // 3. rent_sponsor (writable)
-    // 4. compression_authority (read-only)
+    // 4. compression_authority (writable - per generated struct)
     let program_metas = vec![
         AccountMeta::new(payer.pubkey(), true),
         AccountMeta::new_readonly(config_pda, false),
         AccountMeta::new(rent_sponsor, false),
-        AccountMeta::new_readonly(compression_authority, false),
+        AccountMeta::new(compression_authority, false),
     ];
 
     const BATCH_SIZE: usize = 5;
@@ -352,12 +352,16 @@ async fn try_compress_chunk(
     use light_client::indexer::Indexer;
     use light_compressed_account::address::derive_address;
     use light_compressible_client::compressible_instruction;
+    use light_sdk_types::address::v2::derive_address_seed;
     use solana_sdk::signature::Signer;
 
     // Attempt compression per-account idempotently.
     for (pda, acc) in chunk.iter() {
+        // Use v2 address derivation: seed = hash(pda_key), address = hash(seed, tree, program)
+        // This matches what LightFinalize macro uses when creating compressed accounts
+        let seed: [u8; 32] = derive_address_seed(&[pda.to_bytes().as_ref()]).into();
         let addr = derive_address(
-            &pda.to_bytes(),
+            &seed,
             &address_tree.to_bytes(),
             &program_id.to_bytes(),
         );

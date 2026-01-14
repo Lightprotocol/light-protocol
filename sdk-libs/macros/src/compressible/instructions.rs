@@ -1034,60 +1034,8 @@ pub fn generate_compress_context_impl(
                     cpi_accounts,
                     &compression_config.address_space,
                 )?;
-                // Compute rent-based close distribution and transfer lamports:
-                // - Completed epochs to rent sponsor
-                // - Partial epoch (unused) to fee payer (user refund)
-                #[cfg(target_os = "solana")]
-                let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()
-                    .map_err(|_| anchor_lang::prelude::ProgramError::UnsupportedSysvar)?
-                    .slot;
-                #[cfg(not(target_os = "solana"))]
-                let current_slot = 0;
-                let bytes = account_info.data_len() as u64;
-                let current_lamports = account_info.lamports();
-                let rent_exemption = anchor_lang::solana_program::sysvar::rent::Rent::get()
-                    .map_err(|_| anchor_lang::prelude::ProgramError::UnsupportedSysvar)?
-                    .minimum_balance(bytes as usize);
-                let ci_ref = account_data.compression_info();
-                let state = light_compressible::rent::AccountRentState {
-                    num_bytes: bytes,
-                    current_slot,
-                    current_lamports,
-                    last_claimed_slot: ci_ref.last_claimed_slot(),
-                };
-                let dist = state.calculate_close_distribution(&ci_ref.rent_config, rent_exemption);
-                // Transfer partial epoch back to fee payer (user)
-                if dist.to_user > 0 {
-                    let fee_payer_info = self.fee_payer.to_account_info();
-                    let mut src = account_info.try_borrow_mut_lamports().map_err(|e| {
-                        let err: anchor_lang::error::Error = e.into();
-                        let program_error: anchor_lang::prelude::ProgramError = err.into();
-                        program_error
-                    })?;
-                    let mut dst = fee_payer_info.try_borrow_mut_lamports().map_err(|e| {
-                        let err: anchor_lang::error::Error = e.into();
-                        let program_error: anchor_lang::prelude::ProgramError = err.into();
-                        program_error
-                    })?;
-                    **src = src.checked_sub(dist.to_user).ok_or(anchor_lang::prelude::ProgramError::InsufficientFunds)?;
-                    **dst = dst.checked_add(dist.to_user).ok_or(anchor_lang::prelude::ProgramError::Custom(0))?;
-                }
-                // Transfer completed epochs (and base) to rent sponsor
-                if dist.to_rent_sponsor > 0 {
-                    let rent_sponsor_info = self.rent_sponsor.to_account_info();
-                    let mut src = account_info.try_borrow_mut_lamports().map_err(|e| {
-                        let err: anchor_lang::error::Error = e.into();
-                        let program_error: anchor_lang::prelude::ProgramError = err.into();
-                        program_error
-                    })?;
-                    let mut dst = rent_sponsor_info.try_borrow_mut_lamports().map_err(|e| {
-                        let err: anchor_lang::error::Error = e.into();
-                        let program_error: anchor_lang::prelude::ProgramError = err.into();
-                        program_error
-                    })?;
-                    **src = src.checked_sub(dist.to_rent_sponsor).ok_or(anchor_lang::prelude::ProgramError::InsufficientFunds)?;
-                    **dst = dst.checked_add(dist.to_rent_sponsor).ok_or(anchor_lang::prelude::ProgramError::Custom(0))?;
-                }
+                // Lamport transfers are handled by close() in process_compress_pda_accounts_idempotent
+                // All lamports go to rent_sponsor for simplicity
                 Ok(Some(compressed_info))
             }
         }
