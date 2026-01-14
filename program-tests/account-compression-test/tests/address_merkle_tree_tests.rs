@@ -77,7 +77,8 @@ async fn address_queue_and_tree_functional(
     .unwrap();
     let address_queue = unsafe {
         get_hash_set::<QueueAccount, LightProgramTest>(&mut context, address_queue_pubkey).await
-    };
+    }
+    .unwrap();
 
     assert!(address_queue.contains(&address1, None).unwrap());
     assert!(address_queue.contains(&address2, None).unwrap());
@@ -106,7 +107,8 @@ async fn address_queue_and_tree_functional(
     .unwrap();
     let address_queue = unsafe {
         get_hash_set::<QueueAccount, LightProgramTest>(&mut context, address_queue_pubkey).await
-    };
+    }
+    .unwrap();
     address_queue
         .find_element(&address3, None)
         .unwrap()
@@ -596,7 +598,8 @@ async fn update_address_merkle_tree_failing_tests(
     .unwrap();
     let address_queue = unsafe {
         get_hash_set::<QueueAccount, LightProgramTest>(&mut context, address_queue_pubkey).await
-    };
+    }
+    .unwrap();
     // CHECK: 2.1 cannot insert an address with an invalid low address
     test_with_invalid_low_element(
         &mut context,
@@ -817,7 +820,8 @@ async fn update_address_merkle_tree_failing_tests(
         26,
         16,
     >(&mut context, address_merkle_tree_pubkey)
-    .await;
+    .await
+    .unwrap();
 
     let changelog_index = address_merkle_tree.changelog_index();
 
@@ -1085,7 +1089,8 @@ async fn update_address_merkle_tree_wrap_around(
 
     let address_queue = unsafe {
         get_hash_set::<QueueAccount, LightProgramTest>(&mut context, address_queue_pubkey).await
-    };
+    }
+    .unwrap();
     let value_index = address_queue
         .find_element_index(&address1, None)
         .unwrap()

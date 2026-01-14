@@ -284,9 +284,9 @@ pub async fn assert_rolled_over_pair<R: Rpc>(
         fee_payer_post_balance + 5000 * num_signatures + additional_rent
     );
     let old_address_queue =
-        unsafe { get_hash_set::<QueueAccount, R>(rpc, *old_nullifier_queue_pubkey).await };
+        unsafe { get_hash_set::<QueueAccount, R>(rpc, *old_nullifier_queue_pubkey).await }.unwrap();
     let new_address_queue =
-        unsafe { get_hash_set::<QueueAccount, R>(rpc, *new_nullifier_queue_pubkey).await };
+        unsafe { get_hash_set::<QueueAccount, R>(rpc, *new_nullifier_queue_pubkey).await }.unwrap();
 
     assert_eq!(
         old_address_queue.get_capacity(),

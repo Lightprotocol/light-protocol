@@ -58,7 +58,8 @@ pub async fn nullify_compressed_accounts<R: Rpc + TestRpc + Indexer + Indexer>(
 ) -> Result<(), RpcError> {
     let nullifier_queue = unsafe {
         get_hash_set::<QueueAccount, R>(rpc, state_tree_bundle.accounts.nullifier_queue).await
-    };
+    }
+    .unwrap();
     let pre_forester_counter = if is_metadata_forester {
         0
     } else {
@@ -75,7 +76,8 @@ pub async fn nullify_compressed_accounts<R: Rpc + TestRpc + Indexer + Indexer>(
             rpc,
             state_tree_bundle.accounts.merkle_tree,
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(
         onchain_merkle_tree.root(),
         state_tree_bundle.merkle_tree.root()
@@ -193,7 +195,8 @@ pub async fn nullify_compressed_accounts<R: Rpc + TestRpc + Indexer + Indexer>(
             rpc,
             state_tree_bundle.accounts.merkle_tree,
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(
         onchain_merkle_tree.root(),
         state_tree_bundle.merkle_tree.root()
@@ -223,7 +226,8 @@ async fn assert_value_is_marked_in_queue<R: Rpc>(
 ) {
     let nullifier_queue = unsafe {
         get_hash_set::<QueueAccount, R>(rpc, state_tree_bundle.accounts.nullifier_queue).await
-    };
+    }
+    .unwrap();
     let array_element = nullifier_queue
         .get_bucket(*index_in_nullifier_queue)
         .unwrap()
@@ -234,7 +238,8 @@ async fn assert_value_is_marked_in_queue<R: Rpc>(
             rpc,
             state_tree_bundle.accounts.merkle_tree,
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(
         array_element.sequence_number(),
         Some(
@@ -301,7 +306,8 @@ pub async fn empty_address_queue_test<R: Rpc>(
             rpc,
             address_merkle_tree_pubkey,
         )
-        .await;
+        .await
+        .unwrap();
     let indexed_changelog_index = address_merkle_tree.indexed_changelog_index() as u16;
     let changelog_index = address_merkle_tree.changelog_index() as u16;
     let mut counter = 0;
@@ -322,10 +328,11 @@ pub async fn empty_address_queue_test<R: Rpc>(
                 rpc,
                 address_merkle_tree_pubkey,
             )
-            .await;
+            .await
+            .unwrap();
         assert_eq!(address_tree_bundle.root(), address_merkle_tree.root());
         let address_queue =
-            unsafe { get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey).await };
+            unsafe { get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey).await }.unwrap();
 
         let address = address_queue.first_no_seq().unwrap();
 
@@ -472,7 +479,8 @@ pub async fn empty_address_queue_test<R: Rpc>(
                     rpc,
                     address_merkle_tree_pubkey,
                 )
-                .await;
+                .await
+                .unwrap();
 
             let (old_low_address, _) = address_tree_bundle
                 .find_low_element_for_nonexistent(&address.value_biguint())
@@ -481,7 +489,8 @@ pub async fn empty_address_queue_test<R: Rpc>(
                 .new_element_with_low_element_index(old_low_address.index, &address.value_biguint())
                 .unwrap();
             let address_queue =
-                unsafe { get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey).await };
+                unsafe { get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey).await }
+                    .unwrap();
 
             assert_eq!(
                 address_queue
@@ -578,7 +587,8 @@ pub async fn update_merkle_tree<R: Rpc>(
                     rpc,
                     address_merkle_tree_pubkey,
                 )
-                .await;
+                .await
+                .unwrap();
 
             address_merkle_tree.changelog_index() as u16
         }
@@ -591,7 +601,8 @@ pub async fn update_merkle_tree<R: Rpc>(
                     rpc,
                     address_merkle_tree_pubkey,
                 )
-                .await;
+                .await
+                .unwrap();
 
             address_merkle_tree.indexed_changelog_index() as u16
         }
