@@ -618,10 +618,8 @@ fn generate_pda_compress_blocks(
 
             let #new_addr_params_ident = {
                 let tree_info = &#addr_tree_info;
-                // v2 address derive
-                let __seed: [u8; 32] = #account_key_ident.as_ref();
                 light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked {
-                    seed: __seed,
+                    seed: #account_key_ident,
                     address_merkle_tree_account_index: tree_info.address_merkle_tree_pubkey_index,
                     address_queue_account_index: tree_info.address_queue_pubkey_index,
                     address_merkle_tree_root_index: tree_info.root_index,
