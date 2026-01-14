@@ -1499,7 +1499,9 @@ impl<R: Rpc> EpochManager<R> {
             )
             .await;
 
-            push_metrics(&self.config.external_services.pushgateway_url).await?;
+            if let Err(e) = push_metrics(&self.config.external_services.pushgateway_url).await {
+                warn!("Failed to push metrics: {:?}", e);
+            }
             estimated_slot = self.slot_tracker.estimated_current_slot();
 
             let sleep_duration_ms = if items_processed_this_iteration > 0 {
@@ -1628,7 +1630,9 @@ impl<R: Rpc> EpochManager<R> {
                 }
             }
 
-            push_metrics(&self.config.external_services.pushgateway_url).await?;
+            if let Err(e) = push_metrics(&self.config.external_services.pushgateway_url).await {
+                warn!("Failed to push metrics: {:?}", e);
+            }
             estimated_slot = self.slot_tracker.estimated_current_slot();
         }
 
