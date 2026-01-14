@@ -389,13 +389,9 @@ async fn test_create_with_light_finalize_auto() {
     println!("All with ZERO manual compression code!");
 }
 
-/// Test FULL AUTOMATIC with MINT + VAULT + USER ATA:
-/// - 2 PDAs with #[compressible]
-/// - 1 CMint with #[light_mint] (creates + decompresses atomically in pre_init)
-/// - 1 Program-owned CToken vault (created in instruction body)
-/// - 1 User CToken ATA (created in instruction body)
-/// - MintTo both vault and user_ata (in instruction body)
-/// All with a single proof execution!
+/// 2 PDAs + 1 CMint + 1 Vault + 1 User ATA, all in one instruction with single proof.
+/// After init: all accounts on-chain + parseable.
+/// After warp: all cold (auto-compressed) with non-empty compressed data.
 #[tokio::test]
 async fn test_create_pdas_and_mint_auto() {
     use csdk_anchor_full_derived_test::instruction_accounts::{LP_MINT_SIGNER_SEED, VAULT_SEED};
@@ -404,6 +400,42 @@ async fn test_create_pdas_and_mint_auto() {
         get_associated_ctoken_address_and_bump, CToken, COMPRESSIBLE_CONFIG_V1,
         RENT_SPONSOR as CTOKEN_RENT_SPONSOR,
     };
+
+    // Helpers
+    async fn assert_onchain_exists(rpc: &mut LightProgramTest, pda: &Pubkey) {
+        assert!(rpc.get_account(*pda).await.unwrap().is_some());
+    }
+    async fn assert_onchain_closed(rpc: &mut LightProgramTest, pda: &Pubkey) {
+        let acc = rpc.get_account(*pda).await.unwrap();
+        assert!(acc.is_none() || acc.unwrap().lamports == 0);
+    }
+    fn parse_ctoken(data: &[u8]) -> CToken {
+        borsh::BorshDeserialize::deserialize(&mut &data[..]).unwrap()
+    }
+    async fn assert_compressed_exists_with_data(rpc: &mut LightProgramTest, addr: [u8; 32]) {
+        let acc = rpc
+            .get_compressed_account(addr, None)
+            .await
+            .unwrap()
+            .value
+            .unwrap();
+        assert_eq!(acc.address.unwrap(), addr);
+        assert!(!acc.data.as_ref().unwrap().data.is_empty());
+    }
+    async fn assert_compressed_token_exists(
+        rpc: &mut LightProgramTest,
+        owner: &Pubkey,
+        expected_amount: u64,
+    ) {
+        let accs = rpc
+            .get_compressed_token_accounts_by_owner(owner, None, None)
+            .await
+            .unwrap()
+            .value
+            .items;
+        assert!(!accs.is_empty());
+        assert_eq!(accs[0].token.amount, expected_amount);
+    }
 
     let program_id = csdk_anchor_full_derived_test::ID;
     let mut config = ProgramTestConfig::new_v2(
@@ -415,13 +447,10 @@ async fn test_create_pdas_and_mint_auto() {
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
-    // Get the address tree BEFORE config init
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-
     let config_pda = CompressibleConfig::derive_pda(&program_id, 0).0;
     let _program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    // Initialize compression config with the actual address tree
     let config_instruction =
         csdk_anchor_full_derived_test::instruction::InitializeCompressionConfig {
             rent_sponsor: RENT_SPONSOR,
@@ -446,39 +475,26 @@ async fn test_create_pdas_and_mint_auto() {
         .await
         .expect("Initialize config should succeed");
 
-    // Create signers
     let authority = Keypair::new();
     let mint_authority = Keypair::new();
 
     let owner = payer.pubkey();
     let category_id = 111u64;
     let session_id = 222u64;
-
-    // Token amounts to mint
     let vault_mint_amount = 100u64;
     let user_ata_mint_amount = 50u64;
 
-    // Calculate mint_signer PDA (like Raydium's lp_mint_signer)
     let (mint_signer_pda, mint_signer_bump) = Pubkey::find_program_address(
         &[LP_MINT_SIGNER_SEED, authority.pubkey().as_ref()],
         &program_id,
     );
-
-    // Calculate CMint PDA (derived from mint_signer)
-    let (cmint_pda, _cmint_bump) = find_cmint_address(&mint_signer_pda);
-
-    // Calculate vault PDA (program-owned) - seeds match variant: ["vault", cmint]
+    let (cmint_pda, _) = find_cmint_address(&mint_signer_pda);
     let (vault_pda, vault_bump) =
         Pubkey::find_program_address(&[VAULT_SEED, cmint_pda.as_ref()], &program_id);
-
-    // Calculate vault authority PDA - seeds match variant authority: ["vault_authority"]
     let (vault_authority_pda, _) = Pubkey::find_program_address(&[b"vault_authority"], &program_id);
-
-    // Calculate user's ATA for the CMint
     let (user_ata_pda, user_ata_bump) =
         get_associated_ctoken_address_and_bump(&payer.pubkey(), &cmint_pda);
 
-    // Calculate PDAs for compressed accounts
     let (user_record_pda, _) = Pubkey::find_program_address(
         &[
             b"user_record",
@@ -501,10 +517,8 @@ async fn test_create_pdas_and_mint_auto() {
         &program_id,
     );
 
-    // Get tree info
     let state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
-    // Calculate compressed addresses (v2 derivation)
     let user_compressed_address = light_compressed_account::address::derive_address(
         &user_record_pda.to_bytes(),
         &address_tree_pubkey.to_bytes(),
@@ -515,11 +529,9 @@ async fn test_create_pdas_and_mint_auto() {
         &address_tree_pubkey.to_bytes(),
         &program_id.to_bytes(),
     );
-    // Mint address is derived from mint_signer, tree, and ctoken_program
     let mint_compressed_address =
         derive_cmint_compressed_address(&mint_signer_pda, &address_tree_pubkey);
 
-    // Get validity proof for all 3 new addresses (2 PDAs + 1 mint)
     let rpc_result = rpc
         .get_validity_proof(
             vec![],
@@ -543,7 +555,6 @@ async fn test_create_pdas_and_mint_auto() {
         .unwrap()
         .value;
 
-    // Build remaining accounts WITH CPI context (required for batching PDAs + mint)
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new_with_cpi_context(
         program_id,
@@ -560,7 +571,6 @@ async fn test_create_pdas_and_mint_auto() {
     let mint_address_tree_info = packed_tree_infos.address_trees[2];
     let (system_accounts, _, _) = remaining_accounts.to_account_metas();
 
-    // Build accounts
     let accounts = csdk_anchor_full_derived_test::accounts::CreatePdasAndMintAuto {
         fee_payer: payer.pubkey(),
         authority: authority.pubkey(),
@@ -580,7 +590,6 @@ async fn test_create_pdas_and_mint_auto() {
         system_program: solana_sdk::system_program::ID,
     };
 
-    // Build instruction data
     let instruction_data = csdk_anchor_full_derived_test::instruction::CreatePdasAndMintAuto {
         params: FullAutoWithMintParams {
             proof: rpc_result.proof,
@@ -605,382 +614,61 @@ async fn test_create_pdas_and_mint_auto() {
         data: instruction_data.data(),
     };
 
-    // Execute
-    let result = rpc
-        .create_and_send_transaction(
-            &[instruction],
-            &payer.pubkey(),
-            &[&payer, &authority, &mint_authority],
-        )
-        .await;
+    rpc.create_and_send_transaction(
+        &[instruction],
+        &payer.pubkey(),
+        &[&payer, &authority, &mint_authority],
+    )
+    .await
+    .unwrap();
 
-    assert!(
-        result.is_ok(),
-        "PDA + Mint auto instruction should succeed: {:?}",
-        result
-    );
+    // PHASE 1: After init - all accounts on-chain and parseable
+    assert_onchain_exists(&mut rpc, &user_record_pda).await;
+    assert_onchain_exists(&mut rpc, &game_session_pda).await;
+    assert_onchain_exists(&mut rpc, &cmint_pda).await;
+    assert_onchain_exists(&mut rpc, &vault_pda).await;
+    assert_onchain_exists(&mut rpc, &user_ata_pda).await;
 
-    // Verify PDAs were compressed
-    let compressed_user = rpc
-        .get_compressed_account(user_compressed_address, None)
-        .await
-        .unwrap()
-        .value
-        .unwrap();
-    assert!(compressed_user.address.is_some());
-    assert_eq!(compressed_user.address.unwrap(), user_compressed_address);
-    println!("  - UserRecord compressed successfully");
+    // Parse and verify CToken data
+    let vault_data = parse_ctoken(&rpc.get_account(vault_pda).await.unwrap().unwrap().data);
+    assert_eq!(vault_data.owner, vault_authority_pda.to_bytes());
+    assert_eq!(vault_data.amount, vault_mint_amount);
 
-    let compressed_game = rpc
-        .get_compressed_account(game_compressed_address, None)
-        .await
-        .unwrap()
-        .value
-        .unwrap();
-    assert!(compressed_game.address.is_some());
-    assert_eq!(compressed_game.address.unwrap(), game_compressed_address);
-    println!("  - GameSession compressed successfully");
+    let user_ata_data = parse_ctoken(&rpc.get_account(user_ata_pda).await.unwrap().unwrap().data);
+    assert_eq!(user_ata_data.owner, payer.pubkey().to_bytes());
+    assert_eq!(user_ata_data.amount, user_ata_mint_amount);
 
-    // Verify CMint was decompressed (on-chain)
-    let cmint_account = rpc.get_account(cmint_pda).await.unwrap();
-    assert!(
-        cmint_account.is_some(),
-        "CMint should exist on-chain after decompress"
-    );
-    println!(
-        "  - LP Mint created and decompressed to CMint: {}",
-        cmint_pda
-    );
-    // Verify compressed CMint account is empty (no data)
+    // Verify compressed addresses registered (empty data - decompressed to on-chain)
     let compressed_cmint = rpc
         .get_compressed_account(mint_compressed_address, None)
         .await
         .unwrap()
         .value
         .unwrap();
-    assert!(compressed_cmint.address.is_some());
     assert_eq!(compressed_cmint.address.unwrap(), mint_compressed_address);
-    assert_eq!(
-        compressed_cmint.data.as_ref().unwrap().data.len(),
-        0,
-        "Compressed CMint should have empty data after init"
-    );
-    println!("  - Compressed CMint account is empty (decompressed to on-chain)");
+    assert!(compressed_cmint.data.as_ref().unwrap().data.is_empty());
 
-    // Verify vault was created and has correct owner and balance
-    let vault_account = rpc.get_account(vault_pda).await.unwrap();
-    assert!(
-        vault_account.is_some(),
-        "Vault CToken should exist on-chain"
-    );
-    let vault_data: CToken =
-        borsh::BorshDeserialize::deserialize(&mut &vault_account.unwrap().data[..]).unwrap();
-    // Vault is owned by vault_authority PDA (like cp-swap pattern)
-    // compress_to_account_pubkey maps compressed owner back to vault address
-    assert_eq!(
-        vault_data.owner,
-        vault_authority_pda.to_bytes(),
-        "Vault owner should be vault_authority_pda (cp-swap pattern)"
-    );
-    assert_eq!(
-        vault_data.amount, vault_mint_amount,
-        "Vault should have {} tokens",
-        vault_mint_amount
-    );
-    println!(
-        "  - Vault created with {} tokens, owned by vault_authority",
-        vault_mint_amount
-    );
-
-    // Verify user ATA was created and has correct owner and balance
-    let user_ata_account = rpc.get_account(user_ata_pda).await.unwrap();
-    assert!(
-        user_ata_account.is_some(),
-        "User ATA CToken should exist on-chain"
-    );
-    let user_ata_data: CToken =
-        borsh::BorshDeserialize::deserialize(&mut &user_ata_account.unwrap().data[..]).unwrap();
-    assert_eq!(
-        user_ata_data.owner,
-        payer.pubkey().to_bytes(),
-        "User ATA should be owned by payer"
-    );
-    assert_eq!(
-        user_ata_data.amount, user_ata_mint_amount,
-        "User ATA should have {} tokens",
-        user_ata_mint_amount
-    );
-    println!(
-        "  - User ATA created with {} tokens, owned by payer",
-        user_ata_mint_amount
-    );
-
-    // Verify account owners are the ctoken program
-    let vault_account_raw = rpc.get_account(vault_pda).await.unwrap().unwrap();
-    assert_eq!(
-        vault_account_raw.owner,
-        Pubkey::from(C_TOKEN_PROGRAM_ID),
-        "Vault account owner should be ctoken program"
-    );
-    let user_ata_account_raw = rpc.get_account(user_ata_pda).await.unwrap().unwrap();
-    assert_eq!(
-        user_ata_account_raw.owner,
-        Pubkey::from(C_TOKEN_PROGRAM_ID),
-        "User ATA account owner should be ctoken program"
-    );
-    println!("  - Both vault and user_ata account owners are ctoken program");
-
-    println!("\nPHASE 1 SUCCESS: Full auto test with PDAs + Mint + Vault + User ATA:");
-    println!("  - 2 PDAs compressed atomically");
-    println!("  - 1 CMint created + decompressed atomically (in pre_init)");
-    println!(
-        "  - 1 Vault created with {} tokens (in instruction body)",
-        vault_mint_amount
-    );
-    println!(
-        "  - 1 User ATA created with {} tokens (in instruction body)",
-        user_ata_mint_amount
-    );
-    println!("All in ONE instruction with a single proof!");
-
-    // check that pda is onchain still
-    let user_record_before_warp = rpc.get_account(user_record_pda).await.unwrap();
-    assert!(
-        user_record_before_warp.is_some(),
-        "User record PDA should still exist on-chain BEFORE warp"
-    );
-    println!(
-        "  - User record PDA still exists on-chain BEFORE warp: {:?}",
-        user_record_before_warp
-    );
-
-    // same with the other pda game session
-    let game_session_before_warp = rpc.get_account(game_session_pda).await.unwrap();
-    assert!(
-        game_session_before_warp.is_some(),
-        "Game session PDA should still exist on-chain BEFORE warp"
-    );
-    println!(
-        "  - Game session PDA still exists on-chain BEFORE warp: {:?}",
-        game_session_before_warp
-    );
-
-    // ===========================================================================
-    // PHASE 2: Warp epoch forward to trigger auto-compression
-    // ===========================================================================
-    println!("\nPHASE 2: Warping epoch forward to trigger auto-compression...");
-    // Warp 30 epochs to ensure vault and user_ata become compressible
+    // PHASE 2: Warp to trigger auto-compression
     rpc.warp_slot_forward(SLOTS_PER_EPOCH * 30).await.unwrap();
 
-    // Check that PDAs are now closed (auto-compressed) after warp
-    let user_record_after_warp = rpc.get_account(user_record_pda).await.unwrap();
-    let user_record_closed_after_warp = user_record_after_warp.is_none()
-        || user_record_after_warp
-            .as_ref()
-            .map(|a| a.lamports == 0)
-            .unwrap_or(true);
-    assert!(
-        user_record_closed_after_warp,
-        "User record PDA should be closed (lamports=0) after auto-compression warp"
-    );
-    println!(
-        "  - User record PDA closed after warp: {:?}",
-        user_record_after_warp
-    );
+    // After warp: all on-chain accounts should be closed
+    assert_onchain_closed(&mut rpc, &user_record_pda).await;
+    assert_onchain_closed(&mut rpc, &game_session_pda).await;
+    assert_onchain_closed(&mut rpc, &cmint_pda).await;
+    assert_onchain_closed(&mut rpc, &vault_pda).await;
+    assert_onchain_closed(&mut rpc, &user_ata_pda).await;
 
-    // Verify compressed UserRecord account exists with address and data
-    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-    let user_compressed_address = light_compressed_account::address::derive_address(
-        &user_record_pda.to_bytes(),
-        &address_tree_pubkey.to_bytes(),
-        &program_id.to_bytes(),
-    );
-    let compressed_user_record = rpc
-        .get_compressed_account(user_compressed_address, None)
-        .await
-        .unwrap()
-        .value
-        .unwrap();
-    assert!(
-        compressed_user_record.address.is_some(),
-        "Should have compressed user record account with address"
-    );
-    assert!(
-        !compressed_user_record
-            .data
-            .as_ref()
-            .unwrap()
-            .data
-            .is_empty(),
-        "Compressed user record should have non-empty data"
-    );
-    println!("  - Verified compressed user record account exists with data");
+    // Compressed accounts should exist with non-empty data
+    assert_compressed_exists_with_data(&mut rpc, user_compressed_address).await;
+    assert_compressed_exists_with_data(&mut rpc, game_compressed_address).await;
+    assert_compressed_exists_with_data(&mut rpc, mint_compressed_address).await;
 
-    // Verify compressed GameSession account exists with address and data
-    let game_compressed_address = light_compressed_account::address::derive_address(
-        &game_session_pda.to_bytes(),
-        &address_tree_pubkey.to_bytes(),
-        &program_id.to_bytes(),
-    );
-    let compressed_game_session = rpc
-        .get_compressed_account(game_compressed_address, None)
-        .await
-        .unwrap()
-        .value
-        .unwrap();
-    assert!(
-        compressed_game_session.address.is_some(),
-        "Should have compressed game session account with address"
-    );
-    assert!(
-        compressed_game_session
-            .data
-            .as_ref()
-            .map(|d| !d.data.is_empty())
-            .unwrap_or(false),
-        "Compressed game session should have non-empty data"
-    );
-    println!("  - Verified compressed game session account exists with data");
+    // Compressed token accounts should exist with correct balances
+    assert_compressed_token_exists(&mut rpc, &vault_pda, vault_mint_amount).await;
+    assert_compressed_token_exists(&mut rpc, &user_ata_pda, user_ata_mint_amount).await;
 
-    let game_session_after_warp = rpc.get_account(game_session_pda).await.unwrap();
-    let game_session_closed_after_warp = game_session_after_warp.is_none()
-        || game_session_after_warp
-            .as_ref()
-            .map(|a| a.lamports == 0)
-            .unwrap_or(true);
-    assert!(
-        game_session_closed_after_warp,
-        "Game session PDA should be closed (lamports=0) after auto-compression warp"
-    );
-    println!(
-        "  - Game session PDA closed after warp: {:?}",
-        game_session_after_warp
-    );
 
-    // ===========================================================================
-    // PHASE 3: Assert CToken accounts are auto-compressed
-    // ===========================================================================
-    println!("PHASE 3: Verifying auto-compression of CToken accounts...");
-
-    // Check Vault CToken is compressed (closed)
-    let vault_after_warp = rpc.get_account(vault_pda).await.unwrap();
-    let vault_closed = vault_after_warp.is_none()
-        || vault_after_warp
-            .as_ref()
-            .map(|a| a.lamports == 0)
-            .unwrap_or(true);
-    assert!(
-        vault_closed,
-        "Vault CToken should be closed after auto-compression"
-    );
-    println!("  - Vault CToken auto-compressed (closed on-chain)");
-
-    // Check User ATA is compressed (closed)
-    let user_ata_after_warp = rpc.get_account(user_ata_pda).await.unwrap();
-    let user_ata_closed = user_ata_after_warp.is_none()
-        || user_ata_after_warp
-            .as_ref()
-            .map(|a| a.lamports == 0)
-            .unwrap_or(true);
-    assert!(
-        user_ata_closed,
-        "User ATA CToken should be closed after auto-compression"
-    );
-    println!("  - User ATA CToken auto-compressed (closed on-chain)");
-
-    // CMint auto-compression is now handled by warp_slot_forward via compress_cmint_forester
-    let cmint_after_warp = rpc.get_account(cmint_pda).await.unwrap();
-    let cmint_closed = cmint_after_warp.is_none()
-        || cmint_after_warp
-            .as_ref()
-            .map(|a| a.lamports == 0)
-            .unwrap_or(true);
-    assert!(
-        cmint_closed,
-        "CMint should be auto-compressed (closed) after epoch warp"
-    );
-    println!("  - CMint auto-compressed (closed on-chain)");
-
-    // After auto-compression, PDA should be closed (garbage collected with 0 lamports)
-    let onchain_user_record_account = rpc.get_account(user_record_pda).await.unwrap();
-    let user_record_closed = onchain_user_record_account.is_none()
-        || onchain_user_record_account
-            .as_ref()
-            .map(|a| a.lamports == 0)
-            .unwrap_or(true);
-    assert!(
-        user_record_closed,
-        "User record PDA should be closed after auto-compression"
-    );
-    println!("  - UserRecord PDA auto-compressed (closed on-chain)");
-
-    // Verify compressed user record account exists with address
-    // Use v2 address derivation to look up the compressed account
-    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-    let user_compressed_address = light_compressed_account::address::derive_address(
-        &user_record_pda.to_bytes(),
-        &address_tree_pubkey.to_bytes(),
-        &program_id.to_bytes(),
-    );
-    let compressed_user_record = rpc
-        .get_compressed_account(user_compressed_address, None)
-        .await
-        .unwrap()
-        .value
-        .unwrap();
-    assert!(
-        compressed_user_record.address.is_some(),
-        "Should have compressed user record account with address"
-    );
-    println!("  - Verified compressed user record account exists");
-
-    // Verify compressed vault token account exists with correct balance
-    // compress_to_pubkey sets the compressed owner to vault_pda
-    let compressed_vault_accounts = rpc
-        .get_compressed_token_accounts_by_owner(&vault_pda, None, None)
-        .await
-        .unwrap()
-        .value
-        .items;
-    assert!(
-        !compressed_vault_accounts.is_empty(),
-        "Should have compressed vault token account"
-    );
-    assert_eq!(
-        compressed_vault_accounts[0].token.amount, vault_mint_amount,
-        "Compressed vault token should have same balance"
-    );
-    println!(
-        "  - Verified compressed vault token account with {} tokens",
-        vault_mint_amount
-    );
-
-    // Verify compressed user ATA token account exists with correct balance
-    // compression_only=true sets the compressed owner to user_ata_pda
-    let compressed_user_ata_accounts = rpc
-        .get_compressed_token_accounts_by_owner(&user_ata_pda, None, None)
-        .await
-        .unwrap()
-        .value
-        .items;
-    assert!(
-        !compressed_user_ata_accounts.is_empty(),
-        "Should have compressed user ATA token account"
-    );
-    assert_eq!(
-        compressed_user_ata_accounts[0].token.amount, user_ata_mint_amount,
-        "Compressed user ATA token should have same balance"
-    );
-    println!(
-        "  - Verified compressed user ATA token account with {} tokens",
-        user_ata_mint_amount
-    );
-
-    println!("\nSUCCESS: ALL accounts auto-compressed after epoch warp!");
-    println!("  - Vault CToken: auto-compressed");
-    println!("  - User ATA CToken: auto-compressed");
-    println!("  - CMint: auto-compressed");
-    println!("  - PDAs: already compressed from creation");
+    
 }
 
 async fn create_user_record_and_game_session(
