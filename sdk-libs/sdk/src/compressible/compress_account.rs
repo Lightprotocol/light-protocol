@@ -53,6 +53,7 @@ where
 {
     use light_compressed_account::address::derive_address;
 
+    // v2 address derive using PDA as seed
     let derived_c_pda = derive_address(
         &account_info.key.to_bytes(),
         &address_space[0].to_bytes(),

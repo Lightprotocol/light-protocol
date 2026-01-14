@@ -618,12 +618,8 @@ fn generate_pda_compress_blocks(
 
             let #new_addr_params_ident = {
                 let tree_info = &#addr_tree_info;
-                // v2 address derivation: seed = hash(pda_key), address = hash(seed, tree, program_id)
-                let __seed: [u8; 32] = light_sdk::address::v2::derive_address_seed(
-                    &[
-                        #account_key_ident.as_ref(),
-                    ],
-                ).into();
+                // v2 address derive
+                let __seed: [u8; 32] = #account_key_ident.as_ref();
                 light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked {
                     seed: __seed,
                     address_merkle_tree_account_index: tree_info.address_merkle_tree_pubkey_index,
@@ -634,8 +630,7 @@ fn generate_pda_compress_blocks(
                 }
             };
 
-            // Derive the compressed address using the pre-computed seed (v2)
-            // seed = hash(pda_key), address = hash(seed, tree, program_id)
+            // Derive the compressed address
             let #address_ident = light_compressed_account::address::derive_address(
                 &#new_addr_params_ident.seed,
                 &cpi_accounts
@@ -657,7 +652,7 @@ fn generate_pda_compress_blocks(
                 #output_tree,
                 &cpi_accounts,
                 &compression_config_data.address_space,
-                false,
+                false, // at init, we do not compress_and_close the pda, we just "register" the empty compressed account with the derived address.
             )?;
             all_compressed_infos.push(#compressed_infos_ident);
         });

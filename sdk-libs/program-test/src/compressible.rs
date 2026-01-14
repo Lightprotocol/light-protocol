@@ -352,16 +352,13 @@ async fn try_compress_chunk(
     use light_client::indexer::Indexer;
     use light_compressed_account::address::derive_address;
     use light_compressible_client::compressible_instruction;
-    use light_sdk_types::address::v2::derive_address_seed;
     use solana_sdk::signature::Signer;
 
     // Attempt compression per-account idempotently.
     for (pda, acc) in chunk.iter() {
-        // Use v2 address derivation: seed = hash(pda_key), address = hash(seed, tree, program)
-        // This matches what LightFinalize macro uses when creating compressed accounts
-        let seed: [u8; 32] = derive_address_seed(&[pda.to_bytes().as_ref()]).into();
+        // v2 address derive using PDA as seed
         let addr = derive_address(
-            &seed,
+            &pda.to_bytes(),
             &address_tree.to_bytes(),
             &program_id.to_bytes(),
         );
