@@ -27,7 +27,8 @@ pub async fn assert_merkle_tree_initialized<R: Rpc>(
         rpc,
         *merkle_tree_pubkey,
     )
-    .await;
+    .await
+    .unwrap();
     let merkle_tree_account = merkle_tree_account.deserialized();
 
     let balance_merkle_tree = rpc
@@ -112,7 +113,8 @@ pub async fn assert_merkle_tree_initialized<R: Rpc>(
         rpc,
         *merkle_tree_pubkey,
     )
-    .await;
+    .await
+    .unwrap();
 
     assert_eq!(merkle_tree.height, height);
     assert_eq!(merkle_tree.changelog.capacity(), changelog_capacity);

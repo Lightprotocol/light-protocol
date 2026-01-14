@@ -1259,7 +1259,8 @@ async fn failing_test_forester() {
             0, // TODO: adapt epoch
             false,
         )
-        .await;
+        .await
+        .unwrap();
         // Swap the derived forester pda with an initialized but invalid one.
         instructions[2].accounts[0].pubkey =
             get_forester_epoch_pda_from_authority(&env.protocol.forester.pubkey(), 0).0;
@@ -1292,7 +1293,8 @@ async fn failing_test_forester() {
             0, // TODO: adapt epoch
             false,
         )
-        .await;
+        .await
+        .unwrap();
         // Swap the derived forester pda with an initialized but invalid one.
         instructions[3].accounts[0].pubkey =
             get_forester_epoch_pda_from_authority(&env.protocol.forester.pubkey(), 0).0;
@@ -1478,7 +1480,8 @@ async fn test_migrate_state() {
                 &mut rpc,
                 test_accounts.v1_state_trees[0].merkle_tree,
             )
-            .await;
+            .await
+            .unwrap();
         let compressed_account =
             &test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&payer.pubkey())[0];
         let hash = compressed_account.hash().unwrap();
@@ -1533,7 +1536,8 @@ async fn test_migrate_state() {
                 Poseidon,
                 26,
             >(&mut rpc, test_accounts.v1_state_trees[0].merkle_tree)
-            .await;
+            .await
+            .unwrap();
             let bundle = test_indexer
                 .get_state_merkle_trees_mut()
                 .iter_mut()
@@ -1569,7 +1573,8 @@ async fn test_migrate_state() {
                 &mut rpc,
                 test_accounts.v1_state_trees[0].merkle_tree,
             )
-            .await;
+            .await
+            .unwrap();
         let compressed_account =
             &test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&payer.pubkey())[1];
         let hash = compressed_account.hash().unwrap();

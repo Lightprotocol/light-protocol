@@ -99,7 +99,8 @@ async fn test_program_owned_merkle_tree() {
             &mut rpc,
             program_owned_merkle_tree_pubkey,
         )
-        .await;
+        .await
+        .unwrap();
     let event = TestRpc::create_and_send_transaction_with_public_event(
         &mut rpc,
         &[instruction],
@@ -122,7 +123,8 @@ async fn test_program_owned_merkle_tree() {
             &mut rpc,
             program_owned_merkle_tree_pubkey,
         )
-        .await;
+        .await
+        .unwrap();
     let slot: u64 = rpc.get_slot().await.unwrap();
     test_indexer.add_compressed_accounts_with_token_data(slot, &event.0);
     assert_ne!(post_merkle_tree.root(), pre_merkle_tree.root());

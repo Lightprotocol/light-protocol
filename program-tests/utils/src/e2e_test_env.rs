@@ -896,7 +896,8 @@ where
                     .accounts
                     .merkle_tree,
             )
-            .await;
+            .await
+            .unwrap();
             if self
                 .rng
                 .gen_bool(self.general_action_config.rollover.unwrap_or_default())
@@ -937,7 +938,8 @@ where
                     .accounts
                     .merkle_tree,
             )
-            .await;
+            .await
+            .unwrap();
             if self
                 .rng
                 .gen_bool(self.general_action_config.rollover.unwrap_or_default())
@@ -1269,7 +1271,8 @@ where
             &mut self.rpc,
             nullifier_queue_keypair.pubkey(),
         )
-        .await;
+        .await
+        .unwrap();
         self.indexer
             .get_state_merkle_trees_mut()
             .push(StateMerkleTreeBundle {
@@ -1364,7 +1367,8 @@ where
             &mut self.rpc,
             nullifier_queue_keypair.pubkey(),
         )
-        .await;
+        .await
+        .unwrap();
         let mut bundle = AddressMerkleTreeBundle::new_v1(AddressMerkleTreeAccounts {
             merkle_tree: merkle_tree_keypair.pubkey(),
             queue: nullifier_queue_keypair.pubkey(),
