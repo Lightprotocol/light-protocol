@@ -18,6 +18,9 @@ pub use state::{
     UserRecord,
 };
 
+// Re-export for test usage
+pub use light_ctoken_sdk::ctoken::CompressedMintWithContext;
+
 // Example helper expression usable in seeds
 #[inline]
 pub fn max_key(left: &Pubkey, right: &Pubkey) -> [u8; 32] {
@@ -75,7 +78,7 @@ pub mod csdk_anchor_full_derived_test {
 
     use super::*;
     use crate::{
-        instruction_accounts::CreatePdasAndMintAuto,
+        instruction_accounts::{CreatePdasAndMintAuto, DecompressCMints, DecompressCMintsParams},
         state::{GameSession, PlaceholderRecord, UserRecord},
         FullAutoWithMintParams, LIGHT_CPI_SIGNER,
     };
@@ -191,6 +194,132 @@ pub mod csdk_anchor_full_derived_test {
         // - LP mint is created AND decompressed (hot/active state)
         // - Vault exists with vault_mint_amount tokens, owned by vault_authority
         // - User ATA exists with user_ata_mint_amount tokens, owned by fee_payer
+        Ok(())
+    }
+
+    /// Decompress compressed mints via CPI to ctoken program.
+    ///
+    /// At most 1 mint allowed (validated client-side).
+    /// Works for both prove_by_index=true and prove_by_index=false.
+    ///
+    /// Remaining accounts (in order, starting at system_accounts_offset):
+    /// - ctoken_program (required for CPI)
+    /// - light_system_program
+    /// - cpi_authority_pda (ctoken's CPI authority)
+    /// - registered_program_pda  
+    /// - account_compression_authority
+    /// - account_compression_program
+    /// - state_tree
+    /// - input_queue
+    /// - output_queue
+    /// - For each mint: [mint_signer_pda, cmint_pda]
+    pub fn decompress_cmints<'info>(
+        ctx: Context<'_, '_, '_, 'info, DecompressCMints<'info>>,
+        params: DecompressCMintsParams,
+    ) -> Result<()> {
+        use crate::instruction_accounts::CompressedMintVariant;
+        use light_ctoken_sdk::ctoken::{find_cmint_address, DecompressCMint, SystemAccountInfos};
+
+        let remaining = ctx.remaining_accounts;
+        let offset = params.system_accounts_offset as usize;
+
+        // Validate we have enough remaining accounts
+        // At minimum: ctoken_program, light_system_program, cpi_authority, registered_program,
+        // account_compression_authority, account_compression_program,
+        // state_tree, input_queue, output_queue = 9 base accounts
+        // Plus 2 per mint (mint_signer, cmint)
+        let min_accounts = 9 + params.compressed_accounts.len() * 2;
+        if remaining.len() < min_accounts {
+            return Err(anchor_lang::error::ErrorCode::AccountNotEnoughKeys.into());
+        }
+
+        // Parse accounts from remaining (starting at offset)
+        let ctoken_program = &remaining[offset];
+        let light_system_program = &remaining[offset + 1];
+        let cpi_authority_pda = &remaining[offset + 2];
+        let registered_program_pda = &remaining[offset + 3];
+        let account_compression_authority = &remaining[offset + 4];
+        let account_compression_program = &remaining[offset + 5];
+
+        // Parse tree accounts
+        let state_tree = &remaining[offset + 6];
+        let input_queue = &remaining[offset + 7];
+        let output_queue = &remaining[offset + 8];
+
+        // Remaining accounts after system+trees: [mint_signer1, cmint1, ...]
+        let mint_accounts_start = offset + 9;
+
+        // Build system accounts struct for CPI
+        let system_accounts = SystemAccountInfos {
+            light_system_program: light_system_program.clone(),
+            cpi_authority_pda: cpi_authority_pda.clone(),
+            registered_program_pda: registered_program_pda.clone(),
+            account_compression_authority: account_compression_authority.clone(),
+            account_compression_program: account_compression_program.clone(),
+            system_program: ctx.accounts.system_program.to_account_info(),
+        };
+
+        // Process each compressed mint
+        for (i, cmint_account_data) in params.compressed_accounts.iter().enumerate() {
+            // Extract the actual mint data from the enum
+            let CompressedMintVariant::Standard(mint_data) = &cmint_account_data.data;
+
+            // Get mint_signer and cmint accounts for this mint
+            let mint_signer = &remaining[mint_accounts_start + i * 2];
+            let cmint = &remaining[mint_accounts_start + i * 2 + 1];
+
+            // Verify mint_signer matches expected
+            if *mint_signer.key != mint_data.mint_seed_pubkey {
+                return Err(anchor_lang::error::ErrorCode::ConstraintRaw.into());
+            }
+
+            // Verify cmint PDA matches expected derivation
+            let (expected_cmint, _) = find_cmint_address(&mint_data.mint_seed_pubkey);
+            if *cmint.key != expected_cmint {
+                return Err(anchor_lang::error::ErrorCode::ConstraintRaw.into());
+            }
+
+            // Build the DecompressCMint instruction
+            let instruction = DecompressCMint {
+                mint_seed_pubkey: *mint_signer.key,
+                payer: ctx.accounts.fee_payer.key(),
+                authority: ctx.accounts.authority.key(),
+                state_tree: *state_tree.key,
+                input_queue: *input_queue.key,
+                output_queue: *output_queue.key,
+                compressed_mint_with_context: mint_data.compressed_mint_with_context.clone(),
+                proof: light_compressed_account::instruction_data::compressed_proof::ValidityProof(
+                    params.proof.0,
+                ),
+                rent_payment: mint_data.rent_payment,
+                write_top_up: mint_data.write_top_up,
+            }
+            .instruction()
+            .map_err(|_| anchor_lang::error::ErrorCode::InstructionFallbackNotFound)?;
+
+            // Build account infos for CPI (must include ctoken program for invoke to work)
+            let account_infos = vec![
+                ctoken_program.clone(),
+                system_accounts.light_system_program.clone(),
+                mint_signer.clone(),
+                ctx.accounts.authority.to_account_info(),
+                ctx.accounts.ctoken_compressible_config.to_account_info(),
+                cmint.clone(),
+                ctx.accounts.ctoken_rent_sponsor.to_account_info(),
+                ctx.accounts.fee_payer.to_account_info(),
+                system_accounts.cpi_authority_pda.clone(),
+                system_accounts.registered_program_pda.clone(),
+                system_accounts.account_compression_authority.clone(),
+                system_accounts.account_compression_program.clone(),
+                system_accounts.system_program.clone(),
+                output_queue.clone(),
+                state_tree.clone(),
+                input_queue.clone(),
+            ];
+
+            anchor_lang::solana_program::program::invoke(&instruction, &account_infos)?;
+        }
+
         Ok(())
     }
 }

@@ -163,3 +163,90 @@ pub struct CreatePdasAndMintAuto<'info> {
 
 /// Program-owned vault PDA seed
 pub const VAULT_SEED: &[u8] = b"vault";
+
+// ============================================================================
+// DecompressCMints - Decompress compressed mints (at most 1, client-validated)
+// ============================================================================
+
+use light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
+
+/// Compressed mint data for decompression - enum variant wrapper.
+/// Packed = Unpacked for now (noop), allowing future extensions.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub enum CompressedMintVariant {
+    /// Standard compressed mint (packed = unpacked for now)
+    Standard(CompressedMintTokenData),
+}
+
+/// The actual compressed mint token data.
+/// Similar to light_ctoken_sdk::compat::CompressedMintData but with proper serialization.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub struct CompressedMintTokenData {
+    /// Mint seed pubkey (used to derive CMint PDA)
+    pub mint_seed_pubkey: Pubkey,
+    /// Compressed mint with context (from indexer)
+    pub compressed_mint_with_context: light_ctoken_sdk::ctoken::CompressedMintWithContext,
+    /// Rent payment in epochs (0 or >= 2)
+    pub rent_payment: u8,
+    /// Lamports for future write operations
+    pub write_top_up: u32,
+}
+
+/// Compressed account data for mint decompression.
+/// Mirrors `CompressedAccountData` pattern from decompress_accounts_idempotent.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub struct CompressedMintAccountData {
+    /// Merkle tree metadata (tree indices, leaf index, etc.)
+    pub meta: CompressedAccountMetaNoLamportsNoAddress,
+    /// The compressed mint data (with enum for future extensibility)
+    pub data: CompressedMintVariant,
+}
+
+/// Parameters for decompressing compressed mints.
+/// Mirrors `DecompressMultipleAccountsIdempotentData` structure.
+///
+/// Client-side validation: at most 1 mint allowed (error otherwise).
+/// Works for both prove_by_index=true and prove_by_index=false.
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct DecompressCMintsParams {
+    /// Validity proof covering all input mints
+    pub proof: light_sdk::instruction::ValidityProof,
+    /// Vec of compressed mint account data (at most 1, validated client-side)
+    pub compressed_accounts: Vec<CompressedMintAccountData>,
+    /// Offset where system accounts start in remaining_accounts
+    pub system_accounts_offset: u8,
+}
+
+/// Accounts for decompressing compressed mints.
+///
+/// Remaining accounts (in order):
+/// - ctoken_program (required for CPI)
+/// - light_system_program
+/// - cpi_authority_pda (ctoken's CPI authority)
+/// - registered_program_pda
+/// - account_compression_authority
+/// - account_compression_program
+/// - state_tree
+/// - input_queue
+/// - output_queue
+/// - For each mint: [mint_signer_pda, cmint_pda]
+#[derive(Accounts)]
+pub struct DecompressCMints<'info> {
+    /// Fee payer for all operations
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+
+    /// Authority for the mints (must sign)
+    pub authority: Signer<'info>,
+
+    /// Ctoken compressible config
+    /// CHECK: Validated by ctoken program
+    pub ctoken_compressible_config: AccountInfo<'info>,
+
+    /// Ctoken rent sponsor
+    /// CHECK: Validated by ctoken program
+    #[account(mut)]
+    pub ctoken_rent_sponsor: AccountInfo<'info>,
+
+    pub system_program: Program<'info, System>,
+}

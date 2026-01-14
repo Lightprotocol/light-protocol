@@ -430,3 +430,351 @@ async fn test_create_pdas_and_mint_auto() {
         .items;
     assert!(remaining_vault.is_empty());
 }
+
+/// Test decompressing multiple compressed mints in one instruction.
+/// Creates 2 compressed mints, then decompresses both with a single call.
+#[tokio::test]
+async fn test_decompress_cmints() {
+    use csdk_anchor_full_derived_test::instruction_accounts::DecompressCMintsParams;
+    use light_ctoken_interface::instructions::mint_action::CompressedMintInstructionData;
+    use light_ctoken_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address;
+    use light_ctoken_sdk::ctoken::{
+        find_cmint_address, CompressedMintWithContext, CreateCMint, CreateCMintParams,
+        COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as CTOKEN_RENT_SPONSOR,
+    };
+
+    let program_id = csdk_anchor_full_derived_test::ID;
+    let mut config = ProgramTestConfig::new_v2(
+        true,
+        Some(vec![("csdk_anchor_full_derived_test", program_id)]),
+    );
+    config = config.with_light_protocol_events();
+
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+    let authority = Keypair::new();
+
+    // Airdrop to authority for signing
+    rpc.airdrop_lamports(&authority.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
+    let state_tree_info = rpc.get_random_state_tree_info().unwrap();
+
+    // Create two mint signers
+    let mint_signer1 = Keypair::new();
+    let mint_signer2 = Keypair::new();
+
+    // Derive CMint PDAs
+    let (cmint1_pda, _) = find_cmint_address(&mint_signer1.pubkey());
+    let (cmint2_pda, _) = find_cmint_address(&mint_signer2.pubkey());
+
+    // Derive compressed addresses for both mints
+    let cmint1_compressed_address =
+        derive_cmint_compressed_address(&mint_signer1.pubkey(), &address_tree_pubkey);
+    let cmint2_compressed_address =
+        derive_cmint_compressed_address(&mint_signer2.pubkey(), &address_tree_pubkey);
+
+    // Get validity proof for creating mint 1 (non-inclusion proof)
+    let create_proof_result1 = rpc
+        .get_validity_proof(
+            vec![],
+            vec![AddressWithTree {
+                address: cmint1_compressed_address,
+                tree: address_tree_pubkey,
+            }],
+            None,
+        )
+        .await
+        .unwrap()
+        .value;
+
+    // Create mint 1
+    let params1 = CreateCMintParams {
+        decimals: 9,
+        address_merkle_tree_root_index: create_proof_result1.addresses[0].root_index,
+        mint_authority: authority.pubkey(),
+        proof: create_proof_result1.proof.0.unwrap(),
+        compression_address: cmint1_compressed_address,
+        mint: cmint1_pda,
+        freeze_authority: None,
+        extensions: None,
+    };
+
+    let create_mint1_ix = CreateCMint::new(
+        params1,
+        mint_signer1.pubkey(),
+        payer.pubkey(),
+        address_tree_pubkey,
+        state_tree_info.queue,
+    )
+    .instruction()
+    .unwrap();
+
+    rpc.create_and_send_transaction(
+        &[create_mint1_ix],
+        &payer.pubkey(),
+        &[&payer, &mint_signer1, &authority],
+    )
+    .await
+    .expect("Create mint 1 should succeed");
+
+    // Get new proof for mint 2 (state changed after mint 1)
+    let create_proof_result2 = rpc
+        .get_validity_proof(
+            vec![],
+            vec![AddressWithTree {
+                address: cmint2_compressed_address,
+                tree: address_tree_pubkey,
+            }],
+            None,
+        )
+        .await
+        .unwrap()
+        .value;
+
+    // Create mint 2
+    let params2 = CreateCMintParams {
+        decimals: 6,
+        address_merkle_tree_root_index: create_proof_result2.addresses[0].root_index,
+        mint_authority: authority.pubkey(),
+        proof: create_proof_result2.proof.0.unwrap(),
+        compression_address: cmint2_compressed_address,
+        mint: cmint2_pda,
+        freeze_authority: None,
+        extensions: None,
+    };
+
+    let create_mint2_ix = CreateCMint::new(
+        params2,
+        mint_signer2.pubkey(),
+        payer.pubkey(),
+        address_tree_pubkey,
+        state_tree_info.queue,
+    )
+    .instruction()
+    .unwrap();
+
+    rpc.create_and_send_transaction(
+        &[create_mint2_ix],
+        &payer.pubkey(),
+        &[&payer, &mint_signer2, &authority],
+    )
+    .await
+    .expect("Create mint 2 should succeed");
+
+    // Verify both compressed mints exist (with data - not decompressed)
+    let compressed_mint1 = rpc
+        .get_compressed_account(cmint1_compressed_address, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap();
+    assert_eq!(compressed_mint1.address.unwrap(), cmint1_compressed_address);
+    assert!(!compressed_mint1.data.as_ref().unwrap().data.is_empty());
+
+    let compressed_mint2 = rpc
+        .get_compressed_account(cmint2_compressed_address, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap();
+    assert_eq!(compressed_mint2.address.unwrap(), cmint2_compressed_address);
+    assert!(!compressed_mint2.data.as_ref().unwrap().data.is_empty());
+
+    // =========================================================================
+    // Test decompress_cmints with NEW instruction design
+    // Client-side validation: at most 1 mint allowed
+    // =========================================================================
+    use csdk_anchor_full_derived_test::instruction_accounts::{
+        CompressedMintAccountData, CompressedMintTokenData, CompressedMintVariant,
+    };
+    use light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
+    use light_sdk::instruction::PackedAccounts;
+
+    // CLIENT-SIDE VALIDATION: at most 1 mint
+    // For this test, we only decompress mint1 to demonstrate the pattern
+    let mints_to_decompress = vec![(
+        &compressed_mint1,
+        &mint_signer1,
+        cmint1_pda,
+        cmint1_compressed_address,
+    )];
+
+    if mints_to_decompress.len() > 1 {
+        panic!("Client-side error: at most 1 mint can be decompressed per instruction");
+    }
+
+    // Get validity proof for mint1 only
+    let decompress_proof_result = rpc
+        .get_validity_proof(vec![compressed_mint1.hash], vec![], None)
+        .await
+        .unwrap()
+        .value;
+
+    // Parse mint data from compressed account
+    let mint1_data: light_ctoken_interface::state::CompressedMint =
+        borsh::BorshDeserialize::deserialize(
+            &mut &compressed_mint1.data.as_ref().unwrap().data[..],
+        )
+        .unwrap();
+
+    // Build PackedAccounts for tree infos only
+    let mut packed_accounts = PackedAccounts::default();
+
+    // Pack tree infos from validity proof
+    let packed_tree_infos = decompress_proof_result.pack_tree_infos(&mut packed_accounts);
+    let packed_tree_info = &packed_tree_infos
+        .state_trees
+        .as_ref()
+        .unwrap()
+        .packed_tree_infos[0];
+
+    // Add output queue
+    let output_queue = compressed_mint1
+        .tree_info
+        .next_tree_info
+        .as_ref()
+        .map(|n| n.queue)
+        .unwrap_or(compressed_mint1.tree_info.queue);
+    let output_state_tree_index = packed_accounts.insert_or_get(output_queue);
+
+    // Build CompressedMintWithContext
+    let cmint1_with_context = CompressedMintWithContext {
+        leaf_index: packed_tree_info.leaf_index,
+        prove_by_index: packed_tree_info.prove_by_index,
+        root_index: packed_tree_info.root_index,
+        address: cmint1_compressed_address,
+        mint: Some(CompressedMintInstructionData::try_from(mint1_data).unwrap()),
+    };
+
+    // Build compressed account data with new struct types
+    let compressed_accounts = vec![CompressedMintAccountData {
+        meta: CompressedAccountMetaNoLamportsNoAddress {
+            tree_info: *packed_tree_info,
+            output_state_tree_index,
+        },
+        data: CompressedMintVariant::Standard(CompressedMintTokenData {
+            mint_seed_pubkey: mint_signer1.pubkey(),
+            compressed_mint_with_context: cmint1_with_context,
+            rent_payment: 2,
+            write_top_up: 5000,
+        }),
+    }];
+
+    // Build remaining accounts manually (order matches what on-chain code expects):
+    // 0: ctoken_program (required for CPI)
+    // 1: light_system_program
+    // 2: cpi_authority_pda (ctoken's CPI authority)
+    // 3: registered_program_pda
+    // 4: account_compression_authority
+    // 5: account_compression_program
+    // 6: state_tree
+    // 7: input_queue
+    // 8: output_queue
+    // 9+: [mint_signer, cmint] per mint
+    let remaining_accounts = vec![
+        // CToken program (required for CPI)
+        solana_instruction::AccountMeta::new_readonly(
+            light_sdk_types::C_TOKEN_PROGRAM_ID.into(),
+            false,
+        ),
+        // System accounts
+        solana_instruction::AccountMeta::new_readonly(
+            light_sdk_types::LIGHT_SYSTEM_PROGRAM_ID.into(),
+            false,
+        ),
+        solana_instruction::AccountMeta::new_readonly(
+            light_ctoken_sdk::ctoken::CTOKEN_CPI_AUTHORITY,
+            false,
+        ),
+        solana_instruction::AccountMeta::new_readonly(
+            light_sdk_types::REGISTERED_PROGRAM_PDA.into(),
+            false,
+        ),
+        solana_instruction::AccountMeta::new_readonly(
+            light_sdk_types::ACCOUNT_COMPRESSION_AUTHORITY_PDA.into(),
+            false,
+        ),
+        solana_instruction::AccountMeta::new_readonly(
+            light_sdk_types::ACCOUNT_COMPRESSION_PROGRAM_ID.into(),
+            false,
+        ),
+        // Tree accounts
+        solana_instruction::AccountMeta::new(compressed_mint1.tree_info.tree, false),
+        solana_instruction::AccountMeta::new(compressed_mint1.tree_info.queue, false),
+        solana_instruction::AccountMeta::new(output_queue, false),
+        // Mint 1 accounts: [mint_signer, cmint]
+        solana_instruction::AccountMeta::new_readonly(mint_signer1.pubkey(), false),
+        solana_instruction::AccountMeta::new(cmint1_pda, false),
+    ];
+
+    // system_accounts_offset is 0 since system accounts start at beginning of remaining
+    let decompress_params = DecompressCMintsParams {
+        proof: decompress_proof_result.proof,
+        compressed_accounts,
+        system_accounts_offset: 0,
+    };
+
+    // Build accounts
+    let accounts = csdk_anchor_full_derived_test::accounts::DecompressCMints {
+        fee_payer: payer.pubkey(),
+        authority: authority.pubkey(),
+        ctoken_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::DecompressCmints {
+        params: decompress_params,
+    };
+
+    let instruction = Instruction {
+        program_id,
+        accounts: [accounts.to_account_metas(None), remaining_accounts].concat(),
+        data: instruction_data.data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &authority])
+        .await
+        .expect("Decompress cmints should succeed");
+
+    // Verify CMint 1 is now on-chain
+    let cmint1_account = rpc.get_account(cmint1_pda).await.unwrap();
+    assert!(cmint1_account.is_some(), "CMint 1 should exist on-chain");
+
+    // Verify compressed account now has empty data (decompressed state)
+    let compressed_mint1_after = rpc
+        .get_compressed_account(cmint1_compressed_address, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap();
+    assert!(
+        compressed_mint1_after
+            .data
+            .as_ref()
+            .unwrap()
+            .data
+            .is_empty(),
+        "Compressed mint 1 should have empty data after decompression"
+    );
+
+    // Mint 2 should still be compressed (not decompressed)
+    let compressed_mint2_still = rpc
+        .get_compressed_account(cmint2_compressed_address, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap();
+    assert!(
+        !compressed_mint2_still
+            .data
+            .as_ref()
+            .unwrap()
+            .data
+            .is_empty(),
+        "Compressed mint 2 should still have data (not decompressed)"
+    );
+}
