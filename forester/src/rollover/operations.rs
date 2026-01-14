@@ -403,7 +403,7 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: Rpc>(
         },
     )
     .await
-    .map_err(|e| ForesterError::Other(anyhow::anyhow!("{}", e)))?;
+    .map_err(|e| ForesterError::Other(e.into()))?;
     let (state_merkle_tree_rent_exemption, queue_rent_exemption) =
         get_rent_exemption_for_state_merkle_tree_and_queue(rpc, &merkle_tree_config, &queue_config)
             .await?;

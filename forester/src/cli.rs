@@ -91,7 +91,7 @@ pub struct StartArgs {
     #[arg(long, env = "INDEXER_MAX_CONCURRENT_BATCHES", default_value = "10")]
     pub indexer_max_concurrent_batches: usize,
 
-    #[arg(long, env = "LEGACY_XS_PER_TX", default_value = "1")]
+    #[arg(long, env = "LEGACY_IXS_PER_TX", default_value = "1")]
     pub legacy_ixs_per_tx: usize,
     #[arg(long, env = "TRANSACTION_MAX_CONCURRENT_BATCHES", default_value = "20")]
     pub transaction_max_concurrent_batches: usize,
