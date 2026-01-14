@@ -1,15 +1,15 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountInfoTrait;
 use light_compressible::config::CompressibleConfig;
-use light_ctoken_interface::{
+use light_program_profiler::profile;
+use light_token_interface::{
     instructions::extensions::CompressibleExtensionInstructionData,
     state::{
-        ctoken::CompressedTokenConfig, AccountState, CToken, CompressibleExtensionConfig,
-        CompressionInfoConfig, ExtensionStructConfig, ACCOUNT_TYPE_MINT,
+        token::TokenConfig, AccountState, CompressibleExtensionConfig, CompressionInfoConfig,
+        ExtensionStructConfig, Token, ACCOUNT_TYPE_MINT,
     },
-    CTokenError, CTOKEN_PROGRAM_ID,
+    TokenError, LIGHT_TOKEN_PROGRAM_ID,
 };
-use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyNew;
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::{clock::Clock, rent::Rent, Sysvar};
@@ -189,7 +189,7 @@ pub fn initialize_ctoken_account(
         return Err(anchor_compressed_token::ErrorCode::MissingCompressibleConfig.into());
     }
     // Build the config for new_zero_copy
-    let zc_config = CompressedTokenConfig {
+    let zc_config = TokenConfig {
         mint: light_compressed_account::Pubkey::from(*mint_account.key()),
         owner: light_compressed_account::Pubkey::from(*owner),
         state: if mint_extensions.default_state_frozen {
@@ -210,7 +210,7 @@ pub fn initialize_ctoken_account(
     // Use new_zero_copy to initialize the token account
     // This sets mint, owner, state, account_type, and extensions
     let (mut ctoken, _) =
-        CToken::new_zero_copy(&mut token_account_data, zc_config).map_err(|e| {
+        Token::new_zero_copy(&mut token_account_data, zc_config).map_err(|e| {
             msg!("Failed to initialize CToken: {:?}", e);
             ProgramError::InvalidAccountData
         })?;
@@ -228,7 +228,7 @@ pub fn initialize_ctoken_account(
 #[profile]
 #[inline(always)]
 fn configure_compression_info(
-    ctoken: &mut light_ctoken_interface::state::ZCTokenMut<'_>,
+    ctoken: &mut light_token_interface::state::ZTokenMut<'_>,
     compressible: CompressibleInitData<'_>,
     mint_account: &AccountInfo,
 ) -> Result<(), ProgramError> {
@@ -243,7 +243,7 @@ fn configure_compression_info(
     // Get the Compressible extension (must exist since we added it)
     let compressible_ext = ctoken
         .get_compressible_extension_mut()
-        .ok_or(CTokenError::MissingCompressibleExtension)?;
+        .ok_or(TokenError::MissingCompressibleExtension)?;
 
     // Set config_account_version
     compressible_ext.info.config_account_version = config_account.version.into();
@@ -287,7 +287,7 @@ fn configure_compression_info(
             ix_data.write_top_up,
             config_account.rent_config.max_top_up
         );
-        return Err(CTokenError::WriteTopUpExceedsMaximum.into());
+        return Err(TokenError::WriteTopUpExceedsMaximum.into());
     }
     compressible_ext
         .info
@@ -342,7 +342,7 @@ pub fn is_valid_mint(owner: &Pubkey, mint_data: &[u8]) -> Result<bool, ProgramEr
         Ok(mint_data.len() == SPL_MINT_LEN
             || (mint_data.len() > T22_ACCOUNT_TYPE_OFFSET
                 && mint_data[T22_ACCOUNT_TYPE_OFFSET] == ACCOUNT_TYPE_MINT))
-    } else if *owner == CTOKEN_PROGRAM_ID {
+    } else if *owner == LIGHT_TOKEN_PROGRAM_ID {
         // CToken: Always has extensions, must be >165 bytes with AccountType=Mint
         Ok(mint_data.len() > T22_ACCOUNT_TYPE_OFFSET
             && mint_data[T22_ACCOUNT_TYPE_OFFSET] == ACCOUNT_TYPE_MINT)

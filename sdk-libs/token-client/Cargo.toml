@@ -7,13 +7,13 @@ edition = { workspace = true }
 
 [dependencies]
 # Light Protocol dependencies
-light-ctoken-types = { workspace = true }
+light-token-types = { workspace = true }
 light-compressed-account = { workspace = true, features = ["std"] }
 light-compressible = { workspace = true, features = ["anchor"] }
-light-ctoken-interface = { workspace = true }
+light-token-interface = { workspace = true }
 light-sdk = { workspace = true }
 light-client = { workspace = true, features = ["v2"] }
-light-ctoken-sdk = { workspace = true }
+light-token-sdk = { workspace = true }
 light-zero-copy = { workspace = true }
 
 # Solana dependencies

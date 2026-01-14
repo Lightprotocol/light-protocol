@@ -1,10 +1,10 @@
 use anchor_lang::solana_program::program_error::ProgramError;
+use light_program_profiler::profile;
 #[cfg(target_os = "solana")]
-use light_ctoken_interface::state::{
+use light_token_interface::state::{
     cmint_top_up_lamports_from_account_info, top_up_lamports_from_account_info_unchecked,
 };
-use light_ctoken_interface::CTokenError;
-use light_program_profiler::profile;
+use light_token_interface::TokenError;
 use pinocchio::{
     account_info::AccountInfo,
     sysvars::{clock::Clock, Sysvar},
@@ -74,9 +74,9 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
 
     // Check budget wasn't exhausted (0 means exceeded max_top_up)
     if max_top_up != 0 && lamports_budget == 0 {
-        return Err(CTokenError::MaxTopUpExceeded.into());
+        return Err(TokenError::MaxTopUpExceeded.into());
     }
-    let payer = payer.ok_or(CTokenError::MissingPayer)?;
+    let payer = payer.ok_or(TokenError::MissingPayer)?;
     multi_transfer_lamports(payer, &transfers).map_err(convert_program_error)?;
     Ok(())
 }
@@ -97,7 +97,7 @@ pub fn process_compression_top_up(
 
     if *current_slot == 0 {
         *current_slot = Clock::get()
-            .map_err(|_| CTokenError::SysvarAccessError)?
+            .map_err(|_| TokenError::SysvarAccessError)?
             .slot;
     }
 
@@ -107,7 +107,7 @@ pub fn process_compression_top_up(
             *current_slot,
             account_info.lamports(),
         )
-        .map_err(|_| CTokenError::InvalidAccountData)?;
+        .map_err(|_| TokenError::InvalidAccountData)?;
 
     *lamports_budget = lamports_budget.saturating_sub(*transfer_amount);
 

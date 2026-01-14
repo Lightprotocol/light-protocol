@@ -17,7 +17,7 @@ use light_compressed_token::{
     compressed_token::transfer2::check_extensions::build_mint_extension_cache,
     extensions::check_mint_extensions,
 };
-use light_ctoken_interface::instructions::{
+use light_token_interface::instructions::{
     extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
     transfer2::{
         CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,

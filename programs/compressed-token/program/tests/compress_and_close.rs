@@ -7,11 +7,11 @@ use light_account_checks::{
 use light_compressed_token::compressed_token::transfer2::{
     accounts::Transfer2Accounts, compression::ctoken::close_for_compress_and_close,
 };
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::transfer2::{Compression, CompressionMode},
     state::{
-        CToken, CompressedTokenConfig, CompressibleExtensionConfig, CompressionInfoConfig,
-        ExtensionStructConfig,
+        CompressibleExtensionConfig, CompressionInfoConfig, ExtensionStructConfig, Token,
+        TokenConfig,
     },
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
@@ -26,7 +26,7 @@ fn create_compressible_ctoken_data(
     rent_sponsor_pubkey: &[u8; 32],
 ) -> Vec<u8> {
     // Create config for compressible CToken with Compressible extension
-    let config = CompressedTokenConfig {
+    let config = TokenConfig {
         mint: light_compressed_account::Pubkey::from([0u8; 32]),
         owner: light_compressed_account::Pubkey::from(*owner_pubkey),
         state: 1, // AccountState::Initialized
@@ -38,11 +38,11 @@ fn create_compressible_ctoken_data(
     };
 
     // Calculate required size
-    let size = CToken::byte_len(&config).unwrap();
+    let size = Token::byte_len(&config).unwrap();
     let mut data = vec![0u8; size];
 
     // Initialize using zero-copy new
-    let (mut ctoken, _) = CToken::new_zero_copy(&mut data, config).unwrap();
+    let (mut ctoken, _) = Token::new_zero_copy(&mut data, config).unwrap();
 
     // Set compression info fields via the Compressible extension
     let compressible = ctoken.get_compressible_extension_mut().unwrap();

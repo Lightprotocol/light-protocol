@@ -1,14 +1,14 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut;
-use light_ctoken_interface::{
+use light_program_profiler::profile;
+use light_token_interface::{
     hash_cache::HashCache,
     instructions::{
         extensions::ZExtensionInstructionData, transfer2::ZCompressedTokenInstructionDataTransfer2,
     },
-    CTokenError,
+    TokenError,
 };
-use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 
 use super::check_extensions::{validate_tlv_and_get_frozen, MintExtensionCache};
@@ -55,11 +55,11 @@ pub fn set_input_compressed_accounts<'a>(
                     let idx = co.compression_index as usize;
                     // Check bounds before array access
                     if idx >= MAX_COMPRESSIONS {
-                        return Err(CTokenError::CompressionIndexOutOfBounds.into());
+                        return Err(TokenError::CompressionIndexOutOfBounds.into());
                     }
                     // Check uniqueness - error if compression_index already used
                     if compression_to_input[idx].is_some() {
-                        return Err(CTokenError::DuplicateCompressionIndex.into());
+                        return Err(TokenError::DuplicateCompressionIndex.into());
                     }
                     compression_to_input[idx] = Some(i as u8);
                 }

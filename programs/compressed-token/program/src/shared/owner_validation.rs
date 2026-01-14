@@ -1,8 +1,8 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::check_signer;
-use light_ctoken_interface::{state::ZCTokenMut, CTOKEN_PROGRAM_ID};
 use light_program_profiler::profile;
+use light_token_interface::{state::ZTokenMut, LIGHT_TOKEN_PROGRAM_ID};
 use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
 
 use crate::extensions::MintExtensionChecks;
@@ -16,7 +16,7 @@ pub fn check_token_program_owner(account: &AccountInfo) -> Result<(), ProgramErr
     let owner = account.owner();
     if pubkey_eq(owner, &SPL_TOKEN_ID)
         || pubkey_eq(owner, &SPL_TOKEN_2022_ID)
-        || pubkey_eq(owner, &CTOKEN_PROGRAM_ID)
+        || pubkey_eq(owner, &LIGHT_TOKEN_PROGRAM_ID)
     {
         Ok(())
     } else {
@@ -81,7 +81,7 @@ pub fn verify_owner_or_delegate_signer<'a>(
 /// Allows owner, account delegate, or permanent delegate (from mint) to authorize compression operations.
 #[profile]
 pub fn check_ctoken_owner(
-    compressed_token: &mut ZCTokenMut,
+    compressed_token: &mut ZTokenMut,
     authority_account: &AccountInfo,
     mint_checks: Option<&MintExtensionChecks>,
 ) -> Result<(), ProgramError> {

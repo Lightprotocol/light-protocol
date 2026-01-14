@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use borsh::BorshDeserialize;
 use dashmap::DashMap;
-use light_ctoken_interface::state::CToken;
+use light_token_interface::state::Token;
 use solana_sdk::{pubkey::Pubkey, rent::Rent};
 use tracing::{debug, warn};
 
@@ -11,13 +11,9 @@ use crate::Result;
 
 /// Calculate the slot at which an account becomes compressible
 /// Returns the last funded slot; accounts are compressible when current_slot > this value
-fn calculate_compressible_slot(
-    account: &CToken,
-    lamports: u64,
-    account_size: usize,
-) -> Result<u64> {
+fn calculate_compressible_slot(account: &Token, lamports: u64, account_size: usize) -> Result<u64> {
     use light_compressible::rent::SLOTS_PER_EPOCH;
-    use light_ctoken_interface::state::extensions::ExtensionStruct;
+    use light_token_interface::state::extensions::ExtensionStruct;
 
     // Calculate rent exemption dynamically
     let rent_exemption = Rent::default().minimum_balance(account_size);
@@ -32,7 +28,7 @@ fn calculate_compressible_slot(
                 _ => None,
             })
         })
-        .ok_or_else(|| anyhow::anyhow!("Missing Compressible extension on CToken account"))?;
+        .ok_or_else(|| anyhow::anyhow!("Missing Compressible extension on Token account"))?;
 
     // Calculate last funded epoch using embedded compression info
     let last_funded_epoch = compression_info
@@ -49,7 +45,7 @@ fn calculate_compressible_slot(
     Ok(last_funded_epoch * SLOTS_PER_EPOCH)
 }
 
-/// Tracker for compressible CToken accounts
+/// Tracker for compressible Light Token accounts
 #[derive(Debug)]
 pub struct CompressibleAccountTracker {
     accounts: Arc<DashMap<Pubkey, CompressibleAccountState>>,
@@ -79,8 +75,8 @@ impl CompressibleAccountTracker {
             .iter()
             .filter(|entry| {
                 let state = entry.value();
-                // Check if account is a valid CToken (account_type == 2)
-                state.account.is_ctoken_account()
+                // Check if account is a valid Token (account_type == 2)
+                state.account.is_token_account()
             })
             .map(|entry| entry.value().clone())
             .collect()
@@ -116,9 +112,9 @@ impl CompressibleAccountTracker {
         account_data: &[u8],
         lamports: u64,
     ) -> Result<()> {
-        // Deserialize CToken using borsh
-        let ctoken = CToken::try_from_slice(account_data)
-            .map_err(|e| anyhow::anyhow!("Failed to deserialize CToken with borsh: {:?}", e))?;
+        // Deserialize Token using borsh
+        let ctoken = Token::try_from_slice(account_data)
+            .map_err(|e| anyhow::anyhow!("Failed to deserialize Token with borsh: {:?}", e))?;
 
         // Calculate compressible slot
         let compressible_slot =
@@ -133,7 +129,7 @@ impl CompressibleAccountTracker {
                 }
             };
 
-        // Create state with full CToken account
+        // Create state with full Light Token account
         let state = CompressibleAccountState {
             pubkey,
             account: ctoken,

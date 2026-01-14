@@ -2,15 +2,15 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use bitvec::prelude::*;
 use light_account_checks::{checks::check_signer, packed_accounts::ProgramPackedAccounts};
-use light_ctoken_interface::{
+use light_program_profiler::profile;
+use light_token_interface::{
     instructions::{
         extensions::ZExtensionInstructionData,
         transfer2::{ZCompression, ZCompressionMode, ZMultiTokenTransferOutputData},
     },
-    state::{TokenDataVersion, ZCTokenMut, ZExtensionStructMut},
-    CTokenError,
+    state::{TokenDataVersion, ZExtensionStructMut, ZTokenMut},
+    TokenError,
 };
-use light_program_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
     pubkey::{pubkey_eq, Pubkey},
@@ -32,7 +32,7 @@ pub fn process_compress_and_close(
     compress_and_close_inputs: Option<CompressAndCloseInputs>,
     amount: u64,
     token_account_info: &AccountInfo,
-    ctoken: &mut ZCTokenMut,
+    ctoken: &mut ZTokenMut,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
 ) -> Result<(), ProgramError> {
     let authority = authority.ok_or(ErrorCode::CompressAndCloseAuthorityMissing)?;
@@ -92,13 +92,13 @@ fn validate_compressed_token_account(
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     compression_amount: u64,
     compressed_token_account: &ZMultiTokenTransferOutputData<'_>,
-    ctoken: &ZCTokenMut,
+    ctoken: &ZTokenMut,
     token_account_pubkey: &Pubkey,
     out_tlv: Option<&[ZExtensionInstructionData<'_>]>,
 ) -> Result<(), ProgramError> {
     let compression = ctoken
         .get_compressible_extension()
-        .ok_or::<ProgramError>(CTokenError::MissingCompressibleExtension.into())?;
+        .ok_or::<ProgramError>(TokenError::MissingCompressibleExtension.into())?;
 
     // 1. Owner validation
     // compress_to_pubkey is derived from the extension (already fetched above)
@@ -170,9 +170,9 @@ fn validate_compressed_token_account(
 fn validate_compressed_only_ext(
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     compressed_token_account: &ZMultiTokenTransferOutputData<'_>,
-    ctoken: &ZCTokenMut,
-    ext: &light_ctoken_interface::instructions::extensions::compressed_only::ZCompressedOnlyExtensionInstructionData,
-    compression: &light_ctoken_interface::state::ZCompressibleExtensionMut<'_>,
+    ctoken: &ZTokenMut,
+    ext: &light_token_interface::instructions::extensions::compressed_only::ZCompressedOnlyExtensionInstructionData,
+    compression: &light_token_interface::state::ZCompressibleExtensionMut<'_>,
 ) -> Result<(), ProgramError> {
     // 7a. Delegated amount must match
     let ext_delegated: u64 = ext.delegated_amount.into();
@@ -291,7 +291,7 @@ fn validate_ctoken_account(
     token_account: &AccountInfo,
     authority: &AccountInfo,
     rent_sponsor: &AccountInfo,
-    ctoken: &ZCTokenMut<'_>,
+    ctoken: &ZTokenMut<'_>,
 ) -> Result<(), ProgramError> {
     // Check for Compressible extension
     let compressible = ctoken.get_compressible_extension();

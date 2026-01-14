@@ -11,12 +11,12 @@ use light_compressed_account::{hash_to_bn254_field_size_be, TreeType};
 use light_compressed_token::mint_sdk::{
     create_create_token_pool_instruction, create_mint_to_instruction,
 };
-use light_ctoken_sdk::compat::{AccountState, TokenData};
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::{indexed::IndexedMerkleTree, MerkleTree};
 use light_program_test::accounts::test_accounts::TestAccounts;
 use light_sdk::address::{v1::derive_address, NewAddressParams};
 use light_test_utils::{system_program::create_invoke_instruction, Rpc, RpcError};
+use light_token_sdk::compat::{AccountState, TokenData};
 use solana_compute_budget_interface::ComputeBudgetInstruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;

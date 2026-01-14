@@ -16,11 +16,11 @@ use light_compressible::rent::RentConfig;
 #[cfg(feature = "devenv")]
 use light_compressible::rent::SLOTS_PER_EPOCH;
 #[cfg(feature = "devenv")]
-use light_ctoken_interface::state::{
-    CToken, CompressedMint, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
-};
-#[cfg(feature = "devenv")]
 use light_sdk::compressible::CompressibleConfig as CpdaCompressibleConfig;
+#[cfg(feature = "devenv")]
+use light_token_interface::state::{
+    CompressedMint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+};
 #[cfg(feature = "devenv")]
 use solana_pubkey::Pubkey;
 
@@ -28,7 +28,7 @@ use solana_pubkey::Pubkey;
 use crate::{litesvm_extensions::LiteSvmExtensions, LightProgramTest};
 
 /// Determines account type from account data.
-/// - If account is exactly 165 bytes: CToken (legacy size without extensions)
+/// - If account is exactly 165 bytes: Token (legacy size without extensions)
 /// - If account is > 165 bytes: read byte 165 for discriminator
 /// - If account is < 165 bytes: invalid (returns None)
 #[cfg(feature = "devenv")]
@@ -37,22 +37,22 @@ fn determine_account_type(data: &[u8]) -> Option<u8> {
 
     match data.len().cmp(&ACCOUNT_TYPE_OFFSET) {
         std::cmp::Ordering::Less => None,
-        std::cmp::Ordering::Equal => Some(ACCOUNT_TYPE_TOKEN_ACCOUNT), // 165 bytes = CToken
+        std::cmp::Ordering::Equal => Some(ACCOUNT_TYPE_TOKEN_ACCOUNT), // 165 bytes = Token
         std::cmp::Ordering::Greater => Some(data[ACCOUNT_TYPE_OFFSET]),
     }
 }
 
-/// Extracts CompressionInfo and account type from account data, handling both CToken and CMint.
+/// Extracts CompressionInfo and account type from account data, handling both Token and CMint.
 /// Returns (CompressionInfo, account_type) or None if parsing fails.
 #[cfg(feature = "devenv")]
 fn extract_compression_info(data: &[u8]) -> Option<(CompressionInfo, u8)> {
-    use light_ctoken_interface::state::extensions::ExtensionStruct;
+    use light_token_interface::state::extensions::ExtensionStruct;
 
     let account_type = determine_account_type(data)?;
 
     match account_type {
         ACCOUNT_TYPE_TOKEN_ACCOUNT => {
-            let ctoken = CToken::deserialize(&mut &data[..]).ok()?;
+            let ctoken = Token::deserialize(&mut &data[..]).ok()?;
             // Get CompressionInfo from Compressible extension
             let compression_info =
                 ctoken
@@ -100,7 +100,7 @@ pub struct FundingPoolConfig {
 #[cfg(feature = "devenv")]
 impl FundingPoolConfig {
     pub fn new(version: u16) -> Self {
-        let config = CtokenCompressibleConfig::new_ctoken(
+        let config = CtokenCompressibleConfig::new_light_token(
             version,
             true,
             Pubkey::default(),
@@ -136,7 +136,7 @@ pub async fn claim_and_compress(
     let forester_keypair = rpc.test_accounts.protocol.forester.insecure_clone();
     let payer = rpc.get_payer().insecure_clone();
 
-    // Get all compressible token/mint accounts (both CToken and CMint)
+    // Get all compressible token/mint accounts (both Token and CMint)
     let compressible_ctoken_accounts = rpc
         .context
         .get_program_accounts(&light_compressed_token::ID);
@@ -145,7 +145,7 @@ pub async fn claim_and_compress(
         .iter()
         .filter(|e| e.1.data.len() > 200 && e.1.lamports > 0)
     {
-        // Extract compression info and account type, handling both CToken and CMint
+        // Extract compression info and account type, handling both Token and CMint
         let Some((compression, account_type)) = extract_compression_info(&account.1.data) else {
             continue;
         };
@@ -201,7 +201,7 @@ pub async fn claim_and_compress(
         match state.calculate_claimable_rent(&compression.rent_config, rent_exemption) {
             None => {
                 // Account is compressible (has rent deficit)
-                // Only CToken accounts can be compressed via compress_and_close_forester
+                // Only Token accounts can be compressed via compress_and_close_forester
                 // CMint accounts have a different compression flow
                 if stored_account.account_type == ACCOUNT_TYPE_TOKEN_ACCOUNT {
                     compress_accounts.push(*pubkey);
@@ -209,7 +209,7 @@ pub async fn claim_and_compress(
             }
             Some(claimable_amount) if claimable_amount > 0 => {
                 // Has rent to claim from completed epochs
-                // Both CToken and CMint can be claimed
+                // Both Token and CMint can be claimed
                 claim_accounts.push(*pubkey);
             }
             Some(_) => {

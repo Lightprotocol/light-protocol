@@ -47,7 +47,7 @@ Every instruction description must include the sections:
 ### Account Management
 1. **Create CToken Account** - [`docs/ctoken/CREATE.md`](docs/ctoken/CREATE.md)
    - Create regular token account (discriminator: 18, enum: `InstructionType::CreateTokenAccount`)
-   - Create associated token account (discriminator: 100, enum: `InstructionType::CreateAssociatedCTokenAccount`)
+   - Create associated token account (discriminator: 100, enum: `InstructionType::CreateAssociatedTokenAccount`)
    - Create associated token account idempotent (discriminator: 102, enum: `InstructionType::CreateAssociatedTokenAccountIdempotent`)
    - **Config validation:** Requires ACTIVE config only
 
@@ -125,7 +125,7 @@ src/
 │   ├── burn.rs                # CTokenBurn (8), CTokenBurnChecked (15)
 │   ├── close/                 # CloseTokenAccount instruction (9)
 │   ├── create.rs              # CreateTokenAccount instruction (18)
-│   ├── create_ata.rs          # CreateAssociatedCTokenAccount (100, 102)
+│   ├── create_ata.rs          # CreateAssociatedTokenAccount (100, 102)
 │   ├── freeze_thaw.rs         # CTokenFreezeAccount (10), CTokenThawAccount (11)
 │   ├── mint_to.rs             # CTokenMintTo (7), CTokenMintToChecked (14)
 │   └── transfer/              # CTokenTransfer (3), CTokenTransferChecked (12)
@@ -184,7 +184,7 @@ Operations on CToken Solana accounts (decompressed compressed tokens).
 - **`lib.rs`** - Main entry point and instruction dispatch (contains `InstructionType` enum)
 
 ## Data Structures
-All state and instruction data structures are defined in **`program-libs/ctoken-interface/`** (`light-ctoken-interface` crate):
+All state and instruction data structures are defined in **`program-libs/token-interface/`** (`light-token-interface` crate):
 - **`state/`** - Account state structures
   - `compressed_token/` - TokenData, hashing
   - `ctoken/` - CToken (decompressed account) structure
@@ -201,7 +201,7 @@ All state and instruction data structures are defined in **`program-libs/ctoken-
 Custom error codes are defined in **`programs/compressed-token/anchor/src/lib.rs`** (`anchor_compressed_token::ErrorCode` enum):
 - Contains all program-specific error codes used across compressed token operations
 - Errors are returned as `ProgramError::Custom(error_code as u32)` on-chain
-- CToken-specific errors are also defined in **`program-libs/ctoken-interface/src/error.rs`** (`CTokenError` enum)
+- CToken-specific errors are also defined in **`program-libs/token-interface/src/error.rs`** (`CTokenError` enum)
 
 ### Error Conversion Functions (`shared/convert_program_error.rs`)
 
@@ -253,9 +253,9 @@ validate_mint_uniqueness(...).map_err(ProgramError::from)?;
 | 18 | MintDecimalsMismatch | Decimals mismatch |
 
 ## SDKs (`sdk-libs/`)
-- **`ctoken-sdk/`** - SDK for programs to interact with compressed tokens (CPIs, instruction builders)
+- **`token-sdk/`** - SDK for programs to interact with compressed tokens (CPIs, instruction builders)
 - **`token-client/`** - Client SDK for Rust applications (test helpers, transaction builders)
-- **`ctoken-types/`** - Lightweight types for client-side usage
+- **`light-token-interface/`** - Lightweight types for client-side usage
 
 ## Compressible Extension Documentation
 When working with ctoken accounts that have the compressible extension (rent management), you **MUST** read:

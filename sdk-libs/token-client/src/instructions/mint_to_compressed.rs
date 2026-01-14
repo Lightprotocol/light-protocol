@@ -3,12 +3,12 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::mint_action::{CompressedMintWithContext, Recipient},
     state::{CompressedMint, TokenDataVersion},
 };
-use light_ctoken_sdk::compressed_token::{
-    create_compressed_mint::derive_cmint_from_spl_mint,
+use light_token_sdk::compressed_token::{
+    create_compressed_mint::derive_mint_from_spl_mint,
     mint_to_compressed::{
         create_mint_to_compressed_instruction, DecompressedMintConfig, MintToCompressedInputs,
     },
@@ -27,7 +27,7 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
 ) -> Result<Instruction, RpcError> {
     // Derive compressed mint address from SPL mint PDA
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-    let compressed_mint_address = derive_cmint_from_spl_mint(&spl_mint_pda, &address_tree_pubkey);
+    let compressed_mint_address = derive_mint_from_spl_mint(&spl_mint_pda, &address_tree_pubkey);
 
     // Get the compressed mint account
     let compressed_mint_account = rpc
@@ -63,7 +63,7 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
         unimplemented!("SPL mint synchronization for decompressed CMint not yet implemented");
     }
     let decompressed_mint_config: Option<DecompressedMintConfig<Pubkey>> = None;
-    let spl_interface_pda: Option<light_ctoken_sdk::spl_interface::SplInterfacePda> = None;
+    let spl_interface_pda: Option<light_token_sdk::spl_interface::SplInterfacePda> = None;
 
     // Prepare compressed mint inputs
     let compressed_mint_inputs = CompressedMintWithContext {

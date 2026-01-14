@@ -2,26 +2,26 @@ use anchor_lang::{
     prelude::{AccountMeta, Pubkey},
     InstructionData,
 };
-use light_ctoken_interface::{
+use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
+use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+use light_token_client::instructions::transfer2::create_decompress_instruction;
+use light_token_interface::{
     instructions::mint_action::{CompressedMintWithContext, Recipient},
     state::{
         BaseMint, CompressedMint, CompressedMintMetadata, TokenDataVersion, ACCOUNT_TYPE_MINT,
     },
-    COMPRESSED_MINT_SEED, CTOKEN_PROGRAM_ID,
+    COMPRESSED_MINT_SEED, LIGHT_TOKEN_PROGRAM_ID,
 };
-use light_ctoken_sdk::{
+use light_token_sdk::{
     compressed_token::{
         create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
         mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
     },
-    ctoken::{
-        config_pda, derive_ctoken_ata, rent_sponsor_pda, CompressibleParams,
-        CreateAssociatedCTokenAccount,
+    token::{
+        config_pda, derive_token_ata, rent_sponsor_pda, CompressibleParams,
+        CreateAssociatedTokenAccount,
     },
 };
-use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
-use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
-use light_token_client::instructions::transfer2::create_decompress_instruction;
 use sdk_token_test::instruction;
 use serial_test::serial;
 use solana_sdk::{
@@ -52,7 +52,7 @@ async fn test_compress_full_and_close() {
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID);
+        Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
     let (mint_pda, _) = Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_signer.pubkey().as_ref()],
         &compressed_token_program_id,
@@ -179,7 +179,7 @@ async fn test_compress_full_and_close() {
     println!("✅ Minted {} compressed tokens to recipient", mint_amount);
 
     // Step 4: Create compressible associated token account for decompression
-    let (ctoken_ata_pubkey, bump) = derive_ctoken_ata(&recipient, &mint_pda);
+    let (ctoken_ata_pubkey, bump) = derive_token_ata(&recipient, &mint_pda);
     let compressible_params = CompressibleParams {
         token_account_version: TokenDataVersion::ShaFlat,
         pre_pay_num_epochs: 2,
@@ -189,7 +189,7 @@ async fn test_compress_full_and_close() {
         rent_sponsor: rent_sponsor_pda(),
         compression_only: true,
     };
-    let create_ata_instruction = CreateAssociatedCTokenAccount::new_with_bump(
+    let create_ata_instruction = CreateAssociatedTokenAccount::new_with_bump(
         payer.pubkey(),
         recipient,
         mint_pda,
@@ -275,12 +275,12 @@ async fn test_compress_full_and_close() {
     // Create remaining accounts following four_multi_transfer pattern
     let mut remaining_accounts = PackedAccounts::default();
     remaining_accounts.add_pre_accounts_meta(AccountMeta::new_readonly(
-        Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
+        Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
         false,
     ));
     remaining_accounts
         .add_system_accounts_v2(SystemAccountMetaConfig::new(Pubkey::new_from_array(
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         )))
         .unwrap();
 

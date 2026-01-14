@@ -1,4 +1,4 @@
-use light_ctoken_interface::state::TokenDataVersion;
+use light_token_interface::state::TokenDataVersion;
 use serial_test::serial;
 
 use crate::transfer2::shared::{
@@ -62,21 +62,21 @@ use crate::transfer2::shared::{
 //  Compression Operations (Path A - no compressed accounts)
 
 //  39. Compress from SPL token only
-//  40. Compress from CToken only
-//  41. Decompress to CToken only
+//  40. Compress from Light Token only
+//  41. Decompress to Light Token only
 //  42. Multiple compress operations only
 //  43. Multiple decompress operations only
 //  44. Compress and decompress same amount (must balance)
 //  45. Decompress to SPL token only
 //  46. Compress SPL with multiple compressed account inputs
-//  47. Mixed SPL and CToken operations
+//  47. Mixed SPL and Light Token operations
 
 //  Mixed Compression + Transfer (Path B) - NOT YET IMPLEMENTED
 
 //  48. Transfer + compress SPL in same transaction
 //  49. Transfer + decompress to SPL in same transaction
-//  50. Transfer + compress CToken in same transaction
-//  51. Transfer + decompress to CToken in same transaction
+//  50. Transfer + compress Light Token in same transaction
+//  51. Transfer + decompress to Light Token in same transaction
 //  52. Transfer + multiple compressions
 //  53. Transfer + multiple decompressions
 //  54. Transfer + compress + decompress (all must balance)
@@ -1347,27 +1347,27 @@ fn test39_compress_from_spl_only() -> TestCase {
     }
 }
 
-// Test 40: Compress from CToken only
+// Test 40: Compress from Light Token only
 fn test40_compress_from_ctoken_only() -> TestCase {
     TestCase {
-        name: "Compress from CToken only".to_string(),
+        name: "Compress from Light Token only".to_string(),
         actions: vec![MetaTransfer2InstructionType::Compress(MetaCompressInput {
             num_input_compressed_accounts: 0, // No compressed inputs
-            amount: 1000,                     // Amount to compress from CToken ATA
+            amount: 1000,                     // Amount to compress from Light Token ATA
             token_data_version: TokenDataVersion::ShaFlat,
-            signer_index: 0,    // Owner of the CToken ATA
+            signer_index: 0,    // Owner of the Light Token ATA
             recipient_index: 0, // Compress to same owner
             mint_index: 0,
-            use_spl: false, // Use CToken ATA
+            use_spl: false, // Use Light Token ATA
             pool_index: None,
         })],
     }
 }
 
-// Test 41: Decompress to CToken only
+// Test 41: Decompress to Light Token only
 fn test41_decompress_to_ctoken_only() -> TestCase {
     TestCase {
-        name: "Decompress to CToken only".to_string(),
+        name: "Decompress to Light Token only".to_string(),
         actions: vec![MetaTransfer2InstructionType::Decompress(
             MetaDecompressInput {
                 num_input_compressed_accounts: 1, // One compressed account as input
@@ -1377,7 +1377,7 @@ fn test41_decompress_to_ctoken_only() -> TestCase {
                 signer_index: 0,    // Owner of compressed tokens
                 recipient_index: 1, // Decompress to different recipient
                 mint_index: 0,
-                to_spl: false, // Decompress to CToken ATA
+                to_spl: false, // Decompress to Light Token ATA
                 pool_index: None,
             },
         )],
@@ -1397,7 +1397,7 @@ fn test42_multiple_compress_operations() -> TestCase {
                 signer_index: 0,
                 recipient_index: 0,
                 mint_index: 0,
-                use_spl: false, // Use CToken ATA
+                use_spl: false, // Use Light Token ATA
                 pool_index: None,
             }),
             // Second compress from signer 1
@@ -1408,7 +1408,7 @@ fn test42_multiple_compress_operations() -> TestCase {
                 signer_index: 1,
                 recipient_index: 1,
                 mint_index: 0,
-                use_spl: false, // Use CToken ATA
+                use_spl: false, // Use Light Token ATA
                 pool_index: None,
             }),
             // Third compress from signer 2
@@ -1419,7 +1419,7 @@ fn test42_multiple_compress_operations() -> TestCase {
                 signer_index: 2,
                 recipient_index: 2,
                 mint_index: 0,
-                use_spl: false, // Use CToken ATA
+                use_spl: false, // Use Light Token ATA
                 pool_index: None,
             }),
         ],
@@ -1440,7 +1440,7 @@ fn test43_multiple_decompress_operations() -> TestCase {
                 signer_index: 0,
                 recipient_index: 3, // Different recipient
                 mint_index: 0,
-                to_spl: false, // Decompress to CToken ATA
+                to_spl: false, // Decompress to Light Token ATA
                 pool_index: None,
             }),
             // Second decompress to recipient 1
@@ -1452,7 +1452,7 @@ fn test43_multiple_decompress_operations() -> TestCase {
                 signer_index: 1,
                 recipient_index: 4, // Different recipient
                 mint_index: 0,
-                to_spl: false, // Decompress to CToken ATA
+                to_spl: false, // Decompress to Light Token ATA
                 pool_index: None,
             }),
             // Third decompress to recipient 2
@@ -1464,7 +1464,7 @@ fn test43_multiple_decompress_operations() -> TestCase {
                 signer_index: 2,
                 recipient_index: 5, // Different recipient
                 mint_index: 0,
-                to_spl: false, // Decompress to CToken ATA
+                to_spl: false, // Decompress to Light Token ATA
                 pool_index: None,
             }),
         ],
@@ -1476,7 +1476,7 @@ fn test44_compress_decompress_balance() -> TestCase {
     TestCase {
         name: "Compress and decompress same amount (must balance)".to_string(),
         actions: vec![
-            // Compress 1000 tokens from CToken
+            // Compress 1000 tokens from Light Token
             MetaTransfer2InstructionType::Compress(MetaCompressInput {
                 num_input_compressed_accounts: 0,
                 amount: 1000,
@@ -1484,10 +1484,10 @@ fn test44_compress_decompress_balance() -> TestCase {
                 signer_index: 0,
                 recipient_index: 0,
                 mint_index: 0,
-                use_spl: false, // Use CToken ATA
+                use_spl: false, // Use Light Token ATA
                 pool_index: None,
             }),
-            // Decompress 1000 tokens to different CToken
+            // Decompress 1000 tokens to different Light Token
             MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
                 num_input_compressed_accounts: 1,
                 decompress_amount: 1000,
@@ -1496,7 +1496,7 @@ fn test44_compress_decompress_balance() -> TestCase {
                 signer_index: 1,
                 recipient_index: 2, // Different recipient
                 mint_index: 0,
-                to_spl: false, // Decompress to CToken ATA
+                to_spl: false, // Decompress to Light Token ATA
                 pool_index: None,
             }),
         ],
@@ -1540,10 +1540,10 @@ fn test46_compress_spl_with_compressed_inputs() -> TestCase {
     }
 }
 
-// Test 47: Mixed SPL and CToken operations
+// Test 47: Mixed SPL and Light Token operations
 fn test47_mixed_spl_ctoken_operations() -> TestCase {
     TestCase {
-        name: "Mixed SPL and CToken operations".to_string(),
+        name: "Mixed SPL and Light Token operations".to_string(),
         actions: vec![
             // Compress from SPL
             MetaTransfer2InstructionType::Compress(MetaCompressInput {
@@ -1556,7 +1556,7 @@ fn test47_mixed_spl_ctoken_operations() -> TestCase {
                 use_spl: true, // SPL source
                 pool_index: None,
             }),
-            // Compress from CToken
+            // Compress from Light Token
             MetaTransfer2InstructionType::Compress(MetaCompressInput {
                 num_input_compressed_accounts: 0,
                 amount: 300,
@@ -1564,10 +1564,10 @@ fn test47_mixed_spl_ctoken_operations() -> TestCase {
                 signer_index: 1,
                 recipient_index: 1,
                 mint_index: 1,
-                use_spl: false, // CToken source
+                use_spl: false, // Light Token source
                 pool_index: None,
             }),
-            // Decompress to CToken
+            // Decompress to Light Token
             MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
                 num_input_compressed_accounts: 1,
                 decompress_amount: 400,
@@ -1576,7 +1576,7 @@ fn test47_mixed_spl_ctoken_operations() -> TestCase {
                 signer_index: 0,
                 recipient_index: 3, // Different recipient
                 mint_index: 0,
-                to_spl: false, // Decompress to CToken ATA
+                to_spl: false, // Decompress to Light Token ATA
                 pool_index: None,
             }),
         ],
@@ -1652,10 +1652,10 @@ fn test49_transfer_decompress_spl() -> TestCase {
     }
 }
 
-// Test 50: Transfer + compress CToken in same transaction
+// Test 50: Transfer + compress Light Token in same transaction
 fn test50_transfer_compress_ctoken() -> TestCase {
     TestCase {
-        name: "Transfer + compress CToken in same transaction".to_string(),
+        name: "Transfer + compress Light Token in same transaction".to_string(),
         actions: vec![
             // First: Regular compressed-to-compressed transfer (uses compressed mint 0)
             MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -1669,7 +1669,7 @@ fn test50_transfer_compress_ctoken() -> TestCase {
                 change_amount: None,
                 mint_index: 0, // Compressed mint
             }),
-            // Second: Compress from CToken ATA (uses compressed mint 1)
+            // Second: Compress from Light Token ATA (uses compressed mint 1)
             MetaTransfer2InstructionType::Compress(MetaCompressInput {
                 num_input_compressed_accounts: 0,
                 amount: 1000,
@@ -1677,17 +1677,17 @@ fn test50_transfer_compress_ctoken() -> TestCase {
                 signer_index: 2,
                 recipient_index: 2,
                 mint_index: 1,  // Different compressed mint
-                use_spl: false, // Use CToken ATA
+                use_spl: false, // Use Light Token ATA
                 pool_index: None,
             }),
         ],
     }
 }
 
-// Test 51: Transfer + decompress to CToken in same transaction
+// Test 51: Transfer + decompress to Light Token in same transaction
 fn test51_transfer_decompress_ctoken() -> TestCase {
     TestCase {
-        name: "Transfer + decompress to CToken in same transaction".to_string(),
+        name: "Transfer + decompress to Light Token in same transaction".to_string(),
         actions: vec![
             // First: Regular compressed-to-compressed transfer (uses compressed mint 0)
             MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -1701,7 +1701,7 @@ fn test51_transfer_decompress_ctoken() -> TestCase {
                 change_amount: None,
                 mint_index: 0, // Compressed mint
             }),
-            // Second: Decompress to CToken ATA (uses compressed mint 1)
+            // Second: Decompress to Light Token ATA (uses compressed mint 1)
             MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
                 num_input_compressed_accounts: 1,
                 decompress_amount: 600,
@@ -1710,7 +1710,7 @@ fn test51_transfer_decompress_ctoken() -> TestCase {
                 signer_index: 2,
                 recipient_index: 3,
                 mint_index: 1, // Different compressed mint
-                to_spl: false, // Decompress to CToken ATA
+                to_spl: false, // Decompress to Light Token ATA
                 pool_index: None,
             }),
         ],
@@ -1745,7 +1745,7 @@ fn test52_transfer_multiple_compressions() -> TestCase {
                 use_spl: true,
                 pool_index: None,
             }),
-            // Third: Compress from CToken (mint 2)
+            // Third: Compress from Light Token (mint 2)
             MetaTransfer2InstructionType::Compress(MetaCompressInput {
                 num_input_compressed_accounts: 0,
                 amount: 600,
@@ -1800,7 +1800,7 @@ fn test53_transfer_multiple_decompressions() -> TestCase {
                 to_spl: true,
                 pool_index: None,
             }),
-            // Third: Decompress to CToken (mint 2)
+            // Third: Decompress to Light Token (mint 2)
             MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
                 num_input_compressed_accounts: 1,
                 decompress_amount: 500,
@@ -1868,7 +1868,7 @@ fn test54_transfer_compress_decompress_balanced() -> TestCase {
                 to_spl: true,
                 pool_index: None,
             }),
-            // Fourth: Compress from CToken (mint 2)
+            // Fourth: Compress from Light Token (mint 2)
             MetaTransfer2InstructionType::Compress(MetaCompressInput {
                 num_input_compressed_accounts: 0,
                 amount: 600,
@@ -1879,7 +1879,7 @@ fn test54_transfer_compress_decompress_balanced() -> TestCase {
                 use_spl: false,
                 pool_index: None,
             }),
-            // Fifth: Decompress to CToken (mint 2, different signer)
+            // Fifth: Decompress to Light Token (mint 2, different signer)
             MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
                 num_input_compressed_accounts: 1,
                 decompress_amount: 500,
@@ -1927,7 +1927,7 @@ fn test68_compress_to_pool_index_1() -> TestCase {
             signer_index: 0,
             recipient_index: 0,
             mint_index: 0,
-            use_spl: true,       // SPL only - CToken doesn't use pools
+            use_spl: true,       // SPL only - Light Token doesn't use pools
             pool_index: Some(1), // Use pool 1 (will be created by test setup)
         })],
     }

@@ -4,7 +4,7 @@ use anchor_compressed_token::{ErrorCode, TokenData};
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::AccountError;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
-use light_ctoken_interface::{
+use light_token_interface::{
     hash_cache::HashCache,
     instructions::{
         extensions::ZExtensionInstructionData, transfer2::ZMultiInputTokenDataWithContext,
@@ -12,7 +12,7 @@ use light_ctoken_interface::{
     state::{
         CompressedOnlyExtension, CompressedTokenAccountState, ExtensionStruct, TokenDataVersion,
     },
-    CTokenError,
+    TokenError,
 };
 use pinocchio::account_info::AccountInfo;
 
@@ -222,11 +222,11 @@ fn resolve_ata_signer<'a>(
                     &ata_seeds,
                     &crate::LIGHT_CPI_SIGNER.program_id,
                 )
-                .map_err(|_| CTokenError::InvalidAtaDerivation)?;
+                .map_err(|_| TokenError::InvalidAtaDerivation)?;
 
                 // owner_account.key() IS the ATA - verify it matches derived
                 if !pinocchio::pubkey::pubkey_eq(owner_account.key(), &derived_ata) {
-                    return Err(CTokenError::InvalidAtaDerivation.into());
+                    return Err(TokenError::InvalidAtaDerivation.into());
                 }
 
                 return Ok(wallet_owner);

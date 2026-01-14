@@ -86,8 +86,8 @@ pub mod my_program {}
 - Create a compressed mint:
   - `create_compressed_mint(CreateCompressedMintInputs { decimals, mint_authority, freeze_authority, proof, address_merkle_tree_root_index, mint_signer, payer, address_tree_pubkey, output_queue, extensions, version })`
   - Derive addresses with:
-    - `derive_cmint_compressed_address(&mint_signer, &address_tree_pubkey)`
-    - `find_cmint_address(&mint_signer)`
+    - `derive_mint_compressed_address(&mint_signer, &address_tree_pubkey)`
+    - `find_mint_address(&mint_signer)`
 - Mint tokens to compressed accounts:
   - `create_mint_to_compressed_instruction(MintToCompressedInputs { compressed_mint_inputs, recipients, mint_authority, payer, state_merkle_tree, input_queue, output_queue_cmint, output_queue_tokens, decompressed_mint_config, proof, token_account_version, cpi_context_pubkey, token_pool })`
 
@@ -101,8 +101,8 @@ Keep it simple: create cMint → mint to recipients (compressed accounts or cTok
   - Low-level: `create_compressible_token_account_instruction(CreateCompressibleTokenAccount)`
 - Mints
   - `create_compressed_mint(CreateCompressedMintInputs)`
-  - `derive_cmint_compressed_address(mint_seed, address_tree)`
-  - `find_cmint_address(mint_seed)`
+  - `derive_mint_compressed_address(mint_seed, address_tree)`
+  - `find_mint_address(mint_seed)`
 - Mint to recipients
   - `create_mint_to_compressed_instruction(MintToCompressedInputs)`
   - Types: `Recipient { recipient, amount }`
@@ -138,7 +138,7 @@ let mut rpc = LightClient::new(LightClientConfig::local()).await?; // or devnet/
 2. Create a compressible ATA
 
 ```rust
-use light_ctoken_sdk::instructions::{
+use light_token_sdk::instructions::{
   create_compressible_associated_token_account, CreateCompressibleAssociatedTokenAccountInputs
 };
 
@@ -150,18 +150,18 @@ let ix = create_compressible_associated_token_account(CreateCompressibleAssociat
   rent_sponsor,
   pre_pay_num_epochs: 2,
   lamports_per_write: Some(1_000),
-  token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+  token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
 })?;
 ```
 
 3. Create a cMint and mint to recipients
 
 ```rust
-use light_ctoken_sdk::instructions::{
+use light_token_sdk::instructions::{
   create_compressed_mint, CreateCompressedMintInputs,
   create_mint_to_compressed_instruction, MintToCompressedInputs
 };
-use light_ctoken_interface::instructions::mint_action::Recipient;
+use light_token_interface::instructions::mint_action::Recipient;
 
 let create_cmint_ix = create_compressed_mint(CreateCompressedMintInputs { /* fill from RPC + keys */ })?;
 let mint_ix = create_mint_to_compressed_instruction(MintToCompressedInputs {
@@ -177,10 +177,10 @@ use light_token_client::actions::{create_compressible_token_account, CreateCompr
 
 let token_acc = create_compressible_token_account(&mut rpc, CreateCompressibleTokenAccountInputs {
   owner, mint, num_prepaid_epochs: 2, payer: &payer, token_account_keypair: None,
-  lamports_per_write: None, token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat
+  lamports_per_write: None, token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat
 }).await?;
 
-let sig = mint_to_compressed(&mut rpc, spl_mint_pda, vec![Recipient{ recipient: token_acc, amount: 1000 }], light_ctoken_interface::state::TokenDataVersion::ShaFlat, &mint_authority, &payer).await?;
+let sig = mint_to_compressed(&mut rpc, spl_mint_pda, vec![Recipient{ recipient: token_acc, amount: 1000 }], light_token_interface::state::TokenDataVersion::ShaFlat, &mint_authority, &payer).await?;
 ```
 
 ### TL;DR checklists

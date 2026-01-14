@@ -1,13 +1,6 @@
 use anchor_lang::{AccountDeserialize, AnchorDeserialize, InstructionData, ToAccountMetas};
 use csdk_anchor_derived_test::{AccountCreationData, CompressionParams, GameSession, UserRecord};
 use light_compressed_account::address::derive_address;
-use light_ctoken_interface::{
-    instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
-    state::CompressedMintMetadata,
-};
-use light_ctoken_sdk::compressed_token::create_compressed_mint::{
-    derive_cmint_compressed_address, find_cmint_address,
-};
 use light_macros::pubkey;
 use light_program_test::{
     program_test::{
@@ -19,7 +12,15 @@ use light_sdk::{
     compressible::CompressibleConfig,
     instruction::{PackedAccounts, SystemAccountMetaConfig},
 };
-use light_sdk_types::C_TOKEN_PROGRAM_ID;
+use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
+use light_token_interface::{
+    instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
+    state::CompressedMintMetadata,
+};
+use light_token_sdk::compressed_token::create_compressed_mint::{
+    derive_mint_compressed_address, find_mint_address,
+};
+use light_token_types::CPI_AUTHORITY_PDA;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -128,7 +129,7 @@ async fn test_create_decompress_compress() {
     assert_eq!(game_session.score, 0);
     assert!(game_session.compression_info.is_none());
 
-    let spl_mint = find_cmint_address(&mint_signer_pubkey).0;
+    let spl_mint = find_mint_address(&mint_signer_pubkey).0;
     let (_, token_account_address) =
         csdk_anchor_derived_test::seeds::get_ctoken_signer_seeds(&payer.pubkey(), &spl_mint);
 
@@ -144,7 +145,7 @@ async fn test_create_decompress_compress() {
     );
 
     // Test decompress PDAs (UserRecord + GameSession)
-    // Note: CToken decompression works but requires manual instruction building
+    // Note: Light Token decompression works but requires manual instruction building
     // because the client helper doesn't handle mixed PDA+token packing correctly
     rpc.warp_to_slot(100).unwrap();
 
@@ -573,20 +574,20 @@ pub async fn create_user_record_and_game_session(
     let freeze_authority = mint_authority;
     let mint_signer = Keypair::new();
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_signer.pubkey(), &address_tree_pubkey);
+        derive_mint_compressed_address(&mint_signer.pubkey(), &address_tree_pubkey);
 
-    let (spl_mint, mint_bump) = find_cmint_address(&mint_signer.pubkey());
+    let (spl_mint, mint_bump) = find_mint_address(&mint_signer.pubkey());
     let accounts = csdk_anchor_derived_test::accounts::CreateUserRecordAndGameSession {
         user: user.pubkey(),
         user_record: *user_record_pda,
         game_session: *game_session_pda,
         mint_signer: mint_signer.pubkey(),
-        ctoken_program: C_TOKEN_PROGRAM_ID.into(),
+        ctoken_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
         config: *config_pda,
         rent_sponsor: RENT_SPONSOR,
         mint_authority,
-        compress_token_program_cpi_authority: light_ctoken_types::CPI_AUTHORITY_PDA.into(),
+        compress_token_program_cpi_authority: CPI_AUTHORITY_PDA.into(),
     };
 
     let user_compressed_address = derive_address(

@@ -2,7 +2,8 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_array_map::ArrayMap;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
-use light_ctoken_interface::{
+use light_program_profiler::profile;
+use light_token_interface::{
     hash_cache::HashCache,
     instructions::{
         extensions::ZExtensionInstructionData,
@@ -11,9 +12,8 @@ use light_ctoken_interface::{
             ZCompressionMode,
         },
     },
-    CTokenError,
+    TokenError,
 };
-use light_program_profiler::profile;
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
@@ -79,7 +79,7 @@ pub fn process_transfer2(
 #[inline(always)]
 pub fn validate_instruction_data(
     inputs: &ZCompressedTokenInstructionDataTransfer2,
-) -> Result<(), CTokenError> {
+) -> Result<(), TokenError> {
     // Check maximum input accounts limit
     if inputs.in_token_data.len() > crate::shared::cpi_bytes_size::MAX_INPUT_ACCOUNTS {
         msg!(
@@ -87,14 +87,14 @@ pub fn validate_instruction_data(
             inputs.in_token_data.len(),
             crate::shared::cpi_bytes_size::MAX_INPUT_ACCOUNTS
         );
-        return Err(CTokenError::TooManyInputAccounts);
+        return Err(TokenError::TooManyInputAccounts);
     }
 
     if inputs.in_lamports.is_some() {
-        return Err(CTokenError::InLamportsUnimplemented);
+        return Err(TokenError::InLamportsUnimplemented);
     }
     if inputs.out_lamports.is_some() {
-        return Err(CTokenError::OutLamportsUnimplemented);
+        return Err(TokenError::OutLamportsUnimplemented);
     }
     // Validate in_tlv length matches in_token_data if provided
     if let Some(in_tlv) = inputs.in_tlv.as_ref() {
@@ -104,7 +104,7 @@ pub fn validate_instruction_data(
                 in_tlv.len(),
                 inputs.in_token_data.len()
             );
-            return Err(CTokenError::InvalidInstructionData);
+            return Err(TokenError::InvalidInstructionData);
         }
 
         // CompressedOnly inputs can only decompress - no compressed outputs allowed
@@ -115,7 +115,7 @@ pub fn validate_instruction_data(
         });
         if has_compressed_only && !inputs.out_token_data.is_empty() {
             msg!("CompressedOnly inputs cannot have compressed outputs");
-            return Err(CTokenError::CompressedOnlyBlocksTransfer);
+            return Err(TokenError::CompressedOnlyBlocksTransfer);
         }
     }
     // out_tlv is only allowed for CompressAndClose when rent authority is signer
@@ -128,7 +128,7 @@ pub fn validate_instruction_data(
                 out_tlv.len(),
                 inputs.out_token_data.len()
             );
-            return Err(CTokenError::InvalidInstructionData);
+            return Err(TokenError::InvalidInstructionData);
         }
 
         // All compressions must be CompressAndClose
@@ -138,12 +138,12 @@ pub fn validate_instruction_data(
                 .all(|c| c.mode == ZCompressionMode::CompressAndClose)
         });
         if !allowed {
-            return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
+            return Err(TokenError::CompressedTokenAccountTlvUnimplemented);
         }
         // All out_token_data must be version 3 (sha flat) if tlv is present.
         let allowed = inputs.out_token_data.iter().all(|c| c.version == 3);
         if !allowed {
-            return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
+            return Err(TokenError::CompressedTokenAccountTlvUnimplemented);
         }
 
         // Output count must match compressions count (no extra outputs)
@@ -151,10 +151,10 @@ pub fn validate_instruction_data(
             .compressions
             .as_ref()
             .map(|c| c.len())
-            .ok_or(CTokenError::OutTlvOutputCountMismatch)?;
+            .ok_or(TokenError::OutTlvOutputCountMismatch)?;
         if inputs.out_token_data.len() != compressions_len {
             msg!("out_tlv requires out_token_data.len() == compressions.len()");
-            return Err(CTokenError::OutTlvOutputCountMismatch);
+            return Err(TokenError::OutTlvOutputCountMismatch);
         }
     }
 
@@ -166,7 +166,7 @@ pub fn validate_instruction_data(
             && inputs.compressions.is_some()
         {
             msg!("Compressions not allowed when writing to CPI context");
-            return Err(CTokenError::InvalidInstructionData);
+            return Err(TokenError::InvalidInstructionData);
         }
     }
 

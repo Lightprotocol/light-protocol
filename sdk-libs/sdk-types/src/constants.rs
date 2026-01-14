@@ -12,7 +12,7 @@ pub const ACCOUNT_COMPRESSION_AUTHORITY_PDA: [u8; 32] =
     pubkey_array!("HwXnGK3tPkkVY6P439H2p68AxpeuWXd5PcrAxFpbmfbA");
 
 /// ID of the light-compressed-token program.
-pub const C_TOKEN_PROGRAM_ID: [u8; 32] =
+pub const LIGHT_TOKEN_PROGRAM_ID: [u8; 32] =
     pubkey_array!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
 /// Seed of the CPI authority.

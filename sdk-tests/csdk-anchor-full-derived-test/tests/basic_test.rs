@@ -3,13 +3,6 @@ use csdk_anchor_full_derived_test::{
     AccountCreationData, CompressionParams, GameSession, UserRecord,
 };
 use light_compressed_account::address::derive_address;
-use light_ctoken_interface::{
-    instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
-    state::CompressedMintMetadata,
-};
-use light_ctoken_sdk::compressed_token::create_compressed_mint::{
-    derive_cmint_compressed_address, find_cmint_address,
-};
 use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest},
@@ -19,7 +12,15 @@ use light_sdk::{
     compressible::CompressibleConfig,
     instruction::{PackedAccounts, SystemAccountMetaConfig},
 };
-use light_sdk_types::C_TOKEN_PROGRAM_ID;
+use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
+use light_token_interface::{
+    instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
+    state::CompressedMintMetadata,
+};
+use light_token_sdk::compressed_token::create_compressed_mint::{
+    derive_mint_compressed_address, find_mint_address,
+};
+use light_token_types::CPI_AUTHORITY_PDA;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -178,8 +179,8 @@ async fn test_create_with_complex_seeds() {
     assert_eq!(game_session.score, 0);
     assert!(game_session.compression_info.is_none());
 
-    // Verify CToken account
-    let spl_mint = find_cmint_address(&mint_signer_pubkey).0;
+    // Verify Light Token account
+    let spl_mint = find_mint_address(&mint_signer_pubkey).0;
     let (_, token_account_address) =
         csdk_anchor_full_derived_test::get_ctokensigner_seeds(&payer.pubkey(), &spl_mint);
 
@@ -225,9 +226,9 @@ pub async fn create_user_record_and_game_session(
     let freeze_authority = mint_authority;
     let mint_signer = Keypair::new();
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_signer.pubkey(), &address_tree_pubkey);
+        derive_mint_compressed_address(&mint_signer.pubkey(), &address_tree_pubkey);
 
-    let (spl_mint, mint_bump) = find_cmint_address(&mint_signer.pubkey());
+    let (spl_mint, mint_bump) = find_mint_address(&mint_signer.pubkey());
     let accounts = csdk_anchor_full_derived_test::accounts::CreateUserRecordAndGameSession {
         user: user.pubkey(),
         mint_signer: mint_signer.pubkey(),
@@ -236,8 +237,8 @@ pub async fn create_user_record_and_game_session(
         authority: authority.pubkey(),
         mint_authority,
         some_account: some_account.pubkey(),
-        ctoken_program: C_TOKEN_PROGRAM_ID.into(),
-        compress_token_program_cpi_authority: light_ctoken_types::CPI_AUTHORITY_PDA.into(),
+        ctoken_program: LIGHT_TOKEN_PROGRAM_ID.into(),
+        compress_token_program_cpi_authority: CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
         config: *config_pda,
         rent_sponsor: RENT_SPONSOR,

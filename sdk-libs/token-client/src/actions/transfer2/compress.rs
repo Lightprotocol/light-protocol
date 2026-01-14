@@ -2,7 +2,7 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_ctoken_interface::state::TokenDataVersion;
+use light_token_interface::state::TokenDataVersion;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;
@@ -26,7 +26,7 @@ use crate::instructions::transfer2::{
 /// * `decimals` - Mint decimals for SPL transfer_checked
 ///
 /// # Returns
-/// `Result<Instruction, CTokenSdkError>` - The compression instruction
+/// `Result<Instruction, TokenSdkError>` - The compression instruction
 pub async fn compress<R: Rpc + Indexer>(
     rpc: &mut R,
     solana_token_account: Pubkey,

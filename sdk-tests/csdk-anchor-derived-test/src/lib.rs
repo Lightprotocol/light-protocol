@@ -25,12 +25,6 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 pub mod csdk_anchor_derived_test {
     use anchor_lang::solana_program::{program::invoke, sysvar::clock::Clock};
     use light_compressed_account::instruction_data::traits::LightInstructionData;
-    use light_ctoken_interface::instructions::mint_action::{
-        MintActionCompressedInstructionData, MintToCompressedAction, Recipient,
-    };
-    use light_ctoken_sdk::compressed_token::{
-        create_compressed_mint::find_cmint_address, mint_action::MintActionMetaConfig,
-    };
     use light_sdk::{
         compressible::{
             compress_account_on_init::prepare_compressed_account_on_init, CompressibleConfig,
@@ -42,6 +36,12 @@ pub mod csdk_anchor_derived_test {
     };
     use light_sdk_types::{
         cpi_accounts::CpiAccountsConfig, cpi_context_write::CpiContextWriteAccounts,
+    };
+    use light_token_interface::instructions::mint_action::{
+        MintActionCompressedInstructionData, MintToCompressedAction, Recipient,
+    };
+    use light_token_sdk::compressed_token::{
+        create_compressed_mint::find_mint_address, mint_action::MintActionMetaConfig,
     };
 
     use super::*;
@@ -136,7 +136,7 @@ pub mod csdk_anchor_derived_test {
             .write_to_cpi_context_first()
             .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
 
-        let mint = find_cmint_address(&ctx.accounts.mint_signer.key()).0;
+        let mint = find_mint_address(&ctx.accounts.mint_signer.key()).0;
         let (_, token_account_address) = get_ctoken_signer_seeds(&ctx.accounts.user.key(), &mint);
 
         let output_queue = *cpi_accounts.tree_accounts().unwrap()[0].key;
@@ -154,7 +154,7 @@ pub mod csdk_anchor_derived_test {
             recipients: vec![Recipient::new(token_account_address, 1000)],
         })
         .with_cpi_context(
-            light_ctoken_interface::instructions::mint_action::CpiContext {
+            light_token_interface::instructions::mint_action::CpiContext {
                 address_tree_pubkey: address_tree_pubkey.to_bytes(),
                 set_context: false,
                 first_set_context: false,
@@ -186,7 +186,7 @@ pub mod csdk_anchor_derived_test {
 
         // Build mint action instruction
         let mint_action_instruction = solana_program::instruction::Instruction {
-            program_id: light_ctoken_interface::CTOKEN_PROGRAM_ID.into(),
+            program_id: light_token_interface::LIGHT_TOKEN_PROGRAM_ID.into(),
             accounts: account_metas,
             data,
         };

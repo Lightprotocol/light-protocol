@@ -1,12 +1,12 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::checks::check_owner;
-use light_ctoken_interface::{
-    instructions::transfer2::ZCompressionMode,
-    state::{CToken, ZCTokenMut},
-    CTokenError,
-};
 use light_program_profiler::profile;
+use light_token_interface::{
+    instructions::transfer2::ZCompressionMode,
+    state::{Token, ZTokenMut},
+    TokenError,
+};
 use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::pubkey::pubkey_eq;
 use spl_pod::solana_msg::msg;
@@ -46,7 +46,7 @@ pub fn compress_or_decompress_ctokens(
         .try_borrow_mut_data()
         .map_err(|_| ProgramError::AccountBorrowFailed)?;
 
-    let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut token_account_data)?;
+    let (mut ctoken, _) = Token::zero_copy_at_mut(&mut token_account_data)?;
     validate_ctoken(&ctoken, &mint, &mode)?;
 
     // Get current balance
@@ -59,7 +59,7 @@ pub fn compress_or_decompress_ctokens(
             let authority_account = authority.ok_or(ErrorCode::InvalidCompressAuthority)?;
             check_ctoken_owner(&mut ctoken, authority_account, mint_checks.as_ref())?;
             if !ctoken.is_initialized() {
-                return Err(CTokenError::InvalidAccountState.into());
+                return Err(TokenError::InvalidAccountState.into());
             }
 
             // Compress: subtract from solana account
@@ -128,20 +128,20 @@ pub fn compress_or_decompress_ctokens(
 /// - Mint matches expected mint
 #[inline(always)]
 fn validate_ctoken(
-    ctoken: &ZCTokenMut,
+    ctoken: &ZTokenMut,
     mint: &[u8; 32],
     mode: &ZCompressionMode,
 ) -> Result<(), ProgramError> {
     // Account type check: must be CToken account (byte 165 == 2)
-    if !ctoken.is_ctoken_account() {
+    if !ctoken.is_token_account() {
         msg!("Invalid account type");
-        return Err(CTokenError::InvalidAccountType.into());
+        return Err(TokenError::InvalidAccountType.into());
     }
 
     // Reject uninitialized accounts (state == 0)
     if ctoken.base.is_uninitialized() {
         msg!("Account is uninitialized");
-        return Err(CTokenError::InvalidAccountState.into());
+        return Err(TokenError::InvalidAccountState.into());
     }
 
     // Frozen accounts can only be modified via CompressAndClose
@@ -157,7 +157,7 @@ fn validate_ctoken(
             solana_pubkey::Pubkey::new_from_array(ctoken.mint.to_bytes()),
             solana_pubkey::Pubkey::new_from_array(*mint)
         );
-        return Err(CTokenError::MintMismatch.into());
+        return Err(TokenError::MintMismatch.into());
     }
 
     Ok(())

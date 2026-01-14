@@ -32,27 +32,27 @@
 //
 
 use light_client::indexer::{CompressedTokenAccount, Indexer};
-use light_ctoken_interface::{
+use light_program_test::{
+    utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
+};
+use light_sdk::instruction::PackedAccounts;
+use light_test_utils::RpcError;
+use light_token_interface::{
     instructions::{mint_action::Recipient, transfer2::MultiInputTokenDataWithContext},
     state::TokenDataVersion,
 };
-use light_ctoken_sdk::{
+use light_token_sdk::{
     compressed_token::{
-        create_compressed_mint::find_cmint_address,
+        create_compressed_mint::find_mint_address,
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
             Transfer2Config, Transfer2Inputs,
         },
         CTokenAccount2,
     },
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
+    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
     ValidityProof,
 };
-use light_program_test::{
-    utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
-};
-use light_sdk::instruction::PackedAccounts;
-use light_test_utils::RpcError;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 // ============================================================================
@@ -68,7 +68,7 @@ struct DecompressionTestContext {
     pub system_accounts_offset: usize,
 }
 
-/// Set up test environment with compressed tokens and an empty CToken recipient account
+/// Set up test environment with compressed tokens and an empty Light Token recipient account
 async fn setup_decompression_test(
     compressed_amount: u64,
 ) -> Result<DecompressionTestContext, RpcError> {
@@ -88,10 +88,10 @@ async fn setup_decompression_test(
     let mint_seed = Keypair::new();
 
     // Derive mint and ATA addresses
-    let (mint, _) = find_cmint_address(&mint_seed.pubkey());
-    let (ctoken_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
+    let (mint, _) = find_mint_address(&mint_seed.pubkey());
+    let (ctoken_ata, _) = derive_token_ata(&owner.pubkey(), &mint);
 
-    // Create compressible CToken ATA for owner (recipient of decompression)
+    // Create compressible Light Token ATA for owner (recipient of decompression)
     let compressible_params = CompressibleParams {
         compressible_config: rpc
             .test_accounts
@@ -106,7 +106,7 @@ async fn setup_decompression_test(
     };
 
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA: {:?}", e)))?;
@@ -114,7 +114,7 @@ async fn setup_decompression_test(
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await?;
 
-    // Mint compressed tokens to owner and 1 token to decompressed CToken ATA
+    // Mint compressed tokens to owner and 1 token to decompressed Light Token ATA
     let compressed_recipients = vec![Recipient::new(owner.pubkey(), compressed_amount)];
     let decompressed_recipients = vec![Recipient::new(owner.pubkey(), 0)];
 
@@ -126,7 +126,7 @@ async fn setup_decompression_test(
         None,                    // no decompress mint
         false,                   // compress_and_close_cmint
         compressed_recipients,   // mint compressed tokens to owner
-        decompressed_recipients, // mint 1 token to decompressed CToken ATA
+        decompressed_recipients, // mint 1 token to decompressed Light Token ATA
         None,                    // no mint authority update
         None,                    // no freeze authority update
         Some(light_token_client::instructions::mint_action::NewMint {
@@ -192,7 +192,7 @@ async fn setup_decompression_test(
 // Instruction Builder Helpers
 // ============================================================================
 
-/// Build Transfer2Inputs for decompression (compressed -> CToken ATA)
+/// Build Transfer2Inputs for decompression (compressed -> Light Token ATA)
 async fn create_decompression_inputs(
     compressed_token_account: &CompressedTokenAccount,
     ctoken_ata: Pubkey,
@@ -214,7 +214,7 @@ async fn create_decompression_inputs(
     let owner_index =
         packed_accounts.insert_or_get_config(compressed_token_account.token.owner, true, false); // is_signer, not writable
 
-    // Add CToken ATA recipient account
+    // Add Light Token ATA recipient account
     let ctoken_ata_index = packed_accounts.insert_or_get_config(ctoken_ata, false, true); // not signer, is writable
     println!("compressed_token_account: {:?}", compressed_token_account);
     // Manually create MultiInputTokenDataWithContext
@@ -253,7 +253,7 @@ async fn create_decompression_inputs(
 
     // Add decompression
     token_account
-        .decompress_ctoken(decompress_amount, ctoken_ata_index)
+        .decompress(decompress_amount, ctoken_ata_index)
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to decompress: {:?}", e)))?;
 
     // Get account metas
@@ -414,7 +414,7 @@ async fn test_decompression_mint_out_of_bounds() -> Result<(), RpcError> {
 
 #[tokio::test]
 async fn test_decompression_recipient_out_of_bounds() -> Result<(), RpcError> {
-    // Test: Recipient (CToken ATA) index out of bounds in decompression
+    // Test: Recipient (Light Token ATA) index out of bounds in decompression
     let DecompressionTestContext {
         mut rpc,
         payer,
@@ -431,7 +431,7 @@ async fn test_decompression_recipient_out_of_bounds() -> Result<(), RpcError> {
         .unwrap()
         .len();
 
-    // Set recipient (CToken ATA) index to out of bounds value in decompression
+    // Set recipient (Light Token ATA) index to out of bounds value in decompression
     decompression_inputs.token_accounts[0]
         .compression
         .as_mut()

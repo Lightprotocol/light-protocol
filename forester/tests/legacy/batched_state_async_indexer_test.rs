@@ -23,7 +23,7 @@ use light_compressed_account::{
 use light_compressed_token::process_transfer::{
     transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
 };
-use light_ctoken_sdk::compat::TokenDataWithMerkleContext;
+use light_token_sdk::compat::TokenDataWithMerkleContext;
 use light_program_test::accounts::test_accounts::TestAccounts;
 use light_prover_client::prover::spawn_prover;
 use light_registry::{

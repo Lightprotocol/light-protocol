@@ -56,7 +56,7 @@ jobs:
           - program: account-compression-and-registry
             sub-tests: '["cargo-test-sbf -p account-compression-test", "cargo-test-sbf -p registry-test"]'
           - program: light-system-program-address
-            sub-tests: '["cargo-test-sbf -p system-test -- test_with_address", "cargo-test-sbf -p e2e-test", "cargo-test-sbf -p compressed-token-test --test ctoken"]'
+            sub-tests: '["cargo-test-sbf -p system-test -- test_with_address", "cargo-test-sbf -p e2e-test", "cargo-test-sbf -p compressed-token-test --test light_token"]'
           - program: light-system-program-compression
             sub-tests: '["cargo-test-sbf -p system-test -- test_with_compression", "cargo-test-sbf -p system-test --test test_re_init_cpi_account"]'
           - program: compressed-token-and-e2e

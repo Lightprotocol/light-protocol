@@ -4,7 +4,6 @@
 //! with Token-2022 mints that have restricted extensions.
 
 use borsh::BorshDeserialize;
-use light_ctoken_interface::state::{AccountState, CToken, ExtensionStruct};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 pub use light_test_utils::{mint_2022::ALL_EXTENSIONS, Rpc};
 use light_test_utils::{
@@ -14,6 +13,7 @@ use light_test_utils::{
     },
     RpcError,
 };
+use light_token_interface::state::{AccountState, ExtensionStruct, Token};
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 pub use spl_token_2022::extension::ExtensionType;
 
@@ -62,8 +62,8 @@ pub struct CompressAndCloseTestConfig {
     pub use_delegate_for_decompress: bool,
 }
 
-/// Helper to modify CToken account state for testing using set_account
-/// Only modifies the SPL token portion (first 165 bytes) - CToken::deserialize reads from there
+/// Helper to modify Light Token account state for testing using set_account
+/// Only modifies the SPL token portion (first 165 bytes) - Light Token::deserialize reads from there
 pub async fn set_ctoken_account_state(
     rpc: &mut LightProgramTest,
     account_pubkey: Pubkey,
@@ -80,7 +80,7 @@ pub async fn set_ctoken_account_state(
         .ok_or_else(|| RpcError::CustomError("Account not found".to_string()))?;
 
     // Update SPL token state (first 165 bytes)
-    // CToken::deserialize reads delegate/delegated_amount/state from the SPL portion
+    // Light Token::deserialize reads delegate/delegated_amount/state from the SPL portion
     let mut spl_account =
         spl_token_2022::state::Account::unpack_unchecked(&account_info.data[..165])
             .map_err(|e| RpcError::CustomError(format!("Failed to unpack SPL account: {:?}", e)))?;
@@ -102,22 +102,22 @@ pub async fn set_ctoken_account_state(
 }
 
 /// Helper to set withheld_amount in TransferFeeAccount extension for testing
-/// Finds the TransferFeeAccount extension in the CToken and modifies the withheld_amount field
+/// Finds the TransferFeeAccount extension in the Light Token and modifies the withheld_amount field
 pub async fn set_ctoken_withheld_fee(
     rpc: &mut LightProgramTest,
     account_pubkey: Pubkey,
     withheld_amount: u64,
 ) -> Result<(), RpcError> {
-    use light_ctoken_interface::state::{ExtensionStruct, TransferFeeAccountExtension};
+    use light_token_interface::state::{ExtensionStruct, TransferFeeAccountExtension};
 
     let mut account_info = rpc
         .get_account(account_pubkey)
         .await?
         .ok_or_else(|| RpcError::CustomError("Account not found".to_string()))?;
 
-    // Deserialize CToken to find and modify TransferFeeAccount extension
-    let mut ctoken = CToken::deserialize(&mut &account_info.data[..])
-        .map_err(|e| RpcError::CustomError(format!("Failed to deserialize CToken: {:?}", e)))?;
+    // Deserialize Token to find and modify TransferFeeAccount extension
+    let mut ctoken = Token::deserialize(&mut &account_info.data[..])
+        .map_err(|e| RpcError::CustomError(format!("Failed to deserialize Token: {:?}", e)))?;
 
     // Find and update TransferFeeAccount extension
     let mut found = false;
@@ -133,15 +133,15 @@ pub async fn set_ctoken_withheld_fee(
 
     if !found {
         return Err(RpcError::CustomError(
-            "TransferFeeAccount extension not found in CToken".to_string(),
+            "TransferFeeAccount extension not found in Token".to_string(),
         ));
     }
 
-    // Serialize the modified CToken back
+    // Serialize the modified Token back
     use borsh::BorshSerialize;
     let serialized = ctoken
         .try_to_vec()
-        .map_err(|e| RpcError::CustomError(format!("Failed to serialize CToken: {:?}", e)))?;
+        .map_err(|e| RpcError::CustomError(format!("Failed to serialize Token: {:?}", e)))?;
 
     // Update account data
     account_info.data = serialized;
@@ -154,7 +154,10 @@ pub async fn run_compress_and_close_extension_test(
     config: CompressAndCloseTestConfig,
 ) -> Result<(), RpcError> {
     use light_client::indexer::Indexer;
-    use light_ctoken_interface::{
+    use light_token_client::instructions::transfer2::{
+        create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+    };
+    use light_token_interface::{
         instructions::extensions::{
             CompressedOnlyExtensionInstructionData, ExtensionInstructionData,
         },
@@ -162,12 +165,9 @@ pub async fn run_compress_and_close_extension_test(
             CompressedOnlyExtension, CompressedTokenAccountState, TokenData, TokenDataVersion,
         },
     };
-    use light_ctoken_sdk::{
-        ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
+    use light_token_sdk::{
         spl_interface::find_spl_interface_pda_with_index,
-    };
-    use light_token_client::instructions::transfer2::{
-        create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+        token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
     };
 
     let mut context = setup_extensions_test(config.extensions).await?;
@@ -192,13 +192,13 @@ pub async fn run_compress_and_close_extension_test(
     )
     .await;
 
-    // 2. Create CToken account with 0 prepaid epochs (immediately compressible)
+    // 2. Create Light Token account with 0 prepaid epochs (immediately compressible)
     let owner = Keypair::new();
     let account_keypair = Keypair::new();
     let ctoken_account = account_keypair.pubkey();
 
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: context
                     .rpc
@@ -224,17 +224,17 @@ pub async fn run_compress_and_close_extension_test(
         .create_and_send_transaction(&[create_ix], &payer.pubkey(), &[&payer, &account_keypair])
         .await?;
 
-    // 3. Transfer tokens to CToken using hot path
+    // 3. Transfer tokens to Light Token using hot path
     // Determine if mint has restricted extensions for pool derivation
 
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted_extensions);
-    let transfer_ix = TransferSplToCtoken {
+    let transfer_ix = TransferFromSpl {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,
         source_spl_token_account: spl_account,
-        destination_ctoken_account: ctoken_account,
+        destination: ctoken_account,
         authority: payer.pubkey(),
         mint: mint_pubkey,
         payer: payer.pubkey(),
@@ -251,7 +251,7 @@ pub async fn run_compress_and_close_extension_test(
         .create_and_send_transaction(&[transfer_ix], &payer.pubkey(), &[&payer])
         .await?;
 
-    // 4. Modify CToken state based on config BEFORE warp
+    // 4. Modify Light Token state based on config BEFORE warp
     let delegate_pubkey = config.delegate_config.as_ref().map(|(kp, _)| kp.pubkey());
     let delegated_amount = config
         .delegate_config
@@ -277,7 +277,7 @@ pub async fn run_compress_and_close_extension_test(
     let account_after = context.rpc.get_account(ctoken_account).await?;
     assert!(
         account_after.is_none() || account_after.unwrap().lamports == 0,
-        "CToken account should be closed after compression"
+        "Light Token account should be closed after compression"
     );
 
     // 7. Get compressed accounts and verify state
@@ -322,11 +322,11 @@ pub async fn run_compress_and_close_extension_test(
         "Compressed token account should match expected TokenData"
     );
 
-    // 8. Create destination CToken account for decompress
+    // 8. Create destination Light Token account for decompress
     let decompress_dest_keypair = Keypair::new();
     let decompress_dest_account = decompress_dest_keypair.pubkey();
 
-    let create_dest_ix = CreateCTokenAccount::new(
+    let create_dest_ix = CreateTokenAccount::new(
         payer.pubkey(),
         decompress_dest_account,
         mint_pubkey,
@@ -439,15 +439,15 @@ pub async fn run_compress_and_close_extension_test(
         .create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &signers)
         .await?;
 
-    // 11. Verify decompressed CToken state
+    // 11. Verify decompressed Light Token state
     let dest_account_data = context
         .rpc
         .get_account(decompress_dest_account)
         .await?
         .ok_or_else(|| RpcError::CustomError("Dest account not found".to_string()))?;
 
-    let dest_ctoken = CToken::deserialize(&mut &dest_account_data.data[..])
-        .map_err(|e| RpcError::CustomError(format!("Failed to deserialize CToken: {:?}", e)))?;
+    let dest_ctoken = Token::deserialize(&mut &dest_account_data.data[..])
+        .map_err(|e| RpcError::CustomError(format!("Failed to deserialize Token: {:?}", e)))?;
 
     // Verify state matches config
     let expected_ctoken_state = if config.is_frozen {
@@ -458,24 +458,24 @@ pub async fn run_compress_and_close_extension_test(
 
     assert_eq!(
         dest_ctoken.state, expected_ctoken_state,
-        "Decompressed CToken state should match config"
+        "Decompressed Light Token state should match config"
     );
 
     assert_eq!(
         dest_ctoken.delegated_amount, delegated_amount,
-        "Decompressed CToken delegated_amount should match"
+        "Decompressed Light Token delegated_amount should match"
     );
 
     if let Some((delegate_kp, _)) = &config.delegate_config {
         assert_eq!(
             dest_ctoken.delegate,
             Some(delegate_kp.pubkey().to_bytes().into()),
-            "Decompressed CToken delegate should match"
+            "Decompressed Light Token delegate should match"
         );
     } else {
         assert!(
             dest_ctoken.delegate.is_none(),
-            "Decompressed CToken should have no delegate"
+            "Decompressed Light Token should have no delegate"
         );
     }
 

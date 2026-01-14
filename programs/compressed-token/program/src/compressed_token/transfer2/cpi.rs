@@ -1,11 +1,11 @@
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig;
-use light_ctoken_interface::{
+use light_program_profiler::profile;
+use light_token_interface::{
     instructions::{
         extensions::ZExtensionInstructionData, transfer2::ZCompressedTokenInstructionDataTransfer2,
     },
     state::{ExtensionStructConfig, TokenData, TokenDataConfig},
 };
-use light_program_profiler::profile;
 use light_zero_copy::ZeroCopyNew;
 use pinocchio::program_error::ProgramError;
 use tinyvec::ArrayVec;

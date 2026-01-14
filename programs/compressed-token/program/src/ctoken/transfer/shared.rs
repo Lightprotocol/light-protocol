@@ -1,10 +1,10 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_ctoken_interface::{
-    state::{CToken, ZExtensionStructMut},
-    CTokenError, MintExtensionFlags,
-};
 use light_program_profiler::profile;
+use light_token_interface::{
+    state::{Token, ZExtensionStructMut},
+    MintExtensionFlags, TokenError,
+};
 use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
 
 use crate::{
@@ -129,7 +129,7 @@ fn transfer_top_up(
         // Check budget if max_top_up is set (non-zero)
         let total_top_up = sender_top_up.saturating_add(recipient_top_up);
         if max_top_up != 0 && total_top_up > max_top_up as u64 {
-            return Err(CTokenError::MaxTopUpExceeded.into());
+            return Err(TokenError::MaxTopUpExceeded.into());
         }
 
         let transfers = [
@@ -223,12 +223,12 @@ fn process_account_extensions(
     current_slot: &mut u64,
     mint: Option<&AccountInfo>,
 ) -> Result<AccountExtensionInfo, ProgramError> {
-    let token = CToken::from_account_info_mut_checked(account)?;
+    let token = Token::from_account_info_mut_checked(account)?;
 
     // Validate mint account matches token's mint field
     if let Some(mint_account) = mint {
         if !pubkey_eq(mint_account.key(), token.mint.array_ref()) {
-            return Err(CTokenError::InvalidAccountData.into());
+            return Err(TokenError::InvalidAccountData.into());
         }
     }
 
@@ -240,14 +240,14 @@ fn process_account_extensions(
         use pinocchio::sysvars::{clock::Clock, Sysvar};
         if *current_slot == 0 {
             *current_slot = Clock::get()
-                .map_err(|_| CTokenError::SysvarAccessError)?
+                .map_err(|_| TokenError::SysvarAccessError)?
                 .slot;
         }
 
         info.top_up_amount = compression
             .info
             .calculate_top_up_lamports(account.data_len() as u64, *current_slot, account.lamports())
-            .map_err(|_| CTokenError::InvalidAccountData)?;
+            .map_err(|_| TokenError::InvalidAccountData)?;
 
         // Extract cached decimals if set
         info.decimals = compression.decimals();
@@ -277,7 +277,7 @@ fn process_account_extensions(
                 }
                 // Placeholder and TokenMetadata variants are not valid for CToken accounts
                 _ => {
-                    return Err(CTokenError::InvalidAccountData.into());
+                    return Err(TokenError::InvalidAccountData.into());
                 }
             }
         }

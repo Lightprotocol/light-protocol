@@ -16,7 +16,7 @@ When accounts require rent top-up, lamports are transferred directly from the au
 
 **description:**
 1. Transfers tokens between decompressed ctoken solana accounts, fully compatible with SPL Token semantics
-2. Account layout `CToken` is defined in path: program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs
+2. Account layout `CToken` is defined in path: program-libs/token-interface/src/state/ctoken/ctoken_struct.rs
 3. Compression info for rent top-up is defined in: program-libs/compressible/src/compression_info.rs
 4. Uses pinocchio-token-program to process the transfer (lightweight SPL-compatible implementation)
 5. After the transfer, automatically tops up compressible accounts with additional lamports if needed:

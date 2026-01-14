@@ -2,9 +2,8 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_ctoken_sdk::{
-    constants::SPL_TOKEN_PROGRAM_ID, ctoken::TransferSplToCtoken,
-    spl_interface::find_spl_interface_pda,
+use light_token_sdk::{
+    constants::SPL_TOKEN_PROGRAM_ID, spl_interface::find_spl_interface_pda, token::TransferFromSpl,
 };
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -14,10 +13,10 @@ use spl_pod::bytemuck::pod_from_bytes;
 use spl_token_2022::pod::PodAccount;
 
 /// Transfer SPL tokens to compressed tokens
-pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
+pub async fn spl_to_light_token_transfer<R: Rpc + Indexer>(
     rpc: &mut R,
     source_spl_token_account: Pubkey,
-    destination_ctoken_account: Pubkey,
+    destination: Pubkey,
     amount: u64,
     authority: &Keypair,
     payer: &Keypair,
@@ -35,11 +34,11 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
 
     let (spl_interface_pda, spl_interface_pda_bump) = find_spl_interface_pda(&mint, false);
 
-    let ix = TransferSplToCtoken {
+    let ix = TransferFromSpl {
         amount,
         spl_interface_pda_bump,
         source_spl_token_account,
-        destination_ctoken_account,
+        destination,
         authority: authority.pubkey(),
         mint,
         payer: payer.pubkey(),

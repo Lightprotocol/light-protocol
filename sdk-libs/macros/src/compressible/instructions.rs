@@ -331,7 +331,7 @@ pub fn add_compressible_instructions(
 
     let ctoken_enum = if let Some(ref token_seed_specs) = token_seeds {
         if !token_seed_specs.is_empty() {
-            crate::compressible::seed_providers::generate_ctoken_account_variant_enum(
+            crate::compressible::seed_providers::generate_token_account_variant_enum(
                 token_seed_specs,
             )?
         } else {
@@ -522,12 +522,12 @@ pub fn add_compressible_instructions(
             use super::*;
 
             impl light_sdk::compressible::HasTokenVariant for CompressedAccountData {
-                fn is_packed_ctoken(&self) -> bool {
+                fn is_packed_token(&self) -> bool {
                     matches!(self.data, CompressedAccountVariant::PackedCTokenData(_))
                 }
             }
 
-            impl light_sdk::compressible::CTokenSeedProvider for CTokenAccountVariant {
+            impl light_sdk::compressible::TokenSeedProvider for CTokenAccountVariant {
                 type Accounts<'info> = DecompressAccountsIdempotent<'info>;
 
                 fn get_seeds<'a, 'info>(
@@ -563,7 +563,7 @@ pub fn add_compressible_instructions(
                 }
             }
 
-            impl light_ctoken_sdk::compressible::CTokenSeedProvider for CTokenAccountVariant {
+            impl light_token_sdk::compressible::TokenSeedProvider for CTokenAccountVariant {
                 type Accounts<'info> = DecompressAccountsIdempotent<'info>;
 
                 fn get_seeds<'a, 'info>(
@@ -660,7 +660,7 @@ pub fn add_compressible_instructions(
                 ) -> std::result::Result<(
                     Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
                     Vec<(
-                        light_ctoken_sdk::compat::PackedCTokenData<CTokenAccountVariant>,
+                        light_token_sdk::compat::PackedCTokenData<CTokenAccountVariant>,
                         light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                     )>,
                 ), solana_program_error::ProgramError> {
@@ -670,7 +670,7 @@ pub fn add_compressible_instructions(
                     let estimated_capacity = compressed_accounts.len();
                     let mut compressed_pda_infos = Vec::with_capacity(estimated_capacity);
                     let mut compressed_token_accounts: Vec<(
-                        light_ctoken_sdk::compat::PackedCTokenData<CTokenAccountVariant>,
+                        light_token_sdk::compat::PackedCTokenData<CTokenAccountVariant>,
                         light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                     )> = Vec::with_capacity(estimated_capacity);
 
@@ -844,7 +844,7 @@ pub fn add_compressible_instructions(
     if let Some(ref seeds) = token_seeds {
         if !seeds.is_empty() {
             let impl_code =
-                crate::compressible::seed_providers::generate_ctoken_seed_provider_implementation(
+                crate::compressible::seed_providers::generate_token_seed_provider_implementation(
                     seeds,
                 )?;
             let ctoken_impl: syn::ItemImpl = syn::parse2(impl_code).map_err(|e| {

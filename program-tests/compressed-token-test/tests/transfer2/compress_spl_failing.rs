@@ -29,18 +29,6 @@
 // 5.3. recipient out of bounds
 
 use anchor_spl::token_2022::spl_token_2022;
-use light_ctoken_sdk::{
-    compressed_token::{
-        transfer2::{
-            account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
-            Transfer2Config, Transfer2Inputs,
-        },
-        CTokenAccount2,
-    },
-    ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount},
-    spl_interface::find_spl_interface_pda_with_index,
-    ValidityProof,
-};
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::{
@@ -49,6 +37,18 @@ use light_test_utils::{
         create_mint_helper, create_token_2022_account, mint_spl_tokens, CREATE_MINT_HELPER_DECIMALS,
     },
     Rpc, RpcError,
+};
+use light_token_sdk::{
+    compressed_token::{
+        transfer2::{
+            account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
+            Transfer2Config, Transfer2Inputs,
+        },
+        CTokenAccount2,
+    },
+    spl_interface::find_spl_interface_pda_with_index,
+    token::{derive_token_ata, CreateAssociatedTokenAccount},
+    ValidityProof,
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 use spl_pod::bytemuck::pod_from_bytes;
@@ -69,7 +69,7 @@ struct SplCompressionTestContext {
     pub system_accounts_offset: usize,
 }
 
-/// Set up test environment with SPL token account and CToken ATA
+/// Set up test environment with SPL token account and Light Token ATA
 async fn setup_spl_compression_test(
     token_amount: u64,
 ) -> Result<SplCompressionTestContext, RpcError> {
@@ -102,7 +102,7 @@ async fn setup_spl_compression_test(
     airdrop_lamports(&mut rpc, &recipient.pubkey(), 1_000_000_000).await?;
 
     // Create compressed token ATA for recipient
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .map_err(|e| {
             RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e))
@@ -111,7 +111,7 @@ async fn setup_spl_compression_test(
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await?;
 
-    let ctoken_ata = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
+    let ctoken_ata = derive_token_ata(&recipient.pubkey(), &mint).0;
 
     // Get output queue for compression (for system_accounts_offset calculation only)
     let output_queue = rpc
@@ -125,7 +125,7 @@ async fn setup_spl_compression_test(
         spl_token_account_keypair.pubkey(),
         mint,
         sender.pubkey(),
-        ctoken_ata, // Pass CToken ATA, not recipient pubkey
+        ctoken_ata, // Pass Light Token ATA, not recipient pubkey
         token_amount,
         payer.pubkey(),
         output_queue,
@@ -638,7 +638,7 @@ async fn test_spl_compression_mint_out_of_bounds() -> Result<(), RpcError> {
 
 #[tokio::test]
 async fn test_spl_compression_recipient_out_of_bounds() -> Result<(), RpcError> {
-    // Test: Recipient (CToken ATA owner) index out of bounds
+    // Test: Recipient (Light Token ATA owner) index out of bounds
     let SplCompressionTestContext {
         mut rpc,
         payer,

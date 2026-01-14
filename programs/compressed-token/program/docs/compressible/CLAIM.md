@@ -7,8 +7,8 @@
 **description:**
 1. Claims rent from compressible CToken and CMint solana accounts that have passed their rent expiration epochs
 2. Supports both account types:
-   - CToken (account_type = 2): decompressed token accounts, layout defined in program-libs/ctoken-interface/src/state/ctoken/ctoken_struct.rs
-   - CMint (account_type = 1): decompressed mint accounts, layout defined in program-libs/ctoken-interface/src/state/mint/compressed_mint.rs
+   - CToken (account_type = 2): decompressed token accounts, layout defined in program-libs/token-interface/src/state/ctoken/ctoken_struct.rs
+   - CMint (account_type = 1): decompressed mint accounts, layout defined in program-libs/token-interface/src/state/mint/compressed_mint.rs
 3. CompressionInfo storage differs by account type:
    - CToken: CompressionInfo is stored inside a Compressible extension (not embedded directly)
    - CMint: CompressionInfo is embedded directly in the mint struct at `compression` field

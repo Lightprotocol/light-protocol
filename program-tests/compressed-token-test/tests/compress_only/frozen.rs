@@ -1,7 +1,7 @@
 //! Tests for frozen state preservation during compress/decompress.
 //!
 //! This module tests that frozen state is preserved when compressing
-//! and decompressing CToken accounts with Token-2022 extensions.
+//! and decompressing Light Token accounts with Token-2022 extensions.
 
 use serial_test::serial;
 

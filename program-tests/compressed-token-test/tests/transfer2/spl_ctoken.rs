@@ -1,21 +1,6 @@
 use anchor_lang::prelude::{AccountMeta, ProgramError};
 // Re-export all necessary imports for test modules
 pub use anchor_spl::token_2022::spl_token_2022;
-use light_ctoken_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
-pub use light_ctoken_sdk::ctoken::{
-    derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount,
-};
-use light_ctoken_sdk::{
-    compressed_token::{
-        transfer2::{
-            create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config,
-            Transfer2Inputs,
-        },
-        CTokenAccount2,
-    },
-    spl_interface::find_spl_interface_pda_with_index,
-    ValidityProof,
-};
 use light_program_test::utils::assert::assert_rpc_error;
 pub use light_program_test::{LightProgramTest, ProgramTestConfig};
 pub use light_test_utils::{
@@ -26,6 +11,21 @@ pub use light_test_utils::{
     Rpc, RpcError,
 };
 pub use light_token_client::actions::transfer2::{self};
+use light_token_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
+pub use light_token_sdk::token::{
+    derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
+};
+use light_token_sdk::{
+    compressed_token::{
+        transfer2::{
+            create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config,
+            Transfer2Inputs,
+        },
+        CTokenAccount2,
+    },
+    spl_interface::find_spl_interface_pda_with_index,
+    ValidityProof,
+};
 use solana_sdk::pubkey::Pubkey;
 pub use solana_sdk::{instruction::Instruction, signature::Keypair, signer::Signer};
 pub use spl_token_2022::pod::PodAccount;
@@ -71,14 +71,14 @@ async fn test_spl_to_ctoken_transfer() {
         .unwrap();
 
     // Create compressed token ATA for recipient
-    let instruction = CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
+    let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
         .instruction()
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e)))
         .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let associated_token_account = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
+    let associated_token_account = derive_token_ata(&recipient.pubkey(), &mint).0;
 
     // Get initial SPL token balance
     let spl_account_data = rpc
@@ -92,9 +92,9 @@ async fn test_spl_to_ctoken_transfer() {
     let initial_spl_balance: u64 = spl_account.amount.into();
     assert_eq!(initial_spl_balance, amount);
 
-    // Use the new spl_to_ctoken_transfer action from light-token-client
+    // Use the new spl_to_light_token_transfer action from light-token-client
     // Note: create_mint_helper creates mints with 2 decimals
-    transfer2::spl_to_ctoken_transfer(
+    transfer2::spl_to_light_token_transfer(
         &mut rpc,
         spl_token_account_keypair.pubkey(),
         associated_token_account,
@@ -146,7 +146,7 @@ async fn test_spl_to_ctoken_transfer() {
     println!("Testing reverse transfer: ctoken to SPL");
 
     // Transfer from recipient's compressed token account back to sender's SPL token account
-    transfer2::transfer_ctoken_to_spl(
+    transfer2::transfer_light_token_to_spl(
         &mut rpc,
         associated_token_account,
         spl_token_account_keypair.pubkey(),
@@ -202,7 +202,7 @@ async fn test_spl_to_ctoken_transfer() {
         );
     }
 
-    println!("Successfully completed round-trip transfer: SPL -> CToken -> SPL");
+    println!("Successfully completed round-trip transfer: SPL -> Light Token -> SPL");
 }
 
 #[tokio::test]
@@ -243,8 +243,8 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         .unwrap();
 
     // Create compressible token ATA for recipient (ATAs require compression_only=true)
-    let (associated_token_account, bump) = derive_ctoken_ata(&recipient.pubkey(), &mint);
-    let instruction = CreateAssociatedCTokenAccount {
+    let (associated_token_account, bump) = derive_token_ata(&recipient.pubkey(), &mint);
+    let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         bump,
         payer: payer.pubkey(),
@@ -260,8 +260,8 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         .await
         .unwrap();
 
-    // Transfer SPL to CToken
-    transfer2::spl_to_ctoken_transfer(
+    // Transfer SPL to Light Token
+    transfer2::spl_to_light_token_transfer(
         &mut rpc,
         spl_token_account_keypair.pubkey(),
         associated_token_account,
@@ -283,7 +283,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         let ctoken_account =
             spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165])
                 .map_err(|e| {
-                    RpcError::AssertRpcError(format!("Failed to parse CToken account: {}", e))
+                    RpcError::AssertRpcError(format!("Failed to parse Light Token account: {}", e))
                 })
                 .unwrap();
         assert_eq!(
@@ -301,7 +301,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         find_spl_interface_pda_with_index(&mint, 0, false);
 
     let transfer_ix = CtokenToSplTransferAndClose {
-        source_ctoken_account: associated_token_account,
+        source: associated_token_account,
         destination_spl_token_account: spl_token_account_keypair.pubkey(),
         amount: transfer_amount,
         authority: recipient.pubkey(),
@@ -323,7 +323,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
 }
 
 pub struct CtokenToSplTransferAndClose {
-    pub source_ctoken_account: Pubkey,
+    pub source: Pubkey,
     pub destination_spl_token_account: Pubkey,
     pub amount: u64,
     pub authority: Pubkey,
@@ -341,7 +341,7 @@ impl CtokenToSplTransferAndClose {
             // Mint (index 0)
             AccountMeta::new_readonly(self.mint, false),
             // Source ctoken account (index 1) - writable
-            AccountMeta::new(self.source_ctoken_account, false),
+            AccountMeta::new(self.source, false),
             // Destination SPL token account (index 2) - writable
             AccountMeta::new(self.destination_spl_token_account, false),
             // Authority (index 3) - signer
@@ -356,7 +356,7 @@ impl CtokenToSplTransferAndClose {
         let compress_to_pool = CTokenAccount2 {
             inputs: vec![],
             output: MultiTokenTransferOutputData::default(),
-            compression: Some(Compression::compress_and_close_ctoken(
+            compression: Some(Compression::compress_and_close(
                 self.amount,
                 0, // mint index
                 1, // source ctoken account index

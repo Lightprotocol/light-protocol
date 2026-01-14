@@ -4,15 +4,15 @@ use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
 use light_compressed_account::compressed_account::CompressedAccountData;
 use light_compressible::compression_info::CompressionInfo;
-use light_ctoken_interface::state::{
-    extensions::AdditionalMetadata, CToken, CompressedMint, ExtensionStruct,
-};
 use light_program_test::{LightProgramTest, Rpc};
 use light_token_client::instructions::mint_action::MintActionType;
+use light_token_interface::state::{
+    extensions::AdditionalMetadata, CompressedMint, ExtensionStruct, Token,
+};
 use solana_sdk::pubkey::Pubkey;
 
-/// Extract CompressionInfo from CToken's Compressible extension
-fn get_ctoken_compression_info(ctoken: &CToken) -> Option<CompressionInfo> {
+/// Extract CompressionInfo from Light Token's Compressible extension
+fn get_ctoken_compression_info(ctoken: &Token) -> Option<CompressionInfo> {
     ctoken
         .extensions
         .as_ref()?
@@ -33,7 +33,7 @@ fn get_ctoken_compression_info(ctoken: &CToken) -> Option<CompressionInfo> {
 ///
 /// # Assertions
 /// * Single assert_eq! comparing actual vs expected mint state
-/// * Validates CToken account balances for MintToCToken actions
+/// * Validates Light Token account balances for MintToCToken actions
 pub async fn assert_mint_action(
     rpc: &mut LightProgramTest,
     compressed_mint_address: [u8; 32],
@@ -43,7 +43,7 @@ pub async fn assert_mint_action(
     // Build expected state by applying actions to pre-state
     let mut expected_mint = pre_compressed_mint.clone();
 
-    // Track CToken mints for later validation (deduplicate and sum amounts)
+    // Track Light Token mints for later validation (deduplicate and sum amounts)
     let mut ctoken_mints: HashMap<Pubkey, u64> = HashMap::new();
 
     for action in actions.iter() {
@@ -231,15 +231,15 @@ pub async fn assert_mint_action(
             "CMint PDA account should not exist after CompressAndCloseCMint action"
         );
     }
-    // Verify CToken accounts for MintToCToken actions
+    // Verify Light Token accounts for MintToCToken actions
     for (account_pubkey, total_minted_amount) in ctoken_mints {
         // Get pre-transaction account state
         let pre_account = rpc
             .get_pre_transaction_account(&account_pubkey)
-            .expect("CToken account should exist before minting");
+            .expect("Light Token account should exist before minting");
 
-        // Parse pre-transaction CToken state
-        let mut pre_ctoken: CToken =
+        // Parse pre-transaction Light Token state
+        let mut pre_ctoken: Token =
             BorshDeserialize::deserialize(&mut &pre_account.data[..]).unwrap();
 
         // Apply the total minted amount (handles multiple mints to same account)
@@ -250,13 +250,13 @@ pub async fn assert_mint_action(
 
         // Get actual post-transaction account
         let account_data = rpc.context.get_account(&account_pubkey).unwrap();
-        let post_ctoken: CToken =
+        let post_ctoken: Token =
             BorshDeserialize::deserialize(&mut &account_data.data[..]).unwrap();
 
         // Assert token amount matches expected
         assert_eq!(
             post_ctoken.amount, pre_ctoken.amount,
-            "CToken account state at {} should have {} tokens after minting, got {}",
+            "Light Token account state at {} should have {} tokens after minting, got {}",
             account_pubkey, pre_ctoken.amount, post_ctoken.amount
         );
 
@@ -279,7 +279,7 @@ pub async fn assert_mint_action(
 
             assert_eq!(
                 actual_lamport_change, expected_top_up,
-                "CToken account at {} should receive {} lamports top-up, got {}",
+                "Light Token account at {} should receive {} lamports top-up, got {}",
                 account_pubkey, expected_top_up, actual_lamport_change
             );
 

@@ -93,8 +93,8 @@ cargo test -p light-sdk --all-features
 cargo test -p light-program-test
 cargo test -p light-client
 cargo test -p light-sparse-merkle-tree
-cargo test -p light-ctoken-types
-cargo test -p light-ctoken-sdk
+cargo test -p light-token-types
+cargo test -p light-token-sdk
 ```
 
 ## Test Categories

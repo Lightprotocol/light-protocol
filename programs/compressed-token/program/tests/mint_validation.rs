@@ -4,7 +4,7 @@ use pinocchio::pubkey::Pubkey;
 
 const SPL_TOKEN_ID: Pubkey = spl_token::ID.to_bytes();
 const SPL_TOKEN_2022_ID: Pubkey = spl_token_2022::ID.to_bytes();
-const CTOKEN_PROGRAM_ID: Pubkey = light_ctoken_interface::CTOKEN_PROGRAM_ID;
+const LIGHT_TOKEN_PROGRAM_ID: Pubkey = light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 const SYSTEM_PROGRAM_ID: Pubkey = [0u8; 32];
 const RANDOM_PROGRAM_ID: Pubkey = [42u8; 32];
 
@@ -28,7 +28,7 @@ impl Owner {
         match self {
             Owner::SplToken => &SPL_TOKEN_ID,
             Owner::Token2022 => &SPL_TOKEN_2022_ID,
-            Owner::CToken => &CTOKEN_PROGRAM_ID,
+            Owner::CToken => &LIGHT_TOKEN_PROGRAM_ID,
             Owner::SystemProgram => &SYSTEM_PROGRAM_ID,
             Owner::RandomProgram => &RANDOM_PROGRAM_ID,
         }

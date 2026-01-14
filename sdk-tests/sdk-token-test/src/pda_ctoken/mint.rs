@@ -1,12 +1,11 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_ctoken_interface::instructions::mint_action::{
-    MintActionCompressedInstructionData, MintToCTokenAction, MintToCompressedAction,
-    UpdateAuthority,
+use light_sdk_types::cpi_accounts::v2::CpiAccounts;
+use light_token_interface::instructions::mint_action::{
+    MintActionCompressedInstructionData, MintToAction, MintToCompressedAction, UpdateAuthority,
 };
-use light_ctoken_sdk::compressed_token::{
+use light_token_sdk::compressed_token::{
     ctoken_instruction::CTokenInstruction, mint_action::MintActionCpiAccounts,
 };
-use light_sdk_types::cpi_accounts::v2::CpiAccounts;
 
 use super::{processor::ChainedCtokenInstructionData, PdaCToken};
 
@@ -27,7 +26,7 @@ pub fn process_mint_action<'a, 'info>(
         token_account_version: 2,
         recipients: input.token_recipients.clone(),
     })
-    .with_mint_to_ctoken(MintToCTokenAction {
+    .with_mint_to(MintToAction {
         account_index: 0, // Index in remaining accounts
         amount: input.token_recipients[0].amount,
     })
@@ -37,7 +36,7 @@ pub fn process_mint_action<'a, 'info>(
             .map(|auth| auth.to_bytes().into()),
     })
     .with_cpi_context(
-        light_ctoken_interface::instructions::mint_action::CpiContext {
+        light_token_interface::instructions::mint_action::CpiContext {
             set_context: false,
             first_set_context: false,
             in_tree_index: 1,

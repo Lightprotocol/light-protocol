@@ -78,7 +78,7 @@ Tests for Cross-Program Invocation (CPI) with Light system program V2.
 
 #### Core Token Tests
 ```bash
-cargo test-sbf -p compressed-token-test --test ctoken
+cargo test-sbf -p compressed-token-test --test light_token
 cargo test-sbf -p compressed-token-test --test v1
 cargo test-sbf -p compressed-token-test --test mint
 cargo test-sbf -p compressed-token-test --test transfer2

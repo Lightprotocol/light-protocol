@@ -5,17 +5,6 @@
 
 use borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
-use light_ctoken_interface::{
-    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
-    state::{
-        CToken, CompressedOnlyExtension, CompressedTokenAccountState, ExtensionStruct, TokenData,
-        TokenDataVersion,
-    },
-};
-use light_ctoken_sdk::{
-    ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
-    spl_interface::find_spl_interface_pda_with_index,
-};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     mint_2022::{create_mint_22_with_extension_types, create_token_22_account, mint_spl_tokens_22},
@@ -23,6 +12,17 @@ use light_test_utils::{
 };
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+};
+use light_token_interface::{
+    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
+    state::{
+        CompressedOnlyExtension, CompressedTokenAccountState, ExtensionStruct, Token, TokenData,
+        TokenDataVersion,
+    },
+};
+use light_token_sdk::{
+    spl_interface::find_spl_interface_pda_with_index,
+    token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
 };
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
@@ -51,13 +51,13 @@ async fn test_roundtrip_withheld_transfer_fee_preserved() -> Result<(), RpcError
     let mint_amount = 1_000_000_000u64;
     mint_spl_tokens_22(&mut rpc, &payer, &mint_pubkey, &spl_account, mint_amount).await;
 
-    // 3. Create CToken account with compression_only
+    // 3. Create Light Token account with compression_only
     let owner = Keypair::new();
     let account_keypair = Keypair::new();
     let ctoken_account = account_keypair.pubkey();
 
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: rpc
                     .test_accounts
@@ -76,15 +76,15 @@ async fn test_roundtrip_withheld_transfer_fee_preserved() -> Result<(), RpcError
     rpc.create_and_send_transaction(&[create_ix], &payer.pubkey(), &[&payer, &account_keypair])
         .await?;
 
-    // 4. Transfer tokens to CToken
+    // 4. Transfer tokens to Light Token
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true); // true = restricted
-    let transfer_ix = TransferSplToCtoken {
+    let transfer_ix = TransferFromSpl {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,
         source_spl_token_account: spl_account,
-        destination_ctoken_account: ctoken_account,
+        destination: ctoken_account,
         authority: payer.pubkey(),
         mint: mint_pubkey,
         payer: payer.pubkey(),
@@ -105,8 +105,9 @@ async fn test_roundtrip_withheld_transfer_fee_preserved() -> Result<(), RpcError
 
     // Verify the withheld_amount was set correctly
     let account_before = rpc.get_account(ctoken_account).await?.unwrap();
-    let ctoken_before = CToken::deserialize(&mut &account_before.data[..])
-        .map_err(|e| RpcError::CustomError(format!("Failed to deserialize CToken: {:?}", e)))?;
+    let ctoken_before = Token::deserialize(&mut &account_before.data[..]).map_err(|e| {
+        RpcError::CustomError(format!("Failed to deserialize Light Token: {:?}", e))
+    })?;
 
     let withheld_before = ctoken_before
         .extensions
@@ -131,7 +132,7 @@ async fn test_roundtrip_withheld_transfer_fee_preserved() -> Result<(), RpcError
     let account_after = rpc.get_account(ctoken_account).await?;
     assert!(
         account_after.is_none() || account_after.unwrap().lamports == 0,
-        "CToken account should be closed after compression"
+        "Light Token account should be closed after compression"
     );
 
     // 8. Get compressed account and verify withheld_transfer_fee in CompressedOnly extension
@@ -169,11 +170,11 @@ async fn test_roundtrip_withheld_transfer_fee_preserved() -> Result<(), RpcError
         "Compressed token should have withheld_transfer_fee preserved"
     );
 
-    // 9. Create destination CToken for decompress
+    // 9. Create destination Light Token for decompress
     let decompress_dest_keypair = Keypair::new();
     let decompress_dest_account = decompress_dest_keypair.pubkey();
 
-    let create_dest_ix = CreateCTokenAccount::new(
+    let create_dest_ix = CreateTokenAccount::new(
         payer.pubkey(),
         decompress_dest_account,
         mint_pubkey,
@@ -236,14 +237,15 @@ async fn test_roundtrip_withheld_transfer_fee_preserved() -> Result<(), RpcError
     rpc.create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &[&payer, &owner])
         .await?;
 
-    // 11. Verify decompressed CToken has withheld_amount restored
+    // 11. Verify decompressed Light Token has withheld_amount restored
     let dest_account_data = rpc
         .get_account(decompress_dest_account)
         .await?
         .ok_or_else(|| RpcError::CustomError("Dest account not found".to_string()))?;
 
-    let dest_ctoken = CToken::deserialize(&mut &dest_account_data.data[..])
-        .map_err(|e| RpcError::CustomError(format!("Failed to deserialize CToken: {:?}", e)))?;
+    let dest_ctoken = Token::deserialize(&mut &dest_account_data.data[..]).map_err(|e| {
+        RpcError::CustomError(format!("Failed to deserialize Light Token: {:?}", e))
+    })?;
 
     let withheld_after = dest_ctoken
         .extensions

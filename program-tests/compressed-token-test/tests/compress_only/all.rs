@@ -3,36 +3,36 @@
 //! This module tests the full compress -> decompress cycle with all extensions enabled.
 
 use borsh::BorshDeserialize;
-use light_ctoken_interface::state::{
-    AccountState, CToken, ExtensionStruct, ACCOUNT_TYPE_TOKEN_ACCOUNT,
-};
 use light_program_test::program_test::TestRpc;
+use light_token_interface::state::{
+    AccountState, ExtensionStruct, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+};
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
 
 use super::shared::{setup_extensions_test, Rpc, ALL_EXTENSIONS};
 
-/// Test that forester can compress and close a CToken account with Token-2022 extensions
-/// after prepaid epochs expire, and then decompress it back to a CToken account.
+/// Test that forester can compress and close a Light Token account with Token-2022 extensions
+/// after prepaid epochs expire, and then decompress it back to a Light Token account.
 #[tokio::test]
 #[serial]
 async fn test_compress_and_close_ctoken_with_extensions() {
     #[allow(unused_imports)]
     use light_client::indexer::CompressedTokenAccount;
     use light_client::indexer::Indexer;
-    use light_ctoken_interface::{
+    use light_test_utils::mint_2022::{create_token_22_account, mint_spl_tokens_22};
+    use light_token_client::instructions::transfer2::{
+        create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+    };
+    use light_token_interface::{
         instructions::extensions::{
             CompressedOnlyExtensionInstructionData, ExtensionInstructionData,
         },
         state::TokenDataVersion,
     };
-    use light_ctoken_sdk::{
-        ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
+    use light_token_sdk::{
         spl_interface::find_spl_interface_pda_with_index,
-    };
-    use light_test_utils::mint_2022::{create_token_22_account, mint_spl_tokens_22};
-    use light_token_client::instructions::transfer2::{
-        create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+        token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
     };
 
     let mut context = setup_extensions_test(ALL_EXTENSIONS).await.unwrap();
@@ -52,13 +52,13 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     )
     .await;
 
-    // 2. Create CToken account with 0 prepaid epochs (immediately compressible)
+    // 2. Create Light Token account with 0 prepaid epochs (immediately compressible)
     let owner = Keypair::new();
     let account_keypair = Keypair::new();
     let ctoken_account = account_keypair.pubkey();
 
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: context
                     .rpc
@@ -85,15 +85,15 @@ async fn test_compress_and_close_ctoken_with_extensions() {
         .await
         .unwrap();
 
-    // 3. Transfer tokens to CToken using hot path (required for mints with restricted extensions)
+    // 3. Transfer tokens to Light Token using hot path (required for mints with restricted extensions)
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, true);
-    let transfer_ix = TransferSplToCtoken {
+    let transfer_ix = TransferFromSpl {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,
         source_spl_token_account: spl_account,
-        destination_ctoken_account: ctoken_account,
+        destination: ctoken_account,
         authority: payer.pubkey(),
         mint: mint_pubkey,
         payer: payer.pubkey(),
@@ -109,7 +109,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
         .await
         .unwrap();
 
-    // Verify tokens are in the CToken account
+    // Verify tokens are in the Light Token account
     let account_before = context
         .rpc
         .get_account(ctoken_account)
@@ -129,7 +129,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     let account_after = context.rpc.get_account(ctoken_account).await.unwrap();
     assert!(
         account_after.is_none() || account_after.unwrap().lamports == 0,
-        "CToken account should be closed"
+        "Light Token account should be closed"
     );
 
     let compressed_accounts = context
@@ -147,9 +147,9 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     );
 
     // Build expected TokenData with CompressedOnly extension
-    // The CToken had marker extensions (PausableAccount, PermanentDelegateAccount),
+    // The Light Token had marker extensions (PausableAccount, PermanentDelegateAccount),
     // so the compressed token should have CompressedOnly TLV extension
-    use light_ctoken_interface::state::{
+    use light_token_interface::state::{
         CompressedOnlyExtension, CompressedTokenAccountState, TokenData,
     };
 
@@ -174,11 +174,11 @@ async fn test_compress_and_close_ctoken_with_extensions() {
         "Compressed token account should match expected TokenData"
     );
 
-    // 6. Create a new CToken account for decompress destination
+    // 6. Create a new Light Token account for decompress destination
     let decompress_dest_keypair = Keypair::new();
     let decompress_dest_account = decompress_dest_keypair.pubkey();
 
-    let create_dest_ix = CreateCTokenAccount::new(
+    let create_dest_ix = CreateTokenAccount::new(
         payer.pubkey(),
         decompress_dest_account,
         mint_pubkey,
@@ -215,11 +215,11 @@ async fn test_compress_and_close_ctoken_with_extensions() {
         .unwrap();
 
     println!(
-        "Created decompress destination CToken account: {}",
+        "Created decompress destination Light Token account: {}",
         decompress_dest_account
     );
 
-    // 7. Decompress the compressed account back to the new CToken account
+    // 7. Decompress the compressed account back to the new Light Token account
     // Need to include in_tlv for the CompressedOnly extension
     let in_tlv = vec![vec![ExtensionInstructionData::CompressedOnly(
         CompressedOnlyExtensionInstructionData {
@@ -256,7 +256,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
         .await
         .unwrap();
 
-    // 8. Verify the CToken account has the tokens and proper extension state
+    // 8. Verify the Light Token account has the tokens and proper extension state
 
     let dest_account_data = context
         .rpc
@@ -265,12 +265,12 @@ async fn test_compress_and_close_ctoken_with_extensions() {
         .unwrap()
         .unwrap();
 
-    let dest_ctoken = CToken::deserialize(&mut &dest_account_data.data[..])
-        .expect("Failed to deserialize destination CToken account");
+    let dest_ctoken = Token::deserialize(&mut &dest_account_data.data[..])
+        .expect("Failed to deserialize destination Light Token account");
 
-    // Build expected CToken account
+    // Build expected Light Token account
     // Compression fields are now in the Compressible extension
-    let expected_dest_ctoken = CToken {
+    let expected_dest_token = Token {
         mint: mint_pubkey.to_bytes().into(),
         owner: owner.pubkey().to_bytes().into(),
         amount: mint_amount,
@@ -285,8 +285,8 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     };
 
     assert_eq!(
-        dest_ctoken, expected_dest_ctoken,
-        "Decompressed CToken account should match expected with all extensions"
+        dest_ctoken, expected_dest_token,
+        "Decompressed Light Token account should match expected with all extensions"
     );
 
     // Verify no more compressed accounts for this owner

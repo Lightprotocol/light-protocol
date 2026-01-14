@@ -2,10 +2,10 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_array_map::pubkey_eq;
 use light_compressible::compression_info::CompressionInfo;
-use light_ctoken_interface::{
+use light_program_profiler::profile;
+use light_token_interface::{
     instructions::mint_action::ZDecompressMintAction, state::CompressedMint, COMPRESSED_MINT_SEED,
 };
-use light_program_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::Seed,

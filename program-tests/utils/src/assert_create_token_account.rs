@@ -1,15 +1,15 @@
 use light_client::rpc::Rpc;
 use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
-use light_ctoken_interface::{
+use light_program_test::LightProgramTest;
+use light_token_interface::{
     state::{
-        ctoken::CToken, extensions::CompressibleExtension, AccountState, ExtensionStruct,
+        extensions::CompressibleExtension, token::Token, AccountState, ExtensionStruct,
         PausableAccountExtension, PermanentDelegateAccountExtension, TransferFeeAccountExtension,
         TransferHookAccountExtension, ACCOUNT_TYPE_TOKEN_ACCOUNT,
     },
     BASE_TOKEN_ACCOUNT_SIZE,
 };
-use light_ctoken_sdk::ctoken::derive_ctoken_ata;
-use light_program_test::LightProgramTest;
+use light_token_sdk::token::derive_token_ata;
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 use spl_token_2022::{
@@ -28,7 +28,7 @@ pub struct CompressibleData {
     pub num_prepaid_epochs: u8,
     pub lamports_per_write: Option<u32>,
     pub compress_to_pubkey: bool,
-    pub account_version: light_ctoken_interface::state::TokenDataVersion,
+    pub account_version: light_token_interface::state::TokenDataVersion,
     pub payer: Pubkey,
 }
 
@@ -172,7 +172,7 @@ pub async fn assert_create_token_account_internal(
             );
 
             // Use zero-copy deserialization for compressible account
-            let (actual_token_account, _) = CToken::zero_copy_at(&account_info.data)
+            let (actual_token_account, _) = Token::zero_copy_at(&account_info.data)
                 .expect("Failed to deserialize compressible token account with zero-copy");
 
             // Get current slot for validation (program sets this to current slot)
@@ -221,7 +221,7 @@ pub async fn assert_create_token_account_internal(
             all_extensions.insert(0, ExtensionStruct::Compressible(compressible_ext));
 
             // Create expected compressible token account with embedded compression info
-            let expected_token_account = CToken {
+            let expected_token_account = Token {
                 mint: mint_pubkey.into(),
                 owner: owner_pubkey.into(),
                 amount: 0,
@@ -404,7 +404,7 @@ pub async fn assert_create_associated_token_account(
     expected_extensions: Option<Vec<ExtensionStruct>>,
 ) {
     // Derive the associated token account address
-    let (ata_pubkey, _bump) = derive_ctoken_ata(&owner_pubkey, &mint_pubkey);
+    let (ata_pubkey, _bump) = derive_token_ata(&owner_pubkey, &mint_pubkey);
 
     // Verify the account exists at the derived address
     let account = rpc

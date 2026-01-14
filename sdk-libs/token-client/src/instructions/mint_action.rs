@@ -5,21 +5,21 @@ use light_client::{
 };
 use light_compressed_account::instruction_data::traits::LightInstructionData;
 use light_compressible::config::CompressibleConfig;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
         mint_action::{
             CompressAndCloseCMintAction, CompressedMintWithContext, DecompressMintAction,
-            MintActionCompressedInstructionData, MintToCTokenAction, MintToCompressedAction,
-            Recipient, RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
+            MintActionCompressedInstructionData, MintToAction, MintToCompressedAction, Recipient,
+            RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
             UpdateMetadataFieldAction,
         },
     },
     state::CompressedMint,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
 };
-use light_ctoken_sdk::compressed_token::{
-    create_compressed_mint::{derive_cmint_compressed_address, find_cmint_address},
+use light_token_sdk::compressed_token::{
+    create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
     mint_action::MintActionMetaConfig,
 };
 use solana_instruction::Instruction;
@@ -150,12 +150,12 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         })?;
 
         let mint_data =
-            light_ctoken_interface::instructions::mint_action::CompressedMintInstructionData {
+            light_token_interface::instructions::mint_action::CompressedMintInstructionData {
                 supply: new_mint.supply,
                 decimals: new_mint.decimals,
-                metadata: light_ctoken_interface::state::CompressedMintMetadata {
+                metadata: light_token_interface::state::CompressedMintMetadata {
                     version: new_mint.version,
-                    mint: find_cmint_address(&params.mint_seed).0.to_bytes().into(),
+                    mint: find_mint_address(&params.mint_seed).0.to_bytes().into(),
                     // false for new mint - on-chain sets to true after DecompressMint
                     cmint_decompressed: false,
                     compressed_address: params.compressed_mint_address,
@@ -263,7 +263,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                 let current_index = ctoken_account_index;
                 ctoken_account_index += 1;
 
-                instruction_data.with_mint_to_ctoken(MintToCTokenAction {
+                instruction_data.with_mint_to(MintToAction {
                     account_index: current_index,
                     amount,
                 })
@@ -345,14 +345,14 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
 
     // Add ctoken accounts if any MintToCToken actions were present
     if !ctoken_accounts.is_empty() {
-        config = config.with_ctoken_accounts(ctoken_accounts);
+        config = config.with_token_accounts(ctoken_accounts);
     }
 
     // Add compressible CMint accounts if DecompressMint or CompressAndCloseCMint action is present
     if has_decompress_mint || has_compress_and_close_cmint {
-        let (cmint_pda, _) = find_cmint_address(&params.mint_seed);
+        let (cmint_pda, _) = find_mint_address(&params.mint_seed);
         // Get config and rent_sponsor from v1 config PDA
-        let config_address = CompressibleConfig::ctoken_v1_config_pda();
+        let config_address = CompressibleConfig::light_token_v1_config_pda();
         let compressible_config: CompressibleConfig = rpc
             .get_anchor_account(&config_address)
             .await?
@@ -362,7 +362,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                     config_address
                 ))
             })?;
-        config = config.with_compressible_cmint(
+        config = config.with_compressible_mint(
             cmint_pda,
             config_address,
             compressible_config.rent_sponsor,
@@ -385,7 +385,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
 
     // Build final instruction
     Ok(Instruction {
-        program_id: CTOKEN_PROGRAM_ID.into(),
+        program_id: LIGHT_TOKEN_PROGRAM_ID.into(),
         accounts: account_metas,
         data,
     })
@@ -428,7 +428,7 @@ pub async fn create_comprehensive_mint_action_instruction<R: Rpc + Indexer>(
     // Derive addresses
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Build actions
     let mut actions = Vec::new();
@@ -459,7 +459,7 @@ pub async fn create_comprehensive_mint_action_instruction<R: Rpc + Indexer>(
 
     // Add DecompressMint action if requested
     if let Some(decompress_params) = decompress_mint {
-        let (_, cmint_bump) = find_cmint_address(&mint_seed.pubkey());
+        let (_, cmint_bump) = find_mint_address(&mint_seed.pubkey());
         actions.push(MintActionType::DecompressMint {
             cmint_bump,
             rent_payment: decompress_params.rent_payment,

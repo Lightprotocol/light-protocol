@@ -1,14 +1,5 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
-use light_ctoken_interface::state::{
-    extensions::AdditionalMetadata, CompressedMint, TokenDataVersion,
-};
-use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::{
-        derive_cmint_compressed_address, find_cmint_address,
-    },
-    ctoken::{CompressibleParams, CreateAssociatedCTokenAccount},
-};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
@@ -16,6 +7,13 @@ use light_test_utils::{
 use light_token_client::{
     actions::create_mint,
     instructions::mint_action::{MintActionType, MintToRecipient},
+};
+use light_token_interface::state::{
+    extensions::AdditionalMetadata, CompressedMint, TokenDataVersion,
+};
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
+    token::{CompressibleParams, CreateAssociatedTokenAccount},
 };
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
@@ -46,10 +44,10 @@ async fn functional_all_in_one_instruction() {
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     // Derive compressed mint address for verification
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint PDA for the rest of the test
-    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+    let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
     // 1. Create compressed mint with both authorities
     {
         create_mint(
@@ -58,7 +56,7 @@ async fn functional_all_in_one_instruction() {
         8, // decimals
         &authority,
         Some(authority.pubkey()),
-        Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+        Some(light_token_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
             update_authority: Some(authority.pubkey().into()),
             name: "Test Token".as_bytes().to_vec(),
             symbol: "TEST".as_bytes().to_vec(),
@@ -106,7 +104,7 @@ async fn functional_all_in_one_instruction() {
         8,
         authority.pubkey(),
         authority.pubkey(),
-        Some(light_ctoken_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+        Some(light_token_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData {
             update_authority: Some(authority.pubkey().into()),
             name: "Test Token".as_bytes().to_vec(),
             symbol: "TEST".as_bytes().to_vec(),
@@ -163,7 +161,7 @@ async fn functional_all_in_one_instruction() {
     };
 
     let create_compressible_ata_ix =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
             .with_compressible(compressible_params)
             .instruction()
             .unwrap();
@@ -184,11 +182,7 @@ async fn functional_all_in_one_instruction() {
         },
         // 2. MintToCToken - mint to decompressed account
         MintActionType::MintToCToken {
-            account: light_ctoken_sdk::ctoken::derive_ctoken_ata(
-                &recipient.pubkey(),
-                &spl_mint_pda,
-            )
-            .0,
+            account: light_token_sdk::token::derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0,
             amount: 2000u64,
         },
         // 3. UpdateMintAuthority
@@ -274,7 +268,7 @@ async fn functional_all_in_one_instruction() {
 
     assert!(result.is_ok(), "All-in-one mint action should succeed");
 
-    // Use the new assert_mint_action function (now also validates CToken account state)
+    // Use the new assert_mint_action function (now also validates Light Token account state)
     assert_mint_action(
         &mut rpc,
         compressed_mint_address,

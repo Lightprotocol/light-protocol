@@ -1,18 +1,10 @@
 //! Tests for CompressedOnly decompress restrictions.
 //!
 //! This module tests:
-//! - Spec #13: CompressedOnly inputs can only decompress to CToken, not SPL
+//! - Spec #13: CompressedOnly inputs can only decompress to Light Token, not SPL
 //! - Spec #14: CompressedOnly inputs must decompress complete account (no change output)
 
 use light_client::indexer::Indexer;
-use light_ctoken_interface::{
-    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
-    state::TokenDataVersion,
-};
-use light_ctoken_sdk::{
-    ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
-    spl_interface::find_spl_interface_pda_with_index,
-};
 use light_program_test::{
     program_test::{LightProgramTest, TestRpc},
     utils::assert::assert_rpc_error,
@@ -24,6 +16,14 @@ use light_test_utils::mint_2022::{
 };
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+};
+use light_token_interface::{
+    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
+    state::TokenDataVersion,
+};
+use light_token_sdk::{
+    spl_interface::find_spl_interface_pda_with_index,
+    token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
 };
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -62,13 +62,13 @@ async fn setup_compressed_token_for_decompress(
     let mint_amount = 1_000_000_000u64;
     mint_spl_tokens_22(&mut rpc, &payer, &mint_pubkey, &spl_account, mint_amount).await;
 
-    // Create CToken account with compression_only=true
+    // Create Light Token account with compression_only=true
     let owner = Keypair::new();
     let account_keypair = Keypair::new();
     let ctoken_account = account_keypair.pubkey();
 
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: rpc
                     .test_accounts
@@ -88,18 +88,18 @@ async fn setup_compressed_token_for_decompress(
         .await
         .unwrap();
 
-    // Transfer tokens to CToken
+    // Transfer tokens to Light Token
     let has_restricted = extensions
         .iter()
         .any(|ext| RESTRICTED_EXTENSIONS.contains(ext));
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted);
-    let transfer_ix = TransferSplToCtoken {
+    let transfer_ix = TransferFromSpl {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,
         source_spl_token_account: spl_account,
-        destination_ctoken_account: ctoken_account,
+        destination: ctoken_account,
         authority: payer.pubkey(),
         mint: mint_pubkey,
         payer: payer.pubkey(),
@@ -142,7 +142,7 @@ async fn setup_compressed_token_for_decompress(
 
 /// Test that CompressedOnly accounts cannot decompress to SPL Token-2022 accounts.
 ///
-/// Covers spec requirement #13: Can only decompress to CToken, not SPL account
+/// Covers spec requirement #13: Can only decompress to Light Token, not SPL account
 #[tokio::test]
 #[serial]
 async fn test_decompress_compressed_only_rejects_spl_destination() {
@@ -150,7 +150,7 @@ async fn test_decompress_compressed_only_rejects_spl_destination() {
     let (mut rpc, payer, mint_pubkey, owner, compressed_account, amount) =
         setup_compressed_token_for_decompress(&[ExtensionType::Pausable]).await;
 
-    // Create SPL Token-2022 account (NOT CToken) as destination
+    // Create SPL Token-2022 account (NOT Light Token) as destination
     let spl_destination =
         create_token_22_account(&mut rpc, &payer, &mint_pubkey, &owner.pubkey()).await;
 
@@ -188,7 +188,7 @@ async fn test_decompress_compressed_only_rejects_spl_destination() {
         .create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &[&payer, &owner])
         .await;
 
-    // Should fail because CompressedOnly inputs must decompress to CToken, not SPL
+    // Should fail because CompressedOnly inputs must decompress to Light Token, not SPL
     assert_rpc_error(result, 0, COMPRESSED_ONLY_REQUIRES_CTOKEN_DECOMPRESS).unwrap();
 }
 
@@ -202,11 +202,11 @@ async fn test_decompress_compressed_only_rejects_partial_decompress() {
     let (mut rpc, payer, mint_pubkey, owner, compressed_account, amount) =
         setup_compressed_token_for_decompress(&[ExtensionType::Pausable]).await;
 
-    // Create destination CToken account
+    // Create destination Light Token account
     let dest_keypair = Keypair::new();
     let destination_pubkey = dest_keypair.pubkey();
 
-    let create_dest_ix = CreateCTokenAccount::new(
+    let create_dest_ix = CreateTokenAccount::new(
         payer.pubkey(),
         destination_pubkey,
         mint_pubkey,

@@ -2,14 +2,6 @@ use std::collections::HashMap;
 
 use anchor_lang::AnchorDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_ctoken_interface::{
-    instructions::{mint_action::Recipient, transfer2::CompressedTokenInstructionDataTransfer2},
-    state::TokenDataVersion,
-};
-use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::find_cmint_address,
-    ctoken::{CompressibleParams, CreateAssociatedCTokenAccount},
-};
 use light_program_test::{indexer::TestIndexerExtensions, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     airdrop_lamports,
@@ -28,6 +20,14 @@ use light_token_client::{
             CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
         },
     },
+};
+use light_token_interface::{
+    instructions::{mint_action::Recipient, transfer2::CompressedTokenInstructionDataTransfer2},
+    state::TokenDataVersion,
+};
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
+    token::{CompressibleParams, CreateAssociatedTokenAccount},
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
@@ -181,7 +181,7 @@ pub struct MetaDecompressInput {
     pub signer_index: usize,    // Index of keypair that signs this action
     pub recipient_index: usize, // Index of keypair to receive decompressed tokens
     pub mint_index: usize,      // Index of which mint to use (0-4)
-    pub to_spl: bool,           // If true, decompress to SPL; if false, decompress to CToken ATA
+    pub to_spl: bool, // If true, decompress to SPL; if false, decompress to Light Token ATA
     pub pool_index: Option<u8>, // For SPL only. None = default (0), Some(n) = specific pool
 }
 
@@ -193,7 +193,7 @@ pub struct MetaCompressInput {
     pub signer_index: usize,    // Index of keypair that signs this action
     pub recipient_index: usize, // Index of keypair to receive compressed tokens
     pub mint_index: usize,      // Index of which mint to use (0-4)
-    pub use_spl: bool,          // If true, use SPL token account; if false, use CToken ATA
+    pub use_spl: bool,          // If true, use SPL token account; if false, use Light Token ATA
     pub pool_index: Option<u8>, // For SPL only. None = default (0), Some(n) = specific pool
 }
 
@@ -203,7 +203,7 @@ pub struct MetaCompressAndCloseInput {
     pub signer_index: usize, // Index of keypair that signs this action
     pub destination_index: Option<usize>, // Index of keypair to receive lamports (None = no destination)
     pub mint_index: usize,                // Index of which mint to use (0-4)
-    pub is_compressible: bool, // If true, account has extensions (compressible); if false, regular CToken ATA
+    pub is_compressible: bool, // If true, account has extensions (compressible); if false, regular Light Token ATA
 }
 
 #[derive(Debug, Clone)]
@@ -238,7 +238,7 @@ struct TestRequirements {
     pub signer_mint_compressed_amounts:
         HashMap<(usize, usize), HashMap<TokenDataVersion, Vec<u64>>>,
     pub signer_solana_amounts: HashMap<usize, u64>, // For compress operations
-    pub signer_ctoken_amounts: HashMap<(usize, usize), u64>, // For CToken accounts (signer_index, mint_index) -> amount
+    pub signer_ctoken_amounts: HashMap<(usize, usize), u64>, // For Light Token accounts (signer_index, mint_index) -> amount
     pub signer_spl_amounts: HashMap<(usize, usize), u64>, // For SPL token accounts (signer_index, mint_index) -> amount
     pub signer_ctoken_compressible: HashMap<(usize, usize), bool>, // Track which accounts need compressible extensions
 }
@@ -252,7 +252,7 @@ pub struct TestContext {
     mint_seeds: Vec<Keypair>, // Mint seeds used to derive mints
     mint_authorities: Vec<Keypair>, // One authority per mint
     payer: Keypair,
-    ctoken_atas: HashMap<(usize, usize), Pubkey>, // (signer_index, mint_index) -> CToken ATA pubkey
+    ctoken_atas: HashMap<(usize, usize), Pubkey>, // (signer_index, mint_index) -> Light Token ATA pubkey
     spl_token_accounts: HashMap<(usize, usize), Keypair>, // (signer_index, mint_index) -> SPL token account keypair
     config: TestConfig,
 }
@@ -317,9 +317,9 @@ impl TestContext {
                 mint_seeds.push(Keypair::new()); // Dummy seed for SPL mints
                 mint_authorities.push(payer.insecure_clone()); // Use payer as authority for SPL mints
             } else {
-                // Create compressed mint for CToken operations
+                // Create compressed mint for Light Token operations
                 let mint_seed = Keypair::new();
-                let (mint, _) = find_cmint_address(&mint_seed.pubkey());
+                let (mint, _) = find_mint_address(&mint_seed.pubkey());
 
                 create_mint(
                     &mut rpc,
@@ -429,7 +429,7 @@ impl TestContext {
         // Get compressible config from test accounts (already created in program test setup)
         let funding_pool_config = rpc.test_accounts.funding_pool_config;
 
-        // Create CToken ATAs for compress/decompress operations
+        // Create Light Token ATAs for compress/decompress operations
         let mut ctoken_atas = HashMap::new();
         for ((signer_index, mint_index), &amount) in &requirements.signer_ctoken_amounts {
             let mint = mints[*mint_index];
@@ -443,12 +443,12 @@ impl TestContext {
                 .get(&(*signer_index, *mint_index))
                 .unwrap_or(&false);
 
-            // Create CToken ATA (compressible or regular based on requirements)
-            let (ata, bump) = light_ctoken_sdk::ctoken::derive_ctoken_ata(&signer.pubkey(), &mint);
+            // Create Light Token ATA (compressible or regular based on requirements)
+            let (ata, bump) = light_token_sdk::token::derive_token_ata(&signer.pubkey(), &mint);
 
             let create_ata_ix = if is_compressible {
                 println!(
-                    "Creating compressible CToken ATA for signer {} mint {}",
+                    "Creating compressible Light Token ATA for signer {} mint {}",
                     signer_index, mint_index
                 );
                 let compressible_params = CompressibleParams {
@@ -460,13 +460,13 @@ impl TestContext {
                     token_account_version: TokenDataVersion::ShaFlat, // CompressAndClose requires ShaFlat
                     compression_only: false,
                 };
-                CreateAssociatedCTokenAccount::new(payer.pubkey(), signer.pubkey(), mint)
+                CreateAssociatedTokenAccount::new(payer.pubkey(), signer.pubkey(), mint)
                     .with_compressible(compressible_params)
                     .instruction()
                     .unwrap()
             } else {
-                // Create non-compressible CToken ATA
-                CreateAssociatedCTokenAccount {
+                // Create non-compressible Light Token ATA
+                CreateAssociatedTokenAccount {
                     idempotent: false,
                     bump,
                     payer: payer.pubkey(),
@@ -483,10 +483,10 @@ impl TestContext {
                 .await
                 .unwrap();
 
-            // Mint tokens to the CToken ATA if amount > 0
+            // Mint tokens to the Light Token ATA if amount > 0
             if amount > 0 {
                 println!(
-                    "Minting {} tokens to CToken ATA for signer {} from mint {} ({})",
+                    "Minting {} tokens to Light Token ATA for signer {} from mint {} ({})",
                     amount, signer_index, mint_index, mint
                 );
 
@@ -494,10 +494,7 @@ impl TestContext {
                 // Get the compressed mint address
                 let address_tree_pubkey = rpc.get_address_tree_v2().tree;
                 let compressed_mint_address =
-                    light_ctoken_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address(
-                        &mint_seed.pubkey(),
-                        &address_tree_pubkey,
-                    );
+                    derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
                 light_token_client::actions::mint_action(
                     &mut rpc,
@@ -589,11 +586,15 @@ impl TestContext {
                     let is_spl_mint = mint_needs_spl[decompress.mint_index];
 
                     // If it's an SPL mint, we need to compress SPL tokens to create compressed accounts
-                    // This works for both SPL decompression (to_spl: true) and CToken decompression (to_spl: false)
+                    // This works for both SPL decompression (to_spl: true) and Light Token decompression (to_spl: false)
                     if is_spl_mint {
                         let key = (decompress.signer_index, decompress.mint_index);
                         if let Some(token_account_keypair) = spl_token_accounts.get(&key) {
-                            let target = if decompress.to_spl { "SPL" } else { "CToken" };
+                            let target = if decompress.to_spl {
+                                "SPL"
+                            } else {
+                                "Light Token"
+                            };
                             println!(
                                 "Compressing SPL tokens for signer {} mint {} to create compressed accounts for {} decompression",
                                 decompress.signer_index, decompress.mint_index, target
@@ -681,7 +682,7 @@ impl TestContext {
                             .unwrap();
                         }
                     }
-                    // Note: For compressed mints, CToken decompression uses regular compressed tokens from normal minting
+                    // Note: For compressed mints, Light Token decompression uses regular compressed tokens from normal minting
                 }
                 MetaTransfer2InstructionType::Compress(compress)
                     if compress.use_spl && compress.num_input_compressed_accounts > 0 =>
@@ -878,7 +879,7 @@ impl TestContext {
                         // Need SPL token account for recipient (no initial balance needed)
                         signer_spl_amounts.entry(recipient_key).or_insert(0);
                     } else {
-                        // For CToken decompression, we need regular compressed tokens
+                        // For Light Token decompression, we need regular compressed tokens
                         let entry = signer_mint_compressed_amounts.entry(key).or_default();
                         let accounts_vec = entry.entry(decompress.token_data_version).or_default();
 
@@ -887,7 +888,7 @@ impl TestContext {
                             accounts_vec.push(decompress.amount);
                         }
 
-                        // Need CToken ATA for recipient (no balance needed)
+                        // Need Light Token ATA for recipient (no balance needed)
                         signer_ctoken_amounts.entry(recipient_key).or_insert(0);
                     }
                 }
@@ -933,17 +934,17 @@ impl TestContext {
                             *signer_spl_amounts.entry(key).or_insert(0) += compress.amount;
                         }
                     } else {
-                        // Compress from CToken needs CToken account with balance
+                        // Compress from Light Token needs Light Token account with balance
                         *signer_ctoken_amounts.entry(key).or_insert(0) += compress.amount;
                     }
                 }
                 MetaTransfer2InstructionType::CompressAndClose(compress_and_close) => {
-                    // CompressAndClose needs a CToken ATA with balance
+                    // CompressAndClose needs a Light Token ATA with balance
                     let key = (
                         compress_and_close.signer_index,
                         compress_and_close.mint_index,
                     );
-                    // Use default setup amount as the balance for the CToken ATA
+                    // Use default setup amount as the balance for the Light Token ATA
                     *signer_ctoken_amounts.entry(key).or_insert(0) += config.default_setup_amount;
                     // Track whether this account needs compressible extensions
                     signer_ctoken_compressible.insert(key, compress_and_close.is_compressible);
@@ -1189,13 +1190,13 @@ impl TestContext {
                 })?;
             keypair.pubkey()
         } else {
-            // Get CToken ATA
+            // Get Light Token ATA
             *self
                 .ctoken_atas
                 .get(&(meta.signer_index, meta.mint_index))
                 .ok_or_else(|| {
                     format!(
-                        "CToken ATA not found for signer {} mint {}",
+                        "Light Token ATA not found for signer {} mint {}",
                         meta.signer_index, meta.mint_index
                     )
                 })?
@@ -1247,13 +1248,13 @@ impl TestContext {
                 })?;
             keypair.pubkey()
         } else {
-            // Get CToken ATA for the recipient
+            // Get Light Token ATA for the recipient
             *self
                 .ctoken_atas
                 .get(&(meta.recipient_index, meta.mint_index))
                 .ok_or_else(|| {
                     format!(
-                        "CToken ATA not found for recipient {} mint {}",
+                        "Light Token ATA not found for recipient {} mint {}",
                         meta.recipient_index, meta.mint_index
                     )
                 })?
@@ -1303,13 +1304,13 @@ impl TestContext {
         let merkle_trees = self.rpc.get_state_merkle_trees();
         let output_queue = merkle_trees[0].accounts.nullifier_queue;
 
-        // Get the CToken ATA for the signer
+        // Get the Light Token ATA for the signer
         let ctoken_ata = *self
             .ctoken_atas
             .get(&(meta.signer_index, meta.mint_index))
             .ok_or_else(|| {
                 format!(
-                    "CToken ATA not found for signer {} mint {}",
+                    "Light Token ATA not found for signer {} mint {}",
                     meta.signer_index, meta.mint_index
                 )
             })?;

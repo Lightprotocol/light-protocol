@@ -9,14 +9,14 @@
 - `light-compressed-token` - Validates all account inputs in compressed token instructions
 - `light-system` - Core validation for compressed account operations
 - `light-compressible` - Validates CompressibleConfig accounts and PDAs
-- `light-ctoken-interface` - Uses AccountInfoTrait for runtime-agnostic account handling
+- `light-token-interface` - Uses AccountInfoTrait for runtime-agnostic account handling
 - `light-account-compression` - Merkle tree account validation
 - `light-batched-merkle-tree` - Batch operation account checks
 - `compressed-token-sdk` - Uses validation helpers in instruction builders
 - `light-sdk` - Core SDK account validation utilities
 - `light-sdk-pinocchio` - Pinocchio-specific SDK validation
 - `light-sdk-types` - Uses AccountInfoTrait for CPI context and tree info
-- `light-ctoken-types` - Uses AccountInfoTrait for instruction account structures
+- `light-token-types` - Uses AccountInfoTrait for instruction account structures
 
 # Navigation
 - This file: Overview and module organization

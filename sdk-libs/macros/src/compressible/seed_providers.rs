@@ -1,4 +1,4 @@
-//! Seed provider generation for PDA and CToken accounts.
+//! Seed provider generation for PDA and Light Token accounts.
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -6,7 +6,7 @@ use syn::{spanned::Spanned, Ident, Result};
 
 use crate::compressible::instructions::{InstructionDataSpec, SeedElement, TokenSeedSpec};
 
-pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Result<TokenStream> {
+pub fn generate_token_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Result<TokenStream> {
     let variants = token_seeds.iter().enumerate().map(|(index, spec)| {
         let variant_name = &spec.variant;
         let index_u8 = index as u8;
@@ -24,7 +24,7 @@ pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Re
     })
 }
 
-pub fn generate_ctoken_seed_provider_implementation(
+pub fn generate_token_seed_provider_implementation(
     token_seeds: &[TokenSeedSpec],
 ) -> Result<TokenStream> {
     let mut get_seeds_match_arms = Vec::new();

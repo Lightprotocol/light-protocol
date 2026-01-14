@@ -10,7 +10,7 @@
 // 1. amount more than output (should fail with output sum check)
 // 2. amount less than output (should fail with input sum check)
 //
-// CToken Compression Authority Validation:
+// Light Token Compression Authority Validation:
 // 3. ctoken compression
 //  3.1 invalid authority has signed
 //  3.2 authority is valid but not signer
@@ -35,26 +35,26 @@
 // 1. create and mint to one ctoken compressed account
 //
 
-use light_ctoken_interface::{
-    instructions::mint_action::Recipient, state::TokenDataVersion, CTokenError,
+use light_program_test::{
+    utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
 };
-use light_ctoken_sdk::{
+use light_sdk::instruction::PackedAccounts;
+use light_test_utils::RpcError;
+use light_token_interface::{
+    instructions::mint_action::Recipient, state::TokenDataVersion, TokenError,
+};
+use light_token_sdk::{
     compressed_token::{
-        create_compressed_mint::find_cmint_address,
+        create_compressed_mint::find_mint_address,
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
             Transfer2Config, Transfer2Inputs,
         },
         CTokenAccount2,
     },
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
+    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
     ValidityProof,
 };
-use light_program_test::{
-    utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
-};
-use light_sdk::instruction::PackedAccounts;
-use light_test_utils::RpcError;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 // ============================================================================
 // Test Setup
@@ -70,7 +70,7 @@ struct CompressionTestContext {
     pub system_accounts_offset: usize, // Offset to add to packed account indices to get instruction account indices
 }
 
-/// Set up test environment with compressed mint and one CToken account with tokens
+/// Set up test environment with compressed mint and one Light Token account with tokens
 async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestContext, RpcError> {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
     let payer = rpc.get_payer().insecure_clone();
@@ -88,10 +88,10 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
     let mint_seed = Keypair::new();
 
     // Derive mint and ATA addresses
-    let (mint, _) = find_cmint_address(&mint_seed.pubkey());
-    let (ctoken_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
+    let (mint, _) = find_mint_address(&mint_seed.pubkey());
+    let (ctoken_ata, _) = derive_token_ata(&owner.pubkey(), &mint);
 
-    // Create compressible CToken ATA for owner
+    // Create compressible Light Token ATA for owner
     let compressible_params = CompressibleParams {
         compressible_config: rpc
             .test_accounts
@@ -106,7 +106,7 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
     };
 
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA: {:?}", e)))?;
@@ -114,7 +114,7 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await?;
 
-    // Use mint_action_comprehensive to create mint AND mint to decompressed CToken ATA
+    // Use mint_action_comprehensive to create mint AND mint to decompressed Light Token ATA
     let decompressed_recipients = vec![Recipient::new(owner.pubkey(), token_amount)];
 
     light_token_client::actions::mint_action_comprehensive(
@@ -125,7 +125,7 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
         None,                    // no decompress mint
         false,                   // compress_and_close_cmint
         vec![],                  // no compressed recipients
-        decompressed_recipients, // mint to decompressed CToken ATA
+        decompressed_recipients, // mint to decompressed Light Token ATA
         None,                    // no mint authority update
         None,                    // no freeze authority update
         Some(light_token_client::instructions::mint_action::NewMint {
@@ -190,7 +190,7 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
 // Instruction Builder Helpers
 // ============================================================================
 
-/// Build Transfer2Inputs for compression (CToken ATA -> compressed)
+/// Build Transfer2Inputs for compression (Light Token ATA -> compressed)
 /// This uses the low-level SDK abstractions for maximum control in failing tests
 /// Returns Transfer2Inputs so tests can modify it before creating the instruction
 fn create_compression_inputs(
@@ -209,21 +209,21 @@ fn create_compression_inputs(
     // For compression (0 inputs, 1 output), add the output queue
     packed_accounts.insert_or_get(output_queue);
 
-    // Add mint, authority (owner of CToken ATA), recipient
+    // Add mint, authority (owner of Light Token ATA), recipient
     let mint_index = packed_accounts.insert_or_get_read_only(mint);
     let authority_index = packed_accounts.insert_or_get_config(authority, true, false); // is_signer, not writable
     let recipient_index = packed_accounts.insert_or_get_read_only(recipient);
 
-    // Add CToken ATA account
+    // Add Light Token ATA account
     let ctoken_ata_index = packed_accounts.insert_or_get_config(ctoken_ata, false, true); // not signer, is writable
 
     // Create CTokenAccount2 for compression (0 inputs, 1 output)
     // Use new_empty since we have no compressed input accounts
     let mut compression_account = CTokenAccount2::new_empty(recipient_index, mint_index);
 
-    // Compress tokens from CToken ATA
+    // Compress tokens from Light Token ATA
     compression_account
-        .compress_ctoken(compress_amount, ctoken_ata_index, authority_index)
+        .compress(compress_amount, ctoken_ata_index, authority_index)
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to compress: {:?}", e)))?;
 
     // Get account metas from PackedAccounts
@@ -262,7 +262,7 @@ async fn test_ctoken_compression_functional() -> Result<(), RpcError> {
     let ix = create_transfer2_instruction(compression_inputs)
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to create instruction: {:?}", e)))?;
 
-    // Send transaction with owner as signer (owner of CToken ATA)
+    // Send transaction with owner as signer (owner of Light Token ATA)
     let result = rpc
         .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer, &owner])
         .await;
@@ -280,7 +280,7 @@ async fn test_ctoken_compression_functional() -> Result<(), RpcError> {
 #[tokio::test]
 async fn test_compression_amount_less_than_output() -> Result<(), RpcError> {
     // Test: Compression amount less than output (input sum check should fail)
-    // Compress 1000 tokens from CToken ATA but output shows 1001 tokens
+    // Compress 1000 tokens from Light Token ATA but output shows 1001 tokens
     let CompressionTestContext {
         mut rpc,
         payer,
@@ -312,7 +312,7 @@ async fn test_compression_amount_less_than_output() -> Result<(), RpcError> {
 #[tokio::test]
 async fn test_compression_amount_more_than_output() -> Result<(), RpcError> {
     // Test: Compression amount more than output (output sum check should fail)
-    // Compress 1000 tokens from CToken ATA but output shows 999 tokens
+    // Compress 1000 tokens from Light Token ATA but output shows 999 tokens
     let CompressionTestContext {
         mut rpc,
         payer,
@@ -343,7 +343,7 @@ async fn test_compression_amount_more_than_output() -> Result<(), RpcError> {
 
 #[tokio::test]
 async fn test_compression_invalid_authority_signed() -> Result<(), RpcError> {
-    // Test: Invalid authority has signed (not the CToken ATA owner)
+    // Test: Invalid authority has signed (not the Light Token ATA owner)
     let CompressionTestContext {
         mut rpc,
         payer,
@@ -454,8 +454,8 @@ async fn test_compression_invalid_mint() -> Result<(), RpcError> {
         .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer, &owner])
         .await;
 
-    // Should fail with InvalidAccountData - mint mismatch detected during CToken account validation
-    assert_rpc_error(result, 0, CTokenError::MintMismatch.into()).unwrap();
+    // Should fail with InvalidAccountData - mint mismatch detected during Light Token account validation
+    assert_rpc_error(result, 0, TokenError::MintMismatch.into()).unwrap();
 
     Ok(())
 }
@@ -576,7 +576,7 @@ async fn test_compression_recipient_out_of_bounds() -> Result<(), RpcError> {
 }
 
 /// Test that transfer2 compression fails when max_top_up is exceeded.
-/// Creates a compressible CToken ATA with pre_pay_num_epochs = 0 (no prepaid rent),
+/// Creates a compressible Light Token ATA with pre_pay_num_epochs = 0 (no prepaid rent),
 /// which requires rent top-up on any compression write. Setting max_top_up = 1 (too low)
 /// should trigger MaxTopUpExceeded error (18043).
 #[tokio::test]
@@ -597,10 +597,10 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
     let mint_seed = Keypair::new();
 
     // Derive mint and ATA addresses
-    let (mint, _) = find_cmint_address(&mint_seed.pubkey());
-    let (ctoken_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
+    let (mint, _) = find_mint_address(&mint_seed.pubkey());
+    let (ctoken_ata, _) = derive_token_ata(&owner.pubkey(), &mint);
 
-    // Create compressible CToken ATA with pre_pay_num_epochs = 0 (NO prepaid rent)
+    // Create compressible Light Token ATA with pre_pay_num_epochs = 0 (NO prepaid rent)
     // This means any write operation will require immediate rent top-up
     let compressible_params = CompressibleParams {
         compressible_config: rpc
@@ -616,7 +616,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
     };
 
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA: {:?}", e)))?;
@@ -624,7 +624,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await?;
 
-    // Create mint and mint tokens to decompressed CToken ATA
+    // Create mint and mint tokens to decompressed Light Token ATA
     let token_amount = 1000u64;
     let decompressed_recipients = vec![Recipient::new(owner.pubkey(), token_amount)];
 
@@ -636,7 +636,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
         None,                    // no decompress mint
         false,                   // no close cmint
         vec![],                  // no compressed recipients
-        decompressed_recipients, // mint to decompressed CToken ATA
+        decompressed_recipients, // mint to decompressed Light Token ATA
         None,
         None,
         Some(light_token_client::instructions::mint_action::NewMint {
@@ -672,7 +672,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
 
     let mut compression_account = CTokenAccount2::new_empty(recipient_index, mint_index);
     compression_account
-        .compress_ctoken(token_amount, ctoken_ata_index, authority_index)
+        .compress(token_amount, ctoken_ata_index, authority_index)
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to compress: {:?}", e)))?;
 
     let (account_metas, _, _) = packed_accounts.to_account_metas();

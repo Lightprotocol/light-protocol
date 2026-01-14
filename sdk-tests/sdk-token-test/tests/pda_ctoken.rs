@@ -4,23 +4,21 @@ use anchor_lang::{
 use anchor_spl::token_interface::spl_token_2022;
 use light_client::indexer::Indexer;
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
-use light_ctoken_interface::{
+use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
+use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+use light_token_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData,
         mint_action::{CompressedMintInstructionData, CompressedMintWithContext, Recipient},
     },
     state::{extensions::AdditionalMetadata, CompressedMintMetadata},
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
 };
-use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::{
-        derive_cmint_compressed_address, find_cmint_address,
-    },
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
+    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
 };
-use light_ctoken_types::CPI_AUTHORITY_PDA;
-use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
-use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+use light_token_types::CPI_AUTHORITY_PDA;
 use sdk_token_test::{ChainedCtokenInstructionData, PdaCreationData, ID};
 use solana_sdk::{
     pubkey::Pubkey,
@@ -97,7 +95,7 @@ async fn test_pda_ctoken() {
     println!("🧪 Verifying chained CPI results...");
 
     // 1. Verify compressed mint was created and mint authority was revoked
-    let compressed_mint = light_ctoken_interface::state::CompressedMint::deserialize(
+    let compressed_mint = light_token_interface::state::CompressedMint::deserialize(
         &mut &mint_account.data.as_ref().unwrap().data[..],
     )
     .unwrap();
@@ -194,13 +192,13 @@ pub async fn create_mint(
 
     // Derive compressed mint address using utility function
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint bump for the instruction
-    let (mint, _) = find_cmint_address(&mint_seed.pubkey());
+    let (mint, _) = find_mint_address(&mint_seed.pubkey());
 
     // Create compressed token associated token account for the mint authority
-    let (token_account, _) = derive_ctoken_ata(&mint_authority.pubkey(), &mint);
+    let (token_account, _) = derive_token_ata(&mint_authority.pubkey(), &mint);
     println!("Created token_account (ATA): {:?}", token_account);
 
     let compressible_params = CompressibleParams {
@@ -212,12 +210,12 @@ pub async fn create_mint(
         pre_pay_num_epochs: 2,
         lamports_per_write: Some(1000),
         compress_to_account_pubkey: None,
-        token_account_version: light_ctoken_interface::state::TokenDataVersion::ShaFlat,
+        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
         compression_only: true,
     };
 
     let create_ata_instruction =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), mint_authority.pubkey(), mint)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), mint_authority.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .unwrap();
@@ -279,7 +277,7 @@ pub async fn create_mint(
             },
             mint_authority: Some(mint_authority.pubkey().into()),
             freeze_authority: freeze_authority.map(|fa| fa.into()),
-            extensions: metadata.map(|m| vec![light_ctoken_interface::instructions::extensions::ExtensionInstructionData::TokenMetadata(m)]),
+            extensions: metadata.map(|m| vec![light_token_interface::instructions::extensions::ExtensionInstructionData::TokenMetadata(m)]),
         }),
     };
 
@@ -298,7 +296,7 @@ pub async fn create_mint(
         payer: payer.pubkey(),
         mint_authority: mint_authority.pubkey(),
         mint_seed: mint_seed.pubkey(),
-        ctoken_program: Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
+        ctoken_program: Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
         ctoken_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
         token_account,
     };

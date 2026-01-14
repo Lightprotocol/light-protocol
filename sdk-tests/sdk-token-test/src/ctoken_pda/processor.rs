@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_ctoken_sdk::ValidityProof;
+use light_token_sdk::ValidityProof;
 
 use super::{create_pda::process_create_escrow_pda, mint::process_mint_action, CTokenPda};
 use crate::ChainedCtokenInstructionData;

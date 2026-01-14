@@ -4,18 +4,6 @@ use anchor_lang::{
 use light_client::indexer::CompressedAccount;
 use light_compressed_account::address::derive_address;
 use light_compressible_client::compressible_instruction;
-use light_ctoken_interface::{
-    instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
-    state::CompressedMintMetadata,
-};
-use light_ctoken_sdk::{
-    compressed_token::create_compressed_mint::{
-        derive_cmint_compressed_address, find_cmint_address,
-    },
-    ctoken,
-    pack::compat::CTokenDataWithVariant,
-};
-use light_ctoken_types::CPI_AUTHORITY_PDA;
 use light_program_test::{
     program_test::{
         initialize_compression_config, setup_mock_program_data, LightProgramTest, TestRpc,
@@ -26,7 +14,17 @@ use light_sdk::{
     compressible::CompressibleConfig,
     instruction::{PackedAccounts, SystemAccountMetaConfig},
 };
-use light_sdk_types::C_TOKEN_PROGRAM_ID;
+use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
+use light_token_interface::{
+    instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
+    state::CompressedMintMetadata,
+};
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
+    pack::compat::CTokenDataWithVariant,
+    token,
+};
+use light_token_types::CPI_AUTHORITY_PDA;
 use sdk_compressible_test::{
     get_ctoken_signer2_seeds, get_ctoken_signer3_seeds, get_ctoken_signer4_seeds,
     get_ctoken_signer5_seeds, get_ctoken_signer_seeds, CTokenAccountVariant,
@@ -238,15 +236,15 @@ pub async fn create_user_record_and_game_session(
     let freeze_authority = mint_authority;
     let mint_signer = Keypair::new();
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_signer.pubkey(), &address_tree_pubkey);
+        derive_mint_compressed_address(&mint_signer.pubkey(), &address_tree_pubkey);
 
-    let (spl_mint, mint_bump) = find_cmint_address(&mint_signer.pubkey());
+    let (spl_mint, mint_bump) = find_mint_address(&mint_signer.pubkey());
     let accounts = sdk_compressible_test::accounts::CreateUserRecordAndGameSession {
         user: user.pubkey(),
         user_record: *user_record_pda,
         game_session: *game_session_pda,
         mint_signer: mint_signer.pubkey(),
-        ctoken_program: C_TOKEN_PROGRAM_ID.into(),
+        ctoken_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
         config: *config_pda,
         rent_sponsor: RENT_SPONSOR,
@@ -417,9 +415,9 @@ pub async fn create_user_record_and_game_session(
     assert_eq!(game_session.score, 0);
 
     let token_account_address =
-        get_ctoken_signer_seeds(&user.pubkey(), &find_cmint_address(&mint_signer.pubkey()).0).1;
+        get_ctoken_signer_seeds(&user.pubkey(), &find_mint_address(&mint_signer.pubkey()).0).1;
 
-    let mint = find_cmint_address(&mint_signer.pubkey()).0;
+    let mint = find_mint_address(&mint_signer.pubkey()).0;
     let token_account_address_2 = get_ctoken_signer2_seeds(&user.pubkey()).1;
     let token_account_address_3 = get_ctoken_signer3_seeds(&user.pubkey()).1;
     let token_account_address_4 = get_ctoken_signer4_seeds(&user.pubkey(), &user.pubkey()).1;
@@ -559,7 +557,7 @@ pub async fn decompress_multiple_pdas_with_ctoken(
         .unwrap()
         .value;
 
-    let ctoken_config = ctoken::config_pda();
+    let ctoken_config = token::config_pda();
     let instruction =
         light_compressible_client::compressible_instruction::decompress_accounts_idempotent(
             program_id,
@@ -636,10 +634,10 @@ pub async fn decompress_multiple_pdas_with_ctoken(
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(program_id, 0).0,
                 rent_sponsor: payer.pubkey(),
-                ctoken_rent_sponsor: Some(ctoken::rent_sponsor_pda()),
+                ctoken_rent_sponsor: Some(token::rent_sponsor_pda()),
                 ctoken_config: Some(ctoken_config),
-                ctoken_program: Some(ctoken::id()),
-                ctoken_cpi_authority: Some(ctoken::cpi_authority()),
+                ctoken_program: Some(token::id()),
+                ctoken_cpi_authority: Some(token::cpi_authority()),
                 some_mint: ctoken_account.token.mint,
                 system_program: Pubkey::default(),
             }
@@ -740,7 +738,7 @@ pub async fn decompress_multiple_pdas_with_ctoken(
         !token_account_data.data.is_empty(),
         "Token account should have data"
     );
-    assert_eq!(token_account_data.owner, C_TOKEN_PROGRAM_ID.into());
+    assert_eq!(token_account_data.owner, LIGHT_TOKEN_PROGRAM_ID.into());
 
     let compressed_user_record_data = rpc
         .get_compressed_account(c_user_pda.clone().address.unwrap(), None)

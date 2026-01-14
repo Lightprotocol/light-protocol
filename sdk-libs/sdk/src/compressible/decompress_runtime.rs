@@ -21,14 +21,14 @@ use crate::{
 
 /// Trait for account variants that can be checked for token vs PDA type.
 pub trait HasTokenVariant {
-    /// Returns true if this variant represents a token account (PackedCTokenData).
-    fn is_packed_ctoken(&self) -> bool;
+    /// Returns true if this variant represents a token account (PackedTokenData).
+    fn is_packed_token(&self) -> bool;
 }
 
-/// Trait for CToken seed providers.
+/// Trait for token seed providers.
 ///
 /// Also defined in compressed-token-sdk for token-specific runtime helpers.
-pub trait CTokenSeedProvider: Copy {
+pub trait TokenSeedProvider: Copy {
     /// Type of accounts struct needed for seed derivation.
     type Accounts<'info>;
 
@@ -65,10 +65,10 @@ pub trait DecompressContext<'info> {
     fn fee_payer(&self) -> &AccountInfo<'info>;
     fn config(&self) -> &AccountInfo<'info>;
     fn rent_sponsor(&self) -> &AccountInfo<'info>;
-    fn ctoken_rent_sponsor(&self) -> Option<&AccountInfo<'info>>;
-    fn ctoken_program(&self) -> Option<&AccountInfo<'info>>;
-    fn ctoken_cpi_authority(&self) -> Option<&AccountInfo<'info>>;
-    fn ctoken_config(&self) -> Option<&AccountInfo<'info>>;
+    fn token_rent_sponsor(&self) -> Option<&AccountInfo<'info>>;
+    fn token_program(&self) -> Option<&AccountInfo<'info>>;
+    fn token_cpi_authority(&self) -> Option<&AccountInfo<'info>>;
+    fn token_config(&self) -> Option<&AccountInfo<'info>>;
 
     /// Collect and unpack compressed accounts into PDAs and tokens.
     ///
@@ -95,12 +95,12 @@ pub trait DecompressContext<'info> {
         &self,
         remaining_accounts: &[AccountInfo<'info>],
         fee_payer: &AccountInfo<'info>,
-        ctoken_program: &AccountInfo<'info>,
-        ctoken_rent_sponsor: &AccountInfo<'info>,
-        ctoken_cpi_authority: &AccountInfo<'info>,
-        ctoken_config: &AccountInfo<'info>,
+        token_program: &AccountInfo<'info>,
+        token_rent_sponsor: &AccountInfo<'info>,
+        token_cpi_authority: &AccountInfo<'info>,
+        token_config: &AccountInfo<'info>,
         config: &AccountInfo<'info>,
-        ctoken_accounts: Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
+        token_accounts: Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
         proof: crate::instruction::ValidityProof,
         cpi_accounts: &CpiAccounts<'b, 'info>,
         post_system_accounts: &[AccountInfo<'info>],
@@ -132,7 +132,7 @@ pub trait PdaSeedDerivation<A, S> {
 pub fn check_account_types<T: HasTokenVariant>(compressed_accounts: &[T]) -> (bool, bool) {
     let (mut has_tokens, mut has_pdas) = (false, false);
     for account in compressed_accounts {
-        if account.is_packed_ctoken() {
+        if account.is_packed_token() {
             has_tokens = true;
         } else {
             has_pdas = true;
@@ -330,26 +330,26 @@ where
 
     // Decompress tokens via trait method
     if has_tokens {
-        let ctoken_program = ctx
-            .ctoken_program()
+        let token_program = ctx
+            .token_program()
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
-        let ctoken_rent_sponsor = ctx
-            .ctoken_rent_sponsor()
+        let token_rent_sponsor = ctx
+            .token_rent_sponsor()
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
-        let ctoken_cpi_authority = ctx
-            .ctoken_cpi_authority()
+        let token_cpi_authority = ctx
+            .token_cpi_authority()
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
-        let ctoken_config = ctx
-            .ctoken_config()
+        let token_config = ctx
+            .token_config()
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
         ctx.process_tokens(
             remaining_accounts,
             fee_payer,
-            ctoken_program,
-            ctoken_rent_sponsor,
-            ctoken_cpi_authority,
-            ctoken_config,
+            token_program,
+            token_rent_sponsor,
+            token_cpi_authority,
+            token_config,
             ctx.config(),
             compressed_token_accounts,
             proof,

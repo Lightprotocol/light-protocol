@@ -1,8 +1,8 @@
 use std::mem::ManuallyDrop;
 
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_ctoken_interface::CTOKEN_PROGRAM_ID;
 use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
+use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use pinocchio::{account_info::AccountInfo, msg};
 
 pub mod compressed_token;
@@ -68,7 +68,7 @@ pub enum InstructionType {
     CTokenBurnChecked = 15,
     /// Create CToken, equivalent to SPL Token InitializeAccount3
     CreateTokenAccount = 18,
-    CreateAssociatedCTokenAccount = 100,
+    CreateAssociatedTokenAccount = 100,
     /// Batch instruction for ctoken transfers:
     ///     1. transfer compressed tokens
     ///     2. compress ctokens/spl tokens
@@ -111,7 +111,7 @@ impl From<u8> for InstructionType {
             14 => InstructionType::CTokenMintToChecked,
             15 => InstructionType::CTokenBurnChecked,
             18 => InstructionType::CreateTokenAccount,
-            100 => InstructionType::CreateAssociatedCTokenAccount,
+            100 => InstructionType::CreateAssociatedTokenAccount,
             101 => InstructionType::Transfer2,
             102 => InstructionType::CreateAssociatedTokenAccountIdempotent,
             103 => InstructionType::MintAction,
@@ -134,7 +134,7 @@ pub fn process_instruction(
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     let discriminator = InstructionType::from(instruction_data[0]);
-    if *program_id != CTOKEN_PROGRAM_ID {
+    if *program_id != LIGHT_TOKEN_PROGRAM_ID {
         return Err(ProgramError::IncorrectProgramId);
     }
     match discriminator {
@@ -186,8 +186,8 @@ pub fn process_instruction(
             msg!("CreateTokenAccount");
             process_create_token_account(accounts, &instruction_data[1..])?;
         }
-        InstructionType::CreateAssociatedCTokenAccount => {
-            msg!("CreateAssociatedCTokenAccount");
+        InstructionType::CreateAssociatedTokenAccount => {
+            msg!("CreateAssociatedTokenAccount");
             process_create_associated_token_account(accounts, &instruction_data[1..])?;
         }
         InstructionType::Transfer2 => {

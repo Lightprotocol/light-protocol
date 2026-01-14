@@ -2,11 +2,11 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressible::config::CompressibleConfig;
-use light_ctoken_interface::{
+use light_program_profiler::profile;
+use light_token_interface::{
     instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
     CMINT_ADDRESS_TREE,
 };
-use light_program_profiler::profile;
 use light_zero_copy::U16;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
@@ -457,7 +457,7 @@ impl AccountsConfig {
             let has_mint_to_ctoken_actions = parsed_instruction_data
                 .actions
                 .iter()
-                .any(|action| matches!(action, ZAction::MintToCToken(_)));
+                .any(|action| matches!(action, ZAction::MintTo(_)));
             if has_mint_to_ctoken_actions {
                 msg!("Mint to ctokens not allowed when writing to cpi context");
                 return Err(ErrorCode::CpiContextSetNotUsable.into());

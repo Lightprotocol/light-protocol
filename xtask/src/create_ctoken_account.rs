@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use dirs::home_dir;
 use light_client::rpc::{LightClient, LightClientConfig, Rpc};
-use light_ctoken_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
+use light_token_sdk::token::{CompressibleParams, CreateTokenAccount};
 use solana_sdk::{
     signature::{read_keypair_file, Keypair, Signer},
     transaction::Transaction,
@@ -81,7 +81,7 @@ pub async fn create_ctoken_account(options: Options) -> anyhow::Result<()> {
         };
 
         let create_ix =
-            CreateCTokenAccount::new(payer.pubkey(), account_keypair.pubkey(), mint, owner)
+            CreateTokenAccount::new(payer.pubkey(), account_keypair.pubkey(), mint, owner)
                 .with_compressible(compressible_params)
                 .instruction()?;
 

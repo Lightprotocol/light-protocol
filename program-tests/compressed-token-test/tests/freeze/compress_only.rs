@@ -7,15 +7,6 @@ use light_client::indexer::{CompressedTokenAccount, Indexer};
 use light_compressed_token::freeze::sdk::{
     create_instruction, CreateInstructionInputs as FreezeInputs,
 };
-use light_ctoken_interface::{
-    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
-    state::TokenDataVersion,
-};
-use light_ctoken_sdk::{
-    compat::{AccountState, TokenDataWithMerkleContext},
-    ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
-    spl_interface::find_spl_interface_pda_with_index,
-};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     conversions::sdk_to_program_token_data,
@@ -27,6 +18,15 @@ use light_test_utils::{
 };
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+};
+use light_token_interface::{
+    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
+    state::TokenDataVersion,
+};
+use light_token_sdk::{
+    compat::{AccountState, TokenDataWithMerkleContext},
+    spl_interface::find_spl_interface_pda_with_index,
+    token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
 };
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -145,7 +145,7 @@ async fn freeze_or_thaw_compressed<const FREEZE: bool>(
 ///
 /// Flow:
 /// 1. Create mint with restricted extensions
-/// 2. Create compress-only CToken account
+/// 2. Create compress-only Light Token account
 /// 3. Transfer tokens to it
 /// 4. Warp epoch to compress (compress and close)
 /// 5. Freeze the compressed token account
@@ -179,13 +179,13 @@ async fn run_freeze_thaw_compressed_only_test(
     )
     .await;
 
-    // 2. Create CToken account with 0 prepaid epochs (immediately compressible)
+    // 2. Create Light Token account with 0 prepaid epochs (immediately compressible)
     let owner = Keypair::new();
     let account_keypair = Keypair::new();
     let ctoken_account = account_keypair.pubkey();
 
     let create_ix =
-        CreateCTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
+        CreateTokenAccount::new(payer.pubkey(), ctoken_account, mint_pubkey, owner.pubkey())
             .with_compressible(CompressibleParams {
                 compressible_config: context
                     .rpc
@@ -211,18 +211,18 @@ async fn run_freeze_thaw_compressed_only_test(
         .create_and_send_transaction(&[create_ix], &payer.pubkey(), &[&payer, &account_keypair])
         .await?;
 
-    // 3. Transfer tokens to CToken using hot path
+    // 3. Transfer tokens to Light Token using hot path
     let has_restricted = extensions
         .iter()
         .any(|ext| RESTRICTED_EXTENSIONS.contains(ext));
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint_pubkey, 0, has_restricted);
-    let transfer_ix = TransferSplToCtoken {
+    let transfer_ix = TransferFromSpl {
         amount: mint_amount,
         spl_interface_pda_bump,
         decimals: 9,
         source_spl_token_account: spl_account,
-        destination_ctoken_account: ctoken_account,
+        destination: ctoken_account,
         authority: payer.pubkey(),
         mint: mint_pubkey,
         payer: payer.pubkey(),
@@ -246,7 +246,7 @@ async fn run_freeze_thaw_compressed_only_test(
     let account_after = context.rpc.get_account(ctoken_account).await?;
     assert!(
         account_after.is_none() || account_after.unwrap().lamports == 0,
-        "CToken account should be closed after compression"
+        "Light Token account should be closed after compression"
     );
 
     // 6. Get compressed accounts and verify state
@@ -329,9 +329,9 @@ async fn run_freeze_thaw_compressed_only_test(
         "Token account should be thawed (Initialized)"
     );
 
-    // 11. Create destination CToken account for decompress
+    // 11. Create destination Light Token account for decompress
     let dest_account_keypair = Keypair::new();
-    let create_dest_ix = CreateCTokenAccount::new(
+    let create_dest_ix = CreateTokenAccount::new(
         payer.pubkey(),
         dest_account_keypair.pubkey(),
         mint_pubkey,
@@ -379,7 +379,7 @@ async fn run_freeze_thaw_compressed_only_test(
         },
     )]];
 
-    // 13. Decompress to CToken account
+    // 13. Decompress to Light Token account
     let compressed_account: CompressedTokenAccount = thawed_accounts[0].clone().try_into().unwrap();
     let decompress_ix = create_generic_transfer2_instruction(
         &mut context.rpc,
@@ -405,15 +405,15 @@ async fn run_freeze_thaw_compressed_only_test(
         .create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &[&payer, &owner])
         .await?;
 
-    // 14. Verify CToken account has tokens
+    // 14. Verify Token account has tokens
     use borsh::BorshDeserialize;
-    use light_ctoken_interface::state::CToken;
+    use light_token_interface::state::Token;
     let dest_account = context
         .rpc
         .get_account(dest_account_keypair.pubkey())
         .await?
         .unwrap();
-    let dest_ctoken = CToken::deserialize(&mut &dest_account.data[..]).unwrap();
+    let dest_ctoken = Token::deserialize(&mut &dest_account.data[..]).unwrap();
     assert_eq!(
         dest_ctoken.amount, mint_amount,
         "Decompressed amount should match"

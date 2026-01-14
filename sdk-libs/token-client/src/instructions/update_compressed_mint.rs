@@ -3,14 +3,14 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
     state::CompressedMint,
 };
-use light_ctoken_sdk::compressed_token::update_compressed_mint::{
+use light_token_sdk::compressed_token::update_compressed_mint::{
     update_compressed_mint, UpdateCompressedMintInputs,
 };
-use light_ctoken_types::CompressedMintAuthorityType;
+use light_token_types::CompressedMintAuthorityType;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -45,7 +45,7 @@ pub async fn update_compressed_mint_instruction<R: Rpc + Indexer>(
     // Get compressed account from indexer
     let compressed_accounts = rpc
         .get_compressed_accounts_by_owner(
-            &Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+            &Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
             None,
             None,
         )

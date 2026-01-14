@@ -1,9 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountInfoTrait;
-use light_ctoken_interface::{
-    is_restricted_extension, MintExtensionFlags, ALLOWED_EXTENSION_TYPES,
-};
+use light_token_interface::{is_restricted_extension, MintExtensionFlags, ALLOWED_EXTENSION_TYPES};
 use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
 use spl_token_2022::{
     extension::{

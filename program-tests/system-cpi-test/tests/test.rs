@@ -18,7 +18,6 @@ use light_compressed_account::{
     TreeType,
 };
 use light_compressed_token::process_transfer::InputTokenDataWithContext;
-use light_ctoken_sdk::compat::{AccountState, TokenDataWithMerkleContext};
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
@@ -39,6 +38,7 @@ use light_test_utils::{
     },
     Rpc, RpcError,
 };
+use light_token_sdk::compat::{AccountState, TokenDataWithMerkleContext};
 use light_verifier::VerifierError;
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};

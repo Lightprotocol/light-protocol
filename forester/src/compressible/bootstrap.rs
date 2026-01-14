@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use borsh::BorshDeserialize;
-use light_ctoken_interface::{state::CToken, CTOKEN_PROGRAM_ID};
+use light_token_interface::{state::Token, LIGHT_TOKEN_PROGRAM_ID};
 use serde_json::json;
 use solana_sdk::pubkey::Pubkey;
 use tokio::sync::oneshot;
@@ -101,20 +101,20 @@ fn process_account(
         }
     };
 
-    // Deserialize CToken
-    let ctoken = match CToken::try_from_slice(&data_bytes) {
+    // Deserialize Token
+    let ctoken = match Token::try_from_slice(&data_bytes) {
         Ok(token) => token,
         Err(e) => {
             debug!(
-                "Failed to deserialize CToken for account {}: {:?}",
+                "Failed to deserialize Token for account {}: {:?}",
                 pubkey, e
             );
             return Ok(false);
         }
     };
 
-    // Check if account is a valid CToken account (account_type == 2)
-    if !ctoken.is_ctoken_account() {
+    // Check if account is a valid Token account (account_type == 2)
+    if !ctoken.is_token_account() {
         debug!("Skipping account {} without compressible config", pubkey);
         return Ok(false);
     }
@@ -182,7 +182,7 @@ async fn bootstrap_with_v2_api(
     mut shutdown_rx: oneshot::Receiver<()>,
 ) -> Result<()> {
     let client = reqwest::Client::new();
-    let program_id = Pubkey::new_from_array(CTOKEN_PROGRAM_ID);
+    let program_id = Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID);
 
     let mut total_fetched = 0;
     let mut total_inserted = 0;
@@ -194,7 +194,7 @@ async fn bootstrap_with_v2_api(
 
         // Build request payload
         // Filter for accounts with account_type = 2 at position 165
-        // This indicates a CToken account with extensions (e.g., Compressible)
+        // This indicates a Light Token account with extensions (e.g., Compressible)
         let mut params = json!([
             program_id.to_string(),
             {
@@ -307,10 +307,10 @@ async fn bootstrap_with_standard_api(
     mut shutdown_rx: oneshot::Receiver<()>,
 ) -> Result<()> {
     let client = reqwest::Client::new();
-    let program_id = Pubkey::new_from_array(CTOKEN_PROGRAM_ID);
+    let program_id = Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID);
 
     // Filter for accounts with account_type = 2 at position 165
-    // This indicates a CToken account with extensions (e.g., Compressible)
+    // This indicates a Light Token account with extensions (e.g., Compressible)
     let payload = json!({
         "jsonrpc": "2.0",
         "id": 1,

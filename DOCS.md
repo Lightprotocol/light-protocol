@@ -161,11 +161,11 @@ Document all error codes that can be returned:
 - **Description** - What the error indicates
 - **Common causes** - Typical scenarios that trigger this error
 - **Resolution** - How to fix or avoid the error
-- **Location** - Where error enum is defined (e.g., `anchor_compressed_token::ErrorCode`, `light_ctoken_interface::CTokenError`)
+- **Location** - Where error enum is defined (e.g., `anchor_compressed_token::ErrorCode`, `light_token_interface::CTokenError`)
 
 **Common error crate locations in Light Protocol:**
 - `anchor_compressed_token::ErrorCode` - Compressed token program errors
-- `light_ctoken_interface::CTokenError` - CToken type errors (18001-18037 range)
+- `light_token_interface::CTokenError` - CToken type errors (18001-18037 range)
 - `light_compressible::CompressibleError` - Compressible account errors (19001-19002 range)
 - `light_account_checks::AccountError` - Account validation errors (12006-12021 range)
 - `light_hasher::HasherError` - Hasher operation errors

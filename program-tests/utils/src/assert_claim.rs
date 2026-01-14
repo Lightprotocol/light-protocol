@@ -1,13 +1,13 @@
 use light_client::rpc::Rpc;
-use light_ctoken_interface::state::{
-    CToken, CompressedMint, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
-};
 use light_program_test::LightProgramTest;
+use light_token_interface::state::{
+    CompressedMint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+};
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 use solana_sdk::{clock::Clock, pubkey::Pubkey};
 
 /// Determines account type from account data.
-/// - If account is exactly 165 bytes: CToken (legacy size without extensions)
+/// - If account is exactly 165 bytes: Light Token (legacy size without extensions)
 /// - If account is > 165 bytes: read byte 165 for discriminator
 /// - If account is < 165 bytes: invalid (returns None)
 fn determine_account_type(data: &[u8]) -> Option<u8> {
@@ -42,11 +42,11 @@ fn extract_pre_compression_mut(
 
     match account_type {
         ACCOUNT_TYPE_TOKEN_ACCOUNT => {
-            let (mut ctoken, _) = CToken::zero_copy_at_mut(data)
+            let (mut ctoken, _) = Token::zero_copy_at_mut(data)
                 .unwrap_or_else(|e| panic!("Failed to parse ctoken account {}: {:?}", pubkey, e));
-            let compressible = ctoken
-                .get_compressible_extension_mut()
-                .unwrap_or_else(|| panic!("CToken {} should have Compressible extension", pubkey));
+            let compressible = ctoken.get_compressible_extension_mut().unwrap_or_else(|| {
+                panic!("Light Token {} should have Compressible extension", pubkey)
+            });
             let compression = &mut compressible.info;
             let last_claimed_slot = u64::from(compression.last_claimed_slot);
             let compression_authority = Pubkey::from(compression.compression_authority);
@@ -91,11 +91,11 @@ fn extract_post_compression(data: &[u8], pubkey: &Pubkey) -> u64 {
 
     match account_type {
         ACCOUNT_TYPE_TOKEN_ACCOUNT => {
-            let (ctoken, _) = CToken::zero_copy_at(data)
+            let (ctoken, _) = Token::zero_copy_at(data)
                 .unwrap_or_else(|e| panic!("Failed to parse ctoken account {}: {:?}", pubkey, e));
-            let compressible = ctoken
-                .get_compressible_extension()
-                .unwrap_or_else(|| panic!("CToken {} should have Compressible extension", pubkey));
+            let compressible = ctoken.get_compressible_extension().unwrap_or_else(|| {
+                panic!("Light Token {} should have Compressible extension", pubkey)
+            });
             u64::from(compressible.info.last_claimed_slot)
         }
         ACCOUNT_TYPE_MINT => {
@@ -128,14 +128,14 @@ pub async fn assert_claim(
         // Must have > 165 bytes to include account_type discriminator
         assert!(
             pre_token_account.data.len() > 165,
-            "Account must have > 165 bytes for CToken/CMint"
+            "Account must have > 165 bytes for Light Token/CMint"
         );
         // Get account size and lamports before parsing (to avoid borrow conflicts)
         let account_size = pre_token_account.data.len() as u64;
         let account_lamports = pre_token_account.lamports;
         let current_slot = rpc.pre_context.as_ref().unwrap().get_sysvar::<Clock>().slot;
 
-        // Extract compression info (handles both CToken and CMint)
+        // Extract compression info (handles both Light Token and CMint)
         let pre_data = extract_pre_compression_mut(
             &mut pre_token_account.data,
             account_size,

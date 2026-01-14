@@ -6,13 +6,13 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressible::config::CompressibleConfig;
-use light_ctoken_sdk::compressed_token::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
 use light_registry::{
     accounts::CompressAndCloseContext as CompressAndCloseAccounts,
     compressible::compressed_token::CompressAndCloseIndices, instruction::CompressAndClose,
     utils::get_forester_epoch_pda_from_authority,
 };
 use light_sdk::instruction::PackedAccounts;
+use light_token_sdk::compressed_token::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
@@ -53,7 +53,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     let (registered_forester_pda, _) =
         get_forester_epoch_pda_from_authority(&authority.pubkey(), current_epoch);
 
-    let config = CompressibleConfig::ctoken_v1(Pubkey::default(), Pubkey::default());
+    let config = CompressibleConfig::light_token_v1(Pubkey::default(), Pubkey::default());
 
     let compressible_config = CompressibleConfig::derive_v1_config_pda(&registry_program_id).0;
 
@@ -83,7 +83,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     packed_accounts.insert_or_get(output_queue);
 
     // Parse the ctoken account to get required pubkeys
-    use light_ctoken_interface::state::CToken;
+    use light_token_interface::state::Token;
     use light_zero_copy::traits::ZeroCopyAt;
 
     let mut indices_vec = Vec::with_capacity(solana_ctoken_accounts.len());
@@ -103,12 +103,12 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
             })?
             .ok_or_else(|| {
                 RpcError::CustomError(format!(
-                    "CToken account {} not found",
+                    "Light Token account {} not found",
                     solana_ctoken_account_pubkey
                 ))
             })?;
 
-        let (ctoken_account, _) = CToken::zero_copy_at(ctoken_solana_account.data.as_slice())
+        let (ctoken_account, _) = Token::zero_copy_at(ctoken_solana_account.data.as_slice())
             .map_err(|e| {
                 RpcError::CustomError(format!(
                     "Failed to parse ctoken account {}: {:?}",
@@ -123,7 +123,9 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
 
         // Get compression info from Compressible extension
         let compressible_ext = ctoken_account.get_compressible_extension().ok_or_else(|| {
-            RpcError::CustomError("Missing Compressible extension on CToken account".to_string())
+            RpcError::CustomError(
+                "Missing Compressible extension on Light Token account".to_string(),
+            )
         })?;
         let current_authority = Pubkey::from(compressible_ext.info.compression_authority);
         let rent_sponsor_pubkey = Pubkey::from(compressible_ext.info.rent_sponsor);

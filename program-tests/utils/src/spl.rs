@@ -28,10 +28,10 @@ use light_compressed_token::{
     process_compress_spl_token_account::sdk::create_compress_spl_token_account_instruction,
     process_transfer::{transfer_sdk::create_transfer_instruction, TokenTransferOutputData},
 };
-use light_ctoken_interface::state::{CompressedTokenAccountState, TokenData};
-use light_ctoken_sdk::compat::TokenDataWithMerkleContext;
 use light_hasher::Poseidon;
 use light_program_test::{indexer::TestIndexerExtensions, program_test::TestRpc};
+use light_token_interface::state::{CompressedTokenAccountState, TokenData};
+use light_token_sdk::compat::TokenDataWithMerkleContext;
 use solana_banks_client::BanksClientError;
 use solana_sdk::{
     instruction::Instruction,

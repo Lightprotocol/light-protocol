@@ -29,7 +29,7 @@ pub struct CreateUserRecordAndGameSession<'info> {
     #[account(
         init,
         payer = user,
-        // Space: discriminator(8) + session_id(8) + player(32) + game_type_len(4) + 
+        // Space: discriminator(8) + session_id(8) + player(32) + game_type_len(4) +
         //        game_type(32) + start_time(8) + end_time(1+8) + score(8) = 109 bytes
         space = 8 + 8 + 32 + 4 + 32 + 8 + 9 + 8,
         seeds = [
@@ -52,7 +52,7 @@ pub struct CreateUserRecordAndGameSession<'info> {
     pub some_account: AccountInfo<'info>,
 
     /// Compressed token program
-    /// CHECK: Program ID validated using C_TOKEN_PROGRAM_ID constant
+    /// CHECK: Program ID validated using LIGHT_TOKEN_PROGRAM_ID constant
     pub ctoken_program: UncheckedAccount<'info>,
 
     /// CHECK: CPI authority of the compressed token program

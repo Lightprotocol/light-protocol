@@ -11,8 +11,6 @@ use light_client::{
     local_test_validator::{spawn_validator, LightValidatorConfig},
     rpc::{LightClient, LightClientConfig, Rpc},
 };
-use light_ctoken_interface::state::TokenDataVersion;
-use light_ctoken_sdk::compressed_token::create_compressed_mint;
 use light_registry::{
     protocol_config::state::ProtocolConfigPda,
     sdk::{
@@ -25,6 +23,8 @@ use light_registry::{
 use light_token_client::actions::{
     create_compressible_token_account, CreateCompressibleTokenAccountInputs,
 };
+use light_token_interface::state::TokenDataVersion;
+use light_token_sdk::compressed_token::create_compressed_mint;
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 use tokio::{sync::oneshot, time::sleep};
@@ -239,7 +239,7 @@ async fn test_compressible_ctoken_compression() {
     // Create mint
     let mint_seed = Keypair::new();
     let address_tree = rpc.get_address_tree_v2().tree;
-    let mint = Pubkey::from(create_compressed_mint::derive_cmint_compressed_address(
+    let mint = Pubkey::from(create_compressed_mint::derive_mint_compressed_address(
         &mint_seed.pubkey(),
         &address_tree,
     ));
@@ -395,7 +395,7 @@ async fn test_compressible_ctoken_bootstrap() {
     // Create mint
     let mint_seed = Keypair::new();
     let address_tree = rpc.get_address_tree_v2().tree;
-    let mint = Pubkey::from(create_compressed_mint::derive_cmint_compressed_address(
+    let mint = Pubkey::from(create_compressed_mint::derive_mint_compressed_address(
         &mint_seed.pubkey(),
         &address_tree,
     ));
@@ -538,10 +538,10 @@ async fn run_bootstrap_test(
                 account_state.pubkey
             );
 
-            // Verify account is a valid CToken
+            // Verify account is a valid Token
             assert!(
-                account_state.account.is_ctoken_account(),
-                "Account {} should be a valid CToken account",
+                account_state.account.is_token_account(),
+                "Account {} should be a valid Token account",
                 account_state.pubkey
             );
 

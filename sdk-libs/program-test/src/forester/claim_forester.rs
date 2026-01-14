@@ -46,8 +46,8 @@ pub async fn claim_forester<R: Rpc + Indexer>(
     // Derive registered forester PDA for the current epoch
     let (registered_forester_pda, _) =
         get_forester_epoch_pda_from_authority(&authority.pubkey(), current_epoch);
-    let config = CompressibleConfig::ctoken_v1(Default::default(), Default::default());
-    let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
+    let config = CompressibleConfig::light_token_v1(Default::default(), Default::default());
+    let compressible_config = CompressibleConfig::light_token_v1_config_pda();
     let rent_sponsor = config.rent_sponsor;
     let compression_authority = config.compression_authority;
 

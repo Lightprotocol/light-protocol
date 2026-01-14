@@ -6,7 +6,7 @@
 
 # Used in
 - `light-compressed-token` - Uses CompressibleConfig for account creation, rent claiming, and closing
-- `light-ctoken-interface` - Imports CompressibleConfig for compressible extension in token accounts
+- `light-token-interface` - Imports CompressibleConfig for compressible extension in token accounts
 - `light-registry` - Validates CompressibleConfig for compress & close via registry operations
 - `compressed-token-sdk` - Uses rent functions in compress & close instruction builders
 - `token-client` - Imports rent calculation helpers for test utilities

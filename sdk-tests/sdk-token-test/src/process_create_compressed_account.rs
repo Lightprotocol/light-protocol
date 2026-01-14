@@ -1,9 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::log::sol_log_compute_units};
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
-use light_ctoken_sdk::compressed_token::{
-    transfer::instruction::{TransferConfig, TransferInputs},
-    CTokenAccount, TokenAccountMeta,
-};
 use light_sdk::{
     account::LightAccount,
     cpi::{
@@ -13,6 +9,10 @@ use light_sdk::{
     instruction::ValidityProof,
     light_account_checks::AccountInfoTrait,
     LightDiscriminator, LightHasher,
+};
+use light_token_sdk::compressed_token::{
+    transfer::instruction::{TransferConfig, TransferInputs},
+    CTokenAccount, TokenAccountMeta,
 };
 
 #[event]
@@ -96,7 +96,7 @@ pub fn deposit_tokens<'a, 'info>(
         amount,
     };
     let instruction =
-        light_ctoken_sdk::compressed_token::transfer::instruction::transfer(transfer_inputs)
+        light_token_sdk::compressed_token::transfer::instruction::transfer(transfer_inputs)
             .unwrap();
     // msg!("instruction {:?}", instruction);
     // We can use the property that account infos don't have to be in order if you use

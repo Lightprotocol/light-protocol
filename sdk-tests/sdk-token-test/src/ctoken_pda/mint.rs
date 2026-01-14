@@ -1,11 +1,11 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_ctoken_interface::instructions::mint_action::{
+use light_sdk::cpi::v2::CpiAccounts;
+use light_token_interface::instructions::mint_action::{
     MintActionCompressedInstructionData, MintToCompressedAction, UpdateAuthority,
 };
-use light_ctoken_sdk::compressed_token::{
+use light_token_sdk::compressed_token::{
     ctoken_instruction::CTokenInstruction, mint_action::MintActionCpiWriteAccounts,
 };
-use light_sdk::cpi::v2::CpiAccounts;
 
 use super::CTokenPda;
 use crate::ChainedCtokenInstructionData;
@@ -36,7 +36,7 @@ pub fn process_mint_action<'a, 'info>(
     });
 
     instruction_data = instruction_data.with_cpi_context(
-        light_ctoken_interface::instructions::mint_action::CpiContext {
+        light_token_interface::instructions::mint_action::CpiContext {
             set_context: false,
             first_set_context: true,
             in_tree_index: 0,

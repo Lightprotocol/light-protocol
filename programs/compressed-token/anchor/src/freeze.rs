@@ -7,7 +7,7 @@ use light_compressed_account::{
         data::OutputCompressedAccountWithPackedContext, with_readonly::InAccount,
     },
 };
-use light_ctoken_interface::state::{CompressedTokenAccountState, TokenDataVersion};
+use light_token_interface::state::{CompressedTokenAccountState, TokenDataVersion};
 
 use crate::{
     process_transfer::{
@@ -366,7 +366,7 @@ pub mod test_freeze {
     use account_compression::StateMerkleTreeAccount;
     use anchor_lang::{solana_program::account_info::AccountInfo, Discriminator};
     use light_compressed_account::{compressed_account::PackedMerkleContext, Pubkey};
-    use light_ctoken_interface::state::CompressedTokenAccountState;
+    use light_token_interface::state::CompressedTokenAccountState;
     use rand::Rng;
 
     use super::*;

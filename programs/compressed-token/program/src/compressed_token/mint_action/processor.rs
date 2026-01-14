@@ -1,11 +1,11 @@
 use anchor_compressed_token::{is_idempotent_early_exit, ErrorCode};
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
-use light_ctoken_interface::{
-    hash_cache::HashCache, instructions::mint_action::MintActionCompressedInstructionData,
-    state::CompressedMint, CTokenError,
-};
 use light_sdk::instruction::PackedMerkleContext;
+use light_token_interface::{
+    hash_cache::HashCache, instructions::mint_action::MintActionCompressedInstructionData,
+    state::CompressedMint, TokenError,
+};
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
 
@@ -108,7 +108,7 @@ pub fn process_mint_action(
             &parsed_instruction_data,
             validated_accounts
                 .mint_signer
-                .ok_or(CTokenError::ExpectedMintSignerAccount)
+                .ok_or(TokenError::ExpectedMintSignerAccount)
                 .map_err(|_| ErrorCode::MintActionMissingExecutingAccounts)?
                 .key(),
             &mut cpi_instruction_struct,

@@ -43,7 +43,7 @@ pub struct CompressibleConfig {
     pub update_authority: Pubkey,
     /// Withdrawal authority can withdraw funds from the rent recipient pda.
     pub withdrawal_authority: Pubkey,
-    /// CToken program pda:
+    /// Light Token program pda:
     /// 1. pays rent exemption at compressible ctoken account creation
     /// 2. receives rent exemption at compressible ctoken account closure
     /// 3. receives rent from compressible ctoken accounts with Claim, or compress and close instructions.
@@ -150,8 +150,8 @@ impl Discriminator for CompressibleConfig {
 impl CompressibleConfig {
     pub const LEN: usize = std::mem::size_of::<Self>();
 
-    pub fn ctoken_v1(update_authority: Pubkey, withdrawal_authority: Pubkey) -> Self {
-        Self::new_ctoken(
+    pub fn light_token_v1(update_authority: Pubkey, withdrawal_authority: Pubkey) -> Self {
+        Self::new_light_token(
             1,
             true,
             update_authority,
@@ -160,7 +160,7 @@ impl CompressibleConfig {
         )
     }
 
-    pub fn new_ctoken(
+    pub fn new_light_token(
         version: u16,
         active: bool,
         update_authority: Pubkey,
@@ -245,7 +245,7 @@ impl CompressibleConfig {
     }
 
     /// Derives the default config PDA address (config_bump = 1)
-    pub fn ctoken_v1_config_pda() -> Pubkey {
+    pub fn light_token_v1_config_pda() -> Pubkey {
         Self::derive_pda(&pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX"), 1).0
     }
 
@@ -272,7 +272,7 @@ impl CompressibleConfig {
     }
 
     /// Derives the default ctoken compression authority PDA (version = 1)
-    pub fn ctoken_v1_compression_authority_pda() -> Pubkey {
+    pub fn light_token_v1_compression_authority_pda() -> Pubkey {
         Self::derive_compression_authority_pda(
             &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX"),
             1,
@@ -280,7 +280,7 @@ impl CompressibleConfig {
         .0
     }
     /// Derives the default ctoken rent sponsor PDA (version = 1)
-    pub fn ctoken_v1_rent_sponsor_pda() -> Pubkey {
+    pub fn light_token_v1_rent_sponsor_pda() -> Pubkey {
         Self::derive_rent_sponsor_pda(&pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"), 1).0
     }
 }

@@ -1,0 +1,184 @@
+use borsh::BorshSerialize;
+use light_token_interface::instructions::{
+    create_token_account::CreateTokenAccountInstructionData,
+    extensions::CompressibleExtensionInstructionData,
+};
+use solana_account_info::AccountInfo;
+use solana_cpi::{invoke, invoke_signed};
+use solana_instruction::{AccountMeta, Instruction};
+use solana_program_error::ProgramError;
+use solana_pubkey::Pubkey;
+
+use crate::token::{compressible::CompressibleParamsCpi, CompressibleParams};
+
+/// # Create a create ctoken account instruction:
+/// ```rust
+/// # use solana_pubkey::Pubkey;
+/// # use light_token_sdk::token::CreateTokenAccount;
+/// # let payer = Pubkey::new_unique();
+/// # let account = Pubkey::new_unique();
+/// # let mint = Pubkey::new_unique();
+/// # let owner = Pubkey::new_unique();
+/// let instruction =
+///     CreateTokenAccount::new(payer, account, mint, owner)
+///     .instruction()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
+#[derive(Debug, Clone)]
+pub struct CreateTokenAccount {
+    pub payer: Pubkey,
+    pub account: Pubkey,
+    pub mint: Pubkey,
+    pub owner: Pubkey,
+    pub compressible: CompressibleParams,
+}
+
+impl CreateTokenAccount {
+    pub fn new(payer: Pubkey, account: Pubkey, mint: Pubkey, owner: Pubkey) -> Self {
+        Self {
+            payer,
+            account,
+            mint,
+            owner,
+            compressible: CompressibleParams::default(),
+        }
+    }
+
+    pub fn with_compressible(mut self, compressible: CompressibleParams) -> Self {
+        self.compressible = compressible;
+        self
+    }
+
+    pub fn instruction(self) -> Result<Instruction, ProgramError> {
+        let instruction_data = CreateTokenAccountInstructionData {
+            owner: light_compressed_account::Pubkey::from(self.owner.to_bytes()),
+            compressible_config: Some(CompressibleExtensionInstructionData {
+                token_account_version: self.compressible.token_account_version as u8,
+                rent_payment: self.compressible.pre_pay_num_epochs,
+                compression_only: self.compressible.compression_only as u8,
+                write_top_up: self.compressible.lamports_per_write.unwrap_or(0),
+                compress_to_account_pubkey: self.compressible.compress_to_account_pubkey.clone(),
+            }),
+        };
+
+        let mut data = Vec::new();
+        data.push(18u8); // InitializeAccount3 opcode
+        instruction_data
+            .serialize(&mut data)
+            .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+
+        let accounts = vec![
+            AccountMeta::new(self.account, true),
+            AccountMeta::new_readonly(self.mint, false),
+            AccountMeta::new(self.payer, true),
+            AccountMeta::new_readonly(self.compressible.compressible_config, false),
+            AccountMeta::new_readonly(Pubkey::default(), false), // system_program
+            AccountMeta::new(self.compressible.rent_sponsor, false),
+        ];
+
+        Ok(Instruction {
+            program_id: Pubkey::from(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
+            accounts,
+            data,
+        })
+    }
+}
+
+/// # Create a ctoken account via CPI:
+/// ```rust,no_run
+/// # use light_token_sdk::token::{CreateTokenAccountCpi, CompressibleParamsCpi};
+/// # use solana_account_info::AccountInfo;
+/// # use solana_pubkey::Pubkey;
+/// # let payer: AccountInfo = todo!();
+/// # let account: AccountInfo = todo!();
+/// # let mint: AccountInfo = todo!();
+/// # let owner: Pubkey = todo!();
+/// # let compressible: CompressibleParamsCpi = todo!();
+/// CreateTokenAccountCpi {
+///     payer,
+///     account,
+///     mint,
+///     owner,
+///     compressible,
+/// }
+/// .invoke()?;
+/// # Ok::<(), solana_program_error::ProgramError>(())
+/// ```
+pub struct CreateTokenAccountCpi<'info> {
+    pub payer: AccountInfo<'info>,
+    pub account: AccountInfo<'info>,
+    pub mint: AccountInfo<'info>,
+    pub owner: Pubkey,
+    pub compressible: CompressibleParamsCpi<'info>,
+}
+
+impl<'info> CreateTokenAccountCpi<'info> {
+    pub fn new(
+        payer: AccountInfo<'info>,
+        account: AccountInfo<'info>,
+        mint: AccountInfo<'info>,
+        owner: Pubkey,
+        compressible: CompressibleParamsCpi<'info>,
+    ) -> Self {
+        Self {
+            payer,
+            account,
+            mint,
+            owner,
+            compressible,
+        }
+    }
+
+    pub fn instruction(&self) -> Result<Instruction, ProgramError> {
+        CreateTokenAccount::from(self).instruction()
+    }
+
+    pub fn invoke(self) -> Result<(), ProgramError> {
+        let instruction = self.instruction()?;
+        let account_infos = [
+            self.account,
+            self.mint,
+            self.payer,
+            self.compressible.compressible_config,
+            self.compressible.system_program,
+            self.compressible.rent_sponsor,
+        ];
+        invoke(&instruction, &account_infos)
+    }
+
+    pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
+        let instruction = self.instruction()?;
+        let account_infos = [
+            self.account,
+            self.mint,
+            self.payer,
+            self.compressible.compressible_config,
+            self.compressible.system_program,
+            self.compressible.rent_sponsor,
+        ];
+        invoke_signed(&instruction, &account_infos, signer_seeds)
+    }
+}
+
+impl<'info> From<&CreateTokenAccountCpi<'info>> for CreateTokenAccount {
+    fn from(account_infos: &CreateTokenAccountCpi<'info>) -> Self {
+        Self {
+            payer: *account_infos.payer.key,
+            account: *account_infos.account.key,
+            mint: *account_infos.mint.key,
+            owner: account_infos.owner,
+            compressible: CompressibleParams {
+                compressible_config: *account_infos.compressible.compressible_config.key,
+                rent_sponsor: *account_infos.compressible.rent_sponsor.key,
+                pre_pay_num_epochs: account_infos.compressible.pre_pay_num_epochs,
+                lamports_per_write: account_infos.compressible.lamports_per_write,
+                compress_to_account_pubkey: account_infos
+                    .compressible
+                    .compress_to_account_pubkey
+                    .clone(),
+                token_account_version: account_infos.compressible.token_account_version,
+                compression_only: account_infos.compressible.compression_only,
+            },
+        }
+    }
+}
