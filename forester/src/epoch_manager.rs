@@ -359,8 +359,8 @@ impl<R: Rpc> EpochManager<R> {
                     if let Some(pagerduty_key) = &self.config.external_services.pagerduty_routing_key {
                         let _ = send_pagerduty_alert(
                             pagerduty_key,
-                            "critical",
                             &format!("Forester epoch monitor died unexpectedly on {}", self.config.payer_keypair.pubkey()),
+                            "critical",
                             "epoch_monitor_dead",
                         ).await;
                     }
