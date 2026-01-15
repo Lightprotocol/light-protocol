@@ -34,6 +34,8 @@ describe('layout-mint', () => {
                     version: 1,
                     cmintDecompressed: true,
                     splMint,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: null,
             };
@@ -73,6 +75,8 @@ describe('layout-mint', () => {
                     version: 0,
                     cmintDecompressed: false,
                     splMint,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: null,
             };
@@ -101,6 +105,8 @@ describe('layout-mint', () => {
                     version: 1,
                     cmintDecompressed: true,
                     splMint,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: null,
             };
@@ -140,6 +146,8 @@ describe('layout-mint', () => {
                     version: 1,
                     cmintDecompressed: true,
                     splMint,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: [
                     {
@@ -175,6 +183,8 @@ describe('layout-mint', () => {
                     version: 1,
                     cmintDecompressed: true,
                     splMint,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: null,
             };
@@ -355,6 +365,8 @@ describe('layout-mint', () => {
                     version: 1,
                     cmintDecompressed: true,
                     splMint,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: null,
             };
@@ -398,6 +410,8 @@ describe('layout-mint', () => {
                     version: 1,
                     cmintDecompressed: true,
                     splMint,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: [
                     {
@@ -444,6 +458,8 @@ describe('layout-mint', () => {
                     version: 1,
                     cmintDecompressed: true,
                     splMint,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: [
                     {
@@ -476,6 +492,8 @@ describe('layout-mint', () => {
                     version: 1,
                     cmintDecompressed: true,
                     splMint,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: null,
             };

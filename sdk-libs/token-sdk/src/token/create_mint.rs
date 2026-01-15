@@ -47,7 +47,7 @@ pub struct CreateMintParams {
 ///
 /// // Derive addresses
 /// let compression_address = derive_mint_compressed_address(&mint_seed_pubkey, &address_tree);
-/// let mint = find_mint_address(&mint_seed_pubkey).0;
+/// let (mint, bump) = find_mint_address(&mint_seed_pubkey);
 ///
 /// let params = CreateMintParams {
 ///     decimals: 9,
@@ -56,6 +56,7 @@ pub struct CreateMintParams {
 ///     proof, // from rpc.get_validity_proof
 ///     compression_address,
 ///     mint,
+///     bump,
 ///     freeze_authority: None,
 ///     extensions: None,
 /// };

@@ -13,7 +13,7 @@ use super::compressed_mint::ACCOUNT_TYPE_MINT;
 pub const CMINT_MIN_SIZE_WITH_COMPRESSION: usize = COMPRESSION_INFO_OFFSET + COMPRESSION_INFO_SIZE;
 
 /// Offset to CompressionInfo in CMint.
-/// 82 (BaseMint) + 66 (metadata) + 17 (reserved) + 1 (account_type) = 166
+/// 82 (BaseMint) + 67 (metadata) + 16 (reserved) + 1 (account_type) = 166
 const COMPRESSION_INFO_OFFSET: usize = 166;
 
 /// Size of CompressionInfo struct (96 bytes).

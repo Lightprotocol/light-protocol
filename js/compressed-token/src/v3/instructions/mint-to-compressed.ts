@@ -9,7 +9,6 @@ import {
     CTOKEN_PROGRAM_ID,
     LightSystemProgram,
     defaultStaticAccountsStruct,
-    deriveAddressV2,
     getDefaultAddressTreeInfo,
     MerkleContext,
     TreeInfo,
@@ -36,12 +35,6 @@ interface EncodeCompressedMintToInstructionParams {
 function encodeCompressedMintToInstructionData(
     params: EncodeCompressedMintToInstructionParams,
 ): Buffer {
-    const compressedAddress = deriveAddressV2(
-        params.mintData.splMint.toBytes(),
-        params.addressTree,
-        CTOKEN_PROGRAM_ID,
-    );
-
     // TokenMetadata extension not supported in mintTo instruction
     if (params.mintData.metadata) {
         throw new Error(
@@ -75,7 +68,8 @@ function encodeCompressedMintToInstructionData(
                 version: params.mintData.version,
                 cmintDecompressed: params.mintData.cmintDecompressed,
                 mint: params.mintData.splMint,
-                compressedAddress: Array.from(compressedAddress.toBytes()),
+                mintSigner: Array.from(params.mintData.mintSigner),
+                bump: params.mintData.bump,
             },
             mintAuthority: params.mintData.mintAuthority,
             freezeAuthority: params.mintData.freezeAuthority,

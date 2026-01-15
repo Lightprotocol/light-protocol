@@ -142,7 +142,8 @@ export const CompressedMintMetadataLayout = struct([
     u8('version'),
     bool('cmintDecompressed'),
     publicKey('mint'),
-    array(u8(), 32, 'compressedAddress'),
+    array(u8(), 32, 'mintSigner'),
+    u8('bump'),
 ]);
 
 export const CompressedMintInstructionDataLayout = struct([
@@ -309,7 +310,8 @@ export interface CompressedMintMetadata {
     version: number;
     cmintDecompressed: boolean;
     mint: PublicKey;
-    compressedAddress: number[];
+    mintSigner: number[];
+    bump: number;
 }
 
 export interface CompressedMintInstructionData {

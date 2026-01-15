@@ -20,9 +20,10 @@ pub const ACCOUNT_TYPE_MINT: u8 = 1;
 pub struct CompressedMint {
     pub base: BaseMint,
     pub metadata: CompressedMintMetadata,
-    /// Reserved bytes for T22 layout compatibility (padding to reach byte 165)
+    /// Reserved bytes (16 bytes) for T22 layout compatibility.
+    /// Positions `account_type` at offset 165: 82 (BaseMint) + 67 (metadata) + 16 (reserved) = 165.
     pub reserved: [u8; 16],
-    /// Account type discriminator at byte 165 (1 = Mint, 2 = Account)
+    /// Account type discriminator at byte offset 165 (1 = Mint, 2 = Account)
     pub account_type: u8,
     /// Compression info embedded directly in the mint
     pub compression: CompressionInfo,
@@ -62,7 +63,14 @@ pub struct BaseMint {
     pub freeze_authority: Option<Pubkey>,
 }
 
-/// Light Protocol-specific metadata for compressed mints
+/// Light Protocol-specific metadata for compressed mints.
+///
+/// Total size: 67 bytes
+/// - version: 1 byte
+/// - cmint_decompressed: 1 byte
+/// - mint: 32 bytes
+/// - mint_signer: 32 bytes
+/// - bump: 1 byte
 #[repr(C)]
 #[derive(
     Debug, Default, PartialEq, Eq, Clone, AnchorDeserialize, AnchorSerialize, ZeroCopyMut, ZeroCopy,
@@ -73,11 +81,11 @@ pub struct CompressedMintMetadata {
     /// Whether the compressed mint has been decompressed to a CMint Solana account.
     /// When true, the CMint account is the source of truth.
     pub cmint_decompressed: bool,
-    /// Pda with seed address of compressed mint
+    /// PDA derived from mint_signer, used as seed for the compressed address
     pub mint: Pubkey,
-    /// Signer pubkey used to derive the compressed address
+    /// Signer pubkey used to derive the mint PDA
     pub mint_signer: [u8; 32],
-    /// Bump seed used for compressed address derivation
+    /// Bump seed from mint PDA derivation
     pub bump: u8,
 }
 

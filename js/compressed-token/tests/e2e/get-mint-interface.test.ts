@@ -563,6 +563,8 @@ describe('unpackMintInterface', () => {
                     version: 1,
                     cmintDecompressed: true,
                     splMint,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: null,
             };
@@ -620,6 +622,8 @@ describe('unpackMintInterface', () => {
                     version: 1,
                     cmintDecompressed: false,
                     splMint,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: [
                     {
@@ -665,6 +669,8 @@ describe('unpackMintInterface', () => {
                     version: 1,
                     cmintDecompressed: false,
                     splMint: PublicKey.default,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: null,
             };
@@ -695,6 +701,8 @@ describe('unpackMintInterface', () => {
                     version: 1,
                     cmintDecompressed: false,
                     splMint: PublicKey.default,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: null,
             };
@@ -762,6 +770,8 @@ describe('unpackMintData', () => {
                 version: 1,
                 cmintDecompressed: true,
                 splMint,
+                mintSigner: new Uint8Array(32),
+                bump: 254,
             },
             extensions: null,
         };
@@ -802,6 +812,8 @@ describe('unpackMintData', () => {
                 version: 1,
                 cmintDecompressed: false,
                 splMint: PublicKey.default,
+                mintSigner: new Uint8Array(32),
+                bump: 254,
             },
             extensions: [
                 {
@@ -853,6 +865,8 @@ describe('unpackMintData', () => {
                 version: 1,
                 cmintDecompressed: false,
                 splMint: PublicKey.default,
+                mintSigner: new Uint8Array(32),
+                bump: 254,
             },
             extensions: [
                 {
@@ -885,6 +899,8 @@ describe('unpackMintData', () => {
                 version: 2,
                 cmintDecompressed: false,
                 splMint: PublicKey.default,
+                mintSigner: new Uint8Array(32),
+                bump: 254,
             },
             extensions: null,
         };
@@ -912,6 +928,8 @@ describe('unpackMintData', () => {
                     version,
                     cmintDecompressed: false,
                     splMint: PublicKey.default,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: null,
             };
@@ -937,6 +955,8 @@ describe('unpackMintData', () => {
                     version: 1,
                     cmintDecompressed: initialized,
                     splMint: PublicKey.default,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: null,
             };
@@ -970,6 +990,8 @@ describe('unpackMintData', () => {
                 version: 1,
                 cmintDecompressed: false,
                 splMint: PublicKey.default,
+                mintSigner: new Uint8Array(32),
+                bump: 254,
             },
             extensions: [
                 {

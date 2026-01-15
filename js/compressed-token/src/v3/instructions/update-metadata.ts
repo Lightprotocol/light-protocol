@@ -9,7 +9,6 @@ import {
     CTOKEN_PROGRAM_ID,
     LightSystemProgram,
     defaultStaticAccountsStruct,
-    deriveAddressV2,
     getDefaultAddressTreeInfo,
     getOutputQueue,
 } from '@lightprotocol/stateless.js';
@@ -82,12 +81,6 @@ function convertActionToBorsh(action: UpdateMetadataAction): Action {
 function encodeUpdateMetadataInstructionData(
     params: EncodeUpdateMetadataInstructionParams,
 ): Buffer {
-    const compressedAddress = deriveAddressV2(
-        params.splMint.toBytes(),
-        params.addressTree,
-        CTOKEN_PROGRAM_ID,
-    );
-
     const mintInterface = params.mintInterface;
 
     if (!mintInterface.tokenMetadata) {
@@ -112,7 +105,8 @@ function encodeUpdateMetadataInstructionData(
                 version: mintInterface.mintContext!.version,
                 cmintDecompressed: mintInterface.mintContext!.cmintDecompressed,
                 mint: mintInterface.mintContext!.splMint,
-                compressedAddress: Array.from(compressedAddress.toBytes()),
+                mintSigner: Array.from(mintInterface.mintContext!.mintSigner),
+                bump: mintInterface.mintContext!.bump,
             },
             mintAuthority: mintInterface.mint.mintAuthority,
             freezeAuthority: mintInterface.mint.freezeAuthority,

@@ -78,7 +78,6 @@ impl DecompressMint {
         .with_decompress_mint(action);
 
         // Build account metas with compressible CMint
-        // Note: mint_signer is NOT needed for decompress_mint - it uses compressed_mint.metadata.mint_signer
         let meta_config = MintActionMetaConfig::new(
             self.payer,
             self.authority,

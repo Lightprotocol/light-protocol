@@ -79,6 +79,8 @@ export async function mintTo(
             splMint: mintInfo.mintContext!.splMint,
             cmintDecompressed: mintInfo.mintContext!.cmintDecompressed,
             version: mintInfo.mintContext!.version,
+            mintSigner: mintInfo.mintContext!.mintSigner,
+            bump: mintInfo.mintContext!.bump,
             metadata: mintInfo.tokenMetadata
                 ? {
                       updateAuthority:

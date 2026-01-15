@@ -234,26 +234,24 @@ async fn test_ctoken_mint_to_invoke_signed() {
         .concat();
 
         // Account order matches process_decompress_cmint_invoke_signed:
-        // 0: mint_seed (readonly)
-        // 1: authority (PDA, readonly - program signs)
-        // 2: payer (signer, writable)
-        // 3: cmint (writable)
-        // 4: compressible_config (readonly)
-        // 5: rent_sponsor (writable)
-        // 6: state_tree (writable)
-        // 7: input_queue (writable)
-        // 8: output_queue (writable)
-        // 9: light_system_program (readonly)
-        // 10: cpi_authority_pda (readonly)
-        // 11: registered_program_pda (readonly)
-        // 12: account_compression_authority (readonly)
-        // 13: account_compression_program (readonly)
-        // 14: system_program (readonly)
-        // 15: ctoken_program (readonly) - required for CPI
+        // 0: authority (PDA, readonly - program signs)
+        // 1: payer (signer, writable)
+        // 2: cmint (writable)
+        // 3: compressible_config (readonly)
+        // 4: rent_sponsor (writable)
+        // 5: state_tree (writable)
+        // 6: input_queue (writable)
+        // 7: output_queue (writable)
+        // 8: light_system_program (readonly)
+        // 9: cpi_authority_pda (readonly)
+        // 10: registered_program_pda (readonly)
+        // 11: account_compression_authority (readonly)
+        // 12: account_compression_program (readonly)
+        // 13: system_program (readonly)
+        // 14: light_token_program (readonly) - required for CPI
         let light_token_program_id =
             Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
         let wrapper_accounts = vec![
-            AccountMeta::new_readonly(mint_signer_pda, false),
             AccountMeta::new_readonly(pda_mint_authority, false),
             AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new(mint_pda, false),
