@@ -11,7 +11,7 @@ use light_ctoken_sdk::compat::AccountState;
 pub use light_ctoken_sdk::compressible::{LightAta, LightMint};
 pub use light_sdk::compressible::config::CompressibleConfig;
 use light_sdk::{
-    compressible::{compression_info::CompressedAccountData, Pack},
+    compressible::{compression_info::CompressedAccountData, Pack, StandardCompressedVariant},
     constants::C_TOKEN_PROGRAM_ID,
     instruction::{
         account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts,
@@ -310,7 +310,7 @@ pub mod compressible_instruction {
     /// - Standard ATAs via `DecompressInput::Ata`
     /// - Standard CMints via `DecompressInput::Mint`
     ///
-    /// # Constraints (validated at runtime):
+    /// # Constraints (validated at client + runtime):
     /// - At most 1 mint per instruction
     /// - Mint + (ATA/CToken) combination is forbidden
     /// - Mint + PDAs is allowed
@@ -329,7 +329,7 @@ pub mod compressible_instruction {
         validity_proof_with_context: ValidityProofWithContext,
     ) -> Result<Instruction, Box<dyn std::error::Error>>
     where
-        T: Pack + Clone + std::fmt::Debug,
+        T: Pack + StandardCompressedVariant + Clone + std::fmt::Debug,
     {
         if inputs.is_empty() {
             return Err("inputs cannot be empty".into());
@@ -416,8 +416,6 @@ pub mod compressible_instruction {
             .packed_tree_infos;
 
         let mut accounts = program_account_metas.to_vec();
-        // Note: The variant type must include LightAta and LightMint variants
-        // for unified decompression to work. This is ensured by the #[compressible] macro.
         let mut typed_compressed_accounts: Vec<CompressedAccountData<T::Packed>> =
             Vec::with_capacity(inputs.len());
 
@@ -469,7 +467,7 @@ pub mod compressible_instruction {
                         0
                     };
 
-                    let _light_ata = LightAta {
+                    let light_ata = LightAta {
                         wallet_index,
                         mint_index,
                         ata_index,
@@ -479,11 +477,15 @@ pub mod compressible_instruction {
                         is_frozen: compressed_token.token.state == AccountState::Frozen,
                     };
 
-                    // Note: LightAta needs to be serialized as part of CompressedAccountVariant::LightAta
-                    // This requires T to have a variant that can hold LightAta.
-                    // For now, this is a placeholder - the actual implementation requires
-                    // the program's variant enum to include LightAta.
-                    return Err("LightAta unified decompression requires program variant support - use DecompressInput::ProgramData with explicit packing".into());
+                    // Use StandardCompressedVariant trait to pack LightAta
+                    let packed_data = T::pack_light_ata(light_ata);
+                    typed_compressed_accounts.push(CompressedAccountData {
+                        meta: CompressedAccountMetaNoLamportsNoAddress {
+                            tree_info,
+                            output_state_tree_index,
+                        },
+                        data: packed_data,
+                    });
                 }
                 DecompressInput::Mint {
                     compressed_account,
@@ -530,7 +532,7 @@ pub mod compressible_instruction {
                         0
                     };
 
-                    let _light_mint = LightMint {
+                    let light_mint = LightMint {
                         mint_seed_index,
                         cmint_pda_index,
                         has_mint_authority,
@@ -547,11 +549,15 @@ pub mod compressible_instruction {
                         extensions: None, // TODO: support extensions
                     };
 
-                    // Note: LightMint needs to be serialized as part of CompressedAccountVariant::LightMint
-                    // This requires T to have a variant that can hold LightMint.
-                    // For now, this is a placeholder - the actual implementation requires
-                    // the program's variant enum to include LightMint.
-                    return Err("LightMint unified decompression requires program variant support - use DecompressInput::ProgramData with explicit packing".into());
+                    // Use StandardCompressedVariant trait to pack LightMint
+                    let packed_data = T::pack_light_mint(light_mint);
+                    typed_compressed_accounts.push(CompressedAccountData {
+                        meta: CompressedAccountMetaNoLamportsNoAddress {
+                            tree_info,
+                            output_state_tree_index,
+                        },
+                        data: packed_data,
+                    });
                 }
             }
         }

@@ -243,6 +243,22 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
         }
     };
 
+    let standard_variant_impl = quote! {
+        impl light_sdk::compressible::StandardCompressedVariant for CompressedAccountVariant {
+            fn pack_light_ata(
+                light_ata: light_sdk::compressible::LightAta,
+            ) -> Self::Packed {
+                CompressedAccountVariant::LightAta(light_ata)
+            }
+
+            fn pack_light_mint(
+                light_mint: light_sdk::compressible::LightMint,
+            ) -> Self::Packed {
+                CompressedAccountVariant::LightMint(light_mint)
+            }
+        }
+    };
+
     let compressed_account_data_struct = quote! {
         #[derive(Clone, Debug, anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)]
         pub struct CompressedAccountData {
@@ -264,6 +280,7 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
         #size_impl
         #pack_impl
         #unpack_impl
+        #standard_variant_impl
         #compressed_account_data_struct
     };
 

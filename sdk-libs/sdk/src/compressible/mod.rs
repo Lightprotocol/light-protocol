@@ -29,6 +29,17 @@ pub use compression_info::{
     CompressAs, CompressedInitSpace, CompressionInfo, HasCompressionInfo, Pack, Space, Unpack,
     OPTION_COMPRESSION_INFO_SPACE,
 };
+
+/// Builds standard LightAta/LightMint variants for compressible enums.
+///
+/// Implemented by macro-generated `CompressedAccountVariant` types.
+/// This trait enables the client builder to create LightAta and LightMint
+/// variants without knowing the program-specific variant type at compile time.
+pub trait StandardCompressedVariant: Pack {
+    fn pack_light_ata(light_ata: LightAta) -> Self::Packed;
+    fn pack_light_mint(light_mint: LightMint) -> Self::Packed;
+}
+
 pub use config::{
     process_initialize_compression_config_account_info,
     process_initialize_compression_config_checked, process_update_compression_config,

@@ -2071,11 +2071,9 @@ async fn test_decompress_unified_two_mints_fails() {
                 .await;
 
             assert!(tx_result.is_err(), "Transaction with 2 mints should fail");
-            println!("   ✅ Two mints correctly rejected: {:?}", tx_result.err());
         }
-        Err(e) => {
-            // Building params might fail if we hit some issue
-            println!("   ⚠️ Build failed (acceptable): {}", e);
+        Err(_) => {
+            assert!(true);
         }
     }
 }
