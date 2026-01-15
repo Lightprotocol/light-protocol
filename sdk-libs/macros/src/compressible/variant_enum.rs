@@ -41,10 +41,13 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
         #[derive(Clone, Debug, anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize)]
         pub enum CompressedAccountVariant {
             #(#account_variants)*
+            /// Program-owned CToken accounts (Vaults)
             PackedCTokenData(light_ctoken_sdk::compat::PackedCTokenData<CTokenAccountVariant>),
             CTokenData(light_ctoken_sdk::compat::CTokenData<CTokenAccountVariant>),
-            /// Compressed mint data for decompression
-            CompressedMint(light_ctoken_sdk::compat::CompressedMintData),
+            /// Standard ATA for unified decompression (always available)
+            LightAta(light_sdk::compressible::LightAta),
+            /// Standard CMint for unified decompression (always available)
+            LightMint(light_sdk::compressible::LightMint),
         }
     };
 
@@ -72,7 +75,8 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#hash_match_arms)*
                     Self::PackedCTokenData(_) => unreachable!(),
                     Self::CTokenData(_) => unreachable!(),
-                    Self::CompressedMint(_) => unreachable!(),
+                    Self::LightAta(_) => unreachable!(),
+                    Self::LightMint(_) => unreachable!(),
                 }
             }
         }
@@ -124,7 +128,8 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#compression_info_match_arms)*
                     Self::PackedCTokenData(_) => unreachable!(),
                     Self::CTokenData(_) => unreachable!(),
-                    Self::CompressedMint(_) => unreachable!(),
+                    Self::LightAta(_) => unreachable!(),
+                    Self::LightMint(_) => unreachable!(),
                 }
             }
 
@@ -133,7 +138,8 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#compression_info_mut_match_arms)*
                     Self::PackedCTokenData(_) => unreachable!(),
                     Self::CTokenData(_) => unreachable!(),
-                    Self::CompressedMint(_) => unreachable!(),
+                    Self::LightAta(_) => unreachable!(),
+                    Self::LightMint(_) => unreachable!(),
                 }
             }
 
@@ -142,7 +148,8 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#compression_info_mut_opt_match_arms)*
                     Self::PackedCTokenData(_) => unreachable!(),
                     Self::CTokenData(_) => unreachable!(),
-                    Self::CompressedMint(_) => unreachable!(),
+                    Self::LightAta(_) => unreachable!(),
+                    Self::LightMint(_) => unreachable!(),
                 }
             }
 
@@ -151,7 +158,8 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#set_compression_info_none_match_arms)*
                     Self::PackedCTokenData(_) => unreachable!(),
                     Self::CTokenData(_) => unreachable!(),
-                    Self::CompressedMint(_) => unreachable!(),
+                    Self::LightAta(_) => unreachable!(),
+                    Self::LightMint(_) => unreachable!(),
                 }
             }
         }
@@ -172,7 +180,8 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#size_match_arms)*
                     Self::PackedCTokenData(_) => unreachable!(),
                     Self::CTokenData(_) => unreachable!(),
-                    Self::CompressedMint(_) => unreachable!(),
+                    Self::LightAta(_) => unreachable!(),
+                    Self::LightMint(_) => unreachable!(),
                 }
             }
         }
@@ -195,22 +204,12 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#pack_match_arms)*
                     Self::PackedCTokenData(_) => unreachable!(),
                     Self::CTokenData(data) => {
-                        // For ATA variants, we must insert the derived ATA address into PackedAccounts
-                        // BEFORE packing the token data. The runtime will derive the same ATA address
-                        // and search for it in packed_accounts.
-                        // Import the trait that provides is_ata()
-                        use light_sdk::compressible::CTokenSeedProvider as _;
-                        if data.variant.is_ata() {
-                            let (ata_address, _) = light_ctoken_sdk::ctoken::get_associated_ctoken_address_and_bump(
-                                &data.token_data.owner,
-                                &data.token_data.mint,
-                            );
-                            remaining_accounts.insert_or_get(ata_address);
-                        }
-                        // Use ctoken-sdk's Pack trait for CTokenData (implements locally to avoid orphan rule)
+                        // Use ctoken-sdk's Pack trait for CTokenData (program-owned tokens only)
                         Self::PackedCTokenData(light_ctoken_sdk::pack::Pack::pack(data, remaining_accounts))
                     }
-                    Self::CompressedMint(data) => Self::CompressedMint(data.clone()), // Mints don't need packing
+                    // LightAta and LightMint are already packed (they come from client pre-packed)
+                    Self::LightAta(data) => Self::LightAta(data.clone()),
+                    Self::LightMint(data) => Self::LightMint(data.clone()),
                 }
             }
         }
@@ -236,7 +235,9 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
                     #(#unpack_match_arms)*
                     Self::PackedCTokenData(_data) => Ok(self.clone()),
                     Self::CTokenData(_data) => unreachable!(),
-                    Self::CompressedMint(_data) => Ok(self.clone()), // Mints don't need unpacking
+                    // LightAta and LightMint don't need unpacking - indices are used directly
+                    Self::LightAta(_data) => Ok(self.clone()),
+                    Self::LightMint(_data) => Ok(self.clone()),
                 }
             }
         }

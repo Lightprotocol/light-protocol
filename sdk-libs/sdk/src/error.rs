@@ -107,6 +107,12 @@ pub enum LightSdkError {
     ExpectedSelfProgram,
     #[error("Expected CPI context to be provided")]
     ExpectedCpiContext,
+    #[error("At most 1 LightMint allowed per decompress_accounts_idempotent instruction")]
+    AtMostOneMintAllowed,
+    #[error(
+        "LightMint and (LightAta/CToken) combination is forbidden - both modify on-chain state"
+    )]
+    MintAndTokensForbidden,
 }
 
 impl From<LightSdkError> for ProgramError {
@@ -196,6 +202,8 @@ impl From<LightSdkError> for u32 {
             LightSdkError::ExpectedTreeInfo => 16041,
             LightSdkError::ExpectedSelfProgram => 16042,
             LightSdkError::ExpectedCpiContext => 16043,
+            LightSdkError::AtMostOneMintAllowed => 16044,
+            LightSdkError::MintAndTokensForbidden => 16045,
         }
     }
 }

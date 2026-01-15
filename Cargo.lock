@@ -3720,6 +3720,8 @@ dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
  "light-client",
+ "light-ctoken-interface",
+ "light-ctoken-sdk",
  "light-sdk",
  "solana-account",
  "solana-instruction",

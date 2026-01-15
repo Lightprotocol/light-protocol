@@ -45,8 +45,6 @@ pub struct TokenSeedSpec {
     pub variant: Ident,
     pub _eq: Token![=],
     pub is_token: Option<bool>,
-    /// True if this is an ATA variant (uses standard ctoken ATA derivation)
-    pub is_ata: bool,
     pub seeds: Punctuated<SeedElement, Token![,]>,
     pub authority: Option<Vec<SeedElement>>,
 }
@@ -59,46 +57,24 @@ impl Parse for TokenSeedSpec {
         let content;
         syn::parenthesized!(content in input);
 
-        let (is_token, is_ata, seeds, authority) = if content.peek(Ident) {
+        let (is_token, seeds, authority) = if content.peek(Ident) {
             let first_ident: Ident = content.parse()?;
 
             match first_ident.to_string().as_str() {
                 "is_token" => {
                     let _comma: Token![,] = content.parse()?;
-                    // Check for is_ata flag
-                    if content.peek(Ident) {
-                        let fork = content.fork();
-                        if let Ok(next_ident) = fork.parse::<Ident>() {
-                            if next_ident == "is_ata" {
-                                // Consume the is_ata identifier
-                                let _: Ident = content.parse()?;
-                                // Parse comma after is_ata
-                                let _comma: Token![,] = content.parse()?;
-                                // Parse remaining seeds (wallet and mint for ATA)
-                                let (seeds, authority) = parse_seeds_with_authority(&content)?;
-                                return Ok(TokenSeedSpec {
-                                    variant,
-                                    _eq,
-                                    is_token: Some(true),
-                                    is_ata: true,
-                                    seeds,
-                                    authority,
-                                });
-                            }
-                        }
-                    }
                     let (seeds, authority) = parse_seeds_with_authority(&content)?;
-                    (Some(true), false, seeds, authority)
+                    (Some(true), seeds, authority)
                 }
                 "true" => {
                     let _comma: Token![,] = content.parse()?;
                     let (seeds, authority) = parse_seeds_with_authority(&content)?;
-                    (Some(true), false, seeds, authority)
+                    (Some(true), seeds, authority)
                 }
                 "is_pda" | "false" => {
                     let _comma: Token![,] = content.parse()?;
                     let (seeds, authority) = parse_seeds_with_authority(&content)?;
-                    (Some(false), false, seeds, authority)
+                    (Some(false), seeds, authority)
                 }
                 _ => {
                     let mut seeds = Punctuated::new();
@@ -124,22 +100,21 @@ impl Parse for TokenSeedSpec {
                         let _comma: Token![,] = content.parse()?;
                         let (rest, authority) = parse_seeds_with_authority(&content)?;
                         seeds.extend(rest);
-                        (None, false, seeds, authority)
+                        (None, seeds, authority)
                     } else {
-                        (None, false, seeds, None)
+                        (None, seeds, None)
                     }
                 }
             }
         } else {
             let (seeds, authority) = parse_seeds_with_authority(&content)?;
-            (None, false, seeds, authority)
+            (None, seeds, authority)
         };
 
         Ok(TokenSeedSpec {
             variant,
             _eq,
             is_token,
-            is_ata,
             seeds,
             authority,
         })
@@ -348,8 +323,8 @@ pub fn add_compressible_instructions(
 
     if let Some(ref token_seed_specs) = token_seeds {
         for spec in token_seed_specs {
-            // ATAs don't need authority (they use standard ctoken derivation)
-            if !spec.is_ata && spec.authority.is_none() {
+            // All program-owned tokens need authority for compression signing
+            if spec.authority.is_none() {
                 return Err(macro_error!(
                     &spec.variant,
                     "Program-owned token account '{}' must specify authority = <seed_expr> for compression signing.",
@@ -517,8 +492,12 @@ pub fn add_compressible_instructions(
                     matches!(self.data, CompressedAccountVariant::PackedCTokenData(_))
                 }
 
-                fn is_compressed_mint(&self) -> bool {
-                    matches!(self.data, CompressedAccountVariant::CompressedMint(_))
+                fn is_light_ata(&self) -> bool {
+                    matches!(self.data, CompressedAccountVariant::LightAta(_))
+                }
+
+                fn is_light_mint(&self) -> bool {
+                    matches!(self.data, CompressedAccountVariant::LightMint(_))
                 }
             }
 
@@ -615,10 +594,6 @@ pub fn add_compressible_instructions(
                         light_ctoken_sdk::compat::PackedCTokenData<CTokenAccountVariant>,
                         light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                     )>,
-                    Vec<(
-                        light_ctoken_sdk::compat::CompressedMintData,
-                        light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
-                    )>,
                 ), solana_program_error::ProgramError> {
                     let post_system_offset = cpi_accounts.system_accounts_end_offset();
                     let all_infos = cpi_accounts.account_infos();
@@ -627,10 +602,6 @@ pub fn add_compressible_instructions(
                     let mut compressed_pda_infos = Vec::with_capacity(estimated_capacity);
                     let mut compressed_token_accounts: Vec<(
                         light_ctoken_sdk::compat::PackedCTokenData<CTokenAccountVariant>,
-                        light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
-                    )> = Vec::with_capacity(estimated_capacity);
-                    let mut compressed_mint_accounts: Vec<(
-                        light_ctoken_sdk::compat::CompressedMintData,
                         light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                     )> = Vec::with_capacity(estimated_capacity);
 
@@ -646,13 +617,17 @@ pub fn add_compressible_instructions(
                             CompressedAccountVariant::CTokenData(_) => {
                                 unreachable!();
                             }
-                            CompressedAccountVariant::CompressedMint(data) => {
-                                compressed_mint_accounts.push((data, meta));
+                            // LightAta and LightMint are handled via separate collection in DecompressContext
+                            CompressedAccountVariant::LightAta(_) => {
+                                // Handled in decompress_context collect_all_accounts
+                            }
+                            CompressedAccountVariant::LightMint(_) => {
+                                // Handled in decompress_context collect_all_accounts
                             }
                         }
                     }
 
-                    std::result::Result::Ok((compressed_pda_infos, compressed_token_accounts, compressed_mint_accounts))
+                    std::result::Result::Ok((compressed_pda_infos, compressed_token_accounts))
                 }
             }
         }

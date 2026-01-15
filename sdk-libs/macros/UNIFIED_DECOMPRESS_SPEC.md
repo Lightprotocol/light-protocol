@@ -1,376 +1,492 @@
-# Unified Decompress Specification v2
+# Unified Decompress Specification v3 (Final)
+
+## Implementation Status
+
+| Component                        | Status | Notes                                                                           |
+| -------------------------------- | ------ | ------------------------------------------------------------------------------- |
+| `LightAta` type                  | DONE   | `sdk-libs/sdk/src/compressible/standard_types.rs` (re-exported from ctoken-sdk) |
+| `LightMint` type                 | DONE   | `sdk-libs/sdk/src/compressible/standard_types.rs` (re-exported from ctoken-sdk) |
+| Error variants                   | DONE   | `AtMostOneMintAllowed`, `MintAndTokensForbidden` in `sdk/src/error.rs`          |
+| `CompressedAccountVariant` enum  | DONE   | Includes `LightAta`, `LightMint` variants in `variant_enum.rs`                  |
+| `HasTokenVariant` detection      | DONE   | Detects both standard and legacy types                                          |
+| Runtime validation               | DONE   | Constraint checks in `decompress_runtime.rs`                                    |
+| Trait extension                  | DONE   | `collect_all_accounts` returns 5-tuple, new `process_light_*` methods           |
+| Client `DecompressInput` enum    | DONE   | `compressible-client/src/lib.rs`                                                |
+| Runtime processing for LightAta  | STUB   | Returns error - use `PackedCTokenData` with `is_ata` for now                    |
+| Runtime processing for LightMint | STUB   | Returns error - use `CompressedMintData` for now                                |
+
+---
 
 ## Executive Summary
 
-Extend the `#[compressible(...)]` macro to auto-generate `decompress_accounts_idempotent` that handles **all four account types**. `LightAta` and `LightMint` are **standard SDK types** - programs don't declare them.
+Extend `decompress_accounts_idempotent` to handle **all four account types** using **standard SDK types** (`LightAta`, `LightMint`) for ATAs and Mints. Programs only declare their PDAs and program-owned CToken accounts (Vaults).
+
+**Critical Constraint**: `compress_accounts_idempotent` does NOT support ATA/Mint compression - those are compressed by the forester invoking the ctoken program directly.
 
 ---
 
 ## 1. Account Type Taxonomy
 
-| Type          | Declaration                                | SDK Type                      | Owner          | Signing                       | Any #    |
-| ------------- | ------------------------------------------ | ----------------------------- | -------------- | ----------------------------- | -------- |
-| **cPDA**      | `#[compressible(Foo = (...))]`             | Program-generated             | Program        | Program PDA seeds             | ✅       |
-| **CToken**    | `#[compressible(Vault = (is_token, ...))]` | Program-generated             | Program        | Program PDA seeds (authority) | ✅       |
-| **LightAta**  | NOT declared - always available            | `light_ctoken_sdk::LightAta`  | User wallet    | Wallet signs tx               | ✅       |
-| **LightMint** | NOT declared - always available            | `light_ctoken_sdk::LightMint` | ctoken program | Authority signs               | ❌ max 1 |
-
-**Key Design**: Users only declare PDAs and program-owned CToken accounts (Vaults). `LightAta` and `LightMint` are SDK types automatically included.
+| Type          | Declaration                                | SDK Type                      | Owner          | Signing                       | Limit |
+| ------------- | ------------------------------------------ | ----------------------------- | -------------- | ----------------------------- | ----- |
+| **cPDA**      | `#[compressible(Foo = (...))]`             | Program-generated             | Program        | Program PDA seeds             | Any # |
+| **CToken**    | `#[compressible(Vault = (is_token, ...))]` | Program-generated             | Program        | Program PDA seeds (authority) | Any # |
+| **LightAta**  | NOT declared - always available            | `light_ctoken_sdk::LightAta`  | User wallet    | Wallet signs tx               | Any # |
+| **LightMint** | NOT declared - always available            | `light_ctoken_sdk::LightMint` | ctoken program | Authority signs               | Max 1 |
 
 ---
 
-## 2. Macro Declaration Changes
+## 2. Constraints (Enforced at Runtime)
 
-### 2.1 Current Declaration (BEFORE)
+| Constraint                                 | Error                    | Rationale                                            |
+| ------------------------------------------ | ------------------------ | ---------------------------------------------------- |
+| Max 1 LightMint per instruction            | `AtMostOneMintAllowed`   | CMint decompression creates on-chain state           |
+| LightMint + (LightAta OR CToken) forbidden | `MintAndTokensForbidden` | Both modify on-chain state, CPI context conflicts    |
+| LightMint + cPDA allowed                   | -                        | PDAs use CPI context write, mint uses different path |
+| Any combo of LightAta + CToken + cPDA      | -                        | All can share CPI context                            |
 
-```rust
-#[compressible(
-    // PDAs
-    UserRecord = ("user_record", ctx.authority, data.owner),
+---
 
-    // Program-owned CToken (Vault)
-    Vault = (is_token, "vault", ctx.cmint, authority = ("vault_authority")),
+## 3. Current Architecture (What Exists)
 
-    // User ATA - REMOVED: Don't declare ATAs anymore
-    UserAta = (is_token, is_ata, ctx.wallet, ctx.cmint),  // ❌ REMOVE
-
-    // CMint - REMOVED: Don't declare CMints anymore
-    CMint = (is_token, "cmint", ctx.mint_signer, authority = LIGHT_CPI_SIGNER),  // ❌ REMOVE
-
-    // Data fields
-    owner = Pubkey,
-)]
-```
-
-### 2.2 New Declaration (AFTER)
+### 3.1 Macro Declaration (`#[compressible(...)]`)
 
 ```rust
 #[compressible(
-    // PDAs only - define your custom compressible PDAs
+    // PDAs - program-specific types
     UserRecord = ("user_record", ctx.authority, data.owner),
     GameSession = ("game_session", ctx.user, data.session_id.to_le_bytes()),
 
-    // Program-owned CTokens only (Vaults) - OPTIONAL
+    // Program-owned CTokens (Vaults) - require authority seeds
     Vault = (is_token, "vault", ctx.cmint, authority = ("vault_authority")),
 
-    // Data fields for seeds
+    // Data fields for seed params
     owner = Pubkey,
     session_id = u64,
-
-    // LightAta and LightMint are NOT declared - they're automatically available
 )]
+pub mod instructions { ... }
 ```
 
-### 2.3 Programs Without PDAs or Vaults
-
-A program can have:
-
-- Only PDAs (no CTokens)
-- Only Vaults (no PDAs)
-- Both PDAs and Vaults
-- Neither (only uses LightAta/LightMint via the generated instruction)
-
-All programs automatically get `LightAta` and `LightMint` support in `decompress_accounts_idempotent`.
-
----
-
-## 3. Generated CompressedAccountVariant Enum
-
-The macro generates this enum with program-specific types PLUS standard types:
+### 3.2 Generated `CompressedAccountVariant` Enum (variant_enum.rs)
 
 ```rust
-// Auto-generated by macro
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub enum CompressedAccountVariant {
-    // Program-specific PDAs (if any declared)
+    // Program-specific PDAs (from declaration)
     UserRecord(UserRecord),
     PackedUserRecord(PackedUserRecord),
     GameSession(GameSession),
     PackedGameSession(PackedGameSession),
 
-    // Program-specific CTokens/Vaults (if any declared)
+    // ALWAYS included (not from declaration):
+    PackedCTokenData(PackedCTokenData<CTokenAccountVariant>),
+    CTokenData(CTokenData<CTokenAccountVariant>),
+    CompressedMint(CompressedMintData),
+}
+```
+
+### 3.3 Generated `CTokenAccountVariant` Enum (seed_providers.rs)
+
+Only includes variants declared with `is_token`:
+
+```rust
+#[repr(u8)]
+pub enum CTokenAccountVariant {
+    Vault = 0,
+}
+```
+
+Each variant implements `CTokenSeedProvider` (get_seeds, get_authority_seeds, is_ata).
+
+### 3.4 Runtime Flow (decompress_runtime.rs)
+
+```
+process_decompress_accounts_idempotent()
+    |
+    +-> check_account_types() -> (has_tokens, has_pdas, has_mints)
+    |
+    +-> ctx.collect_all_accounts() -> (pda_infos, token_accounts, mint_accounts)
+    |
+    +-> if has_pdas: process PDAs via Light System CPI
+    |
+    +-> if has_mints: ctx.process_mints()
+    |
+    +-> if has_tokens: ctx.process_tokens()
+```
+
+### 3.5 Token Runtime (ctoken-sdk/decompress_runtime.rs)
+
+`process_decompress_tokens_runtime` already handles both:
+
+- Program-owned tokens: uses `get_seeds()`, `get_authority_seeds()` from variant
+- ATAs (is_ata=true): wallet owner signs, uses `derive_ctoken_ata()`
+
+---
+
+## 4. Design: Standard Types (LightAta, LightMint)
+
+### 4.1 New Types (light-ctoken-sdk)
+
+Location: `sdk-libs/ctoken-sdk/src/compressible/standard_types.rs`
+
+```rust
+/// Standard ATA for unified decompression.
+/// Wallet must sign the transaction.
+#[derive(Clone, Debug, AnchorSerialize, AnchorDeserialize)]
+pub struct LightAta {
+    /// Index into packed_accounts for wallet (signer)
+    pub wallet_index: u8,
+    /// Index into packed_accounts for mint
+    pub mint_index: u8,
+    /// Index into packed_accounts for derived ATA address
+    pub ata_index: u8,
+    /// Token amount
+    pub amount: u64,
+    /// Has delegate
+    pub has_delegate: bool,
+    /// Delegate index (if has_delegate)
+    pub delegate_index: u8,
+    /// Is frozen
+    pub is_frozen: bool,
+}
+
+/// Standard CMint for unified decompression.
+/// CMint authority must sign (or be fee_payer).
+#[derive(Clone, Debug, AnchorSerialize, AnchorDeserialize)]
+pub struct LightMint {
+    /// Index into packed_accounts for mint_seed pubkey
+    pub mint_seed_index: u8,
+    /// Index into packed_accounts for derived CMint PDA
+    pub cmint_pda_index: u8,
+    /// Has mint authority
+    pub has_mint_authority: bool,
+    /// Mint authority index
+    pub mint_authority_index: u8,
+    /// Has freeze authority
+    pub has_freeze_authority: bool,
+    /// Freeze authority index
+    pub freeze_authority_index: u8,
+    /// Decimals
+    pub decimals: u8,
+    /// Total supply
+    pub supply: u64,
+    /// Extensions (if any)
+    pub extensions: Option<Vec<u8>>,
+    /// Rent payment for CMint account
+    pub rent_payment: u64,
+    /// Write top-up
+    pub write_top_up: u32,
+}
+```
+
+### 4.2 Updated `CompressedAccountVariant` (variant_enum.rs)
+
+```rust
+pub enum CompressedAccountVariant {
+    // Program-specific PDAs (from declaration)
+    UserRecord(UserRecord),
+    PackedUserRecord(PackedUserRecord),
+
+    // Program-owned CTokens (Vaults) - if declared
     PackedCTokenData(PackedCTokenData<CTokenAccountVariant>),
     CTokenData(CTokenData<CTokenAccountVariant>),
 
     // ALWAYS included - standard SDK types
-    LightAta(light_ctoken_sdk::LightAta),
-    LightMint(light_ctoken_sdk::LightMint),
+    LightAta(light_ctoken_sdk::compressible::LightAta),
+    LightMint(light_ctoken_sdk::compressible::LightMint),
+
+    // Legacy (for backward compat with existing CompressedMint variant)
+    CompressedMint(CompressedMintData),
 }
 ```
 
----
+### 4.3 Removed: `#[ata]` Attribute
 
-## 4. Combination Rules
-
-### 4.1 Forbidden Combinations
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  LightMint + (LightAta or CToken) = FORBIDDEN           │
-│                                                         │
-│  Reason: Both modify on-chain state, neither can be     │
-│  in CPI context write mode.                             │
-│  - DecompressMint: error 6035 when writing to context   │
-│  - Transfer2: error 18001 when writing to context       │
-└─────────────────────────────────────────────────────────┘
-```
-
-### 4.2 Allowed Combinations
-
-```
-✅ cPDA only                    (any number)
-✅ CToken only                  (any number)
-✅ LightAta only                (any number)
-✅ LightMint only               (exactly 1)
-✅ cPDA + CToken                (any number each)
-✅ cPDA + LightAta              (any number each)
-✅ cPDA + LightMint             (any PDAs + exactly 1 mint)
-✅ CToken + LightAta            (any number each)
-✅ cPDA + CToken + LightAta     (any number each)
-```
-
-### 4.3 Constraint Summary
-
-| Constraint                      | Client Validation | On-chain Validation | Error                      |
-| ------------------------------- | ----------------- | ------------------- | -------------------------- |
-| Max 1 LightMint per instruction | ✅ Yes            | ✅ Yes              | `AtMostOneMintAllowed`     |
-| LightMint + tokens forbidden    | ✅ Yes            | ✅ Yes              | `MintAndTokensForbidden`   |
-| Wallet must sign for LightAta   | ✅ Yes            | ✅ Yes              | `MissingRequiredSignature` |
-
----
-
-## 5. Type Definitions and Locations
-
-### 5.1 Where Types Live
-
-| Type              | Location                                          | Description                                      |
-| ----------------- | ------------------------------------------------- | ------------------------------------------------ |
-| `LightAta`        | `light-ctoken-sdk/src/compressible/light_ata.rs`  | Packed ATA struct (on-chain)                     |
-| `LightAtaInput`   | `light-ctoken-sdk/src/compressible/light_ata.rs`  | Client-side input type                           |
-| `LightMint`       | `light-ctoken-sdk/src/compressible/light_mint.rs` | Packed Mint struct (on-chain)                    |
-| `LightMintInput`  | `light-ctoken-sdk/src/compressible/light_mint.rs` | Client-side input type                           |
-| Validation errors | `light-sdk/src/error.rs`                          | `AtMostOneMintAllowed`, `MintAndTokensForbidden` |
-
-### 5.2 LightAta Type Definition
+Old (REMOVED):
 
 ```rust
-// light-ctoken-sdk/src/compressible/light_ata.rs
+// OLD - no longer supported
+UserAta = (is_token, is_ata, ctx.wallet, ctx.cmint),
+```
 
-/// On-chain packed ATA type (indices into remaining_accounts)
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct LightAta {
-    /// Index of wallet account (must be signer, derives ATA)
-    pub wallet_index: u8,
-    /// Index of mint account
-    pub mint_index: u8,
-    /// Index of ATA account (derived from wallet + mint)
-    pub ata_index: u8,
-    /// Token amount
-    pub amount: u64,
-    /// Whether delegate is set
-    pub has_delegate: bool,
-    /// Index of delegate (0 if none)
-    pub delegate_index: u8,
-    /// Whether account is frozen
-    pub is_frozen: bool,
-}
+New:
 
-/// Client-side input for LightAta decompression
-pub struct LightAtaInput {
-    /// Compressed token account from indexer
-    pub compressed_account: CompressedTokenAccount,
-    /// Wallet pubkey (must be signer in transaction)
-    pub wallet: Pubkey,
-}
+- ATAs use `LightAta` standard type
+- No declaration needed
+- `CTokenAccountVariant` is ONLY for program-owned tokens (Vaults)
 
-impl Pack for LightAtaInput {
-    type Packed = LightAta;
+---
 
-    fn pack(&self, packed_accounts: &mut PackedAccounts) -> LightAta {
-        // Insert wallet as signer
-        let wallet_index = packed_accounts.insert_or_get_config(self.wallet, true, false);
+## 5. Implementation Details
 
-        // Get mint from compressed account data
-        let mint = Pubkey::new_from_array(self.compressed_account.token.mint);
-        let mint_index = packed_accounts.insert_or_get_read_only(mint);
+### 5.1 Macro Changes (variant_enum.rs)
 
-        // Derive and insert ATA address
-        let ata = get_associated_token_address(&self.wallet, &mint);
-        let ata_index = packed_accounts.insert_or_get(ata);
+**File**: `sdk-libs/macros/src/compressible/variant_enum.rs`
 
-        LightAta {
-            wallet_index,
-            mint_index,
-            ata_index,
-            amount: self.compressed_account.token.amount,
-            has_delegate: self.compressed_account.token.delegate.is_some(),
-            delegate_index: if let Some(delegate) = self.compressed_account.token.delegate {
-                packed_accounts.insert_or_get_read_only(Pubkey::new_from_array(delegate))
-            } else {
-                0
-            },
-            is_frozen: self.compressed_account.token.state == AccountState::Frozen,
-        }
+Add `LightAta` and `LightMint` variants unconditionally:
+
+```rust
+let enum_def = quote! {
+    #[derive(Clone, Debug, AnchorSerialize, AnchorDeserialize)]
+    pub enum CompressedAccountVariant {
+        #(#account_variants)*
+        PackedCTokenData(light_ctoken_sdk::compat::PackedCTokenData<CTokenAccountVariant>),
+        CTokenData(light_ctoken_sdk::compat::CTokenData<CTokenAccountVariant>),
+        // Standard types - ALWAYS included
+        LightAta(light_ctoken_sdk::compressible::LightAta),
+        LightMint(light_ctoken_sdk::compressible::LightMint),
+        // Legacy (kept for backward compat)
+        CompressedMint(light_ctoken_sdk::compat::CompressedMintData),
+    }
+};
+```
+
+Update `HasTokenVariant` impl to detect `LightAta`:
+
+```rust
+impl HasTokenVariant for CompressedAccountData {
+    fn is_packed_ctoken(&self) -> bool {
+        matches!(self.data,
+            CompressedAccountVariant::PackedCTokenData(_) |
+            CompressedAccountVariant::LightAta(_)  // LightAta is a token
+        )
+    }
+
+    fn is_compressed_mint(&self) -> bool {
+        matches!(self.data,
+            CompressedAccountVariant::CompressedMint(_) |
+            CompressedAccountVariant::LightMint(_)  // LightMint is a mint
+        )
     }
 }
 ```
 
-### 5.3 LightMint Type Definition
+### 5.2 Runtime Validation (decompress_runtime.rs)
+
+**File**: `sdk-libs/sdk/src/compressible/decompress_runtime.rs`
+
+Add validation in `process_decompress_accounts_idempotent`:
 
 ```rust
-// light-ctoken-sdk/src/compressible/light_mint.rs
+// Enhanced check_account_types with mint count
+pub fn check_account_types_with_count<T: HasTokenVariant>(
+    compressed_accounts: &[T]
+) -> (bool, bool, bool, usize) {
+    let (mut has_tokens, mut has_pdas, mut has_mints) = (false, false, false);
+    let mut mint_count = 0;
 
-/// On-chain packed Mint type (indices into remaining_accounts)
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct LightMint {
-    /// Index of mint_seed account (derives CMint PDA)
-    pub mint_seed_index: u8,
-    /// Index of CMint PDA in remaining_accounts
-    pub cmint_pda_index: u8,
-    /// Compressed address (raw bytes, not an account)
-    pub compressed_address: [u8; 32],
-    /// Merkle tree leaf index
-    pub leaf_index: u32,
-    /// Whether to prove by index
-    pub prove_by_index: bool,
-    /// Root index for proof
-    pub root_index: u16,
-    /// Token supply
-    pub supply: u64,
-    /// Token decimals
-    pub decimals: u8,
-    /// Metadata version
-    pub version: u8,
-    /// Whether CMint has been decompressed before
-    pub cmint_decompressed: bool,
-    /// Whether mint_authority is set
-    pub has_mint_authority: bool,
-    /// Index of mint_authority (0 if none)
-    pub mint_authority_index: u8,
-    /// Whether freeze_authority is set
-    pub has_freeze_authority: bool,
-    /// Index of freeze_authority (0 if none)
-    pub freeze_authority_index: u8,
-    /// Rent payment type (e.g., 2 for sponsor)
-    pub rent_payment: u8,
-    /// Write top-up amount
-    pub write_top_up: u64,
-}
-
-/// Client-side input for LightMint decompression
-pub struct LightMintInput {
-    /// Compressed account from indexer (contains CompressedMint data)
-    pub compressed_account: CompressedAccount,
-    /// Mint seed pubkey (used to derive CMint PDA)
-    pub mint_seed_pubkey: Pubkey,
-}
-
-impl Pack for LightMintInput {
-    type Packed = LightMint;
-
-    fn pack(&self, packed_accounts: &mut PackedAccounts) -> LightMint {
-        // Parse mint data from compressed account
-        let mint_data: CompressedMint = borsh::BorshDeserialize::deserialize(
-            &mut &self.compressed_account.data.as_ref().unwrap().data[..]
-        ).expect("Failed to parse CompressedMint data");
-
-        // Insert mint_seed
-        let mint_seed_index = packed_accounts.insert_or_get_read_only(self.mint_seed_pubkey);
-
-        // Derive and insert CMint PDA
-        let (cmint_pda, _) = find_cmint_address(&self.mint_seed_pubkey);
-        let cmint_pda_index = packed_accounts.insert_or_get(cmint_pda);
-
-        // Pack authorities if present
-        let has_mint_authority = mint_data.base.mint_authority.is_some();
-        let mint_authority_index = if let Some(auth) = mint_data.base.mint_authority {
-            packed_accounts.insert_or_get_read_only(Pubkey::new_from_array(auth.to_bytes()))
+    for account in compressed_accounts {
+        if account.is_packed_ctoken() {
+            has_tokens = true;
+        } else if account.is_compressed_mint() {
+            has_mints = true;
+            mint_count += 1;
         } else {
-            0
-        };
-
-        let has_freeze_authority = mint_data.base.freeze_authority.is_some();
-        let freeze_authority_index = if let Some(auth) = mint_data.base.freeze_authority {
-            packed_accounts.insert_or_get_read_only(Pubkey::new_from_array(auth.to_bytes()))
-        } else {
-            0
-        };
-
-        LightMint {
-            mint_seed_index,
-            cmint_pda_index,
-            compressed_address: self.compressed_account.address.unwrap(),
-            leaf_index: 0, // Set by caller from tree_info
-            prove_by_index: false, // Set by caller
-            root_index: 0, // Set by caller
-            supply: mint_data.base.supply,
-            decimals: mint_data.base.decimals,
-            version: mint_data.metadata.version,
-            cmint_decompressed: mint_data.metadata.cmint_decompressed,
-            has_mint_authority,
-            mint_authority_index,
-            has_freeze_authority,
-            freeze_authority_index,
-            rent_payment: 2,
-            write_top_up: 5000,
+            has_pdas = true;
         }
     }
+    (has_tokens, has_pdas, has_mints, mint_count)
+}
+
+// In process_decompress_accounts_idempotent:
+pub fn process_decompress_accounts_idempotent<'info, Ctx>(...) -> Result<(), ProgramError>
+where Ctx: DecompressContext<'info>
+{
+    let (has_tokens, has_pdas, has_mints, mint_count) =
+        check_account_types_with_count(&compressed_accounts);
+
+    // CONSTRAINT 1: Max 1 mint
+    if mint_count > 1 {
+        msg!("At most 1 LightMint allowed per instruction, found {}", mint_count);
+        return Err(LightSdkError::AtMostOneMintAllowed.into());
+    }
+
+    // CONSTRAINT 2: Mint + tokens forbidden
+    if has_mints && has_tokens {
+        msg!("LightMint + (LightAta/CToken) combination is forbidden");
+        return Err(LightSdkError::MintAndTokensForbidden.into());
+    }
+
+    // ... rest of processing
+}
+```
+
+### 5.3 DecompressContext Changes (decompress_context.rs)
+
+**File**: `sdk-libs/macros/src/compressible/decompress_context.rs`
+
+Update `collect_all_accounts` to handle `LightAta` and `LightMint`:
+
+```rust
+fn collect_all_accounts<'b>(...) -> Result<(
+    Vec<CompressedAccountInfo>,
+    Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
+    Vec<(Self::CompressedMintData, Self::CompressedMeta)>,
+), ProgramError> {
+    // ... existing PDA handling ...
+
+    for (i, compressed_data) in compressed_accounts.into_iter().enumerate() {
+        let meta = compressed_data.meta;
+        match compressed_data.data {
+            // Existing PDA match arms...
+            #(#pda_match_arms)*
+
+            // Program-owned tokens (Vaults)
+            CompressedAccountVariant::PackedCTokenData(mut data) => {
+                data.token_data.version = 3;
+                compressed_token_accounts.push((data, meta));
+            }
+
+            // Standard LightAta - convert to PackedCTokenData format
+            CompressedAccountVariant::LightAta(light_ata) => {
+                // LightAta is handled separately in process_tokens
+                // We need a marker to distinguish it from program-owned tokens
+                compressed_light_atas.push((light_ata, meta));
+            }
+
+            // Standard LightMint
+            CompressedAccountVariant::LightMint(light_mint) => {
+                compressed_light_mints.push((light_mint, meta));
+            }
+
+            // Legacy CompressedMint
+            CompressedAccountVariant::CompressedMint(data) => {
+                compressed_mint_accounts.push((data, meta));
+            }
+
+            CompressedAccountVariant::CTokenData(_) => unreachable!(),
+        }
+    }
+    // ...
+}
+```
+
+### 5.4 Token Runtime: LightAta Handler (ctoken-sdk)
+
+**File**: `sdk-libs/ctoken-sdk/src/compressible/decompress_runtime.rs`
+
+Add handler for `LightAta` in `process_decompress_tokens_runtime`:
+
+```rust
+// Process LightAta accounts
+for (light_ata, meta) in light_atas.into_iter() {
+    let wallet_info = &packed_accounts[light_ata.wallet_index as usize];
+    let mint_info = &packed_accounts[light_ata.mint_index as usize];
+    let ata_account = &packed_accounts[light_ata.ata_index as usize];
+
+    // Validate wallet is signer
+    if !wallet_info.is_signer {
+        msg!("Wallet must be signer for LightAta decompression");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Derive ATA and verify
+    let (derived_ata, bump) = derive_ctoken_ata(wallet_info.key, mint_info.key);
+    if derived_ata != *ata_account.key {
+        msg!("LightAta address mismatch");
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    // Create ATA idempotently
+    CreateAssociatedCTokenAccountCpi {
+        payer: fee_payer.clone(),
+        associated_token_account: ata_account.clone(),
+        owner: wallet_info.clone(),
+        mint: mint_info.clone(),
+        // ... compression_only: true, idempotent: true
+    }.invoke()?;
+
+    // Build decompress indices...
+}
+```
+
+### 5.5 Mint Runtime: LightMint Handler (ctoken-sdk)
+
+**File**: `sdk-libs/ctoken-sdk/src/compressible/decompress_runtime.rs`
+
+Add handler for `LightMint` in `process_decompress_mints_runtime`:
+
+```rust
+// Process LightMint accounts
+for (light_mint, meta) in light_mints.into_iter() {
+    let mint_seed_info = &packed_accounts[light_mint.mint_seed_index as usize];
+    let cmint_info = &packed_accounts[light_mint.cmint_pda_index as usize];
+
+    // Derive CMint PDA and verify
+    let (derived_cmint, _) = find_cmint_address(mint_seed_info.key);
+    if derived_cmint != *cmint_info.key {
+        msg!("LightMint CMint PDA mismatch");
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    // Build CompressedMintWithContext from LightMint data
+    let compressed_mint_with_context = CompressedMintWithContext {
+        mint_seed_pubkey: *mint_seed_info.key,
+        base: CompressedMintBase {
+            mint_authority: if light_mint.has_mint_authority {
+                Some(packed_accounts[light_mint.mint_authority_index as usize].key.into())
+            } else { None },
+            freeze_authority: if light_mint.has_freeze_authority {
+                Some(packed_accounts[light_mint.freeze_authority_index as usize].key.into())
+            } else { None },
+            decimals: light_mint.decimals,
+            supply: light_mint.supply,
+        },
+        extensions: light_mint.extensions.clone(),
+        // ... tree context from meta
+    };
+
+    // Invoke DecompressCMint CPI...
 }
 ```
 
 ---
 
-## 6. Client Helper Changes
+## 6. Client-Side Implementation
 
-### 6.1 Updated `decompress_accounts_idempotent` API
+**File**: `sdk-libs/compressible-client/src/lib.rs`
 
-The existing helper in `light-compressible-client` needs to understand `LightAtaInput` and `LightMintInput`:
+### 6.1 New Input Enum
 
 ```rust
-// light-compressible-client/src/lib.rs
-
-/// Input enum for decompress_accounts_idempotent
-/// Wraps all supported input types with their required data
+/// Input for decompress_accounts_idempotent supporting all account types.
 pub enum DecompressInput<T> {
-    /// Program-specific PDA or CToken (existing behavior)
+    /// Program-specific PDA or program-owned CToken
     Standard {
         compressed_account: CompressedAccount,
-        data: T,  // The variant data (implements Pack)
+        data: T,
     },
-    /// Standard ATA decompression
+    /// Standard ATA (user-owned token account)
     LightAta {
+        /// Compressed token account from indexer
         compressed_account: CompressedTokenAccount,
-        wallet: Pubkey,  // Must be signer
+        /// Wallet that owns this ATA (must sign transaction)
+        wallet: Pubkey,
     },
-    /// Standard Mint decompression
+    /// Standard CMint (compressed mint)
     LightMint {
+        /// Compressed mint account from indexer
         compressed_account: CompressedAccount,
+        /// Mint seed pubkey (for CMint PDA derivation)
         mint_seed_pubkey: Pubkey,
     },
 }
+```
 
-/// Builds decompress_accounts_idempotent instruction with full validation
-#[allow(clippy::too_many_arguments)]
-pub fn decompress_accounts_idempotent<T>(
-    program_id: &Pubkey,
-    discriminator: &[u8],
-    decompressed_account_addresses: &[Pubkey],
-    inputs: &[DecompressInput<T>],
-    program_account_metas: &[AccountMeta],
-    validity_proof_with_context: ValidityProofWithContext,
-) -> Result<Instruction, CompressibleClientError>
-where
-    T: Pack + Clone + std::fmt::Debug,
-    T::Packed: AnchorSerialize,
-{
-    // CLIENT-SIDE VALIDATION
+### 6.2 Client-Side Validation
+
+```rust
+fn validate_inputs<T>(inputs: &[DecompressInput<T>]) -> Result<(), CompressibleClientError> {
     let mut mint_count = 0;
     let mut has_tokens = false;
 
     for input in inputs {
         match input {
-            DecompressInput::LightMint { .. } => mint_count += 1,
-            DecompressInput::LightAta { .. } => has_tokens = true,
+            DecompressInput::LightMint { .. } => {
+                mint_count += 1;
+            }
+            DecompressInput::LightAta { .. } => {
+                has_tokens = true;
+            }
             DecompressInput::Standard { compressed_account, .. } => {
                 if compressed_account.owner == C_TOKEN_PROGRAM_ID.into() {
                     has_tokens = true;
@@ -389,13 +505,15 @@ where
         return Err(CompressibleClientError::MintAndTokensForbidden);
     }
 
-    // ... rest of implementation (see section 6.2)
+    Ok(())
 }
 ```
 
-### 6.2 Detailed Client Helper Implementation
+### 6.3 Updated `decompress_accounts_idempotent`
 
 ```rust
+/// Builds decompress_accounts_idempotent instruction handling all account types.
+#[allow(clippy::too_many_arguments)]
 pub fn decompress_accounts_idempotent<T>(
     program_id: &Pubkey,
     discriminator: &[u8],
@@ -406,42 +524,23 @@ pub fn decompress_accounts_idempotent<T>(
 ) -> Result<Instruction, CompressibleClientError>
 where
     T: Pack + Clone + std::fmt::Debug,
-    T::Packed: AnchorSerialize,
 {
     if inputs.is_empty() {
         return Err(CompressibleClientError::EmptyInputs);
     }
 
-    // 1. Validate constraints (as shown above)
-    // ... validation code ...
+    // Validate constraints
+    validate_inputs(inputs)?;
 
-    // 2. Determine if CPI context is needed
-    let has_pdas = inputs.iter().any(|i| matches!(i,
-        DecompressInput::Standard { compressed_account, .. }
-        if compressed_account.owner != C_TOKEN_PROGRAM_ID.into()
-    ));
-    let has_mints = inputs.iter().any(|i| matches!(i, DecompressInput::LightMint { .. }));
-    let has_any_tokens = inputs.iter().any(|i| matches!(i,
-        DecompressInput::LightAta { .. } |
-        DecompressInput::Standard { compressed_account, .. }
-        if compressed_account.owner == C_TOKEN_PROGRAM_ID.into()
-    ));
+    // Detect account types for CPI context decision
+    let (has_pdas, has_mints, has_tokens) = detect_account_types(inputs);
 
-    let needs_cpi_context = (has_pdas && has_any_tokens) || (has_pdas && has_mints);
-
-    // 3. Setup PackedAccounts
     let mut remaining_accounts = PackedAccounts::default();
 
-    if needs_cpi_context {
-        let cpi_context = inputs.iter().find_map(|i| match i {
-            DecompressInput::Standard { compressed_account, .. } =>
-                compressed_account.tree_info.cpi_context,
-            DecompressInput::LightAta { compressed_account, .. } =>
-                compressed_account.account.tree_info.cpi_context,
-            DecompressInput::LightMint { compressed_account, .. } =>
-                compressed_account.tree_info.cpi_context,
-        }).ok_or(CompressibleClientError::MissingCpiContext)?;
-
+    // Setup CPI context if needed (2+ different types)
+    let type_count = has_pdas as u8 + has_mints as u8 + has_tokens as u8;
+    if type_count >= 2 {
+        let cpi_context = get_cpi_context_from_inputs(inputs)?;
         let system_config = SystemAccountMetaConfig::new_with_cpi_context(*program_id, cpi_context);
         remaining_accounts.add_system_accounts_v2(system_config)?;
     } else {
@@ -449,16 +548,16 @@ where
         remaining_accounts.add_system_accounts_v2(system_config)?;
     }
 
-    // 4. Pack output queue
+    // Pack output queue
     let first_tree_info = get_first_tree_info(inputs)?;
     let output_queue = get_output_queue(&first_tree_info);
     let output_state_tree_index = remaining_accounts.insert_or_get(output_queue);
 
-    // 5. Pack tree infos from validity proof
+    // Pack tree infos from validity proof
     let packed_tree_infos = validity_proof_with_context.pack_tree_infos(&mut remaining_accounts);
     let packed_tree_infos_slice = &packed_tree_infos.state_trees.as_ref().unwrap().packed_tree_infos;
 
-    // 6. Pack each input into CompressedAccountData
+    // Pack each input
     let mut compressed_accounts = Vec::with_capacity(inputs.len());
 
     for (i, input) in inputs.iter().enumerate() {
@@ -479,13 +578,17 @@ where
             }
 
             DecompressInput::LightAta { compressed_account, wallet } => {
-                remaining_accounts.insert_or_get(compressed_account.account.tree_info.queue);
+                remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
 
-                // Pack wallet as signer
+                // Insert wallet as signer
                 let wallet_index = remaining_accounts.insert_or_get_config(*wallet, true, false);
-                let mint = Pubkey::new_from_array(compressed_account.token.mint);
+
+                // Get mint from token data
+                let mint = compressed_account.token.mint;
                 let mint_index = remaining_accounts.insert_or_get_read_only(mint);
-                let ata = get_associated_token_address(wallet, &mint);
+
+                // Derive and insert ATA address
+                let (ata, _) = get_associated_ctoken_address_and_bump(wallet, &mint);
                 let ata_index = remaining_accounts.insert_or_get(ata);
 
                 let light_ata = LightAta {
@@ -495,7 +598,7 @@ where
                     amount: compressed_account.token.amount,
                     has_delegate: compressed_account.token.delegate.is_some(),
                     delegate_index: compressed_account.token.delegate.map(|d|
-                        remaining_accounts.insert_or_get_read_only(Pubkey::new_from_array(d))
+                        remaining_accounts.insert_or_get_read_only(d)
                     ).unwrap_or(0),
                     is_frozen: compressed_account.token.state == AccountState::Frozen,
                 };
@@ -512,42 +615,40 @@ where
             DecompressInput::LightMint { compressed_account, mint_seed_pubkey } => {
                 remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
 
-                // Parse mint data
+                // Insert mint_seed
+                let mint_seed_index = remaining_accounts.insert_or_get_read_only(*mint_seed_pubkey);
+
+                // Derive and insert CMint PDA
+                let (cmint_pda, _) = find_cmint_address(mint_seed_pubkey);
+                let cmint_pda_index = remaining_accounts.insert_or_get(cmint_pda);
+
+                // Parse mint data from compressed account
                 let mint_data: CompressedMint = borsh::BorshDeserialize::deserialize(
                     &mut &compressed_account.data.as_ref().unwrap().data[..]
                 )?;
 
-                let mint_seed_index = remaining_accounts.insert_or_get_read_only(*mint_seed_pubkey);
-                let (cmint_pda, _) = find_cmint_address(mint_seed_pubkey);
-                let cmint_pda_index = remaining_accounts.insert_or_get(cmint_pda);
-
                 let has_mint_authority = mint_data.base.mint_authority.is_some();
                 let mint_authority_index = mint_data.base.mint_authority.map(|auth|
-                    remaining_accounts.insert_or_get_read_only(Pubkey::new_from_array(auth.to_bytes()))
+                    remaining_accounts.insert_or_get_read_only(auth.into())
                 ).unwrap_or(0);
 
                 let has_freeze_authority = mint_data.base.freeze_authority.is_some();
                 let freeze_authority_index = mint_data.base.freeze_authority.map(|auth|
-                    remaining_accounts.insert_or_get_read_only(Pubkey::new_from_array(auth.to_bytes()))
+                    remaining_accounts.insert_or_get_read_only(auth.into())
                 ).unwrap_or(0);
 
                 let light_mint = LightMint {
                     mint_seed_index,
                     cmint_pda_index,
-                    compressed_address: compressed_account.address.unwrap(),
-                    leaf_index: tree_info.leaf_index,
-                    prove_by_index: tree_info.prove_by_index,
-                    root_index: tree_info.root_index,
-                    supply: mint_data.base.supply,
-                    decimals: mint_data.base.decimals,
-                    version: mint_data.metadata.version,
-                    cmint_decompressed: mint_data.metadata.cmint_decompressed,
                     has_mint_authority,
                     mint_authority_index,
                     has_freeze_authority,
                     freeze_authority_index,
-                    rent_payment: 2,
-                    write_top_up: 5000,
+                    decimals: mint_data.base.decimals,
+                    supply: mint_data.base.supply,
+                    extensions: mint_data.extensions.clone(),
+                    rent_payment: DEFAULT_RENT_PAYMENT,
+                    write_top_up: DEFAULT_WRITE_TOP_UP,
                 };
 
                 compressed_accounts.push(CompressedAccountData {
@@ -561,7 +662,7 @@ where
         }
     }
 
-    // 7. Build instruction
+    // Build instruction
     let mut accounts = program_account_metas.to_vec();
     let (system_accounts, system_accounts_offset, _) = remaining_accounts.to_account_metas();
     accounts.extend(system_accounts);
@@ -591,313 +692,190 @@ where
 
 ---
 
-## 7. On-Chain Runtime Changes
-
-### 7.1 Validation in `process_decompress_accounts_idempotent`
+## 7. Client Usage Example
 
 ```rust
-// sdk-libs/sdk/src/compressible/decompress_runtime.rs
+use light_compressible_client::compressible_instruction::{
+    decompress_accounts_idempotent, DecompressInput,
+};
 
-pub fn process_decompress_accounts_idempotent<'info, Ctx>(
-    ctx: &Ctx,
-    remaining_accounts: &[AccountInfo<'info>],
-    compressed_accounts: Vec<Ctx::CompressedData>,
-    proof: ValidityProof,
-    system_accounts_offset: u8,
-    cpi_signer: CpiSigner,
-    program_id: &Pubkey,
-    seed_params: Option<&Ctx::SeedParams>,
-) -> Result<(), ProgramError>
-where
-    Ctx: DecompressContext<'info>,
-{
-    // Count account types
-    let (has_tokens, has_pdas, has_mints, mint_count) =
-        check_account_types_with_count(&compressed_accounts);
+// Decompress a mix of PDAs and ATAs
+let inputs = vec![
+    // Program-specific PDA
+    DecompressInput::Standard {
+        compressed_account: user_record_compressed,
+        data: user_record_data,
+    },
+    // Standard ATA (wallet must sign)
+    DecompressInput::LightAta {
+        compressed_account: user_ata_compressed,
+        wallet: user_wallet,  // Add to tx signers!
+    },
+];
 
-    // VALIDATE CONSTRAINTS
-    if mint_count > 1 {
-        msg!("At most 1 LightMint allowed per instruction, found {}", mint_count);
-        return Err(LightSdkError::AtMostOneMintAllowed.into());
-    }
+let ix = decompress_accounts_idempotent(
+    &program_id,
+    &DECOMPRESS_DISCRIMINATOR,
+    &[user_record_pda, user_ata_address],
+    &inputs,
+    &program_account_metas,
+    validity_proof,
+)?;
 
-    if has_mints && has_tokens {
-        msg!("LightMint + (LightAta/CToken) combination is forbidden");
-        return Err(LightSdkError::MintAndTokensForbidden.into());
-    }
+// Decompress a CMint (separate instruction - can't mix with tokens)
+let mint_inputs = vec![
+    DecompressInput::LightMint {
+        compressed_account: cmint_compressed,
+        mint_seed_pubkey: mint_seed,
+    },
+];
 
-    // ... rest of existing processing logic ...
-}
-```
-
-### 7.2 Processing LightAta
-
-The `process_tokens` handler (in `DecompressContext` impl) handles `LightAta`:
-
-```rust
-// In macro-generated DecompressContext impl
-
-fn process_tokens<'b>(
-    &self,
-    cpi_accounts: &CpiAccounts<'b, 'info>,
-    compressed_token_accounts: Vec<...>,
-    cpi_context_account: Option<&AccountInfo<'info>>,
-    remaining_accounts: &[AccountInfo<'info>],
-) -> Result<()> {
-    for token_account in compressed_token_accounts {
-        match token_account {
-            // Program-owned CToken (Vault)
-            TokenVariant::CTokenData(data) => {
-                // Existing vault handling with program PDA signing
-                // ...
-            }
-
-            // Standard LightAta
-            TokenVariant::LightAta(light_ata) => {
-                // Unpack wallet from remaining_accounts
-                let wallet = &remaining_accounts[light_ata.wallet_index as usize];
-
-                // Validate wallet is signer
-                if !wallet.is_signer {
-                    return Err(ProgramError::MissingRequiredSignature);
-                }
-
-                // Unpack mint and ATA
-                let mint = &remaining_accounts[light_ata.mint_index as usize];
-                let ata = &remaining_accounts[light_ata.ata_index as usize];
-
-                // Create ATA if needed (idempotent)
-                create_associated_token_account_idempotent(
-                    fee_payer,
-                    wallet,
-                    mint,
-                    ata,
-                )?;
-
-                // Decompress via ctoken CPI
-                // Authority = wallet (signer)
-                process_decompress_token_cpi(
-                    cpi_accounts,
-                    light_ata,
-                    wallet, // authority is wallet for ATA
-                    cpi_context_account,
-                    remaining_accounts,
-                )?;
-            }
-        }
-    }
-    Ok(())
-}
-```
-
-### 7.3 Processing LightMint
-
-```rust
-fn process_mints<'b>(
-    &self,
-    cpi_accounts: &CpiAccounts<'b, 'info>,
-    compressed_mint_accounts: Vec<(LightMint, CompressedAccountMetaNoLamportsNoAddress)>,
-    cpi_context_account: Option<&AccountInfo<'info>>,
-    remaining_accounts: &[AccountInfo<'info>],
-) -> Result<()> {
-    for (light_mint, meta) in compressed_mint_accounts {
-        // Unpack accounts from remaining_accounts
-        let mint_seed = &remaining_accounts[light_mint.mint_seed_index as usize];
-        let cmint_pda = &remaining_accounts[light_mint.cmint_pda_index as usize];
-
-        // Get mint authority (from accounts struct)
-        let mint_authority = self.cmint_authority()
-            .map(|a| a.to_account_info())
-            .unwrap_or(self.fee_payer().to_account_info());
-
-        // Decompress via ctoken CPI
-        process_decompress_mint_cpi(
-            cpi_accounts,
-            light_mint,
-            &mint_authority,
-            cpi_context_account,
-            remaining_accounts,
-        )?;
-    }
-    Ok(())
-}
+let mint_ix = decompress_accounts_idempotent(
+    &program_id,
+    &DECOMPRESS_DISCRIMINATOR,
+    &[cmint_pda],
+    &mint_inputs,
+    &program_account_metas,
+    validity_proof,
+)?;
 ```
 
 ---
 
-## 8. Visual Diagram
+## 8. Processing Order (Fixed)
 
 ```
-                         DECOMPRESS_ACCOUNTS_IDEMPOTENT FLOW
-================================================================================
+1. PDAs      -> Light System CPI (write to CPI context if 2+ types)
+2. LightMint -> DecompressCMint CPI (write to CPI context if tokens follow)
+3. LightAta + CToken -> Transfer2 CPI (consume CPI context if prior writes)
+```
 
-#[compressible(...)] MACRO DECLARATION
---------------------------------------
+Tokens (LightAta + CToken) are ALWAYS processed last because they consume the CPI context.
 
-    #[compressible(
-        UserRecord = ("user_record", ctx.authority, data.owner),
-        Vault = (is_token, "vault", ctx.cmint, authority = ("vault_authority")),
-        owner = Pubkey,
-    )]
-                    |
-                    | MACRO GENERATES:
-                    |
-                    v
-    ┌─────────────────────────────────────────────────────────────────────┐
-    │  CompressedAccountVariant enum                                      │
-    │  ├── UserRecord(UserRecord)           // Program PDA               │
-    │  ├── PackedUserRecord(PackedUserRecord)                            │
-    │  ├── PackedCTokenData(PackedCTokenData<CTokenAccountVariant>)      │
-    │  ├── CTokenData(CTokenData<CTokenAccountVariant>)                  │
-    │  ├── LightAta(LightAta)               // ALWAYS INCLUDED           │
-    │  └── LightMint(LightMint)             // ALWAYS INCLUDED           │
-    └─────────────────────────────────────────────────────────────────────┘
+---
 
-================================================================================
+## 9. Files to Modify
 
-CLIENT-SIDE (light-compressible-client)
----------------------------------------
+### 9.1 Standard Types (light-ctoken-sdk)
 
-    // Build inputs
-    let inputs = vec![
-        DecompressInput::Standard { compressed, data: UserRecord {...} },
-        DecompressInput::LightAta { compressed, wallet: user_wallet },
-    ];
+| File                                       | Change                            |
+| ------------------------------------------ | --------------------------------- |
+| `src/compressible/standard_types.rs` (NEW) | Add `LightAta`, `LightMint` types |
+| `src/compressible/mod.rs`                  | Export new types                  |
 
-    decompress_accounts_idempotent(&program_id, &discriminator, &addresses, &inputs, ...)?;
-                    |
-                    | CLIENT VALIDATION:
-                    |   - mint_count <= 1 ✓
-                    |   - !(has_mints && has_tokens) ✓
-                    |
-                    | PACKING:
-                    |   - System accounts
-                    |   - Tree infos
-                    |   - For LightAta: wallet(signer), mint, ata
-                    |   - For LightMint: mint_seed, cmint_pda, authorities
-                    |
-                    v
-              [Instruction]
+### 9.2 Macros (sdk-libs/macros)
 
-================================================================================
+| File                                 | Change                                                |
+| ------------------------------------ | ----------------------------------------------------- |
+| `src/compressible/variant_enum.rs`   | Always add `LightAta`, `LightMint` variants           |
+| `src/compressible/variant_enum.rs`   | Update `HasTokenVariant` to detect LightAta/LightMint |
+| `src/compressible/seed_providers.rs` | Remove `#[ata]` attribute handling                    |
 
-ON-CHAIN RUNTIME
-----------------
+### 9.3 SDK Runtime (sdk-libs/sdk)
 
-    process_decompress_accounts_idempotent()
-           |
-           v
-    ┌─────────────────────────────────────────────────────────────────────┐
-    │  1. VALIDATE CONSTRAINTS                                            │
-    │     - mint_count > 1? → ERROR: AtMostOneMintAllowed                 │
-    │     - has_mints && has_tokens? → ERROR: MintAndTokensForbidden      │
-    └─────────────────────────────────────────────────────────────────────┘
-           |
-           v (passed)
-    ┌─────────────────────────────────────────────────────────────────────┐
-    │  2. DETERMINE CPI MODE                                              │
-    │     - type_count = has_pdas + has_mints + has_tokens                │
-    │     - use_cpi_context = type_count > 1                              │
-    └─────────────────────────────────────────────────────────────────────┘
-           |
-           +--------------+--------------+--------------+
-           |              |              |              |
-           v              v              v              v
-    ┌──────────┐   ┌───────────┐   ┌───────────┐   ┌───────────┐
-    │ PROCESS  │   │ PROCESS   │   │ PROCESS   │   │ PROCESS   │
-    │ PDAs     │   │ CTokens   │   │ LightAta  │   │ LightMint │
-    │          │   │ (Vaults)  │   │           │   │           │
-    │ Program  │   │ Program   │   │ Wallet    │   │ Authority │
-    │ PDA      │   │ PDA       │   │ signs     │   │ signs     │
-    │ signing  │   │ signing   │   │           │   │           │
-    └──────────┘   └───────────┘   └───────────┘   └───────────┘
+| File                                     | Change                                               |
+| ---------------------------------------- | ---------------------------------------------------- |
+| `src/compressible/decompress_runtime.rs` | Add `check_account_types_with_count`                 |
+| `src/compressible/decompress_runtime.rs` | Add constraint validation                            |
+| `src/error.rs`                           | Add `AtMostOneMintAllowed`, `MintAndTokensForbidden` |
 
-================================================================================
+### 9.4 CToken SDK Runtime (sdk-libs/ctoken-sdk)
 
-VALID COMBINATIONS MATRIX
--------------------------
+| File                                     | Change                              |
+| ---------------------------------------- | ----------------------------------- |
+| `src/compressible/decompress_runtime.rs` | Handle `LightAta` in process_tokens |
+| `src/compressible/decompress_runtime.rs` | Handle `LightMint` in process_mints |
 
-    │ PDAs │ CToken │ LightAta │ LightMint │ VALID? │ Notes                    │
-    │──────│────────│──────────│───────────│────────│──────────────────────────│
-    │  Y   │   N    │    N     │     N     │   ✅   │ PDAs only                │
-    │  N   │   Y    │    N     │     N     │   ✅   │ Vaults only              │
-    │  N   │   N    │    Y     │     N     │   ✅   │ ATAs only                │
-    │  N   │   N    │    N     │     Y     │   ✅   │ Mint only (max 1)        │
-    │  Y   │   Y    │    N     │     N     │   ✅   │ PDAs + Vaults            │
-    │  Y   │   N    │    Y     │     N     │   ✅   │ PDAs + ATAs              │
-    │  Y   │   N    │    N     │     Y     │   ✅   │ PDAs + Mint              │
-    │  N   │   Y    │    Y     │     N     │   ✅   │ Vaults + ATAs            │
-    │  Y   │   Y    │    Y     │     N     │   ✅   │ All tokens + PDAs        │
-    │  N   │   Y    │    N     │     Y     │   ❌   │ FORBIDDEN                │
-    │  N   │   N    │    Y     │     Y     │   ❌   │ FORBIDDEN                │
-    │  *   │   *    │    *     │    >1     │   ❌   │ Max 1 mint               │
+### 9.5 Client (sdk-libs/compressible-client)
 
-================================================================================
+| File         | Change                                  |
+| ------------ | --------------------------------------- |
+| `src/lib.rs` | Add `DecompressInput` enum              |
+| `src/lib.rs` | Add `validate_inputs` function          |
+| `src/lib.rs` | Update `decompress_accounts_idempotent` |
+
+---
+
+## 10. NOT In Scope
+
+- `compress_accounts_idempotent` does NOT support ATA/Mint compression
+- ATAs and Mints are compressed by the forester invoking ctoken program directly
+- No changes needed to compression flow
+
+---
+
+## 11. Visual Flow Diagram
+
+```
+                    +------------------------+
+                    | Client builds inputs   |
+                    | DecompressInput enum   |
+                    +------------------------+
+                              |
+                    +---------v---------+
+                    | validate_inputs   |
+                    | - max 1 mint      |
+                    | - mint+tokens !=  |
+                    +-------------------+
+                              |
+                    +---------v---------+
+                    | pack_inputs       |
+                    | - Standard -> T   |
+                    | - LightAta        |
+                    | - LightMint       |
+                    +-------------------+
+                              |
+                    +---------v---------+
+                    | TX to program     |
+                    +-------------------+
+                              |
+       +----------------------+----------------------+
+       |                                             |
++------v------+                               +------v------+
+| On-chain    |                               | collect_all |
+| validation  |                               | _accounts   |
+| - same checks|                              +-------------+
++-------------+                                      |
+                          +-------------+------------+-------------+
+                          |             |            |             |
+                    +-----v-----+ +-----v-----+ +----v----+ +------v------+
+                    | PDAs      | | LightMint | | CToken  | | LightAta    |
+                    +-----------+ +-----------+ +---------+ +-------------+
+                          |             |            |             |
+                    +-----v-----+ +-----v-----+      +------v------+
+                    | Light Sys | | Decompress|      | Transfer2   |
+                    | CPI write | | CMint CPI |      | CPI consume |
+                    +-----------+ +-----------+      +-------------+
+                          |             |                   |
+                          +------+------+-------------------+
+                                 |
+                          +------v------+
+                          | Done        |
+                          +-------------+
 ```
 
 ---
 
-## 9. Implementation Checklist
+## 12. Summary
 
-### 9.1 New Types (light-ctoken-sdk)
+| Old Design                                  | New Design                                   |
+| ------------------------------------------- | -------------------------------------------- |
+| Declare `UserAta = (is_token, is_ata, ...)` | Use `LightAta` (standard, always available)  |
+| Declare CMint variants                      | Use `LightMint` (standard, always available) |
+| Client manually packs ATAs                  | Client uses `DecompressInput::LightAta`      |
+| Client manually packs Mints                 | Client uses `DecompressInput::LightMint`     |
+| No constraint validation                    | Client + on-chain validation                 |
 
-| File                             | Change                            |
-| -------------------------------- | --------------------------------- |
-| `src/compressible/light_ata.rs`  | Add `LightAta`, `LightAtaInput`   |
-| `src/compressible/light_mint.rs` | Add `LightMint`, `LightMintInput` |
-| `src/compressible/mod.rs`        | Export new types                  |
-
-### 9.2 Errors (light-sdk)
-
-| File           | Change                                               |
-| -------------- | ---------------------------------------------------- |
-| `src/error.rs` | Add `AtMostOneMintAllowed`, `MintAndTokensForbidden` |
-
-### 9.3 Macro Changes
-
-| File                                     | Change                                         |
-| ---------------------------------------- | ---------------------------------------------- |
-| `src/compressible/variant_enum.rs`       | Import `LightAta`, `LightMint` from ctoken-sdk |
-| `src/compressible/variant_enum.rs`       | Always add `LightAta`, `LightMint` variants    |
-| `src/compressible/variant_enum.rs`       | Remove `#[ata]` attribute handling             |
-| `src/compressible/decompress_context.rs` | Handle `LightAta` in `process_tokens`          |
-| `src/compressible/decompress_context.rs` | Handle `LightMint` in `process_mints`          |
-
-### 9.4 Client Changes (light-compressible-client)
-
-| File         | Change                                                      |
-| ------------ | ----------------------------------------------------------- |
-| `src/lib.rs` | Add `DecompressInput` enum                                  |
-| `src/lib.rs` | Add `CompressibleClientError` variants                      |
-| `src/lib.rs` | Update `decompress_accounts_idempotent` to handle all types |
-| `src/lib.rs` | Add client-side constraint validation                       |
-
-### 9.5 Runtime Changes (light-sdk)
-
-| File                                     | Change                                            |
-| ---------------------------------------- | ------------------------------------------------- |
-| `src/compressible/decompress_runtime.rs` | Add constraint validation                         |
-| `src/compressible/decompress_runtime.rs` | Update `check_account_types` to return mint count |
-
----
-
-## 10. Summary
-
-| Old Design                                  | New Design                                        |
-| ------------------------------------------- | ------------------------------------------------- |
-| Declare `UserAta = (is_token, is_ata, ...)` | Use `LightAta` (standard type, always available)  |
-| Declare `CMint = (is_token, ...)`           | Use `LightMint` (standard type, always available) |
-| Client manually packs ATAs                  | Client uses `DecompressInput::LightAta`           |
-| Client manually packs Mints                 | Client uses `DecompressInput::LightMint`          |
-| No constraint validation                    | Client + on-chain validation                      |
-
-**Key Benefits:**
+**Benefits:**
 
 1. **Simpler macro declarations** - No ATA/Mint variants to declare
-2. **Standard client API** - `DecompressInput` enum handles all types
-3. **Type safety** - Can't confuse ATAs with Vaults
-4. **Defense in depth** - Both client and on-chain validation
+2. **Standard client API** - `DecompressInput` enum handles all types uniformly
+3. **Explicit constraints** - Clear errors for forbidden combinations
+4. **Type safety** - Can't confuse ATAs with Vaults
 
-**Processing order (fixed):**
+**Constraints enforced:**
 
-1. PDAs → 2. LightMint → 3. CToken/LightAta
+1. `AtMostOneMintAllowed` - Max 1 LightMint per instruction
+2. `MintAndTokensForbidden` - LightMint + tokens combination blocked
+
+**Processing order (fixed):** PDAs -> LightMint -> CToken/LightAta

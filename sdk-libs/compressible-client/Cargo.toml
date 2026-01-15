@@ -7,7 +7,7 @@ repository = "https://github.com/lightprotocol/light-protocol"
 description = "Client instruction builders for Light Protocol compressible accounts"
 
 [features]
-anchor = ["anchor-lang", "light-sdk/anchor"]
+anchor = ["anchor-lang", "light-sdk/anchor", "light-ctoken-sdk/anchor"]
 
 [dependencies]
 solana-instruction = { workspace = true }
@@ -16,6 +16,8 @@ solana-account = { workspace = true }
 
 light-client = { workspace = true, features = ["v2"] }
 light-sdk = { workspace = true, features = ["v2", "cpi-context"] }
+light-ctoken-sdk = { workspace = true }
+light-ctoken-interface = { workspace = true }
 
 anchor-lang = { workspace = true, features = ["idl-build"], optional = true }
 borsh = { workspace = true }

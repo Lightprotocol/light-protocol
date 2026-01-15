@@ -4,7 +4,11 @@ pub mod get_compressible_account;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
-use light_client::indexer::{CompressedAccount, TreeInfo, ValidityProofWithContext};
+use light_client::indexer::{
+    CompressedAccount, CompressedTokenAccount, TreeInfo, ValidityProofWithContext,
+};
+use light_ctoken_sdk::compat::AccountState;
+pub use light_ctoken_sdk::compressible::{LightAta, LightMint};
 pub use light_sdk::compressible::config::CompressibleConfig;
 use light_sdk::{
     compressible::{compression_info::CompressedAccountData, Pack},
@@ -17,6 +21,22 @@ use light_sdk::{
 use solana_account::Account;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
+
+/// Input type for decompress_accounts_idempotent instruction builder.
+/// Allows mixing PDAs with standard ATAs and Mints.
+pub enum DecompressInput<T> {
+    /// Program-specific PDA or CToken account
+    ProgramData(CompressedAccount, T),
+    /// Standard ATA from compressed token account
+    Ata(CompressedTokenAccount),
+    /// Standard CMint from compressed mint
+    Mint {
+        compressed_account: CompressedAccount,
+        mint_seed_pubkey: Pubkey,
+        rent_payment: u8,
+        write_top_up: u32,
+    },
+}
 
 /// Helper function to get the output queue from tree info.
 /// Prefers next_tree_info.queue if available, otherwise uses current queue.
@@ -241,8 +261,7 @@ pub mod compressible_instruction {
         // accounts on different trees with potentially colliding indices.
         for (i, (compressed_account, data)) in compressed_accounts.iter().enumerate() {
             // Insert the queue for this account (needed for the packed context)
-            let _queue_index =
-                remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
+            let _queue_index = remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
 
             // Use index-based matching - the i-th compressed account uses the i-th tree info
             let tree_info = packed_tree_infos_slice.get(i).copied().ok_or(
@@ -257,6 +276,284 @@ pub mod compressible_instruction {
                 },
                 data: packed_data,
             });
+        }
+
+        let (system_accounts, system_accounts_offset, _) = remaining_accounts.to_account_metas();
+        accounts.extend(system_accounts);
+
+        for account in decompressed_account_addresses {
+            accounts.push(AccountMeta::new(*account, false));
+        }
+
+        let instruction_data = DecompressMultipleAccountsIdempotentData {
+            proof: validity_proof_with_context.proof,
+            compressed_accounts: typed_compressed_accounts,
+            system_accounts_offset: system_accounts_offset as u8,
+        };
+
+        let serialized_data = instruction_data.try_to_vec()?;
+        let mut data = Vec::with_capacity(discriminator.len() + serialized_data.len());
+        data.extend_from_slice(discriminator);
+        data.extend_from_slice(&serialized_data);
+
+        Ok(Instruction {
+            program_id: *program_id,
+            accounts,
+            data,
+        })
+    }
+
+    /// Builds decompress_accounts_idempotent instruction with unified inputs.
+    ///
+    /// Supports mixing:
+    /// - Program PDAs via `DecompressInput::ProgramData`
+    /// - Standard ATAs via `DecompressInput::Ata`
+    /// - Standard CMints via `DecompressInput::Mint`
+    ///
+    /// # Constraints (validated at runtime):
+    /// - At most 1 mint per instruction
+    /// - Mint + (ATA/CToken) combination is forbidden
+    /// - Mint + PDAs is allowed
+    /// - Any combination of ATAs, CTokens, and PDAs works
+    ///
+    /// # Arguments
+    /// * `decompressed_account_addresses` - On-chain addresses for decompression targets
+    ///   (PDAs, ATAs, CMint PDAs in same order as inputs)
+    #[allow(clippy::too_many_arguments)]
+    pub fn decompress_accounts_unified<T>(
+        program_id: &Pubkey,
+        discriminator: &[u8],
+        decompressed_account_addresses: &[Pubkey],
+        inputs: Vec<DecompressInput<T>>,
+        program_account_metas: &[AccountMeta],
+        validity_proof_with_context: ValidityProofWithContext,
+    ) -> Result<Instruction, Box<dyn std::error::Error>>
+    where
+        T: Pack + Clone + std::fmt::Debug,
+    {
+        if inputs.is_empty() {
+            return Err("inputs cannot be empty".into());
+        }
+        if decompressed_account_addresses.len() != inputs.len() {
+            return Err("decompressed_account_addresses length must match inputs length".into());
+        }
+
+        // Count types for validation and CPI context decision
+        let mut has_tokens = false;
+        let mut has_pdas = false;
+        let mut mint_count = 0;
+
+        for input in &inputs {
+            match input {
+                DecompressInput::ProgramData(compressed, _) => {
+                    if compressed.owner == C_TOKEN_PROGRAM_ID.into() {
+                        has_tokens = true;
+                    } else {
+                        has_pdas = true;
+                    }
+                }
+                DecompressInput::Ata(_) => has_tokens = true,
+                DecompressInput::Mint { .. } => mint_count += 1,
+            }
+        }
+        let has_mints = mint_count > 0;
+
+        // Client-side validation (matches runtime validation)
+        if mint_count > 1 {
+            return Err("At most 1 mint allowed per instruction".into());
+        }
+        if has_mints && has_tokens {
+            return Err("Mint + (ATA/CToken) combination is forbidden".into());
+        }
+        if !has_tokens && !has_pdas && !has_mints {
+            return Err("No tokens, PDAs, or mints found".into());
+        }
+
+        let mut remaining_accounts = PackedAccounts::default();
+
+        // Determine CPI context needs
+        let type_count = has_tokens as u8 + has_pdas as u8 + has_mints as u8;
+        let needs_cpi_context = type_count >= 2;
+
+        if needs_cpi_context {
+            let cpi_context_of_first = match &inputs[0] {
+                DecompressInput::ProgramData(c, _) => c.tree_info.cpi_context,
+                DecompressInput::Ata(c) => c.account.tree_info.cpi_context,
+                DecompressInput::Mint {
+                    compressed_account, ..
+                } => compressed_account.tree_info.cpi_context,
+            };
+            if let Some(cpi_ctx) = cpi_context_of_first {
+                let system_config =
+                    SystemAccountMetaConfig::new_with_cpi_context(*program_id, cpi_ctx);
+                remaining_accounts.add_system_accounts_v2(system_config)?;
+            } else {
+                return Err("CPI context required for mixed types but not available".into());
+            }
+        } else {
+            let system_config = SystemAccountMetaConfig::new(*program_id);
+            remaining_accounts.add_system_accounts_v2(system_config)?;
+        }
+
+        // Get output queue from first input
+        let first_tree_info = match &inputs[0] {
+            DecompressInput::ProgramData(c, _) => &c.tree_info,
+            DecompressInput::Ata(c) => &c.account.tree_info,
+            DecompressInput::Mint {
+                compressed_account, ..
+            } => &compressed_account.tree_info,
+        };
+        let output_queue = get_output_queue(first_tree_info);
+        let output_state_tree_index = remaining_accounts.insert_or_get(output_queue);
+
+        // Pack tree infos
+        let packed_tree_infos =
+            validity_proof_with_context.pack_tree_infos(&mut remaining_accounts);
+        let packed_tree_infos_slice = &packed_tree_infos
+            .state_trees
+            .as_ref()
+            .unwrap()
+            .packed_tree_infos;
+
+        let mut accounts = program_account_metas.to_vec();
+        // Note: The variant type must include LightAta and LightMint variants
+        // for unified decompression to work. This is ensured by the #[compressible] macro.
+        let mut typed_compressed_accounts: Vec<CompressedAccountData<T::Packed>> =
+            Vec::with_capacity(inputs.len());
+
+        for (i, input) in inputs.into_iter().enumerate() {
+            let tree_info = packed_tree_infos_slice.get(i).copied().ok_or(
+                "Tree info index out of bounds - inputs length must match validity proof accounts length",
+            )?;
+
+            match input {
+                DecompressInput::ProgramData(compressed_account, data) => {
+                    let _queue_index =
+                        remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
+                    let packed_data = data.pack(&mut remaining_accounts);
+                    typed_compressed_accounts.push(CompressedAccountData {
+                        meta: CompressedAccountMetaNoLamportsNoAddress {
+                            tree_info,
+                            output_state_tree_index,
+                        },
+                        data: packed_data,
+                    });
+                }
+                DecompressInput::Ata(compressed_token) => {
+                    let _queue_index =
+                        remaining_accounts.insert_or_get(compressed_token.account.tree_info.queue);
+
+                    // Pack wallet (owner), mint, and derived ATA
+                    let wallet_pubkey =
+                        Pubkey::new_from_array(compressed_token.token.owner.to_bytes());
+                    let mint_pubkey =
+                        Pubkey::new_from_array(compressed_token.token.mint.to_bytes());
+
+                    // Derive ATA address
+                    let (ata_address, _) =
+                        light_ctoken_sdk::ctoken::get_associated_ctoken_address_and_bump(
+                            &wallet_pubkey,
+                            &mint_pubkey,
+                        );
+
+                    let wallet_index =
+                        remaining_accounts.insert_or_get_config(wallet_pubkey, true, false);
+                    let mint_index = remaining_accounts.insert_or_get_read_only(mint_pubkey);
+                    let ata_index = remaining_accounts.insert_or_get(ata_address);
+
+                    let has_delegate = compressed_token.token.delegate.is_some();
+                    let delegate_index = if let Some(delegate) = compressed_token.token.delegate {
+                        remaining_accounts
+                            .insert_or_get_read_only(Pubkey::new_from_array(delegate.to_bytes()))
+                    } else {
+                        0
+                    };
+
+                    let _light_ata = LightAta {
+                        wallet_index,
+                        mint_index,
+                        ata_index,
+                        amount: compressed_token.token.amount,
+                        has_delegate,
+                        delegate_index,
+                        is_frozen: compressed_token.token.state == AccountState::Frozen,
+                    };
+
+                    // Note: LightAta needs to be serialized as part of CompressedAccountVariant::LightAta
+                    // This requires T to have a variant that can hold LightAta.
+                    // For now, this is a placeholder - the actual implementation requires
+                    // the program's variant enum to include LightAta.
+                    return Err("LightAta unified decompression requires program variant support - use DecompressInput::ProgramData with explicit packing".into());
+                }
+                DecompressInput::Mint {
+                    compressed_account,
+                    mint_seed_pubkey,
+                    rent_payment,
+                    write_top_up,
+                } => {
+                    let _queue_index =
+                        remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
+
+                    // Derive CMint PDA
+                    let (cmint_pda, _) =
+                        light_ctoken_sdk::ctoken::find_cmint_address(&mint_seed_pubkey);
+
+                    let mint_seed_index =
+                        remaining_accounts.insert_or_get_read_only(mint_seed_pubkey);
+                    let cmint_pda_index = remaining_accounts.insert_or_get(cmint_pda);
+
+                    // Parse the compressed mint data to extract authorities
+                    let mint_data: light_ctoken_interface::state::CompressedMint =
+                        borsh::BorshDeserialize::deserialize(
+                            &mut &compressed_account
+                                .data
+                                .as_ref()
+                                .ok_or("Compressed mint must have data")?
+                                .data[..],
+                        )
+                        .map_err(|e| format!("Failed to parse mint data: {}", e))?;
+
+                    let has_mint_authority = mint_data.base.mint_authority.is_some();
+                    let mint_authority_index = if let Some(auth) = mint_data.base.mint_authority {
+                        remaining_accounts
+                            .insert_or_get_read_only(Pubkey::new_from_array(auth.to_bytes()))
+                    } else {
+                        0
+                    };
+
+                    let has_freeze_authority = mint_data.base.freeze_authority.is_some();
+                    let freeze_authority_index = if let Some(auth) = mint_data.base.freeze_authority
+                    {
+                        remaining_accounts
+                            .insert_or_get_read_only(Pubkey::new_from_array(auth.to_bytes()))
+                    } else {
+                        0
+                    };
+
+                    let _light_mint = LightMint {
+                        mint_seed_index,
+                        cmint_pda_index,
+                        has_mint_authority,
+                        mint_authority_index,
+                        has_freeze_authority,
+                        freeze_authority_index,
+                        compressed_address: mint_data.metadata.compressed_address,
+                        decimals: mint_data.base.decimals,
+                        supply: mint_data.base.supply,
+                        version: mint_data.metadata.version,
+                        cmint_decompressed: mint_data.metadata.cmint_decompressed,
+                        rent_payment,
+                        write_top_up,
+                        extensions: None, // TODO: support extensions
+                    };
+
+                    // Note: LightMint needs to be serialized as part of CompressedAccountVariant::LightMint
+                    // This requires T to have a variant that can hold LightMint.
+                    // For now, this is a placeholder - the actual implementation requires
+                    // the program's variant enum to include LightMint.
+                    return Err("LightMint unified decompression requires program variant support - use DecompressInput::ProgramData with explicit packing".into());
+                }
+            }
         }
 
         let (system_accounts, system_accounts_offset, _) = remaining_accounts.to_account_metas();

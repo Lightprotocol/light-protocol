@@ -729,3 +729,456 @@ pub trait MintDecompressContext<'info> {
         None // Default: not available
     }
 }
+
+/// Process standard LightAta decompression.
+///
+/// This handles decompression of standard ATAs (user-owned) using the LightAta type
+/// which contains direct indices rather than program-specific variants.
+#[inline(never)]
+#[allow(clippy::too_many_arguments)]
+pub fn process_decompress_light_atas_runtime<'info, 'b>(
+    fee_payer: &AccountInfo<'info>,
+    ctoken_program: &AccountInfo<'info>,
+    ctoken_rent_sponsor: &AccountInfo<'info>,
+    ctoken_cpi_authority: &AccountInfo<'info>,
+    _ctoken_config: &AccountInfo<'info>,
+    config: &AccountInfo<'info>,
+    light_atas: Vec<(light_sdk::compressible::LightAta, CompressedAccountMetaNoLamportsNoAddress)>,
+    proof: ValidityProof,
+    cpi_accounts: &CpiAccounts<'b, 'info>,
+    post_system_accounts: &[AccountInfo<'info>],
+    has_prior_context: bool,
+) -> Result<(), ProgramError> {
+    if light_atas.is_empty() {
+        return Ok(());
+    }
+
+    let packed_accounts = post_system_accounts;
+
+    // CPI context usage:
+    // - has_prior_context=true: PDAs/Mints already wrote to CPI context, tokens CONSUME it
+    // - has_prior_context=false: tokens-only flow, execute directly
+    let cpi_context_pubkey = if has_prior_context {
+        cpi_accounts.cpi_context().ok().map(|ctx| *ctx.key)
+    } else {
+        None
+    };
+
+    let mut token_decompress_indices: Vec<
+        crate::compressed_token::decompress_full::DecompressFullIndices,
+    > = Vec::with_capacity(light_atas.len());
+
+    use light_ctoken_interface::instructions::extensions::{
+        CompressedOnlyExtensionInstructionData, ExtensionInstructionData,
+    };
+
+    for (light_ata, meta) in light_atas.into_iter() {
+        // Validate indices
+        let wallet_idx = light_ata.wallet_index as usize;
+        let mint_idx = light_ata.mint_index as usize;
+        let ata_idx = light_ata.ata_index as usize;
+
+        if wallet_idx >= packed_accounts.len()
+            || mint_idx >= packed_accounts.len()
+            || ata_idx >= packed_accounts.len()
+        {
+            msg!(
+                "LightAta index out of bounds: wallet={}, mint={}, ata={}, len={}",
+                wallet_idx,
+                mint_idx,
+                ata_idx,
+                packed_accounts.len()
+            );
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let wallet_info = &packed_accounts[wallet_idx];
+        let mint_info = &packed_accounts[mint_idx];
+        let ata_info = &packed_accounts[ata_idx];
+
+        // Validate wallet is signer
+        if !wallet_info.is_signer {
+            msg!(
+                "LightAta wallet must be signer: {:?}",
+                wallet_info.key
+            );
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Derive ATA and verify it matches
+        let (derived_ata, bump) =
+            get_associated_ctoken_address_and_bump(wallet_info.key, mint_info.key);
+        if derived_ata != *ata_info.key {
+            msg!(
+                "LightAta address mismatch: expected {:?}, got {:?}",
+                derived_ata,
+                ata_info.key
+            );
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Build MultiInputTokenDataWithContext
+        // For ATAs, owner is the ATA address (used for hash verification)
+        let source = MultiInputTokenDataWithContext {
+            owner: light_ata.ata_index, // ATA address index
+            amount: light_ata.amount,
+            has_delegate: light_ata.has_delegate,
+            delegate: light_ata.delegate_index,
+            mint: light_ata.mint_index,
+            version: 3, // Current version for new tokens
+            merkle_context: meta.tree_info.into(),
+            root_index: meta.tree_info.root_index,
+        };
+
+        // Build TLV with CompressedOnly extension for ATA
+        let tlv = vec![ExtensionInstructionData::CompressedOnly(
+            CompressedOnlyExtensionInstructionData {
+                delegated_amount: 0,
+                withheld_transfer_fee: 0,
+                is_frozen: light_ata.is_frozen,
+                compression_index: 0,
+                is_ata: true,
+                bump,
+                owner_index: light_ata.wallet_index, // wallet for signer check
+            },
+        )];
+
+        let decompress_index = crate::compressed_token::decompress_full::DecompressFullIndices {
+            source,
+            destination_index: light_ata.ata_index,
+            tlv: Some(tlv),
+            is_ata: true, // ATA: owner is the ATA address, not a signer
+        };
+        token_decompress_indices.push(decompress_index);
+    }
+
+    if token_decompress_indices.is_empty() {
+        return Ok(());
+    }
+
+    let ctoken_ix =
+        crate::compressed_token::decompress_full::decompress_full_ctoken_accounts_with_indices(
+            *fee_payer.key,
+            proof,
+            cpi_context_pubkey,
+            &token_decompress_indices,
+            packed_accounts,
+        )
+        .map_err(ProgramError::from)?;
+
+    // Build account infos for CPI
+    let mut all_account_infos: Vec<AccountInfo<'info>> =
+        Vec::with_capacity(12 + post_system_accounts.len());
+    all_account_infos.push(fee_payer.clone());
+    all_account_infos.push(ctoken_cpi_authority.clone());
+    all_account_infos.push(ctoken_program.clone());
+    all_account_infos.push(ctoken_rent_sponsor.clone());
+    all_account_infos.push(config.clone());
+
+    // Add required system accounts for transfer2 instruction
+    all_account_infos.push(
+        cpi_accounts
+            .account_infos()
+            .first()
+            .ok_or(ProgramError::NotEnoughAccountKeys)?
+            .clone(),
+    );
+    all_account_infos.push(
+        cpi_accounts
+            .registered_program_pda()
+            .map_err(|_| ProgramError::InvalidAccountData)?
+            .clone(),
+    );
+    all_account_infos.push(
+        cpi_accounts
+            .account_compression_authority()
+            .map_err(|_| ProgramError::InvalidAccountData)?
+            .clone(),
+    );
+    all_account_infos.push(
+        cpi_accounts
+            .account_compression_program()
+            .map_err(|_| ProgramError::InvalidAccountData)?
+            .clone(),
+    );
+    all_account_infos.push(
+        cpi_accounts
+            .system_program()
+            .map_err(|_| ProgramError::InvalidAccountData)?
+            .clone(),
+    );
+
+    // Add CPI context if present
+    if let Ok(cpi_context) = cpi_accounts.cpi_context() {
+        all_account_infos.push(cpi_context.clone());
+    }
+
+    all_account_infos.extend_from_slice(post_system_accounts);
+
+    // ATAs don't need program signing - wallet is already a signer on the transaction
+    solana_cpi::invoke(&ctoken_ix, all_account_infos.as_slice())?;
+
+    Ok(())
+}
+
+/// Process standard LightMint decompression.
+///
+/// This handles decompression of standard compressed mints using the LightMint type
+/// which contains indices and raw mint data.
+#[inline(never)]
+#[allow(clippy::too_many_arguments)]
+pub fn process_decompress_light_mints_runtime<'info, 'b, A>(
+    accounts_for_config: &A,
+    fee_payer: &AccountInfo<'info>,
+    _ctoken_program: &AccountInfo<'info>,
+    ctoken_rent_sponsor: &AccountInfo<'info>,
+    ctoken_cpi_authority: &AccountInfo<'info>,
+    ctoken_config: &AccountInfo<'info>,
+    _config: &AccountInfo<'info>,
+    light_mints: Vec<(light_sdk::compressible::LightMint, CompressedAccountMetaNoLamportsNoAddress)>,
+    proof: ValidityProof,
+    cpi_accounts: &CpiAccounts<'b, 'info>,
+    has_prior_context: bool,
+    has_subsequent: bool,
+) -> Result<(), ProgramError>
+where
+    A: MintDecompressContext<'info>,
+{
+    if light_mints.is_empty() {
+        return Ok(());
+    }
+
+    let authority = accounts_for_config
+        .cmint_authority()
+        .unwrap_or_else(|| fee_payer.clone());
+
+    let all_infos = cpi_accounts.account_infos();
+    let post_system_offset = cpi_accounts.system_accounts_end_offset();
+    let packed_accounts = all_infos
+        .get(post_system_offset..)
+        .ok_or(ProgramError::InvalidAccountData)?;
+
+    // Get tree accounts for mint operations
+    let state_tree_info = cpi_accounts
+        .get_tree_account_info(0)
+        .map_err(|_| ProgramError::NotEnoughAccountKeys)?;
+
+    let input_queue = cpi_accounts
+        .get_tree_account_info(1)
+        .map_err(|_| ProgramError::NotEnoughAccountKeys)?;
+
+    let output_queue = cpi_accounts
+        .get_tree_account_info(2)
+        .map_err(|_| ProgramError::NotEnoughAccountKeys)?;
+
+    // Get CPI context account if needed
+    let cpi_context_account = cpi_accounts.cpi_context().ok();
+
+    // Build SystemAccountInfos
+    let system_accounts = SystemAccountInfos {
+        light_system_program: cpi_accounts
+            .account_infos()
+            .first()
+            .ok_or(ProgramError::NotEnoughAccountKeys)?
+            .clone(),
+        cpi_authority_pda: cpi_accounts
+            .authority()
+            .map_err(|_| ProgramError::NotEnoughAccountKeys)?
+            .clone(),
+        registered_program_pda: cpi_accounts
+            .registered_program_pda()
+            .map_err(|_| ProgramError::NotEnoughAccountKeys)?
+            .clone(),
+        account_compression_authority: cpi_accounts
+            .account_compression_authority()
+            .map_err(|_| ProgramError::NotEnoughAccountKeys)?
+            .clone(),
+        account_compression_program: cpi_accounts
+            .account_compression_program()
+            .map_err(|_| ProgramError::NotEnoughAccountKeys)?
+            .clone(),
+        system_program: cpi_accounts
+            .system_program()
+            .map_err(|_| ProgramError::NotEnoughAccountKeys)?
+            .clone(),
+    };
+
+    let mints_only = !has_prior_context && !has_subsequent;
+    let last_mint_idx = light_mints.len().saturating_sub(1);
+    let has_tokens = has_subsequent;
+
+    use light_ctoken_interface::instructions::mint_action::{
+        CompressedMintInstructionData, CompressedMintWithContext, CpiContext,
+    };
+    use light_ctoken_interface::state::CompressedMintMetadata;
+
+    for (idx, (light_mint, meta)) in light_mints.into_iter().enumerate() {
+        // Validate indices
+        let mint_seed_idx = light_mint.mint_seed_index as usize;
+        let cmint_pda_idx = light_mint.cmint_pda_index as usize;
+
+        if mint_seed_idx >= packed_accounts.len() || cmint_pda_idx >= packed_accounts.len() {
+            msg!(
+                "LightMint index out of bounds: mint_seed={}, cmint_pda={}, len={}",
+                mint_seed_idx,
+                cmint_pda_idx,
+                packed_accounts.len()
+            );
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let mint_seed_info = packed_accounts[mint_seed_idx].clone();
+        let cmint_info = packed_accounts[cmint_pda_idx].clone();
+
+        // Verify CMint PDA derivation
+        let (expected_cmint, _) = find_cmint_address(mint_seed_info.key);
+        if expected_cmint != *cmint_info.key {
+            msg!(
+                "CMint PDA mismatch: expected {:?}, got {:?}",
+                expected_cmint,
+                cmint_info.key
+            );
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Get authority pubkeys from indices
+        let mint_authority = if light_mint.has_mint_authority {
+            let auth_idx = light_mint.mint_authority_index as usize;
+            if auth_idx >= packed_accounts.len() {
+                return Err(ProgramError::InvalidAccountData);
+            }
+            Some(*packed_accounts[auth_idx].key)
+        } else {
+            None
+        };
+
+        let freeze_authority = if light_mint.has_freeze_authority {
+            let auth_idx = light_mint.freeze_authority_index as usize;
+            if auth_idx >= packed_accounts.len() {
+                return Err(ProgramError::InvalidAccountData);
+            }
+            Some(*packed_accounts[auth_idx].key)
+        } else {
+            None
+        };
+
+        // Build CompressedMintWithContext from LightMint + meta
+        // Convert Pubkeys to light_compressed_account::Pubkey via [u8; 32]
+        let cmint_pda_pubkey: light_compressed_account::Pubkey =
+            cmint_info.key.to_bytes().into();
+        let compressed_mint_with_context = CompressedMintWithContext {
+            leaf_index: meta.tree_info.leaf_index,
+            prove_by_index: meta.tree_info.prove_by_index,
+            root_index: meta.tree_info.root_index,
+            address: light_mint.compressed_address,
+            mint: Some(CompressedMintInstructionData {
+                supply: light_mint.supply,
+                decimals: light_mint.decimals,
+                metadata: CompressedMintMetadata {
+                    version: light_mint.version,
+                    cmint_decompressed: light_mint.cmint_decompressed,
+                    mint: cmint_pda_pubkey,
+                    compressed_address: light_mint.compressed_address,
+                },
+                mint_authority: mint_authority.map(|p| p.to_bytes().into()),
+                freeze_authority: freeze_authority.map(|p| p.to_bytes().into()),
+                extensions: None, // TODO: deserialize from light_mint.extensions if present
+            }),
+        };
+
+        if mints_only {
+            // Mints-only: execute directly without CPI context
+            crate::ctoken::DecompressCMintCpi {
+                mint_seed: mint_seed_info,
+                authority: authority.clone(),
+                payer: fee_payer.clone(),
+                cmint: cmint_info,
+                compressible_config: ctoken_config.clone(),
+                rent_sponsor: ctoken_rent_sponsor.clone(),
+                state_tree: state_tree_info.clone(),
+                input_queue: input_queue.clone(),
+                output_queue: output_queue.clone(),
+                system_accounts: system_accounts.clone(),
+                compressed_mint_with_context,
+                proof: light_compressed_account::instruction_data::compressed_proof::ValidityProof(
+                    proof.0,
+                ),
+                rent_payment: light_mint.rent_payment,
+                write_top_up: light_mint.write_top_up,
+            }
+            .invoke()?;
+        } else {
+            // Multi-type flow: use CPI context batching
+            let is_first_operation = !has_prior_context && idx == 0;
+            let is_last_mint = idx == last_mint_idx;
+            let should_execute = is_last_mint && !has_tokens;
+
+            let address_tree_pubkey = [0u8; 32];
+
+            let cpi_ctx = if should_execute {
+                CpiContext {
+                    first_set_context: false,
+                    set_context: false,
+                    in_tree_index: 0,
+                    in_queue_index: 0,
+                    out_queue_index: 0,
+                    token_out_queue_index: 0,
+                    assigned_account_index: 0,
+                    read_only_address_trees: [0; 4],
+                    address_tree_pubkey,
+                }
+            } else if is_first_operation {
+                CpiContext {
+                    first_set_context: true,
+                    set_context: false,
+                    in_tree_index: 0,
+                    in_queue_index: 0,
+                    out_queue_index: 0,
+                    token_out_queue_index: 0,
+                    assigned_account_index: 0,
+                    read_only_address_trees: [0; 4],
+                    address_tree_pubkey,
+                }
+            } else {
+                CpiContext {
+                    first_set_context: false,
+                    set_context: true,
+                    in_tree_index: 0,
+                    in_queue_index: 0,
+                    out_queue_index: 0,
+                    token_out_queue_index: 0,
+                    assigned_account_index: 0,
+                    read_only_address_trees: [0; 4],
+                    address_tree_pubkey,
+                }
+            };
+
+            DecompressCMintCpiWithContext {
+                mint_seed: mint_seed_info,
+                authority: authority.clone(),
+                payer: fee_payer.clone(),
+                cmint: cmint_info,
+                compressible_config: ctoken_config.clone(),
+                rent_sponsor: ctoken_rent_sponsor.clone(),
+                state_tree: state_tree_info.clone(),
+                input_queue: input_queue.clone(),
+                output_queue: output_queue.clone(),
+                cpi_context_account: cpi_context_account
+                    .ok_or(ProgramError::NotEnoughAccountKeys)?
+                    .clone(),
+                system_accounts: system_accounts.clone(),
+                ctoken_cpi_authority: ctoken_cpi_authority.clone(),
+                compressed_mint_with_context,
+                proof: light_compressed_account::instruction_data::compressed_proof::ValidityProof(
+                    proof.0,
+                ),
+                rent_payment: light_mint.rent_payment,
+                write_top_up: light_mint.write_top_up,
+                cpi_context: cpi_ctx,
+            }
+            .invoke()?;
+        }
+    }
+
+    Ok(())
+}

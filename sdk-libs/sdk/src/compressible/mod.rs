@@ -2,8 +2,10 @@ pub mod close;
 pub mod compression_info;
 pub mod config;
 pub mod finalize;
+pub mod standard_types;
 
 pub use finalize::{LightFinalize, LightPreInit};
+pub use standard_types::{LightAta, LightMint};
 
 #[cfg(feature = "v2")]
 pub mod compress_account;

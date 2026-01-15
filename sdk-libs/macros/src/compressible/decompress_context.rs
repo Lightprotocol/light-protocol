@@ -72,7 +72,6 @@ pub fn generate_decompress_context_trait_impl(
         impl<#lifetime> light_sdk::compressible::DecompressContext<#lifetime> for DecompressAccountsIdempotent<#lifetime> {
             type CompressedData = CompressedAccountData;
             type PackedTokenData = light_ctoken_sdk::compat::PackedCTokenData<#token_variant_ident>;
-            type CompressedMintData = light_ctoken_sdk::compat::CompressedMintData;
             type CompressedMeta = light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
             type SeedParams = SeedParams;
 
@@ -134,8 +133,11 @@ pub fn generate_decompress_context_trait_impl(
                         CompressedAccountVariant::CTokenData(_) => {
                             unreachable!();
                         }
-                        CompressedAccountVariant::CompressedMint(_) => {
-                            // Mints are handled separately in collect_all_accounts
+                        CompressedAccountVariant::LightAta(_) => {
+                            // LightAta is handled separately in collect_all_accounts
+                        }
+                        CompressedAccountVariant::LightMint(_) => {
+                            // LightMint is handled separately in collect_all_accounts
                         }
                     }
                 }
@@ -154,7 +156,8 @@ pub fn generate_decompress_context_trait_impl(
             ) -> std::result::Result<(
                 Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
                 Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
-                Vec<(Self::CompressedMintData, Self::CompressedMeta)>,
+                Vec<(light_sdk::compressible::LightAta, Self::CompressedMeta)>,
+                Vec<(light_sdk::compressible::LightMint, Self::CompressedMeta)>,
             ), solana_program_error::ProgramError> {
                 let post_system_offset = cpi_accounts.system_accounts_end_offset();
                 let all_infos = cpi_accounts.account_infos();
@@ -163,27 +166,38 @@ pub fn generate_decompress_context_trait_impl(
 
                 let mut compressed_pda_infos = Vec::with_capacity(compressed_accounts.len());
                 let mut compressed_token_accounts = Vec::with_capacity(compressed_accounts.len());
-                let mut compressed_mint_accounts = Vec::with_capacity(compressed_accounts.len());
+                let mut light_atas = Vec::with_capacity(compressed_accounts.len());
+                let mut light_mints = Vec::with_capacity(compressed_accounts.len());
 
                 for (i, compressed_data) in compressed_accounts.into_iter().enumerate() {
                     let meta = compressed_data.meta;
                     match compressed_data.data {
                         #(#pda_match_arms)*
                         CompressedAccountVariant::PackedCTokenData(mut data) => {
-                            // ATAs are handled within process_tokens via is_ata() on the variant
+                            // Program-owned tokens (Vaults)
                             data.token_data.version = 3;
                             compressed_token_accounts.push((data, meta));
                         }
                         CompressedAccountVariant::CTokenData(_) => {
                             unreachable!();
                         }
-                        CompressedAccountVariant::CompressedMint(data) => {
-                            compressed_mint_accounts.push((data, meta));
+                        // Standard LightAta - collect for separate processing
+                        CompressedAccountVariant::LightAta(light_ata) => {
+                            light_atas.push((light_ata, meta));
+                        }
+                        // Standard LightMint - collect for separate processing
+                        CompressedAccountVariant::LightMint(light_mint) => {
+                            light_mints.push((light_mint, meta));
                         }
                     }
                 }
 
-                std::result::Result::Ok((compressed_pda_infos, compressed_token_accounts, compressed_mint_accounts))
+                std::result::Result::Ok((
+                    compressed_pda_infos,
+                    compressed_token_accounts,
+                    light_atas,
+                    light_mints,
+                ))
             }
 
             #[inline(never)]
@@ -223,21 +237,64 @@ pub fn generate_decompress_context_trait_impl(
 
             #[inline(never)]
             #[allow(clippy::too_many_arguments)]
-            fn process_mints<'b>(
+            fn process_light_atas<'b>(
                 &self,
-                cpi_accounts: &light_sdk::cpi::v2::CpiAccounts<'b, #lifetime>,
-                cmint_accounts: Vec<(Self::CompressedMintData, Self::CompressedMeta)>,
+                fee_payer: &solana_account_info::AccountInfo<#lifetime>,
+                ctoken_program: &solana_account_info::AccountInfo<#lifetime>,
+                ctoken_rent_sponsor: &solana_account_info::AccountInfo<#lifetime>,
+                ctoken_cpi_authority: &solana_account_info::AccountInfo<#lifetime>,
+                ctoken_config: &solana_account_info::AccountInfo<#lifetime>,
+                config: &solana_account_info::AccountInfo<#lifetime>,
+                light_atas: Vec<(light_sdk::compressible::LightAta, Self::CompressedMeta)>,
                 proof: light_sdk::instruction::ValidityProof,
+                cpi_accounts: &light_sdk::cpi::v2::CpiAccounts<'b, #lifetime>,
+                post_system_accounts: &[solana_account_info::AccountInfo<#lifetime>],
                 has_prior_context: bool,
-                has_tokens: bool,
             ) -> std::result::Result<(), solana_program_error::ProgramError> {
-                light_ctoken_sdk::compressible::process_decompress_mints_runtime(
-                    self,
-                    cpi_accounts,
-                    cmint_accounts,
+                light_ctoken_sdk::compressible::process_decompress_light_atas_runtime(
+                    fee_payer,
+                    ctoken_program,
+                    ctoken_rent_sponsor,
+                    ctoken_cpi_authority,
+                    ctoken_config,
+                    config,
+                    light_atas,
                     proof,
+                    cpi_accounts,
+                    post_system_accounts,
                     has_prior_context,
-                    has_tokens,
+                )
+            }
+
+            #[inline(never)]
+            #[allow(clippy::too_many_arguments)]
+            fn process_light_mints<'b>(
+                &self,
+                fee_payer: &solana_account_info::AccountInfo<#lifetime>,
+                ctoken_program: &solana_account_info::AccountInfo<#lifetime>,
+                ctoken_rent_sponsor: &solana_account_info::AccountInfo<#lifetime>,
+                ctoken_cpi_authority: &solana_account_info::AccountInfo<#lifetime>,
+                ctoken_config: &solana_account_info::AccountInfo<#lifetime>,
+                config: &solana_account_info::AccountInfo<#lifetime>,
+                light_mints: Vec<(light_sdk::compressible::LightMint, Self::CompressedMeta)>,
+                proof: light_sdk::instruction::ValidityProof,
+                cpi_accounts: &light_sdk::cpi::v2::CpiAccounts<'b, #lifetime>,
+                has_prior_context: bool,
+                has_subsequent: bool,
+            ) -> std::result::Result<(), solana_program_error::ProgramError> {
+                light_ctoken_sdk::compressible::process_decompress_light_mints_runtime(
+                    self,
+                    fee_payer,
+                    ctoken_program,
+                    ctoken_rent_sponsor,
+                    ctoken_cpi_authority,
+                    ctoken_config,
+                    config,
+                    light_mints,
+                    proof,
+                    cpi_accounts,
+                    has_prior_context,
+                    has_subsequent,
                 )
             }
         }

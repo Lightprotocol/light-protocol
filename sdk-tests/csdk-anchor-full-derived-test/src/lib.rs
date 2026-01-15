@@ -60,11 +60,8 @@ pub fn program_rent_sponsor() -> Pubkey {
     // Program-owned CToken vault: seeds = "vault" + cmint pubkey (like cp-swap token vaults)
     // Authority = vault_authority PDA that owns the vault (like cp-swap's authority)
     Vault = (is_token, "vault", ctx.cmint, authority = ("vault_authority")),
-    // User-owned ATA: uses ctoken's standard ATA derivation (wallet + ctoken_program + mint)
-    // is_ata flag indicates the wallet signs (not the program)
-    UserAta = (is_token, is_ata, ctx.wallet, ctx.cmint),
-    // CMint: for decompressing a light mint
-    CMint = (is_token, "cmint", ctx.mint_signer, authority = LIGHT_CPI_SIGNER),
+    // NOTE: For user-owned ATAs, use standard LightAta type (no #[compressible] declaration needed)
+    // NOTE: For CMint decompression, use standard LightMint type (no #[compressible] declaration needed)
     // Instruction data fields used in seed expressions above
     owner = Pubkey,
     category_id = u64,

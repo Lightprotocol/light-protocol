@@ -22,9 +22,13 @@ use crate::{
 pub trait HasTokenVariant {
     /// Returns true if this variant represents a token account (PackedCTokenData).
     fn is_packed_ctoken(&self) -> bool;
-    /// Returns true if this variant represents a compressed mint.
-    fn is_compressed_mint(&self) -> bool {
-        false // default impl for backwards compatibility
+    /// Returns true if this variant represents a LightAta (standard ATA).
+    fn is_light_ata(&self) -> bool {
+        false
+    }
+    /// Returns true if this variant represents a LightMint (standard mint).
+    fn is_light_mint(&self) -> bool {
+        false
     }
 }
 
@@ -64,9 +68,6 @@ pub trait DecompressContext<'info> {
 
     /// Packed token data type
     type PackedTokenData;
-
-    /// Compressed mint data type for mint decompression
-    type CompressedMintData: Clone;
 
     /// Compressed account metadata type (standardized)
     type CompressedMeta: Clone;
@@ -121,27 +122,10 @@ pub trait DecompressContext<'info> {
         has_prior_context: bool,
     ) -> Result<(), ProgramError>;
 
-    /// Process mint decompression.
+    /// Collect and categorize compressed accounts into PDAs, tokens, and standard types.
     ///
-    /// Caller program-specific: handles mint account decompression via CPI to ctoken program.
-    /// Default implementation returns Ok(()) for programs that don't handle mints.
-    #[allow(clippy::too_many_arguments)]
-    fn process_mints<'b>(
-        &self,
-        _cpi_accounts: &CpiAccounts<'b, 'info>,
-        _cmint_accounts: Vec<(Self::CompressedMintData, Self::CompressedMeta)>,
-        _proof: crate::instruction::ValidityProof,
-        _has_prior_context: bool,
-        _has_tokens: bool,
-    ) -> Result<(), ProgramError> {
-        // Default: no mint handling
-        Ok(())
-    }
-
-    /// Collect and categorize compressed accounts into PDAs, tokens, and mints.
-    ///
-    /// Returns (pda_infos, token_accounts, mint_accounts).
-    /// Default implementation delegates to collect_pda_and_token and returns empty mints.
+    /// Returns (pda_infos, token_accounts, light_atas, light_mints).
+    /// Default implementation delegates to collect_pda_and_token and returns empty for others.
     #[allow(clippy::type_complexity)]
     #[allow(clippy::too_many_arguments)]
     fn collect_all_accounts<'b>(
@@ -155,7 +139,8 @@ pub trait DecompressContext<'info> {
         (
             Vec<CompressedAccountInfo>,
             Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
-            Vec<(Self::CompressedMintData, Self::CompressedMeta)>,
+            Vec<(super::LightAta, Self::CompressedMeta)>,
+            Vec<(super::LightMint, Self::CompressedMeta)>,
         ),
         ProgramError,
     > {
@@ -166,7 +151,47 @@ pub trait DecompressContext<'info> {
             solana_accounts,
             seed_params,
         )?;
-        Ok((pdas, tokens, Vec::new()))
+        Ok((pdas, tokens, Vec::new(), Vec::new()))
+    }
+
+    /// Process standard LightAta decompression.
+    /// Default implementation does nothing (for programs without LightAta support).
+    #[allow(clippy::too_many_arguments)]
+    fn process_light_atas<'b>(
+        &self,
+        _fee_payer: &AccountInfo<'info>,
+        _ctoken_program: &AccountInfo<'info>,
+        _ctoken_rent_sponsor: &AccountInfo<'info>,
+        _ctoken_cpi_authority: &AccountInfo<'info>,
+        _ctoken_config: &AccountInfo<'info>,
+        _config: &AccountInfo<'info>,
+        _light_atas: Vec<(super::LightAta, Self::CompressedMeta)>,
+        _proof: crate::instruction::ValidityProof,
+        _cpi_accounts: &CpiAccounts<'b, 'info>,
+        _post_system_accounts: &[AccountInfo<'info>],
+        _has_prior_context: bool,
+    ) -> Result<(), ProgramError> {
+        Ok(())
+    }
+
+    /// Process standard LightMint decompression.
+    /// Default implementation does nothing (for programs without LightMint support).
+    #[allow(clippy::too_many_arguments)]
+    fn process_light_mints<'b>(
+        &self,
+        _fee_payer: &AccountInfo<'info>,
+        _ctoken_program: &AccountInfo<'info>,
+        _ctoken_rent_sponsor: &AccountInfo<'info>,
+        _ctoken_cpi_authority: &AccountInfo<'info>,
+        _ctoken_config: &AccountInfo<'info>,
+        _config: &AccountInfo<'info>,
+        _light_mints: Vec<(super::LightMint, Self::CompressedMeta)>,
+        _proof: crate::instruction::ValidityProof,
+        _cpi_accounts: &CpiAccounts<'b, 'info>,
+        _has_prior_context: bool,
+        _has_subsequent: bool,
+    ) -> Result<(), ProgramError> {
+        Ok(())
     }
 }
 
@@ -189,27 +214,53 @@ pub trait PdaSeedDerivation<A, S> {
     ) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
 }
 
-/// Check compressed accounts to determine if we have tokens, mints, PDAs, and/or ATAs.
-/// Returns (has_tokens, has_pdas, has_mints, has_atas)
-#[inline(never)]
 /// Check what types of accounts are in the batch.
-/// Returns (has_tokens, has_pdas, has_mints).
-/// Note: ATAs are handled within the token processing path via `is_ata()` on the variant.
-pub fn check_account_types<T: HasTokenVariant>(compressed_accounts: &[T]) -> (bool, bool, bool) {
-    let (mut has_tokens, mut has_pdas, mut has_mints) = (false, false, false);
+/// Returns (has_tokens, has_pdas, has_mints, has_light_atas).
+/// Note: PackedCTokenData = program-owned tokens (Vaults)
+/// Note: LightAta = standard ATAs
+/// Note: LightMint = standard mints
+#[inline(never)]
+pub fn check_account_types<T: HasTokenVariant>(
+    compressed_accounts: &[T],
+) -> (bool, bool, bool, bool) {
+    let (mut has_tokens, mut has_pdas, mut has_mints, mut has_light_atas) =
+        (false, false, false, false);
     for account in compressed_accounts {
         if account.is_packed_ctoken() {
             has_tokens = true;
-        } else if account.is_compressed_mint() {
+        } else if account.is_light_mint() {
             has_mints = true;
+        } else if account.is_light_ata() {
+            has_light_atas = true;
         } else {
             has_pdas = true;
         }
-        if has_tokens && has_pdas && has_mints {
-            break;
+    }
+    (has_tokens, has_pdas, has_mints, has_light_atas)
+}
+
+/// Check account types with mint count for validation.
+/// Returns (has_tokens, has_pdas, has_mints, has_light_atas, mint_count).
+#[inline(never)]
+pub fn check_account_types_with_count<T: HasTokenVariant>(
+    compressed_accounts: &[T],
+) -> (bool, bool, bool, bool, usize) {
+    let (mut has_tokens, mut has_pdas, mut has_mints, mut has_light_atas) =
+        (false, false, false, false);
+    let mut mint_count = 0;
+    for account in compressed_accounts {
+        if account.is_packed_ctoken() {
+            has_tokens = true;
+        } else if account.is_light_mint() {
+            has_mints = true;
+            mint_count += 1;
+        } else if account.is_light_ata() {
+            has_light_atas = true;
+        } else {
+            has_pdas = true;
         }
     }
-    (has_tokens, has_pdas, has_mints)
+    (has_tokens, has_pdas, has_mints, has_light_atas, mint_count)
 }
 
 /// Handler for unpacking and preparing a single PDA variant for decompression.
@@ -317,8 +368,30 @@ where
         crate::compressible::CompressibleConfig::load_checked(ctx.config(), program_id)?;
     let address_space = compression_config.address_space[0];
 
-    let (has_tokens, has_pdas, has_mints) = check_account_types(&compressed_accounts);
-    if !has_tokens && !has_pdas && !has_mints {
+    // Check account types and validate constraints
+    let (has_tokens, has_pdas, has_mints, has_light_atas, mint_count) =
+        check_account_types_with_count(&compressed_accounts);
+
+    // CONSTRAINT 1: At most 1 mint per instruction
+    if mint_count > 1 {
+        msg!(
+            "At most 1 LightMint allowed per instruction, found {}",
+            mint_count
+        );
+        return Err(ProgramError::from(
+            crate::error::LightSdkError::AtMostOneMintAllowed,
+        ));
+    }
+
+    // CONSTRAINT 2: Mint + ATAs/tokens is forbidden (both modify on-chain state)
+    if has_mints && (has_light_atas || has_tokens) {
+        msg!("LightMint + (LightAta/CToken) combination is forbidden - both modify on-chain state");
+        return Err(ProgramError::from(
+            crate::error::LightSdkError::MintAndTokensForbidden,
+        ));
+    }
+
+    if !has_tokens && !has_pdas && !has_mints && !has_light_atas {
         return Ok(());
     }
 
@@ -327,8 +400,9 @@ where
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    // Count how many different types we have
-    let type_count = has_tokens as u8 + has_pdas as u8 + has_mints as u8;
+    // Count how many different types we have (LightAta counts with tokens, LightMint counts with mints)
+    let effective_has_tokens = has_tokens || has_light_atas;
+    let type_count = effective_has_tokens as u8 + has_pdas as u8 + has_mints as u8;
 
     // Use CPI context only if we have 2+ different types (need batching)
     let needs_cpi_context = type_count >= 2;
@@ -354,8 +428,8 @@ where
         .get(pda_accounts_start..)
         .ok_or_else(|| ProgramError::from(crate::error::LightSdkError::ConstraintViolation))?;
 
-    // Call trait method for program-specific collection (handles PDAs, tokens, mints)
-    let (compressed_pda_infos, compressed_token_accounts, compressed_mint_accounts) = ctx
+    // Call trait method for program-specific collection (handles PDAs, tokens, and standard types)
+    let (compressed_pda_infos, compressed_token_accounts, light_atas, light_mints) = ctx
         .collect_all_accounts(
             &cpi_accounts,
             address_space,
@@ -365,8 +439,13 @@ where
         )?;
 
     let has_pdas = !compressed_pda_infos.is_empty();
-    let has_tokens = !compressed_token_accounts.is_empty();
-    let has_mints = !compressed_mint_accounts.is_empty();
+    let has_program_tokens = !compressed_token_accounts.is_empty();
+    let has_light_atas = !light_atas.is_empty();
+    let has_light_mints = !light_mints.is_empty();
+
+    // Aggregate: LightAta counts as tokens, LightMint counts as mints
+    let has_tokens = has_program_tokens || has_light_atas;
+    let has_mints = has_light_mints;
 
     if !has_pdas && !has_tokens && !has_mints {
         return Ok(());
@@ -406,27 +485,15 @@ where
         }
     }
 
-    // Process mints (if any)
-    if has_mints {
-        // has_prior_context: PDAs already wrote to context
-        // has_subsequent: tokens will execute after
-        ctx.process_mints(
-            &cpi_accounts,
-            compressed_mint_accounts,
-            proof,
-            has_pdas,   // has_prior_context
-            has_tokens, // has_subsequent (tokens will execute after)
-        )?;
-    }
+    // Fetch ctoken accounts (needed for tokens, mints, LightAta, LightMint)
+    let post_system_offset = cpi_accounts.system_accounts_end_offset();
+    let all_infos = cpi_accounts.account_infos();
+    let post_system_accounts = all_infos
+        .get(post_system_offset..)
+        .ok_or_else(|| ProgramError::from(crate::error::LightSdkError::ConstraintViolation))?;
 
-    // Process tokens (if any) - always last in the chain
-    if has_tokens {
-        let post_system_offset = cpi_accounts.system_accounts_end_offset();
-        let all_infos = cpi_accounts.account_infos();
-        let post_system_accounts = all_infos
-            .get(post_system_offset..)
-            .ok_or_else(|| ProgramError::from(crate::error::LightSdkError::ConstraintViolation))?;
-
+    // Process LightMint (standard SDK type)
+    if has_light_mints {
         let ctoken_program = ctx
             .ctoken_program()
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
@@ -440,20 +507,71 @@ where
             .ctoken_config()
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-        ctx.process_tokens(
-            remaining_accounts,
+        ctx.process_light_mints(
             fee_payer,
-            ctoken_program,
-            ctoken_rent_sponsor,
-            ctoken_cpi_authority,
-            ctoken_config,
-            ctx.config(),
-            compressed_token_accounts,
+            &ctoken_program,
+            &ctoken_rent_sponsor,
+            &ctoken_cpi_authority,
+            &ctoken_config,
+            &ctx.config(),
+            light_mints,
             proof,
             &cpi_accounts,
-            post_system_accounts,
-            has_pdas || has_mints, // has_prior_context: something wrote to CPI context before
+            has_pdas,   // has_prior_context
+            has_tokens, // has_subsequent
         )?;
+    }
+
+    // Process tokens (if any) - always last in the chain
+    // Includes both program tokens and LightAta
+    if has_tokens {
+        let ctoken_program = ctx
+            .ctoken_program()
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        let ctoken_rent_sponsor = ctx
+            .ctoken_rent_sponsor()
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        let ctoken_cpi_authority = ctx
+            .ctoken_cpi_authority()
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        let ctoken_config = ctx
+            .ctoken_config()
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+
+        // Process program-owned tokens first (if any)
+        if has_program_tokens {
+            ctx.process_tokens(
+                remaining_accounts,
+                fee_payer,
+                &ctoken_program,
+                &ctoken_rent_sponsor,
+                &ctoken_cpi_authority,
+                &ctoken_config,
+                &ctx.config(),
+                compressed_token_accounts,
+                proof,
+                &cpi_accounts,
+                post_system_accounts,
+                has_pdas || has_mints, // has_prior_context
+            )?;
+        }
+
+        // Process LightAta (standard SDK type) - always last
+        if has_light_atas {
+            ctx.process_light_atas(
+                fee_payer,
+                &ctoken_program,
+                &ctoken_rent_sponsor,
+                &ctoken_cpi_authority,
+                &ctoken_config,
+                &ctx.config(),
+                light_atas,
+                proof,
+                &cpi_accounts,
+                post_system_accounts,
+                has_pdas || has_mints || has_program_tokens, // has_prior_context (mints handled before tokens)
+            )?;
+        }
     }
 
     Ok(())

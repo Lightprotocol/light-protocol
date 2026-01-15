@@ -15,18 +15,6 @@ pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Re
         }
     });
 
-    // Generate is_ata match arms for the IsAta trait impl
-    let is_ata_match_arms: Vec<_> = token_seeds
-        .iter()
-        .map(|spec| {
-            let variant_name = &spec.variant;
-            let is_ata = spec.is_ata;
-            quote! {
-                CTokenAccountVariant::#variant_name => #is_ata,
-            }
-        })
-        .collect();
-
     Ok(quote! {
         #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
         #[repr(u8)]
@@ -34,14 +22,10 @@ pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Re
             #(#variants)*
         }
 
-        // Implement IsAta trait for Pack to detect ATAs during client-side packing.
-        // This enables unified decompression of ATAs alongside PDAs by ensuring
-        // the ATA address is included in packed_accounts.
+        // Program-owned token variants don't need is_ata() - use LightAta instead
         impl light_ctoken_sdk::IsAta for CTokenAccountVariant {
             fn is_ata(&self) -> bool {
-                match self {
-                    #(#is_ata_match_arms)*
-                }
+                false // Program-owned tokens are never ATAs
             }
         }
     })
@@ -55,34 +39,6 @@ pub fn generate_ctoken_seed_provider_implementation(
 
     for spec in token_seeds {
         let variant_name = &spec.variant;
-
-        // For ATA variants, get_seeds() and get_authority_seeds() should never be called
-        // because process_decompress_tokens_runtime checks is_ata() first and uses
-        // derive_ctoken_ata() directly. These error arms are safety guards.
-        if spec.is_ata {
-            let get_seeds_arm = quote! {
-                CTokenAccountVariant::#variant_name => {
-                    // ATAs use ctoken's standard derivation (wallet + ctoken_program + mint)
-                    // This should never be called - runtime checks is_ata() first
-                    Err(anchor_lang::prelude::ProgramError::Custom(
-                        CompressibleInstructionError::MissingSeedAccount.into()
-                    ).into())
-                }
-            };
-            get_seeds_match_arms.push(get_seeds_arm);
-
-            let authority_arm = quote! {
-                CTokenAccountVariant::#variant_name => {
-                    // ATAs are signed by wallet owner, not program
-                    // This should never be called - runtime checks is_ata() first
-                    Err(anchor_lang::prelude::ProgramError::Custom(
-                        CompressibleInstructionError::MissingSeedAccount.into()
-                    ).into())
-                }
-            };
-            get_authority_seeds_match_arms.push(authority_arm);
-            continue;
-        }
 
         let mut token_bindings = Vec::new();
         let mut token_seed_refs = Vec::new();
@@ -366,18 +322,6 @@ pub fn generate_ctoken_seed_provider_implementation(
         }
     }
 
-    // Generate is_ata match arms
-    let is_ata_match_arms: Vec<_> = token_seeds
-        .iter()
-        .map(|spec| {
-            let variant_name = &spec.variant;
-            let is_ata = spec.is_ata;
-            quote! {
-                CTokenAccountVariant::#variant_name => #is_ata,
-            }
-        })
-        .collect();
-
     Ok(quote! {
         impl ctoken_seed_system::CTokenSeedProvider for CTokenAccountVariant {
             fn get_seeds<'a, 'info>(
@@ -405,9 +349,7 @@ pub fn generate_ctoken_seed_provider_implementation(
             }
 
             fn is_ata(&self) -> bool {
-                match self {
-                    #(#is_ata_match_arms)*
-                }
+                false // Program-owned tokens are never ATAs - use LightAta instead
             }
         }
     })
@@ -483,7 +425,6 @@ pub fn generate_client_seed_functions(
                     variant: spec.variant.clone(),
                     _eq: spec._eq,
                     is_token: spec.is_token,
-                    is_ata: spec.is_ata,
                     seeds: syn::punctuated::Punctuated::new(),
                     authority: None,
                 };

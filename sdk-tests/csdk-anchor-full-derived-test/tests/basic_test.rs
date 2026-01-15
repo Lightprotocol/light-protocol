@@ -403,8 +403,6 @@ async fn test_create_pdas_and_mint_auto() {
             user: Some(payer.pubkey()),
             mint: None,
             cmint: Some(cmint_pda),
-            mint_signer: None,
-            wallet: None,
         }
         .to_account_metas(None),
         rpc_result,
@@ -2211,8 +2209,6 @@ async fn test_decompress_cpda_and_vault() {
             user: Some(ctx.payer.pubkey()),
             mint: None,
             cmint: Some(cmint_pda),
-            mint_signer: None,
-            wallet: None, // vault is program-owned, no wallet signer needed
         }
         .to_account_metas(None),
         decompress_proof,
