@@ -499,8 +499,7 @@ async fn decompress_multiple_atas_helper(
     program_id: Pubkey,
 ) {
     use csdk_anchor_full_derived_test::instruction_accounts::{
-        CompressedAtaAccountData, CompressedAtaTokenData, CompressedAtaVariant,
-        DecompressAtasParams,
+        DecompressAtasParams, PackedAtaAccountData, PackedAtaTokenData, PackedAtaVariant,
     };
     use light_ctoken_sdk::ctoken::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as CTOKEN_RENT_SPONSOR};
     use light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
@@ -565,10 +564,10 @@ async fn decompress_multiple_atas_helper(
         ata_indices.push((wallet_idx, mint_idx, ata_idx));
     }
 
-    // Build CompressedAtaAccountData with indices from PackedAccounts
+    // Build PackedAtaAccountData - PACKED format (indices only, ~14 bytes per ATA)
     let mut compressed_accounts = Vec::with_capacity(atas.len());
 
-    for (i, ((_, mint_pubkey, amount), wallet)) in atas.iter().zip(wallets.iter()).enumerate() {
+    for (i, ((_, _, amount), _)) in atas.iter().zip(wallets.iter()).enumerate() {
         let compressed = &compressed_atas[i];
         let root_index = proof_result.accounts[i]
             .root_index
@@ -576,7 +575,8 @@ async fn decompress_multiple_atas_helper(
             .unwrap_or(0);
         let (wallet_idx, mint_idx, ata_idx) = ata_indices[i];
 
-        compressed_accounts.push(CompressedAtaAccountData {
+        // PACKED: no pubkeys, just indices + values
+        compressed_accounts.push(PackedAtaAccountData {
             meta: CompressedAccountMetaNoLamportsNoAddress {
                 tree_info: light_sdk::instruction::PackedStateTreeInfo {
                     merkle_tree_pubkey_index: state_tree_index,
@@ -587,16 +587,15 @@ async fn decompress_multiple_atas_helper(
                 },
                 output_state_tree_index: 0,
             },
-            data: CompressedAtaVariant::Standard(CompressedAtaTokenData {
-                wallet: wallet.pubkey(),
-                mint: *mint_pubkey,
+            data: PackedAtaVariant::Standard(PackedAtaTokenData {
+                wallet_index: wallet_idx,
+                mint_index: mint_idx,
+                ata_index: ata_idx,
                 amount: *amount,
-                delegate: None,
+                has_delegate: false,
+                delegate_index: 0,
                 is_frozen: false,
             }),
-            wallet_index: wallet_idx,
-            mint_index: mint_idx,
-            ata_index: ata_idx,
         });
     }
 
@@ -1022,8 +1021,7 @@ async fn test_decompress_cmints() {
 #[tokio::test]
 async fn test_decompress_atas_structure() {
     use csdk_anchor_full_derived_test::instruction_accounts::{
-        CompressedAtaAccountData, CompressedAtaTokenData, CompressedAtaVariant,
-        DecompressAtasParams,
+        DecompressAtasParams, PackedAtaAccountData, PackedAtaTokenData, PackedAtaVariant,
     };
     use light_ctoken_sdk::ctoken::COMPRESSIBLE_CONFIG_V1;
     use light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
@@ -1038,10 +1036,10 @@ async fn test_decompress_atas_structure() {
     let rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
-    // Verify the data structures compile correctly
+    // Verify the PACKED data structures compile correctly (~14 bytes per ATA)
     let _example_params = DecompressAtasParams {
         proof: light_sdk::instruction::ValidityProof(None),
-        compressed_accounts: vec![CompressedAtaAccountData {
+        compressed_accounts: vec![PackedAtaAccountData {
             meta: CompressedAccountMetaNoLamportsNoAddress {
                 tree_info: light_sdk::instruction::PackedStateTreeInfo {
                     merkle_tree_pubkey_index: 0,
@@ -1052,16 +1050,16 @@ async fn test_decompress_atas_structure() {
                 },
                 output_state_tree_index: 0,
             },
-            data: CompressedAtaVariant::Standard(CompressedAtaTokenData {
-                wallet: payer.pubkey(),
-                mint: payer.pubkey(), // placeholder
+            // PACKED: indices only, no pubkeys!
+            data: PackedAtaVariant::Standard(PackedAtaTokenData {
+                wallet_index: 3,
+                mint_index: 4,
+                ata_index: 5,
                 amount: 1000,
-                delegate: None,
+                has_delegate: false,
+                delegate_index: 0,
                 is_frozen: false,
             }),
-            wallet_index: 3,
-            mint_index: 4,
-            ata_index: 5,
         }],
         system_accounts_offset: 0,
     };

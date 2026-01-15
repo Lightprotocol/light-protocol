@@ -271,46 +271,42 @@ pub struct DecompressCMints<'info> {
 // DecompressAtas - Decompress compressed ATAs (1 or more, batched in ONE CPI)
 // ============================================================================
 
-/// ATA-specific token data for decompression.
-/// For compression_only ATAs, the compressed account's owner = ATA pubkey (not wallet).
+/// PACKED ATA token data for decompression (14 bytes total).
+/// Uses indices instead of full Pubkeys - client packs, on-chain unpacks.
+/// Mirrors ctoken's MultiTokenTransferOutputData pattern.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct CompressedAtaTokenData {
-    /// Wallet owner (signs the transaction, used to derive ATA)
-    pub wallet: Pubkey,
-    /// Mint for this ATA
-    pub mint: Pubkey,
+pub struct PackedAtaTokenData {
+    /// Index of wallet account in packed_accounts (signer, used to derive ATA)
+    pub wallet_index: u8,
+    /// Index of mint account in packed_accounts
+    pub mint_index: u8,
+    /// Index of ATA account in packed_accounts (derived from wallet + mint)
+    pub ata_index: u8,
     /// Amount in the compressed account
     pub amount: u64,
-    /// Delegate (if any)
-    pub delegate: Option<Pubkey>,
+    /// Whether delegate is set
+    pub has_delegate: bool,
+    /// Index of delegate in packed_accounts (0 if none)
+    pub delegate_index: u8,
     /// Whether account is frozen
     pub is_frozen: bool,
 }
 
-/// Enum wrapper for ATA variants (future extensibility).
-/// Packed = Unpacked for now (noop).
+/// Enum wrapper for packed ATA variants (future extensibility).
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub enum CompressedAtaVariant {
+pub enum PackedAtaVariant {
     /// Standard compression_only ATA
-    Standard(CompressedAtaTokenData),
+    Standard(PackedAtaTokenData),
 }
 
-/// Per-ATA compressed account data.
-/// Mirrors `CompressedAccountData` pattern from decompress_accounts_idempotent.
-/// Compressed ATA account data with explicit indices.
-/// Indices allow arbitrary de-duplication (shared mints, shared wallets, etc.)
+/// Per-ATA compressed account data with PACKED token data.
+/// All pubkeys are represented as indices into packed_accounts.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct CompressedAtaAccountData {
+pub struct PackedAtaAccountData {
     /// Merkle tree metadata (tree indices, leaf index, etc.)
     pub meta: CompressedAccountMetaNoLamportsNoAddress,
-    /// The compressed ATA data
-    pub data: CompressedAtaVariant,
-    /// Index of wallet account in packed_accounts (relative to packed_accounts start)
-    pub wallet_index: u8,
-    /// Index of mint account in packed_accounts
-    pub mint_index: u8,
-    /// Index of ATA account in packed_accounts
-    pub ata_index: u8,
+    /// The packed ATA data (indices only, ~14 bytes)
+    pub data: PackedAtaVariant,
 }
 
 /// Parameters for decompressing compressed ATAs.
@@ -318,16 +314,14 @@ pub struct CompressedAtaAccountData {
 /// Key difference from CMints: ATAs CAN be batched in ONE CPI call.
 /// Works for both prove_by_index=true and prove_by_index=false.
 ///
-/// Packed accounts can be de-duplicated arbitrarily:
-/// - Shared mint: use same mint_index for multiple ATAs
-/// - Shared wallet: use same wallet_index
-/// - Unique everything: each ATA has its own indices
+/// Uses PACKED data - indices only, no full Pubkeys. ~14 bytes per ATA vs ~77 bytes.
+/// Packed accounts can be de-duplicated arbitrarily via shared indices.
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct DecompressAtasParams {
     /// Validity proof covering all input ATAs
     pub proof: light_sdk::instruction::ValidityProof,
-    /// Vec of compressed ATA data (1 or more allowed)
-    pub compressed_accounts: Vec<CompressedAtaAccountData>,
+    /// Vec of PACKED ATA data (indices only)
+    pub compressed_accounts: Vec<PackedAtaAccountData>,
     /// Offset where system accounts start in remaining_accounts
     pub system_accounts_offset: u8,
 }

@@ -373,7 +373,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, DecompressAtas<'info>>,
         params: DecompressAtasParams,
     ) -> Result<()> {
-        use crate::instruction_accounts::CompressedAtaVariant;
+        use crate::instruction_accounts::PackedAtaVariant;
         use light_compressed_account::compressed_account::PackedMerkleContext;
         use light_ctoken_interface::instructions::{
             extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
@@ -411,16 +411,16 @@ pub mod csdk_anchor_full_derived_test {
         let mut decompress_indices: Vec<DecompressFullIndices> =
             Vec::with_capacity(params.compressed_accounts.len());
 
-        // Create ATAs and build indices using params-provided indices
+        // Create ATAs and build indices - UNPACK indices to get pubkeys
         for (i, ata_account_data) in params.compressed_accounts.iter().enumerate() {
-            let CompressedAtaVariant::Standard(ata_data) = &ata_account_data.data;
+            let PackedAtaVariant::Standard(packed_data) = &ata_account_data.data;
 
-            // Get accounts using indices from params (allows arbitrary de-duplication)
-            let wallet_idx = ata_account_data.wallet_index as usize;
-            let mint_idx = ata_account_data.mint_index as usize;
-            let ata_idx = ata_account_data.ata_index as usize;
+            // UNPACK: get pubkeys from indices (same pattern as ctoken's Unpack trait)
+            let wallet_idx = packed_data.wallet_index as usize;
+            let mint_idx = packed_data.mint_index as usize;
+            let ata_idx = packed_data.ata_index as usize;
 
-            // Bounds check
+            // Bounds check all indices
             let max_idx = wallet_idx.max(mint_idx).max(ata_idx);
             if max_idx >= packed_accounts.len() {
                 return Err(anchor_lang::error::ErrorCode::AccountNotEnoughKeys.into());
@@ -430,18 +430,12 @@ pub mod csdk_anchor_full_derived_test {
             let mint_account = &packed_accounts[mint_idx];
             let ata_account = &packed_accounts[ata_idx];
 
-            // Verify wallet matches expected
-            if *wallet_account.key != ata_data.wallet {
-                return Err(anchor_lang::error::ErrorCode::ConstraintRaw.into());
-            }
+            // UNPACK pubkeys from remaining_accounts using indices
+            let wallet_pubkey = wallet_account.key;
+            let mint_pubkey = mint_account.key;
 
-            // Verify mint matches expected
-            if *mint_account.key != ata_data.mint {
-                return Err(anchor_lang::error::ErrorCode::ConstraintRaw.into());
-            }
-
-            // Derive and verify ATA
-            let (expected_ata, bump) = derive_ctoken_ata(&ata_data.wallet, &ata_data.mint);
+            // Derive and verify ATA matches the account at ata_index
+            let (expected_ata, bump) = derive_ctoken_ata(wallet_pubkey, mint_pubkey);
             if *ata_account.key != expected_ata {
                 return Err(anchor_lang::error::ErrorCode::ConstraintRaw.into());
             }
@@ -463,31 +457,27 @@ pub mod csdk_anchor_full_derived_test {
             }
             .invoke()?;
 
-            // Use indices from params for TLV and source
-            let wallet_index = ata_account_data.wallet_index;
-            let mint_index = ata_account_data.mint_index;
-            let ata_index = ata_account_data.ata_index;
-
             // Build CompressedOnly TLV extension for ATA
             // compression_index must be unique per input in the batch
             let tlv = vec![ExtensionInstructionData::CompressedOnly(
                 CompressedOnlyExtensionInstructionData {
                     delegated_amount: 0,
                     withheld_transfer_fee: 0,
-                    is_frozen: ata_data.is_frozen,
+                    is_frozen: packed_data.is_frozen,
                     compression_index: i as u8,
                     is_ata: true,
                     bump,
-                    owner_index: wallet_index,
+                    owner_index: packed_data.wallet_index,
                 },
             )];
-            // Build source with indices from params
+
+            // Build source using packed indices directly
             let source = MultiInputTokenDataWithContext {
-                owner: ata_index, // ATA address index (compressed account's owner)
-                amount: ata_data.amount,
-                has_delegate: ata_data.delegate.is_some(),
-                delegate: 0, // Would need to pack delegate if present
-                mint: mint_index,
+                owner: packed_data.ata_index, // ATA address index (compressed account's owner)
+                amount: packed_data.amount,
+                has_delegate: packed_data.has_delegate,
+                delegate: packed_data.delegate_index,
+                mint: packed_data.mint_index,
                 version: 3, // ShaFlat version
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: ata_account_data
@@ -503,7 +493,7 @@ pub mod csdk_anchor_full_derived_test {
 
             decompress_indices.push(DecompressFullIndices {
                 source,
-                destination_index: ata_index,
+                destination_index: packed_data.ata_index,
                 tlv: Some(tlv),
                 is_ata: true,
             });
