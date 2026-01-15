@@ -149,6 +149,98 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
     create_transfer2_instruction(inputs)
 }
 
+/// Decompress full balance with explicit CPI context control.
+///
+/// This variant allows specifying the CPI context mode (write first, write set, or execute).
+/// Use this when you need ATAs to write to CPI context for a later mint to consume.
+///
+/// # Arguments
+/// * `fee_payer` - The fee payer pubkey
+/// * `validity_proof` - Validity proof for the compressed accounts (zkp or index)
+/// * `cpi_context` - Optional tuple of (pubkey, config) for CPI context control
+/// * `indices` - Slice of source/destination pairs for decompress operations
+/// * `packed_accounts` - Slice of all accounts that will be used in the instruction
+#[profile]
+pub fn decompress_full_ctoken_accounts_with_cpi_context<'info>(
+    fee_payer: Pubkey,
+    validity_proof: ValidityProof,
+    cpi_context: Option<(Pubkey, CompressedCpiContext)>,
+    indices: &[DecompressFullIndices],
+    packed_accounts: &[AccountInfo<'info>],
+) -> Result<Instruction, CTokenSdkError> {
+    if indices.is_empty() {
+        return Err(CTokenSdkError::InvalidAccountData);
+    }
+
+    let mut token_accounts = Vec::with_capacity(indices.len());
+    let mut in_tlv_data: Vec<Vec<ExtensionInstructionData>> = Vec::with_capacity(indices.len());
+    let mut has_any_tlv = false;
+    let mut signer_flags = vec![false; packed_accounts.len()];
+
+    for idx in indices.iter() {
+        let mut token_account = CTokenAccount2::new(vec![idx.source])?;
+        token_account.decompress_ctoken(idx.source.amount, idx.destination_index)?;
+        token_accounts.push(token_account);
+
+        if let Some(tlv) = &idx.tlv {
+            has_any_tlv = true;
+            in_tlv_data.push(tlv.clone());
+        } else {
+            in_tlv_data.push(Vec::new());
+        }
+
+        let owner_idx = idx.source.owner as usize;
+        if owner_idx >= signer_flags.len() {
+            return Err(CTokenSdkError::InvalidAccountData);
+        }
+        if !idx.is_ata {
+            signer_flags[owner_idx] = true;
+        }
+    }
+
+    let mut packed_account_metas = Vec::with_capacity(packed_accounts.len());
+    for (i, info) in packed_accounts.iter().enumerate() {
+        packed_account_metas.push(AccountMeta {
+            pubkey: *info.key,
+            is_signer: info.is_signer || signer_flags[i],
+            is_writable: info.is_writable,
+        });
+    }
+
+    let (meta_config, transfer_config) = if let Some((cpi_pubkey, cpi_config)) = cpi_context {
+        (
+            Transfer2AccountsMetaConfig {
+                fee_payer: Some(fee_payer),
+                cpi_context: Some(cpi_pubkey),
+                decompressed_accounts_only: false,
+                sol_pool_pda: None,
+                sol_decompression_recipient: None,
+                with_sol_pool: false,
+                packed_accounts: Some(packed_account_metas),
+            },
+            Transfer2Config::default()
+                .filter_zero_amount_outputs()
+                .with_cpi_context(cpi_config),
+        )
+    } else {
+        (
+            Transfer2AccountsMetaConfig::new(fee_payer, packed_account_metas),
+            Transfer2Config::default().filter_zero_amount_outputs(),
+        )
+    };
+
+    let inputs = Transfer2Inputs {
+        meta_config,
+        token_accounts,
+        transfer_config,
+        validity_proof,
+        in_tlv: if has_any_tlv { Some(in_tlv_data) } else { None },
+        ..Default::default()
+    };
+
+    create_transfer2_instruction(inputs)
+}
+
 /// Helper function to pack compressed token accounts into DecompressFullIndices
 /// Used in tests to build indices for multiple compressed accounts to decompress
 ///

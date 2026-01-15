@@ -1,69 +1,151 @@
-# Decompress CMint via CPI
+# Decompress CMint
 
-## Overview
+## TL;DR
 
-Decompress a compressed mint to on-chain CMint PDA. **One CPI per mint** - the ctoken program's `DecompressMint` action does NOT support CPI context batching.
+- **One CPI per mint** - `DecompressMint` does NOT support CPI context batching
+- Packed format: **~50 bytes/Mint** (vs ~150-180 unpacked, metadata extra)
+- `compressed_address` is **RAW DATA**, not an account index
 
-## Account Layout
+---
 
-```
-remaining_accounts:
-[0] ctoken_program
-[1] light_system_program
-[2] cpi_authority
-[3] registered_program
-[4] account_compression_authority
-[5] account_compression_program
-[6] state_tree
-[7] input_queue
-[8] output_queue
-[9] mint_signer (for mint 1)
-[10] cmint_pda (for mint 1)
-```
-
-## Client: Building Params
+## Packed Format
 
 ```rust
-// Get compressed mint from indexer
-let compressed_mint = rpc.get_compressed_account(hash, None).await;
-
-// Get validity proof
-let proof_result = rpc.get_validity_proof(vec![hash], vec![], None).await;
-
-// Key: indices are relative to remaining_accounts
-let packed_tree_info = proof_result.pack_tree_infos(&mut packed_accounts)
-    .state_trees.unwrap().packed_tree_infos[0];
-
-let params = DecompressCMintsParams {
-    proof: ValidityProof(proof_result.proof.0),
-    compressed_accounts: vec![CompressedMintAccountData {
-        meta: CompressedAccountMetaNoLamportsNoAddress {
-            tree_info: PackedStateTreeInfo {
-                merkle_tree_pubkey_index: 6,  // state_tree index in remaining
-                queue_pubkey_index: 7,         // input_queue index
-                root_index: packed_tree_info.root_index,
-                leaf_index: compressed_mint.leaf_index,
-                prove_by_index: packed_tree_info.prove_by_index,
-            },
-            output_state_tree_index: 0,
-        },
-        data: CompressedMintVariant::Standard(CompressedMintTokenData {
-            mint_seed_pubkey: mint_signer.pubkey(),
-            compressed_mint_with_context: CompressedMintWithContext { ... },
-            rent_payment: 16,
-            write_top_up: 766,
-        }),
-    }],
-    system_accounts_offset: 0,
-};
+pub struct PackedMintTokenData {
+    pub mint_seed_index: u8,            // INDEX - Solana account
+    pub cmint_pda_index: u8,            // INDEX - Solana account
+    pub compressed_address: [u8; 32],   // RAW DATA - Light address
+    pub leaf_index: u32,
+    pub prove_by_index: bool,
+    pub root_index: u16,
+    pub supply: u64,
+    pub decimals: u8,
+    pub version: u8,
+    pub cmint_decompressed: bool,
+    pub has_mint_authority: bool,
+    pub mint_authority_index: u8,       // INDEX (0 if none)
+    pub has_freeze_authority: bool,
+    pub freeze_authority_index: u8,     // INDEX (0 if none)
+    pub rent_payment: u8,
+    pub write_top_up: u32,
+    pub extensions: Option<Vec<ExtensionInstructionData>>,
+}
 ```
+
+### What's Packed vs Raw
+
+| Field                | Treatment                         |
+| -------------------- | --------------------------------- |
+| `mint_seed_pubkey`   | **Index** (Solana account)        |
+| `cmint_pda`          | **Index** (Solana account)        |
+| `mint_authority`     | **Index** (Solana account)        |
+| `freeze_authority`   | **Index** (Solana account)        |
+| `compressed_address` | **Raw [u8;32]** - NOT an account! |
+| `extensions`         | **Raw** - variable metadata       |
+
+---
 
 ## Footguns
 
-1. **One mint per CPI** - `DecompressMint` blocks `first_set_context`/`set_context` flags. Each mint needs its own CPI call with its own proof.
+### 1. compressed_address is DATA
 
-2. **Index alignment** - Indices in params must match remaining_accounts positions exactly. Off-by-one = wrong account = failure.
+Light protocol address used in proof verification. **Do NOT add to packed_accounts**.
 
-3. **mint_signer is NOT a signer** - For decompress, `mint_signer.key()` is only used for PDA derivation. Don't mark it as signer in remaining_accounts.
+```rust
+compressed_address: cmint_compressed_address, // raw [u8;32], NOT an index
+```
 
-4. **CMint PDA derivation** - Must match: `find_cmint_address(&mint_signer_pubkey)`. Verify on-chain before CPI.
+### 2. CPI Account Order
+
+`invoke()` expects exact order from instruction builder. **Don't include ctoken_program in account_infos**:
+
+```rust
+let account_infos = vec![
+    light_system_program, mint_seed, authority, compressible_config,
+    cmint, rent_sponsor, fee_payer, cpi_authority, registered_program,
+    acc_compression_authority, acc_compression_program, system_program,
+    output_queue, state_tree, input_queue,
+];
+// NO ctoken_program - it's from instruction.program_id
+```
+
+### 3. Writability Matters
+
+```rust
+packed.insert_or_get(cmint_pda);          // writable
+packed.insert_or_get_read_only(mint_seed); // read-only
+```
+
+### 4. output_state_tree_index
+
+Stored in `meta.output_state_tree_index`. Not derived from input_queue position.
+
+### 5. Pubkey Type Conversion
+
+Light uses its own `Pubkey`. Convert with `.into()`:
+
+```rust
+mint_authority: mint_authority.map(|p| p.into()),
+metadata: CompressedMintMetadata { mint: cmint_pda.into(), ... }
+```
+
+### 6. Authority Must Sign
+
+`authority` field is the mint authority that was set during mint creation. Must sign.
+
+---
+
+## Size Comparison
+
+| Config           | Unpacked   | Packed     | Savings |
+| ---------------- | ---------- | ---------- | ------- |
+| No authorities   | ~150 bytes | ~50 bytes  | **67%** |
+| With authorities | ~180 bytes | ~52 bytes  | **71%** |
+| + 200 char URI   | ~380 bytes | ~250 bytes | **34%** |
+
+---
+
+## Client Pattern
+
+```rust
+let mut packed = PackedAccounts::default();
+
+// System accounts [0-5]
+packed.insert_or_get_read_only(C_TOKEN_PROGRAM_ID);
+// ... etc
+
+// Trees from validity proof
+let packed_tree_infos = proof_result.pack_tree_infos(&mut packed);
+let output_queue_idx = packed.insert_or_get(output_queue_pubkey);
+
+// Mint accounts
+let mint_seed_idx = packed.insert_or_get_read_only(mint_signer.pubkey());
+let cmint_pda_idx = packed.insert_or_get(cmint_pda);
+let mint_authority_idx = packed.insert_or_get_read_only(authority.pubkey());
+
+PackedMintTokenData {
+    mint_seed_index: mint_seed_idx,
+    cmint_pda_index: cmint_pda_idx,
+    compressed_address: cmint_compressed_address, // RAW, not index!
+    has_mint_authority: true,
+    mint_authority_index: mint_authority_idx,
+    // ...
+}
+```
+
+## On-chain Unpacking
+
+```rust
+let mint_seed = &remaining[offset + packed.mint_seed_index as usize];
+let cmint = &remaining[offset + packed.cmint_pda_index as usize];
+
+// Raw data, no unpacking
+let compressed_address: [u8; 32] = packed.compressed_address;
+
+// Optional authority
+let mint_authority = if packed.has_mint_authority {
+    Some(*remaining[offset + packed.mint_authority_index as usize].key)
+} else {
+    None
+};
+```

@@ -186,66 +186,98 @@ pub const VAULT_SEED: &[u8] = b"vault";
 
 use light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
 
-/// Compressed mint data for decompression - enum variant wrapper.
-/// Packed = Unpacked for now (noop), allowing future extensions.
+/// PACKED compressed mint token data.
+/// Pubkeys that are actual Solana accounts -> indices into packed_accounts.
+/// Compressed address is raw data (not a Solana account), kept as [u8; 32].
+///
+/// Size comparison (per mint, no extensions):
+/// - Unpacked: ~180 bytes (5 pubkeys @ 32 bytes each + fixed fields)
+/// - Packed: ~50 bytes (2 pubkey indices + 1 raw address + fixed fields)
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub enum CompressedMintVariant {
-    /// Standard compressed mint (packed = unpacked for now)
-    Standard(CompressedMintTokenData),
-}
-
-/// The actual compressed mint token data.
-/// Similar to light_ctoken_sdk::compat::CompressedMintData but with proper serialization.
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct CompressedMintTokenData {
-    /// Mint seed pubkey (used to derive CMint PDA)
-    pub mint_seed_pubkey: Pubkey,
-    /// Compressed mint with context (from indexer)
-    pub compressed_mint_with_context: light_ctoken_sdk::ctoken::CompressedMintWithContext,
-    /// Rent payment in epochs (0 or >= 2)
+pub struct PackedMintTokenData {
+    /// Index of mint_seed account (used to derive CMint PDA)
+    pub mint_seed_index: u8,
+    /// Index of CMint PDA in packed_accounts
+    pub cmint_pda_index: u8,
+    /// Compressed address (Light protocol address) - raw data, NOT an account
+    pub compressed_address: [u8; 32],
+    /// Merkle tree leaf index
+    pub leaf_index: u32,
+    /// Whether to prove by index
+    pub prove_by_index: bool,
+    /// Root index for proof
+    pub root_index: u16,
+    /// Token supply
+    pub supply: u64,
+    /// Token decimals
+    pub decimals: u8,
+    /// Metadata version
+    pub version: u8,
+    /// Whether mint has been decompressed
+    pub cmint_decompressed: bool,
+    /// Whether mint authority exists
+    pub has_mint_authority: bool,
+    /// Index of mint authority (0 if none)
+    pub mint_authority_index: u8,
+    /// Whether freeze authority exists
+    pub has_freeze_authority: bool,
+    /// Index of freeze authority (0 if none)
+    pub freeze_authority_index: u8,
+    /// Rent payment epochs
     pub rent_payment: u8,
-    /// Lamports for future write operations
+    /// Write top up lamports
     pub write_top_up: u32,
+    /// Extensions (kept as-is, variable size metadata)
+    pub extensions:
+        Option<Vec<light_ctoken_interface::instructions::extensions::ExtensionInstructionData>>,
 }
 
-/// Compressed account data for mint decompression.
-/// Mirrors `CompressedAccountData` pattern from decompress_accounts_idempotent.
+/// Enum wrapper for packed mint variants (future extensibility).
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct CompressedMintAccountData {
+pub enum PackedMintVariant {
+    /// Standard packed compressed mint
+    Standard(PackedMintTokenData),
+}
+
+/// Per-mint compressed account data with PACKED token data.
+/// All pubkeys represented as indices into packed_accounts.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub struct PackedMintAccountData {
     /// Merkle tree metadata (tree indices, leaf index, etc.)
     pub meta: CompressedAccountMetaNoLamportsNoAddress,
-    /// The compressed mint data (with enum for future extensibility)
-    pub data: CompressedMintVariant,
+    /// The packed mint data (indices only)
+    pub data: PackedMintVariant,
 }
 
 /// Parameters for decompressing compressed mints.
-/// Mirrors `DecompressMultipleAccountsIdempotentData` structure.
 ///
 /// Client-side validation: at most 1 mint allowed (error otherwise).
 /// Works for both prove_by_index=true and prove_by_index=false.
+///
+/// remaining_accounts layout:
+/// [0..N] packed_accounts (de-duplicated pubkeys, client uses PackedAccounts)
+///
+/// System accounts must be at indices 0-5:
+/// [0] ctoken_program
+/// [1] light_system_program
+/// [2] cpi_authority_pda
+/// [3] registered_program_pda
+/// [4] account_compression_authority
+/// [5] account_compression_program
+/// Then: state_tree, input_queue, output_queue, mint_seed, cmint_pda, etc.
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct DecompressCMintsParams {
     /// Validity proof covering all input mints
     pub proof: light_sdk::instruction::ValidityProof,
-    /// Vec of compressed mint account data (at most 1, validated client-side)
-    pub compressed_accounts: Vec<CompressedMintAccountData>,
-    /// Offset where system accounts start in remaining_accounts
+    /// Vec of packed mint account data (at most 1, validated client-side)
+    pub compressed_accounts: Vec<PackedMintAccountData>,
+    /// Offset where system accounts start in remaining_accounts (typically 0)
     pub system_accounts_offset: u8,
 }
 
 /// Accounts for decompressing compressed mints.
 ///
-/// Remaining accounts (in order):
-/// - ctoken_program (required for CPI)
-/// - light_system_program
-/// - cpi_authority_pda (ctoken's CPI authority)
-/// - registered_program_pda
-/// - account_compression_authority
-/// - account_compression_program
-/// - state_tree
-/// - input_queue
-/// - output_queue
-/// - For each mint: [mint_signer_pda, cmint_pda]
+/// remaining_accounts contains all packed accounts (indices reference into this).
 #[derive(Accounts)]
 pub struct DecompressCMints<'info> {
     /// Fee payer for all operations
@@ -343,6 +375,70 @@ pub struct DecompressAtas<'info> {
     pub ctoken_compressible_config: AccountInfo<'info>,
 
     /// Ctoken rent sponsor
+    /// CHECK: Validated by ctoken program
+    #[account(mut)]
+    pub ctoken_rent_sponsor: AccountInfo<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+// ============================================================================
+// DecompressUnified - Unified decompression for ATAs and CMints
+// ============================================================================
+
+/// Unified enum for decompression variants.
+/// Allows mixing ATAs and CMints in a single instruction.
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub enum DecompressVariant {
+    /// Compressed ATA - packed token data
+    Ata(PackedAtaTokenData),
+    /// Compressed Mint - packed mint data
+    Mint(PackedMintTokenData),
+}
+
+/// Unified account data for decompression.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub struct DecompressUnifiedAccountData {
+    /// Merkle tree metadata
+    pub meta: CompressedAccountMetaNoLamportsNoAddress,
+    /// The account data (ATA or Mint variant)
+    pub data: DecompressVariant,
+}
+
+/// Parameters for unified decompression.
+/// - Any number of ATAs allowed
+/// - At most 1 CMint allowed (error on-chain if >1)
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct DecompressUnifiedParams {
+    /// Validity proof covering ALL inputs
+    pub proof: light_sdk::instruction::ValidityProof,
+    /// Accounts to decompress (any mix of ATAs and CMints)
+    pub compressed_accounts: Vec<DecompressUnifiedAccountData>,
+    /// Offset where system accounts start in remaining_accounts
+    pub system_accounts_offset: u8,
+}
+
+/// Accounts for unified decompression.
+///
+/// remaining_accounts layout (via PackedAccounts):
+/// [0] ctoken_program, [1] light_system_program, [2] cpi_authority,
+/// [3] registered_program, [4] acc_compression_authority, [5] acc_compression_program,
+/// [6] cpi_context (if mint+atas), then trees, mints, wallets, atas, cmint_pda, mint_seed...
+#[derive(Accounts)]
+#[instruction(params: DecompressUnifiedParams)]
+pub struct DecompressUnified<'info> {
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+
+    /// Authority for mints (must sign if decompressing mint)
+    pub authority: Signer<'info>,
+
+    /// CToken compressible config
+    /// CHECK: Validated by ctoken program
+    pub ctoken_compressible_config: AccountInfo<'info>,
+
+    /// CToken rent sponsor
     /// CHECK: Validated by ctoken program
     #[account(mut)]
     pub ctoken_rent_sponsor: AccountInfo<'info>,
