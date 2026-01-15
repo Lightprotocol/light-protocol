@@ -46,30 +46,29 @@ pub fn process_decompress_cmint_invoke_signed(
     let (pda, bump) = Pubkey::find_program_address(&[MINT_AUTHORITY_SEED], &ID);
 
     // Verify the authority account is the PDA we expect
-    if &pda != accounts[1].key {
+    if &pda != accounts[0].key {
         return Err(ProgramError::InvalidSeeds);
     }
 
     let system_accounts = SystemAccountInfos {
-        light_system_program: accounts[9].clone(),
-        cpi_authority_pda: accounts[10].clone(),
-        registered_program_pda: accounts[11].clone(),
-        account_compression_authority: accounts[12].clone(),
-        account_compression_program: accounts[13].clone(),
-        system_program: accounts[14].clone(),
+        light_system_program: accounts[8].clone(),
+        cpi_authority_pda: accounts[9].clone(),
+        registered_program_pda: accounts[10].clone(),
+        account_compression_authority: accounts[11].clone(),
+        account_compression_program: accounts[12].clone(),
+        system_program: accounts[13].clone(),
     };
 
     let signer_seeds: &[&[u8]] = &[MINT_AUTHORITY_SEED, &[bump]];
     DecompressMintCpi {
-        mint_seed: accounts[0].clone(),
-        authority: accounts[1].clone(),
-        payer: accounts[2].clone(),
-        cmint: accounts[3].clone(),
-        compressible_config: accounts[4].clone(),
-        rent_sponsor: accounts[5].clone(),
-        state_tree: accounts[6].clone(),
-        input_queue: accounts[7].clone(),
-        output_queue: accounts[8].clone(),
+        authority: accounts[0].clone(),
+        payer: accounts[1].clone(),
+        cmint: accounts[2].clone(),
+        compressible_config: accounts[3].clone(),
+        rent_sponsor: accounts[4].clone(),
+        state_tree: accounts[5].clone(),
+        input_queue: accounts[6].clone(),
+        output_queue: accounts[7].clone(),
         system_accounts,
         compressed_mint_with_context: data.compressed_mint_with_context,
         proof: data.proof,

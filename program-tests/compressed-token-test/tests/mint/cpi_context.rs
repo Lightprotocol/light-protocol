@@ -84,7 +84,7 @@ async fn test_setup() -> TestSetup {
                 version: 3,
                 cmint_decompressed: false,
                 mint: spl_mint_pda.into(),
-                mint_signer: mint_seed.pubkey().into(),
+                mint_signer: mint_seed.pubkey().to_bytes(),
                 bump,
             },
             mint_authority: Some(mint_authority.pubkey().into()),
@@ -334,7 +334,7 @@ async fn test_write_to_cpi_context_invalid_compressed_address() {
 
     // Swap the mint_signer to an invalid one (this should fail validation)
     // The compressed address will be derived from the invalid mint_signer
-    let invalid_mint_signer = light_compressed_account::Pubkey::new_from_array([42u8; 32]);
+    let invalid_mint_signer = [42u8; 32];
 
     // Build instruction data with invalid mint_signer in metadata
     let mut invalid_mint = compressed_mint_inputs.mint.clone().unwrap();

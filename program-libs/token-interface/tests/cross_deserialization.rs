@@ -29,7 +29,7 @@ fn create_test_cmint() -> CompressedMint {
             version: 3,
             mint: Pubkey::new_from_array([2; 32]),
             cmint_decompressed: false,
-            mint_signer: Pubkey::new_from_array([5u8; 32]),
+            mint_signer: [5u8; 32],
             bump: 255,
         },
         reserved: [0u8; 16],

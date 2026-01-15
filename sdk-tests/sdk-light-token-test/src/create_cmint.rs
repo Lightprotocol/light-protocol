@@ -19,6 +19,7 @@ pub struct CreateCmintData {
     pub proof: CompressedProof,
     pub compression_address: [u8; 32],
     pub mint: Pubkey,
+    pub bump: u8,
     pub freeze_authority: Option<Pubkey>,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
 }
@@ -60,6 +61,7 @@ pub fn process_create_cmint(
         proof: data.proof,
         compression_address: data.compression_address,
         mint: data.mint,
+        bump: data.bump,
         freeze_authority: data.freeze_authority,
         extensions: data.extensions,
     };
@@ -135,6 +137,7 @@ pub fn process_create_cmint_invoke_signed(
         proof: data.proof,
         compression_address: data.compression_address,
         mint: data.mint,
+        bump: data.bump,
         freeze_authority: data.freeze_authority,
         extensions: data.extensions,
     };
@@ -220,10 +223,11 @@ pub fn process_create_cmint_with_pda_authority(
     let params = CreateMintParams {
         decimals: data.decimals,
         address_merkle_tree_root_index: data.address_merkle_tree_root_index,
-        mint_authority: authority_pda, // Use the derived PDA as authority
+        mint_authority: authority_pda,
         proof: data.proof,
         compression_address: data.compression_address,
         mint: data.mint,
+        bump: data.bump,
         freeze_authority: data.freeze_authority,
         extensions: data.extensions,
     };

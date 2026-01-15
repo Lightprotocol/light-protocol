@@ -130,7 +130,7 @@ pub fn process_mint_action(
             &accounts_config,
             &mint,
         )?;
-    };
+    }
 
     let result = process_output_compressed_account(
         &parsed_instruction_data,

@@ -30,7 +30,7 @@ pub async fn setup_create_compressed_mint(
         &address_tree.tree,
     );
 
-    let mint = light_token_sdk::token::find_mint_address(&mint_seed.pubkey()).0;
+    let (mint, bump) = light_token_sdk::token::find_mint_address(&mint_seed.pubkey());
 
     // Get validity proof for the address
     let rpc_result = rpc
@@ -54,6 +54,7 @@ pub async fn setup_create_compressed_mint(
         proof: rpc_result.proof.0.unwrap(),
         compression_address,
         mint,
+        bump,
         freeze_authority: None,
         extensions: None,
     };
@@ -158,7 +159,6 @@ pub async fn setup_create_compressed_mint(
         };
 
         let decompress_ix = DecompressMint {
-            mint_seed_pubkey: mint_seed.pubkey(),
             payer: payer.pubkey(),
             authority: mint_authority,
             state_tree: compressed_mint_account.tree_info.tree,
@@ -222,7 +222,7 @@ pub async fn setup_create_compressed_mint_with_freeze_authority(
         &address_tree.tree,
     );
 
-    let mint = light_token_sdk::token::find_mint_address(&mint_seed.pubkey()).0;
+    let (mint, bump) = light_token_sdk::token::find_mint_address(&mint_seed.pubkey());
 
     // Get validity proof for the address
     let rpc_result = rpc
@@ -246,6 +246,7 @@ pub async fn setup_create_compressed_mint_with_freeze_authority(
         proof: rpc_result.proof.0.unwrap(),
         compression_address,
         mint,
+        bump,
         freeze_authority,
         extensions: None,
     };
@@ -310,7 +311,6 @@ pub async fn setup_create_compressed_mint_with_freeze_authority(
         };
 
         let decompress_ix = DecompressMint {
-            mint_seed_pubkey: mint_seed.pubkey(),
             payer: payer.pubkey(),
             authority: mint_authority,
             state_tree: compressed_mint_account.tree_info.tree,
@@ -403,7 +403,7 @@ pub async fn setup_create_compressed_mint_with_compression_only(
         &address_tree.tree,
     );
 
-    let mint = light_token_sdk::token::find_mint_address(&mint_seed.pubkey()).0;
+    let (mint, bump) = light_token_sdk::token::find_mint_address(&mint_seed.pubkey());
 
     // Get validity proof for the address
     let rpc_result = rpc
@@ -427,6 +427,7 @@ pub async fn setup_create_compressed_mint_with_compression_only(
         proof: rpc_result.proof.0.unwrap(),
         compression_address,
         mint,
+        bump,
         freeze_authority: None,
         extensions: None,
     };
@@ -538,7 +539,6 @@ pub async fn setup_create_compressed_mint_with_compression_only(
         };
 
         let decompress_ix = DecompressMint {
-            mint_seed_pubkey: mint_seed.pubkey(),
             payer: payer.pubkey(),
             authority: mint_authority,
             state_tree: compressed_mint_account.tree_info.tree,

@@ -76,7 +76,7 @@ pub struct CompressedMintMetadata {
     /// Pda with seed address of compressed mint
     pub mint: Pubkey,
     /// Signer pubkey used to derive the compressed address
-    pub mint_signer: Pubkey,
+    pub mint_signer: [u8; 32],
     /// Bump seed used for compressed address derivation
     pub bump: u8,
 }

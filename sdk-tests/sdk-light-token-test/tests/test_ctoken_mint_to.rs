@@ -117,7 +117,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
         &address_tree.tree,
     );
 
-    let mint_pda = light_token_sdk::token::find_mint_address(&mint_signer_pda).0;
+    let (mint_pda, mint_bump) = light_token_sdk::token::find_mint_address(&mint_signer_pda);
 
     // Step 1: Create compressed mint with PDA authority using wrapper program (discriminator 14)
     {
@@ -145,6 +145,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
             proof: rpc_result.proof.0.unwrap(),
             compression_address,
             mint: mint_pda,
+            bump: mint_bump,
             freeze_authority: None,
             extensions: None,
         };

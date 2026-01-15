@@ -273,7 +273,7 @@ pub async fn create_mint(
                 version: 3,
                 mint: mint.into(),
                 cmint_decompressed: false,
-                mint_signer: mint_seed.pubkey().into(),
+                mint_signer: mint_seed.pubkey().to_bytes(),
                 bump: mint_bump,
             },
             mint_authority: Some(mint_authority.pubkey().into()),

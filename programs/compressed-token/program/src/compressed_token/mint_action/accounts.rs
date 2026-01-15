@@ -19,12 +19,12 @@ use crate::shared::{
 pub struct MintActionAccounts<'info> {
     pub light_system_program: &'info AccountInfo,
     /// Seed for mint PDA derivation.
-    /// Required for compressed mint creation and DecompressMint.
+    /// Required only for compressed mint creation.
     /// Note: mint_signer is not in executing accounts since create mint
     /// is allowed in combination with write to cpi context.
     pub mint_signer: Option<&'info AccountInfo>,
     pub authority: &'info AccountInfo,
-    /// Reqired accounts to execute an instruction
+    /// Required accounts to execute an instruction
     /// with or without cpi context.
     /// - write_to_cpi_context_system is None
     pub executing: Option<ExecutingAccounts<'info>>,
@@ -350,7 +350,7 @@ pub struct AccountsConfig {
     pub cmint_decompressed: bool,
     /// 5. Mint
     pub require_token_output_queue: bool,
-    /// 6. Compressed mint is created or DecompressMint action is present.
+    /// 6. Compressed mint is created.
     pub with_mint_signer: bool,
     /// 7. Compressed mint is created.
     pub create_mint: bool,

@@ -158,7 +158,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                     mint: mint_pda.to_bytes().into(),
                     // false for new mint - on-chain sets to true after DecompressMint
                     cmint_decompressed: false,
-                    mint_signer: params.mint_seed.to_bytes().into(),
+                    mint_signer: params.mint_seed.to_bytes(),
                     bump,
                 },
                 mint_authority: Some(new_mint.mint_authority.to_bytes().into()),

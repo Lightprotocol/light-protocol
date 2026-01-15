@@ -132,7 +132,7 @@ async fn test_compress_full_and_close() {
             version: 3,
             mint: mint_pda.into(),
             cmint_decompressed: false,
-            mint_signer: mint_signer.pubkey().into(),
+            mint_signer: mint_signer.pubkey().to_bytes(),
             bump: mint_bump,
         },
         reserved: [0u8; 16],

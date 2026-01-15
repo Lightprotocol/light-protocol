@@ -38,12 +38,13 @@ pub fn process_create_mint_action(
         .ok_or(ProgramError::InvalidInstructionData)?;
 
     // 1. Validate mint_signer matches account
-    if mint_signer.as_slice() != mint.metadata.mint_signer.array_ref() {
+    if mint_signer.as_slice() != mint.metadata.mint_signer.as_ref() {
         msg!("Mint signer mismatch");
         return Err(ErrorCode::MintActionInvalidMintSigner.into());
     }
+    // 2. Validate bump matches derived bump
     if mint_pda_bump != mint.metadata.bump {
-        msg!("Mint bump mismatch");
+        msg!("Invalid mint bump");
         return Err(ErrorCode::MintActionInvalidMintBump.into());
     }
 
@@ -59,7 +60,8 @@ pub fn process_create_mint_action(
     // -> Therefore we manually verify the compressed address derivation here.
     //
     // else is not required since for new_address_params_assigned
-    // the light system program checks correct address derivation and we check the
+    // the light system program checks correct address derivation and we check
+    // the address tree in new_address_params.
     if let Some(cpi_context) = &parsed_instruction_data.cpi_context {
         if !pubkey_eq(&cpi_context.address_tree_pubkey, &CMINT_ADDRESS_TREE) {
             msg!("Invalid address tree pubkey in cpi context");
@@ -70,8 +72,8 @@ pub fn process_create_mint_action(
             &cpi_context.address_tree_pubkey,
             &crate::LIGHT_CPI_SIGNER.program_id,
         );
-        // Validate derived address matches the compressed_address from metadata
-        // (which derives from mint PDA, CMINT_ADDRESS_TREE, and LIGHT_TOKEN_PROGRAM_ID)
+        // Validate derived address matches the compressed_address computed from metadata
+        // (derived from mint PDA, CMINT_ADDRESS_TREE, and LIGHT_TOKEN_PROGRAM_ID)
         if address != mint.metadata.compressed_address() {
             msg!("Invalid compressed mint address derivation");
             return Err(ErrorCode::MintActionInvalidCompressedMintAddress.into());

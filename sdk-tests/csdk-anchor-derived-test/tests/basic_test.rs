@@ -671,7 +671,7 @@ pub async fn create_user_record_and_game_session(
                         version: 3,
                         mint: spl_mint.into(),
                         cmint_decompressed: false,
-                        mint_signer: mint_signer.pubkey().into(),
+                        mint_signer: mint_signer.pubkey().to_bytes(),
                         bump: mint_bump,
                     },
                     mint_authority: Some(mint_authority.into()),

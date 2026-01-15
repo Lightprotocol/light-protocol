@@ -1221,7 +1221,7 @@ async fn test_mint_actions() {
             version: 3, // With metadata
             mint: spl_mint_pda.into(),
             cmint_decompressed: false, // Becomes true after DecompressMint action
-            mint_signer: mint_seed.pubkey().into(),
+            mint_signer: mint_seed.pubkey().to_bytes(),
             bump: mint_bump,
         },
         reserved: [0u8; 16],
@@ -1457,7 +1457,7 @@ async fn test_create_compressed_mint_with_cmint() {
             version: 3,
             cmint_decompressed: false, // Before DecompressMint
             mint: cmint_pda.to_bytes().into(),
-            mint_signer: mint_seed.pubkey().into(),
+            mint_signer: mint_seed.pubkey().to_bytes(),
             bump: cmint_bump,
         },
         reserved: [0u8; 16],
