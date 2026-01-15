@@ -79,7 +79,7 @@ impl<'info> MintActionAccounts<'info> {
         let mint_signer = if config.mint_signer_must_sign() {
             iter.next_option_signer("mint_signer", config.with_mint_signer)?
         } else {
-            iter.next_option("mint_signer", config.with_mint_signer)?
+            None
         };
         // Static non-CPI accounts first
         // Authority is always required to sign
@@ -444,10 +444,9 @@ impl AccountsConfig {
             return Err(ErrorCode::CompressAndCloseCMintMustBeOnlyAction.into());
         }
 
-        // We need mint signer if create mint or decompress mint.
+        // We need mint signer only if creating a new mint.
         // CompressAndCloseCMint does NOT need mint_signer - it verifies CMint by compressed_mint.metadata.mint
-        let with_mint_signer =
-            parsed_instruction_data.create_mint.is_some() || has_decompress_mint_action;
+        let with_mint_signer = parsed_instruction_data.create_mint.is_some();
         // CMint account needed when mint is already decompressed (metadata flag)
         // When mint is None, CMint is decompressed (data lives in CMint account, compressed account is empty)
         let cmint_decompressed = parsed_instruction_data.mint.is_none();

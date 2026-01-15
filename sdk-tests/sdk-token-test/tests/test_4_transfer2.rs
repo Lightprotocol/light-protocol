@@ -157,7 +157,7 @@ async fn create_compressed_mint_helper(
     // Find mint PDA
     let compressed_token_program_id =
         Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
-    let (mint_pda, _) = Pubkey::find_program_address(
+    let (mint_pda, _mint_bump) = Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_signer.pubkey().as_ref()],
         &compressed_token_program_id,
     );
@@ -228,7 +228,13 @@ async fn mint_compressed_tokens(
         .ok_or("Compressed mint account not found")
         .unwrap();
 
-    // Create expected compressed mint for the input
+    // Extract mint_signer and bump from the actual compressed mint account
+    use borsh::BorshDeserialize;
+    let compressed_account_data = compressed_mint_account.data.clone().unwrap();
+    let actual_compressed_mint: light_token_interface::state::CompressedMint =
+        BorshDeserialize::deserialize(&mut compressed_account_data.data.as_slice()).unwrap();
+
+    // Create expected compressed mint for the input using actual mint_signer and bump
     let expected_compressed_mint = light_token_interface::state::CompressedMint {
         base: BaseMint {
             mint_authority: Some(payer.pubkey().into()),
@@ -241,9 +247,10 @@ async fn mint_compressed_tokens(
             version: 3,
             mint: mint_pda.into(),
             cmint_decompressed: false,
-            compressed_address: compressed_mint_account.address.unwrap(),
+            mint_signer: actual_compressed_mint.metadata.mint_signer,
+            bump: actual_compressed_mint.metadata.bump,
         },
-        reserved: [0u8; 17],
+        reserved: [0u8; 16],
         account_type: ACCOUNT_TYPE_MINT,
         compression: Default::default(),
         extensions: None,

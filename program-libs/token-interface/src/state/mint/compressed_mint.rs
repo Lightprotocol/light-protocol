@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_compressed_account::Pubkey;
+use light_compressed_account::{address::derive_address, Pubkey};
 use light_compressible::compression_info::CompressionInfo;
 use light_hasher::{sha256::Sha256BE, Hasher};
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
@@ -8,7 +8,8 @@ use pinocchio::account_info::AccountInfo;
 use solana_msg::msg;
 
 use crate::{
-    state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, TokenError, LIGHT_TOKEN_PROGRAM_ID,
+    state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, TokenError, CMINT_ADDRESS_TREE,
+    LIGHT_TOKEN_PROGRAM_ID,
 };
 
 /// AccountType::Mint discriminator value
@@ -20,7 +21,7 @@ pub struct CompressedMint {
     pub base: BaseMint,
     pub metadata: CompressedMintMetadata,
     /// Reserved bytes for T22 layout compatibility (padding to reach byte 165)
-    pub reserved: [u8; 17],
+    pub reserved: [u8; 16],
     /// Account type discriminator at byte 165 (1 = Mint, 2 = Account)
     pub account_type: u8,
     /// Compression info embedded directly in the mint
@@ -33,7 +34,7 @@ impl Default for CompressedMint {
         Self {
             base: BaseMint::default(),
             metadata: CompressedMintMetadata::default(),
-            reserved: [0u8; 17],
+            reserved: [0u8; 16],
             account_type: ACCOUNT_TYPE_MINT,
             compression: CompressionInfo::default(),
             extensions: None,
@@ -74,8 +75,32 @@ pub struct CompressedMintMetadata {
     pub cmint_decompressed: bool,
     /// Pda with seed address of compressed mint
     pub mint: Pubkey,
-    /// Address of the compressed account the mint is stored in.
-    pub compressed_address: [u8; 32],
+    /// Signer pubkey used to derive the compressed address
+    pub mint_signer: Pubkey,
+    /// Bump seed used for compressed address derivation
+    pub bump: u8,
+}
+
+impl CompressedMintMetadata {
+    /// Derives the compressed address from mint PDA, CMINT_ADDRESS_TREE and LIGHT_TOKEN_PROGRAM_ID
+    pub fn compressed_address(&self) -> [u8; 32] {
+        derive_address(
+            self.mint.array_ref(),
+            &CMINT_ADDRESS_TREE,
+            &LIGHT_TOKEN_PROGRAM_ID,
+        )
+    }
+}
+
+impl ZCompressedMintMetadata<'_> {
+    /// Derives the compressed address from mint PDA, CMINT_ADDRESS_TREE and LIGHT_TOKEN_PROGRAM_ID
+    pub fn compressed_address(&self) -> [u8; 32] {
+        derive_address(
+            self.mint.array_ref(),
+            &CMINT_ADDRESS_TREE,
+            &LIGHT_TOKEN_PROGRAM_ID,
+        )
+    }
 }
 
 impl CompressedMint {

@@ -1208,6 +1208,7 @@ async fn test_mint_actions() {
     let expected_recipients: Vec<Recipient> = recipients.clone();
 
     // Create empty pre-states since everything was created from scratch
+    let (_, mint_bump) = find_mint_address(&mint_seed.pubkey());
     let empty_pre_compressed_mint = CompressedMint {
         base: BaseMint {
             mint_authority: Some(new_mint_authority.pubkey().into()),
@@ -1220,9 +1221,10 @@ async fn test_mint_actions() {
             version: 3, // With metadata
             mint: spl_mint_pda.into(),
             cmint_decompressed: false, // Becomes true after DecompressMint action
-            compressed_address: compressed_mint_address,
+            mint_signer: mint_seed.pubkey().into(),
+            bump: mint_bump,
         },
-        reserved: [0u8; 17],
+        reserved: [0u8; 16],
         account_type: ACCOUNT_TYPE_MINT,
         compression: CompressionInfo::default(),
         extensions: Some(vec![
@@ -1442,6 +1444,7 @@ async fn test_create_compressed_mint_with_cmint() {
     println!("Create mint + CMint signature: {}", signature);
 
     // Build pre-state for DecompressMint assertion (state before DecompressMint was applied)
+    let (_, cmint_bump) = find_mint_address(&mint_seed.pubkey());
     let pre_decompress_mint = CompressedMint {
         base: BaseMint {
             mint_authority: Some(mint_authority.pubkey().into()),
@@ -1454,9 +1457,10 @@ async fn test_create_compressed_mint_with_cmint() {
             version: 3,
             cmint_decompressed: false, // Before DecompressMint
             mint: cmint_pda.to_bytes().into(),
-            compressed_address: compressed_mint_address,
+            mint_signer: mint_seed.pubkey().into(),
+            bump: cmint_bump,
         },
-        reserved: [0u8; 17],
+        reserved: [0u8; 16],
         account_type: ACCOUNT_TYPE_MINT,
         compression: CompressionInfo::default(),
         extensions: None,
@@ -1468,7 +1472,6 @@ async fn test_create_compressed_mint_with_cmint() {
         compressed_mint_address,
         pre_decompress_mint,
         vec![MintActionType::DecompressMint {
-            cmint_bump: _cmint_bump,
             rent_payment: 2, // Default rent payment
             write_top_up: 0, // Default write top-up
         }],
@@ -1669,7 +1672,7 @@ async fn test_decompress_existing_mint_to_cmint() {
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
         derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (cmint_pda, cmint_bump) = find_mint_address(&mint_seed.pubkey());
+    let (cmint_pda, _cmint_bump) = find_mint_address(&mint_seed.pubkey());
 
     // === STEP 1: Create compressed mint WITHOUT CMint ===
     create_mint(
@@ -1759,7 +1762,6 @@ async fn test_decompress_existing_mint_to_cmint() {
         compressed_mint_address,
         compressed_mint_after_mint,
         vec![MintActionType::DecompressMint {
-            cmint_bump,
             rent_payment: 2, // Default rent payment
             write_top_up: 0, // Default write top-up
         }],

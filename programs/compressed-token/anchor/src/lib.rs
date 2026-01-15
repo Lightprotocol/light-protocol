@@ -588,6 +588,8 @@ pub enum ErrorCode {
     CompressAndCloseCMintMustBeOnlyAction, // 6169
     #[msg("Idempotent early exit - not a real error, used to skip CPI")]
     IdempotentEarlyExit, // 6170
+    #[msg("Mint signer mismatch between account and instruction data")]
+    MintActionInvalidMintSigner, // 6171
 }
 
 /// Anchor error code offset - error codes start at 6000

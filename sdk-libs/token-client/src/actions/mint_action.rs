@@ -23,7 +23,7 @@ use crate::instructions::mint_action::{
 /// * `params` - Parameters for the mint action
 /// * `authority` - Authority keypair for the mint operations
 /// * `payer` - Account that pays for the transaction
-/// * `mint_signer` - Optional mint signer for create_mint or DecompressMint action
+/// * `mint_signer` - Optional mint signer for create_mint action only
 pub async fn mint_action<R: Rpc + Indexer>(
     rpc: &mut R,
     params: MintActionParams,
@@ -133,12 +133,8 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     }
 
     // Add DecompressMint action if requested
-    // Check before moving to use later for mint_signer determination
-    let has_decompress_mint = decompress_mint.is_some();
     if let Some(decompress_params) = decompress_mint {
-        let (_, cmint_bump) = find_mint_address(&mint_seed.pubkey());
         actions.push(MintActionType::DecompressMint {
-            cmint_bump,
             rent_payment: decompress_params.rent_payment,
             write_top_up: decompress_params.write_top_up,
         });
@@ -150,8 +146,9 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     }
 
     // Determine if mint_signer is needed - matches onchain logic:
-    // with_mint_signer = create_mint() | has_DecompressMint_action
-    let mint_signer = if new_mint.is_some() || has_decompress_mint {
+    // with_mint_signer = create_mint() only
+    // DecompressMint does NOT need mint_signer - it uses compressed_mint.metadata.mint_signer
+    let mint_signer = if new_mint.is_some() {
         Some(mint_seed)
     } else {
         None

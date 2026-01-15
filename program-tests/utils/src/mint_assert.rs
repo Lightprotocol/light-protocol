@@ -17,6 +17,16 @@ pub fn assert_compressed_mint_account(
     freeze_authority: Pubkey,
     metadata: Option<TokenMetadataInstructionData>,
 ) -> CompressedMint {
+    // Derive mint_signer from spl_mint_pda by reversing the PDA derivation
+    // We need to find the mint_signer and bump used to create spl_mint_pda
+    // spl_mint_pda = PDA([COMPRESSED_MINT_SEED, mint_signer], program_id)
+    // Since we can't reverse this, we extract it from the actual compressed mint data
+    let compressed_account_data = compressed_mint_account.data.clone().unwrap();
+    let actual_compressed_mint: CompressedMint =
+        BorshDeserialize::deserialize(&mut compressed_account_data.data.as_slice()).unwrap();
+    let mint_signer = actual_compressed_mint.metadata.mint_signer;
+    let bump = actual_compressed_mint.metadata.bump;
+
     // Create expected extensions if metadata is provided
     let expected_extensions = metadata.map(|meta| {
         vec![ExtensionStruct::TokenMetadata(
@@ -46,9 +56,10 @@ pub fn assert_compressed_mint_account(
             version: 3,
             mint: spl_mint_pda.into(),
             cmint_decompressed: false,
-            compressed_address: compressed_mint_address,
+            mint_signer,
+            bump,
         },
-        reserved: [0u8; 17],
+        reserved: [0u8; 16],
         account_type: ACCOUNT_TYPE_MINT,
         compression: light_compressible::compression_info::CompressionInfo::default(),
         extensions: expected_extensions,

@@ -112,6 +112,9 @@ fn test_rnd_create_compressed_mint_account() {
         };
 
         // Step 2: Create CompressedMintInstructionData using current API
+        // mint_signer is a random pubkey used as seed for the mint PDA
+        let mint_signer = Pubkey::new_from_array(rng.gen::<[u8; 32]>());
+        let bump: u8 = rng.gen();
         let mint_instruction_data = CompressedMintInstructionData {
             supply: input_supply,
             decimals,
@@ -119,7 +122,8 @@ fn test_rnd_create_compressed_mint_account() {
                 version,
                 mint: mint_pda,
                 cmint_decompressed,
-                compressed_address: compressed_account_address,
+                mint_signer,
+                bump,
             },
             mint_authority: Some(mint_authority),
             freeze_authority,
@@ -378,9 +382,10 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
             version: 3u8,
             mint: Pubkey::new_from_array([3; 32]),
             cmint_decompressed: false,
-            compressed_address: [5; 32],
+            mint_signer: Pubkey::new_from_array([5; 32]),
+            bump: 255,
         },
-        reserved: [0u8; 17],
+        reserved: [0u8; 16],
         account_type: ACCOUNT_TYPE_MINT,
         extensions: Some(vec![ExtensionStruct::TokenMetadata(token_metadata)]),
     };
@@ -433,7 +438,8 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
                 version: zc_mint.base.metadata.version,
                 mint: zc_mint.base.metadata.mint,
                 cmint_decompressed: zc_mint.base.metadata.cmint_decompressed != 0,
-                compressed_address: zc_mint.base.metadata.compressed_address,
+                mint_signer: zc_mint.base.metadata.mint_signer,
+                bump: zc_mint.base.metadata.bump,
             },
             reserved: *zc_mint.base.reserved,
             account_type: zc_mint.base.account_type,

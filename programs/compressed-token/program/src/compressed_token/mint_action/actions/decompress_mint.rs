@@ -43,7 +43,6 @@ pub fn process_decompress_mint_action(
     action: &ZDecompressMintAction,
     compressed_mint: &mut CompressedMint,
     validated_accounts: &MintActionAccounts,
-    mint_signer: &AccountInfo,
     fee_payer: &AccountInfo,
 ) -> Result<(), ProgramError> {
     // 1. Check not already decompressed
@@ -111,12 +110,13 @@ pub fn process_decompress_mint_action(
         rent_config: config.rent_config,
     };
 
-    // 6. Verify PDA derivation
-    let seeds: [&[u8]; 2] = [COMPRESSED_MINT_SEED, mint_signer.key()];
+    // 6. Verify PDA derivation using stored mint_signer from compressed_mint metadata
+    let pda_mint_signer_bytes: &[u8] = compressed_mint.metadata.mint_signer.as_ref();
+    let seeds: [&[u8]; 2] = [COMPRESSED_MINT_SEED, pda_mint_signer_bytes];
     verify_pda(
         cmint.key(),
         &seeds,
-        action.cmint_bump,
+        compressed_mint.metadata.bump,
         &crate::LIGHT_CPI_SIGNER.program_id,
     )?;
     // 6b. Verify CMint account matches compressed_mint.metadata.mint
@@ -153,11 +153,12 @@ pub fn process_decompress_mint_action(
         Seed::from(rent_sponsor_bump_bytes.as_ref()),
     ];
 
-    // 7d. Build seeds for CMint PDA
-    let cmint_bump_bytes = [action.cmint_bump];
+    // 7d. Build seeds for CMint PDA using stored values from compressed_mint metadata
+    let cmint_bump_bytes = [compressed_mint.metadata.bump];
+    let mint_signer_bytes: &[u8] = compressed_mint.metadata.mint_signer.as_ref();
     let cmint_seeds = [
         Seed::from(COMPRESSED_MINT_SEED),
-        Seed::from(mint_signer.key()),
+        Seed::from(mint_signer_bytes),
         Seed::from(cmint_bump_bytes.as_ref()),
     ];
 

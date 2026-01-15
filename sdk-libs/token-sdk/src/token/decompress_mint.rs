@@ -61,11 +61,10 @@ pub struct DecompressMint {
 impl DecompressMint {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         // Derive CMint PDA
-        let (cmint_pda, cmint_bump) = find_mint_address(&self.mint_seed_pubkey);
+        let (cmint_pda, _cmint_bump) = find_mint_address(&self.mint_seed_pubkey);
 
         // Build DecompressMintAction
         let action = DecompressMintAction {
-            cmint_bump,
             rent_payment: self.rent_payment,
             write_top_up: self.write_top_up,
         };
@@ -78,6 +77,7 @@ impl DecompressMint {
         .with_decompress_mint(action);
 
         // Build account metas with compressible CMint
+        // Note: mint_signer is NOT needed for decompress_mint - it uses compressed_mint.metadata.mint_signer
         let meta_config = MintActionMetaConfig::new(
             self.payer,
             self.authority,
@@ -85,8 +85,7 @@ impl DecompressMint {
             self.input_queue,
             self.output_queue,
         )
-        .with_compressible_mint(cmint_pda, config_pda(), rent_sponsor_pda())
-        .with_mint_signer_no_sign(self.mint_seed_pubkey);
+        .with_compressible_mint(cmint_pda, config_pda(), rent_sponsor_pda());
 
         let account_metas = meta_config.to_account_metas();
 

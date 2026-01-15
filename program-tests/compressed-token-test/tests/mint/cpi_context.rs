@@ -71,6 +71,7 @@ async fn test_setup() -> TestSetup {
     let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // 3. Build compressed mint inputs
+    let (_, bump) = find_mint_address(&mint_seed.pubkey());
     let compressed_mint_inputs = CompressedMintWithContext {
         leaf_index: 0,
         prove_by_index: false,
@@ -83,7 +84,8 @@ async fn test_setup() -> TestSetup {
                 version: 3,
                 cmint_decompressed: false,
                 mint: spl_mint_pda.into(),
-                compressed_address: compressed_mint_address,
+                mint_signer: mint_seed.pubkey().into(),
+                bump,
             },
             mint_authority: Some(mint_authority.pubkey().into()),
             freeze_authority: Some(freeze_authority.into()),
@@ -330,13 +332,13 @@ async fn test_write_to_cpi_context_invalid_compressed_address() {
         output_queue_index,
     } = test_setup().await;
 
-    // Swap the compressed address to a random one (this should fail validation)
-    // Keep the correct address_tree_pubkey but provide wrong address
-    let invalid_compressed_address = [42u8; 32];
+    // Swap the mint_signer to an invalid one (this should fail validation)
+    // The compressed address will be derived from the invalid mint_signer
+    let invalid_mint_signer = light_compressed_account::Pubkey::new_from_array([42u8; 32]);
 
-    // Build instruction data with invalid compressed address in metadata
+    // Build instruction data with invalid mint_signer in metadata
     let mut invalid_mint = compressed_mint_inputs.mint.clone().unwrap();
-    invalid_mint.metadata.compressed_address = invalid_compressed_address;
+    invalid_mint.metadata.mint_signer = invalid_mint_signer;
 
     let instruction_data = MintActionCompressedInstructionData::new_mint(
         compressed_mint_inputs.root_index,
@@ -402,9 +404,9 @@ async fn test_write_to_cpi_context_invalid_compressed_address() {
         )
         .await;
 
-    // Assert that the transaction failed with MintActionInvalidCompressedMintAddress error
-    // Error code 6103 = MintActionInvalidCompressedMintAddress
-    assert_rpc_error(result, 0, 6103).unwrap();
+    // Assert that the transaction failed with MintActionInvalidMintSigner error
+    // Error code 6171 = MintActionInvalidMintSigner (mint_signer mismatch is caught before compressed address validation)
+    assert_rpc_error(result, 0, 6171).unwrap();
 }
 
 #[tokio::test]
@@ -710,7 +712,6 @@ async fn test_write_to_cpi_context_decompress_mint_action_fails() {
         compressed_mint_inputs.mint.clone().unwrap(),
     )
     .with_decompress_mint(DecompressMintAction {
-        cmint_bump: 255,
         rent_payment: 2,
         write_top_up: 1000,
     })

@@ -10,8 +10,6 @@ use crate::{AnchorDeserialize, AnchorSerialize};
 #[repr(C)]
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct DecompressMintAction {
-    /// PDA bump for CMint account verification
-    pub cmint_bump: u8,
     /// Rent payment in epochs (prepaid).
     pub rent_payment: u8,
     /// Lamports allocated for future write operations (top-up per write).

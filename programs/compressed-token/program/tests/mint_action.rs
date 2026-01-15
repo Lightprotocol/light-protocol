@@ -42,7 +42,8 @@ fn random_compressed_mint_metadata(rng: &mut StdRng) -> CompressedMintMetadata {
         version: rng.gen_range(1..=3) as u8,
         cmint_decompressed: rng.gen_bool(0.5),
         mint: random_pubkey(rng),
-        compressed_address: rng.gen::<[u8; 32]>(),
+        mint_signer: random_pubkey(rng),
+        bump: rng.gen(),
     }
 }
 

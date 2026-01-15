@@ -128,9 +128,6 @@ pub fn process_actions<'a>(
                 )?;
             }
             ZAction::DecompressMint(decompress_action) => {
-                let mint_signer = validated_accounts
-                    .mint_signer
-                    .ok_or(ErrorCode::MintActionMissingMintSigner)?;
                 let fee_payer = validated_accounts
                     .executing
                     .as_ref()
@@ -143,7 +140,6 @@ pub fn process_actions<'a>(
                     decompress_action,
                     compressed_mint,
                     validated_accounts,
-                    mint_signer,
                     fee_payer,
                 )?;
             }

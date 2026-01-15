@@ -112,16 +112,17 @@ impl CreateMint {
     }
 
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        let compression_address = self.params.compression_address;
+        let (mint_pda, bump) = find_mint_address(&self.mint_seed_pubkey);
 
         let compressed_mint_instruction_data = CompressedMintInstructionData {
             supply: 0,
             decimals: self.params.decimals,
             metadata: light_token_interface::state::CompressedMintMetadata {
                 version: 3,
-                mint: self.params.mint.to_bytes().into(),
+                mint: mint_pda.to_bytes().into(),
                 cmint_decompressed: false,
-                compressed_address: compression_address,
+                mint_signer: self.mint_seed_pubkey.to_bytes().into(),
+                bump,
             },
             mint_authority: Some(self.params.mint_authority.to_bytes().into()),
             freeze_authority: self
@@ -255,14 +256,16 @@ impl CreateCompressedMintCpiWrite {
             return Err(ProgramError::InvalidAccountData);
         }
 
+        let (mint_pda, bump) = find_mint_address(&self.mint_signer);
         let compressed_mint_instruction_data = CompressedMintInstructionData {
             supply: 0,
             decimals: self.params.decimals,
             metadata: light_token_interface::state::CompressedMintMetadata {
                 version: self.params.version,
-                mint: self.params.mint.to_bytes().into(),
+                mint: mint_pda.to_bytes().into(),
                 cmint_decompressed: false,
-                compressed_address: self.params.compression_address,
+                mint_signer: self.mint_signer.to_bytes().into(),
+                bump,
             },
             mint_authority: Some(self.params.mint_authority.to_bytes().into()),
             freeze_authority: self
