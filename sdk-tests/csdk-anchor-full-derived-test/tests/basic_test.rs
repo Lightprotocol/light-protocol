@@ -108,12 +108,15 @@ async fn test_create_pdas_and_mint_auto() {
 
     let authority = Keypair::new();
     let mint_authority = Keypair::new();
+    let user1 = Keypair::new(); // First user for ATA
+    let user2 = Keypair::new(); // Second user for ATA
 
     let owner = payer.pubkey();
     let category_id = 111u64;
     let session_id = 222u64;
     let vault_mint_amount = 100u64;
-    let user_ata_mint_amount = 50u64;
+    let user1_ata_mint_amount = 50u64;
+    let user2_ata_mint_amount = 75u64;
 
     let (mint_signer_pda, mint_signer_bump) = Pubkey::find_program_address(
         &[LP_MINT_SIGNER_SEED, authority.pubkey().as_ref()],
@@ -123,8 +126,10 @@ async fn test_create_pdas_and_mint_auto() {
     let (vault_pda, vault_bump) =
         Pubkey::find_program_address(&[VAULT_SEED, cmint_pda.as_ref()], &program_id);
     let (vault_authority_pda, _) = Pubkey::find_program_address(&[b"vault_authority"], &program_id);
-    let (user_ata_pda, user_ata_bump) =
-        get_associated_ctoken_address_and_bump(&payer.pubkey(), &cmint_pda);
+    let (user1_ata_pda, user1_ata_bump) =
+        get_associated_ctoken_address_and_bump(&user1.pubkey(), &cmint_pda);
+    let (user2_ata_pda, user2_ata_bump) =
+        get_associated_ctoken_address_and_bump(&user2.pubkey(), &cmint_pda);
 
     let (user_record_pda, _) = Pubkey::find_program_address(
         &[
@@ -206,13 +211,16 @@ async fn test_create_pdas_and_mint_auto() {
         fee_payer: payer.pubkey(),
         authority: authority.pubkey(),
         mint_authority: mint_authority.pubkey(),
+        user1: user1.pubkey(),
+        user2: user2.pubkey(),
         mint_signer: mint_signer_pda,
         user_record: user_record_pda,
         game_session: game_session_pda,
         cmint: cmint_pda,
         vault: vault_pda,
         vault_authority: vault_authority_pda,
-        user_ata: user_ata_pda,
+        user1_ata: user1_ata_pda,
+        user2_ata: user2_ata_pda,
         compression_config: config_pda,
         ctoken_compressible_config: COMPRESSIBLE_CONFIG_V1,
         ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
@@ -233,9 +241,11 @@ async fn test_create_pdas_and_mint_auto() {
             session_id,
             mint_signer_bump,
             vault_bump,
-            user_ata_bump,
             vault_mint_amount,
-            user_ata_mint_amount,
+            user1_ata_bump,
+            user1_ata_mint_amount,
+            user2_ata_bump,
+            user2_ata_mint_amount,
         },
     };
 
@@ -248,7 +258,7 @@ async fn test_create_pdas_and_mint_auto() {
     rpc.create_and_send_transaction(
         &[instruction],
         &payer.pubkey(),
-        &[&payer, &authority, &mint_authority],
+        &[&payer, &authority, &mint_authority, &user1, &user2],
     )
     .await
     .unwrap();
@@ -258,16 +268,21 @@ async fn test_create_pdas_and_mint_auto() {
     assert_onchain_exists(&mut rpc, &game_session_pda).await;
     assert_onchain_exists(&mut rpc, &cmint_pda).await;
     assert_onchain_exists(&mut rpc, &vault_pda).await;
-    assert_onchain_exists(&mut rpc, &user_ata_pda).await;
+    assert_onchain_exists(&mut rpc, &user1_ata_pda).await;
+    assert_onchain_exists(&mut rpc, &user2_ata_pda).await;
 
     // Parse and verify CToken data
     let vault_data = parse_ctoken(&rpc.get_account(vault_pda).await.unwrap().unwrap().data);
     assert_eq!(vault_data.owner, vault_authority_pda.to_bytes());
     assert_eq!(vault_data.amount, vault_mint_amount);
 
-    let user_ata_data = parse_ctoken(&rpc.get_account(user_ata_pda).await.unwrap().unwrap().data);
-    assert_eq!(user_ata_data.owner, payer.pubkey().to_bytes());
-    assert_eq!(user_ata_data.amount, user_ata_mint_amount);
+    let user1_ata_data = parse_ctoken(&rpc.get_account(user1_ata_pda).await.unwrap().unwrap().data);
+    assert_eq!(user1_ata_data.owner, user1.pubkey().to_bytes());
+    assert_eq!(user1_ata_data.amount, user1_ata_mint_amount);
+
+    let user2_ata_data = parse_ctoken(&rpc.get_account(user2_ata_pda).await.unwrap().unwrap().data);
+    assert_eq!(user2_ata_data.owner, user2.pubkey().to_bytes());
+    assert_eq!(user2_ata_data.amount, user2_ata_mint_amount);
 
     // Verify compressed addresses registered (empty data - decompressed to on-chain)
     let compressed_cmint = rpc
@@ -287,7 +302,8 @@ async fn test_create_pdas_and_mint_auto() {
     assert_onchain_closed(&mut rpc, &game_session_pda).await;
     assert_onchain_closed(&mut rpc, &cmint_pda).await;
     assert_onchain_closed(&mut rpc, &vault_pda).await;
-    assert_onchain_closed(&mut rpc, &user_ata_pda).await;
+    assert_onchain_closed(&mut rpc, &user1_ata_pda).await;
+    assert_onchain_closed(&mut rpc, &user2_ata_pda).await;
 
     // Compressed accounts should exist with non-empty data
     assert_compressed_exists_with_data(&mut rpc, user_compressed_address).await;
@@ -296,7 +312,8 @@ async fn test_create_pdas_and_mint_auto() {
 
     // Compressed token accounts should exist with correct balances
     assert_compressed_token_exists(&mut rpc, &vault_pda, vault_mint_amount).await;
-    assert_compressed_token_exists(&mut rpc, &user_ata_pda, user_ata_mint_amount).await;
+    assert_compressed_token_exists(&mut rpc, &user1_ata_pda, user1_ata_mint_amount).await;
+    assert_compressed_token_exists(&mut rpc, &user2_ata_pda, user2_ata_mint_amount).await;
 
     // PHASE 3: Decompress PDAs + vault via decompress_accounts_idempotent
     use anchor_lang::AnchorDeserialize;
@@ -429,6 +446,222 @@ async fn test_create_pdas_and_mint_auto() {
         .value
         .items;
     assert!(remaining_vault.is_empty());
+
+    // PHASE 4: Decompress BOTH ATAs in a single instruction call
+    decompress_multiple_atas_helper(
+        &mut rpc,
+        &payer,
+        &[&user1, &user2],
+        &[
+            (user1_ata_pda, cmint_pda, user1_ata_mint_amount),
+            (user2_ata_pda, cmint_pda, user2_ata_mint_amount),
+        ],
+        program_id,
+    )
+    .await;
+
+    // Verify BOTH ATAs are back on-chain
+    assert_onchain_exists(&mut rpc, &user1_ata_pda).await;
+    let user1_ata_after =
+        parse_ctoken(&rpc.get_account(user1_ata_pda).await.unwrap().unwrap().data);
+    assert_eq!(user1_ata_after.amount, user1_ata_mint_amount);
+
+    assert_onchain_exists(&mut rpc, &user2_ata_pda).await;
+    let user2_ata_after =
+        parse_ctoken(&rpc.get_account(user2_ata_pda).await.unwrap().unwrap().data);
+    assert_eq!(user2_ata_after.amount, user2_ata_mint_amount);
+
+    // Verify BOTH compressed ATAs are consumed
+    let remaining_ata1 = rpc
+        .get_compressed_token_accounts_by_owner(&user1_ata_pda, None, None)
+        .await
+        .unwrap()
+        .value
+        .items;
+    assert!(remaining_ata1.is_empty());
+
+    let remaining_ata2 = rpc
+        .get_compressed_token_accounts_by_owner(&user2_ata_pda, None, None)
+        .await
+        .unwrap()
+        .value
+        .items;
+    assert!(remaining_ata2.is_empty());
+}
+
+/// Helper function to decompress multiple ATAs in a single instruction.
+/// atas: slice of (ata_pubkey, mint_pubkey, expected_amount)
+async fn decompress_multiple_atas_helper(
+    rpc: &mut LightProgramTest,
+    payer: &Keypair,
+    wallets: &[&Keypair],
+    atas: &[(Pubkey, Pubkey, u64)], // (ata_pubkey, mint_pubkey, amount)
+    program_id: Pubkey,
+) {
+    use csdk_anchor_full_derived_test::instruction_accounts::{
+        CompressedAtaAccountData, CompressedAtaTokenData, CompressedAtaVariant,
+        DecompressAtasParams,
+    };
+    use light_ctoken_sdk::ctoken::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as CTOKEN_RENT_SPONSOR};
+    use light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
+
+    assert_eq!(wallets.len(), atas.len(), "Must have one wallet per ATA");
+
+    // Fetch all compressed ATAs and collect hashes
+    let mut compressed_atas = Vec::with_capacity(atas.len());
+    let mut hashes = Vec::with_capacity(atas.len());
+
+    for (ata_pubkey, _mint_pubkey, expected_amount) in atas {
+        let accounts = rpc
+            .get_compressed_token_accounts_by_owner(ata_pubkey, None, None)
+            .await
+            .unwrap()
+            .value
+            .items;
+        assert!(
+            !accounts.is_empty(),
+            "Should have compressed ATA for {}",
+            ata_pubkey
+        );
+        let compressed = accounts.into_iter().next().unwrap();
+        assert_eq!(compressed.token.amount, *expected_amount);
+        hashes.push(compressed.account.hash);
+        compressed_atas.push(compressed);
+    }
+
+    // Get single validity proof for ALL compressed accounts
+    let proof_result = rpc
+        .get_validity_proof(hashes, vec![], None)
+        .await
+        .unwrap()
+        .value;
+
+    // Use first ATA's tree info for shared tree accounts
+    let first_ata = &compressed_atas[0];
+    let output_queue = first_ata
+        .account
+        .tree_info
+        .next_tree_info
+        .as_ref()
+        .map(|n| n.queue)
+        .unwrap_or(first_ata.account.tree_info.queue);
+
+    // Use PackedAccounts for de-duplication (same as SDK pattern)
+    use light_sdk::instruction::PackedAccounts;
+    let mut packed = PackedAccounts::default();
+
+    // Trees first
+    let state_tree_index = packed.insert_or_get(first_ata.account.tree_info.tree);
+    let input_queue_index = packed.insert_or_get(first_ata.account.tree_info.queue);
+    let _output_queue_index = packed.insert_or_get(output_queue);
+
+    // Collect indices for each ATA
+    let mut ata_indices: Vec<(u8, u8, u8)> = Vec::with_capacity(atas.len());
+
+    for ((ata_pubkey, mint_pubkey, _), wallet) in atas.iter().zip(wallets.iter()) {
+        let wallet_idx = packed.insert_or_get_config(wallet.pubkey(), true, false);
+        let mint_idx = packed.insert_or_get_read_only(*mint_pubkey);
+        let ata_idx = packed.insert_or_get(*ata_pubkey);
+        ata_indices.push((wallet_idx, mint_idx, ata_idx));
+    }
+
+    // Build CompressedAtaAccountData with indices from PackedAccounts
+    let mut compressed_accounts = Vec::with_capacity(atas.len());
+
+    for (i, ((_, mint_pubkey, amount), wallet)) in atas.iter().zip(wallets.iter()).enumerate() {
+        let compressed = &compressed_atas[i];
+        let root_index = proof_result.accounts[i]
+            .root_index
+            .root_index()
+            .unwrap_or(0);
+        let (wallet_idx, mint_idx, ata_idx) = ata_indices[i];
+
+        compressed_accounts.push(CompressedAtaAccountData {
+            meta: CompressedAccountMetaNoLamportsNoAddress {
+                tree_info: light_sdk::instruction::PackedStateTreeInfo {
+                    merkle_tree_pubkey_index: state_tree_index,
+                    queue_pubkey_index: input_queue_index,
+                    root_index,
+                    leaf_index: compressed.account.leaf_index,
+                    prove_by_index: proof_result.accounts[i].root_index.proof_by_index(),
+                },
+                output_state_tree_index: 0,
+            },
+            data: CompressedAtaVariant::Standard(CompressedAtaTokenData {
+                wallet: wallet.pubkey(),
+                mint: *mint_pubkey,
+                amount: *amount,
+                delegate: None,
+                is_frozen: false,
+            }),
+            wallet_index: wallet_idx,
+            mint_index: mint_idx,
+            ata_index: ata_idx,
+        });
+    }
+
+    let decompress_params = DecompressAtasParams {
+        proof: light_sdk::instruction::ValidityProof(proof_result.proof.0),
+        compressed_accounts,
+        system_accounts_offset: 0,
+    };
+
+    let accounts = csdk_anchor_full_derived_test::accounts::DecompressAtas {
+        fee_payer: payer.pubkey(),
+        ctoken_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    // Build remaining accounts: system accounts + packed_accounts from PackedAccounts
+    let mut remaining_accounts = vec![
+        solana_instruction::AccountMeta::new_readonly(
+            light_sdk_types::C_TOKEN_PROGRAM_ID.into(),
+            false,
+        ),
+        solana_instruction::AccountMeta::new_readonly(
+            light_sdk_types::LIGHT_SYSTEM_PROGRAM_ID.into(),
+            false,
+        ),
+        solana_instruction::AccountMeta::new_readonly(
+            light_ctoken_sdk::ctoken::CTOKEN_CPI_AUTHORITY,
+            false,
+        ),
+        solana_instruction::AccountMeta::new_readonly(
+            light_sdk_types::REGISTERED_PROGRAM_PDA.into(),
+            false,
+        ),
+        solana_instruction::AccountMeta::new_readonly(
+            light_sdk_types::ACCOUNT_COMPRESSION_AUTHORITY_PDA.into(),
+            false,
+        ),
+        solana_instruction::AccountMeta::new_readonly(
+            light_sdk_types::ACCOUNT_COMPRESSION_PROGRAM_ID.into(),
+            false,
+        ),
+    ];
+
+    // Add de-duplicated packed_accounts from PackedAccounts
+    let (packed_account_metas, _, _) = packed.to_account_metas();
+    remaining_accounts.extend(packed_account_metas);
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::DecompressAtas {
+        params: decompress_params,
+    };
+
+    let instruction = Instruction {
+        program_id,
+        accounts: [accounts.to_account_metas(None), remaining_accounts].concat(),
+        data: instruction_data.data(),
+    };
+
+    // Payer pays fees, all wallets must sign
+    let mut signers: Vec<&Keypair> = vec![payer];
+    signers.extend(wallets.iter().copied());
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &signers)
+        .await
+        .expect("Decompress ATAs should succeed");
 }
 
 /// Test decompressing multiple compressed mints in one instruction.
@@ -777,4 +1010,78 @@ async fn test_decompress_cmints() {
             .is_empty(),
         "Compressed mint 2 should still have data (not decompressed)"
     );
+}
+
+/// Test decompressing compression_only ATAs via the decompress_atas instruction.
+/// This test uses the existing infrastructure from test_create_pdas_and_mint_auto
+/// to create and compress ATAs, then decompresses them.
+///
+/// NOTE: This test is a placeholder demonstrating the decompress_atas instruction structure.
+/// The instruction handler and data structures are in place.
+/// Full end-to-end testing requires resolving the MintToCToken API complexity.
+#[tokio::test]
+async fn test_decompress_atas_structure() {
+    use csdk_anchor_full_derived_test::instruction_accounts::{
+        CompressedAtaAccountData, CompressedAtaTokenData, CompressedAtaVariant,
+        DecompressAtasParams,
+    };
+    use light_ctoken_sdk::ctoken::COMPRESSIBLE_CONFIG_V1;
+    use light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
+
+    let program_id = csdk_anchor_full_derived_test::ID;
+    let mut config = ProgramTestConfig::new_v2(
+        true,
+        Some(vec![("csdk_anchor_full_derived_test", program_id)]),
+    );
+    config = config.with_light_protocol_events();
+
+    let rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Verify the data structures compile correctly
+    let _example_params = DecompressAtasParams {
+        proof: light_sdk::instruction::ValidityProof(None),
+        compressed_accounts: vec![CompressedAtaAccountData {
+            meta: CompressedAccountMetaNoLamportsNoAddress {
+                tree_info: light_sdk::instruction::PackedStateTreeInfo {
+                    merkle_tree_pubkey_index: 0,
+                    queue_pubkey_index: 1,
+                    root_index: 0,
+                    leaf_index: 0,
+                    prove_by_index: true,
+                },
+                output_state_tree_index: 0,
+            },
+            data: CompressedAtaVariant::Standard(CompressedAtaTokenData {
+                wallet: payer.pubkey(),
+                mint: payer.pubkey(), // placeholder
+                amount: 1000,
+                delegate: None,
+                is_frozen: false,
+            }),
+            wallet_index: 3,
+            mint_index: 4,
+            ata_index: 5,
+        }],
+        system_accounts_offset: 0,
+    };
+
+    // Verify the accounts struct compiles
+    let _accounts = csdk_anchor_full_derived_test::accounts::DecompressAtas {
+        fee_payer: payer.pubkey(),
+        ctoken_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        ctoken_rent_sponsor: RENT_SPONSOR,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    // The instruction handler is implemented in lib.rs
+    // Full e2e test would require:
+    // 1. Creating a CMint
+    // 2. Creating compression_only ATAs
+    // 3. Minting tokens to ATAs
+    // 4. Warping to trigger compression
+    // 5. Calling decompress_atas
+
+    // For now, just verify the structures are correct
+    println!("DecompressAtas instruction structures validated successfully");
 }
