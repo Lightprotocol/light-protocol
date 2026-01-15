@@ -43,7 +43,7 @@ use crate::{
         print_state_v2_output_queue_info,
     },
     slot_tracker::SlotTracker,
-    utils::get_protocol_config,
+    utils::{get_protocol_config_with_retry, get_slot_with_retry},
 };
 
 pub async fn run_queue_info(
@@ -172,8 +172,8 @@ pub async fn run_pipeline<R: Rpc>(
 
     let (protocol_config, slot) = {
         let mut rpc = arc_pool.get_connection().await?;
-        let protocol_config = get_protocol_config(&mut *rpc).await?;
-        let slot = rpc.get_slot().await?;
+        let protocol_config = get_protocol_config_with_retry(&mut *rpc).await;
+        let slot = get_slot_with_retry(&mut *rpc).await;
         (protocol_config, slot)
     };
     let slot_tracker = SlotTracker::new(
