@@ -2,7 +2,6 @@ use aligned_sized::aligned_sized;
 use bytemuck::{Pod, Zeroable};
 use light_program_profiler::profile;
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
-use pinocchio::pubkey::Pubkey;
 use zerocopy::U64;
 
 use crate::{
@@ -163,8 +162,8 @@ impl_get_last_paid_epoch!(ZCompressionInfo<'_>);
 impl_get_last_paid_epoch!(ZCompressionInfoMut<'_>);
 
 pub struct ClaimAndUpdate<'a> {
-    pub compression_authority: &'a Pubkey,
-    pub rent_sponsor: &'a Pubkey,
+    pub compression_authority: &'a [u8; 32],
+    pub rent_sponsor: &'a [u8; 32],
     pub config_account: &'a CompressibleConfig,
     pub bytes: u64,
     pub current_slot: u64,

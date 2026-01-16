@@ -8,17 +8,24 @@ use crate::error::CompressibleError;
 
 #[track_caller]
 pub fn get_rent_exemption_lamports(_num_bytes: u64) -> Result<u64, CompressibleError> {
-    #[cfg(target_os = "solana")]
+    #[cfg(all(target_os = "solana", feature = "pinocchio"))]
     {
         use pinocchio::sysvars::Sysvar;
         return pinocchio::sysvars::rent::Rent::get()
             .map(|rent| rent.minimum_balance(_num_bytes as usize))
             .map_err(|_| CompressibleError::FailedBorrowRentSysvar);
     }
-    #[cfg(not(target_os = "solana"))]
+    #[cfg(all(target_os = "solana", not(feature = "pinocchio"), feature = "solana"))]
+    {
+        use solana_sysvar::Sysvar;
+        return solana_sysvar::rent::Rent::get()
+            .map(|rent| rent.minimum_balance(_num_bytes as usize))
+            .map_err(|_| CompressibleError::FailedBorrowRentSysvar);
+    }
+    #[cfg(not(all(target_os = "solana", any(feature = "pinocchio", feature = "solana"))))]
     {
         unimplemented!(
-            "get_rent_exemption_lamports is only implemented for target os solana and tests"
+            "get_rent_exemption_lamports is only implemented for target os solana with pinocchio or solana feature"
         )
     }
 }

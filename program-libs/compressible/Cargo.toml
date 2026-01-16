@@ -6,10 +6,10 @@ description = "Light Protocol compressible data structures"
 license = "MIT"
 
 [features]
-default = ["pinocchio", "solana"]
-solana = ["dep:solana-program-error", "light-compressed-account/solana", "solana-sysvar", "solana-msg"]
-anchor = ["anchor-lang", "light-compressed-account/anchor", "light-compressed-account/std"]
-pinocchio = ["light-compressed-account/pinocchio"]
+default = ["solana"]
+solana = ["dep:solana-program-error", "light-compressed-account/solana", "light-account-checks/solana", "solana-sysvar", "solana-msg"]
+anchor = ["anchor-lang", "light-compressed-account/anchor", "light-compressed-account/std", "light-account-checks/solana"]
+pinocchio = ["dep:pinocchio", "light-compressed-account/pinocchio", "light-account-checks/pinocchio"]
 profile-program = []
 profile-heap = ["dep:light-heap"]
 
@@ -19,7 +19,7 @@ zerocopy = { workspace = true, features = ["derive"] }
 light-hasher = { workspace = true }
 light-zero-copy = { workspace = true, features = ["std", "mut", "derive"] }
 light-macros = { workspace = true }
-pinocchio = { workspace = true }
+pinocchio = { workspace = true, optional = true }
 solana-program-error = { workspace = true, optional = true }
 solana-msg = { workspace = true, optional = true }
 # Feature-gated dependencies
