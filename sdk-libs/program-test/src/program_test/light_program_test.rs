@@ -430,6 +430,279 @@ impl LightProgramTest {
         self.auto_mine_cold_state_programs
             .retain(|&pid| pid != program_id);
     }
+
+    /// Fetches ATA interface for a (mint, owner) pair.
+    ///
+    /// Checks on-chain first, then compressed state.
+    /// Always returns `AtaInterface` with `data` populated so clients can
+    /// access `amount`, `delegate`, etc. regardless of hot/cold state.
+    ///
+    /// Fetches raw ATA account interface with Account bytes always present.
+    ///
+    /// For hot accounts: actual on-chain bytes.
+    /// For cold accounts: synthetic SPL Token Account format bytes.
+    ///
+    /// Use `parse_token_account_interface()` to extract typed `TokenData`.
+    ///
+    /// # Example
+    /// ```ignore
+    /// // 1. Fetch raw account interface (async)
+    /// let account = rpc.get_ata_account_interface(&mint, &owner).await?;
+    ///
+    /// // 2. Parse into token account interface (sync)
+    /// let parsed = parse_token_account_interface(&account)?;
+    ///
+    /// // 3. Check if cold and act accordingly
+    /// if parsed.is_cold {
+    ///     let proof = rpc.get_validity_proof(vec![parsed.hash().unwrap()], vec![], None).await?;
+    ///     let ixs = build_decompress_token_accounts(&[parsed], fee_payer, Some(proof.value))?;
+    /// }
+    /// ```
+    pub async fn get_ata_account_interface(
+        &self,
+        mint: &solana_sdk::pubkey::Pubkey,
+        owner: &solana_sdk::pubkey::Pubkey,
+    ) -> Result<light_compressible_client::AtaAccountInterface, RpcError> {
+        use light_client::indexer::{GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer};
+        use light_compressible_client::{
+            pack_token_data_to_spl_bytes, AtaAccountInterface, AtaDecompressionContext,
+        };
+        use light_sdk::constants::LIGHT_TOKEN_PROGRAM_ID;
+        use light_token_sdk::token::derive_token_ata;
+
+        let (ata, bump) = derive_token_ata(owner, mint);
+
+        // Check on-chain first
+        if let Some(account) = self.context.get_account(&ata) {
+            return Ok(AtaAccountInterface {
+                pubkey: ata,
+                account,
+                is_cold: false,
+                decompression_context: None,
+            });
+        }
+
+        // Check compressed state
+        let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions::new(
+            Some(*mint),
+        ));
+        let result = self
+            .get_compressed_token_accounts_by_owner(&ata, options, None)
+            .await?;
+
+        if let Some(compressed) = result.value.items.into_iter().next() {
+            // Synthesize SPL Token Account bytes from TokenData
+            let token_data = &compressed.token;
+            let data = pack_token_data_to_spl_bytes(mint, &ata, token_data).to_vec();
+
+            // Create synthetic Account
+            let account = solana_sdk::account::Account {
+                lamports: 0, // Compressed accounts don't have lamports
+                data,
+                owner: LIGHT_TOKEN_PROGRAM_ID.into(),
+                executable: false,
+                rent_epoch: 0,
+            };
+
+            return Ok(AtaAccountInterface {
+                pubkey: ata,
+                account,
+                is_cold: true,
+                decompression_context: Some(AtaDecompressionContext {
+                    compressed,
+                    wallet_owner: *owner,
+                    mint: *mint,
+                    bump,
+                }),
+            });
+        }
+
+        // Doesn't exist - return empty synthetic account
+        let data = vec![0u8; 165];
+        let account = solana_sdk::account::Account {
+            lamports: 0,
+            data,
+            owner: LIGHT_TOKEN_PROGRAM_ID.into(),
+            executable: false,
+            rent_epoch: 0,
+        };
+
+        Ok(AtaAccountInterface {
+            pubkey: ata,
+            account,
+            is_cold: false,
+            decompression_context: None,
+        })
+    }
+
+    /// Legacy: Fetches AtaInterface (unified ATA representation).
+    /// Prefer `get_ata_account_interface()` + `parse_token_account_interface()` for new code.
+    pub async fn get_ata_interface(
+        &self,
+        mint: &solana_sdk::pubkey::Pubkey,
+        owner: &solana_sdk::pubkey::Pubkey,
+    ) -> Result<light_compressible_client::AtaInterface, RpcError> {
+        use light_client::indexer::{GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer};
+        use light_compressible_client::{AtaInterface, DecompressionContext, TokenData};
+        use light_token_sdk::{compat::AccountState, token::derive_token_ata};
+
+        let (ata, bump) = derive_token_ata(owner, mint);
+
+        // Check on-chain first
+        if let Some(account) = self.context.get_account(&ata) {
+            use solana_sdk::program_pack::Pack;
+            let token_data = if account.data.len() >= 165 {
+                let spl_account = spl_token_2022::state::Account::unpack(&account.data[..165])
+                    .unwrap_or_default();
+                TokenData {
+                    mint: spl_account.mint,
+                    owner: spl_account.owner,
+                    amount: spl_account.amount,
+                    delegate: spl_account.delegate.into(),
+                    state: match spl_account.state {
+                        spl_token_2022::state::AccountState::Frozen => AccountState::Frozen,
+                        _ => AccountState::Initialized,
+                    },
+                    tlv: None,
+                }
+            } else {
+                TokenData {
+                    mint: *mint,
+                    owner: ata,
+                    ..Default::default()
+                }
+            };
+
+            return Ok(AtaInterface {
+                ata,
+                owner: *owner,
+                mint: *mint,
+                bump,
+                is_cold: false,
+                token_data,
+                raw_account: Some(account),
+                decompression: None,
+            });
+        }
+
+        // Check compressed state
+        let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions::new(
+            Some(*mint),
+        ));
+        let result = self
+            .get_compressed_token_accounts_by_owner(&ata, options, None)
+            .await?;
+
+        if let Some(compressed) = result.value.items.into_iter().next() {
+            let token_data = compressed.token.clone();
+
+            return Ok(AtaInterface {
+                ata,
+                owner: *owner,
+                mint: *mint,
+                bump,
+                is_cold: true,
+                token_data,
+                raw_account: None,
+                decompression: Some(DecompressionContext { compressed }),
+            });
+        }
+
+        // Doesn't exist
+        Ok(AtaInterface {
+            ata,
+            owner: *owner,
+            mint: *mint,
+            bump,
+            is_cold: false,
+            token_data: TokenData {
+                mint: *mint,
+                owner: ata,
+                ..Default::default()
+            },
+            raw_account: None,
+            decompression: None,
+        })
+    }
+
+    /// Fetches MintInterface for a mint signer pubkey.
+    ///
+    /// Checks on-chain first, then compressed state.
+    /// Returns `MintInterface` with state:
+    /// - `Hot` if CMint exists on-chain
+    /// - `Cold` if CMint is compressed (needs decompression)
+    /// - `None` if CMint doesn't exist
+    ///
+    /// # Example
+    /// ```ignore
+    /// let mint = rpc.get_mint_interface(&signer).await?;
+    /// if mint.is_cold() {
+    ///     // Need to decompress
+    /// }
+    /// ```
+    pub async fn get_mint_interface(
+        &self,
+        signer: &solana_sdk::pubkey::Pubkey,
+    ) -> Result<light_compressible_client::MintInterface, RpcError> {
+        use borsh::BorshDeserialize;
+        use light_client::indexer::Indexer;
+        use light_compressible_client::{MintInterface, MintState};
+        use light_token_interface::{state::CompressedMint, CMINT_ADDRESS_TREE};
+        use light_token_sdk::{
+            compressed_token::create_compressed_mint::derive_mint_compressed_address,
+            token::find_mint_address,
+        };
+
+        let (cmint, _) = find_mint_address(signer);
+        let address_tree = solana_sdk::pubkey::Pubkey::new_from_array(CMINT_ADDRESS_TREE);
+        let compressed_address = derive_mint_compressed_address(signer, &address_tree);
+
+        // Check on-chain first
+        if let Some(account) = self.context.get_account(&cmint) {
+            return Ok(MintInterface {
+                cmint,
+                signer: *signer,
+                address_tree,
+                compressed_address,
+                state: MintState::Hot { account },
+            });
+        }
+
+        // Check compressed state
+        let result = self
+            .get_compressed_account(compressed_address, None)
+            .await?;
+
+        if let Some(compressed) = result.value {
+            // Parse mint data if available
+            if let Some(data) = compressed.data.as_ref() {
+                if !data.data.is_empty() {
+                    if let Ok(mint_data) = CompressedMint::try_from_slice(&data.data) {
+                        return Ok(MintInterface {
+                            cmint,
+                            signer: *signer,
+                            address_tree,
+                            compressed_address,
+                            state: MintState::Cold {
+                                compressed,
+                                mint_data,
+                            },
+                        });
+                    }
+                }
+            }
+            // Empty data = already decompressed (return None, not Cold)
+        }
+
+        // Doesn't exist
+        Ok(MintInterface {
+            cmint,
+            signer: *signer,
+            address_tree,
+            compressed_address,
+            state: MintState::None,
+        })
+    }
 }
 
 impl MerkleTreeExt for LightProgramTest {}

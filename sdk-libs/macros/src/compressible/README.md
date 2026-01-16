@@ -19,13 +19,13 @@ Procedural macros for generating rent-free account types and their hooks for Sol
 
 **`variant_enum.rs`** - Account variant enum
 
-- Generates `CompressedAccountVariant` enum from account types
+- Generates `RentFreeAccountVariant` enum from account types
 - Implements all required traits (Default, DataHasher, Size, Pack, Unpack)
-- Creates `CompressedAccountData` wrapper struct
+- Creates `RentFreeAccountData` wrapper struct
 
 **`instructions.rs`** - Instruction generation
 
-- Main macro: `add_compressible_instructions`
+- Main macro: `#[rentfree]`
 - Generates compress/decompress instruction handlers
 - Creates context structs and account validation
 - **Compress**: PDA-only (ctokens compressed via registry)

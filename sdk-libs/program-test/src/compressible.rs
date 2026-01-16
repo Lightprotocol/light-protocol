@@ -42,32 +42,44 @@ fn determine_account_type(data: &[u8]) -> Option<u8> {
     }
 }
 
-/// Extracts CompressionInfo and account type from account data, handling both Token and CMint.
-/// Returns (CompressionInfo, account_type) or None if parsing fails.
+/// Extracts CompressionInfo, account type, and compression_only from account data.
+/// Returns (CompressionInfo, account_type, compression_only) or None if parsing fails.
 #[cfg(feature = "devenv")]
-fn extract_compression_info(data: &[u8]) -> Option<(CompressionInfo, u8)> {
-    use light_token_interface::state::extensions::ExtensionStruct;
+fn extract_compression_info(data: &[u8]) -> Option<(CompressionInfo, u8, bool)> {
+    use light_zero_copy::traits::ZeroCopyAt;
 
     let account_type = determine_account_type(data)?;
 
     match account_type {
         ACCOUNT_TYPE_TOKEN_ACCOUNT => {
-            let ctoken = Token::deserialize(&mut &data[..]).ok()?;
-            // Get CompressionInfo from Compressible extension
-            let compression_info =
-                ctoken
-                    .extensions
-                    .as_ref()?
-                    .iter()
-                    .find_map(|ext| match ext {
-                        ExtensionStruct::Compressible(comp) => Some(comp.info),
-                        _ => None,
-                    })?;
-            Some((compression_info, account_type))
+            let (ctoken, _) = Token::zero_copy_at(data).ok()?;
+            let ext = ctoken.get_compressible_extension()?;
+
+            let compression_info = CompressionInfo {
+                config_account_version: ext.info.config_account_version.into(),
+                compress_to_pubkey: ext.info.compress_to_pubkey,
+                account_version: ext.info.account_version,
+                lamports_per_write: ext.info.lamports_per_write.into(),
+                compression_authority: ext.info.compression_authority,
+                rent_sponsor: ext.info.rent_sponsor,
+                last_claimed_slot: ext.info.last_claimed_slot.into(),
+                rent_exemption_paid: ext.info.rent_exemption_paid.into(),
+                _reserved: ext.info._reserved.into(),
+                rent_config: RentConfig {
+                    base_rent: ext.info.rent_config.base_rent.into(),
+                    compression_cost: ext.info.rent_config.compression_cost.into(),
+                    lamports_per_byte_per_epoch: ext.info.rent_config.lamports_per_byte_per_epoch,
+                    max_funded_epochs: ext.info.rent_config.max_funded_epochs,
+                    max_top_up: ext.info.rent_config.max_top_up.into(),
+                },
+            };
+            let compression_only = ext.compression_only != 0;
+            Some((compression_info, account_type, compression_only))
         }
         ACCOUNT_TYPE_MINT => {
             let cmint = CompressedMint::deserialize(&mut &data[..]).ok()?;
-            Some((cmint.compression, account_type))
+            // CMint accounts don't have compression_only, default to false
+            Some((cmint.compression, account_type, false))
         }
         _ => None,
     }
@@ -84,6 +96,8 @@ pub struct StoredCompressibleAccount {
     pub compression: CompressionInfo,
     /// Account type: ACCOUNT_TYPE_TOKEN_ACCOUNT (2) or ACCOUNT_TYPE_MINT (1)
     pub account_type: u8,
+    /// Whether this is a compression-only account (affects batching)
+    pub compression_only: bool,
 }
 
 #[cfg(feature = "devenv")]
@@ -141,12 +155,15 @@ pub async fn claim_and_compress(
         .context
         .get_program_accounts(&light_compressed_token::ID);
 
+    // CToken base accounts are 165 bytes, filter above that to exclude empty/minimal accounts
     for account in compressible_ctoken_accounts
         .iter()
-        .filter(|e| e.1.data.len() > 200 && e.1.lamports > 0)
+        .filter(|e| e.1.data.len() >= 165 && e.1.lamports > 0)
     {
-        // Extract compression info and account type, handling both Token and CMint
-        let Some((compression, account_type)) = extract_compression_info(&account.1.data) else {
+        // Extract compression info, account type, and compression_only
+        let Some((compression, account_type, compression_only)) =
+            extract_compression_info(&account.1.data)
+        else {
             continue;
         };
 
@@ -169,13 +186,17 @@ pub async fn claim_and_compress(
                 last_paid_slot: last_funded_slot,
                 compression,
                 account_type,
+                compression_only,
             },
         );
     }
 
     let current_slot = rpc.get_slot().await?;
 
-    let mut compress_accounts = Vec::new();
+    // Separate accounts by type and compression_only setting
+    let mut compress_accounts_compression_only = Vec::new();
+    let mut compress_accounts_normal = Vec::new();
+    let mut compress_cmint_accounts = Vec::new();
     let mut claim_accounts = Vec::new();
 
     // For each stored account, determine action using AccountRentState
@@ -201,10 +222,16 @@ pub async fn claim_and_compress(
         match state.calculate_claimable_rent(&compression.rent_config, rent_exemption) {
             None => {
                 // Account is compressible (has rent deficit)
-                // Only Token accounts can be compressed via compress_and_close_forester
-                // CMint accounts have a different compression flow
                 if stored_account.account_type == ACCOUNT_TYPE_TOKEN_ACCOUNT {
-                    compress_accounts.push(*pubkey);
+                    // CToken accounts - separate by compression_only
+                    if stored_account.compression_only {
+                        compress_accounts_compression_only.push(*pubkey);
+                    } else {
+                        compress_accounts_normal.push(*pubkey);
+                    }
+                } else if stored_account.account_type == ACCOUNT_TYPE_MINT {
+                    // CMint accounts - use mint_action flow
+                    compress_cmint_accounts.push(*pubkey);
                 }
             }
             Some(claimable_amount) if claimable_amount > 0 => {
@@ -224,15 +251,30 @@ pub async fn claim_and_compress(
         claim_forester(rpc, token_accounts, &forester_keypair, &payer).await?;
     }
 
-    // Process compressible accounts in batches
+    // Process compressible accounts in batches, separated by compression_only setting
+    // This prevents TlvExtensionLengthMismatch errors when batching accounts together
     const BATCH_SIZE: usize = 10;
-    for chunk in compress_accounts.chunks(BATCH_SIZE) {
-        compress_and_close_forester(rpc, chunk, &forester_keypair, &payer, None).await?;
 
-        // Remove compressed accounts from HashMap
+    // Process compression_only=true CToken accounts
+    for chunk in compress_accounts_compression_only.chunks(BATCH_SIZE) {
+        compress_and_close_forester(rpc, chunk, &forester_keypair, &payer, None).await?;
         for account_pubkey in chunk {
             stored_compressible_accounts.remove(account_pubkey);
         }
+    }
+
+    // Process compression_only=false CToken accounts
+    for chunk in compress_accounts_normal.chunks(BATCH_SIZE) {
+        compress_and_close_forester(rpc, chunk, &forester_keypair, &payer, None).await?;
+        for account_pubkey in chunk {
+            stored_compressible_accounts.remove(account_pubkey);
+        }
+    }
+
+    // Process CMint accounts via mint_action
+    for cmint_pubkey in compress_cmint_accounts {
+        compress_cmint_forester(rpc, cmint_pubkey, &payer).await?;
+        stored_compressible_accounts.remove(&cmint_pubkey);
     }
 
     Ok(())
@@ -257,7 +299,7 @@ pub async fn auto_compress_program_pdas(
     let cfg = CpdaCompressibleConfig::try_from_slice(&cfg_acc.data)
         .map_err(|e| RpcError::CustomError(format!("config deserialize: {e:?}")))?;
     let rent_sponsor = cfg.rent_sponsor;
-    // TODO: add coverage for external compression_authority
+    // compression_authority is the payer by default for auto-compress
     let compression_authority = payer.pubkey();
     let address_tree = cfg.address_space[0];
 
@@ -267,11 +309,16 @@ pub async fn auto_compress_program_pdas(
         return Ok(());
     }
 
+    // CompressAccountsIdempotent struct expects 4 accounts:
+    // 1. fee_payer (signer, writable)
+    // 2. config (read-only)
+    // 3. rent_sponsor (writable)
+    // 4. compression_authority (writable - per generated struct)
     let program_metas = vec![
         AccountMeta::new(payer.pubkey(), true),
         AccountMeta::new_readonly(config_pda, false),
         AccountMeta::new(rent_sponsor, false),
-        AccountMeta::new_readonly(compression_authority, false),
+        AccountMeta::new(compression_authority, false),
     ];
 
     const BATCH_SIZE: usize = 5;
@@ -309,6 +356,7 @@ async fn try_compress_chunk(
 
     // Attempt compression per-account idempotently.
     for (pda, acc) in chunk.iter() {
+        // v2 address derive using PDA as seed
         let addr = derive_address(
             &pda.to_bytes(),
             &address_tree.to_bytes(),
@@ -353,4 +401,111 @@ async fn try_compress_chunk(
             .create_and_send_transaction(std::slice::from_ref(&ix), &payer_pubkey, &[&payer])
             .await;
     }
+}
+
+/// Compress and close a CMint account via mint_action instruction.
+/// CMint uses MintAction::CompressAndCloseCMint flow instead of registry compress_and_close.
+#[cfg(feature = "devenv")]
+async fn compress_cmint_forester(
+    rpc: &mut LightProgramTest,
+    cmint_pubkey: Pubkey,
+    payer: &solana_sdk::signature::Keypair,
+) -> Result<(), RpcError> {
+    use light_client::indexer::Indexer;
+    use light_compressed_account::instruction_data::traits::LightInstructionData;
+    use light_compressible::config::CompressibleConfig;
+    use light_token_interface::{
+        instructions::mint_action::{
+            CompressAndCloseCMintAction, CompressedMintWithContext,
+            MintActionCompressedInstructionData,
+        },
+        LIGHT_TOKEN_PROGRAM_ID,
+    };
+    use light_token_sdk::compressed_token::mint_action::MintActionMetaConfig;
+    use solana_sdk::signature::Signer;
+
+    // Get CMint account data
+    let cmint_account = rpc.get_account(cmint_pubkey).await?.ok_or_else(|| {
+        RpcError::CustomError(format!("CMint account {} not found", cmint_pubkey))
+    })?;
+
+    // Deserialize CMint to get compressed_address and rent_sponsor
+    let cmint: CompressedMint =
+        BorshDeserialize::deserialize(&mut cmint_account.data.as_slice())
+            .map_err(|e| RpcError::CustomError(format!("Failed to deserialize CMint: {:?}", e)))?;
+
+    let compressed_mint_address = cmint.metadata.compressed_address();
+    let rent_sponsor = Pubkey::from(cmint.compression.rent_sponsor);
+
+    // Get the compressed mint account from indexer
+    let compressed_mint_account = rpc
+        .get_compressed_account(compressed_mint_address, None)
+        .await?
+        .value
+        .ok_or(RpcError::AccountDoesNotExist(format!(
+            "Compressed mint {:?}",
+            compressed_mint_address
+        )))?;
+
+    // Get validity proof
+    let rpc_proof_result = rpc
+        .get_validity_proof(vec![compressed_mint_account.hash], vec![], None)
+        .await?
+        .value;
+
+    // Build compressed mint inputs
+    // IMPORTANT: Set mint to None when CMint is decompressed
+    // This tells on-chain code to read mint data from CMint Solana account
+    // (not from instruction data which would have stale compression_info)
+    let compressed_mint_inputs = CompressedMintWithContext {
+        prove_by_index: rpc_proof_result.accounts[0].root_index.proof_by_index(),
+        leaf_index: compressed_mint_account.leaf_index,
+        root_index: rpc_proof_result.accounts[0]
+            .root_index
+            .root_index()
+            .unwrap_or_default(),
+        address: compressed_mint_address,
+        mint: None, // CMint is decompressed, data lives in CMint account
+    };
+
+    // Build instruction data with CompressAndCloseCMint action
+    let instruction_data = MintActionCompressedInstructionData::new(
+        compressed_mint_inputs,
+        rpc_proof_result.proof.into(),
+    )
+    .with_compress_and_close_cmint(CompressAndCloseCMintAction { idempotent: 1 });
+
+    // Get state tree info
+    let state_tree_info = rpc_proof_result.accounts[0].tree_info;
+
+    // Build account metas - authority can be anyone for permissionless CompressAndCloseCMint
+    let config_address = CompressibleConfig::light_token_v1_config_pda();
+    let meta_config = MintActionMetaConfig::new(
+        payer.pubkey(),
+        payer.pubkey(), // authority doesn't matter for CompressAndCloseCMint
+        state_tree_info.tree,
+        state_tree_info.queue,
+        state_tree_info.queue,
+    )
+    .with_compressible_mint(cmint_pubkey, config_address, rent_sponsor);
+
+    let account_metas = meta_config.to_account_metas();
+
+    // Serialize instruction data
+    let data = instruction_data
+        .data()
+        .map_err(|e| RpcError::CustomError(format!("Failed to serialize instruction: {:?}", e)))?;
+
+    // Build instruction
+    let instruction = solana_instruction::Instruction {
+        program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
+        accounts: account_metas,
+        data,
+    };
+
+    // Send transaction
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await?;
+
+    Ok(())
 }

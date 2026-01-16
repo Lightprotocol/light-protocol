@@ -132,47 +132,213 @@ impl CreateAssociatedTokenAccount {
     }
 }
 
-/// # Create an associated ctoken account via CPI:
-/// ```rust,no_run
-/// # use light_token_sdk::token::{CreateAssociatedAccountCpi, CompressibleParamsCpi};
-/// # use solana_account_info::AccountInfo;
-/// # let owner: AccountInfo = todo!();
-/// # let mint: AccountInfo = todo!();
-/// # let payer: AccountInfo = todo!();
-/// # let associated_token_account: AccountInfo = todo!();
-/// # let system_program: AccountInfo = todo!();
-/// # let bump: u8 = todo!();
-/// # let compressible: CompressibleParamsCpi = todo!();
-/// CreateAssociatedAccountCpi {
-///     owner,
-///     mint,
-///     payer,
-///     associated_token_account,
-///     system_program,
-///     bump,
-///     compressible,
-///     idempotent: true,
+/// CPI builder for creating CToken ATAs.
+///
+/// # Example - Rent-free ATA (idempotent)
+/// ```rust,ignore
+/// CreateCTokenAtaCpi {
+///     payer: ctx.accounts.payer.to_account_info(),
+///     owner: ctx.accounts.owner.to_account_info(),
+///     mint: ctx.accounts.mint.to_account_info(),
+///     ata: ctx.accounts.user_ata.to_account_info(),
+///     bump: params.user_ata_bump,
 /// }
+/// .idempotent()
+/// .rent_free(
+///     ctx.accounts.ctoken_config.to_account_info(),
+///     ctx.accounts.rent_sponsor.to_account_info(),
+///     ctx.accounts.system_program.to_account_info(),
+/// )
 /// .invoke()?;
-/// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct CreateAssociatedAccountCpi<'info> {
+pub struct CreateCTokenAtaCpi<'info> {
+    pub payer: AccountInfo<'info>,
     pub owner: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
-    pub payer: AccountInfo<'info>,
-    pub associated_token_account: AccountInfo<'info>,
-    pub system_program: AccountInfo<'info>,
+    pub ata: AccountInfo<'info>,
     pub bump: u8,
-    pub compressible: CompressibleParamsCpi<'info>,
-    pub idempotent: bool,
 }
 
-impl<'info> CreateAssociatedAccountCpi<'info> {
-    pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        CreateAssociatedTokenAccount::from(self).instruction()
+impl<'info> CreateCTokenAtaCpi<'info> {
+    /// Make this an idempotent create (won't fail if ATA already exists).
+    pub fn idempotent(self) -> CreateCTokenAtaCpiIdempotent<'info> {
+        CreateCTokenAtaCpiIdempotent { base: self }
     }
 
+    /// Enable rent-free mode with compressible config.
+    pub fn rent_free(
+        self,
+        config: AccountInfo<'info>,
+        sponsor: AccountInfo<'info>,
+        system_program: AccountInfo<'info>,
+    ) -> CreateCTokenAtaRentFreeCpi<'info> {
+        CreateCTokenAtaRentFreeCpi {
+            payer: self.payer,
+            owner: self.owner,
+            mint: self.mint,
+            ata: self.ata,
+            bump: self.bump,
+            idempotent: false,
+            config,
+            sponsor,
+            system_program,
+        }
+    }
+
+    /// Invoke without rent-free (requires manually constructed compressible params).
+    pub fn invoke_with(
+        self,
+        compressible: CompressibleParamsCpi<'info>,
+        system_program: AccountInfo<'info>,
+    ) -> Result<(), ProgramError> {
+        InternalCreateAtaCpi {
+            owner: self.owner,
+            mint: self.mint,
+            payer: self.payer,
+            associated_token_account: self.ata,
+            system_program,
+            bump: self.bump,
+            compressible,
+            idempotent: false,
+        }
+        .invoke()
+    }
+}
+
+/// Idempotent ATA creation (intermediate type).
+pub struct CreateCTokenAtaCpiIdempotent<'info> {
+    base: CreateCTokenAtaCpi<'info>,
+}
+
+impl<'info> CreateCTokenAtaCpiIdempotent<'info> {
+    /// Enable rent-free mode with compressible config.
+    pub fn rent_free(
+        self,
+        config: AccountInfo<'info>,
+        sponsor: AccountInfo<'info>,
+        system_program: AccountInfo<'info>,
+    ) -> CreateCTokenAtaRentFreeCpi<'info> {
+        CreateCTokenAtaRentFreeCpi {
+            payer: self.base.payer,
+            owner: self.base.owner,
+            mint: self.base.mint,
+            ata: self.base.ata,
+            bump: self.base.bump,
+            idempotent: true,
+            config,
+            sponsor,
+            system_program,
+        }
+    }
+
+    /// Invoke without rent-free (requires manually constructed compressible params).
+    pub fn invoke_with(
+        self,
+        compressible: CompressibleParamsCpi<'info>,
+        system_program: AccountInfo<'info>,
+    ) -> Result<(), ProgramError> {
+        InternalCreateAtaCpi {
+            owner: self.base.owner,
+            mint: self.base.mint,
+            payer: self.base.payer,
+            associated_token_account: self.base.ata,
+            system_program,
+            bump: self.base.bump,
+            compressible,
+            idempotent: true,
+        }
+        .invoke()
+    }
+}
+
+/// Rent-free enabled CToken ATA creation CPI.
+pub struct CreateCTokenAtaRentFreeCpi<'info> {
+    payer: AccountInfo<'info>,
+    owner: AccountInfo<'info>,
+    mint: AccountInfo<'info>,
+    ata: AccountInfo<'info>,
+    bump: u8,
+    idempotent: bool,
+    config: AccountInfo<'info>,
+    sponsor: AccountInfo<'info>,
+    system_program: AccountInfo<'info>,
+}
+
+impl<'info> CreateCTokenAtaRentFreeCpi<'info> {
+    /// Invoke CPI.
     pub fn invoke(self) -> Result<(), ProgramError> {
+        InternalCreateAtaCpi {
+            owner: self.owner,
+            mint: self.mint,
+            payer: self.payer,
+            associated_token_account: self.ata,
+            system_program: self.system_program.clone(),
+            bump: self.bump,
+            compressible: CompressibleParamsCpi::new_ata(
+                self.config,
+                self.sponsor,
+                self.system_program,
+            ),
+            idempotent: self.idempotent,
+        }
+        .invoke()
+    }
+
+    /// Invoke CPI with signer seeds (when caller needs to sign for another account).
+    pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
+        InternalCreateAtaCpi {
+            owner: self.owner,
+            mint: self.mint,
+            payer: self.payer,
+            associated_token_account: self.ata,
+            system_program: self.system_program.clone(),
+            bump: self.bump,
+            compressible: CompressibleParamsCpi::new_ata(
+                self.config,
+                self.sponsor,
+                self.system_program,
+            ),
+            idempotent: self.idempotent,
+        }
+        .invoke_signed(signer_seeds)
+    }
+}
+
+/// Internal CPI struct for ATAs with full params.
+struct InternalCreateAtaCpi<'info> {
+    owner: AccountInfo<'info>,
+    mint: AccountInfo<'info>,
+    payer: AccountInfo<'info>,
+    associated_token_account: AccountInfo<'info>,
+    system_program: AccountInfo<'info>,
+    bump: u8,
+    compressible: CompressibleParamsCpi<'info>,
+    idempotent: bool,
+}
+
+impl<'info> InternalCreateAtaCpi<'info> {
+    fn instruction(&self) -> Result<Instruction, ProgramError> {
+        CreateAssociatedTokenAccount {
+            payer: *self.payer.key,
+            owner: *self.owner.key,
+            mint: *self.mint.key,
+            associated_token_account: *self.associated_token_account.key,
+            bump: self.bump,
+            compressible: CompressibleParams {
+                compressible_config: *self.compressible.compressible_config.key,
+                rent_sponsor: *self.compressible.rent_sponsor.key,
+                pre_pay_num_epochs: self.compressible.pre_pay_num_epochs,
+                lamports_per_write: self.compressible.lamports_per_write,
+                compress_to_account_pubkey: self.compressible.compress_to_account_pubkey.clone(),
+                token_account_version: self.compressible.token_account_version,
+                compression_only: self.compressible.compression_only,
+            },
+            idempotent: self.idempotent,
+        }
+        .instruction()
+    }
+
+    fn invoke(self) -> Result<(), ProgramError> {
         let instruction = self.instruction()?;
         let account_infos = [
             self.owner,
@@ -186,7 +352,7 @@ impl<'info> CreateAssociatedAccountCpi<'info> {
         invoke(&instruction, &account_infos)
     }
 
-    pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
+    fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = self.instruction()?;
         let account_infos = [
             self.owner,
@@ -198,30 +364,5 @@ impl<'info> CreateAssociatedAccountCpi<'info> {
             self.compressible.rent_sponsor,
         ];
         invoke_signed(&instruction, &account_infos, signer_seeds)
-    }
-}
-
-impl<'info> From<&CreateAssociatedAccountCpi<'info>> for CreateAssociatedTokenAccount {
-    fn from(account_infos: &CreateAssociatedAccountCpi<'info>) -> Self {
-        Self {
-            payer: *account_infos.payer.key,
-            owner: *account_infos.owner.key,
-            mint: *account_infos.mint.key,
-            associated_token_account: *account_infos.associated_token_account.key,
-            bump: account_infos.bump,
-            compressible: CompressibleParams {
-                compressible_config: *account_infos.compressible.compressible_config.key,
-                rent_sponsor: *account_infos.compressible.rent_sponsor.key,
-                pre_pay_num_epochs: account_infos.compressible.pre_pay_num_epochs,
-                lamports_per_write: account_infos.compressible.lamports_per_write,
-                compress_to_account_pubkey: account_infos
-                    .compressible
-                    .compress_to_account_pubkey
-                    .clone(),
-                token_account_version: account_infos.compressible.token_account_version,
-                compression_only: account_infos.compressible.compression_only,
-            },
-            idempotent: account_infos.idempotent,
-        }
     }
 }

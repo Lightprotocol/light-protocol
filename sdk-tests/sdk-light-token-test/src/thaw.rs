@@ -9,7 +9,7 @@ use crate::{FREEZE_AUTHORITY_SEED, ID};
 /// - accounts[0]: token_account (writable)
 /// - accounts[1]: mint
 /// - accounts[2]: freeze_authority (signer)
-/// - accounts[3]: ctoken_program
+/// - accounts[3]: light_token_program
 pub fn process_thaw_invoke(accounts: &[AccountInfo]) -> Result<(), ProgramError> {
     if accounts.len() < 4 {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -31,7 +31,7 @@ pub fn process_thaw_invoke(accounts: &[AccountInfo]) -> Result<(), ProgramError>
 /// - accounts[0]: token_account (writable)
 /// - accounts[1]: mint
 /// - accounts[2]: PDA freeze_authority (program signs)
-/// - accounts[3]: ctoken_program
+/// - accounts[3]: light_token_program
 pub fn process_thaw_invoke_signed(accounts: &[AccountInfo]) -> Result<(), ProgramError> {
     if accounts.len() < 4 {
         return Err(ProgramError::NotEnoughAccountKeys);

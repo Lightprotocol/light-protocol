@@ -1,19 +1,58 @@
+pub mod create_accounts_proof;
+pub mod decompress_atas;
+pub mod decompress_mint;
 pub mod get_compressible_account;
+pub mod initialize_config;
+pub mod pack;
 
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+pub use create_accounts_proof::{
+    get_create_accounts_proof, CreateAccountsProofError, CreateAccountsProofInput,
+    CreateAccountsProofResult,
+};
+// Re-export from light-compressible for convenience (SBF-compatible definition)
+pub use decompress_atas::{
+    // Legacy API (backward compatible)
+    build_decompress_atas,
+    // New API (recommended)
+    build_decompress_token_accounts,
+    decompress_atas,
+    decompress_atas_idempotent,
+    decompress_token_accounts,
+    pack_token_data_to_spl_bytes,
+    parse_token_account_interface,
+    AtaAccountInterface,
+    AtaDecompressionContext,
+    AtaInterface,
+    DecompressAtaError,
+    DecompressionContext,
+    TokenAccountInterface,
+};
+// Re-export TokenData for convenience (standard SPL-compatible type)
+pub use decompress_mint::{
+    build_decompress_mint, create_mint_interface, decompress_mint, decompress_mint_idempotent,
+    DecompressMintError, DecompressMintRequest, MintInterface, MintState, DEFAULT_RENT_PAYMENT,
+    DEFAULT_WRITE_TOP_UP,
+};
+pub use initialize_config::InitializeRentFreeConfig;
 use light_client::indexer::{CompressedAccount, TreeInfo, ValidityProofWithContext};
+pub use light_compressible::CreateAccountsProof;
 pub use light_sdk::compressible::config::CompressibleConfig;
 use light_sdk::{
     compressible::{compression_info::CompressedAccountData, Pack},
-    constants::LIGHT_TOKEN_PROGRAM_ID,
     instruction::{
         account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts,
         SystemAccountMetaConfig, ValidityProof,
     },
 };
+pub use light_token_sdk::compat::TokenData;
+use light_token_sdk::token::{
+    COMPRESSIBLE_CONFIG_V1, LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR,
+};
+pub use pack::{pack_proof, PackError, PackedProofResult};
 use solana_account::Account;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
@@ -58,9 +97,177 @@ pub struct CompressAccountsIdempotentData {
     pub system_accounts_offset: u8,
 }
 
+/// Account interface for unified hot/cold account handling.
+/// Represents an account that may be on-chain (hot) or compressed (cold).
+#[derive(Clone, Debug)]
+pub struct AccountInterface {
+    /// The account's public key (PDA address)
+    pub pubkey: Pubkey,
+    /// True if the account is compressed (cold), false if on-chain (hot)
+    pub is_cold: bool,
+    /// Context needed for decompression (only present when is_cold is true)
+    pub decompression_context: Option<PdaDecompressionContext>,
+}
+
+/// Context needed to decompress a compressed PDA account.
+#[derive(Clone, Debug)]
+pub struct PdaDecompressionContext {
+    /// The compressed account data from indexer
+    pub compressed_account: CompressedAccount,
+}
+
+impl AccountInterface {
+    /// Create a new cold (compressed) account interface
+    pub fn cold(pubkey: Pubkey, compressed_account: CompressedAccount) -> Self {
+        Self {
+            pubkey,
+            is_cold: true,
+            decompression_context: Some(PdaDecompressionContext { compressed_account }),
+        }
+    }
+
+    /// Create a new hot (on-chain) account interface
+    pub fn hot(pubkey: Pubkey) -> Self {
+        Self {
+            pubkey,
+            is_cold: false,
+            decompression_context: None,
+        }
+    }
+
+    /// Get the compressed account data bytes if available
+    pub fn compressed_data(&self) -> Option<&[u8]> {
+        self.decompression_context
+            .as_ref()
+            .and_then(|ctx| ctx.compressed_account.data.as_ref())
+            .map(|d| d.data.as_slice())
+    }
+}
+
+/// A rent-free decompression request combining account interface and variant.
+/// Generic over V (the CompressedAccountVariant type from the program).
+#[derive(Clone, Debug)]
+pub struct RentFreeDecompressAccount<V> {
+    /// The account interface (contains pubkey and cold/hot state)
+    pub account_interface: AccountInterface,
+    /// The typed variant (e.g., CompressedAccountVariant::UserRecord { ... })
+    pub variant: V,
+}
+
+impl<V> RentFreeDecompressAccount<V> {
+    /// Create a new decompression request
+    pub fn new(account_interface: AccountInterface, variant: V) -> Self {
+        Self {
+            account_interface,
+            variant,
+        }
+    }
+
+    /// Create decompression request from account interface and seeds.
+    ///
+    /// The seeds type determines which variant constructor to call.
+    /// Data is extracted from interface, passed to `IntoVariant::into_variant()`.
+    ///
+    /// # Arguments
+    /// * `interface` - The account interface (must be cold/compressed)
+    /// * `seeds` - Seeds struct (e.g., `UserRecordSeeds`) that implements `IntoVariant<V>`
+    ///
+    /// # Example
+    /// ```ignore
+    /// RentFreeDecompressAccount::from_seeds(
+    ///     AccountInterface::cold(user_record_pda, compressed_user),
+    ///     UserRecordSeeds { authority, mint_authority, owner, category_id },
+    /// )?
+    /// ```
+    #[cfg(feature = "anchor")]
+    pub fn from_seeds<S>(
+        interface: AccountInterface,
+        seeds: S,
+    ) -> Result<Self, anchor_lang::error::Error>
+    where
+        S: light_sdk::compressible::IntoVariant<V>,
+    {
+        let data = interface.compressed_data().ok_or_else(|| {
+            anchor_lang::error::Error::from(anchor_lang::error::ErrorCode::AccountNotInitialized)
+        })?;
+        let variant = seeds.into_variant(data)?;
+        Ok(Self::new(interface, variant))
+    }
+
+    /// Create decompression request for CToken account.
+    ///
+    /// Parses TokenData from interface.compressed_data() internally.
+    /// The CToken variant type determines how to wrap into the full variant.
+    ///
+    /// # Arguments
+    /// * `interface` - The account interface (must be cold/compressed)
+    /// * `ctoken_variant` - CToken variant (e.g., `TokenAccountVariant::Vault { cmint }`)
+    ///
+    /// # Example
+    /// ```ignore
+    /// RentFreeDecompressAccount::from_ctoken(
+    ///     AccountInterface::cold(vault_pda, compressed_vault.account),
+    ///     TokenAccountVariant::Vault { cmint: cmint_pda },
+    /// )?
+    /// ```
+    #[cfg(feature = "anchor")]
+    pub fn from_ctoken<T>(
+        interface: AccountInterface,
+        ctoken_variant: T,
+    ) -> Result<Self, anchor_lang::error::Error>
+    where
+        T: light_sdk::compressible::IntoCTokenVariant<V, TokenData>,
+    {
+        use anchor_lang::AnchorDeserialize;
+
+        let data = interface.compressed_data().ok_or_else(|| {
+            anchor_lang::error::Error::from(anchor_lang::error::ErrorCode::AccountNotInitialized)
+        })?;
+        let token_data = TokenData::deserialize(&mut &data[..])?;
+        let variant = ctoken_variant.into_ctoken_variant(token_data);
+        Ok(Self::new(interface, variant))
+    }
+}
+
 /// Instruction builders for compressible accounts
 pub mod compressible_instruction {
     use super::*;
+
+    /// Helpers for decompress_accounts_idempotent instruction
+    pub mod decompress {
+        use super::*;
+
+        /// Returns program account metas for decompress_accounts_idempotent with CToken support.
+        /// Includes ctoken_rent_sponsor, light_token_program, ctoken_cpi_authority, ctoken_config.
+        pub fn accounts(
+            fee_payer: Pubkey,
+            config: Pubkey,
+            rent_sponsor: Pubkey,
+        ) -> Vec<AccountMeta> {
+            vec![
+                AccountMeta::new(fee_payer, true),
+                AccountMeta::new_readonly(config, false),
+                AccountMeta::new(rent_sponsor, false),
+                AccountMeta::new(RENT_SPONSOR, false),
+                AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
+                AccountMeta::new_readonly(LIGHT_TOKEN_CPI_AUTHORITY, false),
+                AccountMeta::new_readonly(COMPRESSIBLE_CONFIG_V1, false),
+            ]
+        }
+
+        /// Returns program account metas for PDA-only decompression (no CToken accounts).
+        pub fn accounts_pda_only(
+            fee_payer: Pubkey,
+            config: Pubkey,
+            rent_sponsor: Pubkey,
+        ) -> Vec<AccountMeta> {
+            vec![
+                AccountMeta::new(fee_payer, true),
+                AccountMeta::new_readonly(config, false),
+                AccountMeta::new(rent_sponsor, false),
+            ]
+        }
+    }
 
     /// SHA256("global:initialize_compression_config")[..8]
     pub const INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR: [u8; 8] =
@@ -163,9 +370,9 @@ pub mod compressible_instruction {
         }
     }
 
-    /// Builds decompress_accounts_idempotent instruction
+    /// Builds decompress_accounts_idempotent instruction (raw version with explicit discriminator)
     #[allow(clippy::too_many_arguments)]
-    pub fn decompress_accounts_idempotent<T>(
+    pub fn build_decompress_idempotent_raw<T>(
         program_id: &Pubkey,
         discriminator: &[u8],
         decompressed_account_addresses: &[Pubkey],
@@ -185,7 +392,7 @@ pub mod compressible_instruction {
         let mut has_tokens = false;
         let mut has_pdas = false;
         for (compressed_account, _) in compressed_accounts.iter() {
-            if compressed_account.owner == LIGHT_TOKEN_PROGRAM_ID.into() {
+            if compressed_account.owner == LIGHT_TOKEN_PROGRAM_ID {
                 has_tokens = true;
             } else {
                 has_pdas = true;
@@ -202,13 +409,18 @@ pub mod compressible_instruction {
         }
 
         // pack cpi_context_account if required.
+        // CRITICAL: When both PDAs and tokens exist, tokens execute LAST (consuming the CPI context).
+        // CPI context validation checks: cpi_context.associated_tree == first_input_of_executor.tree
+        // So we must use the FIRST TOKEN's cpi_context, not the first PDA's.
         if has_pdas && has_tokens {
-            let cpi_context_of_first_input =
-                compressed_accounts[0].0.tree_info.cpi_context.unwrap();
-            let system_config = SystemAccountMetaConfig::new_with_cpi_context(
-                *program_id,
-                cpi_context_of_first_input,
-            );
+            // Find the first token account's CPI context
+            let first_token_cpi_context = compressed_accounts
+                .iter()
+                .find(|(acc, _)| acc.owner == LIGHT_TOKEN_PROGRAM_ID)
+                .map(|(acc, _)| acc.tree_info.cpi_context.unwrap())
+                .expect("has_tokens is true so there must be a token");
+            let system_config =
+                SystemAccountMetaConfig::new_with_cpi_context(*program_id, first_token_cpi_context);
             remaining_accounts.add_system_accounts_v2(system_config)?;
         } else {
             let system_config = SystemAccountMetaConfig::new(*program_id);
@@ -234,19 +446,19 @@ pub mod compressible_instruction {
 
         let mut typed_compressed_accounts = Vec::with_capacity(compressed_accounts.len());
 
-        for (compressed_account, data) in compressed_accounts {
-            let queue_index = remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
+        // The compressed_accounts are expected to be in the SAME ORDER as the
+        // validity_proof_with_context.accounts. This is because both are derived
+        // from the same hash order passed to get_validity_proof().
+        // We use index-based matching instead of queue+leaf_index to handle
+        // accounts on different trees with potentially colliding indices.
+        for (i, (compressed_account, data)) in compressed_accounts.iter().enumerate() {
+            // Insert the queue for this account (needed for the packed context)
+            let _queue_index = remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
 
-            let tree_info = packed_tree_infos_slice
-                .iter()
-                .find(|pti| {
-                    pti.queue_pubkey_index == queue_index
-                        && pti.leaf_index == compressed_account.leaf_index
-                })
-                .copied()
-                .ok_or(
-                    "Matching PackedStateTreeInfo (queue_pubkey_index + leaf_index) not found",
-                )?;
+            // Use index-based matching - the i-th compressed account uses the i-th tree info
+            let tree_info = packed_tree_infos_slice.get(i).copied().ok_or(
+                "Tree info index out of bounds - compressed_accounts length must match validity proof accounts length",
+            )?;
 
             let packed_data = data.pack(&mut remaining_accounts);
             typed_compressed_accounts.push(CompressedAccountData {
@@ -355,5 +567,64 @@ pub mod compressible_instruction {
             accounts,
             data,
         })
+    }
+
+    /// Builds decompress_accounts_idempotent instruction from RentFreeDecompressAccount items.
+    /// Automatically filters cold accounts and returns None if no accounts need decompression.
+    ///
+    /// # Arguments
+    /// * `program_id` - The program ID
+    /// * `accounts` - Vec of RentFreeDecompressAccount (cold accounts will be decompressed, hot skipped)
+    /// * `program_account_metas` - Account metas from generated .to_account_metas(None)
+    /// * `validity_proof_with_context` - The validity proof for the cold accounts
+    #[allow(clippy::too_many_arguments)]
+    pub fn build_decompress_idempotent<V>(
+        program_id: &Pubkey,
+        accounts: Vec<super::RentFreeDecompressAccount<V>>,
+        program_account_metas: Vec<AccountMeta>,
+        validity_proof_with_context: ValidityProofWithContext,
+    ) -> Result<Option<Instruction>, Box<dyn std::error::Error>>
+    where
+        V: Pack + Clone + std::fmt::Debug,
+    {
+        // Filter to only cold accounts
+        let cold_accounts: Vec<_> = accounts
+            .into_iter()
+            .filter(|a| a.account_interface.is_cold)
+            .collect();
+
+        if cold_accounts.is_empty() {
+            return Ok(None);
+        }
+
+        // Extract pubkeys and (CompressedAccount, variant) pairs
+        let decompressed_account_addresses: Vec<Pubkey> = cold_accounts
+            .iter()
+            .map(|a| a.account_interface.pubkey)
+            .collect();
+
+        let compressed_accounts: Vec<(CompressedAccount, V)> = cold_accounts
+            .into_iter()
+            .map(|a| {
+                let compressed_account = a
+                    .account_interface
+                    .decompression_context
+                    .expect("Cold account must have decompression context")
+                    .compressed_account;
+                (compressed_account, a.variant)
+            })
+            .collect();
+
+        // Build instruction using raw function
+        let instruction = build_decompress_idempotent_raw(
+            program_id,
+            &DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
+            &decompressed_account_addresses,
+            &compressed_accounts,
+            &program_account_metas,
+            validity_proof_with_context,
+        )?;
+
+        Ok(Some(instruction))
     }
 }

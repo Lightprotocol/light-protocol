@@ -36,8 +36,6 @@ NO_DEFAULT_CRATES=(
     "light-token-sdk"
     "light-token-types"
     "light-sdk"
-    "sdk-compressible-test"
-    "csdk-anchor-derived-test"
     "csdk-anchor-full-derived-test"
 )
 

@@ -52,7 +52,7 @@ pub fn process_mint_action<'a, 'info>(
     let tree_accounts = cpi_accounts.tree_accounts().unwrap();
     let ctoken_accounts_vec = vec![ctx.accounts.token_account.to_account_info()];
     let mint_action_accounts = MintActionCpiAccounts {
-        compressed_token_program: ctx.accounts.ctoken_program.as_ref(),
+        compressed_token_program: ctx.accounts.light_token_program.as_ref(),
         light_system_program: cpi_accounts.system_program().unwrap(),
         mint_signer: Some(ctx.accounts.mint_seed.as_ref()),
         authority: ctx.accounts.mint_authority.as_ref(),
@@ -76,7 +76,7 @@ pub fn process_mint_action<'a, 'info>(
     // Get all account infos needed for the mint action
     let mut account_infos = cpi_accounts.to_account_infos();
     account_infos.push(ctx.accounts.ctoken_cpi_authority.to_account_info());
-    account_infos.push(ctx.accounts.ctoken_program.to_account_info());
+    account_infos.push(ctx.accounts.light_token_program.to_account_info());
     account_infos.push(ctx.accounts.mint_authority.to_account_info());
     account_infos.push(ctx.accounts.mint_seed.to_account_info());
     account_infos.push(ctx.accounts.payer.to_account_info());

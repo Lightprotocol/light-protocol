@@ -40,15 +40,14 @@ pub fn process_create_token_account_invoke(
         accounts[4].clone(),
     );
 
-    // Build the account infos struct
+    // Build the account infos struct and invoke with custom compressible params
     CreateTokenAccountCpi {
         payer: accounts[0].clone(),
         account: accounts[1].clone(),
         mint: accounts[2].clone(),
         owner: data.owner,
-        compressible: compressible_params,
     }
-    .invoke()?;
+    .invoke_with(compressible_params)?;
 
     Ok(())
 }
@@ -85,18 +84,15 @@ pub fn process_create_token_account_invoke_signed(
         accounts[4].clone(),
     );
 
-    // Build the account infos struct
-    let account_infos = CreateTokenAccountCpi {
+    // Invoke with PDA signing and custom compressible params
+    let signer_seeds: &[&[u8]] = &[TOKEN_ACCOUNT_SEED, &[bump]];
+    CreateTokenAccountCpi {
         payer: accounts[0].clone(),
         account: accounts[1].clone(),
         mint: accounts[2].clone(),
         owner: data.owner,
-        compressible: compressible_params,
-    };
-
-    // Invoke with PDA signing
-    let signer_seeds: &[&[u8]] = &[TOKEN_ACCOUNT_SEED, &[bump]];
-    account_infos.invoke_signed(&[signer_seeds])?;
+    }
+    .invoke_signed_with(compressible_params, &[signer_seeds])?;
 
     Ok(())
 }

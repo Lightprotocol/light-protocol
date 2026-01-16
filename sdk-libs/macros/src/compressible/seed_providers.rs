@@ -2,29 +2,255 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{spanned::Spanned, Ident, Result};
+use syn::{Ident, Result};
 
 use crate::compressible::instructions::{InstructionDataSpec, SeedElement, TokenSeedSpec};
 
-pub fn generate_token_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Result<TokenStream> {
-    let variants = token_seeds.iter().enumerate().map(|(index, spec)| {
+/// Extract ctx.* field names from seed elements (both token seeds and authority seeds)
+fn extract_ctx_fields_from_token_spec(spec: &TokenSeedSpec) -> Vec<Ident> {
+    let mut ctx_fields = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    // Helper to extract ctx.* from a SeedElement
+    fn extract_from_seed(
+        seed: &SeedElement,
+        ctx_fields: &mut Vec<Ident>,
+        seen: &mut std::collections::HashSet<String>,
+    ) {
+        if let SeedElement::Expression(expr) = seed {
+            extract_ctx_from_expr(expr, ctx_fields, seen);
+        }
+    }
+
+    fn extract_ctx_from_expr(
+        expr: &syn::Expr,
+        ctx_fields: &mut Vec<Ident>,
+        seen: &mut std::collections::HashSet<String>,
+    ) {
+        if let syn::Expr::Field(field_expr) = expr {
+            if let syn::Member::Named(field_name) = &field_expr.member {
+                // Check for ctx.accounts.field pattern
+                if let syn::Expr::Field(nested_field) = &*field_expr.base {
+                    if let syn::Member::Named(base_name) = &nested_field.member {
+                        if base_name == "accounts" {
+                            if let syn::Expr::Path(path) = &*nested_field.base {
+                                if let Some(segment) = path.path.segments.first() {
+                                    if segment.ident == "ctx" {
+                                        let field_name_str = field_name.to_string();
+                                        // Skip standard fields
+                                        if !matches!(
+                                            field_name_str.as_str(),
+                                            "fee_payer"
+                                                | "rent_sponsor"
+                                                | "config"
+                                                | "compression_authority"
+                                        ) && seen.insert(field_name_str)
+                                        {
+                                            ctx_fields.push(field_name.clone());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                // Check for ctx.field pattern (shorthand)
+                else if let syn::Expr::Path(path) = &*field_expr.base {
+                    if let Some(segment) = path.path.segments.first() {
+                        if segment.ident == "ctx" {
+                            let field_name_str = field_name.to_string();
+                            if !matches!(
+                                field_name_str.as_str(),
+                                "fee_payer" | "rent_sponsor" | "config" | "compression_authority"
+                            ) && seen.insert(field_name_str)
+                            {
+                                ctx_fields.push(field_name.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Recursively check method calls like max_key(&ctx.field.key(), ...)
+        else if let syn::Expr::Call(call_expr) = expr {
+            for arg in &call_expr.args {
+                extract_ctx_from_expr(arg, ctx_fields, seen);
+            }
+        } else if let syn::Expr::Reference(ref_expr) = expr {
+            extract_ctx_from_expr(&ref_expr.expr, ctx_fields, seen);
+        } else if let syn::Expr::MethodCall(method_call) = expr {
+            extract_ctx_from_expr(&method_call.receiver, ctx_fields, seen);
+        }
+    }
+
+    // Extract from seeds
+    for seed in &spec.seeds {
+        extract_from_seed(seed, &mut ctx_fields, &mut seen);
+    }
+
+    // Extract from authority seeds too
+    if let Some(auth_seeds) = &spec.authority {
+        for seed in auth_seeds {
+            extract_from_seed(seed, &mut ctx_fields, &mut seen);
+        }
+    }
+
+    ctx_fields
+}
+
+pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Result<TokenStream> {
+    // Phase 8: Generate struct variants with ctx.* seed fields
+
+    // Unpacked variants (with Pubkeys)
+    let unpacked_variants = token_seeds.iter().map(|spec| {
         let variant_name = &spec.variant;
-        let index_u8 = index as u8;
-        quote! {
-            #variant_name = #index_u8,
+        let ctx_fields = extract_ctx_fields_from_token_spec(spec);
+
+        let fields = ctx_fields.iter().map(|field| {
+            quote! { #field: Pubkey }
+        });
+
+        if ctx_fields.is_empty() {
+            quote! { #variant_name, }
+        } else {
+            quote! { #variant_name { #(#fields,)* }, }
+        }
+    });
+
+    // Packed variants (with u8 indices)
+    let packed_variants = token_seeds.iter().map(|spec| {
+        let variant_name = &spec.variant;
+        let ctx_fields = extract_ctx_fields_from_token_spec(spec);
+
+        let fields = ctx_fields.iter().map(|field| {
+            let idx_field = format_ident!("{}_idx", field);
+            quote! { #idx_field: u8 }
+        });
+
+        if ctx_fields.is_empty() {
+            quote! { #variant_name, }
+        } else {
+            quote! { #variant_name { #(#fields,)* }, }
+        }
+    });
+
+    // Pack impl match arms
+    let pack_arms = token_seeds.iter().map(|spec| {
+        let variant_name = &spec.variant;
+        let ctx_fields = extract_ctx_fields_from_token_spec(spec);
+
+        if ctx_fields.is_empty() {
+            quote! {
+                TokenAccountVariant::#variant_name => PackedTokenAccountVariant::#variant_name,
+            }
+        } else {
+            let field_bindings: Vec<_> = ctx_fields.iter().collect();
+            let idx_fields: Vec<_> = ctx_fields
+                .iter()
+                .map(|f| format_ident!("{}_idx", f))
+                .collect();
+            let pack_stmts: Vec<_> = ctx_fields
+                .iter()
+                .zip(idx_fields.iter())
+                .map(|(field, idx)| {
+                    quote! { let #idx = remaining_accounts.insert_or_get(*#field); }
+                })
+                .collect();
+
+            quote! {
+                TokenAccountVariant::#variant_name { #(#field_bindings,)* } => {
+                    #(#pack_stmts)*
+                    PackedTokenAccountVariant::#variant_name { #(#idx_fields,)* }
+                }
+            }
+        }
+    });
+
+    // Unpack impl match arms
+    let unpack_arms = token_seeds.iter().map(|spec| {
+        let variant_name = &spec.variant;
+        let ctx_fields = extract_ctx_fields_from_token_spec(spec);
+
+        if ctx_fields.is_empty() {
+            quote! {
+                PackedTokenAccountVariant::#variant_name => Ok(TokenAccountVariant::#variant_name),
+            }
+        } else {
+            let idx_fields: Vec<_> = ctx_fields
+                .iter()
+                .map(|f| format_ident!("{}_idx", f))
+                .collect();
+            let unpack_stmts: Vec<_> = ctx_fields
+                .iter()
+                .zip(idx_fields.iter())
+                .map(|(field, idx)| {
+                    // Dereference idx since match pattern gives us &u8
+                    quote! {
+                        let #field = *remaining_accounts
+                            .get(*#idx as usize)
+                            .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+                            .key;
+                    }
+                })
+                .collect();
+            let field_names: Vec<_> = ctx_fields.iter().collect();
+
+            quote! {
+                PackedTokenAccountVariant::#variant_name { #(#idx_fields,)* } => {
+                    #(#unpack_stmts)*
+                    Ok(TokenAccountVariant::#variant_name { #(#field_names,)* })
+                }
+            }
         }
     });
 
     Ok(quote! {
         #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
-        #[repr(u8)]
-        pub enum CTokenAccountVariant {
-            #(#variants)*
+        pub enum TokenAccountVariant {
+            #(#unpacked_variants)*
+        }
+
+        #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
+        pub enum PackedTokenAccountVariant {
+            #(#packed_variants)*
+        }
+
+        impl light_token_sdk::pack::Pack for TokenAccountVariant {
+            type Packed = PackedTokenAccountVariant;
+
+            fn pack(&self, remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> Self::Packed {
+                match self {
+                    #(#pack_arms)*
+                }
+            }
+        }
+
+        impl light_token_sdk::pack::Unpack for PackedTokenAccountVariant {
+            type Unpacked = TokenAccountVariant;
+
+            fn unpack(
+                &self,
+                remaining_accounts: &[solana_account_info::AccountInfo],
+            ) -> std::result::Result<Self::Unpacked, solana_program_error::ProgramError> {
+                match self {
+                    #(#unpack_arms)*
+                }
+            }
+        }
+
+        impl light_sdk::compressible::IntoCTokenVariant<RentFreeAccountVariant, light_token_sdk::compat::TokenData> for TokenAccountVariant {
+            fn into_ctoken_variant(self, token_data: light_token_sdk::compat::TokenData) -> RentFreeAccountVariant {
+                RentFreeAccountVariant::CTokenData(light_token_sdk::compat::CTokenData {
+                    variant: self,
+                    token_data,
+                })
+            }
         }
     })
 }
 
-pub fn generate_token_seed_provider_implementation(
+/// Phase 8: Generate TokenSeedProvider impl that uses self.field instead of ctx.accounts.field
+pub fn generate_ctoken_seed_provider_implementation(
     token_seeds: &[TokenSeedSpec],
 ) -> Result<TokenStream> {
     let mut get_seeds_match_arms = Vec::new();
@@ -32,149 +258,61 @@ pub fn generate_token_seed_provider_implementation(
 
     for spec in token_seeds {
         let variant_name = &spec.variant;
+        let ctx_fields = extract_ctx_fields_from_token_spec(spec);
 
-        if spec.is_ata {
-            let get_seeds_arm = quote! {
-                CTokenAccountVariant::#variant_name => {
-                    Err(anchor_lang::prelude::ProgramError::Custom(
-                        CompressibleInstructionError::AtaDoesNotUseSeedDerivation.into()
-                    ).into())
-                }
-            };
-            get_seeds_match_arms.push(get_seeds_arm);
+        // Build match pattern with destructuring if there are ctx fields
+        let pattern = if ctx_fields.is_empty() {
+            quote! { TokenAccountVariant::#variant_name }
+        } else {
+            let field_names: Vec<_> = ctx_fields.iter().collect();
+            quote! { TokenAccountVariant::#variant_name { #(#field_names,)* } }
+        };
 
-            let authority_arm = quote! {
-                CTokenAccountVariant::#variant_name => {
-                    Err(anchor_lang::prelude::ProgramError::Custom(
-                        CompressibleInstructionError::AtaDoesNotUseSeedDerivation.into()
-                    ).into())
-                }
-            };
-            get_authority_seeds_match_arms.push(authority_arm);
-            continue;
-        }
-
-        let mut token_bindings = Vec::new();
-        let mut token_seed_refs = Vec::new();
-
-        for (i, seed) in spec.seeds.iter().enumerate() {
+        // Build seed refs for get_seeds - use self.field directly for ctx.* seeds
+        let token_seed_refs: Vec<TokenStream> = spec.seeds.iter().map(|seed| {
             match seed {
                 SeedElement::Literal(lit) => {
                     let value = lit.value();
-                    token_seed_refs.push(quote! { #value.as_bytes() });
+                    quote! { #value.as_bytes() }
                 }
                 SeedElement::Expression(expr) => {
+                    // Handle byte string literals
+                    if let syn::Expr::Lit(lit_expr) = &**expr {
+                        if let syn::Lit::ByteStr(byte_str) = &lit_expr.lit {
+                            let bytes = byte_str.value();
+                            return quote! { &[#(#bytes),*] };
+                        }
+                    }
+
+                    // Handle uppercase constants
                     if let syn::Expr::Path(path_expr) = &**expr {
                         if let Some(ident) = path_expr.path.get_ident() {
                             let ident_str = ident.to_string();
-                            if ident_str
-                                .chars()
-                                .all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit())
-                            {
+                            if ident_str.chars().all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit()) {
                                 if ident_str == "LIGHT_CPI_SIGNER" {
-                                    token_seed_refs.push(quote! { #ident.cpi_signer.as_ref() });
+                                    return quote! { crate::#ident.cpi_signer.as_ref() };
                                 } else {
-                                    token_seed_refs.push(quote! { #ident.as_bytes() });
-                                }
-                                continue;
-                            }
-                        }
-                    }
-
-                    let mut handled = false;
-                    if let syn::Expr::Field(field_expr) = &**expr {
-                        if let syn::Member::Named(field_name) = &field_expr.member {
-                            if let syn::Expr::Field(nested_field) = &*field_expr.base {
-                                if let syn::Member::Named(base_name) = &nested_field.member {
-                                    if base_name == "accounts" {
-                                        if let syn::Expr::Path(path) = &*nested_field.base {
-                                            if let Some(segment) = path.path.segments.first() {
-                                                if segment.ident == "ctx" {
-                                                    let binding_name = syn::Ident::new(
-                                                        &format!("seed_{}", i),
-                                                        expr.span(),
-                                                    );
-                                                    let field_name_str = field_name.to_string();
-                                                    let is_standard_field = matches!(
-                                                        field_name_str.as_str(),
-                                                        "fee_payer"
-                                                            | "rent_sponsor"
-                                                            | "config"
-                                                            | "compression_authority"
-                                                    );
-                                                    if is_standard_field {
-                                                        token_bindings.push(quote! {
-                                                            let #binding_name = ctx.accounts.#field_name.key();
-                                                        });
-                                                    } else {
-                                                        token_bindings.push(quote! {
-                                                            let #binding_name = ctx.accounts.#field_name
-                                                                .as_ref()
-                                                                .ok_or_else(|| -> anchor_lang::error::Error {
-                                                                    anchor_lang::prelude::ProgramError::Custom(
-                                                                        CompressibleInstructionError::MissingSeedAccount.into()
-                                                                    ).into()
-                                                                })?
-                                                                .key();
-                                                        });
-                                                    }
-                                                    token_seed_refs
-                                                        .push(quote! { #binding_name.as_ref() });
-                                                    handled = true;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            } else if let syn::Expr::Path(path) = &*field_expr.base {
-                                if let Some(segment) = path.path.segments.first() {
-                                    if segment.ident == "ctx" {
-                                        let binding_name =
-                                            syn::Ident::new(&format!("seed_{}", i), expr.span());
-                                        let field_name_str = field_name.to_string();
-                                        let is_standard_field = matches!(
-                                            field_name_str.as_str(),
-                                            "fee_payer"
-                                                | "rent_sponsor"
-                                                | "config"
-                                                | "compression_authority"
-                                        );
-                                        if is_standard_field {
-                                            token_bindings.push(quote! {
-                                                let #binding_name = ctx.accounts.#field_name.key();
-                                            });
-                                        } else {
-                                            token_bindings.push(quote! {
-                                                let #binding_name = ctx.accounts.#field_name
-                                                    .as_ref()
-                                                    .ok_or_else(|| -> anchor_lang::error::Error {
-                                                        anchor_lang::prelude::ProgramError::Custom(
-                                                            CompressibleInstructionError::MissingSeedAccount.into()
-                                                        ).into()
-                                                    })?
-                                                    .key();
-                                            });
-                                        }
-                                        token_seed_refs.push(quote! { #binding_name.as_ref() });
-                                        handled = true;
-                                    }
+                                    return quote! { { let __seed: &[u8] = crate::#ident.as_ref(); __seed } };
                                 }
                             }
                         }
                     }
 
-                    if !handled {
-                        token_seed_refs.push(quote! { (#expr).as_ref() });
+                    // Handle ctx.accounts.field or ctx.field - use the destructured field directly
+                    if let Some(field_name) = extract_ctx_field_name(expr) {
+                        return quote! { #field_name.as_ref() };
                     }
+
+                    // Fallback
+                    quote! { (#expr).as_ref() }
                 }
             }
-        }
+        }).collect();
 
         let get_seeds_arm = quote! {
-            CTokenAccountVariant::#variant_name => {
-                #(#token_bindings)*
+            #pattern => {
                 let seeds: &[&[u8]] = &[#(#token_seed_refs),*];
-                let (token_account_pda, bump) = solana_pubkey::Pubkey::find_program_address(seeds, &crate::ID);
+                let (token_account_pda, bump) = solana_pubkey::Pubkey::find_program_address(seeds, program_id);
                 let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
                 seeds_vec.extend(seeds.iter().map(|s| s.to_vec()));
                 seeds_vec.push(vec![bump]);
@@ -183,140 +321,52 @@ pub fn generate_token_seed_provider_implementation(
         };
         get_seeds_match_arms.push(get_seeds_arm);
 
+        // Build authority seeds
         if let Some(authority_seeds) = &spec.authority {
-            let mut auth_bindings: Vec<TokenStream> = Vec::new();
-            let mut auth_seed_refs = Vec::new();
-
-            for (i, authority_seed) in authority_seeds.iter().enumerate() {
-                match authority_seed {
+            let auth_seed_refs: Vec<TokenStream> = authority_seeds.iter().map(|seed| {
+                match seed {
                     SeedElement::Literal(lit) => {
                         let value = lit.value();
-                        auth_seed_refs.push(quote! { #value.as_bytes() });
+                        quote! { #value.as_bytes() }
                     }
                     SeedElement::Expression(expr) => {
-                        let mut handled = false;
-                        match &**expr {
-                            syn::Expr::Field(field_expr) => {
-                                if let syn::Member::Named(field_name) = &field_expr.member {
-                                    if let syn::Expr::Field(nested_field) = &*field_expr.base {
-                                        if let syn::Member::Named(base_name) = &nested_field.member
-                                        {
-                                            if base_name == "accounts" {
-                                                if let syn::Expr::Path(path) = &*nested_field.base {
-                                                    if let Some(segment) =
-                                                        path.path.segments.first()
-                                                    {
-                                                        if segment.ident == "ctx" {
-                                                            let binding_name = syn::Ident::new(
-                                                                &format!("authority_seed_{}", i),
-                                                                expr.span(),
-                                                            );
-                                                            let field_name_str =
-                                                                field_name.to_string();
-                                                            let is_standard_field = matches!(
-                                                                field_name_str.as_str(),
-                                                                "fee_payer"
-                                                                    | "rent_sponsor"
-                                                                    | "config"
-                                                                    | "compression_authority"
-                                                            );
-                                                            if is_standard_field {
-                                                                auth_bindings.push(quote! {
-                                                                    let #binding_name = ctx.accounts.#field_name.key();
-                                                                });
-                                                            } else {
-                                                                auth_bindings.push(quote! {
-                                                                    let #binding_name = ctx.accounts.#field_name
-                                                                        .as_ref()
-                                                                        .ok_or_else(|| -> anchor_lang::error::Error {
-                                                                            anchor_lang::prelude::ProgramError::Custom(
-                                                                                CompressibleInstructionError::MissingSeedAccount.into()
-                                                                            ).into()
-                                                                        })?
-                                                                        .key();
-                                                                });
-                                                            }
-                                                            auth_seed_refs.push(
-                                                                quote! { #binding_name.as_ref() },
-                                                            );
-                                                            handled = true;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    } else if let syn::Expr::Path(path) = &*field_expr.base {
-                                        if let Some(segment) = path.path.segments.first() {
-                                            if segment.ident == "ctx" {
-                                                let binding_name = syn::Ident::new(
-                                                    &format!("authority_seed_{}", i),
-                                                    expr.span(),
-                                                );
-                                                let field_name_str = field_name.to_string();
-                                                let is_standard_field = matches!(
-                                                    field_name_str.as_str(),
-                                                    "fee_payer"
-                                                        | "rent_sponsor"
-                                                        | "config"
-                                                        | "compression_authority"
-                                                );
-                                                if is_standard_field {
-                                                    auth_bindings.push(quote! {
-                                                        let #binding_name = ctx.accounts.#field_name.key();
-                                                    });
-                                                } else {
-                                                    auth_bindings.push(quote! {
-                                                        let #binding_name = ctx.accounts.#field_name
-                                                            .as_ref()
-                                                            .ok_or_else(|| -> anchor_lang::error::Error {
-                                                                anchor_lang::prelude::ProgramError::Custom(
-                                                                    CompressibleInstructionError::MissingSeedAccount.into()
-                                                                ).into()
-                                                            })?
-                                                            .key();
-                                                    });
-                                                }
-                                                auth_seed_refs
-                                                    .push(quote! { #binding_name.as_ref() });
-                                                handled = true;
-                                            }
-                                        }
-                                    }
-                                }
+                        // Handle byte string literals
+                        if let syn::Expr::Lit(lit_expr) = &**expr {
+                            if let syn::Lit::ByteStr(byte_str) = &lit_expr.lit {
+                                let bytes = byte_str.value();
+                                return quote! { &[#(#bytes),*] };
                             }
-                            syn::Expr::MethodCall(_mc) => {
-                                auth_seed_refs.push(quote! { (#expr).as_ref() });
-                                handled = true;
-                            }
-                            syn::Expr::Path(path_expr) => {
-                                if let Some(ident) = path_expr.path.get_ident() {
-                                    let ident_str = ident.to_string();
-                                    if ident_str.chars().all(|c| c.is_uppercase() || c == '_') {
-                                        if ident_str == "LIGHT_CPI_SIGNER" {
-                                            auth_seed_refs
-                                                .push(quote! { #ident.cpi_signer.as_ref() });
-                                        } else {
-                                            auth_seed_refs.push(quote! { #ident.as_bytes() });
-                                        }
-                                        handled = true;
-                                    }
-                                }
-                            }
-                            _ => {}
                         }
 
-                        if !handled {
-                            auth_seed_refs.push(quote! { (#expr).as_ref() });
+                        // Handle uppercase constants
+                        if let syn::Expr::Path(path_expr) = &**expr {
+                            if let Some(ident) = path_expr.path.get_ident() {
+                                let ident_str = ident.to_string();
+                                if ident_str.chars().all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit()) {
+                                    if ident_str == "LIGHT_CPI_SIGNER" {
+                                        return quote! { crate::#ident.cpi_signer.as_ref() };
+                                    } else {
+                                        return quote! { { let __seed: &[u8] = crate::#ident.as_ref(); __seed } };
+                                    }
+                                }
+                            }
                         }
+
+                        // Handle ctx.accounts.field or ctx.field - use the destructured field directly
+                        if let Some(field_name) = extract_ctx_field_name(expr) {
+                            return quote! { #field_name.as_ref() };
+                        }
+
+                        // Fallback
+                        quote! { (#expr).as_ref() }
                     }
                 }
-            }
+            }).collect();
 
             let authority_arm = quote! {
-                CTokenAccountVariant::#variant_name => {
-                    #(#auth_bindings)*
+                #pattern => {
                     let seeds: &[&[u8]] = &[#(#auth_seed_refs),*];
-                    let (authority_pda, bump) = solana_pubkey::Pubkey::find_program_address(seeds, &crate::ID);
+                    let (authority_pda, bump) = solana_pubkey::Pubkey::find_program_address(seeds, program_id);
                     let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
                     seeds_vec.extend(seeds.iter().map(|s| s.to_vec()));
                     seeds_vec.push(vec![bump]);
@@ -326,43 +376,69 @@ pub fn generate_token_seed_provider_implementation(
             get_authority_seeds_match_arms.push(authority_arm);
         } else {
             let authority_arm = quote! {
-                CTokenAccountVariant::#variant_name => {
-                    Err(anchor_lang::prelude::ProgramError::Custom(
+                #pattern => {
+                    Err(solana_program_error::ProgramError::Custom(
                         CompressibleInstructionError::MissingSeedAccount.into()
-                    ).into())
+                    ))
                 }
             };
             get_authority_seeds_match_arms.push(authority_arm);
         }
     }
 
+    // Phase 8: New trait signature - no ctx/accounts parameter needed
     Ok(quote! {
-        impl ctoken_seed_system::CTokenSeedProvider for CTokenAccountVariant {
-            fn get_seeds<'a, 'info>(
+        impl light_sdk::compressible::TokenSeedProvider for TokenAccountVariant {
+            fn get_seeds(
                 &self,
-                ctx: &ctoken_seed_system::CTokenSeedContext<'a, 'info>,
-            ) -> Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey)> {
+                program_id: &solana_pubkey::Pubkey,
+            ) -> std::result::Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey), solana_program_error::ProgramError> {
                 match self {
                     #(#get_seeds_match_arms)*
-                    _ => Err(anchor_lang::prelude::ProgramError::Custom(
-                        CompressibleInstructionError::MissingSeedAccount.into()
-                    ).into())
                 }
             }
 
-            fn get_authority_seeds<'a, 'info>(
+            fn get_authority_seeds(
                 &self,
-                ctx: &ctoken_seed_system::CTokenSeedContext<'a, 'info>,
-            ) -> Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey)> {
+                program_id: &solana_pubkey::Pubkey,
+            ) -> std::result::Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey), solana_program_error::ProgramError> {
                 match self {
                     #(#get_authority_seeds_match_arms)*
-                    _ => Err(anchor_lang::prelude::ProgramError::Custom(
-                        CompressibleInstructionError::MissingSeedAccount.into()
-                    ).into())
                 }
             }
         }
     })
+}
+
+/// Extract the field name from a ctx.field or ctx.accounts.field expression
+fn extract_ctx_field_name(expr: &syn::Expr) -> Option<Ident> {
+    if let syn::Expr::Field(field_expr) = expr {
+        if let syn::Member::Named(field_name) = &field_expr.member {
+            // Check for ctx.accounts.field pattern
+            if let syn::Expr::Field(nested_field) = &*field_expr.base {
+                if let syn::Member::Named(base_name) = &nested_field.member {
+                    if base_name == "accounts" {
+                        if let syn::Expr::Path(path) = &*nested_field.base {
+                            if let Some(segment) = path.path.segments.first() {
+                                if segment.ident == "ctx" {
+                                    return Some(field_name.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Check for ctx.field pattern (shorthand)
+            else if let syn::Expr::Path(path) = &*field_expr.base {
+                if let Some(segment) = path.path.segments.first() {
+                    if segment.ident == "ctx" {
+                        return Some(field_name.clone());
+                    }
+                }
+            }
+        }
+    }
+    None
 }
 
 #[inline(never)]
@@ -404,10 +480,6 @@ pub fn generate_client_seed_functions(
         for spec in token_seed_specs {
             let variant_name = &spec.variant;
 
-            if spec.is_ata {
-                continue;
-            }
-
             let function_name =
                 format_ident!("get_{}_seeds", variant_name.to_string().to_lowercase());
 
@@ -439,7 +511,6 @@ pub fn generate_client_seed_functions(
                     variant: spec.variant.clone(),
                     _eq: spec._eq,
                     is_token: spec.is_token,
-                    is_ata: spec.is_ata,
                     seeds: syn::punctuated::Punctuated::new(),
                     authority: None,
                 };
@@ -639,6 +710,13 @@ fn analyze_seed_spec_for_client(
                             }
                         }
                     }
+                    syn::Expr::Lit(lit_expr) => {
+                        // Handle byte string literals: b"seed" -> use directly
+                        if let syn::Lit::ByteStr(byte_str) = &lit_expr.lit {
+                            let bytes = byte_str.value();
+                            expressions.push(quote! { &[#(#bytes),*] });
+                        }
+                    }
                     syn::Expr::Path(path_expr) => {
                         if let Some(ident) = path_expr.path.get_ident() {
                             let ident_str = ident.to_string();
@@ -647,9 +725,10 @@ fn analyze_seed_spec_for_client(
                                 .all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit())
                             {
                                 if ident_str == "LIGHT_CPI_SIGNER" {
-                                    expressions.push(quote! { #ident.cpi_signer.as_ref() });
+                                    expressions.push(quote! { crate::#ident.cpi_signer.as_ref() });
                                 } else {
-                                    expressions.push(quote! { #ident.as_bytes() });
+                                    // Use crate:: prefix and explicit type annotation
+                                    expressions.push(quote! { { let __seed: &[u8] = crate::#ident.as_ref(); __seed } });
                                 }
                             } else {
                                 parameters.push(quote! { #ident: &solana_pubkey::Pubkey });

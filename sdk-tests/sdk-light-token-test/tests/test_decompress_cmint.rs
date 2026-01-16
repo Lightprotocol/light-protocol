@@ -14,7 +14,7 @@ use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 /// Test decompressing a compressed mint to CMint account
 #[tokio::test]
-async fn test_decompress_cmint() {
+async fn test_decompress_mint() {
     let config = ProgramTestConfig::new_v2(true, None);
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
@@ -114,7 +114,7 @@ async fn test_decompress_cmint() {
 
 /// Test decompressing a compressed mint with freeze_authority
 #[tokio::test]
-async fn test_decompress_cmint_with_freeze_authority() {
+async fn test_decompress_mint_with_freeze_authority() {
     let config = ProgramTestConfig::new_v2(true, None);
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
@@ -299,7 +299,7 @@ async fn setup_create_compressed_mint_with_freeze_authority_only(
 
 /// Test decompressing a compressed mint with TokenMetadata extension
 #[tokio::test]
-async fn test_decompress_cmint_with_token_metadata() {
+async fn test_decompress_mint_with_token_metadata() {
     use light_token_interface::instructions::extensions::{
         ExtensionInstructionData, TokenMetadataInstructionData,
     };
@@ -506,7 +506,7 @@ async fn setup_create_compressed_mint_with_extensions(
 
 /// Test decompressing a compressed mint via CPI with PDA authority using invoke_signed
 #[tokio::test]
-async fn test_decompress_cmint_cpi_invoke_signed() {
+async fn test_decompress_mint_cpi_invoke_signed() {
     use borsh::BorshSerialize;
     use native_ctoken_examples::{
         CreateCmintData, DecompressCmintData, InstructionType, ID, MINT_AUTHORITY_SEED,
@@ -655,7 +655,7 @@ async fn test_decompress_cmint_cpi_invoke_signed() {
         ]
         .concat();
 
-        // Account order matches process_decompress_cmint_invoke_signed:
+        // Account order matches process_decompress_mint_invoke_signed:
         // 0: authority (PDA, readonly - program signs)
         // 1: payer (signer, writable)
         // 2: cmint (writable)

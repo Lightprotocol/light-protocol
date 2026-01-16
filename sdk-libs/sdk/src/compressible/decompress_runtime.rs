@@ -1,9 +1,7 @@
 //! Traits and processor for decompress_accounts_idempotent instruction.
 use light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo;
-#[cfg(feature = "cpi-context")]
-use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
 use light_sdk_types::{
-    cpi_accounts::CpiAccountsConfig,
+    cpi_accounts::CpiAccountsConfig, cpi_context_write::CpiContextWriteAccounts,
     instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress, CpiSigner,
 };
 use solana_account_info::AccountInfo;
@@ -19,7 +17,7 @@ use crate::{
     AnchorDeserialize, AnchorSerialize, LightDiscriminator,
 };
 
-/// Trait for account variants that can be checked for token vs PDA type.
+/// Trait for account variants that can be checked for token or PDA type.
 pub trait HasTokenVariant {
     /// Returns true if this variant represents a token account (PackedTokenData).
     fn is_packed_token(&self) -> bool;
@@ -27,23 +25,16 @@ pub trait HasTokenVariant {
 
 /// Trait for token seed providers.
 ///
-/// Also defined in compressed-token-sdk for token-specific runtime helpers.
+/// After Phase 8 refactor: The variant itself contains resolved seed pubkeys,
+/// so no accounts struct is needed for seed derivation.
 pub trait TokenSeedProvider: Copy {
-    /// Type of accounts struct needed for seed derivation.
-    type Accounts<'info>;
-
     /// Get seeds for the token account PDA (used for decompression).
-    fn get_seeds<'a, 'info>(
-        &self,
-        accounts: &'a Self::Accounts<'info>,
-        remaining_accounts: &'a [AccountInfo<'info>],
-    ) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
+    fn get_seeds(&self, program_id: &Pubkey) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
 
     /// Get authority seeds for signing during compression.
-    fn get_authority_seeds<'a, 'info>(
+    fn get_authority_seeds(
         &self,
-        accounts: &'a Self::Accounts<'info>,
-        remaining_accounts: &'a [AccountInfo<'info>],
+        program_id: &Pubkey,
     ) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
 }
 
@@ -71,8 +62,6 @@ pub trait DecompressContext<'info> {
     fn token_config(&self) -> Option<&AccountInfo<'info>>;
 
     /// Collect and unpack compressed accounts into PDAs and tokens.
-    ///
-    /// Caller program-specific: handles variant matching and PDA seed derivation.
     #[allow(clippy::type_complexity)]
     #[allow(clippy::too_many_arguments)]
     fn collect_pda_and_token<'b>(
@@ -88,8 +77,6 @@ pub trait DecompressContext<'info> {
     ), ProgramError>;
 
     /// Process token decompression.
-    ///
-    /// Caller program-specific: handles token account creation and seed derivation.
     #[allow(clippy::too_many_arguments)]
     fn process_tokens<'b>(
         &self,
@@ -104,20 +91,11 @@ pub trait DecompressContext<'info> {
         proof: crate::instruction::ValidityProof,
         cpi_accounts: &CpiAccounts<'b, 'info>,
         post_system_accounts: &[AccountInfo<'info>],
-        has_pdas: bool,
+        has_prior_context: bool,
     ) -> Result<(), ProgramError>;
 }
 
 /// Trait for PDA types that can derive seeds with full account context access.
-///
-/// - A: The accounts struct type (typically DecompressAccountsIdempotent<'info>)
-/// - S: The SeedParams struct containing data.* field values from instruction data
-///
-/// This allows PDA seeds to reference:
-/// - `data.*` fields from instruction parameters (seed_params.field)
-/// - `ctx.*` accounts from the instruction context (accounts.field)
-///
-/// For off-chain PDA derivation, use the generated client helper functions (get_*_seeds).
 pub trait PdaSeedDerivation<A, S> {
     fn derive_pda_seeds_with_accounts(
         &self,
@@ -127,7 +105,8 @@ pub trait PdaSeedDerivation<A, S> {
     ) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
 }
 
-/// Check compressed accounts to determine if we have tokens and/or PDAs.
+/// Check what types of accounts are in the batch.
+/// Returns (has_tokens, has_pdas).
 #[inline(never)]
 pub fn check_account_types<T: HasTokenVariant>(compressed_accounts: &[T]) -> (bool, bool) {
     let (mut has_tokens, mut has_pdas) = (false, false);
@@ -176,9 +155,6 @@ where
 {
     let data: T = P::unpack(packed, post_system_accounts)?;
 
-    // CHECK: pda match
-    // Call the method with account context and seed params
-    // Note: Some implementations may use S::default() when seed_params is None for static seeds
     let (seeds_vec, derived_pda) = if let Some(params) = seed_params {
         data.derive_pda_seeds_with_accounts(program_id, seed_accounts, params)?
     } else {
@@ -198,7 +174,6 @@ where
         ));
     }
 
-    // prepare decompression
     let compressed_infos = {
         let seed_refs: Vec<&[u8]> = seeds_vec.iter().map(|v| v.as_slice()).collect();
         crate::compressible::decompress_idempotent::prepare_account_for_decompression_idempotent::<T>(
@@ -221,6 +196,10 @@ where
 }
 
 /// Processor for decompress_accounts_idempotent.
+///
+/// CPI context batching rules:
+/// - Can use inputs from N trees
+/// - All inputs must use the FIRST CPI context account of the FIRST input
 #[inline(never)]
 #[allow(clippy::too_many_arguments)]
 pub fn process_decompress_accounts_idempotent<'info, Ctx>(
@@ -250,7 +229,10 @@ where
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    let cpi_accounts = if has_tokens {
+    // Use CPI context batching when we have both PDAs and tokens
+    // CPI context can handle inputs from N trees - all use FIRST cpi context of FIRST input
+    let needs_cpi_context = has_tokens && has_pdas;
+    let cpi_accounts = if needs_cpi_context {
         CpiAccounts::new_with_config(
             ctx.fee_payer(),
             &remaining_accounts[system_accounts_offset_usize..],
@@ -271,13 +253,7 @@ where
     let solana_accounts = remaining_accounts
         .get(pda_accounts_start..)
         .ok_or_else(|| ProgramError::from(crate::error::LightSdkError::ConstraintViolation))?;
-    let post_system_offset = cpi_accounts.system_accounts_end_offset();
-    let all_infos = cpi_accounts.account_infos();
-    let post_system_accounts = all_infos
-        .get(post_system_offset..)
-        .ok_or_else(|| ProgramError::from(crate::error::LightSdkError::ConstraintViolation))?;
 
-    // Call trait method for program-specific collection
     let (compressed_pda_infos, compressed_token_accounts) = ctx.collect_pda_and_token(
         &cpi_accounts,
         address_space,
@@ -288,49 +264,51 @@ where
 
     let has_pdas = !compressed_pda_infos.is_empty();
     let has_tokens = !compressed_token_accounts.is_empty();
+
     if !has_pdas && !has_tokens {
         return Ok(());
     }
 
     let fee_payer = ctx.fee_payer();
 
-    // Decompress PDAs via LightSystemProgram
-    #[cfg(feature = "cpi-context")]
-    if has_pdas && has_tokens {
-        let authority = cpi_accounts
-            .authority()
-            .map_err(|_| ProgramError::MissingRequiredSignature)?;
-        let cpi_context = cpi_accounts
-            .cpi_context()
-            .map_err(|_| ProgramError::MissingRequiredSignature)?;
-        let system_cpi_accounts = CpiContextWriteAccounts {
-            fee_payer,
-            authority,
-            cpi_context,
-            cpi_signer,
-        };
-
-        LightSystemProgramCpi::new_cpi(cpi_signer, proof)
-            .with_account_infos(&compressed_pda_infos)
-            .write_to_cpi_context_first()
-            .invoke_write_to_cpi_context_first(system_cpi_accounts)?;
-    } else if has_pdas {
-        LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
-            .with_account_infos(&compressed_pda_infos)
-            .invoke(cpi_accounts.clone())?;
-    }
-
-    // TODO: fix this
-    #[cfg(not(feature = "cpi-context"))]
+    // Process PDAs (if any)
     if has_pdas {
-        LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
-            .with_account_infos(&compressed_pda_infos)
-            .invoke(cpi_accounts.clone())?;
+        if !has_tokens {
+            // PDAs only - execute directly
+            LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
+                .with_account_infos(&compressed_pda_infos)
+                .invoke(cpi_accounts.clone())?;
+        } else {
+            // PDAs + tokens - write to CPI context first, tokens will execute
+            let authority = cpi_accounts
+                .authority()
+                .map_err(|_| ProgramError::MissingRequiredSignature)?;
+            let cpi_context = cpi_accounts
+                .cpi_context()
+                .map_err(|_| ProgramError::MissingRequiredSignature)?;
+            let system_cpi_accounts = CpiContextWriteAccounts {
+                fee_payer,
+                authority,
+                cpi_context,
+                cpi_signer,
+            };
+
+            LightSystemProgramCpi::new_cpi(cpi_signer, proof)
+                .with_account_infos(&compressed_pda_infos)
+                .write_to_cpi_context_first()
+                .invoke_write_to_cpi_context_first(system_cpi_accounts)?;
+        }
     }
 
-    // Decompress tokens via trait method
+    // Process tokens (if any) - executes and consumes CPI context if PDAs wrote to it
     if has_tokens {
-        let token_program = ctx
+        let post_system_offset = cpi_accounts.system_accounts_end_offset();
+        let all_infos = cpi_accounts.account_infos();
+        let post_system_accounts = all_infos
+            .get(post_system_offset..)
+            .ok_or_else(|| ProgramError::from(crate::error::LightSdkError::ConstraintViolation))?;
+
+        let light_token_program = ctx
             .token_program()
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
         let token_rent_sponsor = ctx
@@ -346,7 +324,7 @@ where
         ctx.process_tokens(
             remaining_accounts,
             fee_payer,
-            token_program,
+            light_token_program,
             token_rent_sponsor,
             token_cpi_authority,
             token_config,
@@ -355,7 +333,7 @@ where
             proof,
             &cpi_accounts,
             post_system_accounts,
-            has_pdas,
+            has_pdas, // has_prior_context: PDAs wrote to CPI context
         )?;
     }
 

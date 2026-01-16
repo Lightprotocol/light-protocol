@@ -144,7 +144,7 @@ async fn test_ctoken_transfer_checked_spl_mint() {
     let mut instruction_data = vec![InstructionType::CTokenTransferCheckedInvoke as u8];
     transfer_data.serialize(&mut instruction_data).unwrap();
 
-    let ctoken_program = light_token_sdk::token::LIGHT_TOKEN_PROGRAM_ID;
+    let light_token_program = light_token_sdk::token::LIGHT_TOKEN_PROGRAM_ID;
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
@@ -152,7 +152,7 @@ async fn test_ctoken_transfer_checked_spl_mint() {
             AccountMeta::new_readonly(mint, false),
             AccountMeta::new(dest_ata, false),
             AccountMeta::new_readonly(source_owner, true),
-            AccountMeta::new_readonly(ctoken_program, false),
+            AccountMeta::new_readonly(light_token_program, false),
         ],
         data: instruction_data,
     };
@@ -249,7 +249,7 @@ async fn test_ctoken_transfer_checked_t22_mint() {
     let mut instruction_data = vec![InstructionType::CTokenTransferCheckedInvoke as u8];
     transfer_data.serialize(&mut instruction_data).unwrap();
 
-    let ctoken_program = light_token_sdk::token::LIGHT_TOKEN_PROGRAM_ID;
+    let light_token_program = light_token_sdk::token::LIGHT_TOKEN_PROGRAM_ID;
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
@@ -257,7 +257,7 @@ async fn test_ctoken_transfer_checked_t22_mint() {
             AccountMeta::new_readonly(mint, false),
             AccountMeta::new(dest_ata, false),
             AccountMeta::new_readonly(source_owner, true),
-            AccountMeta::new_readonly(ctoken_program, false),
+            AccountMeta::new_readonly(light_token_program, false),
         ],
         data: instruction_data,
     };
@@ -310,7 +310,7 @@ async fn test_ctoken_transfer_checked_cmint() {
     let mut instruction_data = vec![InstructionType::CTokenTransferCheckedInvoke as u8];
     transfer_data.serialize(&mut instruction_data).unwrap();
 
-    let ctoken_program = light_token_sdk::token::LIGHT_TOKEN_PROGRAM_ID;
+    let light_token_program = light_token_sdk::token::LIGHT_TOKEN_PROGRAM_ID;
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
@@ -318,7 +318,7 @@ async fn test_ctoken_transfer_checked_cmint() {
             AccountMeta::new_readonly(mint, false),
             AccountMeta::new(dest_ata, false),
             AccountMeta::new_readonly(source_owner, true),
-            AccountMeta::new_readonly(ctoken_program, false),
+            AccountMeta::new_readonly(light_token_program, false),
         ],
         data: instruction_data,
     };

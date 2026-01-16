@@ -17,7 +17,7 @@ pub struct ApproveData {
 /// - accounts[1]: delegate
 /// - accounts[2]: owner (signer)
 /// - accounts[3]: system_program
-/// - accounts[4]: ctoken_program
+/// - accounts[4]: light_token_program
 pub fn process_approve_invoke(
     accounts: &[AccountInfo],
     data: ApproveData,
@@ -45,7 +45,7 @@ pub fn process_approve_invoke(
 /// - accounts[1]: delegate
 /// - accounts[2]: PDA owner (program signs)
 /// - accounts[3]: system_program
-/// - accounts[4]: ctoken_program
+/// - accounts[4]: light_token_program
 pub fn process_approve_invoke_signed(
     accounts: &[AccountInfo],
     data: ApproveData,

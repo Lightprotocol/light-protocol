@@ -8,7 +8,7 @@ license = "MIT"
 [features]
 default = ["solana"]
 solana = ["dep:solana-program-error", "light-compressed-account/solana", "light-account-checks/solana", "solana-sysvar", "solana-msg"]
-anchor = ["anchor-lang", "light-compressed-account/anchor", "light-compressed-account/std", "light-account-checks/solana"]
+anchor = ["anchor-lang", "light-compressed-account/anchor", "light-compressed-account/std", "light-account-checks/solana", "light-sdk-types/anchor"]
 pinocchio = ["dep:pinocchio", "light-compressed-account/pinocchio", "light-account-checks/pinocchio"]
 profile-program = []
 profile-heap = ["dep:light-heap"]
@@ -32,6 +32,7 @@ light-program-profiler = { workspace = true }
 light-heap = { workspace = true, optional = true }
 light-account-checks = { workspace= true }
 light-compressed-account = { workspace= true }
+light-sdk-types = { workspace = true }
 aligned-sized = { workspace= true }
 solana-sysvar = {workspace = true, optional = true}
 

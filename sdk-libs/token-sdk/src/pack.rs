@@ -11,7 +11,9 @@ use solana_program_error::ProgramError;
 
 use crate::{AnchorDeserialize, AnchorSerialize};
 
-// We define the traits here to circumvent the orphan rule.
+// Note: We define Pack/Unpack traits locally to circumvent the orphan rule.
+// This allows implementing them for external types like TokenData from ctoken-interface.
+// The sdk has identical trait definitions in light_sdk::compressible.
 pub trait Pack {
     type Packed;
     fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed;
@@ -22,36 +24,6 @@ pub trait Unpack {
         &self,
         remaining_accounts: &[AccountInfo],
     ) -> std::result::Result<Self::Unpacked, ProgramError>;
-}
-
-impl Pack for TokenData {
-    type Packed = light_token_interface::instructions::transfer2::MultiTokenTransferOutputData;
-
-    fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
-        Self::Packed {
-            owner: remaining_accounts.insert_or_get(self.owner.to_bytes().into()),
-            mint: remaining_accounts.insert_or_get_read_only(self.mint.to_bytes().into()),
-            amount: self.amount,
-            has_delegate: self.delegate.is_some(),
-            delegate: if let Some(delegate) = self.delegate {
-                remaining_accounts.insert_or_get(delegate.to_bytes().into())
-            } else {
-                0
-            },
-            version: TokenDataVersion::ShaFlat as u8,
-        }
-    }
-}
-
-impl Unpack for TokenData {
-    type Unpacked = Self;
-
-    fn unpack(
-        &self,
-        _remaining_accounts: &[AccountInfo],
-    ) -> std::result::Result<Self::Unpacked, ProgramError> {
-        Ok(self.clone())
-    }
 }
 
 /// Solana-compatible token types using `solana_pubkey::Pubkey`
@@ -144,7 +116,7 @@ pub mod compat {
         }
     }
 
-    impl From<TokenData> for crate::pack::TokenData {
+    impl From<TokenData> for light_token_interface::state::TokenData {
         fn from(data: TokenData) -> Self {
             use light_token_interface::state::CompressedTokenAccountState;
 
@@ -162,8 +134,8 @@ pub mod compat {
         }
     }
 
-    impl From<crate::pack::TokenData> for TokenData {
-        fn from(data: crate::pack::TokenData) -> Self {
+    impl From<light_token_interface::state::TokenData> for TokenData {
+        fn from(data: light_token_interface::state::TokenData) -> Self {
             Self {
                 mint: Pubkey::new_from_array(data.mint.to_bytes()),
                 owner: Pubkey::new_from_array(data.owner.to_bytes()),
@@ -246,7 +218,7 @@ pub mod compat {
     }
 
     #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
-    pub struct PackedCTokenDataWithVariant<V> {
+    pub struct PackedTokenDataWithVariant<V> {
         pub variant: V,
         pub token_data: InputTokenDataCompressible,
     }
@@ -259,13 +231,14 @@ pub mod compat {
 
     impl<V> Pack for CTokenDataWithVariant<V>
     where
-        V: AnchorSerialize + Clone + std::fmt::Debug,
+        V: Pack,
+        V::Packed: AnchorSerialize + Clone + std::fmt::Debug,
     {
-        type Packed = PackedCTokenDataWithVariant<V>;
+        type Packed = PackedTokenDataWithVariant<V::Packed>;
 
         fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
-            PackedCTokenDataWithVariant {
-                variant: self.variant.clone(),
+            PackedTokenDataWithVariant {
+                variant: self.variant.pack(remaining_accounts),
                 token_data: self.token_data.pack(remaining_accounts),
             }
         }
@@ -281,6 +254,8 @@ pub mod compat {
             &self,
             remaining_accounts: &[AccountInfo],
         ) -> std::result::Result<Self::Unpacked, ProgramError> {
+            // Note: This impl assumes V is already unpacked (has Pubkeys).
+            // For packed variants, use PackedTokenDataWithVariant::unpack instead.
             Ok(TokenDataWithVariant {
                 variant: self.variant.clone(),
                 token_data: self.token_data.unpack(remaining_accounts)?,
@@ -290,30 +265,31 @@ pub mod compat {
 
     impl<V> Pack for TokenDataWithVariant<V>
     where
-        V: AnchorSerialize + Clone + std::fmt::Debug,
+        V: Pack,
+        V::Packed: AnchorSerialize + Clone + std::fmt::Debug,
     {
-        type Packed = PackedCTokenDataWithVariant<V>;
+        type Packed = PackedTokenDataWithVariant<V::Packed>;
 
         fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
-            PackedCTokenDataWithVariant {
-                variant: self.variant.clone(),
+            PackedTokenDataWithVariant {
+                variant: self.variant.pack(remaining_accounts),
                 token_data: self.token_data.pack(remaining_accounts),
             }
         }
     }
 
-    impl<V> Unpack for PackedCTokenDataWithVariant<V>
+    impl<V> Unpack for PackedTokenDataWithVariant<V>
     where
-        V: Clone,
+        V: Unpack,
     {
-        type Unpacked = TokenDataWithVariant<V>;
+        type Unpacked = TokenDataWithVariant<V::Unpacked>;
 
         fn unpack(
             &self,
             remaining_accounts: &[AccountInfo],
         ) -> std::result::Result<Self::Unpacked, ProgramError> {
             Ok(TokenDataWithVariant {
-                variant: self.variant.clone(),
+                variant: self.variant.unpack(remaining_accounts)?,
                 token_data: self.token_data.unpack(remaining_accounts)?,
             })
         }
@@ -323,7 +299,7 @@ pub mod compat {
     pub type InputTokenDataCompressible =
         light_token_interface::instructions::transfer2::MultiTokenTransferOutputData;
     pub type CompressibleTokenDataWithVariant<V> = CTokenDataWithVariant<V>;
-    pub type PackedCompressibleTokenDataWithVariant<V> = PackedCTokenDataWithVariant<V>;
+    pub type PackedCompressibleTokenDataWithVariant<V> = PackedTokenDataWithVariant<V>;
     pub type CTokenData<V> = CTokenDataWithVariant<V>;
-    pub type PackedCTokenData<V> = PackedCTokenDataWithVariant<V>;
+    pub type PackedCTokenData<V> = PackedTokenDataWithVariant<V>;
 }
