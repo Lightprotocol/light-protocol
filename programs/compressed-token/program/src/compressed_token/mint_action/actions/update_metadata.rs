@@ -6,7 +6,7 @@ use light_token_interface::{
     instructions::mint_action::{
         ZRemoveMetadataKeyAction, ZUpdateMetadataAuthorityAction, ZUpdateMetadataFieldAction,
     },
-    state::{CompressedMint, ExtensionStruct, TokenMetadata},
+    state::{ExtensionStruct, Mint, TokenMetadata},
 };
 use spl_pod::solana_msg::msg;
 
@@ -16,7 +16,7 @@ use crate::compressed_token::mint_action::check_authority;
 #[profile]
 #[track_caller]
 fn get_metadata_extension_mut<'a>(
-    compressed_mint: &'a mut CompressedMint,
+    compressed_mint: &'a mut Mint,
     extension_index: usize,
     operation_name: &str,
     signer: &pinocchio::pubkey::Pubkey,
@@ -54,7 +54,7 @@ fn get_metadata_extension_mut<'a>(
 #[profile]
 pub fn process_update_metadata_field_action(
     action: &ZUpdateMetadataFieldAction,
-    compressed_mint: &mut CompressedMint,
+    compressed_mint: &mut Mint,
     signer: &pinocchio::pubkey::Pubkey,
 ) -> Result<(), ProgramError> {
     let metadata = get_metadata_extension_mut(
@@ -103,7 +103,7 @@ pub fn process_update_metadata_field_action(
 #[profile]
 pub fn process_update_metadata_authority_action(
     action: &ZUpdateMetadataAuthorityAction,
-    compressed_mint: &mut CompressedMint,
+    compressed_mint: &mut Mint,
     signer: &pinocchio::pubkey::Pubkey,
 ) -> Result<(), ProgramError> {
     let metadata = get_metadata_extension_mut(
@@ -126,7 +126,7 @@ pub fn process_update_metadata_authority_action(
 #[profile]
 pub fn process_remove_metadata_key_action(
     action: &ZRemoveMetadataKeyAction,
-    compressed_mint: &mut CompressedMint,
+    compressed_mint: &mut Mint,
     signer: &pinocchio::pubkey::Pubkey,
 ) -> Result<(), ProgramError> {
     let metadata = get_metadata_extension_mut(

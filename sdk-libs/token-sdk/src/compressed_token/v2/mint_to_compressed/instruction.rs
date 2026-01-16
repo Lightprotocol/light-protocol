@@ -1,7 +1,5 @@
 use light_compressed_account::instruction_data::traits::LightInstructionData;
-use light_token_interface::instructions::mint_action::{
-    CompressedMintWithContext, CpiContext, Recipient,
-};
+use light_token_interface::instructions::mint_action::{CpiContext, MintWithContext, Recipient};
 pub use light_token_types::account_infos::mint_to_compressed::DecompressedMintConfig;
 use light_token_types::CompressedProof;
 use solana_instruction::Instruction;
@@ -18,13 +16,13 @@ pub const MINT_TO_COMPRESSED_DISCRIMINATOR: u8 = 101;
 /// Input parameters for creating a mint_to_compressed instruction
 #[derive(Debug, Clone)]
 pub struct MintToCompressedInputs {
-    pub compressed_mint_inputs: CompressedMintWithContext,
+    pub compressed_mint_inputs: MintWithContext,
     pub recipients: Vec<Recipient>,
     pub mint_authority: Pubkey,
     pub payer: Pubkey,
     pub state_merkle_tree: Pubkey,
     pub input_queue: Pubkey,
-    pub output_queue_cmint: Pubkey,
+    pub output_queue_mint: Pubkey,
     pub output_queue_tokens: Pubkey,
     /// Required if the mint is decompressed
     pub decompressed_mint_config: Option<DecompressedMintConfig<Pubkey>>,
@@ -47,7 +45,7 @@ pub fn create_mint_to_compressed_instruction(
         payer,
         state_merkle_tree,
         input_queue,
-        output_queue_cmint,
+        output_queue_mint,
         output_queue_tokens: _,
         decompressed_mint_config: _,
         proof,
@@ -85,7 +83,7 @@ pub fn create_mint_to_compressed_instruction(
             mint_authority,
             state_merkle_tree,
             input_queue,
-            output_queue_cmint,
+            output_queue_mint,
         )
         .with_mint_compressed_tokens()
     };

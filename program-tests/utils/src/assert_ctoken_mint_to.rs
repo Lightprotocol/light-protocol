@@ -2,7 +2,7 @@ use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::rpc::Rpc;
 use light_compressible::compression_info::CompressionInfo;
 use light_program_test::LightProgramTest;
-use light_token_interface::state::{extensions::ExtensionStruct, CompressedMint, Token};
+use light_token_interface::state::{extensions::ExtensionStruct, Mint, Token};
 use solana_sdk::pubkey::Pubkey;
 
 /// Extract CompressionInfo from Light Token's Compressible extension
@@ -23,27 +23,27 @@ fn get_ctoken_compression_info(ctoken: &Token) -> Option<CompressionInfo> {
 /// # Arguments
 /// * `rpc` - RPC client to fetch account data (must be LightProgramTest)
 /// * `ctoken_account` - Destination Light Token account pubkey
-/// * `cmint_account` - CMint account pubkey
+/// * `mint_account` - Mint account pubkey
 /// * `mint_amount` - Amount that was minted
 ///
 /// # Assertions
 /// * Light Token balance increased by mint amount
-/// * CMint supply increased by mint amount
+/// * Mint supply increased by mint amount
 /// * Compressible extensions preserved (if present)
 /// * Lamport top-ups applied correctly (if compressible)
 pub async fn assert_ctoken_mint_to(
     rpc: &mut LightProgramTest,
     ctoken_account: Pubkey,
-    cmint_account: Pubkey,
+    mint_account: Pubkey,
     mint_amount: u64,
 ) {
     // Get pre-transaction state from cache
     let ctoken_before = rpc
         .get_pre_transaction_account(&ctoken_account)
         .expect("Light Token account should exist in pre-transaction context");
-    let cmint_before = rpc
-        .get_pre_transaction_account(&cmint_account)
-        .expect("CMint account should exist in pre-transaction context");
+    let mint_before = rpc
+        .get_pre_transaction_account(&mint_account)
+        .expect("Mint account should exist in pre-transaction context");
 
     // Get post-transaction state
     let ctoken_after = rpc
@@ -51,11 +51,11 @@ pub async fn assert_ctoken_mint_to(
         .await
         .expect("Failed to get Light Token account after transaction")
         .expect("Light Token account should exist after transaction");
-    let cmint_after = rpc
-        .get_account(cmint_account)
+    let mint_after = rpc
+        .get_account(mint_account)
         .await
-        .expect("Failed to get CMint account after transaction")
-        .expect("CMint account should exist after transaction");
+        .expect("Failed to get Mint account after transaction")
+        .expect("Mint account should exist after transaction");
 
     // Parse accounts using Borsh
     let ctoken_parsed_before: Token =
@@ -64,20 +64,18 @@ pub async fn assert_ctoken_mint_to(
     let ctoken_parsed_after: Token =
         BorshDeserialize::deserialize(&mut ctoken_after.data.as_slice())
             .expect("Failed to deserialize Light Token after");
-    let cmint_parsed_before: CompressedMint =
-        BorshDeserialize::deserialize(&mut cmint_before.data.as_slice())
-            .expect("Failed to deserialize CMint before");
-    let cmint_parsed_after: CompressedMint =
-        BorshDeserialize::deserialize(&mut cmint_after.data.as_slice())
-            .expect("Failed to deserialize CMint after");
+    let mint_parsed_before: Mint = BorshDeserialize::deserialize(&mut mint_before.data.as_slice())
+        .expect("Failed to deserialize Mint before");
+    let mint_parsed_after: Mint = BorshDeserialize::deserialize(&mut mint_after.data.as_slice())
+        .expect("Failed to deserialize Mint after");
 
     // Build expected Light Token state
     let mut expected_ctoken = ctoken_parsed_before.clone();
     expected_ctoken.amount += mint_amount;
 
-    // Build expected CMint state
-    let mut expected_cmint = cmint_parsed_before.clone();
-    expected_cmint.base.supply += mint_amount;
+    // Build expected Mint state
+    let mut expected_mint = mint_parsed_before.clone();
+    expected_mint.base.supply += mint_amount;
 
     // Assert full Light Token struct
     assert_eq!(
@@ -86,10 +84,10 @@ pub async fn assert_ctoken_mint_to(
         mint_amount
     );
 
-    // Assert full CMint struct
+    // Assert full Mint struct
     assert_eq!(
-        cmint_parsed_after, expected_cmint,
-        "CMint state mismatch after mint_to. mint_amount: {}",
+        mint_parsed_after, expected_mint,
+        "Mint state mismatch after mint_to. mint_amount: {}",
         mint_amount
     );
 
@@ -106,27 +104,23 @@ pub async fn assert_ctoken_mint_to(
         )
         .await;
 
-        let expected_cmint_lamport_change = calculate_expected_lamport_change(
+        let expected_mint_lamport_change = calculate_expected_lamport_change(
             rpc,
-            &cmint_parsed_before.compression,
-            cmint_before.data.len(),
+            &mint_parsed_before.compression,
+            mint_before.data.len(),
             current_slot,
-            cmint_before.lamports,
+            mint_before.lamports,
         )
         .await;
 
         let actual_ctoken_lamport_change =
             ctoken_after.lamports.saturating_sub(ctoken_before.lamports);
-        let actual_cmint_lamport_change =
-            cmint_after.lamports.saturating_sub(cmint_before.lamports);
+        let actual_mint_lamport_change = mint_after.lamports.saturating_sub(mint_before.lamports);
 
         // Assert lamport changes
         assert_eq!(
-            (actual_ctoken_lamport_change, actual_cmint_lamport_change),
-            (
-                expected_ctoken_lamport_change,
-                expected_cmint_lamport_change
-            ),
+            (actual_ctoken_lamport_change, actual_mint_lamport_change),
+            (expected_ctoken_lamport_change, expected_mint_lamport_change),
             "Lamport changes mismatch after mint_to"
         );
     }

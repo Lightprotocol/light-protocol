@@ -1,7 +1,7 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_token_interface::{
     instructions::extensions::TokenMetadataInstructionData,
-    state::{BaseMint, CompressedMint, CompressedMintMetadata, ExtensionStruct, ACCOUNT_TYPE_MINT},
+    state::{BaseMint, ExtensionStruct, Mint, MintMetadata, ACCOUNT_TYPE_MINT},
 };
 use solana_sdk::pubkey::Pubkey;
 
@@ -16,13 +16,13 @@ pub fn assert_compressed_mint_account(
     mint_authority: Pubkey,
     freeze_authority: Pubkey,
     metadata: Option<TokenMetadataInstructionData>,
-) -> CompressedMint {
+) -> Mint {
     // Derive mint_signer from spl_mint_pda by reversing the PDA derivation
     // We need to find the mint_signer and bump used to create spl_mint_pda
     // spl_mint_pda = PDA([COMPRESSED_MINT_SEED, mint_signer], program_id)
     // Since we can't reverse this, we extract it from the actual compressed mint data
     let compressed_account_data = compressed_mint_account.data.clone().unwrap();
-    let actual_compressed_mint: CompressedMint =
+    let actual_compressed_mint: Mint =
         BorshDeserialize::deserialize(&mut compressed_account_data.data.as_slice()).unwrap();
     let mint_signer = actual_compressed_mint.metadata.mint_signer;
     let bump = actual_compressed_mint.metadata.bump;
@@ -44,7 +44,7 @@ pub fn assert_compressed_mint_account(
     });
 
     // Create expected compressed mint for comparison
-    let expected_compressed_mint = CompressedMint {
+    let expected_compressed_mint = Mint {
         base: BaseMint {
             mint_authority: Some(mint_authority.into()),
             supply: 0,
@@ -52,10 +52,10 @@ pub fn assert_compressed_mint_account(
             is_initialized: true,
             freeze_authority: Some(freeze_authority.into()),
         },
-        metadata: CompressedMintMetadata {
+        metadata: MintMetadata {
             version: 3,
             mint: spl_mint_pda.into(),
-            cmint_decompressed: false,
+            mint_decompressed: false,
             mint_signer,
             bump,
         },
@@ -80,8 +80,8 @@ pub fn assert_compressed_mint_account(
         light_compressed_token::constants::COMPRESSED_MINT_DISCRIMINATOR
     );
 
-    // Deserialize and verify the CompressedMint struct matches expected
-    let compressed_mint: CompressedMint =
+    // Deserialize and verify the Mint struct matches expected
+    let compressed_mint: Mint =
         BorshDeserialize::deserialize(&mut compressed_account_data.data.as_slice()).unwrap();
     println!("Compressed Mint: {:?}", compressed_mint);
     assert_eq!(compressed_mint, expected_compressed_mint);

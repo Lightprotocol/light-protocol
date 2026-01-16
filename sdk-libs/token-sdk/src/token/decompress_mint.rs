@@ -3,7 +3,7 @@ use light_compressed_account::instruction_data::{
 };
 use light_token_interface::instructions::mint_action::{
     CompressedMintWithContext, CpiContext, DecompressMintAction,
-    MintActionCompressedInstructionData,
+    MintActionCompressedInstructionData, MintWithContext,
 };
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
@@ -14,10 +14,10 @@ use solana_pubkey::Pubkey;
 use super::{config_pda, rent_sponsor_pda, SystemAccountInfos};
 use crate::compressed_token::mint_action::MintActionMetaConfig;
 
-/// Decompress a compressed mint to a CMint Solana account.
+/// Decompress a compressed mint to a Mint Solana account.
 ///
-/// Creates an on-chain CMint PDA that becomes the source of truth.
-/// The CMint is always compressible.
+/// Creates an on-chain Mint PDA that becomes the source of truth.
+/// The Mint is always compressible.
 ///
 /// # Example
 /// ```rust,ignore
@@ -46,7 +46,7 @@ pub struct DecompressMint {
     /// Output queue for updated compressed mint
     pub output_queue: Pubkey,
     /// Compressed mint with context (from indexer)
-    pub compressed_mint_with_context: CompressedMintWithContext,
+    pub compressed_mint_with_context: MintWithContext,
     /// Validity proof for the compressed mint
     pub proof: ValidityProof,
     /// Rent payment in epochs (must be >= 2)
@@ -57,13 +57,13 @@ pub struct DecompressMint {
 
 impl DecompressMint {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        // Get CMint PDA from compressed mint metadata
+        // Get Mint PDA from compressed mint metadata
         let mint_data = self
             .compressed_mint_with_context
             .mint
             .as_ref()
             .ok_or(ProgramError::InvalidInstructionData)?;
-        let cmint_pda = Pubkey::from(mint_data.metadata.mint.to_bytes());
+        let mint_pda = Pubkey::from(mint_data.metadata.mint.to_bytes());
 
         // Build DecompressMintAction
         let action = DecompressMintAction {
@@ -78,7 +78,7 @@ impl DecompressMint {
         )
         .with_decompress_mint(action);
 
-        // Build account metas with compressible CMint
+        // Build account metas with compressible Mint
         let meta_config = MintActionMetaConfig::new(
             self.payer,
             self.authority,
@@ -86,7 +86,7 @@ impl DecompressMint {
             self.input_queue,
             self.output_queue,
         )
-        .with_compressible_mint(cmint_pda, config_pda(), rent_sponsor_pda());
+        .with_compressible_mint(mint_pda, config_pda(), rent_sponsor_pda());
 
         let account_metas = meta_config.to_account_metas();
 
@@ -106,17 +106,17 @@ impl DecompressMint {
 // CPI Struct: DecompressMintCpi
 // ============================================================================
 
-/// Decompress a compressed mint to a CMint Solana account via CPI.
+/// Decompress a compressed mint to a Mint Solana account via CPI.
 ///
-/// Creates an on-chain CMint PDA that becomes the source of truth.
-/// The CMint is always compressible.
+/// Creates an on-chain Mint PDA that becomes the source of truth.
+/// The Mint is always compressible.
 ///
 /// # Example
 /// ```rust,ignore
 /// DecompressMintCpi {
 ///     authority: authority_account,
 ///     payer: payer_account,
-///     cmint: cmint_account,
+///     mint: mint_account,
 ///     compressible_config: config_account,
 ///     rent_sponsor: rent_sponsor_account,
 ///     state_tree: state_tree_account,
@@ -135,8 +135,8 @@ pub struct DecompressMintCpi<'info> {
     pub authority: AccountInfo<'info>,
     /// Fee payer
     pub payer: AccountInfo<'info>,
-    /// CMint PDA account (writable)
-    pub cmint: AccountInfo<'info>,
+    /// Mint PDA account (writable)
+    pub mint: AccountInfo<'info>,
     /// CompressibleConfig account
     pub compressible_config: AccountInfo<'info>,
     /// Rent sponsor PDA account
@@ -150,7 +150,7 @@ pub struct DecompressMintCpi<'info> {
     /// System accounts for Light Protocol
     pub system_accounts: SystemAccountInfos<'info>,
     /// Compressed mint with context (from indexer)
-    pub compressed_mint_with_context: CompressedMintWithContext,
+    pub compressed_mint_with_context: MintWithContext,
     /// Validity proof for the compressed mint
     pub proof: ValidityProof,
     /// Rent payment in epochs (must be >= 2)
@@ -172,7 +172,7 @@ impl<'info> DecompressMintCpi<'info> {
         // 2. mint_signer (no sign for decompress)
         // 3. authority (signer)
         // 4. compressible_config
-        // 5. cmint
+        // 5. mint
         // 6. rent_sponsor
         // 7. fee_payer (signer)
         // 8. cpi_authority_pda
@@ -198,7 +198,7 @@ impl<'info> DecompressMintCpi<'info> {
             self.system_accounts.light_system_program.clone(),
             self.authority.clone(),
             self.compressible_config.clone(),
-            self.cmint.clone(),
+            self.mint.clone(),
             self.rent_sponsor.clone(),
             self.payer.clone(),
             self.system_accounts.cpi_authority_pda.clone(),

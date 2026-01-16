@@ -1,4 +1,4 @@
-// Tests compatibility between Light Protocol BaseCompressedMint and SPL Mint
+// Tests compatibility between Light Protocol BaseMint and SPL Mint
 // Verifies that both implementations correctly serialize/deserialize their data
 // and maintain logical equivalence of mint fields.
 
@@ -6,7 +6,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_token_interface::state::BaseMint;
 use rand::{thread_rng, Rng};
-use spl_token_2022::{solana_program::program_pack::Pack, state::Mint};
+use spl_token_2022::{solana_program::program_pack::Pack, state::Mint as SplMint};
 
 /// Generate random test data for a mint
 fn generate_random_mint_data() -> (Option<Pubkey>, Option<Pubkey>, u64, u8, bool) {
@@ -50,7 +50,7 @@ fn generate_random_mint_data() -> (Option<Pubkey>, Option<Pubkey>, u64, u8, bool
 
 /// Compare Light and SPL mint structures for logical equivalence
 /// Also tests that each format can serialize/deserialize its own data correctly
-fn compare_mints(light: &BaseMint, spl: &Mint, iteration: usize) {
+fn compare_mints(light: &BaseMint, spl: &SplMint, iteration: usize) {
     // Compare supply
     assert_eq!(
         light.supply, spl.supply,
@@ -95,9 +95,9 @@ fn compare_mints(light: &BaseMint, spl: &Mint, iteration: usize) {
     );
 
     // Test SPL serialization roundtrip
-    let mut spl_bytes = vec![0u8; Mint::LEN];
-    Mint::pack(*spl, &mut spl_bytes).unwrap();
-    let spl_deserialized = Mint::unpack(&spl_bytes).unwrap();
+    let mut spl_bytes = vec![0u8; SplMint::LEN];
+    SplMint::pack(*spl, &mut spl_bytes).unwrap();
+    let spl_deserialized = SplMint::unpack(&spl_bytes).unwrap();
     assert_eq!(
         spl, &spl_deserialized,
         "SPL mint roundtrip failed at iteration {}",
@@ -113,9 +113,9 @@ fn compare_mints(light: &BaseMint, spl: &Mint, iteration: usize) {
     );
     assert_eq!(
         spl_bytes.len(),
-        Mint::LEN,
+        SplMint::LEN,
         "SPL serialized size should be {} at iteration {}",
-        Mint::LEN,
+        SplMint::LEN,
         iteration
     );
     assert_eq!(
@@ -133,7 +133,7 @@ fn compare_mints(light: &BaseMint, spl: &Mint, iteration: usize) {
     );
 }
 
-/// Test that borsh serialization of BaseCompressedMint fields matches SPL Mint Pack format
+/// Test that borsh serialization of BaseMint fields matches SPL Mint Pack format
 #[test]
 fn test_base_mint_borsh_pack_compatibility() {
     for i in 0..1000 {
@@ -141,7 +141,7 @@ fn test_base_mint_borsh_pack_compatibility() {
         let (mint_authority, freeze_authority, supply, decimals, is_initialized) =
             generate_random_mint_data();
 
-        // Create Light BaseCompressedMint
+        // Create Light BaseMint
         // Note: We generate a random mint pubkey for completeness
         let mut spl_mint_bytes = [0u8; 32];
         thread_rng().fill(&mut spl_mint_bytes);
@@ -156,7 +156,7 @@ fn test_base_mint_borsh_pack_compatibility() {
         };
 
         // Create SPL Mint
-        let mint = Mint {
+        let mint = SplMint {
             mint_authority: mint_authority
                 .map(|p| solana_pubkey::Pubkey::from(p.to_bytes()))
                 .into(),
@@ -186,7 +186,7 @@ fn test_mint_edge_cases() {
         freeze_authority: None,
     };
 
-    let spl_no_auth = Mint {
+    let spl_no_auth = SplMint {
         mint_authority: None.into(),
         supply: 1_000_000,
         decimals: 6,
@@ -206,7 +206,7 @@ fn test_mint_edge_cases() {
         freeze_authority: Some(Pubkey::from([254u8; 32])),
     };
 
-    let spl_max = Mint {
+    let spl_max = SplMint {
         mint_authority: Some(solana_pubkey::Pubkey::from([255u8; 32])).into(),
         supply: u64::MAX,
         decimals: 9,
@@ -225,7 +225,7 @@ fn test_mint_edge_cases() {
         freeze_authority: None,
     };
 
-    let spl_zero = Mint {
+    let spl_zero = SplMint {
         mint_authority: Some(solana_pubkey::Pubkey::from([1u8; 32])).into(),
         supply: 0,
         decimals: 0,

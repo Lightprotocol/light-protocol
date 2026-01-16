@@ -1,4 +1,4 @@
-// Tests compatibility between Borsh and Zero-copy serialization for CompressedMint
+// Tests compatibility between Borsh and Zero-copy serialization for Mint
 // Verifies that both implementations correctly serialize/deserialize their data
 // and maintain full struct equivalence including token metadata extension.
 
@@ -7,11 +7,11 @@ use light_compressed_account::Pubkey;
 use light_compressible::compression_info::CompressionInfo;
 use light_token_interface::state::{
     extensions::{AdditionalMetadata, ExtensionStruct, TokenMetadata},
-    mint::{BaseMint, CompressedMint, CompressedMintMetadata, ACCOUNT_TYPE_MINT},
+    mint::{BaseMint, Mint, MintMetadata, ACCOUNT_TYPE_MINT},
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 use rand::{thread_rng, Rng};
-use spl_token_2022::{solana_program::program_pack::Pack, state::Mint};
+use spl_token_2022::{solana_program::program_pack::Pack, state::Mint as SplMint};
 
 /// Generate random token metadata extension
 fn generate_random_token_metadata(rng: &mut impl Rng) -> TokenMetadata {
@@ -63,8 +63,8 @@ fn generate_random_token_metadata(rng: &mut impl Rng) -> TokenMetadata {
     }
 }
 
-/// Generate random CompressedMint for testing
-fn generate_random_mint() -> CompressedMint {
+/// Generate random Mint for testing
+fn generate_random_mint() -> Mint {
     let mut rng = thread_rng();
 
     // 40% chance to include token metadata extension
@@ -75,7 +75,7 @@ fn generate_random_mint() -> CompressedMint {
         None
     };
 
-    CompressedMint {
+    Mint {
         base: BaseMint {
             mint_authority: if rng.gen_bool(0.7) {
                 let mut bytes = [0u8; 32];
@@ -95,9 +95,9 @@ fn generate_random_mint() -> CompressedMint {
             decimals: rng.gen_range(0..=18),
             is_initialized: true,
         },
-        metadata: CompressedMintMetadata {
+        metadata: MintMetadata {
             version: 3,
-            cmint_decompressed: rng.gen_bool(0.5),
+            mint_decompressed: rng.gen_bool(0.5),
             mint: {
                 let mut bytes = [0u8; 32];
                 rng.fill(&mut bytes);
@@ -144,18 +144,18 @@ fn reconstruct_extensions(
 }
 
 /// Compare Borsh-serialized mint with zero-copy deserialized versions
-fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]) {
+fn compare_mint_borsh_vs_zero_copy(original: &Mint, borsh_bytes: &[u8]) {
     // Deserialize using Borsh
-    let borsh_mint = CompressedMint::try_from_slice(borsh_bytes).unwrap();
+    let borsh_mint = Mint::try_from_slice(borsh_bytes).unwrap();
 
     // Deserialize using zero-copy (read-only)
-    let (zc_mint, _) = CompressedMint::zero_copy_at(borsh_bytes).unwrap();
+    let (zc_mint, _) = Mint::zero_copy_at(borsh_bytes).unwrap();
 
     // Reconstruct extensions from zero-copy format
     let zc_extensions = reconstruct_extensions(&zc_mint.extensions);
 
-    // Construct a CompressedMint from zero-copy read-only data for comparison
-    let zc_reconstructed = CompressedMint {
+    // Construct a Mint from zero-copy read-only data for comparison
+    let zc_reconstructed = Mint {
         base: BaseMint {
             mint_authority: zc_mint.base.mint_authority().copied(),
             freeze_authority: zc_mint.base.freeze_authority().copied(),
@@ -163,9 +163,9 @@ fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]
             decimals: zc_mint.base.decimals,
             is_initialized: zc_mint.base.is_initialized != 0,
         },
-        metadata: CompressedMintMetadata {
+        metadata: MintMetadata {
             version: zc_mint.base.metadata.version,
-            cmint_decompressed: zc_mint.base.metadata.cmint_decompressed != 0,
+            mint_decompressed: zc_mint.base.metadata.mint_decompressed != 0,
             mint: zc_mint.base.metadata.mint,
             mint_signer: zc_mint.base.metadata.mint_signer,
             bump: zc_mint.base.metadata.bump,
@@ -178,10 +178,10 @@ fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]
 
     // Test zero-copy mutable deserialization
     let mut mutable_bytes = borsh_bytes.to_vec();
-    let (zc_mint_mut, _) = CompressedMint::zero_copy_at_mut(&mut mutable_bytes).unwrap();
+    let (zc_mint_mut, _) = Mint::zero_copy_at_mut(&mut mutable_bytes).unwrap();
 
     // Reconstruct from mutable zero-copy data for comparison
-    let zc_mut_reconstructed = CompressedMint {
+    let zc_mut_reconstructed = Mint {
         base: BaseMint {
             mint_authority: zc_mint_mut.base.mint_authority().copied(),
             freeze_authority: zc_mint_mut.base.freeze_authority().copied(),
@@ -189,9 +189,9 @@ fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]
             decimals: zc_mint_mut.base.decimals,
             is_initialized: zc_mint_mut.base.is_initialized != 0,
         },
-        metadata: CompressedMintMetadata {
+        metadata: MintMetadata {
             version: zc_mint_mut.base.metadata.version,
-            cmint_decompressed: zc_mint_mut.base.metadata.cmint_decompressed != 0,
+            mint_decompressed: zc_mint_mut.base.metadata.mint_decompressed != 0,
             mint: zc_mint_mut.base.metadata.mint,
             mint_signer: zc_mint_mut.base.metadata.mint_signer,
             bump: zc_mint_mut.base.metadata.bump,
@@ -211,7 +211,7 @@ fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]
 
     // Test SPL mint pod deserialization on base mint only
     // Only use the first Mint::LEN bytes for SPL deserialization
-    let mint = Mint::unpack(&borsh_bytes[..Mint::LEN]).unwrap();
+    let mint = SplMint::unpack(&borsh_bytes[..SplMint::LEN]).unwrap();
 
     // Reconstruct BaseMint from SPL mint for comparison
     let spl_reconstructed_base = BaseMint {
@@ -242,11 +242,11 @@ fn test_mint_borsh_zero_copy_compatibility() {
 }
 
 /// Generate mint with guaranteed TokenMetadata extension
-fn generate_mint_with_extensions() -> CompressedMint {
+fn generate_mint_with_extensions() -> Mint {
     let mut rng = thread_rng();
     let token_metadata = generate_random_token_metadata(&mut rng);
 
-    CompressedMint {
+    Mint {
         base: BaseMint {
             mint_authority: Some(Pubkey::from(rng.gen::<[u8; 32]>())),
             freeze_authority: Some(Pubkey::from(rng.gen::<[u8; 32]>())),
@@ -254,9 +254,9 @@ fn generate_mint_with_extensions() -> CompressedMint {
             decimals: rng.gen_range(0..=18),
             is_initialized: true,
         },
-        metadata: CompressedMintMetadata {
+        metadata: MintMetadata {
             version: 3,
-            cmint_decompressed: rng.gen_bool(0.5),
+            mint_decompressed: rng.gen_bool(0.5),
             mint: Pubkey::from(rng.gen::<[u8; 32]>()),
             mint_signer: rng.gen::<[u8; 32]>(),
             bump: rng.gen(),
@@ -282,7 +282,7 @@ fn test_mint_with_extensions_borsh_zero_copy_compatibility() {
 #[test]
 fn test_mint_extension_edge_cases() {
     // Test 1: Empty strings in TokenMetadata
-    let mint_empty_strings = CompressedMint {
+    let mint_empty_strings = Mint {
         base: BaseMint {
             mint_authority: Some(Pubkey::from([1u8; 32])),
             freeze_authority: None,
@@ -290,9 +290,9 @@ fn test_mint_extension_edge_cases() {
             decimals: 9,
             is_initialized: true,
         },
-        metadata: CompressedMintMetadata {
+        metadata: MintMetadata {
             version: 3,
-            cmint_decompressed: false,
+            mint_decompressed: false,
             mint: Pubkey::from([2u8; 32]),
             mint_signer: [0u8; 32],
             bump: 0,
@@ -313,7 +313,7 @@ fn test_mint_extension_edge_cases() {
     compare_mint_borsh_vs_zero_copy(&mint_empty_strings, &borsh_bytes);
 
     // Test 2: Maximum reasonable lengths
-    let mint_max_lengths = CompressedMint {
+    let mint_max_lengths = Mint {
         base: BaseMint {
             mint_authority: Some(Pubkey::from([0xffu8; 32])),
             freeze_authority: Some(Pubkey::from([0xaau8; 32])),
@@ -321,9 +321,9 @@ fn test_mint_extension_edge_cases() {
             decimals: 18,
             is_initialized: true,
         },
-        metadata: CompressedMintMetadata {
+        metadata: MintMetadata {
             version: 3,
-            cmint_decompressed: true,
+            mint_decompressed: true,
             mint: Pubkey::from([0xbbu8; 32]),
             mint_signer: [0xddu8; 32],
             bump: 255,
@@ -357,7 +357,7 @@ fn test_mint_extension_edge_cases() {
     compare_mint_borsh_vs_zero_copy(&mint_max_lengths, &borsh_bytes);
 
     // Test 3: Zero update authority (represents None)
-    let mint_zero_authority = CompressedMint {
+    let mint_zero_authority = Mint {
         base: BaseMint {
             mint_authority: None,
             freeze_authority: None,
@@ -365,9 +365,9 @@ fn test_mint_extension_edge_cases() {
             decimals: 0,
             is_initialized: true,
         },
-        metadata: CompressedMintMetadata {
+        metadata: MintMetadata {
             version: 3,
-            cmint_decompressed: false,
+            mint_decompressed: false,
             mint: Pubkey::from([4u8; 32]),
             mint_signer: [5u8; 32],
             bump: 255,
@@ -388,7 +388,7 @@ fn test_mint_extension_edge_cases() {
     compare_mint_borsh_vs_zero_copy(&mint_zero_authority, &borsh_bytes);
 
     // Test 4: No extensions (explicit None)
-    let mint_no_extensions = CompressedMint {
+    let mint_no_extensions = Mint {
         base: BaseMint {
             mint_authority: Some(Pubkey::from([5u8; 32])),
             freeze_authority: Some(Pubkey::from([6u8; 32])),
@@ -396,9 +396,9 @@ fn test_mint_extension_edge_cases() {
             decimals: 6,
             is_initialized: true,
         },
-        metadata: CompressedMintMetadata {
+        metadata: MintMetadata {
             version: 3,
-            cmint_decompressed: true,
+            mint_decompressed: true,
             mint: Pubkey::from([7u8; 32]),
             mint_signer: [8u8; 32],
             bump: 255,

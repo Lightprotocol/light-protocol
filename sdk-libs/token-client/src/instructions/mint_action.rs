@@ -9,13 +9,13 @@ use light_token_interface::{
     instructions::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
         mint_action::{
-            CompressAndCloseCMintAction, CompressedMintWithContext, DecompressMintAction,
-            MintActionCompressedInstructionData, MintToAction, MintToCompressedAction, Recipient,
+            CompressAndCloseMintAction, DecompressMintAction, MintActionCompressedInstructionData,
+            MintToAction, MintToCompressedAction, MintWithContext, Recipient,
             RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
             UpdateMetadataFieldAction,
         },
     },
-    state::CompressedMint,
+    state::Mint,
     LIGHT_TOKEN_PROGRAM_ID,
 };
 use light_token_sdk::compressed_token::{
@@ -66,18 +66,18 @@ pub enum MintActionType {
         key: Vec<u8>,
         idempotent: u8,
     },
-    /// Decompress the compressed mint to a CMint Solana account.
-    /// CMint is always compressible - rent_payment must be >= 2.
+    /// Decompress the compressed mint to a Mint Solana account.
+    /// Mint is always compressible - rent_payment must be >= 2.
     DecompressMint {
         /// Rent payment in epochs (prepaid). Must be >= 2.
         rent_payment: u8,
         /// Lamports allocated for future write operations (top-up per write).
         write_top_up: u32,
     },
-    /// Compress and close a CMint Solana account. The compressed mint state is preserved.
+    /// Compress and close a Mint Solana account. The compressed mint state is preserved.
     /// Permissionless - anyone can call if is_compressible() returns true (rent expired).
-    CompressAndCloseCMint {
-        /// If true, succeed silently when CMint doesn't exist
+    CompressAndCloseMint {
+        /// If true, succeed silently when Mint doesn't exist
         idempotent: bool,
     },
 }
@@ -119,11 +119,11 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         .iter()
         .any(|a| matches!(a, MintActionType::DecompressMint { .. }));
 
-    // Check if CompressAndCloseCMint action is present
-    let has_compress_and_close_cmint = params
+    // Check if CompressAndCloseMint action is present
+    let has_compress_and_close_mint = params
         .actions
         .iter()
-        .any(|a| matches!(a, MintActionType::CompressAndCloseCMint { .. }));
+        .any(|a| matches!(a, MintActionType::CompressAndCloseMint { .. }));
 
     // Get address tree and output queue info
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
@@ -149,27 +149,26 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         })?;
 
         let (mint_pda, bump) = find_mint_address(&params.mint_seed);
-        let mint_data =
-            light_token_interface::instructions::mint_action::CompressedMintInstructionData {
-                supply: new_mint.supply,
-                decimals: new_mint.decimals,
-                metadata: light_token_interface::state::CompressedMintMetadata {
-                    version: new_mint.version,
-                    mint: mint_pda.to_bytes().into(),
-                    // false for new mint - on-chain sets to true after DecompressMint
-                    cmint_decompressed: false,
-                    mint_signer: params.mint_seed.to_bytes(),
-                    bump,
-                },
-                mint_authority: Some(new_mint.mint_authority.to_bytes().into()),
-                freeze_authority: new_mint.freeze_authority.map(|auth| auth.to_bytes().into()),
-                extensions: new_mint
-                    .metadata
-                    .as_ref()
-                    .map(|meta| vec![ExtensionInstructionData::TokenMetadata(meta.clone())]),
-            };
+        let mint_data = light_token_interface::instructions::mint_action::MintInstructionData {
+            supply: new_mint.supply,
+            decimals: new_mint.decimals,
+            metadata: light_token_interface::state::MintMetadata {
+                version: new_mint.version,
+                mint: mint_pda.to_bytes().into(),
+                // false for new mint - on-chain sets to true after DecompressMint
+                mint_decompressed: false,
+                mint_signer: params.mint_seed.to_bytes(),
+                bump,
+            },
+            mint_authority: Some(new_mint.mint_authority.to_bytes().into()),
+            freeze_authority: new_mint.freeze_authority.map(|auth| auth.to_bytes().into()),
+            extensions: new_mint
+                .metadata
+                .as_ref()
+                .map(|meta| vec![ExtensionInstructionData::TokenMetadata(meta.clone())]),
+        };
 
-        let compressed_mint_inputs = CompressedMintWithContext {
+        let compressed_mint_inputs = MintWithContext {
             prove_by_index: false, // Use full proof for creation
             leaf_index: 0,         // Not applicable for creation
             root_index: rpc_proof_result.addresses[0].root_index,
@@ -193,8 +192,8 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                 params.compressed_mint_address
             )))?;
 
-        // Try to deserialize the compressed mint - may be None if CMint is source of truth
-        let compressed_mint: Option<CompressedMint> = compressed_mint_account
+        // Try to deserialize the compressed mint - may be None if Mint is source of truth
+        let compressed_mint: Option<Mint> = compressed_mint_account
             .data
             .as_ref()
             .and_then(|d| BorshDeserialize::deserialize(&mut d.data.as_slice()).ok());
@@ -204,7 +203,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
             .await?
             .value;
 
-        let compressed_mint_inputs = CompressedMintWithContext {
+        let compressed_mint_inputs = MintWithContext {
             prove_by_index: rpc_proof_result.accounts[0].root_index.proof_by_index(),
             leaf_index: compressed_mint_account.leaf_index,
             root_index: rpc_proof_result.accounts[0]
@@ -311,8 +310,8 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                 rent_payment,
                 write_top_up,
             }),
-            MintActionType::CompressAndCloseCMint { idempotent } => instruction_data
-                .with_compress_and_close_cmint(CompressAndCloseCMintAction {
+            MintActionType::CompressAndCloseMint { idempotent } => instruction_data
+                .with_compress_and_close_mint(CompressAndCloseMintAction {
                     idempotent: if idempotent { 1 } else { 0 },
                 }),
         };
@@ -347,9 +346,9 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         config = config.with_token_accounts(ctoken_accounts);
     }
 
-    // Add compressible CMint accounts if DecompressMint or CompressAndCloseCMint action is present
-    if has_decompress_mint || has_compress_and_close_cmint {
-        let (cmint_pda, _) = find_mint_address(&params.mint_seed);
+    // Add compressible Mint accounts if DecompressMint or CompressAndCloseMint action is present
+    if has_decompress_mint || has_compress_and_close_mint {
+        let (mint_pda, _) = find_mint_address(&params.mint_seed);
         // Get config and rent_sponsor from v1 config PDA
         let config_address = CompressibleConfig::light_token_v1_config_pda();
         let compressible_config: CompressibleConfig = rpc
@@ -362,12 +361,12 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                 ))
             })?;
         config = config.with_compressible_mint(
-            cmint_pda,
+            mint_pda,
             config_address,
             compressible_config.rent_sponsor,
         );
         // DecompressMint does NOT need mint_signer - it uses compressed_mint.metadata.mint_signer
-        // CompressAndCloseCMint does NOT need mint_signer - it verifies CMint via compressed_mint.metadata.mint
+        // CompressAndCloseMint does NOT need mint_signer - it verifies Mint via compressed_mint.metadata.mint
     }
 
     // Get account metas
@@ -386,8 +385,8 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
     })
 }
 
-/// Parameters for decompressing a mint to a CMint Solana account.
-/// CMint is always compressible.
+/// Parameters for decompressing a mint to a Mint Solana account.
+/// Mint is always compressible.
 #[derive(Debug, Clone)]
 pub struct DecompressMintParams {
     /// Rent payment in epochs (prepaid). Must be >= 2.
@@ -412,7 +411,7 @@ pub async fn create_comprehensive_mint_action_instruction<R: Rpc + Indexer>(
     mint_seed: &Keypair,
     authority: Pubkey,
     payer: Pubkey,
-    // Whether to decompress the mint to a CMint Solana account (with rent params)
+    // Whether to decompress the mint to a Mint Solana account (with rent params)
     decompress_mint: Option<DecompressMintParams>,
     mint_to_recipients: Vec<(Pubkey, u64)>,
     update_mint_authority: Option<Pubkey>,

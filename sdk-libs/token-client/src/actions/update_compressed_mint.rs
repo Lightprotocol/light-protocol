@@ -2,7 +2,7 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_token_types::CompressedMintAuthorityType;
+use light_token_types::MintAuthorityType;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;
@@ -28,7 +28,7 @@ use crate::instructions::update_compressed_mint::update_compressed_mint_instruct
 #[allow(clippy::too_many_arguments)]
 pub async fn update_compressed_mint_authority<R: Rpc + Indexer>(
     rpc: &mut R,
-    authority_type: CompressedMintAuthorityType,
+    authority_type: MintAuthorityType,
     current_authority: &Keypair,
     new_authority: Option<Pubkey>,
     mint_authority: Option<Pubkey>,
@@ -74,7 +74,7 @@ pub async fn update_mint_authority<R: Rpc + Indexer>(
 ) -> Result<Signature, RpcError> {
     update_compressed_mint_authority(
         rpc,
-        CompressedMintAuthorityType::MintTokens,
+        MintAuthorityType::MintTokens,
         current_mint_authority,
         new_mint_authority,
         Some(compressed_mint_merkle_tree),
@@ -100,7 +100,7 @@ pub async fn update_freeze_authority<R: Rpc + Indexer>(
 ) -> Result<Signature, RpcError> {
     update_compressed_mint_authority(
         rpc,
-        CompressedMintAuthorityType::FreezeAccount,
+        MintAuthorityType::FreezeAccount,
         current_freeze_authority,
         new_freeze_authority,
         Some(mint_authority),

@@ -15,7 +15,7 @@ pub struct TransferCheckedData {
 ///
 /// Account order:
 /// - accounts[0]: source ctoken account
-/// - accounts[1]: mint (SPL, T22, or decompressed CMint)
+/// - accounts[1]: mint (SPL, T22, or decompressed Mint)
 /// - accounts[2]: destination ctoken account
 /// - accounts[3]: authority (signer)
 pub fn process_transfer_checked_invoke(
@@ -44,7 +44,7 @@ pub fn process_transfer_checked_invoke(
 ///
 /// Account order:
 /// - accounts[0]: source ctoken account (PDA-owned)
-/// - accounts[1]: mint (SPL, T22, or decompressed CMint)
+/// - accounts[1]: mint (SPL, T22, or decompressed Mint)
 /// - accounts[2]: destination ctoken account
 /// - accounts[3]: authority (PDA)
 pub fn process_transfer_checked_invoke_signed(

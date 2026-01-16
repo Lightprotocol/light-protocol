@@ -136,17 +136,17 @@ pub enum TokenError {
     #[error("Calculated top-up exceeds sender's max_top_up limit")]
     MaxTopUpExceeded,
 
-    #[error("CMint account has invalid owner")]
-    InvalidCMintOwner,
+    #[error("Mint account has invalid owner")]
+    InvalidMintOwner,
 
-    #[error("CMint account is not initialized")]
-    CMintNotInitialized,
+    #[error("Mint account is not initialized")]
+    MintNotInitialized,
 
-    #[error("Failed to borrow CMint account data")]
-    CMintBorrowFailed,
+    #[error("Failed to borrow Mint account data")]
+    MintBorrowFailed,
 
-    #[error("Failed to deserialize CMint account data")]
-    CMintDeserializationFailed,
+    #[error("Failed to deserialize Mint account data")]
+    MintDeserializationFailed,
 
     #[error("CompressedOnly tokens cannot have compressed outputs - must decompress only")]
     CompressedOnlyBlocksTransfer,
@@ -254,10 +254,10 @@ impl From<TokenError> for u32 {
             TokenError::TooManySeeds(_) => 18041,
             TokenError::WriteTopUpExceedsMaximum => 18042,
             TokenError::MaxTopUpExceeded => 18043,
-            TokenError::InvalidCMintOwner => 18044,
-            TokenError::CMintNotInitialized => 18045,
-            TokenError::CMintBorrowFailed => 18046,
-            TokenError::CMintDeserializationFailed => 18047,
+            TokenError::InvalidMintOwner => 18044,
+            TokenError::MintNotInitialized => 18045,
+            TokenError::MintBorrowFailed => 18046,
+            TokenError::MintDeserializationFailed => 18047,
             TokenError::CompressedOnlyBlocksTransfer => 18048,
             TokenError::OutTlvOutputCountMismatch => 18049,
             TokenError::InLamportsUnimplemented => 18050,

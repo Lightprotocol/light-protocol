@@ -1,4 +1,4 @@
-// Tests for CreateCMintCpi (CreateCmint instruction)
+// Tests for CreateMintCpi (CreateCmint instruction)
 
 mod shared;
 
@@ -11,7 +11,10 @@ use light_token_interface::{
     },
     state::AdditionalMetadata,
 };
-use light_token_sdk::compressed_token::mint_action::MintActionMetaConfig;
+use light_token_sdk::{
+    compressed_token::mint_action::MintActionMetaConfig,
+    token::{config_pda, rent_sponsor_pda},
+};
 use native_ctoken_examples::{CreateCmintData, ID, MINT_SIGNER_SEED};
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -20,7 +23,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test creating a compressed mint using CreateCMintCpi::invoke()
+/// Test creating a compressed mint using CreateMintCpi::invoke()
 #[tokio::test]
 async fn test_create_compressed_mint() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -63,7 +66,7 @@ async fn test_create_compressed_mint() {
         .value;
 
     // Create instruction data for wrapper program with TokenMetadata extension
-    let create_cmint_data = CreateCmintData {
+    let create_mint_data = CreateCmintData {
         decimals,
         address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
         mint_authority,
@@ -90,8 +93,10 @@ async fn test_create_compressed_mint() {
                 ]),
             },
         )]),
+        rent_payment: 16,
+        write_top_up: 766,
     };
-    let instruction_data = [vec![0u8], create_cmint_data.try_to_vec().unwrap()].concat();
+    let instruction_data = [vec![0u8], create_mint_data.try_to_vec().unwrap()].concat();
 
     // Add compressed token program as first account for CPI, then all SDK-generated accounts
     let mut wrapper_accounts = vec![AccountMeta::new_readonly(
@@ -105,6 +110,7 @@ async fn test_create_compressed_mint() {
         address_tree.tree,
         output_queue,
     )
+    .with_compressible_mint(mint_pda, config_pda(), rent_sponsor_pda())
     .to_account_metas();
     wrapper_accounts.extend(account_metas);
 
@@ -118,16 +124,12 @@ async fn test_create_compressed_mint() {
         .await
         .unwrap();
 
-    let compressed_account = rpc
-        .get_compressed_account(compression_address, None)
-        .await
-        .unwrap()
-        .value;
-
-    assert!(compressed_account.is_some(), "Compressed mint should exist");
+    // Verify the Mint Solana account was created (CreateMint now decompresses automatically)
+    let mint_account = rpc.get_account(mint_pda).await.unwrap();
+    assert!(mint_account.is_some(), "Mint Solana account should exist");
 }
 
-/// Test creating a compressed mint with PDA mint signer using CreateCMintCpi::invoke_signed()
+/// Test creating a compressed mint with PDA mint signer using CreateMintCpi::invoke_signed()
 #[tokio::test]
 async fn test_create_compressed_mint_invoke_signed() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -172,7 +174,7 @@ async fn test_create_compressed_mint_invoke_signed() {
         .value;
 
     // Create instruction data for wrapper program
-    let create_cmint_data = CreateCmintData {
+    let create_mint_data = CreateCmintData {
         decimals,
         address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
         mint_authority,
@@ -182,27 +184,33 @@ async fn test_create_compressed_mint_invoke_signed() {
         bump: mint_bump,
         freeze_authority: None,
         extensions: None,
+        rent_payment: 16,
+        write_top_up: 766,
     };
     // Discriminator 12 = CreateCmintInvokeSigned
-    let instruction_data = [vec![12u8], create_cmint_data.try_to_vec().unwrap()].concat();
+    let instruction_data = [vec![12u8], create_mint_data.try_to_vec().unwrap()].concat();
 
     // Build accounts manually since SDK marks mint_signer as signer, but we need it as non-signer
     // for invoke_signed (the wrapper program signs via CPI)
+    // Account order matches MintActionMetaConfig::to_account_metas() with mint_signer as non-signer
     let system_accounts = light_token_sdk::token::SystemAccounts::default();
     let wrapper_accounts = vec![
-        AccountMeta::new_readonly(compressed_token_program_id, false),
-        AccountMeta::new_readonly(system_accounts.light_system_program, false),
+        AccountMeta::new_readonly(compressed_token_program_id, false), // [0] compressed_token_program
+        AccountMeta::new_readonly(system_accounts.light_system_program, false), // [1] light_system_program
         // mint_signer NOT marked as signer - program will sign via invoke_signed
-        AccountMeta::new_readonly(mint_signer_pda, false),
-        AccountMeta::new_readonly(mint_authority, true),
-        AccountMeta::new(payer.pubkey(), true),
-        AccountMeta::new_readonly(system_accounts.cpi_authority_pda, false),
-        AccountMeta::new_readonly(system_accounts.registered_program_pda, false),
-        AccountMeta::new_readonly(system_accounts.account_compression_authority, false),
-        AccountMeta::new_readonly(system_accounts.account_compression_program, false),
-        AccountMeta::new_readonly(system_accounts.system_program, false),
-        AccountMeta::new(output_queue, false),
-        AccountMeta::new(address_tree.tree, false),
+        AccountMeta::new_readonly(mint_signer_pda, false), // [2] mint_signer (PDA)
+        AccountMeta::new_readonly(payer.pubkey(), true),   // [3] authority (signer)
+        AccountMeta::new_readonly(config_pda(), false),    // [4] compressible_config
+        AccountMeta::new(mint_pda, false),                 // [5] mint
+        AccountMeta::new(rent_sponsor_pda(), false),       // [6] rent_sponsor
+        AccountMeta::new(payer.pubkey(), true),            // [7] fee_payer (signer)
+        AccountMeta::new_readonly(system_accounts.cpi_authority_pda, false), // [8]
+        AccountMeta::new_readonly(system_accounts.registered_program_pda, false), // [9]
+        AccountMeta::new_readonly(system_accounts.account_compression_authority, false), // [10]
+        AccountMeta::new_readonly(system_accounts.account_compression_program, false), // [11]
+        AccountMeta::new_readonly(system_accounts.system_program, false), // [12]
+        AccountMeta::new(output_queue, false),             // [13]
+        AccountMeta::new(address_tree.tree, false),        // [14]
     ];
 
     let instruction = Instruction {
@@ -216,11 +224,7 @@ async fn test_create_compressed_mint_invoke_signed() {
         .await
         .unwrap();
 
-    let compressed_account = rpc
-        .get_compressed_account(compression_address, None)
-        .await
-        .unwrap()
-        .value;
-
-    assert!(compressed_account.is_some(), "Compressed mint should exist");
+    // Verify the Mint Solana account was created (CreateMint now decompresses automatically)
+    let mint_account = rpc.get_account(mint_pda).await.unwrap();
+    assert!(mint_account.is_some(), "Mint Solana account should exist");
 }

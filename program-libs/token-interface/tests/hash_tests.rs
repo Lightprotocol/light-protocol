@@ -1,11 +1,11 @@
 // #[cfg(test)]
 // mod hash_tests {
 //     use light_compressed_account::Pubkey;
-//     use light_token_interface::state::{BaseMint, CompressedMint, CompressedMintMetadata};
+//     use light_token_interface::state::{BaseMint, Mint, MintMetadata};
 //     use rand::Rng;
 
 //     /// Hash Collision Detection Tests
-//     /// Tests for CompressedMint::hash() following hash_collision_testing_guide.md:
+//     /// Tests for Mint::hash() following hash_collision_testing_guide.md:
 //     ///
 //     /// 1. test_hash_basic_functionality - Basic functionality and determinism
 //     /// 2. test_hash_collision_detection - Systematic field-by-field collision testing
@@ -25,7 +25,7 @@
 
 //     #[test]
 //     fn test_hash_basic_functionality() {
-//         let mint = CompressedMint {
+//         let mint = Mint {
 //             base: BaseMint {
 //                 mint_authority: Some(Pubkey::new_unique()),
 //                 supply: 1000000,
@@ -33,10 +33,10 @@
 //                 is_initialized: true,
 //                 freeze_authority: Some(Pubkey::new_unique()),
 //             },
-//             metadata: CompressedMintMetadata {
+//             metadata: MintMetadata {
 //                 version: 3,
 //                 mint: Pubkey::new_unique(),
-//                 cmint_decompressed: false,
+//                 mint_decompressed: false,
 //             },
 //             extensions: None,
 //         };
@@ -70,7 +70,7 @@
 //         let mut previous_hashes = Vec::new();
 
 //         // Base configuration - choose default state for each field
-//         let base = CompressedMint {
+//         let base = Mint {
 //             base: BaseMint {
 //                 mint_authority: None,
 //                 supply: 0,
@@ -78,10 +78,10 @@
 //                 is_initialized: true,
 //                 freeze_authority: None,
 //             },
-//             metadata: CompressedMintMetadata {
+//             metadata: MintMetadata {
 //                 version: 3,
 //                 mint: Pubkey::new_from_array([1u8; 32]),
-//                 cmint_decompressed: false,
+//                 mint_decompressed: false,
 //             },
 //             extensions: None,
 //         };
@@ -109,9 +109,9 @@
 //             assert_to_previous_hashes(variant.hash().unwrap(), &mut previous_hashes);
 //         }
 
-//         // Test cmint_decompressed boolean states
+//         // Test mint_decompressed boolean states
 //         let mut variant = base.clone();
-//         variant.metadata.cmint_decompressed = true; // Flip from false
+//         variant.metadata.mint_decompressed = true; // Flip from false
 //         assert_to_previous_hashes(variant.hash().unwrap(), &mut previous_hashes);
 
 //         // Test mint_authority Option states
@@ -133,7 +133,7 @@
 //         let mut variant = base.clone();
 //         variant.base.supply = 5000;
 //         variant.base.decimals = 9;
-//         variant.metadata.cmint_decompressed = true;
+//         variant.metadata.mint_decompressed = true;
 //         variant.base.mint_authority = Some(Pubkey::new_from_array([12u8; 32]));
 //         variant.base.freeze_authority = Some(Pubkey::new_from_array([13u8; 32]));
 //         variant.extensions = Some(vec![]);
@@ -145,7 +145,7 @@
 //         let mut previous_hashes = Vec::new();
 
 //         // All fields zero/None/false (minimal state)
-//         let all_minimal = CompressedMint {
+//         let all_minimal = Mint {
 //             base: BaseMint {
 //                 mint_authority: None,
 //                 supply: 0,
@@ -153,10 +153,10 @@
 //                 is_initialized: true,
 //                 freeze_authority: None,
 //             },
-//             metadata: CompressedMintMetadata {
+//             metadata: MintMetadata {
 //                 version: 3,
 //                 mint: Pubkey::new_from_array([0u8; 32]),
-//                 cmint_decompressed: false,
+//                 mint_decompressed: false,
 //             },
 //             extensions: None,
 //         };
@@ -176,7 +176,7 @@
 //         assert_to_previous_hashes(variant.hash().unwrap(), &mut previous_hashes);
 
 //         variant = all_minimal.clone();
-//         variant.metadata.cmint_decompressed = true; // Only this field non-false
+//         variant.metadata.mint_decompressed = true; // Only this field non-false
 //         assert_to_previous_hashes(variant.hash().unwrap(), &mut previous_hashes);
 
 //         variant = all_minimal.clone();
@@ -196,7 +196,7 @@
 //     fn test_hash_boundary_values() {
 //         let mut previous_hashes = Vec::new();
 
-//         let base = CompressedMint {
+//         let base = Mint {
 //             base: BaseMint {
 //                 mint_authority: Some(Pubkey::new_from_array([2u8; 32])),
 //                 supply: 100,
@@ -204,10 +204,10 @@
 //                 is_initialized: true,
 //                 freeze_authority: Some(Pubkey::new_from_array([3u8; 32])),
 //             },
-//             metadata: CompressedMintMetadata {
+//             metadata: MintMetadata {
 //                 version: 3,
 //                 mint: Pubkey::new_from_array([1u8; 32]),
-//                 cmint_decompressed: false,
+//                 mint_decompressed: false,
 //             },
 //             extensions: None,
 //         };
@@ -246,7 +246,7 @@
 //         let mut previous_hashes = Vec::new();
 //         let same_pubkey = Pubkey::new_from_array([42u8; 32]);
 
-//         let base = CompressedMint {
+//         let base = Mint {
 //             base: BaseMint {
 //                 mint_authority: None,
 //                 supply: 1000,
@@ -254,10 +254,10 @@
 //                 is_initialized: true,
 //                 freeze_authority: None,
 //             },
-//             metadata: CompressedMintMetadata {
+//             metadata: MintMetadata {
 //                 version: 3,
 //                 mint: Pubkey::new_from_array([1u8; 32]),
-//                 cmint_decompressed: false,
+//                 mint_decompressed: false,
 //             },
 //             extensions: None,
 //         };
@@ -323,7 +323,7 @@
 //     fn test_hash_some_zero_vs_none() {
 //         let pubkey_zero = Pubkey::new_from_array([0u8; 32]);
 
-//         let base = CompressedMint {
+//         let base = Mint {
 //             base: BaseMint {
 //                 mint_authority: None,
 //                 supply: 1000,
@@ -331,10 +331,10 @@
 //                 is_initialized: true,
 //                 freeze_authority: None,
 //             },
-//             metadata: CompressedMintMetadata {
+//             metadata: MintMetadata {
 //                 version: 3,
 //                 mint: Pubkey::new_from_array([1u8; 32]),
-//                 cmint_decompressed: false,
+//                 mint_decompressed: false,
 //             },
 //             extensions: None,
 //         };
@@ -389,7 +389,7 @@
 //         let mut all_hashes = Vec::new();
 
 //         for iteration in 0..1000 {
-//             let mint = CompressedMint {
+//             let mint = Mint {
 //                 base: BaseMint {
 //                     mint_authority: if rng.gen_bool(0.7) {
 //                         Some(Pubkey::new_from_array(rng.gen::<[u8; 32]>()))
@@ -405,10 +405,10 @@
 //                         None
 //                     },
 //                 },
-//                 metadata: CompressedMintMetadata {
+//                 metadata: MintMetadata {
 //                     version: 3, // Always version 3
 //                     mint: Pubkey::new_from_array(rng.gen::<[u8; 32]>()),
-//                     cmint_decompressed: rng.gen_bool(0.5),
+//                     mint_decompressed: rng.gen_bool(0.5),
 //                 },
 //                 extensions: if rng.gen_bool(0.3) {
 //                     Some(vec![]) // Empty extensions for now

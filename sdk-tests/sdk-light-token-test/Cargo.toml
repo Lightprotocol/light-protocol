@@ -41,6 +41,7 @@ light-client = { workspace = true }
 light-compressible = { workspace = true }
 light-compressible-client = { workspace = true }
 light-compressed-account = { workspace = true }
+light-token-client = { workspace = true }
 light-test-utils = { workspace = true, features = ["devenv"] }
 tokio = { version = "1.36.0", features = ["full"] }
 solana-sdk = "2.2"

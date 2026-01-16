@@ -4,7 +4,7 @@ use light_compressed_account::instruction_data::with_readonly::InstructionDataIn
 use light_program_profiler::profile;
 use light_token_interface::{
     instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
-    state::{CompressedMint, CompressedMintConfig},
+    state::{Mint, MintConfig},
 };
 use spl_pod::solana_msg::msg;
 use tinyvec::ArrayVec;
@@ -24,12 +24,12 @@ use crate::{
 pub fn get_zero_copy_configs(
     parsed_instruction_data: &ZMintActionCompressedInstructionData<'_>,
     accounts_config: &AccountsConfig,
-    cmint: &CompressedMint,
+    cmint: &Mint,
 ) -> Result<
     (
         InstructionDataInvokeCpiWithReadOnlyConfig,
         Vec<u8>,
-        CompressedMintConfig,
+        MintConfig,
     ),
     ProgramError,
 > {
@@ -64,7 +64,7 @@ pub fn get_zero_copy_configs(
     }
 
     // Output mint config (always present) with final authority states
-    let output_mint_config = CompressedMintConfig {
+    let output_mint_config = MintConfig {
         extensions: if output_extensions_config.is_empty() {
             None
         } else {

@@ -6,7 +6,7 @@
 //! |--------------|---------|--------|
 //! | SPL compat | test_approve_success_cases | test_revoke_success_cases |
 //! | With SPL mint | test_approve_success_cases | test_revoke_success_cases |
-//! | With CMint | test_approve_revoke_compressible | test_approve_revoke_compressible |
+//! | With Mint | test_approve_revoke_compressible | test_approve_revoke_compressible |
 //! | Invalid ctoken (non-existent) | test_approve_fails | test_revoke_fails |
 //! | Invalid ctoken (wrong owner) | test_approve_fails | test_revoke_fails |
 //! | Invalid ctoken (spl account) | test_approve_fails | test_revoke_fails |
@@ -336,7 +336,7 @@ async fn test_revoke_fails() {
 }
 
 // ============================================================================
-// Original Compressible Test (CMint scenario with extensions)
+// Original Compressible Test (Mint scenario with extensions)
 // ============================================================================
 
 use anchor_lang::AnchorDeserialize;

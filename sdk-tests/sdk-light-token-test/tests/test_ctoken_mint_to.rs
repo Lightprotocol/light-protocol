@@ -23,16 +23,15 @@ async fn test_ctoken_mint_to_invoke() {
     let payer = rpc.get_payer().insecure_clone();
 
     // Create a decompressed mint with an ATA for the payer with 0 tokens
-    let (mint_pda, _compression_address, ata_pubkeys) =
-        setup_create_compressed_mint_with_freeze_authority(
-            &mut rpc,
-            &payer,
-            payer.pubkey(), // mint authority is payer
-            None,
-            9,
-            vec![(0, payer.pubkey())], // Start with 0 tokens
-        )
-        .await;
+    let (mint_pda, _compression_address, ata_pubkeys) = setup_create_mint_with_freeze_authority(
+        &mut rpc,
+        &payer,
+        payer.pubkey(), // mint authority is payer
+        None,
+        9,
+        vec![(0, payer.pubkey())], // Start with 0 tokens
+    )
+    .await;
 
     let ata = ata_pubkeys[0];
     let mint_amount = 500u64;
@@ -53,7 +52,7 @@ async fn test_ctoken_mint_to_invoke() {
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(mint_pda, false),                     // cmint
+            AccountMeta::new(mint_pda, false),                     // mint
             AccountMeta::new(ata, false),                          // destination
             AccountMeta::new(payer.pubkey(), true), // authority (signer, writable for top-up)
             AccountMeta::new_readonly(system_program, false), // system_program
@@ -83,21 +82,14 @@ async fn test_ctoken_mint_to_invoke() {
 /// Test minting to Light Token with PDA authority using CTokenMintToCpi::invoke_signed()
 ///
 /// This test:
-/// 1. Creates a compressed mint with PDA authority via wrapper program (discriminator 14)
-/// 2. Decompresses the mint (permissionless)
-/// 3. Creates an ATA
-/// 4. Mints tokens using PDA authority via invoke_signed
+/// 1. Creates a compressed mint with PDA authority via wrapper program (auto-decompresses)
+/// 2. Creates an ATA
+/// 3. Mints tokens using PDA authority via invoke_signed
 #[tokio::test]
 async fn test_ctoken_mint_to_invoke_signed() {
     use light_client::indexer::Indexer;
-    use light_token_interface::{
-        instructions::mint_action::CompressedMintWithContext, state::CompressedMint,
-    };
     use light_token_sdk::token::CreateAssociatedTokenAccount;
-    use native_ctoken_examples::{
-        CreateCmintData, DecompressCmintData, InstructionType as WrapperInstructionType,
-        MINT_SIGNER_SEED,
-    };
+    use native_ctoken_examples::{CreateCmintData, MINT_SIGNER_SEED};
 
     let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
@@ -137,8 +129,10 @@ async fn test_ctoken_mint_to_invoke_signed() {
         let compressed_token_program_id =
             Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
         let default_pubkeys = light_token_sdk::utils::TokenDefaultAccounts::default();
+        let compressible_config = light_token_sdk::token::config_pda();
+        let rent_sponsor = light_token_sdk::token::rent_sponsor_pda();
 
-        let create_cmint_data = CreateCmintData {
+        let create_mint_data = CreateCmintData {
             decimals,
             address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
             mint_authority: pda_mint_authority,
@@ -148,24 +142,45 @@ async fn test_ctoken_mint_to_invoke_signed() {
             bump: mint_bump,
             freeze_authority: None,
             extensions: None,
+            rent_payment: 16,
+            write_top_up: 766,
         };
         // Discriminator 14 = CreateCmintWithPdaAuthority
         let wrapper_instruction_data =
-            [vec![14u8], create_cmint_data.try_to_vec().unwrap()].concat();
+            [vec![14u8], create_mint_data.try_to_vec().unwrap()].concat();
 
+        // Account order matches process_create_mint_with_pda_authority (MintActionMetaConfig):
+        // [0]: compressed_token_program
+        // [1]: light_system_program
+        // [2]: mint_signer (PDA)
+        // [3]: authority (PDA)
+        // [4]: compressible_config
+        // [5]: mint
+        // [6]: rent_sponsor
+        // [7]: fee_payer (signer)
+        // [8]: cpi_authority_pda
+        // [9]: registered_program_pda
+        // [10]: account_compression_authority
+        // [11]: account_compression_program
+        // [12]: system_program
+        // [13]: output_queue
+        // [14]: address_tree
         let wrapper_accounts = vec![
-            AccountMeta::new_readonly(compressed_token_program_id, false),
-            AccountMeta::new_readonly(default_pubkeys.light_system_program, false),
-            AccountMeta::new_readonly(mint_signer_pda, false),
-            AccountMeta::new(pda_mint_authority, false),
-            AccountMeta::new(payer.pubkey(), true),
-            AccountMeta::new_readonly(default_pubkeys.cpi_authority_pda, false),
-            AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
-            AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
-            AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-            AccountMeta::new_readonly(default_pubkeys.system_program, false),
-            AccountMeta::new(output_queue, false),
-            AccountMeta::new(address_tree.tree, false),
+            AccountMeta::new_readonly(compressed_token_program_id, false), // [0]
+            AccountMeta::new_readonly(default_pubkeys.light_system_program, false), // [1]
+            AccountMeta::new_readonly(mint_signer_pda, false),             // [2] mint_signer PDA
+            AccountMeta::new_readonly(pda_mint_authority, false),          // [3] authority PDA
+            AccountMeta::new_readonly(compressible_config, false), // [4] compressible_config
+            AccountMeta::new(mint_pda, false),                     // [5] mint
+            AccountMeta::new(rent_sponsor, false),                 // [6] rent_sponsor
+            AccountMeta::new(payer.pubkey(), true),                // [7] fee_payer (signer)
+            AccountMeta::new_readonly(default_pubkeys.cpi_authority_pda, false), // [8]
+            AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false), // [9]
+            AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false), // [10]
+            AccountMeta::new_readonly(default_pubkeys.account_compression_program, false), // [11]
+            AccountMeta::new_readonly(default_pubkeys.system_program, false), // [12]
+            AccountMeta::new(output_queue, false),                 // [13]
+            AccountMeta::new(address_tree.tree, false),            // [14]
         ];
 
         let create_mint_ix = Instruction {
@@ -179,108 +194,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
             .unwrap();
     }
 
-    // Step 2: Decompress the mint via wrapper program (PDA authority requires CPI)
-    {
-        let compressed_mint_account = rpc
-            .get_compressed_account(compression_address, None)
-            .await
-            .unwrap()
-            .value
-            .expect("Compressed mint should exist");
-
-        let compressed_mint = CompressedMint::deserialize(
-            &mut compressed_mint_account
-                .data
-                .as_ref()
-                .unwrap()
-                .data
-                .as_slice(),
-        )
-        .unwrap();
-
-        let rpc_result = rpc
-            .get_validity_proof(vec![compressed_mint_account.hash], vec![], None)
-            .await
-            .unwrap()
-            .value;
-
-        let compressed_mint_with_context = CompressedMintWithContext {
-            address: compression_address,
-            leaf_index: compressed_mint_account.leaf_index,
-            prove_by_index: true,
-            root_index: rpc_result.accounts[0]
-                .root_index
-                .root_index()
-                .unwrap_or_default(),
-            mint: Some(compressed_mint.try_into().unwrap()),
-        };
-
-        let default_pubkeys = light_token_sdk::utils::TokenDefaultAccounts::default();
-        let compressible_config = light_token_sdk::token::config_pda();
-        let rent_sponsor = light_token_sdk::token::rent_sponsor_pda();
-
-        let decompress_data = DecompressCmintData {
-            compressed_mint_with_context,
-            proof: rpc_result.proof,
-            rent_payment: 16,
-            write_top_up: 766,
-        };
-
-        // Discriminator 33 = DecompressCmintInvokeSigned
-        let wrapper_instruction_data = [
-            vec![WrapperInstructionType::DecompressCmintInvokeSigned as u8],
-            decompress_data.try_to_vec().unwrap(),
-        ]
-        .concat();
-
-        // Account order matches process_decompress_mint_invoke_signed:
-        // 0: authority (PDA, readonly - program signs)
-        // 1: payer (signer, writable)
-        // 2: cmint (writable)
-        // 3: compressible_config (readonly)
-        // 4: rent_sponsor (writable)
-        // 5: state_tree (writable)
-        // 6: input_queue (writable)
-        // 7: output_queue (writable)
-        // 8: light_system_program (readonly)
-        // 9: cpi_authority_pda (readonly)
-        // 10: registered_program_pda (readonly)
-        // 11: account_compression_authority (readonly)
-        // 12: account_compression_program (readonly)
-        // 13: system_program (readonly)
-        // 14: light_token_program (readonly) - required for CPI
-        let light_token_program_id =
-            Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
-        let wrapper_accounts = vec![
-            AccountMeta::new_readonly(pda_mint_authority, false),
-            AccountMeta::new(payer.pubkey(), true),
-            AccountMeta::new(mint_pda, false),
-            AccountMeta::new_readonly(compressible_config, false),
-            AccountMeta::new(rent_sponsor, false),
-            AccountMeta::new(compressed_mint_account.tree_info.tree, false),
-            AccountMeta::new(compressed_mint_account.tree_info.queue, false),
-            AccountMeta::new(output_queue, false),
-            AccountMeta::new_readonly(default_pubkeys.light_system_program, false),
-            AccountMeta::new_readonly(default_pubkeys.cpi_authority_pda, false),
-            AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
-            AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
-            AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-            AccountMeta::new_readonly(default_pubkeys.system_program, false),
-            AccountMeta::new_readonly(light_token_program_id, false),
-        ];
-
-        let decompress_ix = Instruction {
-            program_id: ID,
-            accounts: wrapper_accounts,
-            data: wrapper_instruction_data,
-        };
-
-        rpc.create_and_send_transaction(&[decompress_ix], &payer.pubkey(), &[&payer])
-            .await
-            .unwrap();
-    }
-
-    // Step 3: Create ATA for payer
+    // Step 2: Create ATA for payer (CreateMint now auto-decompresses)
     let ata = {
         let (ata_address, _) = light_token_sdk::token::derive_token_ata(&payer.pubkey(), &mint_pda);
         let create_ata =
@@ -300,7 +214,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
     let ata_account_before = rpc.get_account(ata).await.unwrap().unwrap();
     let ctoken_before = Token::deserialize(&mut &ata_account_before.data[..]).unwrap();
 
-    // Step 4: Mint tokens using PDA authority via invoke_signed
+    // Step 3: Mint tokens using PDA authority via invoke_signed
     let mut instruction_data = vec![InstructionType::CTokenMintToInvokeSigned as u8];
     let mint_data = MintToData {
         amount: mint_amount,
@@ -312,7 +226,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(mint_pda, false),                     // cmint
+            AccountMeta::new(mint_pda, false),                     // mint
             AccountMeta::new(ata, false),                          // destination
             AccountMeta::new(pda_mint_authority, false), // PDA authority (program signs, writable for top-up)
             AccountMeta::new_readonly(system_program, false), // system_program

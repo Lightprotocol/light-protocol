@@ -10,7 +10,7 @@ use light_compressed_account::{
     },
 };
 use light_program_profiler::profile;
-use light_token_interface::state::CompressedMint;
+use light_token_interface::state::Mint;
 use light_zero_copy::ZeroCopyNew;
 use pinocchio::program_error::ProgramError;
 use tinyvec::ArrayVec;
@@ -21,8 +21,8 @@ const MAX_OUTPUT_ACCOUNTS: usize = 35;
 /// Calculate data length for a compressed mint account
 #[profile]
 #[inline(always)]
-pub fn mint_data_len(config: &light_token_interface::state::CompressedMintConfig) -> u32 {
-    CompressedMint::byte_len(config).unwrap() as u32
+pub fn mint_data_len(config: &light_token_interface::state::MintConfig) -> u32 {
+    Mint::byte_len(config).unwrap() as u32
 }
 
 /// Calculate data length for a compressed token account
@@ -49,7 +49,7 @@ impl CpiConfigInput {
     pub fn mint_to_compressed(
         num_recipients: usize,
         has_proof: bool,
-        output_mint_config: &light_token_interface::state::CompressedMintConfig,
+        output_mint_config: &light_token_interface::state::MintConfig,
     ) -> Self {
         let mut outputs = ArrayVec::new();
 
@@ -73,7 +73,7 @@ impl CpiConfigInput {
     #[profile]
     pub fn update_mint(
         has_proof: bool,
-        output_mint_config: &light_token_interface::state::CompressedMintConfig,
+        output_mint_config: &light_token_interface::state::MintConfig,
     ) -> Self {
         let mut inputs = ArrayVec::new();
         inputs.push(true); // Input mint has address

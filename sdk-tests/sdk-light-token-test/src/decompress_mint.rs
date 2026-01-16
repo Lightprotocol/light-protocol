@@ -1,28 +1,28 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_token_sdk::{
-    token::{CompressedMintWithContext, DecompressMintCpi, SystemAccountInfos},
+    token::{DecompressMintCpi, MintWithContext, SystemAccountInfos},
     ValidityProof,
 };
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{ID, MINT_AUTHORITY_SEED};
 
-/// Instruction data for DecompressCMint operations
+/// Instruction data for DecompressMint operations
 #[derive(BorshSerialize, BorshDeserialize)]
 pub struct DecompressCmintData {
-    pub compressed_mint_with_context: CompressedMintWithContext,
+    pub compressed_mint_with_context: MintWithContext,
     pub proof: ValidityProof,
     pub rent_payment: u8,
     pub write_top_up: u32,
 }
 
-/// Handler for decompressing CMint with PDA authority (invoke_signed)
+/// Handler for decompressing Mint with PDA authority (invoke_signed)
 ///
 /// Account order:
 /// - accounts[0]: mint_seed (readonly)
 /// - accounts[1]: authority (PDA, readonly - program signs)
 /// - accounts[2]: payer (signer, writable)
-/// - accounts[3]: cmint (writable)
+/// - accounts[3]: mint (writable)
 /// - accounts[4]: compressible_config (readonly)
 /// - accounts[5]: rent_sponsor (writable)
 /// - accounts[6]: state_tree (writable)
@@ -63,7 +63,7 @@ pub fn process_decompress_mint_invoke_signed(
     DecompressMintCpi {
         authority: accounts[0].clone(),
         payer: accounts[1].clone(),
-        cmint: accounts[2].clone(),
+        mint: accounts[2].clone(),
         compressible_config: accounts[3].clone(),
         rent_sponsor: accounts[4].clone(),
         state_tree: accounts[5].clone(),

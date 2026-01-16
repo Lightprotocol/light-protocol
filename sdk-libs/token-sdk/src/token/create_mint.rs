@@ -4,7 +4,7 @@ use light_compressed_account::instruction_data::{
 use light_token_interface::{
     instructions::{
         extensions::ExtensionInstructionData,
-        mint_action::{CompressedMintInstructionData, CpiContext},
+        mint_action::{CpiContext, DecompressMintAction, MintInstructionData},
     },
     COMPRESSED_MINT_SEED,
 };
@@ -14,9 +14,12 @@ use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
+use super::{config_pda, rent_sponsor_pda};
 use crate::{compressed_token::mint_action::MintActionMetaConfig, token::SystemAccountInfos};
-// TODO: modify so that it creates a decompressed mint, if you want a compressed mint use light_token_sdk::compressed_token::create_cmint
-/// Parameters for creating a compressed mint.
+/// Parameters for creating a mint.
+///
+/// Creates both a compressed mint AND a decompressed Mint Solana account
+/// in a single instruction.
 #[derive(Debug, Clone)]
 pub struct CreateMintParams {
     pub decimals: u8,
@@ -28,9 +31,17 @@ pub struct CreateMintParams {
     pub bump: u8,
     pub freeze_authority: Option<Pubkey>,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
+    /// Rent payment in epochs for the Mint account (must be 0 or >= 2).
+    /// Default: 16 (~24 hours)
+    pub rent_payment: u8,
+    /// Lamports allocated for future write operations.
+    /// Default: 766 (~3 hours per write)
+    pub write_top_up: u32,
 }
 
-/// # Create a compressed mint instruction:
+/// Create a mint instruction that creates both a compressed mint AND a Mint Solana account.
+///
+/// # Example
 /// ```rust,no_run
 /// # use solana_pubkey::Pubkey;
 /// use light_token_sdk::token::{
@@ -59,6 +70,8 @@ pub struct CreateMintParams {
 ///     bump,
 ///     freeze_authority: None,
 ///     extensions: None,
+///     rent_payment: 16,  // ~24 hours rent
+///     write_top_up: 766, // ~3 hours per write
 /// };
 /// let instruction = CreateMint::new(
 ///     params,
@@ -108,13 +121,13 @@ impl CreateMint {
     }
 
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        let compressed_mint_instruction_data = CompressedMintInstructionData {
+        let compressed_mint_instruction_data = MintInstructionData {
             supply: 0,
             decimals: self.params.decimals,
-            metadata: light_token_interface::state::CompressedMintMetadata {
+            metadata: light_token_interface::state::MintMetadata {
                 version: 3,
                 mint: self.params.mint.to_bytes().into(),
-                cmint_decompressed: false,
+                mint_decompressed: false,
                 mint_signer: self.mint_seed_pubkey.to_bytes(),
                 bump: self.params.bump,
             },
@@ -133,6 +146,12 @@ impl CreateMint {
                 compressed_mint_instruction_data,
             );
 
+        // Always add decompress action to create Mint Solana account
+        instruction_data = instruction_data.with_decompress_mint(DecompressMintAction {
+            rent_payment: self.params.rent_payment,
+            write_top_up: self.params.write_top_up,
+        });
+
         if let Some(ctx) = self.cpi_context {
             instruction_data = instruction_data.with_cpi_context(ctx);
         }
@@ -143,7 +162,10 @@ impl CreateMint {
             self.mint_seed_pubkey,
             self.address_tree_pubkey,
             self.output_queue,
-        );
+        )
+        // Always include compressible accounts for Mint creation
+        .with_compressible_mint(self.params.mint, config_pda(), rent_sponsor_pda());
+
         if let Some(cpi_context_pubkey) = self.cpi_context_pubkey {
             meta_config.cpi_context = Some(cpi_context_pubkey);
         }
@@ -163,10 +185,10 @@ impl CreateMint {
 }
 
 // ============================================================================
-// AccountInfos Struct: CreateCMintCpi (for CPI usage)
+// AccountInfos Struct: CreateMintCpi (for CPI usage)
 // ============================================================================
 
-/// # Create a compressed mint via CPI:
+/// # Create a mint via CPI:
 /// ```rust,no_run
 /// # use light_token_sdk::token::{CreateMintCpi, CreateMintParams, SystemAccountInfos};
 /// # use solana_account_info::AccountInfo;
@@ -175,6 +197,9 @@ impl CreateMint {
 /// # let payer: AccountInfo = todo!();
 /// # let address_tree: AccountInfo = todo!();
 /// # let output_queue: AccountInfo = todo!();
+/// # let compressible_config: AccountInfo = todo!();
+/// # let mint: AccountInfo = todo!();
+/// # let rent_sponsor: AccountInfo = todo!();
 /// # let system_accounts: SystemAccountInfos = todo!();
 /// # let params: CreateMintParams = todo!();
 /// CreateMintCpi {
@@ -183,6 +208,9 @@ impl CreateMint {
 ///     payer,
 ///     address_tree,
 ///     output_queue,
+///     compressible_config,
+///     mint,
+///     rent_sponsor,
 ///     system_accounts,
 ///     cpi_context: None,
 ///     cpi_context_account: None,
@@ -199,6 +227,12 @@ pub struct CreateMintCpi<'info> {
     pub payer: AccountInfo<'info>,
     pub address_tree: AccountInfo<'info>,
     pub output_queue: AccountInfo<'info>,
+    /// CompressibleConfig account (required for Mint creation)
+    pub compressible_config: AccountInfo<'info>,
+    /// Mint PDA account (writable, will be initialized)
+    pub mint: AccountInfo<'info>,
+    /// Rent sponsor PDA (required for Mint creation)
+    pub rent_sponsor: AccountInfo<'info>,
     pub system_accounts: SystemAccountInfos<'info>,
     pub cpi_context: Option<CpiContext>,
     pub cpi_context_account: Option<AccountInfo<'info>>,
@@ -206,12 +240,16 @@ pub struct CreateMintCpi<'info> {
 }
 
 impl<'info> CreateMintCpi<'info> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         mint_seed: AccountInfo<'info>,
         authority: AccountInfo<'info>,
         payer: AccountInfo<'info>,
         address_tree: AccountInfo<'info>,
         output_queue: AccountInfo<'info>,
+        compressible_config: AccountInfo<'info>,
+        mint: AccountInfo<'info>,
+        rent_sponsor: AccountInfo<'info>,
         system_accounts: SystemAccountInfos<'info>,
         params: CreateMintParams,
     ) -> Self {
@@ -221,6 +259,9 @@ impl<'info> CreateMintCpi<'info> {
             payer,
             address_tree,
             output_queue,
+            compressible_config,
+            mint,
+            rent_sponsor,
             system_accounts,
             cpi_context: None,
             cpi_context_account: None,
@@ -235,24 +276,28 @@ impl<'info> CreateMintCpi<'info> {
     pub fn invoke(self) -> Result<(), ProgramError> {
         let instruction = self.instruction()?;
 
-        // Account order must match the instruction's account metas order (from get_mint_action_instruction_account_metas)
+        // Account order must match MintActionMetaConfig::to_account_metas()
         let mut account_infos = vec![
-            self.system_accounts.light_system_program, // Index 0
-            self.mint_seed,                            // Index 1
-            self.authority,                            // Index 2 (authority)
-            self.payer,                                // Index 3 (fee_payer)
+            self.system_accounts.light_system_program,
+            self.mint_seed,
+            self.authority,
+            self.compressible_config,
+            self.mint,
+            self.rent_sponsor,
+            self.payer,
             self.system_accounts.cpi_authority_pda,
             self.system_accounts.registered_program_pda,
             self.system_accounts.account_compression_authority,
             self.system_accounts.account_compression_program,
             self.system_accounts.system_program,
-            self.output_queue,
-            self.address_tree,
         ];
 
         if let Some(cpi_context_account) = self.cpi_context_account {
             account_infos.push(cpi_context_account);
         }
+
+        account_infos.push(self.output_queue);
+        account_infos.push(self.address_tree);
 
         invoke(&instruction, &account_infos)
     }
@@ -260,24 +305,28 @@ impl<'info> CreateMintCpi<'info> {
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = self.instruction()?;
 
-        // Account order must match the instruction's account metas order (from get_mint_action_instruction_account_metas)
+        // Account order must match MintActionMetaConfig::to_account_metas()
         let mut account_infos = vec![
-            self.system_accounts.light_system_program, // Index 0
-            self.mint_seed,                            // Index 1
-            self.authority,                            // Index 2 (authority)
-            self.payer,                                // Index 3 (fee_payer)
+            self.system_accounts.light_system_program,
+            self.mint_seed,
+            self.authority,
+            self.compressible_config,
+            self.mint,
+            self.rent_sponsor,
+            self.payer,
             self.system_accounts.cpi_authority_pda,
             self.system_accounts.registered_program_pda,
             self.system_accounts.account_compression_authority,
             self.system_accounts.account_compression_program,
             self.system_accounts.system_program,
-            self.output_queue,
-            self.address_tree,
         ];
 
         if let Some(cpi_context_account) = self.cpi_context_account {
             account_infos.push(cpi_context_account);
         }
+
+        account_infos.push(self.output_queue);
+        account_infos.push(self.address_tree);
 
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }

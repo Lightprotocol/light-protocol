@@ -18,9 +18,7 @@ use light_compressible::rent::SLOTS_PER_EPOCH;
 #[cfg(feature = "devenv")]
 use light_sdk::compressible::CompressibleConfig as CpdaCompressibleConfig;
 #[cfg(feature = "devenv")]
-use light_token_interface::state::{
-    CompressedMint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
-};
+use light_token_interface::state::{Mint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT};
 #[cfg(feature = "devenv")]
 use solana_pubkey::Pubkey;
 
@@ -77,9 +75,9 @@ fn extract_compression_info(data: &[u8]) -> Option<(CompressionInfo, u8, bool)> 
             Some((compression_info, account_type, compression_only))
         }
         ACCOUNT_TYPE_MINT => {
-            let cmint = CompressedMint::deserialize(&mut &data[..]).ok()?;
-            // CMint accounts don't have compression_only, default to false
-            Some((cmint.compression, account_type, false))
+            let mint = Mint::deserialize(&mut &data[..]).ok()?;
+            // Mint accounts don't have compression_only, default to false
+            Some((mint.compression, account_type, false))
         }
         _ => None,
     }
@@ -150,7 +148,7 @@ pub async fn claim_and_compress(
     let forester_keypair = rpc.test_accounts.protocol.forester.insecure_clone();
     let payer = rpc.get_payer().insecure_clone();
 
-    // Get all compressible token/mint accounts (both Token and CMint)
+    // Get all compressible token/mint accounts (both Token and Mint)
     let compressible_ctoken_accounts = rpc
         .context
         .get_program_accounts(&light_compressed_token::ID);
@@ -236,7 +234,7 @@ pub async fn claim_and_compress(
             }
             Some(claimable_amount) if claimable_amount > 0 => {
                 // Has rent to claim from completed epochs
-                // Both Token and CMint can be claimed
+                // Both Token and Mint can be claimed
                 claim_accounts.push(*pubkey);
             }
             Some(_) => {
@@ -429,13 +427,13 @@ async fn compress_cmint_forester(
         RpcError::CustomError(format!("CMint account {} not found", cmint_pubkey))
     })?;
 
-    // Deserialize CMint to get compressed_address and rent_sponsor
-    let cmint: CompressedMint =
+    // Deserialize Mint to get compressed_address and rent_sponsor
+    let mint: Mint =
         BorshDeserialize::deserialize(&mut cmint_account.data.as_slice())
-            .map_err(|e| RpcError::CustomError(format!("Failed to deserialize CMint: {:?}", e)))?;
+            .map_err(|e| RpcError::CustomError(format!("Failed to deserialize Mint: {:?}", e)))?;
 
-    let compressed_mint_address = cmint.metadata.compressed_address();
-    let rent_sponsor = Pubkey::from(cmint.compression.rent_sponsor);
+    let compressed_mint_address = mint.metadata.compressed_address();
+    let rent_sponsor = Pubkey::from(mint.compression.rent_sponsor);
 
     // Get the compressed mint account from indexer
     let compressed_mint_account = rpc

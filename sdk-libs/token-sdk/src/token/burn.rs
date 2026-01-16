@@ -10,11 +10,11 @@ use solana_pubkey::Pubkey;
 /// # use solana_pubkey::Pubkey;
 /// # use light_token_sdk::token::Burn;
 /// # let source = Pubkey::new_unique();
-/// # let cmint = Pubkey::new_unique();
+/// # let mint = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
 /// let instruction = Burn {
 ///     source,
-///     cmint,
+///     mint,
 ///     amount: 100,
 ///     authority,
 ///     max_top_up: None,
@@ -24,8 +24,8 @@ use solana_pubkey::Pubkey;
 pub struct Burn {
     /// Light Token account to burn from
     pub source: Pubkey,
-    /// CMint account (supply tracking)
-    pub cmint: Pubkey,
+    /// Mint account (supply tracking)
+    pub mint: Pubkey,
     /// Amount of tokens to burn
     pub amount: u64,
     /// Owner of the Light Token account
@@ -40,11 +40,11 @@ pub struct Burn {
 /// # use light_token_sdk::token::BurnCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let source: AccountInfo = todo!();
-/// # let cmint: AccountInfo = todo!();
+/// # let mint: AccountInfo = todo!();
 /// # let authority: AccountInfo = todo!();
 /// BurnCpi {
 ///     source,
-///     cmint,
+///     mint,
 ///     amount: 100,
 ///     authority,
 ///     max_top_up: None,
@@ -54,7 +54,7 @@ pub struct Burn {
 /// ```
 pub struct BurnCpi<'info> {
     pub source: AccountInfo<'info>,
-    pub cmint: AccountInfo<'info>,
+    pub mint: AccountInfo<'info>,
     pub amount: u64,
     pub authority: AccountInfo<'info>,
     /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
@@ -68,13 +68,13 @@ impl<'info> BurnCpi<'info> {
 
     pub fn invoke(self) -> Result<(), ProgramError> {
         let instruction = Burn::from(&self).instruction()?;
-        let account_infos = [self.source, self.cmint, self.authority];
+        let account_infos = [self.source, self.mint, self.authority];
         invoke(&instruction, &account_infos)
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = Burn::from(&self).instruction()?;
-        let account_infos = [self.source, self.cmint, self.authority];
+        let account_infos = [self.source, self.mint, self.authority];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
@@ -83,7 +83,7 @@ impl<'info> From<&BurnCpi<'info>> for Burn {
     fn from(cpi: &BurnCpi<'info>) -> Self {
         Self {
             source: *cpi.source.key,
-            cmint: *cpi.cmint.key,
+            mint: *cpi.mint.key,
             amount: cpi.amount,
             authority: *cpi.authority.key,
             max_top_up: cpi.max_top_up,
@@ -97,7 +97,7 @@ impl Burn {
             program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
             accounts: vec![
                 AccountMeta::new(self.source, false),
-                AccountMeta::new(self.cmint, false),
+                AccountMeta::new(self.mint, false),
                 AccountMeta::new_readonly(self.authority, true),
             ],
             data: {

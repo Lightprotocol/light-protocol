@@ -4258,7 +4258,6 @@ dependencies = [
  "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "spl-pod",
- "spl-token-2022 7.0.0",
  "thiserror 2.0.17",
 ]
 
@@ -6025,6 +6024,7 @@ dependencies = [
  "light-sdk",
  "light-sdk-types",
  "light-test-utils",
+ "light-token-client",
  "light-token-interface",
  "light-token-sdk",
  "light-token-types",

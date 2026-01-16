@@ -430,7 +430,7 @@ impl AccountsConfig {
         let has_compress_and_close_cmint_action = parsed_instruction_data
             .actions
             .iter()
-            .any(|action| matches!(action, ZAction::CompressAndCloseCMint(_)));
+            .any(|action| matches!(action, ZAction::CompressAndCloseMint(_)));
 
         // Validation: Cannot combine DecompressMint and CompressAndCloseCMint in the same instruction
         if has_decompress_mint_action && has_compress_and_close_cmint_action {

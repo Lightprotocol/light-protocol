@@ -8,7 +8,7 @@ use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::airdrop_lamports;
 use light_token_client::{actions::mint_action_comprehensive, instructions::mint_action::NewMint};
-use light_token_interface::instructions::mint_action::{CompressedMintWithContext, Recipient};
+use light_token_interface::instructions::mint_action::{MintWithContext, Recipient};
 use light_token_sdk::compressed_token::{
     create_compressed_mint::find_mint_address, decompress_full::DecompressFullAccounts,
 };
@@ -117,7 +117,7 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
         &payer,
         &payer,
         None,  // decompress_mint
-        false, // compress_and_close_cmint
+        false, // compress_and_close_mint
         compressed_recipients,
         Vec::new(),
         None,
@@ -387,12 +387,11 @@ async fn test_decompress_full_cpi_with_context() {
             .unwrap()
             .value;
 
-        use light_token_interface::state::CompressedMint;
+        use light_token_interface::state::Mint;
         let compressed_mint =
-            CompressedMint::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
-                .unwrap();
+            Mint::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice()).unwrap();
 
-        let compressed_mint_with_context = CompressedMintWithContext {
+        let compressed_mint_with_context = MintWithContext {
             prove_by_index: true,
             leaf_index: compressed_mint_account.leaf_index,
             root_index: 0,

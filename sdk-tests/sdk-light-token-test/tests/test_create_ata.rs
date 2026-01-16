@@ -7,7 +7,7 @@ use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_token_sdk::token::LIGHT_TOKEN_PROGRAM_ID;
 use native_ctoken_examples::{CreateAtaData, ATA_SEED, ID};
-use shared::setup_create_compressed_mint;
+use shared::setup_create_mint;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -29,7 +29,7 @@ async fn test_create_ata_invoke() {
 
     // Create compressed mint first (using helper)
     let (mint_pda, _compression_address, _, _mint_seed) =
-        setup_create_compressed_mint(&mut rpc, &payer, mint_authority, 9, vec![]).await;
+        setup_create_mint(&mut rpc, &payer, mint_authority, 9, vec![]).await;
 
     // Derive the ATA address
     let owner = payer.pubkey();
@@ -103,7 +103,7 @@ async fn test_create_ata_invoke_signed() {
 
     // Create compressed mint first (using helper)
     let (mint_pda, _compression_address, _, _mint_seed) =
-        setup_create_compressed_mint(&mut rpc, &payer, mint_authority, 9, vec![]).await;
+        setup_create_mint(&mut rpc, &payer, mint_authority, 9, vec![]).await;
 
     // Derive the PDA that will act as payer/owner (using ATA_SEED)
     let (pda_owner, _pda_bump) = Pubkey::find_program_address(&[ATA_SEED], &ID);

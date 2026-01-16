@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_token_interface::instructions::mint_action::{CompressedMintWithContext, Recipient};
+use light_token_interface::instructions::mint_action::{MintWithContext, Recipient};
 use light_token_sdk::ValidityProof;
 
 use super::{
@@ -7,7 +7,7 @@ use super::{
 };
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct ChainedCtokenInstructionData {
-    pub compressed_mint_with_context: CompressedMintWithContext,
+    pub compressed_mint_with_context: MintWithContext,
     pub token_recipients: Vec<Recipient>,
     pub final_mint_authority: Option<Pubkey>,
     pub pda_creation: PdaCreationData,

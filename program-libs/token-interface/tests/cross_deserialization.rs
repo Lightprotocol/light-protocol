@@ -1,4 +1,4 @@
-//! Cross-deserialization security tests for Token and CMint accounts.
+//! Cross-deserialization security tests for Token and Mint accounts.
 //! Verifies that account_type discriminator at byte 165 prevents confusion.
 //!
 //! With the new extension-based design:
@@ -10,14 +10,14 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
 use light_token_interface::state::{
-    AccountState, BaseMint, CompressedMint, CompressedMintMetadata, CompressibleExtension,
-    ExtensionStruct, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+    AccountState, BaseMint, CompressibleExtension, ExtensionStruct, Mint, MintMetadata, Token,
+    ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
 };
 
 const ACCOUNT_TYPE_OFFSET: usize = 165;
 
-fn create_test_cmint() -> CompressedMint {
-    CompressedMint {
+fn create_test_mint() -> Mint {
+    Mint {
         base: BaseMint {
             mint_authority: Some(Pubkey::new_from_array([1; 32])),
             supply: 1000,
@@ -25,10 +25,10 @@ fn create_test_cmint() -> CompressedMint {
             is_initialized: true,
             freeze_authority: None,
         },
-        metadata: CompressedMintMetadata {
+        metadata: MintMetadata {
             version: 3,
             mint: Pubkey::new_from_array([2; 32]),
-            cmint_decompressed: false,
+            mint_decompressed: false,
             mint_signer: [5u8; 32],
             bump: 255,
         },
@@ -113,11 +113,11 @@ fn create_test_ctoken_simple() -> Token {
 
 #[test]
 fn test_account_type_byte_position() {
-    let cmint = create_test_cmint();
-    let cmint_bytes = cmint.try_to_vec().unwrap();
+    let mint = create_test_mint();
+    let mint_bytes = mint.try_to_vec().unwrap();
     assert_eq!(
-        cmint_bytes[ACCOUNT_TYPE_OFFSET], 1,
-        "CMint account_type should be 1"
+        mint_bytes[ACCOUNT_TYPE_OFFSET], 1,
+        "Mint account_type should be 1"
     );
 
     // Token with extensions has account_type byte at position 165
@@ -142,43 +142,43 @@ fn test_ctoken_without_extensions_size() {
 }
 
 #[test]
-fn test_cmint_bytes_fail_zero_copy_checked_as_ctoken() {
-    let cmint = create_test_cmint();
-    let cmint_bytes = cmint.try_to_vec().unwrap();
+fn test_mint_bytes_fail_zero_copy_checked_as_ctoken() {
+    let mint = create_test_mint();
+    let mint_bytes = mint.try_to_vec().unwrap();
 
-    // Token zero_copy_at_checked verifies account_type == 2, should fail for CMint bytes
-    let result = Token::zero_copy_at_checked(&cmint_bytes);
+    // Token zero_copy_at_checked verifies account_type == 2, should fail for Mint bytes
+    let result = Token::zero_copy_at_checked(&mint_bytes);
     assert!(
         result.is_err(),
-        "CMint bytes should fail to parse as Token zero-copy checked"
+        "Mint bytes should fail to parse as Token zero-copy checked"
     );
 }
 
 #[test]
-fn test_ctoken_bytes_fail_zero_copy_checked_as_cmint() {
+fn test_ctoken_bytes_fail_zero_copy_checked_as_mint() {
     let token = create_test_ctoken_with_extension();
     let ctoken_bytes = token.try_to_vec().unwrap();
 
-    // CompressedMint zero_copy_at_checked verifies account_type == 1, should fail for Token bytes
-    let result = CompressedMint::zero_copy_at_checked(&ctoken_bytes);
+    // Mint zero_copy_at_checked verifies account_type == 1, should fail for Token bytes
+    let result = Mint::zero_copy_at_checked(&ctoken_bytes);
     assert!(
         result.is_err(),
-        "Token bytes should fail to parse as CMint zero-copy checked"
+        "Token bytes should fail to parse as Mint zero-copy checked"
     );
 }
 
 #[test]
-fn test_ctoken_bytes_wrong_account_type_as_cmint() {
+fn test_ctoken_bytes_wrong_account_type_as_mint() {
     let token = create_test_ctoken_with_extension();
     let ctoken_bytes = token.try_to_vec().unwrap();
 
-    // Deserialize as CMint - should succeed but have wrong account_type
-    let cmint = CompressedMint::try_from_slice(&ctoken_bytes);
-    match cmint {
+    // Deserialize as Mint - should succeed but have wrong account_type
+    let mint = Mint::try_from_slice(&ctoken_bytes);
+    match mint {
         Ok(mint) => {
             assert_ne!(
                 mint.account_type, ACCOUNT_TYPE_MINT,
-                "Cross-deserialized CMint should have wrong account_type"
+                "Cross-deserialized Mint should have wrong account_type"
             );
         }
         Err(_) => {
@@ -188,25 +188,25 @@ fn test_ctoken_bytes_wrong_account_type_as_cmint() {
 }
 
 #[test]
-fn test_cmint_bytes_borsh_as_ctoken() {
-    let cmint = create_test_cmint();
-    let cmint_bytes = cmint.try_to_vec().unwrap();
+fn test_mint_bytes_borsh_as_ctoken() {
+    let mint = create_test_mint();
+    let mint_bytes = mint.try_to_vec().unwrap();
 
-    // Try to deserialize CMint bytes as Token
-    let result = Token::try_from_slice(&cmint_bytes);
+    // Try to deserialize Mint bytes as Token
+    let result = Token::try_from_slice(&mint_bytes);
     // Borsh deserialization is lenient, but checked deserialization should detect the wrong type
     match result {
         Ok(token) => {
             // Borsh is lenient and may succeed, but is_token_account() check should fail
-            // because CMint has account_type = ACCOUNT_TYPE_MINT (1), not ACCOUNT_TYPE_TOKEN_ACCOUNT (2)
+            // because Mint has account_type = ACCOUNT_TYPE_MINT (1), not ACCOUNT_TYPE_TOKEN_ACCOUNT (2)
             assert!(
                 !token.is_token_account(),
-                "CMint bytes deserialized as Token should fail is_token_account() check"
+                "Mint bytes deserialized as Token should fail is_token_account() check"
             );
             assert_eq!(
                 token.account_type(),
                 ACCOUNT_TYPE_MINT,
-                "CMint bytes should retain ACCOUNT_TYPE_MINT discriminator"
+                "Mint bytes should retain ACCOUNT_TYPE_MINT discriminator"
             );
         }
         Err(_) => {

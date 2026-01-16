@@ -3,16 +3,13 @@ use light_compressible::compression_info::CompressionInfo;
 use light_zero_copy::ZeroCopy;
 
 use super::{
-    CompressAndCloseCMintAction, CpiContext, DecompressMintAction, MintToAction,
+    CompressAndCloseMintAction, CpiContext, DecompressMintAction, MintToAction,
     MintToCompressedAction, RemoveMetadataKeyAction, UpdateAuthority,
     UpdateMetadataAuthorityAction, UpdateMetadataFieldAction,
 };
 use crate::{
     instructions::extensions::{ExtensionInstructionData, ZExtensionInstructionData},
-    state::{
-        AdditionalMetadata, BaseMint, CompressedMint, CompressedMintMetadata, ExtensionStruct,
-        TokenMetadata,
-    },
+    state::{AdditionalMetadata, BaseMint, ExtensionStruct, Mint, MintMetadata, TokenMetadata},
     AnchorDeserialize, AnchorSerialize, TokenError,
 };
 
@@ -31,12 +28,12 @@ pub enum Action {
     UpdateMetadataField(UpdateMetadataFieldAction),
     UpdateMetadataAuthority(UpdateMetadataAuthorityAction),
     RemoveMetadataKey(RemoveMetadataKeyAction),
-    /// Decompress a compressed mint to a CMint Solana account.
-    /// Creates a CMint PDA that becomes the source of truth.
+    /// Decompress a compressed mint to a Mint Solana account.
+    /// Creates a Mint PDA that becomes the source of truth.
     DecompressMint(DecompressMintAction),
-    /// Compress and close a CMint Solana account. The compressed mint state is preserved.
+    /// Compress and close a Mint Solana account. The compressed mint state is preserved.
     /// Permissionless - anyone can call if is_compressible() returns true (rent expired).
-    CompressAndCloseCMint(CompressAndCloseCMintAction),
+    CompressAndCloseMint(CompressAndCloseMintAction),
 }
 
 #[repr(C)]
@@ -56,39 +53,39 @@ pub struct MintActionCompressedInstructionData {
     pub actions: Vec<Action>,
     pub proof: Option<CompressedProof>,
     pub cpi_context: Option<CpiContext>,
-    pub mint: Option<CompressedMintInstructionData>,
+    pub mint: Option<MintInstructionData>,
 }
 
 #[repr(C)]
 #[derive(Debug, Clone, AnchorSerialize, Default, AnchorDeserialize, ZeroCopy)]
 pub struct CreateMint {
-    /// Placeholder to enable cmints in multiple address trees.
+    /// Placeholder to enable mints in multiple address trees.
     /// Currently set to 0.
     pub read_only_address_trees: [u8; 4],
-    /// Placeholder to enable cmints in multiple address trees.
+    /// Placeholder to enable mints in multiple address trees.
     /// Currently set to 0.
     pub read_only_address_tree_root_indices: [u16; 4],
 }
 
 #[repr(C)]
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy, PartialEq)]
-pub struct CompressedMintWithContext {
+pub struct MintWithContext {
     pub leaf_index: u32,
     pub prove_by_index: bool,
     pub root_index: u16,
     pub address: [u8; 32],
-    pub mint: Option<CompressedMintInstructionData>,
+    pub mint: Option<MintInstructionData>,
 }
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
-pub struct CompressedMintInstructionData {
+pub struct MintInstructionData {
     /// Total supply of tokens.
     pub supply: u64,
     /// Number of base 10 digits to the right of the decimal place.
     pub decimals: u8,
     /// Light Protocol-specific metadata
-    pub metadata: CompressedMintMetadata,
+    pub metadata: MintMetadata,
     /// Optional authority used to mint new tokens. The mint authority may only
     /// be provided during mint creation. If no mint authority is present
     /// then the mint has a fixed supply and no further tokens may be
@@ -100,10 +97,10 @@ pub struct CompressedMintInstructionData {
     pub extensions: Option<Vec<ExtensionInstructionData>>,
 }
 
-impl TryFrom<CompressedMint> for CompressedMintInstructionData {
+impl TryFrom<Mint> for MintInstructionData {
     type Error = TokenError;
 
-    fn try_from(mint: CompressedMint) -> Result<Self, Self::Error> {
+    fn try_from(mint: Mint) -> Result<Self, Self::Error> {
         let extensions = match mint.extensions {
             Some(exts) if !exts.is_empty() => {
                 let mut extension_list = Vec::with_capacity(exts.len());
@@ -141,12 +138,10 @@ impl TryFrom<CompressedMint> for CompressedMintInstructionData {
     }
 }
 
-impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
+impl<'a> TryFrom<&ZMintInstructionData<'a>> for Mint {
     type Error = TokenError;
 
-    fn try_from(
-        instruction_data: &ZCompressedMintInstructionData<'a>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(instruction_data: &ZMintInstructionData<'a>) -> Result<Self, Self::Error> {
         let extensions = match &instruction_data.extensions {
             Some(exts) => {
                 let converted_exts: Vec<_> = exts
@@ -196,9 +191,9 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
                 is_initialized: true, // Always true for compressed mints
                 freeze_authority: instruction_data.freeze_authority.map(|p| *p),
             },
-            metadata: CompressedMintMetadata {
+            metadata: MintMetadata {
                 version: instruction_data.metadata.version,
-                cmint_decompressed: instruction_data.metadata.cmint_decompressed != 0,
+                mint_decompressed: instruction_data.metadata.mint_decompressed != 0,
                 mint: instruction_data.metadata.mint,
                 mint_signer: instruction_data.metadata.mint_signer,
                 bump: instruction_data.metadata.bump,

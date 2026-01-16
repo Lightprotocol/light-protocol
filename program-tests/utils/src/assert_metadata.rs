@@ -6,7 +6,7 @@ use light_client::{
 use light_hasher::{sha256::Sha256BE, Hasher, HasherError};
 use light_token_interface::state::{
     extensions::{AdditionalMetadata, ExtensionStruct, TokenMetadata},
-    CompressedMint,
+    Mint,
 };
 use solana_sdk::{pubkey::Pubkey, signature::Signature};
 
@@ -55,10 +55,10 @@ pub async fn assert_metadata_state<R: Rpc + Indexer>(
         .expect("Compressed mint account not found");
     assert_sha_account_hash(&compressed_mint_account).unwrap();
 
-    // Deserialize the CompressedMint
-    let mint_data: CompressedMint =
+    // Deserialize the Mint
+    let mint_data: Mint =
         BorshDeserialize::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
-            .expect("Failed to deserialize CompressedMint");
+            .expect("Failed to deserialize Mint");
 
     // Verify mint has extensions
     assert!(
@@ -128,10 +128,10 @@ pub fn assert_sha_account_hash(account: &CompressedAccount) -> Result<(), Hasher
 pub async fn assert_mint_operation_result<R: Rpc + Indexer, F>(
     rpc: &mut R,
     compressed_mint_address: [u8; 32],
-    mint_before: &CompressedMint,
+    mint_before: &Mint,
     expected_changes: F,
 ) where
-    F: FnOnce(&mut CompressedMint),
+    F: FnOnce(&mut Mint),
 {
     // Apply expected changes to the before state
     let mut expected_mint_after = mint_before.clone();
@@ -150,11 +150,11 @@ pub async fn assert_mint_operation_result<R: Rpc + Indexer, F>(
     );
 }
 
-/// Get the complete CompressedMint state from account using borsh deserialization
+/// Get the complete Mint state from account using borsh deserialization
 pub async fn get_actual_mint_state<R: Rpc + Indexer>(
     rpc: &mut R,
     compressed_mint_address: [u8; 32],
-) -> CompressedMint {
+) -> Mint {
     let compressed_mint_account = rpc
         .indexer()
         .unwrap()
@@ -172,7 +172,7 @@ pub async fn get_actual_mint_state<R: Rpc + Indexer>(
         compressed_mint_account.data
     );
     BorshDeserialize::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
-        .expect("Failed to deserialize CompressedMint")
+        .expect("Failed to deserialize Mint")
 }
 
 /// Assert that an operation fails with the expected error code
@@ -226,9 +226,9 @@ pub async fn assert_metadata_exists<R: Rpc + Indexer>(
         )))
         .expect("Compressed mint account not found");
 
-    let mint_data: CompressedMint =
+    let mint_data: Mint =
         BorshDeserialize::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
-            .expect("Failed to deserialize CompressedMint");
+            .expect("Failed to deserialize Mint");
 
     assert!(
         mint_data.extensions.is_some(),
@@ -265,9 +265,9 @@ pub async fn assert_metadata_not_exists<R: Rpc + Indexer>(
         )))
         .expect("Compressed mint account not found");
 
-    let mint_data: CompressedMint =
+    let mint_data: Mint =
         BorshDeserialize::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
-            .expect("Failed to deserialize CompressedMint");
+            .expect("Failed to deserialize Mint");
 
     // Assert that either extensions is None or doesn't contain TokenMetadata
     if let Some(extensions) = mint_data.extensions {

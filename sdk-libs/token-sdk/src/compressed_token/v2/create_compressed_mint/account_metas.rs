@@ -5,15 +5,15 @@ use crate::utils::TokenDefaultAccounts;
 
 /// Account metadata configuration for create cMint instruction
 #[derive(Debug, Copy, Clone)]
-pub struct CreateCompressedMintMetaConfig {
+pub struct CreateMintMetaConfig {
     pub fee_payer: Option<Pubkey>,
     pub mint_signer: Option<Pubkey>,
     pub address_tree_pubkey: Pubkey,
     pub output_queue: Pubkey,
 }
 
-impl CreateCompressedMintMetaConfig {
-    /// Create a new CreateCompressedMintMetaConfig for direct invocation
+impl CreateMintMetaConfig {
+    /// Create a new CreateMintMetaConfig for direct invocation
     pub fn new(
         fee_payer: Pubkey,
         mint_signer: Pubkey,
@@ -28,7 +28,7 @@ impl CreateCompressedMintMetaConfig {
         }
     }
 
-    /// Create a new CreateCompressedMintMetaConfig for client-side (CPI) usage
+    /// Create a new CreateMintMetaConfig for client-side (CPI) usage
     pub fn new_client(
         mint_seed: Pubkey,
         address_tree_pubkey: Pubkey,
@@ -45,7 +45,7 @@ impl CreateCompressedMintMetaConfig {
 
 /// Get the standard account metas for a create cMint instruction
 pub fn get_create_compressed_mint_instruction_account_metas(
-    config: CreateCompressedMintMetaConfig,
+    config: CreateMintMetaConfig,
 ) -> Vec<AccountMeta> {
     let default_pubkeys = TokenDefaultAccounts::default();
 
@@ -122,13 +122,13 @@ pub fn get_create_compressed_mint_instruction_account_metas(
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct CreateCompressedMintMetaConfigCpiWrite {
+pub struct CreateMintMetaConfigCpiWrite {
     pub fee_payer: Pubkey,
     pub mint_signer: Pubkey,
     pub cpi_context: Pubkey,
 }
 pub fn get_create_compressed_mint_instruction_account_metas_cpi_write(
-    config: CreateCompressedMintMetaConfigCpiWrite,
+    config: CreateMintMetaConfigCpiWrite,
 ) -> [AccountMeta; 5] {
     let default_pubkeys = TokenDefaultAccounts::default();
     [

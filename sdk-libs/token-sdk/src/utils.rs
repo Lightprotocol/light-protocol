@@ -17,21 +17,35 @@ pub fn get_token_account_balance(token_account_info: &AccountInfo) -> Result<u64
     Token::amount_from_slice(&data).map_err(|_| TokenSdkError::InvalidAccountData)
 }
 
-pub fn is_token_account(account_info: &AccountInfo) -> Result<bool, TokenSdkError> {
+/// Check if an account owner is a Light token program.
+///
+/// Returns `Ok(true)` if owner is `LIGHT_TOKEN_PROGRAM_ID`.
+/// Returns `Ok(false)` if owner is SPL Token or Token-2022.
+/// Returns `Err` if owner is unrecognized.
+pub fn is_light_token_owner(owner: &Pubkey) -> Result<bool, TokenSdkError> {
     let light_token_program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
 
-    if account_info.owner == &light_token_program_id {
+    if owner == &light_token_program_id {
         return Ok(true);
     }
 
-    let token_22 = spl_token_2022::ID;
-    let spl_token = Pubkey::from_str_const("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+    let spl_token = Pubkey::from(light_token_types::SPL_TOKEN_PROGRAM_ID);
+    let spl_token_2022 = Pubkey::from(light_token_types::SPL_TOKEN_2022_PROGRAM_ID);
 
-    if account_info.owner == &token_22 || account_info.owner == &spl_token {
+    if owner == &spl_token_2022 || owner == &spl_token {
         return Ok(false);
     }
 
     Err(TokenSdkError::CannotDetermineAccountType)
+}
+
+/// Check if an account is a Light token account (by checking its owner).
+///
+/// Returns `Ok(true)` if owner is `LIGHT_TOKEN_PROGRAM_ID`.
+/// Returns `Ok(false)` if owner is SPL Token or Token-2022.
+/// Returns `Err` if owner is unrecognized.
+pub fn is_token_account(account_info: &AccountInfo) -> Result<bool, TokenSdkError> {
+    is_light_token_owner(account_info.owner)
 }
 
 pub const CLOSE_TOKEN_ACCOUNT_DISCRIMINATOR: u8 = 9;

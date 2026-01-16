@@ -5,7 +5,7 @@ use crate::utils::TokenDefaultAccounts;
 
 /// Configuration for generating account metas for update compressed mint instruction
 #[derive(Debug, Clone)]
-pub struct UpdateCompressedMintMetaConfig {
+pub struct UpdateMintMetaConfig {
     pub fee_payer: Option<Pubkey>,
     pub authority: Option<Pubkey>,
     pub in_merkle_tree: Pubkey,
@@ -16,7 +16,7 @@ pub struct UpdateCompressedMintMetaConfig {
 
 /// Generates account metas for the update compressed mint instruction
 pub fn get_update_compressed_mint_instruction_account_metas(
-    config: UpdateCompressedMintMetaConfig,
+    config: UpdateMintMetaConfig,
 ) -> Vec<AccountMeta> {
     let default_pubkeys = TokenDefaultAccounts::default();
 

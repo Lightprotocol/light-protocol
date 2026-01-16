@@ -4,15 +4,15 @@ use light_compressed_token::shared::cpi_bytes_size::{
     allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
 };
 use light_token_interface::state::{
-    extensions::TokenMetadataConfig, CompressedMint, CompressedMintConfig, ExtensionStructConfig,
+    extensions::TokenMetadataConfig, ExtensionStructConfig, Mint, MintConfig,
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 
 #[test]
 fn test_extension_allocation_only() {
     // Test 1: No extensions - should work
-    let mint_config_no_ext = CompressedMintConfig { extensions: None };
-    let expected_mint_size_no_ext = CompressedMint::byte_len(&mint_config_no_ext).unwrap();
+    let mint_config_no_ext = MintConfig { extensions: None };
+    let expected_mint_size_no_ext = Mint::byte_len(&mint_config_no_ext).unwrap();
 
     let mut outputs_no_ext = tinyvec::ArrayVec::<[(bool, u32); 35]>::new();
     outputs_no_ext.push((true, expected_mint_size_no_ext as u32)); // Mint account has address
@@ -40,10 +40,10 @@ fn test_extension_allocation_only() {
         additional_metadata: vec![], // No additional metadata
     })];
 
-    let mint_config_with_ext = CompressedMintConfig {
+    let mint_config_with_ext = MintConfig {
         extensions: Some(extensions_config.clone()),
     };
-    let expected_mint_size_with_ext = CompressedMint::byte_len(&mint_config_with_ext).unwrap();
+    let expected_mint_size_with_ext = Mint::byte_len(&mint_config_with_ext).unwrap();
 
     let mut outputs_with_ext = tinyvec::ArrayVec::<[(bool, u32); 35]>::new();
     outputs_with_ext.push((true, expected_mint_size_with_ext as u32)); // Mint account has address
@@ -109,12 +109,12 @@ fn test_extension_allocation_only() {
             available_space, expected_mint_size_with_ext
         );
 
-        // Test that we can create a CompressedMint with the allocated space (zero-copy compatibility)
+        // Test that we can create a Mint with the allocated space (zero-copy compatibility)
         let mint_test_data = vec![0u8; available_space];
-        let test_mint_result = CompressedMint::zero_copy_at(&mint_test_data);
+        let test_mint_result = Mint::zero_copy_at(&mint_test_data);
         assert!(
             test_mint_result.is_ok(),
-            "Allocated space should be valid for zero-copy CompressedMint creation"
+            "Allocated space should be valid for zero-copy Mint creation"
         );
 
         println!(
@@ -149,11 +149,11 @@ fn test_progressive_extension_sizes() {
             additional_metadata: vec![],
         })];
 
-        let mint_config = CompressedMintConfig {
+        let mint_config = MintConfig {
             extensions: Some(extensions_config),
         };
 
-        let expected_mint_size = CompressedMint::byte_len(&mint_config).unwrap();
+        let expected_mint_size = Mint::byte_len(&mint_config).unwrap();
         println!("Expected mint size: {}", expected_mint_size);
 
         let mut outputs = tinyvec::ArrayVec::<[(bool, u32); 35]>::new();
@@ -210,10 +210,10 @@ fn test_progressive_extension_sizes() {
                 name_len, symbol_len, uri_len, available_space, expected_mint_size
             );
 
-            // Test zero-copy compatibility - verify allocated space can be used for CompressedMint
+            // Test zero-copy compatibility - verify allocated space can be used for Mint
             let mint_test_data = vec![0u8; available_space];
-            let test_mint_result = CompressedMint::zero_copy_at(&mint_test_data);
-            assert!(test_mint_result.is_ok(), "Sizes name={}, symbol={}, uri={}: Allocated space should be valid for zero-copy CompressedMint", name_len, symbol_len, uri_len);
+            let test_mint_result = Mint::zero_copy_at(&mint_test_data);
+            assert!(test_mint_result.is_ok(), "Sizes name={}, symbol={}, uri={}: Allocated space should be valid for zero-copy Mint", name_len, symbol_len, uri_len);
 
             println!("✅ Success - Allocation verified for sizes: name={}, symbol={}, uri={} - {} bytes exactly allocated", name_len, symbol_len, uri_len, available_space);
         } else {

@@ -3,9 +3,9 @@ use light_compressed_account::instruction_data::{
 };
 use light_token_interface::{
     self,
-    instructions::mint_action::{CompressedMintWithContext, CpiContext},
+    instructions::mint_action::{CpiContext, MintWithContext},
 };
-use light_token_types::CompressedMintAuthorityType;
+use light_token_types::MintAuthorityType;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
@@ -22,9 +22,9 @@ pub const UPDATE_COMPRESSED_MINT_DISCRIMINATOR: u8 = 105;
 
 /// Input struct for updating a compressed mint instruction
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
-pub struct UpdateCompressedMintInputs {
-    pub compressed_mint_inputs: CompressedMintWithContext,
-    pub authority_type: CompressedMintAuthorityType,
+pub struct UpdateMintInputs {
+    pub compressed_mint_inputs: MintWithContext,
+    pub authority_type: MintAuthorityType,
     pub new_authority: Option<Pubkey>,
     pub mint_authority: Option<Pubkey>, // Current mint authority (needed when updating freeze authority)
     pub proof: Option<CompressedProof>,
@@ -37,7 +37,7 @@ pub struct UpdateCompressedMintInputs {
 
 /// Creates an update compressed mint instruction with CPI context support (now uses mint_action)
 pub fn update_compressed_mint_cpi(
-    input: UpdateCompressedMintInputs,
+    input: UpdateMintInputs,
     cpi_context: Option<CpiContext>,
 ) -> Result<Instruction> {
     let mut instruction_data =
@@ -51,10 +51,10 @@ pub fn update_compressed_mint_cpi(
     };
 
     instruction_data = match input.authority_type {
-        CompressedMintAuthorityType::MintTokens => {
+        MintAuthorityType::MintTokens => {
             instruction_data.with_update_mint_authority(update_authority)
         }
-        CompressedMintAuthorityType::FreezeAccount => {
+        MintAuthorityType::FreezeAccount => {
             instruction_data.with_update_freeze_authority(update_authority)
         }
     };
@@ -87,15 +87,15 @@ pub fn update_compressed_mint_cpi(
 }
 
 /// Creates an update compressed mint instruction without CPI context
-pub fn update_compressed_mint(input: UpdateCompressedMintInputs) -> Result<Instruction> {
+pub fn update_compressed_mint(input: UpdateMintInputs) -> Result<Instruction> {
     update_compressed_mint_cpi(input, None)
 }
 
 /// Input struct for creating an update compressed mint instruction with CPI context write
 #[derive(Debug, Clone)]
-pub struct UpdateCompressedMintInputsCpiWrite {
-    pub compressed_mint_inputs: CompressedMintWithContext,
-    pub authority_type: CompressedMintAuthorityType,
+pub struct UpdateMintInputsCpiWrite {
+    pub compressed_mint_inputs: MintWithContext,
+    pub authority_type: MintAuthorityType,
     pub new_authority: Option<Pubkey>,
     pub payer: Pubkey,
     pub authority: Pubkey,
@@ -105,7 +105,7 @@ pub struct UpdateCompressedMintInputsCpiWrite {
 
 /// Creates an update compressed mint instruction for CPI context writes (now uses mint_action)
 pub fn create_update_compressed_mint_cpi_write(
-    inputs: UpdateCompressedMintInputsCpiWrite,
+    inputs: UpdateMintInputsCpiWrite,
 ) -> Result<Instruction> {
     if !inputs.cpi_context.first_set_context && !inputs.cpi_context.set_context {
         return Err(TokenSdkError::InvalidCpiContext);
@@ -122,10 +122,10 @@ pub fn create_update_compressed_mint_cpi_write(
     };
 
     instruction_data = match inputs.authority_type {
-        CompressedMintAuthorityType::MintTokens => {
+        MintAuthorityType::MintTokens => {
             instruction_data.with_update_mint_authority(update_authority)
         }
-        CompressedMintAuthorityType::FreezeAccount => {
+        MintAuthorityType::FreezeAccount => {
             instruction_data.with_update_freeze_authority(update_authority)
         }
     };

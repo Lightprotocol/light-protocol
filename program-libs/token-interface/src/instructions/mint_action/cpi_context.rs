@@ -15,7 +15,7 @@ pub struct CpiContext {
     pub token_out_queue_index: u8,
     // Index of the compressed account that should receive the new address (0 = mint, 1+ = token accounts)
     pub assigned_account_index: u8,
-    /// Placeholder to enable cmints in multiple address trees.
+    /// Placeholder to enable mints in multiple address trees.
     /// Currently set to 0.
     pub read_only_address_trees: [u8; 4],
     pub address_tree_pubkey: [u8; 32],

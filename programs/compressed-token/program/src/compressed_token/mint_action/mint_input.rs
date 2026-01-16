@@ -4,7 +4,7 @@ use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_hasher::{sha256::Sha256BE, Hasher};
 use light_program_profiler::profile;
 use light_sdk::instruction::PackedMerkleContext;
-use light_token_interface::state::CompressedMint;
+use light_token_interface::state::Mint;
 use light_zero_copy::U16;
 
 use crate::{
@@ -25,7 +25,7 @@ pub fn create_input_compressed_mint_account(
     root_index: U16,
     merkle_context: PackedMerkleContext,
     accounts_config: &AccountsConfig,
-    compressed_mint: &CompressedMint,
+    compressed_mint: &Mint,
 ) -> Result<(), ProgramError> {
     // When CMint was decompressed (input state BEFORE actions), use zero values
     let (discriminator, input_data_hash) = if accounts_config.cmint_decompressed {

@@ -1,8 +1,6 @@
 use light_client::rpc::Rpc;
 use light_program_test::LightProgramTest;
-use light_token_interface::state::{
-    CompressedMint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT,
-};
+use light_token_interface::state::{Mint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT};
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 use solana_sdk::{clock::Clock, pubkey::Pubkey};
 
@@ -63,9 +61,9 @@ fn extract_pre_compression_mut(
             }
         }
         ACCOUNT_TYPE_MINT => {
-            let (mut cmint, _) = CompressedMint::zero_copy_at_mut(data)
-                .unwrap_or_else(|e| panic!("Failed to parse cmint account {}: {:?}", pubkey, e));
-            let compression = &mut cmint.base.compression;
+            let (mut mint, _) = Mint::zero_copy_at_mut(data)
+                .unwrap_or_else(|e| panic!("Failed to parse mint account {}: {:?}", pubkey, e));
+            let compression = &mut mint.base.compression;
             let last_claimed_slot = u64::from(compression.last_claimed_slot);
             let compression_authority = Pubkey::from(compression.compression_authority);
             let rent_sponsor = Pubkey::from(compression.rent_sponsor);
@@ -99,9 +97,9 @@ fn extract_post_compression(data: &[u8], pubkey: &Pubkey) -> u64 {
             u64::from(compressible.info.last_claimed_slot)
         }
         ACCOUNT_TYPE_MINT => {
-            let (cmint, _) = CompressedMint::zero_copy_at(data)
-                .unwrap_or_else(|e| panic!("Failed to parse cmint account {}: {:?}", pubkey, e));
-            u64::from(cmint.base.compression.last_claimed_slot)
+            let (mint, _) = Mint::zero_copy_at(data)
+                .unwrap_or_else(|e| panic!("Failed to parse mint account {}: {:?}", pubkey, e));
+            u64::from(mint.base.compression.last_claimed_slot)
         }
         _ => panic!("Unknown account type {} for {}", account_type, pubkey),
     }
@@ -128,14 +126,14 @@ pub async fn assert_claim(
         // Must have > 165 bytes to include account_type discriminator
         assert!(
             pre_token_account.data.len() > 165,
-            "Account must have > 165 bytes for Light Token/CMint"
+            "Account must have > 165 bytes for Light Token/Mint"
         );
         // Get account size and lamports before parsing (to avoid borrow conflicts)
         let account_size = pre_token_account.data.len() as u64;
         let account_lamports = pre_token_account.lamports;
         let current_slot = rpc.pre_context.as_ref().unwrap().get_sysvar::<Clock>().slot;
 
-        // Extract compression info (handles both Light Token and CMint)
+        // Extract compression info (handles both Light Token and Mint)
         let pre_data = extract_pre_compression_mut(
             &mut pre_token_account.data,
             account_size,

@@ -23,16 +23,15 @@ async fn test_burn_invoke() {
     let payer = rpc.get_payer().insecure_clone();
 
     // Create a decompressed mint (required for burn) with an ATA for the payer with 1000 tokens
-    let (mint_pda, _compression_address, ata_pubkeys) =
-        setup_create_compressed_mint_with_freeze_authority(
-            &mut rpc,
-            &payer,
-            payer.pubkey(),
-            None, // No freeze authority needed for burn test
-            9,
-            vec![(1000, payer.pubkey())],
-        )
-        .await;
+    let (mint_pda, _compression_address, ata_pubkeys) = setup_create_mint_with_freeze_authority(
+        &mut rpc,
+        &payer,
+        payer.pubkey(),
+        None, // No freeze authority needed for burn test
+        9,
+        vec![(1000, payer.pubkey())],
+    )
+    .await;
 
     let ata = ata_pubkeys[0];
     let burn_amount = 300u64;
@@ -53,7 +52,7 @@ async fn test_burn_invoke() {
         program_id: ID,
         accounts: vec![
             AccountMeta::new(ata, false),                          // source
-            AccountMeta::new(mint_pda, false),                     // cmint
+            AccountMeta::new(mint_pda, false),                     // mint
             AccountMeta::new_readonly(payer.pubkey(), true),       // authority (signer)
             AccountMeta::new_readonly(light_token_program, false), // light_token_program
         ],
@@ -89,16 +88,15 @@ async fn test_burn_invoke_signed() {
     let (pda_owner, _bump) = Pubkey::find_program_address(&[TOKEN_ACCOUNT_SEED], &ID);
 
     // Create a decompressed mint with an ATA for the PDA owner with 1000 tokens
-    let (mint_pda, _compression_address, ata_pubkeys) =
-        setup_create_compressed_mint_with_freeze_authority(
-            &mut rpc,
-            &payer,
-            payer.pubkey(),
-            None, // No freeze authority needed for burn test
-            9,
-            vec![(1000, pda_owner)],
-        )
-        .await;
+    let (mint_pda, _compression_address, ata_pubkeys) = setup_create_mint_with_freeze_authority(
+        &mut rpc,
+        &payer,
+        payer.pubkey(),
+        None, // No freeze authority needed for burn test
+        9,
+        vec![(1000, pda_owner)],
+    )
+    .await;
 
     let ata = ata_pubkeys[0];
     let burn_amount = 500u64;
@@ -119,7 +117,7 @@ async fn test_burn_invoke_signed() {
         program_id: ID,
         accounts: vec![
             AccountMeta::new(ata, false),                          // source
-            AccountMeta::new(mint_pda, false),                     // cmint
+            AccountMeta::new(mint_pda, false),                     // mint
             AccountMeta::new_readonly(pda_owner, false),           // PDA authority (program signs)
             AccountMeta::new_readonly(light_token_program, false), // light_token_program
         ],

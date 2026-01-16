@@ -17,9 +17,9 @@ pub const ACCOUNT_TYPE_MINT: u8 = 1;
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, BorshSerialize, BorshDeserialize)]
-pub struct CompressedMint {
+pub struct Mint {
     pub base: BaseMint,
-    pub metadata: CompressedMintMetadata,
+    pub metadata: MintMetadata,
     /// Reserved bytes (16 bytes) for T22 layout compatibility.
     /// Positions `account_type` at offset 165: 82 (BaseMint) + 67 (metadata) + 16 (reserved) = 165.
     pub reserved: [u8; 16],
@@ -30,11 +30,11 @@ pub struct CompressedMint {
     pub extensions: Option<Vec<ExtensionStruct>>,
 }
 
-impl Default for CompressedMint {
+impl Default for Mint {
     fn default() -> Self {
         Self {
             base: BaseMint::default(),
-            metadata: CompressedMintMetadata::default(),
+            metadata: MintMetadata::default(),
             reserved: [0u8; 16],
             account_type: ACCOUNT_TYPE_MINT,
             compression: CompressionInfo::default(),
@@ -67,7 +67,7 @@ pub struct BaseMint {
 ///
 /// Total size: 67 bytes
 /// - version: 1 byte
-/// - cmint_decompressed: 1 byte
+/// - mint_decompressed: 1 byte
 /// - mint: 32 bytes
 /// - mint_signer: 32 bytes
 /// - bump: 1 byte
@@ -75,12 +75,12 @@ pub struct BaseMint {
 #[derive(
     Debug, Default, PartialEq, Eq, Clone, AnchorDeserialize, AnchorSerialize, ZeroCopyMut, ZeroCopy,
 )]
-pub struct CompressedMintMetadata {
+pub struct MintMetadata {
     /// Version for upgradability
     pub version: u8,
-    /// Whether the compressed mint has been decompressed to a CMint Solana account.
-    /// When true, the CMint account is the source of truth.
-    pub cmint_decompressed: bool,
+    /// Whether the compressed mint has been decompressed to a Mint Solana account.
+    /// When true, the Mint account is the source of truth.
+    pub mint_decompressed: bool,
     /// PDA derived from mint_signer, used as seed for the compressed address
     pub mint: Pubkey,
     /// Signer pubkey used to derive the mint PDA
@@ -89,7 +89,7 @@ pub struct CompressedMintMetadata {
     pub bump: u8,
 }
 
-impl CompressedMintMetadata {
+impl MintMetadata {
     /// Derives the compressed address from mint PDA, CMINT_ADDRESS_TREE and LIGHT_TOKEN_PROGRAM_ID
     pub fn compressed_address(&self) -> [u8; 32] {
         derive_address(
@@ -100,7 +100,7 @@ impl CompressedMintMetadata {
     }
 }
 
-impl ZCompressedMintMetadata<'_> {
+impl ZMintMetadata<'_> {
     /// Derives the compressed address from mint PDA, CMINT_ADDRESS_TREE and LIGHT_TOKEN_PROGRAM_ID
     pub fn compressed_address(&self) -> [u8; 32] {
         derive_address(
@@ -111,7 +111,7 @@ impl ZCompressedMintMetadata<'_> {
     }
 }
 
-impl CompressedMint {
+impl Mint {
     pub fn hash(&self) -> Result<[u8; 32], TokenError> {
         match self.metadata.version {
             3 => Ok(Sha256BE::hash(
@@ -123,49 +123,49 @@ impl CompressedMint {
         }
     }
 
-    /// Deserialize a CompressedMint from a CMint Solana account with validation.
+    /// Deserialize a Mint from a Solana account with validation.
     ///
     /// Checks:
     /// 1. Account is owned by the specified program
     /// 2. Account is initialized (BaseMint.is_initialized == true)
     ///
-    /// Note: CMint accounts follow SPL token mint pattern (no discriminator).
+    /// Note: Mint accounts follow SPL token mint pattern (no discriminator).
     /// Validation is done via owner check + PDA derivation (caller responsibility).
     pub fn from_account_info_checked(account_info: &AccountInfo) -> Result<Self, TokenError> {
         // 1. Check program ownership
         if !account_info.is_owned_by(&LIGHT_TOKEN_PROGRAM_ID) {
             #[cfg(feature = "solana")]
-            msg!("CMint account has invalid owner");
-            return Err(TokenError::InvalidCMintOwner);
+            msg!("Mint account has invalid owner");
+            return Err(TokenError::InvalidMintOwner);
         }
 
         // 2. Borrow and deserialize account data
         let data = account_info
             .try_borrow_data()
-            .map_err(|_| TokenError::CMintBorrowFailed)?;
+            .map_err(|_| TokenError::MintBorrowFailed)?;
 
         let mint =
-            Self::try_from_slice(&data).map_err(|_| TokenError::CMintDeserializationFailed)?;
+            Self::try_from_slice(&data).map_err(|_| TokenError::MintDeserializationFailed)?;
 
         // 3. Check is_initialized
         if !mint.base.is_initialized {
             #[cfg(feature = "solana")]
-            msg!("CMint account is not initialized");
-            return Err(TokenError::CMintNotInitialized);
+            msg!("Mint account is not initialized");
+            return Err(TokenError::MintNotInitialized);
         }
 
-        if !mint.is_cmint_account() {
+        if !mint.is_mint_account() {
             #[cfg(feature = "solana")]
-            msg!("CMint account is not a CMint account");
+            msg!("Mint account is not a Mint account");
             return Err(TokenError::MintMismatch);
         }
 
         Ok(mint)
     }
 
-    /// Checks if account_type matches CMint discriminator value
+    /// Checks if account_type matches Mint discriminator value
     #[inline(always)]
-    pub fn is_cmint_account(&self) -> bool {
+    pub fn is_mint_account(&self) -> bool {
         self.account_type == ACCOUNT_TYPE_MINT
     }
 }

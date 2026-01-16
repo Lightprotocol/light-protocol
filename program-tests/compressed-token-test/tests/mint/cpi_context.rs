@@ -6,10 +6,10 @@ use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, Prog
 use light_test_utils::Rpc;
 use light_token_interface::{
     instructions::mint_action::{
-        CompressedMintInstructionData, CompressedMintWithContext, CpiContext, DecompressMintAction,
-        MintActionCompressedInstructionData, MintToAction,
+        CpiContext, DecompressMintAction, MintActionCompressedInstructionData, MintInstructionData,
+        MintToAction, MintWithContext,
     },
-    state::CompressedMintMetadata,
+    state::MintMetadata,
     CMINT_ADDRESS_TREE, LIGHT_TOKEN_PROGRAM_ID,
 };
 use light_token_sdk::compressed_token::{
@@ -29,7 +29,7 @@ use solana_sdk::{
 
 struct TestSetup {
     rpc: LightProgramTest,
-    compressed_mint_inputs: CompressedMintWithContext,
+    compressed_mint_inputs: MintWithContext,
     payer: Keypair,
     mint_seed: Keypair,
     mint_authority: Keypair,
@@ -72,17 +72,17 @@ async fn test_setup() -> TestSetup {
 
     // 3. Build compressed mint inputs
     let (_, bump) = find_mint_address(&mint_seed.pubkey());
-    let compressed_mint_inputs = CompressedMintWithContext {
+    let compressed_mint_inputs = MintWithContext {
         leaf_index: 0,
         prove_by_index: false,
         root_index: 0,
         address: compressed_mint_address,
-        mint: Some(CompressedMintInstructionData {
+        mint: Some(MintInstructionData {
             supply: 0,
             decimals,
-            metadata: CompressedMintMetadata {
+            metadata: MintMetadata {
                 version: 3,
-                cmint_decompressed: false,
+                mint_decompressed: false,
                 mint: spl_mint_pda.into(),
                 mint_signer: mint_seed.pubkey().to_bytes(),
                 bump,
@@ -521,8 +521,8 @@ async fn test_write_to_cpi_context_decompressed_mint_fails() {
     } = test_setup().await;
 
     // Build instruction data with mint = None (simulates decompressed mint)
-    // This triggers cmint_decompressed = true in AccountsConfig
-    let mint_with_context = CompressedMintWithContext {
+    // This triggers mint_decompressed = true in AccountsConfig
+    let mint_with_context = MintWithContext {
         leaf_index: 0,
         prove_by_index: false,
         root_index: 0,

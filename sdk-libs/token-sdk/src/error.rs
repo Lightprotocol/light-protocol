@@ -75,6 +75,8 @@ pub enum TokenSdkError {
     MissingCompressibleExtension,
     #[error("Invalid Token account data")]
     InvalidTokenAccount,
+    #[error("SPL token program mismatch between source and destination")]
+    SplTokenProgramMismatch,
     #[error(transparent)]
     CompressedTokenTypes(#[from] LightTokenSdkTypeError),
     #[error(transparent)]
@@ -136,6 +138,7 @@ impl From<TokenSdkError> for u32 {
             TokenSdkError::NoInputAccounts => 17030,
             TokenSdkError::MissingCompressibleExtension => 17031,
             TokenSdkError::InvalidTokenAccount => 17032,
+            TokenSdkError::SplTokenProgramMismatch => 17033,
             TokenSdkError::CompressedTokenTypes(e) => e.into(),
             TokenSdkError::TokenError(e) => e.into(),
             TokenSdkError::LightSdkTypesError(e) => e.into(),

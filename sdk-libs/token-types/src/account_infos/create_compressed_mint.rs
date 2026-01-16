@@ -3,7 +3,7 @@ use light_account_checks::AccountInfoTrait;
 use crate::error::{LightTokenSdkTypeError, Result};
 
 #[repr(usize)]
-pub enum CreateCompressedMintAccountInfosIndex {
+pub enum CreateMintAccountInfosIndex {
     // Static non-CPI accounts first
     MintSigner = 0,
     LightSystemProgram = 1,
@@ -21,12 +21,12 @@ pub enum CreateCompressedMintAccountInfosIndex {
     OutOutputQueue = 10,
 }
 
-pub struct CreateCompressedMintAccountInfos<'a, T: AccountInfoTrait + Clone> {
+pub struct CreateMintAccountInfos<'a, T: AccountInfoTrait + Clone> {
     fee_payer: &'a T,
     accounts: &'a [T],
 }
 
-impl<'a, T: AccountInfoTrait + Clone> CreateCompressedMintAccountInfos<'a, T> {
+impl<'a, T: AccountInfoTrait + Clone> CreateMintAccountInfos<'a, T> {
     // Idea new_with_fee_payer and new
     pub fn new(fee_payer: &'a T, accounts: &'a [T]) -> Self {
         Self {
@@ -40,77 +40,77 @@ impl<'a, T: AccountInfoTrait + Clone> CreateCompressedMintAccountInfos<'a, T> {
     }
 
     pub fn mint_signer(&self) -> Result<&'a T> {
-        let index = CreateCompressedMintAccountInfosIndex::MintSigner as usize;
+        let index = CreateMintAccountInfosIndex::MintSigner as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn light_system_program(&self) -> Result<&'a T> {
-        let index = CreateCompressedMintAccountInfosIndex::LightSystemProgram as usize;
+        let index = CreateMintAccountInfosIndex::LightSystemProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn cpi_authority_pda(&self) -> Result<&'a T> {
-        let index = CreateCompressedMintAccountInfosIndex::CpiAuthorityPda as usize;
+        let index = CreateMintAccountInfosIndex::CpiAuthorityPda as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn registered_program_pda(&self) -> Result<&'a T> {
-        let index = CreateCompressedMintAccountInfosIndex::RegisteredProgramPda as usize;
+        let index = CreateMintAccountInfosIndex::RegisteredProgramPda as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn noop_program(&self) -> Result<&'a T> {
-        let index = CreateCompressedMintAccountInfosIndex::NoopProgram as usize;
+        let index = CreateMintAccountInfosIndex::NoopProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn account_compression_authority(&self) -> Result<&'a T> {
-        let index = CreateCompressedMintAccountInfosIndex::AccountCompressionAuthority as usize;
+        let index = CreateMintAccountInfosIndex::AccountCompressionAuthority as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn account_compression_program(&self) -> Result<&'a T> {
-        let index = CreateCompressedMintAccountInfosIndex::AccountCompressionProgram as usize;
+        let index = CreateMintAccountInfosIndex::AccountCompressionProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn system_program(&self) -> Result<&'a T> {
-        let index = CreateCompressedMintAccountInfosIndex::SystemProgram as usize;
+        let index = CreateMintAccountInfosIndex::SystemProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn self_program(&self) -> Result<&'a T> {
-        let index = CreateCompressedMintAccountInfosIndex::SelfProgram as usize;
+        let index = CreateMintAccountInfosIndex::SelfProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn address_merkle_tree(&self) -> Result<&'a T> {
-        let index = CreateCompressedMintAccountInfosIndex::AddressMerkleTree as usize;
+        let index = CreateMintAccountInfosIndex::AddressMerkleTree as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn out_output_queue(&self) -> Result<&'a T> {
-        let index = CreateCompressedMintAccountInfosIndex::OutOutputQueue as usize;
+        let index = CreateMintAccountInfosIndex::OutOutputQueue as usize;
         self.accounts
             .get(index)
             .ok_or(LightTokenSdkTypeError::CpiAccountsIndexOutOfBounds(index))

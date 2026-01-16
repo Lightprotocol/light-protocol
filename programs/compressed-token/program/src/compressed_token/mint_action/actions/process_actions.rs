@@ -7,7 +7,7 @@ use light_program_profiler::profile;
 use light_token_interface::{
     hash_cache::HashCache,
     instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
-    state::CompressedMint,
+    state::Mint,
     TokenError,
 };
 use pinocchio::account_info::AccountInfo;
@@ -45,7 +45,7 @@ pub fn process_actions<'a>(
     hash_cache: &mut HashCache,
     queue_indices: &QueueIndices,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
-    compressed_mint: &mut CompressedMint,
+    compressed_mint: &mut Mint,
 ) -> Result<(), ProgramError> {
     // Array to accumulate transfer amounts by account index
     let mut transfer_map = [0u64; MAX_PACKED_ACCOUNTS];
@@ -143,7 +143,7 @@ pub fn process_actions<'a>(
                     fee_payer,
                 )?;
             }
-            ZAction::CompressAndCloseCMint(action) => {
+            ZAction::CompressAndCloseMint(action) => {
                 process_compress_and_close_cmint_action(
                     action,
                     compressed_mint,

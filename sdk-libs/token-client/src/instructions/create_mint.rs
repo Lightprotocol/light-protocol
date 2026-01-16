@@ -2,18 +2,18 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_token_interface::instructions::extensions::{
-    token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,
-};
-use light_token_sdk::token::{
-    derive_mint_compressed_address, find_mint_address, CreateMint, CreateMintParams,
-};
+use light_token_interface::instructions::extensions::token_metadata::TokenMetadataInstructionData;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
-/// Create a compressed mint instruction with automatic setup.
+use crate::instructions::mint_action::{create_mint_action_instruction, MintActionParams, NewMint};
+
+/// Create a compressed-only mint instruction (no decompression).
+///
+/// This creates ONLY the compressed mint account, NOT the Mint Solana account.
+/// Use DecompressMint action to create the Mint Solana account later if needed.
 ///
 /// # Arguments
 /// * `rpc` - RPC client with indexer capabilities
@@ -35,55 +35,31 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
     payer: Pubkey,
     metadata: Option<TokenMetadataInstructionData>,
 ) -> Result<Instruction, RpcError> {
-    // Get address tree and output queue from RPC
+    // Get address tree for deriving compressed mint address
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-
-    let output_queue = rpc.get_random_state_tree_info()?.queue;
-
-    let compressed_mint_address =
-        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-
-    // Create extensions if metadata is provided
-    let extensions = metadata.map(|meta| vec![ExtensionInstructionData::TokenMetadata(meta)]);
-
-    // Get validity proof for address creation
-    let rpc_result = rpc
-        .get_validity_proof(
-            vec![],
-            vec![light_client::indexer::AddressWithTree {
-                address: compressed_mint_address,
-                tree: address_tree_pubkey,
-            }],
-            None,
-        )
-        .await?
-        .value;
-
-    let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
-    let (mint, bump) = find_mint_address(&mint_seed.pubkey());
-    // Build params struct manually
-    let params = CreateMintParams {
-        decimals,
-        address_merkle_tree_root_index,
-        mint_authority,
-        proof: rpc_result.proof.0.unwrap(),
-        compression_address: compressed_mint_address,
-        mint,
-        bump,
-        freeze_authority,
-        extensions,
-    };
-
-    // Create instruction builder
-    let builder = CreateMint::new(
-        params,
-        mint_seed.pubkey(),
-        payer,
-        address_tree_pubkey,
-        output_queue,
+    let compressed_mint_address = light_token_sdk::token::derive_mint_compressed_address(
+        &mint_seed.pubkey(),
+        &address_tree_pubkey,
     );
 
-    builder
-        .instruction()
-        .map_err(|e| RpcError::CustomError(format!("Token SDK error: {:?}", e)))
+    // Create compressed-only mint using MintAction with empty actions
+    create_mint_action_instruction(
+        rpc,
+        MintActionParams {
+            compressed_mint_address,
+            mint_seed: mint_seed.pubkey(),
+            authority: mint_authority,
+            payer,
+            actions: vec![], // No actions - just create compressed mint
+            new_mint: Some(NewMint {
+                decimals,
+                supply: 0,
+                mint_authority,
+                freeze_authority,
+                metadata,
+                version: 3,
+            }),
+        },
+    )
+    .await
 }

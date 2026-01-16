@@ -9,9 +9,9 @@ use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use light_token_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData,
-        mint_action::{CompressedMintInstructionData, CompressedMintWithContext, Recipient},
+        mint_action::{MintInstructionData, MintWithContext, Recipient},
     },
-    state::{extensions::AdditionalMetadata, CompressedMintMetadata},
+    state::{extensions::AdditionalMetadata, MintMetadata},
     LIGHT_TOKEN_PROGRAM_ID,
 };
 use light_token_sdk::{
@@ -95,7 +95,7 @@ async fn test_pda_ctoken() {
     println!("🧪 Verifying chained CPI results...");
 
     // 1. Verify compressed mint was created and mint authority was revoked
-    let compressed_mint = light_token_interface::state::CompressedMint::deserialize(
+    let compressed_mint = light_token_interface::state::Mint::deserialize(
         &mut &mint_account.data.as_ref().unwrap().data[..],
     )
     .unwrap();
@@ -261,18 +261,18 @@ pub async fn create_mint(
     let pda_amount = 100u64;
 
     // Create consolidated instruction data using new optimized structure
-    let compressed_mint_with_context = CompressedMintWithContext {
+    let compressed_mint_with_context = MintWithContext {
         leaf_index: 0,
         prove_by_index: false,
         root_index: rpc_result.addresses[0].root_index,
         address: compressed_mint_address,
-        mint: Some(CompressedMintInstructionData {
+        mint: Some(MintInstructionData {
             supply: 0,
             decimals,
-            metadata: CompressedMintMetadata {
+            metadata: MintMetadata {
                 version: 3,
                 mint: mint.into(),
-                cmint_decompressed: false,
+                mint_decompressed: false,
                 mint_signer: mint_seed.pubkey().to_bytes(),
                 bump: mint_bump,
             },

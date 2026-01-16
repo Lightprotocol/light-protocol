@@ -1,9 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_program_profiler::profile;
-use light_token_interface::{
-    instructions::mint_action::ZCompressAndCloseCMintAction, state::CompressedMint,
-};
+use light_token_interface::{instructions::mint_action::ZCompressAndCloseMintAction, state::Mint};
 use pinocchio::{
     pubkey::pubkey_eq,
     sysvars::{clock::Clock, Sysvar},
@@ -34,20 +32,20 @@ use crate::{
 /// provided is_compressible() returns true. All lamports are returned to rent_sponsor.
 #[profile]
 pub fn process_compress_and_close_cmint_action(
-    action: &ZCompressAndCloseCMintAction,
-    compressed_mint: &mut CompressedMint,
+    action: &ZCompressAndCloseMintAction,
+    compressed_mint: &mut Mint,
     validated_accounts: &MintActionAccounts,
 ) -> Result<(), ProgramError> {
     // NOTE: CompressAndCloseCMint is permissionless - anyone can compress if is_compressible() returns true
     // All lamports returned to rent_sponsor
     // 1. Idempotent check - if CMint doesn't exist and idempotent is set, return early exit error to skip CPI
-    if action.is_idempotent() && !compressed_mint.metadata.cmint_decompressed {
+    if action.is_idempotent() && !compressed_mint.metadata.mint_decompressed {
         return Err(ErrorCode::IdempotentEarlyExit.into());
     }
 
     // 2. Check CMint exists (is decompressed)
-    if !compressed_mint.metadata.cmint_decompressed {
-        msg!("CMint does not exist (cmint_decompressed = false)");
+    if !compressed_mint.metadata.mint_decompressed {
+        msg!("CMint does not exist (mint_decompressed = false)");
         return Err(ErrorCode::CMintNotDecompressed.into());
     }
 
@@ -107,8 +105,8 @@ pub fn process_compress_and_close_cmint_action(
         }
         cmint.resize(0).map_err(convert_program_error)?;
     }
-    // 8. Set cmint_decompressed = false
-    compressed_mint.metadata.cmint_decompressed = false;
+    // 8. Set mint_decompressed = false
+    compressed_mint.metadata.mint_decompressed = false;
 
     // 9. Zero out compression info - only relevant when account is decompressed
     // When compressed back to a compressed account, this info should be cleared

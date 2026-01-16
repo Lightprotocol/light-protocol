@@ -1,7 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_token_interface::instructions::mint_action::{
-    CompressedMintWithContext, MintActionCompressedInstructionData, MintToCompressedAction,
-    Recipient,
+    MintActionCompressedInstructionData, MintToCompressedAction, MintWithContext, Recipient,
 };
 use light_token_sdk::compressed_token::{
     ctoken_instruction::CTokenInstruction, mint_action::MintActionCpiWriteAccounts,
@@ -12,7 +11,7 @@ use crate::Generic;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct MintCompressedTokensCpiWriteParams {
-    pub compressed_mint_with_context: CompressedMintWithContext,
+    pub compressed_mint_with_context: MintWithContext,
     pub recipients: Vec<Recipient>,
     pub cpi_context: light_token_interface::instructions::mint_action::CpiContext,
     pub cpi_context_pubkey: Pubkey,

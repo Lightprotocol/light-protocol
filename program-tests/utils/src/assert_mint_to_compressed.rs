@@ -6,7 +6,7 @@ use light_client::{
 };
 use light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index;
 use light_token_interface::{
-    instructions::mint_action::Recipient, state::CompressedMint, LIGHT_TOKEN_PROGRAM_ID,
+    instructions::mint_action::Recipient, state::Mint, LIGHT_TOKEN_PROGRAM_ID,
 };
 use light_token_sdk::compressed_token::create_compressed_mint::derive_mint_from_spl_mint;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
@@ -16,7 +16,7 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
     spl_mint_pda: Pubkey,
     recipients: &[Recipient],
     pre_token_pool_account: Option<spl_token_2022::state::Account>,
-    pre_compressed_mint: CompressedMint,
+    pre_compressed_mint: Mint,
     pre_spl_mint: Option<spl_token_2022::state::Mint>,
 ) -> Vec<CompressedTokenAccount> {
     // Derive compressed mint address from SPL mint PDA (same as instruction)
@@ -86,7 +86,7 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
         .value
         .expect("Compressed mint account not found");
 
-    let actual_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+    let actual_compressed_mint: Mint = BorshDeserialize::deserialize(
         &mut updated_compressed_mint_account
             .data
             .unwrap()
@@ -105,7 +105,7 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
     );
 
     // If mint is decompressed and pre_token_pool_account is provided, validate SPL mint and token pool
-    if actual_compressed_mint.metadata.cmint_decompressed {
+    if actual_compressed_mint.metadata.mint_decompressed {
         if let Some(pre_pool_account) = pre_token_pool_account {
             // Validate SPL mint supply
             let spl_mint_data = rpc
@@ -165,7 +165,7 @@ pub async fn assert_mint_to_compressed_one<R: Rpc + Indexer>(
     recipient: Pubkey,
     expected_amount: u64,
     pre_token_pool_account: Option<spl_token_2022::state::Account>,
-    pre_compressed_mint: CompressedMint,
+    pre_compressed_mint: Mint,
     pre_spl_mint: Option<spl_token_2022::state::Mint>,
 ) -> light_client::indexer::CompressedTokenAccount {
     let recipients = vec![Recipient {

@@ -26,16 +26,15 @@ async fn test_freeze_invoke() {
     let freeze_authority = Keypair::new();
 
     // Create a compressed mint with freeze_authority and an ATA for the payer with 1000 tokens
-    let (mint_pda, _compression_address, ata_pubkeys) =
-        setup_create_compressed_mint_with_freeze_authority(
-            &mut rpc,
-            &payer,
-            payer.pubkey(),
-            Some(freeze_authority.pubkey()),
-            9,
-            vec![(1000, payer.pubkey())],
-        )
-        .await;
+    let (mint_pda, _compression_address, ata_pubkeys) = setup_create_mint_with_freeze_authority(
+        &mut rpc,
+        &payer,
+        payer.pubkey(),
+        Some(freeze_authority.pubkey()),
+        9,
+        vec![(1000, payer.pubkey())],
+    )
+    .await;
 
     let ata = ata_pubkeys[0];
 
@@ -94,16 +93,15 @@ async fn test_freeze_invoke_signed() {
     let (pda_freeze_authority, _bump) = Pubkey::find_program_address(&[FREEZE_AUTHORITY_SEED], &ID);
 
     // Create a compressed mint with PDA freeze_authority and an ATA for the payer with 1000 tokens
-    let (mint_pda, _compression_address, ata_pubkeys) =
-        setup_create_compressed_mint_with_freeze_authority(
-            &mut rpc,
-            &payer,
-            payer.pubkey(),
-            Some(pda_freeze_authority),
-            9,
-            vec![(1000, payer.pubkey())],
-        )
-        .await;
+    let (mint_pda, _compression_address, ata_pubkeys) = setup_create_mint_with_freeze_authority(
+        &mut rpc,
+        &payer,
+        payer.pubkey(),
+        Some(pda_freeze_authority),
+        9,
+        vec![(1000, payer.pubkey())],
+    )
+    .await;
 
     let ata = ata_pubkeys[0];
 
@@ -149,16 +147,15 @@ async fn test_thaw_invoke() {
     let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
 
     // Create a compressed mint with freeze_authority and an ATA for the payer with 1000 tokens
-    let (mint_pda, _compression_address, ata_pubkeys) =
-        setup_create_compressed_mint_with_freeze_authority(
-            &mut rpc,
-            &payer,
-            payer.pubkey(),
-            Some(freeze_authority.pubkey()),
-            9,
-            vec![(1000, payer.pubkey())],
-        )
-        .await;
+    let (mint_pda, _compression_address, ata_pubkeys) = setup_create_mint_with_freeze_authority(
+        &mut rpc,
+        &payer,
+        payer.pubkey(),
+        Some(freeze_authority.pubkey()),
+        9,
+        vec![(1000, payer.pubkey())],
+    )
+    .await;
 
     let ata = ata_pubkeys[0];
 
@@ -236,16 +233,15 @@ async fn test_thaw_invoke_signed() {
     let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
 
     // Create a compressed mint with PDA freeze_authority and an ATA for the payer with 1000 tokens
-    let (mint_pda, _compression_address, ata_pubkeys) =
-        setup_create_compressed_mint_with_freeze_authority(
-            &mut rpc,
-            &payer,
-            payer.pubkey(),
-            Some(pda_freeze_authority),
-            9,
-            vec![(1000, payer.pubkey())],
-        )
-        .await;
+    let (mint_pda, _compression_address, ata_pubkeys) = setup_create_mint_with_freeze_authority(
+        &mut rpc,
+        &payer,
+        payer.pubkey(),
+        Some(pda_freeze_authority),
+        9,
+        vec![(1000, payer.pubkey())],
+    )
+    .await;
 
     let ata = ata_pubkeys[0];
 

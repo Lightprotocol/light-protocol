@@ -7,15 +7,15 @@ use light_sdk::{
 use light_test_utils::RpcError;
 use light_token_interface::{
     instructions::{
-        mint_action::{CompressedMintWithContext, Recipient},
+        mint_action::{MintWithContext, Recipient},
         transfer2::MultiInputTokenDataWithContext,
     },
-    state::{BaseMint, CompressedMintMetadata, ACCOUNT_TYPE_MINT},
+    state::{BaseMint, MintMetadata, ACCOUNT_TYPE_MINT},
     COMPRESSED_MINT_SEED,
 };
 use light_token_sdk::{
     compressed_token::{
-        create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
+        create_compressed_mint::{create_compressed_mint, CreateMintInputs},
         mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
     },
     token::CreateAssociatedTokenAccount,
@@ -185,7 +185,7 @@ async fn create_compressed_mint_helper(
         .value;
 
     // Create compressed mint
-    let instruction = create_compressed_mint(CreateCompressedMintInputs {
+    let instruction = create_compressed_mint(CreateMintInputs {
         version: 3,
         decimals,
         mint_authority,
@@ -231,11 +231,11 @@ async fn mint_compressed_tokens(
     // Extract mint_signer and bump from the actual compressed mint account
     use borsh::BorshDeserialize;
     let compressed_account_data = compressed_mint_account.data.clone().unwrap();
-    let actual_compressed_mint: light_token_interface::state::CompressedMint =
+    let actual_compressed_mint: light_token_interface::state::Mint =
         BorshDeserialize::deserialize(&mut compressed_account_data.data.as_slice()).unwrap();
 
     // Create expected compressed mint for the input using actual mint_signer and bump
-    let expected_compressed_mint = light_token_interface::state::CompressedMint {
+    let expected_compressed_mint = light_token_interface::state::Mint {
         base: BaseMint {
             mint_authority: Some(payer.pubkey().into()),
             supply: 0,
@@ -243,10 +243,10 @@ async fn mint_compressed_tokens(
             is_initialized: true,
             freeze_authority: None,
         },
-        metadata: CompressedMintMetadata {
+        metadata: MintMetadata {
             version: 3,
             mint: mint_pda.into(),
-            cmint_decompressed: false,
+            mint_decompressed: false,
             mint_signer: actual_compressed_mint.metadata.mint_signer,
             bump: actual_compressed_mint.metadata.bump,
         },
@@ -259,7 +259,7 @@ async fn mint_compressed_tokens(
     let mint_to_instruction = create_mint_to_compressed_instruction(
         MintToCompressedInputs {
             cpi_context_pubkey: None,
-            compressed_mint_inputs: CompressedMintWithContext {
+            compressed_mint_inputs: MintWithContext {
                 prove_by_index: true,
                 leaf_index: compressed_mint_account.leaf_index,
                 root_index: 0,
@@ -275,7 +275,7 @@ async fn mint_compressed_tokens(
             payer: payer.pubkey(),
             state_merkle_tree: compressed_mint_account.tree_info.tree,
             input_queue: compressed_mint_account.tree_info.queue,
-            output_queue_cmint: compressed_mint_account.tree_info.queue,
+            output_queue_mint: compressed_mint_account.tree_info.queue,
             output_queue_tokens: output_queue,
             decompressed_mint_config: None,
             token_account_version: 2,

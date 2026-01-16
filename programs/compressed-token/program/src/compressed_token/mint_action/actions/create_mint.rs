@@ -76,7 +76,7 @@ pub fn process_create_mint_action(
         // (derived from mint PDA, CMINT_ADDRESS_TREE, and LIGHT_TOKEN_PROGRAM_ID)
         if address != mint.metadata.compressed_address() {
             msg!("Invalid compressed mint address derivation");
-            return Err(ErrorCode::MintActionInvalidCompressedMintAddress.into());
+            return Err(ErrorCode::MintActionInvalidMintAddress.into());
         }
     }
 
@@ -108,9 +108,9 @@ pub fn process_create_mint_action(
         return Err(ErrorCode::MintActionUnsupportedVersion.into());
     }
 
-    // Validate cmint_decompressed is false for new mint creation
-    if mint.metadata.cmint_decompressed != 0 {
-        msg!("New mint must start without CMint decompressed");
+    // Validate mint_decompressed is false for new mint creation
+    if mint.metadata.mint_decompressed != 0 {
+        msg!("mint.metadata.mint_decompressed must be false");
         return Err(ErrorCode::MintActionInvalidCompressionState.into());
     }
 

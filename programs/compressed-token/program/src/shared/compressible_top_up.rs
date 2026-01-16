@@ -2,7 +2,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_program_profiler::profile;
 #[cfg(target_os = "solana")]
 use light_token_interface::state::{
-    cmint_top_up_lamports_from_account_info, top_up_lamports_from_account_info_unchecked,
+    mint_top_up_lamports_from_account_info, top_up_lamports_from_account_info_unchecked,
 };
 use light_token_interface::TokenError;
 use pinocchio::{
@@ -50,7 +50,7 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
 
     // Calculate CMint top-up using optimized function (owner check inside)
     #[cfg(target_os = "solana")]
-    if let Some(amount) = cmint_top_up_lamports_from_account_info(cmint, &mut current_slot) {
+    if let Some(amount) = mint_top_up_lamports_from_account_info(cmint, &mut current_slot) {
         transfers[0].amount = amount;
         lamports_budget = lamports_budget.saturating_sub(amount);
     }

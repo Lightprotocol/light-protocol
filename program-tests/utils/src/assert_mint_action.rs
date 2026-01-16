@@ -6,9 +6,7 @@ use light_compressed_account::compressed_account::CompressedAccountData;
 use light_compressible::compression_info::CompressionInfo;
 use light_program_test::{LightProgramTest, Rpc};
 use light_token_client::instructions::mint_action::MintActionType;
-use light_token_interface::state::{
-    extensions::AdditionalMetadata, CompressedMint, ExtensionStruct, Token,
-};
+use light_token_interface::state::{extensions::AdditionalMetadata, ExtensionStruct, Mint, Token};
 use solana_sdk::pubkey::Pubkey;
 
 /// Extract CompressionInfo from Light Token's Compressible extension
@@ -37,7 +35,7 @@ fn get_ctoken_compression_info(ctoken: &Token) -> Option<CompressionInfo> {
 pub async fn assert_mint_action(
     rpc: &mut LightProgramTest,
     compressed_mint_address: [u8; 32],
-    pre_compressed_mint: CompressedMint,
+    pre_compressed_mint: Mint,
     actions: Vec<MintActionType>,
 ) {
     // Build expected state by applying actions to pre-state
@@ -123,10 +121,10 @@ pub async fn assert_mint_action(
                 }
             }
             MintActionType::DecompressMint { .. } => {
-                expected_mint.metadata.cmint_decompressed = true;
+                expected_mint.metadata.mint_decompressed = true;
             }
-            MintActionType::CompressAndCloseCMint { .. } => {
-                expected_mint.metadata.cmint_decompressed = false;
+            MintActionType::CompressAndCloseMint { .. } => {
+                expected_mint.metadata.mint_decompressed = false;
                 // When compressed, the compression info should be default (zeroed)
                 expected_mint.compression =
                     light_compressible::compression_info::CompressionInfo::default();
@@ -134,43 +132,42 @@ pub async fn assert_mint_action(
         }
     }
     // Determine pre and post decompression states
-    let post_decompressed = expected_mint.metadata.cmint_decompressed;
+    let post_decompressed = expected_mint.metadata.mint_decompressed;
 
-    // Check for CompressAndCloseCMint action
-    let has_compress_and_close_cmint = actions
+    // Check for CompressAndCloseMint action
+    let has_compress_and_close_mint = actions
         .iter()
-        .any(|a| matches!(a, MintActionType::CompressAndCloseCMint { .. }));
+        .any(|a| matches!(a, MintActionType::CompressAndCloseMint { .. }));
 
     if post_decompressed {
-        // === CASE 1 & 2: CMint is source of truth after actions ===
+        // === CASE 1 & 2: Mint is source of truth after actions ===
         // (Either DecompressMint happened OR was already decompressed)
-        let cmint_pda = Pubkey::from(expected_mint.metadata.mint);
+        let mint_pda = Pubkey::from(expected_mint.metadata.mint);
 
-        let cmint_account = rpc
-            .get_account(cmint_pda)
+        let mint_account = rpc
+            .get_account(mint_pda)
             .await
-            .expect("Failed to fetch CMint account")
-            .expect("CMint PDA account should exist when decompressed");
+            .expect("Failed to fetch Mint account")
+            .expect("Mint PDA account should exist when decompressed");
 
-        let cmint: CompressedMint =
-            BorshDeserialize::deserialize(&mut cmint_account.data.as_slice())
-                .expect("Failed to deserialize CMint account");
+        let mint: Mint = BorshDeserialize::deserialize(&mut mint_account.data.as_slice())
+            .expect("Failed to deserialize Mint account");
 
-        // CMint base and metadata should match expected
+        // Mint base and metadata should match expected
         assert_eq!(
-            cmint.base, expected_mint.base,
-            "CMint base should match expected mint base"
+            mint.base, expected_mint.base,
+            "Mint base should match expected mint base"
         );
         assert_eq!(
-            cmint.metadata, expected_mint.metadata,
-            "CMint metadata should match expected mint metadata"
+            mint.metadata, expected_mint.metadata,
+            "Mint metadata should match expected mint metadata"
         );
 
-        // CMint compression info should be set (non-default) when decompressed
+        // Mint compression info should be set (non-default) when decompressed
         assert_ne!(
-            cmint.compression,
+            mint.compression,
             light_compressible::compression_info::CompressionInfo::default(),
-            "CMint compression info should be set when decompressed"
+            "Mint compression info should be set when decompressed"
         );
 
         // Compressed account should have zero sentinel values
@@ -185,11 +182,11 @@ pub async fn assert_mint_action(
         assert_eq!(
             *actual_mint_account.data.as_ref().unwrap(),
             CompressedAccountData::default(),
-            "Compressed mint should have zero sentinel values when CMint is source of truth"
+            "Compressed mint should have zero sentinel values when Mint is source of truth"
         );
     } else {
         // === CASE 3 & 4: Compressed account is source of truth after actions ===
-        // (Either CompressAndCloseCMint happened OR was never decompressed)
+        // (Either CompressAndCloseMint happened OR was never decompressed)
         let actual_mint_account = rpc
             .indexer()
             .unwrap()
@@ -199,7 +196,7 @@ pub async fn assert_mint_action(
             .value
             .expect("Compressed mint account not found");
 
-        let actual_mint: CompressedMint =
+        let actual_mint: Mint =
             BorshDeserialize::deserialize(&mut actual_mint_account.data.unwrap().data.as_slice())
                 .expect("Failed to deserialize compressed mint");
 
@@ -217,18 +214,18 @@ pub async fn assert_mint_action(
         );
     }
 
-    // If CompressAndCloseCMint, verify CMint Solana account is closed
-    if has_compress_and_close_cmint {
-        let cmint_pda = Pubkey::from(pre_compressed_mint.metadata.mint);
+    // If CompressAndCloseMint, verify Mint Solana account is closed
+    if has_compress_and_close_mint {
+        let mint_pda = Pubkey::from(pre_compressed_mint.metadata.mint);
 
-        let cmint_account = rpc
-            .get_account(cmint_pda)
+        let mint_account = rpc
+            .get_account(mint_pda)
             .await
-            .expect("Failed to fetch CMint account");
+            .expect("Failed to fetch Mint account");
 
         assert!(
-            cmint_account.is_none(),
-            "CMint PDA account should not exist after CompressAndCloseCMint action"
+            mint_account.is_none(),
+            "Mint PDA account should not exist after CompressAndCloseMint action"
         );
     }
     // Verify Light Token accounts for MintToCToken actions
