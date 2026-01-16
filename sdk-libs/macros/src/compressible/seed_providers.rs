@@ -6,10 +6,6 @@ use syn::{spanned::Spanned, Ident, Result};
 
 use crate::compressible::instructions::{InstructionDataSpec, SeedElement, TokenSeedSpec};
 
-<<<<<<< HEAD
-pub fn generate_token_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Result<TokenStream> {
-    let variants = token_seeds.iter().enumerate().map(|(index, spec)| {
-=======
 /// Extract ctx.* field names from seed elements (both token seeds and authority seeds)
 fn extract_ctx_fields_from_token_spec(spec: &TokenSeedSpec) -> Vec<Ident> {
     let mut ctx_fields = Vec::new();
@@ -92,7 +88,6 @@ pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Re
 
     // Unpacked variants (with Pubkeys)
     let unpacked_variants = token_seeds.iter().map(|spec| {
->>>>>>> a606eb113 (wip)
         let variant_name = &spec.variant;
         let ctx_fields = extract_ctx_fields_from_token_spec(spec);
 
@@ -225,12 +220,8 @@ pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Re
     })
 }
 
-<<<<<<< HEAD
-pub fn generate_token_seed_provider_implementation(
-=======
 /// Phase 8: Generate CTokenSeedProvider impl that uses self.field instead of ctx.accounts.field
 pub fn generate_ctoken_seed_provider_implementation(
->>>>>>> a606eb113 (wip)
     token_seeds: &[TokenSeedSpec],
 ) -> Result<TokenStream> {
     let mut get_seeds_match_arms = Vec::new();

@@ -1,17 +1,9 @@
-<<<<<<< HEAD
-use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
-use csdk_anchor_full_derived_test::{
-    AccountCreationData, CompressionParams, GameSession, UserRecord,
-};
-use light_compressed_account::address::derive_address;
-=======
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_compressible_client::{
     get_create_accounts_proof, CreateAccountsProofInput, InitializeRentFreeConfig,
 };
 use light_ctoken_sdk::compressed_token::create_compressed_mint::find_cmint_address;
->>>>>>> a606eb113 (wip)
 use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
@@ -299,97 +291,6 @@ async fn test_create_pdas_and_mint_auto() {
         .value
         .unwrap();
 
-<<<<<<< HEAD
-    assert_eq!(
-        compressed_game_session.address,
-        Some(game_compressed_address)
-    );
-    assert!(compressed_game_session.data.is_some());
-
-    let game_buf = compressed_game_session.data.unwrap().data;
-    let game_session = GameSession::deserialize(&mut &game_buf[..]).unwrap();
-    assert_eq!(game_session.session_id, session_id);
-    assert_eq!(game_session.game_type, "Complex Game");
-    assert_eq!(game_session.player, payer.pubkey());
-    assert_eq!(game_session.score, 0);
-    assert!(game_session.compression_info.is_none());
-
-    // Verify Light Token account
-    let spl_mint = find_mint_address(&mint_signer_pubkey).0;
-    let (_, token_account_address) =
-        csdk_anchor_full_derived_test::get_ctokensigner_seeds(&payer.pubkey(), &spl_mint);
-
-    let ctoken_accounts = rpc
-        .get_compressed_token_accounts_by_owner(&token_account_address, None, None)
-        .await
-        .unwrap()
-        .value;
-
-    assert!(
-        !ctoken_accounts.items.is_empty(),
-        "Should have compressed token accounts"
-    );
-}
-
-#[allow(clippy::too_many_arguments)]
-pub async fn create_user_record_and_game_session(
-    rpc: &mut LightProgramTest,
-    user: &Keypair,
-    program_id: &Pubkey,
-    config_pda: &Pubkey,
-    user_record_pda: &Pubkey,
-    game_session_pda: &Pubkey,
-    authority: &Keypair,
-    mint_authority_keypair: &Keypair,
-    some_account: &Keypair,
-    session_id: u64,
-    category_id: u64,
-) -> Pubkey {
-    let state_tree_info = rpc.get_random_state_tree_info().unwrap();
-
-    let mut remaining_accounts = PackedAccounts::default();
-    let system_config = SystemAccountMetaConfig::new_with_cpi_context(
-        *program_id,
-        state_tree_info.cpi_context.unwrap(),
-    );
-    let _ = remaining_accounts.add_system_accounts_v2(system_config);
-
-    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-
-    let decimals = 6u8;
-    let mint_authority = mint_authority_keypair.pubkey();
-    let freeze_authority = mint_authority;
-    let mint_signer = Keypair::new();
-    let compressed_mint_address =
-        derive_mint_compressed_address(&mint_signer.pubkey(), &address_tree_pubkey);
-
-    let (spl_mint, mint_bump) = find_mint_address(&mint_signer.pubkey());
-    let accounts = csdk_anchor_full_derived_test::accounts::CreateUserRecordAndGameSession {
-        user: user.pubkey(),
-        mint_signer: mint_signer.pubkey(),
-        user_record: *user_record_pda,
-        game_session: *game_session_pda,
-        authority: authority.pubkey(),
-        mint_authority,
-        some_account: some_account.pubkey(),
-        ctoken_program: LIGHT_TOKEN_PROGRAM_ID.into(),
-        compress_token_program_cpi_authority: CPI_AUTHORITY_PDA.into(),
-        system_program: solana_sdk::system_program::ID,
-        config: *config_pda,
-        rent_sponsor: RENT_SPONSOR,
-    };
-
-    let user_compressed_address = derive_address(
-        &user_record_pda.to_bytes(),
-        &address_tree_pubkey.to_bytes(),
-        &program_id.to_bytes(),
-    );
-    let game_compressed_address = derive_address(
-        &game_session_pda.to_bytes(),
-        &address_tree_pubkey.to_bytes(),
-        &program_id.to_bytes(),
-    );
-=======
     // Fetch compressed vault token account
     let compressed_vault_accounts = rpc
         .get_compressed_token_accounts_by_owner(&vault_pda, None, None)
@@ -398,7 +299,6 @@ pub async fn create_user_record_and_game_session(
         .value
         .items;
     let compressed_vault = &compressed_vault_accounts[0];
->>>>>>> a606eb113 (wip)
 
     // Get validity proof for PDAs + vault
     let rpc_result = rpc
@@ -434,39 +334,6 @@ pub async fn create_user_record_and_game_session(
                 authority: authority.pubkey(),
                 session_id,
             },
-<<<<<<< HEAD
-            compression_params: CompressionParams {
-                proof: rpc_result.proof,
-                user_compressed_address,
-                user_address_tree_info,
-                user_output_state_tree_index,
-                game_compressed_address,
-                game_address_tree_info,
-                game_output_state_tree_index,
-                mint_bump,
-                mint_with_context: CompressedMintWithContext {
-                    leaf_index: 0,
-                    prove_by_index: false,
-                    root_index: mint_address_tree_info.root_index,
-                    address: compressed_mint_address,
-                    mint: Some(CompressedMintInstructionData {
-                        supply: 0,
-                        decimals,
-                        metadata: CompressedMintMetadata {
-                            version: 3,
-                            mint: spl_mint.into(),
-                            cmint_decompressed: false,
-                            mint_signer: mint_signer.pubkey().to_bytes(),
-                            bump: mint_bump,
-                        },
-                        mint_authority: Some(mint_authority.into()),
-                        freeze_authority: Some(freeze_authority.into()),
-                        extensions: None,
-                    }),
-                },
-            },
-        };
-=======
         )
         .expect("GameSession seed verification failed"),
         RentFreeDecompressAccount::from_ctoken(
@@ -475,7 +342,6 @@ pub async fn create_user_record_and_game_session(
         )
         .expect("CToken variant construction failed"),
     ];
->>>>>>> a606eb113 (wip)
 
     // Build decompress instruction
     // No SeedParams needed - data.* seeds from unpacked account, ctx.* from variant idx

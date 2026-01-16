@@ -132,28 +132,6 @@ impl CreateAssociatedTokenAccount {
     }
 }
 
-<<<<<<< HEAD:sdk-libs/token-sdk/src/token/create_ata.rs
-/// # Create an associated ctoken account via CPI:
-/// ```rust,no_run
-/// # use light_token_sdk::token::{CreateAssociatedAccountCpi, CompressibleParamsCpi};
-/// # use solana_account_info::AccountInfo;
-/// # let owner: AccountInfo = todo!();
-/// # let mint: AccountInfo = todo!();
-/// # let payer: AccountInfo = todo!();
-/// # let associated_token_account: AccountInfo = todo!();
-/// # let system_program: AccountInfo = todo!();
-/// # let bump: u8 = todo!();
-/// # let compressible: CompressibleParamsCpi = todo!();
-/// CreateAssociatedAccountCpi {
-///     owner,
-///     mint,
-///     payer,
-///     associated_token_account,
-///     system_program,
-///     bump,
-///     compressible,
-///     idempotent: true,
-=======
 /// CPI builder for creating CToken ATAs.
 ///
 /// # Example - Rent-free ATA (idempotent)
@@ -164,7 +142,6 @@ impl CreateAssociatedTokenAccount {
 ///     mint: ctx.accounts.mint.to_account_info(),
 ///     ata: ctx.accounts.user_ata.to_account_info(),
 ///     bump: params.user_ata_bump,
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/ctoken/create_ata.rs
 /// }
 /// .idempotent()
 /// .rent_free(
@@ -174,28 +151,18 @@ impl CreateAssociatedTokenAccount {
 /// )
 /// .invoke()?;
 /// ```
-<<<<<<< HEAD:sdk-libs/token-sdk/src/token/create_ata.rs
-pub struct CreateAssociatedAccountCpi<'info> {
-=======
 pub struct CreateCTokenAtaCpi<'info> {
     pub payer: AccountInfo<'info>,
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/ctoken/create_ata.rs
     pub owner: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
     pub ata: AccountInfo<'info>,
     pub bump: u8,
 }
 
-<<<<<<< HEAD:sdk-libs/token-sdk/src/token/create_ata.rs
-impl<'info> CreateAssociatedAccountCpi<'info> {
-    pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        CreateAssociatedTokenAccount::from(self).instruction()
-=======
 impl<'info> CreateCTokenAtaCpi<'info> {
     /// Make this an idempotent create (won't fail if ATA already exists).
     pub fn idempotent(self) -> CreateCTokenAtaCpiIdempotent<'info> {
         CreateCTokenAtaCpiIdempotent { base: self }
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/ctoken/create_ata.rs
     }
 
     /// Enable rent-free mode with compressible config.
@@ -399,31 +366,3 @@ impl<'info> InternalCreateAtaCpi<'info> {
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
-<<<<<<< HEAD:sdk-libs/token-sdk/src/token/create_ata.rs
-
-impl<'info> From<&CreateAssociatedAccountCpi<'info>> for CreateAssociatedTokenAccount {
-    fn from(account_infos: &CreateAssociatedAccountCpi<'info>) -> Self {
-        Self {
-            payer: *account_infos.payer.key,
-            owner: *account_infos.owner.key,
-            mint: *account_infos.mint.key,
-            associated_token_account: *account_infos.associated_token_account.key,
-            bump: account_infos.bump,
-            compressible: CompressibleParams {
-                compressible_config: *account_infos.compressible.compressible_config.key,
-                rent_sponsor: *account_infos.compressible.rent_sponsor.key,
-                pre_pay_num_epochs: account_infos.compressible.pre_pay_num_epochs,
-                lamports_per_write: account_infos.compressible.lamports_per_write,
-                compress_to_account_pubkey: account_infos
-                    .compressible
-                    .compress_to_account_pubkey
-                    .clone(),
-                token_account_version: account_infos.compressible.token_account_version,
-                compression_only: account_infos.compressible.compression_only,
-            },
-            idempotent: account_infos.idempotent,
-        }
-    }
-}
-=======
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/ctoken/create_ata.rs

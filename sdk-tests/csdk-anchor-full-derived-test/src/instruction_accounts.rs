@@ -57,15 +57,8 @@ pub struct CreatePdasAndMintAuto<'info> {
 
     #[account(
         init,
-<<<<<<< HEAD
-        payer = user,
-        // Space: discriminator(8) + session_id(8) + player(32) + game_type_len(4) +
-        //        game_type(32) + start_time(8) + end_time(1+8) + score(8) = 109 bytes
-        space = 8 + 8 + 32 + 4 + 32 + 8 + 9 + 8,
-=======
         payer = fee_payer,
         space = 8 + GameSession::INIT_SPACE,
->>>>>>> a606eb113 (wip)
         seeds = [
             b"game_session",
             crate::max_key(&fee_payer.key(), &authority.key()).as_ref(),
@@ -76,36 +69,7 @@ pub struct CreatePdasAndMintAuto<'info> {
     #[rentfree]
     pub game_session: Account<'info, GameSession>,
 
-<<<<<<< HEAD
-    /// Authority signer used in PDA seeds
-    pub authority: Signer<'info>,
-
-    /// Mint authority signer used in PDA seeds
-    pub mint_authority: Signer<'info>,
-
-    /// Some account used in PlaceholderRecord PDA seeds
-    /// CHECK: Used as seed component
-    pub some_account: AccountInfo<'info>,
-
-    /// Compressed token program
-    /// CHECK: Program ID validated using LIGHT_TOKEN_PROGRAM_ID constant
-    pub ctoken_program: UncheckedAccount<'info>,
-
-    /// CHECK: CPI authority of the compressed token program
-    pub compress_token_program_cpi_authority: UncheckedAccount<'info>,
-
-    /// Needs to be here for the init anchor macro to work.
-    pub system_program: Program<'info, System>,
-
-    /// Global compressible config
-    /// CHECK: Config is validated by the SDK's load_checked method
-    pub config: AccountInfo<'info>,
-
-    /// Rent recipient - must match config
-    /// CHECK: Rent recipient is validated against the config
-=======
     /// CHECK: Initialized by mint_action
->>>>>>> a606eb113 (wip)
     #[account(mut)]
     #[light_mint(
         mint_signer = mint_signer,

@@ -3,17 +3,10 @@
 //!
 //! ## Account Creation
 //!
-<<<<<<< HEAD:sdk-libs/token-sdk/src/token/mod.rs
-//! - [`CreateAssociatedTokenAccount`] - Create associated ctoken account (ATA) instruction
-//! - [`CreateAssociatedTokenAccountCpi`] - Create associated ctoken account (ATA) via CPI
-//! - [`CreateTokenAccount`] - Create ctoken account instruction
-//! - [`CreateTokenAccountCpi`] - Create ctoken account via CPI
-=======
 //! - [`CreateAssociatedCTokenAccount`] - Create associated ctoken account (ATA) instruction
 //! - [`CreateCTokenAtaCpi`] - Create associated ctoken account (ATA) via CPI
 //! - [`CreateCTokenAccount`] - Create ctoken account instruction
 //! - [`CreateCTokenAccountCpi`] - Create ctoken account via CPI
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/ctoken/mod.rs
 //!
 //! ## Transfers
 //!
@@ -59,16 +52,10 @@
 //! # Example: Create rent-free ATA via CPI
 //!
 //! ```rust,ignore
-<<<<<<< HEAD:sdk-libs/token-sdk/src/token/mod.rs
-//! use light_token_sdk::token::{CreateAssociatedTokenAccountCpi, CompressibleParamsCpi};
-//!
-//! CreateAssociatedTokenAccountCpi {
-=======
 //! use light_ctoken_sdk::ctoken::CreateCTokenAtaCpi;
 //!
 //! CreateCTokenAtaCpi {
 //!     payer: ctx.accounts.payer.to_account_info(),
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/ctoken/mod.rs
 //!     owner: ctx.accounts.owner.to_account_info(),
 //!     mint: ctx.accounts.mint.to_account_info(),
 //!     ata: ctx.accounts.user_ata.to_account_info(),

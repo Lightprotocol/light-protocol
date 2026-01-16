@@ -26,17 +26,9 @@ pub trait HasTokenVariant {
 
 /// Trait for token seed providers.
 ///
-<<<<<<< HEAD
-/// Also defined in compressed-token-sdk for token-specific runtime helpers.
-pub trait TokenSeedProvider: Copy {
-    /// Type of accounts struct needed for seed derivation.
-    type Accounts<'info>;
-
-=======
 /// After Phase 8 refactor: The variant itself contains resolved seed pubkeys,
 /// so no accounts struct is needed for seed derivation.
 pub trait CTokenSeedProvider: Copy {
->>>>>>> a606eb113 (wip)
     /// Get seeds for the token account PDA (used for decompression).
     fn get_seeds(&self, program_id: &Pubkey) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
 
@@ -308,10 +300,6 @@ where
 
     // Process tokens (if any) - executes and consumes CPI context if PDAs wrote to it
     if has_tokens {
-<<<<<<< HEAD
-        let token_program = ctx
-            .token_program()
-=======
         let post_system_offset = cpi_accounts.system_accounts_end_offset();
         let all_infos = cpi_accounts.account_infos();
         let post_system_accounts = all_infos
@@ -320,7 +308,6 @@ where
 
         let ctoken_program = ctx
             .ctoken_program()
->>>>>>> a606eb113 (wip)
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
         let token_rent_sponsor = ctx
             .token_rent_sponsor()

@@ -42,38 +42,16 @@ fn determine_account_type(data: &[u8]) -> Option<u8> {
     }
 }
 
-<<<<<<< HEAD
-/// Extracts CompressionInfo and account type from account data, handling both Token and CMint.
-/// Returns (CompressionInfo, account_type) or None if parsing fails.
-#[cfg(feature = "devenv")]
-fn extract_compression_info(data: &[u8]) -> Option<(CompressionInfo, u8)> {
-    use light_token_interface::state::extensions::ExtensionStruct;
-=======
 /// Extracts CompressionInfo, account type, and compression_only from account data.
 /// Returns (CompressionInfo, account_type, compression_only) or None if parsing fails.
 #[cfg(feature = "devenv")]
 fn extract_compression_info(data: &[u8]) -> Option<(CompressionInfo, u8, bool)> {
     use light_zero_copy::traits::ZeroCopyAt;
->>>>>>> a606eb113 (wip)
 
     let account_type = determine_account_type(data)?;
 
     match account_type {
         ACCOUNT_TYPE_TOKEN_ACCOUNT => {
-<<<<<<< HEAD
-            let ctoken = Token::deserialize(&mut &data[..]).ok()?;
-            // Get CompressionInfo from Compressible extension
-            let compression_info =
-                ctoken
-                    .extensions
-                    .as_ref()?
-                    .iter()
-                    .find_map(|ext| match ext {
-                        ExtensionStruct::Compressible(comp) => Some(comp.info),
-                        _ => None,
-                    })?;
-            Some((compression_info, account_type))
-=======
             let (ctoken, _) = CToken::zero_copy_at(data).ok()?;
             let ext = ctoken.get_compressible_extension()?;
 
@@ -97,7 +75,6 @@ fn extract_compression_info(data: &[u8]) -> Option<(CompressionInfo, u8, bool)> 
             };
             let compression_only = ext.compression_only != 0;
             Some((compression_info, account_type, compression_only))
->>>>>>> a606eb113 (wip)
         }
         ACCOUNT_TYPE_MINT => {
             let cmint = CompressedMint::deserialize(&mut &data[..]).ok()?;
@@ -183,15 +160,10 @@ pub async fn claim_and_compress(
         .iter()
         .filter(|e| e.1.data.len() >= 165 && e.1.lamports > 0)
     {
-<<<<<<< HEAD
-        // Extract compression info and account type, handling both Token and CMint
-        let Some((compression, account_type)) = extract_compression_info(&account.1.data) else {
-=======
         // Extract compression info, account type, and compression_only
         let Some((compression, account_type, compression_only)) =
             extract_compression_info(&account.1.data)
         else {
->>>>>>> a606eb113 (wip)
             continue;
         };
 
@@ -250,11 +222,6 @@ pub async fn claim_and_compress(
         match state.calculate_claimable_rent(&compression.rent_config, rent_exemption) {
             None => {
                 // Account is compressible (has rent deficit)
-<<<<<<< HEAD
-                // Only Token accounts can be compressed via compress_and_close_forester
-                // CMint accounts have a different compression flow
-=======
->>>>>>> a606eb113 (wip)
                 if stored_account.account_type == ACCOUNT_TYPE_TOKEN_ACCOUNT {
                     // CToken accounts - separate by compression_only
                     if stored_account.compression_only {

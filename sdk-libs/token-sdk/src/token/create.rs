@@ -1,13 +1,7 @@
 use borsh::BorshSerialize;
-<<<<<<< HEAD:sdk-libs/token-sdk/src/token/create.rs
-use light_token_interface::instructions::{
-    create_token_account::CreateTokenAccountInstructionData,
-    extensions::CompressibleExtensionInstructionData,
-=======
 use light_ctoken_interface::instructions::{
     create_ctoken_account::CreateTokenAccountInstructionData,
     extensions::{CompressToPubkey, CompressibleExtensionInstructionData},
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/ctoken/create.rs
 };
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
@@ -90,24 +84,6 @@ impl CreateTokenAccount {
     }
 }
 
-<<<<<<< HEAD:sdk-libs/token-sdk/src/token/create.rs
-/// # Create a ctoken account via CPI:
-/// ```rust,no_run
-/// # use light_token_sdk::token::{CreateTokenAccountCpi, CompressibleParamsCpi};
-/// # use solana_account_info::AccountInfo;
-/// # use solana_pubkey::Pubkey;
-/// # let payer: AccountInfo = todo!();
-/// # let account: AccountInfo = todo!();
-/// # let mint: AccountInfo = todo!();
-/// # let owner: Pubkey = todo!();
-/// # let compressible: CompressibleParamsCpi = todo!();
-/// CreateTokenAccountCpi {
-///     payer,
-///     account,
-///     mint,
-///     owner,
-///     compressible,
-=======
 /// CPI builder for creating CToken accounts (vaults).
 ///
 /// # Example - Rent-free vault with PDA signing
@@ -117,7 +93,6 @@ impl CreateTokenAccount {
 ///     account: ctx.accounts.vault.to_account_info(),
 ///     mint: ctx.accounts.mint.to_account_info(),
 ///     owner: ctx.accounts.vault_authority.key(),
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/ctoken/create.rs
 /// }
 /// .rent_free(
 ///     ctx.accounts.ctoken_config.to_account_info(),
@@ -134,27 +109,6 @@ pub struct CreateTokenAccountCpi<'info> {
     pub owner: Pubkey,
 }
 
-<<<<<<< HEAD:sdk-libs/token-sdk/src/token/create.rs
-impl<'info> CreateTokenAccountCpi<'info> {
-    pub fn new(
-        payer: AccountInfo<'info>,
-        account: AccountInfo<'info>,
-        mint: AccountInfo<'info>,
-        owner: Pubkey,
-        compressible: CompressibleParamsCpi<'info>,
-    ) -> Self {
-        Self {
-            payer,
-            account,
-            mint,
-            owner,
-            compressible,
-        }
-    }
-
-    pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        CreateTokenAccount::from(self).instruction()
-=======
 impl<'info> CreateCTokenAccountCpi<'info> {
     /// Enable rent-free mode with compressible config.
     ///
@@ -190,7 +144,6 @@ impl<'info> CreateCTokenAccountCpi<'info> {
             compressible,
         }
         .invoke()
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/ctoken/create.rs
     }
 
     /// Invoke with signing, without rent-free (requires manually constructed compressible params).
@@ -339,29 +292,3 @@ impl<'info> LegacyCreateCTokenAccountCpi<'info> {
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
-<<<<<<< HEAD:sdk-libs/token-sdk/src/token/create.rs
-
-impl<'info> From<&CreateTokenAccountCpi<'info>> for CreateTokenAccount {
-    fn from(account_infos: &CreateTokenAccountCpi<'info>) -> Self {
-        Self {
-            payer: *account_infos.payer.key,
-            account: *account_infos.account.key,
-            mint: *account_infos.mint.key,
-            owner: account_infos.owner,
-            compressible: CompressibleParams {
-                compressible_config: *account_infos.compressible.compressible_config.key,
-                rent_sponsor: *account_infos.compressible.rent_sponsor.key,
-                pre_pay_num_epochs: account_infos.compressible.pre_pay_num_epochs,
-                lamports_per_write: account_infos.compressible.lamports_per_write,
-                compress_to_account_pubkey: account_infos
-                    .compressible
-                    .compress_to_account_pubkey
-                    .clone(),
-                token_account_version: account_infos.compressible.token_account_version,
-                compression_only: account_infos.compressible.compression_only,
-            },
-        }
-    }
-}
-=======
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/ctoken/create.rs
