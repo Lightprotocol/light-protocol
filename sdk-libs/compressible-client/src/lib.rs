@@ -5,6 +5,10 @@ pub mod get_compressible_account;
 pub mod initialize_config;
 pub mod pack;
 
+#[cfg(feature = "anchor")]
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+#[cfg(not(feature = "anchor"))]
+use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 pub use create_accounts_proof::{
     get_create_accounts_proof, CreateAccountsProofError, CreateAccountsProofInput,
     CreateAccountsProofResult,
@@ -27,7 +31,6 @@ pub use decompress_atas::{
     DecompressionContext,
     TokenAccountInterface,
 };
-pub use light_compressible::CreateAccountsProof;
 // Re-export TokenData for convenience (standard SPL-compatible type)
 pub use decompress_mint::{
     build_decompress_mint, create_mint_interface, decompress_mint, decompress_mint_idempotent,
@@ -35,14 +38,8 @@ pub use decompress_mint::{
     DEFAULT_WRITE_TOP_UP,
 };
 pub use initialize_config::InitializeRentFreeConfig;
-pub use light_token_sdk::compat::TokenData;
-pub use pack::{pack_proof, PackError, PackedProofResult};
-
-#[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use light_client::indexer::{CompressedAccount, TreeInfo, ValidityProofWithContext};
+pub use light_compressible::CreateAccountsProof;
 pub use light_sdk::compressible::config::CompressibleConfig;
 use light_sdk::{
     compressible::{compression_info::CompressedAccountData, Pack},
@@ -51,9 +48,11 @@ use light_sdk::{
         SystemAccountMetaConfig, ValidityProof,
     },
 };
+pub use light_token_sdk::compat::TokenData;
 use light_token_sdk::token::{
     COMPRESSIBLE_CONFIG_V1, LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR,
 };
+pub use pack::{pack_proof, PackError, PackedProofResult};
 use solana_account::Account;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
@@ -393,7 +392,7 @@ pub mod compressible_instruction {
         let mut has_tokens = false;
         let mut has_pdas = false;
         for (compressed_account, _) in compressed_accounts.iter() {
-            if compressed_account.owner == LIGHT_TOKEN_PROGRAM_ID.into() {
+            if compressed_account.owner == LIGHT_TOKEN_PROGRAM_ID {
                 has_tokens = true;
             } else {
                 has_pdas = true;
@@ -417,7 +416,7 @@ pub mod compressible_instruction {
             // Find the first token account's CPI context
             let first_token_cpi_context = compressed_accounts
                 .iter()
-                .find(|(acc, _)| acc.owner == LIGHT_TOKEN_PROGRAM_ID.into())
+                .find(|(acc, _)| acc.owner == LIGHT_TOKEN_PROGRAM_ID)
                 .map(|(acc, _)| acc.tree_info.cpi_context.unwrap())
                 .expect("has_tokens is true so there must be a token");
             let system_config =

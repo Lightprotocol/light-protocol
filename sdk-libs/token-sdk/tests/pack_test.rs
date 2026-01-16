@@ -2,7 +2,7 @@
 
 use light_sdk::instruction::PackedAccounts;
 use light_token_sdk::{
-    compat::{PackedTokenDataWithVariant, TokenData, TokenDataWithVariant},
+    compat::{PackedCompressibleTokenDataWithVariant, TokenData, TokenDataWithVariant},
     pack::Pack,
 };
 use solana_pubkey::Pubkey;
@@ -52,6 +52,14 @@ fn test_token_data_with_variant_packing() {
         TypeB = 1,
     }
 
+    impl Pack for MyVariant {
+        type Packed = Self;
+
+        fn pack(&self, _remaining_accounts: &mut PackedAccounts) -> Self::Packed {
+            *self
+        }
+    }
+
     let mut remaining_accounts = PackedAccounts::default();
 
     let token_with_variant = TokenDataWithVariant {
@@ -67,8 +75,8 @@ fn test_token_data_with_variant_packing() {
     };
 
     // Pack the wrapper
-    let packed: PackedTokenDataWithVariant<MyVariant> =
-        token_with_variant.pack(&mut remaining_accounts).unwrap();
+    let packed: PackedCompressibleTokenDataWithVariant<MyVariant> =
+        token_with_variant.pack(&mut remaining_accounts);
 
     // Verify variant is unchanged
     assert!(matches!(packed.variant, MyVariant::TypeA));

@@ -117,7 +117,7 @@ async fn test_freeze_invoke_signed() {
             AccountMeta::new(ata, false),                           // token_account
             AccountMeta::new_readonly(mint_pda, false),             // mint
             AccountMeta::new_readonly(pda_freeze_authority, false), // PDA freeze_authority (program signs)
-            AccountMeta::new_readonly(light_token_program, false),       // light_token_program
+            AccountMeta::new_readonly(light_token_program, false),  // light_token_program
         ],
         data: instruction_data,
     };
@@ -283,7 +283,7 @@ async fn test_thaw_invoke_signed() {
             AccountMeta::new(ata, false),                           // token_account
             AccountMeta::new_readonly(mint_pda, false),             // mint
             AccountMeta::new_readonly(pda_freeze_authority, false), // PDA freeze_authority (program signs)
-            AccountMeta::new_readonly(light_token_program, false),       // light_token_program
+            AccountMeta::new_readonly(light_token_program, false),  // light_token_program
         ],
         data: thaw_instruction_data,
     };

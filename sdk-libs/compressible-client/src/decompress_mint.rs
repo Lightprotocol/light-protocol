@@ -20,8 +20,10 @@ use light_token_interface::{
     state::CompressedMint,
     CMINT_ADDRESS_TREE,
 };
-use light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address;
-use light_token_sdk::token::{find_mint_address, DecompressMint};
+use light_token_sdk::{
+    compressed_token::create_compressed_mint::derive_mint_compressed_address,
+    token::{find_mint_address, DecompressMint},
+};
 use solana_account::Account;
 use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
@@ -49,6 +51,7 @@ pub enum DecompressMintError {
 
 /// State of a CMint - either on-chain (hot), compressed (cold), or non-existent.
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum MintState {
     /// CMint exists on-chain - no decompression needed.
     Hot { account: Account },

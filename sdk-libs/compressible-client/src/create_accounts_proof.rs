@@ -6,8 +6,10 @@
 //! - Packs proof into remaining accounts
 //! - Returns a single `address_tree_info` since all accounts use the same tree
 
-use light_client::indexer::{AddressWithTree, Indexer, IndexerError};
-use light_client::rpc::{Rpc, RpcError};
+use light_client::{
+    indexer::{AddressWithTree, Indexer, IndexerError},
+    rpc::{Rpc, RpcError},
+};
 use light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;

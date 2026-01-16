@@ -218,7 +218,7 @@ pub mod compat {
     }
 
     #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
-    pub struct PackedCTokenDataWithVariant<V> {
+    pub struct PackedTokenDataWithVariant<V> {
         pub variant: V,
         pub token_data: InputTokenDataCompressible,
     }
@@ -234,10 +234,10 @@ pub mod compat {
         V: Pack,
         V::Packed: AnchorSerialize + Clone + std::fmt::Debug,
     {
-        type Packed = PackedCTokenDataWithVariant<V::Packed>;
+        type Packed = PackedTokenDataWithVariant<V::Packed>;
 
         fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
-            PackedCTokenDataWithVariant {
+            PackedTokenDataWithVariant {
                 variant: self.variant.pack(remaining_accounts),
                 token_data: self.token_data.pack(remaining_accounts),
             }
@@ -255,7 +255,7 @@ pub mod compat {
             remaining_accounts: &[AccountInfo],
         ) -> std::result::Result<Self::Unpacked, ProgramError> {
             // Note: This impl assumes V is already unpacked (has Pubkeys).
-            // For packed variants, use PackedCTokenDataWithVariant::unpack instead.
+            // For packed variants, use PackedTokenDataWithVariant::unpack instead.
             Ok(TokenDataWithVariant {
                 variant: self.variant.clone(),
                 token_data: self.token_data.unpack(remaining_accounts)?,
@@ -268,17 +268,17 @@ pub mod compat {
         V: Pack,
         V::Packed: AnchorSerialize + Clone + std::fmt::Debug,
     {
-        type Packed = PackedCTokenDataWithVariant<V::Packed>;
+        type Packed = PackedTokenDataWithVariant<V::Packed>;
 
         fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
-            PackedCTokenDataWithVariant {
+            PackedTokenDataWithVariant {
                 variant: self.variant.pack(remaining_accounts),
                 token_data: self.token_data.pack(remaining_accounts),
             }
         }
     }
 
-    impl<V> Unpack for PackedCTokenDataWithVariant<V>
+    impl<V> Unpack for PackedTokenDataWithVariant<V>
     where
         V: Unpack,
     {
@@ -299,7 +299,7 @@ pub mod compat {
     pub type InputTokenDataCompressible =
         light_token_interface::instructions::transfer2::MultiTokenTransferOutputData;
     pub type CompressibleTokenDataWithVariant<V> = CTokenDataWithVariant<V>;
-    pub type PackedCompressibleTokenDataWithVariant<V> = PackedCTokenDataWithVariant<V>;
+    pub type PackedCompressibleTokenDataWithVariant<V> = PackedTokenDataWithVariant<V>;
     pub type CTokenData<V> = CTokenDataWithVariant<V>;
-    pub type PackedCTokenData<V> = PackedCTokenDataWithVariant<V>;
+    pub type PackedCTokenData<V> = PackedTokenDataWithVariant<V>;
 }

@@ -123,10 +123,10 @@ impl InitializeRentFreeConfig {
         let (config_pda, _) = CompressibleConfig::derive_pda(&self.program_id, self.config_bump);
 
         let accounts = vec![
-            AccountMeta::new(self.fee_payer, true),       // payer
-            AccountMeta::new(config_pda, false),         // config
+            AccountMeta::new(self.fee_payer, true), // payer
+            AccountMeta::new(config_pda, false),    // config
             AccountMeta::new_readonly(self.program_data_pda, false), // program_data
-            AccountMeta::new_readonly(authority, true),  // authority
+            AccountMeta::new_readonly(authority, true), // authority
             AccountMeta::new_readonly(
                 solana_pubkey::pubkey!("11111111111111111111111111111111"),
                 false,

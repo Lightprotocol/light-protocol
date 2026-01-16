@@ -20,13 +20,11 @@ pub fn generate_decompress_context_trait_impl(
             let packed_name = format_ident!("Packed{}", pda_type);
             let ctx_seeds_struct_name = format_ident!("{}CtxSeeds", pda_type);
             let ctx_fields = &info.ctx_seed_fields;
-            
             // Generate pattern to extract idx fields from packed variant
             let idx_field_patterns: Vec<_> = ctx_fields.iter().map(|field| {
                 let idx_field = format_ident!("{}_idx", field);
                 quote! { #idx_field }
             }).collect();
-            
             // Generate code to resolve idx fields to Pubkeys
             let resolve_ctx_seeds: Vec<_> = ctx_fields.iter().map(|field| {
                 let idx_field = format_ident!("{}_idx", field);
@@ -37,7 +35,6 @@ pub fn generate_decompress_context_trait_impl(
                         .key;
                 }
             }).collect();
-            
             // Generate CtxSeeds struct construction
             let ctx_seeds_construction = if ctx_fields.is_empty() {
                 quote! { let ctx_seeds = #ctx_seeds_struct_name; }
@@ -47,7 +44,6 @@ pub fn generate_decompress_context_trait_impl(
                 }).collect();
                 quote! { let ctx_seeds = #ctx_seeds_struct_name { #(#field_inits),* }; }
             };
-            
             if ctx_fields.is_empty() {
                 quote! {
                     RentFreeAccountVariant::#packed_name { data: packed, .. } => {
@@ -106,7 +102,7 @@ pub fn generate_decompress_context_trait_impl(
         .collect();
 
     let packed_token_variant_ident = format_ident!("Packed{}", token_variant_ident);
-    
+
     Ok(quote! {
         impl<#lifetime> light_sdk::compressible::DecompressContext<#lifetime> for DecompressAccountsIdempotent<#lifetime> {
             type CompressedData = RentFreeAccountData;

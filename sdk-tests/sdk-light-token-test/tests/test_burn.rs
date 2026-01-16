@@ -52,9 +52,9 @@ async fn test_burn_invoke() {
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(ata, false),                     // source
-            AccountMeta::new(mint_pda, false),                // cmint
-            AccountMeta::new_readonly(payer.pubkey(), true),  // authority (signer)
+            AccountMeta::new(ata, false),                          // source
+            AccountMeta::new(mint_pda, false),                     // cmint
+            AccountMeta::new_readonly(payer.pubkey(), true),       // authority (signer)
             AccountMeta::new_readonly(light_token_program, false), // light_token_program
         ],
         data: instruction_data,
@@ -118,9 +118,9 @@ async fn test_burn_invoke_signed() {
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(ata, false),                     // source
-            AccountMeta::new(mint_pda, false),                // cmint
-            AccountMeta::new_readonly(pda_owner, false),      // PDA authority (program signs)
+            AccountMeta::new(ata, false),                          // source
+            AccountMeta::new(mint_pda, false),                     // cmint
+            AccountMeta::new_readonly(pda_owner, false),           // PDA authority (program signs)
             AccountMeta::new_readonly(light_token_program, false), // light_token_program
         ],
         data: instruction_data,

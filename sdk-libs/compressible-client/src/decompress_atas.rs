@@ -36,9 +36,8 @@ use light_token_interface::{
     },
     state::{ExtensionStruct, TokenDataVersion},
 };
-use light_token_sdk::compat::TokenData;
 use light_token_sdk::{
-    compat::AccountState,
+    compat::{AccountState, TokenData},
     compressed_token::{
         transfer2::{
             create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config,
@@ -179,7 +178,7 @@ impl TokenAccountInterface {
     /// Convenience: get state.
     #[inline]
     pub fn state(&self) -> AccountState {
-        self.token_data.state.clone()
+        self.token_data.state
     }
 
     /// Returns the compressed account hash if cold (for validity proof).
@@ -307,7 +306,7 @@ impl AtaInterface {
 
     #[inline]
     pub fn state(&self) -> AccountState {
-        self.token_data.state.clone()
+        self.token_data.state
     }
 }
 

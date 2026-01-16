@@ -9,15 +9,7 @@ use light_program_test::{
     Indexer, ProgramTestConfig, Rpc,
 };
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token_interface::{
-    instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
-    state::CompressedMintMetadata,
-};
-use light_token_sdk::compressed_token::create_compressed_mint::{
-    derive_mint_compressed_address, find_mint_address,
-};
 use light_token_sdk::token::find_mint_address as find_cmint_address;
-use light_token_types::CPI_AUTHORITY_PDA;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -30,8 +22,10 @@ const RENT_SPONSOR: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcA
 /// After warp: all cold (auto-compressed) with non-empty compressed data.
 #[tokio::test]
 async fn test_create_pdas_and_mint_auto() {
-    use csdk_anchor_full_derived_test::instruction_accounts::{LP_MINT_SIGNER_SEED, VAULT_SEED};
-    use csdk_anchor_full_derived_test::FullAutoWithMintParams;
+    use csdk_anchor_full_derived_test::{
+        instruction_accounts::{LP_MINT_SIGNER_SEED, VAULT_SEED},
+        FullAutoWithMintParams,
+    };
     use light_token_interface::state::Token;
     use light_token_sdk::token::{
         get_associated_token_address_and_bump, COMPRESSIBLE_CONFIG_V1,

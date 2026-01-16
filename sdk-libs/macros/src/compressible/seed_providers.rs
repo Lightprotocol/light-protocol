@@ -2,7 +2,7 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{spanned::Spanned, Ident, Result};
+use syn::{Ident, Result};
 
 use crate::compressible::instructions::{InstructionDataSpec, SeedElement, TokenSeedSpec};
 
@@ -44,10 +44,9 @@ fn extract_ctx_fields_from_token_spec(spec: &TokenSeedSpec) -> Vec<Ident> {
                                                 | "rent_sponsor"
                                                 | "config"
                                                 | "compression_authority"
-                                        ) {
-                                            if seen.insert(field_name_str) {
-                                                ctx_fields.push(field_name.clone());
-                                            }
+                                        ) && seen.insert(field_name_str)
+                                        {
+                                            ctx_fields.push(field_name.clone());
                                         }
                                     }
                                 }
@@ -63,10 +62,9 @@ fn extract_ctx_fields_from_token_spec(spec: &TokenSeedSpec) -> Vec<Ident> {
                             if !matches!(
                                 field_name_str.as_str(),
                                 "fee_payer" | "rent_sponsor" | "config" | "compression_authority"
-                            ) {
-                                if seen.insert(field_name_str) {
-                                    ctx_fields.push(field_name.clone());
-                                }
+                            ) && seen.insert(field_name_str)
+                            {
+                                ctx_fields.push(field_name.clone());
                             }
                         }
                     }

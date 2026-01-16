@@ -212,12 +212,12 @@ fn extract_account_type(ty: &Type) -> Option<(bool, &syn::Path)> {
                 if ident_str == "Box" {
                     // Check for Box<Account<...>>
                     if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
-                        if let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first() {
-                            if let Type::Path(inner_path) = inner_ty {
-                                if let Some(inner_seg) = inner_path.path.segments.last() {
-                                    if inner_seg.ident == "Account" {
-                                        return Some((true, &inner_path.path));
-                                    }
+                        if let Some(syn::GenericArgument::Type(Type::Path(inner_path))) =
+                            args.args.first()
+                        {
+                            if let Some(inner_seg) = inner_path.path.segments.last() {
+                                if inner_seg.ident == "Account" {
+                                    return Some((true, &inner_path.path));
                                 }
                             }
                         }
@@ -275,7 +275,7 @@ pub fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCompressib
         if field_name == "ctoken_rent_sponsor" || field_name == "light_token_rent_sponsor" {
             ctoken_rent_sponsor_field = Some(field_ident.clone());
         }
-        if field_name == "light_token_program" || field_name == "light_token_program" {
+        if field_name == "ctoken_program" || field_name == "light_token_program" {
             ctoken_program_field = Some(field_ident.clone());
         }
         if field_name == "ctoken_cpi_authority"

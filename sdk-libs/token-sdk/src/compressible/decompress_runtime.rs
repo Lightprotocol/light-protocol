@@ -1,4 +1,6 @@
 //! Runtime helpers for token decompression.
+// Re-export TokenSeedProvider from sdk (canonical definition).
+pub use light_sdk::compressible::TokenSeedProvider;
 use light_sdk::{cpi::v2::CpiAccounts, instruction::ValidityProof};
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
 use light_token_interface::instructions::{
@@ -9,11 +11,7 @@ use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::compat::PackedCTokenData;
-use crate::pack::Unpack;
-
-// Re-export TokenSeedProvider from sdk (canonical definition).
-pub use light_sdk::compressible::TokenSeedProvider;
+use crate::{compat::PackedCTokenData, pack::Unpack};
 
 /// Token decompression processor.
 ///
@@ -29,8 +27,8 @@ pub use light_sdk::compressible::TokenSeedProvider;
 /// `TokenAccountVariant` containing resolved seed Pubkeys. No accounts struct needed.
 #[inline(never)]
 #[allow(clippy::too_many_arguments)]
-pub fn process_decompress_tokens_runtime<'info, 'a, 'b, V>(
-    remaining_accounts: &[AccountInfo<'info>],
+pub fn process_decompress_tokens_runtime<'info, 'b, V>(
+    _remaining_accounts: &[AccountInfo<'info>],
     fee_payer: &AccountInfo<'info>,
     token_program: &AccountInfo<'info>,
     token_rent_sponsor: &AccountInfo<'info>,
@@ -59,8 +57,7 @@ where
         crate::compressed_token::decompress_full::DecompressFullIndices,
     > = Vec::with_capacity(token_accounts.len());
     // Only program-owned tokens need signer seeds
-    let mut token_signers_seed_groups: Vec<Vec<Vec<u8>>> =
-        Vec::with_capacity(token_accounts.len());
+    let mut token_signers_seed_groups: Vec<Vec<Vec<u8>>> = Vec::with_capacity(token_accounts.len());
     let packed_accounts = post_system_accounts;
 
     // CPI context usage for token decompression:

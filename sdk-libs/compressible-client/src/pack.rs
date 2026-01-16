@@ -23,11 +23,10 @@
 
 use light_client::indexer::{TreeInfo, ValidityProofWithContext};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+pub use light_sdk::instruction::{PackedAddressTreeInfo, PackedStateTreeInfo};
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 use thiserror::Error;
-
-pub use light_sdk::instruction::{PackedAddressTreeInfo, PackedStateTreeInfo};
 
 #[derive(Debug, Error)]
 pub enum PackError {
@@ -103,10 +102,12 @@ pub fn pack_proof(
 
     // Convert from light_client's types to our local types
     let packed_tree_infos = PackedTreeInfos {
-        state_trees: client_packed_tree_infos.state_trees.map(|st| PackedStateTreeInfos {
-            packed_tree_infos: st.packed_tree_infos,
-            output_tree_index: st.output_tree_index,
-        }),
+        state_trees: client_packed_tree_infos
+            .state_trees
+            .map(|st| PackedStateTreeInfos {
+                packed_tree_infos: st.packed_tree_infos,
+                output_tree_index: st.output_tree_index,
+            }),
         address_trees: client_packed_tree_infos.address_trees,
     };
 

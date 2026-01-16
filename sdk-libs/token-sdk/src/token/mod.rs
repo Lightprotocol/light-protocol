@@ -120,8 +120,10 @@ pub use burn_checked::*;
 pub use close::{CloseAccount, CloseAccountCpi};
 pub use compressible::{CompressibleParams, CompressibleParamsCpi};
 pub use create::*;
-pub use create_ata::CreateCTokenAtaCpi as CreateAssociatedAccountCpi;
-pub use create_ata::{derive_token_ata, CreateAssociatedTokenAccount, CreateCTokenAtaCpi};
+pub use create_ata::{
+    derive_token_ata, CreateAssociatedTokenAccount,
+    CreateCTokenAtaCpi as CreateAssociatedAccountCpi, CreateCTokenAtaCpi,
+};
 pub use create_mint::*;
 pub use decompress::Decompress;
 pub use decompress_mint::*;

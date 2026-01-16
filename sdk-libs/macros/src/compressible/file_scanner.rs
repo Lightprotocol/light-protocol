@@ -4,6 +4,7 @@
 //! from Accounts structs that contain #[rentfree] fields.
 
 use std::path::{Path, PathBuf};
+
 use syn::{Item, ItemMod, ItemStruct};
 
 use crate::compressible::anchor_seeds::{

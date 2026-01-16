@@ -5,7 +5,7 @@ use light_account_checks::{
     packed_accounts::ProgramPackedAccounts,
 };
 use light_compressed_token::compressed_token::transfer2::{
-    accounts::Transfer2Accounts, compression::token::close_for_compress_and_close,
+    accounts::Transfer2Accounts, compression::close_for_compress_and_close,
 };
 use light_token_interface::{
     instructions::transfer2::{Compression, CompressionMode},

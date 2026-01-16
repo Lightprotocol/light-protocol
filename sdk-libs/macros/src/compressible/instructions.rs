@@ -276,7 +276,9 @@ fn extract_ctx_account_fields(seed: &SeedElement) -> Vec<Ident> {
 
 /// Extract all ctx.accounts.XXX field names from a list of seed elements.
 /// Deduplicates the fields.
-pub fn extract_ctx_seed_fields(seeds: &syn::punctuated::Punctuated<SeedElement, Token![,]>) -> Vec<Ident> {
+pub fn extract_ctx_seed_fields(
+    seeds: &syn::punctuated::Punctuated<SeedElement, Token![,]>,
+) -> Vec<Ident> {
     let mut all_fields = Vec::new();
     for seed in seeds {
         all_fields.extend(extract_ctx_account_fields(seed));
@@ -329,7 +331,9 @@ fn extract_data_fields_from_expr(expr: &syn::Expr, fields: &mut Vec<Ident>) {
 }
 
 /// Phase 5: Extract all data.XXX field names from a list of seed elements.
-pub fn extract_data_seed_fields(seeds: &syn::punctuated::Punctuated<SeedElement, Token![,]>) -> Vec<Ident> {
+pub fn extract_data_seed_fields(
+    seeds: &syn::punctuated::Punctuated<SeedElement, Token![,]>,
+) -> Vec<Ident> {
     let mut all_fields = Vec::new();
     for seed in seeds {
         if let SeedElement::Expression(expr) = seed {
@@ -651,8 +655,10 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
             }
             syn::Expr::MethodCall(method_call) => {
                 let mut new_method_call = method_call.clone();
-                new_method_call.receiver =
-                    Box::new(map_pda_expr_to_ctx_seeds(&method_call.receiver, ctx_field_names));
+                new_method_call.receiver = Box::new(map_pda_expr_to_ctx_seeds(
+                    &method_call.receiver,
+                    ctx_field_names,
+                ));
                 new_method_call.args = method_call
                     .args
                     .iter()
@@ -890,7 +896,7 @@ fn convert_classified_to_seed_elements(
     seeds: &[crate::compressible::anchor_seeds::ClassifiedSeed],
 ) -> Punctuated<SeedElement, Token![,]> {
     use crate::compressible::anchor_seeds::ClassifiedSeed;
-    
+
     let mut result = Punctuated::new();
     for seed in seeds {
         let elem = match seed {
@@ -913,18 +919,25 @@ fn convert_classified_to_seed_elements(
                 let expr: Expr = syn::parse_quote!(ctx.#ident);
                 SeedElement::Expression(Box::new(expr))
             }
-            ClassifiedSeed::DataField { field_name, conversion: None } => {
+            ClassifiedSeed::DataField {
+                field_name,
+                conversion: None,
+            } => {
                 let expr: Expr = syn::parse_quote!(data.#field_name);
                 SeedElement::Expression(Box::new(expr))
             }
-            ClassifiedSeed::DataField { field_name, conversion: Some(method) } => {
+            ClassifiedSeed::DataField {
+                field_name,
+                conversion: Some(method),
+            } => {
                 let expr: Expr = syn::parse_quote!(data.#field_name.#method());
                 SeedElement::Expression(Box::new(expr))
             }
             ClassifiedSeed::FunctionCall { func, ctx_args } => {
-                let args: Vec<Expr> = ctx_args.iter().map(|arg| {
-                    syn::parse_quote!(&ctx.#arg.key())
-                }).collect();
+                let args: Vec<Expr> = ctx_args
+                    .iter()
+                    .map(|arg| syn::parse_quote!(&ctx.#arg.key()))
+                    .collect();
                 let expr: Expr = syn::parse_quote!(#func(#(#args),*));
                 SeedElement::Expression(Box::new(expr))
             }
@@ -937,7 +950,9 @@ fn convert_classified_to_seed_elements(
 fn convert_classified_to_seed_elements_vec(
     seeds: &[crate::compressible::anchor_seeds::ClassifiedSeed],
 ) -> Vec<SeedElement> {
-    convert_classified_to_seed_elements(seeds).into_iter().collect()
+    convert_classified_to_seed_elements(seeds)
+        .into_iter()
+        .collect()
 }
 
 /// Generate all code from extracted seeds (shared logic with add_compressible_instructions)
@@ -1009,7 +1024,9 @@ fn generate_from_extracted_seeds(
         .map(|spec| (spec.field_name.to_string(), &spec.field_type))
         .collect();
 
-    let seeds_structs_and_constructors: Vec<TokenStream> = if let Some(ref pda_seed_specs) = pda_seeds {
+    let seeds_structs_and_constructors: Vec<TokenStream> = if let Some(ref pda_seed_specs) =
+        pda_seeds
+    {
         pda_seed_specs
             .iter()
             .zip(pda_ctx_seeds.iter())
@@ -1017,12 +1034,10 @@ fn generate_from_extracted_seeds(
                 let type_name = &spec.variant;
                 let seeds_struct_name = format_ident!("{}Seeds", type_name);
                 let constructor_name = format_ident!("{}", to_snake_case(&type_name.to_string()));
-                
                 let ctx_fields = &ctx_info.ctx_seed_fields;
                 let ctx_field_decls: Vec<_> = ctx_fields.iter().map(|field| {
                     quote! { pub #field: solana_pubkey::Pubkey }
                 }).collect();
-                
                 let data_fields = extract_data_seed_fields(&spec.seeds);
                 let data_field_decls: Vec<_> = data_fields.iter().filter_map(|field| {
                     let field_str = field.to_string();
@@ -1030,7 +1045,6 @@ fn generate_from_extracted_seeds(
                         quote! { pub #field: #ty }
                     })
                 }).collect();
-                
                 let data_verifications: Vec<_> = data_fields.iter().map(|field| {
                     quote! {
                         if data.#field != seeds.#field {
@@ -1038,14 +1052,12 @@ fn generate_from_extracted_seeds(
                         }
                     }
                 }).collect();
-                
                 quote! {
                     #[derive(Clone, Debug)]
                     pub struct #seeds_struct_name {
                         #(#ctx_field_decls,)*
                         #(#data_field_decls,)*
                     }
-                    
                     impl RentFreeAccountVariant {
                         pub fn #constructor_name(
                             account_data: &[u8],
@@ -1053,16 +1065,15 @@ fn generate_from_extracted_seeds(
                         ) -> std::result::Result<Self, anchor_lang::error::Error> {
                             use anchor_lang::AnchorDeserialize;
                             let data = #type_name::deserialize(&mut &account_data[..])?;
-                            
+
                             #(#data_verifications)*
-                            
+
                             std::result::Result::Ok(Self::#type_name {
                                 data,
                                 #(#ctx_fields: seeds.#ctx_fields,)*
                             })
                         }
                     }
-                    
                     impl light_sdk::compressible::IntoVariant<RentFreeAccountVariant> for #seeds_struct_name {
                         fn into_variant(self, data: &[u8]) -> std::result::Result<RentFreeAccountVariant, anchor_lang::error::Error> {
                             RentFreeAccountVariant::#constructor_name(data, self)
@@ -1108,13 +1119,13 @@ fn generate_from_extracted_seeds(
             } else {
                 return Err(macro_error!(name, "No seed specifications provided"));
             };
-            
+
             let ctx_seeds_struct_name = format_ident!("{}CtxSeeds", name);
             let ctx_fields = &ctx_info.ctx_seed_fields;
             let ctx_fields_decl: Vec<_> = ctx_fields.iter().map(|field| {
                 quote! { pub #field: solana_pubkey::Pubkey }
             }).collect();
-            
+
             let ctx_seeds_struct = if ctx_fields.is_empty() {
                 quote! {
                     #[derive(Default)]
@@ -1128,11 +1139,11 @@ fn generate_from_extracted_seeds(
                     }
                 }
             };
-            
+
             let seed_derivation = generate_pda_seed_derivation_for_trait_with_ctx_seeds(spec, &instruction_data, ctx_fields)?;
             Ok(quote! {
                 #ctx_seeds_struct
-                
+
                 impl light_sdk::compressible::PdaSeedDerivation<#ctx_seeds_struct_name, ()> for #name {
                     fn derive_pda_seeds_with_accounts(
                         &self,
@@ -1167,8 +1178,10 @@ fn generate_from_extracted_seeds(
         pda_ctx_seeds.clone(),
         token_variant_name,
     )?;
-    let decompress_processor_fn = generate_process_decompress_accounts_idempotent(instruction_variant, &instruction_data)?;
-    let decompress_instruction = generate_decompress_instruction_entrypoint(instruction_variant, &instruction_data)?;
+    let decompress_processor_fn =
+        generate_process_decompress_accounts_idempotent(instruction_variant, &instruction_data)?;
+    let decompress_instruction =
+        generate_decompress_instruction_entrypoint(instruction_variant, &instruction_data)?;
 
     let compress_accounts: syn::ItemStruct = match instruction_variant {
         InstructionVariant::PdaOnly => unreachable!(),
@@ -1190,7 +1203,8 @@ fn generate_from_extracted_seeds(
         },
     };
 
-    let compress_context_impl = generate_compress_context_impl(instruction_variant, account_types.clone())?;
+    let compress_context_impl =
+        generate_compress_context_impl(instruction_variant, account_types.clone())?;
     let compress_processor_fn = generate_process_compress_accounts_idempotent(instruction_variant)?;
     let compress_instruction = generate_compress_instruction_entrypoint(instruction_variant)?;
 
@@ -1330,7 +1344,10 @@ fn generate_from_extracted_seeds(
     // Add ctoken seed provider impl
     if let Some(ref seeds) = token_seeds {
         if !seeds.is_empty() {
-            let impl_code = crate::compressible::seed_providers::generate_ctoken_seed_provider_implementation(seeds)?;
+            let impl_code =
+                crate::compressible::seed_providers::generate_ctoken_seed_provider_implementation(
+                    seeds,
+                )?;
             let ctoken_impl: syn::ItemImpl = syn::parse2(impl_code)?;
             content.1.push(Item::Impl(ctoken_impl));
         }
@@ -1393,7 +1410,9 @@ fn extract_context_and_params(fn_item: &syn::ItemFn) -> Option<(String, Ident)> 
                             if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
                                 // Find the last type argument (T or T<'info>)
                                 for arg in args.args.iter().rev() {
-                                    if let syn::GenericArgument::Type(syn::Type::Path(inner_path)) = arg {
+                                    if let syn::GenericArgument::Type(syn::Type::Path(inner_path)) =
+                                        arg
+                                    {
                                         if let Some(inner_seg) = inner_path.path.segments.last() {
                                             context_type = Some(inner_seg.ident.to_string());
                                             break;
@@ -1460,14 +1479,12 @@ fn wrap_function_with_rentfree(fn_item: &syn::ItemFn, params_ident: &Ident) -> s
     wrapped
 }
 
-
 #[inline(never)]
-pub fn compressible_program_impl(
-    _args: TokenStream,
-    mut module: ItemMod,
-) -> Result<TokenStream> {
-    use crate::compressible::anchor_seeds::get_data_fields;
-    use crate::compressible::file_scanner::{resolve_crate_src_path, scan_module_for_compressible};
+pub fn compressible_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<TokenStream> {
+    use crate::compressible::{
+        anchor_seeds::get_data_fields,
+        file_scanner::{resolve_crate_src_path, scan_module_for_compressible},
+    };
 
     if module.content.is_none() {
         return Err(macro_error!(&module, "Module must have a body"));

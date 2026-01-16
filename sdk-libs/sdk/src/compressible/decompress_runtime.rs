@@ -1,8 +1,7 @@
 //! Traits and processor for decompress_accounts_idempotent instruction.
 use light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo;
-use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
 use light_sdk_types::{
-    cpi_accounts::CpiAccountsConfig,
+    cpi_accounts::CpiAccountsConfig, cpi_context_write::CpiContextWriteAccounts,
     instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress, CpiSigner,
 };
 use solana_account_info::AccountInfo;

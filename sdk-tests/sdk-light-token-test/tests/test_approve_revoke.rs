@@ -48,11 +48,11 @@ async fn test_approve_invoke() {
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(ata, false),                        // token_account
-            AccountMeta::new_readonly(delegate.pubkey(), false), // delegate
-            AccountMeta::new(payer.pubkey(), true),              // owner (signer)
-            AccountMeta::new_readonly(Pubkey::default(), false), // system_program
-            AccountMeta::new_readonly(light_token_program, false),    // light_token_program
+            AccountMeta::new(ata, false),                          // token_account
+            AccountMeta::new_readonly(delegate.pubkey(), false),   // delegate
+            AccountMeta::new(payer.pubkey(), true),                // owner (signer)
+            AccountMeta::new_readonly(Pubkey::default(), false),   // system_program
+            AccountMeta::new_readonly(light_token_program, false), // light_token_program
         ],
         data: instruction_data,
     };
@@ -107,11 +107,11 @@ async fn test_approve_invoke_signed() {
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(ata, false),                        // token_account
-            AccountMeta::new_readonly(delegate.pubkey(), false), // delegate
-            AccountMeta::new(pda_owner, false),                  // PDA owner (program signs)
-            AccountMeta::new_readonly(Pubkey::default(), false), // system_program
-            AccountMeta::new_readonly(light_token_program, false),    // light_token_program
+            AccountMeta::new(ata, false),                          // token_account
+            AccountMeta::new_readonly(delegate.pubkey(), false),   // delegate
+            AccountMeta::new(pda_owner, false),                    // PDA owner (program signs)
+            AccountMeta::new_readonly(Pubkey::default(), false),   // system_program
+            AccountMeta::new_readonly(light_token_program, false), // light_token_program
         ],
         data: instruction_data,
     };
@@ -198,10 +198,10 @@ async fn test_revoke_invoke() {
     let revoke_instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(ata, false),                        // token_account
-            AccountMeta::new(payer.pubkey(), true),              // owner (signer)
-            AccountMeta::new_readonly(Pubkey::default(), false), // system_program
-            AccountMeta::new_readonly(light_token_program, false),    // light_token_program
+            AccountMeta::new(ata, false),                          // token_account
+            AccountMeta::new(payer.pubkey(), true),                // owner (signer)
+            AccountMeta::new_readonly(Pubkey::default(), false),   // system_program
+            AccountMeta::new_readonly(light_token_program, false), // light_token_program
         ],
         data: revoke_instruction_data,
     };
@@ -284,10 +284,10 @@ async fn test_revoke_invoke_signed() {
     let revoke_instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(ata, false),                        // token_account
-            AccountMeta::new(pda_owner, false),                  // PDA owner (program signs)
-            AccountMeta::new_readonly(Pubkey::default(), false), // system_program
-            AccountMeta::new_readonly(light_token_program, false),    // light_token_program
+            AccountMeta::new(ata, false),                          // token_account
+            AccountMeta::new(pda_owner, false),                    // PDA owner (program signs)
+            AccountMeta::new_readonly(Pubkey::default(), false),   // system_program
+            AccountMeta::new_readonly(light_token_program, false), // light_token_program
         ],
         data: revoke_instruction_data,
     };

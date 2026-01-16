@@ -8,7 +8,6 @@ pub mod rent;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
-
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 use light_sdk_types::instruction::PackedAddressTreeInfo;
 

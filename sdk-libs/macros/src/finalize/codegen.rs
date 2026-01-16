@@ -12,9 +12,10 @@
 //! 2. Instruction body: Can use hot CMint (mintTo, transfers, etc.)
 //! 3. Finalize: No-op (all work done in pre_init)
 
-use super::parse::{ParsedCompressibleStruct, RentFreeField};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
+
+use super::parse::{ParsedCompressibleStruct, RentFreeField};
 
 /// Generate both trait implementations
 pub fn generate_finalize_impl(parsed: &ParsedCompressibleStruct) -> TokenStream {
@@ -173,7 +174,7 @@ pub fn generate_finalize_impl(parsed: &ParsedCompressibleStruct) -> TokenStream 
 /// Generate LightPreInit body for PDAs + mints:
 /// 1. Write PDAs to CPI context
 /// 2. Invoke mint_action with decompress + CPI context
-/// After this, CMint is "hot" and usable in instruction body
+///    After this, Mint is "hot" and usable in instruction body
 #[allow(clippy::too_many_arguments)]
 fn generate_pre_init_pdas_and_mints(
     parsed: &ParsedCompressibleStruct,

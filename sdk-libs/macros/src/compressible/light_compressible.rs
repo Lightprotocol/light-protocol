@@ -112,8 +112,9 @@ fn derive_input_to_item_struct(input: &DeriveInput) -> Result<ItemStruct> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use syn::parse_quote;
+
+    use super::*;
 
     #[test]
     fn test_light_compressible_basic() {
@@ -133,10 +134,7 @@ mod tests {
         let output = result.unwrap().to_string();
 
         // Should contain LightHasherSha output
-        assert!(
-            output.contains("DataHasher"),
-            "Should implement DataHasher"
-        );
+        assert!(output.contains("DataHasher"), "Should implement DataHasher");
         assert!(
             output.contains("ToByteArray"),
             "Should implement ToByteArray"
@@ -157,10 +155,7 @@ mod tests {
             output.contains("HasCompressionInfo"),
             "Should implement HasCompressionInfo"
         );
-        assert!(
-            output.contains("CompressAs"),
-            "Should implement CompressAs"
-        );
+        assert!(output.contains("CompressAs"), "Should implement CompressAs");
         assert!(output.contains("Size"), "Should implement Size");
 
         // Should contain CompressiblePack output (Pack, Unpack, Packed struct)
@@ -195,10 +190,7 @@ mod tests {
         let output = result.unwrap().to_string();
 
         // compress_as attribute should be processed
-        assert!(
-            output.contains("CompressAs"),
-            "Should implement CompressAs"
-        );
+        assert!(output.contains("CompressAs"), "Should implement CompressAs");
     }
 
     #[test]
@@ -220,10 +212,7 @@ mod tests {
         let output = result.unwrap().to_string();
 
         // Should still generate everything
-        assert!(
-            output.contains("DataHasher"),
-            "Should implement DataHasher"
-        );
+        assert!(output.contains("DataHasher"), "Should implement DataHasher");
         assert!(
             output.contains("LightDiscriminator"),
             "Should implement LightDiscriminator"
@@ -247,10 +236,7 @@ mod tests {
         };
 
         let result = derive_light_compressible(input);
-        assert!(
-            result.is_err(),
-            "LightCompressible should fail for enums"
-        );
+        assert!(result.is_err(), "LightCompressible should fail for enums");
     }
 
     #[test]

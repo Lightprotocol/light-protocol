@@ -3,8 +3,6 @@
 //! This module extracts PDA seeds from Anchor's attribute syntax and classifies them
 //! into the categories needed for compression: literals, ctx fields, data fields, etc.
 
-use proc_macro2::TokenStream;
-use quote::quote;
 use syn::{Expr, Ident, ItemStruct, Type};
 
 /// Classified seed element from Anchor's seeds array
@@ -33,14 +31,10 @@ pub enum ClassifiedSeed {
 /// Extracted seed specification for a compressible field
 #[derive(Clone, Debug)]
 pub struct ExtractedSeedSpec {
-    /// The field name in the Accounts struct
-    pub field_name: Ident,
     /// The variant name derived from field_name (snake_case -> CamelCase)
     pub variant_name: Ident,
     /// The inner type (e.g., UserRecord from Account<'info, UserRecord>)
     pub inner_type: Ident,
-    /// Whether it's Box<Account<...>>
-    pub is_boxed: bool,
     /// Classified seeds from #[account(seeds = [...])]
     pub seeds: Vec<ClassifiedSeed>,
 }
@@ -66,8 +60,6 @@ pub struct ExtractedAccountsInfo {
     pub struct_name: Ident,
     pub pda_fields: Vec<ExtractedSeedSpec>,
     pub token_fields: Vec<ExtractedTokenSpec>,
-    /// All fields in the struct (for authority lookup)
-    pub all_fields: Vec<(Ident, Type)>,
 }
 
 /// Extract rentfree field info from an Accounts struct
@@ -121,11 +113,10 @@ pub fn extract_from_accounts_struct(
                 Ident::new(&camel, field_ident.span())
             };
 
+            let _ = (field_ident, is_boxed); // Suppress unused warnings
             pda_fields.push(ExtractedSeedSpec {
-                field_name: field_ident,
                 variant_name,
                 inner_type,
-                is_boxed,
                 seeds,
             });
         } else if let Some(token_attr) = token_attr {
@@ -188,11 +179,11 @@ pub fn extract_from_accounts_struct(
         }
     }
 
+    let _ = all_fields; // Suppress unused warning
     Ok(Some(ExtractedAccountsInfo {
         struct_name: item.ident.clone(),
         pda_fields,
         token_fields,
-        all_fields,
     }))
 }
 
@@ -647,70 +638,6 @@ fn extract_ctx_ident_from_expr(expr: &Expr) -> Option<Ident> {
         Expr::Path(path) => path.path.get_ident().cloned(),
         _ => None,
     }
-}
-
-/// Generate seed derivation code from classified seeds
-pub fn generate_seed_derivation(seeds: &[ClassifiedSeed]) -> TokenStream {
-    let seed_exprs: Vec<TokenStream> = seeds
-        .iter()
-        .map(|seed| match seed {
-            ClassifiedSeed::Literal(bytes) => {
-                quote! { &[#(#bytes),*] }
-            }
-            ClassifiedSeed::Constant(path) => {
-                quote! { crate::#path.as_ref() }
-            }
-            ClassifiedSeed::CtxAccount(ident) => {
-                quote! { ctx_seeds.#ident.as_ref() }
-            }
-            ClassifiedSeed::DataField {
-                field_name,
-                conversion: None,
-            } => {
-                quote! { self.#field_name.as_ref() }
-            }
-            ClassifiedSeed::DataField {
-                field_name,
-                conversion: Some(method),
-            } => {
-                quote! { self.#field_name.#method().as_ref() }
-            }
-            ClassifiedSeed::FunctionCall { func, ctx_args } => {
-                let args: Vec<TokenStream> = ctx_args
-                    .iter()
-                    .map(|arg| quote! { &ctx_seeds.#arg })
-                    .collect();
-                quote! { #func(#(#args),*).as_ref() }
-            }
-        })
-        .collect();
-
-    quote! {
-        let seeds: &[&[u8]] = &[#(#seed_exprs),*];
-    }
-}
-
-/// Get ctx field names from classified seeds
-pub fn get_ctx_fields(seeds: &[ClassifiedSeed]) -> Vec<Ident> {
-    let mut fields = Vec::new();
-    for seed in seeds {
-        match seed {
-            ClassifiedSeed::CtxAccount(ident) => {
-                if !fields.iter().any(|f: &Ident| f == ident) {
-                    fields.push(ident.clone());
-                }
-            }
-            ClassifiedSeed::FunctionCall { ctx_args, .. } => {
-                for arg in ctx_args {
-                    if !fields.iter().any(|f: &Ident| f == arg) {
-                        fields.push(arg.clone());
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-    fields
 }
 
 /// Get data field names from classified seeds

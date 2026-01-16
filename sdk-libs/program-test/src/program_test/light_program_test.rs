@@ -648,8 +648,10 @@ impl LightProgramTest {
         use light_client::indexer::Indexer;
         use light_compressible_client::{MintInterface, MintState};
         use light_token_interface::{state::CompressedMint, CMINT_ADDRESS_TREE};
-        use light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address;
-        use light_token_sdk::token::find_mint_address;
+        use light_token_sdk::{
+            compressed_token::create_compressed_mint::derive_mint_compressed_address,
+            token::find_mint_address,
+        };
 
         let (cmint, _) = find_mint_address(signer);
         let address_tree = solana_sdk::pubkey::Pubkey::new_from_array(CMINT_ADDRESS_TREE);
