@@ -53,7 +53,7 @@ light-account-checks = { workspace = true, features = ["solana", "pinocchio", "m
 light-sdk = { workspace = true }
 borsh = { workspace = true }
 light-sdk-types = { workspace = true }
-light-compressible = { workspace = true }
+light-compressible = { workspace = true, features = ["pinocchio"] }
 solana-pubkey = { workspace = true }
 arrayvec = { workspace = true }
 tinyvec = { workspace = true }
