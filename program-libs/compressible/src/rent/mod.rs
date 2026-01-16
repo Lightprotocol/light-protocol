@@ -22,10 +22,10 @@ pub fn get_rent_exemption_lamports(_num_bytes: u64) -> Result<u64, CompressibleE
             .map(|rent| rent.minimum_balance(_num_bytes as usize))
             .map_err(|_| CompressibleError::FailedBorrowRentSysvar);
     }
-    #[cfg(not(target_os = "solana"))]
+    #[cfg(not(all(target_os = "solana", any(feature = "pinocchio", feature = "solana"))))]
     {
         unimplemented!(
-            "get_rent_exemption_lamports is only implemented for target os solana and tests"
+            "get_rent_exemption_lamports is only implemented for target os solana with pinocchio or solana feature"
         )
     }
 }
