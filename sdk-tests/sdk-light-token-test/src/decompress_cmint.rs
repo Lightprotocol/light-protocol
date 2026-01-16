@@ -34,7 +34,7 @@ pub struct DecompressCmintData {
 /// - accounts[12]: account_compression_authority (readonly)
 /// - accounts[13]: account_compression_program (readonly)
 /// - accounts[14]: system_program (readonly)
-pub fn process_decompress_cmint_invoke_signed(
+pub fn process_decompress_mint_invoke_signed(
     accounts: &[AccountInfo],
     data: DecompressCmintData,
 ) -> Result<(), ProgramError> {

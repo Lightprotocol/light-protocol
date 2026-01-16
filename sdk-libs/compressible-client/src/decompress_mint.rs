@@ -10,7 +10,7 @@
 //! Three APIs are provided:
 //! - `decompress_mint`: Simple async API (fetches state + proof internally)
 //! - `build_decompress_mint`: Sync, caller provides pre-fetched state + proof
-//! - `decompress_cmint`: High-perf wrapper (takes MintInterface, fetches proof internally)
+//! - `decompress_mint`: High-perf wrapper (takes MintInterface, fetches proof internally)
 
 use borsh::BorshDeserialize;
 use light_client::indexer::{CompressedAccount, Indexer, IndexerError, ValidityProofWithContext};
@@ -216,9 +216,9 @@ pub fn build_decompress_mint(
 /// let mint = rpc.get_mint_interface(&signer).await?;
 ///
 /// // Decompress if cold (fetches proof internally)
-/// let instructions = decompress_cmint(&mint, fee_payer, &rpc).await?;
+/// let instructions = decompress_mint(&mint, fee_payer, &rpc).await?;
 /// ```
-pub async fn decompress_cmint<I: Indexer>(
+pub async fn decompress_mint<I: Indexer>(
     mint: &MintInterface,
     fee_payer: Pubkey,
     indexer: &I,

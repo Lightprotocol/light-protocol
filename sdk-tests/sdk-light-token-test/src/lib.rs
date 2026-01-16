@@ -7,7 +7,7 @@ mod create_ata;
 mod create_cmint;
 mod create_token_account;
 mod ctoken_mint_to;
-mod decompress_cmint;
+mod decompress_mint;
 mod freeze;
 mod revoke;
 mod thaw;
@@ -30,7 +30,7 @@ pub use create_token_account::{
     CreateTokenAccountData,
 };
 pub use ctoken_mint_to::{process_mint_to_invoke, process_mint_to_invoke_signed, MintToData};
-pub use decompress_cmint::{process_decompress_cmint_invoke_signed, DecompressCmintData};
+pub use decompress_mint::{process_decompress_mint_invoke_signed, DecompressCmintData};
 pub use freeze::{process_freeze_invoke, process_freeze_invoke_signed};
 pub use revoke::{process_revoke_invoke, process_revoke_invoke_signed};
 use solana_program::{
@@ -315,7 +315,7 @@ pub fn process_instruction(
         InstructionType::DecompressCmintInvokeSigned => {
             let data = DecompressCmintData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
-            process_decompress_cmint_invoke_signed(accounts, data)
+            process_decompress_mint_invoke_signed(accounts, data)
         }
         InstructionType::CTokenTransferCheckedInvoke => {
             let data = TransferCheckedData::try_from_slice(&instruction_data[1..])

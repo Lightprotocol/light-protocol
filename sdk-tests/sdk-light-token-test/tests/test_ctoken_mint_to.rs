@@ -53,8 +53,8 @@ async fn test_ctoken_mint_to_invoke() {
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(mint_pda, false),                // cmint
-            AccountMeta::new(ata, false),                     // destination
+            AccountMeta::new(mint_pda, false),                     // cmint
+            AccountMeta::new(ata, false),                          // destination
             AccountMeta::new(payer.pubkey(), true), // authority (signer, writable for top-up)
             AccountMeta::new_readonly(system_program, false), // system_program
             AccountMeta::new_readonly(light_token_program, false), // light_token_program
@@ -233,7 +233,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
         ]
         .concat();
 
-        // Account order matches process_decompress_cmint_invoke_signed:
+        // Account order matches process_decompress_mint_invoke_signed:
         // 0: authority (PDA, readonly - program signs)
         // 1: payer (signer, writable)
         // 2: cmint (writable)
@@ -312,8 +312,8 @@ async fn test_ctoken_mint_to_invoke_signed() {
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(mint_pda, false),                // cmint
-            AccountMeta::new(ata, false),                     // destination
+            AccountMeta::new(mint_pda, false),                     // cmint
+            AccountMeta::new(ata, false),                          // destination
             AccountMeta::new(pda_mint_authority, false), // PDA authority (program signs, writable for top-up)
             AccountMeta::new_readonly(system_program, false), // system_program
             AccountMeta::new_readonly(light_token_program, false), // light_token_program

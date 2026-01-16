@@ -16,7 +16,7 @@ SDK-only functionality to decompress compressed CMint accounts (mints that were 
 
 2. **mint_seed does NOT need to sign** - uses `with_mint_signer_no_sign()` internally. The mint_seed is only used for PDA derivation.
 
-3. `DecompressMint` struct already exists in `ctoken-sdk/src/ctoken/decompress_cmint.rs` with a complete `instruction()` method.
+3. `DecompressMint` struct already exists in `ctoken-sdk/src/ctoken/decompress_mint.rs` with a complete `instruction()` method.
 
 4. All data needed is queryable from the indexer via the compressed mint's address.
 
@@ -77,7 +77,7 @@ Unlike PDAs which require program signing for decompression, CMint decompression
 
 | Component                             | Location                                                                   | Reuse  |
 | ------------------------------------- | -------------------------------------------------------------------------- | ------ |
-| `DecompressMint` struct               | `ctoken-sdk/src/ctoken/decompress_cmint.rs`                                | Direct |
+| `DecompressMint` struct               | `ctoken-sdk/src/ctoken/decompress_mint.rs`                                 | Direct |
 | `find_mint_address`                   | `ctoken-sdk/src/ctoken/create_cmint.rs`                                    | Direct |
 | `derive_cmint_compressed_address`     | `ctoken-sdk/src/compressed_token/v2/create_compressed_mint/instruction.rs` | Direct |
 | `CompressedMintWithContext`           | `ctoken-interface/src/instructions/mint_action/instruction_data.rs`        | Direct |

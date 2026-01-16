@@ -5,7 +5,7 @@ This document describes how to decompress compressed CToken ATAs and CMints.
 ## Quick Start
 
 ```rust
-use light_compressible_client::{decompress_atas, decompress_cmint};
+use light_compressible_client::{decompress_atas, decompress_mint};
 
 // Decompress ATAs
 let atas = vec![
@@ -15,7 +15,7 @@ let instructions = decompress_atas(&atas, fee_payer, &rpc).await?;
 
 // Decompress CMint
 let mint = rpc.get_mint_interface(&signer).await?;
-let instructions = decompress_cmint(&mint, fee_payer, &rpc).await?;
+let instructions = decompress_mint(&mint, fee_payer, &rpc).await?;
 ```
 
 ## Unified Token Data
@@ -56,7 +56,7 @@ if ata.is_cold() {
 
 | Function                                                       | Description                                  |
 | -------------------------------------------------------------- | -------------------------------------------- |
-| `decompress_cmint(&MintInterface, fee_payer, &indexer)`        | High-perf wrapper: pre-fetch mint, call this |
+| `decompress_mint(&MintInterface, fee_payer, &indexer)`         | High-perf wrapper: pre-fetch mint, call this |
 | `build_decompress_mint(&MintInterface, fee_payer, proof, ...)` | Sync: caller provides proof                  |
 | `decompress_mint(signer, fee_payer, &indexer)`                 | Simple: fetches everything                   |
 | `rpc.get_mint_interface(&signer)`                              | Fetch CMint state                            |
@@ -86,7 +86,7 @@ let instructions = decompress_mint(signer, fee_payer, &rpc).await?;
 Pre-fetch state, then call lean wrapper. Allows batching state fetches.
 
 ```rust
-use light_compressible_client::{decompress_atas, decompress_cmint};
+use light_compressible_client::{decompress_atas, decompress_mint};
 
 // Pre-fetch ATAs (can batch with futures::join_all)
 let atas = vec![
@@ -104,7 +104,7 @@ let instructions = decompress_atas(&atas, fee_payer, &rpc).await?;
 
 // Same for mints
 let mint = rpc.get_mint_interface(&signer).await?;
-let instructions = decompress_cmint(&mint, fee_payer, &rpc).await?;
+let instructions = decompress_mint(&mint, fee_payer, &rpc).await?;
 ```
 
 ### Pattern 3: Maximum Control (For advanced use cases)
@@ -199,7 +199,7 @@ All functions are idempotent:
 ## Example: Full Decompression Flow
 
 ```rust
-use light_compressible_client::{decompress_atas, decompress_cmint};
+use light_compressible_client::{decompress_atas, decompress_mint};
 
 async fn decompress_all(
     rpc: &mut LightProgramTest,
@@ -212,7 +212,7 @@ async fn decompress_all(
     // 1. Decompress CMint first (required for ATA decompression)
     let mint_interface = rpc.get_mint_interface(&signer).await?;
     if mint_interface.is_cold() {
-        let ix = decompress_cmint(&mint_interface, fee_payer, rpc).await?;
+        let ix = decompress_mint(&mint_interface, fee_payer, rpc).await?;
         if !ix.is_empty() {
             rpc.create_and_send_transaction(&ix, &fee_payer, &[payer]).await?;
         }

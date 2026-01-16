@@ -296,11 +296,11 @@ pub fn compressible_pack(input: TokenStream) -> TokenStream {
 /// ## Example
 ///
 /// ```ignore
-/// use light_sdk_macros::Light;
+/// use light_sdk_macros::RentFree;
 /// use light_sdk::compressible::CompressionInfo;
 /// use solana_pubkey::Pubkey;
 ///
-/// #[derive(Default, Debug, InitSpace, Light)]
+/// #[derive(Default, Debug, InitSpace, RentFree)]
 /// #[account]
 /// pub struct UserRecord {
 ///     pub owner: Pubkey,
@@ -327,8 +327,8 @@ pub fn compressible_pack(input: TokenStream) -> TokenStream {
 /// - The `compression_info` field is auto-detected and handled (no `#[skip]` needed)
 /// - SHA256 (ShaFlat) hashes the entire serialized struct (no `#[hash]` needed)
 /// - The struct must have a `compression_info: Option<CompressionInfo>` field
-#[proc_macro_derive(Light, attributes(compress_as))]
-pub fn light(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(RentFree, attributes(compress_as))]
+pub fn rent_free(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     into_token_stream(compressible::light_compressible::derive_light_compressible(
         input,

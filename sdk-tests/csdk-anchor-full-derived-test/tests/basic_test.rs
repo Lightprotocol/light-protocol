@@ -379,7 +379,7 @@ async fn test_create_pdas_and_mint_auto() {
 
     // PHASE 4: Decompress user ATA via new high-performance API pattern
     use light_compressible_client::{
-        build_decompress_token_accounts, decompress_cmint, decompress_token_accounts,
+        build_decompress_token_accounts, decompress_mint, decompress_token_accounts,
         parse_token_account_interface,
     };
 
@@ -456,7 +456,7 @@ async fn test_create_pdas_and_mint_auto() {
         "Should return empty vec when already decompressed"
     );
 
-    // PHASE 5: Decompress CMint via decompress_cmint (lean wrapper)
+    // PHASE 5: Decompress CMint via decompress_mint (lean wrapper)
     let mint_interface = rpc
         .get_mint_interface(&mint_signer_pda)
         .await
@@ -466,9 +466,9 @@ async fn test_create_pdas_and_mint_auto() {
     assert!(mint_interface.is_cold(), "Mint should be cold after warp");
 
     // Decompress using lean wrapper (fetches proof internally)
-    let mint_instructions = decompress_cmint(&mint_interface, payer.pubkey(), &rpc)
+    let mint_instructions = decompress_mint(&mint_interface, payer.pubkey(), &rpc)
         .await
-        .expect("decompress_cmint should succeed");
+        .expect("decompress_mint should succeed");
 
     if !mint_instructions.is_empty() {
         rpc.create_and_send_transaction(&mint_instructions, &payer.pubkey(), &[&payer])
@@ -488,9 +488,9 @@ async fn test_create_pdas_and_mint_auto() {
         mint_interface_again.is_hot(),
         "Mint should be hot after decompression"
     );
-    let mint_instructions_again = decompress_cmint(&mint_interface_again, payer.pubkey(), &rpc)
+    let mint_instructions_again = decompress_mint(&mint_interface_again, payer.pubkey(), &rpc)
         .await
-        .expect("decompress_cmint should succeed");
+        .expect("decompress_mint should succeed");
     assert!(
         mint_instructions_again.is_empty(),
         "Should return empty vec when mint already decompressed"
