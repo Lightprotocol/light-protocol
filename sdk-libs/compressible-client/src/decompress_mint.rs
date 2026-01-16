@@ -287,22 +287,7 @@ impl DecompressMintRequest {
     }
 }
 
-/// Decompress a compressed mint with default parameters.
-/// Returns empty vec if already decompressed (idempotent).
-pub async fn decompress_mint<I: Indexer>(
-    mint_seed_pubkey: Pubkey,
-    fee_payer: Pubkey,
-    indexer: &I,
-) -> Result<Vec<Instruction>, DecompressMintError> {
-    decompress_mint_idempotent(
-        DecompressMintRequest::new(mint_seed_pubkey),
-        fee_payer,
-        indexer,
-    )
-    .await
-}
-
-/// Decompresses a compressed CMint to an on-chain CMint Solana account.
+/// Decompresses a compressed Mint to an on-chain Mint Solana account.
 ///
 /// This is permissionless - any fee_payer can decompress any compressed mint.
 /// Returns empty vec if already decompressed (idempotent).

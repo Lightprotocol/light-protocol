@@ -30,9 +30,9 @@ pub use decompress_atas::{
 pub use light_compressible::CreateAccountsProof;
 // Re-export TokenData for convenience (standard SPL-compatible type)
 pub use decompress_mint::{
-    build_decompress_mint, create_mint_interface, decompress_mint, decompress_mint,
-    decompress_mint_idempotent, DecompressMintError, DecompressMintRequest, MintInterface,
-    MintState, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
+    build_decompress_mint, create_mint_interface, decompress_mint, decompress_mint_idempotent,
+    DecompressMintError, DecompressMintRequest, MintInterface, MintState, DEFAULT_RENT_PAYMENT,
+    DEFAULT_WRITE_TOP_UP,
 };
 pub use initialize_config::InitializeRentFreeConfig;
 pub use light_token_sdk::compat::TokenData;
