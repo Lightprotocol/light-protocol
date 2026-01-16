@@ -2,9 +2,9 @@ use anchor_lang::prelude::*;
 use light_sdk::{
     compressible::CompressionInfo,
     instruction::{PackedAddressTreeInfo, ValidityProof},
-    LightDiscriminator, LightHasher,
+    LightDiscriminator,
 };
-use light_sdk_macros::{Compressible, CompressiblePack, RentFreeAccount};
+use light_sdk_macros::RentFreeAccount;
 use light_token_interface::instructions::mint_action::MintWithContext;
 
 #[derive(Default, Debug, InitSpace, RentFreeAccount)]

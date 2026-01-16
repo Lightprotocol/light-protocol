@@ -2,8 +2,7 @@ use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof, traits::LightInstructionData,
 };
 use light_token_interface::instructions::mint_action::{
-    CompressedMintWithContext, CpiContext, DecompressMintAction,
-    MintActionCompressedInstructionData, MintWithContext,
+    CpiContext, DecompressMintAction, MintActionCompressedInstructionData, MintWithContext,
 };
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
@@ -250,7 +249,7 @@ pub struct DecompressCMintWithCpiContext {
     /// Output queue for updated compressed mint
     pub output_queue: Pubkey,
     /// Compressed mint with context (from indexer)
-    pub compressed_mint_with_context: CompressedMintWithContext,
+    pub compressed_mint_with_context: MintWithContext,
     /// Validity proof for the compressed mint
     pub proof: ValidityProof,
     /// Rent payment in epochs (must be >= 2)
@@ -341,7 +340,7 @@ pub struct DecompressCMintCpiWithContext<'info> {
     /// This is separate from system_accounts.cpi_authority_pda which is the calling program's authority
     pub ctoken_cpi_authority: AccountInfo<'info>,
     /// Compressed mint with context (from indexer)
-    pub compressed_mint_with_context: CompressedMintWithContext,
+    pub compressed_mint_with_context: MintWithContext,
     /// Validity proof for the compressed mint
     pub proof: ValidityProof,
     /// Rent payment in epochs (must be >= 2)

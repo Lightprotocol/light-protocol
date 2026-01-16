@@ -414,8 +414,7 @@ async fn compress_cmint_forester(
     use light_compressible::config::CompressibleConfig;
     use light_token_interface::{
         instructions::mint_action::{
-            CompressAndCloseCMintAction, CompressedMintWithContext,
-            MintActionCompressedInstructionData,
+            CompressAndCloseMintAction, MintActionCompressedInstructionData, MintWithContext,
         },
         LIGHT_TOKEN_PROGRAM_ID,
     };
@@ -428,9 +427,8 @@ async fn compress_cmint_forester(
     })?;
 
     // Deserialize Mint to get compressed_address and rent_sponsor
-    let mint: Mint =
-        BorshDeserialize::deserialize(&mut cmint_account.data.as_slice())
-            .map_err(|e| RpcError::CustomError(format!("Failed to deserialize Mint: {:?}", e)))?;
+    let mint: Mint = BorshDeserialize::deserialize(&mut cmint_account.data.as_slice())
+        .map_err(|e| RpcError::CustomError(format!("Failed to deserialize Mint: {:?}", e)))?;
 
     let compressed_mint_address = mint.metadata.compressed_address();
     let rent_sponsor = Pubkey::from(mint.compression.rent_sponsor);
@@ -455,7 +453,7 @@ async fn compress_cmint_forester(
     // IMPORTANT: Set mint to None when CMint is decompressed
     // This tells on-chain code to read mint data from CMint Solana account
     // (not from instruction data which would have stale compression_info)
-    let compressed_mint_inputs = CompressedMintWithContext {
+    let compressed_mint_inputs = MintWithContext {
         prove_by_index: rpc_proof_result.accounts[0].root_index.proof_by_index(),
         leaf_index: compressed_mint_account.leaf_index,
         root_index: rpc_proof_result.accounts[0]
@@ -466,12 +464,12 @@ async fn compress_cmint_forester(
         mint: None, // CMint is decompressed, data lives in CMint account
     };
 
-    // Build instruction data with CompressAndCloseCMint action
+    // Build instruction data with CompressAndCloseMint action
     let instruction_data = MintActionCompressedInstructionData::new(
         compressed_mint_inputs,
         rpc_proof_result.proof.into(),
     )
-    .with_compress_and_close_cmint(CompressAndCloseCMintAction { idempotent: 1 });
+    .with_compress_and_close_mint(CompressAndCloseMintAction { idempotent: 1 });
 
     // Get state tree info
     let state_tree_info = rpc_proof_result.accounts[0].tree_info;

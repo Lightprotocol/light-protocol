@@ -16,8 +16,8 @@ use borsh::BorshDeserialize;
 use light_client::indexer::{CompressedAccount, Indexer, IndexerError, ValidityProofWithContext};
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 use light_token_interface::{
-    instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
-    state::CompressedMint,
+    instructions::mint_action::{MintInstructionData, MintWithContext},
+    state::Mint,
     CMINT_ADDRESS_TREE,
 };
 use light_token_sdk::{
@@ -58,7 +58,7 @@ pub enum MintState {
     /// CMint is compressed - needs decompression.
     Cold {
         compressed: CompressedAccount,
-        mint_data: CompressedMint,
+        mint_data: Mint,
     },
     /// CMint doesn't exist (neither on-chain nor compressed).
     None,
@@ -114,7 +114,7 @@ impl MintInterface {
     }
 
     /// Returns the compressed account and mint data if cold.
-    pub fn compressed(&self) -> Option<(&CompressedAccount, &CompressedMint)> {
+    pub fn compressed(&self) -> Option<(&CompressedAccount, &Mint)> {
         match &self.state {
             MintState::Cold {
                 compressed,
@@ -159,7 +159,7 @@ pub fn build_decompress_mint(
     };
 
     // Check if already decompressed flag is set - return empty vec (idempotent)
-    if mint_data.metadata.cmint_decompressed {
+    if mint_data.metadata.mint_decompressed {
         return Ok(vec![]);
     }
 
@@ -177,11 +177,11 @@ pub fn build_decompress_mint(
         .map(|next| next.queue)
         .unwrap_or(input_queue);
 
-    // Build CompressedMintWithContext
-    let mint_instruction_data = CompressedMintInstructionData::try_from(mint_data.clone())
+    // Build MintWithContext
+    let mint_instruction_data = MintInstructionData::try_from(mint_data.clone())
         .map_err(|_| DecompressMintError::MissingMintData)?;
 
-    let compressed_mint_with_context = CompressedMintWithContext {
+    let compressed_mint_with_context = MintWithContext {
         leaf_index: account_info.leaf_index as u32,
         prove_by_index: account_info.root_index.proof_by_index(),
         root_index: account_info.root_index.root_index().unwrap_or_default(),
@@ -234,7 +234,7 @@ pub async fn decompress_mint<I: Indexer>(
 
     // Check decompressed flag before fetching proof
     if let Some((_, mint_data)) = mint.compressed() {
-        if mint_data.metadata.cmint_decompressed {
+        if mint_data.metadata.mint_decompressed {
             return Ok(vec![]);
         }
     }
@@ -323,11 +323,11 @@ pub async fn decompress_mint_idempotent<I: Indexer>(
     };
 
     // 4. Parse mint data from compressed account
-    let mint_data = CompressedMint::try_from_slice(&data.data)
-        .map_err(|_| DecompressMintError::MissingMintData)?;
+    let mint_data =
+        Mint::try_from_slice(&data.data).map_err(|_| DecompressMintError::MissingMintData)?;
 
     // 5. Check if already decompressed flag is set - return empty vec (idempotent)
-    if mint_data.metadata.cmint_decompressed {
+    if mint_data.metadata.mint_decompressed {
         return Ok(vec![]);
     }
 
@@ -348,13 +348,13 @@ pub async fn decompress_mint_idempotent<I: Indexer>(
         .map(|next| next.queue)
         .unwrap_or(input_queue);
 
-    // 7. Build CompressedMintWithContext
+    // 7. Build MintWithContext
     // NOTE: prove_by_index and leaf_index come from account_info (the proof), not compressed_account
     // The query may have stale values, but the proof is authoritative.
-    let mint_instruction_data = CompressedMintInstructionData::try_from(mint_data)
+    let mint_instruction_data = MintInstructionData::try_from(mint_data)
         .map_err(|_| DecompressMintError::MissingMintData)?;
 
-    let compressed_mint_with_context = CompressedMintWithContext {
+    let compressed_mint_with_context = MintWithContext {
         leaf_index: account_info.leaf_index as u32,
         prove_by_index: account_info.root_index.proof_by_index(),
         root_index: account_info.root_index.root_index().unwrap_or_default(),
@@ -387,7 +387,7 @@ pub fn create_mint_interface(
     signer: Pubkey,
     address_tree: Pubkey,
     onchain_account: Option<Account>,
-    compressed: Option<(CompressedAccount, CompressedMint)>,
+    compressed: Option<(CompressedAccount, Mint)>,
 ) -> MintInterface {
     let (cmint, _) = find_mint_address(&signer);
     let compressed_address = derive_mint_compressed_address(&signer, &address_tree);

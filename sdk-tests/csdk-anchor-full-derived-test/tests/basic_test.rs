@@ -9,15 +9,7 @@ use light_program_test::{
     Indexer, ProgramTestConfig, Rpc,
 };
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token_interface::{
-    instructions::mint_action::{MintInstructionData, MintWithContext},
-    state::MintMetadata,
-};
-use light_token_sdk::compressed_token::create_compressed_mint::{
-    derive_mint_compressed_address, find_mint_address,
-};
 use light_token_sdk::token::find_mint_address as find_cmint_address;
-use light_token_types::CPI_AUTHORITY_PDA;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;

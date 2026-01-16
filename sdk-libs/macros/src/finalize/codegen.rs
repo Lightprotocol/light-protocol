@@ -288,13 +288,13 @@ fn generate_pre_init_pdas_and_mints(
             let __freeze_authority: Option<solana_pubkey::Pubkey> = #freeze_authority_tokens;
 
             // Build compressed mint instruction data
-            let compressed_mint_data = light_token_interface::instructions::mint_action::CompressedMintInstructionData {
+            let compressed_mint_data = light_token_interface::instructions::mint_action::MintInstructionData {
                 supply: 0,
                 decimals: #decimals,
-                metadata: light_token_interface::state::CompressedMintMetadata {
+                metadata: light_token_interface::state::MintMetadata {
                     version: 3,
                     mint: mint_pda.to_bytes().into(),
-                    cmint_decompressed: false,
+                    mint_decompressed: false,
                     mint_signer: mint_signer_key.to_bytes(),
                     bump: _cmint_bump,
                 },
@@ -453,13 +453,13 @@ fn generate_pre_init_mints_only(
             let __freeze_authority: Option<solana_pubkey::Pubkey> = #freeze_authority_tokens;
 
             // Build compressed mint instruction data
-            let compressed_mint_data = light_token_interface::instructions::mint_action::CompressedMintInstructionData {
+            let compressed_mint_data = light_token_interface::instructions::mint_action::MintInstructionData {
                 supply: 0,
                 decimals: #decimals,
-                metadata: light_token_interface::state::CompressedMintMetadata {
+                metadata: light_token_interface::state::MintMetadata {
                     version: 3,
                     mint: mint_pda.to_bytes().into(),
-                    cmint_decompressed: false,
+                    mint_decompressed: false,
                     mint_signer: mint_signer_key.to_bytes(),
                     bump: _cmint_bump,
                 },
