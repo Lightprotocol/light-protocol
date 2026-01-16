@@ -448,8 +448,6 @@ importers:
 
   programs: {}
 
-  sdk-tests/csdk-anchor-derived-test: {}
-
   sdk-tests/csdk-anchor-full-derived-test: {}
 
   sdk-tests/sdk-anchor-test:
@@ -488,8 +486,6 @@ importers:
       typescript:
         specifier: ^4.3.5
         version: 4.9.5
-
-  sdk-tests/sdk-compressible-test: {}
 
   tsconfig: {}
 
