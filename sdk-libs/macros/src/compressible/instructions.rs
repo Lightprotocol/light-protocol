@@ -1353,14 +1353,15 @@ fn generate_from_extracted_seeds(
 // COMPRESSIBLE_PROGRAM: Auto-discovers seeds from external module files
 // =============================================================================
 
-/// Main entry point for #[compressible_program] macro.
+/// Main entry point for #[rentfree_program] macro.
 ///
 /// This macro reads external module files to extract seed information from
-/// Accounts structs with #[compressible] fields. No explicit type list needed!
+/// Accounts structs with #[rentfree] fields. It also automatically wraps
+/// instruction handlers that use these Accounts structs with pre_init/finalize logic.
 ///
 /// Usage:
 /// ```ignore
-/// #[compressible_program]
+/// #[rentfree_program]
 /// #[program]
 /// pub mod my_program {
 ///     pub mod instruction_accounts;  // Macro reads this file!
@@ -1369,12 +1370,97 @@ fn generate_from_extracted_seeds(
 ///     use instruction_accounts::*;
 ///     use state::*;
 ///     
-///     #[light_instruction]
+///     // No #[light_instruction] needed - auto-wrapped!
 ///     pub fn create_user(ctx: Context<CreateUser>, params: Params) -> Result<()> {
-///         // ...
+///         // Your business logic
 ///     }
 /// }
 /// ```
+/// Extract the Context<T> type name from a function's parameters.
+/// Returns (struct_name, params_ident) if found.
+fn extract_context_and_params(fn_item: &syn::ItemFn) -> Option<(String, Ident)> {
+    let mut context_type = None;
+    let mut params_ident = None;
+
+    for input in &fn_item.sig.inputs {
+        if let syn::FnArg::Typed(pat_type) = input {
+            if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
+                // Check if this is a Context<T> parameter
+                if let syn::Type::Path(type_path) = &*pat_type.ty {
+                    if let Some(segment) = type_path.path.segments.last() {
+                        if segment.ident == "Context" {
+                            // Extract T from Context<'_, '_, '_, 'info, T<'info>> or Context<T>
+                            if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
+                                // Find the last type argument (T or T<'info>)
+                                for arg in args.args.iter().rev() {
+                                    if let syn::GenericArgument::Type(syn::Type::Path(inner_path)) = arg {
+                                        if let Some(inner_seg) = inner_path.path.segments.last() {
+                                            context_type = Some(inner_seg.ident.to_string());
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Track potential params argument (not ctx, not signer-like names)
+                let name = pat_ident.ident.to_string();
+                if name != "ctx" && !name.contains("signer") && !name.contains("bump") {
+                    // Prefer "params" but accept others
+                    if name == "params" || params_ident.is_none() {
+                        params_ident = Some(pat_ident.ident.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    match (context_type, params_ident) {
+        (Some(ctx), Some(params)) => Some((ctx, params)),
+        _ => None,
+    }
+}
+
+/// Wrap a function with pre_init/finalize logic.
+fn wrap_function_with_rentfree(fn_item: &syn::ItemFn, params_ident: &Ident) -> syn::ItemFn {
+    let fn_vis = &fn_item.vis;
+    let fn_sig = &fn_item.sig;
+    let fn_block = &fn_item.block;
+    let fn_attrs = &fn_item.attrs;
+
+    let wrapped: syn::ItemFn = syn::parse_quote! {
+        #(#fn_attrs)*
+        #fn_vis #fn_sig {
+            // Phase 1: Pre-init (creates mints via CPI context write, registers compressed addresses)
+            use light_sdk::compressible::{LightPreInit, LightFinalize};
+            let __has_pre_init = ctx.accounts.light_pre_init(ctx.remaining_accounts, &#params_ident)
+                .map_err(|e| {
+                    let pe: solana_program_error::ProgramError = e.into();
+                    pe
+                })?;
+
+            // Execute the original handler body in a closure
+            let __light_handler_result = (|| #fn_block)();
+
+            // Phase 2: On success, finalize compression
+            if __light_handler_result.is_ok() {
+                ctx.accounts.light_finalize(ctx.remaining_accounts, &#params_ident, __has_pre_init)
+                    .map_err(|e| {
+                        let pe: solana_program_error::ProgramError = e.into();
+                        pe
+                    })?;
+            }
+
+            __light_handler_result
+        }
+    };
+
+    wrapped
+}
+
+
 #[inline(never)]
 pub fn compressible_program_impl(
     _args: TokenStream,
@@ -1410,6 +1496,21 @@ pub fn compressible_program_impl(
             "No #[rentfree] or #[rentfree_token] fields found in any Accounts struct.\n\
              Ensure your Accounts structs are in modules declared with `pub mod xxx;`"
         ));
+    }
+
+    // Auto-wrap instruction handlers that use rentfree Accounts structs
+    if let Some((_, ref mut items)) = module.content {
+        for item in items.iter_mut() {
+            if let Item::Fn(fn_item) = item {
+                // Check if this function uses a rentfree Accounts struct
+                if let Some((context_type, params_ident)) = extract_context_and_params(fn_item) {
+                    if scanned.rentfree_struct_names.contains(&context_type) {
+                        // Wrap the function with pre_init/finalize logic
+                        *fn_item = wrap_function_with_rentfree(fn_item, &params_ident);
+                    }
+                }
+            }
+        }
     }
 
     // Convert extracted specs to the format expected by generate_from_extracted_seeds

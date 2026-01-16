@@ -2,7 +2,7 @@
 
 use anchor_lang::prelude::*;
 use light_sdk::{derive_light_cpi_signer, derive_light_rent_sponsor_pda};
-use light_sdk_macros::{light_instruction, rentfree_program};
+use light_sdk_macros::rentfree_program;
 use light_sdk_types::CpiSigner;
 
 pub mod errors;
@@ -48,7 +48,6 @@ pub mod csdk_anchor_full_derived_test {
         FullAutoWithMintParams, LIGHT_CPI_SIGNER,
     };
 
-    #[light_instruction]
     pub fn create_pdas_and_mint_auto<'info>(
         ctx: Context<'_, '_, '_, 'info, CreatePdasAndMintAuto<'info>>,
         params: FullAutoWithMintParams,

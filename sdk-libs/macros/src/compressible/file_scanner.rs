@@ -16,6 +16,8 @@ pub struct ScannedModuleInfo {
     pub pda_specs: Vec<ExtractedSeedSpec>,
     pub token_specs: Vec<ExtractedTokenSpec>,
     pub errors: Vec<String>,
+    /// Names of Accounts structs that have rentfree fields (for auto-wrapping handlers)
+    pub rentfree_struct_names: std::collections::HashSet<String>,
 }
 
 /// Scan the entire src/ directory for Accounts structs with #[rentfree] fields.
@@ -39,7 +41,9 @@ fn scan_directory_recursive(dir: &Path, result: &mut ScannedModuleInfo) {
     let entries = match std::fs::read_dir(dir) {
         Ok(e) => e,
         Err(e) => {
-            result.errors.push(format!("Failed to read directory {:?}: {}", dir, e));
+            result
+                .errors
+                .push(format!("Failed to read directory {:?}: {}", dir, e));
             return;
         }
     };
@@ -60,7 +64,9 @@ fn scan_rust_file(path: &Path, result: &mut ScannedModuleInfo) {
     let contents = match std::fs::read_to_string(path) {
         Ok(c) => c,
         Err(e) => {
-            result.errors.push(format!("Failed to read {:?}: {}", path, e));
+            result
+                .errors
+                .push(format!("Failed to read {:?}: {}", path, e));
             return;
         }
     };
@@ -78,9 +84,10 @@ fn scan_rust_file(path: &Path, result: &mut ScannedModuleInfo) {
     for item in parsed.items {
         match item {
             Item::Struct(item_struct) => {
-                if let Ok(Some(info)) = try_extract_from_struct(&item_struct) {
+                if let Ok(Some((info, struct_name))) = try_extract_from_struct(&item_struct) {
                     result.pda_specs.extend(info.pda_fields);
                     result.token_specs.extend(info.token_fields);
+                    result.rentfree_struct_names.insert(struct_name);
                 }
             }
             Item::Mod(inner_mod) if inner_mod.content.is_some() => {
@@ -102,9 +109,10 @@ fn scan_inline_module(module: &ItemMod, result: &mut ScannedModuleInfo) {
     for item in content {
         match item {
             Item::Struct(item_struct) => {
-                if let Ok(Some(info)) = try_extract_from_struct(item_struct) {
+                if let Ok(Some((info, struct_name))) = try_extract_from_struct(item_struct) {
                     result.pda_specs.extend(info.pda_fields);
                     result.token_specs.extend(info.token_fields);
+                    result.rentfree_struct_names.insert(struct_name);
                 }
             }
             Item::Mod(inner_mod) if inner_mod.content.is_some() => {
@@ -115,8 +123,11 @@ fn scan_inline_module(module: &ItemMod, result: &mut ScannedModuleInfo) {
     }
 }
 
-/// Try to extract rentfree info from a struct
-fn try_extract_from_struct(item_struct: &ItemStruct) -> syn::Result<Option<ExtractedAccountsInfo>> {
+/// Try to extract rentfree info from a struct.
+/// Returns (ExtractedAccountsInfo, struct_name) if the struct has rentfree fields.
+fn try_extract_from_struct(
+    item_struct: &ItemStruct,
+) -> syn::Result<Option<(ExtractedAccountsInfo, String)>> {
     // Check if it has #[derive(Accounts)]
     let has_accounts_derive = item_struct.attrs.iter().any(|attr| {
         if attr.path().is_ident("derive") {
@@ -133,7 +144,14 @@ fn try_extract_from_struct(item_struct: &ItemStruct) -> syn::Result<Option<Extra
         return Ok(None);
     }
 
-    extract_from_accounts_struct(item_struct)
+    let info = extract_from_accounts_struct(item_struct)?;
+    match info {
+        Some(extracted) => {
+            let struct_name = extracted.struct_name.to_string();
+            Ok(Some((extracted, struct_name)))
+        }
+        None => Ok(None),
+    }
 }
 
 /// Resolve the base path for the crate source

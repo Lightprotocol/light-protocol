@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
 use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
-use light_sdk_macros::RentFree;
+use light_sdk_macros::RentFreeAccount;
 
-#[derive(Default, Debug, InitSpace, RentFree)]
+#[derive(Default, Debug, InitSpace, RentFreeAccount)]
 #[account]
 pub struct UserRecord {
     pub compression_info: Option<CompressionInfo>,
@@ -13,7 +13,7 @@ pub struct UserRecord {
     pub category_id: u64,
 }
 
-#[derive(Default, Debug, InitSpace, RentFree)]
+#[derive(Default, Debug, InitSpace, RentFreeAccount)]
 #[compress_as(start_time = 0, end_time = None, score = 0)]
 #[account]
 pub struct GameSession {
@@ -27,7 +27,7 @@ pub struct GameSession {
     pub score: u64,
 }
 
-#[derive(Default, Debug, InitSpace, RentFree)]
+#[derive(Default, Debug, InitSpace, RentFreeAccount)]
 #[account]
 pub struct PlaceholderRecord {
     pub compression_info: Option<CompressionInfo>,

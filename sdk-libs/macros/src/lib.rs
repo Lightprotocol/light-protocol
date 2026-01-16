@@ -2,7 +2,7 @@ extern crate proc_macro;
 use discriminator::discriminator;
 use hasher::{derive_light_hasher, derive_light_hasher_sha};
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput, ItemFn, ItemStruct};
+use syn::{parse_macro_input, DeriveInput, ItemStruct};
 use utils::into_token_stream;
 
 mod account;
@@ -173,6 +173,9 @@ pub fn compress_as_derive(input: TokenStream) -> TokenStream {
 /// This macro automatically discovers #[rentfree] fields in Accounts structs
 /// by reading external module files. No explicit type list needed!
 ///
+/// It also **automatically wraps** instruction handlers that use rentfree Accounts
+/// structs with `light_pre_init`/`light_finalize` logic - no separate attribute needed!
+///
 /// Usage:
 /// ```ignore
 /// #[rentfree_program]
@@ -184,9 +187,8 @@ pub fn compress_as_derive(input: TokenStream) -> TokenStream {
 ///     use instruction_accounts::*;
 ///     use state::*;
 ///     
-///     #[light_instruction]
 ///     pub fn create_user(ctx: Context<CreateUser>, params: Params) -> Result<()> {
-///         // ...
+///         // Your business logic
 ///     }
 /// }
 /// ```
@@ -194,7 +196,8 @@ pub fn compress_as_derive(input: TokenStream) -> TokenStream {
 /// The macro:
 /// 1. Scans the crate's `src/` directory for `#[derive(Accounts)]` structs
 /// 2. Extracts seeds from `#[account(seeds = [...])]` on `#[rentfree]` fields
-/// 3. Generates all necessary types, enums, and instruction handlers
+/// 3. Auto-wraps instruction handlers that use those Accounts structs
+/// 4. Generates all necessary types, enums, and instruction handlers
 ///
 /// Seeds are declared ONCE in Anchor attributes - no duplication!
 #[proc_macro_attribute]
@@ -285,7 +288,7 @@ pub fn compressible_pack(input: TokenStream) -> TokenStream {
     into_token_stream(compressible::pack_unpack::derive_compressible_pack(input))
 }
 
-/// Consolidates all required traits for rent-free accounts into a single derive.
+/// Consolidates all required traits for rent-free state accounts into a single derive.
 ///
 /// This macro is equivalent to deriving:
 /// - `LightHasherSha` (SHA256/ShaFlat hashing - type 3)
@@ -296,11 +299,11 @@ pub fn compressible_pack(input: TokenStream) -> TokenStream {
 /// ## Example
 ///
 /// ```ignore
-/// use light_sdk_macros::RentFree;
+/// use light_sdk_macros::RentFreeAccount;
 /// use light_sdk::compressible::CompressionInfo;
 /// use solana_pubkey::Pubkey;
 ///
-/// #[derive(Default, Debug, InitSpace, RentFree)]
+/// #[derive(Default, Debug, InitSpace, RentFreeAccount)]
 /// #[account]
 /// pub struct UserRecord {
 ///     pub owner: Pubkey,
@@ -327,8 +330,8 @@ pub fn compressible_pack(input: TokenStream) -> TokenStream {
 /// - The `compression_info` field is auto-detected and handled (no `#[skip]` needed)
 /// - SHA256 (ShaFlat) hashes the entire serialized struct (no `#[hash]` needed)
 /// - The struct must have a `compression_info: Option<CompressionInfo>` field
-#[proc_macro_derive(RentFree, attributes(compress_as))]
-pub fn rent_free(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(RentFreeAccount, attributes(compress_as))]
+pub fn rent_free_account(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     into_token_stream(compressible::light_compressible::derive_light_compressible(
         input,
@@ -454,49 +457,4 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 pub fn rent_free_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     into_token_stream(finalize::derive_light_finalize(input))
-}
-
-/// Attribute macro that auto-calls `light_finalize()` at end of instruction handler.
-///
-/// This macro wraps your instruction handler to automatically call the
-/// `LightFinalize::light_finalize()` method before returning, which executes
-/// the compression CPIs. This runs BEFORE Anchor's `exit()` hook.
-///
-/// ## Usage
-///
-/// ```ignore
-/// use anchor_lang::prelude::*;
-/// use light_sdk_macros::light_instruction;
-///
-/// // The argument is the name of the parameter containing compression data
-/// #[light_instruction(params)]
-/// pub fn create_compressible(ctx: Context<CreateCompressible>, params: CompressionParams) -> Result<()> {
-///     // Your business logic
-///     ctx.accounts.my_account.value = params.value;
-///     
-///     // light_finalize() is auto-called here before returning
-///     Ok(())
-/// }
-/// ```
-///
-/// ## How It Works
-///
-/// The macro transforms your function to:
-/// 1. Execute your original function body
-/// 2. On success, call `ctx.accounts.light_finalize(ctx.remaining_accounts, &params)`
-/// 3. Return the result
-///
-/// This ensures compression CPIs run after your logic but before Anchor serializes accounts.
-///
-/// ## Important Notes
-///
-/// - The `params` argument must match a parameter name in your function signature
-/// - Your accounts struct must derive `LightFinalize`
-/// - Use `?` operator for error handling (not explicit `return Err(...)`)
-/// - Errors will skip `light_finalize` and propagate normally
-#[proc_macro_attribute]
-pub fn light_instruction(args: TokenStream, input: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(args as finalize::instruction::LightInstructionArgs);
-    let item = parse_macro_input!(input as ItemFn);
-    into_token_stream(finalize::instruction::light_instruction_impl(args, item))
 }

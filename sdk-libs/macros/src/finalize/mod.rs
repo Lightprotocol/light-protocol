@@ -1,12 +1,12 @@
-//! RentFree derive macro and light_instruction attribute macro.
+//! RentFree derive macro for Accounts structs.
 //!
 //! This module provides:
 //! - `#[derive(RentFree)]` - Generates the LightFinalize trait impl for accounts structs
 //!   with fields marked `#[rentfree(...)]`
-//! - `#[light_instruction(params)]` - Attribute macro that auto-calls light_finalize at end of handler
+//!
+//! Note: Instruction handlers are auto-wrapped by `#[rentfree_program]`.
 
 mod codegen;
-pub mod instruction;
 mod parse;
 
 use proc_macro2::TokenStream;
