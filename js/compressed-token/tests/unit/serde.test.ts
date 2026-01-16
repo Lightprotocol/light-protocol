@@ -24,6 +24,8 @@ import {
     RESERVED_SIZE,
     ACCOUNT_TYPE_SIZE,
     COMPRESSION_INFO_SIZE,
+    MINT_SIGNER_SIZE,
+    BUMP_SIZE,
 } from '../../src/v3';
 import { MINT_SIZE } from '@solana/spl-token';
 
@@ -51,6 +53,8 @@ describe('serde', () => {
                         version: 1,
                         cmintDecompressed: false,
                         splMint: PublicKey.default,
+                        mintSigner: new Uint8Array(32),
+                        bump: 254,
                     },
                     extensions: null,
                 },
@@ -69,6 +73,8 @@ describe('serde', () => {
                         version: 1,
                         cmintDecompressed: true,
                         splMint: Keypair.generate().publicKey,
+                        mintSigner: new Uint8Array(32),
+                        bump: 254,
                     },
                     extensions: null,
                 },
@@ -87,6 +93,8 @@ describe('serde', () => {
                         version: 0,
                         cmintDecompressed: false,
                         splMint: PublicKey.default,
+                        mintSigner: new Uint8Array(32),
+                        bump: 254,
                     },
                     extensions: null,
                 },
@@ -105,6 +113,8 @@ describe('serde', () => {
                         version: 255,
                         cmintDecompressed: true,
                         splMint: Keypair.generate().publicKey,
+                        mintSigner: new Uint8Array(32),
+                        bump: 254,
                     },
                     extensions: null,
                 },
@@ -123,6 +133,8 @@ describe('serde', () => {
                         version: 0,
                         cmintDecompressed: false,
                         splMint: PublicKey.default,
+                        mintSigner: new Uint8Array(32),
+                        bump: 254,
                     },
                     extensions: null,
                 },
@@ -186,15 +198,19 @@ describe('serde', () => {
                     version: 1,
                     cmintDecompressed: false,
                     splMint: PublicKey.default,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: null,
             };
 
             const serialized = serializeMint(mint);
-            // 82 (MINT_SIZE) + 34 (MINT_CONTEXT_SIZE) + 49 (RESERVED_SIZE) + 1 (ACCOUNT_TYPE_SIZE) + 88 (COMPRESSION_INFO_SIZE) + 1 (None option byte)
+            // 82 (MINT_SIZE) + 34 (MINT_CONTEXT_SIZE) + 32 (MINT_SIGNER_SIZE) + 1 (BUMP_SIZE) + 16 (RESERVED_SIZE) + 1 (ACCOUNT_TYPE_SIZE) + 96 (COMPRESSION_INFO_SIZE) + 1 (None option byte)
             const baseSize =
                 MINT_SIZE +
                 MINT_CONTEXT_SIZE +
+                MINT_SIGNER_SIZE +
+                BUMP_SIZE +
                 RESERVED_SIZE +
                 ACCOUNT_TYPE_SIZE +
                 COMPRESSION_INFO_SIZE;
@@ -217,6 +233,8 @@ describe('serde', () => {
                     version: 1,
                     cmintDecompressed: false,
                     splMint: PublicKey.default,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: [
                     {
@@ -232,6 +250,8 @@ describe('serde', () => {
             const baseSize =
                 MINT_SIZE +
                 MINT_CONTEXT_SIZE +
+                MINT_SIGNER_SIZE +
+                BUMP_SIZE +
                 RESERVED_SIZE +
                 ACCOUNT_TYPE_SIZE +
                 COMPRESSION_INFO_SIZE;
@@ -254,6 +274,8 @@ describe('serde', () => {
                     version: 1,
                     cmintDecompressed: false,
                     splMint: PublicKey.default,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: [
                     { extensionType: 1, data: ext1Data },
@@ -267,6 +289,8 @@ describe('serde', () => {
             const baseSize =
                 MINT_SIZE +
                 MINT_CONTEXT_SIZE +
+                MINT_SIGNER_SIZE +
+                BUMP_SIZE +
                 RESERVED_SIZE +
                 ACCOUNT_TYPE_SIZE +
                 COMPRESSION_INFO_SIZE;
@@ -287,6 +311,8 @@ describe('serde', () => {
                     version: 1,
                     cmintDecompressed: false,
                     splMint: PublicKey.default,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: [],
             };
@@ -297,6 +323,8 @@ describe('serde', () => {
             const baseSize =
                 MINT_SIZE +
                 MINT_CONTEXT_SIZE +
+                MINT_SIGNER_SIZE +
+                BUMP_SIZE +
                 RESERVED_SIZE +
                 ACCOUNT_TYPE_SIZE +
                 COMPRESSION_INFO_SIZE;
@@ -522,6 +550,8 @@ describe('serde', () => {
                     version: 1,
                     cmintDecompressed: false,
                     splMint: PublicKey.default,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: null,
             };
@@ -550,6 +580,8 @@ describe('serde', () => {
                         version,
                         cmintDecompressed: false,
                         splMint: PublicKey.default,
+                        mintSigner: new Uint8Array(32),
+                        bump: 254,
                     },
                     extensions: null,
                 };
@@ -575,6 +607,8 @@ describe('serde', () => {
                         version: 1,
                         cmintDecompressed: initialized,
                         splMint: PublicKey.default,
+                        mintSigner: new Uint8Array(32),
+                        bump: 254,
                     },
                     extensions: null,
                 };
@@ -611,6 +645,8 @@ describe('serde', () => {
                         version: 1,
                         cmintDecompressed: true,
                         splMint: pubkey,
+                        mintSigner: new Uint8Array(32),
+                        bump: 254,
                     },
                     extensions: null,
                 };
@@ -645,6 +681,8 @@ describe('serde', () => {
                     version: 1,
                     cmintDecompressed: false,
                     splMint: PublicKey.default,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: null,
             };
@@ -675,6 +713,8 @@ describe('serde', () => {
                         version: 1,
                         cmintDecompressed: false,
                         splMint: PublicKey.default,
+                        mintSigner: new Uint8Array(32),
+                        bump: 254,
                     },
                     extensions: null,
                 };
@@ -702,6 +742,8 @@ describe('serde', () => {
                         version: 1,
                         cmintDecompressed: false,
                         splMint: PublicKey.default,
+                        mintSigner: new Uint8Array(32),
+                        bump: 254,
                     },
                     extensions: null,
                 };
@@ -737,6 +779,8 @@ describe('serde', () => {
                     version: 1,
                     cmintDecompressed: true,
                     splMint: Keypair.generate().publicKey,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: [
                     {
@@ -783,6 +827,8 @@ describe('serde', () => {
                     version: 1,
                     cmintDecompressed: false,
                     splMint: PublicKey.default,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: null,
             };
@@ -807,6 +853,8 @@ describe('serde', () => {
             // Build buffer in Borsh format manually (includes new fields)
             const baseMintBuffer = Buffer.alloc(MINT_SIZE);
             const contextBuffer = Buffer.alloc(MINT_CONTEXT_SIZE);
+            const mintSignerBuffer = Buffer.alloc(MINT_SIGNER_SIZE); // 32 bytes for mintSigner
+            const bumpBuffer = Buffer.from([254]); // 1 byte for bump
             const reservedBuffer = Buffer.alloc(RESERVED_SIZE);
             const accountTypeBuffer = Buffer.from([1]); // ACCOUNT_TYPE_MINT = 1
             const compressionBuffer = Buffer.alloc(COMPRESSION_INFO_SIZE);
@@ -822,6 +870,8 @@ describe('serde', () => {
             const fullBuffer = Buffer.concat([
                 baseMintBuffer,
                 contextBuffer,
+                mintSignerBuffer,
+                bumpBuffer,
                 reservedBuffer,
                 accountTypeBuffer,
                 compressionBuffer,
@@ -872,6 +922,8 @@ describe('serde', () => {
                     version: 1,
                     cmintDecompressed: false,
                     splMint: PublicKey.default,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: [
                     {
@@ -1071,6 +1123,8 @@ describe('serde', () => {
                     version: 1,
                     cmintDecompressed: true,
                     splMint,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: null,
             };
@@ -1113,6 +1167,8 @@ describe('serde', () => {
                     version: 2,
                     cmintDecompressed: false,
                     splMint,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: [
                     {
@@ -1151,6 +1207,8 @@ describe('serde', () => {
                     version: 1,
                     cmintDecompressed: false,
                     splMint: PublicKey.default,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: [],
             };
@@ -1179,6 +1237,8 @@ describe('serde', () => {
                     version: 1,
                     cmintDecompressed: false,
                     splMint: PublicKey.default,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: [
                     {
@@ -1216,6 +1276,8 @@ describe('serde', () => {
                     version: 1,
                     cmintDecompressed: true,
                     splMint: Keypair.generate().publicKey,
+                    mintSigner: new Uint8Array(32),
+                    bump: 254,
                 },
                 extensions: [
                     {

@@ -9,7 +9,6 @@ import {
     CTOKEN_PROGRAM_ID,
     LightSystemProgram,
     defaultStaticAccountsStruct,
-    deriveAddressV2,
     getDefaultAddressTreeInfo,
     getOutputQueue,
 } from '@lightprotocol/stateless.js';
@@ -37,12 +36,6 @@ interface EncodeUpdateMintInstructionParams {
 function encodeUpdateMintInstructionData(
     params: EncodeUpdateMintInstructionParams,
 ): Buffer {
-    const compressedAddress = deriveAddressV2(
-        params.splMint.toBytes(),
-        params.addressTree,
-        CTOKEN_PROGRAM_ID,
-    );
-
     // Build action
     const action: Action =
         params.actionType === 'mintAuthority'
@@ -86,7 +79,10 @@ function encodeUpdateMintInstructionData(
                 cmintDecompressed:
                     params.mintInterface.mintContext!.cmintDecompressed,
                 mint: params.mintInterface.mintContext!.splMint,
-                compressedAddress: Array.from(compressedAddress.toBytes()),
+                mintSigner: Array.from(
+                    params.mintInterface.mintContext!.mintSigner,
+                ),
+                bump: params.mintInterface.mintContext!.bump,
             },
             mintAuthority: params.mintInterface.mint.mintAuthority,
             freezeAuthority: params.mintInterface.mint.freezeAuthority,

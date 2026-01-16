@@ -23,7 +23,7 @@ async fn test_decompress_cmint() {
     let decimals = 9u8;
 
     // Create a compressed mint (returns mint_seed keypair)
-    let (mint_pda, compression_address, _, mint_seed) =
+    let (mint_pda, compression_address, _, _mint_seed) =
         shared::setup_create_compressed_mint(&mut rpc, &payer, mint_authority, decimals, vec![])
             .await;
 
@@ -69,7 +69,6 @@ async fn test_decompress_cmint() {
 
     // Build and execute DecompressMint instruction
     let decompress_ix = DecompressMint {
-        mint_seed_pubkey: mint_seed.pubkey(),
         payer: payer.pubkey(),
         authority: mint_authority,
         state_tree: compressed_account.tree_info.tree,
@@ -125,7 +124,7 @@ async fn test_decompress_cmint_with_freeze_authority() {
     let decimals = 6u8;
 
     // Create a compressed mint with freeze_authority
-    let (mint_pda, compression_address, mint_seed) =
+    let (mint_pda, compression_address, _mint_seed) =
         setup_create_compressed_mint_with_freeze_authority_only(
             &mut rpc,
             &payer,
@@ -177,7 +176,6 @@ async fn test_decompress_cmint_with_freeze_authority() {
 
     // Build and execute DecompressMint instruction
     let decompress_ix = DecompressMint {
-        mint_seed_pubkey: mint_seed.pubkey(),
         payer: payer.pubkey(),
         authority: mint_authority,
         state_tree: compressed_account.tree_info.tree,
@@ -240,7 +238,7 @@ async fn setup_create_compressed_mint_with_freeze_authority_only(
         &address_tree.tree,
     );
 
-    let mint = find_mint_address(&mint_seed.pubkey()).0;
+    let (mint, bump) = find_mint_address(&mint_seed.pubkey());
 
     // Get validity proof for the address
     let rpc_result = rpc
@@ -264,6 +262,7 @@ async fn setup_create_compressed_mint_with_freeze_authority_only(
         proof: rpc_result.proof.0.unwrap(),
         compression_address,
         mint,
+        bump,
         freeze_authority,
         extensions: None,
     };
@@ -324,7 +323,7 @@ async fn test_decompress_cmint_with_token_metadata() {
     let extensions = vec![ExtensionInstructionData::TokenMetadata(token_metadata)];
 
     // Create a compressed mint with TokenMetadata extension
-    let (mint_pda, compression_address, mint_seed) = setup_create_compressed_mint_with_extensions(
+    let (mint_pda, compression_address, _mint_seed) = setup_create_compressed_mint_with_extensions(
         &mut rpc,
         &payer,
         mint_authority,
@@ -376,7 +375,6 @@ async fn test_decompress_cmint_with_token_metadata() {
 
     // Build and execute DecompressMint instruction
     let decompress_ix = DecompressMint {
-        mint_seed_pubkey: mint_seed.pubkey(),
         payer: payer.pubkey(),
         authority: mint_authority,
         state_tree: compressed_account.tree_info.tree,
@@ -447,7 +445,7 @@ async fn setup_create_compressed_mint_with_extensions(
         &address_tree.tree,
     );
 
-    let mint = find_mint_address(&mint_seed.pubkey()).0;
+    let (mint, bump) = find_mint_address(&mint_seed.pubkey());
 
     // Get validity proof for the address
     let rpc_result = rpc
@@ -471,6 +469,7 @@ async fn setup_create_compressed_mint_with_extensions(
         proof: rpc_result.proof.0.unwrap(),
         compression_address,
         mint,
+        bump,
         freeze_authority,
         extensions: Some(extensions),
     };
@@ -533,7 +532,7 @@ async fn test_decompress_cmint_cpi_invoke_signed() {
         &address_tree.tree,
     );
 
-    let mint_pda = find_mint_address(&mint_signer_pda).0;
+    let (mint_pda, mint_bump) = find_mint_address(&mint_signer_pda);
 
     // Step 1: Create compressed mint with PDA authority using wrapper program (discriminator 14)
     {
@@ -561,6 +560,7 @@ async fn test_decompress_cmint_cpi_invoke_signed() {
             proof: rpc_result.proof.0.unwrap(),
             compression_address,
             mint: mint_pda,
+            bump: mint_bump,
             freeze_authority: None,
             extensions: None,
         };
@@ -655,10 +655,25 @@ async fn test_decompress_cmint_cpi_invoke_signed() {
         ]
         .concat();
 
+        // Account order matches process_decompress_cmint_invoke_signed:
+        // 0: authority (PDA, readonly - program signs)
+        // 1: payer (signer, writable)
+        // 2: cmint (writable)
+        // 3: compressible_config (readonly)
+        // 4: rent_sponsor (writable)
+        // 5: state_tree (writable)
+        // 6: input_queue (writable)
+        // 7: output_queue (writable)
+        // 8: light_system_program (readonly)
+        // 9: cpi_authority_pda (readonly)
+        // 10: registered_program_pda (readonly)
+        // 11: account_compression_authority (readonly)
+        // 12: account_compression_program (readonly)
+        // 13: system_program (readonly)
+        // 14: light_token_program (readonly) - required for CPI
         let light_token_program_id =
             Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
         let wrapper_accounts = vec![
-            AccountMeta::new_readonly(mint_signer_pda, false),
             AccountMeta::new_readonly(pda_mint_authority, false),
             AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new(mint_pda, false),

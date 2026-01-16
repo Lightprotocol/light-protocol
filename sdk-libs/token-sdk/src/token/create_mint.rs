@@ -14,13 +14,7 @@ use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::{
-    compressed_token::mint_action::{
-        get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
-        MintActionMetaConfigCpiWrite,
-    },
-    token::SystemAccountInfos,
-};
+use crate::{compressed_token::mint_action::MintActionMetaConfig, token::SystemAccountInfos};
 // TODO: modify so that it creates a decompressed mint, if you want a compressed mint use light_token_sdk::compressed_token::create_cmint
 /// Parameters for creating a compressed mint.
 #[derive(Debug, Clone)]
@@ -31,6 +25,7 @@ pub struct CreateMintParams {
     pub proof: CompressedProof,
     pub compression_address: [u8; 32],
     pub mint: Pubkey,
+    pub bump: u8,
     pub freeze_authority: Option<Pubkey>,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
 }
@@ -52,7 +47,7 @@ pub struct CreateMintParams {
 ///
 /// // Derive addresses
 /// let compression_address = derive_mint_compressed_address(&mint_seed_pubkey, &address_tree);
-/// let mint = find_mint_address(&mint_seed_pubkey).0;
+/// let (mint, bump) = find_mint_address(&mint_seed_pubkey);
 ///
 /// let params = CreateMintParams {
 ///     decimals: 9,
@@ -61,6 +56,7 @@ pub struct CreateMintParams {
 ///     proof, // from rpc.get_validity_proof
 ///     compression_address,
 ///     mint,
+///     bump,
 ///     freeze_authority: None,
 ///     extensions: None,
 /// };
@@ -112,8 +108,6 @@ impl CreateMint {
     }
 
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        let compression_address = self.params.compression_address;
-
         let compressed_mint_instruction_data = CompressedMintInstructionData {
             supply: 0,
             decimals: self.params.decimals,
@@ -121,7 +115,8 @@ impl CreateMint {
                 version: 3,
                 mint: self.params.mint.to_bytes().into(),
                 cmint_decompressed: false,
-                compressed_address: compression_address,
+                mint_signer: self.mint_seed_pubkey.to_bytes(),
+                bump: self.params.bump,
             },
             mint_authority: Some(self.params.mint_authority.to_bytes().into()),
             freeze_authority: self
@@ -154,139 +149,6 @@ impl CreateMint {
         }
 
         let account_metas = meta_config.to_account_metas();
-
-        let data = instruction_data
-            .data()
-            .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
-
-        Ok(Instruction {
-            program_id: Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
-            accounts: account_metas,
-            data,
-        })
-    }
-}
-
-// ============================================================================
-// Params Struct: CreateMintCpiWriteParams
-// ============================================================================
-
-#[derive(Debug, Clone)]
-pub struct CreateMintCpiWriteParams {
-    pub decimals: u8,
-    pub mint_authority: Pubkey,
-    pub freeze_authority: Option<Pubkey>,
-    pub address_merkle_tree_root_index: u16,
-    pub compression_address: [u8; 32],
-    pub mint: Pubkey,
-    pub cpi_context: CpiContext,
-    pub extensions: Option<Vec<ExtensionInstructionData>>,
-    pub version: u8,
-}
-
-impl CreateMintCpiWriteParams {
-    pub fn new(
-        decimals: u8,
-        address_merkle_tree_root_index: u16,
-        mint_authority: Pubkey,
-        compression_address: [u8; 32],
-        mint: Pubkey,
-        cpi_context: CpiContext,
-    ) -> Self {
-        Self {
-            decimals,
-            version: 3,
-            address_merkle_tree_root_index,
-            mint_authority,
-            compression_address,
-            mint,
-            cpi_context,
-            freeze_authority: None,
-            extensions: None,
-        }
-    }
-
-    pub fn with_freeze_authority(mut self, freeze_authority: Pubkey) -> Self {
-        self.freeze_authority = Some(freeze_authority);
-        self
-    }
-
-    pub fn with_extensions(mut self, extensions: Vec<ExtensionInstructionData>) -> Self {
-        self.extensions = Some(extensions);
-        self
-    }
-}
-
-// ============================================================================
-// Builder Struct: CreateCompressedMintCpiWrite
-// ============================================================================
-
-#[derive(Debug, Clone)]
-pub struct CreateCompressedMintCpiWrite {
-    pub mint_signer: Pubkey,
-    pub payer: Pubkey,
-    pub cpi_context_pubkey: Pubkey,
-    pub params: CreateMintCpiWriteParams,
-}
-
-impl CreateCompressedMintCpiWrite {
-    pub fn new(
-        mint_signer: Pubkey,
-        payer: Pubkey,
-        cpi_context_pubkey: Pubkey,
-        params: CreateMintCpiWriteParams,
-    ) -> Self {
-        Self {
-            mint_signer,
-            payer,
-            cpi_context_pubkey,
-            params,
-        }
-    }
-
-    pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        let has_valid_context =
-            self.params.cpi_context.first_set_context || self.params.cpi_context.set_context;
-        if !has_valid_context {
-            solana_msg::msg!(
-                "CPI context invalid: neither first_set_context nor set_context is set: {:?}",
-                self.params.cpi_context
-            );
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        let compressed_mint_instruction_data = CompressedMintInstructionData {
-            supply: 0,
-            decimals: self.params.decimals,
-            metadata: light_token_interface::state::CompressedMintMetadata {
-                version: self.params.version,
-                mint: self.params.mint.to_bytes().into(),
-                cmint_decompressed: false,
-                compressed_address: self.params.compression_address,
-            },
-            mint_authority: Some(self.params.mint_authority.to_bytes().into()),
-            freeze_authority: self
-                .params
-                .freeze_authority
-                .map(|auth| auth.to_bytes().into()),
-            extensions: self.params.extensions,
-        };
-
-        let instruction_data =
-            light_token_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint_write_to_cpi_context(
-                self.params.address_merkle_tree_root_index,
-                compressed_mint_instruction_data,
-                self.params.cpi_context,
-            );
-
-        let meta_config = MintActionMetaConfigCpiWrite {
-            fee_payer: self.payer,
-            mint_signer: Some(self.mint_signer),
-            authority: self.params.mint_authority,
-            cpi_context: self.cpi_context_pubkey,
-        };
-
-        let account_metas = get_mint_action_instruction_account_metas_cpi_write(meta_config);
 
         let data = instruction_data
             .data()
@@ -443,64 +305,6 @@ impl<'info> TryFrom<&CreateMintCpi<'info>> for CreateMint {
                 .cpi_context_account
                 .as_ref()
                 .map(|acc| *acc.key),
-            params: account_infos.params.clone(),
-        })
-    }
-}
-
-// ============================================================================
-// AccountInfos Struct: CreateCompressedMintCpiWriteCpi
-// ============================================================================
-
-pub struct CreateCompressedMintCpiWriteCpi<'info> {
-    pub mint_signer: AccountInfo<'info>,
-    pub authority: AccountInfo<'info>,
-    pub payer: AccountInfo<'info>,
-    pub cpi_context_account: AccountInfo<'info>,
-    pub system_accounts: SystemAccountInfos<'info>,
-    pub params: CreateMintCpiWriteParams,
-}
-
-impl<'info> CreateCompressedMintCpiWriteCpi<'info> {
-    pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        CreateCompressedMintCpiWrite::try_from(self)?.instruction()
-    }
-
-    pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
-        let instruction = self.instruction()?;
-        // Account order must match get_mint_action_instruction_account_metas_cpi_write:
-        // light_system_program, mint_signer, authority, fee_payer, cpi_authority_pda, cpi_context
-        let account_infos = [
-            self.system_accounts.light_system_program,
-            self.mint_signer,
-            self.authority,
-            self.payer,
-            self.system_accounts.cpi_authority_pda,
-            self.cpi_context_account,
-        ];
-        invoke_signed(&instruction, &account_infos, signer_seeds)
-    }
-}
-
-impl<'info> TryFrom<&CreateCompressedMintCpiWriteCpi<'info>> for CreateCompressedMintCpiWrite {
-    type Error = ProgramError;
-
-    fn try_from(
-        account_infos: &CreateCompressedMintCpiWriteCpi<'info>,
-    ) -> Result<Self, Self::Error> {
-        // Validate that authority account matches params.mint_authority
-        if account_infos.params.mint_authority != *account_infos.authority.key {
-            solana_msg::msg!(
-                "CreateCompressedMintCpiWriteCpi: params.mint_authority ({}) does not match authority account ({})",
-                account_infos.params.mint_authority,
-                account_infos.authority.key
-            );
-            return Err(ProgramError::InvalidAccountData);
-        }
-        Ok(Self {
-            mint_signer: *account_infos.mint_signer.key,
-            payer: *account_infos.payer.key,
-            cpi_context_pubkey: *account_infos.cpi_context_account.key,
             params: account_infos.params.clone(),
         })
     }

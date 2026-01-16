@@ -117,7 +117,7 @@ fn serialize_compressed_mint<'a>(
     mint_account.set(
         crate::LIGHT_CPI_SIGNER.program_id.into(),
         0,
-        Some(compressed_mint.metadata.compressed_address),
+        Some(compressed_mint.metadata.compressed_address()),
         queue_indices.output_queue_index,
         discriminator,
         data_hash,

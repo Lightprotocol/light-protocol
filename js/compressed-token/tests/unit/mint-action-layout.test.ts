@@ -46,9 +46,8 @@ describe('MintActionCompressedInstructionData Layout', () => {
                         version: TokenDataVersion.ShaFlat,
                         cmintDecompressed: false,
                         mint: mintSigner.publicKey,
-                        compressedAddress: Array.from(
-                            new Uint8Array(32).fill(1),
-                        ),
+                        mintSigner: Array.from(new Uint8Array(32).fill(1)),
+                        bump: 254,
                     },
                     mintAuthority: mintAuthority.publicKey,
                     freezeAuthority: null,
@@ -72,8 +71,8 @@ describe('MintActionCompressedInstructionData Layout', () => {
             expect(decoded.cpiContext).toBeNull();
             expect(decoded.mint).toBeDefined();
             expect(decoded.mint!.decimals).toBe(9);
-            expect(decoded.mint!.metadata.compressedAddress).toEqual(
-                instructionData.mint!.metadata.compressedAddress,
+            expect(decoded.mint!.metadata.mintSigner).toEqual(
+                instructionData.mint!.metadata.mintSigner,
             );
         });
 
@@ -100,9 +99,8 @@ describe('MintActionCompressedInstructionData Layout', () => {
                         version: TokenDataVersion.ShaFlat,
                         cmintDecompressed: false,
                         mint: mintSigner.publicKey,
-                        compressedAddress: Array.from(
-                            new Uint8Array(32).fill(0),
-                        ),
+                        mintSigner: Array.from(new Uint8Array(32).fill(0)),
+                        bump: 254,
                     },
                     mintAuthority: mintAuthority.publicKey,
                     freezeAuthority: null,
@@ -145,9 +143,8 @@ describe('MintActionCompressedInstructionData Layout', () => {
                         version: TokenDataVersion.ShaFlat,
                         cmintDecompressed: false,
                         mint: mintSigner.publicKey,
-                        compressedAddress: Array.from(
-                            new Uint8Array(32).fill(5),
-                        ),
+                        mintSigner: Array.from(new Uint8Array(32).fill(5)),
+                        bump: 254,
                     },
                     mintAuthority: mintAuthority.publicKey,
                     freezeAuthority: freezeAuthority.publicKey,
@@ -191,9 +188,8 @@ describe('MintActionCompressedInstructionData Layout', () => {
                         version: TokenDataVersion.ShaFlat,
                         cmintDecompressed: false,
                         mint: mintSigner.publicKey,
-                        compressedAddress: Array.from(
-                            new Uint8Array(32).fill(6),
-                        ),
+                        mintSigner: Array.from(new Uint8Array(32).fill(6)),
+                        bump: 254,
                     },
                     mintAuthority: mintAuthority.publicKey,
                     freezeAuthority: null,
@@ -249,7 +245,8 @@ describe('MintActionCompressedInstructionData Layout', () => {
                         version: 0,
                         cmintDecompressed: false,
                         mint: mintSigner,
-                        compressedAddress: Array(32).fill(0),
+                        mintSigner: Array(32).fill(0),
+                        bump: 254,
                     },
                     mintAuthority: mintAuthority,
                     freezeAuthority: null,

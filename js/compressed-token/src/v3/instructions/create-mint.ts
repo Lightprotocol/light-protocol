@@ -9,7 +9,6 @@ import {
     CTOKEN_PROGRAM_ID,
     LightSystemProgram,
     defaultStaticAccountsStruct,
-    deriveAddressV2,
     TreeInfo,
     AddressTreeInfo,
     ValidityProof,
@@ -95,12 +94,7 @@ function validateProofArrays(
 export function encodeCreateMintInstructionData(
     params: EncodeCreateMintInstructionParams,
 ): Buffer {
-    const [splMintPda] = findMintAddress(params.mintSigner);
-    const compressedAddress = deriveAddressV2(
-        splMintPda.toBytes(),
-        params.addressTree,
-        CTOKEN_PROGRAM_ID,
-    );
+    const [splMintPda, bump] = findMintAddress(params.mintSigner);
 
     // Build extensions if metadata present
     let extensions: { tokenMetadata: TokenMetadataBorshData }[] | null = null;
@@ -141,7 +135,8 @@ export function encodeCreateMintInstructionData(
                 version: TokenDataVersion.ShaFlat,
                 cmintDecompressed: false,
                 mint: splMintPda,
-                compressedAddress: Array.from(compressedAddress.toBytes()),
+                mintSigner: Array.from(params.mintSigner.toBytes()),
+                bump,
             },
             mintAuthority: params.mintAuthority,
             freezeAuthority: params.freezeAuthority,

@@ -69,7 +69,6 @@ pub enum MintActionType {
     /// Decompress the compressed mint to a CMint Solana account.
     /// CMint is always compressible - rent_payment must be >= 2.
     DecompressMint {
-        cmint_bump: u8,
         /// Rent payment in epochs (prepaid). Must be >= 2.
         rent_payment: u8,
         /// Lamports allocated for future write operations (top-up per write).
@@ -149,16 +148,18 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
             RpcError::CustomError("NewMint parameters required for mint creation".to_string())
         })?;
 
+        let (mint_pda, bump) = find_mint_address(&params.mint_seed);
         let mint_data =
             light_token_interface::instructions::mint_action::CompressedMintInstructionData {
                 supply: new_mint.supply,
                 decimals: new_mint.decimals,
                 metadata: light_token_interface::state::CompressedMintMetadata {
                     version: new_mint.version,
-                    mint: find_mint_address(&params.mint_seed).0.to_bytes().into(),
+                    mint: mint_pda.to_bytes().into(),
                     // false for new mint - on-chain sets to true after DecompressMint
                     cmint_decompressed: false,
-                    compressed_address: params.compressed_mint_address,
+                    mint_signer: params.mint_seed.to_bytes(),
+                    bump,
                 },
                 mint_authority: Some(new_mint.mint_authority.to_bytes().into()),
                 freeze_authority: new_mint.freeze_authority.map(|auth| auth.to_bytes().into()),
@@ -304,11 +305,9 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                 idempotent,
             }),
             MintActionType::DecompressMint {
-                cmint_bump,
                 rent_payment,
                 write_top_up,
             } => instruction_data.with_decompress_mint(DecompressMintAction {
-                cmint_bump,
                 rent_payment,
                 write_top_up,
             }),
@@ -367,12 +366,8 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
             config_address,
             compressible_config.rent_sponsor,
         );
-        // DecompressMint needs mint_signer even when not creating a new mint
-        // (for PDA derivation of CMint account)
+        // DecompressMint does NOT need mint_signer - it uses compressed_mint.metadata.mint_signer
         // CompressAndCloseCMint does NOT need mint_signer - it verifies CMint via compressed_mint.metadata.mint
-        if has_decompress_mint && !is_creating_mint {
-            config = config.with_mint_signer(params.mint_seed);
-        }
     }
 
     // Get account metas
@@ -459,9 +454,7 @@ pub async fn create_comprehensive_mint_action_instruction<R: Rpc + Indexer>(
 
     // Add DecompressMint action if requested
     if let Some(decompress_params) = decompress_mint {
-        let (_, cmint_bump) = find_mint_address(&mint_seed.pubkey());
         actions.push(MintActionType::DecompressMint {
-            cmint_bump,
             rent_payment: decompress_params.rent_payment,
             write_top_up: decompress_params.write_top_up,
         });

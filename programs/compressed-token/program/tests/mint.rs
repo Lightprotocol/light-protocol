@@ -20,9 +20,11 @@ use light_token_interface::{
         CompressedMintMetadata, CompressionInfo, ExtensionStruct, TokenMetadata, ZCompressedMint,
         ZExtensionStruct, ACCOUNT_TYPE_MINT,
     },
+    CMINT_ADDRESS_TREE, COMPRESSED_MINT_SEED, LIGHT_TOKEN_PROGRAM_ID,
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 use rand::Rng;
+use solana_pubkey::Pubkey as SolanaPubkey;
 
 #[test]
 fn test_rnd_create_compressed_mint_account() {
@@ -33,10 +35,16 @@ fn test_rnd_create_compressed_mint_account() {
         println!("\n=== TEST ITERATION {} ===", i + 1);
 
         // Generate random mint parameters
-        let mint_pda = Pubkey::new_from_array(rng.gen::<[u8; 32]>());
+        // mint_signer is the seed used to derive the mint PDA
+        let mint_signer_bytes: [u8; 32] = rng.gen();
+        let mint_signer = Pubkey::new_from_array(mint_signer_bytes);
+        // Derive mint_pda and bump from mint_signer using the same PDA derivation as production
+        let (solana_mint_pda, bump) = SolanaPubkey::find_program_address(
+            &[COMPRESSED_MINT_SEED, &mint_signer_bytes],
+            &SolanaPubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
+        );
+        let mint_pda = Pubkey::new_from_array(solana_mint_pda.to_bytes());
         let decimals = rng.gen_range(0..=18u8);
-        let program_id: Pubkey = light_compressed_token::ID.into();
-        let address_merkle_tree = Pubkey::new_from_array(rng.gen::<[u8; 32]>());
 
         // Random freeze authority (50% chance)
         let freeze_authority = if rng.gen_bool(0.5) {
@@ -61,13 +69,12 @@ fn test_rnd_create_compressed_mint_account() {
         let leaf_index = rng.gen::<u32>();
         let prove_by_index = rng.gen_bool(0.5);
         let root_index = rng.gen::<u16>();
-        let _output_merkle_tree_index = rng.gen_range(0..=255u8);
 
-        // Derive compressed account address
+        // Derive compressed account address using the same constants as compressed_address() method
         let compressed_account_address = derive_address(
             &mint_pda.to_bytes(),
-            &address_merkle_tree.to_bytes(),
-            &program_id.to_bytes(),
+            &CMINT_ADDRESS_TREE,
+            &LIGHT_TOKEN_PROGRAM_ID,
         );
 
         // Step 1: Create random extension data (simplified for current API)
@@ -112,6 +119,7 @@ fn test_rnd_create_compressed_mint_account() {
         };
 
         // Step 2: Create CompressedMintInstructionData using current API
+        // mint_signer and bump were derived at the start of the iteration
         let mint_instruction_data = CompressedMintInstructionData {
             supply: input_supply,
             decimals,
@@ -119,7 +127,8 @@ fn test_rnd_create_compressed_mint_account() {
                 version,
                 mint: mint_pda,
                 cmint_decompressed,
-                compressed_address: compressed_account_address,
+                mint_signer: mint_signer.to_bytes(),
+                bump,
             },
             mint_authority: Some(mint_authority),
             freeze_authority,
@@ -378,9 +387,10 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
             version: 3u8,
             mint: Pubkey::new_from_array([3; 32]),
             cmint_decompressed: false,
-            compressed_address: [5; 32],
+            mint_signer: [5; 32],
+            bump: 255,
         },
-        reserved: [0u8; 17],
+        reserved: [0u8; 16],
         account_type: ACCOUNT_TYPE_MINT,
         extensions: Some(vec![ExtensionStruct::TokenMetadata(token_metadata)]),
     };
@@ -433,7 +443,8 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
                 version: zc_mint.base.metadata.version,
                 mint: zc_mint.base.metadata.mint,
                 cmint_decompressed: zc_mint.base.metadata.cmint_decompressed != 0,
-                compressed_address: zc_mint.base.metadata.compressed_address,
+                mint_signer: zc_mint.base.metadata.mint_signer,
+                bump: zc_mint.base.metadata.bump,
             },
             reserved: *zc_mint.base.reserved,
             account_type: zc_mint.base.account_type,

@@ -60,7 +60,7 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
         .value;
 
     let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
-
+    let (mint, bump) = find_mint_address(&mint_seed.pubkey());
     // Build params struct manually
     let params = CreateMintParams {
         decimals,
@@ -68,7 +68,8 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
         mint_authority,
         proof: rpc_result.proof.0.unwrap(),
         compression_address: compressed_mint_address,
-        mint: find_mint_address(&mint_seed.pubkey()).0,
+        mint,
+        bump,
         freeze_authority,
         extensions,
     };

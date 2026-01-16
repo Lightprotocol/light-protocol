@@ -123,14 +123,6 @@ impl MintActionMetaConfig {
         self
     }
 
-    /// Set the mint_signer account without requiring signature.
-    /// Use for decompress_mint where only PDA derivation is needed.
-    pub fn with_mint_signer_no_sign(mut self, mint_signer: Pubkey) -> Self {
-        self.mint_signer = Some(mint_signer);
-        self.mint_signer_must_sign = false;
-        self
-    }
-
     /// Configure compressible CMint with config and rent sponsor.
     /// CMint is always compressible - this sets all required accounts.
     pub fn with_compressible_mint(

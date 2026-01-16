@@ -70,8 +70,8 @@ The account ordering differs based on whether writing to CPI context or executin
    - Light Protocol system program for CPI to create or update the compressed mint account.
 
 2. mint_signer (optional)
-   - (signer if create_mint is Some, non-signer for DecompressMint)
-   - Required if create_mint is Some or DecompressMint action is present
+   - (signer if create_mint is Some)
+   - Required only if create_mint is Some
    - PDA seed derivation from compressed mint randomness
 
 3. authority

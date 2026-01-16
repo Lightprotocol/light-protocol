@@ -69,6 +69,8 @@ export function createMintToInterfaceInstruction(
         splMint: mintInterface.mintContext.splMint,
         cmintDecompressed: mintInterface.mintContext.cmintDecompressed,
         version: mintInterface.mintContext.version,
+        mintSigner: mintInterface.mintContext.mintSigner,
+        bump: mintInterface.mintContext.bump,
         metadata: mintInterface.tokenMetadata
             ? {
                   updateAuthority:

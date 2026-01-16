@@ -6155,6 +6155,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "arrayvec",
+ "borsh 0.10.4",
  "light-batched-merkle-tree",
  "light-client",
  "light-compressed-account",

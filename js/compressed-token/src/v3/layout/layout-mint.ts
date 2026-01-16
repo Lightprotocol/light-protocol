@@ -37,6 +37,10 @@ export interface MintContext {
     cmintDecompressed: boolean;
     /** PDA of the associated SPL mint */
     splMint: PublicKey;
+    /** Signer pubkey used to derive the mint PDA */
+    mintSigner: Uint8Array;
+    /** Bump seed for the mint PDA */
+    bump: number;
 }
 
 /**
@@ -95,6 +99,9 @@ export interface CompressedMint {
 }
 
 /** MintContext as stored by the program */
+/**
+ * Raw mint context for layout encoding (mintSigner and bump are encoded separately)
+ */
 export interface RawMintContext {
     version: number;
     cmintDecompressed: number; // bool as u8
@@ -108,11 +115,15 @@ export const MintContextLayout = struct<RawMintContext>([
     publicKey('splMint'),
 ]);
 
-/** Byte length of MintContext */
+/** Byte length of MintContext (excluding mintSigner and bump which are read separately) */
 export const MINT_CONTEXT_SIZE = MintContextLayout.span; // 34 bytes
 
-/** Reserved bytes for T22 layout compatibility */
-export const RESERVED_SIZE = 49;
+/** Additional bytes for mintSigner (32) + bump (1) */
+export const MINT_SIGNER_SIZE = 32;
+export const BUMP_SIZE = 1;
+
+/** Reserved bytes for T22 layout compatibility (padding to reach byte 165) */
+export const RESERVED_SIZE = 16;
 
 /** Account type discriminator size */
 export const ACCOUNT_TYPE_SIZE = 1;
@@ -323,6 +334,12 @@ export function deserializeMint(data: Buffer | Uint8Array): CompressedMint {
     );
     offset += MINT_CONTEXT_SIZE;
 
+    // 2b. Read mintSigner (32 bytes) and bump (1 byte)
+    const mintSigner = buffer.slice(offset, offset + MINT_SIGNER_SIZE);
+    offset += MINT_SIGNER_SIZE;
+    const bump = buffer.readUInt8(offset);
+    offset += BUMP_SIZE;
+
     // 3. Read reserved bytes (49 bytes) for T22 compatibility
     const reserved = buffer.slice(offset, offset + RESERVED_SIZE);
     offset += RESERVED_SIZE;
@@ -386,6 +403,8 @@ export function deserializeMint(data: Buffer | Uint8Array): CompressedMint {
         version: rawContext.version,
         cmintDecompressed: rawContext.cmintDecompressed !== 0,
         splMint: rawContext.splMint,
+        mintSigner,
+        bump,
     };
 
     const mint: CompressedMint = {
@@ -486,6 +505,10 @@ export function serializeMint(mint: CompressedMint): Buffer {
         contextBuffer,
     );
     buffers.push(contextBuffer);
+
+    // 2b. Encode mintSigner (32 bytes) and bump (1 byte)
+    buffers.push(Buffer.from(mint.mintContext.mintSigner));
+    buffers.push(Buffer.from([mint.mintContext.bump]));
 
     // 3. Encode reserved bytes (49 bytes) - default to zeros
     const reserved = mint.reserved ?? new Uint8Array(RESERVED_SIZE);
@@ -663,6 +686,10 @@ export interface MintInstructionData {
     splMint: PublicKey;
     cmintDecompressed: boolean;
     version: number;
+    /** Signer pubkey used to derive the mint PDA */
+    mintSigner: Uint8Array;
+    /** Bump seed for the mint PDA */
+    bump: number;
     metadata?: MintMetadataField;
 }
 
@@ -705,6 +732,8 @@ export function toMintInstructionData(
         splMint: mintContext.splMint,
         cmintDecompressed: mintContext.cmintDecompressed,
         version: mintContext.version,
+        mintSigner: mintContext.mintSigner,
+        bump: mintContext.bump,
         metadata,
     };
 }

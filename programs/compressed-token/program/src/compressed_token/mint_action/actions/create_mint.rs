@@ -26,18 +26,29 @@ pub fn process_create_mint_action(
 
     // 1. Derive compressed mint address without bump to ensure
     //      that only one mint per seed can be created.
-    let mint_pda = solana_pubkey::Pubkey::find_program_address(
+    let (mint_pda, mint_pda_bump) = solana_pubkey::Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_signer.as_slice()],
         &crate::ID,
-    )
-    .0
-    .to_bytes();
+    );
+    let mint_pda = mint_pda.to_bytes();
 
     parsed_instruction_data
         .create_mint
         .as_ref()
         .ok_or(ProgramError::InvalidInstructionData)?;
 
+    // 1. Validate mint_signer matches account
+    if mint_signer.as_slice() != mint.metadata.mint_signer.as_ref() {
+        msg!("Mint signer mismatch");
+        return Err(ErrorCode::MintActionInvalidMintSigner.into());
+    }
+    // 2. Validate bump matches derived bump
+    if mint_pda_bump != mint.metadata.bump {
+        msg!("Invalid mint bump");
+        return Err(ErrorCode::MintActionInvalidMintBump.into());
+    }
+
+    // 3. Validate derived PDA matches stored mint
     if !pubkey_eq(&mint_pda, mint.metadata.mint.array_ref()) {
         msg!("Invalid mint PDA derivation");
         return Err(ErrorCode::MintActionInvalidMintPda.into());
@@ -49,7 +60,8 @@ pub fn process_create_mint_action(
     // -> Therefore we manually verify the compressed address derivation here.
     //
     // else is not required since for new_address_params_assigned
-    // the light system program checks correct address derivation and we check the
+    // the light system program checks correct address derivation and we check
+    // the address tree in new_address_params.
     if let Some(cpi_context) = &parsed_instruction_data.cpi_context {
         if !pubkey_eq(&cpi_context.address_tree_pubkey, &CMINT_ADDRESS_TREE) {
             msg!("Invalid address tree pubkey in cpi context");
@@ -60,7 +72,9 @@ pub fn process_create_mint_action(
             &cpi_context.address_tree_pubkey,
             &crate::LIGHT_CPI_SIGNER.program_id,
         );
-        if address != mint.metadata.compressed_address {
+        // Validate derived address matches the compressed_address computed from metadata
+        // (derived from mint PDA, CMINT_ADDRESS_TREE, and LIGHT_TOKEN_PROGRAM_ID)
+        if address != mint.metadata.compressed_address() {
             msg!("Invalid compressed mint address derivation");
             return Err(ErrorCode::MintActionInvalidCompressedMintAddress.into());
         }

@@ -19,12 +19,12 @@ use crate::shared::{
 pub struct MintActionAccounts<'info> {
     pub light_system_program: &'info AccountInfo,
     /// Seed for mint PDA derivation.
-    /// Required for compressed mint creation and DecompressMint.
+    /// Required only for compressed mint creation.
     /// Note: mint_signer is not in executing accounts since create mint
     /// is allowed in combination with write to cpi context.
     pub mint_signer: Option<&'info AccountInfo>,
     pub authority: &'info AccountInfo,
-    /// Reqired accounts to execute an instruction
+    /// Required accounts to execute an instruction
     /// with or without cpi context.
     /// - write_to_cpi_context_system is None
     pub executing: Option<ExecutingAccounts<'info>>,
@@ -79,7 +79,7 @@ impl<'info> MintActionAccounts<'info> {
         let mint_signer = if config.mint_signer_must_sign() {
             iter.next_option_signer("mint_signer", config.with_mint_signer)?
         } else {
-            iter.next_option("mint_signer", config.with_mint_signer)?
+            None
         };
         // Static non-CPI accounts first
         // Authority is always required to sign
@@ -350,7 +350,7 @@ pub struct AccountsConfig {
     pub cmint_decompressed: bool,
     /// 5. Mint
     pub require_token_output_queue: bool,
-    /// 6. Compressed mint is created or DecompressMint action is present.
+    /// 6. Compressed mint is created.
     pub with_mint_signer: bool,
     /// 7. Compressed mint is created.
     pub create_mint: bool,
@@ -444,10 +444,9 @@ impl AccountsConfig {
             return Err(ErrorCode::CompressAndCloseCMintMustBeOnlyAction.into());
         }
 
-        // We need mint signer if create mint or decompress mint.
+        // We need mint signer only if creating a new mint.
         // CompressAndCloseCMint does NOT need mint_signer - it verifies CMint by compressed_mint.metadata.mint
-        let with_mint_signer =
-            parsed_instruction_data.create_mint.is_some() || has_decompress_mint_action;
+        let with_mint_signer = parsed_instruction_data.create_mint.is_some();
         // CMint account needed when mint is already decompressed (metadata flag)
         // When mint is None, CMint is decompressed (data lives in CMint account, compressed account is empty)
         let cmint_decompressed = parsed_instruction_data.mint.is_none();

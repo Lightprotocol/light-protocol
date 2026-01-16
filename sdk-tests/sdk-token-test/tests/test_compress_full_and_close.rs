@@ -53,7 +53,7 @@ async fn test_compress_full_and_close() {
 
     let compressed_token_program_id =
         Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
-    let (mint_pda, _) = Pubkey::find_program_address(
+    let (mint_pda, mint_bump) = Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_signer.pubkey().as_ref()],
         &compressed_token_program_id,
     );
@@ -132,9 +132,10 @@ async fn test_compress_full_and_close() {
             version: 3,
             mint: mint_pda.into(),
             cmint_decompressed: false,
-            compressed_address: compressed_mint_address,
+            mint_signer: mint_signer.pubkey().to_bytes(),
+            bump: mint_bump,
         },
-        reserved: [0u8; 17],
+        reserved: [0u8; 16],
         account_type: ACCOUNT_TYPE_MINT,
         compression: Default::default(),
         extensions: None,

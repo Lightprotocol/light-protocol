@@ -195,7 +195,7 @@ pub async fn create_mint(
         derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint bump for the instruction
-    let (mint, _) = find_mint_address(&mint_seed.pubkey());
+    let (mint, mint_bump) = find_mint_address(&mint_seed.pubkey());
 
     // Create compressed token associated token account for the mint authority
     let (token_account, _) = derive_token_ata(&mint_authority.pubkey(), &mint);
@@ -273,7 +273,8 @@ pub async fn create_mint(
                 version: 3,
                 mint: mint.into(),
                 cmint_decompressed: false,
-                compressed_address: compressed_mint_address,
+                mint_signer: mint_seed.pubkey().to_bytes(),
+                bump: mint_bump,
             },
             mint_authority: Some(mint_authority.pubkey().into()),
             freeze_authority: freeze_authority.map(|fa| fa.into()),

@@ -38,21 +38,22 @@ pub struct CreateCompressedMintInputs {
     pub version: u8,
 }
 
-/// Creates a compressed mint instruction with a pre-computed mint address (wrapper around mint_action)
+/// Creates a compressed mint instruction (wrapper around mint_action)
 pub fn create_compressed_mint_cpi(
     input: CreateCompressedMintInputs,
-    mint_address: [u8; 32],
     cpi_context: Option<CpiContext>,
     cpi_context_pubkey: Option<Pubkey>,
 ) -> Result<Instruction> {
+    let (mint_pda, bump) = find_mint_address(&input.mint_signer);
     let compressed_mint_instruction_data = CompressedMintInstructionData {
         supply: 0,
         decimals: input.decimals,
         metadata: light_token_interface::state::CompressedMintMetadata {
             version: input.version,
-            mint: find_mint_address(&input.mint_signer).0.to_bytes().into(),
+            mint: mint_pda.to_bytes().into(),
             cmint_decompressed: false,
-            compressed_address: mint_address,
+            mint_signer: input.mint_signer.to_bytes(),
+            bump,
         },
         mint_authority: Some(input.mint_authority.to_bytes().into()),
         freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
@@ -127,14 +128,16 @@ pub fn create_compressed_mint_cpi_write(
         return Err(TokenSdkError::InvalidAccountData);
     }
 
+    let (mint_pda, bump) = find_mint_address(&input.mint_signer);
     let compressed_mint_instruction_data = CompressedMintInstructionData {
         supply: 0,
         decimals: input.decimals,
         metadata: light_token_interface::state::CompressedMintMetadata {
             version: input.version,
-            mint: find_mint_address(&input.mint_signer).0.to_bytes().into(),
+            mint: mint_pda.to_bytes().into(),
             cmint_decompressed: false,
-            compressed_address: input.mint_address,
+            mint_signer: input.mint_signer.to_bytes(),
+            bump,
         },
         mint_authority: Some(input.mint_authority.to_bytes().into()),
         freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
@@ -171,9 +174,7 @@ pub fn create_compressed_mint_cpi_write(
 
 /// Creates a compressed mint instruction with automatic mint address derivation
 pub fn create_compressed_mint(input: CreateCompressedMintInputs) -> Result<Instruction> {
-    let mint_address =
-        derive_mint_compressed_address(&input.mint_signer, &input.address_tree_pubkey);
-    create_compressed_mint_cpi(input, mint_address, None, None)
+    create_compressed_mint_cpi(input, None, None)
 }
 
 /// Derives the compressed mint address from the mint seed and address tree
