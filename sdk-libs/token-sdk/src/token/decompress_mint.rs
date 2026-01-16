@@ -1,14 +1,9 @@
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof, traits::LightInstructionData,
 };
-<<<<<<< HEAD:sdk-libs/token-sdk/src/token/decompress_mint.rs
 use light_token_interface::instructions::mint_action::{
-    CompressedMintWithContext, DecompressMintAction, MintActionCompressedInstructionData,
-=======
-use light_ctoken_interface::instructions::mint_action::{
     CompressedMintWithContext, CpiContext, DecompressMintAction,
     MintActionCompressedInstructionData,
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/ctoken/decompress_cmint.rs
 };
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
@@ -275,11 +270,10 @@ pub struct DecompressCMintWithCpiContext {
 impl DecompressCMintWithCpiContext {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         // Derive CMint PDA
-        let (cmint_pda, cmint_bump) = find_cmint_address(&self.mint_seed_pubkey);
+        let (cmint_pda, _cmint_bump) = crate::token::find_mint_address(&self.mint_seed_pubkey);
 
         // Build DecompressMintAction
         let action = DecompressMintAction {
-            cmint_bump,
             rent_payment: self.rent_payment,
             write_top_up: self.write_top_up,
         };
@@ -301,8 +295,7 @@ impl DecompressCMintWithCpiContext {
             self.input_queue,
             self.output_queue,
         )
-        .with_compressible_cmint(cmint_pda, self.compressible_config, self.rent_sponsor)
-        .with_mint_signer_no_sign(self.mint_seed_pubkey);
+        .with_compressible_mint(cmint_pda, self.compressible_config, self.rent_sponsor);
 
         meta_config.cpi_context = Some(self.cpi_context_pubkey);
 
@@ -313,7 +306,7 @@ impl DecompressCMintWithCpiContext {
             .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
 
         Ok(Instruction {
-            program_id: Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+            program_id: Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
             accounts: account_metas,
             data,
         })

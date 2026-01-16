@@ -8,7 +8,7 @@
 
 use light_client::indexer::{AddressWithTree, Indexer, IndexerError};
 use light_client::rpc::{Rpc, RpcError};
-use light_ctoken_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address;
+use light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 use thiserror::Error;
@@ -39,7 +39,7 @@ pub enum CreateAccountsProofInput {
     Pda(Pubkey),
     /// PDA with explicit owner (for cross-program accounts)
     PdaWithOwner { pda: Pubkey, owner: Pubkey },
-    /// CMint (always uses CTOKEN_PROGRAM_ID internally)
+    /// CMint (always uses LIGHT_TOKEN_PROGRAM_ID internally)
     Mint(Pubkey),
 }
 
@@ -57,7 +57,7 @@ impl CreateAccountsProofInput {
     }
 
     /// Compressed mint (CMint).
-    /// Address derived: `derive_cmint_compressed_address(&mint_signer, &tree)`
+    /// Address derived: `derive_mint_compressed_address(&mint_signer, &tree)`
     pub fn mint(mint_signer: Pubkey) -> Self {
         Self::Mint(mint_signer)
     }
@@ -70,14 +70,12 @@ impl CreateAccountsProofInput {
                 &address_tree.to_bytes(),
                 &program_id.to_bytes(),
             ),
-            Self::PdaWithOwner { pda, owner } => {
-                light_compressed_account::address::derive_address(
-                    &pda.to_bytes(),
-                    &address_tree.to_bytes(),
-                    &owner.to_bytes(),
-                )
-            }
-            Self::Mint(signer) => derive_cmint_compressed_address(signer, address_tree),
+            Self::PdaWithOwner { pda, owner } => light_compressed_account::address::derive_address(
+                &pda.to_bytes(),
+                &address_tree.to_bytes(),
+                &owner.to_bytes(),
+            ),
+            Self::Mint(signer) => derive_mint_compressed_address(signer, address_tree),
         }
     }
 }

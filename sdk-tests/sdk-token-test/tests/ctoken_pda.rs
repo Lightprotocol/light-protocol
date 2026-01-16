@@ -226,7 +226,7 @@ pub async fn create_mint<R: Rpc + Indexer>(
         payer: payer.pubkey(),
         mint_authority: mint_authority.pubkey(),
         mint_seed: mint_seed.pubkey(),
-        ctoken_program: Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
+        light_token_program: Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
         ctoken_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
     };
 

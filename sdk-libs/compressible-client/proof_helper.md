@@ -52,7 +52,7 @@ pub enum CreateAccountsProofInput {
     Pda(Pubkey),
     /// PDA with explicit owner (for cross-program accounts)
     PdaWithOwner { pda: Pubkey, owner: Pubkey },
-    /// CMint (always uses CTOKEN_PROGRAM_ID internally)
+    /// CMint (always uses LIGHT_TOKEN_PROGRAM_ID internally)
     Mint(Pubkey),
 }
 
@@ -338,7 +338,7 @@ let instruction = Instruction {
 ```rust
 use light_client::indexer::{Indexer, IndexerError, AddressWithTree};
 use light_client::rpc::{Rpc, RpcError};
-use light_ctoken_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address;
+use light_token_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address;
 use light_compressed_account::address::derive_address;
 use light_sdk::instruction::{PackedAddressTreeInfo, ValidityProof};
 use crate::pack::{pack_proof, PackError};

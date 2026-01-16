@@ -60,24 +60,22 @@ pub fn compressed_account_variant_with_ctx_seeds(
         }
     });
 
-    // Phase 8: PackedCTokenData uses PackedCTokenAccountVariant (with idx fields)
-    //          CTokenData uses CTokenAccountVariant (with Pubkey fields)
+    // Phase 8: PackedCTokenData uses PackedTokenAccountVariant (with idx fields)
+    //          CTokenData uses TokenAccountVariant (with Pubkey fields)
     let enum_def = quote! {
         #[derive(Clone, Debug, anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize)]
         pub enum RentFreeAccountVariant {
             #(#account_variants)*
-<<<<<<< HEAD
-            PackedCTokenData(light_token_sdk::compat::PackedCTokenData<CTokenAccountVariant>),
-            CTokenData(light_token_sdk::compat::CTokenData<CTokenAccountVariant>),
-=======
-            PackedCTokenData(light_ctoken_sdk::compat::PackedCTokenData<PackedCTokenAccountVariant>),
-            CTokenData(light_ctoken_sdk::compat::CTokenData<CTokenAccountVariant>),
->>>>>>> a606eb113 (wip)
+            PackedCTokenData(light_token_sdk::compat::PackedCTokenData<PackedTokenAccountVariant>),
+            CTokenData(light_token_sdk::compat::CTokenData<TokenAccountVariant>),
         }
     };
 
     let first_type = account_types[0];
-    let first_ctx_fields = ctx_seeds_map.get(&first_type.to_string()).copied().unwrap_or(&[]);
+    let first_ctx_fields = ctx_seeds_map
+        .get(&first_type.to_string())
+        .copied()
+        .unwrap_or(&[]);
     let first_default_ctx_fields = first_ctx_fields.iter().map(|field| {
         quote! { #field: Pubkey::default() }
     });
@@ -249,12 +247,8 @@ pub fn compressed_account_variant_with_ctx_seeds(
                     #(#pack_match_arms)*
                     Self::PackedCTokenData(_) => unreachable!(),
                     Self::CTokenData(data) => {
-<<<<<<< HEAD
-                        Self::PackedCTokenData(light_token_sdk::pack::Pack::pack(data, remaining_accounts))
-=======
                         // Use ctoken-sdk's Pack trait for CTokenData
-                        Self::PackedCTokenData(light_ctoken_sdk::pack::Pack::pack(data, remaining_accounts))
->>>>>>> a606eb113 (wip)
+                        Self::PackedCTokenData(light_token_sdk::pack::Pack::pack(data, remaining_accounts))
                     }
                 }
             }

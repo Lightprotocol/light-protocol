@@ -6,7 +6,7 @@
 //! - [`CreateAssociatedCTokenAccount`] - Create associated ctoken account (ATA) instruction
 //! - [`CreateCTokenAtaCpi`] - Create associated ctoken account (ATA) via CPI
 //! - [`CreateCTokenAccount`] - Create ctoken account instruction
-//! - [`CreateCTokenAccountCpi`] - Create ctoken account via CPI
+//! - [`CreateTokenAccountCpi`] - Create ctoken account via CPI
 //!
 //! ## Transfers
 //!
@@ -52,7 +52,7 @@
 //! # Example: Create rent-free ATA via CPI
 //!
 //! ```rust,ignore
-//! use light_ctoken_sdk::ctoken::CreateCTokenAtaCpi;
+//! use light_token_sdk::token::CreateCTokenAtaCpi;
 //!
 //! CreateCTokenAtaCpi {
 //!     payer: ctx.accounts.payer.to_account_info(),
@@ -73,9 +73,9 @@
 //! # Example: Create rent-free vault via CPI (with PDA signing)
 //!
 //! ```rust,ignore
-//! use light_ctoken_sdk::ctoken::CreateCTokenAccountCpi;
+//! use light_token_sdk::token::CreateTokenAccountCpi;
 //!
-//! CreateCTokenAccountCpi {
+//! CreateTokenAccountCpi {
 //!     payer: ctx.accounts.payer.to_account_info(),
 //!     account: ctx.accounts.vault.to_account_info(),
 //!     mint: ctx.accounts.mint.to_account_info(),
@@ -120,7 +120,8 @@ pub use burn_checked::*;
 pub use close::{CloseAccount, CloseAccountCpi};
 pub use compressible::{CompressibleParams, CompressibleParamsCpi};
 pub use create::*;
-pub use create_ata::{derive_token_ata, CreateAssociatedAccountCpi, CreateAssociatedTokenAccount};
+pub use create_ata::CreateCTokenAtaCpi as CreateAssociatedAccountCpi;
+pub use create_ata::{derive_token_ata, CreateAssociatedTokenAccount, CreateCTokenAtaCpi};
 pub use create_mint::*;
 pub use decompress::Decompress;
 pub use decompress_mint::*;

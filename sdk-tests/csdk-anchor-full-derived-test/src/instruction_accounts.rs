@@ -85,7 +85,7 @@ pub struct CreatePdasAndMintAuto<'info> {
         seeds = [VAULT_SEED, cmint.key().as_ref()],
         bump,
     )]
-    #[rentfree_token(Vault, authority = [b"vault_authority"])]
+    #[rentfree_token(authority = [b"vault_authority"])]
     pub vault: UncheckedAccount<'info>,
 
     /// CHECK: PDA used as vault owner
@@ -107,7 +107,7 @@ pub struct CreatePdasAndMintAuto<'info> {
     pub ctoken_rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: CToken program
-    pub ctoken_program: AccountInfo<'info>,
+    pub light_token_program: AccountInfo<'info>,
 
     /// CHECK: CToken CPI authority
     pub ctoken_cpi_authority: AccountInfo<'info>,

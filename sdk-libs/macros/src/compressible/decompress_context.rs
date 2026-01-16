@@ -110,7 +110,7 @@ pub fn generate_decompress_context_trait_impl(
     Ok(quote! {
         impl<#lifetime> light_sdk::compressible::DecompressContext<#lifetime> for DecompressAccountsIdempotent<#lifetime> {
             type CompressedData = RentFreeAccountData;
-            type PackedTokenData = light_ctoken_sdk::compat::PackedCTokenData<#packed_token_variant_ident>;
+            type PackedTokenData = light_token_sdk::compat::PackedCTokenData<#packed_token_variant_ident>;
             type CompressedMeta = light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
             type SeedParams = ();
 
@@ -131,7 +131,7 @@ pub fn generate_decompress_context_trait_impl(
             }
 
             fn token_program(&self) -> std::option::Option<&solana_account_info::AccountInfo<#lifetime>> {
-                self.ctoken_program.as_ref().map(|a| &**a)
+                self.light_token_program.as_ref().map(|a| &**a)
             }
 
             fn token_cpi_authority(&self) -> std::option::Option<&solana_account_info::AccountInfo<#lifetime>> {
@@ -195,7 +195,7 @@ pub fn generate_decompress_context_trait_impl(
                 post_system_accounts: &[solana_account_info::AccountInfo<#lifetime>],
                 has_prior_context: bool,
             ) -> std::result::Result<(), solana_program_error::ProgramError> {
-                light_ctoken_sdk::compressible::process_decompress_tokens_runtime(
+                light_token_sdk::compressible::process_decompress_tokens_runtime(
                     remaining_accounts,
                     fee_payer,
                     token_program,

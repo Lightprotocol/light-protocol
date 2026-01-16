@@ -411,7 +411,8 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 ///         seeds = [b"vault", cmint.key().as_ref()],
 ///         bump
 ///     )]
-///     #[rentfree_token(Vault, authority = [b"vault_authority"])]
+///     // Variant name derived from field name: vault -> Vault
+///     #[rentfree_token(authority = [b"vault_authority"])]
 ///     pub vault: UncheckedAccount<'info>,
 /// }
 /// ```

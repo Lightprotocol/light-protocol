@@ -2,7 +2,7 @@
 
 ## Overview
 
-Add `StandardAta` and `StandardMint` as always-present variants in the macro-generated `CTokenAccountVariant` enum. Programs automatically get these standard variants without declaration.
+Add `StandardAta` and `StandardMint` as always-present variants in the macro-generated `TokenAccountVariant` enum. Programs automatically get these standard variants without declaration.
 
 ## Goals
 
@@ -23,7 +23,7 @@ Add `StandardAta` and `StandardMint` as always-present variants in the macro-gen
 #[derive(Clone, Debug, AnchorDeserialize, AnchorSerialize)]
 pub struct StandardAtaData {
     /// Wallet owner pubkey - MUST be a signer on the transaction.
-    /// The ATA is derived from (wallet, ctoken_program_id, mint).
+    /// The ATA is derived from (wallet, light_token_program_id, mint).
     pub wallet: Pubkey,
     /// Mint pubkey for this token account.
     pub mint: Pubkey,
@@ -59,7 +59,7 @@ pub type StandardMintData = CompressedMintData;
 
 #[derive(Clone, Debug, AnchorDeserialize, AnchorSerialize)]
 pub struct CompressedMintData {
-    /// Mint seed pubkey (used to derive CMint PDA via find_cmint_address).
+    /// Mint seed pubkey (used to derive CMint PDA via find_mint_address).
     pub mint_seed_pubkey: Pubkey,
     /// Compressed mint with context (from indexer).
     pub compressed_mint_with_context: CompressedMintWithContext,
@@ -74,7 +74,7 @@ pub struct CompressedMintData {
 
 ## Enum Changes
 
-### CTokenAccountVariant (Modified)
+### TokenAccountVariant (Modified)
 
 The macro will always generate these standard variants:
 
@@ -82,17 +82,17 @@ The macro will always generate these standard variants:
 // sdk-libs/macros/src/compressible/seed_providers.rs
 pub fn generate_ctoken_account_variant_enum(specs: &[TokenSeedSpec]) -> Result<TokenStream> {
     // ... existing program-specific variants ...
-    
+
     quote! {
         #[derive(Clone, Copy, Debug, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]
-        pub enum CTokenAccountVariant {
+        pub enum TokenAccountVariant {
             // Program-specific variants (from macro args)
             #(#program_variants,)*
-            
+
             // Standard variants (always present)
-            /// Standard ATA - uses fixed derivation (wallet, ctoken_program, mint).
+            /// Standard ATA - uses fixed derivation (wallet, light_token_program, mint).
             StandardAta,
-            /// Standard Mint - uses fixed derivation find_cmint_address(mint_seed).
+            /// Standard Mint - uses fixed derivation find_mint_address(mint_seed).
             StandardMint,
         }
     }
@@ -106,14 +106,14 @@ pub fn generate_ctoken_account_variant_enum(specs: &[TokenSeedSpec]) -> Result<T
 pub enum CompressedAccountVariant {
     // Program PDA variants
     #(#account_variants)*
-    
+
     // Token variants
-    PackedCTokenData(PackedCTokenData<CTokenAccountVariant>),
-    CTokenData(CTokenData<CTokenAccountVariant>),
-    
+    PackedCTokenData(PackedCTokenData<TokenAccountVariant>),
+    CTokenData(CTokenData<TokenAccountVariant>),
+
     // Mint variant (existing)
     CompressedMint(CompressedMintData),
-    
+
     // NEW: Standard ATA variant (separate from CTokenData for cleaner handling)
     StandardAta(StandardAtaData),
     PackedStandardAta(PackedStandardAtaData),
@@ -124,12 +124,12 @@ pub enum CompressedAccountVariant {
 
 ## Trait Implementations
 
-### CTokenSeedProvider for StandardAta
+### TokenSeedProvider for StandardAta
 
 ```rust
-impl CTokenSeedProvider for CTokenAccountVariant {
+impl TokenSeedProvider for TokenAccountVariant {
     // ... existing match arms ...
-    
+
     fn get_seeds<'a, 'info>(
         &self,
         accounts: &'a Self::Accounts<'info>,
@@ -137,33 +137,33 @@ impl CTokenSeedProvider for CTokenAccountVariant {
     ) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError> {
         match self {
             // ... existing program-specific arms ...
-            
-            CTokenAccountVariant::StandardAta => {
+
+            TokenAccountVariant::StandardAta => {
                 // StandardAta doesn't use program seeds - derivation is fixed.
                 // Return empty seeds; the runtime handles ATA creation separately.
                 Err(ProgramError::InvalidArgument) // Should not be called
             }
-            CTokenAccountVariant::StandardMint => {
+            TokenAccountVariant::StandardMint => {
                 // StandardMint doesn't use program seeds - derivation is fixed.
                 Err(ProgramError::InvalidArgument) // Should not be called
             }
         }
     }
-    
+
     fn get_authority_seeds<'a, 'info>(...) -> Result<...> {
         match self {
-            CTokenAccountVariant::StandardAta => {
+            TokenAccountVariant::StandardAta => {
                 Err(ProgramError::InvalidArgument) // ATAs don't need authority seeds
             }
-            CTokenAccountVariant::StandardMint => {
+            TokenAccountVariant::StandardMint => {
                 Err(ProgramError::InvalidArgument) // Mints don't need authority seeds for decompress
             }
             // ... existing arms ...
         }
     }
-    
+
     fn is_ata(&self) -> bool {
-        matches!(self, CTokenAccountVariant::StandardAta)
+        matches!(self, TokenAccountVariant::StandardAta)
     }
 }
 ```
@@ -175,19 +175,19 @@ impl HasTokenVariant for CompressedAccountData {
     fn is_packed_ctoken(&self) -> bool {
         matches!(
             self.data,
-            CompressedAccountVariant::PackedCTokenData(_) 
+            CompressedAccountVariant::PackedCTokenData(_)
             | CompressedAccountVariant::PackedStandardAta(_)
         )
     }
-    
+
     fn is_compressed_mint(&self) -> bool {
         matches!(self.data, CompressedAccountVariant::CompressedMint(_))
     }
-    
+
     fn is_standard_ata(&self) -> bool {
         matches!(
             self.data,
-            CompressedAccountVariant::StandardAta(_) 
+            CompressedAccountVariant::StandardAta(_)
             | CompressedAccountVariant::PackedStandardAta(_)
         )
     }
@@ -199,19 +199,19 @@ impl HasTokenVariant for CompressedAccountData {
 ```rust
 impl Pack for StandardAtaData {
     type Packed = PackedStandardAtaData;
-    
+
     fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
         // Derive ATA address from wallet + mint
         let (ata_address, _bump) = derive_ctoken_ata(&self.wallet, &self.mint);
-        
+
         // Insert all required accounts
         let wallet_index = remaining_accounts.insert_or_get_config(self.wallet, true, false); // signer
         let mint_index = remaining_accounts.insert_or_get(self.mint);
         let ata_index = remaining_accounts.insert_or_get(ata_address);
-        
+
         // Pack token data
         let token_data = self.token_data.pack(remaining_accounts);
-        
+
         PackedStandardAtaData {
             wallet_index,
             mint_index,
@@ -223,7 +223,7 @@ impl Pack for StandardAtaData {
 
 impl Unpack for PackedStandardAtaData {
     type Unpacked = StandardAtaData;
-    
+
     fn unpack(&self, remaining_accounts: &[AccountInfo]) -> Result<Self::Unpacked, ProgramError> {
         let wallet = *remaining_accounts
             .get(self.wallet_index as usize)
@@ -234,7 +234,7 @@ impl Unpack for PackedStandardAtaData {
             .ok_or(ProgramError::NotEnoughAccountKeys)?
             .key;
         let token_data = self.token_data.unpack(remaining_accounts)?;
-        
+
         Ok(StandardAtaData { wallet, mint, token_data })
     }
 }
@@ -255,26 +255,26 @@ pub fn process_decompress_tokens_runtime<'info, 'a, 'b, V, A>(
     standard_atas: Vec<(PackedStandardAtaData, CompressedAccountMetaNoLamportsNoAddress)>,
 ) -> Result<(), ProgramError> {
     // ... existing token processing ...
-    
+
     // Process standard ATAs
     for (packed_ata, meta) in standard_atas.into_iter() {
         let wallet_info = &packed_accounts[packed_ata.wallet_index as usize];
         let mint_info = &packed_accounts[packed_ata.mint_index as usize];
         let ata_info = &packed_accounts[packed_ata.ata_index as usize];
-        
+
         // Verify wallet is signer
         if !wallet_info.is_signer {
             msg!("StandardAta wallet must be signer: {:?}", wallet_info.key);
             return Err(ProgramError::MissingRequiredSignature);
         }
-        
+
         // Verify ATA derivation
         let (derived_ata, bump) = derive_ctoken_ata(wallet_info.key, mint_info.key);
         if derived_ata != *ata_info.key {
             msg!("ATA derivation mismatch: derived={:?}, provided={:?}", derived_ata, ata_info.key);
             return Err(ProgramError::InvalidAccountData);
         }
-        
+
         // Create ATA if needed (idempotent)
         CreateAssociatedCTokenAccountCpi {
             payer: fee_payer.clone(),
@@ -295,11 +295,11 @@ pub fn process_decompress_tokens_runtime<'info, 'a, 'b, V, A>(
             },
             idempotent: true,
         }.invoke()?;
-        
+
         // Build decompress indices
         let owner_index = packed_ata.token_data.owner; // ATA address index
         let wallet_account_index = packed_ata.wallet_index;
-        
+
         let source = MultiInputTokenDataWithContext {
             owner: owner_index,
             amount: packed_ata.token_data.amount,
@@ -310,7 +310,7 @@ pub fn process_decompress_tokens_runtime<'info, 'a, 'b, V, A>(
             merkle_context: meta.tree_info.into(),
             root_index: meta.tree_info.root_index,
         };
-        
+
         let tlv = vec![ExtensionInstructionData::CompressedOnly(
             CompressedOnlyExtensionInstructionData {
                 delegated_amount: 0,
@@ -322,7 +322,7 @@ pub fn process_decompress_tokens_runtime<'info, 'a, 'b, V, A>(
                 owner_index: wallet_account_index,
             },
         )];
-        
+
         let decompress_index = DecompressFullIndices {
             source,
             destination_index: packed_ata.ata_index,
@@ -331,7 +331,7 @@ pub fn process_decompress_tokens_runtime<'info, 'a, 'b, V, A>(
         };
         token_decompress_indices.push(decompress_index);
     }
-    
+
     // ... rest of existing logic (single Transfer2 CPI) ...
 }
 ```
@@ -352,21 +352,21 @@ fn collect_all_accounts<'a, 'b, 'info>(
     Vec<(PackedStandardAtaData, Meta)>,   // NEW: Standard ATAs
 ), ProgramError> {
     // ... existing setup ...
-    
+
     let mut standard_ata_accounts = Vec::new();
-    
+
     for (i, compressed_data) in compressed_accounts.into_iter().enumerate() {
         let meta = compressed_data.meta;
         match compressed_data.data {
             // ... existing PDA arms ...
-            
+
             CompressedAccountVariant::PackedCTokenData(data) => {
                 compressed_token_accounts.push((data, meta));
             }
             CompressedAccountVariant::CompressedMint(data) => {
                 compressed_mint_accounts.push((data, meta));
             }
-            
+
             // NEW: Standard ATA handling
             CompressedAccountVariant::PackedStandardAta(data) => {
                 standard_ata_accounts.push((data, meta));
@@ -374,11 +374,11 @@ fn collect_all_accounts<'a, 'b, 'info>(
             CompressedAccountVariant::StandardAta(_) => {
                 unreachable!("Unpacked StandardAta should not appear");
             }
-            
+
             // ... other arms ...
         }
     }
-    
+
     Ok((compressed_pda_infos, compressed_token_accounts, compressed_mint_accounts, standard_ata_accounts))
 }
 ```
@@ -399,7 +399,7 @@ pub fn decompress_accounts_idempotent<T>(
     compressed_accounts: &[(CompressedAccount, T)],
     // NEW: Standard ATAs
     standard_atas: &[StandardAtaInput],
-    // NEW: Standard Mints  
+    // NEW: Standard Mints
     standard_mints: &[StandardMintInput],
     program_account_metas: &[AccountMeta],
     validity_proof_with_context: ValidityProofWithContext,
@@ -408,14 +408,14 @@ where
     T: Pack + Clone + std::fmt::Debug,
 {
     // ... existing setup ...
-    
+
     // Pack standard ATAs
     for ata_input in standard_atas {
         let (ata_address, _) = derive_ctoken_ata(&ata_input.wallet, &ata_input.mint);
         remaining_accounts.insert_or_get_config(ata_input.wallet, true, false); // signer
         remaining_accounts.insert_or_get(ata_input.mint);
         remaining_accounts.insert_or_get(ata_address);
-        
+
         // Build StandardAtaData and pack
         let standard_ata = StandardAtaData {
             wallet: ata_input.wallet,
@@ -423,19 +423,19 @@ where
             token_data: ata_input.token_data.clone(),
         };
         let packed = standard_ata.pack(&mut remaining_accounts);
-        
+
         typed_compressed_accounts.push(CompressedAccountData {
             meta: /* from validity_proof_with_context */,
             data: CompressedAccountVariant::PackedStandardAta(packed),
         });
     }
-    
+
     // Pack standard mints
     for mint_input in standard_mints {
-        let (cmint_address, _) = find_cmint_address(&mint_input.mint_seed);
+        let (cmint_address, _) = find_mint_address(&mint_input.mint_seed);
         remaining_accounts.insert_or_get(mint_input.mint_seed);
         remaining_accounts.insert_or_get(cmint_address);
-        
+
         typed_compressed_accounts.push(CompressedAccountData {
             meta: /* from validity_proof_with_context */,
             data: CompressedAccountVariant::CompressedMint(CompressedMintData {
@@ -446,7 +446,7 @@ where
             }),
         });
     }
-    
+
     // ... rest of instruction building ...
 }
 
@@ -479,28 +479,28 @@ pub struct StandardMintInput {
 pub struct DecompressAccountsIdempotent<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
-    
+
     /// Program's compressible config
     pub config: AccountInfo<'info>,
-    
+
     /// Program's rent sponsor
     #[account(mut)]
     pub rent_sponsor: AccountInfo<'info>,
-    
+
     // CToken accounts - REQUIRED if any tokens/ATAs/mints present
     /// CToken rent sponsor (ctoken program's rent sponsor PDA)
     #[account(mut)]
     pub ctoken_rent_sponsor: Option<AccountInfo<'info>>,
-    
+
     /// CToken compressible config
     pub ctoken_config: Option<AccountInfo<'info>>,
-    
+
     /// CToken program
-    pub ctoken_program: Option<AccountInfo<'info>>,
-    
+    pub light_token_program: Option<AccountInfo<'info>>,
+
     /// CToken CPI authority
     pub ctoken_cpi_authority: Option<AccountInfo<'info>>,
-    
+
     // ... other optional accounts for program-specific seeds ...
 }
 ```
@@ -517,11 +517,11 @@ The runtime will validate that ctoken accounts are Some when standard ATAs/mints
    - `token_data.owner` (ATA address) must match derived ATA
 
 2. **Standard Mint validation:**
-   - `find_cmint_address(mint_seed)` must equal the CMint destination account
+   - `find_mint_address(mint_seed)` must equal the CMint destination account
    - No signature required (mint authority doesn't need to sign for decompress)
 
 3. **Account requirements:**
-   - If any standard ATAs or mints present: ctoken_config, ctoken_rent_sponsor, ctoken_program, ctoken_cpi_authority must be Some
+   - If any standard ATAs or mints present: ctoken_config, ctoken_rent_sponsor, light_token_program, ctoken_cpi_authority must be Some
    - If only PDAs: ctoken accounts can be None
 
 ---
@@ -544,4 +544,3 @@ The runtime will validate that ctoken accounts are Some when standard ATAs/mints
 1. Existing programs: No changes required, StandardAta/StandardMint variants available automatically
 2. New programs: Can use standard types without declaring in macro
 3. Tests: Update to use new client helper signature
-

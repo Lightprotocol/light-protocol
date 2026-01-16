@@ -5,7 +5,7 @@
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{parse::Parse, Expr, Ident, ItemStruct, Type};
+use syn::{Expr, Ident, ItemStruct, Type};
 
 /// Classified seed element from Anchor's seeds array
 #[derive(Clone, Debug)]
@@ -35,6 +35,8 @@ pub enum ClassifiedSeed {
 pub struct ExtractedSeedSpec {
     /// The field name in the Accounts struct
     pub field_name: Ident,
+    /// The variant name derived from field_name (snake_case -> CamelCase)
+    pub variant_name: Ident,
     /// The inner type (e.g., UserRecord from Account<'info, UserRecord>)
     pub inner_type: Ident,
     /// Whether it's Box<Account<...>>
@@ -113,19 +115,32 @@ pub fn extract_from_accounts_struct(
             // Extract seeds from #[account(seeds = [...])]
             let seeds = extract_anchor_seeds(&field.attrs)?;
 
+            // Derive variant name from field name: snake_case -> CamelCase
+            let variant_name = {
+                let camel = snake_to_camel_case(&field_ident.to_string());
+                Ident::new(&camel, field_ident.span())
+            };
+
             pda_fields.push(ExtractedSeedSpec {
                 field_name: field_ident,
+                variant_name,
                 inner_type,
                 is_boxed,
                 seeds,
             });
         } else if let Some(token_attr) = token_attr {
-            // Token field with explicit variant mapping
+            // Token field - derive variant name from field name if not provided
             let seeds = extract_anchor_seeds(&field.attrs)?;
+
+            // Derive variant name: snake_case field -> CamelCase variant
+            let variant_name = token_attr.variant_name.unwrap_or_else(|| {
+                let camel = snake_to_camel_case(&field_ident.to_string());
+                Ident::new(&camel, field_ident.span())
+            });
 
             token_fields.push(ExtractedTokenSpec {
                 field_name: field_ident,
-                variant_name: token_attr.variant_name,
+                variant_name,
                 seeds,
                 authority_field: None,
                 // Use authority from attribute if provided
@@ -183,75 +198,114 @@ pub fn extract_from_accounts_struct(
 
 /// Parsed #[rentfree_token(...)] attribute
 struct RentFreeTokenAttr {
-    variant_name: Ident,
+    /// Optional variant name - if None, derived from field name
+    variant_name: Option<Ident>,
     authority_seeds: Option<Vec<ClassifiedSeed>>,
 }
 
-/// Extract #[rentfree_token(Variant, authority = [...])] attribute
+/// Convert snake_case field name to CamelCase variant name
+/// e.g., token_0_vault -> Token0Vault, vault -> Vault
+fn snake_to_camel_case(s: &str) -> String {
+    s.split('_')
+        .map(|part| {
+            let mut chars = part.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(first) => first.to_uppercase().chain(chars).collect(),
+            }
+        })
+        .collect()
+}
+
+/// Extract #[rentfree_token(authority = [...])] attribute
+/// Variant name is now derived from field name, not specified in attribute
 fn extract_rentfree_token_attr(attrs: &[syn::Attribute]) -> Option<RentFreeTokenAttr> {
     for attr in attrs {
         if attr.path().is_ident("rentfree_token") {
             match &attr.meta {
-                // #[rentfree_token = Variant]
+                // #[rentfree_token = Variant] (deprecated but still supported)
                 syn::Meta::NameValue(nv) => {
                     if let Expr::Path(path) = &nv.value {
                         if let Some(ident) = path.path.get_ident() {
                             return Some(RentFreeTokenAttr {
-                                variant_name: ident.clone(),
+                                variant_name: Some(ident.clone()),
                                 authority_seeds: None,
                             });
                         }
                     }
                 }
-                // #[rentfree_token(Variant)] or #[rentfree_token(Variant, authority = [...])]
+                // #[rentfree_token(authority = [...])] or #[rentfree_token(Variant, authority = [...])]
                 syn::Meta::List(list) => {
                     if let Ok(parsed) = parse_rentfree_token_list(&list.tokens) {
                         return Some(parsed);
                     }
-                    // Fallback: try parsing as just an identifier
+                    // Fallback: try parsing as just an identifier (deprecated)
                     if let Ok(ident) = syn::parse2::<Ident>(list.tokens.clone()) {
                         return Some(RentFreeTokenAttr {
-                            variant_name: ident,
+                            variant_name: Some(ident),
                             authority_seeds: None,
                         });
                     }
                 }
-                _ => {}
+                // #[rentfree_token] with no arguments
+                syn::Meta::Path(_) => {
+                    return Some(RentFreeTokenAttr {
+                        variant_name: None,
+                        authority_seeds: None,
+                    });
+                }
             }
         }
     }
     None
 }
 
-/// Parse rentfree_token(Variant, authority = [...]) content
-fn parse_rentfree_token_list(
-    tokens: &proc_macro2::TokenStream,
-) -> syn::Result<RentFreeTokenAttr> {
+/// Parse rentfree_token(authority = [...]) or rentfree_token(Variant, authority = [...]) content
+fn parse_rentfree_token_list(tokens: &proc_macro2::TokenStream) -> syn::Result<RentFreeTokenAttr> {
     use syn::parse::Parser;
 
     let parser = |input: syn::parse::ParseStream| -> syn::Result<RentFreeTokenAttr> {
-        // First token is the variant name
-        let variant_name: Ident = input.parse()?;
+        let mut variant_name = None;
         let mut authority_seeds = None;
 
-        // Check for comma and additional args
-        while input.peek(syn::Token![,]) {
-            input.parse::<syn::Token![,]>()?;
+        // Check if first token is authority = [...] or a variant name
+        if input.peek(Ident) {
+            let ident: Ident = input.parse()?;
 
-            // Look for authority = [...]
-            if input.peek(Ident) {
-                let key: Ident = input.parse()?;
-                if key == "authority" {
-                    input.parse::<syn::Token![=]>()?;
-                    let array: syn::ExprArray = input.parse()?;
-                    // Classify the authority seeds
-                    let mut seeds = Vec::new();
-                    for elem in &array.elems {
-                        if let Ok(seed) = classify_seed_expr(elem) {
-                            seeds.push(seed);
+            if ident == "authority" {
+                // First token is authority, parse the seeds
+                input.parse::<syn::Token![=]>()?;
+                let array: syn::ExprArray = input.parse()?;
+                let mut seeds = Vec::new();
+                for elem in &array.elems {
+                    if let Ok(seed) = classify_seed_expr(elem) {
+                        seeds.push(seed);
+                    }
+                }
+                authority_seeds = Some(seeds);
+            } else {
+                // First token is variant name (deprecated but supported)
+                variant_name = Some(ident);
+
+                // Check for comma and additional args
+                while input.peek(syn::Token![,]) {
+                    input.parse::<syn::Token![,]>()?;
+
+                    // Look for authority = [...]
+                    if input.peek(Ident) {
+                        let key: Ident = input.parse()?;
+                        if key == "authority" {
+                            input.parse::<syn::Token![=]>()?;
+                            let array: syn::ExprArray = input.parse()?;
+                            let mut seeds = Vec::new();
+                            for elem in &array.elems {
+                                if let Ok(seed) = classify_seed_expr(elem) {
+                                    seeds.push(seed);
+                                }
+                            }
+                            authority_seeds = Some(seeds);
                         }
                     }
-                    authority_seeds = Some(seeds);
                 }
             }
         }

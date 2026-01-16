@@ -1,16 +1,6 @@
 use anchor_lang::prelude::*;
-<<<<<<< HEAD
-use light_sdk::{
-    compressible::CompressionInfo,
-    instruction::{PackedAddressTreeInfo, ValidityProof},
-    LightDiscriminator, LightHasher,
-};
-use light_sdk_macros::{Compressible, CompressiblePack};
-use light_token_interface::instructions::mint_action::CompressedMintWithContext;
-=======
 use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
 use light_sdk_macros::Light;
->>>>>>> a606eb113 (wip)
 
 #[derive(Default, Debug, InitSpace, Light)]
 #[account]

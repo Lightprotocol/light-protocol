@@ -1,6 +1,6 @@
 use borsh::BorshSerialize;
-use light_ctoken_interface::instructions::{
-    create_ctoken_account::CreateTokenAccountInstructionData,
+use light_token_interface::instructions::{
+    create_token_account::CreateTokenAccountInstructionData,
     extensions::{CompressToPubkey, CompressibleExtensionInstructionData},
 };
 use solana_account_info::AccountInfo;
@@ -88,7 +88,7 @@ impl CreateTokenAccount {
 ///
 /// # Example - Rent-free vault with PDA signing
 /// ```rust,ignore
-/// CreateCTokenAccountCpi {
+/// CreateTokenAccountCpi {
 ///     payer: ctx.accounts.payer.to_account_info(),
 ///     account: ctx.accounts.vault.to_account_info(),
 ///     mint: ctx.accounts.mint.to_account_info(),
@@ -109,7 +109,7 @@ pub struct CreateTokenAccountCpi<'info> {
     pub owner: Pubkey,
 }
 
-impl<'info> CreateCTokenAccountCpi<'info> {
+impl<'info> CreateTokenAccountCpi<'info> {
     /// Enable rent-free mode with compressible config.
     ///
     /// Returns a builder that can call `.invoke()` or `.invoke_signed(seeds)`.
@@ -121,8 +121,8 @@ impl<'info> CreateCTokenAccountCpi<'info> {
         sponsor: AccountInfo<'info>,
         system_program: AccountInfo<'info>,
         program_id: &Pubkey,
-    ) -> CreateCTokenAccountRentFreeCpi<'info> {
-        CreateCTokenAccountRentFreeCpi {
+    ) -> CreateTokenAccountRentFreeCpi<'info> {
+        CreateTokenAccountRentFreeCpi {
             base: self,
             config,
             sponsor,
@@ -136,7 +136,7 @@ impl<'info> CreateCTokenAccountCpi<'info> {
         self,
         compressible: CompressibleParamsCpi<'info>,
     ) -> Result<(), ProgramError> {
-        LegacyCreateCTokenAccountCpi {
+        LegacyCreateTokenAccountCpi {
             payer: self.payer,
             account: self.account,
             mint: self.mint,
@@ -152,7 +152,7 @@ impl<'info> CreateCTokenAccountCpi<'info> {
         compressible: CompressibleParamsCpi<'info>,
         signer_seeds: &[&[&[u8]]],
     ) -> Result<(), ProgramError> {
-        LegacyCreateCTokenAccountCpi {
+        LegacyCreateTokenAccountCpi {
             payer: self.payer,
             account: self.account,
             mint: self.mint,
@@ -164,20 +164,20 @@ impl<'info> CreateCTokenAccountCpi<'info> {
 }
 
 /// Rent-free enabled CToken account creation CPI.
-pub struct CreateCTokenAccountRentFreeCpi<'info> {
-    base: CreateCTokenAccountCpi<'info>,
+pub struct CreateTokenAccountRentFreeCpi<'info> {
+    base: CreateTokenAccountCpi<'info>,
     config: AccountInfo<'info>,
     sponsor: AccountInfo<'info>,
     system_program: AccountInfo<'info>,
     program_id: Pubkey,
 }
 
-impl<'info> CreateCTokenAccountRentFreeCpi<'info> {
+impl<'info> CreateTokenAccountRentFreeCpi<'info> {
     /// Invoke CPI for non-program-owned accounts.
     pub fn invoke(self) -> Result<(), ProgramError> {
         let defaults = CompressibleParams::default();
 
-        let cpi = LegacyCreateCTokenAccountCpi {
+        let cpi = LegacyCreateTokenAccountCpi {
             payer: self.base.payer,
             account: self.base.account,
             mint: self.base.mint,
@@ -217,7 +217,7 @@ impl<'info> CreateCTokenAccountRentFreeCpi<'info> {
             seeds: seed_vecs,
         };
 
-        let cpi = LegacyCreateCTokenAccountCpi {
+        let cpi = LegacyCreateTokenAccountCpi {
             payer: self.base.payer,
             account: self.base.account,
             mint: self.base.mint,
@@ -238,7 +238,7 @@ impl<'info> CreateCTokenAccountRentFreeCpi<'info> {
 }
 
 /// Internal legacy CPI struct with full compressible params.
-struct LegacyCreateCTokenAccountCpi<'info> {
+struct LegacyCreateTokenAccountCpi<'info> {
     payer: AccountInfo<'info>,
     account: AccountInfo<'info>,
     mint: AccountInfo<'info>,
@@ -246,9 +246,9 @@ struct LegacyCreateCTokenAccountCpi<'info> {
     compressible: CompressibleParamsCpi<'info>,
 }
 
-impl<'info> LegacyCreateCTokenAccountCpi<'info> {
+impl<'info> LegacyCreateTokenAccountCpi<'info> {
     fn instruction(&self) -> Result<Instruction, ProgramError> {
-        CreateCTokenAccount {
+        CreateTokenAccount {
             payer: *self.payer.key,
             account: *self.account.key,
             mint: *self.mint.key,

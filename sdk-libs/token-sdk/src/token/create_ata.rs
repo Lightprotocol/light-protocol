@@ -318,7 +318,7 @@ struct InternalCreateAtaCpi<'info> {
 
 impl<'info> InternalCreateAtaCpi<'info> {
     fn instruction(&self) -> Result<Instruction, ProgramError> {
-        CreateAssociatedCTokenAccount {
+        CreateAssociatedTokenAccount {
             payer: *self.payer.key,
             owner: *self.owner.key,
             mint: *self.mint.key,

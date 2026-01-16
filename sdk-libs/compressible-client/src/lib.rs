@@ -35,7 +35,7 @@ pub use decompress_mint::{
     MintState, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
 };
 pub use initialize_config::InitializeRentFreeConfig;
-pub use light_ctoken_sdk::compat::TokenData;
+pub use light_token_sdk::compat::TokenData;
 pub use pack::{pack_proof, PackError, PackedProofResult};
 
 #[cfg(feature = "anchor")]
@@ -43,17 +43,16 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use light_client::indexer::{CompressedAccount, TreeInfo, ValidityProofWithContext};
-use light_ctoken_sdk::ctoken::{
-    COMPRESSIBLE_CONFIG_V1, CTOKEN_CPI_AUTHORITY, CTOKEN_PROGRAM_ID, RENT_SPONSOR,
-};
 pub use light_sdk::compressible::config::CompressibleConfig;
 use light_sdk::{
     compressible::{compression_info::CompressedAccountData, Pack},
-    constants::LIGHT_TOKEN_PROGRAM_ID,
     instruction::{
         account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts,
         SystemAccountMetaConfig, ValidityProof,
     },
+};
+use light_token_sdk::token::{
+    COMPRESSIBLE_CONFIG_V1, LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR,
 };
 use solana_account::Account;
 use solana_instruction::{AccountMeta, Instruction};
@@ -203,13 +202,13 @@ impl<V> RentFreeDecompressAccount<V> {
     ///
     /// # Arguments
     /// * `interface` - The account interface (must be cold/compressed)
-    /// * `ctoken_variant` - CToken variant (e.g., `CTokenAccountVariant::Vault { cmint }`)
+    /// * `ctoken_variant` - CToken variant (e.g., `TokenAccountVariant::Vault { cmint }`)
     ///
     /// # Example
     /// ```ignore
     /// RentFreeDecompressAccount::from_ctoken(
     ///     AccountInterface::cold(vault_pda, compressed_vault.account),
-    ///     CTokenAccountVariant::Vault { cmint: cmint_pda },
+    ///     TokenAccountVariant::Vault { cmint: cmint_pda },
     /// )?
     /// ```
     #[cfg(feature = "anchor")]
@@ -240,7 +239,7 @@ pub mod compressible_instruction {
         use super::*;
 
         /// Returns program account metas for decompress_accounts_idempotent with CToken support.
-        /// Includes ctoken_rent_sponsor, ctoken_program, ctoken_cpi_authority, ctoken_config.
+        /// Includes ctoken_rent_sponsor, light_token_program, ctoken_cpi_authority, ctoken_config.
         pub fn accounts(
             fee_payer: Pubkey,
             config: Pubkey,
@@ -251,8 +250,8 @@ pub mod compressible_instruction {
                 AccountMeta::new_readonly(config, false),
                 AccountMeta::new(rent_sponsor, false),
                 AccountMeta::new(RENT_SPONSOR, false),
-                AccountMeta::new_readonly(CTOKEN_PROGRAM_ID, false),
-                AccountMeta::new_readonly(CTOKEN_CPI_AUTHORITY, false),
+                AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
+                AccountMeta::new_readonly(LIGHT_TOKEN_CPI_AUTHORITY, false),
                 AccountMeta::new_readonly(COMPRESSIBLE_CONFIG_V1, false),
             ]
         }
@@ -418,7 +417,7 @@ pub mod compressible_instruction {
             // Find the first token account's CPI context
             let first_token_cpi_context = compressed_accounts
                 .iter()
-                .find(|(acc, _)| acc.owner == C_TOKEN_PROGRAM_ID.into())
+                .find(|(acc, _)| acc.owner == LIGHT_TOKEN_PROGRAM_ID.into())
                 .map(|(acc, _)| acc.tree_info.cpi_context.unwrap())
                 .expect("has_tokens is true so there must be a token");
             let system_config =

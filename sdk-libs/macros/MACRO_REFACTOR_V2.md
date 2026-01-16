@@ -92,11 +92,11 @@ Replace the dual-declaration system with a single source of truth:
 │  │                                                                                   │ │
 │  │  1. CompressedAccountVariant enum (with struct variants)                          │ │
 │  │  2. PackedCompressedAccountVariant (with idx fields)                              │ │
-│  │  3. CTokenAccountVariant enum                                                     │ │
+│  │  3. TokenAccountVariant enum                                                     │ │
 │  │  4. Pack/Unpack impls                                                             │ │
 │  │  5. XxxSeeds structs per PDA type                                                 │ │
 │  │  6. PdaSeedDerivation trait impls                                                 │ │
-│  │  7. CTokenSeedProvider trait impls                                                │ │
+│  │  7. TokenSeedProvider trait impls                                                │ │
 │  │  8. DecompressAccountsIdempotent Accounts struct                                  │ │
 │  │  9. decompress_accounts_idempotent() instruction handler                          │ │
 │  │  10. Client-side seed derivation functions                                        │ │

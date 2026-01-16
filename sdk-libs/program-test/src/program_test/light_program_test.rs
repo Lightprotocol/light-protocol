@@ -463,16 +463,14 @@ impl LightProgramTest {
         mint: &solana_sdk::pubkey::Pubkey,
         owner: &solana_sdk::pubkey::Pubkey,
     ) -> Result<light_compressible_client::AtaAccountInterface, RpcError> {
-        use light_client::indexer::{
-            GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer,
-        };
+        use light_client::indexer::{GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer};
         use light_compressible_client::{
             pack_token_data_to_spl_bytes, AtaAccountInterface, AtaDecompressionContext,
         };
-        use light_ctoken_sdk::ctoken::derive_ctoken_ata;
-        use light_sdk::constants::C_TOKEN_PROGRAM_ID;
+        use light_sdk::constants::LIGHT_TOKEN_PROGRAM_ID;
+        use light_token_sdk::token::derive_token_ata;
 
-        let (ata, bump) = derive_ctoken_ata(owner, mint);
+        let (ata, bump) = derive_token_ata(owner, mint);
 
         // Check on-chain first
         if let Some(account) = self.context.get_account(&ata) {
@@ -485,9 +483,9 @@ impl LightProgramTest {
         }
 
         // Check compressed state
-        let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions::new(Some(
-            *mint,
-        )));
+        let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions::new(
+            Some(*mint),
+        ));
         let result = self
             .get_compressed_token_accounts_by_owner(&ata, options, None)
             .await?;
@@ -501,7 +499,7 @@ impl LightProgramTest {
             let account = solana_sdk::account::Account {
                 lamports: 0, // Compressed accounts don't have lamports
                 data,
-                owner: C_TOKEN_PROGRAM_ID.into(),
+                owner: LIGHT_TOKEN_PROGRAM_ID.into(),
                 executable: false,
                 rent_epoch: 0,
             };
@@ -524,7 +522,7 @@ impl LightProgramTest {
         let account = solana_sdk::account::Account {
             lamports: 0,
             data,
-            owner: C_TOKEN_PROGRAM_ID.into(),
+            owner: LIGHT_TOKEN_PROGRAM_ID.into(),
             executable: false,
             rent_epoch: 0,
         };
@@ -544,20 +542,18 @@ impl LightProgramTest {
         mint: &solana_sdk::pubkey::Pubkey,
         owner: &solana_sdk::pubkey::Pubkey,
     ) -> Result<light_compressible_client::AtaInterface, RpcError> {
-        use light_client::indexer::{
-            GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer,
-        };
+        use light_client::indexer::{GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer};
         use light_compressible_client::{AtaInterface, DecompressionContext, TokenData};
-        use light_ctoken_sdk::{compat::AccountState, ctoken::derive_ctoken_ata};
+        use light_token_sdk::{compat::AccountState, token::derive_token_ata};
 
-        let (ata, bump) = derive_ctoken_ata(owner, mint);
+        let (ata, bump) = derive_token_ata(owner, mint);
 
         // Check on-chain first
         if let Some(account) = self.context.get_account(&ata) {
             use solana_sdk::program_pack::Pack;
             let token_data = if account.data.len() >= 165 {
-                let spl_account =
-                    spl_token_2022::state::Account::unpack(&account.data[..165]).unwrap_or_default();
+                let spl_account = spl_token_2022::state::Account::unpack(&account.data[..165])
+                    .unwrap_or_default();
                 TokenData {
                     mint: spl_account.mint,
                     owner: spl_account.owner,
@@ -590,9 +586,9 @@ impl LightProgramTest {
         }
 
         // Check compressed state
-        let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions::new(Some(
-            *mint,
-        )));
+        let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions::new(
+            Some(*mint),
+        ));
         let result = self
             .get_compressed_token_accounts_by_owner(&ata, options, None)
             .await?;
@@ -651,12 +647,13 @@ impl LightProgramTest {
         use borsh::BorshDeserialize;
         use light_client::indexer::Indexer;
         use light_compressible_client::{MintInterface, MintState};
-        use light_ctoken_interface::{state::CompressedMint, CMINT_ADDRESS_TREE};
-        use light_ctoken_sdk::ctoken::{derive_cmint_compressed_address, find_cmint_address};
+        use light_token_interface::{state::CompressedMint, CMINT_ADDRESS_TREE};
+        use light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address;
+        use light_token_sdk::token::find_mint_address;
 
-        let (cmint, _) = find_cmint_address(signer);
+        let (cmint, _) = find_mint_address(signer);
         let address_tree = solana_sdk::pubkey::Pubkey::new_from_array(CMINT_ADDRESS_TREE);
-        let compressed_address = derive_cmint_compressed_address(signer, &address_tree);
+        let compressed_address = derive_mint_compressed_address(signer, &address_tree);
 
         // Check on-chain first
         if let Some(account) = self.context.get_account(&cmint) {

@@ -48,14 +48,14 @@ async fn test_burn_invoke() {
     };
     burn_data.serialize(&mut instruction_data).unwrap();
 
-    let ctoken_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
             AccountMeta::new(ata, false),                     // source
             AccountMeta::new(mint_pda, false),                // cmint
             AccountMeta::new_readonly(payer.pubkey(), true),  // authority (signer)
-            AccountMeta::new_readonly(ctoken_program, false), // ctoken_program
+            AccountMeta::new_readonly(light_token_program, false), // light_token_program
         ],
         data: instruction_data,
     };
@@ -114,14 +114,14 @@ async fn test_burn_invoke_signed() {
     };
     burn_data.serialize(&mut instruction_data).unwrap();
 
-    let ctoken_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
             AccountMeta::new(ata, false),                     // source
             AccountMeta::new(mint_pda, false),                // cmint
             AccountMeta::new_readonly(pda_owner, false),      // PDA authority (program signs)
-            AccountMeta::new_readonly(ctoken_program, false), // ctoken_program
+            AccountMeta::new_readonly(light_token_program, false), // light_token_program
         ],
         data: instruction_data,
     };

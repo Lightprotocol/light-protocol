@@ -76,7 +76,7 @@ import {
   createAssociatedTokenAccountInterfaceIdempotentInstruction,
   getAssociatedTokenAddressInterface,
 } from "@lightprotocol/compressed-token/unified";
-import { CTOKEN_PROGRAM_ID } from "@lightprotocol/stateless.js";
+import { LIGHT_TOKEN_PROGRAM_ID } from "@lightprotocol/stateless.js";
 
 const ata = getAssociatedTokenAddressInterface(mint, recipient);
 
@@ -86,7 +86,7 @@ const tx = new Transaction().add(
     ata,
     recipient,
     mint,
-    CTOKEN_PROGRAM_ID
+    LIGHT_TOKEN_PROGRAM_ID
   )
 );
 ```
@@ -203,7 +203,7 @@ import {
   getAssociatedTokenAddressInterface,
   createAssociatedTokenAccountInterfaceIdempotentInstruction,
 } from "@lightprotocol/compressed-token/unified";
-import { CTOKEN_PROGRAM_ID } from "@lightprotocol/stateless.js";
+import { LIGHT_TOKEN_PROGRAM_ID } from "@lightprotocol/stateless.js";
 
 const destinationAta = getAssociatedTokenAddressInterface(mint, recipient);
 const createAtaIx = createAssociatedTokenAccountInterfaceIdempotentInstruction(
@@ -211,7 +211,7 @@ const createAtaIx = createAssociatedTokenAccountInterfaceIdempotentInstruction(
   destinationAta,
   recipient,
   mint,
-  CTOKEN_PROGRAM_ID
+  LIGHT_TOKEN_PROGRAM_ID
 );
 
 new Transaction().add(createAtaIx, transferIx);

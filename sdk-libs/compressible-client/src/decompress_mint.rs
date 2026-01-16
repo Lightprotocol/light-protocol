@@ -15,12 +15,13 @@
 use borsh::BorshDeserialize;
 use light_client::indexer::{CompressedAccount, Indexer, IndexerError, ValidityProofWithContext};
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
     state::CompressedMint,
     CMINT_ADDRESS_TREE,
 };
-use light_ctoken_sdk::ctoken::{derive_cmint_compressed_address, find_cmint_address, DecompressCMint};
+use light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address;
+use light_token_sdk::token::{find_mint_address, DecompressMint};
 use solana_account::Account;
 use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
@@ -185,9 +186,8 @@ pub fn build_decompress_mint(
         mint: Some(mint_instruction_data),
     };
 
-    // Build DecompressCMint instruction
-    let decompress = DecompressCMint {
-        mint_seed_pubkey: mint.signer,
+    // Build DecompressMint instruction
+    let decompress = DecompressMint {
         payer: fee_payer,
         authority: fee_payer, // Permissionless - any signer works
         state_tree,
@@ -316,7 +316,7 @@ pub async fn decompress_mint_idempotent<I: Indexer>(
         .address_tree
         .unwrap_or(Pubkey::new_from_array(CMINT_ADDRESS_TREE));
     let compressed_address =
-        derive_cmint_compressed_address(&request.mint_seed_pubkey, &address_tree);
+        derive_mint_compressed_address(&request.mint_seed_pubkey, &address_tree);
 
     // 2. Fetch compressed mint account from indexer
     let compressed_account = indexer
@@ -374,9 +374,8 @@ pub async fn decompress_mint_idempotent<I: Indexer>(
         mint: Some(mint_instruction_data),
     };
 
-    // 8. Build DecompressCMint instruction
-    let decompress = DecompressCMint {
-        mint_seed_pubkey: request.mint_seed_pubkey,
+    // 8. Build DecompressMint instruction
+    let decompress = DecompressMint {
         payer: fee_payer,
         authority: fee_payer, // Permissionless - any signer works
         state_tree,
@@ -402,8 +401,8 @@ pub fn create_mint_interface(
     onchain_account: Option<Account>,
     compressed: Option<(CompressedAccount, CompressedMint)>,
 ) -> MintInterface {
-    let (cmint, _) = find_cmint_address(&signer);
-    let compressed_address = derive_cmint_compressed_address(&signer, &address_tree);
+    let (cmint, _) = find_mint_address(&signer);
+    let compressed_address = derive_mint_compressed_address(&signer, &address_tree);
 
     let state = if let Some(account) = onchain_account {
         MintState::Hot { account }

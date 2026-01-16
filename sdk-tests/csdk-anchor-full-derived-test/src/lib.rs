@@ -54,8 +54,8 @@ pub mod csdk_anchor_full_derived_test {
         params: FullAutoWithMintParams,
     ) -> Result<()> {
         use anchor_lang::solana_program::sysvar::clock::Clock;
-        use light_ctoken_sdk::ctoken::{
-            CTokenMintToCpi, CreateCTokenAccountCpi, CreateCTokenAtaCpi,
+        use light_token_sdk::token::{
+            CreateCTokenAtaCpi, CreateTokenAccountCpi, MintToCpi as CTokenMintToCpi,
         };
 
         let user_record = &mut ctx.accounts.user_record;
@@ -73,7 +73,7 @@ pub mod csdk_anchor_full_derived_test {
         game_session.score = 0;
 
         let cmint_key = ctx.accounts.cmint.key();
-        CreateCTokenAccountCpi {
+        CreateTokenAccountCpi {
             payer: ctx.accounts.fee_payer.to_account_info(),
             account: ctx.accounts.vault.to_account_info(),
             mint: ctx.accounts.cmint.to_account_info(),

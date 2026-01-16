@@ -8,7 +8,7 @@ SDK-only functionality to decompress compressed CMint accounts (mints that were 
 
 ### Can we build this purely in SDK without macro changes?
 
-**YES**. This is fully supported by the existing `DecompressCMint` instruction builder in `ctoken-sdk`.
+**YES**. This is fully supported by the existing `DecompressMint` instruction builder in `ctoken-sdk`.
 
 **Why:**
 
@@ -16,7 +16,7 @@ SDK-only functionality to decompress compressed CMint accounts (mints that were 
 
 2. **mint_seed does NOT need to sign** - uses `with_mint_signer_no_sign()` internally. The mint_seed is only used for PDA derivation.
 
-3. `DecompressCMint` struct already exists in `ctoken-sdk/src/ctoken/decompress_cmint.rs` with a complete `instruction()` method.
+3. `DecompressMint` struct already exists in `ctoken-sdk/src/ctoken/decompress_cmint.rs` with a complete `instruction()` method.
 
 4. All data needed is queryable from the indexer via the compressed mint's address.
 
@@ -49,7 +49,7 @@ ZAction::DecompressMint(decompress_action) => {
 When a mint is created via `#[compressible]` macro (like in `csdk-anchor-full-derived-test`):
 
 1. **mint_seed_pubkey** = A program PDA (e.g., `LP_MINT_SIGNER_SEED + authority`)
-2. **CMint PDA** = `find_cmint_address(mint_seed_pubkey)` = PDA of `[COMPRESSED_MINT_SEED, mint_seed_pubkey]` under ctoken program
+2. **CMint PDA** = `find_mint_address(mint_seed_pubkey)` = PDA of `[COMPRESSED_MINT_SEED, mint_seed_pubkey]` under ctoken program
 3. **Compressed address** = `derive_cmint_compressed_address(mint_seed_pubkey, address_tree)`
 
 When querying the indexer:
@@ -77,8 +77,8 @@ Unlike PDAs which require program signing for decompression, CMint decompression
 
 | Component                             | Location                                                                   | Reuse  |
 | ------------------------------------- | -------------------------------------------------------------------------- | ------ |
-| `DecompressCMint` struct              | `ctoken-sdk/src/ctoken/decompress_cmint.rs`                                | Direct |
-| `find_cmint_address`                  | `ctoken-sdk/src/ctoken/create_cmint.rs`                                    | Direct |
+| `DecompressMint` struct               | `ctoken-sdk/src/ctoken/decompress_cmint.rs`                                | Direct |
+| `find_mint_address`                   | `ctoken-sdk/src/ctoken/create_cmint.rs`                                    | Direct |
 | `derive_cmint_compressed_address`     | `ctoken-sdk/src/compressed_token/v2/create_compressed_mint/instruction.rs` | Direct |
 | `CompressedMintWithContext`           | `ctoken-interface/src/instructions/mint_action/instruction_data.rs`        | Direct |
 | `get_compressed_account`              | `light-client/src/indexer/indexer_trait.rs`                                | Direct |
@@ -173,13 +173,13 @@ Note: `AlreadyDecompressed` is NOT an error - returns empty vec instead (idempot
 ```rust
 use light_client::indexer::{Indexer, IndexerError};
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
     state::CompressedMint,
     CMINT_ADDRESS_TREE,
 };
-use light_ctoken_sdk::ctoken::{
-    derive_cmint_compressed_address, DecompressCMint,
+use light_token_sdk::token::{
+    derive_cmint_compressed_address, DecompressMint,
 };
 use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
@@ -316,8 +316,8 @@ pub async fn decompress_mint_idempotent<I: Indexer>(
         mint: Some(mint_instruction_data),
     };
 
-    // 8. Build DecompressCMint instruction
-    let decompress = DecompressCMint {
+    // 8. Build DecompressMint instruction
+    let decompress = DecompressMint {
         mint_seed_pubkey: request.mint_seed_pubkey,
         payer: fee_payer,
         authority: fee_payer, // Permissionless - any signer works
@@ -383,7 +383,7 @@ parse_compressed_mint_data() -> CompressedMint { metadata.cmint_decompressed? }
 indexer.get_validity_proof([hash]) -> ValidityProofWithContext
     |
     v
-DecompressCMint {
+DecompressMint {
     mint_seed_pubkey,
     payer: fee_payer,
     authority: fee_payer,  // Permissionless!
@@ -444,8 +444,8 @@ if !instructions.is_empty() {
 # In sdk-libs/compressible-client/Cargo.toml
 [dependencies]
 light-client = { path = "../client" }
-light-ctoken-sdk = { path = "../ctoken-sdk" }
-light-ctoken-interface = { path = "../../program-libs/ctoken-interface" }
+light-token-sdk = { path = "../ctoken-sdk" }
+light-token-interface = { path = "../../program-libs/ctoken-interface" }
 light-compressed-account = { path = "../../program-libs/compressed-account" }
 solana-pubkey = "2"
 solana-instruction = "2"
@@ -477,7 +477,7 @@ async fn test_decompress_mint() {
         &[LP_MINT_SIGNER_SEED, authority.pubkey().as_ref()],
         &program_id,
     );
-    let (cmint_pda, _) = find_cmint_address(&mint_signer_pda);
+    let (cmint_pda, _) = find_mint_address(&mint_signer_pda);
 
     // ... execute create_pdas_and_mint_auto ...
 

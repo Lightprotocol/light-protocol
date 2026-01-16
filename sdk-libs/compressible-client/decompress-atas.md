@@ -27,7 +27,7 @@ When a CToken ATA is auto-compressed:
 When querying the indexer:
 
 - Query by `owner = ATA_pubkey` (not wallet owner)
-- ATA pubkey = `derive_ctoken_ata(wallet_owner, mint)` = PDA of `[wallet_owner, CTOKEN_PROGRAM_ID, mint]`
+- ATA pubkey = `derive_ctoken_ata(wallet_owner, mint)` = PDA of `[wallet_owner, LIGHT_TOKEN_PROGRAM_ID, mint]`
 
 When decompressing:
 
@@ -129,14 +129,14 @@ The implementation follows the same pattern as `DecompressToCtoken::instruction(
 
 use light_client::indexer::{CompressedTokenAccount, Indexer, ValidityProofWithContext};
 use light_compressed_account::compressed_account::PackedMerkleContext;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::{
         extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
         transfer2::MultiInputTokenDataWithContext,
     },
     state::{ExtensionStruct, TokenDataVersion},
 };
-use light_ctoken_sdk::{
+use light_token_sdk::{
     compressed_token::{
         v2::transfer2::{
             create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config,
@@ -358,7 +358,7 @@ fn build_batch_decompress_instruction(
 #[derive(Debug)]
 pub enum CompressibleClientError {
     Indexer(light_client::indexer::IndexerError),
-    CTokenSdk(light_ctoken_sdk::error::CTokenSdkError),
+    CTokenSdk(light_token_sdk::error::CTokenSdkError),
     NoStateTreesInProof,
     ProgramError(solana_program_error::ProgramError),
 }
@@ -369,8 +369,8 @@ impl From<light_client::indexer::IndexerError> for CompressibleClientError {
     }
 }
 
-impl From<light_ctoken_sdk::error::CTokenSdkError> for CompressibleClientError {
-    fn from(e: light_ctoken_sdk::error::CTokenSdkError) -> Self {
+impl From<light_token_sdk::error::CTokenSdkError> for CompressibleClientError {
+    fn from(e: light_token_sdk::error::CTokenSdkError) -> Self {
         Self::CTokenSdk(e)
     }
 }
@@ -586,8 +586,8 @@ async fn test_decompress_ata_idempotent() {
 # In sdk-libs/compressible-client/Cargo.toml
 [dependencies]
 light-client = { path = "../client" }
-light-ctoken-sdk = { path = "../ctoken-sdk" }
-light-ctoken-interface = { path = "../../program-libs/ctoken-interface" }
+light-token-sdk = { path = "../ctoken-sdk" }
+light-token-interface = { path = "../../program-libs/ctoken-interface" }
 light-compressed-account = { path = "../../program-libs/compressed-account" }
 light-sdk = { path = "../sdk" }
 solana-pubkey = "2"

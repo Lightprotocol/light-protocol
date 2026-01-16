@@ -12,32 +12,8 @@ use solana_pubkey::Pubkey;
 use crate::compat::PackedCTokenData;
 use crate::pack::Unpack;
 
-<<<<<<< HEAD:sdk-libs/token-sdk/src/compressible/decompress_runtime.rs
-/// Trait for getting token account seeds.
-pub trait TokenSeedProvider: Copy {
-    /// Type of accounts struct needed for seed derivation.
-    type Accounts<'info>;
-
-    /// Get seeds for the token account PDA (used for decompression).
-    fn get_seeds<'a, 'info>(
-        &self,
-        accounts: &'a Self::Accounts<'info>,
-        remaining_accounts: &'a [AccountInfo<'info>],
-    ) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
-
-    /// Get authority seeds for signing during compression.
-    ///
-    /// TODO: consider removing.
-    fn get_authority_seeds<'a, 'info>(
-        &self,
-        accounts: &'a Self::Accounts<'info>,
-        remaining_accounts: &'a [AccountInfo<'info>],
-    ) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
-}
-=======
-// Re-export CTokenSeedProvider from sdk (canonical definition).
-pub use light_sdk::compressible::CTokenSeedProvider;
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/compressible/decompress_runtime.rs
+// Re-export TokenSeedProvider from sdk (canonical definition).
+pub use light_sdk::compressible::TokenSeedProvider;
 
 /// Token decompression processor.
 ///
@@ -49,8 +25,8 @@ pub use light_sdk::compressible::CTokenSeedProvider;
 /// - has_prior_context=true: PDAs/Mints already wrote to CPI context, tokens CONSUME it
 /// - has_prior_context=false: tokens-only flow, no CPI context needed
 ///
-/// After Phase 8 refactor: V is `PackedCTokenAccountVariant` which unpacks to
-/// `CTokenAccountVariant` containing resolved seed Pubkeys. No accounts struct needed.
+/// After Phase 8 refactor: V is `PackedTokenAccountVariant` which unpacks to
+/// `TokenAccountVariant` containing resolved seed Pubkeys. No accounts struct needed.
 #[inline(never)]
 #[allow(clippy::too_many_arguments)]
 pub fn process_decompress_tokens_runtime<'info, 'a, 'b, V>(
@@ -72,29 +48,19 @@ pub fn process_decompress_tokens_runtime<'info, 'a, 'b, V>(
     program_id: &Pubkey,
 ) -> Result<(), ProgramError>
 where
-<<<<<<< HEAD:sdk-libs/token-sdk/src/compressible/decompress_runtime.rs
-    V: TokenSeedProvider<Accounts<'info> = A>,
-    A: 'info,
-=======
     V: Unpack + Copy,
-    V::Unpacked: CTokenSeedProvider,
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/compressible/decompress_runtime.rs
+    V::Unpacked: TokenSeedProvider,
 {
-    if ctoken_accounts.is_empty() {
+    if token_accounts.is_empty() {
         return Ok(());
     }
 
     let mut token_decompress_indices: Vec<
         crate::compressed_token::decompress_full::DecompressFullIndices,
-<<<<<<< HEAD:sdk-libs/token-sdk/src/compressible/decompress_runtime.rs
     > = Vec::with_capacity(token_accounts.len());
-    let mut token_signers_seed_groups: Vec<Vec<Vec<u8>>> = Vec::with_capacity(token_accounts.len());
-=======
-    > = Vec::with_capacity(ctoken_accounts.len());
     // Only program-owned tokens need signer seeds
     let mut token_signers_seed_groups: Vec<Vec<Vec<u8>>> =
-        Vec::with_capacity(ctoken_accounts.len());
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/compressible/decompress_runtime.rs
+        Vec::with_capacity(token_accounts.len());
     let packed_accounts = post_system_accounts;
 
     // CPI context usage for token decompression:
@@ -138,19 +104,12 @@ where
         }
         let owner_info = &packed_accounts[owner_index_usize];
 
-<<<<<<< HEAD:sdk-libs/token-sdk/src/compressible/decompress_runtime.rs
-        // Use trait method to get seeds (program-specific)
-        let (token_signer_seeds, derived_token_account_address) = token_data
-            .variant
-            .get_seeds(accounts_for_seeds, remaining_accounts)?;
-=======
         // Unpack the variant to get resolved seed Pubkeys
         let unpacked_variant = token_data.variant.unpack(post_system_accounts)?;
 
         // Program-owned token: use program-derived seeds
         let (ctoken_signer_seeds, derived_token_account_address) =
             unpacked_variant.get_seeds(program_id)?;
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/compressible/decompress_runtime.rs
 
         if derived_token_account_address != *owner_info.key {
             msg!(
@@ -161,13 +120,6 @@ where
             return Err(ProgramError::InvalidAccountData);
         }
 
-<<<<<<< HEAD:sdk-libs/token-sdk/src/compressible/decompress_runtime.rs
-        let seed_refs: Vec<&[u8]> = token_signer_seeds.iter().map(|s| s.as_slice()).collect();
-        let seeds_slice: &[&[u8]] = &seed_refs;
-
-        // Build CompressToPubkey from the signer seeds if bump is present
-        let compress_to_pubkey = token_signer_seeds
-=======
         // Derive the authority PDA that will own this CToken account (like cp-swap's vault_authority)
         let (_authority_seeds, derived_authority_pda) =
             unpacked_variant.get_authority_seeds(program_id)?;
@@ -178,13 +130,12 @@ where
         // Build CompressToPubkey from the token account seeds
         // This ensures compressed TokenData.owner = token account address (not authority)
         let compress_to_pubkey = ctoken_signer_seeds
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/compressible/decompress_runtime.rs
             .last()
             .and_then(|b| b.first().copied())
             .map(|bump| {
-                let seeds_without_bump: Vec<Vec<u8>> = token_signer_seeds
+                let seeds_without_bump: Vec<Vec<u8>> = ctoken_signer_seeds
                     .iter()
-                    .take(token_signer_seeds.len().saturating_sub(1))
+                    .take(ctoken_signer_seeds.len().saturating_sub(1))
                     .cloned()
                     .collect();
                 CompressToPubkey {
@@ -198,19 +149,12 @@ where
             payer: fee_payer.clone(),
             account: (*owner_info).clone(),
             mint: (*mint_info).clone(),
-<<<<<<< HEAD:sdk-libs/token-sdk/src/compressible/decompress_runtime.rs
-            owner: *authority.key,
-            compressible: crate::token::CompressibleParamsCpi {
-                compressible_config: token_config.clone(),
-                rent_sponsor: token_rent_sponsor.clone(),
-=======
             owner: derived_authority_pda, // Use derived authority PDA (like cp-swap's vault_authority)
         }
         .invoke_signed_with(
-            crate::ctoken::CompressibleParamsCpi {
-                compressible_config: ctoken_config.clone(),
-                rent_sponsor: ctoken_rent_sponsor.clone(),
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/compressible/decompress_runtime.rs
+            crate::token::CompressibleParamsCpi {
+                compressible_config: token_config.clone(),
+                rent_sponsor: token_rent_sponsor.clone(),
                 system_program: cpi_accounts
                     .system_program()
                     .map_err(|_| ProgramError::InvalidAccountData)?
@@ -241,20 +185,15 @@ where
             is_ata: false, // Program-owned token: owner is a signer (via CPI seeds)
         };
         token_decompress_indices.push(decompress_index);
-        token_signers_seed_groups.push(token_signer_seeds);
+        token_signers_seed_groups.push(ctoken_signer_seeds);
     }
 
-<<<<<<< HEAD:sdk-libs/token-sdk/src/compressible/decompress_runtime.rs
-    let token_ix =
-        crate::compressed_token::decompress_full::decompress_full_token_accounts_with_indices(
-=======
     if token_decompress_indices.is_empty() {
         return Ok(());
     }
 
     let ctoken_ix =
-        crate::compressed_token::decompress_full::decompress_full_ctoken_accounts_with_indices(
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/compressible/decompress_runtime.rs
+        crate::compressed_token::decompress_full::decompress_full_token_accounts_with_indices(
             *fee_payer.key,
             proof,
             cpi_context_pubkey,
@@ -329,20 +268,12 @@ where
         let signer_seed_slices: Vec<&[&[u8]]> =
             signer_seed_refs.iter().map(|g| g.as_slice()).collect();
 
-<<<<<<< HEAD:sdk-libs/token-sdk/src/compressible/decompress_runtime.rs
-    solana_cpi::invoke_signed(
-        &token_ix,
-        all_account_infos.as_slice(),
-        signer_seed_slices.as_slice(),
-    )?;
-=======
         solana_cpi::invoke_signed(
             &ctoken_ix,
             all_account_infos.as_slice(),
             signer_seed_slices.as_slice(),
         )?;
     }
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/compressible/decompress_runtime.rs
 
     Ok(())
 }

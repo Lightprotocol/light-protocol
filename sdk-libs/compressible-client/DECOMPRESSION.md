@@ -21,7 +21,7 @@ let instructions = decompress_cmint(&mint, fee_payer, &rpc).await?;
 ## Unified Token Data
 
 `AtaInterface` always provides `token_data` regardless of hot/cold state.
-Uses the standard `TokenData` type from `light_ctoken_sdk::compat`:
+Uses the standard `TokenData` type from `light_token_sdk::compat`:
 
 ```rust
 let ata = rpc.get_ata_interface(&mint, &owner).await?;
@@ -150,7 +150,7 @@ pub struct AtaInterface {
     pub decompression: Option<DecompressionContext>,  // If cold
 }
 
-// Standard TokenData from light_ctoken_sdk::compat (re-exported)
+// Standard TokenData from light_token_sdk::compat (re-exported)
 pub struct TokenData {
     pub mint: Pubkey,
     pub owner: Pubkey,  // Note: for ATAs, this is the ATA pubkey

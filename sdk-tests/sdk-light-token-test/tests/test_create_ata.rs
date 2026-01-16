@@ -49,7 +49,7 @@ async fn test_create_ata_invoke() {
     let config = config_pda();
     let rent_sponsor = rent_sponsor_pda();
 
-    // Account order: owner, mint, payer, ata, system_program, config, rent_sponsor, ctoken_program
+    // Account order: owner, mint, payer, ata, system_program, config, rent_sponsor, light_token_program
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
@@ -135,7 +135,7 @@ async fn test_create_ata_invoke_signed() {
     let config = config_pda();
     let rent_sponsor = rent_sponsor_pda();
 
-    // Account order: owner, mint, payer, ata, system_program, config, rent_sponsor, ctoken_program
+    // Account order: owner, mint, payer, ata, system_program, config, rent_sponsor, light_token_program
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![

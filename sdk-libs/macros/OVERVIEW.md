@@ -58,11 +58,11 @@ pub const MY_BYTES: &[u8] = b"my_bytes";    // &[u8] constant
 The macro generates:
 
 1. **`CompressedAccountVariant`** - enum with all PDA types + token variants
-2. **`CTokenAccountVariant`** - enum for token account types
+2. **`TokenAccountVariant`** - enum for token account types
 3. **`DecompressAccountsIdempotent`** - Anchor accounts struct
 4. **`CompressAccountsIdempotent`** - Anchor accounts struct
 5. **`SeedParams`** - struct for `data.*` seed fields
-6. **`CTokenSeedProvider`** impl - derives token seeds
+6. **`TokenSeedProvider`** impl - derives token seeds
 7. **`PdaSeedDerivation`** impl - derives PDA seeds
 8. **`DecompressContext`** impl - runtime decompression logic
 9. **`decompress_accounts_idempotent()`** - instruction handler
@@ -135,7 +135,7 @@ When decompressing **both PDAs and tokens** in one instruction:
 // Uses first TOKEN's tree context since tokens execute last
 let first_token_cpi_context = compressed_accounts
     .iter()
-    .find(|(acc, _)| acc.owner == C_TOKEN_PROGRAM_ID)
+    .find(|(acc, _)| acc.owner == LIGHT_TOKEN_PROGRAM_ID)
     .map(|(acc, _)| acc.tree_info.cpi_context.unwrap());
 ```
 

@@ -1,9 +1,5 @@
 //! Pack implementation for TokenData types for c-tokens.
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
-<<<<<<< HEAD:sdk-libs/token-sdk/src/pack.rs
-=======
-use light_ctoken_interface::state::TokenDataVersion;
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/pack.rs
 use light_sdk::{
     instruction::PackedAccounts,
     light_hasher::{sha256::Sha256BE, HasherError},
@@ -30,39 +26,6 @@ pub trait Unpack {
     ) -> std::result::Result<Self::Unpacked, ProgramError>;
 }
 
-<<<<<<< HEAD:sdk-libs/token-sdk/src/pack.rs
-impl Pack for TokenData {
-    type Packed = light_token_interface::instructions::transfer2::MultiTokenTransferOutputData;
-
-    fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
-        Self::Packed {
-            owner: remaining_accounts.insert_or_get(self.owner.to_bytes().into()),
-            mint: remaining_accounts.insert_or_get_read_only(self.mint.to_bytes().into()),
-            amount: self.amount,
-            has_delegate: self.delegate.is_some(),
-            delegate: if let Some(delegate) = self.delegate {
-                remaining_accounts.insert_or_get(delegate.to_bytes().into())
-            } else {
-                0
-            },
-            version: TokenDataVersion::ShaFlat as u8,
-        }
-    }
-}
-
-impl Unpack for TokenData {
-    type Unpacked = Self;
-
-    fn unpack(
-        &self,
-        _remaining_accounts: &[AccountInfo],
-    ) -> std::result::Result<Self::Unpacked, ProgramError> {
-        Ok(self.clone())
-    }
-}
-
-=======
->>>>>>> a606eb113 (wip):sdk-libs/ctoken-sdk/src/pack.rs
 /// Solana-compatible token types using `solana_pubkey::Pubkey`
 pub mod compat {
     use solana_pubkey::Pubkey;
@@ -153,7 +116,7 @@ pub mod compat {
         }
     }
 
-    impl From<TokenData> for light_ctoken_interface::state::TokenData {
+    impl From<TokenData> for light_token_interface::state::TokenData {
         fn from(data: TokenData) -> Self {
             use light_token_interface::state::CompressedTokenAccountState;
 
@@ -171,8 +134,8 @@ pub mod compat {
         }
     }
 
-    impl From<light_ctoken_interface::state::TokenData> for TokenData {
-        fn from(data: light_ctoken_interface::state::TokenData) -> Self {
+    impl From<light_token_interface::state::TokenData> for TokenData {
+        fn from(data: light_token_interface::state::TokenData) -> Self {
             Self {
                 mint: Pubkey::new_from_array(data.mint.to_bytes()),
                 owner: Pubkey::new_from_array(data.owner.to_bytes()),

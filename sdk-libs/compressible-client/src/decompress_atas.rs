@@ -27,16 +27,17 @@ use light_client::indexer::{
     CompressedTokenAccount, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer,
     IndexerError, ValidityProofWithContext,
 };
-use light_ctoken_sdk::compat::TokenData;
 use light_compressed_account::compressed_account::PackedMerkleContext;
-use light_ctoken_interface::{
+use light_sdk::instruction::PackedAccounts;
+use light_token_interface::{
     instructions::{
         extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
         transfer2::MultiInputTokenDataWithContext,
     },
     state::{ExtensionStruct, TokenDataVersion},
 };
-use light_ctoken_sdk::{
+use light_token_sdk::compat::TokenData;
+use light_token_sdk::{
     compat::AccountState,
     compressed_token::{
         transfer2::{
@@ -45,10 +46,9 @@ use light_ctoken_sdk::{
         },
         CTokenAccount2,
     },
-    ctoken::{derive_ctoken_ata, CreateAssociatedCTokenAccount},
-    error::CTokenSdkError,
+    error::TokenSdkError,
+    token::{derive_token_ata, CreateAssociatedTokenAccount},
 };
-use light_sdk::instruction::PackedAccounts;
 use solana_account::Account;
 use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
@@ -62,8 +62,8 @@ pub enum DecompressAtaError {
     #[error("Indexer error: {0}")]
     Indexer(#[from] IndexerError),
 
-    #[error("CToken SDK error: {0}")]
-    CTokenSdk(#[from] CTokenSdkError),
+    #[error("Token SDK error: {0}")]
+    TokenSdk(#[from] TokenSdkError),
 
     #[error("No state trees in proof")]
     NoStateTreesInProof,
@@ -367,11 +367,11 @@ pub fn build_decompress_token_accounts(
     for token_account in token_accounts.iter() {
         if let Some(ctx) = &token_account.decompression_context {
             // Derive ATA for destination
-            let (ata_pubkey, _) = derive_ctoken_ata(&ctx.wallet_owner, &ctx.mint);
+            let (ata_pubkey, _) = derive_token_ata(&ctx.wallet_owner, &ctx.mint);
 
             // Create ATA idempotently
             let create_ata =
-                CreateAssociatedCTokenAccount::new(fee_payer, ctx.wallet_owner, ctx.mint)
+                CreateAssociatedTokenAccount::new(fee_payer, ctx.wallet_owner, ctx.mint)
                     .idempotent()
                     .instruction()?;
             create_ata_instructions.push(create_ata);
@@ -452,10 +452,9 @@ pub fn build_decompress_atas(
     for ata in atas.iter() {
         if ata.is_cold {
             if let Some(decompression) = &ata.decompression {
-                let create_ata =
-                    CreateAssociatedCTokenAccount::new(fee_payer, ata.owner, ata.mint)
-                        .idempotent()
-                        .instruction()?;
+                let create_ata = CreateAssociatedTokenAccount::new(fee_payer, ata.owner, ata.mint)
+                    .idempotent()
+                    .instruction()?;
                 create_ata_instructions.push(create_ata);
 
                 cold_contexts.push(InternalAtaDecompressContext {
@@ -530,12 +529,12 @@ pub async fn decompress_atas_idempotent<I: Indexer>(
 
     // Phase 1: Gather compressed token accounts and prepare ATA creation
     for (mint, wallet_owner) in mint_owner_pairs {
-        let (ata_pubkey, ata_bump) = derive_ctoken_ata(wallet_owner, mint);
+        let (ata_pubkey, ata_bump) = derive_token_ata(wallet_owner, mint);
 
         // Query compressed tokens owned by this ATA
-        let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions::new(Some(
-            *mint,
-        )));
+        let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions::new(
+            Some(*mint),
+        ));
         let result = indexer
             .get_compressed_token_accounts_by_owner(&ata_pubkey, options, None)
             .await?;
@@ -546,7 +545,7 @@ pub async fn decompress_atas_idempotent<I: Indexer>(
         }
 
         // Create ATA idempotently
-        let create_ata = CreateAssociatedCTokenAccount::new(fee_payer, *wallet_owner, *mint)
+        let create_ata = CreateAssociatedTokenAccount::new(fee_payer, *wallet_owner, *mint)
             .idempotent()
             .instruction()?;
         create_ata_instructions.push(create_ata);
@@ -572,7 +571,10 @@ pub async fn decompress_atas_idempotent<I: Indexer>(
         .map(|ctx| ctx.token_account.account.hash)
         .collect();
 
-    let proof_result = indexer.get_validity_proof(hashes, vec![], None).await?.value;
+    let proof_result = indexer
+        .get_validity_proof(hashes, vec![], None)
+        .await?
+        .value;
 
     // Phase 3: Build decompress instruction
     let decompress_ix = build_batch_decompress_instruction(fee_payer, &all_accounts, proof_result)?;
@@ -643,7 +645,7 @@ fn build_batch_decompress_instruction(
 
         // Build CTokenAccount2 for decompress
         let mut ctoken_account = CTokenAccount2::new(vec![source])?;
-        ctoken_account.decompress_ctoken(token.amount, destination_index)?;
+        ctoken_account.decompress(token.amount, destination_index)?;
         token_accounts_vec.push(ctoken_account);
 
         // Build TLV for this input (CompressedOnly extension for ATAs)
@@ -706,7 +708,7 @@ mod tests {
     fn test_derive_ata() {
         let wallet = Pubkey::new_unique();
         let mint = Pubkey::new_unique();
-        let (ata, bump) = derive_ctoken_ata(&wallet, &mint);
+        let (ata, bump) = derive_token_ata(&wallet, &mint);
         assert_ne!(ata, wallet);
         assert_ne!(ata, mint);
         let _ = bump;
@@ -716,7 +718,7 @@ mod tests {
     fn test_ata_interface_is_cold() {
         let wallet = Pubkey::new_unique();
         let mint = Pubkey::new_unique();
-        let (ata, bump) = derive_ctoken_ata(&wallet, &mint);
+        let (ata, bump) = derive_token_ata(&wallet, &mint);
 
         let hot_ata = AtaInterface {
             ata,
@@ -758,7 +760,7 @@ mod tests {
     fn test_build_decompress_atas_fast_exit() {
         let wallet = Pubkey::new_unique();
         let mint = Pubkey::new_unique();
-        let (ata, bump) = derive_ctoken_ata(&wallet, &mint);
+        let (ata, bump) = derive_token_ata(&wallet, &mint);
 
         // All hot - should return empty vec
         let hot_atas = vec![AtaInterface {

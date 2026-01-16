@@ -33,16 +33,16 @@ pub struct DecompressMultipleAccountsIdempotentData<T> {
 pub struct DecompressAccountsIdempotentData<T> {
     /// Validity proof covering ALL accounts (PDAs + ATAs + Mints).
     pub proof: ValidityProof,
-    
+
     /// Program-specific compressed accounts (PDAs and program-owned tokens).
     pub compressed_accounts: Vec<CompressedAccountData<T>>,
-    
+
     /// Standard ATAs - fixed derivation, wallet signs.
     pub standard_atas: Vec<PackedStandardAtaData>,
-    
+
     /// Standard Mints - fixed derivation, no signature required.
     pub standard_mints: Vec<PackedStandardMintData>,
-    
+
     /// Offset to system accounts in remaining_accounts.
     pub system_accounts_offset: u8,
 }
@@ -113,7 +113,7 @@ pub struct PackedTokenData {
 /// Standard Mint data for client-side instruction building.
 #[derive(Clone, Debug)]
 pub struct StandardMintData {
-    /// Mint seed pubkey (derives CMint via find_cmint_address).
+    /// Mint seed pubkey (derives CMint via find_mint_address).
     pub mint_seed: Pubkey,
     /// Compressed mint with context from indexer.
     pub compressed_mint_with_context: CompressedMintWithContext,
@@ -177,7 +177,7 @@ where
     let has_program_accounts = !compressed_accounts.is_empty();
     let has_standard_atas = !standard_atas.is_empty();
     let has_standard_mints = !standard_mints.is_empty();
-    
+
     // Check ctoken accounts required
     if (has_standard_atas || has_standard_mints) {
         // Validate ctoken accounts are present
@@ -190,32 +190,32 @@ where
             ProgramError::NotEnoughAccountKeys
         })?;
     }
-    
+
     // Count types for CPI context batching
     let (has_tokens, has_pdas, has_mints) = check_account_types(&compressed_accounts);
     let has_any_tokens = has_tokens || has_standard_atas;
     let has_any_mints = has_mints || has_standard_mints;
-    
+
     let type_count = has_any_tokens as u8 + has_pdas as u8 + has_any_mints as u8;
     let needs_cpi_context = type_count >= 2;
-    
+
     // ... setup CPI accounts ...
-    
+
     // 1. Process PDAs (if any) - from compressed_accounts
-    let (compressed_pda_infos, compressed_token_accounts, program_mint_accounts) = 
+    let (compressed_pda_infos, compressed_token_accounts, program_mint_accounts) =
         ctx.collect_all_accounts(...)?;
-    
+
     if !compressed_pda_infos.is_empty() {
         // ... existing PDA processing with CPI context ...
     }
-    
+
     // 2. Process Mints (standard + program-specific)
     let all_mints: Vec<_> = standard_mints
         .into_iter()
         .map(|m| (m.into_compressed_mint_data(), m.meta))
         .chain(program_mint_accounts)
         .collect();
-    
+
     if !all_mints.is_empty() {
         process_all_mints(
             ctx,
@@ -226,7 +226,7 @@ where
             has_any_tokens,     // has_subsequent
         )?;
     }
-    
+
     // 3. Process Tokens (standard ATAs + program-specific)
     if has_any_tokens {
         process_all_tokens(
@@ -240,7 +240,7 @@ where
             program_id,
         )?;
     }
-    
+
     Ok(())
 }
 ```
@@ -273,13 +273,13 @@ pub fn process_standard_atas<'info>(
         let ata_info = packed_accounts
             .get(packed_ata.ata_destination_index as usize)
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
-        
+
         // CRITICAL: Verify wallet is signer
         if !wallet_info.is_signer {
             msg!("StandardAta: wallet must be signer: {:?}", wallet_info.key);
             return Err(ProgramError::MissingRequiredSignature);
         }
-        
+
         // Derive and verify ATA address
         let (derived_ata, bump) = derive_ctoken_ata(wallet_info.key, mint_info.key);
         if derived_ata != *ata_info.key {
@@ -289,7 +289,7 @@ pub fn process_standard_atas<'info>(
             );
             return Err(ProgramError::InvalidAccountData);
         }
-        
+
         // Verify token_data.owner matches ATA address
         let owner_info = packed_accounts
             .get(packed_ata.token_data.owner_index as usize)
@@ -301,7 +301,7 @@ pub fn process_standard_atas<'info>(
             );
             return Err(ProgramError::InvalidAccountData);
         }
-        
+
         // Create ATA (idempotent)
         CreateAssociatedCTokenAccountCpi {
             payer: fee_payer.clone(),
@@ -322,7 +322,7 @@ pub fn process_standard_atas<'info>(
             },
             idempotent: true,
         }.invoke()?;
-        
+
         // Build decompress indices
         let source = MultiInputTokenDataWithContext {
             owner: packed_ata.token_data.owner_index,
@@ -334,7 +334,7 @@ pub fn process_standard_atas<'info>(
             merkle_context: packed_ata.meta.tree_info.into(),
             root_index: packed_ata.meta.tree_info.root_index,
         };
-        
+
         // Build TLV for ATA
         let tlv = vec![ExtensionInstructionData::CompressedOnly(
             CompressedOnlyExtensionInstructionData {
@@ -347,7 +347,7 @@ pub fn process_standard_atas<'info>(
                 owner_index: packed_ata.wallet_index,
             },
         )];
-        
+
         decompress_indices.push(DecompressFullIndices {
             source,
             destination_index: packed_ata.ata_destination_index,
@@ -355,7 +355,7 @@ pub fn process_standard_atas<'info>(
             is_ata: true,
         });
     }
-    
+
     Ok(())
 }
 ```
@@ -382,17 +382,17 @@ pub fn process_standard_mints<'info>(
     if standard_mints.is_empty() {
         return Ok(());
     }
-    
+
     let mint_count = standard_mints.len();
     let last_idx = mint_count - 1;
-    
+
     let mints_only = !has_prior_context && !has_subsequent;
     let cpi_context_account = if mints_only {
         None
     } else {
         Some(cpi_accounts.cpi_context()?.clone())
     };
-    
+
     // Build system accounts once
     let system_accounts = SystemAccountInfos {
         light_system_program: cpi_accounts.get_account_info(0)?.clone(),
@@ -402,11 +402,11 @@ pub fn process_standard_mints<'info>(
         account_compression_program: cpi_accounts.account_compression_program()?.clone(),
         system_program: cpi_accounts.system_program()?.clone(),
     };
-    
+
     let state_tree = cpi_accounts.get_tree_account_info(0)?;
     let input_queue = cpi_accounts.get_tree_account_info(1)?;
     let output_queue = cpi_accounts.get_tree_account_info(2)?;
-    
+
     for (idx, packed_mint) in standard_mints.into_iter().enumerate() {
         // Get accounts from indices
         let mint_seed_info = packed_accounts
@@ -415,9 +415,9 @@ pub fn process_standard_mints<'info>(
         let cmint_info = packed_accounts
             .get(packed_mint.cmint_destination_index as usize)
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
-        
+
         // Verify CMint derivation
-        let (derived_cmint, _) = find_cmint_address(mint_seed_info.key);
+        let (derived_cmint, _) = find_mint_address(mint_seed_info.key);
         if derived_cmint != *cmint_info.key {
             msg!(
                 "StandardMint: derivation mismatch. mint_seed={:?}, expected={:?}, got={:?}",
@@ -425,10 +425,10 @@ pub fn process_standard_mints<'info>(
             );
             return Err(ProgramError::InvalidAccountData);
         }
-        
+
         if mints_only {
             // Direct execution
-            DecompressCMintCpi {
+            DecompressMintCpi {
                 mint_seed: mint_seed_info.clone(),
                 authority: fee_payer.clone(), // No authority check for decompress
                 payer: fee_payer.clone(),
@@ -449,7 +449,7 @@ pub fn process_standard_mints<'info>(
             let is_first = !has_prior_context && idx == 0;
             let is_last = idx == last_idx;
             let should_execute = is_last && !has_subsequent;
-            
+
             let cpi_ctx = if should_execute {
                 CpiContext { first_set_context: false, set_context: false, ..Default::default() }
             } else if is_first {
@@ -457,7 +457,7 @@ pub fn process_standard_mints<'info>(
             } else {
                 CpiContext { first_set_context: false, set_context: true, ..Default::default() }
             };
-            
+
             DecompressCMintCpiWithContext {
                 mint_seed: mint_seed_info.clone(),
                 authority: fee_payer.clone(),
@@ -479,7 +479,7 @@ pub fn process_standard_mints<'info>(
             }.invoke()?;
         }
     }
-    
+
     Ok(())
 }
 ```
@@ -512,15 +512,15 @@ where
     T: Pack + Clone + std::fmt::Debug,
 {
     let mut remaining_accounts = PackedAccounts::default();
-    
+
     // Determine if we need CPI context
     let has_pdas = !compressed_accounts.is_empty();
-    let has_tokens_or_atas = compressed_accounts.iter().any(|(ca, _)| ca.owner == C_TOKEN_PROGRAM_ID.into())
+    let has_tokens_or_atas = compressed_accounts.iter().any(|(ca, _)| ca.owner == LIGHT_TOKEN_PROGRAM_ID.into())
         || !standard_atas.is_empty();
     let has_mints = !standard_mints.is_empty();
-    
+
     let needs_cpi_context = (has_pdas as u8 + has_tokens_or_atas as u8 + has_mints as u8) >= 2;
-    
+
     // Setup system accounts
     if needs_cpi_context {
         let cpi_context = compressed_accounts.first()
@@ -528,7 +528,7 @@ where
             .or_else(|| standard_mints.first().map(|_| /* get from proof */))
             .ok_or("No accounts to process")?
             .0.tree_info.cpi_context.unwrap();
-        
+
         remaining_accounts.add_system_accounts_v2(
             SystemAccountMetaConfig::new_with_cpi_context(*program_id, cpi_context)
         )?;
@@ -537,49 +537,49 @@ where
             SystemAccountMetaConfig::new(*program_id)
         )?;
     }
-    
+
     // Pack output queue
     let output_queue = get_output_queue(&validity_proof_with_context.accounts[0].tree_info);
     let output_state_tree_index = remaining_accounts.insert_or_get(output_queue);
-    
+
     // Pack tree infos
     let packed_tree_infos = validity_proof_with_context.pack_tree_infos(&mut remaining_accounts);
-    
+
     // 1. Pack program-specific compressed accounts
     let mut typed_compressed_accounts = Vec::new();
     for (i, (compressed_account, data)) in compressed_accounts.iter().enumerate() {
         remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
         let tree_info = packed_tree_infos.state_trees.as_ref().unwrap().packed_tree_infos[i];
         let packed_data = data.pack(&mut remaining_accounts);
-        
+
         typed_compressed_accounts.push(CompressedAccountData {
             meta: CompressedAccountMetaNoLamportsNoAddress { tree_info, output_state_tree_index },
             data: packed_data,
         });
     }
-    
+
     // 2. Pack standard ATAs
     let mut packed_standard_atas = Vec::new();
     for ata in standard_atas {
         // Derive ATA address
         let (ata_address, _) = derive_ctoken_ata(&ata.wallet, &ata.mint);
-        
+
         // Insert accounts (wallet as signer)
         let wallet_index = remaining_accounts.insert_or_get_config(ata.wallet, true, false);
         let mint_index = remaining_accounts.insert_or_get(ata.mint);
         let ata_destination_index = remaining_accounts.insert_or_get(ata_address);
-        
+
         // Pack token data
         // CRITICAL: token_data.owner = ATA address (from compressed account)
         let owner_index = remaining_accounts.insert_or_get(ata.token_data.owner); // ATA address
         let delegate_index = ata.token_data.delegate
             .map(|d| remaining_accounts.insert_or_get(d))
             .unwrap_or(0);
-        
+
         // Get tree info for this account from validity proof
         let tree_info_idx = compressed_accounts.len() + packed_standard_atas.len();
         let tree_info = packed_tree_infos.state_trees.as_ref().unwrap().packed_tree_infos[tree_info_idx];
-        
+
         packed_standard_atas.push(PackedStandardAtaData {
             wallet_index,
             mint_index,
@@ -595,18 +595,18 @@ where
             meta: CompressedAccountMetaNoLamportsNoAddress { tree_info, output_state_tree_index },
         });
     }
-    
+
     // 3. Pack standard mints
     let mut packed_standard_mints = Vec::new();
     for mint in standard_mints {
-        let (cmint_address, _) = find_cmint_address(&mint.mint_seed);
-        
+        let (cmint_address, _) = find_mint_address(&mint.mint_seed);
+
         let mint_seed_index = remaining_accounts.insert_or_get(mint.mint_seed);
         let cmint_destination_index = remaining_accounts.insert_or_get(cmint_address);
-        
+
         let tree_info_idx = compressed_accounts.len() + packed_standard_atas.len() + packed_standard_mints.len();
         let tree_info = packed_tree_infos.state_trees.as_ref().unwrap().packed_tree_infos[tree_info_idx];
-        
+
         packed_standard_mints.push(PackedStandardMintData {
             mint_seed_index,
             cmint_destination_index,
@@ -616,29 +616,29 @@ where
             meta: CompressedAccountMetaNoLamportsNoAddress { tree_info, output_state_tree_index },
         });
     }
-    
+
     // Build accounts
     let mut accounts = program_account_metas.to_vec();
     let (system_accounts, system_accounts_offset, _) = remaining_accounts.to_account_metas();
     accounts.extend(system_accounts);
-    
+
     // Add PDA destination accounts
     for pda in decompressed_pda_addresses {
         accounts.push(AccountMeta::new(*pda, false));
     }
-    
+
     // Add ATA destination accounts
     for ata in standard_atas {
         let (ata_address, _) = derive_ctoken_ata(&ata.wallet, &ata.mint);
         accounts.push(AccountMeta::new(ata_address, false));
     }
-    
+
     // Add CMint destination accounts
     for mint in standard_mints {
-        let (cmint_address, _) = find_cmint_address(&mint.mint_seed);
+        let (cmint_address, _) = find_mint_address(&mint.mint_seed);
         accounts.push(AccountMeta::new(cmint_address, false));
     }
-    
+
     // Serialize instruction data
     let instruction_data = DecompressAccountsIdempotentData {
         proof: validity_proof_with_context.proof,
@@ -647,12 +647,12 @@ where
         standard_mints: packed_standard_mints,
         system_accounts_offset: system_accounts_offset as u8,
     };
-    
+
     let serialized = instruction_data.try_to_vec()?;
     let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
     data.extend_from_slice(&serialized);
-    
+
     Ok(Instruction {
         program_id: *program_id,
         accounts,
@@ -743,14 +743,14 @@ pub struct DecompressAccountsIdempotent<'info> {
     pub config: AccountInfo<'info>,
     #[account(mut)]
     pub rent_sponsor: AccountInfo<'info>,
-    
+
     // Required when standard ATAs or Mints present
     #[account(mut)]
     pub ctoken_rent_sponsor: Option<AccountInfo<'info>>,
     pub ctoken_config: Option<AccountInfo<'info>>,
-    pub ctoken_program: Option<AccountInfo<'info>>,
+    pub light_token_program: Option<AccountInfo<'info>>,
     pub ctoken_cpi_authority: Option<AccountInfo<'info>>,
-    
+
     // ... program-specific optional accounts ...
 }
 ```
@@ -767,7 +767,7 @@ Same as Option A:
    - `token_data.owner == ata_destination` (ATA address)
 
 2. **Standard Mint validation:**
-   - `find_cmint_address(mint_seed) == cmint_destination`
+   - `find_mint_address(mint_seed) == cmint_destination`
    - No signature required
 
 3. **Account requirements:**
@@ -794,4 +794,3 @@ Same as Option A:
 1. All existing callers must update to new instruction format
 2. Tests need to pass empty vecs for standard_atas/standard_mints if not using
 3. No backward compatibility - clean break
-

@@ -104,13 +104,13 @@ pub(crate) fn is_pubkey_type(ty: &Type) -> bool {
     }
 }
 
-/// Generates an empty CTokenAccountVariant enum.
+/// Generates an empty TokenAccountVariant enum.
 ///
 /// This is used when no token accounts are specified in compressible instructions.
 pub(crate) fn generate_empty_ctoken_enum() -> proc_macro2::TokenStream {
     quote::quote! {
         #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Debug, Clone, Copy)]
         #[repr(u8)]
-        pub enum CTokenAccountVariant {}
+        pub enum TokenAccountVariant {}
     }
 }

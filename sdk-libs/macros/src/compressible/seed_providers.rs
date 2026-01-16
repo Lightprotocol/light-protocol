@@ -12,13 +12,21 @@ fn extract_ctx_fields_from_token_spec(spec: &TokenSeedSpec) -> Vec<Ident> {
     let mut seen = std::collections::HashSet::new();
 
     // Helper to extract ctx.* from a SeedElement
-    fn extract_from_seed(seed: &SeedElement, ctx_fields: &mut Vec<Ident>, seen: &mut std::collections::HashSet<String>) {
+    fn extract_from_seed(
+        seed: &SeedElement,
+        ctx_fields: &mut Vec<Ident>,
+        seen: &mut std::collections::HashSet<String>,
+    ) {
         if let SeedElement::Expression(expr) = seed {
             extract_ctx_from_expr(expr, ctx_fields, seen);
         }
     }
 
-    fn extract_ctx_from_expr(expr: &syn::Expr, ctx_fields: &mut Vec<Ident>, seen: &mut std::collections::HashSet<String>) {
+    fn extract_ctx_from_expr(
+        expr: &syn::Expr,
+        ctx_fields: &mut Vec<Ident>,
+        seen: &mut std::collections::HashSet<String>,
+    ) {
         if let syn::Expr::Field(field_expr) = expr {
             if let syn::Member::Named(field_name) = &field_expr.member {
                 // Check for ctx.accounts.field pattern
@@ -30,7 +38,13 @@ fn extract_ctx_fields_from_token_spec(spec: &TokenSeedSpec) -> Vec<Ident> {
                                     if segment.ident == "ctx" {
                                         let field_name_str = field_name.to_string();
                                         // Skip standard fields
-                                        if !matches!(field_name_str.as_str(), "fee_payer" | "rent_sponsor" | "config" | "compression_authority") {
+                                        if !matches!(
+                                            field_name_str.as_str(),
+                                            "fee_payer"
+                                                | "rent_sponsor"
+                                                | "config"
+                                                | "compression_authority"
+                                        ) {
                                             if seen.insert(field_name_str) {
                                                 ctx_fields.push(field_name.clone());
                                             }
@@ -46,7 +60,10 @@ fn extract_ctx_fields_from_token_spec(spec: &TokenSeedSpec) -> Vec<Ident> {
                     if let Some(segment) = path.path.segments.first() {
                         if segment.ident == "ctx" {
                             let field_name_str = field_name.to_string();
-                            if !matches!(field_name_str.as_str(), "fee_payer" | "rent_sponsor" | "config" | "compression_authority") {
+                            if !matches!(
+                                field_name_str.as_str(),
+                                "fee_payer" | "rent_sponsor" | "config" | "compression_authority"
+                            ) {
                                 if seen.insert(field_name_str) {
                                     ctx_fields.push(field_name.clone());
                                 }
@@ -126,19 +143,26 @@ pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Re
 
         if ctx_fields.is_empty() {
             quote! {
-                CTokenAccountVariant::#variant_name => PackedCTokenAccountVariant::#variant_name,
+                TokenAccountVariant::#variant_name => PackedTokenAccountVariant::#variant_name,
             }
         } else {
             let field_bindings: Vec<_> = ctx_fields.iter().collect();
-            let idx_fields: Vec<_> = ctx_fields.iter().map(|f| format_ident!("{}_idx", f)).collect();
-            let pack_stmts: Vec<_> = ctx_fields.iter().zip(idx_fields.iter()).map(|(field, idx)| {
-                quote! { let #idx = remaining_accounts.insert_or_get(*#field); }
-            }).collect();
+            let idx_fields: Vec<_> = ctx_fields
+                .iter()
+                .map(|f| format_ident!("{}_idx", f))
+                .collect();
+            let pack_stmts: Vec<_> = ctx_fields
+                .iter()
+                .zip(idx_fields.iter())
+                .map(|(field, idx)| {
+                    quote! { let #idx = remaining_accounts.insert_or_get(*#field); }
+                })
+                .collect();
 
             quote! {
-                CTokenAccountVariant::#variant_name { #(#field_bindings,)* } => {
+                TokenAccountVariant::#variant_name { #(#field_bindings,)* } => {
                     #(#pack_stmts)*
-                    PackedCTokenAccountVariant::#variant_name { #(#idx_fields,)* }
+                    PackedTokenAccountVariant::#variant_name { #(#idx_fields,)* }
                 }
             }
         }
@@ -151,25 +175,32 @@ pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Re
 
         if ctx_fields.is_empty() {
             quote! {
-                PackedCTokenAccountVariant::#variant_name => Ok(CTokenAccountVariant::#variant_name),
+                PackedTokenAccountVariant::#variant_name => Ok(TokenAccountVariant::#variant_name),
             }
         } else {
-            let idx_fields: Vec<_> = ctx_fields.iter().map(|f| format_ident!("{}_idx", f)).collect();
-            let unpack_stmts: Vec<_> = ctx_fields.iter().zip(idx_fields.iter()).map(|(field, idx)| {
-                // Dereference idx since match pattern gives us &u8
-                quote! {
-                    let #field = *remaining_accounts
-                        .get(*#idx as usize)
-                        .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
-                        .key;
-                }
-            }).collect();
+            let idx_fields: Vec<_> = ctx_fields
+                .iter()
+                .map(|f| format_ident!("{}_idx", f))
+                .collect();
+            let unpack_stmts: Vec<_> = ctx_fields
+                .iter()
+                .zip(idx_fields.iter())
+                .map(|(field, idx)| {
+                    // Dereference idx since match pattern gives us &u8
+                    quote! {
+                        let #field = *remaining_accounts
+                            .get(*#idx as usize)
+                            .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+                            .key;
+                    }
+                })
+                .collect();
             let field_names: Vec<_> = ctx_fields.iter().collect();
 
             quote! {
-                PackedCTokenAccountVariant::#variant_name { #(#idx_fields,)* } => {
+                PackedTokenAccountVariant::#variant_name { #(#idx_fields,)* } => {
                     #(#unpack_stmts)*
-                    Ok(CTokenAccountVariant::#variant_name { #(#field_names,)* })
+                    Ok(TokenAccountVariant::#variant_name { #(#field_names,)* })
                 }
             }
         }
@@ -177,17 +208,17 @@ pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Re
 
     Ok(quote! {
         #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
-        pub enum CTokenAccountVariant {
+        pub enum TokenAccountVariant {
             #(#unpacked_variants)*
         }
 
         #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
-        pub enum PackedCTokenAccountVariant {
+        pub enum PackedTokenAccountVariant {
             #(#packed_variants)*
         }
 
-        impl light_ctoken_sdk::pack::Pack for CTokenAccountVariant {
-            type Packed = PackedCTokenAccountVariant;
+        impl light_token_sdk::pack::Pack for TokenAccountVariant {
+            type Packed = PackedTokenAccountVariant;
 
             fn pack(&self, remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> Self::Packed {
                 match self {
@@ -196,8 +227,8 @@ pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Re
             }
         }
 
-        impl light_ctoken_sdk::pack::Unpack for PackedCTokenAccountVariant {
-            type Unpacked = CTokenAccountVariant;
+        impl light_token_sdk::pack::Unpack for PackedTokenAccountVariant {
+            type Unpacked = TokenAccountVariant;
 
             fn unpack(
                 &self,
@@ -209,9 +240,9 @@ pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Re
             }
         }
 
-        impl light_sdk::compressible::IntoCTokenVariant<RentFreeAccountVariant, light_ctoken_sdk::compat::TokenData> for CTokenAccountVariant {
-            fn into_ctoken_variant(self, token_data: light_ctoken_sdk::compat::TokenData) -> RentFreeAccountVariant {
-                RentFreeAccountVariant::CTokenData(light_ctoken_sdk::compat::CTokenData {
+        impl light_sdk::compressible::IntoCTokenVariant<RentFreeAccountVariant, light_token_sdk::compat::TokenData> for TokenAccountVariant {
+            fn into_ctoken_variant(self, token_data: light_token_sdk::compat::TokenData) -> RentFreeAccountVariant {
+                RentFreeAccountVariant::CTokenData(light_token_sdk::compat::CTokenData {
                     variant: self,
                     token_data,
                 })
@@ -220,7 +251,7 @@ pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Re
     })
 }
 
-/// Phase 8: Generate CTokenSeedProvider impl that uses self.field instead of ctx.accounts.field
+/// Phase 8: Generate TokenSeedProvider impl that uses self.field instead of ctx.accounts.field
 pub fn generate_ctoken_seed_provider_implementation(
     token_seeds: &[TokenSeedSpec],
 ) -> Result<TokenStream> {
@@ -233,10 +264,10 @@ pub fn generate_ctoken_seed_provider_implementation(
 
         // Build match pattern with destructuring if there are ctx fields
         let pattern = if ctx_fields.is_empty() {
-            quote! { CTokenAccountVariant::#variant_name }
+            quote! { TokenAccountVariant::#variant_name }
         } else {
             let field_names: Vec<_> = ctx_fields.iter().collect();
-            quote! { CTokenAccountVariant::#variant_name { #(#field_names,)* } }
+            quote! { TokenAccountVariant::#variant_name { #(#field_names,)* } }
         };
 
         // Build seed refs for get_seeds - use self.field directly for ctx.* seeds
@@ -359,7 +390,7 @@ pub fn generate_ctoken_seed_provider_implementation(
 
     // Phase 8: New trait signature - no ctx/accounts parameter needed
     Ok(quote! {
-        impl light_sdk::compressible::CTokenSeedProvider for CTokenAccountVariant {
+        impl light_sdk::compressible::TokenSeedProvider for TokenAccountVariant {
             fn get_seeds(
                 &self,
                 program_id: &solana_pubkey::Pubkey,

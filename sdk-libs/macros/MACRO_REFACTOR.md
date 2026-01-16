@@ -42,7 +42,7 @@ From global `#[compressible(...)]`:
 - `DecompressAccountsIdempotent<'info>` with **named** seed accounts
 - `CompressAccountsIdempotent<'info>`
 - `PdaSeedDerivation` trait impls
-- `CTokenSeedProvider` trait impls
+- `TokenSeedProvider` trait impls
 - Instruction handlers
 - Client-side seed functions
 

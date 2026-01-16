@@ -95,11 +95,11 @@ pub fn generate_finalize_impl(parsed: &ParsedCompressibleStruct) -> TokenStream 
         .map(|f| quote! { #f })
         .unwrap_or_else(|| quote! { ctoken_rent_sponsor });
 
-    let ctoken_program = parsed
+    let light_token_program = parsed
         .ctoken_program_field
         .as_ref()
         .map(|f| quote! { #f })
-        .unwrap_or_else(|| quote! { ctoken_program });
+        .unwrap_or_else(|| quote! { light_token_program });
 
     let ctoken_cpi_authority = parsed
         .ctoken_cpi_authority_field
@@ -118,7 +118,7 @@ pub fn generate_finalize_impl(parsed: &ParsedCompressibleStruct) -> TokenStream 
             &compression_config,
             &ctoken_config,
             &ctoken_rent_sponsor,
-            &ctoken_program,
+            &light_token_program,
             &ctoken_cpi_authority,
         )
     } else if has_mints {
@@ -129,7 +129,7 @@ pub fn generate_finalize_impl(parsed: &ParsedCompressibleStruct) -> TokenStream 
             &fee_payer,
             &ctoken_config,
             &ctoken_rent_sponsor,
-            &ctoken_program,
+            &light_token_program,
             &ctoken_cpi_authority,
         )
     } else if has_pdas {
@@ -182,7 +182,7 @@ fn generate_pre_init_pdas_and_mints(
     compression_config: &TokenStream,
     ctoken_config: &TokenStream,
     ctoken_rent_sponsor: &TokenStream,
-    ctoken_program: &TokenStream,
+    light_token_program: &TokenStream,
     ctoken_cpi_authority: &TokenStream,
 ) -> TokenStream {
     let (compress_blocks, new_addr_idents) =
@@ -279,26 +279,23 @@ fn generate_pre_init_pdas_and_mints(
             let __tree_pubkey: solana_pubkey::Pubkey = light_sdk::light_account_checks::AccountInfoTrait::pubkey(address_tree);
 
             let mint_signer_key = self.#mint_signer.to_account_info().key;
-            let compression_address = light_ctoken_sdk::ctoken::derive_cmint_compressed_address(
-                mint_signer_key,
-                &__tree_pubkey,
-            );
-            let (mint_pda, cmint_bump) = light_ctoken_sdk::ctoken::find_cmint_address(mint_signer_key);
+            let (mint_pda, _cmint_bump) = light_token_sdk::token::find_mint_address(mint_signer_key);
 
-            let __proof: light_ctoken_sdk::CompressedProof = #params_ident.create_accounts_proof.proof.0.clone()
+            let __proof: light_token_sdk::CompressedProof = #params_ident.create_accounts_proof.proof.0.clone()
                 .expect("proof is required for mint creation");
 
             let __freeze_authority: Option<solana_pubkey::Pubkey> = #freeze_authority_tokens;
 
             // Build compressed mint instruction data
-            let compressed_mint_data = light_ctoken_interface::instructions::mint_action::CompressedMintInstructionData {
+            let compressed_mint_data = light_token_interface::instructions::mint_action::CompressedMintInstructionData {
                 supply: 0,
                 decimals: #decimals,
-                metadata: light_ctoken_interface::state::CompressedMintMetadata {
+                metadata: light_token_interface::state::CompressedMintMetadata {
                     version: 3,
                     mint: mint_pda.to_bytes().into(),
                     cmint_decompressed: false,
-                    compressed_address: compression_address,
+                    mint_signer: mint_signer_key.to_bytes(),
+                    bump: _cmint_bump,
                 },
                 mint_authority: Some((*self.#authority.to_account_info().key).to_bytes().into()),
                 freeze_authority: __freeze_authority.map(|a| a.to_bytes().into()),
@@ -306,17 +303,16 @@ fn generate_pre_init_pdas_and_mints(
             };
 
             // Build mint action instruction data with decompress
-            let mut instruction_data = light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
+            let mut instruction_data = light_token_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
                 __tree_info.root_index,
                 __proof,
                 compressed_mint_data,
             )
-            .with_decompress_mint(light_ctoken_interface::instructions::mint_action::DecompressMintAction {
-                cmint_bump,
+            .with_decompress_mint(light_token_interface::instructions::mint_action::DecompressMintAction {
                 rent_payment: #rent_payment_tokens,
                 write_top_up: #write_top_up_tokens,
             })
-            .with_cpi_context(light_ctoken_interface::instructions::mint_action::CpiContext {
+            .with_cpi_context(light_token_interface::instructions::mint_action::CpiContext {
                 address_tree_pubkey: __tree_pubkey.to_bytes(),
                 set_context: false,
                 first_set_context: false, // PDAs already wrote to context
@@ -331,14 +327,14 @@ fn generate_pre_init_pdas_and_mints(
             });
 
             // Build account metas with compressible CMint
-            let mut meta_config = light_ctoken_sdk::compressed_token::mint_action::MintActionMetaConfig::new_create_mint(
+            let mut meta_config = light_token_sdk::compressed_token::mint_action::MintActionMetaConfig::new_create_mint(
                 *self.#fee_payer.to_account_info().key,
                 *self.#authority.to_account_info().key,
                 *mint_signer_key,
                 __tree_pubkey,
                 *output_queue.key,
             )
-            .with_compressible_cmint(
+            .with_compressible_mint(
                 mint_pda,
                 *self.#ctoken_config.to_account_info().key,
                 *self.#ctoken_rent_sponsor.to_account_info().key,
@@ -353,7 +349,7 @@ fn generate_pre_init_pdas_and_mints(
                 .map_err(|e| light_sdk::error::LightSdkError::Borsh)?;
 
             let mint_action_ix = anchor_lang::solana_program::instruction::Instruction {
-                program_id: solana_pubkey::Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+                program_id: solana_pubkey::Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
                 accounts: account_metas,
                 data: ix_data,
             };
@@ -362,7 +358,7 @@ fn generate_pre_init_pdas_and_mints(
             // Include all accounts needed for mint_action with decompress
             let mut account_infos = cpi_accounts.to_account_infos();
             // Add ctoken-specific accounts that aren't in the Light System CPI accounts
-            account_infos.push(self.#ctoken_program.to_account_info());
+            account_infos.push(self.#light_token_program.to_account_info());
             account_infos.push(self.#ctoken_cpi_authority.to_account_info());
             account_infos.push(self.#mint_field_ident.to_account_info());
             account_infos.push(self.#ctoken_config.to_account_info());
@@ -393,7 +389,7 @@ fn generate_pre_init_mints_only(
     fee_payer: &TokenStream,
     ctoken_config: &TokenStream,
     ctoken_rent_sponsor: &TokenStream,
-    ctoken_program: &TokenStream,
+    light_token_program: &TokenStream,
     ctoken_cpi_authority: &TokenStream,
 ) -> TokenStream {
     // Get the first mint (we only support one mint currently)
@@ -448,26 +444,23 @@ fn generate_pre_init_mints_only(
             let __tree_pubkey: solana_pubkey::Pubkey = light_sdk::light_account_checks::AccountInfoTrait::pubkey(address_tree);
 
             let mint_signer_key = self.#mint_signer.to_account_info().key;
-            let compression_address = light_ctoken_sdk::ctoken::derive_cmint_compressed_address(
-                mint_signer_key,
-                &__tree_pubkey,
-            );
-            let (mint_pda, cmint_bump) = light_ctoken_sdk::ctoken::find_cmint_address(mint_signer_key);
+            let (mint_pda, _cmint_bump) = light_token_sdk::token::find_mint_address(mint_signer_key);
 
-            let __proof: light_ctoken_sdk::CompressedProof = #params_ident.create_accounts_proof.proof.0.clone()
+            let __proof: light_token_sdk::CompressedProof = #params_ident.create_accounts_proof.proof.0.clone()
                 .expect("proof is required for mint creation");
 
             let __freeze_authority: Option<solana_pubkey::Pubkey> = #freeze_authority_tokens;
 
             // Build compressed mint instruction data
-            let compressed_mint_data = light_ctoken_interface::instructions::mint_action::CompressedMintInstructionData {
+            let compressed_mint_data = light_token_interface::instructions::mint_action::CompressedMintInstructionData {
                 supply: 0,
                 decimals: #decimals,
-                metadata: light_ctoken_interface::state::CompressedMintMetadata {
+                metadata: light_token_interface::state::CompressedMintMetadata {
                     version: 3,
                     mint: mint_pda.to_bytes().into(),
                     cmint_decompressed: false,
-                    compressed_address: compression_address,
+                    mint_signer: mint_signer_key.to_bytes(),
+                    bump: _cmint_bump,
                 },
                 mint_authority: Some((*self.#authority.to_account_info().key).to_bytes().into()),
                 freeze_authority: __freeze_authority.map(|a| a.to_bytes().into()),
@@ -475,26 +468,25 @@ fn generate_pre_init_mints_only(
             };
 
             // Build mint action instruction data with decompress (no CPI context)
-            let instruction_data = light_ctoken_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
+            let instruction_data = light_token_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
                 __tree_info.root_index,
                 __proof,
                 compressed_mint_data,
             )
-            .with_decompress_mint(light_ctoken_interface::instructions::mint_action::DecompressMintAction {
-                cmint_bump,
+            .with_decompress_mint(light_token_interface::instructions::mint_action::DecompressMintAction {
                 rent_payment: #rent_payment_tokens,
                 write_top_up: #write_top_up_tokens,
             });
 
             // Build account metas with compressible CMint
-            let meta_config = light_ctoken_sdk::compressed_token::mint_action::MintActionMetaConfig::new_create_mint(
+            let meta_config = light_token_sdk::compressed_token::mint_action::MintActionMetaConfig::new_create_mint(
                 *self.#fee_payer.to_account_info().key,
                 *self.#authority.to_account_info().key,
                 *mint_signer_key,
                 __tree_pubkey,
                 *output_queue.key,
             )
-            .with_compressible_cmint(
+            .with_compressible_mint(
                 mint_pda,
                 *self.#ctoken_config.to_account_info().key,
                 *self.#ctoken_rent_sponsor.to_account_info().key,
@@ -507,7 +499,7 @@ fn generate_pre_init_mints_only(
                 .map_err(|e| light_sdk::error::LightSdkError::Borsh)?;
 
             let mint_action_ix = anchor_lang::solana_program::instruction::Instruction {
-                program_id: solana_pubkey::Pubkey::new_from_array(light_ctoken_interface::CTOKEN_PROGRAM_ID),
+                program_id: solana_pubkey::Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
                 accounts: account_metas,
                 data: ix_data,
             };
@@ -515,7 +507,7 @@ fn generate_pre_init_mints_only(
             // Build account infos and invoke
             let mut account_infos = cpi_accounts.to_account_infos();
             // Add ctoken-specific accounts
-            account_infos.push(self.#ctoken_program.to_account_info());
+            account_infos.push(self.#light_token_program.to_account_info());
             account_infos.push(self.#ctoken_cpi_authority.to_account_info());
             account_infos.push(self.#mint_field_ident.to_account_info());
             account_infos.push(self.#ctoken_config.to_account_info());

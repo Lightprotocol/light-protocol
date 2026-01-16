@@ -10,9 +10,9 @@ All phases implemented and tested, including Phase 8 CToken seed refactor. See `
 
 ### Phase 8 Key Changes
 
-- `CTokenAccountVariant` now has struct variants with Pubkey fields for seeds
-- `PackedCTokenAccountVariant` has struct variants with u8 idx fields
-- `CTokenSeedProvider` trait no longer requires accounts struct parameter
+- `TokenAccountVariant` now has struct variants with Pubkey fields for seeds
+- `PackedTokenAccountVariant` has struct variants with u8 idx fields
+- `TokenSeedProvider` trait no longer requires accounts struct parameter
 - `DecompressAccountsIdempotent` no longer needs named seed accounts
 - All seed resolution happens via variant idx fields and `post_system_accounts`
 
@@ -197,7 +197,7 @@ pub fn decompress_accounts_idempotent_new<V>(
 From `csdk-anchor-full-derived-test/tests/basic_test.rs`:
 
 ```rust
-use csdk_anchor_full_derived_test::{CTokenAccountVariant, CompressedAccountVariant};
+use csdk_anchor_full_derived_test::{TokenAccountVariant, CompressedAccountVariant};
 use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
     GameSessionSeeds, UserRecordSeeds,  // NO SeedParams needed
 };
@@ -265,8 +265,8 @@ let game_variant = CompressedAccountVariant::game_session(
     },
 ).expect("GameSession seed verification failed");
 
-let vault_ctoken_data = light_ctoken_sdk::compat::CTokenData {
-    variant: CTokenAccountVariant::Vault,
+let vault_ctoken_data = light_token_sdk::compat::CTokenData {
+    variant: TokenAccountVariant::Vault,
     token_data: compressed_vault.token.clone(),
 };
 
@@ -524,12 +524,12 @@ cargo test-sbf -p csdk-anchor-full-derived-test
 
 ```
 Client:
-  CTokenAccountVariant::Vault  // No fields - just an enum tag
+  TokenAccountVariant::Vault  // No fields - just an enum tag
   + TokenData { owner, mint, amount }
   → Pack: variant just CLONED (no packing)
 
 On-chain:
-  CTokenSeedProvider::get_seeds(ctx.accounts, remaining_accounts)
+  TokenSeedProvider::get_seeds(ctx.accounts, remaining_accounts)
     → ctx.accounts.cmint.as_ref()?.key()  // READS FROM NAMED ACCOUNT!
     → derive PDA with ["vault", cmint]
 ```
@@ -540,13 +540,13 @@ On-chain:
 
 ```
 Client:
-  CTokenAccountVariant::Vault { cmint: Pubkey }  // HAS SEED FIELD!
+  TokenAccountVariant::Vault { cmint: Pubkey }  // HAS SEED FIELD!
   + TokenData { owner, mint, amount }
   → Pack: variant.cmint → cmint_idx (pushed to remaining_accounts)
 
 On-chain:
   Unpack: cmint_idx → post_system_accounts[cmint_idx].key → cmint Pubkey
-  CTokenSeedProvider::get_seeds(program_id)
+  TokenSeedProvider::get_seeds(program_id)
     → self.cmint  // READS FROM VARIANT DIRECTLY!
     → derive PDA with ["vault", cmint]
 ```
@@ -557,25 +557,25 @@ On-chain:
 
 ```rust
 // Unpacked (client-side, with Pubkeys)
-pub enum CTokenAccountVariant {
+pub enum TokenAccountVariant {
     Vault { cmint: Pubkey },
     UserAta { owner: Pubkey, cmint: Pubkey },  // If defined
 }
 
 // Packed (wire format, with indices)
-pub enum PackedCTokenAccountVariant {
+pub enum PackedTokenAccountVariant {
     Vault { cmint_idx: u8 },
     UserAta { owner_idx: u8, cmint_idx: u8 },
 }
 
 // Pack impl
-impl Pack for CTokenAccountVariant {
-    type Packed = PackedCTokenAccountVariant;
+impl Pack for TokenAccountVariant {
+    type Packed = PackedTokenAccountVariant;
 
     fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
         match self {
-            CTokenAccountVariant::Vault { cmint } => {
-                PackedCTokenAccountVariant::Vault {
+            TokenAccountVariant::Vault { cmint } => {
+                PackedTokenAccountVariant::Vault {
                     cmint_idx: remaining_accounts.insert_or_get(*cmint),
                 }
             }
@@ -584,13 +584,13 @@ impl Pack for CTokenAccountVariant {
 }
 
 // Unpack impl
-impl Unpack for PackedCTokenAccountVariant {
-    type Unpacked = CTokenAccountVariant;
+impl Unpack for PackedTokenAccountVariant {
+    type Unpacked = TokenAccountVariant;
 
     fn unpack(&self, remaining_accounts: &[AccountInfo]) -> Result<Self::Unpacked> {
         match self {
-            PackedCTokenAccountVariant::Vault { cmint_idx } => {
-                Ok(CTokenAccountVariant::Vault {
+            PackedTokenAccountVariant::Vault { cmint_idx } => {
+                Ok(TokenAccountVariant::Vault {
                     cmint: *remaining_accounts[*cmint_idx as usize].key,
                 })
             }
@@ -599,11 +599,11 @@ impl Unpack for PackedCTokenAccountVariant {
 }
 ```
 
-### CTokenSeedProvider Trait Change
+### TokenSeedProvider Trait Change
 
 ```rust
 // BEFORE (requires accounts struct)
-pub trait CTokenSeedProvider: Copy {
+pub trait TokenSeedProvider: Copy {
     type Accounts<'info>;
 
     fn get_seeds<'a, 'info>(
@@ -614,19 +614,19 @@ pub trait CTokenSeedProvider: Copy {
 }
 
 // AFTER (self-contained)
-pub trait CTokenSeedProvider: Copy {
+pub trait TokenSeedProvider: Copy {
     fn get_seeds(&self, program_id: &Pubkey) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
     fn get_authority_seeds(&self, program_id: &Pubkey) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
 }
 ```
 
-### Generated CTokenSeedProvider impl
+### Generated TokenSeedProvider impl
 
 ```rust
-impl CTokenSeedProvider for CTokenAccountVariant {
+impl TokenSeedProvider for TokenAccountVariant {
     fn get_seeds(&self, program_id: &Pubkey) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError> {
         match self {
-            CTokenAccountVariant::Vault { cmint } => {
+            TokenAccountVariant::Vault { cmint } => {
                 // cmint is already resolved Pubkey from variant!
                 let seeds: &[&[u8]] = &[b"vault", cmint.as_ref()];
                 let (pda, bump) = Pubkey::find_program_address(seeds, program_id);
@@ -649,10 +649,10 @@ pub struct DecompressAccountsIdempotent<'info> {
     pub rent_sponsor: UncheckedAccount<'info>,
     // CToken static accounts
     pub ctoken_rent_sponsor: Option<AccountInfo<'info>>,
-    pub ctoken_program: Option<UncheckedAccount<'info>>,
+    pub light_token_program: Option<UncheckedAccount<'info>>,
     pub ctoken_cpi_authority: Option<UncheckedAccount<'info>>,
     pub ctoken_config: Option<UncheckedAccount<'info>>,
-    // SEED ACCOUNTS (needed by CTokenSeedProvider)
+    // SEED ACCOUNTS (needed by TokenSeedProvider)
     pub authority: Option<UncheckedAccount<'info>>,
     pub mint_authority: Option<UncheckedAccount<'info>>,
     pub user: Option<UncheckedAccount<'info>>,
@@ -667,7 +667,7 @@ pub struct DecompressAccountsIdempotent<'info> {
     pub rent_sponsor: UncheckedAccount<'info>,
     // CToken static accounts
     pub ctoken_rent_sponsor: Option<AccountInfo<'info>>,
-    pub ctoken_program: Option<UncheckedAccount<'info>>,
+    pub light_token_program: Option<UncheckedAccount<'info>>,
     pub ctoken_cpi_authority: Option<UncheckedAccount<'info>>,
     pub ctoken_config: Option<UncheckedAccount<'info>>,
     // NO SEED ACCOUNTS - they're in the variant!
@@ -678,7 +678,7 @@ pub struct DecompressAccountsIdempotent<'info> {
 
 ```rust
 // Construct CToken variant with seed pubkeys
-let vault_variant = CTokenAccountVariant::Vault { cmint: cmint_pda };
+let vault_variant = TokenAccountVariant::Vault { cmint: cmint_pda };
 let ctoken_data = CTokenData {
     variant: vault_variant,
     token_data: compressed_vault.token.clone(),
@@ -699,7 +699,7 @@ let decompress_instruction = compressible_instruction::decompress_accounts_idemp
 
 ```rust
 /// Returns program account metas for decompress_accounts_idempotent with CToken support.
-/// Includes ctoken_rent_sponsor, ctoken_program, ctoken_cpi_authority, ctoken_config.
+/// Includes ctoken_rent_sponsor, light_token_program, ctoken_cpi_authority, ctoken_config.
 pub fn accounts(fee_payer: Pubkey, config: Pubkey, rent_sponsor: Pubkey) -> Vec<AccountMeta>;
 
 /// Returns program account metas for PDA-only decompression (no CToken accounts).
@@ -711,8 +711,8 @@ pub fn accounts_pda_only(fee_payer: Pubkey, config: Pubkey, rent_sponsor: Pubkey
 | File                                                | Changes                                            |
 | --------------------------------------------------- | -------------------------------------------------- |
 | `ctoken-sdk/src/pack.rs`                            | Add Pack bound to V, use V::Packed for packed type |
-| `sdk/src/compressible/decompress_runtime.rs`        | Update CTokenSeedProvider trait signature          |
-| `macros/src/compressible/variant_enum.rs`           | Generate CTokenAccountVariant with struct fields   |
+| `sdk/src/compressible/decompress_runtime.rs`        | Update TokenSeedProvider trait signature           |
+| `macros/src/compressible/variant_enum.rs`           | Generate TokenAccountVariant with struct fields    |
 | `macros/src/compressible/seed_providers.rs`         | Update get_seeds to use self.field                 |
 | `macros/src/compressible/instructions.rs`           | Remove seed account fields from Accounts struct    |
 | `ctoken-sdk/src/compressible/decompress_runtime.rs` | Update process_decompress_tokens_runtime           |
@@ -724,7 +724,7 @@ pub fn accounts_pda_only(fee_payer: Pubkey, config: Pubkey, rent_sponsor: Pubkey
 │                              CLIENT SIDE                                    │
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  CTokenAccountVariant::Vault { cmint: cmint_pda }                          │
+│  TokenAccountVariant::Vault { cmint: cmint_pda }                          │
 │  + TokenData { owner, mint, amount }                                        │
 │  = CTokenData { variant, token_data }                                       │
 │                              │                                              │
@@ -753,7 +753,7 @@ pub fn accounts_pda_only(fee_payer: Pubkey, config: Pubkey, rent_sponsor: Pubkey
 │  = CTokenData { variant: Vault { cmint }, token_data }                     │
 │                              │                                              │
 │                              ▼                                              │
-│  CTokenSeedProvider::get_seeds(program_id)                                  │
+│  TokenSeedProvider::get_seeds(program_id)                                  │
 │    match self {                                                             │
 │      Vault { cmint } => seeds = ["vault", cmint.as_ref()]                  │
 │    }                                                                        │
@@ -769,7 +769,7 @@ pub fn accounts_pda_only(fee_payer: Pubkey, config: Pubkey, rent_sponsor: Pubkey
 ### Implementation Steps
 
 1. **Update SDK trait** (`sdk/src/compressible/decompress_runtime.rs`):
-   - Change `CTokenSeedProvider` signature to not require `accounts` param
+   - Change `TokenSeedProvider` signature to not require `accounts` param
 
 2. **Update ctoken-sdk Pack** (`ctoken-sdk/src/pack.rs`):
    - Add `Pack` trait bound to `V` in `CTokenDataWithVariant<V>`
@@ -777,8 +777,8 @@ pub fn accounts_pda_only(fee_payer: Pubkey, config: Pubkey, rent_sponsor: Pubkey
 
 3. **Generate CToken variant enums** (`variant_enum.rs`):
    - Parse token_seeds to extract ctx.\* fields
-   - Generate `CTokenAccountVariant` with struct variants (Pubkeys)
-   - Generate `PackedCTokenAccountVariant` with struct variants (indices)
+   - Generate `TokenAccountVariant` with struct variants (Pubkeys)
+   - Generate `PackedTokenAccountVariant` with struct variants (indices)
    - Generate Pack/Unpack impls
 
 4. **Update seed provider generation** (`seed_providers.rs`):
@@ -788,5 +788,5 @@ pub fn accounts_pda_only(fee_payer: Pubkey, config: Pubkey, rent_sponsor: Pubkey
    - Remove seed account fields from `DecompressAccountsIdempotent`
 
 6. **Update tests** (`basic_test.rs`):
-   - Construct `CTokenAccountVariant::Vault { cmint }` with Pubkey
+   - Construct `TokenAccountVariant::Vault { cmint }` with Pubkey
    - Remove seed accounts from instruction building

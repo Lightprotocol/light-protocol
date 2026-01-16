@@ -41,7 +41,7 @@ pub fn process_create_token_account_invoke(
     );
 
     // Build the account infos struct and invoke with custom compressible params
-    CreateCTokenAccountCpi {
+    CreateTokenAccountCpi {
         payer: accounts[0].clone(),
         account: accounts[1].clone(),
         mint: accounts[2].clone(),
@@ -86,7 +86,7 @@ pub fn process_create_token_account_invoke_signed(
 
     // Invoke with PDA signing and custom compressible params
     let signer_seeds: &[&[u8]] = &[TOKEN_ACCOUNT_SEED, &[bump]];
-    CreateCTokenAccountCpi {
+    CreateTokenAccountCpi {
         payer: accounts[0].clone(),
         account: accounts[1].clone(),
         mint: accounts[2].clone(),

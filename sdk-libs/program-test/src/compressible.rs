@@ -52,7 +52,7 @@ fn extract_compression_info(data: &[u8]) -> Option<(CompressionInfo, u8, bool)> 
 
     match account_type {
         ACCOUNT_TYPE_TOKEN_ACCOUNT => {
-            let (ctoken, _) = CToken::zero_copy_at(data).ok()?;
+            let (ctoken, _) = Token::zero_copy_at(data).ok()?;
             let ext = ctoken.get_compressible_extension()?;
 
             let compression_info = CompressionInfo {
@@ -414,14 +414,14 @@ async fn compress_cmint_forester(
     use light_client::indexer::Indexer;
     use light_compressed_account::instruction_data::traits::LightInstructionData;
     use light_compressible::config::CompressibleConfig;
-    use light_ctoken_interface::{
+    use light_token_interface::{
         instructions::mint_action::{
             CompressAndCloseCMintAction, CompressedMintWithContext,
             MintActionCompressedInstructionData,
         },
-        CTOKEN_PROGRAM_ID,
+        LIGHT_TOKEN_PROGRAM_ID,
     };
-    use light_ctoken_sdk::compressed_token::mint_action::MintActionMetaConfig;
+    use light_token_sdk::compressed_token::mint_action::MintActionMetaConfig;
     use solana_sdk::signature::Signer;
 
     // Get CMint account data
@@ -434,7 +434,7 @@ async fn compress_cmint_forester(
         BorshDeserialize::deserialize(&mut cmint_account.data.as_slice())
             .map_err(|e| RpcError::CustomError(format!("Failed to deserialize CMint: {:?}", e)))?;
 
-    let compressed_mint_address = cmint.metadata.compressed_address;
+    let compressed_mint_address = cmint.metadata.compressed_address();
     let rent_sponsor = Pubkey::from(cmint.compression.rent_sponsor);
 
     // Get the compressed mint account from indexer
@@ -479,7 +479,7 @@ async fn compress_cmint_forester(
     let state_tree_info = rpc_proof_result.accounts[0].tree_info;
 
     // Build account metas - authority can be anyone for permissionless CompressAndCloseCMint
-    let config_address = CompressibleConfig::ctoken_v1_config_pda();
+    let config_address = CompressibleConfig::light_token_v1_config_pda();
     let meta_config = MintActionMetaConfig::new(
         payer.pubkey(),
         payer.pubkey(), // authority doesn't matter for CompressAndCloseCMint
@@ -487,7 +487,7 @@ async fn compress_cmint_forester(
         state_tree_info.queue,
         state_tree_info.queue,
     )
-    .with_compressible_cmint(cmint_pubkey, config_address, rent_sponsor);
+    .with_compressible_mint(cmint_pubkey, config_address, rent_sponsor);
 
     let account_metas = meta_config.to_account_metas();
 
@@ -498,7 +498,7 @@ async fn compress_cmint_forester(
 
     // Build instruction
     let instruction = solana_instruction::Instruction {
-        program_id: Pubkey::from(CTOKEN_PROGRAM_ID),
+        program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
         accounts: account_metas,
         data,
     };

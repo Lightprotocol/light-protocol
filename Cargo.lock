@@ -3688,9 +3688,9 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressible",
- "light-ctoken-interface",
- "light-ctoken-sdk",
  "light-sdk",
+ "light-token-interface",
+ "light-token-sdk",
  "solana-account",
  "solana-instruction",
  "solana-program",
@@ -6012,7 +6012,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdk-ctoken-test"
+name = "sdk-light-token-test"
 version = "0.1.0"
 dependencies = [
  "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",

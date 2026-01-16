@@ -3,7 +3,6 @@ use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_compressible_client::{
     get_create_accounts_proof, CreateAccountsProofInput, InitializeRentFreeConfig,
 };
-use light_ctoken_sdk::compressed_token::create_compressed_mint::find_cmint_address;
 use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
@@ -17,6 +16,7 @@ use light_token_interface::{
 use light_token_sdk::compressed_token::create_compressed_mint::{
     derive_mint_compressed_address, find_mint_address,
 };
+use light_token_sdk::token::find_mint_address as find_cmint_address;
 use light_token_types::CPI_AUTHORITY_PDA;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
@@ -32,8 +32,9 @@ const RENT_SPONSOR: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcA
 async fn test_create_pdas_and_mint_auto() {
     use csdk_anchor_full_derived_test::instruction_accounts::{LP_MINT_SIGNER_SEED, VAULT_SEED};
     use csdk_anchor_full_derived_test::FullAutoWithMintParams;
-    use light_ctoken_sdk::ctoken::{
-        get_associated_ctoken_address_and_bump, CToken, COMPRESSIBLE_CONFIG_V1,
+    use light_token_interface::state::Token;
+    use light_token_sdk::token::{
+        get_associated_token_address_and_bump, COMPRESSIBLE_CONFIG_V1,
         RENT_SPONSOR as CTOKEN_RENT_SPONSOR,
     };
 
@@ -45,7 +46,7 @@ async fn test_create_pdas_and_mint_auto() {
         let acc = rpc.get_account(*pda).await.unwrap();
         assert!(acc.is_none() || acc.unwrap().lamports == 0);
     }
-    fn parse_ctoken(data: &[u8]) -> CToken {
+    fn parse_token(data: &[u8]) -> Token {
         borsh::BorshDeserialize::deserialize(&mut &data[..]).unwrap()
     }
     async fn assert_compressed_exists_with_data(rpc: &mut LightProgramTest, addr: [u8; 32]) {
@@ -117,7 +118,7 @@ async fn test_create_pdas_and_mint_auto() {
         Pubkey::find_program_address(&[VAULT_SEED, cmint_pda.as_ref()], &program_id);
     let (vault_authority_pda, _) = Pubkey::find_program_address(&[b"vault_authority"], &program_id);
     let (user_ata_pda, user_ata_bump) =
-        get_associated_ctoken_address_and_bump(&payer.pubkey(), &cmint_pda);
+        get_associated_token_address_and_bump(&payer.pubkey(), &cmint_pda);
 
     let (user_record_pda, _) = Pubkey::find_program_address(
         &[
@@ -166,7 +167,7 @@ async fn test_create_pdas_and_mint_auto() {
         &program_id.to_bytes(),
     );
     let mint_compressed_address =
-        light_ctoken_sdk::compressed_token::create_compressed_mint::derive_cmint_compressed_address(
+        light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
             &mint_signer_pda,
             &address_tree_pubkey,
         );
@@ -185,8 +186,8 @@ async fn test_create_pdas_and_mint_auto() {
         compression_config: config_pda,
         ctoken_compressible_config: COMPRESSIBLE_CONFIG_V1,
         ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
-        ctoken_program: C_TOKEN_PROGRAM_ID.into(),
-        ctoken_cpi_authority: light_ctoken_types::CPI_AUTHORITY_PDA.into(),
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
+        ctoken_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -231,11 +232,11 @@ async fn test_create_pdas_and_mint_auto() {
     assert_onchain_exists(&mut rpc, &user_ata_pda).await;
 
     // Parse and verify CToken data
-    let vault_data = parse_ctoken(&rpc.get_account(vault_pda).await.unwrap().unwrap().data);
+    let vault_data = parse_token(&rpc.get_account(vault_pda).await.unwrap().unwrap().data);
     assert_eq!(vault_data.owner, vault_authority_pda.to_bytes());
     assert_eq!(vault_data.amount, vault_mint_amount);
 
-    let user_ata_data = parse_ctoken(&rpc.get_account(user_ata_pda).await.unwrap().unwrap().data);
+    let user_ata_data = parse_token(&rpc.get_account(user_ata_pda).await.unwrap().unwrap().data);
     assert_eq!(user_ata_data.owner, payer.pubkey().to_bytes());
     assert_eq!(user_ata_data.amount, user_ata_mint_amount);
 
@@ -270,7 +271,7 @@ async fn test_create_pdas_and_mint_auto() {
 
     // PHASE 3: Decompress PDAs + vault via build_decompress_idempotent
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
-        CTokenAccountVariant, GameSessionSeeds, UserRecordSeeds,
+        GameSessionSeeds, TokenAccountVariant, UserRecordSeeds,
     };
     use light_compressible_client::{
         compressible_instruction, AccountInterface, RentFreeDecompressAccount,
@@ -338,7 +339,7 @@ async fn test_create_pdas_and_mint_auto() {
         .expect("GameSession seed verification failed"),
         RentFreeDecompressAccount::from_ctoken(
             AccountInterface::cold(vault_pda, compressed_vault.account.clone()),
-            CTokenAccountVariant::Vault { cmint: cmint_pda },
+            TokenAccountVariant::Vault { cmint: cmint_pda },
         )
         .expect("CToken variant construction failed"),
     ];
@@ -364,7 +365,7 @@ async fn test_create_pdas_and_mint_auto() {
 
     // Assert vault is back on-chain with correct balance
     assert_onchain_exists(&mut rpc, &vault_pda).await;
-    let vault_after = parse_ctoken(&rpc.get_account(vault_pda).await.unwrap().unwrap().data);
+    let vault_after = parse_token(&rpc.get_account(vault_pda).await.unwrap().unwrap().data);
     assert_eq!(vault_after.amount, vault_mint_amount);
 
     // Verify compressed vault token is consumed (no more compressed token accounts for vault)
@@ -425,7 +426,7 @@ async fn test_create_pdas_and_mint_auto() {
 
     // Assert user ATA is back on-chain with correct balance
     assert_onchain_exists(&mut rpc, &user_ata_pda).await;
-    let user_ata_after = parse_ctoken(&rpc.get_account(user_ata_pda).await.unwrap().unwrap().data);
+    let user_ata_after = parse_token(&rpc.get_account(user_ata_pda).await.unwrap().unwrap().data);
     assert_eq!(user_ata_after.amount, user_ata_mint_amount);
 
     // Verify idempotency: calling again should return empty vec

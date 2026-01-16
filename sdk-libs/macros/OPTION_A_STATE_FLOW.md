@@ -39,11 +39,11 @@ Option A adds `StandardAta` and `PackedStandardAta` variants to the macro-genera
                +-------------+       +-------------+       +-------------+
                        |                     |                     |
                        v                     v                     v
-               derive seeds         derive_ctoken_ata    find_cmint_address
+               derive seeds         derive_ctoken_ata    find_mint_address
                from variant         (wallet, mint)       (mint_seed)
                        |                     |                     |
                        v                     v                     v
-               CreateCToken         CreateAssociated     DecompressCMint
+               CreateCToken         CreateAssociated     DecompressMint
                AccountCpi           CTokenAccountCpi     Cpi
                (invoke_signed)      (invoke - wallet     (invoke)
                                      signs tx)
@@ -76,7 +76,7 @@ Option A adds `StandardAta` and `PackedStandardAta` variants to the macro-genera
     wallet must be TX signer             program signs via CPI
            |                                     |
            v                                     v
-    CreateAssociatedCTokenAccountCpi     CreateCTokenAccountCpi
+    CreateAssociatedCTokenAccountCpi     CreateTokenAccountCpi
     .invoke() - no program signer        .invoke_signed(&[seeds])
 ```
 
@@ -185,14 +185,14 @@ pub enum CompressedAccountVariant {
     PackedUserRecord(PackedUserRecord),
     GameSession(GameSession),
     PackedGameSession(PackedGameSession),
-    
+
     // === Token variants (macro-generated) ===
-    PackedCTokenData(PackedCTokenData<CTokenAccountVariant>),
-    CTokenData(CTokenData<CTokenAccountVariant>),
-    
+    PackedCTokenData(PackedCTokenData<TokenAccountVariant>),
+    CTokenData(CTokenData<TokenAccountVariant>),
+
     // === Mint variant (existing) ===
     CompressedMint(CompressedMintData),
-    
+
     // === NEW: Standard ATA variants (always present) ===
     StandardAta(StandardAtaData),
     PackedStandardAta(PackedStandardAtaData),
@@ -209,27 +209,27 @@ pub enum CompressedAccountVariant {
    Case 1: Single Type (no CPI context)
    ------------------------------------
    PDAs only:   LightSystemProgramCpi.invoke()
-   Mints only:  DecompressCMintCpi.invoke()
+   Mints only:  DecompressMintCpi.invoke()
    Tokens only: Transfer2 CPI invoke()
 
    Case 2: Multi-Type (with CPI context batching)
    ----------------------------------------------
-   
+
    PDAs      Mints     Tokens     CPI Context Action
    ----      -----     ------     ------------------
    Yes       No        No         execute directly (no context)
-   No        Yes       No         execute directly (no context)  
+   No        Yes       No         execute directly (no context)
    No        No        Yes        execute directly (no context)
-   
+
    Yes       Yes       No         PDAs: first_set_context
                                   Mints: execute (consume)
-   
+
    Yes       No        Yes        PDAs: first_set_context
                                   Tokens: execute (consume)
-   
+
    No        Yes       Yes        Mints: first_set_context
                                   Tokens: execute (consume)
-   
+
    Yes       Yes       Yes        PDAs: first_set_context
                                   Mints: set_context
                                   Tokens: execute (consume)
@@ -247,7 +247,7 @@ pub enum CompressedAccountVariant {
 
 ### CompressedMint Validation
 
-1. **CMint derivation**: `find_cmint_address(mint_seed) == cmint_pda`
+1. **CMint derivation**: `find_mint_address(mint_seed) == cmint_pda`
 2. **Authority**: fee_payer must be mint authority OR explicit cmint_authority provided
 
 ### Program Token (Vault) Validation

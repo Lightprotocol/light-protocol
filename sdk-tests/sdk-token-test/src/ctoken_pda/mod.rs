@@ -11,7 +11,7 @@ pub struct CTokenPda<'info> {
     pub mint_authority: Signer<'info>,
     pub mint_seed: Signer<'info>,
     /// CHECK:
-    pub ctoken_program: UncheckedAccount<'info>,
+    pub light_token_program: UncheckedAccount<'info>,
     /// CHECK:
     pub ctoken_cpi_authority: UncheckedAccount<'info>,
 }

@@ -25,7 +25,7 @@ Procedural macros for generating rent-free account types and their hooks for Sol
 
 **`instructions.rs`** - Instruction generation
 
-- Main macro: `#[compressible]`
+- Main macro: `#[rentfree]`
 - Generates compress/decompress instruction handlers
 - Creates context structs and account validation
 - **Compress**: PDA-only (ctokens compressed via registry)

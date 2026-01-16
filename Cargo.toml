@@ -55,7 +55,7 @@ members = [
     "sdk-tests/sdk-native-test",
     "sdk-tests/sdk-v1-native-test",
     "sdk-tests/sdk-token-test",
-    "sdk-tests/sdk-ctoken-test",
+    "sdk-tests/sdk-light-token-test",
     "sdk-tests/csdk-anchor-full-derived-test",
     "forester-utils",
     "forester",

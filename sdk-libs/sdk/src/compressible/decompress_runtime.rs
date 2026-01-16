@@ -28,12 +28,15 @@ pub trait HasTokenVariant {
 ///
 /// After Phase 8 refactor: The variant itself contains resolved seed pubkeys,
 /// so no accounts struct is needed for seed derivation.
-pub trait CTokenSeedProvider: Copy {
+pub trait TokenSeedProvider: Copy {
     /// Get seeds for the token account PDA (used for decompression).
     fn get_seeds(&self, program_id: &Pubkey) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
 
     /// Get authority seeds for signing during compression.
-    fn get_authority_seeds(&self, program_id: &Pubkey) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
+    fn get_authority_seeds(
+        &self,
+        program_id: &Pubkey,
+    ) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
 }
 
 /// Context trait for decompression.
@@ -306,8 +309,8 @@ where
             .get(post_system_offset..)
             .ok_or_else(|| ProgramError::from(crate::error::LightSdkError::ConstraintViolation))?;
 
-        let ctoken_program = ctx
-            .ctoken_program()
+        let light_token_program = ctx
+            .token_program()
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
         let token_rent_sponsor = ctx
             .token_rent_sponsor()
@@ -322,7 +325,7 @@ where
         ctx.process_tokens(
             remaining_accounts,
             fee_payer,
-            token_program,
+            light_token_program,
             token_rent_sponsor,
             token_cpi_authority,
             token_config,

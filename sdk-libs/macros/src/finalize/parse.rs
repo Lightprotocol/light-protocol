@@ -275,7 +275,7 @@ pub fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCompressib
         if field_name == "ctoken_rent_sponsor" || field_name == "light_token_rent_sponsor" {
             ctoken_rent_sponsor_field = Some(field_ident.clone());
         }
-        if field_name == "ctoken_program" || field_name == "light_token_program" {
+        if field_name == "light_token_program" || field_name == "light_token_program" {
             ctoken_program_field = Some(field_ident.clone());
         }
         if field_name == "ctoken_cpi_authority"

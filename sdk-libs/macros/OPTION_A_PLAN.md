@@ -53,7 +53,7 @@ impl Pack for StandardAtaData {
 
     fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
         let (ata_address, _bump) =
-            crate::ctoken::get_associated_ctoken_address_and_bump(&self.wallet, &self.mint);
+            crate::token::get_associated_ctoken_address_and_bump(&self.wallet, &self.mint);
 
         // Insert wallet as signer
         let wallet_index = remaining_accounts.insert_or_get_config(self.wallet, true, false);
@@ -101,12 +101,12 @@ let enum_def = quote! {
     #[derive(Clone, Debug, anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize)]
     pub enum CompressedAccountVariant {
         #(#account_variants)*
-        PackedCTokenData(light_ctoken_sdk::compat::PackedCTokenData<CTokenAccountVariant>),
-        CTokenData(light_ctoken_sdk::compat::CTokenData<CTokenAccountVariant>),
-        CompressedMint(light_ctoken_sdk::compat::CompressedMintData),
+        PackedCTokenData(light_token_sdk::compat::PackedCTokenData<TokenAccountVariant>),
+        CTokenData(light_token_sdk::compat::CTokenData<TokenAccountVariant>),
+        CompressedMint(light_token_sdk::compat::CompressedMintData),
         // NEW: Standard ATA variants
-        StandardAta(light_ctoken_sdk::compat::StandardAtaData),
-        PackedStandardAta(light_ctoken_sdk::compat::PackedStandardAtaData),
+        StandardAta(light_token_sdk::compat::StandardAtaData),
+        PackedStandardAta(light_token_sdk::compat::PackedStandardAtaData),
     }
 };
 ```
@@ -114,6 +114,7 @@ let enum_def = quote! {
 ### 2.2 variant_enum.rs - Update trait implementations
 
 Add match arms for StandardAta in:
+
 - `DataHasher` impl (unreachable for packed)
 - `HasCompressionInfo` impl (unreachable - token accounts don't have compression_info)
 - `Size` impl (unreachable)
@@ -163,7 +164,7 @@ Add processing for standard ATAs in `process_decompress_tokens_runtime`:
 /// Standard ATAs use the same Transfer2 CPI but:
 /// 1. Don't require program-derived seeds
 /// 2. Wallet must be a TX signer (validated here)
-/// 3. ATA is derived from (wallet, ctoken_program, mint)
+/// 3. ATA is derived from (wallet, light_token_program, mint)
 pub fn process_standard_atas_in_token_flow<'info>(
     standard_atas: Vec<(PackedStandardAtaData, CompressedAccountMetaNoLamportsNoAddress)>,
     packed_accounts: &[AccountInfo<'info>],
@@ -335,19 +336,19 @@ pub fn decompress_accounts_idempotent<T>(
 // Pack standard ATAs
 for ata_input in standard_atas {
     let (ata_address, _) = derive_ctoken_ata(&ata_input.wallet, &ata_input.mint);
-    
+
     // Insert wallet as signer
     remaining_accounts.insert_or_get_config(ata_input.wallet, true, false);
     remaining_accounts.insert_or_get(ata_input.mint);
     remaining_accounts.insert_or_get(ata_address);
-    
+
     let standard_ata = StandardAtaData {
         wallet: ata_input.wallet,
         mint: ata_input.mint,
         token_data: ata_input.token_data.clone(),
     };
     let packed = standard_ata.pack(&mut remaining_accounts);
-    
+
     typed_compressed_accounts.push(CompressedAccountData {
         meta: /* from validity_proof_with_context */,
         data: CompressedAccountVariant::PackedStandardAta(packed),
@@ -362,6 +363,7 @@ for ata_input in standard_atas {
 ### 6.1 Update existing test
 
 Modify `test_create_pdas_and_mint_auto` to:
+
 1. Use `StandardAtaInput` for user ATA decompression
 2. Verify wallet signer requirement
 3. Test mixed batch (PDAs + program tokens + standard ATAs)
@@ -395,7 +397,7 @@ Modify `test_create_pdas_and_mint_auto` to:
    **A: Separate variant (`PackedStandardAta`) for cleaner handling and explicit wallet index.**
 
 2. **Q: How does the client know which accounts are standard ATAs vs program tokens?**
-   **A: Client explicitly creates `StandardAtaInput` vs wrapping in program's `CTokenAccountVariant`.**
+   **A: Client explicitly creates `StandardAtaInput` vs wrapping in program's `TokenAccountVariant`.**
 
 3. **Q: Do standard ATAs require `cmint_authority` account?**
    **A: No. Standard ATAs only need wallet signer. `cmint_authority` is only for mint decompression.**
