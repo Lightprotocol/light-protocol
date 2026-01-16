@@ -8,7 +8,7 @@ license = "MIT"
 [features]
 default = ["solana"]
 solana = ["dep:solana-program-error", "light-compressed-account/solana", "solana-sysvar", "solana-msg"]
-anchor = ["anchor-lang", "light-compressed-account/anchor", "light-compressed-account/std"]
+anchor = ["anchor-lang", "light-compressed-account/anchor", "light-compressed-account/std", "solana"]
 pinocchio = ["dep:pinocchio", "light-compressed-account/pinocchio"]
 profile-program = []
 profile-heap = ["dep:light-heap"]
