@@ -198,8 +198,8 @@ impl RentFreeBuilder {
         let mint = &self.parsed.light_mint_fields[0];
 
         // Generate mint action invocation without CPI context
-        let mint_invocation = LightMintBuilder::new(mint, params_ident, &self.infra)
-            .generate_invocation();
+        let mint_invocation =
+            LightMintBuilder::new(mint, params_ident, &self.infra).generate_invocation();
 
         // Infrastructure field reference for quote! interpolation
         let fee_payer = &self.infra.fee_payer;

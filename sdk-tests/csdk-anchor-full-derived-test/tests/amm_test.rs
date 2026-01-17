@@ -7,10 +7,13 @@
 /// 4. Advance epochs to trigger auto-compression
 /// 5. Decompress all accounts
 /// 6. Deposit after decompression to verify pool works
-
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use csdk_anchor_full_derived_test::amm_test::{
+    InitializeParams, AUTH_SEED, OBSERVATION_SEED, POOL_LP_MINT_SIGNER_SEED, POOL_SEED,
+    POOL_VAULT_SEED,
+};
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_compressible_client::{
     get_create_accounts_proof, CreateAccountsProofInput, InitializeRentFreeConfig,
@@ -29,11 +32,6 @@ use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
-
-use csdk_anchor_full_derived_test::amm_test::{
-    InitializeParams, AUTH_SEED, OBSERVATION_SEED, POOL_LP_MINT_SIGNER_SEED, POOL_SEED,
-    POOL_VAULT_SEED,
-};
 
 const RENT_SPONSOR: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 
@@ -168,8 +166,8 @@ async fn setup() -> AmmTestContext {
     let (mint_a, _compression_addr_a, ata_pubkeys_a, _mint_seed_a) = shared::setup_create_mint(
         &mut rpc,
         &payer,
-        payer.pubkey(), // mint_authority
-        9,              // decimals
+        payer.pubkey(),                       // mint_authority
+        9,                                    // decimals
         vec![(10_000_000, creator.pubkey())], // mint to creator
     )
     .await;
@@ -177,8 +175,8 @@ async fn setup() -> AmmTestContext {
     let (mint_b, _compression_addr_b, ata_pubkeys_b, _mint_seed_b) = shared::setup_create_mint(
         &mut rpc,
         &payer,
-        payer.pubkey(), // mint_authority
-        9,              // decimals
+        payer.pubkey(),                       // mint_authority
+        9,                                    // decimals
         vec![(10_000_000, creator.pubkey())], // mint to creator
     )
     .await;
@@ -260,10 +258,8 @@ fn derive_amm_pdas(
     );
 
     // LP mint signer: seeds = [POOL_LP_MINT_SIGNER_SEED, pool_state]
-    let (lp_mint_signer, lp_mint_signer_bump) = Pubkey::find_program_address(
-        &[POOL_LP_MINT_SIGNER_SEED, pool_state.as_ref()],
-        program_id,
-    );
+    let (lp_mint_signer, lp_mint_signer_bump) =
+        Pubkey::find_program_address(&[POOL_LP_MINT_SIGNER_SEED, pool_state.as_ref()], program_id);
 
     // LP mint: derived from lp_mint_signer using find_mint_address
     let (lp_mint, _) = find_mint_address(&lp_mint_signer);
@@ -376,7 +372,7 @@ async fn test_amm_full_lifecycle() {
         compression_config: ctx.config_pda,
         ctoken_compressible_config: COMPRESSIBLE_CONFIG_V1,
         ctoken_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
-        light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID,
         ctoken_cpi_authority: LIGHT_TOKEN_CPI_AUTHORITY,
     };
 

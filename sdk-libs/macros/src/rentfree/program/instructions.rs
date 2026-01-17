@@ -26,8 +26,10 @@ use super::{
     },
     variant_enum::PdaCtxSeedInfo,
 };
-use crate::rentfree::shared_utils::{ident_to_type, qualify_type_with_crate};
-use crate::utils::to_snake_case;
+use crate::{
+    rentfree::shared_utils::{ident_to_type, qualify_type_with_crate},
+    utils::to_snake_case,
+};
 
 // =============================================================================
 // MAIN CODEGEN
@@ -93,9 +95,8 @@ fn codegen(
         })
         .unwrap_or_default();
 
-    let enum_and_traits = super::variant_enum::compressed_account_variant_with_ctx_seeds(
-        &pda_ctx_seeds,
-    )?;
+    let enum_and_traits =
+        super::variant_enum::compressed_account_variant_with_ctx_seeds(&pda_ctx_seeds)?;
 
     let seed_params_struct = quote! {
         #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Clone, Debug, Default)]

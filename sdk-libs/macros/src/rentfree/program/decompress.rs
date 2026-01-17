@@ -4,15 +4,13 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{Ident, Result};
 
-use crate::rentfree::shared_utils::qualify_type_with_crate;
-
 use super::{
     expr_traversal::transform_expr_for_ctx_seeds,
     parsing::{InstructionVariant, SeedElement, TokenSeedSpec},
     seed_utils::ctx_fields_to_set,
     variant_enum::PdaCtxSeedInfo,
 };
-use crate::rentfree::shared_utils::is_constant_identifier;
+use crate::rentfree::shared_utils::{is_constant_identifier, qualify_type_with_crate};
 
 // =============================================================================
 // DECOMPRESS CONTEXT IMPL
@@ -251,7 +249,7 @@ pub fn generate_pda_seed_provider_impls(
         let variant_str = ctx_info.variant_name.to_string();
         let spec = pda_seed_specs
             .iter()
-            .find(|s| s.variant.to_string() == variant_str)
+            .find(|s| s.variant == variant_str)
             .ok_or_else(|| {
                 super::parsing::macro_error!(
                     &ctx_info.variant_name,

@@ -48,8 +48,8 @@ pub fn compressed_account_variant_with_ctx_seeds(
         let inner_type = qualify_type_with_crate(&info.inner_type);
         let packed_variant_name = make_packed_variant_name(variant_name);
         // Create packed type (also qualified with crate::)
-        let packed_inner_type = make_packed_type(&info.inner_type)
-            .expect("inner_type should be a valid type path");
+        let packed_inner_type =
+            make_packed_type(&info.inner_type).expect("inner_type should be a valid type path");
         let ctx_fields = &info.ctx_seed_fields;
 
         // Unpacked variant: Pubkey fields for ctx.* seeds
