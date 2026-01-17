@@ -33,9 +33,9 @@ Detailed macro documentation is in the `docs/` directory:
 src/
 ├── lib.rs                 # Macro entry points
 ├── rentfree/              # RentFree macro system
+│   ├── account/           # Trait derive macros for account data structs
 │   ├── accounts/          # #[derive(RentFree)] for Accounts structs
 │   ├── program/           # #[rentfree_program] attribute macro
-│   ├── traits/            # Trait derive macros
 │   └── shared_utils.rs    # Common utilities
 └── hasher/                # LightHasherSha derive macro
 ```

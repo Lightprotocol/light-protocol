@@ -59,10 +59,10 @@ fn codegen(
         if !token_seed_specs.is_empty() {
             super::variant_enum::generate_ctoken_account_variant_enum(token_seed_specs)?
         } else {
-            crate::rentfree::traits::utils::generate_empty_ctoken_enum()
+            crate::rentfree::account::utils::generate_empty_ctoken_enum()
         }
     } else {
-        crate::rentfree::traits::utils::generate_empty_ctoken_enum()
+        crate::rentfree::account::utils::generate_empty_ctoken_enum()
     };
 
     if let Some(ref token_seed_specs) = token_seeds {
@@ -405,7 +405,7 @@ fn codegen(
 #[inline(never)]
 pub fn rentfree_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<TokenStream> {
     use super::crate_context::CrateContext;
-    use crate::rentfree::traits::seed_extraction::{
+    use crate::rentfree::account::seed_extraction::{
         extract_from_accounts_struct, get_data_fields, ExtractedSeedSpec, ExtractedTokenSpec,
     };
 

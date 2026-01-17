@@ -124,7 +124,7 @@ pub fn light_hasher_sha(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(HasCompressionInfo)]
 pub fn has_compression_info(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    into_token_stream(rentfree::traits::traits::derive_has_compression_info(input))
+    into_token_stream(rentfree::account::traits::derive_has_compression_info(input))
 }
 
 /// Legacy CompressAs trait implementation (use Compressible instead).
@@ -164,7 +164,7 @@ pub fn has_compression_info(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(CompressAs, attributes(compress_as))]
 pub fn compress_as_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    into_token_stream(rentfree::traits::traits::derive_compress_as(input))
+    into_token_stream(rentfree::account::traits::derive_compress_as(input))
 }
 
 /// Auto-discovering rent-free program macro that reads external module files.
@@ -257,7 +257,7 @@ pub fn account(_: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Compressible, attributes(compress_as, light_seeds))]
 pub fn compressible_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(rentfree::traits::traits::derive_compressible(input))
+    into_token_stream(rentfree::account::traits::derive_compressible(input))
 }
 
 /// Automatically implements Pack and Unpack traits for compressible accounts.
@@ -284,7 +284,7 @@ pub fn compressible_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(CompressiblePack)]
 pub fn compressible_pack(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(rentfree::traits::pack_unpack::derive_compressible_pack(
+    into_token_stream(rentfree::account::pack_unpack::derive_compressible_pack(
         input,
     ))
 }
@@ -334,7 +334,7 @@ pub fn compressible_pack(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(RentFreeAccount, attributes(compress_as))]
 pub fn rent_free_account(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(rentfree::traits::light_compressible::derive_rentfree_account(input))
+    into_token_stream(rentfree::account::light_compressible::derive_rentfree_account(input))
 }
 
 /// Derives a Rent Sponsor PDA for a program at compile time.

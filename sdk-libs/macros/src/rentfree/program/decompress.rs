@@ -23,7 +23,7 @@ pub fn generate_decompress_context_impl(
     let lifetime: syn::Lifetime = syn::parse_quote!('info);
 
     let trait_impl =
-        crate::rentfree::traits::decompress_context::generate_decompress_context_trait_impl(
+        crate::rentfree::account::decompress_context::generate_decompress_context_trait_impl(
             pda_ctx_seeds,
             token_variant_ident,
             lifetime,
