@@ -5,7 +5,7 @@ use light_token_interface::{
     self,
     instructions::{
         extensions::ExtensionInstructionData,
-        mint_action::{CompressedMintInstructionData, CpiContext},
+        mint_action::{CpiContext, MintInstructionData},
     },
     COMPRESSED_MINT_SEED,
 };
@@ -24,7 +24,7 @@ use crate::{
 
 /// Input struct for creating a compressed mint instruction
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
-pub struct CreateCompressedMintInputs {
+pub struct CreateMintInputs {
     pub decimals: u8,
     pub mint_authority: Pubkey,
     pub freeze_authority: Option<Pubkey>,
@@ -40,18 +40,18 @@ pub struct CreateCompressedMintInputs {
 
 /// Creates a compressed mint instruction (wrapper around mint_action)
 pub fn create_compressed_mint_cpi(
-    input: CreateCompressedMintInputs,
+    input: CreateMintInputs,
     cpi_context: Option<CpiContext>,
     cpi_context_pubkey: Option<Pubkey>,
 ) -> Result<Instruction> {
     let (mint_pda, bump) = find_mint_address(&input.mint_signer);
-    let compressed_mint_instruction_data = CompressedMintInstructionData {
+    let compressed_mint_instruction_data = MintInstructionData {
         supply: 0,
         decimals: input.decimals,
-        metadata: light_token_interface::state::CompressedMintMetadata {
+        metadata: light_token_interface::state::MintMetadata {
             version: input.version,
             mint: mint_pda.to_bytes().into(),
-            cmint_decompressed: false,
+            mint_decompressed: false,
             mint_signer: input.mint_signer.to_bytes(),
             bump,
         },
@@ -103,7 +103,7 @@ pub fn create_compressed_mint_cpi(
 }
 
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
-pub struct CreateCompressedMintInputsCpiWrite {
+pub struct CreateMintInputsCpiWrite {
     pub decimals: u8,
     pub mint_authority: Pubkey,
     pub freeze_authority: Option<Pubkey>,
@@ -117,9 +117,7 @@ pub struct CreateCompressedMintInputsCpiWrite {
     pub version: u8,
 }
 
-pub fn create_compressed_mint_cpi_write(
-    input: CreateCompressedMintInputsCpiWrite,
-) -> Result<Instruction> {
+pub fn create_compressed_mint_cpi_write(input: CreateMintInputsCpiWrite) -> Result<Instruction> {
     if !input.cpi_context.first_set_context && !input.cpi_context.set_context {
         msg!(
             "Invalid CPI context first cpi set or set context must be true {:?}",
@@ -129,13 +127,13 @@ pub fn create_compressed_mint_cpi_write(
     }
 
     let (mint_pda, bump) = find_mint_address(&input.mint_signer);
-    let compressed_mint_instruction_data = CompressedMintInstructionData {
+    let compressed_mint_instruction_data = MintInstructionData {
         supply: 0,
         decimals: input.decimals,
-        metadata: light_token_interface::state::CompressedMintMetadata {
+        metadata: light_token_interface::state::MintMetadata {
             version: input.version,
             mint: mint_pda.to_bytes().into(),
-            cmint_decompressed: false,
+            mint_decompressed: false,
             mint_signer: input.mint_signer.to_bytes(),
             bump,
         },
@@ -173,7 +171,7 @@ pub fn create_compressed_mint_cpi_write(
 }
 
 /// Creates a compressed mint instruction with automatic mint address derivation
-pub fn create_compressed_mint(input: CreateCompressedMintInputs) -> Result<Instruction> {
+pub fn create_compressed_mint(input: CreateMintInputs) -> Result<Instruction> {
     create_compressed_mint_cpi(input, None, None)
 }
 

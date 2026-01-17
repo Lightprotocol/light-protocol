@@ -70,10 +70,10 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     mint_seed: &Keypair,
     authority: &Keypair,
     payer: &Keypair,
-    // Whether to decompress the mint to a CMint Solana account (with rent params)
+    // Whether to decompress the mint to a Mint Solana account (with rent params)
     decompress_mint: Option<DecompressMintParams>,
-    // Whether to compress and close the CMint Solana account
-    compress_and_close_cmint: bool,
+    // Whether to compress and close the Mint Solana account
+    compress_and_close_mint: bool,
     mint_to_recipients: Vec<Recipient>,
     mint_to_decompressed_recipients: Vec<Recipient>,
     update_mint_authority: Option<Pubkey>,
@@ -140,9 +140,9 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
         });
     }
 
-    // Add CompressAndCloseCMint action if requested
-    if compress_and_close_cmint {
-        actions.push(MintActionType::CompressAndCloseCMint { idempotent: false });
+    // Add CompressAndCloseMint action if requested
+    if compress_and_close_mint {
+        actions.push(MintActionType::CompressAndCloseMint { idempotent: false });
     }
 
     // Determine if mint_signer is needed - matches onchain logic:

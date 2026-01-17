@@ -7,7 +7,7 @@ use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_token_sdk::token::LIGHT_TOKEN_PROGRAM_ID;
 use native_ctoken_examples::{CreateTokenAccountData, ID};
-use shared::setup_create_compressed_mint;
+use shared::setup_create_mint;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -30,7 +30,7 @@ async fn test_create_token_account_invoke() {
 
     // Create compressed mint first (using helper)
     let (mint_pda, _compression_address, _, _mint_seed) =
-        setup_create_compressed_mint(&mut rpc, &payer, mint_authority, 9, vec![]).await;
+        setup_create_mint(&mut rpc, &payer, mint_authority, 9, vec![]).await;
 
     // Create ctoken account via wrapper program
     let ctoken_account = Keypair::new();
@@ -103,7 +103,7 @@ async fn test_create_token_account_invoke_signed() {
 
     // Create compressed mint first (using helper)
     let (mint_pda, _compression_address, _, _mint_seed) =
-        setup_create_compressed_mint(&mut rpc, &payer, mint_authority, 9, vec![]).await;
+        setup_create_mint(&mut rpc, &payer, mint_authority, 9, vec![]).await;
 
     // Derive the PDA for the token account (same seeds as in the program)
     let token_account_seed: &[u8] = b"token_account";

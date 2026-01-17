@@ -3,7 +3,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::Pubkey;
 use light_program_profiler::profile;
-use light_token_interface::{instructions::mint_action::ZMintToAction, state::CompressedMint};
+use light_token_interface::{instructions::mint_action::ZMintToAction, state::Mint};
 use pinocchio::account_info::AccountInfo;
 
 use crate::compressed_token::{
@@ -15,7 +15,7 @@ use crate::compressed_token::{
 #[profile]
 pub fn process_mint_to_ctoken_action(
     action: &ZMintToAction,
-    compressed_mint: &mut CompressedMint,
+    compressed_mint: &mut Mint,
     validated_accounts: &MintActionAccounts,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     mint: Pubkey,

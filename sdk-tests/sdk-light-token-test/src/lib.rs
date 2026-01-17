@@ -4,7 +4,7 @@ mod approve;
 mod burn;
 mod close;
 mod create_ata;
-mod create_cmint;
+mod create_mint;
 mod create_token_account;
 mod ctoken_mint_to;
 mod decompress_mint;
@@ -21,9 +21,9 @@ pub use approve::{process_approve_invoke, process_approve_invoke_signed, Approve
 pub use burn::{process_burn_invoke, process_burn_invoke_signed, BurnData};
 pub use close::{process_close_account_invoke, process_close_account_invoke_signed};
 pub use create_ata::{process_create_ata_invoke, process_create_ata_invoke_signed, CreateAtaData};
-pub use create_cmint::{
-    process_create_cmint, process_create_cmint_invoke_signed,
-    process_create_cmint_with_pda_authority, CreateCmintData, MINT_SIGNER_SEED,
+pub use create_mint::{
+    process_create_mint, process_create_mint_invoke_signed, process_create_mint_with_pda_authority,
+    CreateCmintData, MINT_SIGNER_SEED,
 };
 pub use create_token_account::{
     process_create_token_account_invoke, process_create_token_account_invoke_signed,
@@ -124,11 +124,11 @@ pub enum InstructionType {
     BurnInvoke = 29,
     /// Burn CTokens with PDA authority (invoke_signed)
     BurnInvokeSigned = 30,
-    /// Mint to Light Token from decompressed CMint (invoke)
+    /// Mint to Light Token from decompressed Mint (invoke)
     CTokenMintToInvoke = 31,
-    /// Mint to Light Token from decompressed CMint with PDA authority (invoke_signed)
+    /// Mint to Light Token from decompressed Mint with PDA authority (invoke_signed)
     CTokenMintToInvokeSigned = 32,
-    /// Decompress CMint with PDA authority (invoke_signed)
+    /// Decompress Mint with PDA authority (invoke_signed)
     DecompressCmintInvokeSigned = 33,
     /// Transfer cTokens with checked decimals (invoke)
     CTokenTransferCheckedInvoke = 34,
@@ -202,7 +202,7 @@ pub fn process_instruction(
         InstructionType::CreateCmint => {
             let data = CreateCmintData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
-            process_create_cmint(accounts, data)
+            process_create_mint(accounts, data)
         }
         InstructionType::CreateTokenAccountInvoke => {
             let data = CreateTokenAccountData::try_from_slice(&instruction_data[1..])
@@ -239,12 +239,12 @@ pub fn process_instruction(
         InstructionType::CreateCmintInvokeSigned => {
             let data = CreateCmintData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
-            process_create_cmint_invoke_signed(accounts, data)
+            process_create_mint_invoke_signed(accounts, data)
         }
         InstructionType::CreateCmintWithPdaAuthority => {
             let data = CreateCmintData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
-            process_create_cmint_with_pda_authority(accounts, data)
+            process_create_mint_with_pda_authority(accounts, data)
         }
         InstructionType::SplToCtokenInvoke => {
             let data = TransferFromSplData::try_from_slice(&instruction_data[1..])

@@ -132,7 +132,7 @@ use light_compressible::config::CompressibleConfig;
 pub use light_token_interface::{
     instructions::{
         extensions::{CompressToPubkey, ExtensionInstructionData},
-        mint_action::CompressedMintWithContext,
+        mint_action::MintWithContext,
     },
     state::{Token, TokenDataVersion},
 };
@@ -146,7 +146,9 @@ pub use thaw::{Thaw, ThawCpi};
 pub use transfer::*;
 pub use transfer_checked::*;
 pub use transfer_from_spl::{TransferFromSpl, TransferFromSplCpi};
-pub use transfer_interface::{SplInterface, TransferInterfaceCpi};
+pub use transfer_interface::{
+    SplInterface, SplInterfaceCpi, TransferInterface, TransferInterfaceCpi,
+};
 pub use transfer_to_spl::{TransferToSpl, TransferToSplCpi};
 
 /// System accounts required for CPI operations to Light Protocol.

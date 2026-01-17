@@ -4,7 +4,7 @@ use light_array_map::pubkey_eq;
 use light_compressible::compression_info::CompressionInfo;
 use light_program_profiler::profile;
 use light_token_interface::{
-    instructions::mint_action::ZDecompressMintAction, state::CompressedMint, COMPRESSED_MINT_SEED,
+    instructions::mint_action::ZDecompressMintAction, state::Mint, COMPRESSED_MINT_SEED,
 };
 use pinocchio::{
     account_info::AccountInfo,
@@ -41,12 +41,12 @@ use crate::{
 #[profile]
 pub fn process_decompress_mint_action(
     action: &ZDecompressMintAction,
-    compressed_mint: &mut CompressedMint,
+    compressed_mint: &mut Mint,
     validated_accounts: &MintActionAccounts,
     fee_payer: &AccountInfo,
 ) -> Result<(), ProgramError> {
     // 1. Check not already decompressed
-    if compressed_mint.metadata.cmint_decompressed {
+    if compressed_mint.metadata.mint_decompressed {
         msg!("CMint account already exists");
         return Err(ErrorCode::CMintAlreadyExists.into());
     }
@@ -183,8 +183,8 @@ pub fn process_decompress_mint_action(
     .invoke()
     .map_err(convert_program_error)?;
 
-    // 8. Set the cmint_decompressed flag
-    compressed_mint.metadata.cmint_decompressed = true;
+    // 8. Set the mint_decompressed flag
+    compressed_mint.metadata.mint_decompressed = true;
 
     Ok(())
 }

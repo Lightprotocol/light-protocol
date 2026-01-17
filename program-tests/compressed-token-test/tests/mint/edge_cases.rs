@@ -8,9 +8,7 @@ use light_token_client::{
     actions::create_mint,
     instructions::mint_action::{MintActionType, MintToRecipient},
 };
-use light_token_interface::state::{
-    extensions::AdditionalMetadata, CompressedMint, TokenDataVersion,
-};
+use light_token_interface::state::{extensions::AdditionalMetadata, Mint, TokenDataVersion};
 use light_token_sdk::{
     compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
     token::{CompressibleParams, CreateAssociatedTokenAccount},
@@ -244,7 +242,7 @@ async fn functional_all_in_one_instruction() {
         .value
         .unwrap();
 
-    let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+    let pre_compressed_mint: Mint = BorshDeserialize::deserialize(
         &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
     )
     .unwrap();

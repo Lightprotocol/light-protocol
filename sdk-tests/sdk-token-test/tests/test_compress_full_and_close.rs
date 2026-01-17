@@ -6,15 +6,13 @@ use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use light_token_client::instructions::transfer2::create_decompress_instruction;
 use light_token_interface::{
-    instructions::mint_action::{CompressedMintWithContext, Recipient},
-    state::{
-        BaseMint, CompressedMint, CompressedMintMetadata, TokenDataVersion, ACCOUNT_TYPE_MINT,
-    },
+    instructions::mint_action::{MintWithContext, Recipient},
+    state::{BaseMint, Mint, MintMetadata, TokenDataVersion, ACCOUNT_TYPE_MINT},
     COMPRESSED_MINT_SEED, LIGHT_TOKEN_PROGRAM_ID,
 };
 use light_token_sdk::{
     compressed_token::{
-        create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
+        create_compressed_mint::{create_compressed_mint, CreateMintInputs},
         mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
     },
     token::{
@@ -80,7 +78,7 @@ async fn test_compress_full_and_close() {
 
     let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
 
-    let instruction = create_compressed_mint(CreateCompressedMintInputs {
+    let instruction = create_compressed_mint(CreateMintInputs {
         version: 3,
         decimals,
         mint_authority,
@@ -120,7 +118,7 @@ async fn test_compress_full_and_close() {
         .ok_or("Compressed mint account not found")
         .unwrap();
 
-    let expected_compressed_mint = CompressedMint {
+    let expected_compressed_mint = Mint {
         base: BaseMint {
             mint_authority: Some(mint_authority.into()),
             supply: 0,
@@ -128,10 +126,10 @@ async fn test_compress_full_and_close() {
             is_initialized: true,
             freeze_authority: Some(freeze_authority.into()),
         },
-        metadata: CompressedMintMetadata {
+        metadata: MintMetadata {
             version: 3,
             mint: mint_pda.into(),
-            cmint_decompressed: false,
+            mint_decompressed: false,
             mint_signer: mint_signer.pubkey().to_bytes(),
             bump: mint_bump,
         },
@@ -141,7 +139,7 @@ async fn test_compress_full_and_close() {
         extensions: None,
     };
 
-    let compressed_mint_inputs = CompressedMintWithContext {
+    let compressed_mint_inputs = MintWithContext {
         prove_by_index: true,
         leaf_index: compressed_mint_account.leaf_index,
         root_index: 0,
@@ -159,7 +157,7 @@ async fn test_compress_full_and_close() {
             payer: payer.pubkey(),
             state_merkle_tree: compressed_mint_account.tree_info.tree,
             input_queue: compressed_mint_account.tree_info.queue,
-            output_queue_cmint: compressed_mint_account.tree_info.queue,
+            output_queue_mint: compressed_mint_account.tree_info.queue,
             output_queue_tokens: compressed_mint_account.tree_info.queue,
             decompressed_mint_config: None,
             token_account_version: 2,

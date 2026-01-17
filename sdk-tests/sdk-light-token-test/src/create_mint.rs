@@ -22,34 +22,39 @@ pub struct CreateCmintData {
     pub bump: u8,
     pub freeze_authority: Option<Pubkey>,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
+    pub rent_payment: u8,
+    pub write_top_up: u32,
 }
 
 /// Handler for creating a compressed mint (invoke)
 ///
-/// Uses the CreateCMintCpi builder pattern. This demonstrates how to:
+/// Uses the CreateMintCpi builder pattern. This demonstrates how to:
 /// 1. Build the CreateMintParams struct from instruction data
-/// 2. Build the CreateCMintCpi with accounts
+/// 2. Build the CreateMintCpi with accounts
 /// 3. Call invoke() which handles instruction building and CPI
 ///
-/// Account order:
+/// Account order (matches MintActionMetaConfig::to_account_metas()):
 /// - accounts[0]: compressed_token_program (for CPI)
 /// - accounts[1]: light_system_program
 /// - accounts[2]: mint_signer (signer)
-/// - accounts[3]: payer (signer, also authority)
-/// - accounts[4]: payer again (fee_payer in SDK)
-/// - accounts[5]: cpi_authority_pda
-/// - accounts[6]: registered_program_pda
-/// - accounts[7]: account_compression_authority
-/// - accounts[8]: account_compression_program
-/// - accounts[9]: system_program
-/// - accounts[10]: output_queue
-/// - accounts[11]: address_tree
-/// - accounts[12] (optional): cpi_context_account
-pub fn process_create_cmint(
+/// - accounts[3]: authority (signer)
+/// - accounts[4]: compressible_config
+/// - accounts[5]: mint (PDA, writable)
+/// - accounts[6]: rent_sponsor (PDA, writable)
+/// - accounts[7]: fee_payer (signer)
+/// - accounts[8]: cpi_authority_pda
+/// - accounts[9]: registered_program_pda
+/// - accounts[10]: account_compression_authority
+/// - accounts[11]: account_compression_program
+/// - accounts[12]: system_program
+/// - accounts[13]: output_queue
+/// - accounts[14]: address_tree
+/// - accounts[15] (optional): cpi_context_account
+pub fn process_create_mint(
     accounts: &[AccountInfo],
     data: CreateCmintData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 12 {
+    if accounts.len() < 15 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -64,26 +69,30 @@ pub fn process_create_cmint(
         bump: data.bump,
         freeze_authority: data.freeze_authority,
         extensions: data.extensions,
+        rent_payment: data.rent_payment,
+        write_top_up: data.write_top_up,
     };
 
     // Build system accounts struct
     let system_accounts = SystemAccountInfos {
         light_system_program: accounts[1].clone(),
-        cpi_authority_pda: accounts[5].clone(),
-        registered_program_pda: accounts[6].clone(),
-        account_compression_authority: accounts[7].clone(),
-        account_compression_program: accounts[8].clone(),
-        system_program: accounts[9].clone(),
+        cpi_authority_pda: accounts[8].clone(),
+        registered_program_pda: accounts[9].clone(),
+        account_compression_authority: accounts[10].clone(),
+        account_compression_program: accounts[11].clone(),
+        system_program: accounts[12].clone(),
     };
 
     // Build the account infos struct
-    // In this case, payer == authority (accounts[3])
     CreateMintCpi {
         mint_seed: accounts[2].clone(),
         authority: accounts[3].clone(),
-        payer: accounts[3].clone(),
-        address_tree: accounts[11].clone(),
-        output_queue: accounts[10].clone(),
+        payer: accounts[7].clone(),
+        address_tree: accounts[14].clone(),
+        output_queue: accounts[13].clone(),
+        compressible_config: accounts[4].clone(),
+        mint: accounts[5].clone(),
+        rent_sponsor: accounts[6].clone(),
         system_accounts,
         cpi_context: None,
         cpi_context_account: None,
@@ -96,28 +105,31 @@ pub fn process_create_cmint(
 
 /// Handler for creating a compressed mint with PDA mint signer (invoke_signed)
 ///
-/// Uses the CreateCMintCpi builder pattern with invoke_signed.
+/// Uses the CreateMintCpi builder pattern with invoke_signed.
 /// The mint_signer is a PDA derived from this program.
 ///
-/// Account order:
+/// Account order (matches MintActionMetaConfig::to_account_metas()):
 /// - accounts[0]: compressed_token_program (for CPI)
 /// - accounts[1]: light_system_program
 /// - accounts[2]: mint_signer (PDA, not signer - program signs)
-/// - accounts[3]: payer (signer, also authority)
-/// - accounts[4]: payer again (fee_payer in SDK)
-/// - accounts[5]: cpi_authority_pda
-/// - accounts[6]: registered_program_pda
-/// - accounts[7]: account_compression_authority
-/// - accounts[8]: account_compression_program
-/// - accounts[9]: system_program
-/// - accounts[10]: output_queue
-/// - accounts[11]: address_tree
-/// - accounts[12] (optional): cpi_context_account
-pub fn process_create_cmint_invoke_signed(
+/// - accounts[3]: authority (signer)
+/// - accounts[4]: compressible_config
+/// - accounts[5]: mint (PDA, writable)
+/// - accounts[6]: rent_sponsor (PDA, writable)
+/// - accounts[7]: fee_payer (signer)
+/// - accounts[8]: cpi_authority_pda
+/// - accounts[9]: registered_program_pda
+/// - accounts[10]: account_compression_authority
+/// - accounts[11]: account_compression_program
+/// - accounts[12]: system_program
+/// - accounts[13]: output_queue
+/// - accounts[14]: address_tree
+/// - accounts[15] (optional): cpi_context_account
+pub fn process_create_mint_invoke_signed(
     accounts: &[AccountInfo],
     data: CreateCmintData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 12 {
+    if accounts.len() < 15 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -140,26 +152,30 @@ pub fn process_create_cmint_invoke_signed(
         bump: data.bump,
         freeze_authority: data.freeze_authority,
         extensions: data.extensions,
+        rent_payment: data.rent_payment,
+        write_top_up: data.write_top_up,
     };
 
     // Build system accounts struct
     let system_accounts = SystemAccountInfos {
         light_system_program: accounts[1].clone(),
-        cpi_authority_pda: accounts[5].clone(),
-        registered_program_pda: accounts[6].clone(),
-        account_compression_authority: accounts[7].clone(),
-        account_compression_program: accounts[8].clone(),
-        system_program: accounts[9].clone(),
+        cpi_authority_pda: accounts[8].clone(),
+        registered_program_pda: accounts[9].clone(),
+        account_compression_authority: accounts[10].clone(),
+        account_compression_program: accounts[11].clone(),
+        system_program: accounts[12].clone(),
     };
 
     // Build the account infos struct
-    // In this case, payer == authority (accounts[3])
     let account_infos = CreateMintCpi {
         mint_seed: accounts[2].clone(),
         authority: accounts[3].clone(),
-        payer: accounts[3].clone(),
-        address_tree: accounts[11].clone(),
-        output_queue: accounts[10].clone(),
+        payer: accounts[7].clone(),
+        address_tree: accounts[14].clone(),
+        output_queue: accounts[13].clone(),
+        compressible_config: accounts[4].clone(),
+        mint: accounts[5].clone(),
+        rent_sponsor: accounts[6].clone(),
         system_accounts,
         cpi_context: None,
         cpi_context_account: None,
@@ -175,30 +191,33 @@ pub fn process_create_cmint_invoke_signed(
 
 /// Handler for creating a compressed mint with PDA mint signer AND PDA authority (invoke_signed)
 ///
-/// Uses the SDK's CreateCMintCpi with separate authority and payer accounts.
+/// Uses the SDK's CreateMintCpi with separate authority and payer accounts.
 /// Both mint_signer and authority are PDAs signed by this program.
 ///
-/// Account order:
+/// Account order (matches MintActionMetaConfig::to_account_metas()):
 /// - accounts[0]: compressed_token_program (for CPI)
 /// - accounts[1]: light_system_program
 /// - accounts[2]: mint_signer (PDA from MINT_SIGNER_SEED, not signer - program signs)
 /// - accounts[3]: authority (PDA from MINT_AUTHORITY_SEED, not signer - program signs)
-/// - accounts[4]: fee_payer (signer)
-/// - accounts[5]: cpi_authority_pda
-/// - accounts[6]: registered_program_pda
-/// - accounts[7]: account_compression_authority
-/// - accounts[8]: account_compression_program
-/// - accounts[9]: system_program
-/// - accounts[10]: output_queue
-/// - accounts[11]: address_tree
-/// - accounts[12] (optional): cpi_context_account
-pub fn process_create_cmint_with_pda_authority(
+/// - accounts[4]: compressible_config
+/// - accounts[5]: mint (PDA, writable)
+/// - accounts[6]: rent_sponsor (PDA, writable)
+/// - accounts[7]: fee_payer (signer)
+/// - accounts[8]: cpi_authority_pda
+/// - accounts[9]: registered_program_pda
+/// - accounts[10]: account_compression_authority
+/// - accounts[11]: account_compression_program
+/// - accounts[12]: system_program
+/// - accounts[13]: output_queue
+/// - accounts[14]: address_tree
+/// - accounts[15] (optional): cpi_context_account
+pub fn process_create_mint_with_pda_authority(
     accounts: &[AccountInfo],
     data: CreateCmintData,
 ) -> Result<(), ProgramError> {
     use crate::MINT_AUTHORITY_SEED;
 
-    if accounts.len() < 12 {
+    if accounts.len() < 15 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -230,25 +249,30 @@ pub fn process_create_cmint_with_pda_authority(
         bump: data.bump,
         freeze_authority: data.freeze_authority,
         extensions: data.extensions,
+        rent_payment: data.rent_payment,
+        write_top_up: data.write_top_up,
     };
 
     // Build system accounts struct
     let system_accounts = SystemAccountInfos {
         light_system_program: accounts[1].clone(),
-        cpi_authority_pda: accounts[5].clone(),
-        registered_program_pda: accounts[6].clone(),
-        account_compression_authority: accounts[7].clone(),
-        account_compression_program: accounts[8].clone(),
-        system_program: accounts[9].clone(),
+        cpi_authority_pda: accounts[8].clone(),
+        registered_program_pda: accounts[9].clone(),
+        account_compression_authority: accounts[10].clone(),
+        account_compression_program: accounts[11].clone(),
+        system_program: accounts[12].clone(),
     };
 
     // Build the account infos struct using SDK
     let account_infos = CreateMintCpi {
         mint_seed: accounts[2].clone(),
         authority: accounts[3].clone(),
-        payer: accounts[4].clone(),
-        address_tree: accounts[11].clone(),
-        output_queue: accounts[10].clone(),
+        payer: accounts[7].clone(),
+        address_tree: accounts[14].clone(),
+        output_queue: accounts[13].clone(),
+        compressible_config: accounts[4].clone(),
+        mint: accounts[5].clone(),
+        rent_sponsor: accounts[6].clone(),
         system_accounts,
         cpi_context: None,
         cpi_context_account: None,

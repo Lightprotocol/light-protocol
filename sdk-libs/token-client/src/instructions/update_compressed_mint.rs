@@ -4,13 +4,13 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_token_interface::{
-    instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
-    state::CompressedMint,
+    instructions::mint_action::{MintInstructionData, MintWithContext},
+    state::Mint,
 };
 use light_token_sdk::compressed_token::update_compressed_mint::{
-    update_compressed_mint, UpdateCompressedMintInputs,
+    update_compressed_mint, UpdateMintInputs,
 };
-use light_token_types::CompressedMintAuthorityType;
+use light_token_types::MintAuthorityType;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -33,7 +33,7 @@ use solana_signer::Signer;
 #[allow(clippy::too_many_arguments)]
 pub async fn update_compressed_mint_instruction<R: Rpc + Indexer>(
     rpc: &mut R,
-    authority_type: CompressedMintAuthorityType,
+    authority_type: MintAuthorityType,
     current_authority: &Keypair,
     new_authority: Option<Pubkey>,
     mint_authority: Option<Pubkey>,
@@ -68,22 +68,22 @@ pub async fn update_compressed_mint_instruction<R: Rpc + Indexer>(
         .ok_or_else(|| RpcError::CustomError("Compressed mint data not found".to_string()))?;
 
     // Deserialize the compressed mint
-    let compressed_mint: CompressedMint =
+    let compressed_mint: Mint =
         BorshDeserialize::deserialize(&mut compressed_mint_data.data.as_slice()).map_err(|e| {
             RpcError::CustomError(format!("Failed to deserialize compressed mint: {}", e))
         })?;
 
     // Convert to instruction data format
-    let compressed_mint_instruction_data =
-        CompressedMintInstructionData::try_from(compressed_mint.clone()).map_err(|e| {
-            RpcError::CustomError(format!("Failed to convert compressed mint: {:?}", e))
-        })?;
+    let compressed_mint_instruction_data = MintInstructionData::try_from(compressed_mint.clone())
+        .map_err(|e| {
+        RpcError::CustomError(format!("Failed to convert compressed mint: {:?}", e))
+    })?;
 
     // Get random state tree info for output queue
     let state_tree_info = rpc.get_random_state_tree_info()?;
 
-    // Create the CompressedMintWithContext - using similar pattern to mint_to_compressed
-    let compressed_mint_inputs = CompressedMintWithContext {
+    // Create the MintWithContext - using similar pattern to mint_to_compressed
+    let compressed_mint_inputs = MintWithContext {
         leaf_index: compressed_mint_leaf_index,
         prove_by_index: true, // Use index-based proof like mint_to_compressed
         root_index: 0,        // Use 0 like mint_to_compressed
@@ -92,7 +92,7 @@ pub async fn update_compressed_mint_instruction<R: Rpc + Indexer>(
     };
 
     // Create instruction using the existing SDK function
-    let inputs = UpdateCompressedMintInputs {
+    let inputs = UpdateMintInputs {
         compressed_mint_inputs,
         authority_type,
         new_authority,

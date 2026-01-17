@@ -10,27 +10,27 @@ use light_zero_copy::{
 };
 use spl_pod::solana_msg::msg;
 
-use super::compressed_mint::{CompressedMintMetadata, ACCOUNT_TYPE_MINT};
+use super::compressed_mint::{MintMetadata, ACCOUNT_TYPE_MINT};
 use crate::{
-    instructions::mint_action::CompressedMintInstructionData,
+    instructions::mint_action::MintInstructionData,
     state::{
-        CompressedMint, ExtensionStruct, ExtensionStructConfig, TokenDataVersion, ZExtensionStruct,
+        ExtensionStruct, ExtensionStructConfig, Mint, TokenDataVersion, ZExtensionStruct,
         ZExtensionStructMut,
     },
     AnchorDeserialize, AnchorSerialize, TokenError,
 };
 
-/// Base size for CMint accounts (without extensions)
-pub const BASE_MINT_ACCOUNT_SIZE: u64 = CompressedMintZeroCopyMeta::LEN as u64;
+/// Base size for Mint accounts (without extensions)
+pub const BASE_MINT_ACCOUNT_SIZE: u64 = MintZeroCopyMeta::LEN as u64;
 
-/// Optimized CompressedMint zero copy struct.
-/// Uses derive macros to generate ZCompressedMintZeroCopyMeta<'a> and ZCompressedMintZeroCopyMetaMut<'a>.
+/// Optimized Mint zero copy struct.
+/// Uses derive macros to generate ZMintZeroCopyMeta<'a> and ZMintZeroCopyMetaMut<'a>.
 #[derive(
     Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
 )]
 #[repr(C)]
 #[aligned_sized]
-struct CompressedMintZeroCopyMeta {
+struct MintZeroCopyMeta {
     // BaseMint fields with flattened COptions (SPL format: 4 bytes discriminator + 32 bytes pubkey)
     mint_authority_option_prefix: u32,
     mint_authority: Pubkey,
@@ -42,8 +42,8 @@ struct CompressedMintZeroCopyMeta {
     pub is_initialized: u8,
     freeze_authority_option_prefix: u32,
     freeze_authority: Pubkey,
-    // CompressedMintMetadata
-    pub metadata: CompressedMintMetadata,
+    // MintMetadata
+    pub metadata: MintMetadata,
     /// Reserved bytes for T22 layout compatibility (padding to reach byte 165)
     pub reserved: [u8; 16],
     /// Account type discriminator at byte 165 (1 = Mint, 2 = Account)
@@ -54,42 +54,42 @@ struct CompressedMintZeroCopyMeta {
     has_extensions: bool,
 }
 
-/// Zero-copy view of CompressedMint with base and optional extensions
+/// Zero-copy view of Mint with base and optional extensions
 #[derive(Debug)]
-pub struct ZCompressedMint<'a> {
-    pub base: ZCompressedMintZeroCopyMeta<'a>,
+pub struct ZMint<'a> {
+    pub base: ZMintZeroCopyMeta<'a>,
     pub extensions: Option<Vec<ZExtensionStruct<'a>>>,
 }
 
-/// Mutable zero-copy view of CompressedMint with base and optional extensions
+/// Mutable zero-copy view of Mint with base and optional extensions
 #[derive(Debug)]
-pub struct ZCompressedMintMut<'a> {
-    pub base: ZCompressedMintZeroCopyMetaMut<'a>,
+pub struct ZMintMut<'a> {
+    pub base: ZMintZeroCopyMetaMut<'a>,
     pub extensions: Option<Vec<ZExtensionStructMut<'a>>>,
 }
 
-/// Configuration for creating a new CompressedMint via ZeroCopyNew
+/// Configuration for creating a new Mint via ZeroCopyNew
 #[derive(Debug, Clone, PartialEq)]
-pub struct CompressedMintConfig {
+pub struct MintConfig {
     /// Extension configurations
     pub extensions: Option<Vec<ExtensionStructConfig>>,
 }
 
-impl<'a> ZeroCopyNew<'a> for CompressedMint {
-    type ZeroCopyConfig = CompressedMintConfig;
-    type Output = ZCompressedMintMut<'a>;
+impl<'a> ZeroCopyNew<'a> for Mint {
+    type ZeroCopyConfig = MintConfig;
+    type Output = ZMintMut<'a>;
 
     fn byte_len(
         config: &Self::ZeroCopyConfig,
     ) -> Result<usize, light_zero_copy::errors::ZeroCopyError> {
         // Use derived byte_len for meta struct
-        let meta_config = CompressedMintZeroCopyMetaConfig {
+        let meta_config = MintZeroCopyMetaConfig {
             metadata: (),
             compression: light_compressible::compression_info::CompressionInfoConfig {
                 rent_config: (),
             },
         };
-        let mut size = CompressedMintZeroCopyMeta::byte_len(&meta_config)?;
+        let mut size = MintZeroCopyMeta::byte_len(&meta_config)?;
 
         // Add extension sizes if present
         if let Some(ref extensions) = config.extensions {
@@ -113,14 +113,14 @@ impl<'a> ZeroCopyNew<'a> for CompressedMint {
             return Err(light_zero_copy::errors::ZeroCopyError::MemoryNotZeroed);
         }
         // Use derived new_zero_copy for meta struct
-        let meta_config = CompressedMintZeroCopyMetaConfig {
+        let meta_config = MintZeroCopyMetaConfig {
             metadata: (),
             compression: light_compressible::compression_info::CompressionInfoConfig {
                 rent_config: (),
             },
         };
         let (mut base, remaining) =
-            <CompressedMintZeroCopyMeta as ZeroCopyNew<'a>>::new_zero_copy(bytes, meta_config)?;
+            <MintZeroCopyMeta as ZeroCopyNew<'a>>::new_zero_copy(bytes, meta_config)?;
         *base.account_type = ACCOUNT_TYPE_MINT;
         base.is_initialized = 1;
 
@@ -133,7 +133,7 @@ impl<'a> ZeroCopyNew<'a> for CompressedMint {
             )?;
 
             Ok((
-                ZCompressedMintMut {
+                ZMintMut {
                     base,
                     extensions: Some(extensions),
                 },
@@ -141,7 +141,7 @@ impl<'a> ZeroCopyNew<'a> for CompressedMint {
             ))
         } else {
             Ok((
-                ZCompressedMintMut {
+                ZMintMut {
                     base,
                     extensions: None,
                 },
@@ -151,19 +151,19 @@ impl<'a> ZeroCopyNew<'a> for CompressedMint {
     }
 }
 
-impl<'a> ZeroCopyAt<'a> for CompressedMint {
-    type ZeroCopyAt = ZCompressedMint<'a>;
+impl<'a> ZeroCopyAt<'a> for Mint {
+    type ZeroCopyAt = ZMint<'a>;
 
     fn zero_copy_at(
         bytes: &'a [u8],
     ) -> Result<(Self::ZeroCopyAt, &'a [u8]), light_zero_copy::errors::ZeroCopyError> {
-        let (base, bytes) = <CompressedMintZeroCopyMeta as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
+        let (base, bytes) = <MintZeroCopyMeta as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
         // has_extensions already consumed the Option discriminator byte
         if base.has_extensions() {
             let (extensions, bytes) =
                 <Vec<ExtensionStruct> as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
             Ok((
-                ZCompressedMint {
+                ZMint {
                     base,
                     extensions: Some(extensions),
                 },
@@ -171,7 +171,7 @@ impl<'a> ZeroCopyAt<'a> for CompressedMint {
             ))
         } else {
             Ok((
-                ZCompressedMint {
+                ZMint {
                     base,
                     extensions: None,
                 },
@@ -181,20 +181,19 @@ impl<'a> ZeroCopyAt<'a> for CompressedMint {
     }
 }
 
-impl<'a> ZeroCopyAtMut<'a> for CompressedMint {
-    type ZeroCopyAtMut = ZCompressedMintMut<'a>;
+impl<'a> ZeroCopyAtMut<'a> for Mint {
+    type ZeroCopyAtMut = ZMintMut<'a>;
 
     fn zero_copy_at_mut(
         bytes: &'a mut [u8],
     ) -> Result<(Self::ZeroCopyAtMut, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
-        let (base, bytes) =
-            <CompressedMintZeroCopyMeta as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
+        let (base, bytes) = <MintZeroCopyMeta as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
         // has_extensions already consumed the Option discriminator byte
         if base.has_extensions() {
             let (extensions, bytes) =
                 <Vec<ExtensionStruct> as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
             Ok((
-                ZCompressedMintMut {
+                ZMintMut {
                     base,
                     extensions: Some(extensions),
                 },
@@ -202,7 +201,7 @@ impl<'a> ZeroCopyAtMut<'a> for CompressedMint {
             ))
         } else {
             Ok((
-                ZCompressedMintMut {
+                ZMintMut {
                     base,
                     extensions: None,
                 },
@@ -213,27 +212,27 @@ impl<'a> ZeroCopyAtMut<'a> for CompressedMint {
 }
 
 // Deref implementations for field access
-impl<'a> Deref for ZCompressedMint<'a> {
-    type Target = ZCompressedMintZeroCopyMeta<'a>;
+impl<'a> Deref for ZMint<'a> {
+    type Target = ZMintZeroCopyMeta<'a>;
 
     fn deref(&self) -> &Self::Target {
         &self.base
     }
 }
 
-impl<'a> Deref for ZCompressedMintMut<'a> {
-    type Target = ZCompressedMintZeroCopyMetaMut<'a>;
+impl<'a> Deref for ZMintMut<'a> {
+    type Target = ZMintZeroCopyMetaMut<'a>;
 
     fn deref(&self) -> &Self::Target {
         &self.base
     }
 }
 
-// Getters on ZCompressedMintZeroCopyMeta (immutable)
-impl ZCompressedMintZeroCopyMeta<'_> {
-    /// Checks if account_type matches CMint discriminator value
+// Getters on ZMintZeroCopyMeta (immutable)
+impl ZMintZeroCopyMeta<'_> {
+    /// Checks if account_type matches Mint discriminator value
     #[inline(always)]
-    pub fn is_cmint_account(&self) -> bool {
+    pub fn is_mint_account(&self) -> bool {
         self.account_type == ACCOUNT_TYPE_MINT
     }
 
@@ -262,11 +261,11 @@ impl ZCompressedMintZeroCopyMeta<'_> {
     }
 }
 
-// Getters on ZCompressedMintZeroCopyMetaMut (mutable)
-impl ZCompressedMintZeroCopyMetaMut<'_> {
-    /// Checks if account_type matches CMint discriminator value
+// Getters on ZMintZeroCopyMetaMut (mutable)
+impl ZMintZeroCopyMetaMut<'_> {
+    /// Checks if account_type matches Mint discriminator value
     #[inline(always)]
-    pub fn is_cmint_account(&self) -> bool {
+    pub fn is_mint_account(&self) -> bool {
         *self.account_type == ACCOUNT_TYPE_MINT
     }
 
@@ -317,31 +316,31 @@ impl ZCompressedMintZeroCopyMetaMut<'_> {
     }
 }
 
-// Checked methods on CompressedMint
-impl CompressedMint {
+// Checked methods on Mint
+impl Mint {
     /// Zero-copy deserialization with initialization and account_type check.
     /// Returns an error if:
     /// - Account is not initialized (is_initialized == false)
     /// - Account type is not ACCOUNT_TYPE_MINT (byte 165 != 1)
     #[profile]
-    pub fn zero_copy_at_checked(bytes: &[u8]) -> Result<(ZCompressedMint<'_>, &[u8]), TokenError> {
-        // Check minimum size (use CMint-specific size, not Token size)
+    pub fn zero_copy_at_checked(bytes: &[u8]) -> Result<(ZMint<'_>, &[u8]), TokenError> {
+        // Check minimum size (use Mint-specific size, not Token size)
         if bytes.len() < BASE_MINT_ACCOUNT_SIZE as usize {
             return Err(TokenError::InvalidAccountData);
         }
 
         // Proceed with deserialization first
-        let (mint, remaining) = CompressedMint::zero_copy_at(bytes)
-            .map_err(|_| TokenError::CMintDeserializationFailed)?;
+        let (mint, remaining) =
+            Mint::zero_copy_at(bytes).map_err(|_| TokenError::MintDeserializationFailed)?;
 
         // Verify account_type using the method
-        if !mint.is_cmint_account() {
+        if !mint.is_mint_account() {
             return Err(TokenError::InvalidAccountType);
         }
 
         // Check is_initialized
         if !mint.is_initialized() {
-            return Err(TokenError::CMintNotInitialized);
+            return Err(TokenError::MintNotInitialized);
         }
 
         Ok((mint, remaining))
@@ -354,8 +353,8 @@ impl CompressedMint {
     #[profile]
     pub fn zero_copy_at_mut_checked(
         bytes: &mut [u8],
-    ) -> Result<(ZCompressedMintMut<'_>, &mut [u8]), TokenError> {
-        // Check minimum size (use CMint-specific size, not Token size)
+    ) -> Result<(ZMintMut<'_>, &mut [u8]), TokenError> {
+        // Check minimum size (use Mint-specific size, not Token size)
         if bytes.len() < BASE_MINT_ACCOUNT_SIZE as usize {
             msg!(
                 "zero_copy_at_mut_checked bytes.len() < BASE_MINT_ACCOUNT_SIZE {}",
@@ -364,13 +363,13 @@ impl CompressedMint {
             return Err(TokenError::InvalidAccountData);
         }
 
-        let (mint, remaining) = CompressedMint::zero_copy_at_mut(bytes)
-            .map_err(|_| TokenError::CMintDeserializationFailed)?;
+        let (mint, remaining) =
+            Mint::zero_copy_at_mut(bytes).map_err(|_| TokenError::MintDeserializationFailed)?;
 
         if !mint.is_initialized() {
-            return Err(TokenError::CMintNotInitialized);
+            return Err(TokenError::MintNotInitialized);
         }
-        if !mint.is_cmint_account() {
+        if !mint.is_mint_account() {
             return Err(TokenError::InvalidAccountType);
         }
 
@@ -378,12 +377,12 @@ impl CompressedMint {
     }
 }
 
-// Helper methods on ZCompressedMint
-impl ZCompressedMint<'_> {
-    /// Checks if account_type matches CMint discriminator value
+// Helper methods on ZMint
+impl ZMint<'_> {
+    /// Checks if account_type matches Mint discriminator value
     #[inline(always)]
-    pub fn is_cmint_account(&self) -> bool {
-        self.base.is_cmint_account()
+    pub fn is_mint_account(&self) -> bool {
+        self.base.is_mint_account()
     }
 
     /// Checks if account is initialized
@@ -393,12 +392,12 @@ impl ZCompressedMint<'_> {
     }
 }
 
-// Helper methods on ZCompressedMintMut
-impl ZCompressedMintMut<'_> {
-    /// Checks if account_type matches CMint discriminator value
+// Helper methods on ZMintMut
+impl ZMintMut<'_> {
+    /// Checks if account_type matches Mint discriminator value
     #[inline(always)]
-    pub fn is_cmint_account(&self) -> bool {
-        self.base.is_cmint_account()
+    pub fn is_mint_account(&self) -> bool {
+        self.base.is_mint_account()
     }
 
     /// Checks if account is initialized
@@ -407,13 +406,13 @@ impl ZCompressedMintMut<'_> {
         self.base.is_initialized()
     }
 
-    /// Set all fields of the CompressedMint struct at once
+    /// Set all fields of the Mint struct at once
     #[inline]
     #[profile]
     pub fn set(
         &mut self,
-        ix_data: &<CompressedMintInstructionData as light_zero_copy::traits::ZeroCopyAt<'_>>::ZeroCopyAt,
-        cmint_decompressed: bool,
+        ix_data: &<MintInstructionData as light_zero_copy::traits::ZeroCopyAt<'_>>::ZeroCopyAt,
+        mint_decompressed: bool,
     ) -> Result<(), TokenError> {
         if ix_data.metadata.version != TokenDataVersion::ShaFlat as u8 {
             #[cfg(feature = "solana")]
@@ -426,7 +425,7 @@ impl ZCompressedMintMut<'_> {
         // Set metadata fields from instruction data
         self.base.metadata.version = ix_data.metadata.version;
         self.base.metadata.mint = ix_data.metadata.mint;
-        self.base.metadata.cmint_decompressed = if cmint_decompressed { 1 } else { 0 };
+        self.base.metadata.mint_decompressed = if mint_decompressed { 1 } else { 0 };
         self.base.metadata.mint_signer = ix_data.metadata.mint_signer;
         self.base.metadata.bump = ix_data.metadata.bump;
 

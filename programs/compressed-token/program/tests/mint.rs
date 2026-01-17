@@ -13,12 +13,11 @@ use light_compressed_token::{
 use light_token_interface::{
     instructions::{
         extensions::{ExtensionInstructionData, TokenMetadataInstructionData},
-        mint_action::{CompressedMintInstructionData, MintActionCompressedInstructionData},
+        mint_action::{MintActionCompressedInstructionData, MintInstructionData},
     },
     state::{
-        AdditionalMetadata, AdditionalMetadataConfig, BaseMint, CompressedMint,
-        CompressedMintMetadata, CompressionInfo, ExtensionStruct, TokenMetadata, ZCompressedMint,
-        ZExtensionStruct, ACCOUNT_TYPE_MINT,
+        AdditionalMetadata, AdditionalMetadataConfig, BaseMint, CompressionInfo, ExtensionStruct,
+        Mint, MintMetadata, TokenMetadata, ZExtensionStruct, ZMint, ACCOUNT_TYPE_MINT,
     },
     CMINT_ADDRESS_TREE, COMPRESSED_MINT_SEED, LIGHT_TOKEN_PROGRAM_ID,
 };
@@ -61,7 +60,7 @@ fn test_rnd_create_compressed_mint_account() {
         // Generate random supplies
         let input_supply = rng.gen_range(0..=u64::MAX);
         let _output_supply = rng.gen_range(0..=u64::MAX);
-        let cmint_decompressed = rng.gen_bool(0.1);
+        let mint_decompressed = rng.gen_bool(0.1);
 
         // Generate random merkle context
         let merkle_tree_pubkey_index = rng.gen_range(0..=255u8);
@@ -118,15 +117,15 @@ fn test_rnd_create_compressed_mint_account() {
             None
         };
 
-        // Step 2: Create CompressedMintInstructionData using current API
+        // Step 2: Create MintInstructionData using current API
         // mint_signer and bump were derived at the start of the iteration
-        let mint_instruction_data = CompressedMintInstructionData {
+        let mint_instruction_data = MintInstructionData {
             supply: input_supply,
             decimals,
-            metadata: CompressedMintMetadata {
+            metadata: MintMetadata {
                 version,
                 mint: mint_pda,
-                cmint_decompressed,
+                mint_decompressed,
                 mint_signer: mint_signer.to_bytes(),
                 bump,
             },
@@ -157,9 +156,9 @@ fn test_rnd_create_compressed_mint_account() {
         // Derive AccountsConfig from parsed instruction data (same as processor)
         let accounts_config = AccountsConfig::new(&parsed_instruction_data).unwrap();
 
-        // Derive CompressedMint from instruction data (same as processor)
+        // Derive Mint from instruction data (same as processor)
         let mint_data = parsed_instruction_data.mint.as_ref().unwrap();
-        let cmint = CompressedMint::try_from(mint_data).unwrap();
+        let cmint = Mint::try_from(mint_data).unwrap();
 
         let (config, mut cpi_bytes, output_mint_config) =
             get_zero_copy_configs(&parsed_instruction_data, &accounts_config, &cmint).unwrap();
@@ -204,8 +203,7 @@ fn test_rnd_create_compressed_mint_account() {
         println!("Borsh serialized {} bytes", borsh_bytes.len());
 
         // Test 2: Deserialize with zero_copy_at
-        let (zc_mint, remaining) =
-            CompressedMintInstructionData::zero_copy_at(&borsh_bytes).unwrap();
+        let (zc_mint, remaining) = MintInstructionData::zero_copy_at(&borsh_bytes).unwrap();
         assert!(remaining.is_empty(), "Should consume all bytes");
 
         // Test 3: Verify data matches between borsh and zero-copy
@@ -217,8 +215,8 @@ fn test_rnd_create_compressed_mint_account() {
         assert_eq!(zc_mint.supply.get(), output_mint_data.supply);
         assert_eq!(zc_mint.decimals, output_mint_data.decimals);
         assert_eq!(
-            zc_mint.metadata.cmint_decompressed != 0,
-            output_mint_data.metadata.cmint_decompressed
+            zc_mint.metadata.mint_decompressed != 0,
+            output_mint_data.metadata.mint_decompressed
         );
 
         if let (Some(zc_mint_auth), Some(orig_mint_auth)) = (
@@ -268,7 +266,7 @@ fn test_rnd_create_compressed_mint_account() {
         }
 
         // Test 5: Test the CPI allocation is correct
-        let expected_mint_size = CompressedMint::byte_len(&output_mint_config).unwrap();
+        let expected_mint_size = Mint::byte_len(&output_mint_config).unwrap();
         let output_account = &cpi_instruction_struct.output_compressed_accounts[0];
         let compressed_account_data = output_account
             .compressed_account
@@ -325,13 +323,13 @@ fn test_rnd_create_compressed_mint_account() {
                 "Output account data must match expected mint size"
             );
 
-            // Test that the allocated space is sufficient for a zero-copy CompressedMint creation
+            // Test that the allocated space is sufficient for a zero-copy Mint creation
             // (This verifies allocation correctness without requiring populated data)
             let test_mint_data = vec![0u8; account_data.data.len()];
-            let test_result = CompressedMint::zero_copy_at(&test_mint_data);
+            let test_result = Mint::zero_copy_at(&test_mint_data);
             assert!(
                 test_result.is_ok(),
-                "Allocated space should be valid for zero-copy CompressedMint creation"
+                "Allocated space should be valid for zero-copy Mint creation"
             );
 
             // COMPLETE STRUCT ASSERTION: This verifies the entire CPI instruction structure is valid
@@ -364,7 +362,7 @@ fn test_rnd_create_compressed_mint_account() {
 fn test_compressed_mint_borsh_zero_copy_compatibility() {
     use light_zero_copy::traits::ZeroCopyAt;
 
-    // Create CompressedMint with token metadata extension
+    // Create Mint with token metadata extension
     let token_metadata = TokenMetadata {
         update_authority: Pubkey::new_from_array([1; 32]),
         mint: Pubkey::new_from_array([2; 32]),
@@ -374,7 +372,7 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
         additional_metadata: vec![],
     };
 
-    let compressed_mint = CompressedMint {
+    let compressed_mint = Mint {
         compression: CompressionInfo::default(),
         base: BaseMint {
             mint_authority: Some(Pubkey::new_from_array([4; 32])),
@@ -383,10 +381,10 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
             is_initialized: true,
             freeze_authority: None,
         },
-        metadata: CompressedMintMetadata {
+        metadata: MintMetadata {
             version: 3u8,
             mint: Pubkey::new_from_array([3; 32]),
-            cmint_decompressed: false,
+            mint_decompressed: false,
             mint_signer: [5; 32],
             bump: 255,
         },
@@ -399,8 +397,7 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
     let borsh_bytes = borsh::to_vec(&compressed_mint).unwrap();
 
     // Deserialize with zero_copy_at
-    let (zc_mint, remaining): (ZCompressedMint<'_>, &[u8]) =
-        CompressedMint::zero_copy_at(&borsh_bytes).unwrap();
+    let (zc_mint, remaining): (ZMint<'_>, &[u8]) = Mint::zero_copy_at(&borsh_bytes).unwrap();
     assert!(remaining.is_empty());
 
     // COMPLETE STRUCT ASSERTION: Test borsh round-trip compatibility (UNIT_TESTING.md requirement)
@@ -430,7 +427,7 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
             }
         };
 
-        let reconstructed_mint = CompressedMint {
+        let reconstructed_mint = Mint {
             compression,
             base: BaseMint {
                 mint_authority: zc_mint.base.mint_authority().cloned(),
@@ -439,10 +436,10 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
                 is_initialized: zc_mint.base.is_initialized != 0,
                 freeze_authority: zc_mint.base.freeze_authority().cloned(),
             },
-            metadata: CompressedMintMetadata {
+            metadata: MintMetadata {
                 version: zc_mint.base.metadata.version,
                 mint: zc_mint.base.metadata.mint,
-                cmint_decompressed: zc_mint.base.metadata.cmint_decompressed != 0,
+                mint_decompressed: zc_mint.base.metadata.mint_decompressed != 0,
                 mint_signer: zc_mint.base.metadata.mint_signer,
                 bump: zc_mint.base.metadata.bump,
             },

@@ -10,7 +10,7 @@ use light_token_client::{
     actions::create_mint,
     instructions::mint_action::{MintActionType, MintToRecipient},
 };
-use light_token_interface::state::{extensions::AdditionalMetadata, CompressedMint};
+use light_token_interface::state::{extensions::AdditionalMetadata, Mint};
 use light_token_sdk::{
     compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
     token::{CompressibleParams, CreateAssociatedTokenAccount},
@@ -116,7 +116,7 @@ async fn functional_and_failing_tests() {
     // 2. FAIL - Create mint with duplicate metadata keys
     {
         let duplicate_mint_seed = Keypair::new();
-        let result = create_mint(
+        let result = light_token_client::actions::create_mint(
             &mut rpc,
             &duplicate_mint_seed, // Use new mint seed
             8, // decimals
@@ -218,7 +218,7 @@ async fn functional_and_failing_tests() {
             .unwrap()
             .value
             .unwrap();
-        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        let pre_compressed_mint: Mint = BorshDeserialize::deserialize(
             &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
         )
         .unwrap();
@@ -296,7 +296,7 @@ async fn functional_and_failing_tests() {
             .unwrap()
             .value
             .unwrap();
-        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        let pre_compressed_mint: Mint = BorshDeserialize::deserialize(
             &mut compressed_mint_account.data.unwrap().data.as_slice(),
         )
         .unwrap();
@@ -367,7 +367,7 @@ async fn functional_and_failing_tests() {
             .unwrap()
             .value
             .unwrap();
-        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        let pre_compressed_mint: Mint = BorshDeserialize::deserialize(
             &mut compressed_mint_account.data.unwrap().data.as_slice(),
         )
         .unwrap();
@@ -419,7 +419,7 @@ async fn functional_and_failing_tests() {
             &invalid_mint_authority, // Invalid authority
             &payer,
             None,   // decompress_mint
-            false,  // compress_and_close_cmint
+            false,  // compress_and_close_mint
             vec![], // No compressed recipients
             vec![
                 light_token_interface::instructions::mint_action::Recipient::new(
@@ -450,7 +450,7 @@ async fn functional_and_failing_tests() {
             .unwrap()
             .value
             .unwrap();
-        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        let pre_compressed_mint: Mint = BorshDeserialize::deserialize(
             &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
         )
         .unwrap();
@@ -477,7 +477,7 @@ async fn functional_and_failing_tests() {
             &new_mint_authority, // Valid NEW authority after update
             &payer,
             None,   // decompress_mint
-            false,  // compress_and_close_cmint
+            false,  // compress_and_close_mint
             vec![], // No compressed recipients
             vec![
                 light_token_interface::instructions::mint_action::Recipient::new(
@@ -546,7 +546,7 @@ async fn functional_and_failing_tests() {
             .unwrap()
             .value
             .unwrap();
-        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        let pre_compressed_mint: Mint = BorshDeserialize::deserialize(
             &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
         )
         .unwrap();
@@ -627,7 +627,7 @@ async fn functional_and_failing_tests() {
             .unwrap()
             .value
             .unwrap();
-        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        let pre_compressed_mint: Mint = BorshDeserialize::deserialize(
             &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
         )
         .unwrap();
@@ -707,7 +707,7 @@ async fn functional_and_failing_tests() {
             .unwrap()
             .value
             .unwrap();
-        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        let pre_compressed_mint: Mint = BorshDeserialize::deserialize(
             &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
         )
         .unwrap();
@@ -760,7 +760,7 @@ async fn functional_and_failing_tests() {
             .unwrap()
             .value
             .unwrap();
-        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        let pre_compressed_mint: Mint = BorshDeserialize::deserialize(
             &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
         )
         .unwrap();
@@ -813,7 +813,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
     use light_compressed_account::instruction_data::traits::LightInstructionData;
     use light_token_interface::{
         instructions::mint_action::{
-            CompressedMintWithContext, MintActionCompressedInstructionData, MintToAction,
+            MintActionCompressedInstructionData, MintToAction, MintWithContext,
         },
         state::TokenDataVersion,
         LIGHT_TOKEN_PROGRAM_ID,
@@ -843,7 +843,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
     let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // 1. Create compressed mint
-    light_token_client::actions::create_mint(
+    create_mint(
         &mut rpc,
         &mint_seed,
         8, // decimals
@@ -894,7 +894,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
         .value
         .unwrap();
 
-    let compressed_mint: light_token_interface::state::CompressedMint =
+    let compressed_mint: light_token_interface::state::Mint =
         BorshDeserialize::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
             .unwrap();
 
@@ -905,7 +905,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
         .unwrap()
         .value;
 
-    let compressed_mint_inputs = CompressedMintWithContext {
+    let compressed_mint_inputs = MintWithContext {
         prove_by_index: rpc_proof_result.accounts[0].root_index.proof_by_index(),
         leaf_index: compressed_mint_account.leaf_index,
         root_index: rpc_proof_result.accounts[0]
@@ -1017,11 +1017,11 @@ async fn test_create_mint_non_signer_mint_signer() {
     .unwrap();
 }
 
-/// Test that CompressAndCloseCMint must be the only action in the instruction.
-/// Attempting to combine CompressAndCloseCMint with UpdateMintAuthority should fail.
+/// Test that CompressAndCloseMint must be the only action in the instruction.
+/// Attempting to combine CompressAndCloseMint with UpdateMintAuthority should fail.
 #[tokio::test]
 #[serial]
-async fn test_compress_and_close_cmint_must_be_only_action() {
+async fn test_compress_and_close_mint_must_be_only_action() {
     use light_compressible::rent::SLOTS_PER_EPOCH;
     use light_program_test::program_test::TestRpc;
     use light_token_client::instructions::mint_action::DecompressMintParams;
@@ -1046,7 +1046,7 @@ async fn test_compress_and_close_cmint_must_be_only_action() {
     let compressed_mint_address =
         derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
-    // 1. Create compressed mint with CMint (decompressed)
+    // 1. Create compressed mint with Mint (decompressed)
     light_token_client::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
@@ -1073,7 +1073,7 @@ async fn test_compress_and_close_cmint_must_be_only_action() {
     // Warp to epoch 2 so that rent expires
     rpc.warp_to_slot(SLOTS_PER_EPOCH * 2).unwrap();
 
-    // 2. Try to combine CompressAndCloseCMint with UpdateMintAuthority
+    // 2. Try to combine CompressAndCloseMint with UpdateMintAuthority
     let new_authority = Keypair::new();
     let result = light_token_client::actions::mint_action(
         &mut rpc,
@@ -1083,7 +1083,7 @@ async fn test_compress_and_close_cmint_must_be_only_action() {
             authority: mint_authority.pubkey(),
             payer: payer.pubkey(),
             actions: vec![
-                MintActionType::CompressAndCloseCMint { idempotent: false },
+                MintActionType::CompressAndCloseMint { idempotent: false },
                 MintActionType::UpdateMintAuthority {
                     new_authority: Some(new_authority.pubkey()),
                 },
@@ -1096,9 +1096,9 @@ async fn test_compress_and_close_cmint_must_be_only_action() {
     )
     .await;
 
-    // Should fail with CompressAndCloseCMintMustBeOnlyAction (error code 6169)
+    // Should fail with CompressAndCloseMintMustBeOnlyAction (error code 6169)
     assert_rpc_error(
-        result, 0, 6169, // CompressAndCloseCMintMustBeOnlyAction
+        result, 0, 6169, // CompressAndCloseMintMustBeOnlyAction
     )
     .unwrap();
 }

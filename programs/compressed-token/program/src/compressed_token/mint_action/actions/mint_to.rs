@@ -4,8 +4,7 @@ use light_compressed_account::Pubkey;
 use light_program_profiler::profile;
 use light_sdk_pinocchio::instruction::ZOutputCompressedAccountWithPackedContextMut;
 use light_token_interface::{
-    hash_cache::HashCache, instructions::mint_action::ZMintToCompressedAction,
-    state::CompressedMint,
+    hash_cache::HashCache, instructions::mint_action::ZMintToCompressedAction, state::Mint,
 };
 
 use crate::{
@@ -24,7 +23,7 @@ use crate::{
 #[profile]
 pub fn process_mint_to_compressed_action<'a>(
     action: &ZMintToCompressedAction,
-    compressed_mint: &mut CompressedMint,
+    compressed_mint: &mut Mint,
     validated_accounts: &MintActionAccounts,
     output_accounts_iter: &mut impl Iterator<
         Item = &'a mut ZOutputCompressedAccountWithPackedContextMut<'a>,

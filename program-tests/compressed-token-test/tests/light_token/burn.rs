@@ -4,15 +4,15 @@
 //!
 //! | Test Category | Test Name |
 //! |--------------|-----------|
-//! | With CMint (partial burn) | test_burn_success_cases |
-//! | With CMint (full balance) | test_burn_success_cases |
+//! | With Mint (partial burn) | test_burn_success_cases |
+//! | With Mint (full balance) | test_burn_success_cases |
 //! | Invalid mint (wrong mint) | test_burn_fails |
 //! | Invalid ctoken (non-existent) | test_burn_fails |
 //! | Invalid ctoken (wrong owner) | test_burn_fails |
 //! | Insufficient balance | test_burn_fails |
 //! | Wrong authority | test_burn_fails |
 //!
-//! **Note**: Burn requires a real CMint account (owned by ctoken program) for supply tracking.
+//! **Note**: Burn requires a real Mint account (owned by ctoken program) for supply tracking.
 //! This is different from approve/revoke which only modify the Light Token account.
 //!
 //! **Note**: Max top-up exceeded test requires compressible accounts with time warp.
@@ -36,7 +36,7 @@ use super::shared::*;
 #[tokio::test]
 #[serial]
 async fn test_burn_success_cases() {
-    // Test 1: Basic burn with CMint (no top-up needed)
+    // Test 1: Basic burn with Mint (no top-up needed)
     {
         let mut ctx = setup_burn_test().await;
         let burn_amount = 50u64;
@@ -44,7 +44,7 @@ async fn test_burn_success_cases() {
         // Burn 50 tokens
         let burn_ix = Burn {
             source: ctx.ctoken_account,
-            cmint: ctx.cmint_pda,
+            mint: ctx.mint_pda,
             amount: burn_amount,
             authority: ctx.owner_keypair.pubkey(),
             max_top_up: None,
@@ -62,7 +62,7 @@ async fn test_burn_success_cases() {
             .unwrap();
 
         // Assert burn was successful using assert_ctoken_burn
-        assert_ctoken_burn(&mut ctx.rpc, ctx.ctoken_account, ctx.cmint_pda, burn_amount).await;
+        assert_ctoken_burn(&mut ctx.rpc, ctx.ctoken_account, ctx.mint_pda, burn_amount).await;
 
         println!("test_burn_success_cases: basic burn passed");
     }
@@ -75,7 +75,7 @@ async fn test_burn_success_cases() {
         // Burn all 100 tokens
         let burn_ix = Burn {
             source: ctx.ctoken_account,
-            cmint: ctx.cmint_pda,
+            mint: ctx.mint_pda,
             amount: burn_amount,
             authority: ctx.owner_keypair.pubkey(),
             max_top_up: None,
@@ -93,7 +93,7 @@ async fn test_burn_success_cases() {
             .unwrap();
 
         // Assert burn was successful using assert_ctoken_burn
-        assert_ctoken_burn(&mut ctx.rpc, ctx.ctoken_account, ctx.cmint_pda, burn_amount).await;
+        assert_ctoken_burn(&mut ctx.rpc, ctx.ctoken_account, ctx.mint_pda, burn_amount).await;
 
         println!("test_burn_success_cases: burn full balance passed");
     }
@@ -114,18 +114,18 @@ mod error_codes {
 #[tokio::test]
 #[serial]
 async fn test_burn_fails() {
-    // Test 1: Invalid mint - wrong mint (different CMint)
+    // Test 1: Invalid mint - wrong mint (different Mint)
     {
         let mut ctx = setup_burn_test().await;
 
-        // Create a different CMint
+        // Create a different Mint
         let other_mint_seed = Keypair::new();
-        let (other_cmint_pda, _) = find_mint_address(&other_mint_seed.pubkey());
+        let (other_mint_pda, _) = find_mint_address(&other_mint_seed.pubkey());
 
         // Try to burn with wrong mint
         let burn_ix = Burn {
             source: ctx.ctoken_account,
-            cmint: other_cmint_pda, // Wrong mint
+            mint: other_mint_pda, // Wrong mint
             amount: 50,
             authority: ctx.owner_keypair.pubkey(),
             max_top_up: None,
@@ -142,7 +142,7 @@ async fn test_burn_fails() {
             )
             .await;
 
-        // Non-existent CMint returns NotRentExempt (SPL Token code 0 -> 6153)
+        // Non-existent Mint returns NotRentExempt (SPL Token code 0 -> 6153)
         assert_rpc_error(result, 0, 6153).unwrap();
         println!("test_burn_fails: wrong mint passed");
     }
@@ -155,7 +155,7 @@ async fn test_burn_fails() {
 
         let burn_ix = Burn {
             source: non_existent,
-            cmint: ctx.cmint_pda,
+            mint: ctx.mint_pda,
             amount: 50,
             authority: ctx.owner_keypair.pubkey(),
             max_top_up: None,
@@ -201,7 +201,7 @@ async fn test_burn_fails() {
 
         let burn_ix = Burn {
             source: wrong_owner_account.pubkey(),
-            cmint: ctx.cmint_pda,
+            mint: ctx.mint_pda,
             amount: 50,
             authority: ctx.owner_keypair.pubkey(),
             max_top_up: None,
@@ -231,7 +231,7 @@ async fn test_burn_fails() {
         // Try to burn more than balance (100 tokens)
         let burn_ix = Burn {
             source: ctx.ctoken_account,
-            cmint: ctx.cmint_pda,
+            mint: ctx.mint_pda,
             amount: 200, // More than 100 balance
             authority: ctx.owner_keypair.pubkey(),
             max_top_up: None,
@@ -266,7 +266,7 @@ async fn test_burn_fails() {
 
         let burn_ix = Burn {
             source: ctx.ctoken_account,
-            cmint: ctx.cmint_pda,
+            mint: ctx.mint_pda,
             amount: 50,
             authority: wrong_authority.pubkey(),
             max_top_up: None,
@@ -303,16 +303,16 @@ async fn test_burn_fails() {
 struct BurnTestContext {
     rpc: LightProgramTest,
     payer: Keypair,
-    cmint_pda: Pubkey,
+    mint_pda: Pubkey,
     ctoken_account: Pubkey,
     owner_keypair: Keypair,
 }
 
-/// Setup: Create CMint + Light Token with 100 tokens
+/// Setup: Create Mint + Light Token with 100 tokens
 ///
 /// Steps:
 /// 1. Init LightProgramTest
-/// 2. Create compressed mint + CMint via mint_action_comprehensive
+/// 2. Create compressed mint + Mint via mint_action_comprehensive
 /// 3. Create Light Token ATA
 /// 4. Mint 100 tokens
 async fn setup_burn_test() -> BurnTestContext {
@@ -325,14 +325,14 @@ async fn setup_burn_test() -> BurnTestContext {
     let mint_authority = payer.insecure_clone();
     let owner_keypair = Keypair::new();
 
-    // Derive CMint PDA
-    let (cmint_pda, _) = find_mint_address(&mint_seed.pubkey());
+    // Derive Mint PDA
+    let (mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // Step 1: Create Light Token ATA for owner
-    let (ctoken_ata, _) = derive_token_ata(&owner_keypair.pubkey(), &cmint_pda);
+    let (ctoken_ata, _) = derive_token_ata(&owner_keypair.pubkey(), &mint_pda);
 
     let create_ata_ix =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), owner_keypair.pubkey(), cmint_pda)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner_keypair.pubkey(), mint_pda)
             .instruction()
             .unwrap();
 
@@ -340,13 +340,13 @@ async fn setup_burn_test() -> BurnTestContext {
         .await
         .unwrap();
 
-    // Step 2: Create compressed mint + CMint (no recipients)
+    // Step 2: Create compressed mint + Mint (no recipients)
     light_token_client::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
         &payer,
-        Some(DecompressMintParams::default()), // Creates CMint
+        Some(DecompressMintParams::default()), // Creates Mint
         false,                                 // Don't compress and close
         vec![],                                // No compressed recipients
         vec![],                                // No ctoken recipients
@@ -366,7 +366,7 @@ async fn setup_burn_test() -> BurnTestContext {
 
     // Step 3: Mint 100 tokens to the Light Token account
     let mint_ix = MintTo {
-        cmint: cmint_pda,
+        mint: mint_pda,
         destination: ctoken_ata,
         amount: 100,
         authority: mint_authority.pubkey(),
@@ -387,7 +387,7 @@ async fn setup_burn_test() -> BurnTestContext {
     BurnTestContext {
         rpc,
         payer,
-        cmint_pda,
+        mint_pda,
         ctoken_account: ctoken_ata,
         owner_keypair,
     }
@@ -411,7 +411,7 @@ async fn test_burn_checked_success() {
     // Burn 50 tokens with correct decimals (8)
     let burn_ix = BurnChecked {
         source: ctx.ctoken_account,
-        cmint: ctx.cmint_pda,
+        mint: ctx.mint_pda,
         amount: burn_amount,
         decimals: 8, // Correct decimals
         authority: ctx.owner_keypair.pubkey(),
@@ -430,7 +430,7 @@ async fn test_burn_checked_success() {
         .unwrap();
 
     // Assert burn was successful using assert_ctoken_burn
-    assert_ctoken_burn(&mut ctx.rpc, ctx.ctoken_account, ctx.cmint_pda, burn_amount).await;
+    assert_ctoken_burn(&mut ctx.rpc, ctx.ctoken_account, ctx.mint_pda, burn_amount).await;
 
     println!("test_burn_checked_success: passed");
 }
@@ -443,7 +443,7 @@ async fn test_burn_checked_wrong_decimals() {
     // Try to burn with wrong decimals (7 instead of 8)
     let burn_ix = BurnChecked {
         source: ctx.ctoken_account,
-        cmint: ctx.cmint_pda,
+        mint: ctx.mint_pda,
         amount: 50,
         decimals: 7, // Wrong decimals
         authority: ctx.owner_keypair.pubkey(),

@@ -43,7 +43,6 @@ solana-account-info = { workspace = true }
 solana-cpi = { workspace = true }
 solana-program-error = { workspace = true }
 arrayvec = { workspace = true }
-spl-token-2022 = { workspace = true }
 spl-pod = { workspace = true }
 light-account-checks = { workspace = true, features = ["solana"] }
 light-sdk-types = { workspace = true, features = ["v2"] }

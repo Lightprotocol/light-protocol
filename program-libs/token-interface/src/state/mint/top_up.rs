@@ -1,4 +1,4 @@
-//! Optimized top-up lamports calculation for CMint accounts.
+//! Optimized top-up lamports calculation for Mint accounts.
 
 use light_compressible::compression_info::CompressionInfo;
 use light_program_profiler::profile;
@@ -8,11 +8,11 @@ use pinocchio::account_info::AccountInfo;
 
 use super::compressed_mint::ACCOUNT_TYPE_MINT;
 
-/// Minimum size for CMint with CompressionInfo.
+/// Minimum size for Mint with CompressionInfo.
 /// 166 (offset to CompressionInfo) + 96 (CompressionInfo size) = 262
-pub const CMINT_MIN_SIZE_WITH_COMPRESSION: usize = COMPRESSION_INFO_OFFSET + COMPRESSION_INFO_SIZE;
+pub const MINT_MIN_SIZE_WITH_COMPRESSION: usize = COMPRESSION_INFO_OFFSET + COMPRESSION_INFO_SIZE;
 
-/// Offset to CompressionInfo in CMint.
+/// Offset to CompressionInfo in Mint.
 /// 82 (BaseMint) + 67 (metadata) + 16 (reserved) + 1 (account_type) = 166
 const COMPRESSION_INFO_OFFSET: usize = 166;
 
@@ -22,17 +22,16 @@ const COMPRESSION_INFO_SIZE: usize = 96;
 /// Offset to account_type field.
 const ACCOUNT_TYPE_OFFSET: usize = 165;
 
-/// Calculate top-up lamports directly from CMint account bytes.
-/// Returns None if account is not a valid CMint.
+/// Calculate top-up lamports directly from Mint account bytes.
+/// Returns None if account is not a valid Mint.
 #[inline(always)]
 #[profile]
-pub fn cmint_top_up_lamports_from_slice(
+pub fn mint_top_up_lamports_from_slice(
     data: &[u8],
     current_lamports: u64,
     current_slot: u64,
 ) -> Option<u64> {
-    if data.len() < CMINT_MIN_SIZE_WITH_COMPRESSION
-        || data[ACCOUNT_TYPE_OFFSET] != ACCOUNT_TYPE_MINT
+    if data.len() < MINT_MIN_SIZE_WITH_COMPRESSION || data[ACCOUNT_TYPE_OFFSET] != ACCOUNT_TYPE_MINT
     {
         return None;
     }
@@ -46,13 +45,13 @@ pub fn cmint_top_up_lamports_from_slice(
         .ok()
 }
 
-/// Calculate top-up lamports from a CMint AccountInfo.
+/// Calculate top-up lamports from a Mint AccountInfo.
 /// Verifies account owner is the Token program. Returns None if owner mismatch or invalid.
 /// Pass `current_slot` as 0 to fetch from Clock sysvar; non-zero values are used directly.
 #[cfg(target_os = "solana")]
 #[inline(always)]
 #[profile]
-pub fn cmint_top_up_lamports_from_account_info(
+pub fn mint_top_up_lamports_from_account_info(
     account_info: &AccountInfo,
     current_slot: &mut u64,
 ) -> Option<u64> {
@@ -65,8 +64,7 @@ pub fn cmint_top_up_lamports_from_account_info(
 
     let data = account_info.try_borrow_data().ok()?;
 
-    if data.len() < CMINT_MIN_SIZE_WITH_COMPRESSION
-        || data[ACCOUNT_TYPE_OFFSET] != ACCOUNT_TYPE_MINT
+    if data.len() < MINT_MIN_SIZE_WITH_COMPRESSION || data[ACCOUNT_TYPE_OFFSET] != ACCOUNT_TYPE_MINT
     {
         return None;
     }

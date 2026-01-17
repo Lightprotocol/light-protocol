@@ -5,7 +5,7 @@ use light_compressed_token::shared::cpi_bytes_size::{
 };
 use light_token_interface::state::{
     extensions::{AdditionalMetadataConfig, TokenMetadataConfig},
-    CompressedMint, CompressedMintConfig, ExtensionStructConfig,
+    ExtensionStructConfig, Mint, MintConfig,
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 
@@ -34,11 +34,11 @@ fn test_exact_allocation_assertion() {
     println!("Extension config: {:?}", extensions_config);
 
     // Step 1: Calculate expected mint size
-    let mint_config = CompressedMintConfig {
+    let mint_config = MintConfig {
         extensions: Some(extensions_config.clone()),
     };
 
-    let expected_mint_size = CompressedMint::byte_len(&mint_config).unwrap();
+    let expected_mint_size = Mint::byte_len(&mint_config).unwrap();
     println!("Expected mint size: {} bytes", expected_mint_size);
 
     // Step 2: Calculate CPI allocation
@@ -83,8 +83,8 @@ fn test_exact_allocation_assertion() {
 
     // Step 5: Calculate exact space needed
     let base_mint_size_no_ext = {
-        let no_ext_config = CompressedMintConfig { extensions: None };
-        CompressedMint::byte_len(&no_ext_config).unwrap()
+        let no_ext_config = MintConfig { extensions: None };
+        Mint::byte_len(&no_ext_config).unwrap()
     };
 
     let extension_space_needed = expected_mint_size - base_mint_size_no_ext;
@@ -194,10 +194,10 @@ fn test_exact_allocation_assertion() {
     );
     println!("Allocated data space: {} bytes", available_data_space);
 
-    // The critical assertion: allocated space should exactly match CompressedMint::byte_len()
+    // The critical assertion: allocated space should exactly match Mint::byte_len()
     assert_eq!(
         available_data_space, expected_mint_size,
-        "Allocated bytes ({}) must exactly equal CompressedMint::byte_len() ({})",
+        "Allocated bytes ({}) must exactly equal Mint::byte_len() ({})",
         available_data_space, expected_mint_size
     );
 
@@ -225,19 +225,19 @@ fn test_exact_allocation_assertion() {
             available_space, expected_mint_size
         );
 
-        // Test zero-copy compatibility - verify allocated space can be used for CompressedMint
+        // Test zero-copy compatibility - verify allocated space can be used for Mint
         let mint_test_data = vec![0u8; available_space];
-        let test_mint_result = CompressedMint::zero_copy_at(&mint_test_data);
+        let test_mint_result = Mint::zero_copy_at(&mint_test_data);
         assert!(
             test_mint_result.is_ok(),
-            "Allocated space should be valid for zero-copy CompressedMint creation"
+            "Allocated space should be valid for zero-copy Mint creation"
         );
     } else {
         panic!("Output account must have data space allocated");
     }
 
     println!("✅ SUCCESS: Perfect allocation match!");
-    println!("   allocated_bytes = CompressedMint::byte_len()");
+    println!("   allocated_bytes = Mint::byte_len()");
     println!("   {} = {}", available_data_space, expected_mint_size);
 
     // Note: The difference between our manual calculation and actual struct size
@@ -285,11 +285,11 @@ fn test_allocation_with_various_metadata_sizes() {
             additional_metadata: additional_metadata_configs,
         })];
 
-        let mint_config = CompressedMintConfig {
+        let mint_config = MintConfig {
             extensions: Some(extensions_config.clone()),
         };
 
-        let expected_mint_size = CompressedMint::byte_len(&mint_config).unwrap();
+        let expected_mint_size = Mint::byte_len(&mint_config).unwrap();
 
         let mut outputs = tinyvec::ArrayVec::<[(bool, u32); 35]>::new();
         outputs.push((true, expected_mint_size as u32)); // Mint account has address and uses calculated size
@@ -359,12 +359,12 @@ fn test_allocation_with_various_metadata_sizes() {
                 expected_mint_size
             );
 
-            // Test zero-copy compatibility - verify allocated space can be used for CompressedMint
+            // Test zero-copy compatibility - verify allocated space can be used for Mint
             let mint_test_data = vec![0u8; allocated_space];
-            let test_mint_result = CompressedMint::zero_copy_at(&mint_test_data);
+            let test_mint_result = Mint::zero_copy_at(&mint_test_data);
             assert!(
                 test_mint_result.is_ok(),
-                "Test case {}: Allocated space should be valid for zero-copy CompressedMint",
+                "Test case {}: Allocated space should be valid for zero-copy Mint",
                 i + 1
             );
         } else {

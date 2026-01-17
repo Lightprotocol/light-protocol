@@ -4,10 +4,10 @@ use light_compressed_account::instruction_data::{
 };
 
 use crate::instructions::mint_action::{
-    Action, CompressAndCloseCMintAction, CompressedMintInstructionData, CompressedMintWithContext,
-    CpiContext, CreateMint, DecompressMintAction, MintActionCompressedInstructionData,
-    MintToAction, MintToCompressedAction, RemoveMetadataKeyAction, UpdateAuthority,
-    UpdateMetadataAuthorityAction, UpdateMetadataFieldAction,
+    Action, CompressAndCloseMintAction, CpiContext, CreateMint, DecompressMintAction,
+    MintActionCompressedInstructionData, MintInstructionData, MintToAction, MintToCompressedAction,
+    MintWithContext, RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
+    UpdateMetadataFieldAction,
 };
 
 /// Discriminator for MintAction instruction
@@ -22,11 +22,8 @@ impl InstructionDiscriminator for MintActionCompressedInstructionData {
 impl LightInstructionData for MintActionCompressedInstructionData {}
 
 impl MintActionCompressedInstructionData {
-    /// Create instruction data from CompressedMintWithContext (for existing mints)
-    pub fn new(
-        mint_with_context: CompressedMintWithContext,
-        proof: Option<CompressedProof>,
-    ) -> Self {
+    /// Create instruction data from MintWithContext (for existing mints)
+    pub fn new(mint_with_context: MintWithContext, proof: Option<CompressedProof>) -> Self {
         Self {
             leaf_index: mint_with_context.leaf_index,
             prove_by_index: mint_with_context.prove_by_index,
@@ -44,7 +41,7 @@ impl MintActionCompressedInstructionData {
     pub fn new_mint(
         address_merkle_tree_root_index: u16,
         proof: CompressedProof,
-        mint: CompressedMintInstructionData,
+        mint: MintInstructionData,
     ) -> Self {
         Self {
             leaf_index: 0,         // New mint has no existing leaf
@@ -62,7 +59,7 @@ impl MintActionCompressedInstructionData {
     /// Create instruction data for new mint creation via CPI context write
     pub fn new_mint_write_to_cpi_context(
         address_merkle_tree_root_index: u16,
-        mint: CompressedMintInstructionData,
+        mint: MintInstructionData,
         cpi_context: CpiContext,
     ) -> Self {
         Self {
@@ -126,9 +123,9 @@ impl MintActionCompressedInstructionData {
         self
     }
 
-    #[must_use = "with_compress_and_close_cmint returns a new value"]
-    pub fn with_compress_and_close_cmint(mut self, action: CompressAndCloseCMintAction) -> Self {
-        self.actions.push(Action::CompressAndCloseCMint(action));
+    #[must_use = "with_compress_and_close_mint returns a new value"]
+    pub fn with_compress_and_close_mint(mut self, action: CompressAndCloseMintAction) -> Self {
+        self.actions.push(Action::CompressAndCloseMint(action));
         self
     }
 

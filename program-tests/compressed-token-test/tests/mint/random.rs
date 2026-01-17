@@ -9,7 +9,7 @@ use light_token_client::{
     actions::create_mint,
     instructions::mint_action::{MintActionType, MintToRecipient},
 };
-use light_token_interface::state::{extensions::AdditionalMetadata, CompressedMint};
+use light_token_interface::state::{extensions::AdditionalMetadata, Mint};
 use light_token_sdk::{
     compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
     token::CreateAssociatedTokenAccount,
@@ -340,7 +340,7 @@ async fn test_random_mint_action() {
             .value
             .unwrap();
 
-        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        let pre_compressed_mint: Mint = BorshDeserialize::deserialize(
             &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
         )
         .unwrap();

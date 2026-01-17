@@ -4,7 +4,7 @@ use light_account_checks::{checks::check_owner, AccountInfoTrait, AccountIterato
 use light_compressible::{compression_info::ClaimAndUpdate, config::CompressibleConfig};
 use light_program_profiler::profile;
 use light_token_interface::{
-    state::{CompressedMint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT},
+    state::{Mint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT},
     TokenError,
 };
 use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};
@@ -146,7 +146,7 @@ fn validate_and_claim(
         }
         ACCOUNT_TYPE_MINT => {
             // CMint account
-            let (mut cmint, _) = CompressedMint::zero_copy_at_mut_checked(&mut account_data)?;
+            let (mut cmint, _) = Mint::zero_copy_at_mut_checked(&mut account_data)?;
             cmint
                 .base
                 .compression

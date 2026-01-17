@@ -124,7 +124,7 @@ async fn setup_decompression_test(
         &mint_authority,
         &payer,
         None,                    // no decompress mint
-        false,                   // compress_and_close_cmint
+        false,                   // compress_and_close_mint
         compressed_recipients,   // mint compressed tokens to owner
         decompressed_recipients, // mint 1 token to decompressed Light Token ATA
         None,                    // no mint authority update

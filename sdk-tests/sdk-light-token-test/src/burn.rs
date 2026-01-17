@@ -14,7 +14,7 @@ pub struct BurnData {
 ///
 /// Account order:
 /// - accounts[0]: source (Light Token account, writable)
-/// - accounts[1]: cmint (writable)
+/// - accounts[1]: mint (writable)
 /// - accounts[2]: authority (owner, signer)
 /// - accounts[3]: light_token_program
 pub fn process_burn_invoke(accounts: &[AccountInfo], amount: u64) -> Result<(), ProgramError> {
@@ -24,7 +24,7 @@ pub fn process_burn_invoke(accounts: &[AccountInfo], amount: u64) -> Result<(), 
 
     BurnCpi {
         source: accounts[0].clone(),
-        cmint: accounts[1].clone(),
+        mint: accounts[1].clone(),
         amount,
         authority: accounts[2].clone(),
         max_top_up: None,
@@ -38,7 +38,7 @@ pub fn process_burn_invoke(accounts: &[AccountInfo], amount: u64) -> Result<(), 
 ///
 /// Account order:
 /// - accounts[0]: source (Light Token account, writable)
-/// - accounts[1]: cmint (writable)
+/// - accounts[1]: mint (writable)
 /// - accounts[2]: PDA authority (owner, program signs)
 /// - accounts[3]: light_token_program
 pub fn process_burn_invoke_signed(
@@ -60,7 +60,7 @@ pub fn process_burn_invoke_signed(
     let signer_seeds: &[&[u8]] = &[TOKEN_ACCOUNT_SEED, &[bump]];
     BurnCpi {
         source: accounts[0].clone(),
-        cmint: accounts[1].clone(),
+        mint: accounts[1].clone(),
         amount,
         authority: accounts[2].clone(),
         max_top_up: None,

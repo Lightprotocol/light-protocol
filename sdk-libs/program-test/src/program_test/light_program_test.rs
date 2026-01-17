@@ -647,7 +647,7 @@ impl LightProgramTest {
         use borsh::BorshDeserialize;
         use light_client::indexer::Indexer;
         use light_compressible_client::{MintInterface, MintState};
-        use light_token_interface::{state::CompressedMint, CMINT_ADDRESS_TREE};
+        use light_token_interface::{state::Mint, CMINT_ADDRESS_TREE};
         use light_token_sdk::{
             compressed_token::create_compressed_mint::derive_mint_compressed_address,
             token::find_mint_address,
@@ -677,7 +677,7 @@ impl LightProgramTest {
             // Parse mint data if available
             if let Some(data) = compressed.data.as_ref() {
                 if !data.data.is_empty() {
-                    if let Ok(mint_data) = CompressedMint::try_from_slice(&data.data) {
+                    if let Ok(mint_data) = Mint::try_from_slice(&data.data) {
                         return Ok(MintInterface {
                             cmint,
                             signer: *signer,

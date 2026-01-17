@@ -413,9 +413,9 @@ async fn test_spl_instruction_compatibility() {
     println!("   - All SPL token instructions are compatible with ctoken program");
 }
 
-/// Test SPL token instruction compatibility with ctoken program using decompressed cmint
+/// Test SPL token instruction compatibility with ctoken program using decompressed mint
 ///
-/// This test uses a real decompressed cmint to test instructions that require mint data:
+/// This test uses a real decompressed mint to test instructions that require mint data:
 /// - transfer_checked,
 /// - mint_to, mint_to_checked (require mint authority)
 /// - burn, burn_checked (require token burning)
@@ -423,7 +423,7 @@ async fn test_spl_instruction_compatibility() {
 #[tokio::test]
 #[serial]
 #[allow(deprecated)]
-async fn test_spl_instruction_compatibility_with_cmint() {
+async fn test_spl_instruction_compatibility_with_mint() {
     use light_program_test::ProgramTestConfig;
     use light_token_client::instructions::mint_action::DecompressMintParams;
     use light_token_sdk::compressed_token::create_compressed_mint::find_mint_address;
@@ -439,19 +439,19 @@ async fn test_spl_instruction_compatibility_with_cmint() {
     let freeze_authority = Keypair::new();
     let owner_keypair = Keypair::new();
 
-    // Derive CMint PDA
-    let (cmint_pda, _) = find_mint_address(&mint_seed.pubkey());
+    // Derive Mint PDA
+    let (mint_pda, _) = find_mint_address(&mint_seed.pubkey());
     let decimals: u8 = 8;
 
-    println!("Creating decompressed cmint with freeze authority...");
+    println!("Creating decompressed mint with freeze authority...");
 
-    // Create compressed mint + CMint (decompressed mint)
+    // Create compressed mint + Mint (decompressed mint)
     light_token_client::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
         &payer,
-        Some(DecompressMintParams::default()), // Creates CMint
+        Some(DecompressMintParams::default()), // Creates Mint
         false,                                 // Don't compress and close
         vec![],                                // No compressed recipients
         vec![],                                // No ctoken recipients
@@ -469,7 +469,7 @@ async fn test_spl_instruction_compatibility_with_cmint() {
     .await
     .unwrap();
 
-    println!("CMint created at: {}", cmint_pda);
+    println!("Mint created at: {}", mint_pda);
 
     // Create two non-compressible Light Token accounts (165 bytes) using SPL instruction format
     let account1_keypair = Keypair::new();
@@ -504,7 +504,7 @@ async fn test_spl_instruction_compatibility_with_cmint() {
         let mut init_ix = spl_token_2022::instruction::initialize_account3(
             &spl_token_2022::ID,
             &account1_keypair.pubkey(),
-            &cmint_pda,
+            &mint_pda,
             &owner_keypair.pubkey(),
         )
         .unwrap();
@@ -546,7 +546,7 @@ async fn test_spl_instruction_compatibility_with_cmint() {
         let mut init_ix = spl_token_2022::instruction::initialize_account3(
             &spl_token_2022::ID,
             &account2_keypair.pubkey(),
-            &cmint_pda,
+            &mint_pda,
             &owner_keypair.pubkey(),
         )
         .unwrap();
@@ -565,7 +565,7 @@ async fn test_spl_instruction_compatibility_with_cmint() {
     {
         let mut mint_to_ix = spl_token_2022::instruction::mint_to(
             &spl_token_2022::ID,
-            &cmint_pda,
+            &mint_pda,
             &account1_keypair.pubkey(),
             &mint_authority.pubkey(),
             &[],
@@ -600,7 +600,7 @@ async fn test_spl_instruction_compatibility_with_cmint() {
     {
         let mut mint_to_checked_ix = spl_token_2022::instruction::mint_to_checked(
             &spl_token_2022::ID,
-            &cmint_pda,
+            &mint_pda,
             &account1_keypair.pubkey(),
             &mint_authority.pubkey(),
             &[],
@@ -641,7 +641,7 @@ async fn test_spl_instruction_compatibility_with_cmint() {
         let mut transfer_checked_ix = spl_token_2022::instruction::transfer_checked(
             &spl_token_2022::ID,
             &account1_keypair.pubkey(),
-            &cmint_pda,
+            &mint_pda,
             &account2_keypair.pubkey(),
             &owner_keypair.pubkey(),
             &[],
@@ -691,7 +691,7 @@ async fn test_spl_instruction_compatibility_with_cmint() {
         let mut freeze_ix = spl_token_2022::instruction::freeze_account(
             &spl_token_2022::ID,
             &account1_keypair.pubkey(),
-            &cmint_pda,
+            &mint_pda,
             &freeze_authority.pubkey(),
             &[],
         )
@@ -726,7 +726,7 @@ async fn test_spl_instruction_compatibility_with_cmint() {
         let mut thaw_ix = spl_token_2022::instruction::thaw_account(
             &spl_token_2022::ID,
             &account1_keypair.pubkey(),
-            &cmint_pda,
+            &mint_pda,
             &freeze_authority.pubkey(),
             &[],
         )
@@ -761,7 +761,7 @@ async fn test_spl_instruction_compatibility_with_cmint() {
         let mut burn_ix = spl_token_2022::instruction::burn(
             &spl_token_2022::ID,
             &account1_keypair.pubkey(),
-            &cmint_pda,
+            &mint_pda,
             &owner_keypair.pubkey(),
             &[],
             100,
@@ -796,7 +796,7 @@ async fn test_spl_instruction_compatibility_with_cmint() {
         let mut burn_checked_ix = spl_token_2022::instruction::burn_checked(
             &spl_token_2022::ID,
             &account1_keypair.pubkey(),
-            &cmint_pda,
+            &mint_pda,
             &owner_keypair.pubkey(),
             &[],
             100,
@@ -829,8 +829,8 @@ async fn test_spl_instruction_compatibility_with_cmint() {
         println!("burn_checked completed successfully");
     }
 
-    println!("\nSPL instruction compatibility with CMint test passed!");
-    println!("   - Created 2 non-compressible Light Token accounts with CMint");
+    println!("\nSPL instruction compatibility with Mint test passed!");
+    println!("   - Created 2 non-compressible Light Token accounts with Mint");
     println!("   - mint_to: Minted 1000 tokens");
     println!("   - mint_to_checked: Minted 500 tokens with decimals validation");
     println!("   - transfer_checked: Transferred 500 tokens with decimals validation");

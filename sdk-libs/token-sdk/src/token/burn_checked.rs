@@ -10,11 +10,11 @@ use solana_pubkey::Pubkey;
 /// # use solana_pubkey::Pubkey;
 /// # use light_token_sdk::token::BurnChecked;
 /// # let source = Pubkey::new_unique();
-/// # let cmint = Pubkey::new_unique();
+/// # let mint = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
 /// let instruction = BurnChecked {
 ///     source,
-///     cmint,
+///     mint,
 ///     amount: 100,
 ///     decimals: 8,
 ///     authority,
@@ -25,8 +25,8 @@ use solana_pubkey::Pubkey;
 pub struct BurnChecked {
     /// Light Token account to burn from
     pub source: Pubkey,
-    /// CMint account (supply tracking)
-    pub cmint: Pubkey,
+    /// Mint account (supply tracking)
+    pub mint: Pubkey,
     /// Amount of tokens to burn
     pub amount: u64,
     /// Expected token decimals
@@ -43,11 +43,11 @@ pub struct BurnChecked {
 /// # use light_token_sdk::token::BurnCheckedCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let source: AccountInfo = todo!();
-/// # let cmint: AccountInfo = todo!();
+/// # let mint: AccountInfo = todo!();
 /// # let authority: AccountInfo = todo!();
 /// BurnCheckedCpi {
 ///     source,
-///     cmint,
+///     mint,
 ///     amount: 100,
 ///     decimals: 8,
 ///     authority,
@@ -58,7 +58,7 @@ pub struct BurnChecked {
 /// ```
 pub struct BurnCheckedCpi<'info> {
     pub source: AccountInfo<'info>,
-    pub cmint: AccountInfo<'info>,
+    pub mint: AccountInfo<'info>,
     pub amount: u64,
     pub decimals: u8,
     pub authority: AccountInfo<'info>,
@@ -73,13 +73,13 @@ impl<'info> BurnCheckedCpi<'info> {
 
     pub fn invoke(self) -> Result<(), ProgramError> {
         let instruction = BurnChecked::from(&self).instruction()?;
-        let account_infos = [self.source, self.cmint, self.authority];
+        let account_infos = [self.source, self.mint, self.authority];
         invoke(&instruction, &account_infos)
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = BurnChecked::from(&self).instruction()?;
-        let account_infos = [self.source, self.cmint, self.authority];
+        let account_infos = [self.source, self.mint, self.authority];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
@@ -88,7 +88,7 @@ impl<'info> From<&BurnCheckedCpi<'info>> for BurnChecked {
     fn from(cpi: &BurnCheckedCpi<'info>) -> Self {
         Self {
             source: *cpi.source.key,
-            cmint: *cpi.cmint.key,
+            mint: *cpi.mint.key,
             amount: cpi.amount,
             decimals: cpi.decimals,
             authority: *cpi.authority.key,
@@ -103,7 +103,7 @@ impl BurnChecked {
             program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
             accounts: vec![
                 AccountMeta::new(self.source, false),
-                AccountMeta::new(self.cmint, false),
+                AccountMeta::new(self.mint, false),
                 AccountMeta::new_readonly(self.authority, true),
             ],
             data: {

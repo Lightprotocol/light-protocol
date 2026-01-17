@@ -4,7 +4,7 @@ use light_compressed_account::instruction_data::with_readonly::InstructionDataIn
 use light_sdk::instruction::PackedMerkleContext;
 use light_token_interface::{
     hash_cache::HashCache, instructions::mint_action::MintActionCompressedInstructionData,
-    state::CompressedMint, TokenError,
+    state::Mint, TokenError,
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
@@ -51,7 +51,7 @@ pub fn process_mint_action(
             .mint
             .as_ref()
             .ok_or(ErrorCode::MintDataRequired)?;
-        CompressedMint::try_from(mint_data)?
+        Mint::try_from(mint_data)?
     } else if !accounts_config.cmint_decompressed {
         // Existing compressed mint with data in instruction
         // In case that cmint is not actually compressed proof verification will fail.
@@ -59,13 +59,13 @@ pub fn process_mint_action(
             .mint
             .as_ref()
             .ok_or(ErrorCode::MintDataRequired)?;
-        CompressedMint::try_from(mint_data)?
+        Mint::try_from(mint_data)?
     } else {
         // CMint is decompressed - read from CMint account
         let cmint_account = validated_accounts
             .get_cmint()
             .ok_or(ErrorCode::MintActionMissingCMintAccount)?;
-        CompressedMint::from_account_info_checked(cmint_account)?
+        Mint::from_account_info_checked(cmint_account)?
     };
 
     let (config, mut cpi_bytes, _) =

@@ -9,11 +9,11 @@ use solana_pubkey::Pubkey;
 /// ```rust
 /// # use solana_pubkey::Pubkey;
 /// # use light_token_sdk::token::MintToChecked;
-/// # let cmint = Pubkey::new_unique();
+/// # let mint = Pubkey::new_unique();
 /// # let destination = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
 /// let instruction = MintToChecked {
-///     cmint,
+///     mint,
 ///     destination,
 ///     amount: 100,
 ///     decimals: 8,
@@ -23,8 +23,8 @@ use solana_pubkey::Pubkey;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
 pub struct MintToChecked {
-    /// CMint account (supply tracking)
-    pub cmint: Pubkey,
+    /// Mint account (supply tracking)
+    pub mint: Pubkey,
     /// Destination Light Token account to mint to
     pub destination: Pubkey,
     /// Amount of tokens to mint
@@ -42,11 +42,11 @@ pub struct MintToChecked {
 /// ```rust,no_run
 /// # use light_token_sdk::token::MintToCheckedCpi;
 /// # use solana_account_info::AccountInfo;
-/// # let cmint: AccountInfo = todo!();
+/// # let mint: AccountInfo = todo!();
 /// # let destination: AccountInfo = todo!();
 /// # let authority: AccountInfo = todo!();
 /// MintToCheckedCpi {
-///     cmint,
+///     mint,
 ///     destination,
 ///     amount: 100,
 ///     decimals: 8,
@@ -57,7 +57,7 @@ pub struct MintToChecked {
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
 pub struct MintToCheckedCpi<'info> {
-    pub cmint: AccountInfo<'info>,
+    pub mint: AccountInfo<'info>,
     pub destination: AccountInfo<'info>,
     pub amount: u64,
     pub decimals: u8,
@@ -73,13 +73,13 @@ impl<'info> MintToCheckedCpi<'info> {
 
     pub fn invoke(self) -> Result<(), ProgramError> {
         let instruction = MintToChecked::from(&self).instruction()?;
-        let account_infos = [self.cmint, self.destination, self.authority];
+        let account_infos = [self.mint, self.destination, self.authority];
         invoke(&instruction, &account_infos)
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = MintToChecked::from(&self).instruction()?;
-        let account_infos = [self.cmint, self.destination, self.authority];
+        let account_infos = [self.mint, self.destination, self.authority];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
@@ -87,7 +87,7 @@ impl<'info> MintToCheckedCpi<'info> {
 impl<'info> From<&MintToCheckedCpi<'info>> for MintToChecked {
     fn from(cpi: &MintToCheckedCpi<'info>) -> Self {
         Self {
-            cmint: *cpi.cmint.key,
+            mint: *cpi.mint.key,
             destination: *cpi.destination.key,
             amount: cpi.amount,
             decimals: cpi.decimals,
@@ -102,7 +102,7 @@ impl MintToChecked {
         Ok(Instruction {
             program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
             accounts: vec![
-                AccountMeta::new(self.cmint, false),
+                AccountMeta::new(self.mint, false),
                 AccountMeta::new(self.destination, false),
                 AccountMeta::new_readonly(self.authority, true),
             ],

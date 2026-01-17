@@ -441,7 +441,7 @@ pub enum ErrorCode {
     #[msg("Duplicate mint index detected in inputs, outputs, or compressions")]
     DuplicateMint, // 6102
     #[msg("Invalid compressed mint address derivation")]
-    MintActionInvalidCompressedMintAddress, // 6103
+    MintActionInvalidMintAddress, // 6103
     #[msg("Invalid CPI context for create mint operation")]
     MintActionInvalidCpiContextForCreateMint, // 6104
     #[msg("Invalid address tree pubkey in CPI context")]

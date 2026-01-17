@@ -24,7 +24,7 @@ pub fn process_mint_to_invoke(accounts: &[AccountInfo], amount: u64) -> Result<(
     }
 
     MintToCpi {
-        cmint: accounts[0].clone(),
+        mint: accounts[0].clone(),
         destination: accounts[1].clone(),
         amount,
         authority: accounts[2].clone(),
@@ -62,7 +62,7 @@ pub fn process_mint_to_invoke_signed(
 
     let signer_seeds: &[&[u8]] = &[MINT_AUTHORITY_SEED, &[bump]];
     MintToCpi {
-        cmint: accounts[0].clone(),
+        mint: accounts[0].clone(),
         destination: accounts[1].clone(),
         amount,
         authority: accounts[2].clone(),

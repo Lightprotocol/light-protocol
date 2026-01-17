@@ -15,9 +15,9 @@ pub struct MintActionMetaConfig {
     pub tokens_out_queue: Option<Pubkey>, // Output queue for new token accounts
     pub cpi_context: Option<Pubkey>,
     pub token_accounts: Vec<Pubkey>, // For mint_to_ctoken actions
-    pub cmint: Option<Pubkey>,       // CMint PDA account for DecompressMint action
-    pub compressible_config: Option<Pubkey>, // CompressibleConfig account (when creating CMint)
-    pub rent_sponsor: Option<Pubkey>, // Rent sponsor PDA (when creating CMint)
+    pub mint: Option<Pubkey>,        // Mint PDA account for DecompressMint action
+    pub compressible_config: Option<Pubkey>, // CompressibleConfig account (when creating Mint)
+    pub rent_sponsor: Option<Pubkey>, // Rent sponsor PDA (when creating Mint)
     pub mint_signer_must_sign: bool, // true for create_mint, false for decompress_mint
 }
 
@@ -40,7 +40,7 @@ impl MintActionMetaConfig {
             tokens_out_queue: None,
             cpi_context: None,
             token_accounts: Vec::new(),
-            cmint: None,
+            mint: None,
             compressible_config: None,
             rent_sponsor: None,
             mint_signer_must_sign: true,
@@ -65,7 +65,7 @@ impl MintActionMetaConfig {
             tokens_out_queue: None,
             cpi_context: None,
             token_accounts: Vec::new(),
-            cmint: None,
+            mint: None,
             compressible_config: None,
             rent_sponsor: None,
             mint_signer_must_sign: false,
@@ -93,7 +93,7 @@ impl MintActionMetaConfig {
             tokens_out_queue: None,
             cpi_context: Some(cpi_context_pubkey),
             token_accounts: Vec::new(),
-            cmint: None,
+            mint: None,
             compressible_config: None,
             rent_sponsor: None,
             mint_signer_must_sign: false,
@@ -110,8 +110,8 @@ impl MintActionMetaConfig {
         self
     }
 
-    pub fn with_mint(mut self, cmint: Pubkey) -> Self {
-        self.cmint = Some(cmint);
+    pub fn with_mint(mut self, mint: Pubkey) -> Self {
+        self.mint = Some(mint);
         self
     }
 
@@ -123,15 +123,15 @@ impl MintActionMetaConfig {
         self
     }
 
-    /// Configure compressible CMint with config and rent sponsor.
-    /// CMint is always compressible - this sets all required accounts.
+    /// Configure compressible Mint with config and rent sponsor.
+    /// Mint is always compressible - this sets all required accounts.
     pub fn with_compressible_mint(
         mut self,
-        cmint: Pubkey,
+        mint: Pubkey,
         compressible_config: Pubkey,
         rent_sponsor: Pubkey,
     ) -> Self {
-        self.cmint = Some(cmint);
+        self.mint = Some(mint);
         self.compressible_config = Some(compressible_config);
         self.rent_sponsor = Some(rent_sponsor);
         self
@@ -159,17 +159,17 @@ impl MintActionMetaConfig {
 
         metas.push(AccountMeta::new_readonly(self.authority, true));
 
-        // CompressibleConfig account (when creating compressible CMint)
+        // CompressibleConfig account (when creating compressible Mint)
         if let Some(config) = self.compressible_config {
             metas.push(AccountMeta::new_readonly(config, false));
         }
 
-        // CMint account is present when decompressing the mint (DecompressMint action) or syncing
-        if let Some(cmint) = self.cmint {
-            metas.push(AccountMeta::new(cmint, false));
+        // Mint account is present when decompressing the mint (DecompressMint action) or syncing
+        if let Some(mint) = self.mint {
+            metas.push(AccountMeta::new(mint, false));
         }
 
-        // Rent sponsor PDA (when creating compressible CMint)
+        // Rent sponsor PDA (when creating compressible Mint)
         if let Some(rent_sponsor) = self.rent_sponsor {
             metas.push(AccountMeta::new(rent_sponsor, false));
         }

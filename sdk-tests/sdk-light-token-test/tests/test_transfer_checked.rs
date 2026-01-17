@@ -276,9 +276,9 @@ async fn test_ctoken_transfer_checked_t22_mint() {
     assert_eq!(dest_state.amount, 500);
 }
 
-/// Test transfer_checked with decompressed CMint
+/// Test transfer_checked with decompressed Mint
 #[tokio::test]
-async fn test_ctoken_transfer_checked_cmint() {
+async fn test_ctoken_transfer_checked_mint() {
     let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
@@ -288,16 +288,15 @@ async fn test_ctoken_transfer_checked_cmint() {
     let dest_owner = Pubkey::new_unique();
 
     // Create compressed mint and decompress it, then create ATAs with tokens
-    let (mint, _compression_address, ata_pubkeys) =
-        setup_create_compressed_mint_with_freeze_authority(
-            &mut rpc,
-            &payer,
-            payer.pubkey(),
-            None, // no freeze authority needed for transfer
-            decimals,
-            vec![(1000, source_owner), (0, dest_owner)],
-        )
-        .await;
+    let (mint, _compression_address, ata_pubkeys) = setup_create_mint_with_freeze_authority(
+        &mut rpc,
+        &payer,
+        payer.pubkey(),
+        None, // no freeze authority needed for transfer
+        decimals,
+        vec![(1000, source_owner), (0, dest_owner)],
+    )
+    .await;
 
     let source_ata = ata_pubkeys[0];
     let dest_ata = ata_pubkeys[1];

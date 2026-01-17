@@ -7,7 +7,7 @@ use light_hasher::{sha256::Sha256BE, Hasher};
 use light_program_profiler::profile;
 use light_token_interface::{
     hash_cache::HashCache, instructions::mint_action::ZMintActionCompressedInstructionData,
-    state::CompressedMint,
+    state::Mint,
 };
 use pinocchio::sysvars::{clock::Clock, Sysvar};
 use spl_pod::solana_msg::msg;
@@ -31,7 +31,7 @@ pub fn process_output_compressed_account<'a>(
     output_compressed_accounts: &'a mut [ZOutputCompressedAccountWithPackedContextMut<'a>],
     hash_cache: &mut HashCache,
     queue_indices: &QueueIndices,
-    mut compressed_mint: CompressedMint,
+    mut compressed_mint: Mint,
     accounts_config: &AccountsConfig,
 ) -> Result<(), ProgramError> {
     let (mint_account, token_accounts) = split_mint_and_token_accounts(output_compressed_accounts);
@@ -46,7 +46,7 @@ pub fn process_output_compressed_account<'a>(
         &mut compressed_mint,
     )?;
 
-    if compressed_mint.metadata.cmint_decompressed {
+    if compressed_mint.metadata.mint_decompressed {
         serialize_decompressed_mint(validated_accounts, accounts_config, &mut compressed_mint)?;
     }
 
@@ -70,7 +70,7 @@ fn split_mint_and_token_accounts<'a>(
 
 fn serialize_compressed_mint<'a>(
     mint_account: &'a mut ZOutputCompressedAccountWithPackedContextMut<'a>,
-    compressed_mint: CompressedMint,
+    compressed_mint: Mint,
     queue_indices: &QueueIndices,
 ) -> Result<(), ProgramError> {
     let compressed_account_data = mint_account
@@ -79,7 +79,7 @@ fn serialize_compressed_mint<'a>(
         .as_mut()
         .ok_or(ErrorCode::MintActionOutputSerializationFailed)?;
 
-    let (discriminator, data_hash) = if compressed_mint.metadata.cmint_decompressed {
+    let (discriminator, data_hash) = if compressed_mint.metadata.mint_decompressed {
         if !compressed_account_data.data.is_empty() {
             msg!(
                 "Data allocation for output mint account is wrong: {} (expected) != {} ",
@@ -128,7 +128,7 @@ fn serialize_compressed_mint<'a>(
 fn serialize_decompressed_mint(
     validated_accounts: &MintActionAccounts,
     accounts_config: &AccountsConfig,
-    compressed_mint: &mut CompressedMint,
+    compressed_mint: &mut Mint,
 ) -> Result<(), ProgramError> {
     let cmint_account = validated_accounts
         .get_cmint()

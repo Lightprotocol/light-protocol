@@ -1,12 +1,12 @@
-// cMint to cToken scenario test with compression_only: true
+// cMint to cToken scenario test - Direct SDK calls without wrapper program
 //
-// This test demonstrates the complete flow with compression_only flag enabled:
+// This test demonstrates the complete flow:
 // 1. Create cMint (compressed mint)
-// 2. Create 2 cToken ATAs for different owners with compression_only: true
+// 2. Create 2 cToken ATAs for different owners
 // 3. Mint cTokens to both accounts
 // 4. Transfer cTokens from account 1 to account 2
 // 5. Advance epochs to trigger compression
-// 6. Verify cToken account is compressed and closed (with TLV data)
+// 6. Verify cToken account is compressed and closed
 // 7. Recreate cToken ATA
 // 8. Decompress compressed tokens back to cToken account
 // 9. Verify cToken account has tokens again
@@ -16,14 +16,12 @@ mod shared;
 use borsh::BorshDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
-use light_token_sdk::token::{
-    CompressibleParams, CreateAssociatedTokenAccount, Decompress, Token, Transfer,
-};
+use light_token_sdk::token::{CreateAssociatedTokenAccount, Decompress, Token, Transfer};
 use solana_sdk::{signature::Keypair, signer::Signer};
 
-/// Test the complete cMint to cToken flow with compression_only: true
+/// Test the complete cMint to cToken flow using direct SDK calls
 #[tokio::test]
-async fn test_cmint_to_ctoken_scenario_compression_only() {
+async fn test_mint_to_ctoken_scenario() {
     // 1. Setup test environment
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
@@ -48,20 +46,17 @@ async fn test_cmint_to_ctoken_scenario_compression_only() {
     let mint_amount2 = 5_000u64;
     let transfer_amount = 3_000u64;
 
-    // Use compression_only: true for this test
-    let (mint, _compression_address, ata_pubkeys) =
-        shared::setup_create_compressed_mint_with_compression_only(
-            &mut rpc,
-            &payer,
-            payer.pubkey(), // mint_authority
-            9,              // decimals
-            vec![
-                (mint_amount1, owner1.pubkey()),
-                (mint_amount2, owner2.pubkey()),
-            ],
-            true, // compression_only
-        )
-        .await;
+    let (mint, _compression_address, ata_pubkeys, _mint_seed) = shared::setup_create_mint(
+        &mut rpc,
+        &payer,
+        payer.pubkey(), // mint_authority
+        9,              // decimals
+        vec![
+            (mint_amount1, owner1.pubkey()),
+            (mint_amount2, owner2.pubkey()),
+        ],
+    )
+    .await;
 
     let ctoken_ata1 = ata_pubkeys[0];
     let ctoken_ata2 = ata_pubkeys[1];
@@ -77,7 +72,7 @@ async fn test_cmint_to_ctoken_scenario_compression_only() {
     let balance2 = ctoken_account.amount;
     assert_eq!(balance2, mint_amount2, "cToken account 2 initial balance");
 
-    println!("cMint scenario test (compression_only: true) setup complete!");
+    println!("cMint scenario test setup complete!");
     println!("  - Created cMint: {}", mint);
     println!(
         "  - cToken account 1: {} (balance: {})",
@@ -154,7 +149,8 @@ async fn test_cmint_to_ctoken_scenario_compression_only() {
         }
     }
 
-    // Verify compressed token account exists for ATA (owner is ATA pubkey for is_ata accounts)
+    // Verify compressed token account exists for the ATA
+    // For ATAs, the compressed account owner is the ATA pubkey (not wallet owner)
     let compressed_accounts = rpc
         .get_compressed_token_accounts_by_owner(&ctoken_ata2, None, None)
         .await
@@ -170,7 +166,7 @@ async fn test_cmint_to_ctoken_scenario_compression_only() {
     let compressed_account = &compressed_accounts[0];
     assert_eq!(
         compressed_account.token.owner, ctoken_ata2,
-        "Compressed account owner should be ATA pubkey"
+        "Compressed account owner should be the ATA pubkey"
     );
     assert_eq!(
         compressed_account.token.amount,
@@ -188,15 +184,10 @@ async fn test_cmint_to_ctoken_scenario_compression_only() {
         compressed_account.token.amount
     );
 
-    // 9. Recreate cToken ATA for decompression (idempotent) with compression_only: true
+    // 9. Recreate cToken ATA for decompression (idempotent)
     println!("\nRecreating cToken ATA for decompression...");
-    let compressible_params = CompressibleParams {
-        compression_only: true,
-        ..Default::default()
-    };
     let create_ata_instruction =
         CreateAssociatedTokenAccount::new(payer.pubkey(), owner2.pubkey(), mint)
-            .with_compressible(compressible_params)
             .idempotent()
             .instruction()
             .unwrap();
@@ -240,6 +231,7 @@ async fn test_cmint_to_ctoken_scenario_compression_only() {
     let account_proof = &rpc_result.accounts[0];
 
     // 11. Decompress compressed tokens to cToken account
+    // For ATA decompress, the wallet owner (owner2) must sign
     println!("Decompressing tokens to cToken account...");
     println!("discriminator {:?}", discriminator);
     println!("token_data {:?}", token_data);
@@ -252,7 +244,7 @@ async fn test_cmint_to_ctoken_scenario_compression_only() {
         root_index: account_proof.root_index.root_index().unwrap_or(0),
         destination: ctoken_ata2,
         payer: payer.pubkey(),
-        signer: owner2.pubkey(),
+        signer: owner2.pubkey(), // Wallet owner is the signer for ATA decompress
         validity_proof: rpc_result.proof,
     }
     .instruction()
@@ -295,5 +287,5 @@ async fn test_cmint_to_ctoken_scenario_compression_only() {
         decompressed_balance
     );
 
-    println!("\ncMint to cToken scenario test (compression_only: true) with compression and decompression passed!");
+    println!("\ncMint to cToken scenario test with compression and decompression passed!");
 }

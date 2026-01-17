@@ -9,11 +9,11 @@ use solana_pubkey::Pubkey;
 /// ```rust
 /// # use solana_pubkey::Pubkey;
 /// # use light_token_sdk::token::MintTo;
-/// # let cmint = Pubkey::new_unique();
+/// # let mint = Pubkey::new_unique();
 /// # let destination = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
 /// let instruction = MintTo {
-///     cmint,
+///     mint,
 ///     destination,
 ///     amount: 100,
 ///     authority,
@@ -22,8 +22,8 @@ use solana_pubkey::Pubkey;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
 pub struct MintTo {
-    /// CMint account (supply tracking)
-    pub cmint: Pubkey,
+    /// Mint account (supply tracking)
+    pub mint: Pubkey,
     /// Destination Light Token account to mint to
     pub destination: Pubkey,
     /// Amount of tokens to mint
@@ -39,12 +39,12 @@ pub struct MintTo {
 /// ```rust,no_run
 /// # use light_token_sdk::token::MintToCpi;
 /// # use solana_account_info::AccountInfo;
-/// # let cmint: AccountInfo = todo!();
+/// # let mint: AccountInfo = todo!();
 /// # let destination: AccountInfo = todo!();
 /// # let authority: AccountInfo = todo!();
 /// # let system_program: AccountInfo = todo!();
 /// MintToCpi {
-///     cmint,
+///     mint,
 ///     destination,
 ///     amount: 100,
 ///     authority,
@@ -55,7 +55,7 @@ pub struct MintTo {
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
 pub struct MintToCpi<'info> {
-    pub cmint: AccountInfo<'info>,
+    pub mint: AccountInfo<'info>,
     pub destination: AccountInfo<'info>,
     pub amount: u64,
     pub authority: AccountInfo<'info>,
@@ -72,7 +72,7 @@ impl<'info> MintToCpi<'info> {
     pub fn invoke(self) -> Result<(), ProgramError> {
         let instruction = MintTo::from(&self).instruction()?;
         let account_infos = [
-            self.cmint,
+            self.mint,
             self.destination,
             self.authority,
             self.system_program,
@@ -83,7 +83,7 @@ impl<'info> MintToCpi<'info> {
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = MintTo::from(&self).instruction()?;
         let account_infos = [
-            self.cmint,
+            self.mint,
             self.destination,
             self.authority,
             self.system_program,
@@ -95,7 +95,7 @@ impl<'info> MintToCpi<'info> {
 impl<'info> From<&MintToCpi<'info>> for MintTo {
     fn from(cpi: &MintToCpi<'info>) -> Self {
         Self {
-            cmint: *cpi.cmint.key,
+            mint: *cpi.mint.key,
             destination: *cpi.destination.key,
             amount: cpi.amount,
             authority: *cpi.authority.key,
@@ -109,7 +109,7 @@ impl MintTo {
         Ok(Instruction {
             program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
             accounts: vec![
-                AccountMeta::new(self.cmint, false),
+                AccountMeta::new(self.mint, false),
                 AccountMeta::new(self.destination, false),
                 AccountMeta::new(self.authority, true),
                 AccountMeta::new_readonly(Pubkey::default(), false), // System program for lamport transfers
