@@ -936,9 +936,7 @@ fn generate_from_extracted_seeds(
     let content = module.content.as_mut().unwrap();
     let ctoken_enum = if let Some(ref token_seed_specs) = token_seeds {
         if !token_seed_specs.is_empty() {
-            super::seed_providers::generate_ctoken_account_variant_enum(
-                token_seed_specs,
-            )?
+            super::seed_providers::generate_ctoken_account_variant_enum(token_seed_specs)?
         } else {
             crate::rentfree::traits::utils::generate_empty_ctoken_enum()
         }
@@ -965,21 +963,17 @@ fn generate_from_extracted_seeds(
                 .iter()
                 .map(|spec| {
                     let ctx_fields = extract_ctx_seed_fields(&spec.seeds);
-                    super::variant_enum::PdaCtxSeedInfo::new(
-                        spec.variant.clone(),
-                        ctx_fields,
-                    )
+                    super::variant_enum::PdaCtxSeedInfo::new(spec.variant.clone(), ctx_fields)
                 })
                 .collect()
         })
         .unwrap_or_default();
 
     let account_type_refs: Vec<&Ident> = account_types.iter().collect();
-    let enum_and_traits =
-        super::variant_enum::compressed_account_variant_with_ctx_seeds(
-            &account_type_refs,
-            &pda_ctx_seeds,
-        )?;
+    let enum_and_traits = super::variant_enum::compressed_account_variant_with_ctx_seeds(
+        &account_type_refs,
+        &pda_ctx_seeds,
+    )?;
 
     let seed_params_struct = quote! {
         #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Clone, Debug, Default)]
@@ -1312,9 +1306,7 @@ fn generate_from_extracted_seeds(
     if let Some(ref seeds) = token_seeds {
         if !seeds.is_empty() {
             let impl_code =
-                super::seed_providers::generate_ctoken_seed_provider_implementation(
-                    seeds,
-                )?;
+                super::seed_providers::generate_ctoken_seed_provider_implementation(seeds)?;
             let ctoken_impl: syn::ItemImpl = syn::parse2(impl_code)?;
             content.1.push(Item::Impl(ctoken_impl));
         }
@@ -1350,10 +1342,10 @@ fn generate_from_extracted_seeds(
 /// pub mod my_program {
 ///     pub mod instruction_accounts;  // Macro reads this file!
 ///     pub mod state;
-///     
+///
 ///     use instruction_accounts::*;
 ///     use state::*;
-///     
+///
 ///     // No #[light_instruction] needed - auto-wrapped!
 ///     pub fn create_user(ctx: Context<CreateUser>, params: Params) -> Result<()> {
 ///         // Your business logic
@@ -1448,8 +1440,10 @@ fn wrap_function_with_rentfree(fn_item: &syn::ItemFn, params_ident: &Ident) -> s
 
 #[inline(never)]
 pub fn rentfree_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<TokenStream> {
-    use crate::rentfree::traits::anchor_seeds::{extract_from_accounts_struct, get_data_fields, ExtractedSeedSpec, ExtractedTokenSpec};
     use super::crate_context::CrateContext;
+    use crate::rentfree::traits::anchor_seeds::{
+        extract_from_accounts_struct, get_data_fields, ExtractedSeedSpec, ExtractedTokenSpec,
+    };
 
     if module.content.is_none() {
         return Err(macro_error!(&module, "Module must have a body"));

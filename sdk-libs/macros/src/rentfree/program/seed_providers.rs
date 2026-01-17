@@ -5,6 +5,19 @@ use quote::{format_ident, quote};
 use syn::{Ident, Result};
 
 use super::instructions::{InstructionDataSpec, SeedElement, TokenSeedSpec};
+use crate::rentfree::traits::utils::is_pubkey_type;
+
+/// Helper to add a Pubkey parameter and its .as_ref() expression.
+/// This is the default fallback for ctx.accounts.field and similar patterns.
+#[inline]
+fn push_pubkey_param(
+    field_name: &syn::Ident,
+    parameters: &mut Vec<TokenStream>,
+    expressions: &mut Vec<TokenStream>,
+) {
+    parameters.push(quote! { #field_name: &solana_pubkey::Pubkey });
+    expressions.push(quote! { #field_name.as_ref() });
+}
 
 /// Extract ctx.* field names from seed elements (both token seeds and authority seeds)
 fn extract_ctx_fields_from_token_spec(spec: &TokenSeedSpec) -> Vec<Ident> {
@@ -249,6 +262,51 @@ pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Re
     })
 }
 
+/// Convert a SeedElement to a TokenStream representing the seed reference expression.
+/// Used by generate_ctoken_seed_provider_implementation for both token and authority seeds.
+fn seed_element_to_ref_expr(seed: &SeedElement) -> TokenStream {
+    match seed {
+        SeedElement::Literal(lit) => {
+            let value = lit.value();
+            quote! { #value.as_bytes() }
+        }
+        SeedElement::Expression(expr) => {
+            // Handle byte string literals
+            if let syn::Expr::Lit(lit_expr) = &**expr {
+                if let syn::Lit::ByteStr(byte_str) = &lit_expr.lit {
+                    let bytes = byte_str.value();
+                    return quote! { &[#(#bytes),*] };
+                }
+            }
+
+            // Handle uppercase constants
+            if let syn::Expr::Path(path_expr) = &**expr {
+                if let Some(ident) = path_expr.path.get_ident() {
+                    let ident_str = ident.to_string();
+                    if ident_str
+                        .chars()
+                        .all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit())
+                    {
+                        if ident_str == "LIGHT_CPI_SIGNER" {
+                            return quote! { crate::#ident.cpi_signer.as_ref() };
+                        } else {
+                            return quote! { { let __seed: &[u8] = crate::#ident.as_ref(); __seed } };
+                        }
+                    }
+                }
+            }
+
+            // Handle ctx.accounts.field or ctx.field - use the destructured field directly
+            if let Some(field_name) = extract_ctx_field_name(expr) {
+                return quote! { #field_name.as_ref() };
+            }
+
+            // Fallback
+            quote! { (#expr).as_ref() }
+        }
+    }
+}
+
 /// Phase 8: Generate TokenSeedProvider impl that uses self.field instead of ctx.accounts.field
 pub fn generate_ctoken_seed_provider_implementation(
     token_seeds: &[TokenSeedSpec],
@@ -269,45 +327,8 @@ pub fn generate_ctoken_seed_provider_implementation(
         };
 
         // Build seed refs for get_seeds - use self.field directly for ctx.* seeds
-        let token_seed_refs: Vec<TokenStream> = spec.seeds.iter().map(|seed| {
-            match seed {
-                SeedElement::Literal(lit) => {
-                    let value = lit.value();
-                    quote! { #value.as_bytes() }
-                }
-                SeedElement::Expression(expr) => {
-                    // Handle byte string literals
-                    if let syn::Expr::Lit(lit_expr) = &**expr {
-                        if let syn::Lit::ByteStr(byte_str) = &lit_expr.lit {
-                            let bytes = byte_str.value();
-                            return quote! { &[#(#bytes),*] };
-                        }
-                    }
-
-                    // Handle uppercase constants
-                    if let syn::Expr::Path(path_expr) = &**expr {
-                        if let Some(ident) = path_expr.path.get_ident() {
-                            let ident_str = ident.to_string();
-                            if ident_str.chars().all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit()) {
-                                if ident_str == "LIGHT_CPI_SIGNER" {
-                                    return quote! { crate::#ident.cpi_signer.as_ref() };
-                                } else {
-                                    return quote! { { let __seed: &[u8] = crate::#ident.as_ref(); __seed } };
-                                }
-                            }
-                        }
-                    }
-
-                    // Handle ctx.accounts.field or ctx.field - use the destructured field directly
-                    if let Some(field_name) = extract_ctx_field_name(expr) {
-                        return quote! { #field_name.as_ref() };
-                    }
-
-                    // Fallback
-                    quote! { (#expr).as_ref() }
-                }
-            }
-        }).collect();
+        let token_seed_refs: Vec<TokenStream> =
+            spec.seeds.iter().map(seed_element_to_ref_expr).collect();
 
         let get_seeds_arm = quote! {
             #pattern => {
@@ -323,45 +344,8 @@ pub fn generate_ctoken_seed_provider_implementation(
 
         // Build authority seeds
         if let Some(authority_seeds) = &spec.authority {
-            let auth_seed_refs: Vec<TokenStream> = authority_seeds.iter().map(|seed| {
-                match seed {
-                    SeedElement::Literal(lit) => {
-                        let value = lit.value();
-                        quote! { #value.as_bytes() }
-                    }
-                    SeedElement::Expression(expr) => {
-                        // Handle byte string literals
-                        if let syn::Expr::Lit(lit_expr) = &**expr {
-                            if let syn::Lit::ByteStr(byte_str) = &lit_expr.lit {
-                                let bytes = byte_str.value();
-                                return quote! { &[#(#bytes),*] };
-                            }
-                        }
-
-                        // Handle uppercase constants
-                        if let syn::Expr::Path(path_expr) = &**expr {
-                            if let Some(ident) = path_expr.path.get_ident() {
-                                let ident_str = ident.to_string();
-                                if ident_str.chars().all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit()) {
-                                    if ident_str == "LIGHT_CPI_SIGNER" {
-                                        return quote! { crate::#ident.cpi_signer.as_ref() };
-                                    } else {
-                                        return quote! { { let __seed: &[u8] = crate::#ident.as_ref(); __seed } };
-                                    }
-                                }
-                            }
-                        }
-
-                        // Handle ctx.accounts.field or ctx.field - use the destructured field directly
-                        if let Some(field_name) = extract_ctx_field_name(expr) {
-                            return quote! { #field_name.as_ref() };
-                        }
-
-                        // Fallback
-                        quote! { (#expr).as_ref() }
-                    }
-                }
-            }).collect();
+            let auth_seed_refs: Vec<TokenStream> =
+                authority_seeds.iter().map(seed_element_to_ref_expr).collect();
 
             let authority_arm = quote! {
                 #pattern => {
@@ -441,6 +425,25 @@ fn extract_ctx_field_name(expr: &syn::Expr) -> Option<Ident> {
     None
 }
 
+/// Generate the body of a seed function that computes a PDA address.
+/// `program_id_expr` should be either `&crate::ID` or a variable like `_program_id`.
+fn generate_seed_fn_body(
+    seed_count: usize,
+    seed_expressions: &[TokenStream],
+    program_id_expr: TokenStream,
+) -> TokenStream {
+    quote! {
+        let mut seed_values = Vec::with_capacity(#seed_count + 1);
+        #(
+            seed_values.push((#seed_expressions).to_vec());
+        )*
+        let seed_slices: Vec<&[u8]> = seed_values.iter().map(|v| v.as_slice()).collect();
+        let (pda, bump) = solana_pubkey::Pubkey::find_program_address(&seed_slices, #program_id_expr);
+        seed_values.push(vec![bump]);
+        (seed_values, pda)
+    }
+}
+
 #[inline(never)]
 pub fn generate_client_seed_functions(
     _account_types: &[Ident],
@@ -460,16 +463,10 @@ pub fn generate_client_seed_functions(
                 analyze_seed_spec_for_client(spec, instruction_data)?;
 
             let seed_count = seed_expressions.len();
+            let fn_body = generate_seed_fn_body(seed_count, &seed_expressions, quote! { &crate::ID });
             let function = quote! {
                 pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
-                    let mut seed_values = Vec::with_capacity(#seed_count + 1);
-                    #(
-                        seed_values.push((#seed_expressions).to_vec());
-                    )*
-                let seed_slices: Vec<&[u8]> = seed_values.iter().map(|v| v.as_slice()).collect();
-                    let (pda, bump) = solana_pubkey::Pubkey::find_program_address(&seed_slices, &crate::ID);
-                    seed_values.push(vec![bump]);
-                    (seed_values, pda)
+                    #fn_body
                 }
             };
             functions.push(function);
@@ -487,16 +484,10 @@ pub fn generate_client_seed_functions(
                 analyze_seed_spec_for_client(spec, instruction_data)?;
 
             let seed_count = seed_expressions.len();
+            let fn_body = generate_seed_fn_body(seed_count, &seed_expressions, quote! { &crate::ID });
             let function = quote! {
                 pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
-                    let mut seed_values = Vec::with_capacity(#seed_count + 1);
-                    #(
-                        seed_values.push((#seed_expressions).to_vec());
-                    )*
-                    let seed_slices: Vec<&[u8]> = seed_values.iter().map(|v| v.as_slice()).collect();
-                    let (pda, bump) = solana_pubkey::Pubkey::find_program_address(&seed_slices, &crate::ID);
-                    seed_values.push(vec![bump]);
-                    (seed_values, pda)
+                    #fn_body
                 }
             };
             functions.push(function);
@@ -526,30 +517,12 @@ pub fn generate_client_seed_functions(
                 let (fn_params, fn_body) = if auth_parameters.is_empty() {
                     (
                         quote! { _program_id: &solana_pubkey::Pubkey },
-                        quote! {
-                            let mut seed_values = Vec::with_capacity(#auth_seed_count + 1);
-                            #(
-                                seed_values.push((#auth_seed_expressions).to_vec());
-                            )*
-                            let seed_slices: Vec<&[u8]> = seed_values.iter().map(|v| v.as_slice()).collect();
-                            let (pda, bump) = solana_pubkey::Pubkey::find_program_address(&seed_slices, _program_id);
-                            seed_values.push(vec![bump]);
-                            (seed_values, pda)
-                        },
+                        generate_seed_fn_body(auth_seed_count, &auth_seed_expressions, quote! { _program_id }),
                     )
                 } else {
                     (
                         quote! { #(#auth_parameters),* },
-                        quote! {
-                            let mut seed_values = Vec::with_capacity(#auth_seed_count + 1);
-                            #(
-                                seed_values.push((#auth_seed_expressions).to_vec());
-                            )*
-                            let seed_slices: Vec<&[u8]> = seed_values.iter().map(|v| v.as_slice()).collect();
-                            let (pda, bump) = solana_pubkey::Pubkey::find_program_address(&seed_slices, &crate::ID);
-                            seed_values.push(vec![bump]);
-                            (seed_values, pda)
-                        },
+                        generate_seed_fn_body(auth_seed_count, &auth_seed_expressions, quote! { &crate::ID }),
                     )
                 };
                 let authority_function = quote! {
@@ -590,76 +563,34 @@ fn analyze_seed_spec_for_client(
                 match &**expr {
                     syn::Expr::Field(field_expr) => {
                         if let syn::Member::Named(field_name) = &field_expr.member {
-                            match &*field_expr.base {
-                                syn::Expr::Field(nested_field) => {
-                                    if let syn::Member::Named(base_name) = &nested_field.member {
-                                        if base_name == "accounts" {
-                                            if let syn::Expr::Path(path) = &*nested_field.base {
-                                                if let Some(_segment) = path.path.segments.first() {
-                                                    parameters.push(quote! { #field_name: &solana_pubkey::Pubkey });
-                                                    expressions
-                                                        .push(quote! { #field_name.as_ref() });
-                                                } else {
-                                                    parameters.push(quote! { #field_name: &solana_pubkey::Pubkey });
-                                                    expressions
-                                                        .push(quote! { #field_name.as_ref() });
-                                                }
+                            // Check for data.field pattern which uses instruction_data types
+                            if let syn::Expr::Path(path) = &*field_expr.base {
+                                if let Some(segment) = path.path.segments.first() {
+                                    if segment.ident == "data" {
+                                        if let Some(data_spec) = instruction_data
+                                            .iter()
+                                            .find(|d| d.field_name == *field_name)
+                                        {
+                                            let param_type = &data_spec.field_type;
+                                            let param_with_ref = if is_pubkey_type(param_type) {
+                                                quote! { #field_name: &#param_type }
                                             } else {
-                                                parameters.push(
-                                                    quote! { #field_name: &solana_pubkey::Pubkey },
-                                                );
-                                                expressions.push(quote! { #field_name.as_ref() });
-                                            }
-                                        } else {
-                                            parameters.push(
-                                                quote! { #field_name: &solana_pubkey::Pubkey },
-                                            );
+                                                quote! { #field_name: #param_type }
+                                            };
+                                            parameters.push(param_with_ref);
                                             expressions.push(quote! { #field_name.as_ref() });
-                                        }
-                                    } else {
-                                        parameters
-                                            .push(quote! { #field_name: &solana_pubkey::Pubkey });
-                                        expressions.push(quote! { #field_name.as_ref() });
-                                    }
-                                }
-                                syn::Expr::Path(path) => {
-                                    if let Some(segment) = path.path.segments.first() {
-                                        if segment.ident == "data" {
-                                            if let Some(data_spec) = instruction_data
-                                                .iter()
-                                                .find(|d| d.field_name == *field_name)
-                                            {
-                                                let param_type = &data_spec.field_type;
-                                                let param_with_ref = if is_pubkey_type(param_type) {
-                                                    quote! { #field_name: &#param_type }
-                                                } else {
-                                                    quote! { #field_name: #param_type }
-                                                };
-                                                parameters.push(param_with_ref);
-                                                expressions.push(quote! { #field_name.as_ref() });
-                                            } else {
-                                                return Err(syn::Error::new_spanned(
-                                                    field_name,
-                                                    format!("data.{} used in seeds but no type specified", field_name),
-                                                ));
-                                            }
+                                            continue;
                                         } else {
-                                            parameters.push(
-                                                quote! { #field_name: &solana_pubkey::Pubkey },
-                                            );
-                                            expressions.push(quote! { #field_name.as_ref() });
+                                            return Err(syn::Error::new_spanned(
+                                                field_name,
+                                                format!("data.{} used in seeds but no type specified", field_name),
+                                            ));
                                         }
-                                    } else {
-                                        parameters
-                                            .push(quote! { #field_name: &solana_pubkey::Pubkey });
-                                        expressions.push(quote! { #field_name.as_ref() });
                                     }
-                                }
-                                _ => {
-                                    parameters.push(quote! { #field_name: &solana_pubkey::Pubkey });
-                                    expressions.push(quote! { #field_name.as_ref() });
                                 }
                             }
+                            // Default: ctx.accounts.field, ctx.field, or other field patterns
+                            push_pubkey_param(field_name, &mut parameters, &mut expressions);
                         }
                     }
                     syn::Expr::MethodCall(method_call) => {
@@ -948,17 +879,4 @@ fn camel_to_snake_case(s: &str) -> String {
         result.push(c.to_lowercase().next().unwrap());
     }
     result
-}
-
-fn is_pubkey_type(ty: &syn::Type) -> bool {
-    if let syn::Type::Path(type_path) = ty {
-        if let Some(segment) = type_path.path.segments.last() {
-            let type_name = segment.ident.to_string();
-            type_name == "Pubkey" || type_name.contains("Pubkey")
-        } else {
-            false
-        }
-    } else {
-        false
-    }
 }

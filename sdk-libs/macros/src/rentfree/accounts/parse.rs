@@ -1,4 +1,4 @@
-//! Parsing logic for #[rentfree(...)] and #[light_mint(...)] attributes.
+//! Parsing logic for #[rentfree(...)] attributes.
 
 use syn::{
     parse::{Parse, ParseStream},
@@ -8,6 +8,9 @@ use syn::{
 
 // Import shared types from anchor_seeds module
 pub(super) use crate::rentfree::traits::anchor_seeds::extract_account_inner_type;
+
+// Import LightMintField and parsing from light_mint module
+use super::light_mint::{parse_light_mint_attr, LightMintField};
 
 /// Parsed representation of a struct with rentfree and light_mint fields.
 pub(super) struct ParsedRentFreeStruct {
@@ -31,33 +34,12 @@ pub(super) struct ParsedRentFreeStruct {
 /// A field marked with #[rentfree(...)]
 pub(super) struct RentFreeField {
     pub ident: Ident,
-    pub ty: Type,
+    /// The inner type T from Account<'info, T> or Box<Account<'info, T>>
+    pub inner_type: Ident,
     pub address_tree_info: Expr,
     pub output_tree: Expr,
     /// True if the field is Box<Account<T>>, false if Account<T>
     pub is_boxed: bool,
-}
-
-/// A field marked with #[light_mint(...)]
-pub(super) struct LightMintField {
-    /// The field name where #[light_mint] is attached (CMint account)
-    pub field_ident: Ident,
-    /// The mint_signer field (AccountInfo that seeds the mint PDA)
-    pub mint_signer: Expr,
-    /// The authority for mint operations
-    pub authority: Expr,
-    /// Decimals for the mint
-    pub decimals: Expr,
-    /// Address tree info expression
-    pub address_tree_info: Expr,
-    /// Optional freeze authority
-    pub freeze_authority: Option<Expr>,
-    /// Signer seeds for the mint_signer PDA (required if mint_signer is a PDA)
-    pub signer_seeds: Option<Expr>,
-    /// Rent payment epochs for decompression (default: 2)
-    pub rent_payment: Option<Expr>,
-    /// Write top-up lamports for decompression (default: 0)
-    pub write_top_up: Option<Expr>,
 }
 
 /// Instruction argument from #[instruction(...)]
@@ -107,60 +89,10 @@ impl Parse for RentFreeArgs {
     }
 }
 
-/// Arguments inside #[light_mint(...)]
-struct LightMintArgs {
-    mint_signer: Option<Expr>,
-    authority: Option<Expr>,
-    decimals: Option<Expr>,
-    address_tree_info: Option<Expr>,
-    freeze_authority: Option<Expr>,
-    signer_seeds: Option<Expr>,
-    rent_payment: Option<Expr>,
-    write_top_up: Option<Expr>,
-}
-
-impl Parse for LightMintArgs {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut args = LightMintArgs {
-            mint_signer: None,
-            authority: None,
-            decimals: None,
-            address_tree_info: None,
-            freeze_authority: None,
-            signer_seeds: None,
-            rent_payment: None,
-            write_top_up: None,
-        };
-
-        let content: Punctuated<KeyValueArg, Token![,]> = Punctuated::parse_terminated(input)?;
-
-        for arg in content {
-            match arg.name.to_string().as_str() {
-                "mint_signer" => args.mint_signer = Some(arg.value),
-                "authority" => args.authority = Some(arg.value),
-                "decimals" => args.decimals = Some(arg.value),
-                "address_tree_info" => args.address_tree_info = Some(arg.value),
-                "freeze_authority" => args.freeze_authority = Some(arg.value),
-                "signer_seeds" => args.signer_seeds = Some(arg.value),
-                "rent_payment" => args.rent_payment = Some(arg.value),
-                "write_top_up" => args.write_top_up = Some(arg.value),
-                other => {
-                    return Err(Error::new(
-                        arg.name.span(),
-                        format!("unknown light_mint attribute: {}", other),
-                    ))
-                }
-            }
-        }
-
-        Ok(args)
-    }
-}
-
 /// Generic key = value argument parser
-struct KeyValueArg {
-    name: Ident,
-    value: Expr,
+pub(super) struct KeyValueArg {
+    pub name: Ident,
+    pub value: Expr,
 }
 
 impl Parse for KeyValueArg {
@@ -240,33 +172,38 @@ pub(super) fn parse_rentfree_struct(
         //                    "compress_token_program_cpi_authority"
         //
         // Fields not matching these names will use defaults in code generation.
-        if field_name == "fee_payer" || field_name == "payer" || field_name == "creator" {
-            fee_payer_field = Some(field_ident.clone());
-        }
-        if field_name == "compression_config" {
-            compression_config_field = Some(field_ident.clone());
-        }
-        if field_name == "ctoken_compressible_config"
-            || field_name == "ctoken_config"
-            || field_name == "light_token_config_account"
-        {
-            ctoken_config_field = Some(field_ident.clone());
-        }
-        if field_name == "ctoken_rent_sponsor" || field_name == "light_token_rent_sponsor" {
-            ctoken_rent_sponsor_field = Some(field_ident.clone());
-        }
-        if field_name == "ctoken_program" || field_name == "light_token_program" {
-            ctoken_program_field = Some(field_ident.clone());
-        }
-        if field_name == "ctoken_cpi_authority"
-            || field_name == "light_token_program_cpi_authority"
-            || field_name == "compress_token_program_cpi_authority"
-        {
-            ctoken_cpi_authority_field = Some(field_ident.clone());
+        match field_name.as_str() {
+            "fee_payer" | "payer" | "creator" => {
+                fee_payer_field = Some(field_ident.clone());
+            }
+            "compression_config" => {
+                compression_config_field = Some(field_ident.clone());
+            }
+            "ctoken_compressible_config" | "ctoken_config" | "light_token_config_account" => {
+                ctoken_config_field = Some(field_ident.clone());
+            }
+            "ctoken_rent_sponsor" | "light_token_rent_sponsor" => {
+                ctoken_rent_sponsor_field = Some(field_ident.clone());
+            }
+            "ctoken_program" | "light_token_program" => {
+                ctoken_program_field = Some(field_ident.clone());
+            }
+            "ctoken_cpi_authority"
+            | "light_token_program_cpi_authority"
+            | "compress_token_program_cpi_authority" => {
+                ctoken_cpi_authority_field = Some(field_ident.clone());
+            }
+            _ => {}
         }
 
         // Track if this field already has a compression attribute
         let mut has_compression_attr = false;
+
+        // Check for #[light_mint(...)] attribute first (delegated to light_mint module)
+        if let Some(mint_field) = parse_light_mint_attr(field, &field_ident)? {
+            has_compression_attr = true;
+            light_mint_fields.push(mint_field);
+        }
 
         // Look for #[rentfree] or #[rentfree(...)] attribute
         for attr in &field.attrs {
@@ -279,7 +216,6 @@ pub(super) fn parse_rentfree_struct(
                          Only one is allowed per field.",
                     ));
                 }
-                has_compression_attr = true;
                 // Handle both #[rentfree] and #[rentfree(...)]
                 let args: RentFreeArgs = match &attr.meta {
                     syn::Meta::Path(_) => {
@@ -310,7 +246,7 @@ pub(super) fn parse_rentfree_struct(
                 });
 
                 // Validate this is an Account type (or Box<Account>)
-                let (is_boxed, _inner_type) =
+                let (is_boxed, inner_type) =
                     extract_account_inner_type(&field.ty).ok_or_else(|| {
                         Error::new_spanned(
                             &field.ty,
@@ -321,7 +257,7 @@ pub(super) fn parse_rentfree_struct(
 
                 rentfree_fields.push(RentFreeField {
                     ident: field_ident.clone(),
-                    ty: field.ty.clone(),
+                    inner_type,
                     address_tree_info,
                     output_tree,
                     is_boxed,
@@ -331,50 +267,6 @@ pub(super) fn parse_rentfree_struct(
 
             // TODO(diff-pr): Add parsing for #[rentfree_token(...)] attribute for token accounts and ATAs.
             // Would need RentFreeTokenField struct with: field_ident, authority_seeds, mint field ref.
-
-            // Look for #[light_mint(...)] attribute
-            if attr.path().is_ident("light_mint") {
-                // Check for duplicate compression attributes on same field
-                if has_compression_attr {
-                    return Err(Error::new_spanned(
-                        attr,
-                        "Field already has a compression attribute (#[rentfree] or #[light_mint]). \
-                         Only one is allowed per field.",
-                    ));
-                }
-                has_compression_attr = true;
-
-                let args: LightMintArgs = attr.parse_args()?;
-
-                // Validate required fields
-                let mint_signer = args
-                    .mint_signer
-                    .ok_or_else(|| Error::new_spanned(attr, "light_mint requires mint_signer"))?;
-                let authority = args
-                    .authority
-                    .ok_or_else(|| Error::new_spanned(attr, "light_mint requires authority"))?;
-                let decimals = args
-                    .decimals
-                    .ok_or_else(|| Error::new_spanned(attr, "light_mint requires decimals"))?;
-
-                // address_tree_info defaults to params.create_accounts_proof.address_tree_info
-                let address_tree_info = args.address_tree_info.unwrap_or_else(|| {
-                    syn::parse_quote!(params.create_accounts_proof.address_tree_info)
-                });
-
-                light_mint_fields.push(LightMintField {
-                    field_ident: field_ident.clone(),
-                    mint_signer,
-                    authority,
-                    decimals,
-                    address_tree_info,
-                    freeze_authority: args.freeze_authority,
-                    signer_seeds: args.signer_seeds,
-                    rent_payment: args.rent_payment,
-                    write_top_up: args.write_top_up,
-                });
-                break;
-            }
         }
     }
 

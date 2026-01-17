@@ -15,13 +15,16 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use super::parse::{LightMintField, ParsedRentFreeStruct, RentFreeField};
+use super::light_mint::{generate_mint_action_invocation, MintActionConfig};
+use super::parse::{ParsedRentFreeStruct, RentFreeField};
 
-/// Default rent payment period in epochs (how long to prepay rent for decompressed accounts).
-const DEFAULT_RENT_PAYMENT_EPOCHS: u8 = 2;
-
-/// Default write top-up in lamports (additional lamports for write operations during decompression).
-const DEFAULT_WRITE_TOP_UP_LAMPORTS: u32 = 0;
+/// Resolve optional field name to TokenStream, using default if None
+fn resolve_field_name(field: &Option<syn::Ident>, default: &str) -> TokenStream {
+    field.as_ref().map(|f| quote! { #f }).unwrap_or_else(|| {
+        let ident = format_ident!("{}", default);
+        quote! { #ident }
+    })
+}
 
 /// Generate both trait implementations.
 ///
@@ -47,17 +50,13 @@ pub(super) fn generate_rentfree_impl(
         ));
     }
 
-    // Get the params type from instruction args (first arg)
-    let params_type = parsed
-        .instruction_args
-        .as_ref()
-        .and_then(|args| args.first())
-        .map(|arg| &arg.ty);
-
-    let params_type = match params_type {
-        Some(ty) => ty,
+    // Extract first instruction arg or generate no-op impls
+    let first_arg = match parsed.instruction_args.as_ref().and_then(|args| args.first()) {
+        Some(arg) => arg,
         None => {
-            // No instruction args - generate no-op impls
+            // No instruction args - generate no-op impls.
+            // Keep these for backwards compatibility with structs that derive RentFree
+            // without compression fields or instruction params.
             return Ok(quote! {
                 #[automatically_derived]
                 impl #impl_generics light_sdk::compressible::LightPreInit<'info, ()> for #struct_name #ty_generics #where_clause {
@@ -85,58 +84,24 @@ pub(super) fn generate_rentfree_impl(
         }
     };
 
-    let params_ident = parsed
-        .instruction_args
-        .as_ref()
-        .and_then(|args| args.first())
-        .map(|arg| &arg.name)
-        .ok_or_else(|| {
-            syn::Error::new(
-                parsed.struct_name.span(),
-                "internal error: instruction params type exists but params ident is missing",
-            )
-        })?;
+    let params_type = &first_arg.ty;
+    let params_ident = &first_arg.name;
 
     let has_pdas = !parsed.rentfree_fields.is_empty();
     let has_mints = !parsed.light_mint_fields.is_empty();
 
-    // Get fee payer field
-    let fee_payer = parsed
-        .fee_payer_field
-        .as_ref()
-        .map(|f| quote! { #f })
-        .unwrap_or_else(|| quote! { fee_payer });
-
-    let compression_config = parsed
-        .compression_config_field
-        .as_ref()
-        .map(|f| quote! { #f })
-        .unwrap_or_else(|| quote! { compression_config });
-
-    // CToken accounts for decompress
-    let ctoken_config = parsed
-        .ctoken_config_field
-        .as_ref()
-        .map(|f| quote! { #f })
-        .unwrap_or_else(|| quote! { ctoken_compressible_config });
-
-    let ctoken_rent_sponsor = parsed
-        .ctoken_rent_sponsor_field
-        .as_ref()
-        .map(|f| quote! { #f })
-        .unwrap_or_else(|| quote! { ctoken_rent_sponsor });
-
-    let light_token_program = parsed
-        .ctoken_program_field
-        .as_ref()
-        .map(|f| quote! { #f })
-        .unwrap_or_else(|| quote! { light_token_program });
-
-    let ctoken_cpi_authority = parsed
-        .ctoken_cpi_authority_field
-        .as_ref()
-        .map(|f| quote! { #f })
-        .unwrap_or_else(|| quote! { ctoken_cpi_authority });
+    // Resolve field names with defaults
+    let fee_payer = resolve_field_name(&parsed.fee_payer_field, "fee_payer");
+    let compression_config =
+        resolve_field_name(&parsed.compression_config_field, "compression_config");
+    let ctoken_config =
+        resolve_field_name(&parsed.ctoken_config_field, "ctoken_compressible_config");
+    let ctoken_rent_sponsor =
+        resolve_field_name(&parsed.ctoken_rent_sponsor_field, "ctoken_rent_sponsor");
+    let light_token_program =
+        resolve_field_name(&parsed.ctoken_program_field, "light_token_program");
+    let ctoken_cpi_authority =
+        resolve_field_name(&parsed.ctoken_cpi_authority_field, "ctoken_cpi_authority");
 
     // Generate LightPreInit impl based on what we have
     // ALL compression logic runs in pre_init so instruction body can use hot state
@@ -216,8 +181,7 @@ fn generate_pre_init_pdas_and_mints(
     light_token_program: &TokenStream,
     ctoken_cpi_authority: &TokenStream,
 ) -> TokenStream {
-    let (compress_blocks, new_addr_idents) =
-        generate_pda_compress_blocks(&parsed.rentfree_fields);
+    let (compress_blocks, new_addr_idents) = generate_pda_compress_blocks(&parsed.rentfree_fields);
     let rentfree_count = parsed.rentfree_fields.len() as u8;
     let pda_count = parsed.rentfree_fields.len();
 
@@ -228,44 +192,21 @@ fn generate_pre_init_pdas_and_mints(
     // Each mint would get assigned_account_index = pda_count + mint_index.
     // Also add support for #[rentfree_token] fields for token ATAs.
     let mint = &parsed.light_mint_fields[0];
-    let mint_field_ident = &mint.field_ident;
-    let mint_signer = &mint.mint_signer;
-    let authority = &mint.authority;
-    let decimals = &mint.decimals;
-    let address_tree_info = &mint.address_tree_info;
-
-    // Use explicit signer_seeds if provided, otherwise empty
-    let signer_seeds_tokens = if let Some(seeds) = &mint.signer_seeds {
-        quote! { #seeds }
-    } else {
-        quote! { &[] as &[&[u8]] }
-    };
-
-    // Build freeze_authority expression
-    let freeze_authority_tokens = if let Some(freeze_auth) = &mint.freeze_authority {
-        quote! { Some(*self.#freeze_auth.to_account_info().key) }
-    } else {
-        quote! { None }
-    };
-
-    // rent_payment defaults to DEFAULT_RENT_PAYMENT_EPOCHS
-    let rent_payment_tokens = if let Some(rent) = &mint.rent_payment {
-        quote! { #rent }
-    } else {
-        let default = DEFAULT_RENT_PAYMENT_EPOCHS;
-        quote! { #default }
-    };
-
-    // write_top_up defaults to DEFAULT_WRITE_TOP_UP_LAMPORTS
-    let write_top_up_tokens = if let Some(top_up) = &mint.write_top_up {
-        quote! { #top_up }
-    } else {
-        let default = DEFAULT_WRITE_TOP_UP_LAMPORTS;
-        quote! { #default }
-    };
 
     // assigned_account_index for mint is after PDAs
     let mint_assigned_index = pda_count as u8;
+
+    // Generate mint action invocation with CPI context
+    let mint_invocation = generate_mint_action_invocation(&MintActionConfig {
+        mint,
+        params_ident,
+        fee_payer,
+        ctoken_config,
+        ctoken_rent_sponsor,
+        light_token_program,
+        ctoken_cpi_authority,
+        cpi_context: Some((quote! { #first_pda_output_tree }, mint_assigned_index)),
+    });
 
     quote! {
         // Build CPI accounts WITH CPI context for batching
@@ -305,110 +246,7 @@ fn generate_pre_init_pdas_and_mints(
             .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
 
         // Step 2: Build and invoke mint_action with decompress + CPI context
-        {
-            let __tree_info = &#address_tree_info;
-            let address_tree = cpi_accounts.get_tree_account_info(__tree_info.address_merkle_tree_pubkey_index as usize)?;
-            // Output queue is the state tree queue (same as the PDAs' output tree)
-            let __output_tree_index = #first_pda_output_tree;
-            let output_queue = cpi_accounts.get_tree_account_info(__output_tree_index as usize)?;
-            let __tree_pubkey: solana_pubkey::Pubkey = light_sdk::light_account_checks::AccountInfoTrait::pubkey(address_tree);
-
-            let mint_signer_key = self.#mint_signer.to_account_info().key;
-            let (mint_pda, _cmint_bump) = light_token_sdk::token::find_mint_address(mint_signer_key);
-
-            let __proof: light_token_sdk::CompressedProof = #params_ident.create_accounts_proof.proof.0.clone()
-                .expect("proof is required for mint creation");
-
-            let __freeze_authority: Option<solana_pubkey::Pubkey> = #freeze_authority_tokens;
-
-            // Build compressed mint instruction data
-            let compressed_mint_data = light_token_interface::instructions::mint_action::MintInstructionData {
-                supply: 0,
-                decimals: #decimals,
-                metadata: light_token_interface::state::MintMetadata {
-                    version: 3,
-                    mint: mint_pda.to_bytes().into(),
-                    mint_decompressed: false,
-                    mint_signer: mint_signer_key.to_bytes(),
-                    bump: _cmint_bump,
-                },
-                mint_authority: Some((*self.#authority.to_account_info().key).to_bytes().into()),
-                freeze_authority: __freeze_authority.map(|a| a.to_bytes().into()),
-                extensions: None,
-            };
-
-            // Build mint action instruction data with decompress
-            let mut instruction_data = light_token_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
-                __tree_info.root_index,
-                __proof,
-                compressed_mint_data,
-            )
-            .with_decompress_mint(light_token_interface::instructions::mint_action::DecompressMintAction {
-                rent_payment: #rent_payment_tokens,
-                write_top_up: #write_top_up_tokens,
-            })
-            .with_cpi_context(light_token_interface::instructions::mint_action::CpiContext {
-                address_tree_pubkey: __tree_pubkey.to_bytes(),
-                set_context: false,
-                first_set_context: false, // PDAs already wrote to context
-                // in_tree_index is 1-indexed and points to the state queue (for CPI context validation)
-                // The Light System Program does `in_tree_index - 1` and uses queue's associated_merkle_tree
-                in_tree_index: __output_tree_index + 1, // +1 because 1-indexed
-                in_queue_index: __output_tree_index,
-                out_queue_index: __output_tree_index, // Output state queue
-                token_out_queue_index: 0,
-                assigned_account_index: #mint_assigned_index,
-                read_only_address_trees: [0; 4],
-            });
-
-            // Build account metas with compressible CMint
-            let mut meta_config = light_token_sdk::compressed_token::mint_action::MintActionMetaConfig::new_create_mint(
-                *self.#fee_payer.to_account_info().key,
-                *self.#authority.to_account_info().key,
-                *mint_signer_key,
-                __tree_pubkey,
-                *output_queue.key,
-            )
-            .with_compressible_mint(
-                mint_pda,
-                *self.#ctoken_config.to_account_info().key,
-                *self.#ctoken_rent_sponsor.to_account_info().key,
-            );
-
-            meta_config.cpi_context = Some(*cpi_accounts.cpi_context()?.key);
-
-            let account_metas = meta_config.to_account_metas();
-
-            use light_compressed_account::instruction_data::traits::LightInstructionData;
-            let ix_data = instruction_data.data()
-                .map_err(|_| light_sdk::error::LightSdkError::Borsh)?;
-
-            let mint_action_ix = anchor_lang::solana_program::instruction::Instruction {
-                program_id: solana_pubkey::Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
-                accounts: account_metas,
-                data: ix_data,
-            };
-
-            // Build account infos and invoke
-            // Include all accounts needed for mint_action with decompress
-            let mut account_infos = cpi_accounts.to_account_infos();
-            // Add ctoken-specific accounts that aren't in the Light System CPI accounts
-            account_infos.push(self.#light_token_program.to_account_info());
-            account_infos.push(self.#ctoken_cpi_authority.to_account_info());
-            account_infos.push(self.#mint_field_ident.to_account_info());
-            account_infos.push(self.#ctoken_config.to_account_info());
-            account_infos.push(self.#ctoken_rent_sponsor.to_account_info());
-            account_infos.push(self.#authority.to_account_info());
-            account_infos.push(self.#mint_signer.to_account_info());
-            account_infos.push(self.#fee_payer.to_account_info());
-
-            let signer_seeds: &[&[u8]] = #signer_seeds_tokens;
-            if signer_seeds.is_empty() {
-                anchor_lang::solana_program::program::invoke(&mint_action_ix, &account_infos)?;
-            } else {
-                anchor_lang::solana_program::program::invoke_signed(&mint_action_ix, &account_infos, &[signer_seeds])?;
-            }
-        }
+        #mint_invocation
 
         Ok(true)
     }
@@ -431,41 +269,18 @@ fn generate_pre_init_mints_only(
     // Each mint would get assigned_account_index = mint_index.
     // Also add support for #[rentfree_token] fields for token ATAs.
     let mint = &parsed.light_mint_fields[0];
-    let mint_field_ident = &mint.field_ident;
-    let mint_signer = &mint.mint_signer;
-    let authority = &mint.authority;
-    let decimals = &mint.decimals;
-    let address_tree_info = &mint.address_tree_info;
 
-    // Use explicit signer_seeds if provided, otherwise empty
-    let signer_seeds_tokens = if let Some(seeds) = &mint.signer_seeds {
-        quote! { #seeds }
-    } else {
-        quote! { &[] as &[&[u8]] }
-    };
-
-    // Build freeze_authority expression
-    let freeze_authority_tokens = if let Some(freeze_auth) = &mint.freeze_authority {
-        quote! { Some(*self.#freeze_auth.to_account_info().key) }
-    } else {
-        quote! { None }
-    };
-
-    // rent_payment defaults to DEFAULT_RENT_PAYMENT_EPOCHS
-    let rent_payment_tokens = if let Some(rent) = &mint.rent_payment {
-        quote! { #rent }
-    } else {
-        let default = DEFAULT_RENT_PAYMENT_EPOCHS;
-        quote! { #default }
-    };
-
-    // write_top_up defaults to DEFAULT_WRITE_TOP_UP_LAMPORTS
-    let write_top_up_tokens = if let Some(top_up) = &mint.write_top_up {
-        quote! { #top_up }
-    } else {
-        let default = DEFAULT_WRITE_TOP_UP_LAMPORTS;
-        quote! { #default }
-    };
+    // Generate mint action invocation without CPI context
+    let mint_invocation = generate_mint_action_invocation(&MintActionConfig {
+        mint,
+        params_ident,
+        fee_payer,
+        ctoken_config,
+        ctoken_rent_sponsor,
+        light_token_program,
+        ctoken_cpi_authority,
+        cpi_context: None,
+    });
 
     quote! {
         // Build CPI accounts (no CPI context needed for mints-only)
@@ -476,92 +291,7 @@ fn generate_pre_init_mints_only(
         );
 
         // Build and invoke mint_action with decompress
-        {
-            let __tree_info = &#address_tree_info;
-            let address_tree = cpi_accounts.get_tree_account_info(__tree_info.address_merkle_tree_pubkey_index as usize)?;
-            let output_queue = cpi_accounts.get_tree_account_info(__tree_info.address_queue_pubkey_index as usize)?;
-            let __tree_pubkey: solana_pubkey::Pubkey = light_sdk::light_account_checks::AccountInfoTrait::pubkey(address_tree);
-
-            let mint_signer_key = self.#mint_signer.to_account_info().key;
-            let (mint_pda, _cmint_bump) = light_token_sdk::token::find_mint_address(mint_signer_key);
-
-            let __proof: light_token_sdk::CompressedProof = #params_ident.create_accounts_proof.proof.0.clone()
-                .expect("proof is required for mint creation");
-
-            let __freeze_authority: Option<solana_pubkey::Pubkey> = #freeze_authority_tokens;
-
-            // Build compressed mint instruction data
-            let compressed_mint_data = light_token_interface::instructions::mint_action::MintInstructionData {
-                supply: 0,
-                decimals: #decimals,
-                metadata: light_token_interface::state::MintMetadata {
-                    version: 3,
-                    mint: mint_pda.to_bytes().into(),
-                    mint_decompressed: false,
-                    mint_signer: mint_signer_key.to_bytes(),
-                    bump: _cmint_bump,
-                },
-                mint_authority: Some((*self.#authority.to_account_info().key).to_bytes().into()),
-                freeze_authority: __freeze_authority.map(|a| a.to_bytes().into()),
-                extensions: None,
-            };
-
-            // Build mint action instruction data with decompress (no CPI context)
-            let instruction_data = light_token_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
-                __tree_info.root_index,
-                __proof,
-                compressed_mint_data,
-            )
-            .with_decompress_mint(light_token_interface::instructions::mint_action::DecompressMintAction {
-                rent_payment: #rent_payment_tokens,
-                write_top_up: #write_top_up_tokens,
-            });
-
-            // Build account metas with compressible CMint
-            let meta_config = light_token_sdk::compressed_token::mint_action::MintActionMetaConfig::new_create_mint(
-                *self.#fee_payer.to_account_info().key,
-                *self.#authority.to_account_info().key,
-                *mint_signer_key,
-                __tree_pubkey,
-                *output_queue.key,
-            )
-            .with_compressible_mint(
-                mint_pda,
-                *self.#ctoken_config.to_account_info().key,
-                *self.#ctoken_rent_sponsor.to_account_info().key,
-            );
-
-            let account_metas = meta_config.to_account_metas();
-
-            use light_compressed_account::instruction_data::traits::LightInstructionData;
-            let ix_data = instruction_data.data()
-                .map_err(|_| light_sdk::error::LightSdkError::Borsh)?;
-
-            let mint_action_ix = anchor_lang::solana_program::instruction::Instruction {
-                program_id: solana_pubkey::Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
-                accounts: account_metas,
-                data: ix_data,
-            };
-
-            // Build account infos and invoke
-            let mut account_infos = cpi_accounts.to_account_infos();
-            // Add ctoken-specific accounts
-            account_infos.push(self.#light_token_program.to_account_info());
-            account_infos.push(self.#ctoken_cpi_authority.to_account_info());
-            account_infos.push(self.#mint_field_ident.to_account_info());
-            account_infos.push(self.#ctoken_config.to_account_info());
-            account_infos.push(self.#ctoken_rent_sponsor.to_account_info());
-            account_infos.push(self.#authority.to_account_info());
-            account_infos.push(self.#mint_signer.to_account_info());
-            account_infos.push(self.#fee_payer.to_account_info());
-
-            let signer_seeds: &[&[u8]] = #signer_seeds_tokens;
-            if signer_seeds.is_empty() {
-                anchor_lang::solana_program::program::invoke(&mint_action_ix, &account_infos)?;
-            } else {
-                anchor_lang::solana_program::program::invoke_signed(&mint_action_ix, &account_infos, &[signer_seeds])?;
-            }
-        }
+        #mint_invocation
 
         Ok(true)
     }
@@ -575,8 +305,7 @@ fn generate_pre_init_pdas_only(
     fee_payer: &TokenStream,
     compression_config: &TokenStream,
 ) -> TokenStream {
-    let (compress_blocks, new_addr_idents) =
-        generate_pda_compress_blocks(&parsed.rentfree_fields);
+    let (compress_blocks, new_addr_idents) = generate_pda_compress_blocks(&parsed.rentfree_fields);
     let rentfree_count = parsed.rentfree_fields.len() as u8;
 
     quote! {
@@ -621,7 +350,7 @@ fn generate_pda_compress_blocks(fields: &[RentFreeField]) -> (Vec<TokenStream>, 
         let ident = &field.ident;
         let addr_tree_info = &field.address_tree_info;
         let output_tree = &field.output_tree;
-        let acc_ty_path = extract_inner_account_type(&field.ty);
+        let inner_type = &field.inner_type;
 
         let new_addr_params_ident = format_ident!("__new_addr_params_{}", idx);
         let compressed_infos_ident = format_ident!("__compressed_infos_{}", idx);
@@ -669,7 +398,7 @@ fn generate_pda_compress_blocks(fields: &[RentFreeField]) -> (Vec<TokenStream>, 
             // Get mutable reference to inner account data
             let #account_data_ident = #deref_expr;
 
-            let #compressed_infos_ident = light_sdk::compressible::prepare_compressed_account_on_init::<#acc_ty_path>(
+            let #compressed_infos_ident = light_sdk::compressible::prepare_compressed_account_on_init::<#inner_type>(
                 &#account_info_ident,
                 #account_data_ident,
                 &compression_config_data,
@@ -685,36 +414,4 @@ fn generate_pda_compress_blocks(fields: &[RentFreeField]) -> (Vec<TokenStream>, 
     }
 
     (blocks, addr_idents)
-}
-
-/// Extract the inner type T from Account<'info, T> or Box<Account<'info, T>>
-fn extract_inner_account_type(ty: &syn::Type) -> TokenStream {
-    match ty {
-        syn::Type::Path(type_path) => {
-            let path = &type_path.path;
-            if let Some(segment) = path.segments.last() {
-                let ident_str = segment.ident.to_string();
-
-                if ident_str == "Account" {
-                    if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
-                        for arg in &args.args {
-                            if let syn::GenericArgument::Type(inner_ty) = arg {
-                                return quote! { #inner_ty };
-                            }
-                        }
-                    }
-                }
-
-                if ident_str == "Box" {
-                    if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
-                        if let Some(syn::GenericArgument::Type(inner)) = args.args.first() {
-                            return extract_inner_account_type(inner);
-                        }
-                    }
-                }
-            }
-            quote! { #ty }
-        }
-        _ => quote! { #ty },
-    }
 }

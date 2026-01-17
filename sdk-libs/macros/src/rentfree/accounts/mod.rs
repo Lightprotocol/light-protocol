@@ -5,8 +5,9 @@
 //! - `LightFinalize` trait implementation for post-instruction cleanup
 //! - Supports rent-free PDAs, rent-free token accounts, and light mints
 
-pub mod codegen;
-pub mod parse;
+mod codegen;
+mod light_mint;
+mod parse;
 
 use proc_macro2::TokenStream;
 use syn::DeriveInput;
