@@ -21,22 +21,17 @@ async fn test_priority_fee_request() {
     init(None).await;
 
     let args = StartArgs {
-        rpc_url: Some(
-            std::env::var("FORESTER_RPC_URL").expect("FORESTER_RPC_URL must be set in environment"),
-        ),
+        rpc_url: Some(std::env::var("RPC_URL").expect("RPC_URL must be set in environment")),
         push_gateway_url: None,
         pagerduty_routing_key: None,
         ws_rpc_url: Some(
-            std::env::var("FORESTER_WS_RPC_URL")
-                .expect("FORESTER_WS_RPC_URL must be set in environment"),
+            std::env::var("WS_RPC_URL").expect("WS_RPC_URL must be set in environment"),
         ),
         indexer_url: Some(
-            std::env::var("FORESTER_INDEXER_URL")
-                .expect("FORESTER_INDEXER_URL must be set in environment"),
+            std::env::var("INDEXER_URL").expect("INDEXER_URL must be set in environment"),
         ),
         prover_url: Some(
-            std::env::var("FORESTER_PROVER_URL")
-                .expect("FORESTER_PROVER_URL must be set in environment"),
+            std::env::var("PROVER_URL").expect("PROVER_URL must be set in environment"),
         ),
         prover_append_url: None,
         prover_update_url: None,
@@ -44,22 +39,22 @@ async fn test_priority_fee_request() {
         prover_api_key: None,
         prover_polling_interval_ms: None,
         prover_max_wait_time_secs: None,
-        payer: Some(
-            std::env::var("FORESTER_PAYER").expect("FORESTER_PAYER must be set in environment"),
-        ),
+        payer: Some(std::env::var("PAYER").expect("PAYER must be set in environment")),
         derivation: Some(
-            std::env::var("FORESTER_DERIVATION_PUBKEY")
-                .expect("FORESTER_DERIVATION_PUBKEY must be set in environment"),
+            std::env::var("DERIVATION_PUBKEY")
+                .expect("DERIVATION_PUBKEY must be set in environment"),
         ),
         photon_api_key: Some(
             std::env::var("PHOTON_API_KEY").expect("PHOTON_API_KEY must be set in environment"),
         ),
+        api_server_public_bind: false,
         photon_grpc_url: None,
         indexer_batch_size: 50,
         indexer_max_concurrent_batches: 10,
         legacy_ixs_per_tx: 1,
         transaction_max_concurrent_batches: 20,
         max_concurrent_sends: 50,
+        max_batches_per_tree: 4,
         tx_cache_ttl_seconds: 15,
         ops_cache_ttl_seconds: 180,
         confirmation_max_attempts: 30,
@@ -89,11 +84,12 @@ async fn test_priority_fee_request() {
         tree_ids: vec![],
         enable_compressible: true,
         lookup_table_address: None,
+        api_server_port: 8080,
+        group_authority: None,
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");
 
-    // Setup RPC connection using config
     let mut rpc = LightClient::new(LightClientConfig::local()).await.unwrap();
     rpc.payer = config.payer_keypair.insecure_clone();
 

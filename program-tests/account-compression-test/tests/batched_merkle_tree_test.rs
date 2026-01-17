@@ -281,10 +281,13 @@ async fn test_batch_state_merkle_tree() {
             .unwrap();
         let mut merkle_tree =
             AccountZeroCopy::<BatchedMerkleTreeMetadata>::new(&mut context, merkle_tree_pubkey)
-                .await;
+                .await
+                .unwrap();
 
         let mut queue =
-            AccountZeroCopy::<BatchedQueueMetadata>::new(&mut context, output_queue_pubkey).await;
+            AccountZeroCopy::<BatchedQueueMetadata>::new(&mut context, output_queue_pubkey)
+                .await
+                .unwrap();
         let owner = context.get_payer().pubkey();
 
         let mt_params =
@@ -1027,10 +1030,13 @@ async fn test_init_batch_state_merkle_trees() {
         .unwrap();
         let merkle_tree =
             AccountZeroCopy::<BatchedMerkleTreeMetadata>::new(&mut context, merkle_tree_pubkey)
-                .await;
+                .await
+                .unwrap();
 
         let mut queue =
-            AccountZeroCopy::<BatchedQueueMetadata>::new(&mut context, output_queue_pubkey).await;
+            AccountZeroCopy::<BatchedQueueMetadata>::new(&mut context, output_queue_pubkey)
+                .await
+                .unwrap();
         let owner = context.get_payer().pubkey();
         let mt_params = CreateTreeParams::from_state_ix_params(
             *params,
@@ -1598,7 +1604,8 @@ async fn test_init_batch_address_merkle_trees() {
                 .unwrap();
         let merkle_tree =
             AccountZeroCopy::<BatchedMerkleTreeMetadata>::new(&mut context, merkle_tree_pubkey)
-                .await;
+                .await
+                .unwrap();
         let mt_params = CreateTreeParams::from_address_ix_params(
             *params,
             owner.into(),

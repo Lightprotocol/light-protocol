@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use clap::Parser;
 use forester::{
+    api_server::spawn_api_server,
     cli::{Cli, Commands},
     errors::ForesterError,
     forester_status,
@@ -54,6 +55,7 @@ where
 #[tokio::main]
 #[allow(clippy::result_large_err)]
 async fn main() -> Result<(), ForesterError> {
+    dotenvy::dotenv().ok();
     setup_telemetry();
 
     let cli = Cli::parse();
@@ -69,6 +71,28 @@ async fn main() -> Result<(), ForesterError> {
             let (shutdown_sender_service, shutdown_receiver_service) = oneshot::channel();
             let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
+            tokio::spawn(async move {
+                while let Some(report) = work_report_receiver.recv().await {
+                    debug!("Work Report: {:?}", report);
+                }
+            });
+
+            let rpc_rate_limiter = config
+                .external_services
+                .rpc_rate_limit
+                .map(RateLimiter::new);
+            let send_tx_limiter = config
+                .external_services
+                .send_tx_rate_limit
+                .map(RateLimiter::new);
+
+            let rpc_url_for_api: String = config.external_services.rpc_url.to_string();
+            let api_server_handle = spawn_api_server(
+                rpc_url_for_api,
+                args.api_server_port,
+                args.api_server_public_bind,
+            );
+
             // Create compressible shutdown channels if compressible is enabled
             let (shutdown_receiver_compressible, shutdown_receiver_bootstrap) =
                 if config.compressible_config.is_some() {
@@ -81,6 +105,7 @@ async fn main() -> Result<(), ForesterError> {
                         Some(move || {
                             let _ = shutdown_sender_compressible.send(());
                             let _ = shutdown_sender_bootstrap.send(());
+                            api_server_handle.shutdown();
                         }),
                     );
                     (
@@ -88,25 +113,14 @@ async fn main() -> Result<(), ForesterError> {
                         Some(shutdown_receiver_bootstrap),
                     )
                 } else {
-                    spawn_shutdown_handler::<fn()>(shutdown_sender_service, None);
+                    spawn_shutdown_handler(
+                        shutdown_sender_service,
+                        Some(move || {
+                            api_server_handle.shutdown();
+                        }),
+                    );
                     (None, None)
                 };
-
-            tokio::spawn(async move {
-                while let Some(report) = work_report_receiver.recv().await {
-                    debug!("Work Report: {:?}", report);
-                }
-            });
-
-            let mut rpc_rate_limiter = None;
-            if let Some(rate_limit) = config.external_services.rpc_rate_limit {
-                rpc_rate_limiter = Some(RateLimiter::new(rate_limit));
-            }
-
-            let mut send_tx_limiter = None;
-            if let Some(rate_limit) = config.external_services.send_tx_rate_limit {
-                send_tx_limiter = Some(RateLimiter::new(rate_limit));
-            }
 
             run_pipeline::<LightClient>(
                 config,

@@ -241,6 +241,7 @@ async fn e2e_test() {
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
             queue_polling_mode: Default::default(),
+            group_authority: None,
         },
         rpc_pool_config: RpcPoolConfig {
             max_size: 50,
@@ -609,7 +610,8 @@ async fn get_initial_merkle_tree_state(
                     rpc,
                     *merkle_tree_pubkey,
                 )
-                .await;
+                .await
+                .unwrap();
 
             let next_index = merkle_tree.next_index() as u64;
             let sequence_number = account.metadata.rollover_metadata.rolledover_slot;
@@ -641,7 +643,8 @@ async fn get_initial_merkle_tree_state(
                 26,
                 16,
             >(rpc, *merkle_tree_pubkey)
-            .await;
+            .await
+            .unwrap();
 
             let next_index = merkle_tree.next_index() as u64;
             let sequence_number = account.metadata.rollover_metadata.rolledover_slot;
@@ -702,7 +705,8 @@ async fn verify_root_changed(
                     rpc,
                     *merkle_tree_pubkey,
                 )
-                .await;
+                .await
+                .unwrap();
 
             println!(
                 "Final V1 state tree next_index: {}",
@@ -719,7 +723,8 @@ async fn verify_root_changed(
                 26,
                 16,
             >(rpc, *merkle_tree_pubkey)
-            .await;
+            .await
+            .unwrap();
 
             println!(
                 "Final V1 address tree next_index: {}",

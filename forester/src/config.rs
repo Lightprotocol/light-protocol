@@ -80,6 +80,8 @@ pub struct TransactionConfig {
     pub confirmation_max_attempts: u32,
     /// Interval between confirmation polling attempts in milliseconds.
     pub confirmation_poll_interval_ms: u64,
+    /// Maximum zkp batches to fetch from indexer per v2 tree per iteration
+    pub max_batches_per_tree: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -95,6 +97,7 @@ pub struct GeneralConfig {
     pub sleep_after_processing_ms: u64,
     pub sleep_when_idle_ms: u64,
     pub queue_polling_mode: QueuePollingMode,
+    pub group_authority: Option<Pubkey>,
 }
 
 impl Default for GeneralConfig {
@@ -111,6 +114,7 @@ impl Default for GeneralConfig {
             sleep_after_processing_ms: 10_000,
             sleep_when_idle_ms: 45_000,
             queue_polling_mode: QueuePollingMode::Indexer,
+            group_authority: None,
         }
     }
 }
@@ -129,6 +133,7 @@ impl GeneralConfig {
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
             queue_polling_mode: QueuePollingMode::Indexer,
+            group_authority: None,
         }
     }
 
@@ -145,6 +150,7 @@ impl GeneralConfig {
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
             queue_polling_mode: QueuePollingMode::Indexer,
+            group_authority: None,
         }
     }
 }
@@ -191,6 +197,7 @@ impl Default for TransactionConfig {
             ops_cache_ttl_seconds: 180,
             confirmation_max_attempts: 60,
             confirmation_poll_interval_ms: 500,
+            max_batches_per_tree: 4,
         }
     }
 }
@@ -294,6 +301,7 @@ impl ForesterConfig {
                 ops_cache_ttl_seconds: args.ops_cache_ttl_seconds,
                 confirmation_max_attempts: args.confirmation_max_attempts,
                 confirmation_poll_interval_ms: args.confirmation_poll_interval_ms,
+                max_batches_per_tree: args.max_batches_per_tree,
             },
             general_config: GeneralConfig {
                 slot_update_interval_seconds: args.slot_update_interval_seconds,
@@ -325,6 +333,16 @@ impl ForesterConfig {
                 sleep_after_processing_ms: 10_000,
                 sleep_when_idle_ms: 45_000,
                 queue_polling_mode: args.queue_polling_mode,
+                group_authority: args
+                    .group_authority
+                    .as_ref()
+                    .map(|s| {
+                        Pubkey::from_str(s).map_err(|e| ConfigError::InvalidArguments {
+                            field: "group_authority",
+                            invalid_values: vec![e.to_string()],
+                        })
+                    })
+                    .transpose()?,
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: args.rpc_pool_size,
@@ -415,6 +433,7 @@ impl ForesterConfig {
                 sleep_after_processing_ms: 10_000,
                 sleep_when_idle_ms: 45_000,
                 queue_polling_mode: QueuePollingMode::OnChain, // Status uses on-chain reads
+                group_authority: None,
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: 10,

@@ -13,6 +13,9 @@ pub enum RpcError {
     #[error("BanksError: {0}")]
     BanksError(#[from] solana_banks_client::BanksClientError),
 
+    #[error("Rate limited")]
+    RateLimited,
+
     #[error("State tree lookup table not found")]
     StateTreeLookupTableNotFound,
 
@@ -26,7 +29,7 @@ pub enum RpcError {
     TransactionError(#[from] TransactionError),
 
     #[error("ClientError: {0}")]
-    ClientError(#[from] ClientError),
+    ClientError(ClientError),
 
     #[error("IoError: {0}")]
     IoError(#[from] io::Error),
@@ -75,11 +78,27 @@ impl From<light_event::error::ParseIndexerEventError> for RpcError {
     }
 }
 
+impl From<ClientError> for RpcError {
+    fn from(e: ClientError) -> Self {
+        let error_str = e.to_string();
+        if error_str.contains("429")
+            || error_str.contains("Too Many Requests")
+            || error_str.contains("max usage")
+            || error_str.contains("rate limit")
+        {
+            RpcError::RateLimited
+        } else {
+            RpcError::ClientError(e)
+        }
+    }
+}
+
 impl Clone for RpcError {
     fn clone(&self) -> Self {
         match self {
             #[cfg(feature = "program-test")]
             RpcError::BanksError(_) => RpcError::CustomError("BanksError".to_string()),
+            RpcError::RateLimited => RpcError::RateLimited,
             RpcError::TransactionError(e) => RpcError::TransactionError(e.clone()),
             RpcError::ClientError(_) => RpcError::CustomError("ClientError".to_string()),
             RpcError::IoError(e) => RpcError::IoError(e.kind().into()),

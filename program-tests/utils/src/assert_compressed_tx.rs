@@ -136,7 +136,8 @@ pub async fn assert_nullifiers_exist_in_hash_sets<R: Rpc>(
                 let nullifier_queue = unsafe {
                     get_hash_set::<QueueAccount, R>(rpc, snapshots[i].accounts.nullifier_queue)
                         .await
-                };
+                }
+                .unwrap();
                 assert!(nullifier_queue
                     .contains(&BigUint::from_be_bytes(hash.as_slice()), None)
                     .unwrap());
@@ -182,7 +183,8 @@ pub async fn assert_addresses_exist_in_hash_sets<R: Rpc>(
         let discriminator = &account.data[0..8];
         match discriminator {
             QueueAccount::DISCRIMINATOR => {
-                let address_queue = unsafe { get_hash_set::<QueueAccount, R>(rpc, *pubkey).await };
+                let address_queue =
+                    unsafe { get_hash_set::<QueueAccount, R>(rpc, *pubkey).await }.unwrap();
                 assert!(address_queue
                     .contains(&BigUint::from_be_bytes(address), None)
                     .unwrap());
@@ -343,7 +345,8 @@ pub async fn assert_merkle_tree_after_tx<R: Rpc, I: Indexer + TestIndexerExtensi
                         rpc,
                         snapshot.accounts.merkle_tree,
                     )
-                    .await;
+                    .await
+                    .unwrap();
                 println!("sequence number: {:?}", merkle_tree.next_index() as u64);
                 println!("next index: {:?}", snapshot.next_index);
                 println!("prev sequence number: {:?}", snapshot.num_added_accounts);
@@ -421,10 +424,12 @@ pub async fn get_merkle_tree_snapshots<R: Rpc>(
                         rpc,
                         account_bundle.merkle_tree,
                     )
-                    .await;
+                    .await
+                    .unwrap();
                 let merkle_tree_account =
                     AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, account_bundle.merkle_tree)
-                        .await;
+                        .await
+                        .unwrap();
 
                 let queue_account_lamports = match rpc
                     .get_account(account_bundle.nullifier_queue)
@@ -479,7 +484,8 @@ pub async fn get_merkle_tree_snapshots<R: Rpc>(
                     rpc,
                     account_bundle.nullifier_queue,
                 )
-                .await;
+                .await
+                .unwrap();
 
                 snapshots.push(MerkleTreeTestSnapShot {
                     accounts: *account_bundle,
