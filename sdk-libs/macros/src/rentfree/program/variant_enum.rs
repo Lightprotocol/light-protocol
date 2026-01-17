@@ -1,48 +1,56 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Ident, Result};
+use syn::{Ident, Result, Type};
 
 use super::parsing::{SeedElement, TokenSeedSpec};
+use crate::rentfree::shared_utils::{
+    make_packed_type, make_packed_variant_name, qualify_type_with_crate,
+};
 
 /// Info about ctx.* seeds for a PDA type
 #[derive(Clone, Debug)]
 pub struct PdaCtxSeedInfo {
-    pub type_name: Ident,
+    /// The variant name (derived from field name, e.g., "Record" from field "record")
+    pub variant_name: Ident,
+    /// The inner type (e.g., crate::state::SinglePubkeyRecord - preserves full path)
+    pub inner_type: Type,
     /// Field names from ctx.accounts.XXX references in seeds
     pub ctx_seed_fields: Vec<Ident>,
 }
 
 impl PdaCtxSeedInfo {
-    pub fn new(type_name: Ident, ctx_seed_fields: Vec<Ident>) -> Self {
+    pub fn new(variant_name: Ident, inner_type: Type, ctx_seed_fields: Vec<Ident>) -> Self {
         Self {
-            type_name,
+            variant_name,
+            inner_type,
             ctx_seed_fields,
         }
     }
 }
 
-/// Enhanced function that generates variants with ctx.* seed fields
+/// Enhanced function that generates variants with ctx.* seed fields.
+/// Now uses variant_name for enum variant naming and inner_type for type references.
 pub fn compressed_account_variant_with_ctx_seeds(
-    account_types: &[&Ident],
     pda_ctx_seeds: &[PdaCtxSeedInfo],
 ) -> Result<TokenStream> {
-    if account_types.is_empty() {
+    if pda_ctx_seeds.is_empty() {
         return Err(syn::Error::new(
             proc_macro2::Span::call_site(),
             "At least one account type must be specified",
         ));
     }
 
-    // Build a map from type name to ctx seed fields
-    let ctx_seeds_map: std::collections::HashMap<String, &[Ident]> = pda_ctx_seeds
-        .iter()
-        .map(|info| (info.type_name.to_string(), info.ctx_seed_fields.as_slice()))
-        .collect();
-
     // Phase 2: Generate struct variants with ctx.* seed fields
-    let account_variants = account_types.iter().map(|name| {
-        let packed_name = format_ident!("Packed{}", name);
-        let ctx_fields = ctx_seeds_map.get(&name.to_string()).copied().unwrap_or(&[]);
+    // Uses variant_name for enum variant naming, inner_type for data field types
+    let account_variants = pda_ctx_seeds.iter().map(|info| {
+        let variant_name = &info.variant_name;
+        // Qualify inner_type with crate:: to ensure it's accessible from generated code
+        let inner_type = qualify_type_with_crate(&info.inner_type);
+        let packed_variant_name = make_packed_variant_name(variant_name);
+        // Create packed type (also qualified with crate::)
+        let packed_inner_type =
+            make_packed_type(&info.inner_type).expect("inner_type should be a valid type path");
+        let ctx_fields = &info.ctx_seed_fields;
 
         // Unpacked variant: Pubkey fields for ctx.* seeds
         // Note: Use bare Pubkey which is in scope via `use anchor_lang::prelude::*`
@@ -57,8 +65,8 @@ pub fn compressed_account_variant_with_ctx_seeds(
         });
 
         quote! {
-            #name { data: #name, #(#unpacked_ctx_fields,)* },
-            #packed_name { data: #packed_name, #(#packed_ctx_fields,)* },
+            #variant_name { data: #inner_type, #(#unpacked_ctx_fields,)* },
+            #packed_variant_name { data: #packed_inner_type, #(#packed_ctx_fields,)* },
         }
     });
 
@@ -73,27 +81,28 @@ pub fn compressed_account_variant_with_ctx_seeds(
         }
     };
 
-    let first_type = account_types[0];
-    let first_ctx_fields = ctx_seeds_map
-        .get(&first_type.to_string())
-        .copied()
-        .unwrap_or(&[]);
+    let first = &pda_ctx_seeds[0];
+    let first_variant = &first.variant_name;
+    let first_type = qualify_type_with_crate(&first.inner_type);
+    let first_ctx_fields = &first.ctx_seed_fields;
     let first_default_ctx_fields = first_ctx_fields.iter().map(|field| {
         quote! { #field: Pubkey::default() }
     });
     let default_impl = quote! {
         impl Default for RentFreeAccountVariant {
             fn default() -> Self {
-                Self::#first_type { data: #first_type::default(), #(#first_default_ctx_fields,)* }
+                Self::#first_variant { data: #first_type::default(), #(#first_default_ctx_fields,)* }
             }
         }
     };
 
-    let hash_match_arms = account_types.iter().map(|name| {
-        let packed_name = format_ident!("Packed{}", name);
+    let hash_match_arms = pda_ctx_seeds.iter().map(|info| {
+        let variant_name = &info.variant_name;
+        let inner_type = qualify_type_with_crate(&info.inner_type);
+        let packed_variant_name = format_ident!("Packed{}", variant_name);
         quote! {
-            RentFreeAccountVariant::#name { data, .. } => <#name as light_hasher::DataHasher>::hash::<H>(data),
-            RentFreeAccountVariant::#packed_name { .. } => unreachable!(),
+            RentFreeAccountVariant::#variant_name { data, .. } => <#inner_type as light_hasher::DataHasher>::hash::<H>(data),
+            RentFreeAccountVariant::#packed_variant_name { .. } => unreachable!(),
         }
     });
 
@@ -116,35 +125,43 @@ pub fn compressed_account_variant_with_ctx_seeds(
         }
     };
 
-    let compression_info_match_arms = account_types.iter().map(|name| {
-        let packed_name = format_ident!("Packed{}", name);
+    let compression_info_match_arms = pda_ctx_seeds.iter().map(|info| {
+        let variant_name = &info.variant_name;
+        let inner_type = qualify_type_with_crate(&info.inner_type);
+        let packed_variant_name = format_ident!("Packed{}", variant_name);
         quote! {
-            RentFreeAccountVariant::#name { data, .. } => <#name as light_sdk::compressible::HasCompressionInfo>::compression_info(data),
-            RentFreeAccountVariant::#packed_name { .. } => unreachable!(),
+            RentFreeAccountVariant::#variant_name { data, .. } => <#inner_type as light_sdk::compressible::HasCompressionInfo>::compression_info(data),
+            RentFreeAccountVariant::#packed_variant_name { .. } => unreachable!(),
         }
     });
 
-    let compression_info_mut_match_arms = account_types.iter().map(|name| {
-        let packed_name = format_ident!("Packed{}", name);
+    let compression_info_mut_match_arms = pda_ctx_seeds.iter().map(|info| {
+        let variant_name = &info.variant_name;
+        let inner_type = qualify_type_with_crate(&info.inner_type);
+        let packed_variant_name = format_ident!("Packed{}", variant_name);
         quote! {
-            RentFreeAccountVariant::#name { data, .. } => <#name as light_sdk::compressible::HasCompressionInfo>::compression_info_mut(data),
-            RentFreeAccountVariant::#packed_name { .. } => unreachable!(),
+            RentFreeAccountVariant::#variant_name { data, .. } => <#inner_type as light_sdk::compressible::HasCompressionInfo>::compression_info_mut(data),
+            RentFreeAccountVariant::#packed_variant_name { .. } => unreachable!(),
         }
     });
 
-    let compression_info_mut_opt_match_arms = account_types.iter().map(|name| {
-        let packed_name = format_ident!("Packed{}", name);
+    let compression_info_mut_opt_match_arms = pda_ctx_seeds.iter().map(|info| {
+        let variant_name = &info.variant_name;
+        let inner_type = qualify_type_with_crate(&info.inner_type);
+        let packed_variant_name = format_ident!("Packed{}", variant_name);
         quote! {
-            RentFreeAccountVariant::#name { data, .. } => <#name as light_sdk::compressible::HasCompressionInfo>::compression_info_mut_opt(data),
-            RentFreeAccountVariant::#packed_name { .. } => unreachable!(),
+            RentFreeAccountVariant::#variant_name { data, .. } => <#inner_type as light_sdk::compressible::HasCompressionInfo>::compression_info_mut_opt(data),
+            RentFreeAccountVariant::#packed_variant_name { .. } => unreachable!(),
         }
     });
 
-    let set_compression_info_none_match_arms = account_types.iter().map(|name| {
-        let packed_name = format_ident!("Packed{}", name);
+    let set_compression_info_none_match_arms = pda_ctx_seeds.iter().map(|info| {
+        let variant_name = &info.variant_name;
+        let inner_type = qualify_type_with_crate(&info.inner_type);
+        let packed_variant_name = format_ident!("Packed{}", variant_name);
         quote! {
-            RentFreeAccountVariant::#name { data, .. } => <#name as light_sdk::compressible::HasCompressionInfo>::set_compression_info_none(data),
-            RentFreeAccountVariant::#packed_name { .. } => unreachable!(),
+            RentFreeAccountVariant::#variant_name { data, .. } => <#inner_type as light_sdk::compressible::HasCompressionInfo>::set_compression_info_none(data),
+            RentFreeAccountVariant::#packed_variant_name { .. } => unreachable!(),
         }
     });
 
@@ -184,11 +201,13 @@ pub fn compressed_account_variant_with_ctx_seeds(
         }
     };
 
-    let size_match_arms = account_types.iter().map(|name| {
-        let packed_name = format_ident!("Packed{}", name);
+    let size_match_arms = pda_ctx_seeds.iter().map(|info| {
+        let variant_name = &info.variant_name;
+        let inner_type = qualify_type_with_crate(&info.inner_type);
+        let packed_variant_name = format_ident!("Packed{}", variant_name);
         quote! {
-            RentFreeAccountVariant::#name { data, .. } => <#name as light_sdk::account::Size>::size(data),
-            RentFreeAccountVariant::#packed_name { .. } => unreachable!(),
+            RentFreeAccountVariant::#variant_name { data, .. } => <#inner_type as light_sdk::account::Size>::size(data),
+            RentFreeAccountVariant::#packed_variant_name { .. } => unreachable!(),
         }
     });
 
@@ -205,16 +224,18 @@ pub fn compressed_account_variant_with_ctx_seeds(
     };
 
     // Phase 2: Pack/Unpack with ctx seed fields
-    let pack_match_arms: Vec<_> = account_types.iter().map(|name| {
-        let packed_name = format_ident!("Packed{}", name);
-        let ctx_fields = ctx_seeds_map.get(&name.to_string()).copied().unwrap_or(&[]);
+    let pack_match_arms: Vec<_> = pda_ctx_seeds.iter().map(|info| {
+        let variant_name = &info.variant_name;
+        let inner_type = qualify_type_with_crate(&info.inner_type);
+        let packed_variant_name = format_ident!("Packed{}", variant_name);
+        let ctx_fields = &info.ctx_seed_fields;
 
         if ctx_fields.is_empty() {
             // No ctx seeds - simple pack
             quote! {
-                RentFreeAccountVariant::#packed_name { .. } => unreachable!(),
-                RentFreeAccountVariant::#name { data, .. } => RentFreeAccountVariant::#packed_name {
-                    data: <#name as light_sdk::compressible::Pack>::pack(data, remaining_accounts),
+                RentFreeAccountVariant::#packed_variant_name { .. } => unreachable!(),
+                RentFreeAccountVariant::#variant_name { data, .. } => RentFreeAccountVariant::#packed_variant_name {
+                    data: <#inner_type as light_sdk::compressible::Pack>::pack(data, remaining_accounts),
                 },
             }
         } else {
@@ -228,11 +249,11 @@ pub fn compressed_account_variant_with_ctx_seeds(
             }).collect();
 
             quote! {
-                RentFreeAccountVariant::#packed_name { .. } => unreachable!(),
-                RentFreeAccountVariant::#name { data, #(#field_names,)* .. } => {
+                RentFreeAccountVariant::#packed_variant_name { .. } => unreachable!(),
+                RentFreeAccountVariant::#variant_name { data, #(#field_names,)* .. } => {
                     #(#pack_ctx_seeds)*
-                    RentFreeAccountVariant::#packed_name {
-                        data: <#name as light_sdk::compressible::Pack>::pack(data, remaining_accounts),
+                    RentFreeAccountVariant::#packed_variant_name {
+                        data: <#inner_type as light_sdk::compressible::Pack>::pack(data, remaining_accounts),
                         #(#idx_field_names,)*
                     }
                 },
@@ -257,17 +278,22 @@ pub fn compressed_account_variant_with_ctx_seeds(
         }
     };
 
-    let unpack_match_arms: Vec<_> = account_types.iter().map(|name| {
-        let packed_name = format_ident!("Packed{}", name);
-        let ctx_fields = ctx_seeds_map.get(&name.to_string()).copied().unwrap_or(&[]);
+    let unpack_match_arms: Vec<_> = pda_ctx_seeds.iter().map(|info| {
+        let variant_name = &info.variant_name;
+        let inner_type = &info.inner_type;
+        let packed_variant_name = make_packed_variant_name(variant_name);
+        // Create packed type preserving full path (e.g., crate::module::PackedMyRecord)
+        let packed_inner_type = make_packed_type(inner_type)
+            .expect("inner_type should be a valid type path");
+        let ctx_fields = &info.ctx_seed_fields;
 
         if ctx_fields.is_empty() {
             // No ctx seeds - simple unpack
             quote! {
-                RentFreeAccountVariant::#packed_name { data, .. } => Ok(RentFreeAccountVariant::#name {
-                    data: <#packed_name as light_sdk::compressible::Unpack>::unpack(data, remaining_accounts)?,
+                RentFreeAccountVariant::#packed_variant_name { data, .. } => Ok(RentFreeAccountVariant::#variant_name {
+                    data: <#packed_inner_type as light_sdk::compressible::Unpack>::unpack(data, remaining_accounts)?,
                 }),
-                RentFreeAccountVariant::#name { .. } => unreachable!(),
+                RentFreeAccountVariant::#variant_name { .. } => unreachable!(),
             }
         } else {
             // Has ctx seeds - unpack data and resolve ctx seed pubkeys from indices
@@ -284,14 +310,14 @@ pub fn compressed_account_variant_with_ctx_seeds(
             }).collect();
 
             quote! {
-                RentFreeAccountVariant::#packed_name { data, #(#idx_field_names,)* .. } => {
+                RentFreeAccountVariant::#packed_variant_name { data, #(#idx_field_names,)* .. } => {
                     #(#unpack_ctx_seeds)*
-                    Ok(RentFreeAccountVariant::#name {
-                        data: <#packed_name as light_sdk::compressible::Unpack>::unpack(data, remaining_accounts)?,
+                    Ok(RentFreeAccountVariant::#variant_name {
+                        data: <#packed_inner_type as light_sdk::compressible::Unpack>::unpack(data, remaining_accounts)?,
                         #(#field_names,)*
                     })
                 },
-                RentFreeAccountVariant::#name { .. } => unreachable!(),
+                RentFreeAccountVariant::#variant_name { .. } => unreachable!(),
             }
         }
     }).collect();

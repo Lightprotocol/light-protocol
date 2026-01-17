@@ -37,9 +37,13 @@ pub enum ClassifiedSeed {
 #[derive(Clone, Debug)]
 pub struct ExtractedSeedSpec {
     /// The variant name derived from field_name (snake_case -> CamelCase)
+    /// Note: Currently unused as we use inner_type for seed spec correlation,
+    /// but kept for potential future use cases (e.g., custom variant naming).
+    #[allow(dead_code)]
     pub variant_name: Ident,
-    /// The inner type (e.g., UserRecord from Account<'info, UserRecord>)
-    pub inner_type: Ident,
+    /// The inner type (e.g., crate::state::UserRecord from Account<'info, UserRecord>)
+    /// Preserves the full type path for code generation.
+    pub inner_type: Type,
     /// Classified seeds from #[account(seeds = [...])]
     pub seeds: Vec<ClassifiedSeed>,
 }
@@ -300,7 +304,10 @@ fn parse_rentfree_token_list(tokens: &proc_macro2::TokenStream) -> syn::Result<R
 
 /// Extract inner type T from Account<'info, T>, Box<Account<'info, T>>,
 /// AccountLoader<'info, T>, or InterfaceAccount<'info, T>
-pub fn extract_account_inner_type(ty: &Type) -> Option<(bool, Ident)> {
+///
+/// Returns the full type path (e.g., `crate::module::MyRecord`) to preserve
+/// module qualification for code generation.
+pub fn extract_account_inner_type(ty: &Type) -> Option<(bool, Type)> {
     match ty {
         Type::Path(type_path) => {
             let segment = type_path.path.segments.last()?;
@@ -311,11 +318,15 @@ pub fn extract_account_inner_type(ty: &Type) -> Option<(bool, Ident)> {
                     // Extract T from Account<'info, T>
                     if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
                         for arg in &args.args {
-                            if let syn::GenericArgument::Type(Type::Path(inner_path)) = arg {
-                                if let Some(inner_seg) = inner_path.path.segments.last() {
-                                    // Skip lifetime 'info
-                                    if inner_seg.ident != "info" {
-                                        return Some((false, inner_seg.ident.clone()));
+                            if let syn::GenericArgument::Type(inner_ty) = arg {
+                                // Skip lifetime 'info by checking if this is a path type
+                                if let Type::Path(inner_path) = inner_ty {
+                                    if let Some(inner_seg) = inner_path.path.segments.last() {
+                                        // Skip lifetime 'info TODO: add a helper that is generalized to strip lifetimes or check whether a crate already has this
+                                        if inner_seg.ident != "info" {
+                                            // Return the full type, preserving the path
+                                            return Some((false, inner_ty.clone()));
+                                        }
                                     }
                                 }
                             }

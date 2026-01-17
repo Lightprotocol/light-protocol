@@ -53,11 +53,16 @@ pub enum InstructionVariant {
 
 #[derive(Clone)]
 pub struct TokenSeedSpec {
+    /// The variant name (derived from field name, used for enum variant naming)
     pub variant: Ident,
     pub _eq: Token![=],
     pub is_token: Option<bool>,
     pub seeds: Punctuated<SeedElement, Token![,]>,
     pub authority: Option<Vec<SeedElement>>,
+    /// The inner type (e.g., crate::state::SinglePubkeyRecord - used for type references)
+    /// Preserves the full type path for code generation.
+    /// Only set for PDAs extracted from #[rentfree] fields; None for parsed specs
+    pub inner_type: Option<syn::Type>,
 }
 
 impl Parse for TokenSeedSpec {
@@ -141,6 +146,7 @@ impl Parse for TokenSeedSpec {
             is_token,
             seeds,
             authority,
+            inner_type: None, // Set by caller for #[rentfree] fields
         })
     }
 }
@@ -404,25 +410,24 @@ pub fn wrap_function_with_rentfree(fn_item: &ItemFn, params_ident: &Ident) -> It
         #fn_vis #fn_sig {
             // Phase 1: Pre-init (creates mints via CPI context write, registers compressed addresses)
             use light_sdk::compressible::{LightPreInit, LightFinalize};
-            let __has_pre_init = ctx.accounts.light_pre_init(ctx.remaining_accounts, &#params_ident)
+            let _ = ctx.accounts.light_pre_init(ctx.remaining_accounts, &#params_ident)
                 .map_err(|e| {
                     let pe: solana_program_error::ProgramError = e.into();
                     pe
                 })?;
 
-            // Execute the original handler body in a closure
-            let __light_handler_result = (|| #fn_block)();
+            // Execute the original handler body
+            #fn_block
 
-            // Phase 2: On success, finalize compression
-            if __light_handler_result.is_ok() {
-                ctx.accounts.light_finalize(ctx.remaining_accounts, &#params_ident, __has_pre_init)
-                    .map_err(|e| {
-                        let pe: solana_program_error::ProgramError = e.into();
-                        pe
-                    })?;
-            }
-
-            __light_handler_result
+            // TODO(diff-pr): Reactivate light_finalize for top up transfers.
+            // Currently disabled because user code may move ctx, making it
+            // inaccessible after the handler body executes. When top up
+            // transfers are implemented, we'll need to store AccountInfo
+            // references before user code runs.
+            //
+            // if __light_handler_result.is_ok() {
+            //     ctx.accounts.light_finalize(ctx.remaining_accounts, &params, __has_pre_init)?;
+            // }
         }
     };
 

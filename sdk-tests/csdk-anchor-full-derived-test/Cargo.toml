@@ -30,7 +30,7 @@ light-sdk-macros = { workspace = true }
 borsh = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
 anchor-lang = { workspace = true, features = ["idl-build"] }
-anchor-spl = { version = "=0.31.1", git = "https://github.com/lightprotocol/anchor", rev = "d8a2b3d9", features = ["memo", "metadata", "idl-build"] }
+anchor-spl = { version = "=0.31.1", git = "https://github.com/lightprotocol/anchor", rev = "4e8ff59a7de5b2a8ba37f88cf7b0431999f1b1f3", features = ["memo", "metadata", "idl-build"] }
 light-token-interface = { workspace = true, features = ["anchor"] }
 light-token-sdk = { workspace = true, features = ["anchor", "compressible"] }
 light-token-types = { workspace = true, features = ["anchor"] }

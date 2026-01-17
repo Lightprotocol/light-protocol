@@ -6,6 +6,9 @@ use syn::{Ident, Result};
 
 // Re-export from variant_enum for convenience
 pub use crate::rentfree::program::variant_enum::PdaCtxSeedInfo;
+use crate::rentfree::shared_utils::{
+    make_packed_type, make_packed_variant_name, qualify_type_with_crate,
+};
 
 pub fn generate_decompress_context_trait_impl(
     pda_ctx_seeds: Vec<PdaCtxSeedInfo>,
@@ -16,9 +19,17 @@ pub fn generate_decompress_context_trait_impl(
     let pda_match_arms: Vec<_> = pda_ctx_seeds
         .iter()
         .map(|info| {
-            let pda_type = &info.type_name;
-            let packed_name = format_ident!("Packed{}", pda_type);
-            let ctx_seeds_struct_name = format_ident!("{}CtxSeeds", pda_type);
+            // Use variant_name for enum variant matching
+            let variant_name = &info.variant_name;
+            // Use inner_type for type references (generics, trait bounds)
+            // Qualify with crate:: to ensure it's accessible from generated code
+            let inner_type = qualify_type_with_crate(&info.inner_type);
+            let packed_variant_name = make_packed_variant_name(variant_name);
+            // Create packed type (also qualified with crate::)
+            let packed_inner_type = make_packed_type(&info.inner_type)
+                .expect("inner_type should be a valid type path");
+            // Use variant_name for CtxSeeds struct (matches what decompress.rs generates)
+            let ctx_seeds_struct_name = format_ident!("{}CtxSeeds", variant_name);
             let ctx_fields = &info.ctx_seed_fields;
             // Generate pattern to extract idx fields from packed variant
             let idx_field_patterns: Vec<_> = ctx_fields.iter().map(|field| {
@@ -46,9 +57,9 @@ pub fn generate_decompress_context_trait_impl(
             };
             if ctx_fields.is_empty() {
                 quote! {
-                    RentFreeAccountVariant::#packed_name { data: packed, .. } => {
+                    RentFreeAccountVariant::#packed_variant_name { data: packed, .. } => {
                         #ctx_seeds_construction
-                        match light_sdk::compressible::handle_packed_pda_variant::<#pda_type, #packed_name, _, _>(
+                        match light_sdk::compressible::handle_packed_pda_variant::<#inner_type, #packed_inner_type, _, _>(
                             &*self.rent_sponsor,
                             cpi_accounts,
                             address_space,
@@ -66,16 +77,16 @@ pub fn generate_decompress_context_trait_impl(
                             std::result::Result::Err(e) => return std::result::Result::Err(e),
                         }
                     }
-                    RentFreeAccountVariant::#pda_type { .. } => {
+                    RentFreeAccountVariant::#variant_name { .. } => {
                         unreachable!("Unpacked variants should not be present during decompression");
                     }
                 }
             } else {
                 quote! {
-                    RentFreeAccountVariant::#packed_name { data: packed, #(#idx_field_patterns,)* .. } => {
+                    RentFreeAccountVariant::#packed_variant_name { data: packed, #(#idx_field_patterns,)* .. } => {
                         #(#resolve_ctx_seeds)*
                         #ctx_seeds_construction
-                        match light_sdk::compressible::handle_packed_pda_variant::<#pda_type, #packed_name, _, _>(
+                        match light_sdk::compressible::handle_packed_pda_variant::<#inner_type, #packed_inner_type, _, _>(
                             &*self.rent_sponsor,
                             cpi_accounts,
                             address_space,
@@ -93,7 +104,7 @@ pub fn generate_decompress_context_trait_impl(
                             std::result::Result::Err(e) => return std::result::Result::Err(e),
                         }
                     }
-                    RentFreeAccountVariant::#pda_type { .. } => {
+                    RentFreeAccountVariant::#variant_name { .. } => {
                         unreachable!("Unpacked variants should not be present during decompression");
                     }
                 }

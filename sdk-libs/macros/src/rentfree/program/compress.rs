@@ -2,18 +2,21 @@
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{Ident, Result};
+use syn::{Result, Type};
 
 use super::parsing::InstructionVariant;
+use crate::rentfree::shared_utils::qualify_type_with_crate;
 
 // =============================================================================
 // COMPRESS CONTEXT IMPL
 // =============================================================================
 
-pub fn generate_compress_context_impl(account_types: Vec<Ident>) -> Result<syn::ItemMod> {
+pub fn generate_compress_context_impl(account_types: Vec<Type>) -> Result<syn::ItemMod> {
     let lifetime: syn::Lifetime = syn::parse_quote!('info);
 
-    let compress_arms: Vec<_> = account_types.iter().map(|name| {
+    let compress_arms: Vec<_> = account_types.iter().map(|account_type| {
+        // Qualify with crate:: to ensure it's accessible from generated code
+        let name = qualify_type_with_crate(account_type);
         quote! {
             d if d == #name::LIGHT_DISCRIMINATOR => {
                 drop(data);
@@ -175,14 +178,16 @@ pub fn generate_compress_accounts_struct(variant: InstructionVariant) -> Result<
 // =============================================================================
 
 #[inline(never)]
-pub fn validate_compressed_account_sizes(account_types: &[Ident]) -> Result<TokenStream> {
+pub fn validate_compressed_account_sizes(account_types: &[Type]) -> Result<TokenStream> {
     let size_checks: Vec<_> = account_types.iter().map(|account_type| {
+        // Qualify with crate:: to ensure it's accessible from generated code
+        let qualified_type = qualify_type_with_crate(account_type);
         quote! {
             const _: () = {
-                const COMPRESSED_SIZE: usize = 8 + <#account_type as light_sdk::compressible::compression_info::CompressedInitSpace>::COMPRESSED_INIT_SPACE;
+                const COMPRESSED_SIZE: usize = 8 + <#qualified_type as light_sdk::compressible::compression_info::CompressedInitSpace>::COMPRESSED_INIT_SPACE;
                 if COMPRESSED_SIZE > 800 {
                     panic!(concat!(
-                        "Compressed account '", stringify!(#account_type), "' exceeds 800-byte compressible account size limit. If you need support for larger accounts, send a message to team@lightprotocol.com"
+                        "Compressed account '", stringify!(#qualified_type), "' exceeds 800-byte compressible account size limit. If you need support for larger accounts, send a message to team@lightprotocol.com"
                     ));
                 }
             };

@@ -1,3 +1,5 @@
+//! State structs for the test program and test cases organized by dimension.
+
 use anchor_lang::prelude::*;
 use light_sdk::{
     compressible::CompressionInfo, instruction::PackedAddressTreeInfo, LightDiscriminator,
@@ -5,6 +7,13 @@ use light_sdk::{
 use light_sdk_macros::RentFreeAccount;
 use light_token_interface::instructions::mint_action::MintWithContext;
 use light_token_sdk::ValidityProof;
+
+// Test modules
+pub mod d1_field_types;
+pub mod d2_compress_as;
+pub mod d4_composition;
+
+// Original state types used by the main program
 
 #[derive(Default, Debug, InitSpace, RentFreeAccount)]
 #[account]
