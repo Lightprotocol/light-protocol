@@ -14,6 +14,7 @@ anchor-discriminator = []
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
 syn = { workspace = true }
+darling = { workspace = true }
 solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
 
 light-hasher = { workspace = true, features = ["sha256"] }

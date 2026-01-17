@@ -11,9 +11,9 @@ use quote::quote;
 use syn::{DeriveInput, Fields, ItemStruct, Result};
 
 use crate::{
-    compressible::{pack_unpack::derive_compressible_pack, traits::derive_compressible},
     discriminator::discriminator,
     hasher::derive_light_hasher_sha,
+    rentfree::traits::{pack_unpack::derive_compressible_pack, traits::derive_compressible},
 };
 
 /// Derives all required traits for a compressible account.
@@ -53,7 +53,7 @@ use crate::{
 ///
 /// - The `compression_info` field is auto-detected and handled specially (no `#[skip]` needed)
 /// - SHA256 hashing serializes the entire struct, so `#[hash]` is not needed
-pub fn derive_light_compressible(input: DeriveInput) -> Result<TokenStream> {
+pub fn derive_rentfree_account(input: DeriveInput) -> Result<TokenStream> {
     // Convert DeriveInput to ItemStruct for macros that need it
     let item_struct = derive_input_to_item_struct(&input)?;
 
@@ -128,7 +128,7 @@ mod tests {
             }
         };
 
-        let result = derive_light_compressible(input);
+        let result = derive_rentfree_account(input);
         assert!(result.is_ok(), "LightCompressible should succeed");
 
         let output = result.unwrap().to_string();
@@ -181,7 +181,7 @@ mod tests {
             }
         };
 
-        let result = derive_light_compressible(input);
+        let result = derive_rentfree_account(input);
         assert!(
             result.is_ok(),
             "LightCompressible with compress_as should succeed"
@@ -203,7 +203,7 @@ mod tests {
             }
         };
 
-        let result = derive_light_compressible(input);
+        let result = derive_rentfree_account(input);
         assert!(
             result.is_ok(),
             "LightCompressible without Pubkey fields should succeed"
@@ -235,7 +235,7 @@ mod tests {
             }
         };
 
-        let result = derive_light_compressible(input);
+        let result = derive_rentfree_account(input);
         assert!(result.is_err(), "LightCompressible should fail for enums");
     }
 
@@ -248,7 +248,7 @@ mod tests {
             }
         };
 
-        let result = derive_light_compressible(input);
+        let result = derive_rentfree_account(input);
         // Compressible derive validates compression_info field
         assert!(
             result.is_err(),

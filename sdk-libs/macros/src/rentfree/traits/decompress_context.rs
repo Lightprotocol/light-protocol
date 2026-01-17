@@ -5,7 +5,7 @@ use quote::{format_ident, quote};
 use syn::{Ident, Result};
 
 // Re-export from variant_enum for convenience
-pub use crate::compressible::variant_enum::PdaCtxSeedInfo;
+pub use crate::rentfree::program::variant_enum::PdaCtxSeedInfo;
 
 pub fn generate_decompress_context_trait_impl(
     pda_ctx_seeds: Vec<PdaCtxSeedInfo>,

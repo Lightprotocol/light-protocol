@@ -1,40 +1,45 @@
 //! Trait derivation for compressible accounts.
 
+use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{
-    parse::{Parse, ParseStream},
-    punctuated::Punctuated,
-    DeriveInput, Expr, Field, Ident, ItemStruct, Result, Token,
-};
+use syn::{punctuated::Punctuated, DeriveInput, Expr, Field, Ident, ItemStruct, Result, Token};
 
 use super::utils::{
     extract_fields_from_derive_input, extract_fields_from_item_struct, is_copy_type,
 };
 
-struct CompressAsFields {
-    fields: Punctuated<CompressAsField, Token![,]>,
-}
-
+/// A single field override in #[compress_as(field = expr)]
 struct CompressAsField {
     name: Ident,
     value: Expr,
 }
 
-impl Parse for CompressAsField {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let name: Ident = input.parse()?;
-        input.parse::<Token![=]>()?;
-        let value: Expr = input.parse()?;
-        Ok(CompressAsField { name, value })
-    }
+/// Collection of field overrides parsed from #[compress_as(...)]
+/// Uses darling's FromMeta to collect arbitrary name=value pairs.
+#[derive(Default)]
+struct CompressAsFields {
+    fields: Vec<CompressAsField>,
 }
 
-impl Parse for CompressAsFields {
-    fn parse(input: ParseStream) -> Result<Self> {
-        Ok(CompressAsFields {
-            fields: Punctuated::parse_terminated(input)?,
-        })
+impl FromMeta for CompressAsFields {
+    fn from_list(items: &[darling::ast::NestedMeta]) -> darling::Result<Self> {
+        items
+            .iter()
+            .map(|item| match item {
+                darling::ast::NestedMeta::Meta(syn::Meta::NameValue(nv)) => {
+                    let name = nv.path.get_ident().cloned().ok_or_else(|| {
+                        darling::Error::custom("expected field identifier").with_span(&nv.path)
+                    })?;
+                    Ok(CompressAsField {
+                        name,
+                        value: nv.value.clone(),
+                    })
+                }
+                other => Err(darling::Error::custom("expected field = expr").with_span(other)),
+            })
+            .collect::<darling::Result<Vec<_>>>()
+            .map(|fields| CompressAsFields { fields })
     }
 }
 
@@ -105,18 +110,11 @@ fn generate_compress_as_field_assignments(
             continue;
         }
 
-        let has_override = compress_as_fields
+        let override_field = compress_as_fields
             .as_ref()
-            .is_some_and(|cas| cas.fields.iter().any(|f| &f.name == field_name));
+            .and_then(|cas| cas.fields.iter().find(|f| &f.name == field_name));
 
-        if has_override {
-            let override_value = compress_as_fields
-                .as_ref()
-                .unwrap()
-                .fields
-                .iter()
-                .find(|f| &f.name == field_name)
-                .unwrap();
+        if let Some(override_value) = override_field {
             let value = &override_value.value;
             field_assignments.push(quote! {
                 #field_name: #value,
@@ -213,7 +211,9 @@ pub fn derive_compress_as(input: ItemStruct) -> Result<TokenStream> {
         .find(|attr| attr.path().is_ident("compress_as"));
 
     let compress_as_fields = if let Some(attr) = compress_as_attr {
-        Some(attr.parse_args::<CompressAsFields>()?)
+        let parsed = CompressAsFields::from_meta(&attr.meta)
+            .map_err(|e| syn::Error::new_spanned(attr, e.to_string()))?;
+        Some(parsed)
     } else {
         None
     };
@@ -234,14 +234,16 @@ pub fn derive_compressible(input: DeriveInput) -> Result<TokenStream> {
     let struct_name = &input.ident;
     let fields = extract_fields_from_derive_input(&input)?;
 
-    // Extract compress_as attribute
+    // Extract compress_as attribute using darling
     let compress_as_attr = input
         .attrs
         .iter()
         .find(|attr| attr.path().is_ident("compress_as"));
 
     let compress_as_fields = if let Some(attr) = compress_as_attr {
-        Some(attr.parse_args::<CompressAsFields>()?)
+        let parsed = CompressAsFields::from_meta(&attr.meta)
+            .map_err(|e| syn::Error::new_spanned(attr, e.to_string()))?;
+        Some(parsed)
     } else {
         None
     };

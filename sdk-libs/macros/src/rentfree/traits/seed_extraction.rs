@@ -5,6 +5,11 @@
 
 use syn::{Expr, Ident, ItemStruct, Type};
 
+use crate::{
+    rentfree::shared_utils::{extract_terminal_ident, is_constant_identifier},
+    utils::snake_to_camel_case,
+};
+
 /// Classified seed element from Anchor's seeds array
 #[derive(Clone, Debug)]
 pub enum ClassifiedSeed {
@@ -73,15 +78,12 @@ pub fn extract_from_accounts_struct(
 
     let mut pda_fields = Vec::new();
     let mut token_fields = Vec::new();
-    let mut all_fields = Vec::new();
 
     for field in fields {
         let field_ident = match &field.ident {
             Some(id) => id.clone(),
             None => continue,
         };
-
-        all_fields.push((field_ident.clone(), field.ty.clone()));
 
         // Check for #[rentfree] attribute
         let has_rentfree = field
@@ -94,7 +96,8 @@ pub fn extract_from_accounts_struct(
 
         if has_rentfree {
             // Extract inner type from Account<'info, T> or Box<Account<'info, T>>
-            let (is_boxed, inner_type) = match extract_account_inner_type(&field.ty) {
+            // Note: is_boxed is not needed for ExtractedSeedSpec, only inner_type
+            let (_, inner_type) = match extract_account_inner_type(&field.ty) {
                 Some(result) => result,
                 None => {
                     return Err(syn::Error::new_spanned(
@@ -113,7 +116,6 @@ pub fn extract_from_accounts_struct(
                 Ident::new(&camel, field_ident.span())
             };
 
-            let _ = (field_ident, is_boxed); // Suppress unused warnings
             pda_fields.push(ExtractedSeedSpec {
                 variant_name,
                 inner_type,
@@ -160,26 +162,26 @@ pub fn extract_from_accounts_struct(
         ];
 
         for candidate in &authority_candidates {
-            if let Some((auth_field, _)) = all_fields.iter().find(|(name, _)| name == candidate) {
-                token.authority_field = Some(auth_field.clone());
+            // Search fields directly instead of using a separate all_fields collection
+            if let Some(auth_field_info) = fields
+                .iter()
+                .find(|f| f.ident.as_ref().map(|i| i.to_string()) == Some(candidate.clone()))
+            {
+                if let Some(auth_ident) = &auth_field_info.ident {
+                    token.authority_field = Some(auth_ident.clone());
 
-                // Try to extract authority seeds from the authority field
-                if let Some(auth_field_info) = fields
-                    .iter()
-                    .find(|f| f.ident.as_ref().map(|i| i.to_string()) == Some(candidate.clone()))
-                {
+                    // Try to extract authority seeds from the authority field
                     if let Ok(auth_seeds) = extract_anchor_seeds(&auth_field_info.attrs) {
                         if !auth_seeds.is_empty() {
                             token.authority_seeds = Some(auth_seeds);
                         }
                     }
+                    break;
                 }
-                break;
             }
         }
     }
 
-    let _ = all_fields; // Suppress unused warning
     Ok(Some(ExtractedAccountsInfo {
         struct_name: item.ident.clone(),
         pda_fields,
@@ -192,20 +194,6 @@ struct RentFreeTokenAttr {
     /// Optional variant name - if None, derived from field name
     variant_name: Option<Ident>,
     authority_seeds: Option<Vec<ClassifiedSeed>>,
-}
-
-/// Convert snake_case field name to CamelCase variant name
-/// e.g., token_0_vault -> Token0Vault, vault -> Vault
-fn snake_to_camel_case(s: &str) -> String {
-    s.split('_')
-        .map(|part| {
-            let mut chars = part.chars();
-            match chars.next() {
-                None => String::new(),
-                Some(first) => first.to_uppercase().chain(chars).collect(),
-            }
-        })
-        .collect()
 }
 
 /// Extract #[rentfree_token(authority = [...])] attribute
@@ -312,7 +300,7 @@ fn parse_rentfree_token_list(tokens: &proc_macro2::TokenStream) -> syn::Result<R
 
 /// Extract inner type T from Account<'info, T>, Box<Account<'info, T>>,
 /// AccountLoader<'info, T>, or InterfaceAccount<'info, T>
-fn extract_account_inner_type(ty: &Type) -> Option<(bool, Ident)> {
+pub fn extract_account_inner_type(ty: &Type) -> Option<(bool, Ident)> {
     match ty {
         Type::Path(type_path) => {
             let segment = type_path.path.segments.last()?;
@@ -339,6 +327,16 @@ fn extract_account_inner_type(ty: &Type) -> Option<(bool, Ident)> {
                     // Check for Box<Account<'info, T>>
                     if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
                         if let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first() {
+                            // Check for nested Box<Box<...>> which is not supported
+                            if let Type::Path(inner_path) = inner_ty {
+                                if let Some(inner_seg) = inner_path.path.segments.last() {
+                                    if inner_seg.ident == "Box" {
+                                        // Nested Box detected - return None to signal unsupported type
+                                        return None;
+                                    }
+                                }
+                            }
+
                             if let Some((_, inner_type)) = extract_account_inner_type(inner_ty) {
                                 return Some((true, inner_type));
                             }
@@ -354,7 +352,7 @@ fn extract_account_inner_type(ty: &Type) -> Option<(bool, Ident)> {
 }
 
 /// Extract seeds from #[account(seeds = [...], bump)] attribute
-fn extract_anchor_seeds(attrs: &[syn::Attribute]) -> syn::Result<Vec<ClassifiedSeed>> {
+pub fn extract_anchor_seeds(attrs: &[syn::Attribute]) -> syn::Result<Vec<ClassifiedSeed>> {
     for attr in attrs {
         if !attr.path().is_ident("account") {
             continue;
@@ -439,7 +437,7 @@ fn classify_seeds_array(expr: &Expr) -> syn::Result<Vec<ClassifiedSeed>> {
 }
 
 /// Classify a single seed expression
-fn classify_seed_expr(expr: &Expr) -> syn::Result<ClassifiedSeed> {
+pub fn classify_seed_expr(expr: &Expr) -> syn::Result<ClassifiedSeed> {
     match expr {
         // b"literal"
         Expr::Lit(lit) => {
@@ -458,11 +456,7 @@ fn classify_seed_expr(expr: &Expr) -> syn::Result<ClassifiedSeed> {
         // CONSTANT (all uppercase path)
         Expr::Path(path) => {
             if let Some(ident) = path.path.get_ident() {
-                let name = ident.to_string();
-                if name
-                    .chars()
-                    .all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit())
-                {
+                if is_constant_identifier(&ident.to_string()) {
                     return Ok(ClassifiedSeed::Constant(path.path.clone()));
                 }
                 // Otherwise it's a variable reference - treat as ctx account
@@ -514,7 +508,7 @@ fn classify_seed_expr(expr: &Expr) -> syn::Result<ClassifiedSeed> {
 
             let mut ctx_args = Vec::new();
             for arg in &call.args {
-                if let Some(ident) = extract_ctx_ident_from_expr(arg) {
+                if let Some(ident) = extract_terminal_ident(arg, true) {
                     ctx_args.push(ident);
                 }
             }
@@ -550,7 +544,7 @@ fn classify_method_call(mc: &syn::ExprMethodCall) -> syn::Result<ClassifiedSeed>
 
     // Handle account.key()
     if mc.method == "key" {
-        if let Some(ident) = extract_receiver_ident(&mc.receiver) {
+        if let Some(ident) = extract_terminal_ident(&mc.receiver, false) {
             // Check if it's params.field or ctx.account
             if let Expr::Field(field) = &*mc.receiver {
                 if let Expr::Path(path) = &*field.base {
@@ -598,46 +592,6 @@ fn extract_params_field(expr: &Expr) -> Option<(Ident, String)> {
         }
     }
     None
-}
-
-/// Extract the base identifier from an expression like account.key() -> account
-fn extract_receiver_ident(expr: &Expr) -> Option<Ident> {
-    match expr {
-        Expr::Path(path) => path.path.get_ident().cloned(),
-        Expr::Field(field) => {
-            if let syn::Member::Named(name) = &field.member {
-                Some(name.clone())
-            } else {
-                None
-            }
-        }
-        Expr::MethodCall(mc) => extract_receiver_ident(&mc.receiver),
-        Expr::Reference(r) => extract_receiver_ident(&r.expr),
-        _ => None,
-    }
-}
-
-/// Extract ctx account identifier from expression (for function args)
-fn extract_ctx_ident_from_expr(expr: &Expr) -> Option<Ident> {
-    match expr {
-        Expr::Reference(r) => extract_ctx_ident_from_expr(&r.expr),
-        Expr::MethodCall(mc) => {
-            if mc.method == "key" {
-                extract_receiver_ident(&mc.receiver)
-            } else {
-                None
-            }
-        }
-        Expr::Field(field) => {
-            if let syn::Member::Named(name) = &field.member {
-                Some(name.clone())
-            } else {
-                None
-            }
-        }
-        Expr::Path(path) => path.path.get_ident().cloned(),
-        _ => None,
-    }
 }
 
 /// Get data field names from classified seeds
