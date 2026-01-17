@@ -1,0 +1,38 @@
+//! D9 Test: Param seed expression (Pubkey)
+//!
+//! Tests ClassifiedSeed::DataField with params.owner.as_ref() seeds.
+
+use anchor_lang::prelude::*;
+use light_compressible::CreateAccountsProof;
+use light_sdk_macros::RentFree;
+
+use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct D9ParamParams {
+    pub create_accounts_proof: CreateAccountsProof,
+    pub owner: Pubkey,
+}
+
+/// Tests ClassifiedSeed::DataField with params.owner.as_ref() seeds.
+#[derive(Accounts, RentFree)]
+#[instruction(params: D9ParamParams)]
+pub struct D9Param<'info> {
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+
+    /// CHECK: Compression config
+    pub compression_config: AccountInfo<'info>,
+
+    #[account(
+        init,
+        payer = fee_payer,
+        space = 8 + SinglePubkeyRecord::INIT_SPACE,
+        seeds = [b"d9_param", params.owner.as_ref()],
+        bump,
+    )]
+    #[rentfree]
+    pub d9_param_record: Account<'info, SinglePubkeyRecord>,
+
+    pub system_program: Program<'info, System>,
+}

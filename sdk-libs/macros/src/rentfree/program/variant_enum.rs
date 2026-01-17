@@ -16,14 +16,22 @@ pub struct PdaCtxSeedInfo {
     pub inner_type: Type,
     /// Field names from ctx.accounts.XXX references in seeds
     pub ctx_seed_fields: Vec<Ident>,
+    /// Field names that exist on the state struct (for filtering data.* seeds)
+    pub state_field_names: std::collections::HashSet<String>,
 }
 
 impl PdaCtxSeedInfo {
-    pub fn new(variant_name: Ident, inner_type: Type, ctx_seed_fields: Vec<Ident>) -> Self {
+    pub fn with_state_fields(
+        variant_name: Ident,
+        inner_type: Type,
+        ctx_seed_fields: Vec<Ident>,
+        state_field_names: std::collections::HashSet<String>,
+    ) -> Self {
         Self {
             variant_name,
             inner_type,
             ctx_seed_fields,
+            state_field_names,
         }
     }
 }

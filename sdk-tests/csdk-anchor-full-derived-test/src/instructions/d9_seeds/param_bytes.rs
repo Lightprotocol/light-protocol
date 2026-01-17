@@ -1,0 +1,38 @@
+//! D9 Test: Param bytes seed expression
+//!
+//! Tests ClassifiedSeed::DataField with params.id.to_le_bytes() conversion.
+
+use anchor_lang::prelude::*;
+use light_compressible::CreateAccountsProof;
+use light_sdk_macros::RentFree;
+
+use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct D9ParamBytesParams {
+    pub create_accounts_proof: CreateAccountsProof,
+    pub id: u64,
+}
+
+/// Tests ClassifiedSeed::DataField with params.id.to_le_bytes() conversion.
+#[derive(Accounts, RentFree)]
+#[instruction(params: D9ParamBytesParams)]
+pub struct D9ParamBytes<'info> {
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+
+    /// CHECK: Compression config
+    pub compression_config: AccountInfo<'info>,
+
+    #[account(
+        init,
+        payer = fee_payer,
+        space = 8 + SinglePubkeyRecord::INIT_SPACE,
+        seeds = [b"d9_param_bytes", params.id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    #[rentfree]
+    pub d9_param_bytes_record: Account<'info, SinglePubkeyRecord>,
+
+    pub system_program: Program<'info, System>,
+}

@@ -43,6 +43,7 @@ fn codegen(
     pda_seeds: Option<Vec<TokenSeedSpec>>,
     token_seeds: Option<Vec<TokenSeedSpec>>,
     instruction_data: Vec<InstructionDataSpec>,
+    crate_ctx: &super::crate_context::CrateContext,
 ) -> Result<TokenStream> {
     let size_validation_checks = validate_compressed_account_sizes(&account_types)?;
 
@@ -89,7 +90,19 @@ fn codegen(
                         .inner_type
                         .clone()
                         .unwrap_or_else(|| ident_to_type(&spec.variant));
-                    PdaCtxSeedInfo::new(spec.variant.clone(), inner_type, ctx_fields)
+
+                    // Look up the state struct's field names from CrateContext
+                    let state_field_names: std::collections::HashSet<String> = crate_ctx
+                        .get_struct_fields(&inner_type)
+                        .map(|fields| fields.into_iter().collect())
+                        .unwrap_or_default();
+
+                    PdaCtxSeedInfo::with_state_fields(
+                        spec.variant.clone(),
+                        inner_type,
+                        ctx_fields,
+                        state_field_names,
+                    )
                 })
                 .collect()
         })
@@ -132,12 +145,18 @@ fn codegen(
                         quote! { pub #field: #ty }
                     })
                 }).collect();
-                let data_verifications: Vec<_> = data_fields.iter().map(|field| {
-                    quote! {
+                // Only generate verifications for data fields that exist on the state struct
+                let data_verifications: Vec<_> = data_fields.iter().filter_map(|field| {
+                    let field_str = field.to_string();
+                    // Skip fields that don't exist on the state struct (e.g., params-only seeds)
+                    if !ctx_info.state_field_names.contains(&field_str) {
+                        return None;
+                    }
+                    Some(quote! {
                         if data.#field != seeds.#field {
                             return std::result::Result::Err(RentFreeInstructionError::SeedMismatch.into());
                         }
-                    }
+                    })
                 }).collect();
                 quote! {
                     #[derive(Clone, Debug)]
@@ -540,5 +559,6 @@ pub fn rentfree_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<
         pda_seeds,
         token_seeds,
         found_data_fields,
+        &crate_ctx,
     )
 }
