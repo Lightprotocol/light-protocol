@@ -5,14 +5,6 @@
 //! - Fetches proofs concurrently
 //! - Builds instructions via lean internal builders
 
-use crate::{
-    account_interface::{TokenAccountInterface, TokenLoadContext},
-    compressible_instruction::{self, DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR},
-    decompress_mint::{
-        DecompressMintError, MintInterface, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
-    },
-    RentFreeDecompressAccount,
-};
 use light_client::indexer::{Indexer, IndexerError, ValidityProofWithContext};
 use light_compressed_account::{
     compressed_account::PackedMerkleContext, instruction_data::compressed_proof::ValidityProof,
@@ -44,6 +36,15 @@ use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 use thiserror::Error;
 
+use crate::{
+    account_interface::{TokenAccountInterface, TokenLoadContext},
+    compressible_instruction::{self, DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR},
+    decompress_mint::{
+        DecompressMintError, MintInterface, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
+    },
+    RentFreeDecompressAccount,
+};
+
 /// Error type for load accounts operations.
 #[derive(Debug, Error)]
 pub enum LoadAccountsError {
@@ -63,6 +64,7 @@ pub enum LoadAccountsError {
 /// Build load instructions for cold accounts.
 /// Exists fast if all accounts are hot.
 /// Else, fetches proofs, returns instructions.
+#[allow(clippy::too_many_arguments)]
 pub async fn create_load_accounts_instructions<V, I>(
     program_owned_accounts: &[RentFreeDecompressAccount<V>],
     associated_token_accounts: &[TokenAccountInterface],

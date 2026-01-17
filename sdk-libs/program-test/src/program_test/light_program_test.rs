@@ -540,8 +540,7 @@ impl LightProgramTest {
         address: &solana_sdk::pubkey::Pubkey,
         program_id: &solana_sdk::pubkey::Pubkey,
     ) -> Result<light_compressible_client::AccountInfoInterface, RpcError> {
-        use light_client::indexer::Indexer;
-        use light_client::rpc::Rpc as RpcTrait;
+        use light_client::{indexer::Indexer, rpc::Rpc as RpcTrait};
         use light_compressed_account::address::derive_address;
         use light_compressible_client::AccountInfoInterface;
 
@@ -563,11 +562,7 @@ impl LightProgramTest {
             .await?;
 
         if let Some(compressed) = result.value {
-            if compressed
-                .data
-                .as_ref()
-                .map_or(false, |d| !d.data.is_empty())
-            {
+            if compressed.data.as_ref().is_some_and(|d| !d.data.is_empty()) {
                 return Ok(AccountInfoInterface::cold(
                     *address,
                     compressed,

@@ -414,7 +414,7 @@ async fn compress_cmint_forester(
     use light_compressible::config::CompressibleConfig;
     use light_token_interface::{
         instructions::mint_action::{
-            CompressAndCloseCMintAction, MintActionCompressedInstructionData, MintWithContext,
+            CompressAndCloseMintAction, MintActionCompressedInstructionData, MintWithContext,
         },
         LIGHT_TOKEN_PROGRAM_ID,
     };
@@ -469,7 +469,7 @@ async fn compress_cmint_forester(
         compressed_mint_inputs,
         rpc_proof_result.proof.into(),
     )
-    .with_compress_and_close_mint(CompressAndCloseCMintAction { idempotent: 1 });
+    .with_compress_and_close_mint(CompressAndCloseMintAction { idempotent: 1 });
 
     // Get state tree info
     let state_tree_info = rpc_proof_result.accounts[0].tree_info;
