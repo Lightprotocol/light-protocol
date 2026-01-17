@@ -229,7 +229,12 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
         #(
             seeds_vec.push(seeds[#indices].to_vec());
         )*
-        seeds_vec.push(vec![bump]);
+        // Avoid vec![bump] macro which expands to box_new allocation
+        {
+            let mut bump_vec = Vec::with_capacity(1);
+            bump_vec.push(bump);
+            seeds_vec.push(bump_vec);
+        }
         Ok((seeds_vec, pda))
     })
 }

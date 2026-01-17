@@ -160,21 +160,27 @@ pub fn generate_decompress_context_trait_impl(
                 Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
                 Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
             ), solana_program_error::ProgramError> {
+                solana_msg::msg!("collect_pda_and_token: start, {} accounts", compressed_accounts.len());
                 let post_system_offset = cpi_accounts.system_accounts_end_offset();
                 let all_infos = cpi_accounts.account_infos();
                 let post_system_accounts = &all_infos[post_system_offset..];
                 let program_id = &crate::ID;
 
+                solana_msg::msg!("collect_pda_and_token: allocating vecs");
                 let mut compressed_pda_infos = Vec::with_capacity(compressed_accounts.len());
                 let mut compressed_token_accounts = Vec::with_capacity(compressed_accounts.len());
 
+                solana_msg::msg!("collect_pda_and_token: starting loop");
                 for (i, compressed_data) in compressed_accounts.into_iter().enumerate() {
+                    solana_msg::msg!("collect_pda_and_token: processing account {}", i);
                     let meta = compressed_data.meta;
                     match compressed_data.data {
                         #(#pda_match_arms)*
                         RentFreeAccountVariant::PackedCTokenData(mut data) => {
+                            solana_msg::msg!("collect_pda_and_token: token variant {}", i);
                             data.token_data.version = 3;
                             compressed_token_accounts.push((data, meta));
+                            solana_msg::msg!("collect_pda_and_token: token {} done", i);
                         }
                         RentFreeAccountVariant::CTokenData(_) => {
                             unreachable!();
@@ -182,6 +188,7 @@ pub fn generate_decompress_context_trait_impl(
                     }
                 }
 
+                solana_msg::msg!("collect_pda_and_token: loop done, pdas={} tokens={}", compressed_pda_infos.len(), compressed_token_accounts.len());
                 std::result::Result::Ok((compressed_pda_infos, compressed_token_accounts))
             }
 

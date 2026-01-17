@@ -7,6 +7,9 @@ use light_sdk_types::CpiSigner;
 
 pub mod amm_test;
 pub mod d5_markers;
+pub mod d6_account_types;
+pub mod d8_builder_paths;
+pub mod d9_seeds;
 pub mod errors;
 pub mod instruction_accounts;
 pub mod instructions;
@@ -14,6 +17,9 @@ pub mod processors;
 pub mod state;
 pub use amm_test::*;
 pub use d5_markers::*;
+pub use d6_account_types::*;
+pub use d8_builder_paths::*;
+pub use d9_seeds::*;
 pub use instruction_accounts::*;
 pub use instructions::d7_infra_names::{
     D7_ALL_AUTH_SEED, D7_ALL_VAULT_SEED, D7_CTOKEN_AUTH_SEED, D7_CTOKEN_VAULT_SEED,
@@ -56,6 +62,15 @@ pub mod csdk_anchor_full_derived_test {
     use super::{
         amm_test::{Deposit, InitializeParams, InitializePool, Withdraw},
         d5_markers::{D5RentfreeBare, D5RentfreeBareParams},
+        d6_account_types::{D6Account, D6AccountParams, D6Boxed, D6BoxedParams},
+        d8_builder_paths::{
+            D8All, D8AllParams, D8MultiRentfree, D8MultiRentfreeParams, D8PdaOnly, D8PdaOnlyParams,
+        },
+        d9_seeds::{
+            D9Constant, D9ConstantParams, D9CtxAccount, D9CtxAccountParams, D9Literal,
+            D9LiteralParams, D9Mixed, D9MixedParams, D9Param, D9ParamBytes, D9ParamBytesParams,
+            D9ParamParams,
+        },
         instruction_accounts::CreatePdasAndMintAuto,
         FullAutoWithMintParams, LIGHT_CPI_SIGNER,
     };
@@ -171,5 +186,118 @@ pub mod csdk_anchor_full_derived_test {
     /// AMM withdraw instruction with BurnCpi.
     pub fn withdraw(ctx: Context<Withdraw>, lp_token_amount: u64) -> Result<()> {
         crate::amm_test::process_withdraw(ctx, lp_token_amount)
+    }
+
+    // =========================================================================
+    // D6 Account Types: Account type extraction
+    // =========================================================================
+
+    /// D6: Direct Account<'info, T> type
+    pub fn d6_account<'info>(
+        ctx: Context<'_, '_, '_, 'info, D6Account<'info>>,
+        params: D6AccountParams,
+    ) -> Result<()> {
+        ctx.accounts.d6_account_record.owner = params.owner;
+        Ok(())
+    }
+
+    /// D6: Box<Account<'info, T>> type
+    pub fn d6_boxed<'info>(
+        ctx: Context<'_, '_, '_, 'info, D6Boxed<'info>>,
+        params: D6BoxedParams,
+    ) -> Result<()> {
+        ctx.accounts.d6_boxed_record.owner = params.owner;
+        Ok(())
+    }
+
+    // =========================================================================
+    // D8 Builder Paths: Builder code generation paths
+    // =========================================================================
+
+    /// D8: Only #[rentfree] fields (no token accounts)
+    pub fn d8_pda_only<'info>(
+        ctx: Context<'_, '_, '_, 'info, D8PdaOnly<'info>>,
+        params: D8PdaOnlyParams,
+    ) -> Result<()> {
+        ctx.accounts.d8_pda_only_record.owner = params.owner;
+        Ok(())
+    }
+
+    /// D8: Multiple #[rentfree] fields of same type
+    pub fn d8_multi_rentfree<'info>(
+        ctx: Context<'_, '_, '_, 'info, D8MultiRentfree<'info>>,
+        params: D8MultiRentfreeParams,
+    ) -> Result<()> {
+        ctx.accounts.d8_multi_record1.owner = params.owner;
+        ctx.accounts.d8_multi_record2.owner = params.owner;
+        Ok(())
+    }
+
+    /// D8: Multiple #[rentfree] fields of different types
+    pub fn d8_all<'info>(
+        ctx: Context<'_, '_, '_, 'info, D8All<'info>>,
+        params: D8AllParams,
+    ) -> Result<()> {
+        ctx.accounts.d8_all_single.owner = params.owner;
+        ctx.accounts.d8_all_multi.owner = params.owner;
+        Ok(())
+    }
+
+    // =========================================================================
+    // D9 Seeds: Seed expression classification
+    // =========================================================================
+
+    /// D9: Literal seed expression
+    pub fn d9_literal<'info>(
+        ctx: Context<'_, '_, '_, 'info, D9Literal<'info>>,
+        _params: D9LiteralParams,
+    ) -> Result<()> {
+        ctx.accounts.d9_literal_record.owner = ctx.accounts.fee_payer.key();
+        Ok(())
+    }
+
+    /// D9: Constant seed expression
+    pub fn d9_constant<'info>(
+        ctx: Context<'_, '_, '_, 'info, D9Constant<'info>>,
+        _params: D9ConstantParams,
+    ) -> Result<()> {
+        ctx.accounts.d9_constant_record.owner = ctx.accounts.fee_payer.key();
+        Ok(())
+    }
+
+    /// D9: Context account seed expression
+    pub fn d9_ctx_account<'info>(
+        ctx: Context<'_, '_, '_, 'info, D9CtxAccount<'info>>,
+        _params: D9CtxAccountParams,
+    ) -> Result<()> {
+        ctx.accounts.d9_ctx_record.owner = ctx.accounts.authority.key();
+        Ok(())
+    }
+
+    /// D9: Param seed expression (Pubkey)
+    pub fn d9_param<'info>(
+        ctx: Context<'_, '_, '_, 'info, D9Param<'info>>,
+        params: D9ParamParams,
+    ) -> Result<()> {
+        ctx.accounts.d9_param_record.owner = params.owner;
+        Ok(())
+    }
+
+    /// D9: Param bytes seed expression (u64)
+    pub fn d9_param_bytes<'info>(
+        ctx: Context<'_, '_, '_, 'info, D9ParamBytes<'info>>,
+        _params: D9ParamBytesParams,
+    ) -> Result<()> {
+        ctx.accounts.d9_param_bytes_record.owner = ctx.accounts.fee_payer.key();
+        Ok(())
+    }
+
+    /// D9: Mixed seed expression types
+    pub fn d9_mixed<'info>(
+        ctx: Context<'_, '_, '_, 'info, D9Mixed<'info>>,
+        params: D9MixedParams,
+    ) -> Result<()> {
+        ctx.accounts.d9_mixed_record.owner = params.owner;
+        Ok(())
     }
 }

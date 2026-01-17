@@ -340,7 +340,10 @@ pub fn compressed_account_variant_with_ctx_seeds(
             ) -> std::result::Result<Self::Unpacked, anchor_lang::prelude::ProgramError> {
                 match self {
                     #(#unpack_match_arms)*
-                    Self::PackedCTokenData(_data) => Ok(self.clone()),
+                    Self::PackedCTokenData(_) => {
+                        // PackedCTokenData is handled separately in collect_pda_and_token
+                        unreachable!("PackedCTokenData should not be unpacked through Unpack trait")
+                    }
                     Self::CTokenData(_data) => unreachable!(),
                 }
             }

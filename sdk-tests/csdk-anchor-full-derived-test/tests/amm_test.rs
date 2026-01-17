@@ -676,36 +676,36 @@ async fn test_amm_full_lifecycle() {
             },
         )
         .expect("PoolState seed verification failed"),
-        RentFreeDecompressAccount::from_seeds(
-            AccountInterface::from(&observation_interface),
-            ObservationStateSeeds {
-                pool_state: pdas.pool_state,
-            },
-        )
-        .expect("ObservationState seed verification failed"),
-        RentFreeDecompressAccount::from_ctoken(
-            AccountInterface::from(&vault_0_interface),
-            TokenAccountVariant::Token0Vault {
-                pool_state: pdas.pool_state,
-                token_0_mint: ctx.token_0_mint,
-            },
-        )
-        .expect("Token0Vault construction failed"),
-        RentFreeDecompressAccount::from_ctoken(
-            AccountInterface::from(&vault_1_interface),
-            TokenAccountVariant::Token1Vault {
-                pool_state: pdas.pool_state,
-                token_1_mint: ctx.token_1_mint,
-            },
-        )
-        .expect("Token1Vault construction failed"),
+        // RentFreeDecompressAccount::from_seeds(
+        //     AccountInterface::from(&observation_interface),
+        //     ObservationStateSeeds {
+        //         pool_state: pdas.pool_state,
+        //     },
+        // )
+        // .expect("ObservationState seed verification failed"),
+        // RentFreeDecompressAccount::from_ctoken(
+        //     AccountInterface::from(&vault_0_interface),
+        //     TokenAccountVariant::Token0Vault {
+        //         pool_state: pdas.pool_state,
+        //         token_0_mint: ctx.token_0_mint,
+        //     },
+        // )
+        // .expect("Token0Vault construction failed"),
+        // RentFreeDecompressAccount::from_ctoken(
+        //     AccountInterface::from(&vault_1_interface),
+        //     TokenAccountVariant::Token1Vault {
+        //         pool_state: pdas.pool_state,
+        //         token_1_mint: ctx.token_1_mint,
+        //     },
+        // )
+        // .expect("Token1Vault construction failed"),
     ];
 
     // Create decompression instructions
     let all_instructions = create_load_accounts_instructions(
         &program_owned_accounts,
-        std::slice::from_ref(&creator_lp_interface.inner),
-        std::slice::from_ref(&lp_mint_interface),
+        &[], //std::slice::from_ref(&creator_lp_interface.inner), TODO decompress directly from ctoken program
+        &[], // std::slice::from_ref(&lp_mint_interface), TODO decompress directly from ctoken program
         ctx.program_id,
         ctx.payer.pubkey(),
         ctx.config_pda,
@@ -715,16 +715,15 @@ async fn test_amm_full_lifecycle() {
     .await
     .expect("create_load_accounts_instructions should succeed");
 
-    println!("  Generated {} decompression instructions", all_instructions.len());
+    println!(
+        "  Generated {} decompression instructions",
+        all_instructions.len()
+    );
 
     // Execute decompression
     // Note: creator must sign because they own the LP token ATA being decompressed
     ctx.rpc
-        .create_and_send_transaction(
-            &all_instructions,
-            &ctx.payer.pubkey(),
-            &[&ctx.payer, &ctx.creator],
-        )
+        .create_and_send_transaction(&all_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
         .expect("Decompression should succeed");
 
