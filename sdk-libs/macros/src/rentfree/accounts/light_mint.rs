@@ -6,8 +6,8 @@
 //!
 //! ## Parsed Attributes
 //!
-//! Required: `mint_signer`, `authority`, `decimals`
-//! Optional: `address_tree_info`, `freeze_authority`, `signer_seeds`, `rent_payment`, `write_top_up`
+//! Required: `mint_signer`, `authority`, `decimals`, `mint_seeds`
+//! Optional: `address_tree_info`, `freeze_authority`, `authority_seeds`, `rent_payment`, `write_top_up`
 //!
 //! ## Code Generation
 //!
@@ -43,8 +43,10 @@ pub(super) struct LightMintField {
     pub address_tree_info: Expr,
     /// Optional freeze authority
     pub freeze_authority: Option<Ident>,
-    /// Signer seeds for the mint_signer PDA (required if mint_signer is a PDA)
-    pub signer_seeds: Option<Expr>,
+    /// Signer seeds for the mint_signer PDA (required)
+    pub mint_seeds: Expr,
+    /// Signer seeds for the authority PDA (optional - if not provided, authority must be a tx signer)
+    pub authority_seeds: Option<Expr>,
     /// Rent payment epochs for decompression (default: 2)
     pub rent_payment: Option<Expr>,
     /// Write top-up lamports for decompression (default: 0)
@@ -54,7 +56,7 @@ pub(super) struct LightMintField {
 /// Arguments inside #[light_mint(...)] parsed by darling.
 ///
 /// Required fields (darling auto-validates): mint_signer, authority, decimals
-/// Optional fields: address_tree_info, freeze_authority, signer_seeds, rent_payment, write_top_up
+/// Optional fields: address_tree_info, freeze_authority, mint_seeds, authority_seeds, rent_payment, write_top_up
 #[derive(FromMeta)]
 struct LightMintArgs {
     /// The mint_signer field (AccountInfo that seeds the mint PDA) - REQUIRED
@@ -69,9 +71,11 @@ struct LightMintArgs {
     /// Optional freeze authority (field name, e.g., `freeze_authority = freeze_auth`)
     #[darling(default)]
     freeze_authority: Option<Ident>,
-    /// Signer seeds for the mint_signer PDA (required if mint_signer is a PDA)
+    /// Signer seeds for the mint_signer PDA (required)
+    mint_seeds: MetaExpr,
+    /// Signer seeds for the authority PDA (optional - if not provided, authority must be a tx signer)
     #[darling(default)]
-    signer_seeds: Option<MetaExpr>,
+    authority_seeds: Option<MetaExpr>,
     /// Rent payment epochs for decompression
     #[darling(default)]
     rent_payment: Option<MetaExpr>,
@@ -104,7 +108,8 @@ pub(super) fn parse_light_mint_attr(
                 decimals: args.decimals.into(),
                 address_tree_info,
                 freeze_authority: args.freeze_authority,
-                signer_seeds: args.signer_seeds.map(Into::into),
+                mint_seeds: args.mint_seeds.into(),
+                authority_seeds: args.authority_seeds.map(Into::into),
                 rent_payment: args.rent_payment.map(Into::into),
                 write_top_up: args.write_top_up.map(Into::into),
             }));
@@ -267,7 +272,8 @@ fn generate_mint_invocation(builder: &LightMintBuilder) -> TokenStream {
     let infra = &builder.infra;
 
     // 2. Generate optional field expressions
-    let signer_seeds = quote_option_or(&mint.signer_seeds, quote! { &[] as &[&[u8]] });
+    let mint_seeds = &mint.mint_seeds;
+    let authority_seeds = &mint.authority_seeds;
     let freeze_authority = mint
         .freeze_authority
         .as_ref()
@@ -301,6 +307,34 @@ fn generate_mint_invocation(builder: &LightMintBuilder) -> TokenStream {
         data_binding,
     } = cpi;
 
+    // Generate invoke_signed call with appropriate signer seeds
+    let invoke_signed_call = match authority_seeds {
+        Some(auth_seeds) => {
+            quote! {
+                let authority_seeds: &[&[u8]] = #auth_seeds;
+                anchor_lang::solana_program::program::invoke_signed(
+                    &mint_action_ix,
+                    &account_infos,
+                    &[mint_seeds, authority_seeds]
+                )?;
+            }
+        }
+        None => {
+            // authority_seeds not provided - authority must be a transaction signer
+            quote! {
+                // Verify authority is a signer since authority_seeds was not provided
+                if !self.#authority.to_account_info().is_signer {
+                    return Err(anchor_lang::solana_program::program_error::ProgramError::MissingRequiredSignature.into());
+                }
+                anchor_lang::solana_program::program::invoke_signed(
+                    &mint_action_ix,
+                    &account_infos,
+                    &[mint_seeds]
+                )?;
+            }
+        }
+    };
+
     // -------------------------------------------------------------------------
     // Generated code block for mint_action CPI invocation.
     //
@@ -319,7 +353,8 @@ fn generate_mint_invocation(builder: &LightMintBuilder) -> TokenStream {
     //   #freeze_authority   - optional freeze authority (Some(*self.field.key) or None)
     //   #rent_payment       - rent epochs for decompression (default: 2u8)
     //   #write_top_up       - write top-up lamports (default: 0u32)
-    //   #signer_seeds       - PDA signer seeds (default: &[] as &[&[u8]])
+    //   #mint_seeds         - PDA signer seeds for mint_signer (default: &[] as &[&[u8]])
+    //   #authority_seeds    - PDA signer seeds for authority (optional, if authority is a PDA)
     //
     // Interpolated variables from infrastructure fields:
     //   #fee_payer, #ctoken_config, #ctoken_rent_sponsor,
@@ -414,8 +449,8 @@ fn generate_mint_invocation(builder: &LightMintBuilder) -> TokenStream {
             account_infos.push(self.#fee_payer.to_account_info());
 
             // Step 10: Invoke CPI with signer seeds
-            let signer_seeds: &[&[u8]] = #signer_seeds;
-            anchor_lang::solana_program::program::invoke_signed(&mint_action_ix, &account_infos, &[signer_seeds])?;
+            let mint_seeds: &[&[u8]] = #mint_seeds;
+            #invoke_signed_call
         }
     }
 }

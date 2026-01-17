@@ -1,7 +1,6 @@
 //! Deposit instruction with MintToCpi.
 
 use anchor_lang::prelude::*;
-use anchor_spl::token::Token;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use light_token_sdk::token::MintToCpi;
 
@@ -13,6 +12,7 @@ pub struct Deposit<'info> {
     pub owner: Signer<'info>,
 
     #[account(
+        mut,
         seeds = [AUTH_SEED.as_bytes()],
         bump,
     )]
@@ -62,7 +62,7 @@ pub struct Deposit<'info> {
     )]
     pub lp_mint: UncheckedAccount<'info>,
 
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub token_program_2022: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
 }

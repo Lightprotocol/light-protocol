@@ -87,8 +87,9 @@ Creates a compressed mint with automatic decompression.
     mint_signer = mint_signer,      // AccountInfo that seeds the mint PDA (required)
     authority = authority,           // Mint authority (required)
     decimals = 9,                    // Token decimals (required)
+    mint_seeds = &[b"mint", &[bump]], // PDA signer seeds for mint_signer (required)
     freeze_authority = freeze_auth,  // Optional freeze authority
-    signer_seeds = &[b"mint", &[bump]], // Optional PDA signer seeds
+    authority_seeds = &[b"auth", &[auth_bump]], // PDA signer seeds for authority (optional - if not provided, authority must be a tx signer)
     rent_payment = 2,                // Rent payment epochs (default: 2)
     write_top_up = 0                 // Write top-up lamports (default: 0)
 )]

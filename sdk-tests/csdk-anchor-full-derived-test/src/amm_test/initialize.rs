@@ -9,11 +9,7 @@
 //! - MintToCpi
 
 use anchor_lang::prelude::*;
-use anchor_spl::{
-    associated_token::AssociatedToken,
-    token::Token,
-    token_interface::{Mint, TokenAccount, TokenInterface},
-};
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use light_compressible::CreateAccountsProof;
 use light_sdk_macros::RentFree;
 use light_token_sdk::token::{
@@ -31,6 +27,7 @@ pub struct InitializeParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub lp_mint_signer_bump: u8,
     pub creator_lp_token_bump: u8,
+    pub authority_bump: u8,
 }
 
 #[derive(Accounts, RentFree)]
@@ -43,6 +40,7 @@ pub struct InitializePool<'info> {
     pub amm_config: AccountInfo<'info>,
 
     #[account(
+        mut,
         seeds = [AUTH_SEED.as_bytes()],
         bump,
     )]
@@ -83,7 +81,8 @@ pub struct InitializePool<'info> {
         mint_signer = lp_mint_signer,
         authority = authority,
         decimals = 9,
-        signer_seeds = &[POOL_LP_MINT_SIGNER_SEED, self.pool_state.to_account_info().key.as_ref(), &[params.lp_mint_signer_bump]]
+        mint_seeds = &[POOL_LP_MINT_SIGNER_SEED, self.pool_state.to_account_info().key.as_ref(), &[params.lp_mint_signer_bump]],
+        authority_seeds = &[AUTH_SEED.as_bytes(), &[params.authority_bump]]
     )]
     pub lp_mint: UncheckedAccount<'info>,
 
@@ -138,10 +137,11 @@ pub struct InitializePool<'info> {
     #[rentfree]
     pub observation_state: Box<Account<'info, ObservationState>>,
 
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub token_0_program: Interface<'info, TokenInterface>,
     pub token_1_program: Interface<'info, TokenInterface>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
+    /// CHECK: Associated token program (SPL ATA or Light Token).
+    pub associated_token_program: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 
@@ -233,6 +233,26 @@ pub fn process_initialize_pool<'info>(
         max_top_up: None,
     }
     .invoke_signed(&[&[AUTH_SEED.as_bytes(), &[ctx.bumps.authority]]])?;
+
+    // Populate pool state
+    let pool_state = &mut ctx.accounts.pool_state;
+    pool_state.amm_config = ctx.accounts.amm_config.key();
+    pool_state.pool_creator = ctx.accounts.creator.key();
+    pool_state.token_0_vault = ctx.accounts.token_0_vault.key();
+    pool_state.token_1_vault = ctx.accounts.token_1_vault.key();
+    pool_state.lp_mint = ctx.accounts.lp_mint.key();
+    pool_state.token_0_mint = ctx.accounts.token_0_mint.key();
+    pool_state.token_1_mint = ctx.accounts.token_1_mint.key();
+    pool_state.token_0_program = ctx.accounts.token_0_program.key();
+    pool_state.token_1_program = ctx.accounts.token_1_program.key();
+    pool_state.observation_key = ctx.accounts.observation_state.key();
+    pool_state.auth_bump = ctx.bumps.authority;
+    pool_state.status = 1; // Active
+    pool_state.lp_mint_decimals = 9;
+    pool_state.mint_0_decimals = 9;
+    pool_state.mint_1_decimals = 9;
+    pool_state.lp_supply = lp_amount;
+    pool_state.open_time = params.open_time;
 
     Ok(())
 }

@@ -75,7 +75,7 @@ pub struct CreatePdasAndMintAuto<'info> {
         mint_signer = mint_signer,
         authority = mint_authority,
         decimals = 9,
-        signer_seeds = &[LP_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_bump]]
+        mint_seeds = &[LP_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_bump]]
     )]
     pub cmint: UncheckedAccount<'info>,
 
