@@ -136,7 +136,7 @@ impl CreateAssociatedTokenAccount {
 ///
 /// # Example - Rent-free ATA (idempotent)
 /// ```rust,ignore
-/// CreateCTokenAtaCpi {
+/// CreateTokenAtaCpi {
 ///     payer: ctx.accounts.payer.to_account_info(),
 ///     owner: ctx.accounts.owner.to_account_info(),
 ///     mint: ctx.accounts.mint.to_account_info(),
@@ -151,7 +151,7 @@ impl CreateAssociatedTokenAccount {
 /// )
 /// .invoke()?;
 /// ```
-pub struct CreateCTokenAtaCpi<'info> {
+pub struct CreateTokenAtaCpi<'info> {
     pub payer: AccountInfo<'info>,
     pub owner: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
@@ -159,10 +159,10 @@ pub struct CreateCTokenAtaCpi<'info> {
     pub bump: u8,
 }
 
-impl<'info> CreateCTokenAtaCpi<'info> {
+impl<'info> CreateTokenAtaCpi<'info> {
     /// Make this an idempotent create (won't fail if ATA already exists).
-    pub fn idempotent(self) -> CreateCTokenAtaCpiIdempotent<'info> {
-        CreateCTokenAtaCpiIdempotent { base: self }
+    pub fn idempotent(self) -> CreateTokenAtaCpiIdempotent<'info> {
+        CreateTokenAtaCpiIdempotent { base: self }
     }
 
     /// Enable rent-free mode with compressible config.
@@ -171,8 +171,8 @@ impl<'info> CreateCTokenAtaCpi<'info> {
         config: AccountInfo<'info>,
         sponsor: AccountInfo<'info>,
         system_program: AccountInfo<'info>,
-    ) -> CreateCTokenAtaRentFreeCpi<'info> {
-        CreateCTokenAtaRentFreeCpi {
+    ) -> CreateTokenAtaRentFreeCpi<'info> {
+        CreateTokenAtaRentFreeCpi {
             payer: self.payer,
             owner: self.owner,
             mint: self.mint,
@@ -206,19 +206,19 @@ impl<'info> CreateCTokenAtaCpi<'info> {
 }
 
 /// Idempotent ATA creation (intermediate type).
-pub struct CreateCTokenAtaCpiIdempotent<'info> {
-    base: CreateCTokenAtaCpi<'info>,
+pub struct CreateTokenAtaCpiIdempotent<'info> {
+    base: CreateTokenAtaCpi<'info>,
 }
 
-impl<'info> CreateCTokenAtaCpiIdempotent<'info> {
+impl<'info> CreateTokenAtaCpiIdempotent<'info> {
     /// Enable rent-free mode with compressible config.
     pub fn rent_free(
         self,
         config: AccountInfo<'info>,
         sponsor: AccountInfo<'info>,
         system_program: AccountInfo<'info>,
-    ) -> CreateCTokenAtaRentFreeCpi<'info> {
-        CreateCTokenAtaRentFreeCpi {
+    ) -> CreateTokenAtaRentFreeCpi<'info> {
+        CreateTokenAtaRentFreeCpi {
             payer: self.base.payer,
             owner: self.base.owner,
             mint: self.base.mint,
@@ -252,7 +252,7 @@ impl<'info> CreateCTokenAtaCpiIdempotent<'info> {
 }
 
 /// Rent-free enabled CToken ATA creation CPI.
-pub struct CreateCTokenAtaRentFreeCpi<'info> {
+pub struct CreateTokenAtaRentFreeCpi<'info> {
     payer: AccountInfo<'info>,
     owner: AccountInfo<'info>,
     mint: AccountInfo<'info>,
@@ -264,7 +264,7 @@ pub struct CreateCTokenAtaRentFreeCpi<'info> {
     system_program: AccountInfo<'info>,
 }
 
-impl<'info> CreateCTokenAtaRentFreeCpi<'info> {
+impl<'info> CreateTokenAtaRentFreeCpi<'info> {
     /// Invoke CPI.
     pub fn invoke(self) -> Result<(), ProgramError> {
         InternalCreateAtaCpi {

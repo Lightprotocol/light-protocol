@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_token_sdk::token::CreateCTokenAtaCpi;
+use light_token_sdk::token::CreateTokenAtaCpi;
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{ATA_SEED, ID};
@@ -30,7 +30,7 @@ pub fn process_create_ata_invoke(
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
-    CreateCTokenAtaCpi {
+    CreateTokenAtaCpi {
         payer: accounts[2].clone(),
         owner: accounts[0].clone(),
         mint: accounts[1].clone(),
@@ -75,7 +75,7 @@ pub fn process_create_ata_invoke_signed(
 
     let signer_seeds: &[&[u8]] = &[ATA_SEED, &[bump]];
 
-    CreateCTokenAtaCpi {
+    CreateTokenAtaCpi {
         payer: accounts[2].clone(),
         owner: accounts[0].clone(),
         mint: accounts[1].clone(),

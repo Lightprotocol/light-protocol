@@ -54,7 +54,7 @@ pub mod csdk_anchor_full_derived_test {
     ) -> Result<()> {
         use anchor_lang::solana_program::sysvar::clock::Clock;
         use light_token_sdk::token::{
-            CreateCTokenAtaCpi, CreateTokenAccountCpi, MintToCpi as CTokenMintToCpi,
+            CreateTokenAccountCpi, CreateTokenAtaCpi, MintToCpi as CTokenMintToCpi,
         };
 
         let user_record = &mut ctx.accounts.user_record;
@@ -90,7 +90,7 @@ pub mod csdk_anchor_full_derived_test {
             &[params.vault_bump],
         ])?;
 
-        CreateCTokenAtaCpi {
+        CreateTokenAtaCpi {
             payer: ctx.accounts.fee_payer.to_account_info(),
             owner: ctx.accounts.fee_payer.to_account_info(),
             mint: ctx.accounts.cmint.to_account_info(),
