@@ -6,8 +6,11 @@
 //!
 //! Based on Anchor's `CrateContext::parse()` pattern from `anchor-syn/src/parser/context.rs`.
 
-use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
+
 use syn::{Item, ItemStruct};
 
 /// Context containing all parsed modules in the crate.
@@ -37,10 +40,7 @@ impl CrateContext {
         } else {
             return Err(syn::Error::new(
                 proc_macro2::Span::call_site(),
-                format!(
-                    "Could not find lib.rs or main.rs in {:?}",
-                    src_dir
-                ),
+                format!("Could not find lib.rs or main.rs in {:?}", src_dir),
             ));
         };
 
@@ -55,9 +55,7 @@ impl CrateContext {
 
     /// Iterate over all struct items in all parsed modules.
     pub fn structs(&self) -> impl Iterator<Item = &ItemStruct> {
-        self.modules
-            .values()
-            .flat_map(|module| module.structs())
+        self.modules.values().flat_map(|module| module.structs())
     }
 
     /// Find structs that have a specific derive attribute (e.g., "RentFree").
@@ -113,10 +111,7 @@ impl ParsedModule {
         })?;
 
         let root_dir = root.parent().unwrap_or(Path::new("."));
-        let root_name = root
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("root");
+        let root_name = root.file_stem().and_then(|s| s.to_str()).unwrap_or("root");
 
         // Create the root module
         let root_module = ParsedModule {
@@ -146,8 +141,7 @@ impl ParsedModule {
                     // External module: mod foo; - need to find the file
                     if let Some(mod_file) = find_module_file(root_dir, root_name, &mod_name) {
                         // Recursively parse the external module
-                        let child_modules =
-                            Self::parse_recursive(&mod_file, &child_path)?;
+                        let child_modules = Self::parse_recursive(&mod_file, &child_path)?;
                         modules.extend(child_modules);
                     }
                     // If file not found, silently skip (might be a cfg'd out module)
@@ -196,7 +190,7 @@ fn find_module_file(parent_dir: &Path, parent_name: &str, mod_name: &str) -> Opt
     } else {
         // Parent is a regular file like foo.rs, check foo/mod_name.rs
         let parent_mod_dir = parent_dir.join(parent_name);
-        let extra_paths = vec![
+        let extra_paths = [
             parent_mod_dir.join(format!("{}.rs", mod_name)),
             parent_mod_dir.join(mod_name).join("mod.rs"),
         ];

@@ -1,6 +1,5 @@
 //! Compressible instructions generation - orchestration module.
 
-use crate::utils::to_snake_case;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{Ident, Item, ItemMod, Result};
@@ -10,25 +9,24 @@ pub use super::parsing::{
     extract_ctx_seed_fields, extract_data_seed_fields, InstructionDataSpec, InstructionVariant,
     SeedElement, TokenSeedSpec,
 };
-
-use super::parsing::{
-    convert_classified_to_seed_elements, convert_classified_to_seed_elements_vec,
-    extract_context_and_params, macro_error, wrap_function_with_rentfree,
+use super::{
+    compress::{
+        generate_compress_accounts_struct, generate_compress_context_impl,
+        generate_compress_instruction_entrypoint, generate_error_codes,
+        generate_process_compress_accounts_idempotent, validate_compressed_account_sizes,
+    },
+    decompress::{
+        generate_decompress_accounts_struct, generate_decompress_context_impl,
+        generate_decompress_instruction_entrypoint, generate_pda_seed_provider_impls,
+        generate_process_decompress_accounts_idempotent,
+    },
+    parsing::{
+        convert_classified_to_seed_elements, convert_classified_to_seed_elements_vec,
+        extract_context_and_params, macro_error, wrap_function_with_rentfree,
+    },
+    variant_enum::PdaCtxSeedInfo,
 };
-
-use super::compress::{
-    generate_compress_accounts_struct, generate_compress_context_impl,
-    generate_compress_instruction_entrypoint, generate_error_codes,
-    generate_process_compress_accounts_idempotent, validate_compressed_account_sizes,
-};
-
-use super::decompress::{
-    generate_decompress_accounts_struct, generate_decompress_context_impl,
-    generate_decompress_instruction_entrypoint, generate_pda_seed_provider_impls,
-    generate_process_decompress_accounts_idempotent,
-};
-
-use super::variant_enum::PdaCtxSeedInfo;
+use crate::utils::to_snake_case;
 
 // =============================================================================
 // MAIN CODEGEN
@@ -194,10 +192,8 @@ fn codegen(
 
     let token_variant_name = format_ident!("TokenAccountVariant");
 
-    let decompress_context_impl = generate_decompress_context_impl(
-        pda_ctx_seeds.clone(),
-        token_variant_name,
-    )?;
+    let decompress_context_impl =
+        generate_decompress_context_impl(pda_ctx_seeds.clone(), token_variant_name)?;
     let decompress_processor_fn = generate_process_decompress_accounts_idempotent()?;
     let decompress_instruction = generate_decompress_instruction_entrypoint()?;
 

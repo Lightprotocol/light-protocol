@@ -15,8 +15,10 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use super::light_mint::{generate_mint_action_invocation, MintActionConfig};
-use super::parse::{ParsedRentFreeStruct, RentFreeField};
+use super::{
+    light_mint::{generate_mint_action_invocation, MintActionConfig},
+    parse::{ParsedRentFreeStruct, RentFreeField},
+};
 
 /// Resolve optional field name to TokenStream, using default if None
 fn resolve_field_name(field: &Option<syn::Ident>, default: &str) -> TokenStream {
@@ -51,7 +53,11 @@ pub(super) fn generate_rentfree_impl(
     }
 
     // Extract first instruction arg or generate no-op impls
-    let first_arg = match parsed.instruction_args.as_ref().and_then(|args| args.first()) {
+    let first_arg = match parsed
+        .instruction_args
+        .as_ref()
+        .and_then(|args| args.first())
+    {
         Some(arg) => arg,
         None => {
             // No instruction args - generate no-op impls.

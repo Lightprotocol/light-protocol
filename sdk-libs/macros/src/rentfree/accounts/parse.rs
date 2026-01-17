@@ -7,11 +7,10 @@ use syn::{
     DeriveInput, Error, Expr, Ident, Token, Type,
 };
 
-// Import shared types from seed_extraction module
-pub(super) use crate::rentfree::traits::seed_extraction::extract_account_inner_type;
-
 // Import LightMintField and parsing from light_mint module
 use super::light_mint::{parse_light_mint_attr, LightMintField};
+// Import shared types from seed_extraction module
+pub(super) use crate::rentfree::traits::seed_extraction::extract_account_inner_type;
 
 // ============================================================================
 // darling support for parsing Expr from attributes
@@ -115,9 +114,7 @@ fn parse_instruction_attr(attrs: &[syn::Attribute]) -> Result<Option<Vec<Instruc
 }
 
 /// Parse a struct to extract rentfree and light_mint fields
-pub(super) fn parse_rentfree_struct(
-    input: &DeriveInput,
-) -> Result<ParsedRentFreeStruct, Error> {
+pub(super) fn parse_rentfree_struct(input: &DeriveInput) -> Result<ParsedRentFreeStruct, Error> {
     let struct_name = input.ident.clone();
     let generics = input.generics.clone();
 
@@ -141,9 +138,10 @@ pub(super) fn parse_rentfree_struct(
     let mut ctoken_cpi_authority_field = None;
 
     for field in fields {
-        let field_ident = field.ident.clone().ok_or_else(|| {
-            Error::new_spanned(field, "expected named field with identifier")
-        })?;
+        let field_ident = field
+            .ident
+            .clone()
+            .ok_or_else(|| Error::new_spanned(field, "expected named field with identifier"))?;
         let field_name = field_ident.to_string();
 
         // Track special fields by naming convention.
@@ -215,14 +213,13 @@ pub(super) fn parse_rentfree_struct(
                     .map_err(|e| Error::new_spanned(attr, e.to_string()))?;
 
                 // Use defaults if not specified
-                let address_tree_info = args
-                    .address_tree_info
-                    .map(Into::into)
-                    .unwrap_or_else(|| syn::parse_quote!(params.create_accounts_proof.address_tree_info));
-                let output_tree = args
-                    .output_tree
-                    .map(Into::into)
-                    .unwrap_or_else(|| syn::parse_quote!(params.create_accounts_proof.output_state_tree_index));
+                let address_tree_info =
+                    args.address_tree_info.map(Into::into).unwrap_or_else(|| {
+                        syn::parse_quote!(params.create_accounts_proof.address_tree_info)
+                    });
+                let output_tree = args.output_tree.map(Into::into).unwrap_or_else(|| {
+                    syn::parse_quote!(params.create_accounts_proof.output_state_tree_index)
+                });
 
                 // Validate this is an Account type (or Box<Account>)
                 let (is_boxed, inner_type) =
@@ -250,8 +247,7 @@ pub(super) fn parse_rentfree_struct(
     }
 
     // Validation: #[rentfree] and #[light_mint] require #[instruction] attribute
-    if (!rentfree_fields.is_empty() || !light_mint_fields.is_empty())
-        && instruction_args.is_none()
+    if (!rentfree_fields.is_empty() || !light_mint_fields.is_empty()) && instruction_args.is_none()
     {
         return Err(Error::new_spanned(
             input,

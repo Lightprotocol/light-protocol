@@ -4,6 +4,7 @@
 //! used in seed derivation code generation.
 
 use std::collections::HashSet;
+
 use syn::Expr;
 
 use crate::rentfree::shared_utils::is_base_path;
@@ -48,8 +49,10 @@ pub fn transform_expr_for_ctx_seeds(expr: &Expr, ctx_field_names: &HashSet<Strin
         }
         Expr::MethodCall(method_call) => {
             let mut new_call = method_call.clone();
-            new_call.receiver =
-                Box::new(transform_expr_for_ctx_seeds(&method_call.receiver, ctx_field_names));
+            new_call.receiver = Box::new(transform_expr_for_ctx_seeds(
+                &method_call.receiver,
+                ctx_field_names,
+            ));
             new_call.args = method_call
                 .args
                 .iter()
@@ -68,7 +71,10 @@ pub fn transform_expr_for_ctx_seeds(expr: &Expr, ctx_field_names: &HashSet<Strin
         }
         Expr::Reference(ref_expr) => {
             let mut new_ref = ref_expr.clone();
-            new_ref.expr = Box::new(transform_expr_for_ctx_seeds(&ref_expr.expr, ctx_field_names));
+            new_ref.expr = Box::new(transform_expr_for_ctx_seeds(
+                &ref_expr.expr,
+                ctx_field_names,
+            ));
             Expr::Reference(new_ref)
         }
         _ => expr.clone(),

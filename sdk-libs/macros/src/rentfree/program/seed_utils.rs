@@ -5,9 +5,10 @@
 //! - Generating seed derivation code
 //! - Extracting context fields from seed specifications
 
+use std::collections::HashSet;
+
 use proc_macro2::TokenStream;
 use quote::quote;
-use std::collections::HashSet;
 use syn::Ident;
 
 use super::parsing::SeedElement;
@@ -114,8 +115,6 @@ pub fn generate_seed_derivation_body(
         (seed_values, pda)
     }
 }
-
-
 
 /// Build set of ctx field names from identifiers.
 pub fn ctx_fields_to_set(fields: &[Ident]) -> HashSet<String> {

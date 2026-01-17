@@ -31,7 +31,10 @@ impl FromMeta for CompressAsFields {
                     let name = nv.path.get_ident().cloned().ok_or_else(|| {
                         darling::Error::custom("expected field identifier").with_span(&nv.path)
                     })?;
-                    Ok(CompressAsField { name, value: nv.value.clone() })
+                    Ok(CompressAsField {
+                        name,
+                        value: nv.value.clone(),
+                    })
                 }
                 other => Err(darling::Error::custom("expected field = expr").with_span(other)),
             })

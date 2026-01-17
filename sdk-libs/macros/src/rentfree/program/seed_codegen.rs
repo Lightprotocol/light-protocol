@@ -1,27 +1,17 @@
 //! Seed provider generation for PDA and Light Token accounts.
 
+use std::collections::HashSet;
+
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{Ident, Result};
 
-use super::instructions::{InstructionDataSpec, SeedElement, TokenSeedSpec};
-use super::seed_utils::{generate_seed_derivation_body, seed_element_to_ref_expr, SeedConversionConfig};
-use super::variant_enum::extract_ctx_fields_from_token_spec;
-use crate::rentfree::shared_utils::is_constant_identifier;
-use crate::rentfree::traits::utils::is_pubkey_type;
-
-/// Helper to add a Pubkey parameter and its .as_ref() expression.
-/// This is the default fallback for ctx.accounts.field and similar patterns.
-#[inline]
-fn push_pubkey_param(
-    field_name: &syn::Ident,
-    parameters: &mut Vec<TokenStream>,
-    expressions: &mut Vec<TokenStream>,
-) {
-    parameters.push(quote! { #field_name: &solana_pubkey::Pubkey });
-    expressions.push(quote! { #field_name.as_ref() });
-}
-
+use super::{
+    instructions::{InstructionDataSpec, TokenSeedSpec},
+    seed_utils::{generate_seed_derivation_body, seed_element_to_ref_expr, SeedConversionConfig},
+    variant_enum::extract_ctx_fields_from_token_spec,
+    visitors::{classify_seed, generate_client_seed_code},
+};
 
 /// Phase 8: Generate TokenSeedProvider impl that uses self.field instead of ctx.accounts.field
 pub fn generate_ctoken_seed_provider_implementation(
@@ -45,7 +35,11 @@ pub fn generate_ctoken_seed_provider_implementation(
         };
 
         // Build seed refs for get_seeds - use self.field directly for ctx.* seeds
-        let token_seed_refs: Vec<TokenStream> = spec.seeds.iter().map(|s| seed_element_to_ref_expr(s, &config)).collect();
+        let token_seed_refs: Vec<TokenStream> = spec
+            .seeds
+            .iter()
+            .map(|s| seed_element_to_ref_expr(s, &config))
+            .collect();
 
         let get_seeds_arm = quote! {
             #pattern => {
@@ -61,7 +55,10 @@ pub fn generate_ctoken_seed_provider_implementation(
 
         // Build authority seeds
         if let Some(authority_seeds) = &spec.authority {
-            let auth_seed_refs: Vec<TokenStream> = authority_seeds.iter().map(|s| seed_element_to_ref_expr(s, &config)).collect();
+            let auth_seed_refs: Vec<TokenStream> = authority_seeds
+                .iter()
+                .map(|s| seed_element_to_ref_expr(s, &config))
+                .collect();
 
             let authority_arm = quote! {
                 #pattern => {
@@ -110,7 +107,6 @@ pub fn generate_ctoken_seed_provider_implementation(
     })
 }
 
-
 #[inline(never)]
 pub fn generate_client_seed_functions(
     _account_types: &[Ident],
@@ -129,8 +125,7 @@ pub fn generate_client_seed_functions(
             let (parameters, seed_expressions) =
                 analyze_seed_spec_for_client(spec, instruction_data)?;
 
-            let fn_body =
-                generate_seed_derivation_body(&seed_expressions, quote! { &crate::ID });
+            let fn_body = generate_seed_derivation_body(&seed_expressions, quote! { &crate::ID });
             let function = quote! {
                 pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
                     #fn_body
@@ -150,8 +145,7 @@ pub fn generate_client_seed_functions(
             let (parameters, seed_expressions) =
                 analyze_seed_spec_for_client(spec, instruction_data)?;
 
-            let fn_body =
-                generate_seed_derivation_body(&seed_expressions, quote! { &crate::ID });
+            let fn_body = generate_seed_derivation_body(&seed_expressions, quote! { &crate::ID });
             let function = quote! {
                 pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
                     #fn_body
@@ -183,12 +177,18 @@ pub fn generate_client_seed_functions(
                 let (fn_params, fn_body) = if auth_parameters.is_empty() {
                     (
                         quote! { _program_id: &solana_pubkey::Pubkey },
-                        generate_seed_derivation_body(&auth_seed_expressions, quote! { _program_id }),
+                        generate_seed_derivation_body(
+                            &auth_seed_expressions,
+                            quote! { _program_id },
+                        ),
                     )
                 } else {
                     (
                         quote! { #(#auth_parameters),* },
-                        generate_seed_derivation_body(&auth_seed_expressions, quote! { &crate::ID }),
+                        generate_seed_derivation_body(
+                            &auth_seed_expressions,
+                            quote! { &crate::ID },
+                        ),
                     )
                 };
                 let authority_function = quote! {
@@ -211,6 +211,10 @@ pub fn generate_client_seed_functions(
     })
 }
 
+/// Analyze a seed spec and generate client function parameters and seed expressions.
+///
+/// Uses the classification-based approach: first classify each seed, then generate code.
+/// This separates "what kind of seed is this?" from "what code to generate?".
 #[inline(never)]
 fn analyze_seed_spec_for_client(
     spec: &TokenSeedSpec,
@@ -218,314 +222,20 @@ fn analyze_seed_spec_for_client(
 ) -> Result<(Vec<TokenStream>, Vec<TokenStream>)> {
     let mut parameters = Vec::new();
     let mut expressions = Vec::new();
+    let mut seen_params = HashSet::new();
 
     for seed in &spec.seeds {
-        match seed {
-            SeedElement::Literal(lit) => {
-                let value = lit.value();
-                expressions.push(quote! { #value.as_bytes() });
-            }
-            SeedElement::Expression(expr) => {
-                match &**expr {
-                    syn::Expr::Field(field_expr) => {
-                        if let syn::Member::Named(field_name) = &field_expr.member {
-                            // Check for data.field pattern which uses instruction_data types
-                            if let syn::Expr::Path(path) = &*field_expr.base {
-                                if let Some(segment) = path.path.segments.first() {
-                                    if segment.ident == "data" {
-                                        if let Some(data_spec) = instruction_data
-                                            .iter()
-                                            .find(|d| d.field_name == *field_name)
-                                        {
-                                            let param_type = &data_spec.field_type;
-                                            let param_with_ref = if is_pubkey_type(param_type) {
-                                                quote! { #field_name: &#param_type }
-                                            } else {
-                                                quote! { #field_name: #param_type }
-                                            };
-                                            parameters.push(param_with_ref);
-                                            expressions.push(quote! { #field_name.as_ref() });
-                                            continue;
-                                        } else {
-                                            return Err(syn::Error::new_spanned(
-                                                field_name,
-                                                format!(
-                                                    "data.{} used in seeds but no type specified",
-                                                    field_name
-                                                ),
-                                            ));
-                                        }
-                                    }
-                                }
-                            }
-                            // Default: ctx.accounts.field, ctx.field, or other field patterns
-                            push_pubkey_param(field_name, &mut parameters, &mut expressions);
-                        }
-                    }
-                    syn::Expr::MethodCall(method_call) => {
-                        if let syn::Expr::Field(field_expr) = &*method_call.receiver {
-                            if let syn::Member::Named(field_name) = &field_expr.member {
-                                if let syn::Expr::Path(path) = &*field_expr.base {
-                                    if let Some(segment) = path.path.segments.first() {
-                                        if segment.ident == "data" {
-                                            if let Some(data_spec) = instruction_data
-                                                .iter()
-                                                .find(|d| d.field_name == *field_name)
-                                            {
-                                                let param_type = &data_spec.field_type;
-                                                let param_with_ref = if is_pubkey_type(param_type) {
-                                                    quote! { #field_name: &#param_type }
-                                                } else {
-                                                    quote! { #field_name: #param_type }
-                                                };
-                                                parameters.push(param_with_ref);
+        // Phase 1: Classification
+        let info = classify_seed(seed)?;
 
-                                                let method_name = &method_call.method;
-                                                expressions.push(
-                                                    quote! { #field_name.#method_name().as_ref() },
-                                                );
-                                            } else {
-                                                return Err(syn::Error::new_spanned(
-                                                    field_name,
-                                                    format!("data.{} used in seeds but no type specified", field_name),
-                                                ));
-                                            }
-                                        } else if segment.ident == "ctx" {
-                                            // ctx.field.method() -> add field as Pubkey parameter
-                                            parameters.push(
-                                                quote! { #field_name: &solana_pubkey::Pubkey },
-                                            );
-                                            let method_name = &method_call.method;
-                                            expressions.push(
-                                                quote! { #field_name.#method_name().as_ref() },
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                        } else if let syn::Expr::Path(path_expr) = &*method_call.receiver {
-                            if let Some(ident) = path_expr.path.get_ident() {
-                                parameters.push(quote! { #ident: &solana_pubkey::Pubkey });
-                                expressions.push(quote! { #ident.as_ref() });
-                            }
-                        }
-                    }
-                    syn::Expr::Lit(lit_expr) => {
-                        // Handle byte string literals: b"seed" -> use directly
-                        if let syn::Lit::ByteStr(byte_str) = &lit_expr.lit {
-                            let bytes = byte_str.value();
-                            expressions.push(quote! { &[#(#bytes),*] });
-                        }
-                    }
-                    syn::Expr::Path(path_expr) => {
-                        if let Some(ident) = path_expr.path.get_ident() {
-                            let ident_str = ident.to_string();
-                            if is_constant_identifier(&ident_str) {
-                                if ident_str == "LIGHT_CPI_SIGNER" {
-                                    expressions.push(quote! { crate::#ident.cpi_signer.as_ref() });
-                                } else {
-                                    // Use crate:: prefix and explicit type annotation
-                                    expressions.push(quote! { { let __seed: &[u8] = crate::#ident.as_ref(); __seed } });
-                                }
-                            } else {
-                                parameters.push(quote! { #ident: &solana_pubkey::Pubkey });
-                                expressions.push(quote! { #ident.as_ref() });
-                            }
-                        } else {
-                            expressions.push(quote! { (#expr).as_ref() });
-                        }
-                    }
-                    syn::Expr::Call(call_expr) => {
-                        // Recursively map data.* to parameter names in function call arguments
-                        fn map_client_call_arg(
-                            arg: &syn::Expr,
-                            instruction_data: &[InstructionDataSpec],
-                            parameters: &mut Vec<TokenStream>,
-                        ) -> TokenStream {
-                            match arg {
-                                syn::Expr::Reference(ref_expr) => {
-                                    let inner = map_client_call_arg(
-                                        &ref_expr.expr,
-                                        instruction_data,
-                                        parameters,
-                                    );
-                                    quote! { &#inner }
-                                }
-                                syn::Expr::Field(field_expr) => {
-                                    if let syn::Member::Named(field_name) = &field_expr.member {
-                                        if let syn::Expr::Path(path) = &*field_expr.base {
-                                            if let Some(segment) = path.path.segments.first() {
-                                                if segment.ident == "data" {
-                                                    // Add parameter if needed
-                                                    if let Some(data_spec) = instruction_data
-                                                        .iter()
-                                                        .find(|d| d.field_name == *field_name)
-                                                    {
-                                                        let param_type = &data_spec.field_type;
-                                                        let param_with_ref =
-                                                            if is_pubkey_type(param_type) {
-                                                                quote! { #field_name: &#param_type }
-                                                            } else {
-                                                                quote! { #field_name: #param_type }
-                                                            };
-                                                        if !parameters.iter().any(|p| {
-                                                            p.to_string()
-                                                                .contains(&field_name.to_string())
-                                                        }) {
-                                                            parameters.push(param_with_ref);
-                                                        }
-                                                    }
-                                                    return quote! { #field_name };
-                                                } else if segment.ident == "ctx" {
-                                                    // ctx.field -> add as Pubkey parameter
-                                                    if !parameters.iter().any(|p| {
-                                                        p.to_string()
-                                                            .contains(&field_name.to_string())
-                                                    }) {
-                                                        parameters.push(quote! { #field_name: &solana_pubkey::Pubkey });
-                                                    }
-                                                    return quote! { #field_name };
-                                                }
-                                            }
-                                        }
-                                    }
-                                    quote! { #field_expr }
-                                }
-                                syn::Expr::MethodCall(method_call) => {
-                                    let receiver = map_client_call_arg(
-                                        &method_call.receiver,
-                                        instruction_data,
-                                        parameters,
-                                    );
-                                    let method = &method_call.method;
-                                    let args: Vec<_> = method_call
-                                        .args
-                                        .iter()
-                                        .map(|a| {
-                                            map_client_call_arg(a, instruction_data, parameters)
-                                        })
-                                        .collect();
-                                    quote! { (#receiver).#method(#(#args),*) }
-                                }
-                                syn::Expr::Call(nested_call) => {
-                                    let func = &nested_call.func;
-                                    let args: Vec<_> = nested_call
-                                        .args
-                                        .iter()
-                                        .map(|a| {
-                                            map_client_call_arg(a, instruction_data, parameters)
-                                        })
-                                        .collect();
-                                    quote! { (#func)(#(#args),*) }
-                                }
-                                _ => quote! { #arg },
-                            }
-                        }
-
-                        let mut mapped_args: Vec<TokenStream> = Vec::new();
-                        for arg in &call_expr.args {
-                            let mapped =
-                                map_client_call_arg(arg, instruction_data, &mut parameters);
-                            mapped_args.push(mapped);
-                        }
-                        let func = &call_expr.func;
-                        expressions.push(quote! { (#func)(#(#mapped_args),*).as_ref() });
-                    }
-                    syn::Expr::Reference(ref_expr) => {
-                        let (ref_params, ref_exprs) =
-                            analyze_seed_spec_for_client_expr(&ref_expr.expr, instruction_data)?;
-                        parameters.extend(ref_params);
-                        if let Some(first_expr) = ref_exprs.first() {
-                            expressions.push(quote! { (#first_expr).as_ref() });
-                        }
-                    }
-                    _ => {
-                        expressions.push(quote! { (#expr).as_ref() });
-                    }
-                }
-            }
-        }
-    }
-
-    Ok((parameters, expressions))
-}
-
-#[inline(never)]
-fn analyze_seed_spec_for_client_expr(
-    expr: &syn::Expr,
-    instruction_data: &[InstructionDataSpec],
-) -> Result<(Vec<TokenStream>, Vec<TokenStream>)> {
-    let mut parameters = Vec::new();
-    let mut expressions = Vec::new();
-
-    match expr {
-        syn::Expr::Field(field_expr) => {
-            if let syn::Member::Named(field_name) = &field_expr.member {
-                if let syn::Expr::Field(nested_field) = &*field_expr.base {
-                    if let syn::Member::Named(base_name) = &nested_field.member {
-                        if base_name == "accounts" {
-                            parameters.push(quote! { #field_name: &solana_pubkey::Pubkey });
-                            expressions.push(quote! { #field_name });
-                        } else if base_name == "data" {
-                            // Use declared instruction_data types to determine parameter type
-                            if let Some(data_spec) = instruction_data
-                                .iter()
-                                .find(|d| d.field_name == *field_name)
-                            {
-                                let param_type = &data_spec.field_type;
-                                let param_with_ref = if is_pubkey_type(param_type) {
-                                    quote! { #field_name: &#param_type }
-                                } else {
-                                    quote! { #field_name: #param_type }
-                                };
-                                parameters.push(param_with_ref);
-                                expressions.push(quote! { #field_name });
-                            } else {
-                                return Err(syn::Error::new_spanned(
-                                    field_name,
-                                    format!(
-                                        "data.{} used in seeds but no type specified",
-                                        field_name
-                                    ),
-                                ));
-                            }
-                        }
-                    }
-                } else if let syn::Expr::Path(path) = &*field_expr.base {
-                    if let Some(segment) = path.path.segments.first() {
-                        if segment.ident == "ctx" {
-                            parameters.push(quote! { #field_name: &solana_pubkey::Pubkey });
-                            expressions.push(quote! { #field_name });
-                        }
-                    }
-                }
-            }
-        }
-        syn::Expr::MethodCall(method_call) => {
-            let (recv_params, _) =
-                analyze_seed_spec_for_client_expr(&method_call.receiver, instruction_data)?;
-            parameters.extend(recv_params);
-        }
-        syn::Expr::Call(call_expr) => {
-            for arg in &call_expr.args {
-                let (arg_params, _) = analyze_seed_spec_for_client_expr(arg, instruction_data)?;
-                parameters.extend(arg_params);
-            }
-        }
-        syn::Expr::Reference(ref_expr) => {
-            let (ref_params, _) =
-                analyze_seed_spec_for_client_expr(&ref_expr.expr, instruction_data)?;
-            parameters.extend(ref_params);
-        }
-        syn::Expr::Path(path_expr) => {
-            if let Some(ident) = path_expr.path.get_ident() {
-                let name = ident.to_string();
-                if !(name == "ctx" || name == "data" || is_constant_identifier(&name)) {
-                    parameters.push(quote! { #ident: &solana_pubkey::Pubkey });
-                }
-            }
-        }
-        _ => {}
+        // Phase 2: Code generation (modifies parameters and expressions in place)
+        generate_client_seed_code(
+            &info,
+            instruction_data,
+            &mut seen_params,
+            &mut parameters,
+            &mut expressions,
+        )?;
     }
 
     Ok((parameters, expressions))

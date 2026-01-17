@@ -20,7 +20,10 @@ use syn::{Expr, Ident};
 /// ```
 #[inline]
 pub fn is_constant_identifier(ident: &str) -> bool {
-    !ident.is_empty() && ident.chars().all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit())
+    !ident.is_empty()
+        && ident
+            .chars()
+            .all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit())
 }
 
 /// Extract the terminal identifier from an expression.

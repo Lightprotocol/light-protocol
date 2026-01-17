@@ -4,10 +4,12 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{Ident, Result};
 
-use super::expr_traversal::transform_expr_for_ctx_seeds;
-use super::parsing::{InstructionVariant, SeedElement, TokenSeedSpec};
-use super::seed_utils::ctx_fields_to_set;
-use super::variant_enum::PdaCtxSeedInfo;
+use super::{
+    expr_traversal::transform_expr_for_ctx_seeds,
+    parsing::{InstructionVariant, SeedElement, TokenSeedSpec},
+    seed_utils::ctx_fields_to_set,
+    variant_enum::PdaCtxSeedInfo,
+};
 use crate::rentfree::shared_utils::is_constant_identifier;
 
 // =============================================================================
@@ -94,9 +96,7 @@ pub fn generate_decompress_instruction_entrypoint() -> Result<syn::ItemFn> {
 // =============================================================================
 
 #[inline(never)]
-pub fn generate_decompress_accounts_struct(
-    variant: InstructionVariant,
-) -> Result<syn::ItemStruct> {
+pub fn generate_decompress_accounts_struct(variant: InstructionVariant) -> Result<syn::ItemStruct> {
     // Only Mixed variant is supported - PdaOnly and TokenOnly are not implemented
     match variant {
         InstructionVariant::PdaOnly | InstructionVariant::TokenOnly => {

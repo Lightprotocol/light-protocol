@@ -16,3 +16,5 @@ pub fn derive_rentfree(input: DeriveInput) -> Result<TokenStream, syn::Error> {
     let parsed = parse::parse_rentfree_struct(&input)?;
     pda::generate_rentfree_impl(&parsed)
 }
+
+// TODO: add a codegen file that puts the generated code together

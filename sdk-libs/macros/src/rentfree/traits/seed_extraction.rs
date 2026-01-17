@@ -3,9 +3,12 @@
 //! This module extracts PDA seeds from Anchor's attribute syntax and classifies them
 //! into the categories needed for compression: literals, ctx fields, data fields, etc.
 
-use crate::rentfree::shared_utils::{extract_terminal_ident, is_constant_identifier};
-use crate::utils::snake_to_camel_case;
 use syn::{Expr, Ident, ItemStruct, Type};
+
+use crate::{
+    rentfree::shared_utils::{extract_terminal_ident, is_constant_identifier},
+    utils::snake_to_camel_case,
+};
 
 /// Classified seed element from Anchor's seeds array
 #[derive(Clone, Debug)]
