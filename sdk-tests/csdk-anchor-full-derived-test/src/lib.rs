@@ -5,11 +5,14 @@ use light_sdk::{derive_light_cpi_signer, derive_light_rent_sponsor_pda};
 use light_sdk_macros::rentfree_program;
 use light_sdk_types::CpiSigner;
 
+pub mod amm_test;
 pub mod d5_markers;
 pub mod errors;
 pub mod instruction_accounts;
 pub mod instructions;
+pub mod processors;
 pub mod state;
+pub use amm_test::*;
 pub use d5_markers::*;
 pub use instruction_accounts::*;
 pub use state::{
@@ -46,6 +49,7 @@ pub mod csdk_anchor_full_derived_test {
     #![allow(clippy::too_many_arguments)]
 
     use super::{
+        amm_test::{Deposit, InitializeParams, InitializePool, Withdraw},
         d5_markers::{D5RentfreeBare, D5RentfreeBareParams},
         instruction_accounts::CreatePdasAndMintAuto,
         FullAutoWithMintParams, LIGHT_CPI_SIGNER,
@@ -136,13 +140,31 @@ pub mod csdk_anchor_full_derived_test {
     }
 
     /// Second instruction to test #[rentfree_program] with multiple instructions.
+    /// Delegates to nested processor in separate module.
     pub fn create_single_record<'info>(
         ctx: Context<'_, '_, '_, 'info, D5RentfreeBare<'info>>,
         params: D5RentfreeBareParams,
     ) -> Result<()> {
-        let record = &mut ctx.accounts.record;
-        record.owner = params.owner;
-        record.counter = 0;
-        Ok(())
+        crate::processors::process_create_single_record(ctx, params)
+    }
+
+    /// AMM initialize instruction with all rentfree markers.
+    /// Tests: 2x #[rentfree], 2x #[rentfree_token], 1x #[light_mint],
+    /// CreateTokenAccountCpi.rent_free(), CreateTokenAtaCpi.rent_free(), MintToCpi
+    pub fn initialize_pool<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializePool<'info>>,
+        params: InitializeParams,
+    ) -> Result<()> {
+        crate::amm_test::process_initialize_pool(ctx, params)
+    }
+
+    /// AMM deposit instruction with MintToCpi.
+    pub fn deposit(ctx: Context<Deposit>, lp_token_amount: u64) -> Result<()> {
+        crate::amm_test::process_deposit(ctx, lp_token_amount)
+    }
+
+    /// AMM withdraw instruction with BurnCpi.
+    pub fn withdraw(ctx: Context<Withdraw>, lp_token_amount: u64) -> Result<()> {
+        crate::amm_test::process_withdraw(ctx, lp_token_amount)
     }
 }
