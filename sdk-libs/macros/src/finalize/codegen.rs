@@ -292,7 +292,7 @@ fn generate_pre_init_pdas_and_mints(
                 supply: 0,
                 decimals: #decimals,
                 metadata: light_token_interface::state::MintMetadata {
-                    version: 3,
+                    version: light_token_interface::state::TokenDataVersion::ShaFlat as u8,
                     mint: mint_pda.to_bytes().into(),
                     mint_decompressed: false,
                     mint_signer: mint_signer_key.to_bytes(),

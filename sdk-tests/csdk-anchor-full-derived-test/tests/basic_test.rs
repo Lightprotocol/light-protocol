@@ -337,8 +337,8 @@ async fn test_create_pdas_and_mint_auto() {
     // Load accounts if needed
     let all_instructions = create_load_accounts_instructions(
         &program_owned_accounts,
-        &[ata_interface.inner.clone()],
-        &[mint_interface.clone()],
+        std::slice::from_ref(&ata_interface.inner),
+        std::slice::from_ref(&mint_interface),
         program_id,
         payer.pubkey(),
         config_pda,

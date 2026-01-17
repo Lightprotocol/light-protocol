@@ -22,8 +22,7 @@ async fn test_decompress_mint() {
 
     // Create a compressed mint (returns mint_seed keypair)
     let (mint_pda, compression_address, _, _mint_seed) =
-        shared::setup_create_compressed_mint(&mut rpc, &payer, mint_authority, decimals, vec![])
-            .await;
+        shared::setup_create_mint(&mut rpc, &payer, mint_authority, decimals, vec![]).await;
 
     // Verify CMint account does NOT exist on-chain yet
     let cmint_account_before = rpc.get_account(mint_pda).await.unwrap();
@@ -103,7 +102,7 @@ async fn test_decompress_mint() {
 
     // Build expected CMint from original compressed mint, updating fields changed by decompression
     let mut expected_cmint = compressed_mint.clone();
-    expected_cmint.metadata.cmint_decompressed = true;
+    expected_cmint.metadata.mint_decompressed = true;
     expected_cmint.compression = cmint.compression;
 
     assert_eq!(cmint, expected_cmint, "CMint should match expected state");
@@ -121,15 +120,14 @@ async fn test_decompress_mint_with_freeze_authority() {
     let decimals = 6u8;
 
     // Create a compressed mint with freeze_authority
-    let (mint_pda, compression_address, _mint_seed) =
-        setup_create_compressed_mint_with_freeze_authority_only(
-            &mut rpc,
-            &payer,
-            mint_authority,
-            Some(freeze_authority.pubkey()),
-            decimals,
-        )
-        .await;
+    let (mint_pda, compression_address, _mint_seed) = setup_create_mint_with_freeze_authority_only(
+        &mut rpc,
+        &payer,
+        mint_authority,
+        Some(freeze_authority.pubkey()),
+        decimals,
+    )
+    .await;
 
     // Verify CMint account does NOT exist on-chain yet
     let cmint_account_before = rpc.get_account(mint_pda).await.unwrap();
@@ -206,16 +204,16 @@ async fn test_decompress_mint_with_freeze_authority() {
 
     // Build expected CMint from original compressed mint, updating fields changed by decompression
     let mut expected_cmint = compressed_mint.clone();
-    expected_cmint.metadata.cmint_decompressed = true;
+    expected_cmint.metadata.mint_decompressed = true;
     expected_cmint.compression = cmint.compression;
 
     assert_eq!(cmint, expected_cmint, "CMint should match expected state");
 }
 
 /// Helper function: Creates a compressed mint with optional freeze_authority
-/// but does NOT decompress it (unlike setup_create_compressed_mint_with_freeze_authority)
+/// but does NOT decompress it (unlike setup_create_mint_with_freeze_authority)
 /// Returns (mint_pda, compression_address, mint_seed_keypair)
-async fn setup_create_compressed_mint_with_freeze_authority_only(
+async fn setup_create_mint_with_freeze_authority_only(
     rpc: &mut (impl Rpc + Indexer),
     payer: &Keypair,
     mint_authority: Pubkey,
@@ -261,6 +259,8 @@ async fn setup_create_compressed_mint_with_freeze_authority_only(
         bump,
         freeze_authority,
         extensions: None,
+        rent_payment: 16,
+        write_top_up: 766,
     };
 
     // Create instruction directly using SDK
@@ -319,7 +319,7 @@ async fn test_decompress_mint_with_token_metadata() {
     let extensions = vec![ExtensionInstructionData::TokenMetadata(token_metadata)];
 
     // Create a compressed mint with TokenMetadata extension
-    let (mint_pda, compression_address, _mint_seed) = setup_create_compressed_mint_with_extensions(
+    let (mint_pda, compression_address, _mint_seed) = setup_create_mint_with_extensions(
         &mut rpc,
         &payer,
         mint_authority,
@@ -410,7 +410,7 @@ async fn test_decompress_mint_with_token_metadata() {
 
     // Build expected CMint from original compressed mint, updating fields changed by decompression
     let mut expected_cmint = compressed_mint.clone();
-    expected_cmint.metadata.cmint_decompressed = true;
+    expected_cmint.metadata.mint_decompressed = true;
     expected_cmint.compression = cmint.compression;
     // Extensions should preserve original TokenMetadata
 
@@ -420,7 +420,7 @@ async fn test_decompress_mint_with_token_metadata() {
 /// Helper function: Creates a compressed mint with extensions
 /// but does NOT decompress it
 /// Returns (mint_pda, compression_address, mint_seed_keypair)
-async fn setup_create_compressed_mint_with_extensions(
+async fn setup_create_mint_with_extensions(
     rpc: &mut (impl Rpc + Indexer),
     payer: &Keypair,
     mint_authority: Pubkey,
@@ -467,6 +467,8 @@ async fn setup_create_compressed_mint_with_extensions(
         bump,
         freeze_authority,
         extensions: Some(extensions),
+        rent_payment: 16,
+        write_top_up: 766,
     };
 
     // Create instruction directly using SDK
@@ -718,7 +720,7 @@ async fn test_decompress_mint_cpi_invoke_signed() {
 
     // Build expected CMint from original compressed mint, updating fields changed by decompression
     let mut expected_cmint = compressed_mint.clone();
-    expected_cmint.metadata.cmint_decompressed = true;
+    expected_cmint.metadata.mint_decompressed = true;
     expected_cmint.compression = cmint.compression;
 
     assert_eq!(cmint, expected_cmint, "CMint should match expected state");
