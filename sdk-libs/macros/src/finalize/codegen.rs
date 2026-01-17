@@ -17,8 +17,18 @@ use quote::{format_ident, quote};
 
 use super::parse::{ParsedCompressibleStruct, RentFreeField};
 
-/// Generate both trait implementations
-pub fn generate_finalize_impl(parsed: &ParsedCompressibleStruct) -> TokenStream {
+/// Default rent payment period in epochs (how long to prepay rent for decompressed accounts).
+const DEFAULT_RENT_PAYMENT_EPOCHS: u8 = 2;
+
+/// Default write top-up in lamports (additional lamports for write operations during decompression).
+const DEFAULT_WRITE_TOP_UP_LAMPORTS: u32 = 0;
+
+/// Generate both trait implementations.
+///
+/// Returns `Err` if the parsed struct has inconsistent state (e.g., params type without ident).
+pub fn generate_finalize_impl(
+    parsed: &ParsedCompressibleStruct,
+) -> Result<TokenStream, syn::Error> {
     let struct_name = &parsed.struct_name;
     let (impl_generics, ty_generics, where_clause) = parsed.generics.split_for_impl();
 
@@ -33,7 +43,7 @@ pub fn generate_finalize_impl(parsed: &ParsedCompressibleStruct) -> TokenStream 
         Some(ty) => ty,
         None => {
             // No instruction args - generate no-op impls
-            return quote! {
+            return Ok(quote! {
                 #[automatically_derived]
                 impl #impl_generics light_sdk::compressible::LightPreInit<'info, ()> for #struct_name #ty_generics #where_clause {
                     fn light_pre_init(
@@ -56,7 +66,7 @@ pub fn generate_finalize_impl(parsed: &ParsedCompressibleStruct) -> TokenStream 
                         Ok(())
                     }
                 }
-            };
+            });
         }
     };
 
@@ -65,7 +75,12 @@ pub fn generate_finalize_impl(parsed: &ParsedCompressibleStruct) -> TokenStream 
         .as_ref()
         .and_then(|args| args.first())
         .map(|arg| &arg.name)
-        .expect("params ident must exist if type exists");
+        .ok_or_else(|| {
+            syn::Error::new(
+                parsed.struct_name.span(),
+                "internal error: instruction params type exists but params ident is missing",
+            )
+        })?;
 
     let has_pdas = !parsed.rentfree_fields.is_empty();
     let has_mints = !parsed.light_mint_fields.is_empty();
@@ -143,7 +158,7 @@ pub fn generate_finalize_impl(parsed: &ParsedCompressibleStruct) -> TokenStream 
     // LightFinalize: No-op (all work done in pre_init)
     let finalize_body = quote! { Ok(()) };
 
-    quote! {
+    Ok(quote! {
         #[automatically_derived]
         impl #impl_generics light_sdk::compressible::LightPreInit<'info, #params_type> for #struct_name #ty_generics #where_clause {
             fn light_pre_init(
@@ -168,7 +183,7 @@ pub fn generate_finalize_impl(parsed: &ParsedCompressibleStruct) -> TokenStream 
                 #finalize_body
             }
         }
-    }
+    })
 }
 
 /// Generate LightPreInit body for PDAs + mints:
@@ -187,7 +202,7 @@ fn generate_pre_init_pdas_and_mints(
     ctoken_cpi_authority: &TokenStream,
 ) -> TokenStream {
     let (compress_blocks, new_addr_idents) =
-        generate_pda_compress_blocks(&parsed.rentfree_fields, params_ident);
+        generate_pda_compress_blocks(&parsed.rentfree_fields);
     let rentfree_count = parsed.rentfree_fields.len() as u8;
     let pda_count = parsed.rentfree_fields.len();
 
@@ -216,18 +231,20 @@ fn generate_pre_init_pdas_and_mints(
         quote! { None }
     };
 
-    // rent_payment defaults to 2 epochs (u8)
+    // rent_payment defaults to DEFAULT_RENT_PAYMENT_EPOCHS
     let rent_payment_tokens = if let Some(rent) = &mint.rent_payment {
         quote! { #rent }
     } else {
-        quote! { 2u8 }
+        let default = DEFAULT_RENT_PAYMENT_EPOCHS;
+        quote! { #default }
     };
 
-    // write_top_up defaults to 0 (u32)
+    // write_top_up defaults to DEFAULT_WRITE_TOP_UP_LAMPORTS
     let write_top_up_tokens = if let Some(top_up) = &mint.write_top_up {
         quote! { #top_up }
     } else {
-        quote! { 0u32 }
+        let default = DEFAULT_WRITE_TOP_UP_LAMPORTS;
+        quote! { #default }
     };
 
     // assigned_account_index for mint is after PDAs
@@ -347,7 +364,7 @@ fn generate_pre_init_pdas_and_mints(
 
             use light_compressed_account::instruction_data::traits::LightInstructionData;
             let ix_data = instruction_data.data()
-                .map_err(|e| light_sdk::error::LightSdkError::Borsh)?;
+                .map_err(|_| light_sdk::error::LightSdkError::Borsh)?;
 
             let mint_action_ix = anchor_lang::solana_program::instruction::Instruction {
                 program_id: solana_pubkey::Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
@@ -415,18 +432,20 @@ fn generate_pre_init_mints_only(
         quote! { None }
     };
 
-    // rent_payment defaults to 2 epochs (u8)
+    // rent_payment defaults to DEFAULT_RENT_PAYMENT_EPOCHS
     let rent_payment_tokens = if let Some(rent) = &mint.rent_payment {
         quote! { #rent }
     } else {
-        quote! { 2u8 }
+        let default = DEFAULT_RENT_PAYMENT_EPOCHS;
+        quote! { #default }
     };
 
-    // write_top_up defaults to 0 (u32)
+    // write_top_up defaults to DEFAULT_WRITE_TOP_UP_LAMPORTS
     let write_top_up_tokens = if let Some(top_up) = &mint.write_top_up {
         quote! { #top_up }
     } else {
-        quote! { 0u32 }
+        let default = DEFAULT_WRITE_TOP_UP_LAMPORTS;
+        quote! { #default }
     };
 
     quote! {
@@ -497,7 +516,7 @@ fn generate_pre_init_mints_only(
 
             use light_compressed_account::instruction_data::traits::LightInstructionData;
             let ix_data = instruction_data.data()
-                .map_err(|e| light_sdk::error::LightSdkError::Borsh)?;
+                .map_err(|_| light_sdk::error::LightSdkError::Borsh)?;
 
             let mint_action_ix = anchor_lang::solana_program::instruction::Instruction {
                 program_id: solana_pubkey::Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
@@ -538,7 +557,7 @@ fn generate_pre_init_pdas_only(
     compression_config: &TokenStream,
 ) -> TokenStream {
     let (compress_blocks, new_addr_idents) =
-        generate_pda_compress_blocks(&parsed.rentfree_fields, params_ident);
+        generate_pda_compress_blocks(&parsed.rentfree_fields);
     let rentfree_count = parsed.rentfree_fields.len() as u8;
 
     quote! {
@@ -574,10 +593,7 @@ fn generate_pre_init_pdas_only(
 }
 
 /// Generate compression blocks for PDA fields
-fn generate_pda_compress_blocks(
-    fields: &[RentFreeField],
-    _params_ident: &syn::Ident,
-) -> (Vec<TokenStream>, Vec<TokenStream>) {
+fn generate_pda_compress_blocks(fields: &[RentFreeField]) -> (Vec<TokenStream>, Vec<TokenStream>) {
     let mut blocks = Vec::new();
     let mut addr_idents = Vec::new();
 

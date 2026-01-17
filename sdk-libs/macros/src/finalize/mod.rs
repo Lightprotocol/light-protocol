@@ -14,5 +14,5 @@ use syn::DeriveInput;
 
 pub fn derive_light_finalize(input: DeriveInput) -> Result<TokenStream, syn::Error> {
     let parsed = parse::parse_compressible_struct(&input)?;
-    Ok(codegen::generate_finalize_impl(&parsed))
+    codegen::generate_finalize_impl(&parsed)
 }

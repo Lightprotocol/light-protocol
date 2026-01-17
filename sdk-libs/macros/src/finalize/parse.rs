@@ -6,18 +6,14 @@ use syn::{
     DeriveInput, Error, Expr, Ident, Token, Type,
 };
 
-// Re-export shared seed classification types from anchor_seeds module
-pub(super) use crate::compressible::anchor_seeds::{
-    classify_seed_expr, extract_account_inner_type, extract_anchor_seeds, snake_to_camel_case,
-    ClassifiedSeed,
-};
+// Import shared types from anchor_seeds module
+pub(super) use crate::compressible::anchor_seeds::extract_account_inner_type;
 
 /// Parsed representation of a struct with rentfree and light_mint fields.
 pub(super) struct ParsedCompressibleStruct {
     pub struct_name: Ident,
     pub generics: syn::Generics,
     pub rentfree_fields: Vec<RentFreeField>,
-    pub rentfree_token_fields: Vec<RentFreeTokenField>,
     pub light_mint_fields: Vec<LightMintField>,
     pub instruction_args: Option<Vec<InstructionArg>>,
     pub fee_payer_field: Option<Ident>,
@@ -40,22 +36,6 @@ pub(super) struct RentFreeField {
     pub output_tree: Expr,
     /// True if the field is Box<Account<T>>, false if Account<T>
     pub is_boxed: bool,
-    /// The inner type T from Account<'info, T> (e.g., UserRecord)
-    pub inner_type: Ident,
-    /// Seeds extracted from #[account(seeds = [...], bump)]
-    pub anchor_seeds: Vec<ClassifiedSeed>,
-}
-
-/// A field marked with #[rentfree_token(...)]
-pub(super) struct RentFreeTokenField {
-    /// The variant name (derived from field name: snake_case -> CamelCase)
-    pub variant_name: Ident,
-    /// Seeds from #[account(seeds = [...])]
-    pub anchor_seeds: Vec<ClassifiedSeed>,
-    /// Authority seeds from #[rentfree_token(authority = [...])]
-    /// Note: Used by seeds.rs when connected to the module
-    #[allow(dead_code)]
-    pub authority_seeds: Option<Vec<ClassifiedSeed>>,
 }
 
 /// A field marked with #[light_mint(...)]
@@ -192,28 +172,32 @@ impl Parse for KeyValueArg {
     }
 }
 
-/// Parse #[instruction(...)] attribute from struct
-fn parse_instruction_attr(attrs: &[syn::Attribute]) -> Option<Vec<InstructionArg>> {
+/// Parse #[instruction(...)] attribute from struct.
+///
+/// Returns `Ok(None)` if no instruction attribute is present,
+/// `Ok(Some(args))` if successfully parsed, or `Err` on malformed syntax.
+fn parse_instruction_attr(attrs: &[syn::Attribute]) -> Result<Option<Vec<InstructionArg>>, Error> {
     for attr in attrs {
         if attr.path().is_ident("instruction") {
-            if let Ok(args) = attr.parse_args_with(|input: ParseStream| {
+            let args = attr.parse_args_with(|input: ParseStream| {
                 let content: Punctuated<InstructionArg, Token![,]> =
                     Punctuated::parse_terminated(input)?;
                 Ok(content.into_iter().collect::<Vec<_>>())
-            }) {
-                return Some(args);
-            }
+            })?;
+            return Ok(Some(args));
         }
     }
-    None
+    Ok(None)
 }
 
 /// Parse a struct to extract rentfree and light_mint fields
-pub(super) fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCompressibleStruct, Error> {
+pub(super) fn parse_compressible_struct(
+    input: &DeriveInput,
+) -> Result<ParsedCompressibleStruct, Error> {
     let struct_name = input.ident.clone();
     let generics = input.generics.clone();
 
-    let instruction_args = parse_instruction_attr(&input.attrs);
+    let instruction_args = parse_instruction_attr(&input.attrs)?;
 
     let fields = match &input.data {
         syn::Data::Struct(data) => match &data.fields {
@@ -224,7 +208,6 @@ pub(super) fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCom
     };
 
     let mut rentfree_fields = Vec::new();
-    let mut rentfree_token_fields = Vec::new();
     let mut light_mint_fields = Vec::new();
     let mut fee_payer_field = None;
     let mut compression_config_field = None;
@@ -234,17 +217,35 @@ pub(super) fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCom
     let mut ctoken_cpi_authority_field = None;
 
     for field in fields {
-        let field_ident = field.ident.clone().unwrap();
+        let field_ident = field.ident.clone().ok_or_else(|| {
+            Error::new_spanned(field, "expected named field with identifier")
+        })?;
         let field_name = field_ident.to_string();
 
-        // Track special fields by name
+        // Track special fields by naming convention.
+        //
+        // The RentFree derive expects these conventional field names:
+        //
+        // Fee payer (who pays transaction fees and rent):
+        //   - "fee_payer" (preferred), "payer", "creator"
+        //
+        // Compression config (holds compression settings for the program):
+        //   - "compression_config"
+        //
+        // CToken fields (for compressed token mint operations):
+        //   - Config: "ctoken_compressible_config", "ctoken_config", "light_token_config_account"
+        //   - Rent sponsor: "ctoken_rent_sponsor", "light_token_rent_sponsor"
+        //   - Program: "ctoken_program", "light_token_program"
+        //   - CPI authority: "ctoken_cpi_authority", "light_token_program_cpi_authority",
+        //                    "compress_token_program_cpi_authority"
+        //
+        // Fields not matching these names will use defaults in code generation.
         if field_name == "fee_payer" || field_name == "payer" || field_name == "creator" {
             fee_payer_field = Some(field_ident.clone());
         }
         if field_name == "compression_config" {
             compression_config_field = Some(field_ident.clone());
         }
-        // Track ctoken-related fields for decompress mint
         if field_name == "ctoken_compressible_config"
             || field_name == "ctoken_config"
             || field_name == "light_token_config_account"
@@ -288,9 +289,7 @@ pub(super) fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCom
                     }
                 };
 
-                // Use defaults if not specified:
-                // - address_tree_info defaults to params.create_accounts_proof.address_tree_info
-                // - output_tree defaults to params.create_accounts_proof.output_state_tree_index
+                // Use defaults if not specified
                 let address_tree_info = args.address_tree_info.unwrap_or_else(|| {
                     syn::parse_quote!(params.create_accounts_proof.address_tree_info)
                 });
@@ -298,16 +297,14 @@ pub(super) fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCom
                     syn::parse_quote!(params.create_accounts_proof.output_state_tree_index)
                 });
 
-                // Validate this is an Account type and extract inner type
-                let (is_boxed, inner_type) = extract_account_inner_type(&field.ty).ok_or_else(|| {
-                    Error::new_spanned(
-                        &field.ty,
-                        "#[rentfree] can only be applied to Account<...> fields",
-                    )
-                })?;
-
-                // Extract seeds from #[account(seeds = [...], bump)]
-                let anchor_seeds = extract_anchor_seeds(&field.attrs)?;
+                // Validate this is an Account type
+                let (is_boxed, _inner_type) =
+                    extract_account_inner_type(&field.ty).ok_or_else(|| {
+                        Error::new_spanned(
+                            &field.ty,
+                            "#[rentfree] can only be applied to Account<...> fields",
+                        )
+                    })?;
 
                 rentfree_fields.push(RentFreeField {
                     ident: field_ident.clone(),
@@ -315,8 +312,6 @@ pub(super) fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCom
                     address_tree_info,
                     output_tree,
                     is_boxed,
-                    inner_type,
-                    anchor_seeds,
                 });
                 break;
             }
@@ -354,28 +349,6 @@ pub(super) fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCom
                 });
                 break;
             }
-
-            // Look for #[rentfree_token(...)] attribute
-            if attr.path().is_ident("rentfree_token") {
-                // Extract seeds from #[account(seeds = [...], bump)]
-                let anchor_seeds = extract_anchor_seeds(&field.attrs)?;
-
-                // Parse authority from #[rentfree_token(authority = [...])]
-                let authority_seeds = extract_rentfree_token_authority(attr)?;
-
-                // Derive variant name from field name: snake_case -> CamelCase
-                let variant_name = {
-                    let camel = snake_to_camel_case(&field_ident.to_string());
-                    Ident::new(&camel, field_ident.span())
-                };
-
-                rentfree_token_fields.push(RentFreeTokenField {
-                    variant_name,
-                    anchor_seeds,
-                    authority_seeds,
-                });
-                break;
-            }
         }
     }
 
@@ -383,7 +356,6 @@ pub(super) fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCom
         struct_name,
         generics,
         rentfree_fields,
-        rentfree_token_fields,
         light_mint_fields,
         instruction_args,
         fee_payer_field,
@@ -393,67 +365,4 @@ pub(super) fn parse_compressible_struct(input: &DeriveInput) -> Result<ParsedCom
         ctoken_program_field,
         ctoken_cpi_authority_field,
     })
-}
-
-// =============================================================================
-// RENTFREE_TOKEN HELPERS
-// =============================================================================
-
-/// Extract authority seeds from #[rentfree_token(authority = [...])] attribute
-fn extract_rentfree_token_authority(attr: &syn::Attribute) -> syn::Result<Option<Vec<ClassifiedSeed>>> {
-    match &attr.meta {
-        // #[rentfree_token] with no arguments
-        syn::Meta::Path(_) => Ok(None),
-
-        // #[rentfree_token = Variant] (deprecated but still supported - no authority)
-        syn::Meta::NameValue(_) => Ok(None),
-
-        // #[rentfree_token(authority = [...])]
-        syn::Meta::List(list) => {
-            let tokens = list.tokens.clone();
-            parse_rentfree_token_authority_seeds(tokens)
-        }
-    }
-}
-
-/// Parse authority = [...] from rentfree_token attribute content
-fn parse_rentfree_token_authority_seeds(tokens: proc_macro2::TokenStream) -> syn::Result<Option<Vec<ClassifiedSeed>>> {
-    use syn::parse::Parser;
-
-    let parser = |input: syn::parse::ParseStream| -> syn::Result<Option<Vec<ClassifiedSeed>>> {
-        // Look for authority = [...]
-        while !input.is_empty() {
-            if input.peek(Ident) {
-                let ident: Ident = input.parse()?;
-
-                if ident == "authority" {
-                    input.parse::<Token![=]>()?;
-                    let array: syn::ExprArray = input.parse()?;
-                    let mut seeds = Vec::new();
-                    for elem in &array.elems {
-                        seeds.push(classify_seed_expr(elem)?);
-                    }
-                    return Ok(Some(seeds));
-                }
-
-                // Skip other key-value pairs
-                if input.peek(Token![=]) {
-                    input.parse::<Token![=]>()?;
-                    let _: Expr = input.parse()?;
-                }
-            }
-
-            // Skip commas
-            if input.peek(Token![,]) {
-                input.parse::<Token![,]>()?;
-            } else if !input.is_empty() {
-                // Unexpected token - just skip it
-                break;
-            }
-        }
-
-        Ok(None)
-    };
-
-    parser.parse2(tokens)
 }

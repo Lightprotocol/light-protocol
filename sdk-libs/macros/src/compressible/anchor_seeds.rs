@@ -3,6 +3,7 @@
 //! This module extracts PDA seeds from Anchor's attribute syntax and classifies them
 //! into the categories needed for compression: literals, ctx fields, data fields, etc.
 
+use crate::utils::snake_to_camel_case;
 use syn::{Expr, Ident, ItemStruct, Type};
 
 /// Classified seed element from Anchor's seeds array
@@ -73,15 +74,12 @@ pub fn extract_from_accounts_struct(
 
     let mut pda_fields = Vec::new();
     let mut token_fields = Vec::new();
-    let mut all_fields = Vec::new();
 
     for field in fields {
         let field_ident = match &field.ident {
             Some(id) => id.clone(),
             None => continue,
         };
-
-        all_fields.push((field_ident.clone(), field.ty.clone()));
 
         // Check for #[rentfree] attribute
         let has_rentfree = field
@@ -94,7 +92,8 @@ pub fn extract_from_accounts_struct(
 
         if has_rentfree {
             // Extract inner type from Account<'info, T> or Box<Account<'info, T>>
-            let (is_boxed, inner_type) = match extract_account_inner_type(&field.ty) {
+            // Note: is_boxed is not needed for ExtractedSeedSpec, only inner_type
+            let (_, inner_type) = match extract_account_inner_type(&field.ty) {
                 Some(result) => result,
                 None => {
                     return Err(syn::Error::new_spanned(
@@ -113,7 +112,6 @@ pub fn extract_from_accounts_struct(
                 Ident::new(&camel, field_ident.span())
             };
 
-            let _ = (field_ident, is_boxed); // Suppress unused warnings
             pda_fields.push(ExtractedSeedSpec {
                 variant_name,
                 inner_type,
@@ -160,26 +158,26 @@ pub fn extract_from_accounts_struct(
         ];
 
         for candidate in &authority_candidates {
-            if let Some((auth_field, _)) = all_fields.iter().find(|(name, _)| name == candidate) {
-                token.authority_field = Some(auth_field.clone());
+            // Search fields directly instead of using a separate all_fields collection
+            if let Some(auth_field_info) = fields
+                .iter()
+                .find(|f| f.ident.as_ref().map(|i| i.to_string()) == Some(candidate.clone()))
+            {
+                if let Some(auth_ident) = &auth_field_info.ident {
+                    token.authority_field = Some(auth_ident.clone());
 
-                // Try to extract authority seeds from the authority field
-                if let Some(auth_field_info) = fields
-                    .iter()
-                    .find(|f| f.ident.as_ref().map(|i| i.to_string()) == Some(candidate.clone()))
-                {
+                    // Try to extract authority seeds from the authority field
                     if let Ok(auth_seeds) = extract_anchor_seeds(&auth_field_info.attrs) {
                         if !auth_seeds.is_empty() {
                             token.authority_seeds = Some(auth_seeds);
                         }
                     }
+                    break;
                 }
-                break;
             }
         }
     }
 
-    let _ = all_fields; // Suppress unused warning
     Ok(Some(ExtractedAccountsInfo {
         struct_name: item.ident.clone(),
         pda_fields,
@@ -192,20 +190,6 @@ struct RentFreeTokenAttr {
     /// Optional variant name - if None, derived from field name
     variant_name: Option<Ident>,
     authority_seeds: Option<Vec<ClassifiedSeed>>,
-}
-
-/// Convert snake_case field name to CamelCase variant name
-/// e.g., token_0_vault -> Token0Vault, vault -> Vault
-pub fn snake_to_camel_case(s: &str) -> String {
-    s.split('_')
-        .map(|part| {
-            let mut chars = part.chars();
-            match chars.next() {
-                None => String::new(),
-                Some(first) => first.to_uppercase().chain(chars).collect(),
-            }
-        })
-        .collect()
 }
 
 /// Extract #[rentfree_token(authority = [...])] attribute

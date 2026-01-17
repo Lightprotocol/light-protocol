@@ -1,5 +1,6 @@
 //! Compressible instructions generation.
 
+use crate::utils::to_snake_case;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
@@ -7,22 +8,6 @@ use syn::{
     punctuated::Punctuated,
     Expr, Ident, Item, ItemMod, LitStr, Result, Token,
 };
-
-/// Convert PascalCase to snake_case (e.g., UserRecord -> user_record)
-fn to_snake_case(s: &str) -> String {
-    let mut result = String::new();
-    for (i, c) in s.chars().enumerate() {
-        if c.is_uppercase() {
-            if i > 0 {
-                result.push('_');
-            }
-            result.push(c.to_ascii_lowercase());
-        } else {
-            result.push(c);
-        }
-    }
-    result
-}
 
 macro_rules! macro_error {
     ($span:expr, $msg:expr) => {
@@ -208,30 +193,41 @@ impl Parse for SeedElement {
     }
 }
 
-/// Recursively extract all ctx.XXX or ctx.accounts.XXX field names from an expression.
+/// Recursively extract field names from expressions matching `base.field` or `base.nested.field`.
 /// Handles nested expressions like function calls: max_key(&ctx.user.key(), &ctx.authority.key())
-fn extract_ctx_fields_from_expr(expr: &syn::Expr, fields: &mut Vec<Ident>) {
+///
+/// Parameters:
+/// - `base_ident`: The base identifier to match (e.g., "ctx" or "data")
+/// - `nested_prefix`: Optional nested field name (e.g., "accounts" for ctx.accounts.XXX)
+fn extract_fields_by_base(
+    expr: &syn::Expr,
+    base_ident: &str,
+    nested_prefix: Option<&str>,
+    fields: &mut Vec<Ident>,
+) {
     match expr {
         syn::Expr::Field(field_expr) => {
             if let syn::Member::Named(field_name) = &field_expr.member {
-                // Check for ctx.XXX pattern (direct field access)
+                // Check for base.XXX pattern (direct field access)
                 if let syn::Expr::Path(path) = &*field_expr.base {
                     if let Some(segment) = path.path.segments.first() {
-                        if segment.ident == "ctx" {
+                        if segment.ident == base_ident {
                             fields.push(field_name.clone());
                             return;
                         }
                     }
                 }
-                // Check for ctx.accounts.XXX pattern (nested field access)
-                if let syn::Expr::Field(nested_field) = &*field_expr.base {
-                    if let syn::Member::Named(base_name) = &nested_field.member {
-                        if base_name == "accounts" {
-                            if let syn::Expr::Path(path) = &*nested_field.base {
-                                if let Some(segment) = path.path.segments.first() {
-                                    if segment.ident == "ctx" {
-                                        fields.push(field_name.clone());
-                                        return;
+                // Check for base.nested.XXX pattern (nested field access) if nested_prefix is provided
+                if let Some(nested) = nested_prefix {
+                    if let syn::Expr::Field(nested_field) = &*field_expr.base {
+                        if let syn::Member::Named(base_name) = &nested_field.member {
+                            if base_name == nested {
+                                if let syn::Expr::Path(path) = &*nested_field.base {
+                                    if let Some(segment) = path.path.segments.first() {
+                                        if segment.ident == base_ident {
+                                            fields.push(field_name.clone());
+                                            return;
+                                        }
                                     }
                                 }
                             }
@@ -240,29 +236,34 @@ fn extract_ctx_fields_from_expr(expr: &syn::Expr, fields: &mut Vec<Ident>) {
                 }
             }
             // Recurse into base expression
-            extract_ctx_fields_from_expr(&field_expr.base, fields);
+            extract_fields_by_base(&field_expr.base, base_ident, nested_prefix, fields);
         }
         syn::Expr::MethodCall(method) => {
             // Recurse into receiver and args
-            extract_ctx_fields_from_expr(&method.receiver, fields);
+            extract_fields_by_base(&method.receiver, base_ident, nested_prefix, fields);
             for arg in &method.args {
-                extract_ctx_fields_from_expr(arg, fields);
+                extract_fields_by_base(arg, base_ident, nested_prefix, fields);
             }
         }
         syn::Expr::Call(call) => {
             // Recurse into function args
             for arg in &call.args {
-                extract_ctx_fields_from_expr(arg, fields);
+                extract_fields_by_base(arg, base_ident, nested_prefix, fields);
             }
         }
         syn::Expr::Reference(ref_expr) => {
-            extract_ctx_fields_from_expr(&ref_expr.expr, fields);
+            extract_fields_by_base(&ref_expr.expr, base_ident, nested_prefix, fields);
         }
         syn::Expr::Paren(paren) => {
-            extract_ctx_fields_from_expr(&paren.expr, fields);
+            extract_fields_by_base(&paren.expr, base_ident, nested_prefix, fields);
         }
         _ => {}
     }
+}
+
+/// Recursively extract all ctx.XXX or ctx.accounts.XXX field names from an expression.
+fn extract_ctx_fields_from_expr(expr: &syn::Expr, fields: &mut Vec<Ident>) {
+    extract_fields_by_base(expr, "ctx", Some("accounts"), fields);
 }
 
 /// Extract ctx.XXX or ctx.accounts.XXX field names from a seed element.
@@ -291,43 +292,9 @@ pub fn extract_ctx_seed_fields(
         .collect()
 }
 
-/// Phase 5: Extract data.XXX field names from an expression recursively.
+/// Extract data.XXX field names from an expression recursively.
 fn extract_data_fields_from_expr(expr: &syn::Expr, fields: &mut Vec<Ident>) {
-    match expr {
-        syn::Expr::Field(field_expr) => {
-            if let syn::Member::Named(field_name) = &field_expr.member {
-                // Check for data.XXX pattern
-                if let syn::Expr::Path(path) = &*field_expr.base {
-                    if let Some(segment) = path.path.segments.first() {
-                        if segment.ident == "data" {
-                            fields.push(field_name.clone());
-                            return;
-                        }
-                    }
-                }
-            }
-            // Recurse into base expression
-            extract_data_fields_from_expr(&field_expr.base, fields);
-        }
-        syn::Expr::MethodCall(method) => {
-            extract_data_fields_from_expr(&method.receiver, fields);
-            for arg in &method.args {
-                extract_data_fields_from_expr(arg, fields);
-            }
-        }
-        syn::Expr::Call(call) => {
-            for arg in &call.args {
-                extract_data_fields_from_expr(arg, fields);
-            }
-        }
-        syn::Expr::Reference(ref_expr) => {
-            extract_data_fields_from_expr(&ref_expr.expr, fields);
-        }
-        syn::Expr::Paren(paren) => {
-            extract_data_fields_from_expr(&paren.expr, fields);
-        }
-        _ => {}
-    }
+    extract_fields_by_base(expr, "data", None, fields);
 }
 
 /// Phase 5: Extract all data.XXX field names from a list of seed elements.
