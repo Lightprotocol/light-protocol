@@ -6,6 +6,9 @@
 //! - Generates all necessary types, enums, and instruction handlers
 
 pub mod crate_context;
+mod parsing;
+mod decompress;
+mod compress;
 pub mod instructions;
 pub mod seed_providers;
 pub mod variant_enum;
