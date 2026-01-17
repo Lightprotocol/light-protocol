@@ -49,7 +49,7 @@ sdk-libs/macros/src/rentfree/
                            v
             +-----------------------------+
             |   rentfree_program_impl()   |
-            |   (instructions.rs:389)     |
+            |   (instructions.rs:405)     |
             +-----------------------------+
                            |
          +-----------------+-----------------+
@@ -78,7 +78,7 @@ sdk-libs/macros/src/rentfree/
          v                                   v
 +--------------------------------------------------+
 |                    codegen()                      |
-|                 (instructions.rs:37)              |
+|                 (instructions.rs:38)              |
 +--------------------------------------------------+
          |
          +---> validate_compressed_account_sizes()

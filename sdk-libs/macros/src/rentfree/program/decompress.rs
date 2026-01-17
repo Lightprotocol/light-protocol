@@ -4,6 +4,8 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{Ident, Result};
 
+use crate::rentfree::shared_utils::qualify_type_with_crate;
+
 use super::{
     expr_traversal::transform_expr_for_ctx_seeds,
     parsing::{InstructionVariant, SeedElement, TokenSeedSpec},
@@ -228,36 +230,41 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
 
 #[inline(never)]
 pub fn generate_pda_seed_provider_impls(
-    account_types: &[Ident],
+    account_types: &[syn::Type],
     pda_ctx_seeds: &[PdaCtxSeedInfo],
     pda_seeds: &Option<Vec<TokenSeedSpec>>,
 ) -> Result<Vec<TokenStream>> {
     let pda_seed_specs = pda_seeds.as_ref().ok_or_else(|| {
-        super::parsing::macro_error!(
-            account_types
-                .first()
-                .cloned()
-                .unwrap_or_else(|| syn::Ident::new("unknown", proc_macro2::Span::call_site())),
-            "No seed specifications provided"
-        )
+        // Use first account type for error span, or create a dummy span
+        let span_source = account_types
+            .first()
+            .map(|t| quote::quote!(#t))
+            .unwrap_or_else(|| quote::quote!(unknown));
+        super::parsing::macro_error!(span_source, "No seed specifications provided")
     })?;
 
-    let mut results = Vec::with_capacity(account_types.len());
+    let mut results = Vec::with_capacity(pda_ctx_seeds.len());
 
-    for (name, ctx_info) in account_types.iter().zip(pda_ctx_seeds.iter()) {
-        let name_str = name.to_string();
+    // Iterate over pda_ctx_seeds which has both variant_name and inner_type
+    for ctx_info in pda_ctx_seeds.iter() {
+        // Match spec by variant_name (field name based)
+        let variant_str = ctx_info.variant_name.to_string();
         let spec = pda_seed_specs
             .iter()
-            .find(|s| s.variant == name_str)
+            .find(|s| s.variant.to_string() == variant_str)
             .ok_or_else(|| {
                 super::parsing::macro_error!(
-                    name,
-                    "No seed specification for account type '{}'",
-                    name_str
+                    &ctx_info.variant_name,
+                    "No seed specification for variant '{}'",
+                    variant_str
                 )
             })?;
 
-        let ctx_seeds_struct_name = format_ident!("{}CtxSeeds", name);
+        // Use variant_name for struct naming (e.g., RecordCtxSeeds)
+        let ctx_seeds_struct_name = format_ident!("{}CtxSeeds", ctx_info.variant_name);
+        // Use inner_type for the impl (e.g., impl ... for crate::SinglePubkeyRecord)
+        // Qualify with crate:: to ensure it's accessible from generated code
+        let inner_type = qualify_type_with_crate(&ctx_info.inner_type);
         let ctx_fields = &ctx_info.ctx_seed_fields;
         let ctx_fields_decl: Vec<_> = ctx_fields
             .iter()
@@ -283,10 +290,11 @@ pub fn generate_pda_seed_provider_impls(
         let seed_derivation =
             generate_pda_seed_derivation_for_trait_with_ctx_seeds(spec, ctx_fields)?;
 
+        // Generate impl for inner_type, but use variant-based struct name
         results.push(quote! {
             #ctx_seeds_struct
 
-            impl light_sdk::compressible::PdaSeedDerivation<#ctx_seeds_struct_name, ()> for #name {
+            impl light_sdk::compressible::PdaSeedDerivation<#ctx_seeds_struct_name, ()> for #inner_type {
                 fn derive_pda_seeds_with_accounts(
                     &self,
                     program_id: &solana_pubkey::Pubkey,

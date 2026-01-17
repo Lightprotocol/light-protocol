@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Ident, Result};
+use syn::Result;
 
 use super::{
     instructions::{InstructionDataSpec, TokenSeedSpec},
@@ -109,7 +109,6 @@ pub fn generate_ctoken_seed_provider_implementation(
 
 #[inline(never)]
 pub fn generate_client_seed_functions(
-    _account_types: &[Ident],
     pda_seeds: &Option<Vec<TokenSeedSpec>>,
     token_seeds: &Option<Vec<TokenSeedSpec>>,
     instruction_data: &[InstructionDataSpec],
@@ -165,6 +164,7 @@ pub fn generate_client_seed_functions(
                     is_token: spec.is_token,
                     seeds: syn::punctuated::Punctuated::new(),
                     authority: None,
+                    inner_type: spec.inner_type.clone(),
                 };
 
                 for auth_seed in authority_seeds {

@@ -53,11 +53,16 @@ pub enum InstructionVariant {
 
 #[derive(Clone)]
 pub struct TokenSeedSpec {
+    /// The variant name (derived from field name, used for enum variant naming)
     pub variant: Ident,
     pub _eq: Token![=],
     pub is_token: Option<bool>,
     pub seeds: Punctuated<SeedElement, Token![,]>,
     pub authority: Option<Vec<SeedElement>>,
+    /// The inner type (e.g., crate::state::SinglePubkeyRecord - used for type references)
+    /// Preserves the full type path for code generation.
+    /// Only set for PDAs extracted from #[rentfree] fields; None for parsed specs
+    pub inner_type: Option<syn::Type>,
 }
 
 impl Parse for TokenSeedSpec {
@@ -141,6 +146,7 @@ impl Parse for TokenSeedSpec {
             is_token,
             seeds,
             authority,
+            inner_type: None, // Set by caller for #[rentfree] fields
         })
     }
 }

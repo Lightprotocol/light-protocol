@@ -79,7 +79,10 @@ impl<'a> PdaBlockBuilder<'a> {
 
         quote! {
             let #new_addr_params = {
-                let tree_info = &#addr_tree_info;
+                // Explicit type annotation ensures clear error if wrong type is provided.
+                // Must be PackedAddressTreeInfo (with indices), not AddressTreeInfo (with Pubkeys).
+                // If you have AddressTreeInfo, pack it client-side using pack_address_tree_info().
+                let tree_info: &light_sdk_types::instruction::PackedAddressTreeInfo = &#addr_tree_info;
                 light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked {
                     seed: #account_key,
                     address_merkle_tree_account_index: tree_info.address_merkle_tree_pubkey_index,

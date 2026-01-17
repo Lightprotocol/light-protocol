@@ -67,7 +67,7 @@ pub struct CreateAccounts<'info> {
 ```
 
 **Optional arguments**:
-- `address_tree_info` - Expression for address tree info (default: `params.create_accounts_proof.address_tree_info`)
+- `address_tree_info` - Expression of type `PackedAddressTreeInfo` containing packed tree indices (default: `params.create_accounts_proof.address_tree_info`). Note: If you have an `AddressTreeInfo` with Pubkeys, you must pack it client-side using `pack_address_tree_info()` before passing to the instruction.
 - `output_tree` - Expression for output tree index (default: `params.create_accounts_proof.output_state_tree_index`)
 
 ```rust
@@ -512,7 +512,13 @@ sdk-libs/macros/src/rentfree/
 |
 |-- shared_utils.rs
 |   Purpose: Common utilities shared across modules
+|   Types:
+|   - MetaExpr - darling wrapper for parsing Expr from attributes
 |   Functions:
+|   - qualify_type_with_crate(ty: &Type) -> Type - ensures crate:: prefix
+|   - make_packed_type(ty: &Type) -> Option<Type> - creates Packed{Type} path
+|   - make_packed_variant_name(variant_name: &Ident) -> Ident
+|   - ident_to_type(ident: &Ident) -> Type
 |   - is_constant_identifier(ident: &str) -> bool
 |   - extract_terminal_ident(expr: &Expr, key_method_only: bool) -> Option<Ident>
 |   - is_base_path(expr: &Expr, base: &str) -> bool
@@ -531,8 +537,9 @@ sdk-libs/macros/src/rentfree/
 |   |   - generate_pda_compress_blocks()
 |   +-- light_mint.rs    Mint action CPI generation
 |       - LightMintField (#[light_mint] data)
-|       - MintActionConfig
-|       - generate_mint_action_invocation()
+|       - InfraRefs - resolved infrastructure field references
+|       - LightMintBuilder - builder pattern for mint CPI generation
+|       - CpiContextParts - encapsulates CPI context branching logic
 |
 +-- traits/
     |-- mod.rs              Entry point for trait derives

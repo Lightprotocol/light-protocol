@@ -5,13 +5,17 @@ use light_sdk::{derive_light_cpi_signer, derive_light_rent_sponsor_pda};
 use light_sdk_macros::rentfree_program;
 use light_sdk_types::CpiSigner;
 
+pub mod d5_markers;
 pub mod errors;
 pub mod instruction_accounts;
+pub mod instructions;
 pub mod state;
-
+pub use d5_markers::*;
 pub use instruction_accounts::*;
-pub use state::{GameSession, PackedGameSession, PackedUserRecord, PlaceholderRecord, UserRecord};
-
+pub use state::{
+    d1_field_types::single_pubkey::{PackedSinglePubkeyRecord, SinglePubkeyRecord},
+    GameSession, PackedGameSession, PackedUserRecord, PlaceholderRecord, UserRecord,
+};
 #[inline]
 pub fn max_key(left: &Pubkey, right: &Pubkey) -> [u8; 32] {
     if left > right {
@@ -41,10 +45,9 @@ pub const GAME_SESSION_SEED: &str = "game_session";
 pub mod csdk_anchor_full_derived_test {
     #![allow(clippy::too_many_arguments)]
 
-    use super::*;
-    use crate::{
+    use super::{
+        d5_markers::{D5RentfreeBare, D5RentfreeBareParams},
         instruction_accounts::CreatePdasAndMintAuto,
-        state::{GameSession, UserRecord},
         FullAutoWithMintParams, LIGHT_CPI_SIGNER,
     };
 
@@ -129,6 +132,17 @@ pub mod csdk_anchor_full_derived_test {
             .invoke()?;
         }
 
+        Ok(())
+    }
+
+    /// Second instruction to test #[rentfree_program] with multiple instructions.
+    pub fn create_single_record<'info>(
+        ctx: Context<'_, '_, '_, 'info, D5RentfreeBare<'info>>,
+        params: D5RentfreeBareParams,
+    ) -> Result<()> {
+        let record = &mut ctx.accounts.record;
+        record.owner = params.owner;
+        record.counter = 0;
         Ok(())
     }
 }

@@ -93,7 +93,8 @@ pub(super) struct ParsedRentFreeStruct {
 pub(super) struct RentFreeField {
     pub ident: Ident,
     /// The inner type T from Account<'info, T> or Box<Account<'info, T>>
-    pub inner_type: Ident,
+    /// Preserves the full type path (e.g., crate::state::UserRecord).
+    pub inner_type: Type,
     pub address_tree_info: Expr,
     pub output_tree: Expr,
     /// True if the field is Box<Account<T>>, false if Account<T>

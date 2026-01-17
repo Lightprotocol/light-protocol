@@ -2,7 +2,7 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Ident, Item, ItemMod, Result};
+use syn::{Item, ItemMod, Result, Type};
 
 // Re-export types from parsing for external use
 pub use super::parsing::{
@@ -26,6 +26,7 @@ use super::{
     },
     variant_enum::PdaCtxSeedInfo,
 };
+use crate::rentfree::shared_utils::{ident_to_type, qualify_type_with_crate};
 use crate::utils::to_snake_case;
 
 // =============================================================================
@@ -36,7 +37,7 @@ use crate::utils::to_snake_case;
 #[inline(never)]
 fn codegen(
     module: &mut ItemMod,
-    account_types: Vec<Ident>,
+    account_types: Vec<Type>,
     pda_seeds: Option<Vec<TokenSeedSpec>>,
     token_seeds: Option<Vec<TokenSeedSpec>>,
     instruction_data: Vec<InstructionDataSpec>,
@@ -44,6 +45,14 @@ fn codegen(
     let size_validation_checks = validate_compressed_account_sizes(&account_types)?;
 
     let content = module.content.as_mut().unwrap();
+
+    // Insert anchor_lang::prelude::* import at the beginning of the module
+    // This ensures Accounts, Signer, AccountInfo, Result, error_code etc. are in scope
+    // for the generated code (structs, enums, functions).
+    let anchor_import: syn::Item = syn::parse_quote! {
+        use anchor_lang::prelude::*;
+    };
+    content.1.insert(0, anchor_import);
     let ctoken_enum = if let Some(ref token_seed_specs) = token_seeds {
         if !token_seed_specs.is_empty() {
             super::variant_enum::generate_ctoken_account_variant_enum(token_seed_specs)?
@@ -73,15 +82,18 @@ fn codegen(
                 .iter()
                 .map(|spec| {
                     let ctx_fields = extract_ctx_seed_fields(&spec.seeds);
-                    PdaCtxSeedInfo::new(spec.variant.clone(), ctx_fields)
+                    // Use inner_type if available (from #[rentfree] fields), otherwise fall back to variant as type
+                    let inner_type = spec
+                        .inner_type
+                        .clone()
+                        .unwrap_or_else(|| ident_to_type(&spec.variant));
+                    PdaCtxSeedInfo::new(spec.variant.clone(), inner_type, ctx_fields)
                 })
                 .collect()
         })
         .unwrap_or_default();
 
-    let account_type_refs: Vec<&Ident> = account_types.iter().collect();
     let enum_and_traits = super::variant_enum::compressed_account_variant_with_ctx_seeds(
-        &account_type_refs,
         &pda_ctx_seeds,
     )?;
 
@@ -102,9 +114,12 @@ fn codegen(
             .iter()
             .zip(pda_ctx_seeds.iter())
             .map(|(spec, ctx_info)| {
-                let type_name = &spec.variant;
-                let seeds_struct_name = format_ident!("{}Seeds", type_name);
-                let constructor_name = format_ident!("{}", to_snake_case(&type_name.to_string()));
+                // Use variant_name for naming (struct, constructor, enum variant)
+                let variant_name = &ctx_info.variant_name;
+                // Use inner_type for deserialization - qualify with crate:: for accessibility
+                let inner_type = qualify_type_with_crate(&ctx_info.inner_type);
+                let seeds_struct_name = format_ident!("{}Seeds", variant_name);
+                let constructor_name = format_ident!("{}", to_snake_case(&variant_name.to_string()));
                 let ctx_fields = &ctx_info.ctx_seed_fields;
                 let ctx_field_decls: Vec<_> = ctx_fields.iter().map(|field| {
                     quote! { pub #field: solana_pubkey::Pubkey }
@@ -135,11 +150,13 @@ fn codegen(
                             seeds: #seeds_struct_name,
                         ) -> std::result::Result<Self, anchor_lang::error::Error> {
                             use anchor_lang::AnchorDeserialize;
-                            let data = #type_name::deserialize(&mut &account_data[..])?;
+                            // Deserialize using inner_type
+                            let data = #inner_type::deserialize(&mut &account_data[..])?;
 
                             #(#data_verifications)*
 
-                            std::result::Result::Ok(Self::#type_name {
+                            // Use variant_name for the enum variant
+                            std::result::Result::Ok(Self::#variant_name {
                                 data,
                                 #(#ctx_fields: seeds.#ctx_fields,)*
                             })
@@ -293,7 +310,6 @@ fn codegen(
     };
 
     let client_functions = super::seed_codegen::generate_client_seed_functions(
-        &account_types,
         &pda_seeds,
         &token_seeds,
         &instruction_data,
@@ -439,11 +455,20 @@ pub fn rentfree_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<
     }
 
     // Convert extracted specs to the format expected by codegen
+    // Deduplicate based on variant_name (field name) - field names must be globally unique
     let mut found_pda_seeds: Vec<TokenSeedSpec> = Vec::new();
     let mut found_data_fields: Vec<InstructionDataSpec> = Vec::new();
-    let mut account_types: Vec<Ident> = Vec::new();
+    let mut account_types: Vec<Type> = Vec::new();
+    let mut seen_variants: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     for pda in &pda_specs {
+        // Deduplicate based on variant_name (derived from field name)
+        // If same field name is used in multiple instruction structs, only add once
+        let variant_str = pda.variant_name.to_string();
+        if !seen_variants.insert(variant_str) {
+            continue; // Skip duplicate field names
+        }
+
         account_types.push(pda.inner_type.clone());
 
         let seed_elements = convert_classified_to_seed_elements(&pda.seeds);
@@ -465,11 +490,14 @@ pub fn rentfree_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<
         }
 
         found_pda_seeds.push(TokenSeedSpec {
+            // Use variant_name (from field name) for enum variant naming
             variant: pda.variant_name.clone(),
             _eq: syn::parse_quote!(=),
             is_token: Some(false),
             seeds: seed_elements,
             authority: None,
+            // Store inner_type for type references (deserialization, trait bounds)
+            inner_type: Some(pda.inner_type.clone()),
         });
     }
 
@@ -488,6 +516,7 @@ pub fn rentfree_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<
             is_token: Some(true),
             seeds: seed_elements,
             authority: authority_elements,
+            inner_type: None, // Token specs don't have inner type
         });
     }
 
