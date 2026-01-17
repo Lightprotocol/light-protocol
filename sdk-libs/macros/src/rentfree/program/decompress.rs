@@ -4,8 +4,11 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{Ident, Result};
 
+use super::expr_traversal::transform_expr_for_ctx_seeds;
 use super::parsing::{InstructionVariant, SeedElement, TokenSeedSpec};
+use super::seed_utils::ctx_fields_to_set;
 use super::variant_enum::PdaCtxSeedInfo;
+use crate::rentfree::shared_utils::is_constant_identifier;
 
 // =============================================================================
 // DECOMPRESS CONTEXT IMPL
@@ -151,76 +154,6 @@ pub fn generate_decompress_accounts_struct(
 // PDA SEED DERIVATION
 // =============================================================================
 
-/// Recursively rewrite PDA seed expressions:
-/// - `data.<field>` -> `self.<field>` (from unpacked compressed account data)
-/// - `ctx.accounts.<account>` -> `ctx_seeds.<account>` (direct Pubkey on CtxSeeds struct)
-/// - `ctx.<field>` -> `ctx_seeds.<field>` (direct Pubkey on CtxSeeds struct)
-fn map_pda_expr_to_ctx_seeds(
-    expr: &syn::Expr,
-    ctx_field_names: &std::collections::HashSet<String>,
-) -> syn::Expr {
-    match expr {
-        syn::Expr::Field(field_expr) => {
-            let syn::Member::Named(field_name) = &field_expr.member else {
-                return expr.clone();
-            };
-
-            // Check for ctx.accounts.field -> ctx_seeds.field
-            if let syn::Expr::Field(nested_field) = &*field_expr.base {
-                if let syn::Member::Named(base_name) = &nested_field.member {
-                    if base_name == "accounts" {
-                        if let syn::Expr::Path(path) = &*nested_field.base {
-                            if path.path.segments.first().is_some_and(|s| s.ident == "ctx") {
-                                return syn::parse_quote! { ctx_seeds.#field_name };
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Check for data.field or ctx.field
-            if let syn::Expr::Path(path) = &*field_expr.base {
-                if let Some(segment) = path.path.segments.first() {
-                    if segment.ident == "data" {
-                        return syn::parse_quote! { self.#field_name };
-                    }
-                    if segment.ident == "ctx" && ctx_field_names.contains(&field_name.to_string()) {
-                        return syn::parse_quote! { ctx_seeds.#field_name };
-                    }
-                }
-            }
-            expr.clone()
-        }
-        syn::Expr::MethodCall(method_call) => {
-            let mut new_method_call = method_call.clone();
-            new_method_call.receiver =
-                Box::new(map_pda_expr_to_ctx_seeds(&method_call.receiver, ctx_field_names));
-            new_method_call.args = method_call
-                .args
-                .iter()
-                .map(|a| map_pda_expr_to_ctx_seeds(a, ctx_field_names))
-                .collect();
-            syn::Expr::MethodCall(new_method_call)
-        }
-        syn::Expr::Call(call_expr) => {
-            let mut new_call_expr = call_expr.clone();
-            new_call_expr.args = call_expr
-                .args
-                .iter()
-                .map(|a| map_pda_expr_to_ctx_seeds(a, ctx_field_names))
-                .collect();
-            syn::Expr::Call(new_call_expr)
-        }
-        syn::Expr::Reference(ref_expr) => {
-            let mut new_ref_expr = ref_expr.clone();
-            new_ref_expr.expr =
-                Box::new(map_pda_expr_to_ctx_seeds(&ref_expr.expr, ctx_field_names));
-            syn::Expr::Reference(new_ref_expr)
-        }
-        _ => expr.clone(),
-    }
-}
-
 /// Generate PDA seed derivation that uses CtxSeeds struct instead of DecompressAccountsIdempotent.
 /// Maps ctx.field -> ctx_seeds.field (direct Pubkey access, no Option unwrapping needed)
 #[inline(never)]
@@ -232,8 +165,7 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
     let mut seed_refs = Vec::new();
 
     // Convert ctx_seed_fields to a set for quick lookup
-    let ctx_field_names: std::collections::HashSet<String> =
-        ctx_seed_fields.iter().map(|f| f.to_string()).collect();
+    let ctx_field_names = ctx_fields_to_set(ctx_seed_fields);
 
     for (i, seed) in spec.seeds.iter().enumerate() {
         match seed {
@@ -255,7 +187,7 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
                 if let syn::Expr::Path(path_expr) = &**expr {
                     if let Some(ident) = path_expr.path.get_ident() {
                         let ident_str = ident.to_string();
-                        if ident_str.chars().all(|c| c.is_uppercase() || c == '_') {
+                        if is_constant_identifier(&ident_str) {
                             seed_refs.push(
                                 quote! { { let __seed: &[u8] = crate::#ident.as_ref(); __seed } },
                             );
@@ -266,7 +198,7 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
 
                 let binding_name =
                     syn::Ident::new(&format!("seed_{}", i), proc_macro2::Span::call_site());
-                let mapped_expr = map_pda_expr_to_ctx_seeds(expr, &ctx_field_names);
+                let mapped_expr = transform_expr_for_ctx_seeds(expr, &ctx_field_names);
                 bindings.push(quote! {
                     let #binding_name = #mapped_expr;
                 });

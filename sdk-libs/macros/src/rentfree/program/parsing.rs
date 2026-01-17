@@ -7,6 +7,8 @@ use syn::{
     Expr, Ident, ItemFn, LitStr, Result, Token,
 };
 
+use super::visitors::FieldExtractor;
+
 // =============================================================================
 // MACRO ERROR HELPER
 // =============================================================================
@@ -223,126 +225,50 @@ impl Parse for InstructionDataSpec {
 // EXPRESSION ANALYSIS
 // =============================================================================
 
-/// Recursively extract field names from expressions matching `base.field` or `base.nested.field`.
-/// Handles nested expressions like function calls: max_key(&ctx.user.key(), &ctx.authority.key())
-///
-/// Parameters:
-/// - `base_ident`: The base identifier to match (e.g., "ctx" or "data")
-/// - `nested_prefix`: Optional nested field name (e.g., "accounts" for ctx.accounts.XXX)
-fn extract_fields_by_base(
-    expr: &syn::Expr,
-    base_ident: &str,
-    nested_prefix: Option<&str>,
-    fields: &mut Vec<Ident>,
-) {
-    match expr {
-        syn::Expr::Field(field_expr) => {
-            if let syn::Member::Named(field_name) = &field_expr.member {
-                // Check for base.XXX pattern (direct field access)
-                if let syn::Expr::Path(path) = &*field_expr.base {
-                    if let Some(segment) = path.path.segments.first() {
-                        if segment.ident == base_ident {
-                            fields.push(field_name.clone());
-                            return;
-                        }
-                    }
-                }
-                // Check for base.nested.XXX pattern (nested field access) if nested_prefix is provided
-                if let Some(nested) = nested_prefix {
-                    if let syn::Expr::Field(nested_field) = &*field_expr.base {
-                        if let syn::Member::Named(base_name) = &nested_field.member {
-                            if base_name == nested {
-                                if let syn::Expr::Path(path) = &*nested_field.base {
-                                    if let Some(segment) = path.path.segments.first() {
-                                        if segment.ident == base_ident {
-                                            fields.push(field_name.clone());
-                                            return;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            // Recurse into base expression
-            extract_fields_by_base(&field_expr.base, base_ident, nested_prefix, fields);
-        }
-        syn::Expr::MethodCall(method) => {
-            // Recurse into receiver and args
-            extract_fields_by_base(&method.receiver, base_ident, nested_prefix, fields);
-            for arg in &method.args {
-                extract_fields_by_base(arg, base_ident, nested_prefix, fields);
-            }
-        }
-        syn::Expr::Call(call) => {
-            // Recurse into function args
-            for arg in &call.args {
-                extract_fields_by_base(arg, base_ident, nested_prefix, fields);
-            }
-        }
-        syn::Expr::Reference(ref_expr) => {
-            extract_fields_by_base(&ref_expr.expr, base_ident, nested_prefix, fields);
-        }
-        syn::Expr::Paren(paren) => {
-            extract_fields_by_base(&paren.expr, base_ident, nested_prefix, fields);
-        }
-        _ => {}
-    }
-}
-
-/// Recursively extract all ctx.XXX or ctx.accounts.XXX field names from an expression.
-fn extract_ctx_fields_from_expr(expr: &syn::Expr, fields: &mut Vec<Ident>) {
-    extract_fields_by_base(expr, "ctx", Some("accounts"), fields);
-}
-
-/// Extract ctx.XXX or ctx.accounts.XXX field names from a seed element.
-fn extract_ctx_account_fields(seed: &SeedElement) -> Vec<Ident> {
-    let mut fields = Vec::new();
-    if let SeedElement::Expression(expr) = seed {
-        extract_ctx_fields_from_expr(expr, &mut fields);
-    }
-    fields
-}
-
-/// Extract all ctx.accounts.XXX field names from a list of seed elements.
-/// Deduplicates the fields.
+/// Extract all ctx.accounts.XXX and ctx.XXX field names from a list of seed elements.
+/// Deduplicates the fields using visitor-based extraction.
 pub fn extract_ctx_seed_fields(
     seeds: &syn::punctuated::Punctuated<SeedElement, Token![,]>,
 ) -> Vec<Ident> {
     let mut all_fields = Vec::new();
-    for seed in seeds {
-        all_fields.extend(extract_ctx_account_fields(seed));
-    }
-    // Deduplicate while preserving order
     let mut seen = std::collections::HashSet::new();
-    all_fields
-        .into_iter()
-        .filter(|f| seen.insert(f.to_string()))
-        .collect()
-}
 
-/// Extract data.XXX field names from an expression recursively.
-fn extract_data_fields_from_expr(expr: &syn::Expr, fields: &mut Vec<Ident>) {
-    extract_fields_by_base(expr, "data", None, fields);
+    for seed in seeds {
+        if let SeedElement::Expression(expr) = seed {
+            let fields = FieldExtractor::ctx_fields(&[]).extract(expr);
+            for field in fields {
+                let name = field.to_string();
+                if seen.insert(name) {
+                    all_fields.push(field);
+                }
+            }
+        }
+    }
+
+    all_fields
 }
 
 /// Extract all data.XXX field names from a list of seed elements.
+/// Deduplicates the fields using visitor-based extraction.
 pub fn extract_data_seed_fields(
     seeds: &syn::punctuated::Punctuated<SeedElement, Token![,]>,
 ) -> Vec<Ident> {
     let mut all_fields = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
     for seed in seeds {
         if let SeedElement::Expression(expr) = seed {
-            extract_data_fields_from_expr(expr, &mut all_fields);
+            let fields = FieldExtractor::data_fields().extract(expr);
+            for field in fields {
+                let name = field.to_string();
+                if seen.insert(name) {
+                    all_fields.push(field);
+                }
+            }
         }
     }
-    // Deduplicate while preserving order
-    let mut seen = std::collections::HashSet::new();
+
     all_fields
-        .into_iter()
-        .filter(|f| seen.insert(f.to_string()))
-        .collect()
 }
 
 // =============================================================================

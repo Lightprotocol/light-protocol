@@ -48,7 +48,7 @@ fn codegen(
     let content = module.content.as_mut().unwrap();
     let ctoken_enum = if let Some(ref token_seed_specs) = token_seeds {
         if !token_seed_specs.is_empty() {
-            super::seed_codegen::generate_ctoken_account_variant_enum(token_seed_specs)?
+            super::variant_enum::generate_ctoken_account_variant_enum(token_seed_specs)?
         } else {
             crate::rentfree::traits::utils::generate_empty_ctoken_enum()
         }

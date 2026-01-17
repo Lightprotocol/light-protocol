@@ -3,6 +3,7 @@
 //! This module extracts PDA seeds from Anchor's attribute syntax and classifies them
 //! into the categories needed for compression: literals, ctx fields, data fields, etc.
 
+use crate::rentfree::shared_utils::{extract_terminal_ident, is_constant_identifier};
 use crate::utils::snake_to_camel_case;
 use syn::{Expr, Ident, ItemStruct, Type};
 
@@ -452,11 +453,7 @@ pub fn classify_seed_expr(expr: &Expr) -> syn::Result<ClassifiedSeed> {
         // CONSTANT (all uppercase path)
         Expr::Path(path) => {
             if let Some(ident) = path.path.get_ident() {
-                let name = ident.to_string();
-                if name
-                    .chars()
-                    .all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit())
-                {
+                if is_constant_identifier(&ident.to_string()) {
                     return Ok(ClassifiedSeed::Constant(path.path.clone()));
                 }
                 // Otherwise it's a variable reference - treat as ctx account
@@ -508,7 +505,7 @@ pub fn classify_seed_expr(expr: &Expr) -> syn::Result<ClassifiedSeed> {
 
             let mut ctx_args = Vec::new();
             for arg in &call.args {
-                if let Some(ident) = extract_ctx_ident_from_expr(arg) {
+                if let Some(ident) = extract_terminal_ident(arg, true) {
                     ctx_args.push(ident);
                 }
             }
@@ -544,7 +541,7 @@ fn classify_method_call(mc: &syn::ExprMethodCall) -> syn::Result<ClassifiedSeed>
 
     // Handle account.key()
     if mc.method == "key" {
-        if let Some(ident) = extract_receiver_ident(&mc.receiver) {
+        if let Some(ident) = extract_terminal_ident(&mc.receiver, false) {
             // Check if it's params.field or ctx.account
             if let Expr::Field(field) = &*mc.receiver {
                 if let Expr::Path(path) = &*field.base {
@@ -592,46 +589,6 @@ fn extract_params_field(expr: &Expr) -> Option<(Ident, String)> {
         }
     }
     None
-}
-
-/// Extract the base identifier from an expression like account.key() -> account
-fn extract_receiver_ident(expr: &Expr) -> Option<Ident> {
-    match expr {
-        Expr::Path(path) => path.path.get_ident().cloned(),
-        Expr::Field(field) => {
-            if let syn::Member::Named(name) = &field.member {
-                Some(name.clone())
-            } else {
-                None
-            }
-        }
-        Expr::MethodCall(mc) => extract_receiver_ident(&mc.receiver),
-        Expr::Reference(r) => extract_receiver_ident(&r.expr),
-        _ => None,
-    }
-}
-
-/// Extract ctx account identifier from expression (for function args)
-fn extract_ctx_ident_from_expr(expr: &Expr) -> Option<Ident> {
-    match expr {
-        Expr::Reference(r) => extract_ctx_ident_from_expr(&r.expr),
-        Expr::MethodCall(mc) => {
-            if mc.method == "key" {
-                extract_receiver_ident(&mc.receiver)
-            } else {
-                None
-            }
-        }
-        Expr::Field(field) => {
-            if let syn::Member::Named(name) = &field.member {
-                Some(name.clone())
-            } else {
-                None
-            }
-        }
-        Expr::Path(path) => path.path.get_ident().cloned(),
-        _ => None,
-    }
 }
 
 /// Get data field names from classified seeds

@@ -2,6 +2,8 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{Ident, Result};
 
+use super::parsing::{SeedElement, TokenSeedSpec};
+
 /// Info about ctx.* seeds for a PDA type
 #[derive(Clone, Debug)]
 pub struct PdaCtxSeedInfo {
@@ -332,4 +334,184 @@ pub fn compressed_account_variant_with_ctx_seeds(
     };
 
     Ok(expanded)
+}
+
+// =============================================================================
+// TOKEN ACCOUNT VARIANT
+// =============================================================================
+
+/// Extract ctx.* field names from seed elements (both token seeds and authority seeds).
+///
+/// Uses the visitor-based FieldExtractor for clean AST traversal.
+pub fn extract_ctx_fields_from_token_spec(spec: &TokenSeedSpec) -> Vec<Ident> {
+    const EXCLUDED: &[&str] = &[
+        "fee_payer",
+        "rent_sponsor",
+        "config",
+        "compression_authority",
+    ];
+
+    let mut all_fields = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    for seed in spec.seeds.iter().chain(spec.authority.iter().flatten()) {
+        if let SeedElement::Expression(expr) = seed {
+            // Extract fields from this expression using the visitor
+            let fields = super::visitors::FieldExtractor::ctx_fields(EXCLUDED).extract(expr);
+            // Deduplicate across seeds
+            for field in fields {
+                let name = field.to_string();
+                if seen.insert(name) {
+                    all_fields.push(field);
+                }
+            }
+        }
+    }
+
+    all_fields
+}
+
+/// Generate TokenAccountVariant and PackedTokenAccountVariant enums with Pack/Unpack impls.
+pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Result<TokenStream> {
+    let unpacked_variants = token_seeds.iter().map(|spec| {
+        let variant_name = &spec.variant;
+        let ctx_fields = extract_ctx_fields_from_token_spec(spec);
+
+        let fields = ctx_fields.iter().map(|field| {
+            quote! { #field: Pubkey }
+        });
+
+        if ctx_fields.is_empty() {
+            quote! { #variant_name, }
+        } else {
+            quote! { #variant_name { #(#fields,)* }, }
+        }
+    });
+
+    let packed_variants = token_seeds.iter().map(|spec| {
+        let variant_name = &spec.variant;
+        let ctx_fields = extract_ctx_fields_from_token_spec(spec);
+
+        let fields = ctx_fields.iter().map(|field| {
+            let idx_field = format_ident!("{}_idx", field);
+            quote! { #idx_field: u8 }
+        });
+
+        if ctx_fields.is_empty() {
+            quote! { #variant_name, }
+        } else {
+            quote! { #variant_name { #(#fields,)* }, }
+        }
+    });
+
+    let pack_arms = token_seeds.iter().map(|spec| {
+        let variant_name = &spec.variant;
+        let ctx_fields = extract_ctx_fields_from_token_spec(spec);
+
+        if ctx_fields.is_empty() {
+            quote! {
+                TokenAccountVariant::#variant_name => PackedTokenAccountVariant::#variant_name,
+            }
+        } else {
+            let field_bindings: Vec<_> = ctx_fields.iter().collect();
+            let idx_fields: Vec<_> = ctx_fields
+                .iter()
+                .map(|f| format_ident!("{}_idx", f))
+                .collect();
+            let pack_stmts: Vec<_> = ctx_fields
+                .iter()
+                .zip(idx_fields.iter())
+                .map(|(field, idx)| {
+                    quote! { let #idx = remaining_accounts.insert_or_get(*#field); }
+                })
+                .collect();
+
+            quote! {
+                TokenAccountVariant::#variant_name { #(#field_bindings,)* } => {
+                    #(#pack_stmts)*
+                    PackedTokenAccountVariant::#variant_name { #(#idx_fields,)* }
+                }
+            }
+        }
+    });
+
+    let unpack_arms = token_seeds.iter().map(|spec| {
+        let variant_name = &spec.variant;
+        let ctx_fields = extract_ctx_fields_from_token_spec(spec);
+
+        if ctx_fields.is_empty() {
+            quote! {
+                PackedTokenAccountVariant::#variant_name => Ok(TokenAccountVariant::#variant_name),
+            }
+        } else {
+            let idx_fields: Vec<_> = ctx_fields
+                .iter()
+                .map(|f| format_ident!("{}_idx", f))
+                .collect();
+            let unpack_stmts: Vec<_> = ctx_fields
+                .iter()
+                .zip(idx_fields.iter())
+                .map(|(field, idx)| {
+                    quote! {
+                        let #field = *remaining_accounts
+                            .get(*#idx as usize)
+                            .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+                            .key;
+                    }
+                })
+                .collect();
+            let field_names: Vec<_> = ctx_fields.iter().collect();
+
+            quote! {
+                PackedTokenAccountVariant::#variant_name { #(#idx_fields,)* } => {
+                    #(#unpack_stmts)*
+                    Ok(TokenAccountVariant::#variant_name { #(#field_names,)* })
+                }
+            }
+        }
+    });
+
+    Ok(quote! {
+        #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
+        pub enum TokenAccountVariant {
+            #(#unpacked_variants)*
+        }
+
+        #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
+        pub enum PackedTokenAccountVariant {
+            #(#packed_variants)*
+        }
+
+        impl light_token_sdk::pack::Pack for TokenAccountVariant {
+            type Packed = PackedTokenAccountVariant;
+
+            fn pack(&self, remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> Self::Packed {
+                match self {
+                    #(#pack_arms)*
+                }
+            }
+        }
+
+        impl light_token_sdk::pack::Unpack for PackedTokenAccountVariant {
+            type Unpacked = TokenAccountVariant;
+
+            fn unpack(
+                &self,
+                remaining_accounts: &[solana_account_info::AccountInfo],
+            ) -> std::result::Result<Self::Unpacked, solana_program_error::ProgramError> {
+                match self {
+                    #(#unpack_arms)*
+                }
+            }
+        }
+
+        impl light_sdk::compressible::IntoCTokenVariant<RentFreeAccountVariant, light_token_sdk::compat::TokenData> for TokenAccountVariant {
+            fn into_ctoken_variant(self, token_data: light_token_sdk::compat::TokenData) -> RentFreeAccountVariant {
+                RentFreeAccountVariant::CTokenData(light_token_sdk::compat::CTokenData {
+                    variant: self,
+                    token_data,
+                })
+            }
+        }
+    })
 }
