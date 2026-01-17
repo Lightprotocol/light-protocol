@@ -163,6 +163,40 @@ fn generate_write_top_up_tokens(write_top_up: &Option<Expr>) -> TokenStream {
     }
 }
 
+/// Builder for mint field expression generation.
+///
+/// Encapsulates the generation of TokenStreams for optional mint field attributes
+/// like signer_seeds, freeze_authority, rent_payment, and write_top_up.
+pub(super) struct MintExprBuilder<'a> {
+    field: &'a LightMintField,
+}
+
+impl<'a> MintExprBuilder<'a> {
+    pub fn new(field: &'a LightMintField) -> Self {
+        Self { field }
+    }
+
+    /// Generate signer seeds expression (explicit or empty default).
+    pub fn signer_seeds(&self) -> TokenStream {
+        generate_signer_seeds_tokens(&self.field.signer_seeds)
+    }
+
+    /// Generate freeze authority expression (Some or None).
+    pub fn freeze_authority(&self) -> TokenStream {
+        generate_freeze_authority_tokens(&self.field.freeze_authority)
+    }
+
+    /// Generate rent payment expression with default.
+    pub fn rent_payment(&self) -> TokenStream {
+        generate_rent_payment_tokens(&self.field.rent_payment)
+    }
+
+    /// Generate write top-up expression with default.
+    pub fn write_top_up(&self) -> TokenStream {
+        generate_write_top_up_tokens(&self.field.write_top_up)
+    }
+}
+
 /// Configuration for mint_action CPI generation
 pub(super) struct MintActionConfig<'a> {
     pub mint: &'a LightMintField,
@@ -196,10 +230,12 @@ pub(super) fn generate_mint_action_invocation(config: &MintActionConfig) -> Toke
     let decimals = &mint.decimals;
     let address_tree_info = &mint.address_tree_info;
 
-    let signer_seeds_tokens = generate_signer_seeds_tokens(&mint.signer_seeds);
-    let freeze_authority_tokens = generate_freeze_authority_tokens(&mint.freeze_authority);
-    let rent_payment_tokens = generate_rent_payment_tokens(&mint.rent_payment);
-    let write_top_up_tokens = generate_write_top_up_tokens(&mint.write_top_up);
+    // Use MintExprBuilder for optional field expressions
+    let expr_builder = MintExprBuilder::new(mint);
+    let signer_seeds_tokens = expr_builder.signer_seeds();
+    let freeze_authority_tokens = expr_builder.freeze_authority();
+    let rent_payment_tokens = expr_builder.rent_payment();
+    let write_top_up_tokens = expr_builder.write_top_up();
 
     // Queue access differs based on CPI context presence
     let queue_access = if cpi_context.is_some() {

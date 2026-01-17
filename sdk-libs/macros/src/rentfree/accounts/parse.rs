@@ -13,6 +13,71 @@ use super::light_mint::{parse_light_mint_attr, LightMintField};
 pub(super) use crate::rentfree::traits::seed_extraction::extract_account_inner_type;
 
 // ============================================================================
+// Infrastructure Field Classification
+// ============================================================================
+
+/// Classification of infrastructure fields by naming convention.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum InfraFieldType {
+    FeePayer,
+    CompressionConfig,
+    CTokenConfig,
+    CTokenRentSponsor,
+    CTokenProgram,
+    CTokenCpiAuthority,
+}
+
+/// Classifier for infrastructure fields by naming convention.
+pub(super) struct InfraFieldClassifier;
+
+impl InfraFieldClassifier {
+    /// Classify a field name into its infrastructure type, if any.
+    #[inline]
+    pub fn classify(name: &str) -> Option<InfraFieldType> {
+        match name {
+            "fee_payer" | "payer" | "creator" => Some(InfraFieldType::FeePayer),
+            "compression_config" => Some(InfraFieldType::CompressionConfig),
+            "ctoken_compressible_config" | "ctoken_config" | "light_token_config_account" => {
+                Some(InfraFieldType::CTokenConfig)
+            }
+            "ctoken_rent_sponsor" | "light_token_rent_sponsor" => {
+                Some(InfraFieldType::CTokenRentSponsor)
+            }
+            "ctoken_program" | "light_token_program" => Some(InfraFieldType::CTokenProgram),
+            "ctoken_cpi_authority"
+            | "light_token_program_cpi_authority"
+            | "compress_token_program_cpi_authority" => Some(InfraFieldType::CTokenCpiAuthority),
+            _ => None,
+        }
+    }
+}
+
+/// Collected infrastructure field identifiers.
+#[derive(Default)]
+pub(super) struct InfraFields {
+    pub fee_payer: Option<Ident>,
+    pub compression_config: Option<Ident>,
+    pub ctoken_config: Option<Ident>,
+    pub ctoken_rent_sponsor: Option<Ident>,
+    pub ctoken_program: Option<Ident>,
+    pub ctoken_cpi_authority: Option<Ident>,
+}
+
+impl InfraFields {
+    /// Set an infrastructure field by type.
+    pub fn set(&mut self, field_type: InfraFieldType, ident: Ident) {
+        match field_type {
+            InfraFieldType::FeePayer => self.fee_payer = Some(ident),
+            InfraFieldType::CompressionConfig => self.compression_config = Some(ident),
+            InfraFieldType::CTokenConfig => self.ctoken_config = Some(ident),
+            InfraFieldType::CTokenRentSponsor => self.ctoken_rent_sponsor = Some(ident),
+            InfraFieldType::CTokenProgram => self.ctoken_program = Some(ident),
+            InfraFieldType::CTokenCpiAuthority => self.ctoken_cpi_authority = Some(ident),
+        }
+    }
+}
+
+// ============================================================================
 // darling support for parsing Expr from attributes
 // ============================================================================
 
@@ -40,16 +105,8 @@ pub(super) struct ParsedRentFreeStruct {
     pub rentfree_fields: Vec<RentFreeField>,
     pub light_mint_fields: Vec<LightMintField>,
     pub instruction_args: Option<Vec<InstructionArg>>,
-    pub fee_payer_field: Option<Ident>,
-    pub compression_config_field: Option<Ident>,
-    /// CToken compressible config account (for decompress mint)
-    pub ctoken_config_field: Option<Ident>,
-    /// CToken rent sponsor account (for decompress mint)
-    pub ctoken_rent_sponsor_field: Option<Ident>,
-    /// CToken program account (for decompress mint CPI)
-    pub ctoken_program_field: Option<Ident>,
-    /// CToken CPI authority PDA (for decompress mint CPI)
-    pub ctoken_cpi_authority_field: Option<Ident>,
+    /// Infrastructure fields detected by naming convention.
+    pub infra_fields: InfraFields,
 }
 
 /// A field marked with #[rentfree(...)]
@@ -130,12 +187,7 @@ pub(super) fn parse_rentfree_struct(input: &DeriveInput) -> Result<ParsedRentFre
 
     let mut rentfree_fields = Vec::new();
     let mut light_mint_fields = Vec::new();
-    let mut fee_payer_field = None;
-    let mut compression_config_field = None;
-    let mut ctoken_config_field = None;
-    let mut ctoken_rent_sponsor_field = None;
-    let mut ctoken_program_field = None;
-    let mut ctoken_cpi_authority_field = None;
+    let mut infra_fields = InfraFields::default();
 
     for field in fields {
         let field_ident = field
@@ -144,46 +196,10 @@ pub(super) fn parse_rentfree_struct(input: &DeriveInput) -> Result<ParsedRentFre
             .ok_or_else(|| Error::new_spanned(field, "expected named field with identifier"))?;
         let field_name = field_ident.to_string();
 
-        // Track special fields by naming convention.
-        //
-        // The RentFree derive expects these conventional field names:
-        //
-        // Fee payer (who pays transaction fees and rent):
-        //   - "fee_payer" (preferred), "payer", "creator"
-        //
-        // Compression config (holds compression settings for the program):
-        //   - "compression_config"
-        //
-        // CToken fields (for compressed token mint operations):
-        //   - Config: "ctoken_compressible_config", "ctoken_config", "light_token_config_account"
-        //   - Rent sponsor: "ctoken_rent_sponsor", "light_token_rent_sponsor"
-        //   - Program: "ctoken_program", "light_token_program"
-        //   - CPI authority: "ctoken_cpi_authority", "light_token_program_cpi_authority",
-        //                    "compress_token_program_cpi_authority"
-        //
-        // Fields not matching these names will use defaults in code generation.
-        match field_name.as_str() {
-            "fee_payer" | "payer" | "creator" => {
-                fee_payer_field = Some(field_ident.clone());
-            }
-            "compression_config" => {
-                compression_config_field = Some(field_ident.clone());
-            }
-            "ctoken_compressible_config" | "ctoken_config" | "light_token_config_account" => {
-                ctoken_config_field = Some(field_ident.clone());
-            }
-            "ctoken_rent_sponsor" | "light_token_rent_sponsor" => {
-                ctoken_rent_sponsor_field = Some(field_ident.clone());
-            }
-            "ctoken_program" | "light_token_program" => {
-                ctoken_program_field = Some(field_ident.clone());
-            }
-            "ctoken_cpi_authority"
-            | "light_token_program_cpi_authority"
-            | "compress_token_program_cpi_authority" => {
-                ctoken_cpi_authority_field = Some(field_ident.clone());
-            }
-            _ => {}
+        // Track infrastructure fields by naming convention using the classifier.
+        // See InfraFieldClassifier for supported field names.
+        if let Some(field_type) = InfraFieldClassifier::classify(&field_name) {
+            infra_fields.set(field_type, field_ident.clone());
         }
 
         // Track if this field already has a compression attribute
@@ -262,11 +278,6 @@ pub(super) fn parse_rentfree_struct(input: &DeriveInput) -> Result<ParsedRentFre
         rentfree_fields,
         light_mint_fields,
         instruction_args,
-        fee_payer_field,
-        compression_config_field,
-        ctoken_config_field,
-        ctoken_rent_sponsor_field,
-        ctoken_program_field,
-        ctoken_cpi_authority_field,
+        infra_fields,
     })
 }
