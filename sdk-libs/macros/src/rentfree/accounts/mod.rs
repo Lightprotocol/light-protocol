@@ -5,14 +5,14 @@
 //! - `LightFinalize` trait implementation for post-instruction cleanup
 //! - Supports rent-free PDAs, rent-free token accounts, and light mints
 
-mod codegen;
 mod light_mint;
 mod parse;
+mod pda;
 
 use proc_macro2::TokenStream;
 use syn::DeriveInput;
 
 pub fn derive_rentfree(input: DeriveInput) -> Result<TokenStream, syn::Error> {
     let parsed = parse::parse_rentfree_struct(&input)?;
-    codegen::generate_rentfree_impl(&parsed)
+    pda::generate_rentfree_impl(&parsed)
 }

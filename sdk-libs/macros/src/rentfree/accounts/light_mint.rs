@@ -1,22 +1,35 @@
 //! Light mint parsing and code generation.
 //!
 //! This module handles:
-//! - Parsing of #[light_mint(...)] attributes
+//! - Parsing of #[light_mint(...)] attributes using darling
 //! - Code generation for mint_action CPI invocations
 
+use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{
-    parse::{Parse, ParseStream},
-    punctuated::Punctuated,
-    Expr, Ident, Token,
-};
-
-use super::parse::KeyValueArg;
+use syn::{Expr, Ident};
 
 // ============================================================================
-// Parsing
+// Parsing with darling
 // ============================================================================
+
+/// Wrapper for syn::Expr that implements darling's FromMeta trait.
+/// Enables darling to parse arbitrary expressions in attributes like
+/// `#[light_mint(mint_signer = self.authority)]`.
+#[derive(Clone)]
+struct MetaExpr(Expr);
+
+impl FromMeta for MetaExpr {
+    fn from_expr(expr: &Expr) -> darling::Result<Self> {
+        Ok(MetaExpr(expr.clone()))
+    }
+}
+
+impl From<MetaExpr> for Expr {
+    fn from(meta: MetaExpr) -> Expr {
+        meta.0
+    }
+}
 
 /// A field marked with #[light_mint(...)]
 pub(super) struct LightMintField {
@@ -40,54 +53,33 @@ pub(super) struct LightMintField {
     pub write_top_up: Option<Expr>,
 }
 
-/// Arguments inside #[light_mint(...)]
+/// Arguments inside #[light_mint(...)] parsed by darling.
+///
+/// Required fields (darling auto-validates): mint_signer, authority, decimals
+/// Optional fields: address_tree_info, freeze_authority, signer_seeds, rent_payment, write_top_up
+#[derive(FromMeta)]
 struct LightMintArgs {
-    mint_signer: Option<Expr>,
-    authority: Option<Expr>,
-    decimals: Option<Expr>,
-    address_tree_info: Option<Expr>,
-    freeze_authority: Option<Expr>,
-    signer_seeds: Option<Expr>,
-    rent_payment: Option<Expr>,
-    write_top_up: Option<Expr>,
-}
-
-impl Parse for LightMintArgs {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut args = LightMintArgs {
-            mint_signer: None,
-            authority: None,
-            decimals: None,
-            address_tree_info: None,
-            freeze_authority: None,
-            signer_seeds: None,
-            rent_payment: None,
-            write_top_up: None,
-        };
-
-        let content: Punctuated<KeyValueArg, Token![,]> = Punctuated::parse_terminated(input)?;
-
-        for arg in content {
-            match arg.name.to_string().as_str() {
-                "mint_signer" => args.mint_signer = Some(arg.value),
-                "authority" => args.authority = Some(arg.value),
-                "decimals" => args.decimals = Some(arg.value),
-                "address_tree_info" => args.address_tree_info = Some(arg.value),
-                "freeze_authority" => args.freeze_authority = Some(arg.value),
-                "signer_seeds" => args.signer_seeds = Some(arg.value),
-                "rent_payment" => args.rent_payment = Some(arg.value),
-                "write_top_up" => args.write_top_up = Some(arg.value),
-                other => {
-                    return Err(syn::Error::new(
-                        arg.name.span(),
-                        format!("unknown light_mint attribute: {}", other),
-                    ))
-                }
-            }
-        }
-
-        Ok(args)
-    }
+    /// The mint_signer field (AccountInfo that seeds the mint PDA) - REQUIRED
+    mint_signer: MetaExpr,
+    /// The authority for mint operations - REQUIRED
+    authority: MetaExpr,
+    /// Decimals for the mint - REQUIRED
+    decimals: MetaExpr,
+    /// Address tree info expression (defaults to params.create_accounts_proof.address_tree_info)
+    #[darling(default)]
+    address_tree_info: Option<MetaExpr>,
+    /// Optional freeze authority
+    #[darling(default)]
+    freeze_authority: Option<MetaExpr>,
+    /// Signer seeds for the mint_signer PDA (required if mint_signer is a PDA)
+    #[darling(default)]
+    signer_seeds: Option<MetaExpr>,
+    /// Rent payment epochs for decompression
+    #[darling(default)]
+    rent_payment: Option<MetaExpr>,
+    /// Write top-up lamports for decompression
+    #[darling(default)]
+    write_top_up: Option<MetaExpr>,
 }
 
 /// Parse #[light_mint(...)] attribute from a field.
@@ -98,34 +90,26 @@ pub(super) fn parse_light_mint_attr(
 ) -> Result<Option<LightMintField>, syn::Error> {
     for attr in &field.attrs {
         if attr.path().is_ident("light_mint") {
-            let args: LightMintArgs = attr.parse_args()?;
-
-            // Validate required fields
-            let mint_signer = args
-                .mint_signer
-                .ok_or_else(|| syn::Error::new_spanned(attr, "light_mint requires mint_signer"))?;
-            let authority = args
-                .authority
-                .ok_or_else(|| syn::Error::new_spanned(attr, "light_mint requires authority"))?;
-            let decimals = args
-                .decimals
-                .ok_or_else(|| syn::Error::new_spanned(attr, "light_mint requires decimals"))?;
+            // Use darling to parse the attribute arguments
+            let args = LightMintArgs::from_meta(&attr.meta)
+                .map_err(|e| syn::Error::new_spanned(attr, e.to_string()))?;
 
             // address_tree_info defaults to params.create_accounts_proof.address_tree_info
-            let address_tree_info = args.address_tree_info.unwrap_or_else(|| {
-                syn::parse_quote!(params.create_accounts_proof.address_tree_info)
-            });
+            let address_tree_info = args
+                .address_tree_info
+                .map(Into::into)
+                .unwrap_or_else(|| syn::parse_quote!(params.create_accounts_proof.address_tree_info));
 
             return Ok(Some(LightMintField {
                 field_ident: field_ident.clone(),
-                mint_signer,
-                authority,
-                decimals,
+                mint_signer: args.mint_signer.into(),
+                authority: args.authority.into(),
+                decimals: args.decimals.into(),
                 address_tree_info,
-                freeze_authority: args.freeze_authority,
-                signer_seeds: args.signer_seeds,
-                rent_payment: args.rent_payment,
-                write_top_up: args.write_top_up,
+                freeze_authority: args.freeze_authority.map(Into::into),
+                signer_seeds: args.signer_seeds.map(Into::into),
+                rent_payment: args.rent_payment.map(Into::into),
+                write_top_up: args.write_top_up.map(Into::into),
             }));
         }
     }

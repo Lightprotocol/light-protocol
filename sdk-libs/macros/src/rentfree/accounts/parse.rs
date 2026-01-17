@@ -1,5 +1,6 @@
-//! Parsing logic for #[rentfree(...)] attributes.
+//! Parsing logic for #[rentfree(...)] attributes using darling.
 
+use darling::FromMeta;
 use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
@@ -11,6 +12,27 @@ pub(super) use crate::rentfree::traits::anchor_seeds::extract_account_inner_type
 
 // Import LightMintField and parsing from light_mint module
 use super::light_mint::{parse_light_mint_attr, LightMintField};
+
+// ============================================================================
+// darling support for parsing Expr from attributes
+// ============================================================================
+
+/// Wrapper for syn::Expr that implements darling's FromMeta trait.
+/// Enables darling to parse arbitrary expressions in attributes.
+#[derive(Clone)]
+struct MetaExpr(Expr);
+
+impl FromMeta for MetaExpr {
+    fn from_expr(expr: &Expr) -> darling::Result<Self> {
+        Ok(MetaExpr(expr.clone()))
+    }
+}
+
+impl From<MetaExpr> for Expr {
+    fn from(meta: MetaExpr) -> Expr {
+        meta.0
+    }
+}
 
 /// Parsed representation of a struct with rentfree and light_mint fields.
 pub(super) struct ParsedRentFreeStruct {
@@ -57,51 +79,21 @@ impl Parse for InstructionArg {
     }
 }
 
-/// Arguments inside #[rentfree(...)]
+fn rentfree_args_default() -> darling::Result<RentFreeArgs> {
+    Ok(RentFreeArgs::default())
+}
+
+/// Arguments inside #[rentfree(...)] parsed by darling.
+///
+/// Supports both `#[rentfree]` (word format) and `#[rentfree(...)]` (list format).
+/// All fields default to None if not specified.
+#[derive(FromMeta, Default)]
+#[darling(default, from_word = rentfree_args_default)]
 struct RentFreeArgs {
-    address_tree_info: Option<Expr>,
-    output_tree: Option<Expr>,
-}
-
-impl Parse for RentFreeArgs {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut args = RentFreeArgs {
-            address_tree_info: None,
-            output_tree: None,
-        };
-
-        let content: Punctuated<KeyValueArg, Token![,]> = Punctuated::parse_terminated(input)?;
-
-        for arg in content {
-            match arg.name.to_string().as_str() {
-                "address_tree_info" => args.address_tree_info = Some(arg.value),
-                "output_tree" => args.output_tree = Some(arg.value),
-                other => {
-                    return Err(Error::new(
-                        arg.name.span(),
-                        format!("unknown rentfree attribute: {}", other),
-                    ))
-                }
-            }
-        }
-
-        Ok(args)
-    }
-}
-
-/// Generic key = value argument parser
-pub(super) struct KeyValueArg {
-    pub name: Ident,
-    pub value: Expr,
-}
-
-impl Parse for KeyValueArg {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let name: Ident = input.parse()?;
-        input.parse::<Token![=]>()?;
-        let value: Expr = input.parse()?;
-        Ok(KeyValueArg { name, value })
-    }
+    /// Address tree info expression
+    address_tree_info: Option<MetaExpr>,
+    /// Output tree index expression
+    output_tree: Option<MetaExpr>,
 }
 
 /// Parse #[instruction(...)] attribute from struct.
@@ -216,34 +208,21 @@ pub(super) fn parse_rentfree_struct(
                          Only one is allowed per field.",
                     ));
                 }
-                // Handle both #[rentfree] and #[rentfree(...)]
-                let args: RentFreeArgs = match &attr.meta {
-                    syn::Meta::Path(_) => {
-                        // No parentheses: #[rentfree]
-                        RentFreeArgs {
-                            address_tree_info: None,
-                            output_tree: None,
-                        }
-                    }
-                    syn::Meta::List(_) => {
-                        // Has parentheses: #[rentfree(...)]
-                        attr.parse_args()?
-                    }
-                    syn::Meta::NameValue(_) => {
-                        return Err(Error::new_spanned(
-                            attr,
-                            "expected #[rentfree] or #[rentfree(...)]",
-                        ));
-                    }
-                };
+
+                // Use darling to parse the attribute arguments
+                // Handles both #[rentfree] and #[rentfree(...)]
+                let args = RentFreeArgs::from_meta(&attr.meta)
+                    .map_err(|e| Error::new_spanned(attr, e.to_string()))?;
 
                 // Use defaults if not specified
-                let address_tree_info = args.address_tree_info.unwrap_or_else(|| {
-                    syn::parse_quote!(params.create_accounts_proof.address_tree_info)
-                });
-                let output_tree = args.output_tree.unwrap_or_else(|| {
-                    syn::parse_quote!(params.create_accounts_proof.output_state_tree_index)
-                });
+                let address_tree_info = args
+                    .address_tree_info
+                    .map(Into::into)
+                    .unwrap_or_else(|| syn::parse_quote!(params.create_accounts_proof.address_tree_info));
+                let output_tree = args
+                    .output_tree
+                    .map(Into::into)
+                    .unwrap_or_else(|| syn::parse_quote!(params.create_accounts_proof.output_state_tree_index));
 
                 // Validate this is an Account type (or Box<Account>)
                 let (is_boxed, inner_type) =
