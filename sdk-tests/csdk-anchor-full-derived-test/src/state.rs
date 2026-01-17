@@ -1,6 +1,10 @@
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
+use light_sdk::{
+    compressible::CompressionInfo, instruction::PackedAddressTreeInfo, LightDiscriminator,
+};
 use light_sdk_macros::RentFreeAccount;
+use light_token_interface::instructions::mint_action::MintWithContext;
+use light_token_sdk::ValidityProof;
 
 #[derive(Default, Debug, InitSpace, RentFreeAccount)]
 #[account]

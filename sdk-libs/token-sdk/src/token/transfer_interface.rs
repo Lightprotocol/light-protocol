@@ -11,11 +11,11 @@ use crate::error::TokenSdkError;
 /// Internal enum to classify transfer types based on account owners.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TransferType {
-    /// ctoken -> ctoken
+    /// light -> light
     LightToLight,
-    /// ctoken -> SPL (decompress)
+    /// light -> SPL (decompress)
     LightToSpl,
-    /// SPL -> ctoken (compress)
+    /// SPL -> light (compress)
     SplToLight,
     /// SPL -> SPL (pass-through to SPL token program)
     SplToSpl,
@@ -54,7 +54,7 @@ fn determine_transfer_type(
     }
 }
 
-/// Required accounts to interface between ctoken and SPL token accounts (Pubkey-based).
+/// Required accounts to interface between light and SPL token accounts (Pubkey-based).
 ///
 /// Use this struct when building instructions outside of CPI context.
 #[derive(Debug, Clone, Copy)]
@@ -76,7 +76,7 @@ impl<'info> From<&SplInterfaceCpi<'info>> for SplInterface {
     }
 }
 
-/// Required accounts to interface between ctoken and SPL token accounts (AccountInfo-based).
+/// Required accounts to interface between light and SPL token accounts (AccountInfo-based).
 ///
 /// Use this struct when building CPIs.
 pub struct SplInterfaceCpi<'info> {
@@ -94,7 +94,7 @@ pub struct SplInterfaceCpi<'info> {
 /// # let destination = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
 /// # let payer = Pubkey::new_unique();
-/// // For ctoken -> ctoken transfer (source_owner and destination_owner are LIGHT_TOKEN_PROGRAM_ID)
+/// // For light -> light transfer (source_owner and destination_owner are LIGHT_TOKEN_PROGRAM_ID)
 /// let instruction = TransferInterface {
 ///     source,
 ///     destination,
@@ -117,7 +117,7 @@ pub struct TransferInterface {
     pub authority: Pubkey,
     pub payer: Pubkey,
     pub spl_interface: Option<SplInterface>,
-    /// Maximum lamports for rent and top-up combined (for ctoken->ctoken transfers)
+    /// Maximum lamports for rent and top-up combined (for light->light transfers)
     pub max_top_up: Option<u16>,
     /// Owner of the source account (used to determine transfer type)
     pub source_owner: Pubkey,
@@ -259,8 +259,8 @@ impl<'info> TransferInterfaceCpi<'info> {
     /// # Arguments
     /// * `amount` - Amount to transfer
     /// * `decimals` - Token decimals (required for SPL transfers)
-    /// * `source_account` - Source token account (can be ctoken or SPL)
-    /// * `destination_account` - Destination token account (can be ctoken or SPL)
+    /// * `source_account` - Source token account (can be light or SPL)
+    /// * `destination_account` - Destination token account (can be light or SPL)
     /// * `authority` - Authority for the transfer (must be signer)
     /// * `payer` - Payer for the transaction
     /// * `compressed_token_program_authority` - Compressed token program authority
@@ -290,9 +290,9 @@ impl<'info> TransferInterfaceCpi<'info> {
     }
 
     /// # Arguments
-    /// * `mint` - Optional mint account (required for SPL<->ctoken transfers)
-    /// * `spl_token_program` - Optional SPL token program (required for SPL<->ctoken transfers)
-    /// * `spl_interface_pda` - Optional SPL interface PDA (required for SPL<->ctoken transfers)
+    /// * `mint` - Optional mint account (required for SPL<->light transfers)
+    /// * `spl_token_program` - Optional SPL token program (required for SPL<->light transfers)
+    /// * `spl_interface_pda` - Optional SPL interface PDA (required for SPL<->light transfers)
     /// * `spl_interface_pda_bump` - Optional bump seed for SPL interface PDA
     pub fn with_spl_interface(
         mut self,

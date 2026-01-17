@@ -1,18 +1,4 @@
 //! Load (decompress) accounts API.
-//!
-//! Single entry point `create_load_accounts_instructions()` that:
-//! - Filters cold accounts
-//! - Fetches proofs concurrently
-//! - Builds instructions via lean internal builders
-
-use crate::{
-    account_interface::{TokenAccountInterface, TokenLoadContext},
-    compressible_instruction::{self, DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR},
-    decompress_mint::{
-        DecompressMintError, MintInterface, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
-    },
-    RentFreeDecompressAccount,
-};
 use light_client::indexer::{Indexer, IndexerError, ValidityProofWithContext};
 use light_compressed_account::{
     compressed_account::PackedMerkleContext, instruction_data::compressed_proof::ValidityProof,
@@ -44,6 +30,15 @@ use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 use thiserror::Error;
 
+use crate::{
+    account_interface::{TokenAccountInterface, TokenLoadContext},
+    compressible_instruction::{self, DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR},
+    decompress_mint::{
+        DecompressMintError, MintInterface, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
+    },
+    RentFreeDecompressAccount,
+};
+
 /// Error type for load accounts operations.
 #[derive(Debug, Error)]
 pub enum LoadAccountsError {
@@ -58,11 +53,21 @@ pub enum LoadAccountsError {
 
     #[error("Mint error: {0}")]
     Mint(#[from] DecompressMintError),
+
+    #[error("Cold PDA at index {index} (pubkey {pubkey}) is missing decompression_context")]
+    MissingPdaDecompressionContext { index: usize, pubkey: Pubkey },
+
+    #[error("Cold ATA at index {index} (pubkey {pubkey}) is missing load_context")]
+    MissingAtaLoadContext { index: usize, pubkey: Pubkey },
+
+    #[error("Cold mint at index {index} (cmint {cmint}) is missing compressed hash")]
+    MissingMintHash { index: usize, cmint: Pubkey },
 }
 
 /// Build load instructions for cold accounts.
 /// Exists fast if all accounts are hot.
 /// Else, fetches proofs, returns instructions.
+#[allow(clippy::too_many_arguments)]
 pub async fn create_load_accounts_instructions<V, I>(
     program_owned_accounts: &[RentFreeDecompressAccount<V>],
     associated_token_accounts: &[TokenAccountInterface],
@@ -93,19 +98,43 @@ where
         return Ok(vec![]);
     }
 
-    // get hashes
+    // get hashes - fail fast if any cold account is missing required context
     let pda_hashes: Vec<[u8; 32]> = cold_pdas
         .iter()
-        .filter_map(|a| {
+        .enumerate()
+        .map(|(i, a)| {
             a.account_interface
                 .decompression_context
                 .as_ref()
                 .map(|c| c.compressed_account.hash)
+                .ok_or(LoadAccountsError::MissingPdaDecompressionContext {
+                    index: i,
+                    pubkey: a.account_interface.pubkey,
+                })
         })
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
 
-    let ata_hashes: Vec<[u8; 32]> = cold_atas.iter().filter_map(|a| a.hash()).collect();
-    let mint_hashes: Vec<[u8; 32]> = cold_mints.iter().filter_map(|m| m.hash()).collect();
+    let ata_hashes: Vec<[u8; 32]> = cold_atas
+        .iter()
+        .enumerate()
+        .map(|(i, a)| {
+            a.hash().ok_or(LoadAccountsError::MissingAtaLoadContext {
+                index: i,
+                pubkey: a.pubkey,
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let mint_hashes: Vec<[u8; 32]> = cold_mints
+        .iter()
+        .enumerate()
+        .map(|(i, m)| {
+            m.hash().ok_or(LoadAccountsError::MissingMintHash {
+                index: i,
+                cmint: m.cmint,
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
     // Fetch proofs concurrently.
     // TODO: single batched proof RPC endpoint.
@@ -158,10 +187,6 @@ where
     Ok(out)
 }
 
-// =============================================================================
-// Proof fetching helpers
-// =============================================================================
-
 async fn fetch_proof_if_needed<I: Indexer>(
     hashes: &[[u8; 32]],
     indexer: &I,
@@ -194,10 +219,6 @@ async fn fetch_mint_proofs<I: Indexer>(
     Ok(proofs)
 }
 
-// =============================================================================
-// Lean internal builders (no filtering, proof required)
-// =============================================================================
-
 /// Build decompress instruction for PDA + Token accounts.
 /// Assumes all inputs are cold (caller filtered).
 pub fn create_decompress_idempotent_instructions<V>(
@@ -211,7 +232,7 @@ pub fn create_decompress_idempotent_instructions<V>(
 where
     V: Pack + Clone + std::fmt::Debug,
 {
-    // Check for tokens by owner (LIGHT_TOKEN_PROGRAM_ID)
+    // Check for tokens by program id
     let has_tokens = accounts.iter().any(|a| {
         a.account_interface
             .decompression_context

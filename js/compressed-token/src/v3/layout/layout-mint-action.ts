@@ -314,7 +314,7 @@ export interface CompressedMintMetadata {
     bump: number;
 }
 
-export interface MintInstructionData {
+export interface MintLayoutData {
     supply: bigint;
     decimals: number;
     metadata: CompressedMintMetadata;
@@ -332,7 +332,7 @@ export interface MintActionCompressedInstructionData {
     actions: Action[];
     proof: ValidityProof | null;
     cpiContext: CpiContext | null;
-    mint: MintInstructionData | null;
+    mint: MintLayoutData | null;
 }
 
 /**

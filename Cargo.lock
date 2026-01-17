@@ -3684,6 +3684,7 @@ name = "light-compressible-client"
 version = "0.17.1"
 dependencies = [
  "anchor-lang",
+ "async-trait",
  "borsh 0.10.4",
  "futures",
  "light-client",

@@ -54,7 +54,7 @@ pub mod csdk_anchor_full_derived_test {
     ) -> Result<()> {
         use anchor_lang::solana_program::sysvar::clock::Clock;
         use light_token_sdk::token::{
-            CreateCTokenAtaCpi, CreateTokenAccountCpi, MintToCpi as CTokenMintToCpi,
+            CreateTokenAccountCpi, CreateTokenAtaCpi, MintToCpi as CTokenMintToCpi,
         };
 
         let user_record = &mut ctx.accounts.user_record;
@@ -90,7 +90,7 @@ pub mod csdk_anchor_full_derived_test {
             &[params.vault_bump],
         ])?;
 
-        CreateCTokenAtaCpi {
+        CreateTokenAtaCpi {
             payer: ctx.accounts.fee_payer.to_account_info(),
             owner: ctx.accounts.fee_payer.to_account_info(),
             mint: ctx.accounts.cmint.to_account_info(),
@@ -107,11 +107,7 @@ pub mod csdk_anchor_full_derived_test {
 
         if params.vault_mint_amount > 0 {
             CTokenMintToCpi {
-<<<<<<< HEAD
                 mint: ctx.accounts.cmint.to_account_info(),
-=======
-                cmint: ctx.accounts.cmint.to_account_info(),
->>>>>>> 7d4ae004e (wip)
                 destination: ctx.accounts.vault.to_account_info(),
                 amount: params.vault_mint_amount,
                 authority: ctx.accounts.mint_authority.to_account_info(),
@@ -123,11 +119,7 @@ pub mod csdk_anchor_full_derived_test {
 
         if params.user_ata_mint_amount > 0 {
             CTokenMintToCpi {
-<<<<<<< HEAD
                 mint: ctx.accounts.cmint.to_account_info(),
-=======
-                cmint: ctx.accounts.cmint.to_account_info(),
->>>>>>> 7d4ae004e (wip)
                 destination: ctx.accounts.user_ata.to_account_info(),
                 amount: params.user_ata_mint_amount,
                 authority: ctx.accounts.mint_authority.to_account_info(),

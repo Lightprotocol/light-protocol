@@ -13,13 +13,13 @@ This instruction supports 10 total actions - one creation action (controlled by 
 
 1. **Create Compressed Mint** - Create a new compressed mint account with initial authorities and optional TokenMetadata extension
 
-**Core mint operations (Action enum variants):** 2. `MintToCompressed` - Mint new compressed tokens to one or more compressed token accounts 3. `MintToCToken` - Mint new tokens to decompressed ctoken accounts (not SPL tokens)
+**Core mint operations (Action enum variants):** 2. `MintToCompressed` - Mint new compressed tokens to one or more compressed token accounts 3. `MintTo` - Mint new tokens to decompressed ctoken accounts (not SPL tokens)
 
 **Authority updates (Action enum variants):** 4. `UpdateMintAuthority` - Update or remove the mint authority 5. `UpdateFreezeAuthority` - Update or remove the freeze authority
 
 **TokenMetadata extension operations (Action enum variants):** 6. `UpdateMetadataField` - Update name, symbol, uri, or additional_metadata fields in the TokenMetadata extension 7. `UpdateMetadataAuthority` - Update the metadata update authority in the TokenMetadata extension 8. `RemoveMetadataKey` - Remove a key-value pair from additional_metadata in the TokenMetadata extension
 
-**Decompress/Compress operations (Action enum variants):** 9. `DecompressMint` - Decompress a compressed mint to a CMint Solana account. Creates a CMint PDA that becomes the source of truth. 10. `CompressAndCloseCMint` - Compress and close a CMint Solana account. Permissionless - anyone can call if is_compressible() returns true (rent expired).
+**Decompress/Compress operations (Action enum variants):** 9. `DecompressMint` - Decompress a compressed mint to a CMint Solana account. Creates a CMint PDA that becomes the source of truth. 10. `CompressAndCloseMint` - Compress and close a CMint Solana account. Permissionless - anyone can call if is_compressible() returns true (rent expired).
 
 Key concepts integrated:
 
@@ -47,12 +47,12 @@ Key concepts integrated:
    - `MintToCompressed(MintToCompressedAction)` - Mint tokens to compressed accounts (mint_to_compressed.rs)
    - `UpdateMintAuthority(UpdateAuthority)` - Update mint authority (update_mint.rs)
    - `UpdateFreezeAuthority(UpdateAuthority)` - Update freeze authority (update_mint.rs)
-   - `MintToCToken(MintToCTokenAction)` - Mint to ctoken accounts (mint_to_ctoken.rs)
+   - `MintTo(MintToAction)` - Mint to ctoken accounts (mint_to.rs)
    - `UpdateMetadataField(UpdateMetadataFieldAction)` - Update metadata field (update_metadata.rs)
    - `UpdateMetadataAuthority(UpdateMetadataAuthorityAction)` - Update metadata authority (update_metadata.rs)
    - `RemoveMetadataKey(RemoveMetadataKeyAction)` - Remove metadata key (update_metadata.rs)
    - `DecompressMint(DecompressMintAction)` - Decompress compressed mint to CMint Solana account (decompress_mint.rs)
-   - `CompressAndCloseCMint(CompressAndCloseCMintAction)` - Compress and close CMint Solana account (compress_and_close_cmint.rs)
+   - `CompressAndCloseMint(CompressAndCloseMintAction)` - Compress and close CMint Solana account (compress_and_close_cmint.rs)
 
 **Accounts:**
 
@@ -76,15 +76,15 @@ The account ordering differs based on whether writing to CPI context or executin
 **For execution (when not writing to CPI context):**
 
 4. compressible_config (optional)
-   - Required when DecompressMint or CompressAndCloseCMint action is present
+   - Required when DecompressMint or CompressAndCloseMint action is present
    - CompressibleConfig account - parsed and validated for active state
 
 5. cmint (optional)
    - (mutable) - CMint Solana account (decompressed compressed mint)
-   - Required when cmint_decompressed=true OR DecompressMint OR CompressAndCloseCMint action present
+   - Required when cmint_decompressed=true OR DecompressMint OR CompressAndCloseMint action present
 
 6. rent_sponsor (optional)
-   - (mutable) - Required when DecompressMint or CompressAndCloseCMint action is present
+   - (mutable) - Required when DecompressMint or CompressAndCloseMint action is present
    - Rent sponsor PDA that pays for CMint account creation
 
 7-12. Light system accounts (standard set):
@@ -130,7 +130,7 @@ The account ordering differs based on whether writing to CPI context or executin
 **Packed accounts (remaining accounts):**
 
 - Merkle tree and queue accounts for compressed storage
-- Recipient ctoken accounts for MintToCToken action
+- Recipient ctoken accounts for MintTo action
 
 **Instruction Logic and Checks:**
 
@@ -143,7 +143,7 @@ The account ordering differs based on whether writing to CPI context or executin
    - Check authority is signer
    - Validate CMint account matches expected mint pubkey (when cmint_pubkey provided)
    - For create_mint: validate address_merkle_tree is CMINT_ADDRESS_TREE
-   - Parse compressible config when DecompressMint or CompressAndCloseCMint action present
+   - Parse compressible config when DecompressMint or CompressAndCloseMint action present
    - Extract packed accounts for dynamic operations
 
 3. **Process mint creation or input:**
@@ -169,7 +169,7 @@ The account ordering differs based on whether writing to CPI context or executin
    - Validate: current authority matches signer
    - Update: set new authority (can be None to disable)
 
-   **MintToCToken:**
+   **MintTo:**
    - Validate: mint authority matches signer
    - Calculate: sum recipient amount
    - Update: mint supply += amount
@@ -194,7 +194,7 @@ The account ordering differs based on whether writing to CPI context or executin
    - Create CMint PDA that becomes the source of truth
    - Update cmint_decompressed flag in compressed mint metadata
 
-   **CompressAndCloseCMint:**
+   **CompressAndCloseMint:**
    - Compress and close a CMint Solana account
    - Permissionless - anyone can call if is_compressible() returns true (rent expired)
    - Compressed mint state is preserved
@@ -232,13 +232,13 @@ The account ordering differs based on whether writing to CPI context or executin
 - `ErrorCode::MintActionInvalidCompressionState` (error code: 6072) - New mint must start as compressed
 - `ErrorCode::MintActionUnsupportedOperation` (error code: 6073) - Unsupported operation
 - `ErrorCode::CpiContextExpected` (error code: 6085) - CPI context required but not provided
-- `ErrorCode::TooManyCompressionTransfers` (error code: 6095) - Account index out of bounds for MintToCToken
+- `ErrorCode::TooManyCompressionTransfers` (error code: 6095) - Account index out of bounds for MintTo
 - `ErrorCode::MintActionInvalidCpiContextForCreateMint` (error code: 6104) - Invalid CPI context for create mint operation
 - `ErrorCode::MintActionInvalidCpiContextAddressTreePubkey` (error code: 6105) - Invalid address tree pubkey in CPI context
 - `ErrorCode::MintActionInvalidCompressedMintAddress` (error code: 6103) - Invalid compressed mint address derivation
 - `ErrorCode::MintDataRequired` (error code: 6125) - Mint data required in instruction when not decompressed
-- `ErrorCode::CannotDecompressAndCloseInSameInstruction` (error code: 6123) - Cannot combine DecompressMint and CompressAndCloseCMint in same instruction
-- `ErrorCode::CompressAndCloseCMintMustBeOnlyAction` (error code: 6169) - CompressAndCloseCMint must be the only action in the instruction
+- `ErrorCode::CannotDecompressAndCloseInSameInstruction` (error code: 6123) - Cannot combine DecompressMint and CompressAndCloseMint in same instruction
+- `ErrorCode::CompressAndCloseCMintMustBeOnlyAction` (error code: 6169) - CompressAndCloseMint must be the only action in the instruction
 - `ErrorCode::CpiContextSetNotUsable` (error code: 6035) - Mint to ctokens or decompress mint not allowed when writing to CPI context
 - `CTokenError::MaxTopUpExceeded` - Max top-up budget exceeded
 

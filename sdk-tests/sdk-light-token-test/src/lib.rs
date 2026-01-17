@@ -172,6 +172,7 @@ impl TryFrom<u8> for InstructionType {
             30 => Ok(InstructionType::BurnInvokeSigned),
             31 => Ok(InstructionType::CTokenMintToInvoke),
             32 => Ok(InstructionType::CTokenMintToInvokeSigned),
+            33 => Ok(InstructionType::DecompressCmintInvokeSigned),
             34 => Ok(InstructionType::CTokenTransferCheckedInvoke),
             35 => Ok(InstructionType::CTokenTransferCheckedInvokeSigned),
             _ => Err(ProgramError::InvalidInstructionData),
@@ -367,6 +368,7 @@ mod tests {
         assert_eq!(InstructionType::BurnInvokeSigned as u8, 30);
         assert_eq!(InstructionType::CTokenMintToInvoke as u8, 31);
         assert_eq!(InstructionType::CTokenMintToInvokeSigned as u8, 32);
+        assert_eq!(InstructionType::DecompressCmintInvokeSigned as u8, 33);
         assert_eq!(InstructionType::CTokenTransferCheckedInvoke as u8, 34);
         assert_eq!(InstructionType::CTokenTransferCheckedInvokeSigned as u8, 35);
     }
@@ -499,7 +501,10 @@ mod tests {
             InstructionType::try_from(32).unwrap(),
             InstructionType::CTokenMintToInvokeSigned
         );
-        assert!(InstructionType::try_from(33).is_err()); // Removed DecompressCmintInvokeSigned
+        assert_eq!(
+            InstructionType::try_from(33).unwrap(),
+            InstructionType::DecompressCmintInvokeSigned
+        );
         assert_eq!(
             InstructionType::try_from(34).unwrap(),
             InstructionType::CTokenTransferCheckedInvoke

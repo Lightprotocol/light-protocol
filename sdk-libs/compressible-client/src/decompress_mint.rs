@@ -1,11 +1,19 @@
 //! Mint interface types for hot/cold CMint handling.
 //!
-//! Use `get_mint_interface()` from `LightProgramTest` to fetch,
+//! Use `AccountInterfaceExt::get_mint_interface()` to fetch,
 //! then pass to `create_load_accounts_instructions()` for decompression.
 
-use light_client::indexer::CompressedAccount;
-use light_token_interface::state::Mint;
+use borsh::BorshDeserialize;
+use light_client::indexer::{CompressedAccount, Indexer, ValidityProofWithContext};
+use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
+use light_token_interface::{
+    instructions::mint_action::{MintInstructionData, MintWithContext},
+    state::Mint,
+    CMINT_ADDRESS_TREE,
+};
+use light_token_sdk::token::{derive_mint_compressed_address, find_mint_address, DecompressMint};
 use solana_account::Account;
+use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 use thiserror::Error;
 
@@ -23,6 +31,12 @@ pub enum DecompressMintError {
 
     #[error("Mint already decompressed")]
     AlreadyDecompressed,
+
+    #[error("Validity proof required for cold mint")]
+    ProofRequired,
+
+    #[error("Indexer error: {0}")]
+    IndexerError(#[from] light_client::indexer::IndexerError),
 }
 
 /// State of a CMint - either on-chain (hot), compressed (cold), or non-existent.
