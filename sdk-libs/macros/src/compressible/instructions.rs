@@ -1482,32 +1482,34 @@ fn wrap_function_with_rentfree(fn_item: &syn::ItemFn, params_ident: &Ident) -> s
 #[inline(never)]
 pub fn compressible_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<TokenStream> {
     use crate::compressible::{
-        anchor_seeds::get_data_fields,
-        file_scanner::{resolve_crate_src_path, scan_module_for_compressible},
+        anchor_seeds::{extract_from_accounts_struct, get_data_fields, ExtractedSeedSpec, ExtractedTokenSpec},
+        crate_context::CrateContext,
     };
 
     if module.content.is_none() {
         return Err(macro_error!(&module, "Module must have a body"));
     }
 
-    // Resolve the crate's src/ directory
-    let base_path = resolve_crate_src_path();
+    // Parse the crate following mod declarations (Anchor-style)
+    let crate_ctx = CrateContext::parse_from_manifest()?;
 
-    // Scan the module (and external files) for compressible fields
-    let scanned = scan_module_for_compressible(&module, &base_path)?;
+    // Find all structs with #[derive(Accounts)] and extract rentfree field info
+    let mut pda_specs: Vec<ExtractedSeedSpec> = Vec::new();
+    let mut token_specs: Vec<ExtractedTokenSpec> = Vec::new();
+    let mut rentfree_struct_names = std::collections::HashSet::new();
 
-    // Report any errors from file scanning
-    if !scanned.errors.is_empty() {
-        let error_msg = scanned.errors.join("\n");
-        return Err(macro_error!(
-            &module,
-            "Errors while scanning for rentfree types:\n{}",
-            error_msg
-        ));
+    for item_struct in crate_ctx.structs_with_derive("Accounts") {
+        if let Some(info) = extract_from_accounts_struct(item_struct)? {
+            if !info.pda_fields.is_empty() || !info.token_fields.is_empty() {
+                rentfree_struct_names.insert(info.struct_name.to_string());
+                pda_specs.extend(info.pda_fields);
+                token_specs.extend(info.token_fields);
+            }
+        }
     }
 
     // Check if we found anything
-    if scanned.pda_specs.is_empty() && scanned.token_specs.is_empty() {
+    if pda_specs.is_empty() && token_specs.is_empty() {
         return Err(macro_error!(
             &module,
             "No #[rentfree] or #[rentfree_token] fields found in any Accounts struct.\n\
@@ -1521,7 +1523,7 @@ pub fn compressible_program_impl(_args: TokenStream, mut module: ItemMod) -> Res
             if let Item::Fn(fn_item) = item {
                 // Check if this function uses a rentfree Accounts struct
                 if let Some((context_type, params_ident)) = extract_context_and_params(fn_item) {
-                    if scanned.rentfree_struct_names.contains(&context_type) {
+                    if rentfree_struct_names.contains(&context_type) {
                         // Wrap the function with pre_init/finalize logic
                         *fn_item = wrap_function_with_rentfree(fn_item, &params_ident);
                     }
@@ -1535,7 +1537,7 @@ pub fn compressible_program_impl(_args: TokenStream, mut module: ItemMod) -> Res
     let mut found_data_fields: Vec<InstructionDataSpec> = Vec::new();
     let mut account_types: Vec<Ident> = Vec::new();
 
-    for pda in &scanned.pda_specs {
+    for pda in &pda_specs {
         account_types.push(pda.inner_type.clone());
 
         let seed_elements = convert_classified_to_seed_elements(&pda.seeds);
@@ -1567,7 +1569,7 @@ pub fn compressible_program_impl(_args: TokenStream, mut module: ItemMod) -> Res
 
     // Convert token specs
     let mut found_token_seeds: Vec<TokenSeedSpec> = Vec::new();
-    for token in &scanned.token_specs {
+    for token in &token_specs {
         let seed_elements = convert_classified_to_seed_elements(&token.seeds);
         let authority_elements = token
             .authority_seeds

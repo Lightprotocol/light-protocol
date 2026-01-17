@@ -196,7 +196,7 @@ struct RentFreeTokenAttr {
 
 /// Convert snake_case field name to CamelCase variant name
 /// e.g., token_0_vault -> Token0Vault, vault -> Vault
-fn snake_to_camel_case(s: &str) -> String {
+pub fn snake_to_camel_case(s: &str) -> String {
     s.split('_')
         .map(|part| {
             let mut chars = part.chars();
@@ -312,7 +312,7 @@ fn parse_rentfree_token_list(tokens: &proc_macro2::TokenStream) -> syn::Result<R
 
 /// Extract inner type T from Account<'info, T>, Box<Account<'info, T>>,
 /// AccountLoader<'info, T>, or InterfaceAccount<'info, T>
-fn extract_account_inner_type(ty: &Type) -> Option<(bool, Ident)> {
+pub fn extract_account_inner_type(ty: &Type) -> Option<(bool, Ident)> {
     match ty {
         Type::Path(type_path) => {
             let segment = type_path.path.segments.last()?;
@@ -354,7 +354,7 @@ fn extract_account_inner_type(ty: &Type) -> Option<(bool, Ident)> {
 }
 
 /// Extract seeds from #[account(seeds = [...], bump)] attribute
-fn extract_anchor_seeds(attrs: &[syn::Attribute]) -> syn::Result<Vec<ClassifiedSeed>> {
+pub fn extract_anchor_seeds(attrs: &[syn::Attribute]) -> syn::Result<Vec<ClassifiedSeed>> {
     for attr in attrs {
         if !attr.path().is_ident("account") {
             continue;
@@ -439,7 +439,7 @@ fn classify_seeds_array(expr: &Expr) -> syn::Result<Vec<ClassifiedSeed>> {
 }
 
 /// Classify a single seed expression
-fn classify_seed_expr(expr: &Expr) -> syn::Result<ClassifiedSeed> {
+pub fn classify_seed_expr(expr: &Expr) -> syn::Result<ClassifiedSeed> {
     match expr {
         // b"literal"
         Expr::Lit(lit) => {
