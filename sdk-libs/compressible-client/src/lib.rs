@@ -5,6 +5,7 @@ pub mod get_compressible_account;
 pub mod initialize_config;
 pub mod load_accounts;
 pub mod pack;
+pub mod tx_size;
 
 pub use account_interface::{
     AccountInfoInterface, AccountInterfaceError, AtaInterface, PdaLoadContext,
@@ -44,6 +45,7 @@ pub use pack::{pack_proof, PackError, PackedProofResult};
 use solana_account::Account;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
+pub use tx_size::{split_by_tx_size, PACKET_DATA_SIZE};
 
 /// Helper function to get the output queue from tree info.
 /// Prefers next_tree_info.queue if available, otherwise uses current queue.

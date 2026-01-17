@@ -160,10 +160,6 @@ where
     Ok(out)
 }
 
-// =============================================================================
-// Proof fetching helpers
-// =============================================================================
-
 async fn fetch_proof_if_needed<I: Indexer>(
     hashes: &[[u8; 32]],
     indexer: &I,
@@ -196,10 +192,6 @@ async fn fetch_mint_proofs<I: Indexer>(
     Ok(proofs)
 }
 
-// =============================================================================
-// Lean internal builders (no filtering, proof required)
-// =============================================================================
-
 /// Build decompress instruction for PDA + Token accounts.
 /// Assumes all inputs are cold (caller filtered).
 pub fn create_decompress_idempotent_instructions<V>(
@@ -213,7 +205,7 @@ pub fn create_decompress_idempotent_instructions<V>(
 where
     V: Pack + Clone + std::fmt::Debug,
 {
-    // Check for tokens by owner (LIGHT_TOKEN_PROGRAM_ID)
+    // Check for tokens by program id
     let has_tokens = accounts.iter().any(|a| {
         a.account_interface
             .decompression_context
