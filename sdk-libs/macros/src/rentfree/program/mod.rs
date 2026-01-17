@@ -1,0 +1,13 @@
+//! Rent-free program macro implementation.
+//!
+//! This module provides `#[rentfree_program]` attribute macro that:
+//! - Automatically discovers #[rentfree] fields in Accounts structs
+//! - Auto-wraps instruction handlers with light_pre_init/light_finalize logic
+//! - Generates all necessary types, enums, and instruction handlers
+
+pub mod crate_context;
+pub mod instructions;
+pub mod seed_providers;
+pub mod variant_enum;
+
+pub use instructions::rentfree_program_impl;

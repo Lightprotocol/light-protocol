@@ -7,10 +7,10 @@ use syn::{
 };
 
 // Import shared types from anchor_seeds module
-pub(super) use crate::compressible::anchor_seeds::extract_account_inner_type;
+pub(super) use crate::rentfree::traits::anchor_seeds::extract_account_inner_type;
 
 /// Parsed representation of a struct with rentfree and light_mint fields.
-pub(super) struct ParsedCompressibleStruct {
+pub(super) struct ParsedRentFreeStruct {
     pub struct_name: Ident,
     pub generics: syn::Generics,
     pub rentfree_fields: Vec<RentFreeField>,
@@ -191,9 +191,9 @@ fn parse_instruction_attr(attrs: &[syn::Attribute]) -> Result<Option<Vec<Instruc
 }
 
 /// Parse a struct to extract rentfree and light_mint fields
-pub(super) fn parse_compressible_struct(
+pub(super) fn parse_rentfree_struct(
     input: &DeriveInput,
-) -> Result<ParsedCompressibleStruct, Error> {
+) -> Result<ParsedRentFreeStruct, Error> {
     let struct_name = input.ident.clone();
     let generics = input.generics.clone();
 
@@ -265,9 +265,21 @@ pub(super) fn parse_compressible_struct(
             ctoken_cpi_authority_field = Some(field_ident.clone());
         }
 
+        // Track if this field already has a compression attribute
+        let mut has_compression_attr = false;
+
         // Look for #[rentfree] or #[rentfree(...)] attribute
         for attr in &field.attrs {
             if attr.path().is_ident("rentfree") {
+                // Check for duplicate compression attributes on same field
+                if has_compression_attr {
+                    return Err(Error::new_spanned(
+                        attr,
+                        "Field already has a compression attribute (#[rentfree] or #[light_mint]). \
+                         Only one is allowed per field.",
+                    ));
+                }
+                has_compression_attr = true;
                 // Handle both #[rentfree] and #[rentfree(...)]
                 let args: RentFreeArgs = match &attr.meta {
                     syn::Meta::Path(_) => {
@@ -297,12 +309,13 @@ pub(super) fn parse_compressible_struct(
                     syn::parse_quote!(params.create_accounts_proof.output_state_tree_index)
                 });
 
-                // Validate this is an Account type
+                // Validate this is an Account type (or Box<Account>)
                 let (is_boxed, _inner_type) =
                     extract_account_inner_type(&field.ty).ok_or_else(|| {
                         Error::new_spanned(
                             &field.ty,
-                            "#[rentfree] can only be applied to Account<...> fields",
+                            "#[rentfree] can only be applied to Account<...> or Box<Account<...>> fields. \
+                             Nested Box<Box<...>> is not supported.",
                         )
                     })?;
 
@@ -316,8 +329,21 @@ pub(super) fn parse_compressible_struct(
                 break;
             }
 
+            // TODO(diff-pr): Add parsing for #[rentfree_token(...)] attribute for token accounts and ATAs.
+            // Would need RentFreeTokenField struct with: field_ident, authority_seeds, mint field ref.
+
             // Look for #[light_mint(...)] attribute
             if attr.path().is_ident("light_mint") {
+                // Check for duplicate compression attributes on same field
+                if has_compression_attr {
+                    return Err(Error::new_spanned(
+                        attr,
+                        "Field already has a compression attribute (#[rentfree] or #[light_mint]). \
+                         Only one is allowed per field.",
+                    ));
+                }
+                has_compression_attr = true;
+
                 let args: LightMintArgs = attr.parse_args()?;
 
                 // Validate required fields
@@ -352,7 +378,18 @@ pub(super) fn parse_compressible_struct(
         }
     }
 
-    Ok(ParsedCompressibleStruct {
+    // Validation: #[rentfree] and #[light_mint] require #[instruction] attribute
+    if (!rentfree_fields.is_empty() || !light_mint_fields.is_empty())
+        && instruction_args.is_none()
+    {
+        return Err(Error::new_spanned(
+            input,
+            "#[rentfree] and #[light_mint] fields require #[instruction(params: YourParamsType)] \
+             attribute on the struct",
+        ));
+    }
+
+    Ok(ParsedRentFreeStruct {
         struct_name,
         generics,
         rentfree_fields,

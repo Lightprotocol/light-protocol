@@ -4,7 +4,7 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{Ident, Result};
 
-use crate::compressible::instructions::{InstructionDataSpec, SeedElement, TokenSeedSpec};
+use super::instructions::{InstructionDataSpec, SeedElement, TokenSeedSpec};
 
 /// Extract ctx.* field names from seed elements (both token seeds and authority seeds)
 fn extract_ctx_fields_from_token_spec(spec: &TokenSeedSpec) -> Vec<Ident> {
@@ -378,7 +378,7 @@ pub fn generate_ctoken_seed_provider_implementation(
             let authority_arm = quote! {
                 #pattern => {
                     Err(solana_program_error::ProgramError::Custom(
-                        CompressibleInstructionError::MissingSeedAccount.into()
+                        RentFreeInstructionError::MissingSeedAccount.into()
                     ))
                 }
             };

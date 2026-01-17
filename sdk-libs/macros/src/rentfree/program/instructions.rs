@@ -335,13 +335,13 @@ impl Parse for InstructionDataSpec {
 
 pub fn generate_decompress_context_impl(
     _variant: InstructionVariant,
-    pda_ctx_seeds: Vec<crate::compressible::variant_enum::PdaCtxSeedInfo>,
+    pda_ctx_seeds: Vec<super::variant_enum::PdaCtxSeedInfo>,
     token_variant_ident: Ident,
 ) -> Result<syn::ItemMod> {
     let lifetime: syn::Lifetime = syn::parse_quote!('info);
 
     let trait_impl =
-        crate::compressible::decompress_context::generate_decompress_context_trait_impl(
+        crate::rentfree::traits::decompress_context::generate_decompress_context_trait_impl(
             pda_ctx_seeds,
             token_variant_ident,
             lifetime,
@@ -851,7 +851,7 @@ fn generate_error_codes(variant: InstructionVariant) -> Result<TokenStream> {
 
     Ok(quote! {
         #[error_code]
-        pub enum CompressibleInstructionError {
+        pub enum RentFreeInstructionError {
             #base_errors
             #variant_specific_errors
         }
@@ -860,9 +860,9 @@ fn generate_error_codes(variant: InstructionVariant) -> Result<TokenStream> {
 
 /// Convert ClassifiedSeed to SeedElement (Punctuated)
 fn convert_classified_to_seed_elements(
-    seeds: &[crate::compressible::anchor_seeds::ClassifiedSeed],
+    seeds: &[crate::rentfree::traits::anchor_seeds::ClassifiedSeed],
 ) -> Punctuated<SeedElement, Token![,]> {
-    use crate::compressible::anchor_seeds::ClassifiedSeed;
+    use crate::rentfree::traits::anchor_seeds::ClassifiedSeed;
 
     let mut result = Punctuated::new();
     for seed in seeds {
@@ -915,7 +915,7 @@ fn convert_classified_to_seed_elements(
 }
 
 fn convert_classified_to_seed_elements_vec(
-    seeds: &[crate::compressible::anchor_seeds::ClassifiedSeed],
+    seeds: &[crate::rentfree::traits::anchor_seeds::ClassifiedSeed],
 ) -> Vec<SeedElement> {
     convert_classified_to_seed_elements(seeds)
         .into_iter()
@@ -936,14 +936,14 @@ fn generate_from_extracted_seeds(
     let content = module.content.as_mut().unwrap();
     let ctoken_enum = if let Some(ref token_seed_specs) = token_seeds {
         if !token_seed_specs.is_empty() {
-            crate::compressible::seed_providers::generate_ctoken_account_variant_enum(
+            super::seed_providers::generate_ctoken_account_variant_enum(
                 token_seed_specs,
             )?
         } else {
-            crate::compressible::utils::generate_empty_ctoken_enum()
+            crate::rentfree::traits::utils::generate_empty_ctoken_enum()
         }
     } else {
-        crate::compressible::utils::generate_empty_ctoken_enum()
+        crate::rentfree::traits::utils::generate_empty_ctoken_enum()
     };
 
     if let Some(ref token_seed_specs) = token_seeds {
@@ -958,14 +958,14 @@ fn generate_from_extracted_seeds(
         }
     }
 
-    let pda_ctx_seeds: Vec<crate::compressible::variant_enum::PdaCtxSeedInfo> = pda_seeds
+    let pda_ctx_seeds: Vec<super::variant_enum::PdaCtxSeedInfo> = pda_seeds
         .as_ref()
         .map(|specs| {
             specs
                 .iter()
                 .map(|spec| {
                     let ctx_fields = extract_ctx_seed_fields(&spec.seeds);
-                    crate::compressible::variant_enum::PdaCtxSeedInfo::new(
+                    super::variant_enum::PdaCtxSeedInfo::new(
                         spec.variant.clone(),
                         ctx_fields,
                     )
@@ -976,7 +976,7 @@ fn generate_from_extracted_seeds(
 
     let account_type_refs: Vec<&Ident> = account_types.iter().collect();
     let enum_and_traits =
-        crate::compressible::variant_enum::compressed_account_variant_with_ctx_seeds(
+        super::variant_enum::compressed_account_variant_with_ctx_seeds(
             &account_type_refs,
             &pda_ctx_seeds,
         )?;
@@ -1015,7 +1015,7 @@ fn generate_from_extracted_seeds(
                 let data_verifications: Vec<_> = data_fields.iter().map(|field| {
                     quote! {
                         if data.#field != seeds.#field {
-                            return std::result::Result::Err(CompressibleInstructionError::SeedMismatch.into());
+                            return std::result::Result::Err(RentFreeInstructionError::SeedMismatch.into());
                         }
                     }
                 }).collect();
@@ -1265,7 +1265,7 @@ fn generate_from_extracted_seeds(
         }
     };
 
-    let client_functions = crate::compressible::seed_providers::generate_client_seed_functions(
+    let client_functions = super::seed_providers::generate_client_seed_functions(
         &account_types,
         &pda_seeds,
         &token_seeds,
@@ -1312,7 +1312,7 @@ fn generate_from_extracted_seeds(
     if let Some(ref seeds) = token_seeds {
         if !seeds.is_empty() {
             let impl_code =
-                crate::compressible::seed_providers::generate_ctoken_seed_provider_implementation(
+                super::seed_providers::generate_ctoken_seed_provider_implementation(
                     seeds,
                 )?;
             let ctoken_impl: syn::ItemImpl = syn::parse2(impl_code)?;
@@ -1447,11 +1447,9 @@ fn wrap_function_with_rentfree(fn_item: &syn::ItemFn, params_ident: &Ident) -> s
 }
 
 #[inline(never)]
-pub fn compressible_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<TokenStream> {
-    use crate::compressible::{
-        anchor_seeds::{extract_from_accounts_struct, get_data_fields, ExtractedSeedSpec, ExtractedTokenSpec},
-        crate_context::CrateContext,
-    };
+pub fn rentfree_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<TokenStream> {
+    use crate::rentfree::traits::anchor_seeds::{extract_from_accounts_struct, get_data_fields, ExtractedSeedSpec, ExtractedTokenSpec};
+    use super::crate_context::CrateContext;
 
     if module.content.is_none() {
         return Err(macro_error!(&module, "Module must have a body"));

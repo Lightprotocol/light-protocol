@@ -15,7 +15,7 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use super::parse::{ParsedCompressibleStruct, RentFreeField};
+use super::parse::{LightMintField, ParsedRentFreeStruct, RentFreeField};
 
 /// Default rent payment period in epochs (how long to prepay rent for decompressed accounts).
 const DEFAULT_RENT_PAYMENT_EPOCHS: u8 = 2;
@@ -26,11 +26,26 @@ const DEFAULT_WRITE_TOP_UP_LAMPORTS: u32 = 0;
 /// Generate both trait implementations.
 ///
 /// Returns `Err` if the parsed struct has inconsistent state (e.g., params type without ident).
-pub fn generate_finalize_impl(
-    parsed: &ParsedCompressibleStruct,
+pub(super) fn generate_rentfree_impl(
+    parsed: &ParsedRentFreeStruct,
 ) -> Result<TokenStream, syn::Error> {
     let struct_name = &parsed.struct_name;
     let (impl_generics, ty_generics, where_clause) = parsed.generics.split_for_impl();
+
+    // Validation: Ensure combined PDA + mint count fits in u8 (Light Protocol uses u8 for account indices)
+    let total_accounts = parsed.rentfree_fields.len() + parsed.light_mint_fields.len();
+    if total_accounts > 255 {
+        return Err(syn::Error::new_spanned(
+            struct_name,
+            format!(
+                "Too many compression fields ({} PDAs + {} mints = {} total, maximum 255). \
+                 Light Protocol uses u8 for account indices.",
+                parsed.rentfree_fields.len(),
+                parsed.light_mint_fields.len(),
+                total_accounts
+            ),
+        ));
+    }
 
     // Get the params type from instruction args (first arg)
     let params_type = parsed
@@ -192,7 +207,7 @@ pub fn generate_finalize_impl(
 ///    After this, Mint is "hot" and usable in instruction body
 #[allow(clippy::too_many_arguments)]
 fn generate_pre_init_pdas_and_mints(
-    parsed: &ParsedCompressibleStruct,
+    parsed: &ParsedRentFreeStruct,
     params_ident: &syn::Ident,
     fee_payer: &TokenStream,
     compression_config: &TokenStream,
@@ -209,7 +224,9 @@ fn generate_pre_init_pdas_and_mints(
     // Get the first PDA's output tree index (for the state tree output queue)
     let first_pda_output_tree = &parsed.rentfree_fields[0].output_tree;
 
-    // Get the first mint (we only support one mint currently)
+    // TODO(diff-pr): Support multiple #[light_mint] fields by looping here.
+    // Each mint would get assigned_account_index = pda_count + mint_index.
+    // Also add support for #[rentfree_token] fields for token ATAs.
     let mint = &parsed.light_mint_fields[0];
     let mint_field_ident = &mint.field_ident;
     let mint_signer = &mint.mint_signer;
@@ -402,7 +419,7 @@ fn generate_pre_init_pdas_and_mints(
 /// After this, CMint is "hot" and usable in instruction body
 #[allow(clippy::too_many_arguments)]
 fn generate_pre_init_mints_only(
-    parsed: &ParsedCompressibleStruct,
+    parsed: &ParsedRentFreeStruct,
     params_ident: &syn::Ident,
     fee_payer: &TokenStream,
     ctoken_config: &TokenStream,
@@ -410,7 +427,9 @@ fn generate_pre_init_mints_only(
     light_token_program: &TokenStream,
     ctoken_cpi_authority: &TokenStream,
 ) -> TokenStream {
-    // Get the first mint (we only support one mint currently)
+    // TODO(diff-pr): Support multiple #[light_mint] fields by looping here.
+    // Each mint would get assigned_account_index = mint_index.
+    // Also add support for #[rentfree_token] fields for token ATAs.
     let mint = &parsed.light_mint_fields[0];
     let mint_field_ident = &mint.field_ident;
     let mint_signer = &mint.mint_signer;
@@ -551,7 +570,7 @@ fn generate_pre_init_mints_only(
 /// Generate LightPreInit body for PDAs only (no mints)
 /// After this, compressed addresses are registered
 fn generate_pre_init_pdas_only(
-    parsed: &ParsedCompressibleStruct,
+    parsed: &ParsedRentFreeStruct,
     params_ident: &syn::Ident,
     fee_payer: &TokenStream,
     compression_config: &TokenStream,

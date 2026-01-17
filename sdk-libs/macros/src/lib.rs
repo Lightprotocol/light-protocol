@@ -6,11 +6,10 @@ use syn::{parse_macro_input, DeriveInput, ItemStruct};
 use utils::into_token_stream;
 
 mod account;
-mod compressible;
 mod discriminator;
-mod finalize;
 mod hasher;
 mod rent_sponsor;
+mod rentfree;
 mod utils;
 
 #[proc_macro_derive(LightDiscriminator)]
@@ -125,7 +124,7 @@ pub fn light_hasher_sha(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(HasCompressionInfo)]
 pub fn has_compression_info(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    into_token_stream(compressible::traits::derive_has_compression_info(input))
+    into_token_stream(rentfree::traits::traits::derive_has_compression_info(input))
 }
 
 /// Legacy CompressAs trait implementation (use Compressible instead).
@@ -165,7 +164,7 @@ pub fn has_compression_info(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(CompressAs, attributes(compress_as))]
 pub fn compress_as_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    into_token_stream(compressible::traits::derive_compress_as(input))
+    into_token_stream(rentfree::traits::traits::derive_compress_as(input))
 }
 
 /// Auto-discovering rent-free program macro that reads external module files.
@@ -203,7 +202,7 @@ pub fn compress_as_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn rentfree_program(args: TokenStream, input: TokenStream) -> TokenStream {
     let module = syn::parse_macro_input!(input as syn::ItemMod);
-    into_token_stream(compressible::instructions::compressible_program_impl(
+    into_token_stream(rentfree::program::rentfree_program_impl(
         args.into(),
         module,
     ))
@@ -258,7 +257,7 @@ pub fn account(_: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Compressible, attributes(compress_as, light_seeds))]
 pub fn compressible_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(compressible::traits::derive_compressible(input))
+    into_token_stream(rentfree::traits::traits::derive_compressible(input))
 }
 
 /// Automatically implements Pack and Unpack traits for compressible accounts.
@@ -285,7 +284,7 @@ pub fn compressible_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(CompressiblePack)]
 pub fn compressible_pack(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(compressible::pack_unpack::derive_compressible_pack(input))
+    into_token_stream(rentfree::traits::pack_unpack::derive_compressible_pack(input))
 }
 
 /// Consolidates all required traits for rent-free state accounts into a single derive.
@@ -333,7 +332,7 @@ pub fn compressible_pack(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(RentFreeAccount, attributes(compress_as))]
 pub fn rent_free_account(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(compressible::light_compressible::derive_light_compressible(
+    into_token_stream(rentfree::traits::light_compressible::derive_rentfree_account(
         input,
     ))
 }
@@ -456,5 +455,5 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 )]
 pub fn rent_free_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(finalize::derive_light_finalize(input))
+    into_token_stream(rentfree::accounts::derive_rentfree(input))
 }

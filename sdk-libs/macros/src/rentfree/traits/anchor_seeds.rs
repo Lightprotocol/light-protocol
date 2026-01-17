@@ -323,6 +323,16 @@ pub fn extract_account_inner_type(ty: &Type) -> Option<(bool, Ident)> {
                     // Check for Box<Account<'info, T>>
                     if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
                         if let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first() {
+                            // Check for nested Box<Box<...>> which is not supported
+                            if let Type::Path(inner_path) = inner_ty {
+                                if let Some(inner_seg) = inner_path.path.segments.last() {
+                                    if inner_seg.ident == "Box" {
+                                        // Nested Box detected - return None to signal unsupported type
+                                        return None;
+                                    }
+                                }
+                            }
+
                             if let Some((_, inner_type)) = extract_account_inner_type(inner_ty) {
                                 return Some((true, inner_type));
                             }
