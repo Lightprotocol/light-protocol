@@ -525,8 +525,8 @@ pub fn classify_seed_expr(expr: &Expr) -> syn::Result<ClassifiedSeed> {
 
 /// Classify a method call expression like account.key().as_ref()
 fn classify_method_call(mc: &syn::ExprMethodCall) -> syn::Result<ClassifiedSeed> {
-    // Unwrap .as_ref() at the end
-    if mc.method == "as_ref" {
+    // Unwrap .as_ref() or .as_bytes() at the end
+    if mc.method == "as_ref" || mc.method == "as_bytes" {
         return classify_seed_expr(&mc.receiver);
     }
 

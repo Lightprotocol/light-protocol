@@ -4,7 +4,7 @@
 //! ## Account Creation
 //!
 //! - [`CreateAssociatedCTokenAccount`] - Create associated ctoken account (ATA) instruction
-//! - [`CreateCTokenAtaCpi`] - Create associated ctoken account (ATA) via CPI
+//! - [`CreateTokenAtaCpi`] - Create associated ctoken account (ATA) via CPI
 //! - [`CreateCTokenAccount`] - Create ctoken account instruction
 //! - [`CreateTokenAccountCpi`] - Create ctoken account via CPI
 //!
@@ -52,9 +52,9 @@
 //! # Example: Create rent-free ATA via CPI
 //!
 //! ```rust,ignore
-//! use light_token_sdk::token::CreateCTokenAtaCpi;
+//! use light_token_sdk::token::CreateTokenAtaCpi;
 //!
-//! CreateCTokenAtaCpi {
+//! CreateTokenAtaCpi {
 //!     payer: ctx.accounts.payer.to_account_info(),
 //!     owner: ctx.accounts.owner.to_account_info(),
 //!     mint: ctx.accounts.mint.to_account_info(),
@@ -122,7 +122,7 @@ pub use compressible::{CompressibleParams, CompressibleParamsCpi};
 pub use create::*;
 pub use create_ata::{
     derive_token_ata, CreateAssociatedTokenAccount,
-    CreateCTokenAtaCpi as CreateAssociatedAccountCpi, CreateCTokenAtaCpi,
+    CreateTokenAtaCpi as CreateAssociatedAccountCpi, CreateTokenAtaCpi,
 };
 pub use create_mint::*;
 pub use decompress::Decompress;

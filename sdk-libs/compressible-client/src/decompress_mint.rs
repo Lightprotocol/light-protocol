@@ -1,41 +1,25 @@
-//! Decompress compressed CMint accounts.
+//! Mint interface types for hot/cold CMint handling.
 //!
-//! This module provides client-side functionality to decompress compressed
-//! CMint accounts (mints created via `#[compressible]` macro that have been
-//! auto-compressed by forester).
-//!
-//! DecompressMint is permissionless - any fee_payer can decompress any
-//! compressed mint. The mint_seed_pubkey is required for PDA derivation.
-//!
-//! Three APIs are provided:
-//! - `decompress_mint`: Simple async API (fetches state + proof internally)
-//! - `build_decompress_mint`: Sync, caller provides pre-fetched state + proof
-//! - `decompress_mint`: High-perf wrapper (takes MintInterface, fetches proof internally)
+//! Use `AccountInterfaceExt::get_mint_interface()` to fetch,
+//! then pass to `create_load_accounts_instructions()` for decompression.
 
 use borsh::BorshDeserialize;
-use light_client::indexer::{CompressedAccount, Indexer, IndexerError, ValidityProofWithContext};
+use light_client::indexer::{CompressedAccount, Indexer, ValidityProofWithContext};
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 use light_token_interface::{
     instructions::mint_action::{MintInstructionData, MintWithContext},
     state::Mint,
     CMINT_ADDRESS_TREE,
 };
-use light_token_sdk::{
-    compressed_token::create_compressed_mint::derive_mint_compressed_address,
-    token::{find_mint_address, DecompressMint},
-};
+use light_token_sdk::token::{derive_mint_compressed_address, find_mint_address, DecompressMint};
 use solana_account::Account;
 use solana_instruction::Instruction;
-use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 use thiserror::Error;
 
 /// Error type for decompress mint operations.
 #[derive(Debug, Error)]
 pub enum DecompressMintError {
-    #[error("Indexer error: {0}")]
-    Indexer(#[from] IndexerError),
-
     #[error("Compressed mint not found for signer {signer:?}")]
     MintNotFound { signer: Pubkey },
 
@@ -43,10 +27,16 @@ pub enum DecompressMintError {
     MissingMintData,
 
     #[error("Program error: {0}")]
-    ProgramError(#[from] ProgramError),
+    ProgramError(#[from] solana_program_error::ProgramError),
 
-    #[error("Proof required for cold mint")]
+    #[error("Mint already decompressed")]
+    AlreadyDecompressed,
+
+    #[error("Validity proof required for cold mint")]
     ProofRequired,
+
+    #[error("Indexer error: {0}")]
+    IndexerError(#[from] light_client::indexer::IndexerError),
 }
 
 /// State of a CMint - either on-chain (hot), compressed (cold), or non-existent.
@@ -66,10 +56,8 @@ pub enum MintState {
 
 /// Interface for a CMint that provides all info needed for decompression.
 ///
-/// This is a superset of the solana Account type, containing:
-/// - CMint pubkey (derived from signer)
-/// - Signer pubkey (mint authority seed)
-/// - State: Hot (on-chain), Cold (compressed), or None
+/// Fetch via `rpc.get_mint_interface(&signer)`, then pass to
+/// `create_load_accounts_instructions()` for decompression.
 #[derive(Debug, Clone)]
 pub struct MintInterface {
     /// The CMint PDA pubkey.

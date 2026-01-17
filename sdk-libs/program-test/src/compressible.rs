@@ -194,7 +194,7 @@ pub async fn claim_and_compress(
     // Separate accounts by type and compression_only setting
     let mut compress_accounts_compression_only = Vec::new();
     let mut compress_accounts_normal = Vec::new();
-    let mut compress_cmint_accounts = Vec::new();
+    let mut compress_mint_accounts = Vec::new();
     let mut claim_accounts = Vec::new();
 
     // For each stored account, determine action using AccountRentState
@@ -228,8 +228,8 @@ pub async fn claim_and_compress(
                         compress_accounts_normal.push(*pubkey);
                     }
                 } else if stored_account.account_type == ACCOUNT_TYPE_MINT {
-                    // CMint accounts - use mint_action flow
-                    compress_cmint_accounts.push(*pubkey);
+                    // Mint accounts - use mint_action flow
+                    compress_mint_accounts.push(*pubkey);
                 }
             }
             Some(claimable_amount) if claimable_amount > 0 => {
@@ -269,10 +269,10 @@ pub async fn claim_and_compress(
         }
     }
 
-    // Process CMint accounts via mint_action
-    for cmint_pubkey in compress_cmint_accounts {
-        compress_cmint_forester(rpc, cmint_pubkey, &payer).await?;
-        stored_compressible_accounts.remove(&cmint_pubkey);
+    // Process Mint accounts via mint_action
+    for mint_pubkey in compress_mint_accounts {
+        compress_mint_forester(rpc, mint_pubkey, &payer).await?;
+        stored_compressible_accounts.remove(&mint_pubkey);
     }
 
     Ok(())
@@ -401,12 +401,12 @@ async fn try_compress_chunk(
     }
 }
 
-/// Compress and close a CMint account via mint_action instruction.
-/// CMint uses MintAction::CompressAndCloseCMint flow instead of registry compress_and_close.
+/// Compress and close a Mint account via mint_action instruction.
+/// Mint uses MintAction::CompressAndCloseMint flow instead of registry compress_and_close.
 #[cfg(feature = "devenv")]
-async fn compress_cmint_forester(
+async fn compress_mint_forester(
     rpc: &mut LightProgramTest,
-    cmint_pubkey: Pubkey,
+    mint_pubkey: Pubkey,
     payer: &solana_sdk::signature::Keypair,
 ) -> Result<(), RpcError> {
     use light_client::indexer::Indexer;
@@ -421,13 +421,14 @@ async fn compress_cmint_forester(
     use light_token_sdk::compressed_token::mint_action::MintActionMetaConfig;
     use solana_sdk::signature::Signer;
 
-    // Get CMint account data
-    let cmint_account = rpc.get_account(cmint_pubkey).await?.ok_or_else(|| {
-        RpcError::CustomError(format!("CMint account {} not found", cmint_pubkey))
-    })?;
+    // Get Mint account data
+    let mint_account = rpc
+        .get_account(mint_pubkey)
+        .await?
+        .ok_or_else(|| RpcError::CustomError(format!("Mint account {} not found", mint_pubkey)))?;
 
     // Deserialize Mint to get compressed_address and rent_sponsor
-    let mint: Mint = BorshDeserialize::deserialize(&mut cmint_account.data.as_slice())
+    let mint: Mint = BorshDeserialize::deserialize(&mut mint_account.data.as_slice())
         .map_err(|e| RpcError::CustomError(format!("Failed to deserialize Mint: {:?}", e)))?;
 
     let compressed_mint_address = mint.metadata.compressed_address();
@@ -450,8 +451,8 @@ async fn compress_cmint_forester(
         .value;
 
     // Build compressed mint inputs
-    // IMPORTANT: Set mint to None when CMint is decompressed
-    // This tells on-chain code to read mint data from CMint Solana account
+    // IMPORTANT: Set mint to None when Mint is decompressed
+    // This tells on-chain code to read mint data from Mint Solana account
     // (not from instruction data which would have stale compression_info)
     let compressed_mint_inputs = MintWithContext {
         prove_by_index: rpc_proof_result.accounts[0].root_index.proof_by_index(),
@@ -461,7 +462,7 @@ async fn compress_cmint_forester(
             .root_index()
             .unwrap_or_default(),
         address: compressed_mint_address,
-        mint: None, // CMint is decompressed, data lives in CMint account
+        mint: None, // Mint is decompressed, data lives in Mint account
     };
 
     // Build instruction data with CompressAndCloseMint action
@@ -474,16 +475,16 @@ async fn compress_cmint_forester(
     // Get state tree info
     let state_tree_info = rpc_proof_result.accounts[0].tree_info;
 
-    // Build account metas - authority can be anyone for permissionless CompressAndCloseCMint
+    // Build account metas - authority can be anyone for permissionless CompressAndCloseMint
     let config_address = CompressibleConfig::light_token_v1_config_pda();
     let meta_config = MintActionMetaConfig::new(
         payer.pubkey(),
-        payer.pubkey(), // authority doesn't matter for CompressAndCloseCMint
+        payer.pubkey(), // authority doesn't matter for CompressAndCloseMint
         state_tree_info.tree,
         state_tree_info.queue,
         state_tree_info.queue,
     )
-    .with_compressible_mint(cmint_pubkey, config_address, rent_sponsor);
+    .with_compressible_mint(mint_pubkey, config_address, rent_sponsor);
 
     let account_metas = meta_config.to_account_metas();
 

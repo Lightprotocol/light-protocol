@@ -3684,13 +3684,16 @@ name = "light-compressible-client"
 version = "0.17.1"
 dependencies = [
  "anchor-lang",
+ "async-trait",
  "borsh 0.10.4",
+ "futures",
  "light-client",
  "light-compressed-account",
  "light-compressible",
  "light-sdk",
  "light-token-interface",
  "light-token-sdk",
+ "smallvec",
  "solana-account",
  "solana-instruction",
  "solana-program",

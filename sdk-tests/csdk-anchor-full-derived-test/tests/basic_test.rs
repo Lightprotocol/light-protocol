@@ -1,7 +1,8 @@
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_compressible_client::{
-    get_create_accounts_proof, CreateAccountsProofInput, InitializeRentFreeConfig,
+    get_create_accounts_proof, AccountInterfaceExt, CreateAccountsProofInput,
+    InitializeRentFreeConfig,
 };
 use light_macros::pubkey;
 use light_program_test::{
@@ -263,57 +264,36 @@ async fn test_create_pdas_and_mint_auto() {
     assert_compressed_token_exists(&mut rpc, &vault_pda, vault_mint_amount).await;
     assert_compressed_token_exists(&mut rpc, &user_ata_pda, user_ata_mint_amount).await;
 
-    // PHASE 3: Decompress PDAs + vault via build_decompress_idempotent
+    // PHASE 3: Decompress all accounts via create_load_accounts_instructions
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
         GameSessionSeeds, TokenAccountVariant, UserRecordSeeds,
     };
     use light_compressible_client::{
-        compressible_instruction, AccountInterface, RentFreeDecompressAccount,
+        create_load_accounts_instructions, AccountInterface, RentFreeDecompressAccount,
     };
 
-    // Fetch compressed PDA accounts
-    let compressed_user = rpc
-        .get_compressed_account(user_compressed_address, None)
+    // Fetch unified interfaces (hot/cold transparent)
+    let user_interface = rpc
+        .get_account_info_interface(&user_record_pda, &program_id)
         .await
-        .unwrap()
-        .value
-        .unwrap();
+        .expect("failed to get user");
+    assert!(user_interface.is_cold, "UserRecord should be cold");
 
-    let compressed_game = rpc
-        .get_compressed_account(game_compressed_address, None)
+    let game_interface = rpc
+        .get_account_info_interface(&game_session_pda, &program_id)
         .await
-        .unwrap()
-        .value
-        .unwrap();
+        .expect("failed to get game");
+    assert!(game_interface.is_cold, "GameSession should be cold");
 
-    // Fetch compressed vault token account
-    let compressed_vault_accounts = rpc
-        .get_compressed_token_accounts_by_owner(&vault_pda, None, None)
+    let vault_interface = rpc
+        .get_token_account_interface(&vault_pda)
         .await
-        .unwrap()
-        .value
-        .items;
-    let compressed_vault = &compressed_vault_accounts[0];
-
-    // Get validity proof for PDAs + vault
-    let rpc_result = rpc
-        .get_validity_proof(
-            vec![
-                compressed_user.hash,
-                compressed_game.hash,
-                compressed_vault.account.hash,
-            ],
-            vec![],
-            None,
-        )
-        .await
-        .unwrap()
-        .value;
-
-    // Build RentFreeDecompressAccount using from_seeds and from_ctoken helpers
-    let decompress_accounts = vec![
+        .expect("failed to get vault");
+    assert!(vault_interface.is_cold, "Vault should be cold");
+    assert_eq!(vault_interface.amount(), vault_mint_amount); // Build RentFreeDecompressAccount - From impls convert interfaces directly
+    let program_owned_accounts = vec![
         RentFreeDecompressAccount::from_seeds(
-            AccountInterface::cold(user_record_pda, compressed_user.clone()),
+            AccountInterface::from(&user_interface),
             UserRecordSeeds {
                 authority: authority.pubkey(),
                 mint_authority: mint_authority.pubkey(),
@@ -323,7 +303,7 @@ async fn test_create_pdas_and_mint_auto() {
         )
         .expect("UserRecord seed verification failed"),
         RentFreeDecompressAccount::from_seeds(
-            AccountInterface::cold(game_session_pda, compressed_game.clone()),
+            AccountInterface::from(&game_interface),
             GameSessionSeeds {
                 fee_payer: payer.pubkey(),
                 authority: authority.pubkey(),
@@ -332,37 +312,70 @@ async fn test_create_pdas_and_mint_auto() {
         )
         .expect("GameSession seed verification failed"),
         RentFreeDecompressAccount::from_ctoken(
-            AccountInterface::cold(vault_pda, compressed_vault.account.clone()),
+            AccountInterface::from(&vault_interface),
             TokenAccountVariant::Vault { cmint: cmint_pda },
         )
         .expect("CToken variant construction failed"),
     ];
 
-    // Build decompress instruction
-    // No SeedParams needed - data.* seeds from unpacked account, ctx.* from variant idx
-    let decompress_instruction = compressible_instruction::build_decompress_idempotent(
-        &program_id,
-        decompress_accounts,
-        compressible_instruction::decompress::accounts(payer.pubkey(), config_pda, payer.pubkey()),
-        rpc_result,
-    )
-    .unwrap()
-    .expect("Should have cold accounts to decompress");
-
-    rpc.create_and_send_transaction(&[decompress_instruction], &payer.pubkey(), &[&payer])
+    // get_ata_interface: fetches ATA with unified handling using standard SPL types
+    let ata_interface = rpc
+        .get_ata_interface(&payer.pubkey(), &cmint_pda)
         .await
-        .expect("PDA + vault decompression should succeed");
+        .expect("get_ata_interface should succeed");
+    assert!(ata_interface.is_cold(), "ATA should be cold after warp");
+    assert_eq!(ata_interface.amount(), user_ata_mint_amount);
+    assert_eq!(ata_interface.mint(), cmint_pda);
+    assert_eq!(ata_interface.owner(), ata_interface.pubkey()); // ctoken ATA owner = ATA address
 
-    // Assert PDAs are back on-chain
+    // Fetch mint interface
+    let mint_interface = rpc
+        .get_mint_interface(&mint_signer_pda)
+        .await
+        .expect("get_mint_interface should succeed");
+    assert!(mint_interface.is_cold(), "Mint should be cold after warp");
+
+    // Load accounts if needed
+    let all_instructions = create_load_accounts_instructions(
+        &program_owned_accounts,
+        std::slice::from_ref(&ata_interface.inner),
+        std::slice::from_ref(&mint_interface),
+        program_id,
+        payer.pubkey(),
+        config_pda,
+        payer.pubkey(), // rent_sponsor
+        &rpc,
+    )
+    .await
+    .expect("create_load_accounts_instructions should succeed");
+
+    // Expected: 1 PDA+Token ix + 2 ATA ixs (1 create_ata + 1 decompress) + 1 mint ix = 4
+    assert_eq!(
+        all_instructions.len(),
+        4,
+        "Should have 4 instructions: 1 PDA+Token, 1 create_ata, 1 decompress_ata, 1 mint"
+    );
+
+    // Execute all instructions
+    rpc.create_and_send_transaction(&all_instructions, &payer.pubkey(), &[&payer])
+        .await
+        .expect("Decompression should succeed");
+
+    // Assert all accounts are back on-chain
     assert_onchain_exists(&mut rpc, &user_record_pda).await;
     assert_onchain_exists(&mut rpc, &game_session_pda).await;
-
-    // Assert vault is back on-chain with correct balance
     assert_onchain_exists(&mut rpc, &vault_pda).await;
+    assert_onchain_exists(&mut rpc, &user_ata_pda).await;
+    assert_onchain_exists(&mut rpc, &cmint_pda).await;
+
+    // Verify balances
     let vault_after = parse_token(&rpc.get_account(vault_pda).await.unwrap().unwrap().data);
     assert_eq!(vault_after.amount, vault_mint_amount);
 
-    // Verify compressed vault token is consumed (no more compressed token accounts for vault)
+    let user_ata_after = parse_token(&rpc.get_account(user_ata_pda).await.unwrap().unwrap().data);
+    assert_eq!(user_ata_after.amount, user_ata_mint_amount);
+
+    // Verify compressed vault token is consumed
     let remaining_vault = rpc
         .get_compressed_token_accounts_by_owner(&vault_pda, None, None)
         .await
@@ -370,123 +383,4 @@ async fn test_create_pdas_and_mint_auto() {
         .value
         .items;
     assert!(remaining_vault.is_empty());
-
-    // PHASE 4: Decompress user ATA via new high-performance API pattern
-    use light_compressible_client::{
-        build_decompress_token_accounts, decompress_mint, decompress_token_accounts,
-        parse_token_account_interface,
-    };
-
-    // Step 1: Fetch raw account interface (Account bytes always present)
-    let account_interface = rpc
-        .get_ata_account_interface(&cmint_pda, &payer.pubkey())
-        .await
-        .expect("get_ata_account_interface should succeed");
-
-    // Verify raw bytes are present (even for cold accounts)
-    assert_eq!(account_interface.account.data.len(), 165);
-
-    // Step 2: Parse into TokenAccountInterface (sync, no RPC)
-    let parsed = parse_token_account_interface(&account_interface)
-        .expect("parse_token_account_interface should succeed");
-
-    // Verify it's cold (compressed)
-    assert!(parsed.is_cold, "ATA should be cold after warp");
-    assert!(
-        parsed.decompression_context.is_some(),
-        "Cold ATA should have decompression_context"
-    );
-
-    // Amount accessible via TokenData
-    assert_eq!(parsed.amount(), user_ata_mint_amount);
-
-    // Step 3: Get proof and build instructions (sync after proof)
-    let cold_hash = parsed.hash().expect("Cold ATA should have hash");
-    let proof = rpc
-        .get_validity_proof(vec![cold_hash], vec![], None)
-        .await
-        .expect("get_validity_proof should succeed")
-        .value;
-
-    // Step 4: Build decompress instructions (sync)
-    let ata_instructions = build_decompress_token_accounts(&[parsed], payer.pubkey(), Some(proof))
-        .expect("build_decompress_token_accounts should succeed");
-
-    assert!(!ata_instructions.is_empty(), "Should have instructions");
-
-    rpc.create_and_send_transaction(&ata_instructions, &payer.pubkey(), &[&payer])
-        .await
-        .expect("ATA decompression should succeed");
-
-    // Assert user ATA is back on-chain with correct balance
-    assert_onchain_exists(&mut rpc, &user_ata_pda).await;
-    let user_ata_after = parse_token(&rpc.get_account(user_ata_pda).await.unwrap().unwrap().data);
-    assert_eq!(user_ata_after.amount, user_ata_mint_amount);
-
-    // Verify idempotency: calling again should return empty vec
-    let account_interface_again = rpc
-        .get_ata_account_interface(&cmint_pda, &payer.pubkey())
-        .await
-        .expect("get_ata_account_interface should succeed");
-
-    let parsed_again = parse_token_account_interface(&account_interface_again)
-        .expect("parse_token_account_interface should succeed");
-
-    assert!(
-        !parsed_again.is_cold,
-        "ATA should be hot after decompression"
-    );
-    assert!(
-        parsed_again.decompression_context.is_none(),
-        "Hot ATA should not have decompression_context"
-    );
-
-    // Using async wrapper (alternative pattern)
-    let ata_instructions_again = decompress_token_accounts(&[parsed_again], payer.pubkey(), &rpc)
-        .await
-        .expect("decompress_token_accounts should succeed");
-    assert!(
-        ata_instructions_again.is_empty(),
-        "Should return empty vec when already decompressed"
-    );
-
-    // PHASE 5: Decompress CMint via decompress_mint (lean wrapper)
-    let mint_interface = rpc
-        .get_mint_interface(&mint_signer_pda)
-        .await
-        .expect("get_mint_interface should succeed");
-
-    // Verify it's cold (compressed)
-    assert!(mint_interface.is_cold(), "Mint should be cold after warp");
-
-    // Decompress using lean wrapper (fetches proof internally)
-    let mint_instructions = decompress_mint(&mint_interface, payer.pubkey(), &rpc)
-        .await
-        .expect("decompress_mint should succeed");
-
-    if !mint_instructions.is_empty() {
-        rpc.create_and_send_transaction(&mint_instructions, &payer.pubkey(), &[&payer])
-            .await
-            .expect("Mint decompression should succeed");
-    }
-
-    // Assert CMint is back on-chain
-    assert_onchain_exists(&mut rpc, &cmint_pda).await;
-
-    // Verify calling again returns empty vec (idempotent)
-    let mint_interface_again = rpc
-        .get_mint_interface(&mint_signer_pda)
-        .await
-        .expect("get_mint_interface should succeed");
-    assert!(
-        mint_interface_again.is_hot(),
-        "Mint should be hot after decompression"
-    );
-    let mint_instructions_again = decompress_mint(&mint_interface_again, payer.pubkey(), &rpc)
-        .await
-        .expect("decompress_mint should succeed");
-    assert!(
-        mint_instructions_again.is_empty(),
-        "Should return empty vec when mint already decompressed"
-    );
 }

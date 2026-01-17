@@ -25,6 +25,9 @@ light-compressed-account = { workspace = true }
 light-compressible = { workspace = true }
 
 anchor-lang = { workspace = true, features = ["idl-build"], optional = true }
+async-trait = { workspace = true }
 borsh = { workspace = true }
+futures = { workspace = true }
+smallvec = { workspace = true }
 
 thiserror = { workspace = true }

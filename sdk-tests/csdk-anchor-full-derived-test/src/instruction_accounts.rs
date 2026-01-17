@@ -4,7 +4,7 @@ use light_sdk_macros::RentFree;
 
 use crate::state::*;
 
-#[derive(AnchorSerialize, AnchorDeserialize)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct FullAutoWithMintParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,

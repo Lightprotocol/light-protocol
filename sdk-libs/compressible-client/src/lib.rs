@@ -1,10 +1,18 @@
+pub mod account_interface;
+pub mod account_interface_ext;
 pub mod create_accounts_proof;
-pub mod decompress_atas;
 pub mod decompress_mint;
 pub mod get_compressible_account;
 pub mod initialize_config;
+pub mod load_accounts;
 pub mod pack;
+pub mod tx_size;
 
+pub use account_interface::{
+    AccountInfoInterface, AccountInterfaceError, AtaInterface, PdaLoadContext,
+    TokenAccountInterface, TokenLoadContext,
+};
+pub use account_interface_ext::AccountInterfaceExt;
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
@@ -13,29 +21,8 @@ pub use create_accounts_proof::{
     get_create_accounts_proof, CreateAccountsProofError, CreateAccountsProofInput,
     CreateAccountsProofResult,
 };
-// Re-export from light-compressible for convenience (SBF-compatible definition)
-pub use decompress_atas::{
-    // Legacy API (backward compatible)
-    build_decompress_atas,
-    // New API (recommended)
-    build_decompress_token_accounts,
-    decompress_atas,
-    decompress_atas_idempotent,
-    decompress_token_accounts,
-    pack_token_data_to_spl_bytes,
-    parse_token_account_interface,
-    AtaAccountInterface,
-    AtaDecompressionContext,
-    AtaInterface,
-    DecompressAtaError,
-    DecompressionContext,
-    TokenAccountInterface,
-};
-// Re-export TokenData for convenience (standard SPL-compatible type)
 pub use decompress_mint::{
-    build_decompress_mint, create_mint_interface, decompress_mint, decompress_mint_idempotent,
-    DecompressMintError, DecompressMintRequest, MintInterface, MintState, DEFAULT_RENT_PAYMENT,
-    DEFAULT_WRITE_TOP_UP,
+    DecompressMintError, MintInterface, MintState, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
 };
 pub use initialize_config::InitializeRentFreeConfig;
 use light_client::indexer::{CompressedAccount, TreeInfo, ValidityProofWithContext};
@@ -52,10 +39,15 @@ pub use light_token_sdk::compat::TokenData;
 use light_token_sdk::token::{
     COMPRESSIBLE_CONFIG_V1, LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR,
 };
+pub use load_accounts::{
+    create_decompress_ata_instructions, create_decompress_idempotent_instructions,
+    create_decompress_mint_instructions, create_load_accounts_instructions, LoadAccountsError,
+};
 pub use pack::{pack_proof, PackError, PackedProofResult};
 use solana_account::Account;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
+pub use tx_size::{split_by_tx_size, InstructionTooLargeError, PACKET_DATA_SIZE};
 
 /// Helper function to get the output queue from tree info.
 /// Prefers next_tree_info.queue if available, otherwise uses current queue.
@@ -144,6 +136,41 @@ impl AccountInterface {
     }
 }
 
+impl From<&AccountInfoInterface> for AccountInterface {
+    fn from(info: &AccountInfoInterface) -> Self {
+        if info.is_cold {
+            Self::cold(
+                info.pubkey,
+                info.load_context
+                    .as_ref()
+                    .expect("cold account must have load_context")
+                    .compressed
+                    .clone(),
+            )
+        } else {
+            Self::hot(info.pubkey)
+        }
+    }
+}
+
+impl From<&TokenAccountInterface> for AccountInterface {
+    fn from(info: &TokenAccountInterface) -> Self {
+        if info.is_cold {
+            Self::cold(
+                info.pubkey,
+                info.load_context
+                    .as_ref()
+                    .expect("cold token account must have load_context")
+                    .compressed
+                    .account
+                    .clone(),
+            )
+        } else {
+            Self::hot(info.pubkey)
+        }
+    }
+}
+
 /// A rent-free decompression request combining account interface and variant.
 /// Generic over V (the CompressedAccountVariant type from the program).
 #[derive(Clone, Debug)]
@@ -172,13 +199,6 @@ impl<V> RentFreeDecompressAccount<V> {
     /// * `interface` - The account interface (must be cold/compressed)
     /// * `seeds` - Seeds struct (e.g., `UserRecordSeeds`) that implements `IntoVariant<V>`
     ///
-    /// # Example
-    /// ```ignore
-    /// RentFreeDecompressAccount::from_seeds(
-    ///     AccountInterface::cold(user_record_pda, compressed_user),
-    ///     UserRecordSeeds { authority, mint_authority, owner, category_id },
-    /// )?
-    /// ```
     #[cfg(feature = "anchor")]
     pub fn from_seeds<S>(
         interface: AccountInterface,
@@ -203,13 +223,6 @@ impl<V> RentFreeDecompressAccount<V> {
     /// * `interface` - The account interface (must be cold/compressed)
     /// * `ctoken_variant` - CToken variant (e.g., `TokenAccountVariant::Vault { cmint }`)
     ///
-    /// # Example
-    /// ```ignore
-    /// RentFreeDecompressAccount::from_ctoken(
-    ///     AccountInterface::cold(vault_pda, compressed_vault.account),
-    ///     TokenAccountVariant::Vault { cmint: cmint_pda },
-    /// )?
-    /// ```
     #[cfg(feature = "anchor")]
     pub fn from_ctoken<T>(
         interface: AccountInterface,

@@ -1,11 +1,10 @@
 use anchor_lang::prelude::*;
 use light_sdk::{
-    compressible::CompressionInfo,
-    instruction::{PackedAddressTreeInfo, ValidityProof},
-    LightDiscriminator,
+    compressible::CompressionInfo, instruction::PackedAddressTreeInfo, LightDiscriminator,
 };
 use light_sdk_macros::RentFreeAccount;
 use light_token_interface::instructions::mint_action::MintWithContext;
+use light_token_sdk::ValidityProof;
 
 #[derive(Default, Debug, InitSpace, RentFreeAccount)]
 #[account]
@@ -41,26 +40,6 @@ pub struct PlaceholderRecord {
     pub name: String,
     pub placeholder_id: u64,
     pub counter: u32,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct AccountCreationData {
-    // Instruction data fields (accounts come from ctx.accounts.*)
-    pub owner: Pubkey,
-    pub category_id: u64,
-    pub user_name: String,
-    pub session_id: u64,
-    pub game_type: String,
-    pub placeholder_id: u64,
-    pub counter: u32,
-    pub mint_name: String,
-    pub mint_symbol: String,
-    pub mint_uri: String,
-    pub mint_decimals: u8,
-    pub mint_supply: u64,
-    pub mint_update_authority: Option<Pubkey>,
-    pub mint_freeze_authority: Option<Pubkey>,
-    pub additional_metadata: Option<Vec<(String, String)>>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
