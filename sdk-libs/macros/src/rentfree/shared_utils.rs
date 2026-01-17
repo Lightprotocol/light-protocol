@@ -3,8 +3,33 @@
 //! This module provides common utility functions used across multiple files:
 //! - Constant identifier detection (SCREAMING_SNAKE_CASE)
 //! - Expression identifier extraction
+//! - MetaExpr for darling attribute parsing
 
+use darling::FromMeta;
 use syn::{Expr, Ident};
+
+// ============================================================================
+// darling support for parsing Expr from attributes
+// ============================================================================
+
+/// Wrapper for syn::Expr that implements darling's FromMeta trait.
+///
+/// Enables darling to parse arbitrary expressions in attributes like
+/// `#[light_mint(mint_signer = self.authority)]`.
+#[derive(Clone)]
+pub struct MetaExpr(Expr);
+
+impl FromMeta for MetaExpr {
+    fn from_expr(expr: &Expr) -> darling::Result<Self> {
+        Ok(MetaExpr(expr.clone()))
+    }
+}
+
+impl From<MetaExpr> for Expr {
+    fn from(meta: MetaExpr) -> Expr {
+        meta.0
+    }
+}
 
 /// Check if an identifier string is a constant (SCREAMING_SNAKE_CASE).
 ///

@@ -4,51 +4,14 @@
 //! providing methods for validation, querying, and code generation.
 
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
+use quote::quote;
 use syn::DeriveInput;
 
 use super::{
-    light_mint::{generate_mint_action_invocation, MintActionConfig},
-    parse::{InfraFields, ParsedRentFreeStruct},
+    light_mint::{InfraRefs, LightMintBuilder},
+    parse::ParsedRentFreeStruct,
     pda::generate_pda_compress_blocks,
 };
-
-/// Resolve optional field name to TokenStream, using default if None.
-fn resolve_field_name(field: &Option<syn::Ident>, default: &str) -> TokenStream {
-    field.as_ref().map(|f| quote! { #f }).unwrap_or_else(|| {
-        let ident = format_ident!("{}", default);
-        quote! { #ident }
-    })
-}
-
-/// Resolved infrastructure field names as TokenStreams.
-struct ResolvedInfraFields {
-    fee_payer: TokenStream,
-    compression_config: TokenStream,
-    ctoken_config: TokenStream,
-    ctoken_rent_sponsor: TokenStream,
-    light_token_program: TokenStream,
-    ctoken_cpi_authority: TokenStream,
-}
-
-impl ResolvedInfraFields {
-    fn from_infra(infra: &InfraFields) -> Self {
-        Self {
-            fee_payer: resolve_field_name(&infra.fee_payer, "fee_payer"),
-            compression_config: resolve_field_name(&infra.compression_config, "compression_config"),
-            ctoken_config: resolve_field_name(&infra.ctoken_config, "ctoken_compressible_config"),
-            ctoken_rent_sponsor: resolve_field_name(
-                &infra.ctoken_rent_sponsor,
-                "ctoken_rent_sponsor",
-            ),
-            light_token_program: resolve_field_name(&infra.ctoken_program, "light_token_program"),
-            ctoken_cpi_authority: resolve_field_name(
-                &infra.ctoken_cpi_authority,
-                "ctoken_cpi_authority",
-            ),
-        }
-    }
-}
 
 /// Builder for RentFree derive macro code generation.
 ///
@@ -56,14 +19,14 @@ impl ResolvedInfraFields {
 /// providing methods for validation, querying, and code generation.
 pub(super) struct RentFreeBuilder {
     parsed: ParsedRentFreeStruct,
-    infra: ResolvedInfraFields,
+    infra: InfraRefs,
 }
 
 impl RentFreeBuilder {
     /// Parse a DeriveInput and construct the builder.
     pub fn parse(input: &DeriveInput) -> Result<Self, syn::Error> {
         let parsed = super::parse::parse_rentfree_struct(input)?;
-        let infra = ResolvedInfraFields::from_infra(&parsed.infra_fields);
+        let infra = InfraRefs::from_parsed(&parsed.infra_fields);
         Ok(Self { parsed, infra })
     }
 
@@ -162,25 +125,14 @@ impl RentFreeBuilder {
         // assigned_account_index for mint is after PDAs
         let mint_assigned_index = pda_count as u8;
 
-        // Infra field references
+        // Generate mint action invocation with CPI context
+        let mint_invocation = LightMintBuilder::new(mint, params_ident, &self.infra)
+            .with_cpi_context(quote! { #first_pda_output_tree }, mint_assigned_index)
+            .generate_invocation();
+
+        // Infrastructure field references for quote! interpolation
         let fee_payer = &self.infra.fee_payer;
         let compression_config = &self.infra.compression_config;
-        let ctoken_config = &self.infra.ctoken_config;
-        let ctoken_rent_sponsor = &self.infra.ctoken_rent_sponsor;
-        let light_token_program = &self.infra.light_token_program;
-        let ctoken_cpi_authority = &self.infra.ctoken_cpi_authority;
-
-        // Generate mint action invocation with CPI context
-        let mint_invocation = generate_mint_action_invocation(&MintActionConfig {
-            mint,
-            params_ident,
-            fee_payer,
-            ctoken_config,
-            ctoken_rent_sponsor,
-            light_token_program,
-            ctoken_cpi_authority,
-            cpi_context: Some((quote! { #first_pda_output_tree }, mint_assigned_index)),
-        });
 
         quote! {
             // Build CPI accounts WITH CPI context for batching
@@ -240,29 +192,17 @@ impl RentFreeBuilder {
             .unwrap()
             .name;
 
-        // Infra field references
-        let fee_payer = &self.infra.fee_payer;
-        let ctoken_config = &self.infra.ctoken_config;
-        let ctoken_rent_sponsor = &self.infra.ctoken_rent_sponsor;
-        let light_token_program = &self.infra.light_token_program;
-        let ctoken_cpi_authority = &self.infra.ctoken_cpi_authority;
-
         // TODO(diff-pr): Support multiple #[light_mint] fields by looping here.
         // Each mint would get assigned_account_index = mint_index.
         // Also add support for #[rentfree_token] fields for token ATAs.
         let mint = &self.parsed.light_mint_fields[0];
 
         // Generate mint action invocation without CPI context
-        let mint_invocation = generate_mint_action_invocation(&MintActionConfig {
-            mint,
-            params_ident,
-            fee_payer,
-            ctoken_config,
-            ctoken_rent_sponsor,
-            light_token_program,
-            ctoken_cpi_authority,
-            cpi_context: None,
-        });
+        let mint_invocation = LightMintBuilder::new(mint, params_ident, &self.infra)
+            .generate_invocation();
+
+        // Infrastructure field reference for quote! interpolation
+        let fee_payer = &self.infra.fee_payer;
 
         quote! {
             // Build CPI accounts (no CPI context needed for mints-only)

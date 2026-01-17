@@ -25,7 +25,7 @@ Detailed macro documentation is in the `docs/` directory:
 
 - **`docs/CLAUDE.md`** - Documentation structure guide
 - **`docs/rentfree.md`** - `#[derive(RentFree)]` and trait derives
-- **`docs/rentfree_program.md`** - `#[rentfree_program]` attribute macro
+- **`docs/rentfree_program/`** - `#[rentfree_program]` attribute macro (architecture.md + codegen.md)
 
 ## Source Structure
 

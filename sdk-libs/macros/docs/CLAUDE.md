@@ -11,19 +11,22 @@ Documentation for the rentfree macro system in `light-sdk-macros`. These macros 
 | **`CLAUDE.md`** | This file - documentation structure guide |
 | **`../CLAUDE.md`** | Main entry point for sdk-libs/macros |
 | **`rentfree.md`** | `#[derive(RentFree)]` macro and trait derives |
-| **`rentfree_program.md`** | `#[rentfree_program]` attribute macro |
+| **`rentfree_program/`** | `#[rentfree_program]` attribute macro |
+| **`rentfree_program/architecture.md`** | Architecture overview, usage, generated items |
+| **`rentfree_program/codegen.md`** | Technical implementation details (code generation) |
 
 ## Navigation Tips
 
 ### Starting Points
 
 - **Building account structs**: Start with `rentfree.md` for the accounts-level derive macro that marks fields for compression
-- **Program-level integration**: Use `rentfree_program.md` for program-level auto-discovery and instruction generation
+- **Program-level integration**: Use `rentfree_program/architecture.md` for program-level auto-discovery and instruction generation
+- **Implementation details**: Use `rentfree_program/codegen.md` for technical code generation details
 
 ### Macro Hierarchy
 
 ```
-#[rentfree_program]          <- Program-level (rentfree_program.md)
+#[rentfree_program]          <- Program-level (rentfree_program/)
     |
     +-- Discovers #[derive(RentFree)] structs
     |

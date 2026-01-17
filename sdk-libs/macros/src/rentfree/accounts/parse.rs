@@ -9,8 +9,9 @@ use syn::{
 
 // Import LightMintField and parsing from light_mint module
 use super::light_mint::{parse_light_mint_attr, LightMintField};
-// Import shared types from seed_extraction module
+// Import shared types
 pub(super) use crate::rentfree::traits::seed_extraction::extract_account_inner_type;
+use crate::rentfree::shared_utils::MetaExpr;
 
 // ============================================================================
 // Infrastructure Field Classification
@@ -74,27 +75,6 @@ impl InfraFields {
             InfraFieldType::CTokenProgram => self.ctoken_program = Some(ident),
             InfraFieldType::CTokenCpiAuthority => self.ctoken_cpi_authority = Some(ident),
         }
-    }
-}
-
-// ============================================================================
-// darling support for parsing Expr from attributes
-// ============================================================================
-
-/// Wrapper for syn::Expr that implements darling's FromMeta trait.
-/// Enables darling to parse arbitrary expressions in attributes.
-#[derive(Clone)]
-struct MetaExpr(Expr);
-
-impl FromMeta for MetaExpr {
-    fn from_expr(expr: &Expr) -> darling::Result<Self> {
-        Ok(MetaExpr(expr.clone()))
-    }
-}
-
-impl From<MetaExpr> for Expr {
-    fn from(meta: MetaExpr) -> Expr {
-        meta.0
     }
 }
 
