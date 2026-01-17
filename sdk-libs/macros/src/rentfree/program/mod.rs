@@ -10,7 +10,7 @@ mod parsing;
 mod decompress;
 mod compress;
 pub mod instructions;
-pub mod seed_providers;
+pub mod seed_codegen;
 pub mod variant_enum;
 
 pub use instructions::rentfree_program_impl;

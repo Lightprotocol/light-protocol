@@ -31,12 +31,12 @@ use super::decompress::{
 use super::variant_enum::PdaCtxSeedInfo;
 
 // =============================================================================
-// MAIN ASSEMBLY FUNCTION
+// MAIN CODEGEN
 // =============================================================================
 
-/// Generate all code from extracted seeds (shared logic with add_compressible_instructions)
+/// Orchestrates all code generation for the rentfree module.
 #[inline(never)]
-fn generate_from_extracted_seeds(
+fn codegen(
     module: &mut ItemMod,
     account_types: Vec<Ident>,
     pda_seeds: Option<Vec<TokenSeedSpec>>,
@@ -48,7 +48,7 @@ fn generate_from_extracted_seeds(
     let content = module.content.as_mut().unwrap();
     let ctoken_enum = if let Some(ref token_seed_specs) = token_seeds {
         if !token_seed_specs.is_empty() {
-            super::seed_providers::generate_ctoken_account_variant_enum(token_seed_specs)?
+            super::seed_codegen::generate_ctoken_account_variant_enum(token_seed_specs)?
         } else {
             crate::rentfree::traits::utils::generate_empty_ctoken_enum()
         }
@@ -175,10 +175,10 @@ fn generate_from_extracted_seeds(
     };
 
     let error_codes = generate_error_codes(instruction_variant)?;
-    let decompress_accounts = generate_decompress_accounts_struct(&[], instruction_variant)?;
+    let decompress_accounts = generate_decompress_accounts_struct(instruction_variant)?;
 
     let pda_seed_provider_impls =
-        generate_pda_seed_provider_impls(&account_types, &pda_ctx_seeds, &pda_seeds, &instruction_data)?;
+        generate_pda_seed_provider_impls(&account_types, &pda_ctx_seeds, &pda_seeds)?;
 
     let trait_impls: syn::ItemMod = syn::parse_quote! {
         mod __trait_impls {
@@ -195,20 +195,16 @@ fn generate_from_extracted_seeds(
     let token_variant_name = format_ident!("TokenAccountVariant");
 
     let decompress_context_impl = generate_decompress_context_impl(
-        instruction_variant,
         pda_ctx_seeds.clone(),
         token_variant_name,
     )?;
-    let decompress_processor_fn =
-        generate_process_decompress_accounts_idempotent(instruction_variant, &instruction_data)?;
-    let decompress_instruction =
-        generate_decompress_instruction_entrypoint(instruction_variant, &instruction_data)?;
+    let decompress_processor_fn = generate_process_decompress_accounts_idempotent()?;
+    let decompress_instruction = generate_decompress_instruction_entrypoint()?;
 
     let compress_accounts = generate_compress_accounts_struct(instruction_variant)?;
-    let compress_context_impl =
-        generate_compress_context_impl(instruction_variant, account_types.clone())?;
-    let compress_processor_fn = generate_process_compress_accounts_idempotent(instruction_variant)?;
-    let compress_instruction = generate_compress_instruction_entrypoint(instruction_variant)?;
+    let compress_context_impl = generate_compress_context_impl(account_types.clone())?;
+    let compress_processor_fn = generate_process_compress_accounts_idempotent()?;
+    let compress_instruction = generate_compress_instruction_entrypoint()?;
 
     let module_tokens = quote! {
         mod __processor_functions {
@@ -300,7 +296,7 @@ fn generate_from_extracted_seeds(
         }
     };
 
-    let client_functions = super::seed_providers::generate_client_seed_functions(
+    let client_functions = super::seed_codegen::generate_client_seed_functions(
         &account_types,
         &pda_seeds,
         &token_seeds,
@@ -347,7 +343,7 @@ fn generate_from_extracted_seeds(
     if let Some(ref seeds) = token_seeds {
         if !seeds.is_empty() {
             let impl_code =
-                super::seed_providers::generate_ctoken_seed_provider_implementation(seeds)?;
+                super::seed_codegen::generate_ctoken_seed_provider_implementation(seeds)?;
             let ctoken_impl: syn::ItemImpl = syn::parse2(impl_code)?;
             content.1.push(Item::Impl(ctoken_impl));
         }
@@ -396,7 +392,7 @@ fn generate_from_extracted_seeds(
 #[inline(never)]
 pub fn rentfree_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<TokenStream> {
     use super::crate_context::CrateContext;
-    use crate::rentfree::traits::anchor_seeds::{
+    use crate::rentfree::traits::seed_extraction::{
         extract_from_accounts_struct, get_data_fields, ExtractedSeedSpec, ExtractedTokenSpec,
     };
 
@@ -446,7 +442,7 @@ pub fn rentfree_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<
         }
     }
 
-    // Convert extracted specs to the format expected by generate_from_extracted_seeds
+    // Convert extracted specs to the format expected by codegen
     let mut found_pda_seeds: Vec<TokenSeedSpec> = Vec::new();
     let mut found_data_fields: Vec<InstructionDataSpec> = Vec::new();
     let mut account_types: Vec<Ident> = Vec::new();
@@ -512,7 +508,7 @@ pub fn rentfree_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<
     };
 
     // Use the shared generation logic
-    generate_from_extracted_seeds(
+    codegen(
         &mut module,
         account_types,
         pda_seeds,

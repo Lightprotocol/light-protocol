@@ -7,8 +7,8 @@ use syn::{
     DeriveInput, Error, Expr, Ident, Token, Type,
 };
 
-// Import shared types from anchor_seeds module
-pub(super) use crate::rentfree::traits::anchor_seeds::extract_account_inner_type;
+// Import shared types from seed_extraction module
+pub(super) use crate::rentfree::traits::seed_extraction::extract_account_inner_type;
 
 // Import LightMintField and parsing from light_mint module
 use super::light_mint::{parse_light_mint_attr, LightMintField};

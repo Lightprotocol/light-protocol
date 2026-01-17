@@ -344,8 +344,10 @@ pub fn generate_ctoken_seed_provider_implementation(
 
         // Build authority seeds
         if let Some(authority_seeds) = &spec.authority {
-            let auth_seed_refs: Vec<TokenStream> =
-                authority_seeds.iter().map(seed_element_to_ref_expr).collect();
+            let auth_seed_refs: Vec<TokenStream> = authority_seeds
+                .iter()
+                .map(seed_element_to_ref_expr)
+                .collect();
 
             let authority_arm = quote! {
                 #pattern => {
@@ -463,7 +465,8 @@ pub fn generate_client_seed_functions(
                 analyze_seed_spec_for_client(spec, instruction_data)?;
 
             let seed_count = seed_expressions.len();
-            let fn_body = generate_seed_fn_body(seed_count, &seed_expressions, quote! { &crate::ID });
+            let fn_body =
+                generate_seed_fn_body(seed_count, &seed_expressions, quote! { &crate::ID });
             let function = quote! {
                 pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
                     #fn_body
@@ -484,7 +487,8 @@ pub fn generate_client_seed_functions(
                 analyze_seed_spec_for_client(spec, instruction_data)?;
 
             let seed_count = seed_expressions.len();
-            let fn_body = generate_seed_fn_body(seed_count, &seed_expressions, quote! { &crate::ID });
+            let fn_body =
+                generate_seed_fn_body(seed_count, &seed_expressions, quote! { &crate::ID });
             let function = quote! {
                 pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
                     #fn_body
@@ -517,12 +521,20 @@ pub fn generate_client_seed_functions(
                 let (fn_params, fn_body) = if auth_parameters.is_empty() {
                     (
                         quote! { _program_id: &solana_pubkey::Pubkey },
-                        generate_seed_fn_body(auth_seed_count, &auth_seed_expressions, quote! { _program_id }),
+                        generate_seed_fn_body(
+                            auth_seed_count,
+                            &auth_seed_expressions,
+                            quote! { _program_id },
+                        ),
                     )
                 } else {
                     (
                         quote! { #(#auth_parameters),* },
-                        generate_seed_fn_body(auth_seed_count, &auth_seed_expressions, quote! { &crate::ID }),
+                        generate_seed_fn_body(
+                            auth_seed_count,
+                            &auth_seed_expressions,
+                            quote! { &crate::ID },
+                        ),
                     )
                 };
                 let authority_function = quote! {
@@ -583,7 +595,10 @@ fn analyze_seed_spec_for_client(
                                         } else {
                                             return Err(syn::Error::new_spanned(
                                                 field_name,
-                                                format!("data.{} used in seeds but no type specified", field_name),
+                                                format!(
+                                                    "data.{} used in seeds but no type specified",
+                                                    field_name
+                                                ),
                                             ));
                                         }
                                     }

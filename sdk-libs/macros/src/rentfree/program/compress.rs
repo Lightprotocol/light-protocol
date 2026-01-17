@@ -10,34 +10,16 @@ use super::parsing::InstructionVariant;
 // COMPRESS CONTEXT IMPL
 // =============================================================================
 
-pub fn generate_compress_context_impl(
-    _variant: InstructionVariant,
-    account_types: Vec<Ident>,
-) -> Result<syn::ItemMod> {
+pub fn generate_compress_context_impl(account_types: Vec<Ident>) -> Result<syn::ItemMod> {
     let lifetime: syn::Lifetime = syn::parse_quote!('info);
 
     let compress_arms: Vec<_> = account_types.iter().map(|name| {
         quote! {
             d if d == #name::LIGHT_DISCRIMINATOR => {
                 drop(data);
-                let data_borrow = account_info.try_borrow_data().map_err(|e| {
-                    let err: anchor_lang::error::Error = e.into();
-                    let program_error: anchor_lang::prelude::ProgramError = err.into();
-                    let code = match program_error {
-                        anchor_lang::prelude::ProgramError::Custom(code) => code,
-                        _ => 0,
-                    };
-                    solana_program_error::ProgramError::Custom(code)
-                })?;
-                let mut account_data = #name::try_deserialize(&mut &data_borrow[..]).map_err(|e| {
-                    let err: anchor_lang::error::Error = e.into();
-                    let program_error: anchor_lang::prelude::ProgramError = err.into();
-                    let code = match program_error {
-                        anchor_lang::prelude::ProgramError::Custom(code) => code,
-                        _ => 0,
-                    };
-                    solana_program_error::ProgramError::Custom(code)
-                })?;
+                let data_borrow = account_info.try_borrow_data().map_err(__anchor_to_program_error)?;
+                let mut account_data = #name::try_deserialize(&mut &data_borrow[..])
+                    .map_err(__anchor_to_program_error)?;
                 drop(data_borrow);
 
                 let compressed_info = light_sdk::compressible::compress_account::prepare_account_for_compression::<#name>(
@@ -48,8 +30,6 @@ pub fn generate_compress_context_impl(
                     cpi_accounts,
                     &compression_config.address_space,
                 )?;
-                // Lamport transfers are handled by close() in process_compress_pda_accounts_idempotent
-                // All lamports go to rent_sponsor for simplicity
                 Ok(Some(compressed_info))
             }
         }
@@ -60,6 +40,17 @@ pub fn generate_compress_context_impl(
             use super::*;
             use light_sdk::LightDiscriminator;
             use light_sdk::compressible::HasCompressionInfo;
+
+            #[inline(always)]
+            fn __anchor_to_program_error<E: Into<anchor_lang::error::Error>>(e: E) -> solana_program_error::ProgramError {
+                let err: anchor_lang::error::Error = e.into();
+                let program_error: anchor_lang::prelude::ProgramError = err.into();
+                let code = match program_error {
+                    anchor_lang::prelude::ProgramError::Custom(code) => code,
+                    _ => 0,
+                };
+                solana_program_error::ProgramError::Custom(code)
+            }
 
             impl<#lifetime> light_sdk::compressible::CompressContext<#lifetime> for CompressAccountsIdempotent<#lifetime> {
                 fn fee_payer(&self) -> &solana_account_info::AccountInfo<#lifetime> {
@@ -86,28 +77,12 @@ pub fn generate_compress_context_impl(
                     compression_config: &light_sdk::compressible::CompressibleConfig,
                     program_id: &solana_pubkey::Pubkey,
                 ) -> std::result::Result<Option<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>, solana_program_error::ProgramError> {
-                    let data = account_info.try_borrow_data().map_err(|e| {
-                        let err: anchor_lang::error::Error = e.into();
-                        let program_error: anchor_lang::prelude::ProgramError = err.into();
-                        let code = match program_error {
-                            anchor_lang::prelude::ProgramError::Custom(code) => code,
-                            _ => 0,
-                        };
-                        solana_program_error::ProgramError::Custom(code)
-                    })?;
+                    let data = account_info.try_borrow_data().map_err(__anchor_to_program_error)?;
                     let discriminator = &data[0..8];
 
                     match discriminator {
                         #(#compress_arms)*
-                        _ => {
-                            let err: anchor_lang::error::Error = anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into();
-                            let program_error: anchor_lang::prelude::ProgramError = err.into();
-                            let code = match program_error {
-                                anchor_lang::prelude::ProgramError::Custom(code) => code,
-                                _ => 0,
-                            };
-                            Err(solana_program_error::ProgramError::Custom(code))
-                        }
+                        _ => Err(__anchor_to_program_error(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch))
                     }
                 }
             }
@@ -119,9 +94,7 @@ pub fn generate_compress_context_impl(
 // COMPRESS PROCESSOR
 // =============================================================================
 
-pub fn generate_process_compress_accounts_idempotent(
-    _variant: InstructionVariant,
-) -> Result<syn::ItemFn> {
+pub fn generate_process_compress_accounts_idempotent() -> Result<syn::ItemFn> {
     Ok(syn::parse_quote! {
         #[inline(never)]
         pub fn process_compress_accounts_idempotent<'info>(
@@ -147,9 +120,7 @@ pub fn generate_process_compress_accounts_idempotent(
 // COMPRESS INSTRUCTION ENTRYPOINT
 // =============================================================================
 
-pub fn generate_compress_instruction_entrypoint(
-    _variant: InstructionVariant,
-) -> Result<syn::ItemFn> {
+pub fn generate_compress_instruction_entrypoint() -> Result<syn::ItemFn> {
     Ok(syn::parse_quote! {
         #[inline(never)]
         #[allow(clippy::too_many_arguments)]
@@ -174,25 +145,29 @@ pub fn generate_compress_instruction_entrypoint(
 // =============================================================================
 
 pub fn generate_compress_accounts_struct(variant: InstructionVariant) -> Result<syn::ItemStruct> {
+    // Only Mixed variant is supported - PdaOnly and TokenOnly are not implemented
     match variant {
-        InstructionVariant::PdaOnly => unreachable!(),
-        InstructionVariant::TokenOnly => unreachable!(),
-        InstructionVariant::Mixed => Ok(syn::parse_quote! {
-            #[derive(Accounts)]
-            pub struct CompressAccountsIdempotent<'info> {
-                #[account(mut)]
-                pub fee_payer: Signer<'info>,
-                /// CHECK: Checked by SDK
-                pub config: AccountInfo<'info>,
-                /// CHECK: Checked by SDK
-                #[account(mut)]
-                pub rent_sponsor: AccountInfo<'info>,
-                /// CHECK: Checked by SDK
-                #[account(mut)]
-                pub compression_authority: AccountInfo<'info>,
-            }
-        }),
+        InstructionVariant::PdaOnly | InstructionVariant::TokenOnly => {
+            unreachable!("compress_accounts_struct only supports Mixed variant")
+        }
+        InstructionVariant::Mixed => {}
     }
+
+    Ok(syn::parse_quote! {
+        #[derive(Accounts)]
+        pub struct CompressAccountsIdempotent<'info> {
+            #[account(mut)]
+            pub fee_payer: Signer<'info>,
+            /// CHECK: Checked by SDK
+            pub config: AccountInfo<'info>,
+            /// CHECK: Checked by SDK
+            #[account(mut)]
+            pub rent_sponsor: AccountInfo<'info>,
+            /// CHECK: Checked by SDK
+            #[account(mut)]
+            pub compression_authority: AccountInfo<'info>,
+        }
+    })
 }
 
 // =============================================================================
@@ -219,19 +194,23 @@ pub fn validate_compressed_account_sizes(account_types: &[Ident]) -> Result<Toke
 
 #[inline(never)]
 pub fn generate_error_codes(variant: InstructionVariant) -> Result<TokenStream> {
-    let base_errors = quote! {
+    // Only Mixed variant is supported - PdaOnly and TokenOnly are not implemented
+    match variant {
+        InstructionVariant::PdaOnly | InstructionVariant::TokenOnly => {
+            unreachable!("generate_error_codes only supports Mixed variant")
+        }
+        InstructionVariant::Mixed => {}
+    }
+
+    Ok(quote! {
+        #[error_code]
+        pub enum RentFreeInstructionError {
             #[msg("Rent sponsor mismatch")]
             InvalidRentSponsor,
-        #[msg("Missing seed account")]
-        MissingSeedAccount,
-        #[msg("Seed value does not match account data")]
-        SeedMismatch,
-    };
-
-    let variant_specific_errors = match variant {
-        InstructionVariant::PdaOnly => unreachable!(),
-        InstructionVariant::TokenOnly => unreachable!(),
-        InstructionVariant::Mixed => quote! {
+            #[msg("Missing seed account")]
+            MissingSeedAccount,
+            #[msg("Seed value does not match account data")]
+            SeedMismatch,
             #[msg("Not implemented")]
             CTokenDecompressionNotImplemented,
             #[msg("Not implemented")]
@@ -240,14 +219,6 @@ pub fn generate_error_codes(variant: InstructionVariant) -> Result<TokenStream> 
             TokenCompressionNotImplemented,
             #[msg("Not implemented")]
             PdaCompressionNotImplemented,
-        },
-    };
-
-    Ok(quote! {
-        #[error_code]
-        pub enum RentFreeInstructionError {
-            #base_errors
-            #variant_specific_errors
         }
     })
 }
