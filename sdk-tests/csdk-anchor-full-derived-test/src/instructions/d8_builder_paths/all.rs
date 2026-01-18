@@ -6,8 +6,10 @@ use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
 use light_sdk_macros::RentFree;
 
-use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
-use crate::state::d2_compress_as::multiple::MultipleCompressAsRecord;
+use crate::state::{
+    d1_field_types::single_pubkey::SinglePubkeyRecord,
+    d2_compress_as::multiple::MultipleCompressAsRecord,
+};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct D8AllParams {

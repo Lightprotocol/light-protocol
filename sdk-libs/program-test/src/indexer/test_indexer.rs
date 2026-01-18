@@ -2150,9 +2150,7 @@ impl TestIndexer {
 
         {
             let compressed_accounts = hashes;
-            if compressed_accounts.is_some()
-                && compressed_accounts.as_ref().unwrap().len() > 8
-            {
+            if compressed_accounts.is_some() && compressed_accounts.as_ref().unwrap().len() > 8 {
                 return Err(IndexerError::CustomError(format!(
                     "compressed_accounts must be of length <= 8, got {}",
                     compressed_accounts.unwrap().len()

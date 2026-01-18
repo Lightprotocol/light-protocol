@@ -124,7 +124,9 @@ pub fn light_hasher_sha(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(HasCompressionInfo)]
 pub fn has_compression_info(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    into_token_stream(rentfree::account::traits::derive_has_compression_info(input))
+    into_token_stream(rentfree::account::traits::derive_has_compression_info(
+        input,
+    ))
 }
 
 /// Legacy CompressAs trait implementation (use Compressible instead).

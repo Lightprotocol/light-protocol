@@ -23,10 +23,12 @@ pub use d7_infra_names::*;
 pub use d8_builder_paths::*;
 pub use d9_seeds::*;
 pub use instruction_accounts::*;
-pub use instructions::d7_infra_names::{
-    D7_ALL_AUTH_SEED, D7_ALL_VAULT_SEED, D7_CTOKEN_AUTH_SEED, D7_CTOKEN_VAULT_SEED,
+pub use instructions::{
+    d7_infra_names::{
+        D7_ALL_AUTH_SEED, D7_ALL_VAULT_SEED, D7_CTOKEN_AUTH_SEED, D7_CTOKEN_VAULT_SEED,
+    },
+    d9_seeds::{D9_ALL_SEED, D9_CONSTANT_SEED},
 };
-pub use instructions::d9_seeds::{D9_ALL_SEED, D9_CONSTANT_SEED};
 pub use state::{
     d1_field_types::single_pubkey::{PackedSinglePubkeyRecord, SinglePubkeyRecord},
     d2_compress_as::multiple::{MultipleCompressAsRecord, PackedMultipleCompressAsRecord},
@@ -342,7 +344,10 @@ pub mod csdk_anchor_full_derived_test {
         let mint_key = ctx.accounts.mint.key();
         // Derive the vault bump at runtime
         let (_, vault_bump) = Pubkey::find_program_address(
-            &[crate::d7_infra_names::D7_CTOKEN_VAULT_SEED, mint_key.as_ref()],
+            &[
+                crate::d7_infra_names::D7_CTOKEN_VAULT_SEED,
+                mint_key.as_ref(),
+            ],
             &crate::ID,
         );
 

@@ -10,13 +10,14 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
-use csdk_anchor_full_derived_test::amm_test::{
-    InitializeParams, AUTH_SEED, OBSERVATION_SEED, POOL_LP_MINT_SIGNER_SEED, POOL_SEED,
-    POOL_VAULT_SEED,
+use csdk_anchor_full_derived_test::{
+    amm_test::{
+        InitializeParams, AUTH_SEED, OBSERVATION_SEED, POOL_LP_MINT_SIGNER_SEED, POOL_SEED,
+        POOL_VAULT_SEED,
+    },
+    csdk_anchor_full_derived_test::{ObservationStateSeeds, PoolStateSeeds, TokenAccountVariant},
 };
-use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
-    ObservationStateSeeds, PoolStateSeeds, TokenAccountVariant,
-};
+use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_compressible_client::{
     create_load_accounts_instructions, get_create_accounts_proof, AccountInterface,
@@ -28,13 +29,11 @@ use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
 };
-use light_token_interface::state::Token;
-use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-use light_token_interface::instructions::mint_action::MintInstructionData;
+use light_token_interface::{instructions::mint_action::MintInstructionData, state::Token};
 use light_token_sdk::token::{
     find_mint_address, get_associated_token_address_and_bump, CreateAssociatedTokenAccount,
-    Decompress, DecompressMint, MintWithContext, COMPRESSIBLE_CONFIG_V1,
-    LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
+    Decompress, DecompressMint, MintWithContext, COMPRESSIBLE_CONFIG_V1, LIGHT_TOKEN_CPI_AUTHORITY,
+    LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
 };
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
@@ -789,11 +788,14 @@ async fn test_amm_full_lifecycle() {
         println!("  Decompressing creator LP token ATA...");
 
         // First create the ATA (idempotent)
-        let create_ata_ix =
-            CreateAssociatedTokenAccount::new(ctx.payer.pubkey(), ctx.creator.pubkey(), pdas.lp_mint)
-                .idempotent()
-                .instruction()
-                .expect("CreateAssociatedTokenAccount instruction should succeed");
+        let create_ata_ix = CreateAssociatedTokenAccount::new(
+            ctx.payer.pubkey(),
+            ctx.creator.pubkey(),
+            pdas.lp_mint,
+        )
+        .idempotent()
+        .instruction()
+        .expect("CreateAssociatedTokenAccount instruction should succeed");
 
         ctx.rpc
             .create_and_send_transaction(&[create_ata_ix], &ctx.payer.pubkey(), &[&ctx.payer])

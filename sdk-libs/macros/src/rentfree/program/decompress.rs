@@ -210,7 +210,8 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
 
                 let binding_name =
                     syn::Ident::new(&format!("seed_{}", i), proc_macro2::Span::call_site());
-                let mapped_expr = transform_expr_for_ctx_seeds(expr, &ctx_field_names, state_field_names);
+                let mapped_expr =
+                    transform_expr_for_ctx_seeds(expr, &ctx_field_names, state_field_names);
                 bindings.push(quote! {
                     let #binding_name = #mapped_expr;
                 });
@@ -240,7 +241,10 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
 }
 
 /// Check if a seed expression is a params-only seed (data.field where field doesn't exist on state)
-fn is_params_only_seed(expr: &syn::Expr, state_field_names: &std::collections::HashSet<String>) -> bool {
+fn is_params_only_seed(
+    expr: &syn::Expr,
+    state_field_names: &std::collections::HashSet<String>,
+) -> bool {
     use crate::rentfree::shared_utils::is_base_path;
 
     match expr {
@@ -255,9 +259,7 @@ fn is_params_only_seed(expr: &syn::Expr, state_field_names: &std::collections::H
         syn::Expr::MethodCall(method_call) => {
             is_params_only_seed(&method_call.receiver, state_field_names)
         }
-        syn::Expr::Reference(ref_expr) => {
-            is_params_only_seed(&ref_expr.expr, state_field_names)
-        }
+        syn::Expr::Reference(ref_expr) => is_params_only_seed(&ref_expr.expr, state_field_names),
         _ => false,
     }
 }
@@ -325,8 +327,11 @@ pub fn generate_pda_seed_provider_impls(
             }
         };
 
-        let seed_derivation =
-            generate_pda_seed_derivation_for_trait_with_ctx_seeds(spec, ctx_fields, &ctx_info.state_field_names)?;
+        let seed_derivation = generate_pda_seed_derivation_for_trait_with_ctx_seeds(
+            spec,
+            ctx_fields,
+            &ctx_info.state_field_names,
+        )?;
 
         // Generate impl for inner_type, but use variant-based struct name
         results.push(quote! {

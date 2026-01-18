@@ -470,8 +470,7 @@ async fn test_d9_literal() {
 /// Tests D9Constant: Constant seed expression
 #[tokio::test]
 async fn test_d9_constant() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9ConstantParams;
-    use csdk_anchor_full_derived_test::D9_CONSTANT_SEED;
+    use csdk_anchor_full_derived_test::{d9_seeds::D9ConstantParams, D9_CONSTANT_SEED};
 
     let mut ctx = TestContext::new().await;
 
@@ -918,8 +917,7 @@ async fn test_d9_function_call() {
 /// Tests D9All: All 6 seed expression types
 #[tokio::test]
 async fn test_d9_all() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9AllParams;
-    use csdk_anchor_full_derived_test::D9_ALL_SEED;
+    use csdk_anchor_full_derived_test::{d9_seeds::D9AllParams, D9_ALL_SEED};
 
     let mut ctx = TestContext::new().await;
     let authority = Keypair::new();
@@ -1016,8 +1014,9 @@ async fn test_d9_all() {
 /// Tests the full lifecycle with compression and decompression
 #[tokio::test]
 async fn test_d8_pda_only_full_lifecycle() {
-    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D8PdaOnlyRecordSeeds;
-    use csdk_anchor_full_derived_test::d8_builder_paths::D8PdaOnlyParams;
+    use csdk_anchor_full_derived_test::{
+        csdk_anchor_full_derived_test::D8PdaOnlyRecordSeeds, d8_builder_paths::D8PdaOnlyParams,
+    };
     use light_compressible::rent::SLOTS_PER_EPOCH;
     use light_compressible_client::{
         create_load_accounts_instructions, AccountInterface, AccountInterfaceExt,

@@ -413,7 +413,7 @@ dependencies = [
 [[package]]
 name = "anchor-spl"
 version = "0.31.1"
-source = "git+https://github.com/lightprotocol/anchor?rev=4e8ff59a7de5b2a8ba37f88cf7b0431999f1b1f3#4e8ff59a7de5b2a8ba37f88cf7b0431999f1b1f3"
+source = "git+https://github.com/lightprotocol/anchor?rev=da005d7f#da005d7f1f977d5220eaa65da26cdae2df0fe25e"
 dependencies = [
  "anchor-lang",
  "mpl-token-metadata",
@@ -1638,7 +1638,7 @@ name = "csdk-anchor-full-derived-test"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
- "anchor-spl 0.31.1 (git+https://github.com/lightprotocol/anchor?rev=4e8ff59a7de5b2a8ba37f88cf7b0431999f1b1f3)",
+ "anchor-spl 0.31.1 (git+https://github.com/lightprotocol/anchor?rev=da005d7f)",
  "bincode",
  "borsh 0.10.4",
  "light-client",
