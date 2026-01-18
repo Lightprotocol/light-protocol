@@ -64,5 +64,11 @@ pub struct D7AllNames<'info> {
     #[account(mut, address = CTOKEN_RENT_SPONSOR)]
     pub ctoken_rent_sponsor: AccountInfo<'info>,
 
+    /// CHECK: CToken program
+    pub light_token_program: AccountInfo<'info>,
+
+    /// CHECK: CToken CPI authority
+    pub ctoken_cpi_authority: AccountInfo<'info>,
+
     pub system_program: Program<'info, System>,
 }

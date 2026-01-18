@@ -7,9 +7,11 @@
 //! - Returns a single `address_tree_info` since all accounts use the same tree
 
 use light_client::{
-    indexer::{AddressWithTree, Indexer, IndexerError},
+    indexer::{AddressWithTree, Indexer, IndexerError, ValidityProofWithContext},
     rpc::{Rpc, RpcError},
 };
+use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
+use light_sdk::instruction::PackedAddressTreeInfo;
 use light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
@@ -136,7 +138,27 @@ pub async fn get_create_accounts_proof<R: Rpc + Indexer>(
     inputs: Vec<CreateAccountsProofInput>,
 ) -> Result<CreateAccountsProofResult, CreateAccountsProofError> {
     if inputs.is_empty() {
-        return Err(CreateAccountsProofError::EmptyInputs);
+        // Token-only instructions: no addresses to derive, but still need tree info
+        let state_tree_info = rpc
+            .get_random_state_tree_info()
+            .map_err(CreateAccountsProofError::Rpc)?;
+
+        // Pack system accounts with empty proof
+        let packed = pack_proof(
+            program_id,
+            ValidityProofWithContext::default(),
+            &state_tree_info,
+            None, // No CPI context needed for token-only
+        )?;
+
+        return Ok(CreateAccountsProofResult {
+            create_accounts_proof: CreateAccountsProof {
+                proof: ValidityProof::default(),
+                address_tree_info: PackedAddressTreeInfo::default(),
+                output_state_tree_index: packed.output_tree_index,
+            },
+            remaining_accounts: packed.remaining_accounts,
+        });
     }
 
     // 1. Get address tree (opinionated: always V2)

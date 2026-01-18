@@ -2151,20 +2151,16 @@ impl TestIndexer {
         {
             let compressed_accounts = hashes;
             if compressed_accounts.is_some()
-                && ![1usize, 2usize, 3usize, 4usize, 8usize]
-                    .contains(&compressed_accounts.as_ref().unwrap().len())
+                && compressed_accounts.as_ref().unwrap().len() > 8
             {
                 return Err(IndexerError::CustomError(format!(
-                    "compressed_accounts must be of length 1, 2, 3, 4 or 8 != {}",
+                    "compressed_accounts must be of length <= 8, got {}",
                     compressed_accounts.unwrap().len()
                 )));
             }
-            if new_addresses.is_some()
-                && ![1usize, 2usize, 3usize, 4usize, 8usize]
-                    .contains(&new_addresses.as_ref().unwrap().len())
-            {
+            if new_addresses.is_some() && new_addresses.as_ref().unwrap().len() > 8 {
                 return Err(IndexerError::CustomError(format!(
-                    "new_addresses must be of length 1, 2, 3, 4 or 8 != {}",
+                    "new_addresses must be of length <= 8, got {}",
                     new_addresses.unwrap().len()
                 )));
             }

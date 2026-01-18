@@ -14,7 +14,18 @@ Documentation for the rentfree macro system in `light-sdk-macros`. These macros 
 | **`rentfree_program/`** | `#[rentfree_program]` attribute macro |
 | **`rentfree_program/architecture.md`** | Architecture overview, usage, generated items |
 | **`rentfree_program/codegen.md`** | Technical implementation details (code generation) |
+| **`accounts/`** | Field-level attributes for Accounts structs |
 | **`account/`** | Trait derive macros for account data structs |
+
+### Accounts Field Attributes
+
+Field-level attributes applied inside `#[derive(RentFree)]` Accounts structs:
+
+| File | Attribute | Description |
+|------|-----------|-------------|
+| **`accounts/light_mint.md`** | `#[light_mint(...)]` | Creates compressed mint with automatic decompression |
+
+See also: `#[rentfree]` attribute documented in `rentfree.md`
 
 ### Account Trait Documentation
 
