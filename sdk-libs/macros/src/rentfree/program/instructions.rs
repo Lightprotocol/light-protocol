@@ -37,7 +37,10 @@ fn codegen(
     instruction_data: Vec<InstructionDataSpec>,
     crate_ctx: &super::crate_context::CrateContext,
 ) -> Result<TokenStream> {
-    let content = module.content.as_mut().unwrap();
+    let content = match module.content.as_mut() {
+        Some(content) => content,
+        None => return Err(macro_error!(module, "Module must have a body")),
+    };
 
     // Insert anchor_lang::prelude::* import at the beginning of the module
     // This ensures Accounts, Signer, AccountInfo, Result, error_code etc. are in scope

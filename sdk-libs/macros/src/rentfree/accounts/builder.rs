@@ -30,6 +30,20 @@ impl RentFreeBuilder {
         Ok(Self { parsed, infra })
     }
 
+    /// Get the first instruction argument, returning an error if missing.
+    fn get_first_instruction_arg(&self) -> Result<&super::parse::InstructionArg, syn::Error> {
+        self.parsed
+            .instruction_args
+            .as_ref()
+            .and_then(|args| args.first())
+            .ok_or_else(|| {
+                syn::Error::new_spanned(
+                    &self.parsed.struct_name,
+                    "Missing #[instruction(...)] attribute with at least one parameter",
+                )
+            })
+    }
+
     /// Validate constraints (e.g., account count < 255).
     pub fn validate(&self) -> Result<(), syn::Error> {
         let total = self.parsed.rentfree_fields.len() + self.parsed.light_mint_fields.len();
@@ -98,21 +112,15 @@ impl RentFreeBuilder {
     /// 1. Write PDAs to CPI context
     /// 2. Invoke CreateMintsCpi with CPI context offset
     ///    After this, Mints are "hot" and usable in instruction body
-    pub fn generate_pre_init_pdas_and_mints(&self) -> TokenStream {
+    pub fn generate_pre_init_pdas_and_mints(&self) -> Result<TokenStream, syn::Error> {
         let (compress_blocks, new_addr_idents) =
             generate_pda_compress_blocks(&self.parsed.rentfree_fields);
         let rentfree_count = self.parsed.rentfree_fields.len() as u8;
         let pda_count = self.parsed.rentfree_fields.len();
 
         // Get instruction param ident
-        let params_ident = &self
-            .parsed
-            .instruction_args
-            .as_ref()
-            .unwrap()
-            .first()
-            .unwrap()
-            .name;
+        let first_arg = self.get_first_instruction_arg()?;
+        let params_ident = &first_arg.name;
 
         // Get the first PDA's output tree index (for the state tree output queue)
         let first_pda_output_tree = &self.parsed.rentfree_fields[0].output_tree;
@@ -127,7 +135,7 @@ impl RentFreeBuilder {
         let fee_payer = &self.infra.fee_payer;
         let compression_config = &self.infra.compression_config;
 
-        quote! {
+        Ok(quote! {
             // Build CPI accounts WITH CPI context for batching
             let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new_with_config(
                 &self.#fee_payer,
@@ -168,22 +176,16 @@ impl RentFreeBuilder {
             #mint_invocation
 
             Ok(true)
-        }
+        })
     }
 
     /// Generate LightPreInit body for mints-only (no PDAs):
     /// Invoke CreateMintsCpi with decompress directly
     /// After this, Mints are "hot" and usable in instruction body
-    pub fn generate_pre_init_mints_only(&self) -> TokenStream {
+    pub fn generate_pre_init_mints_only(&self) -> Result<TokenStream, syn::Error> {
         // Get instruction param ident
-        let params_ident = &self
-            .parsed
-            .instruction_args
-            .as_ref()
-            .unwrap()
-            .first()
-            .unwrap()
-            .name;
+        let first_arg = self.get_first_instruction_arg()?;
+        let params_ident = &first_arg.name;
 
         // Generate CreateMintsCpi invocation for all mints (no PDA context)
         let mints = &self.parsed.light_mint_fields;
@@ -193,7 +195,7 @@ impl RentFreeBuilder {
         // Infrastructure field reference for quote! interpolation
         let fee_payer = &self.infra.fee_payer;
 
-        quote! {
+        Ok(quote! {
             // Build CPI accounts with CPI context enabled (mints use CPI context for batching)
             let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new_with_config(
                 &self.#fee_payer,
@@ -205,31 +207,25 @@ impl RentFreeBuilder {
             #mint_invocation
 
             Ok(true)
-        }
+        })
     }
 
     /// Generate LightPreInit body for PDAs only (no mints)
     /// After this, compressed addresses are registered
-    pub fn generate_pre_init_pdas_only(&self) -> TokenStream {
+    pub fn generate_pre_init_pdas_only(&self) -> Result<TokenStream, syn::Error> {
         let (compress_blocks, new_addr_idents) =
             generate_pda_compress_blocks(&self.parsed.rentfree_fields);
         let rentfree_count = self.parsed.rentfree_fields.len() as u8;
 
         // Get instruction param ident
-        let params_ident = &self
-            .parsed
-            .instruction_args
-            .as_ref()
-            .unwrap()
-            .first()
-            .unwrap()
-            .name;
+        let first_arg = self.get_first_instruction_arg()?;
+        let params_ident = &first_arg.name;
 
         // Infra field references
         let fee_payer = &self.infra.fee_payer;
         let compression_config = &self.infra.compression_config;
 
-        quote! {
+        Ok(quote! {
             // Build CPI accounts (no CPI context needed for PDAs-only)
             let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new(
                 &self.#fee_payer,
@@ -258,25 +254,20 @@ impl RentFreeBuilder {
                 .invoke(cpi_accounts)?;
 
             Ok(true)
-        }
+        })
     }
 
     /// Generate LightPreInit trait implementation.
-    pub fn generate_pre_init_impl(&self, body: TokenStream) -> TokenStream {
+    pub fn generate_pre_init_impl(&self, body: TokenStream) -> Result<TokenStream, syn::Error> {
         let struct_name = &self.parsed.struct_name;
         let (impl_generics, ty_generics, where_clause) = self.parsed.generics.split_for_impl();
 
-        let first_arg = self
-            .parsed
-            .instruction_args
-            .as_ref()
-            .and_then(|args| args.first())
-            .unwrap();
+        let first_arg = self.get_first_instruction_arg()?;
 
         let params_type = &first_arg.ty;
         let params_ident = &first_arg.name;
 
-        quote! {
+        Ok(quote! {
             #[automatically_derived]
             impl #impl_generics light_sdk::compressible::LightPreInit<'info, #params_type> for #struct_name #ty_generics #where_clause {
                 fn light_pre_init(
@@ -288,25 +279,20 @@ impl RentFreeBuilder {
                     #body
                 }
             }
-        }
+        })
     }
 
     /// Generate LightFinalize trait implementation.
-    pub fn generate_finalize_impl(&self, body: TokenStream) -> TokenStream {
+    pub fn generate_finalize_impl(&self, body: TokenStream) -> Result<TokenStream, syn::Error> {
         let struct_name = &self.parsed.struct_name;
         let (impl_generics, ty_generics, where_clause) = self.parsed.generics.split_for_impl();
 
-        let first_arg = self
-            .parsed
-            .instruction_args
-            .as_ref()
-            .and_then(|args| args.first())
-            .unwrap();
+        let first_arg = self.get_first_instruction_arg()?;
 
         let params_type = &first_arg.ty;
         let params_ident = &first_arg.name;
 
-        quote! {
+        Ok(quote! {
             #[automatically_derived]
             impl #impl_generics light_sdk::compressible::LightFinalize<'info, #params_type> for #struct_name #ty_generics #where_clause {
                 fn light_finalize(
@@ -319,6 +305,6 @@ impl RentFreeBuilder {
                     #body
                 }
             }
-        }
+        })
     }
 }

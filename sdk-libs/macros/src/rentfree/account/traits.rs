@@ -98,7 +98,9 @@ fn generate_compress_as_field_assignments(
     let mut field_assignments = Vec::new();
 
     for field in fields {
-        let field_name = field.ident.as_ref().unwrap();
+        let Some(field_name) = field.ident.as_ref() else {
+            continue;
+        };
         let field_type = &field.ty;
 
         // Auto-skip compression_info field (handled separately in CompressAs impl)
@@ -159,7 +161,9 @@ fn generate_size_fields(fields: &Punctuated<Field, Token![,]>) -> Vec<TokenStrea
     let mut size_fields = Vec::new();
 
     for field in fields.iter() {
-        let field_name = field.ident.as_ref().unwrap();
+        let Some(field_name) = field.ident.as_ref() else {
+            continue;
+        };
 
         // Auto-skip compression_info field (handled separately in Size impl)
         if field_name == "compression_info" {

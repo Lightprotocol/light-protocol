@@ -25,8 +25,8 @@ fn generate_with_packed_struct(
     packed_struct_name: &syn::Ident,
     fields: &syn::punctuated::Punctuated<syn::Field, syn::token::Comma>,
 ) -> Result<TokenStream> {
-    let packed_fields = fields.iter().map(|field| {
-        let field_name = field.ident.as_ref().unwrap();
+    let packed_fields = fields.iter().filter_map(|field| {
+        let field_name = field.ident.as_ref()?;
         let field_type = &field.ty;
 
         let packed_type = if is_pubkey_type(field_type) {
@@ -35,7 +35,7 @@ fn generate_with_packed_struct(
             quote! { #field_type }
         };
 
-        quote! { pub #field_name: #packed_type }
+        Some(quote! { pub #field_name: #packed_type })
     });
 
     let packed_struct = quote! {
@@ -45,11 +45,11 @@ fn generate_with_packed_struct(
         }
     };
 
-    let pack_field_assignments = fields.iter().map(|field| {
-        let field_name = field.ident.as_ref().unwrap();
+    let pack_field_assignments = fields.iter().filter_map(|field| {
+        let field_name = field.ident.as_ref()?;
         let field_type = &field.ty;
 
-        if *field_name == "compression_info" {
+        Some(if *field_name == "compression_info" {
             quote! { #field_name: None }
         } else if is_pubkey_type(field_type) {
             // Use read-only since pubkey fields are references (owner, authority, etc.)
@@ -59,7 +59,7 @@ fn generate_with_packed_struct(
             quote! { #field_name: self.#field_name }
         } else {
             quote! { #field_name: self.#field_name.clone() }
-        }
+        })
     });
 
     let pack_impl = quote! {
@@ -100,11 +100,11 @@ fn generate_with_packed_struct(
         }
     };
 
-    let unpack_field_assignments = fields.iter().map(|field| {
-        let field_name = field.ident.as_ref().unwrap();
+    let unpack_field_assignments = fields.iter().filter_map(|field| {
+        let field_name = field.ident.as_ref()?;
         let field_type = &field.ty;
 
-        if *field_name == "compression_info" {
+        Some(if *field_name == "compression_info" {
             quote! { #field_name: None }
         } else if is_pubkey_type(field_type) {
             quote! {
@@ -114,7 +114,7 @@ fn generate_with_packed_struct(
             quote! { #field_name: self.#field_name }
         } else {
             quote! { #field_name: self.#field_name.clone() }
-        }
+        })
     });
 
     let unpack_impl_packed = quote! {

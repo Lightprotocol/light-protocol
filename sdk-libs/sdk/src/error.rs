@@ -113,6 +113,8 @@ pub enum LightSdkError {
     PackedVariantCompressionInfo,
     #[error("CToken variant does not support compression_info operations")]
     CTokenCompressionInfo,
+    #[error("Unexpected unpacked variant during decompression")]
+    UnexpectedUnpackedVariant,
 }
 
 impl From<LightSdkError> for ProgramError {
@@ -205,6 +207,7 @@ impl From<LightSdkError> for u32 {
             LightSdkError::MissingCompressionInfo => 16044,
             LightSdkError::PackedVariantCompressionInfo => 16045,
             LightSdkError::CTokenCompressionInfo => 16046,
+            LightSdkError::UnexpectedUnpackedVariant => 16047,
         }
     }
 }

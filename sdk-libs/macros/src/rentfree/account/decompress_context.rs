@@ -95,7 +95,7 @@ pub fn generate_decompress_context_trait_impl(
                     )?;
                 }
                 RentFreeAccountVariant::#variant_name { .. } => {
-                    unreachable!("Unpacked variants should not be present during decompression");
+                    return std::result::Result::Err(light_sdk::error::LightSdkError::UnexpectedUnpackedVariant.into());
                 }
             }
         })
@@ -175,7 +175,7 @@ pub fn generate_decompress_context_trait_impl(
                             solana_msg::msg!("collect_pda_and_token: token {} done", i);
                         }
                         RentFreeAccountVariant::CTokenData(_) => {
-                            unreachable!();
+                            return std::result::Result::Err(light_sdk::error::LightSdkError::UnexpectedUnpackedVariant.into());
                         }
                     }
                 }
