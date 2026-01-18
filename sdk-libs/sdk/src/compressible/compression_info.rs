@@ -58,7 +58,7 @@ pub trait CompressAs {
     fn compress_as(&self) -> Cow<'_, Self::Output>;
 }
 
-#[derive(Debug, Clone, Default, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Clone, Default, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressionInfo {
     /// Version of the compressible config used to initialize this account.
     pub config_version: u16,

@@ -320,6 +320,17 @@ let user_record = packed_record.unpack(ctx.remaining_accounts)?;
 - All methods are marked `#[inline(never)]` for smaller program size
 - The packed struct derives `AnchorSerialize` and `AnchorDeserialize`
 
+### Limitation: Option<Pubkey> Fields
+
+Only direct `Pubkey` fields are converted to `u8` indices. `Option<Pubkey>` fields remain as `Option<Pubkey>` in the packed struct because `None` doesn't map cleanly to an index.
+
+```rust
+pub struct Record {
+    pub owner: Pubkey,           // -> u8 in packed struct
+    pub delegate: Option<Pubkey>, // -> Option<Pubkey> in packed struct (unchanged)
+}
+```
+
 ---
 
 ## 10. Related Macros

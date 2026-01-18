@@ -25,7 +25,7 @@ const RENT_SPONSOR: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcA
 async fn test_create_pdas_and_mint_auto() {
     use csdk_anchor_full_derived_test::{
         instruction_accounts::{LP_MINT_SIGNER_SEED, VAULT_SEED},
-        FullAutoWithMintParams,
+        FullAutoWithMintParams, GameSession,
     };
     use light_token_interface::state::Token;
     use light_token_sdk::token::{
@@ -245,6 +245,42 @@ async fn test_create_pdas_and_mint_auto() {
     assert_eq!(compressed_cmint.address.unwrap(), mint_compressed_address);
     assert!(compressed_cmint.data.as_ref().unwrap().data.is_empty());
 
+    // Verify GameSession initial state before compression
+    // Fields with compress_as overrides should have their original values
+    let initial_game_session_data = rpc
+        .get_account(game_session_pda)
+        .await
+        .unwrap()
+        .expect("GameSession should exist after init");
+    let initial_game_session: GameSession =
+        borsh::BorshDeserialize::deserialize(&mut &initial_game_session_data.data[8..])
+            .expect("Failed to deserialize initial GameSession");
+
+    // Verify initial state: start_time should be hardcoded value (2)
+    assert_eq!(
+        initial_game_session.start_time, 2,
+        "Initial start_time should be 2 (hardcoded non-zero), got: {}",
+        initial_game_session.start_time
+    );
+    assert_eq!(
+        initial_game_session.session_id, session_id,
+        "session_id should be preserved"
+    );
+    assert_eq!(
+        initial_game_session.player,
+        payer.pubkey(),
+        "player should be payer"
+    );
+    assert_eq!(
+        initial_game_session.game_type, "Auto Game With Mint",
+        "game_type should match"
+    );
+    assert_eq!(initial_game_session.end_time, None, "end_time should be None");
+    assert_eq!(initial_game_session.score, 0, "score should be 0");
+
+    // Store initial start_time for comparison after decompress
+    let initial_start_time = initial_game_session.start_time;
+
     // PHASE 2: Warp to trigger auto-compression
     rpc.warp_slot_forward(SLOTS_PER_EPOCH * 30).await.unwrap();
 
@@ -383,4 +419,48 @@ async fn test_create_pdas_and_mint_auto() {
         .value
         .items;
     assert!(remaining_vault.is_empty());
+
+    // PHASE 4: Verify compress_as field overrides on GameSession
+    // After decompress, fields with #[compress_as(...)] should be reset to override values
+    let game_session_data = rpc
+        .get_account(game_session_pda)
+        .await
+        .unwrap()
+        .expect("GameSession account should exist");
+    let game_session: GameSession =
+        borsh::BorshDeserialize::deserialize(&mut &game_session_data.data[8..]) // Skip anchor discriminator
+            .expect("Failed to deserialize GameSession");
+
+    // Verify start_time was reset by compress_as override
+    // Initial: Clock timestamp (non-zero), After decompress: 0
+    assert_ne!(
+        initial_start_time, 0,
+        "Initial start_time should have been non-zero"
+    );
+    assert_eq!(
+        game_session.start_time, 0,
+        "start_time should be reset to 0 by compress_as override (was: {})",
+        initial_start_time
+    );
+
+    // Extract runtime-specific value (compression_info set during transaction)
+    let compression_info = game_session.compression_info.clone();
+
+    // Build expected struct with compress_as overrides applied:
+    // #[compress_as(start_time = 0, end_time = None, score = 0)]
+    let expected_game_session = GameSession {
+        compression_info,              // Runtime-specific, extracted from actual
+        session_id,                    // 222 - preserved
+        player: payer.pubkey(),        // Preserved
+        game_type: "Auto Game With Mint".to_string(), // Preserved
+        start_time: 0,                 // compress_as override (was Clock timestamp)
+        end_time: None,                // compress_as override
+        score: 0,                      // compress_as override
+    };
+
+    // Single assert comparing full struct
+    assert_eq!(
+        game_session, expected_game_session,
+        "GameSession should match expected after decompress with compress_as overrides"
+    );
 }

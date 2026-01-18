@@ -409,6 +409,46 @@ fn test_pack_does_not_apply_compress_as_overrides() {
 }
 
 #[test]
+fn test_compress_as_then_pack_applies_overrides() {
+    // The correct way to pack with compress_as overrides:
+    // call compress_as() first, then pack() the result
+    let close_authority = Pubkey::new_unique();
+    let record = AllCompositionRecord {
+        owner: Pubkey::new_unique(),
+        delegate: Pubkey::new_unique(),
+        authority: Pubkey::new_unique(),
+        close_authority: Some(close_authority),
+        compression_info: Some(CompressionInfo::default()),
+        name: "test".to_string(),
+        hash: [0u8; 32],
+        start_time: 100,
+        cached_time: 999,  // Should become 0 after compress_as
+        end_time: Some(999),  // Should become None after compress_as
+        counter_1: 1,
+        counter_2: 2,
+        counter_3: 3,
+        flag_1: true,
+        flag_2: false,
+        score: Some(50),
+    };
+
+    // Chain compress_as() then pack()
+    let compressed = record.compress_as();
+    let mut packed_accounts = PackedAccounts::default();
+    let packed = compressed.pack(&mut packed_accounts);
+
+    // compress_as overrides ARE applied when chained
+    assert_eq!(packed.cached_time, 0, "compress_as().pack() applies cached_time = 0 override");
+    assert!(
+        packed.end_time.is_none(),
+        "compress_as().pack() applies end_time = None override"
+    );
+    // Non-overridden fields preserved
+    assert_eq!(packed.start_time, 100);
+    assert_eq!(packed.counter_1, 1);
+}
+
+#[test]
 fn test_pack_preserves_start_time_without_override() {
     let start_time_value = 555u64;
 

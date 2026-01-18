@@ -112,7 +112,6 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, CreatePdasAndMintAuto<'info>>,
         params: FullAutoWithMintParams,
     ) -> Result<()> {
-        use anchor_lang::solana_program::sysvar::clock::Clock;
         use light_token_sdk::token::{
             CreateTokenAccountCpi, CreateTokenAtaCpi, MintToCpi as CTokenMintToCpi,
         };
@@ -127,7 +126,7 @@ pub mod csdk_anchor_full_derived_test {
         game_session.session_id = params.session_id;
         game_session.player = ctx.accounts.fee_payer.key();
         game_session.game_type = "Auto Game With Mint".to_string();
-        game_session.start_time = Clock::get()?.unix_timestamp as u64;
+        game_session.start_time = 2; // Hardcoded non-zero for compress_as test
         game_session.end_time = None;
         game_session.score = 0;
 

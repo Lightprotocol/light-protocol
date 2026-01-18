@@ -26,7 +26,7 @@ pub struct UserRecord {
     pub category_id: u64,
 }
 
-#[derive(Default, Debug, InitSpace, RentFreeAccount)]
+#[derive(Default, Debug, PartialEq, InitSpace, RentFreeAccount)]
 #[compress_as(start_time = 0, end_time = None, score = 0)]
 #[account]
 pub struct GameSession {
