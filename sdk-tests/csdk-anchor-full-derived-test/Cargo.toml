@@ -13,16 +13,19 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
+custom-heap = ["light-heap", "light-sdk/custom-heap"]
 default = []
 idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
 test-sbf = []
 
 [dependencies]
+light-heap = { workspace = true, optional = true }
 light-sdk = { workspace = true, features = ["anchor", "idl-build", "v2", "anchor-discriminator", "cpi-context"] }
 light-sdk-types = { workspace = true, features = ["v2", "cpi-context"] }
 light-hasher = { workspace = true, features = ["solana"] }
 solana-program = { workspace = true }
 solana-program-error = { workspace = true }
+solana-msg = { workspace = true }
 solana-account-info = { workspace = true }
 solana-pubkey = { workspace = true }
 light-macros = { workspace = true, features = ["solana"] }
@@ -30,7 +33,7 @@ light-sdk-macros = { workspace = true }
 borsh = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
 anchor-lang = { workspace = true, features = ["idl-build"] }
-anchor-spl = { version = "=0.31.1", git = "https://github.com/lightprotocol/anchor", rev = "4e8ff59a7de5b2a8ba37f88cf7b0431999f1b1f3", features = ["memo", "metadata", "idl-build"] }
+anchor-spl = { version = "=0.31.1", git = "https://github.com/lightprotocol/anchor", rev = "da005d7f", features = ["memo", "metadata", "idl-build"] }
 light-token-interface = { workspace = true, features = ["anchor"] }
 light-token-sdk = { workspace = true, features = ["anchor", "compressible"] }
 light-token-types = { workspace = true, features = ["anchor"] }

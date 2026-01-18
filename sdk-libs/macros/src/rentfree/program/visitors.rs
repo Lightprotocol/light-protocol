@@ -19,7 +19,7 @@ use syn::{
 };
 
 use super::instructions::{InstructionDataSpec, SeedElement};
-use crate::rentfree::{shared_utils::is_constant_identifier, traits::utils::is_pubkey_type};
+use crate::rentfree::{account::utils::is_pubkey_type, shared_utils::is_constant_identifier};
 
 /// Visitor that extracts field names matching ctx.field, ctx.accounts.field, or data.field patterns.
 ///

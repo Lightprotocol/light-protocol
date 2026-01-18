@@ -14,23 +14,34 @@ Documentation for the rentfree macro system in `light-sdk-macros`. These macros 
 | **`rentfree_program/`** | `#[rentfree_program]` attribute macro |
 | **`rentfree_program/architecture.md`** | Architecture overview, usage, generated items |
 | **`rentfree_program/codegen.md`** | Technical implementation details (code generation) |
-| **`traits/`** | Trait derive macros for compressible data structs |
+| **`accounts/`** | Field-level attributes for Accounts structs |
+| **`account/`** | Trait derive macros for account data structs |
 
-### Traits Documentation
+### Accounts Field Attributes
+
+Field-level attributes applied inside `#[derive(RentFree)]` Accounts structs:
+
+| File | Attribute | Description |
+|------|-----------|-------------|
+| **`accounts/light_mint.md`** | `#[light_mint(...)]` | Creates compressed mint with automatic decompression |
+
+See also: `#[rentfree]` attribute documented in `rentfree.md`
+
+### Account Trait Documentation
 
 | File | Macro | Description |
 |------|-------|-------------|
-| **`traits/has_compression_info.md`** | `#[derive(HasCompressionInfo)]` | Accessor methods for compression_info field |
-| **`traits/compress_as.md`** | `#[derive(CompressAs)]` | Creates compressed representation for hashing |
-| **`traits/compressible.md`** | `#[derive(Compressible)]` | Combined: HasCompressionInfo + CompressAs + Size |
-| **`traits/compressible_pack.md`** | `#[derive(CompressiblePack)]` | Pack/Unpack with Pubkey-to-index compression |
-| **`traits/light_compressible.md`** | `#[derive(LightCompressible)]` | All traits for rent-free accounts |
+| **`account/has_compression_info.md`** | `#[derive(HasCompressionInfo)]` | Accessor methods for compression_info field |
+| **`account/compress_as.md`** | `#[derive(CompressAs)]` | Creates compressed representation for hashing |
+| **`account/compressible.md`** | `#[derive(Compressible)]` | Combined: HasCompressionInfo + CompressAs + Size |
+| **`account/compressible_pack.md`** | `#[derive(CompressiblePack)]` | Pack/Unpack with Pubkey-to-index compression |
+| **`account/light_compressible.md`** | `#[derive(LightCompressible)]` | All traits for rent-free accounts |
 
 ## Navigation Tips
 
 ### Starting Points
 
-- **Data struct traits**: Start with `traits/light_compressible.md` for the all-in-one derive macro for compressible data structs
+- **Data struct traits**: Start with `account/light_compressible.md` for the all-in-one derive macro for compressible data structs
 - **Building account structs**: Use `rentfree.md` for the accounts-level derive macro that marks fields for compression
 - **Program-level integration**: Use `rentfree_program/architecture.md` for program-level auto-discovery and instruction generation
 - **Implementation details**: Use `rentfree_program/codegen.md` for technical code generation details
@@ -52,21 +63,21 @@ Documentation for the rentfree macro system in `light-sdk-macros`. These macros 
     |
     +-- Generates LightPreInit + LightFinalize impls
     |
-    +-- Uses trait derives (traits/):
-        - HasCompressionInfo      <- traits/has_compression_info.md
-        - CompressAs              <- traits/compress_as.md
-        - Compressible            <- traits/compressible.md
-        - CompressiblePack        <- traits/compressible_pack.md
-        - LightCompressible       <- traits/light_compressible.md (combines all)
+    +-- Uses trait derives (account/):
+        - HasCompressionInfo      <- account/has_compression_info.md
+        - CompressAs              <- account/compress_as.md
+        - Compressible            <- account/compressible.md
+        - CompressiblePack        <- account/compressible_pack.md
+        - LightCompressible       <- account/light_compressible.md (combines all)
 ```
 
 ## Related Source Code
 
 ```
 sdk-libs/macros/src/rentfree/
+├── account/         # Trait derive macros for account data structs
 ├── accounts/        # #[derive(RentFree)] implementation
 ├── program/         # #[rentfree_program] implementation
-├── traits/          # Trait derive macros
 ├── shared_utils.rs  # Common utilities
 └── mod.rs           # Module exports
 ```

@@ -43,6 +43,7 @@ fn codegen(
     pda_seeds: Option<Vec<TokenSeedSpec>>,
     token_seeds: Option<Vec<TokenSeedSpec>>,
     instruction_data: Vec<InstructionDataSpec>,
+    crate_ctx: &super::crate_context::CrateContext,
 ) -> Result<TokenStream> {
     let size_validation_checks = validate_compressed_account_sizes(&account_types)?;
 
@@ -59,10 +60,10 @@ fn codegen(
         if !token_seed_specs.is_empty() {
             super::variant_enum::generate_ctoken_account_variant_enum(token_seed_specs)?
         } else {
-            crate::rentfree::traits::utils::generate_empty_ctoken_enum()
+            crate::rentfree::account::utils::generate_empty_ctoken_enum()
         }
     } else {
-        crate::rentfree::traits::utils::generate_empty_ctoken_enum()
+        crate::rentfree::account::utils::generate_empty_ctoken_enum()
     };
 
     if let Some(ref token_seed_specs) = token_seeds {
@@ -89,7 +90,23 @@ fn codegen(
                         .inner_type
                         .clone()
                         .unwrap_or_else(|| ident_to_type(&spec.variant));
-                    PdaCtxSeedInfo::new(spec.variant.clone(), inner_type, ctx_fields)
+
+                    // Look up the state struct's field names from CrateContext
+                    let state_field_names: std::collections::HashSet<String> = crate_ctx
+                        .get_struct_fields(&inner_type)
+                        .map(|fields| fields.into_iter().collect())
+                        .unwrap_or_default();
+
+                    // Extract params-only seed fields (data.* fields that don't exist on state)
+                    let params_only_seed_fields = crate::rentfree::account::seed_extraction::get_params_only_seed_fields_from_spec(spec, &state_field_names);
+
+                    PdaCtxSeedInfo::with_state_fields(
+                        spec.variant.clone(),
+                        inner_type,
+                        ctx_fields,
+                        state_field_names,
+                        params_only_seed_fields,
+                    )
                 })
                 .collect()
         })
@@ -98,9 +115,54 @@ fn codegen(
     let enum_and_traits =
         super::variant_enum::compressed_account_variant_with_ctx_seeds(&pda_ctx_seeds)?;
 
-    let seed_params_struct = quote! {
-        #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Clone, Debug, Default)]
-        pub struct SeedParams;
+    // Collect all unique params-only seed fields across all variants for SeedParams struct
+    // Use BTreeMap for deterministic ordering
+    let mut all_params_only_fields: std::collections::BTreeMap<String, syn::Type> =
+        std::collections::BTreeMap::new();
+    for ctx_info in &pda_ctx_seeds {
+        for (field_name, field_type, _) in &ctx_info.params_only_seed_fields {
+            let field_str = field_name.to_string();
+            all_params_only_fields
+                .entry(field_str)
+                .or_insert_with(|| field_type.clone());
+        }
+    }
+
+    let seed_params_struct = if all_params_only_fields.is_empty() {
+        quote! {
+            #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Clone, Debug, Default)]
+            pub struct SeedParams;
+        }
+    } else {
+        // Collect into Vec for consistent ordering between field declarations and Default impl
+        let sorted_fields: Vec<_> = all_params_only_fields.iter().collect();
+        let seed_param_fields: Vec<_> = sorted_fields
+            .iter()
+            .map(|(name, ty)| {
+                let field_ident = format_ident!("{}", name);
+                quote! { pub #field_ident: Option<#ty> }
+            })
+            .collect();
+        let seed_param_defaults: Vec<_> = sorted_fields
+            .iter()
+            .map(|(name, _)| {
+                let field_ident = format_ident!("{}", name);
+                quote! { #field_ident: None }
+            })
+            .collect();
+        quote! {
+            #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Clone, Debug)]
+            pub struct SeedParams {
+                #(#seed_param_fields,)*
+            }
+            impl Default for SeedParams {
+                fn default() -> Self {
+                    Self {
+                        #(#seed_param_defaults,)*
+                    }
+                }
+            }
+        }
     };
 
     let instruction_data_types: std::collections::HashMap<String, &syn::Type> = instruction_data
@@ -122,6 +184,7 @@ fn codegen(
                 let seeds_struct_name = format_ident!("{}Seeds", variant_name);
                 let constructor_name = format_ident!("{}", to_snake_case(&variant_name.to_string()));
                 let ctx_fields = &ctx_info.ctx_seed_fields;
+                let params_only_fields = &ctx_info.params_only_seed_fields;
                 let ctx_field_decls: Vec<_> = ctx_fields.iter().map(|field| {
                     quote! { pub #field: solana_pubkey::Pubkey }
                 }).collect();
@@ -132,13 +195,23 @@ fn codegen(
                         quote! { pub #field: #ty }
                     })
                 }).collect();
-                let data_verifications: Vec<_> = data_fields.iter().map(|field| {
-                    quote! {
+                // Only generate verifications for data fields that exist on the state struct
+                let data_verifications: Vec<_> = data_fields.iter().filter_map(|field| {
+                    let field_str = field.to_string();
+                    // Skip fields that don't exist on the state struct (e.g., params-only seeds)
+                    if !ctx_info.state_field_names.contains(&field_str) {
+                        return None;
+                    }
+                    Some(quote! {
                         if data.#field != seeds.#field {
                             return std::result::Result::Err(RentFreeInstructionError::SeedMismatch.into());
                         }
-                    }
+                    })
                 }).collect();
+
+                // Extract params-only field names from ctx_info for variant construction
+                let params_only_field_names: Vec<_> = params_only_fields.iter().map(|(f, _, _)| f).collect();
+
                 quote! {
                     #[derive(Clone, Debug)]
                     pub struct #seeds_struct_name {
@@ -157,9 +230,11 @@ fn codegen(
                             #(#data_verifications)*
 
                             // Use variant_name for the enum variant
+                            // Include ctx fields and params-only fields from seeds
                             std::result::Result::Ok(Self::#variant_name {
                                 data,
                                 #(#ctx_fields: seeds.#ctx_fields,)*
+                                #(#params_only_field_names: seeds.#params_only_field_names,)*
                             })
                         }
                     }
@@ -316,9 +391,11 @@ fn codegen(
         &instruction_data,
     )?;
 
-    // Insert SeedParams struct
-    let seed_params_item: Item = syn::parse2(seed_params_struct)?;
-    content.1.push(seed_params_item);
+    // Insert SeedParams struct and impl
+    let seed_params_file: syn::File = syn::parse2(seed_params_struct)?;
+    for item in seed_params_file.items {
+        content.1.push(item);
+    }
 
     // Insert XxxSeeds structs and RentFreeAccountVariant constructors
     for seeds_tokens in seeds_structs_and_constructors.into_iter() {
@@ -405,7 +482,7 @@ fn codegen(
 #[inline(never)]
 pub fn rentfree_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<TokenStream> {
     use super::crate_context::CrateContext;
-    use crate::rentfree::traits::seed_extraction::{
+    use crate::rentfree::account::seed_extraction::{
         extract_from_accounts_struct, get_data_fields, ExtractedSeedSpec, ExtractedTokenSpec,
     };
 
@@ -423,7 +500,10 @@ pub fn rentfree_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<
 
     for item_struct in crate_ctx.structs_with_derive("Accounts") {
         if let Some(info) = extract_from_accounts_struct(item_struct)? {
-            if !info.pda_fields.is_empty() || !info.token_fields.is_empty() {
+            if !info.pda_fields.is_empty()
+                || !info.token_fields.is_empty()
+                || info.has_light_mint_fields
+            {
                 rentfree_struct_names.insert(info.struct_name.to_string());
                 pda_specs.extend(info.pda_fields);
                 token_specs.extend(info.token_fields);
@@ -540,5 +620,6 @@ pub fn rentfree_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<
         pda_seeds,
         token_seeds,
         found_data_fields,
+        &crate_ctx,
     )
 }

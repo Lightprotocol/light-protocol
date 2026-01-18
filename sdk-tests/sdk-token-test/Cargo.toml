@@ -34,10 +34,12 @@ profile-heap = [
 light-token-sdk = { workspace = true, features = ["anchor", "cpi-context", "v1"] }
 light-token-types = { workspace = true }
 anchor-lang = { workspace = true }
+solana-pubkey = { workspace = true }
+solana-account-info = { workspace = true }
 light-hasher = { workspace = true }
 light-sdk = { workspace = true, features = ["v2", "cpi-context"] }
 light-sdk-types = { workspace = true, features = ["cpi-context"] }
-light-compressed-account = { workspace = true, features = ["std"] }
+light-compressed-account = { workspace = true, features = ["std", "anchor"] }
 arrayvec = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-token-interface = { workspace = true, features = ["anchor"] }

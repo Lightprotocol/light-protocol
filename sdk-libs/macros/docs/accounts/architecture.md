@@ -410,9 +410,11 @@ pub struct CachedData {
 
 ### 3.3 Pack/Unpack (CompressiblePack)
 
-Generates `Pack` and `Unpack` traits with a `Packed{StructName}` struct where Pubkey fields are compressed to u8 indices.
+Generates `Pack` and `Unpack` traits with a `Packed{StructName}` struct where direct Pubkey fields are compressed to u8 indices.
 
 **Source**: `sdk-libs/macros/src/rentfree/traits/pack_unpack.rs`
+
+**Limitation**: Only direct `Pubkey` fields are converted to `u8` indices. `Option<Pubkey>` fields are **NOT** converted - they remain as `Option<Pubkey>` in the packed struct. This is because `Option<Pubkey>` can be `None`, which doesn't map cleanly to an index.
 
 **Input**:
 ```rust
@@ -499,7 +501,8 @@ pub struct UserRecord {
 
 **Notes**:
 - `compression_info` field is auto-detected and handled specially (no `#[skip]` needed)
-- SHA256 hashes the entire struct, so no `#[hash]` attributes needed
+- SHA256 hashes the entire struct via borsh serialization, so no `#[hash]` attributes needed
+- **Important**: `compression_info` IS included in the hash. Set it to `None` before hashing for consistent results.
 
 ---
 

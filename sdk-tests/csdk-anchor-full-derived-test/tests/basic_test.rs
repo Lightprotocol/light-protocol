@@ -25,7 +25,7 @@ const RENT_SPONSOR: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcA
 async fn test_create_pdas_and_mint_auto() {
     use csdk_anchor_full_derived_test::{
         instruction_accounts::{LP_MINT_SIGNER_SEED, VAULT_SEED},
-        FullAutoWithMintParams,
+        FullAutoWithMintParams, GameSession,
     };
     use light_token_interface::state::Token;
     use light_token_sdk::token::{
@@ -245,6 +245,45 @@ async fn test_create_pdas_and_mint_auto() {
     assert_eq!(compressed_cmint.address.unwrap(), mint_compressed_address);
     assert!(compressed_cmint.data.as_ref().unwrap().data.is_empty());
 
+    // Verify GameSession initial state before compression
+    // Fields with compress_as overrides should have their original values
+    let initial_game_session_data = rpc
+        .get_account(game_session_pda)
+        .await
+        .unwrap()
+        .expect("GameSession should exist after init");
+    let initial_game_session: GameSession =
+        borsh::BorshDeserialize::deserialize(&mut &initial_game_session_data.data[8..])
+            .expect("Failed to deserialize initial GameSession");
+
+    // Verify initial state: start_time should be hardcoded value (2)
+    assert_eq!(
+        initial_game_session.start_time, 2,
+        "Initial start_time should be 2 (hardcoded non-zero), got: {}",
+        initial_game_session.start_time
+    );
+    assert_eq!(
+        initial_game_session.session_id, session_id,
+        "session_id should be preserved"
+    );
+    assert_eq!(
+        initial_game_session.player,
+        payer.pubkey(),
+        "player should be payer"
+    );
+    assert_eq!(
+        initial_game_session.game_type, "Auto Game With Mint",
+        "game_type should match"
+    );
+    assert_eq!(
+        initial_game_session.end_time, None,
+        "end_time should be None"
+    );
+    assert_eq!(initial_game_session.score, 0, "score should be 0");
+
+    // Store initial start_time for comparison after decompress
+    let initial_start_time = initial_game_session.start_time;
+
     // PHASE 2: Warp to trigger auto-compression
     rpc.warp_slot_forward(SLOTS_PER_EPOCH * 30).await.unwrap();
 
@@ -383,4 +422,427 @@ async fn test_create_pdas_and_mint_auto() {
         .value
         .items;
     assert!(remaining_vault.is_empty());
+
+    // PHASE 4: Verify compress_as field overrides on GameSession
+    // After decompress, fields with #[compress_as(...)] should be reset to override values
+    let game_session_data = rpc
+        .get_account(game_session_pda)
+        .await
+        .unwrap()
+        .expect("GameSession account should exist");
+    let game_session: GameSession =
+        borsh::BorshDeserialize::deserialize(&mut &game_session_data.data[8..]) // Skip anchor discriminator
+            .expect("Failed to deserialize GameSession");
+
+    // Verify start_time was reset by compress_as override
+    // Initial: Clock timestamp (non-zero), After decompress: 0
+    assert_ne!(
+        initial_start_time, 0,
+        "Initial start_time should have been non-zero"
+    );
+    assert_eq!(
+        game_session.start_time, 0,
+        "start_time should be reset to 0 by compress_as override (was: {})",
+        initial_start_time
+    );
+
+    // Extract runtime-specific value (compression_info set during transaction)
+    let compression_info = game_session.compression_info.clone();
+
+    // Build expected struct with compress_as overrides applied:
+    // #[compress_as(start_time = 0, end_time = None, score = 0)]
+    let expected_game_session = GameSession {
+        compression_info,       // Runtime-specific, extracted from actual
+        session_id,             // 222 - preserved
+        player: payer.pubkey(), // Preserved
+        game_type: "Auto Game With Mint".to_string(), // Preserved
+        start_time: 0,          // compress_as override (was Clock timestamp)
+        end_time: None,         // compress_as override
+        score: 0,               // compress_as override
+    };
+
+    // Single assert comparing full struct
+    assert_eq!(
+        game_session, expected_game_session,
+        "GameSession should match expected after decompress with compress_as overrides"
+    );
+}
+
+/// Test creating 2 mints in a single instruction.
+/// Verifies multi-mint support in the RentFree macro.
+#[tokio::test]
+async fn test_create_two_mints() {
+    use csdk_anchor_full_derived_test::instruction_accounts::{
+        CreateTwoMintsParams, MINT_SIGNER_A_SEED, MINT_SIGNER_B_SEED,
+    };
+    use light_token_sdk::token::{
+        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1,
+        RENT_SPONSOR as CTOKEN_RENT_SPONSOR,
+    };
+
+    let program_id = csdk_anchor_full_derived_test::ID;
+    let mut config = ProgramTestConfig::new_v2(
+        true,
+        Some(vec![("csdk_anchor_full_derived_test", program_id)]),
+    );
+    config = config.with_light_protocol_events();
+
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
+
+    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+        &program_id,
+        &payer.pubkey(),
+        &program_data_pda,
+        RENT_SPONSOR,
+        payer.pubkey(),
+    )
+    .build();
+
+    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
+        .await
+        .expect("Initialize config should succeed");
+
+    let authority = Keypair::new();
+
+    // Derive PDAs for both mint signers
+    let (mint_signer_a_pda, mint_signer_a_bump) = Pubkey::find_program_address(
+        &[MINT_SIGNER_A_SEED, authority.pubkey().as_ref()],
+        &program_id,
+    );
+    let (mint_signer_b_pda, mint_signer_b_bump) = Pubkey::find_program_address(
+        &[MINT_SIGNER_B_SEED, authority.pubkey().as_ref()],
+        &program_id,
+    );
+
+    // Derive mint PDAs
+    let (cmint_a_pda, _) = find_cmint_address(&mint_signer_a_pda);
+    let (cmint_b_pda, _) = find_cmint_address(&mint_signer_b_pda);
+
+    // Get proof for both mints
+    let proof_result = get_create_accounts_proof(
+        &rpc,
+        &program_id,
+        vec![
+            CreateAccountsProofInput::mint(mint_signer_a_pda),
+            CreateAccountsProofInput::mint(mint_signer_b_pda),
+        ],
+    )
+    .await
+    .unwrap();
+
+    // Debug: Check proof contents
+    println!(
+        "proof_result.create_accounts_proof.proof.0.is_some() = {:?}",
+        proof_result.create_accounts_proof.proof.0.is_some()
+    );
+    println!(
+        "proof_result.remaining_accounts.len() = {:?}",
+        proof_result.remaining_accounts.len()
+    );
+
+    let accounts = csdk_anchor_full_derived_test::accounts::CreateTwoMints {
+        fee_payer: payer.pubkey(),
+        authority: authority.pubkey(),
+        mint_signer_a: mint_signer_a_pda,
+        mint_signer_b: mint_signer_b_pda,
+        cmint_a: cmint_a_pda,
+        cmint_b: cmint_b_pda,
+        compression_config: config_pda,
+        ctoken_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
+        ctoken_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::CreateTwoMints {
+        params: CreateTwoMintsParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            mint_signer_a_bump,
+            mint_signer_b_bump,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &authority])
+        .await
+        .expect("CreateTwoMints should succeed");
+
+    // Verify both mints exist on-chain
+    let cmint_a_account = rpc
+        .get_account(cmint_a_pda)
+        .await
+        .unwrap()
+        .expect("Mint A should exist on-chain");
+    let cmint_b_account = rpc
+        .get_account(cmint_b_pda)
+        .await
+        .unwrap()
+        .expect("Mint B should exist on-chain");
+
+    // Parse and verify mint data
+    use light_token_interface::state::Mint;
+    let mint_a: Mint = borsh::BorshDeserialize::deserialize(&mut &cmint_a_account.data[..])
+        .expect("Failed to deserialize Mint A");
+    let mint_b: Mint = borsh::BorshDeserialize::deserialize(&mut &cmint_b_account.data[..])
+        .expect("Failed to deserialize Mint B");
+
+    // Verify decimals match what was specified in #[light_mint]
+    assert_eq!(mint_a.base.decimals, 6, "Mint A should have 6 decimals");
+    assert_eq!(mint_b.base.decimals, 9, "Mint B should have 9 decimals");
+
+    // Verify mint authorities
+    assert_eq!(
+        mint_a.base.mint_authority,
+        Some(payer.pubkey().to_bytes().into()),
+        "Mint A authority should be fee_payer"
+    );
+    assert_eq!(
+        mint_b.base.mint_authority,
+        Some(payer.pubkey().to_bytes().into()),
+        "Mint B authority should be fee_payer"
+    );
+
+    // Verify compressed addresses registered
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
+
+    let mint_a_compressed_address =
+        light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
+            &mint_signer_a_pda,
+            &address_tree_pubkey,
+        );
+    let compressed_mint_a = rpc
+        .get_compressed_account(mint_a_compressed_address, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap();
+    assert_eq!(
+        compressed_mint_a.address.unwrap(),
+        mint_a_compressed_address,
+        "Mint A compressed address should be registered"
+    );
+
+    let mint_b_compressed_address =
+        light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
+            &mint_signer_b_pda,
+            &address_tree_pubkey,
+        );
+    let compressed_mint_b = rpc
+        .get_compressed_account(mint_b_compressed_address, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap();
+    assert_eq!(
+        compressed_mint_b.address.unwrap(),
+        mint_b_compressed_address,
+        "Mint B compressed address should be registered"
+    );
+
+    // Verify both compressed mint accounts have empty data (decompressed to on-chain)
+    assert!(
+        compressed_mint_a.data.as_ref().unwrap().data.is_empty(),
+        "Mint A compressed data should be empty (decompressed)"
+    );
+    assert!(
+        compressed_mint_b.data.as_ref().unwrap().data.is_empty(),
+        "Mint B compressed data should be empty (decompressed)"
+    );
+}
+
+/// Test creating 4 mints in a single instruction.
+/// Verifies multi-mint support in the RentFree macro scales beyond 2.
+#[tokio::test]
+async fn test_create_four_mints() {
+    use csdk_anchor_full_derived_test::instruction_accounts::{
+        CreateFourMintsParams, MINT_SIGNER_A_SEED, MINT_SIGNER_B_SEED, MINT_SIGNER_C_SEED,
+        MINT_SIGNER_D_SEED,
+    };
+    use light_token_sdk::token::{
+        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1,
+        RENT_SPONSOR as CTOKEN_RENT_SPONSOR,
+    };
+
+    let program_id = csdk_anchor_full_derived_test::ID;
+    let mut config = ProgramTestConfig::new_v2(
+        true,
+        Some(vec![("csdk_anchor_full_derived_test", program_id)]),
+    );
+    config = config.with_light_protocol_events();
+
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
+
+    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+        &program_id,
+        &payer.pubkey(),
+        &program_data_pda,
+        RENT_SPONSOR,
+        payer.pubkey(),
+    )
+    .build();
+
+    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
+        .await
+        .expect("Initialize config should succeed");
+
+    let authority = Keypair::new();
+
+    // Derive PDAs for all 4 mint signers
+    let (mint_signer_a_pda, mint_signer_a_bump) = Pubkey::find_program_address(
+        &[MINT_SIGNER_A_SEED, authority.pubkey().as_ref()],
+        &program_id,
+    );
+    let (mint_signer_b_pda, mint_signer_b_bump) = Pubkey::find_program_address(
+        &[MINT_SIGNER_B_SEED, authority.pubkey().as_ref()],
+        &program_id,
+    );
+    let (mint_signer_c_pda, mint_signer_c_bump) = Pubkey::find_program_address(
+        &[MINT_SIGNER_C_SEED, authority.pubkey().as_ref()],
+        &program_id,
+    );
+    let (mint_signer_d_pda, mint_signer_d_bump) = Pubkey::find_program_address(
+        &[MINT_SIGNER_D_SEED, authority.pubkey().as_ref()],
+        &program_id,
+    );
+
+    // Derive mint PDAs
+    let (cmint_a_pda, _) = find_cmint_address(&mint_signer_a_pda);
+    let (cmint_b_pda, _) = find_cmint_address(&mint_signer_b_pda);
+    let (cmint_c_pda, _) = find_cmint_address(&mint_signer_c_pda);
+    let (cmint_d_pda, _) = find_cmint_address(&mint_signer_d_pda);
+
+    // Get proof for all 4 mints
+    let proof_result = get_create_accounts_proof(
+        &rpc,
+        &program_id,
+        vec![
+            CreateAccountsProofInput::mint(mint_signer_a_pda),
+            CreateAccountsProofInput::mint(mint_signer_b_pda),
+            CreateAccountsProofInput::mint(mint_signer_c_pda),
+            CreateAccountsProofInput::mint(mint_signer_d_pda),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let accounts = csdk_anchor_full_derived_test::accounts::CreateFourMints {
+        fee_payer: payer.pubkey(),
+        authority: authority.pubkey(),
+        mint_signer_a: mint_signer_a_pda,
+        mint_signer_b: mint_signer_b_pda,
+        mint_signer_c: mint_signer_c_pda,
+        mint_signer_d: mint_signer_d_pda,
+        cmint_a: cmint_a_pda,
+        cmint_b: cmint_b_pda,
+        cmint_c: cmint_c_pda,
+        cmint_d: cmint_d_pda,
+        compression_config: config_pda,
+        ctoken_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
+        ctoken_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::CreateFourMints {
+        params: CreateFourMintsParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            mint_signer_a_bump,
+            mint_signer_b_bump,
+            mint_signer_c_bump,
+            mint_signer_d_bump,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &authority])
+        .await
+        .expect("CreateFourMints should succeed");
+
+    // Verify all 4 mints exist on-chain
+    use light_token_interface::state::Mint;
+
+    let cmint_a_account = rpc
+        .get_account(cmint_a_pda)
+        .await
+        .unwrap()
+        .expect("Mint A should exist on-chain");
+    let cmint_b_account = rpc
+        .get_account(cmint_b_pda)
+        .await
+        .unwrap()
+        .expect("Mint B should exist on-chain");
+    let cmint_c_account = rpc
+        .get_account(cmint_c_pda)
+        .await
+        .unwrap()
+        .expect("Mint C should exist on-chain");
+    let cmint_d_account = rpc
+        .get_account(cmint_d_pda)
+        .await
+        .unwrap()
+        .expect("Mint D should exist on-chain");
+
+    // Parse and verify mint data
+    let mint_a: Mint = borsh::BorshDeserialize::deserialize(&mut &cmint_a_account.data[..])
+        .expect("Failed to deserialize Mint A");
+    let mint_b: Mint = borsh::BorshDeserialize::deserialize(&mut &cmint_b_account.data[..])
+        .expect("Failed to deserialize Mint B");
+    let mint_c: Mint = borsh::BorshDeserialize::deserialize(&mut &cmint_c_account.data[..])
+        .expect("Failed to deserialize Mint C");
+    let mint_d: Mint = borsh::BorshDeserialize::deserialize(&mut &cmint_d_account.data[..])
+        .expect("Failed to deserialize Mint D");
+
+    // Verify decimals match what was specified in #[light_mint]
+    assert_eq!(mint_a.base.decimals, 6, "Mint A should have 6 decimals");
+    assert_eq!(mint_b.base.decimals, 8, "Mint B should have 8 decimals");
+    assert_eq!(mint_c.base.decimals, 9, "Mint C should have 9 decimals");
+    assert_eq!(mint_d.base.decimals, 12, "Mint D should have 12 decimals");
+
+    // Verify mint authorities
+    assert_eq!(
+        mint_a.base.mint_authority,
+        Some(payer.pubkey().to_bytes().into()),
+        "Mint A authority should be fee_payer"
+    );
+    assert_eq!(
+        mint_b.base.mint_authority,
+        Some(payer.pubkey().to_bytes().into()),
+        "Mint B authority should be fee_payer"
+    );
+    assert_eq!(
+        mint_c.base.mint_authority,
+        Some(payer.pubkey().to_bytes().into()),
+        "Mint C authority should be fee_payer"
+    );
+    assert_eq!(
+        mint_d.base.mint_authority,
+        Some(payer.pubkey().to_bytes().into()),
+        "Mint D authority should be fee_payer"
+    );
 }

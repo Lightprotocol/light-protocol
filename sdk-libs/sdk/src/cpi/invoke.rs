@@ -79,7 +79,6 @@ where
             accounts: account_metas,
             data,
         };
-
         invoke_light_system_program(&account_infos, instruction, self.get_bump())
     }
 

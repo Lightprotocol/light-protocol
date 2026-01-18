@@ -143,7 +143,6 @@ pub(super) struct InfraRefs {
     pub compression_config: TokenStream,
     pub ctoken_config: TokenStream,
     pub ctoken_rent_sponsor: TokenStream,
-    pub light_token_program: TokenStream,
     pub ctoken_cpi_authority: TokenStream,
 }
 
@@ -158,7 +157,6 @@ impl InfraRefs {
                 &infra.ctoken_rent_sponsor,
                 "ctoken_rent_sponsor",
             ),
-            light_token_program: resolve_field_name(&infra.ctoken_program, "light_token_program"),
             ctoken_cpi_authority: resolve_field_name(
                 &infra.ctoken_cpi_authority,
                 "ctoken_cpi_authority",
@@ -167,290 +165,264 @@ impl InfraRefs {
     }
 }
 
-/// Parts of generated code that differ based on CPI context presence.
+/// Builder for generating code that creates multiple compressed mints using CreateMintsCpi.
 ///
-/// - **With CPI context**: Used when batching mint creation with PDA compression.
-///   The mint shares output tree with PDAs, uses assigned_account_index for ordering.
-///
-/// - **Without CPI context**: Used for mint-only instructions.
-///   The mint uses its own address tree info directly.
-struct CpiContextParts {
-    /// Queue access expression (how to get output queue index)
-    queue_access: TokenStream,
-    /// Setup block (defines __output_tree_index if needed)
-    setup: TokenStream,
-    /// Method chain for CPI context configuration on instruction data
-    chain: TokenStream,
-    /// Meta config assignment (sets cpi_context on meta_config)
-    meta_assignment: TokenStream,
-    /// Variable binding for instruction_data (mut or not)
-    data_binding: TokenStream,
-}
-
-impl CpiContextParts {
-    fn new(cpi_context: &Option<(TokenStream, u8)>) -> Self {
-        match cpi_context {
-            Some((tree_expr, assigned_idx)) => Self {
-                // With CPI context - batching with PDAs
-                queue_access: quote! { __output_tree_index as usize },
-                setup: quote! { let __output_tree_index = #tree_expr; },
-                chain: quote! {
-                    .with_cpi_context(light_token_interface::instructions::mint_action::CpiContext {
-                        address_tree_pubkey: __tree_pubkey.to_bytes(),
-                        set_context: false,
-                        first_set_context: false,
-                        in_tree_index: #tree_expr + 1,
-                        in_queue_index: #tree_expr,
-                        out_queue_index: #tree_expr,
-                        token_out_queue_index: 0,
-                        assigned_account_index: #assigned_idx,
-                        read_only_address_trees: [0; 4],
-                    })
-                },
-                meta_assignment: quote! { meta_config.cpi_context = Some(*cpi_accounts.cpi_context()?.key); },
-                data_binding: quote! { let mut instruction_data },
-            },
-            None => Self {
-                // Without CPI context - mint only
-                queue_access: quote! { __tree_info.address_queue_pubkey_index as usize },
-                setup: quote! {},
-                chain: quote! {},
-                meta_assignment: quote! {},
-                data_binding: quote! { let instruction_data },
-            },
-        }
-    }
-}
-
-/// Builder for mint code generation.
+/// This replaces the previous single-mint LightMintBuilder with support for N mints.
+/// Generated code uses `CreateMintsCpi` from light_token_sdk for optimal batching.
 ///
 /// Usage:
 /// ```ignore
-/// LightMintBuilder::new(mint, params_ident, &infra)
-///     .with_cpi_context(quote! { #first_pda_output_tree }, mint_assigned_index)
+/// LightMintsBuilder::new(mints, params_ident, &infra)
+///     .with_pda_context(pda_count, quote! { #first_pda_output_tree })
 ///     .generate_invocation()
 /// ```
-pub(super) struct LightMintBuilder<'a> {
-    mint: &'a LightMintField,
+pub(super) struct LightMintsBuilder<'a> {
+    mints: &'a [LightMintField],
     params_ident: &'a Ident,
     infra: &'a InfraRefs,
-    cpi_context: Option<(TokenStream, u8)>,
+    /// PDA context: (pda_count, output_tree_expr) for batching with PDAs
+    pda_context: Option<(usize, TokenStream)>,
 }
 
-impl<'a> LightMintBuilder<'a> {
+impl<'a> LightMintsBuilder<'a> {
     /// Create builder with required fields.
-    pub fn new(mint: &'a LightMintField, params_ident: &'a Ident, infra: &'a InfraRefs) -> Self {
+    pub fn new(mints: &'a [LightMintField], params_ident: &'a Ident, infra: &'a InfraRefs) -> Self {
         Self {
-            mint,
+            mints,
             params_ident,
             infra,
-            cpi_context: None,
+            pda_context: None,
         }
     }
 
-    /// Configure CPI context for batching with PDAs.
-    pub fn with_cpi_context(mut self, tree_expr: TokenStream, assigned_idx: u8) -> Self {
-        self.cpi_context = Some((tree_expr, assigned_idx));
+    /// Configure for batching with PDAs.
+    ///
+    /// When PDAs are written to CPI context first, this sets the offset for mint indices
+    /// so they don't collide with PDA indices.
+    pub fn with_pda_context(mut self, pda_count: usize, output_tree_expr: TokenStream) -> Self {
+        self.pda_context = Some((pda_count, output_tree_expr));
         self
     }
 
-    /// Generate mint_action CPI invocation code.
+    /// Generate CreateMintsCpi invocation code for all mints.
     pub fn generate_invocation(self) -> TokenStream {
-        generate_mint_invocation(&self)
+        generate_mints_invocation(&self)
     }
 }
 
-/// Generate mint_action invocation code.
+/// Generate CreateMintsCpi invocation code for multiple mints.
 ///
-/// This is the main orchestration function. Shows the high-level flow:
-/// 1. Determine CPI context parts (single branching point for all CPI differences)
-/// 2. Generate optional field expressions (signer_seeds, freeze_authority, etc.)
-/// 3. Generate the complete mint_action CPI invocation block
-fn generate_mint_invocation(builder: &LightMintBuilder) -> TokenStream {
-    let mint = builder.mint;
+/// Flow:
+/// 1. For each mint: derive PDA, build SingleMintParams
+/// 2. Build arrays for mint_seed_accounts, mints
+/// 3. Construct CreateMintsCpi struct
+/// 4. Call invoke() - seeds are extracted from SingleMintParams internally
+fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
+    let mints = builder.mints;
     let params_ident = builder.params_ident;
-    let infra = &builder.infra;
+    let infra = builder.infra;
+    let mint_count = mints.len();
 
-    // 2. Generate optional field expressions
-    let mint_seeds = &mint.mint_seeds;
-    let authority_seeds = &mint.authority_seeds;
-    let freeze_authority = mint
-        .freeze_authority
-        .as_ref()
-        .map(|f| quote! { Some(*self.#f.to_account_info().key) })
-        .unwrap_or_else(|| quote! { None });
-    let rent_payment = quote_option_or(&mint.rent_payment, quote! { 2u8 });
-    let write_top_up = quote_option_or(&mint.write_top_up, quote! { 0u32 });
-
-    // 3. Generate the mint_action CPI block
-    let mint_field_ident = &mint.field_ident;
-    let mint_signer = &mint.mint_signer;
-    let authority = &mint.authority;
-    let decimals = &mint.decimals;
-    let address_tree_info = &mint.address_tree_info;
-
+    // Infrastructure field references
     let fee_payer = &infra.fee_payer;
     let ctoken_config = &infra.ctoken_config;
     let ctoken_rent_sponsor = &infra.ctoken_rent_sponsor;
-    let light_token_program = &infra.light_token_program;
     let ctoken_cpi_authority = &infra.ctoken_cpi_authority;
 
-    // 1. Determine CPI context parts (single branching point)
-    let cpi = CpiContextParts::new(&builder.cpi_context);
-
-    // Destructure CPI parts for use in quote
-    let CpiContextParts {
-        queue_access,
-        setup: cpi_setup,
-        chain: cpi_chain,
-        meta_assignment: cpi_meta_assignment,
-        data_binding,
-    } = cpi;
-
-    // Generate invoke_signed call with appropriate signer seeds
-    let invoke_signed_call = match authority_seeds {
-        Some(auth_seeds) => {
-            quote! {
-                let authority_seeds: &[&[u8]] = #auth_seeds;
-                anchor_lang::solana_program::program::invoke_signed(
-                    &mint_action_ix,
-                    &account_infos,
-                    &[mint_seeds, authority_seeds]
-                )?;
-            }
+    // Determine CPI context offset based on PDA context
+    let (cpi_context_offset, output_tree_setup) = match &builder.pda_context {
+        Some((pda_count, tree_expr)) => {
+            let offset = *pda_count as u8;
+            (
+                quote! { #offset },
+                quote! { let __output_tree_index = #tree_expr; },
+            )
         }
-        None => {
-            // authority_seeds not provided - authority must be a transaction signer
+        None => (quote! { 0u8 }, quote! {}),
+    };
+
+    // Generate code for each mint to build SingleMintParams
+    let mint_params_builds: Vec<TokenStream> = mints
+        .iter()
+        .enumerate()
+        .map(|(idx, mint)| {
+            let mint_signer = &mint.mint_signer;
+            let authority = &mint.authority;
+            let decimals = &mint.decimals;
+            let address_tree_info = &mint.address_tree_info;
+            let freeze_authority = mint
+                .freeze_authority
+                .as_ref()
+                .map(|f| quote! { Some(*self.#f.to_account_info().key) })
+                .unwrap_or_else(|| quote! { None });
+            let mint_seeds = &mint.mint_seeds;
+            let authority_seeds = &mint.authority_seeds;
+
+            let idx_ident = format_ident!("__mint_param_{}", idx);
+            let pda_ident = format_ident!("__mint_pda_{}", idx);
+            let bump_ident = format_ident!("__mint_bump_{}", idx);
+            let signer_key_ident = format_ident!("__mint_signer_key_{}", idx);
+            let mint_seeds_ident = format_ident!("__mint_seeds_{}", idx);
+            let authority_seeds_ident = format_ident!("__authority_seeds_{}", idx);
+
+            // Generate optional authority seeds binding
+            let authority_seeds_binding = match authority_seeds {
+                Some(seeds) => quote! {
+                    let #authority_seeds_ident: &[&[u8]] = #seeds;
+                    let #authority_seeds_ident = Some(#authority_seeds_ident);
+                },
+                None => quote! {
+                    let #authority_seeds_ident: Option<&[&[u8]]> = None;
+                },
+            };
+
             quote! {
-                // Verify authority is a signer since authority_seeds was not provided
+                // Mint #idx: derive PDA and build params
+                let #signer_key_ident = *self.#mint_signer.to_account_info().key;
+                let (#pda_ident, #bump_ident) = light_token_sdk::token::find_mint_address(&#signer_key_ident);
+
+                let #mint_seeds_ident: &[&[u8]] = #mint_seeds;
+                #authority_seeds_binding
+
+                let __tree_info = &#address_tree_info;
+
+                let #idx_ident = light_token_sdk::token::SingleMintParams {
+                    decimals: #decimals,
+                    address_merkle_tree_root_index: __tree_info.root_index,
+                    mint_authority: *self.#authority.to_account_info().key,
+                    compression_address: #pda_ident.to_bytes(),
+                    mint: #pda_ident,
+                    bump: #bump_ident,
+                    freeze_authority: #freeze_authority,
+                    mint_seed_pubkey: #signer_key_ident,
+                    authority_seeds: #authority_seeds_ident,
+                    mint_signer_seeds: Some(#mint_seeds_ident),
+                };
+            }
+        })
+        .collect();
+
+    // Generate array of SingleMintParams
+    let param_idents: Vec<TokenStream> = (0..mint_count)
+        .map(|idx| {
+            let ident = format_ident!("__mint_param_{}", idx);
+            quote! { #ident }
+        })
+        .collect();
+
+    // Generate array of mint seed AccountInfos
+    let mint_seed_account_exprs: Vec<TokenStream> = mints
+        .iter()
+        .map(|mint| {
+            let mint_signer = &mint.mint_signer;
+            quote! { self.#mint_signer.to_account_info() }
+        })
+        .collect();
+
+    // Generate array of mint AccountInfos
+    let mint_account_exprs: Vec<TokenStream> = mints
+        .iter()
+        .map(|mint| {
+            let field_ident = &mint.field_ident;
+            quote! { self.#field_ident.to_account_info() }
+        })
+        .collect();
+
+    // Get rent_payment and write_top_up from first mint (all mints share same params for now)
+    let rent_payment = quote_option_or(&mints[0].rent_payment, quote! { 16u8 });
+    let write_top_up = quote_option_or(&mints[0].write_top_up, quote! { 766u32 });
+
+    // Authority signer check for mints without authority_seeds
+    let authority_signer_checks: Vec<TokenStream> = mints
+        .iter()
+        .filter(|m| m.authority_seeds.is_none())
+        .map(|mint| {
+            let authority = &mint.authority;
+            quote! {
                 if !self.#authority.to_account_info().is_signer {
                     return Err(anchor_lang::solana_program::program_error::ProgramError::MissingRequiredSignature.into());
                 }
-                anchor_lang::solana_program::program::invoke_signed(
-                    &mint_action_ix,
-                    &account_infos,
-                    &[mint_seeds]
-                )?;
             }
-        }
-    };
+        })
+        .collect();
 
-    // -------------------------------------------------------------------------
-    // Generated code block for mint_action CPI invocation.
-    //
-    // Interpolated variables from CpiContextParts (see struct for with/without cases):
-    //   #cpi_setup          - defines __output_tree_index when batching with PDAs
-    //   #queue_access       - expression to get output queue index
-    //   #data_binding       - "let mut" (with CPI) or "let" (without CPI)
-    //   #cpi_chain          - adds .with_cpi_context(...) when batching
-    //   #cpi_meta_assignment - sets meta_config.cpi_context when batching
-    //
-    // Interpolated variables from #[light_mint(...)] attributes:
-    //   #address_tree_info  - tree info (default: params.create_accounts_proof.address_tree_info)
-    //   #mint_signer        - field that seeds the mint PDA
-    //   #authority          - mint authority field
-    //   #decimals           - mint decimals
-    //   #freeze_authority   - optional freeze authority (Some(*self.field.key) or None)
-    //   #rent_payment       - rent epochs for decompression (default: 2u8)
-    //   #write_top_up       - write top-up lamports (default: 0u32)
-    //   #mint_seeds         - PDA signer seeds for mint_signer (default: &[] as &[&[u8]])
-    //   #authority_seeds    - PDA signer seeds for authority (optional, if authority is a PDA)
-    //
-    // Interpolated variables from infrastructure fields:
-    //   #fee_payer, #ctoken_config, #ctoken_rent_sponsor,
-    //   #light_token_program, #ctoken_cpi_authority, #mint_field_ident
-    // -------------------------------------------------------------------------
     quote! {
         {
-            // Step 1: Resolve tree accounts
-            let __tree_info = &#address_tree_info;
-            let address_tree = cpi_accounts.get_tree_account_info(__tree_info.address_merkle_tree_pubkey_index as usize)?;
-            #cpi_setup
-            let output_queue = cpi_accounts.get_tree_account_info(#queue_access)?;
-            let __tree_pubkey: solana_pubkey::Pubkey = light_sdk::light_account_checks::AccountInfoTrait::pubkey(address_tree);
+            #output_tree_setup
 
-            // Step 2: Derive mint PDA from mint_signer
-            let mint_signer_key = self.#mint_signer.to_account_info().key;
-            let (mint_pda, _cmint_bump) = light_token_sdk::token::find_mint_address(mint_signer_key);
-
-            // Step 3: Extract proof from instruction params
+            // Extract proof from instruction params
             let __proof: light_token_sdk::CompressedProof = #params_ident.create_accounts_proof.proof.0.clone()
                 .expect("proof is required for mint creation");
 
-            let __freeze_authority: Option<solana_pubkey::Pubkey> = #freeze_authority;
+            // Build SingleMintParams for each mint
+            #(#mint_params_builds)*
 
-            // Step 4: Build mint instruction data
-            let compressed_mint_data = light_token_interface::instructions::mint_action::MintInstructionData {
-                supply: 0,
-                decimals: #decimals,
-                metadata: light_token_interface::state::MintMetadata {
-                    version: 3,
-                    mint: mint_pda.to_bytes().into(),
-                    mint_decompressed: false,
-                    mint_signer: mint_signer_key.to_bytes(),
-                    bump: _cmint_bump,
-                },
-                mint_authority: Some((*self.#authority.to_account_info().key).to_bytes().into()),
-                freeze_authority: __freeze_authority.map(|a| a.to_bytes().into()),
-                extensions: None,
-            };
+            // Array of mint params
+            let __mint_params: [light_token_sdk::token::SingleMintParams<'_>; #mint_count] = [
+                #(#param_idents),*
+            ];
 
-            // Step 5: Build compressed instruction data with decompress config
-            #data_binding = light_token_interface::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
-                __tree_info.root_index,
+            // Array of mint seed AccountInfos
+            let __mint_seed_accounts: [solana_account_info::AccountInfo<'info>; #mint_count] = [
+                #(#mint_seed_account_exprs),*
+            ];
+
+            // Array of mint AccountInfos
+            let __mint_accounts: [solana_account_info::AccountInfo<'info>; #mint_count] = [
+                #(#mint_account_exprs),*
+            ];
+
+            // Get tree accounts and indices
+            // Output queue for state (compressed accounts) is at tree index 0
+            // State merkle tree index comes from the proof (set by pack_proof_for_mints)
+            // Address merkle tree index comes from the proof's address_tree_info
+            let __tree_info = &#params_ident.create_accounts_proof.address_tree_info;
+            let __output_queue_index: u8 = 0;
+            let __state_tree_index: u8 = #params_ident.create_accounts_proof.state_tree_index
+                .ok_or(anchor_lang::prelude::ProgramError::InvalidArgument)?;
+            let __address_tree_index: u8 = __tree_info.address_merkle_tree_pubkey_index;
+            let __output_queue = cpi_accounts.get_tree_account_info(__output_queue_index as usize)?;
+            let __state_merkle_tree = cpi_accounts.get_tree_account_info(__state_tree_index as usize)?;
+            let __address_tree = cpi_accounts.get_tree_account_info(__address_tree_index as usize)?;
+
+            // Build CreateMintsParams with tree indices
+            let __create_mints_params = light_token_sdk::token::CreateMintsParams::new(
+                &__mint_params,
                 __proof,
-                compressed_mint_data,
             )
-            .with_decompress_mint(light_token_interface::instructions::mint_action::DecompressMintAction {
-                rent_payment: #rent_payment,
-                write_top_up: #write_top_up,
-            })
-            #cpi_chain;
+            .with_rent_payment(#rent_payment)
+            .with_write_top_up(#write_top_up) // TODO: discuss to allow a different one per mint.
+            .with_cpi_context_offset(#cpi_context_offset)
+            .with_output_queue_index(__output_queue_index)
+            .with_address_tree_index(__address_tree_index)
+            .with_state_tree_index(__state_tree_index);
 
-            // Step 6: Build account metas for CPI
-            let mut meta_config = light_token_sdk::compressed_token::mint_action::MintActionMetaConfig::new_create_mint(
-                *self.#fee_payer.to_account_info().key,
-                *self.#authority.to_account_info().key,
-                *mint_signer_key,
-                __tree_pubkey,
-                *output_queue.key,
-            )
-            .with_compressible_mint(
-                mint_pda,
-                *self.#ctoken_config.to_account_info().key,
-                *self.#ctoken_rent_sponsor.to_account_info().key,
-            );
+            // Check authority signers for mints without authority_seeds
+            #(#authority_signer_checks)*
 
-            #cpi_meta_assignment
-
-            let account_metas = meta_config.to_account_metas();
-
-            // Step 7: Serialize instruction data
-            use light_compressed_account::instruction_data::traits::LightInstructionData;
-            let ix_data = instruction_data.data()
-                .map_err(|_| light_sdk::error::LightSdkError::Borsh)?;
-
-            // Step 8: Build the CPI instruction
-            let mint_action_ix = anchor_lang::solana_program::instruction::Instruction {
-                program_id: solana_pubkey::Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
-                accounts: account_metas,
-                data: ix_data,
-            };
-
-            // Step 9: Collect account infos for CPI
-            let mut account_infos = cpi_accounts.to_account_infos();
-            account_infos.push(self.#light_token_program.to_account_info());
-            account_infos.push(self.#ctoken_cpi_authority.to_account_info());
-            account_infos.push(self.#mint_field_ident.to_account_info());
-            account_infos.push(self.#ctoken_config.to_account_info());
-            account_infos.push(self.#ctoken_rent_sponsor.to_account_info());
-            account_infos.push(self.#authority.to_account_info());
-            account_infos.push(self.#mint_signer.to_account_info());
-            account_infos.push(self.#fee_payer.to_account_info());
-
-            // Step 10: Invoke CPI with signer seeds
-            let mint_seeds: &[&[u8]] = #mint_seeds;
-            #invoke_signed_call
+            // Build and invoke CreateMintsCpi
+            // Seeds are extracted from SingleMintParams internally
+            light_token_sdk::token::CreateMintsCpi {
+                mint_seed_accounts: &__mint_seed_accounts,
+                payer: self.#fee_payer.to_account_info(),
+                address_tree: __address_tree.clone(),
+                output_queue: __output_queue.clone(),
+                state_merkle_tree: __state_merkle_tree.clone(),
+                compressible_config: self.#ctoken_config.to_account_info(),
+                mints: &__mint_accounts,
+                rent_sponsor: self.#ctoken_rent_sponsor.to_account_info(),
+                system_accounts: light_token_sdk::token::SystemAccountInfos {
+                    light_system_program: cpi_accounts.light_system_program()?.clone(),
+                    cpi_authority_pda: self.#ctoken_cpi_authority.to_account_info(),
+                    registered_program_pda: cpi_accounts.registered_program_pda()?.clone(),
+                    account_compression_authority: cpi_accounts.account_compression_authority()?.clone(),
+                    account_compression_program: cpi_accounts.account_compression_program()?.clone(),
+                    system_program: cpi_accounts.system_program()?.clone(),
+                },
+                cpi_context_account: cpi_accounts.cpi_context()?.clone(),
+                params: __create_mints_params,
+            }
+            .invoke()?;
         }
     }
 }
