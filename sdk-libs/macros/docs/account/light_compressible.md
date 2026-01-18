@@ -224,11 +224,11 @@ impl light_sdk::compressible::Unpack for PackedUserRecord { ... }
 
 ## 7. Hashing Behavior
 
-The `LightHasherSha` component uses SHA256 to hash the entire struct:
+The `LightHasherSha` component uses SHA256 to hash the entire struct via borsh serialization:
 
 - **No `#[hash]` attributes needed** - SHA256 serializes and hashes all fields
 - **Type 3 ShaFlat hashing** - Efficient flat serialization for hashing
-- The `compression_info` field is included in the serialized form but typically set to `None`
+- **`compression_info` IS included in the hash** - The hash is computed over the entire borsh-serialized struct, including `compression_info`. This means records with `Some(CompressionInfo)` will hash differently than records with `None`. In practice, `compression_info` should be set to `None` before hashing to ensure consistent hashes for the same account data.
 
 ---
 

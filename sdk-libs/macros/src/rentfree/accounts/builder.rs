@@ -8,7 +8,7 @@ use quote::quote;
 use syn::DeriveInput;
 
 use super::{
-    light_mint::{InfraRefs, LightMintBuilder},
+    light_mint::{InfraRefs, LightMintsBuilder},
     parse::ParsedRentFreeStruct,
     pda::generate_pda_compress_blocks,
 };
@@ -96,8 +96,8 @@ impl RentFreeBuilder {
 
     /// Generate LightPreInit body for PDAs + mints:
     /// 1. Write PDAs to CPI context
-    /// 2. Invoke mint_action with decompress + CPI context
-    ///    After this, Mint is "hot" and usable in instruction body
+    /// 2. Invoke CreateMintsCpi with CPI context offset
+    ///    After this, Mints are "hot" and usable in instruction body
     pub fn generate_pre_init_pdas_and_mints(&self) -> TokenStream {
         let (compress_blocks, new_addr_idents) =
             generate_pda_compress_blocks(&self.parsed.rentfree_fields);
@@ -117,17 +117,10 @@ impl RentFreeBuilder {
         // Get the first PDA's output tree index (for the state tree output queue)
         let first_pda_output_tree = &self.parsed.rentfree_fields[0].output_tree;
 
-        // TODO(diff-pr): Support multiple #[light_mint] fields by looping here.
-        // Each mint would get assigned_account_index = pda_count + mint_index.
-        // Also add support for #[rentfree_token] fields for token ATAs.
-        let mint = &self.parsed.light_mint_fields[0];
-
-        // assigned_account_index for mint is after PDAs
-        let mint_assigned_index = pda_count as u8;
-
-        // Generate mint action invocation with CPI context
-        let mint_invocation = LightMintBuilder::new(mint, params_ident, &self.infra)
-            .with_cpi_context(quote! { #first_pda_output_tree }, mint_assigned_index)
+        // Generate CreateMintsCpi invocation for all mints with PDA context offset
+        let mints = &self.parsed.light_mint_fields;
+        let mint_invocation = LightMintsBuilder::new(mints, params_ident, &self.infra)
+            .with_pda_context(pda_count, quote! { #first_pda_output_tree })
             .generate_invocation();
 
         // Infrastructure field references for quote! interpolation
@@ -171,7 +164,7 @@ impl RentFreeBuilder {
                 .write_to_cpi_context_first()
                 .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
 
-            // Step 2: Build and invoke mint_action with decompress + CPI context
+            // Step 2: Create mints using CreateMintsCpi with CPI context offset
             #mint_invocation
 
             Ok(true)
@@ -179,8 +172,8 @@ impl RentFreeBuilder {
     }
 
     /// Generate LightPreInit body for mints-only (no PDAs):
-    /// Invoke mint_action with decompress directly
-    /// After this, CMint is "hot" and usable in instruction body
+    /// Invoke CreateMintsCpi with decompress directly
+    /// After this, Mints are "hot" and usable in instruction body
     pub fn generate_pre_init_mints_only(&self) -> TokenStream {
         // Get instruction param ident
         let params_ident = &self
@@ -192,27 +185,23 @@ impl RentFreeBuilder {
             .unwrap()
             .name;
 
-        // TODO(diff-pr): Support multiple #[light_mint] fields by looping here.
-        // Each mint would get assigned_account_index = mint_index.
-        // Also add support for #[rentfree_token] fields for token ATAs.
-        let mint = &self.parsed.light_mint_fields[0];
-
-        // Generate mint action invocation without CPI context
+        // Generate CreateMintsCpi invocation for all mints (no PDA context)
+        let mints = &self.parsed.light_mint_fields;
         let mint_invocation =
-            LightMintBuilder::new(mint, params_ident, &self.infra).generate_invocation();
+            LightMintsBuilder::new(mints, params_ident, &self.infra).generate_invocation();
 
         // Infrastructure field reference for quote! interpolation
         let fee_payer = &self.infra.fee_payer;
 
         quote! {
-            // Build CPI accounts (no CPI context needed for mints-only)
-            let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new(
+            // Build CPI accounts with CPI context enabled (mints use CPI context for batching)
+            let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new_with_config(
                 &self.#fee_payer,
                 _remaining,
-                crate::LIGHT_CPI_SIGNER,
+                light_sdk::cpi::CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
             );
 
-            // Build and invoke mint_action with decompress
+            // Create mints using CreateMintsCpi
             #mint_invocation
 
             Ok(true)

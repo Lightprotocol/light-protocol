@@ -1,0 +1,74 @@
+//! D7 Test: Multiple naming variants combined
+//!
+//! Tests that different naming conventions work together in one struct.
+
+use anchor_lang::prelude::*;
+use light_compressible::CreateAccountsProof;
+use light_sdk_macros::RentFree;
+use light_token_sdk::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as CTOKEN_RENT_SPONSOR};
+
+use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
+
+pub const D7_ALL_AUTH_SEED: &[u8] = b"d7_all_auth";
+pub const D7_ALL_VAULT_SEED: &[u8] = b"d7_all_vault";
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct D7AllNamesParams {
+    pub create_accounts_proof: CreateAccountsProof,
+    pub owner: Pubkey,
+}
+
+/// Tests multiple naming variants:
+/// - `payer` as the fee payer field
+/// - `ctoken_compressible_config` for config
+/// - `ctoken_rent_sponsor` for rent sponsor
+#[derive(Accounts, RentFree)]
+#[instruction(params: D7AllNamesParams)]
+pub struct D7AllNames<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    /// CHECK: Token mint
+    pub mint: AccountInfo<'info>,
+
+    /// CHECK: Compression config
+    pub compression_config: AccountInfo<'info>,
+
+    #[account(
+        seeds = [D7_ALL_AUTH_SEED],
+        bump,
+    )]
+    pub d7_all_authority: UncheckedAccount<'info>,
+
+    #[account(
+        init,
+        payer = payer,
+        space = 8 + SinglePubkeyRecord::INIT_SPACE,
+        seeds = [b"d7_all_record", params.owner.as_ref()],
+        bump,
+    )]
+    #[rentfree]
+    pub d7_all_record: Account<'info, SinglePubkeyRecord>,
+
+    #[account(
+        mut,
+        seeds = [D7_ALL_VAULT_SEED, mint.key().as_ref()],
+        bump,
+    )]
+    #[rentfree_token(authority = [D7_ALL_AUTH_SEED])]
+    pub d7_all_vault: UncheckedAccount<'info>,
+
+    #[account(address = COMPRESSIBLE_CONFIG_V1)]
+    pub ctoken_compressible_config: AccountInfo<'info>,
+
+    #[account(mut, address = CTOKEN_RENT_SPONSOR)]
+    pub ctoken_rent_sponsor: AccountInfo<'info>,
+
+    /// CHECK: CToken program
+    pub light_token_program: AccountInfo<'info>,
+
+    /// CHECK: CToken CPI authority
+    pub ctoken_cpi_authority: AccountInfo<'info>,
+
+    pub system_program: Program<'info, System>,
+}

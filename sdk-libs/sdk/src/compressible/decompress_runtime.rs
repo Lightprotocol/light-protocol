@@ -1,5 +1,8 @@
 //! Traits and processor for decompress_accounts_idempotent instruction.
-use light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo;
+use light_compressed_account::instruction_data::{
+    cpi_context::CompressedCpiContext,
+    with_account_info::{CompressedAccountInfo, InstructionDataInvokeCpiWithAccountInfo},
+};
 use light_sdk_types::{
     cpi_accounts::CpiAccountsConfig, cpi_context_write::CpiContextWriteAccounts,
     instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress, CpiSigner,
@@ -10,10 +13,7 @@ use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
 use crate::{
-    cpi::{
-        v2::{CpiAccounts, LightSystemProgramCpi},
-        InvokeLightSystemProgram, LightCpiInstruction,
-    },
+    cpi::{v2::CpiAccounts, InvokeLightSystemProgram},
     AnchorDeserialize, AnchorSerialize, LightDiscriminator,
 };
 
@@ -175,7 +175,13 @@ where
     }
 
     let compressed_infos = {
-        let seed_refs: Vec<&[u8]> = seeds_vec.iter().map(|v| v.as_slice()).collect();
+        // Use fixed-size array to avoid heap allocation (MAX_SEEDS = 16)
+        const MAX_SEEDS: usize = 16;
+        let mut seed_refs: [&[u8]; MAX_SEEDS] = [&[]; MAX_SEEDS];
+        let len = seeds_vec.len().min(MAX_SEEDS);
+        for i in 0..len {
+            seed_refs[i] = seeds_vec[i].as_slice();
+        }
         crate::compressible::decompress_idempotent::prepare_account_for_decompression_idempotent::<T>(
             program_id,
             data,
@@ -188,7 +194,7 @@ where
             solana_account,
             accounts_rent_sponsor,
             cpi_accounts,
-            seed_refs.as_slice(),
+            &seed_refs[..len],
         )?
     };
     compressed_pda_infos.extend(compressed_infos);
@@ -220,6 +226,7 @@ where
     let address_space = compression_config.address_space[0];
 
     let (has_tokens, has_pdas) = check_account_types(&compressed_accounts);
+
     if !has_tokens && !has_pdas {
         return Ok(());
     }
@@ -274,29 +281,56 @@ where
     // Process PDAs (if any)
     if has_pdas {
         if !has_tokens {
-            // PDAs only - execute directly
-            LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
-                .with_account_infos(&compressed_pda_infos)
-                .invoke(cpi_accounts.clone())?;
+            // PDAs only - execute directly (manual construction to avoid extra allocations)
+            let cpi_signer_config = cpi_accounts.config().cpi_signer;
+            let instruction_data = InstructionDataInvokeCpiWithAccountInfo {
+                mode: 1,
+                bump: cpi_signer_config.bump,
+                invoking_program_id: cpi_signer_config.program_id.into(),
+                compress_or_decompress_lamports: 0,
+                is_compress: false,
+                with_cpi_context: false,
+                with_transaction_hash: false,
+                cpi_context: CompressedCpiContext::default(),
+                proof: proof.0,
+                new_address_params: Vec::new(),
+                account_infos: compressed_pda_infos,
+                read_only_addresses: Vec::new(),
+                read_only_accounts: Vec::new(),
+            };
+            instruction_data.invoke(cpi_accounts.clone())?;
         } else {
             // PDAs + tokens - write to CPI context first, tokens will execute
             let authority = cpi_accounts
                 .authority()
                 .map_err(|_| ProgramError::MissingRequiredSignature)?;
-            let cpi_context = cpi_accounts
+            let cpi_context_account = cpi_accounts
                 .cpi_context()
                 .map_err(|_| ProgramError::MissingRequiredSignature)?;
             let system_cpi_accounts = CpiContextWriteAccounts {
                 fee_payer,
                 authority,
-                cpi_context,
+                cpi_context: cpi_context_account,
                 cpi_signer,
             };
 
-            LightSystemProgramCpi::new_cpi(cpi_signer, proof)
-                .with_account_infos(&compressed_pda_infos)
-                .write_to_cpi_context_first()
-                .invoke_write_to_cpi_context_first(system_cpi_accounts)?;
+            // Manual construction to avoid extra allocations
+            let instruction_data = InstructionDataInvokeCpiWithAccountInfo {
+                mode: 1,
+                bump: cpi_signer.bump,
+                invoking_program_id: cpi_signer.program_id.into(),
+                compress_or_decompress_lamports: 0,
+                is_compress: false,
+                with_cpi_context: true,
+                with_transaction_hash: false,
+                cpi_context: CompressedCpiContext::first(),
+                proof: proof.0,
+                new_address_params: Vec::new(),
+                account_infos: compressed_pda_infos,
+                read_only_addresses: Vec::new(),
+                read_only_accounts: Vec::new(),
+            };
+            instruction_data.invoke_write_to_cpi_context_first(system_cpi_accounts)?;
         }
     }
 

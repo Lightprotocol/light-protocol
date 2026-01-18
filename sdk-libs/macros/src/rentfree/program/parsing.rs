@@ -283,9 +283,9 @@ pub fn extract_data_seed_fields(
 
 /// Convert ClassifiedSeed to SeedElement (Punctuated)
 pub fn convert_classified_to_seed_elements(
-    seeds: &[crate::rentfree::traits::seed_extraction::ClassifiedSeed],
+    seeds: &[crate::rentfree::account::seed_extraction::ClassifiedSeed],
 ) -> Punctuated<SeedElement, Token![,]> {
-    use crate::rentfree::traits::seed_extraction::ClassifiedSeed;
+    use crate::rentfree::account::seed_extraction::ClassifiedSeed;
 
     let mut result = Punctuated::new();
     for seed in seeds {
@@ -338,7 +338,7 @@ pub fn convert_classified_to_seed_elements(
 }
 
 pub fn convert_classified_to_seed_elements_vec(
-    seeds: &[crate::rentfree::traits::seed_extraction::ClassifiedSeed],
+    seeds: &[crate::rentfree::account::seed_extraction::ClassifiedSeed],
 ) -> Vec<SeedElement> {
     convert_classified_to_seed_elements(seeds)
         .into_iter()

@@ -52,7 +52,9 @@ fn generate_with_packed_struct(
         if *field_name == "compression_info" {
             quote! { #field_name: None }
         } else if is_pubkey_type(field_type) {
-            quote! { #field_name: remaining_accounts.insert_or_get(self.#field_name) }
+            // Use read-only since pubkey fields are references (owner, authority, etc.)
+            // not accounts that need to be modified
+            quote! { #field_name: remaining_accounts.insert_or_get_read_only(self.#field_name) }
         } else if is_copy_type(field_type) {
             quote! { #field_name: self.#field_name }
         } else {

@@ -70,6 +70,34 @@ impl CrateContext {
     pub fn module(&self, path: &str) -> Option<&ParsedModule> {
         self.modules.get(path)
     }
+
+    /// Get the field names of a struct by its type.
+    ///
+    /// The type can be a simple identifier (e.g., "SinglePubkeyRecord") or
+    /// a qualified path. Returns None if the struct is not found.
+    pub fn get_struct_fields(&self, type_name: &syn::Type) -> Option<Vec<String>> {
+        // Extract the struct name from the type path
+        let struct_name = match type_name {
+            syn::Type::Path(type_path) => type_path.path.segments.last()?.ident.to_string(),
+            _ => return None,
+        };
+
+        // Find the struct by name
+        for item_struct in self.structs() {
+            if item_struct.ident == struct_name {
+                // Extract field names from the struct
+                if let syn::Fields::Named(named_fields) = &item_struct.fields {
+                    let field_names: Vec<String> = named_fields
+                        .named
+                        .iter()
+                        .filter_map(|f| f.ident.as_ref().map(|i| i.to_string()))
+                        .collect();
+                    return Some(field_names);
+                }
+            }
+        }
+        None
+    }
 }
 
 /// A parsed module containing its items.

@@ -131,17 +131,14 @@ impl<'a> ZCpiContextAccount2<'a> {
         &'a mut self,
         instruction_data: &WrappedInstructionData<'b, T>,
     ) -> Result<(), SystemProgramError> {
-        let pre_address_len = self.new_addresses.len();
         // Cache owner bytes to avoid repeated calls
         let owner_bytes = instruction_data.owner().to_bytes();
 
         // Store new addresses
         for address in instruction_data.new_addresses() {
             let assigned_index = address.assigned_compressed_account_index();
-            // Use checked arithmetic to prevent overflow
-            let assigned_account_index = (assigned_index.unwrap_or(0) as u8)
-                .checked_add(pre_address_len as u8)
-                .ok_or(ZeroCopyError::Size)?;
+            // Use the assigned index directly - caller provides absolute index
+            let assigned_account_index = assigned_index.unwrap_or(0) as u8;
             let new_address = CpiContextNewAddressParamsAssignedPacked {
                 owner: owner_bytes, // Use cached owner bytes
                 seed: address.seed(),

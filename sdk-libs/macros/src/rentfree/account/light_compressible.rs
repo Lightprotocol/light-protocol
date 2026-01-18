@@ -13,7 +13,7 @@ use syn::{DeriveInput, Fields, ItemStruct, Result};
 use crate::{
     discriminator::discriminator,
     hasher::derive_light_hasher_sha,
-    rentfree::traits::{pack_unpack::derive_compressible_pack, traits::derive_compressible},
+    rentfree::account::{pack_unpack::derive_compressible_pack, traits::derive_compressible},
 };
 
 /// Derives all required traits for a compressible account.

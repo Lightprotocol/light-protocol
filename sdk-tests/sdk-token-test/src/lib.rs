@@ -18,6 +18,7 @@ mod process_compress_tokens;
 mod process_create_compressed_account;
 mod process_create_ctoken_with_compress_to_pubkey;
 mod process_create_escrow_pda;
+mod process_create_two_mints;
 mod process_decompress_full_cpi_context;
 mod process_decompress_tokens;
 mod process_four_invokes;
@@ -34,6 +35,8 @@ use process_compress_tokens::process_compress_tokens;
 use process_create_compressed_account::process_create_compressed_account;
 use process_create_ctoken_with_compress_to_pubkey::process_create_ctoken_with_compress_to_pubkey;
 use process_create_escrow_pda::process_create_escrow_pda;
+use process_create_two_mints::process_create_mints;
+pub use process_create_two_mints::{CreateMintsParams, MintParams};
 use process_decompress_full_cpi_context::process_decompress_full_cpi_context;
 use process_decompress_tokens::process_decompress_tokens;
 use process_four_invokes::process_four_invokes;
@@ -337,6 +340,18 @@ pub mod sdk_token_test {
         input: ChainedCtokenInstructionData,
     ) -> Result<()> {
         process_ctoken_pda(ctx, input)
+    }
+
+    /// Create one or more compressed mints and decompress all to Solana accounts.
+    ///
+    /// Flow:
+    /// - N=1: Single CPI (create + decompress)
+    /// - N>1: 2N-1 CPIs (N-1 writes + 1 execute with decompress + N-1 decompress)
+    pub fn create_mints<'a, 'info>(
+        ctx: Context<'a, '_, 'info, 'info, Generic<'info>>,
+        params: CreateMintsParams,
+    ) -> Result<()> {
+        process_create_mints(ctx, params)
     }
 }
 

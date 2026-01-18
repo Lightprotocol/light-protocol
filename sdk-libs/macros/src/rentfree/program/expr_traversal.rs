@@ -16,10 +16,26 @@ use crate::rentfree::shared_utils::is_base_path;
 /// Transform expressions by replacing field access patterns.
 ///
 /// Used for converting:
-/// - `data.field` -> `self.field`
+/// - `data.field` -> `self.field` (only if field exists in state_field_names)
 /// - `ctx.field` -> `ctx_seeds.field` (if field is in ctx_field_names)
 /// - `ctx.accounts.field` -> `ctx_seeds.field`
-pub fn transform_expr_for_ctx_seeds(expr: &Expr, ctx_field_names: &HashSet<String>) -> Expr {
+///
+/// For `data.field` where field is NOT in state_field_names, the expression
+/// is left unchanged (which will cause a compile error, alerting the user
+/// that this field is not supported for decompression seed derivation).
+pub fn transform_expr_for_ctx_seeds(
+    expr: &Expr,
+    ctx_field_names: &HashSet<String>,
+    state_field_names: &HashSet<String>,
+) -> Expr {
+    transform_expr_internal(expr, ctx_field_names, state_field_names)
+}
+
+fn transform_expr_internal(
+    expr: &Expr,
+    ctx_field_names: &HashSet<String>,
+    state_field_names: &HashSet<String>,
+) -> Expr {
     match expr {
         Expr::Field(field_expr) => {
             let Some(syn::Member::Named(field_name)) = Some(&field_expr.member) else {
@@ -35,10 +51,18 @@ pub fn transform_expr_for_ctx_seeds(expr: &Expr, ctx_field_names: &HashSet<Strin
                 }
             }
 
-            // Check for data.field -> self.field or ctx.field -> ctx_seeds.field
+            // Check for data.field -> self.field (only if field exists on state struct)
             if is_base_path(&field_expr.base, "data") {
-                return syn::parse_quote! { self.#field_name };
+                let field_str = field_name.to_string();
+                if state_field_names.contains(&field_str) {
+                    return syn::parse_quote! { self.#field_name };
+                }
+                // Field not on state struct - leave unchanged (will cause compile error
+                // unless handled elsewhere). This handles params-only seeds.
+                return expr.clone();
             }
+
+            // Check for ctx.field -> ctx_seeds.field
             if is_base_path(&field_expr.base, "ctx")
                 && ctx_field_names.contains(&field_name.to_string())
             {
@@ -49,14 +73,15 @@ pub fn transform_expr_for_ctx_seeds(expr: &Expr, ctx_field_names: &HashSet<Strin
         }
         Expr::MethodCall(method_call) => {
             let mut new_call = method_call.clone();
-            new_call.receiver = Box::new(transform_expr_for_ctx_seeds(
+            new_call.receiver = Box::new(transform_expr_internal(
                 &method_call.receiver,
                 ctx_field_names,
+                state_field_names,
             ));
             new_call.args = method_call
                 .args
                 .iter()
-                .map(|a| transform_expr_for_ctx_seeds(a, ctx_field_names))
+                .map(|a| transform_expr_internal(a, ctx_field_names, state_field_names))
                 .collect();
             Expr::MethodCall(new_call)
         }
@@ -65,15 +90,16 @@ pub fn transform_expr_for_ctx_seeds(expr: &Expr, ctx_field_names: &HashSet<Strin
             new_call.args = call_expr
                 .args
                 .iter()
-                .map(|a| transform_expr_for_ctx_seeds(a, ctx_field_names))
+                .map(|a| transform_expr_internal(a, ctx_field_names, state_field_names))
                 .collect();
             Expr::Call(new_call)
         }
         Expr::Reference(ref_expr) => {
             let mut new_ref = ref_expr.clone();
-            new_ref.expr = Box::new(transform_expr_for_ctx_seeds(
+            new_ref.expr = Box::new(transform_expr_internal(
                 &ref_expr.expr,
                 ctx_field_names,
+                state_field_names,
             ));
             Expr::Reference(new_ref)
         }

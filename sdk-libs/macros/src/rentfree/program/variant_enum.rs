@@ -16,14 +16,27 @@ pub struct PdaCtxSeedInfo {
     pub inner_type: Type,
     /// Field names from ctx.accounts.XXX references in seeds
     pub ctx_seed_fields: Vec<Ident>,
+    /// Field names that exist on the state struct (for filtering data.* seeds)
+    pub state_field_names: std::collections::HashSet<String>,
+    /// Params-only seed fields (name, type, has_conversion) - seeds from params.* that don't exist on state
+    /// The bool indicates whether a conversion method like to_le_bytes() is applied
+    pub params_only_seed_fields: Vec<(Ident, Type, bool)>,
 }
 
 impl PdaCtxSeedInfo {
-    pub fn new(variant_name: Ident, inner_type: Type, ctx_seed_fields: Vec<Ident>) -> Self {
+    pub fn with_state_fields(
+        variant_name: Ident,
+        inner_type: Type,
+        ctx_seed_fields: Vec<Ident>,
+        state_field_names: std::collections::HashSet<String>,
+        params_only_seed_fields: Vec<(Ident, Type, bool)>,
+    ) -> Self {
         Self {
             variant_name,
             inner_type,
             ctx_seed_fields,
+            state_field_names,
+            params_only_seed_fields,
         }
     }
 }
@@ -40,7 +53,7 @@ pub fn compressed_account_variant_with_ctx_seeds(
         ));
     }
 
-    // Phase 2: Generate struct variants with ctx.* seed fields
+    // Phase 2: Generate struct variants with ctx.* seed fields and params-only seed fields
     // Uses variant_name for enum variant naming, inner_type for data field types
     let account_variants = pda_ctx_seeds.iter().map(|info| {
         let variant_name = &info.variant_name;
@@ -51,22 +64,30 @@ pub fn compressed_account_variant_with_ctx_seeds(
         let packed_inner_type =
             make_packed_type(&info.inner_type).expect("inner_type should be a valid type path");
         let ctx_fields = &info.ctx_seed_fields;
+        let params_only_fields = &info.params_only_seed_fields;
 
-        // Unpacked variant: Pubkey fields for ctx.* seeds
+        // Unpacked variant: Pubkey fields for ctx.* seeds + params-only seed values
         // Note: Use bare Pubkey which is in scope via `use anchor_lang::prelude::*`
         let unpacked_ctx_fields = ctx_fields.iter().map(|field| {
             quote! { #field: Pubkey }
         });
+        let unpacked_params_fields = params_only_fields.iter().map(|(field, ty, _)| {
+            quote! { #field: #ty }
+        });
 
-        // Packed variant: u8 index fields for ctx.* seeds
+        // Packed variant: u8 index fields for ctx.* seeds + params-only seed values (same type)
         let packed_ctx_fields = ctx_fields.iter().map(|field| {
             let idx_field = format_ident!("{}_idx", field);
             quote! { #idx_field: u8 }
         });
+        // Params-only fields keep the same type in packed variant (not indices)
+        let packed_params_fields = params_only_fields.iter().map(|(field, ty, _)| {
+            quote! { #field: #ty }
+        });
 
         quote! {
-            #variant_name { data: #inner_type, #(#unpacked_ctx_fields,)* },
-            #packed_variant_name { data: #packed_inner_type, #(#packed_ctx_fields,)* },
+            #variant_name { data: #inner_type, #(#unpacked_ctx_fields,)* #(#unpacked_params_fields,)* },
+            #packed_variant_name { data: #packed_inner_type, #(#packed_ctx_fields,)* #(#packed_params_fields,)* },
         }
     });
 
@@ -85,13 +106,17 @@ pub fn compressed_account_variant_with_ctx_seeds(
     let first_variant = &first.variant_name;
     let first_type = qualify_type_with_crate(&first.inner_type);
     let first_ctx_fields = &first.ctx_seed_fields;
+    let first_params_only_fields = &first.params_only_seed_fields;
     let first_default_ctx_fields = first_ctx_fields.iter().map(|field| {
         quote! { #field: Pubkey::default() }
+    });
+    let first_default_params_fields = first_params_only_fields.iter().map(|(field, ty, _)| {
+        quote! { #field: <#ty as Default>::default() }
     });
     let default_impl = quote! {
         impl Default for RentFreeAccountVariant {
             fn default() -> Self {
-                Self::#first_variant { data: #first_type::default(), #(#first_default_ctx_fields,)* }
+                Self::#first_variant { data: #first_type::default(), #(#first_default_ctx_fields,)* #(#first_default_params_fields,)* }
             }
         }
     };
@@ -223,15 +248,28 @@ pub fn compressed_account_variant_with_ctx_seeds(
         }
     };
 
-    // Phase 2: Pack/Unpack with ctx seed fields
+    // Phase 2: Pack/Unpack with ctx seed fields and params-only seed fields
     let pack_match_arms: Vec<_> = pda_ctx_seeds.iter().map(|info| {
         let variant_name = &info.variant_name;
         let inner_type = qualify_type_with_crate(&info.inner_type);
         let packed_variant_name = format_ident!("Packed{}", variant_name);
         let ctx_fields = &info.ctx_seed_fields;
+        let params_only_fields = &info.params_only_seed_fields;
 
-        if ctx_fields.is_empty() {
-            // No ctx seeds - simple pack
+        // Collect ctx field names and their idx equivalents
+        let ctx_field_names: Vec<_> = ctx_fields.iter().collect();
+        let idx_field_names: Vec<_> = ctx_fields.iter().map(|f| format_ident!("{}_idx", f)).collect();
+        let pack_ctx_seeds: Vec<_> = ctx_fields.iter().map(|field| {
+            let idx_field = format_ident!("{}_idx", field);
+            // Dereference because we're matching on &self, so field is &Pubkey
+            quote! { let #idx_field = remaining_accounts.insert_or_get(*#field); }
+        }).collect();
+
+        // Collect params-only field names (these are copied directly, not indexed)
+        let params_field_names: Vec<_> = params_only_fields.iter().map(|(f, _, _)| f).collect();
+
+        // If no ctx seeds and no params-only fields - simple pack
+        if ctx_fields.is_empty() && params_only_fields.is_empty() {
             quote! {
                 RentFreeAccountVariant::#packed_variant_name { .. } => unreachable!(),
                 RentFreeAccountVariant::#variant_name { data, .. } => RentFreeAccountVariant::#packed_variant_name {
@@ -239,22 +277,15 @@ pub fn compressed_account_variant_with_ctx_seeds(
                 },
             }
         } else {
-            // Has ctx seeds - pack data and ctx seed pubkeys
-            let field_names: Vec<_> = ctx_fields.iter().collect();
-            let idx_field_names: Vec<_> = ctx_fields.iter().map(|f| format_ident!("{}_idx", f)).collect();
-            let pack_ctx_seeds: Vec<_> = ctx_fields.iter().map(|field| {
-                let idx_field = format_ident!("{}_idx", field);
-                // Dereference because we're matching on &self, so field is &Pubkey
-                quote! { let #idx_field = remaining_accounts.insert_or_get(*#field); }
-            }).collect();
-
+            // Has ctx seeds and/or params-only fields - pack data, ctx seed pubkeys, and copy params-only values
             quote! {
                 RentFreeAccountVariant::#packed_variant_name { .. } => unreachable!(),
-                RentFreeAccountVariant::#variant_name { data, #(#field_names,)* .. } => {
+                RentFreeAccountVariant::#variant_name { data, #(#ctx_field_names,)* #(#params_field_names,)* .. } => {
                     #(#pack_ctx_seeds)*
                     RentFreeAccountVariant::#packed_variant_name {
                         data: <#inner_type as light_sdk::compressible::Pack>::pack(data, remaining_accounts),
                         #(#idx_field_names,)*
+                        #(#params_field_names: *#params_field_names,)*
                     }
                 },
             }
@@ -286,9 +317,26 @@ pub fn compressed_account_variant_with_ctx_seeds(
         let packed_inner_type = make_packed_type(inner_type)
             .expect("inner_type should be a valid type path");
         let ctx_fields = &info.ctx_seed_fields;
+        let params_only_fields = &info.params_only_seed_fields;
 
-        if ctx_fields.is_empty() {
-            // No ctx seeds - simple unpack
+        // Collect ctx field names and their idx equivalents
+        let idx_field_names: Vec<_> = ctx_fields.iter().map(|f| format_ident!("{}_idx", f)).collect();
+        let ctx_field_names: Vec<_> = ctx_fields.iter().collect();
+        let unpack_ctx_seeds: Vec<_> = ctx_fields.iter().map(|field| {
+            let idx_field = format_ident!("{}_idx", field);
+            quote! {
+                let #field = *remaining_accounts
+                    .get(*#idx_field as usize)
+                    .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+                    .key;
+            }
+        }).collect();
+
+        // Collect params-only field names (these are copied directly, not resolved from indices)
+        let params_field_names: Vec<_> = params_only_fields.iter().map(|(f, _, _)| f).collect();
+
+        // If no ctx seeds and no params-only fields - simple unpack
+        if ctx_fields.is_empty() && params_only_fields.is_empty() {
             quote! {
                 RentFreeAccountVariant::#packed_variant_name { data, .. } => Ok(RentFreeAccountVariant::#variant_name {
                     data: <#packed_inner_type as light_sdk::compressible::Unpack>::unpack(data, remaining_accounts)?,
@@ -296,25 +344,14 @@ pub fn compressed_account_variant_with_ctx_seeds(
                 RentFreeAccountVariant::#variant_name { .. } => unreachable!(),
             }
         } else {
-            // Has ctx seeds - unpack data and resolve ctx seed pubkeys from indices
-            let idx_field_names: Vec<_> = ctx_fields.iter().map(|f| format_ident!("{}_idx", f)).collect();
-            let field_names: Vec<_> = ctx_fields.iter().collect();
-            let unpack_ctx_seeds: Vec<_> = ctx_fields.iter().map(|field| {
-                let idx_field = format_ident!("{}_idx", field);
-                quote! {
-                    let #field = *remaining_accounts
-                        .get(*#idx_field as usize)
-                        .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
-                        .key;
-                }
-            }).collect();
-
+            // Has ctx seeds and/or params-only fields - unpack data, resolve ctx seed pubkeys, and copy params-only values
             quote! {
-                RentFreeAccountVariant::#packed_variant_name { data, #(#idx_field_names,)* .. } => {
+                RentFreeAccountVariant::#packed_variant_name { data, #(#idx_field_names,)* #(#params_field_names,)* .. } => {
                     #(#unpack_ctx_seeds)*
                     Ok(RentFreeAccountVariant::#variant_name {
                         data: <#packed_inner_type as light_sdk::compressible::Unpack>::unpack(data, remaining_accounts)?,
-                        #(#field_names,)*
+                        #(#ctx_field_names,)*
+                        #(#params_field_names: *#params_field_names,)*
                     })
                 },
                 RentFreeAccountVariant::#variant_name { .. } => unreachable!(),
@@ -332,7 +369,10 @@ pub fn compressed_account_variant_with_ctx_seeds(
             ) -> std::result::Result<Self::Unpacked, anchor_lang::prelude::ProgramError> {
                 match self {
                     #(#unpack_match_arms)*
-                    Self::PackedCTokenData(_data) => Ok(self.clone()),
+                    Self::PackedCTokenData(_) => {
+                        // PackedCTokenData is handled separately in collect_pda_and_token
+                        unreachable!("PackedCTokenData should not be unpacked through Unpack trait")
+                    }
                     Self::CTokenData(_data) => unreachable!(),
                 }
             }

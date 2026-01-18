@@ -116,3 +116,191 @@ pub struct CreatePdasAndMintAuto<'info> {
 }
 
 pub const VAULT_SEED: &[u8] = b"vault";
+
+// =============================================================================
+// Two Mints Test
+// =============================================================================
+
+pub const MINT_SIGNER_A_SEED: &[u8] = b"mint_signer_a";
+pub const MINT_SIGNER_B_SEED: &[u8] = b"mint_signer_b";
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct CreateTwoMintsParams {
+    pub create_accounts_proof: CreateAccountsProof,
+    pub mint_signer_a_bump: u8,
+    pub mint_signer_b_bump: u8,
+}
+
+/// Test instruction with 2 #[light_mint] fields to verify multi-mint support.
+#[derive(Accounts, RentFree)]
+#[instruction(params: CreateTwoMintsParams)]
+pub struct CreateTwoMints<'info> {
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+
+    pub authority: Signer<'info>,
+
+    /// CHECK: PDA derived from authority for mint A
+    #[account(
+        seeds = [MINT_SIGNER_A_SEED, authority.key().as_ref()],
+        bump,
+    )]
+    pub mint_signer_a: UncheckedAccount<'info>,
+
+    /// CHECK: PDA derived from authority for mint B
+    #[account(
+        seeds = [MINT_SIGNER_B_SEED, authority.key().as_ref()],
+        bump,
+    )]
+    pub mint_signer_b: UncheckedAccount<'info>,
+
+    /// CHECK: Initialized by mint_action - first mint
+    #[account(mut)]
+    #[light_mint(
+        mint_signer = mint_signer_a,
+        authority = fee_payer,
+        decimals = 6,
+        mint_seeds = &[MINT_SIGNER_A_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_a_bump]]
+    )]
+    pub cmint_a: UncheckedAccount<'info>,
+
+    /// CHECK: Initialized by mint_action - second mint
+    #[account(mut)]
+    #[light_mint(
+        mint_signer = mint_signer_b,
+        authority = fee_payer,
+        decimals = 9,
+        mint_seeds = &[MINT_SIGNER_B_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_b_bump]]
+    )]
+    pub cmint_b: UncheckedAccount<'info>,
+
+    /// CHECK: Compression config
+    pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: CToken config
+    pub ctoken_compressible_config: AccountInfo<'info>,
+
+    /// CHECK: CToken rent sponsor
+    #[account(mut)]
+    pub ctoken_rent_sponsor: AccountInfo<'info>,
+
+    /// CHECK: CToken program
+    pub light_token_program: AccountInfo<'info>,
+
+    /// CHECK: CToken CPI authority
+    pub ctoken_cpi_authority: AccountInfo<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+// =============================================================================
+// Four Mints Test
+// =============================================================================
+
+pub const MINT_SIGNER_C_SEED: &[u8] = b"mint_signer_c";
+pub const MINT_SIGNER_D_SEED: &[u8] = b"mint_signer_d";
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct CreateFourMintsParams {
+    pub create_accounts_proof: CreateAccountsProof,
+    pub mint_signer_a_bump: u8,
+    pub mint_signer_b_bump: u8,
+    pub mint_signer_c_bump: u8,
+    pub mint_signer_d_bump: u8,
+}
+
+/// Test instruction with 4 #[light_mint] fields to verify multi-mint support.
+#[derive(Accounts, RentFree)]
+#[instruction(params: CreateFourMintsParams)]
+pub struct CreateFourMints<'info> {
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+
+    pub authority: Signer<'info>,
+
+    /// CHECK: PDA derived from authority for mint A
+    #[account(
+        seeds = [MINT_SIGNER_A_SEED, authority.key().as_ref()],
+        bump,
+    )]
+    pub mint_signer_a: UncheckedAccount<'info>,
+
+    /// CHECK: PDA derived from authority for mint B
+    #[account(
+        seeds = [MINT_SIGNER_B_SEED, authority.key().as_ref()],
+        bump,
+    )]
+    pub mint_signer_b: UncheckedAccount<'info>,
+
+    /// CHECK: PDA derived from authority for mint C
+    #[account(
+        seeds = [MINT_SIGNER_C_SEED, authority.key().as_ref()],
+        bump,
+    )]
+    pub mint_signer_c: UncheckedAccount<'info>,
+
+    /// CHECK: PDA derived from authority for mint D
+    #[account(
+        seeds = [MINT_SIGNER_D_SEED, authority.key().as_ref()],
+        bump,
+    )]
+    pub mint_signer_d: UncheckedAccount<'info>,
+
+    /// CHECK: Initialized by light_mint CPI
+    #[account(mut)]
+    #[light_mint(
+        mint_signer = mint_signer_a,
+        authority = fee_payer,
+        decimals = 6,
+        mint_seeds = &[MINT_SIGNER_A_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_a_bump]]
+    )]
+    pub cmint_a: UncheckedAccount<'info>,
+
+    /// CHECK: Initialized by light_mint CPI
+    #[account(mut)]
+    #[light_mint(
+        mint_signer = mint_signer_b,
+        authority = fee_payer,
+        decimals = 8,
+        mint_seeds = &[MINT_SIGNER_B_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_b_bump]]
+    )]
+    pub cmint_b: UncheckedAccount<'info>,
+
+    /// CHECK: Initialized by light_mint CPI
+    #[account(mut)]
+    #[light_mint(
+        mint_signer = mint_signer_c,
+        authority = fee_payer,
+        decimals = 9,
+        mint_seeds = &[MINT_SIGNER_C_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_c_bump]]
+    )]
+    pub cmint_c: UncheckedAccount<'info>,
+
+    /// CHECK: Initialized by light_mint CPI
+    #[account(mut)]
+    #[light_mint(
+        mint_signer = mint_signer_d,
+        authority = fee_payer,
+        decimals = 12,
+        mint_seeds = &[MINT_SIGNER_D_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_d_bump]]
+    )]
+    pub cmint_d: UncheckedAccount<'info>,
+
+    /// CHECK: Compression config
+    pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: CToken config
+    pub ctoken_compressible_config: AccountInfo<'info>,
+
+    /// CHECK: CToken rent sponsor
+    #[account(mut)]
+    pub ctoken_rent_sponsor: AccountInfo<'info>,
+
+    /// CHECK: CToken program
+    pub light_token_program: AccountInfo<'info>,
+
+    /// CHECK: CToken CPI authority
+    pub ctoken_cpi_authority: AccountInfo<'info>,
+
+    pub system_program: Program<'info, System>,
+}

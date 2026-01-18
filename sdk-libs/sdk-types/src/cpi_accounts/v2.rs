@@ -88,6 +88,13 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
         self.fee_payer
     }
 
+    pub fn light_system_program(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndex::LightSystemProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
+    }
+
     pub fn authority(&self) -> Result<&'a T> {
         let index = CompressionCpiAccountIndex::Authority as usize;
         self.accounts

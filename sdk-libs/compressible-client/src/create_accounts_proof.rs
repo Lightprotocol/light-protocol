@@ -7,15 +7,17 @@
 //! - Returns a single `address_tree_info` since all accounts use the same tree
 
 use light_client::{
-    indexer::{AddressWithTree, Indexer, IndexerError},
+    indexer::{AddressWithTree, Indexer, IndexerError, ValidityProofWithContext},
     rpc::{Rpc, RpcError},
 };
+use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
+use light_sdk::instruction::PackedAddressTreeInfo;
 use light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 use thiserror::Error;
 
-use crate::pack::{pack_proof, PackError};
+use crate::pack::{pack_proof, pack_proof_for_mints, PackError};
 
 /// Error type for create accounts proof operations.
 #[derive(Debug, Error)]
@@ -136,7 +138,28 @@ pub async fn get_create_accounts_proof<R: Rpc + Indexer>(
     inputs: Vec<CreateAccountsProofInput>,
 ) -> Result<CreateAccountsProofResult, CreateAccountsProofError> {
     if inputs.is_empty() {
-        return Err(CreateAccountsProofError::EmptyInputs);
+        // Token-only instructions: no addresses to derive, but still need tree info
+        let state_tree_info = rpc
+            .get_random_state_tree_info()
+            .map_err(CreateAccountsProofError::Rpc)?;
+
+        // Pack system accounts with empty proof
+        let packed = pack_proof(
+            program_id,
+            ValidityProofWithContext::default(),
+            &state_tree_info,
+            None, // No CPI context needed for token-only
+        )?;
+
+        return Ok(CreateAccountsProofResult {
+            create_accounts_proof: CreateAccountsProof {
+                proof: ValidityProof::default(),
+                address_tree_info: PackedAddressTreeInfo::default(),
+                output_state_tree_index: packed.output_tree_index,
+                state_tree_index: None,
+            },
+            remaining_accounts: packed.remaining_accounts,
+        });
     }
 
     // 1. Get address tree (opinionated: always V2)
@@ -169,7 +192,7 @@ pub async fn get_create_accounts_proof<R: Rpc + Indexer>(
         .get_random_state_tree_info()
         .map_err(CreateAccountsProofError::Rpc)?;
 
-    // 6. Determine CPI context
+    // 6. Determine CPI context and whether we have mints
     // For INIT with mints: need CPI context for cross-program invocation
     let has_mints = inputs
         .iter()
@@ -180,13 +203,22 @@ pub async fn get_create_accounts_proof<R: Rpc + Indexer>(
         None
     };
 
-    // 7. Pack proof
-    let packed = pack_proof(
-        program_id,
-        validity_proof.clone(),
-        &state_tree_info,
-        cpi_context,
-    )?;
+    // 7. Pack proof (use mint-aware packing if mints are present)
+    let packed = if has_mints {
+        pack_proof_for_mints(
+            program_id,
+            validity_proof.clone(),
+            &state_tree_info,
+            cpi_context,
+        )?
+    } else {
+        pack_proof(
+            program_id,
+            validity_proof.clone(),
+            &state_tree_info,
+            cpi_context,
+        )?
+    };
 
     // All addresses use the same tree, so just take the first packed info
     let address_tree_info = packed
@@ -201,6 +233,7 @@ pub async fn get_create_accounts_proof<R: Rpc + Indexer>(
             proof: validity_proof.proof,
             address_tree_info,
             output_state_tree_index: packed.output_tree_index,
+            state_tree_index: packed.state_tree_index,
         },
         remaining_accounts: packed.remaining_accounts,
     })

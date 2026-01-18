@@ -22,4 +22,7 @@ pub struct CreateAccountsProof {
     pub address_tree_info: PackedAddressTreeInfo,
     /// Output state tree index for new compressed accounts.
     pub output_state_tree_index: u8,
+    /// State merkle tree index (needed for mint creation decompress validation).
+    /// This is optional to maintain backwards compatibility.
+    pub state_tree_index: Option<u8>,
 }

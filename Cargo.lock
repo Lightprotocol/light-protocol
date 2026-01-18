@@ -413,7 +413,7 @@ dependencies = [
 [[package]]
 name = "anchor-spl"
 version = "0.31.1"
-source = "git+https://github.com/lightprotocol/anchor?rev=4e8ff59a7de5b2a8ba37f88cf7b0431999f1b1f3#4e8ff59a7de5b2a8ba37f88cf7b0431999f1b1f3"
+source = "git+https://github.com/lightprotocol/anchor?rev=da005d7f#da005d7f1f977d5220eaa65da26cdae2df0fe25e"
 dependencies = [
  "anchor-lang",
  "mpl-token-metadata",
@@ -1638,7 +1638,7 @@ name = "csdk-anchor-full-derived-test"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
- "anchor-spl 0.31.1 (git+https://github.com/lightprotocol/anchor?rev=4e8ff59a7de5b2a8ba37f88cf7b0431999f1b1f3)",
+ "anchor-spl 0.31.1 (git+https://github.com/lightprotocol/anchor?rev=da005d7f)",
  "bincode",
  "borsh 0.10.4",
  "light-client",
@@ -1646,6 +1646,7 @@ dependencies = [
  "light-compressible",
  "light-compressible-client",
  "light-hasher",
+ "light-heap",
  "light-macros",
  "light-program-test",
  "light-sdk",
@@ -1661,6 +1662,7 @@ dependencies = [
  "solana-instruction",
  "solana-keypair",
  "solana-logger",
+ "solana-msg 2.2.1",
  "solana-program",
  "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
@@ -4007,6 +4009,7 @@ dependencies = [
  "light-compressible",
  "light-concurrent-merkle-tree",
  "light-hasher",
+ "light-heap",
  "light-macros",
  "light-sdk-macros",
  "light-sdk-types",
@@ -4244,6 +4247,7 @@ dependencies = [
  "arrayvec",
  "borsh 0.10.4",
  "light-account-checks",
+ "light-batched-merkle-tree",
  "light-compressed-account",
  "light-compressed-token",
  "light-compressible",
@@ -6114,6 +6118,8 @@ dependencies = [
  "light-token-types",
  "light-zero-copy",
  "serial_test",
+ "solana-account-info",
+ "solana-pubkey 2.4.0",
  "solana-sdk",
  "tokio",
 ]

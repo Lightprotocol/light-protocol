@@ -9,9 +9,9 @@ use syn::{
 
 // Import LightMintField and parsing from light_mint module
 use super::light_mint::{parse_light_mint_attr, LightMintField};
-use crate::rentfree::shared_utils::MetaExpr;
 // Import shared types
-pub(super) use crate::rentfree::traits::seed_extraction::extract_account_inner_type;
+pub(super) use crate::rentfree::account::seed_extraction::extract_account_inner_type;
+use crate::rentfree::shared_utils::MetaExpr;
 
 // ============================================================================
 // Infrastructure Field Classification

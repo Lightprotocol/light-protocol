@@ -146,7 +146,7 @@ light_finalize: Complete compression via CPI
 Account exists as compressed state + temporary PDA
 ```
 
-**Decompress (Read/Modify)**
+**Decompress PDAs (Read/Modify)**
 ```
 Client fetches compressed account from indexer
         |
@@ -159,6 +159,27 @@ PDA recreated on-chain from compressed state
         v
 User interacts with standard Anchor account
 ```
+
+**Decompress Token Accounts and Mints**
+
+Token accounts (ATAs) and mints are decompressed directly via the ctoken program, not through the generated `decompress_accounts_idempotent` instruction:
+
+```
+Client fetches compressed token account/mint from indexer
+        |
+        v
+Client calls ctoken program's decompress instruction directly
+        |
+        v
+Token account or mint recreated on-chain
+        |
+        v
+User interacts with decompressed ctoken account/mint
+```
+
+This separation exists because:
+- **PDAs**: Program-specific, seeds defined by your program, decompressed via generated instruction
+- **Token accounts/mints**: Standard ctoken format, decompressed via ctoken program
 
 **Re-Compress (Return to compressed)**
 ```

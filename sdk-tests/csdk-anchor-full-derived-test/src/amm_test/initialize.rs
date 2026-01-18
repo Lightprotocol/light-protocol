@@ -74,7 +74,7 @@ pub struct InitializePool<'info> {
         seeds = [POOL_LP_MINT_SIGNER_SEED, pool_state.key().as_ref()],
         bump,
     )]
-    pub lp_mint_signer: UncheckedAccount<'info>,
+    pub lp_mint_signer: UncheckedAccount<'info>, // TODO: check where the cpi gets the seeds from
 
     #[account(mut)]
     #[light_mint(
@@ -82,7 +82,7 @@ pub struct InitializePool<'info> {
         authority = authority,
         decimals = 9,
         mint_seeds = &[POOL_LP_MINT_SIGNER_SEED, self.pool_state.to_account_info().key.as_ref(), &[params.lp_mint_signer_bump]],
-        authority_seeds = &[AUTH_SEED.as_bytes(), &[params.authority_bump]]
+        authority_seeds = &[AUTH_SEED.as_bytes(), &[params.authority_bump]]  // TODO: get the authority seeds from authority if defined
     )]
     pub lp_mint: UncheckedAccount<'info>,
 

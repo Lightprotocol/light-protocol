@@ -88,8 +88,8 @@ pub fn to_account_metas(cpi_accounts: &CpiAccounts<'_, '_>) -> Result<Vec<Accoun
     tree_accounts.iter().for_each(|acc| {
         account_metas.push(AccountMeta {
             pubkey: *acc.key,
-            is_signer: false,
-            is_writable: true,
+            is_signer: acc.is_signer,
+            is_writable: acc.is_writable,
         });
     });
     Ok(account_metas)

@@ -56,6 +56,8 @@ pub struct PackedProofResult {
     pub packed_tree_infos: PackedTreeInfos,
     /// Index of output tree in remaining accounts. Pass to instruction data.
     pub output_tree_index: u8,
+    /// Index of state merkle tree in remaining accounts (when included for mint creation).
+    pub state_tree_index: Option<u8>,
     /// Offset where system accounts start. Pass to instruction data if needed.
     pub system_accounts_offset: u8,
 }
@@ -82,6 +84,39 @@ pub fn pack_proof(
     output_tree: &TreeInfo,
     cpi_context: Option<Pubkey>,
 ) -> Result<PackedProofResult, PackError> {
+    pack_proof_internal(program_id, proof, output_tree, cpi_context, false)
+}
+
+/// Packs a validity proof with state merkle tree for mint creation.
+///
+/// Same as `pack_proof` but also includes the state merkle tree in remaining accounts.
+/// This is required for mint creation because the decompress operation needs the state
+/// merkle tree for discriminator validation.
+///
+/// # Arguments
+/// - `program_id`: Your program's ID
+/// - `proof`: Validity proof from `get_validity_proof()`
+/// - `output_tree`: Tree info for writing outputs (from `get_random_state_tree_info()`)
+/// - `cpi_context`: CPI context pubkey. Required for mint creation.
+///
+/// # Returns
+/// `PackedProofResult` with `state_tree_index` populated.
+pub fn pack_proof_for_mints(
+    program_id: &Pubkey,
+    proof: ValidityProofWithContext,
+    output_tree: &TreeInfo,
+    cpi_context: Option<Pubkey>,
+) -> Result<PackedProofResult, PackError> {
+    pack_proof_internal(program_id, proof, output_tree, cpi_context, true)
+}
+
+fn pack_proof_internal(
+    program_id: &Pubkey,
+    proof: ValidityProofWithContext,
+    output_tree: &TreeInfo,
+    cpi_context: Option<Pubkey>,
+    include_state_tree: bool,
+) -> Result<PackedProofResult, PackError> {
     let mut packed = PackedAccounts::default();
 
     let system_config = match cpi_context {
@@ -97,7 +132,25 @@ pub fn pack_proof(
         .unwrap_or(output_tree.queue);
     let output_tree_index = packed.insert_or_get(output_queue);
 
-    let client_packed_tree_infos = proof.pack_tree_infos(&mut packed);
+    // For mint creation: pack address tree first (must be at index 1 per program validation),
+    // then state tree. For non-mint: just pack tree infos normally.
+    let (client_packed_tree_infos, state_tree_index) = if include_state_tree {
+        // Pack tree infos first to ensure address tree is at index 1
+        let tree_infos = proof.pack_tree_infos(&mut packed);
+
+        // Then add state tree (will be after address tree)
+        let state_tree = output_tree
+            .next_tree_info
+            .as_ref()
+            .map(|n| n.tree)
+            .unwrap_or(output_tree.tree);
+        let state_idx = packed.insert_or_get(state_tree);
+
+        (tree_infos, Some(state_idx))
+    } else {
+        let tree_infos = proof.pack_tree_infos(&mut packed);
+        (tree_infos, None)
+    };
     let (remaining_accounts, system_offset, _) = packed.to_account_metas();
 
     // Convert from light_client's types to our local types
@@ -115,6 +168,7 @@ pub fn pack_proof(
         remaining_accounts,
         packed_tree_infos,
         output_tree_index,
+        state_tree_index,
         system_accounts_offset: system_offset as u8,
     })
 }

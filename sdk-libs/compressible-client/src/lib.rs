@@ -269,6 +269,8 @@ pub mod compressible_instruction {
         }
 
         /// Returns program account metas for PDA-only decompression (no CToken accounts).
+        /// Note: Still passes all 7 accounts because the struct has Optional fields that
+        /// Anchor still deserializes. Uses rent_sponsor as placeholder for ctoken_rent_sponsor.
         pub fn accounts_pda_only(
             fee_payer: Pubkey,
             config: Pubkey,
@@ -278,6 +280,11 @@ pub mod compressible_instruction {
                 AccountMeta::new(fee_payer, true),
                 AccountMeta::new_readonly(config, false),
                 AccountMeta::new(rent_sponsor, false),
+                // Optional token accounts - use placeholders that satisfy constraints
+                AccountMeta::new(rent_sponsor, false), // ctoken_rent_sponsor (mut) - reuse rent_sponsor
+                AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
+                AccountMeta::new_readonly(LIGHT_TOKEN_CPI_AUTHORITY, false),
+                AccountMeta::new_readonly(COMPRESSIBLE_CONFIG_V1, false),
             ]
         }
     }
