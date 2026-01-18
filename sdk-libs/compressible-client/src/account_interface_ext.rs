@@ -13,7 +13,10 @@ use light_token_interface::{state::Mint, CMINT_ADDRESS_TREE};
 use light_token_sdk::token::{derive_mint_compressed_address, derive_token_ata, find_mint_address};
 use solana_pubkey::Pubkey;
 
-use crate::{AccountInfoInterface, AtaInterface, MintInterface, MintState, TokenAccountInterface};
+use crate::{
+    AccountInfoInterface, AccountToFetch, AtaInterface, KeyedAccountInterface, MintInterface,
+    MintState, TokenAccountInterface,
+};
 
 fn indexer_err(e: impl std::fmt::Display) -> RpcError {
     RpcError::CustomError(format!("IndexerError: {}", e))
@@ -47,6 +50,16 @@ pub trait AccountInterfaceExt: Rpc + Indexer {
         owner: &Pubkey,
         mint: &Pubkey,
     ) -> Result<AtaInterface, RpcError>;
+
+    /// Fetch multiple accounts with automatic type dispatch.
+    ///
+    /// This is the primary method for fetching accounts returned by
+    /// `CompressibleProgram::get_accounts_to_update_typed()`.
+    /// Handles PDAs, tokens, and mints with the correct indexer endpoint.
+    async fn get_multiple_account_interfaces(
+        &self,
+        accounts: &[AccountToFetch],
+    ) -> Result<Vec<KeyedAccountInterface>, RpcError>;
 }
 
 #[async_trait]
@@ -222,5 +235,35 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
             "ATA not found: owner={} mint={}",
             owner, mint
         )))
+    }
+
+    async fn get_multiple_account_interfaces(
+        &self,
+        accounts: &[AccountToFetch],
+    ) -> Result<Vec<KeyedAccountInterface>, RpcError> {
+        let mut result = Vec::with_capacity(accounts.len());
+
+        for account in accounts {
+            let keyed = match account {
+                AccountToFetch::Pda {
+                    address,
+                    program_id,
+                } => {
+                    let iface = self.get_account_info_interface(address, program_id).await?;
+                    KeyedAccountInterface::from_pda_interface(iface)
+                }
+                AccountToFetch::Token { address } => {
+                    let iface = self.get_token_account_interface(address).await?;
+                    KeyedAccountInterface::from_token_interface(iface)
+                }
+                AccountToFetch::Mint { signer } => {
+                    let iface = self.get_mint_interface(signer).await?;
+                    KeyedAccountInterface::from_mint_interface(iface)
+                }
+            };
+            result.push(keyed);
+        }
+
+        Ok(result)
     }
 }

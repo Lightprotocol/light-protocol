@@ -1,0 +1,17 @@
+[package]
+name = "csdk-anchor-full-derived-test-sdk"
+version = "0.1.0"
+description = "Client SDK for csdk-anchor-full-derived-test program"
+edition = "2021"
+
+[dependencies]
+# Program crate for types (RentFreeAccountVariant, PoolState, etc.)
+csdk-anchor-full-derived-test = { path = "../csdk-anchor-full-derived-test", features = ["no-entrypoint"] }
+
+# SDK trait and types
+light-compressible-client = { workspace = true, features = ["anchor"] }
+light-sdk = { workspace = true, features = ["anchor", "v2"] }
+light-token-sdk = { workspace = true, features = ["anchor"] }
+
+anchor-lang = { workspace = true }
+solana-pubkey = { workspace = true }

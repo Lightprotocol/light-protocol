@@ -1,5 +1,6 @@
 pub mod account_interface;
 pub mod account_interface_ext;
+pub mod compressible_program;
 pub mod create_accounts_proof;
 pub mod decompress_mint;
 pub mod get_compressible_account;
@@ -17,6 +18,10 @@ pub use account_interface_ext::AccountInterfaceExt;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+pub use compressible_program::{
+    AccountToFetch, AllSpecs, AtaSpec, ColdContext, CompressibleProgram, KeyedAccountInterface,
+    MintSpec, ProgramOwnedSpec,
+};
 pub use create_accounts_proof::{
     get_create_accounts_proof, CreateAccountsProofError, CreateAccountsProofInput,
     CreateAccountsProofResult,
@@ -41,7 +46,8 @@ use light_token_sdk::token::{
 };
 pub use load_accounts::{
     create_decompress_ata_instructions, create_decompress_idempotent_instructions,
-    create_decompress_mint_instructions, create_load_accounts_instructions, LoadAccountsError,
+    create_decompress_mint_instructions, create_load_accounts_instructions,
+    create_load_instructions_from_specs, LoadAccountsError,
 };
 pub use pack::{pack_proof, PackError, PackedProofResult};
 use solana_account::Account;

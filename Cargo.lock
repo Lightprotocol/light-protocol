@@ -1641,6 +1641,7 @@ dependencies = [
  "anchor-spl 0.31.1 (git+https://github.com/lightprotocol/anchor?rev=da005d7f)",
  "bincode",
  "borsh 0.10.4",
+ "csdk-anchor-full-derived-test-sdk",
  "light-client",
  "light-compressed-account",
  "light-compressible",
@@ -1670,6 +1671,18 @@ dependencies = [
  "solana-signature",
  "solana-signer",
  "tokio",
+]
+
+[[package]]
+name = "csdk-anchor-full-derived-test-sdk"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "csdk-anchor-full-derived-test",
+ "light-compressible-client",
+ "light-sdk",
+ "light-token-sdk",
+ "solana-pubkey 2.4.0",
 ]
 
 [[package]]

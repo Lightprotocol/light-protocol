@@ -463,3 +463,211 @@ pub fn create_decompress_mint_instructions(
     .instruction()
     .map_err(|e| LoadAccountsError::BuildInstruction(e.to_string()))
 }
+
+// =============================================================================
+// ALLSPECS-BASED FUNCTIONS
+// =============================================================================
+
+use crate::compressible_program::{AllSpecs, MintSpec, ProgramOwnedSpec};
+
+/// Build load instructions from AllSpecs.
+///
+/// This is the primary entry point for the CompressibleProgram trait pattern.
+/// Takes specs from `sdk.get_specs_for_operation()` and builds decompression
+/// instructions.
+///
+/// # Arguments
+/// * `specs` - AllSpecs from CompressibleProgram::get_specs_for_operation()
+/// * `program_id` - The program ID
+/// * `fee_payer` - Transaction fee payer
+/// * `compression_config` - Program's compression config PDA
+/// * `rent_sponsor` - Rent sponsor account
+/// * `indexer` - Indexer for fetching proofs
+///
+/// # Returns
+/// Vec of instructions to decompress all cold accounts.
+/// Returns empty vec if all accounts are hot.
+#[allow(clippy::too_many_arguments)]
+pub async fn create_load_instructions_from_specs<V, I>(
+    specs: &AllSpecs<V>,
+    program_id: Pubkey,
+    fee_payer: Pubkey,
+    compression_config: Pubkey,
+    rent_sponsor: Pubkey,
+    indexer: &I,
+) -> Result<Vec<Instruction>, LoadAccountsError>
+where
+    V: Pack + Clone + std::fmt::Debug,
+    I: Indexer,
+{
+    // Fast exit if all hot
+    if specs.all_hot() {
+        return Ok(vec![]);
+    }
+
+    // Get cold specs
+    let cold_program_owned = specs.cold_program_owned();
+    let cold_mints = specs.cold_mints();
+
+    // Collect hashes for proof fetching
+    let program_owned_hashes: Vec<[u8; 32]> = cold_program_owned
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            s.hash()
+                .ok_or(LoadAccountsError::MissingPdaDecompressionContext {
+                    index: i,
+                    pubkey: s.address,
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let mint_hashes: Vec<[u8; 32]> = cold_mints
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            s.hash().ok_or(LoadAccountsError::MissingMintHash {
+                index: i,
+                cmint: s.cmint,
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    // Fetch proofs concurrently
+    let (program_owned_proof, mint_proofs) = futures::join!(
+        fetch_proof_if_needed(&program_owned_hashes, indexer),
+        fetch_mint_proofs(&mint_hashes, indexer),
+    );
+
+    let mut out = Vec::new();
+
+    // Build program-owned decompression instructions
+    if !cold_program_owned.is_empty() {
+        let proof = program_owned_proof?.ok_or_else(|| {
+            LoadAccountsError::BuildInstruction("Program-owned proof fetch failed".into())
+        })?;
+        let ix = create_decompress_from_specs(
+            &cold_program_owned,
+            proof,
+            program_id,
+            fee_payer,
+            compression_config,
+            rent_sponsor,
+        )?;
+        out.push(ix);
+    }
+
+    // Build mint decompression instructions (one per mint)
+    let mint_proofs = mint_proofs?;
+    for (mint_spec, proof) in cold_mints.iter().zip(mint_proofs.into_iter()) {
+        let ix = create_decompress_mint_from_spec(mint_spec, proof, fee_payer)?;
+        out.push(ix);
+    }
+
+    Ok(out)
+}
+
+/// Build decompress instruction from ProgramOwnedSpecs.
+fn create_decompress_from_specs<V>(
+    specs: &[&ProgramOwnedSpec<V>],
+    proof: ValidityProofWithContext,
+    program_id: Pubkey,
+    fee_payer: Pubkey,
+    compression_config: Pubkey,
+    rent_sponsor: Pubkey,
+) -> Result<Instruction, LoadAccountsError>
+where
+    V: Pack + Clone + std::fmt::Debug,
+{
+    use light_client::indexer::CompressedAccount;
+
+    // Check for tokens by program id in compressed account
+    let has_tokens = specs.iter().any(|s| {
+        s.cold_context
+            .as_ref()
+            .map(|c| c.compressed_account.owner == LIGHT_TOKEN_PROGRAM_ID)
+            .unwrap_or(false)
+    });
+
+    let metas = if has_tokens {
+        compressible_instruction::decompress::accounts(fee_payer, compression_config, rent_sponsor)
+    } else {
+        compressible_instruction::decompress::accounts_pda_only(
+            fee_payer,
+            compression_config,
+            rent_sponsor,
+        )
+    };
+
+    // Extract pubkeys and (CompressedAccount, variant) pairs
+    let decompressed_account_addresses: Vec<Pubkey> = specs.iter().map(|s| s.address).collect();
+
+    let compressed_accounts: Vec<(CompressedAccount, V)> = specs
+        .iter()
+        .map(|s| {
+            let compressed_account = s
+                .cold_context
+                .as_ref()
+                .expect("Cold spec must have context")
+                .compressed_account
+                .clone();
+            (compressed_account, s.variant.clone())
+        })
+        .collect();
+
+    compressible_instruction::build_decompress_idempotent_raw(
+        &program_id,
+        &DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
+        &decompressed_account_addresses,
+        &compressed_accounts,
+        &metas,
+        proof,
+    )
+    .map_err(|e| LoadAccountsError::BuildInstruction(e.to_string()))
+}
+
+/// Build decompress mint instruction from MintSpec.
+fn create_decompress_mint_from_spec(
+    mint_spec: &MintSpec,
+    proof: ValidityProofWithContext,
+    fee_payer: Pubkey,
+) -> Result<Instruction, LoadAccountsError> {
+    let account_info = &proof.accounts[0];
+    let state_tree = account_info.tree_info.tree;
+    let input_queue = account_info.tree_info.queue;
+    let output_queue = account_info
+        .tree_info
+        .next_tree_info
+        .as_ref()
+        .map(|n| n.queue)
+        .unwrap_or(input_queue);
+
+    // Get mint data from the spec (stored when building the spec)
+    let mint_data = mint_spec
+        .mint_data
+        .as_ref()
+        .ok_or_else(|| LoadAccountsError::BuildInstruction("MintSpec missing mint_data".into()))?;
+
+    let mint_instruction_data = MintInstructionData::try_from(mint_data.clone())
+        .map_err(|_| LoadAccountsError::BuildInstruction("Invalid mint data".into()))?;
+
+    DecompressMint {
+        payer: fee_payer,
+        authority: fee_payer,
+        state_tree,
+        input_queue,
+        output_queue,
+        compressed_mint_with_context: MintWithContext {
+            leaf_index: account_info.leaf_index as u32,
+            prove_by_index: account_info.root_index.proof_by_index(),
+            root_index: account_info.root_index.root_index().unwrap_or_default(),
+            address: mint_spec.compressed_address,
+            mint: Some(mint_instruction_data),
+        },
+        proof: ValidityProof(proof.proof.into()),
+        rent_payment: DEFAULT_RENT_PAYMENT,
+        write_top_up: DEFAULT_WRITE_TOP_UP,
+    }
+    .instruction()
+    .map_err(|e| LoadAccountsError::BuildInstruction(e.to_string()))
+}
