@@ -6,14 +6,19 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::RentFreeAccountVariant;
+use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_compressible_client::{
-    get_create_accounts_proof, CreateAccountsProofInput, InitializeRentFreeConfig,
+    create_load_accounts_instructions, get_create_accounts_proof, AccountInterface,
+    AccountInterfaceExt, CreateAccountsProofInput, InitializeRentFreeConfig,
+    RentFreeDecompressAccount,
 };
 use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
 };
+use light_sdk::compressible::IntoVariant;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -94,6 +99,63 @@ impl TestContext {
         assert!(!acc.data.as_ref().unwrap().data.is_empty());
     }
 
+    /// Runs the full compression/decompression lifecycle for a single PDA.
+    async fn assert_lifecycle<S>(&mut self, pda: &Pubkey, seeds: S)
+    where
+        S: IntoVariant<RentFreeAccountVariant>,
+    {
+        // Warp to trigger compression
+        self.rpc
+            .warp_slot_forward(SLOTS_PER_EPOCH * 30)
+            .await
+            .unwrap();
+        self.assert_onchain_closed(pda).await;
+
+        // Get account interface
+        let account_interface = self
+            .rpc
+            .get_account_info_interface(pda, &self.program_id)
+            .await
+            .expect("failed to get account interface");
+        assert!(
+            account_interface.is_cold,
+            "Account should be cold after compression"
+        );
+
+        // Build decompression request
+        let program_owned_accounts = vec![RentFreeDecompressAccount::from_seeds(
+            AccountInterface::from(&account_interface),
+            seeds,
+        )
+        .expect("Seed verification failed")];
+
+        // Create and execute decompression
+        let decompress_instructions = create_load_accounts_instructions(
+            &program_owned_accounts,
+            &[],
+            &[],
+            self.program_id,
+            self.payer.pubkey(),
+            self.config_pda,
+            self.payer.pubkey(),
+            &self.rpc,
+        )
+        .await
+        .expect("create_load_accounts_instructions should succeed");
+
+        self.rpc
+            .create_and_send_transaction(
+                &decompress_instructions,
+                &self.payer.pubkey(),
+                &[&self.payer],
+            )
+            .await
+            .expect("Decompression should succeed");
+
+        // Verify account is back on-chain
+        self.assert_onchain_exists(pda).await;
+    }
+
     /// Setup a mint for token-based tests.
     /// Returns (mint_pubkey, compression_address, ata_pubkeys, mint_seed_keypair)
     #[allow(dead_code)]
@@ -165,6 +227,10 @@ async fn test_d6_account() {
 
     // Verify account exists on-chain
     ctx.assert_onchain_exists(&pda).await;
+
+    // Full lifecycle: compression + decompression
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D6AccountRecordSeeds;
+    ctx.assert_lifecycle(&pda, D6AccountRecordSeeds { owner }).await;
 }
 
 /// Tests D6Boxed: Box<Account<'info, T>> type
@@ -219,6 +285,10 @@ async fn test_d6_boxed() {
 
     // Verify account exists on-chain
     ctx.assert_onchain_exists(&pda).await;
+
+    // Full lifecycle: compression + decompression
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D6BoxedRecordSeeds;
+    ctx.assert_lifecycle(&pda, D6BoxedRecordSeeds { owner }).await;
 }
 
 // =============================================================================
@@ -277,6 +347,10 @@ async fn test_d8_pda_only() {
 
     // Verify account exists on-chain
     ctx.assert_onchain_exists(&pda).await;
+
+    // Full lifecycle: compression + decompression
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D8PdaOnlyRecordSeeds;
+    ctx.assert_lifecycle(&pda, D8PdaOnlyRecordSeeds { owner }).await;
 }
 
 /// Tests D8MultiRentfree: Multiple #[rentfree] fields of same type
@@ -347,6 +421,85 @@ async fn test_d8_multi_rentfree() {
     // Verify both accounts exist on-chain
     ctx.assert_onchain_exists(&pda1).await;
     ctx.assert_onchain_exists(&pda2).await;
+
+    // Full lifecycle: compression + decompression (multi-PDA, one at a time)
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
+        D8MultiRecord1Seeds, D8MultiRecord2Seeds,
+    };
+
+    // Warp to trigger compression
+    ctx.rpc
+        .warp_slot_forward(SLOTS_PER_EPOCH * 30)
+        .await
+        .unwrap();
+    ctx.assert_onchain_closed(&pda1).await;
+    ctx.assert_onchain_closed(&pda2).await;
+
+    // Decompress first account
+    let interface1 = ctx
+        .rpc
+        .get_account_info_interface(&pda1, &ctx.program_id)
+        .await
+        .unwrap();
+    let program_owned_accounts = vec![RentFreeDecompressAccount::from_seeds(
+        AccountInterface::from(&interface1),
+        D8MultiRecord1Seeds { owner, id1 },
+    )
+    .unwrap()];
+    let decompress_instructions = create_load_accounts_instructions(
+        &program_owned_accounts,
+        &[],
+        &[],
+        ctx.program_id,
+        ctx.payer.pubkey(),
+        ctx.config_pda,
+        ctx.payer.pubkey(),
+        &ctx.rpc,
+    )
+    .await
+    .unwrap();
+    ctx.rpc
+        .create_and_send_transaction(
+            &decompress_instructions,
+            &ctx.payer.pubkey(),
+            &[&ctx.payer],
+        )
+        .await
+        .unwrap();
+    ctx.assert_onchain_exists(&pda1).await;
+
+    // Decompress second account
+    let interface2 = ctx
+        .rpc
+        .get_account_info_interface(&pda2, &ctx.program_id)
+        .await
+        .unwrap();
+    let program_owned_accounts = vec![RentFreeDecompressAccount::from_seeds(
+        AccountInterface::from(&interface2),
+        D8MultiRecord2Seeds { owner, id2 },
+    )
+    .unwrap()];
+    let decompress_instructions = create_load_accounts_instructions(
+        &program_owned_accounts,
+        &[],
+        &[],
+        ctx.program_id,
+        ctx.payer.pubkey(),
+        ctx.config_pda,
+        ctx.payer.pubkey(),
+        &ctx.rpc,
+    )
+    .await
+    .unwrap();
+    ctx.rpc
+        .create_and_send_transaction(
+            &decompress_instructions,
+            &ctx.payer.pubkey(),
+            &[&ctx.payer],
+        )
+        .await
+        .unwrap();
+    ctx.assert_onchain_exists(&pda2).await;
 }
 
 /// Tests D8All: Multiple #[rentfree] fields of different types
@@ -409,6 +562,85 @@ async fn test_d8_all() {
     // Verify both accounts exist on-chain
     ctx.assert_onchain_exists(&pda_single).await;
     ctx.assert_onchain_exists(&pda_multi).await;
+
+    // Full lifecycle: compression + decompression (multi-PDA, one at a time)
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
+        D8AllMultiSeeds, D8AllSingleSeeds,
+    };
+
+    // Warp to trigger compression
+    ctx.rpc
+        .warp_slot_forward(SLOTS_PER_EPOCH * 30)
+        .await
+        .unwrap();
+    ctx.assert_onchain_closed(&pda_single).await;
+    ctx.assert_onchain_closed(&pda_multi).await;
+
+    // Decompress first account (single type)
+    let interface_single = ctx
+        .rpc
+        .get_account_info_interface(&pda_single, &ctx.program_id)
+        .await
+        .unwrap();
+    let program_owned_accounts = vec![RentFreeDecompressAccount::from_seeds(
+        AccountInterface::from(&interface_single),
+        D8AllSingleSeeds { owner },
+    )
+    .unwrap()];
+    let decompress_instructions = create_load_accounts_instructions(
+        &program_owned_accounts,
+        &[],
+        &[],
+        ctx.program_id,
+        ctx.payer.pubkey(),
+        ctx.config_pda,
+        ctx.payer.pubkey(),
+        &ctx.rpc,
+    )
+    .await
+    .unwrap();
+    ctx.rpc
+        .create_and_send_transaction(
+            &decompress_instructions,
+            &ctx.payer.pubkey(),
+            &[&ctx.payer],
+        )
+        .await
+        .unwrap();
+    ctx.assert_onchain_exists(&pda_single).await;
+
+    // Decompress second account (multi type)
+    let interface_multi = ctx
+        .rpc
+        .get_account_info_interface(&pda_multi, &ctx.program_id)
+        .await
+        .unwrap();
+    let program_owned_accounts = vec![RentFreeDecompressAccount::from_seeds(
+        AccountInterface::from(&interface_multi),
+        D8AllMultiSeeds { owner },
+    )
+    .unwrap()];
+    let decompress_instructions = create_load_accounts_instructions(
+        &program_owned_accounts,
+        &[],
+        &[],
+        ctx.program_id,
+        ctx.payer.pubkey(),
+        ctx.config_pda,
+        ctx.payer.pubkey(),
+        &ctx.rpc,
+    )
+    .await
+    .unwrap();
+    ctx.rpc
+        .create_and_send_transaction(
+            &decompress_instructions,
+            &ctx.payer.pubkey(),
+            &[&ctx.payer],
+        )
+        .await
+        .unwrap();
+    ctx.assert_onchain_exists(&pda_multi).await;
 }
 
 // =============================================================================
@@ -465,6 +697,10 @@ async fn test_d9_literal() {
 
     // Verify account exists on-chain
     ctx.assert_onchain_exists(&pda).await;
+
+    // Full lifecycle: compression + decompression
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9LiteralRecordSeeds;
+    ctx.assert_lifecycle(&pda, D9LiteralRecordSeeds {}).await;
 }
 
 /// Tests D9Constant: Constant seed expression
@@ -517,6 +753,10 @@ async fn test_d9_constant() {
 
     // Verify account exists on-chain
     ctx.assert_onchain_exists(&pda).await;
+
+    // Full lifecycle: compression + decompression
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9ConstantRecordSeeds;
+    ctx.assert_lifecycle(&pda, D9ConstantRecordSeeds {}).await;
 }
 
 /// Tests D9CtxAccount: Context account seed expression
@@ -572,6 +812,16 @@ async fn test_d9_ctx_account() {
 
     // Verify account exists on-chain
     ctx.assert_onchain_exists(&pda).await;
+
+    // Full lifecycle: compression + decompression
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9CtxRecordSeeds;
+    ctx.assert_lifecycle(
+        &pda,
+        D9CtxRecordSeeds {
+            authority: authority.pubkey(),
+        },
+    )
+    .await;
 }
 
 /// Tests D9Param: Param seed expression (Pubkey)
@@ -626,6 +876,10 @@ async fn test_d9_param() {
 
     // Verify account exists on-chain
     ctx.assert_onchain_exists(&pda).await;
+
+    // Full lifecycle: compression + decompression
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9ParamRecordSeeds;
+    ctx.assert_lifecycle(&pda, D9ParamRecordSeeds { owner }).await;
 }
 
 /// Tests D9ParamBytes: Param bytes seed expression (u64)
@@ -683,6 +937,10 @@ async fn test_d9_param_bytes() {
 
     // Verify account exists on-chain
     ctx.assert_onchain_exists(&pda).await;
+
+    // Full lifecycle: compression + decompression
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9ParamBytesRecordSeeds;
+    ctx.assert_lifecycle(&pda, D9ParamBytesRecordSeeds { id }).await;
 }
 
 /// Tests D9Mixed: Mixed seed expression types
@@ -742,6 +1000,17 @@ async fn test_d9_mixed() {
 
     // Verify account exists on-chain
     ctx.assert_onchain_exists(&pda).await;
+
+    // Full lifecycle: compression + decompression
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9MixedRecordSeeds;
+    ctx.assert_lifecycle(
+        &pda,
+        D9MixedRecordSeeds {
+            authority: authority.pubkey(),
+            owner,
+        },
+    )
+    .await;
 }
 
 // =============================================================================
@@ -799,6 +1068,10 @@ async fn test_d7_payer() {
         .expect("D7Payer instruction should succeed");
 
     ctx.assert_onchain_exists(&pda).await;
+
+    // Full lifecycle: compression + decompression
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D7PayerRecordSeeds;
+    ctx.assert_lifecycle(&pda, D7PayerRecordSeeds { owner }).await;
 }
 
 /// Tests D7Creator: "creator" field name variant
@@ -852,6 +1125,10 @@ async fn test_d7_creator() {
         .expect("D7Creator instruction should succeed");
 
     ctx.assert_onchain_exists(&pda).await;
+
+    // Full lifecycle: compression + decompression
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D7CreatorRecordSeeds;
+    ctx.assert_lifecycle(&pda, D7CreatorRecordSeeds { owner }).await;
 }
 
 // =============================================================================
@@ -912,6 +1189,10 @@ async fn test_d9_function_call() {
         .expect("D9FunctionCall instruction should succeed");
 
     ctx.assert_onchain_exists(&pda).await;
+
+    // Full lifecycle: compression + decompression
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9FuncRecordSeeds;
+    ctx.assert_lifecycle(&pda, D9FuncRecordSeeds { key_a, key_b }).await;
 }
 
 /// Tests D9All: All 6 seed expression types
@@ -1005,6 +1286,77 @@ async fn test_d9_all() {
     ctx.assert_onchain_exists(&pda_param).await;
     ctx.assert_onchain_exists(&pda_bytes).await;
     ctx.assert_onchain_exists(&pda_func).await;
+
+    // Full lifecycle: compression + decompression (6 PDAs, one at a time)
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
+        D9AllBytesSeeds, D9AllConstSeeds, D9AllCtxSeeds, D9AllFuncSeeds, D9AllLitSeeds,
+        D9AllParamSeeds,
+    };
+
+    // Warp to trigger compression
+    ctx.rpc
+        .warp_slot_forward(SLOTS_PER_EPOCH * 30)
+        .await
+        .unwrap();
+    ctx.assert_onchain_closed(&pda_lit).await;
+    ctx.assert_onchain_closed(&pda_const).await;
+    ctx.assert_onchain_closed(&pda_ctx).await;
+    ctx.assert_onchain_closed(&pda_param).await;
+    ctx.assert_onchain_closed(&pda_bytes).await;
+    ctx.assert_onchain_closed(&pda_func).await;
+
+    // Helper to decompress a single account
+    async fn decompress_one<S: IntoVariant<RentFreeAccountVariant>>(
+        ctx: &mut TestContext,
+        pda: &Pubkey,
+        seeds: S,
+    ) {
+        let interface = ctx
+            .rpc
+            .get_account_info_interface(pda, &ctx.program_id)
+            .await
+            .unwrap();
+        let program_owned_accounts = vec![
+            RentFreeDecompressAccount::from_seeds(AccountInterface::from(&interface), seeds)
+                .unwrap(),
+        ];
+        let decompress_instructions = create_load_accounts_instructions(
+            &program_owned_accounts,
+            &[],
+            &[],
+            ctx.program_id,
+            ctx.payer.pubkey(),
+            ctx.config_pda,
+            ctx.payer.pubkey(),
+            &ctx.rpc,
+        )
+        .await
+        .unwrap();
+        ctx.rpc
+            .create_and_send_transaction(
+                &decompress_instructions,
+                &ctx.payer.pubkey(),
+                &[&ctx.payer],
+            )
+            .await
+            .unwrap();
+        ctx.assert_onchain_exists(pda).await;
+    }
+
+    // Decompress all 6 accounts one at a time
+    decompress_one(&mut ctx, &pda_lit, D9AllLitSeeds {}).await;
+    decompress_one(&mut ctx, &pda_const, D9AllConstSeeds {}).await;
+    decompress_one(
+        &mut ctx,
+        &pda_ctx,
+        D9AllCtxSeeds {
+            authority: authority.pubkey(),
+        },
+    )
+    .await;
+    decompress_one(&mut ctx, &pda_param, D9AllParamSeeds { owner }).await;
+    decompress_one(&mut ctx, &pda_bytes, D9AllBytesSeeds { id }).await;
+    decompress_one(&mut ctx, &pda_func, D9AllFuncSeeds { key_a, key_b }).await;
 }
 
 // =============================================================================
@@ -1194,6 +1546,8 @@ async fn test_d5_rentfree_token() {
 
     // Verify token vault exists
     ctx.assert_onchain_exists(&vault).await;
+
+    // Note: Token vault decompression not tested - requires TokenAccountVariant
 }
 
 /// Tests D5AllMarkers: #[rentfree] + #[rentfree_token] combined
@@ -1267,6 +1621,12 @@ async fn test_d5_all_markers() {
     // Verify both PDA record and token vault exist
     ctx.assert_onchain_exists(&d5_all_record).await;
     ctx.assert_onchain_exists(&d5_all_vault).await;
+
+    // Full lifecycle: compression + decompression (PDA only)
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D5AllRecordSeeds;
+    ctx.assert_lifecycle(&d5_all_record, D5AllRecordSeeds { owner })
+        .await;
+    // Note: Token vault decompression not tested - requires TokenAccountVariant
 }
 
 // =============================================================================
@@ -1335,6 +1695,8 @@ async fn test_d7_ctoken_config() {
 
     // Verify token vault exists
     ctx.assert_onchain_exists(&d7_ctoken_vault).await;
+
+    // Note: Token vault decompression not tested - requires TokenAccountVariant
 }
 
 /// Tests D7AllNames: payer + ctoken_config/rent_sponsor naming combined
@@ -1408,4 +1770,10 @@ async fn test_d7_all_names() {
     // Verify both PDA record and token vault exist
     ctx.assert_onchain_exists(&d7_all_record).await;
     ctx.assert_onchain_exists(&d7_all_vault).await;
+
+    // Full lifecycle: compression + decompression (PDA only)
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D7AllRecordSeeds;
+    ctx.assert_lifecycle(&d7_all_record, D7AllRecordSeeds { owner })
+        .await;
+    // Note: Token vault decompression not tested - requires TokenAccountVariant
 }

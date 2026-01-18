@@ -31,10 +31,15 @@ pub fn generate_decompress_context_trait_impl(
             // Use variant_name for CtxSeeds struct (matches what decompress.rs generates)
             let ctx_seeds_struct_name = format_ident!("{}CtxSeeds", variant_name);
             let ctx_fields = &info.ctx_seed_fields;
+            let params_only_fields = &info.params_only_seed_fields;
             // Generate pattern to extract idx fields from packed variant
             let idx_field_patterns: Vec<_> = ctx_fields.iter().map(|field| {
                 let idx_field = format_ident!("{}_idx", field);
                 quote! { #idx_field }
+            }).collect();
+            // Generate pattern to extract params-only fields from packed variant
+            let params_field_patterns: Vec<_> = params_only_fields.iter().map(|(field, _, _)| {
+                quote! { #field }
             }).collect();
             // Generate code to resolve idx fields to Pubkeys
             let resolve_ctx_seeds: Vec<_> = ctx_fields.iter().map(|field| {
@@ -55,11 +60,27 @@ pub fn generate_decompress_context_trait_impl(
                 }).collect();
                 quote! { let ctx_seeds = #ctx_seeds_struct_name { #(#field_inits),* }; }
             };
-            if ctx_fields.is_empty() {
+            // Generate SeedParams update with params-only field values
+            // Note: variant_seed_params is declared OUTSIDE the match to avoid borrow checker issues
+            // (the reference passed to handle_packed_pda_variant would outlive the match arm scope)
+            // params-only fields are stored directly in packed variant (not by reference),
+            // so we use the value directly without dereferencing
+            let seed_params_update = if params_only_fields.is_empty() {
+                // No update needed - use the default value declared before match
+                quote! {}
+            } else {
+                let field_inits: Vec<_> = params_only_fields.iter().map(|(field, _, _)| {
+                    quote! { #field: std::option::Option::Some(#field) }
+                }).collect();
+                quote! { variant_seed_params = SeedParams { #(#field_inits,)* ..Default::default() }; }
+            };
+            // When no ctx_fields or params_only_fields, use simple pattern
+            if ctx_fields.is_empty() && params_only_fields.is_empty() {
                 quote! {
                     RentFreeAccountVariant::#packed_variant_name { data: packed, .. } => {
                         #ctx_seeds_construction
-                        match light_sdk::compressible::handle_packed_pda_variant::<#inner_type, #packed_inner_type, _, _>(
+                        #seed_params_update
+                        light_sdk::compressible::handle_packed_pda_variant::<#inner_type, #packed_inner_type, _, _>(
                             &*self.rent_sponsor,
                             cpi_accounts,
                             address_space,
@@ -71,11 +92,8 @@ pub fn generate_decompress_context_trait_impl(
                             &mut compressed_pda_infos,
                             &program_id,
                             &ctx_seeds,
-                            seed_params,
-                        ) {
-                            std::result::Result::Ok(()) => {},
-                            std::result::Result::Err(e) => return std::result::Result::Err(e),
-                        }
+                            std::option::Option::Some(&variant_seed_params),
+                        )?;
                     }
                     RentFreeAccountVariant::#variant_name { .. } => {
                         unreachable!("Unpacked variants should not be present during decompression");
@@ -83,10 +101,11 @@ pub fn generate_decompress_context_trait_impl(
                 }
             } else {
                 quote! {
-                    RentFreeAccountVariant::#packed_variant_name { data: packed, #(#idx_field_patterns,)* .. } => {
+                    RentFreeAccountVariant::#packed_variant_name { data: packed, #(#idx_field_patterns,)* #(#params_field_patterns,)* .. } => {
                         #(#resolve_ctx_seeds)*
                         #ctx_seeds_construction
-                        match light_sdk::compressible::handle_packed_pda_variant::<#inner_type, #packed_inner_type, _, _>(
+                        #seed_params_update
+                        light_sdk::compressible::handle_packed_pda_variant::<#inner_type, #packed_inner_type, _, _>(
                             &*self.rent_sponsor,
                             cpi_accounts,
                             address_space,
@@ -98,11 +117,8 @@ pub fn generate_decompress_context_trait_impl(
                             &mut compressed_pda_infos,
                             &program_id,
                             &ctx_seeds,
-                            seed_params,
-                        ) {
-                            std::result::Result::Ok(()) => {},
-                            std::result::Result::Err(e) => return std::result::Result::Err(e),
-                        }
+                            std::option::Option::Some(&variant_seed_params),
+                        )?;
                     }
                     RentFreeAccountVariant::#variant_name { .. } => {
                         unreachable!("Unpacked variants should not be present during decompression");
@@ -119,7 +135,7 @@ pub fn generate_decompress_context_trait_impl(
             type CompressedData = RentFreeAccountData;
             type PackedTokenData = light_token_sdk::compat::PackedCTokenData<#packed_token_variant_ident>;
             type CompressedMeta = light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
-            type SeedParams = ();
+            type SeedParams = SeedParams;
 
             fn fee_payer(&self) -> &solana_account_info::AccountInfo<#lifetime> {
                 &*self.fee_payer
@@ -174,6 +190,9 @@ pub fn generate_decompress_context_trait_impl(
                 for (i, compressed_data) in compressed_accounts.into_iter().enumerate() {
                     solana_msg::msg!("collect_pda_and_token: processing account {}", i);
                     let meta = compressed_data.meta;
+                    // Declare variant_seed_params OUTSIDE the match to avoid borrow checker issues
+                    // (reference passed to handle_packed_pda_variant with ? would outlive match arm scope)
+                    let mut variant_seed_params = SeedParams::default();
                     match compressed_data.data {
                         #(#pda_match_arms)*
                         RentFreeAccountVariant::PackedCTokenData(mut data) => {

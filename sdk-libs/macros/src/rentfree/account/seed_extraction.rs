@@ -621,3 +621,99 @@ pub fn get_data_fields(seeds: &[ClassifiedSeed]) -> Vec<(Ident, Option<Ident>)> 
     }
     fields
 }
+
+/// Get params-only seed fields (data.* fields that don't exist on state struct).
+/// Returns (field_name, field_type, has_conversion).
+/// - has_conversion is true for fields using to_le_bytes(), to_be_bytes(), etc.
+/// - field_type is u64 for fields with byte conversion, Pubkey otherwise.
+pub fn get_params_only_seed_fields(
+    seeds: &[ClassifiedSeed],
+    state_field_names: &std::collections::HashSet<String>,
+) -> Vec<(Ident, syn::Type, bool)> {
+    let mut fields = Vec::new();
+    for seed in seeds {
+        if let ClassifiedSeed::DataField {
+            field_name,
+            conversion,
+        } = seed
+        {
+            let field_str = field_name.to_string();
+            // Only include fields that are NOT on the state struct
+            if !state_field_names.contains(&field_str) {
+                if !fields.iter().any(|(f, _, _): &(Ident, _, _)| f == field_name) {
+                    let has_conversion = conversion.is_some();
+                    let field_type: syn::Type = if has_conversion {
+                        syn::parse_quote!(u64)
+                    } else {
+                        syn::parse_quote!(solana_pubkey::Pubkey)
+                    };
+                    fields.push((field_name.clone(), field_type, has_conversion));
+                }
+            }
+        }
+    }
+    fields
+}
+
+/// Get params-only seed fields from a TokenSeedSpec.
+/// This is a convenience wrapper that works with the SeedElement type.
+pub fn get_params_only_seed_fields_from_spec(
+    spec: &crate::rentfree::program::instructions::TokenSeedSpec,
+    state_field_names: &std::collections::HashSet<String>,
+) -> Vec<(Ident, syn::Type, bool)> {
+    use crate::rentfree::program::instructions::SeedElement;
+
+    let mut fields = Vec::new();
+    for seed in &spec.seeds {
+        if let SeedElement::Expression(expr) = seed {
+            if let Some((field_name, has_conversion)) = extract_data_field_from_expr(expr) {
+                let field_str = field_name.to_string();
+                // Only include fields that are NOT on the state struct
+                if !state_field_names.contains(&field_str) {
+                    if !fields.iter().any(|(f, _, _): &(Ident, _, _)| f == &field_name) {
+                        let field_type: syn::Type = if has_conversion {
+                            syn::parse_quote!(u64)
+                        } else {
+                            syn::parse_quote!(solana_pubkey::Pubkey)
+                        };
+                        fields.push((field_name, field_type, has_conversion));
+                    }
+                }
+            }
+        }
+    }
+    fields
+}
+
+/// Extract data field name and conversion info from an expression.
+/// Returns (field_name, has_conversion) if the expression is a data.* field.
+fn extract_data_field_from_expr(expr: &syn::Expr) -> Option<(Ident, bool)> {
+    use crate::rentfree::shared_utils::is_base_path;
+
+    match expr {
+        syn::Expr::Field(field_expr) => {
+            if let syn::Member::Named(field_name) = &field_expr.member {
+                if is_base_path(&field_expr.base, "data") {
+                    return Some((field_name.clone(), false));
+                }
+            }
+            None
+        }
+        syn::Expr::MethodCall(method_call) => {
+            // Handle data.field.to_le_bytes().as_ref() etc.
+            let has_bytes_conversion = method_call.method == "to_le_bytes"
+                || method_call.method == "to_be_bytes";
+            if has_bytes_conversion {
+                return extract_data_field_from_expr(&method_call.receiver)
+                    .map(|(name, _)| (name, true));
+            }
+            // For .as_ref(), recurse without marking conversion
+            if method_call.method == "as_ref" || method_call.method == "as_bytes" {
+                return extract_data_field_from_expr(&method_call.receiver);
+            }
+            None
+        }
+        syn::Expr::Reference(ref_expr) => extract_data_field_from_expr(&ref_expr.expr),
+        _ => None,
+    }
+}

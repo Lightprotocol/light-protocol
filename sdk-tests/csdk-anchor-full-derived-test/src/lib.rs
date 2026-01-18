@@ -30,9 +30,31 @@ pub use instructions::{
     d9_seeds::{D9_ALL_SEED, D9_CONSTANT_SEED},
 };
 pub use state::{
-    d1_field_types::single_pubkey::{PackedSinglePubkeyRecord, SinglePubkeyRecord},
-    d2_compress_as::multiple::{MultipleCompressAsRecord, PackedMultipleCompressAsRecord},
-    GameSession, PackedGameSession, PackedUserRecord, PlaceholderRecord, UserRecord,
+    d1_field_types::{
+        all::{AllFieldTypesRecord, PackedAllFieldTypesRecord},
+        arrays::ArrayRecord,
+        multi_pubkey::{MultiPubkeyRecord, PackedMultiPubkeyRecord},
+        no_pubkey::NoPubkeyRecord,
+        non_copy::NonCopyRecord,
+        option_primitive::OptionPrimitiveRecord,
+        option_pubkey::{OptionPubkeyRecord, PackedOptionPubkeyRecord},
+        single_pubkey::{PackedSinglePubkeyRecord, SinglePubkeyRecord},
+    },
+    d2_compress_as::{
+        absent::{NoCompressAsRecord, PackedNoCompressAsRecord},
+        all::{AllCompressAsRecord, PackedAllCompressAsRecord},
+        multiple::{MultipleCompressAsRecord, PackedMultipleCompressAsRecord},
+        option_none::{OptionNoneCompressAsRecord, PackedOptionNoneCompressAsRecord},
+        single::{PackedSingleCompressAsRecord, SingleCompressAsRecord},
+    },
+    d4_composition::{
+        all::{AllCompositionRecord, PackedAllCompositionRecord},
+        info_last::{InfoLastRecord, PackedInfoLastRecord},
+        large::LargeRecord,
+        minimal::MinimalRecord,
+    },
+    GameSession, PackedGameSession, PackedPlaceholderRecord, PackedUserRecord, PlaceholderRecord,
+    UserRecord,
 };
 #[inline]
 pub fn max_key(left: &Pubkey, right: &Pubkey) -> [u8; 32] {

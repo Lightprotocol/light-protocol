@@ -60,7 +60,7 @@ pub fn generate_process_decompress_accounts_idempotent() -> Result<syn::ItemFn> 
                 system_accounts_offset,
                 LIGHT_CPI_SIGNER,
                 &crate::ID,
-                std::option::Option::None::<&()>,
+                None,
             )
             .map_err(|e: solana_program_error::ProgramError| -> anchor_lang::error::Error { e.into() })
         }
@@ -157,12 +157,23 @@ pub fn generate_decompress_accounts_struct(variant: InstructionVariant) -> Resul
 /// Generate PDA seed derivation that uses CtxSeeds struct instead of DecompressAccountsIdempotent.
 /// Maps ctx.field -> ctx_seeds.field (direct Pubkey access, no Option unwrapping needed)
 /// Only maps data.field -> self.field if the field exists on the state struct.
+/// For params-only fields, uses seed_params.field instead of skipping.
 #[inline(never)]
 fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
     spec: &TokenSeedSpec,
     ctx_seed_fields: &[syn::Ident],
     state_field_names: &std::collections::HashSet<String>,
+    params_only_fields: &[(syn::Ident, syn::Type, bool)],
 ) -> Result<TokenStream> {
+    // Build a lookup for params-only field names
+    let params_only_names: std::collections::HashSet<String> = params_only_fields
+        .iter()
+        .map(|(name, _, _)| name.to_string())
+        .collect();
+    let params_only_has_conversion: std::collections::HashMap<String, bool> = params_only_fields
+        .iter()
+        .map(|(name, _, has_conv)| (name.to_string(), *has_conv))
+        .collect();
     let mut bindings: Vec<TokenStream> = Vec::new();
     let mut seed_refs = Vec::new();
 
@@ -199,13 +210,40 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
                 }
 
                 // Check if this is a data.field expression where the field doesn't exist on state
-                // If so, skip it (the seed cannot be derived from state during decompression)
-                if is_params_only_seed(expr, state_field_names) {
-                    // Skip params-only seeds - they cannot be derived during decompression
-                    // The PDA address is stored in compression_info.address, so we don't need
-                    // to re-derive it. However, we still need all seeds for the PDA verification.
-                    // For now, we leave a placeholder that will need to be handled differently.
-                    continue;
+                // If so, use seed_params.field instead of skipping
+                if let Some(field_name) = get_params_only_field_name(expr, state_field_names) {
+                    if params_only_names.contains(&field_name) {
+                        let field_ident = syn::Ident::new(&field_name, proc_macro2::Span::call_site());
+                        let binding_name =
+                            syn::Ident::new(&format!("seed_{}", i), proc_macro2::Span::call_site());
+
+                        // Check if this field has a conversion (to_le_bytes, to_be_bytes)
+                        let has_conversion = params_only_has_conversion
+                            .get(&field_name)
+                            .copied()
+                            .unwrap_or(false);
+
+                        if has_conversion {
+                            // u64 field with to_le_bytes conversion
+                            // Must bind bytes to a variable to avoid temporary value dropped while borrowed
+                            let bytes_binding_name =
+                                syn::Ident::new(&format!("{}_bytes", binding_name), proc_macro2::Span::call_site());
+                            bindings.push(quote! {
+                                let #binding_name = seed_params.#field_ident
+                                    .ok_or(solana_program_error::ProgramError::InvalidAccountData)?;
+                                let #bytes_binding_name = #binding_name.to_le_bytes();
+                            });
+                            seed_refs.push(quote! { #bytes_binding_name.as_ref() });
+                        } else {
+                            // Pubkey field
+                            bindings.push(quote! {
+                                let #binding_name = seed_params.#field_ident
+                                    .ok_or(solana_program_error::ProgramError::InvalidAccountData)?;
+                            });
+                            seed_refs.push(quote! { #binding_name.as_ref() });
+                        }
+                        continue;
+                    }
                 }
 
                 let binding_name =
@@ -241,26 +279,41 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
 }
 
 /// Check if a seed expression is a params-only seed (data.field where field doesn't exist on state)
+#[allow(dead_code)]
 fn is_params_only_seed(
     expr: &syn::Expr,
     state_field_names: &std::collections::HashSet<String>,
 ) -> bool {
+    get_params_only_field_name(expr, state_field_names).is_some()
+}
+
+/// Get the field name from a params-only seed expression.
+/// Returns Some(field_name) if the expression is a data.field where field doesn't exist on state.
+fn get_params_only_field_name(
+    expr: &syn::Expr,
+    state_field_names: &std::collections::HashSet<String>,
+) -> Option<String> {
     use crate::rentfree::shared_utils::is_base_path;
 
     match expr {
         syn::Expr::Field(field_expr) => {
             if let syn::Member::Named(field_name) = &field_expr.member {
                 if is_base_path(&field_expr.base, "data") {
-                    return !state_field_names.contains(&field_name.to_string());
+                    let name = field_name.to_string();
+                    if !state_field_names.contains(&name) {
+                        return Some(name);
+                    }
                 }
             }
-            false
+            None
         }
         syn::Expr::MethodCall(method_call) => {
-            is_params_only_seed(&method_call.receiver, state_field_names)
+            get_params_only_field_name(&method_call.receiver, state_field_names)
         }
-        syn::Expr::Reference(ref_expr) => is_params_only_seed(&ref_expr.expr, state_field_names),
-        _ => false,
+        syn::Expr::Reference(ref_expr) => {
+            get_params_only_field_name(&ref_expr.expr, state_field_names)
+        }
+        _ => None,
     }
 }
 
@@ -327,27 +380,49 @@ pub fn generate_pda_seed_provider_impls(
             }
         };
 
+        let params_only_fields = &ctx_info.params_only_seed_fields;
         let seed_derivation = generate_pda_seed_derivation_for_trait_with_ctx_seeds(
             spec,
             ctx_fields,
             &ctx_info.state_field_names,
+            params_only_fields,
         )?;
 
         // Generate impl for inner_type, but use variant-based struct name
-        results.push(quote! {
-            #ctx_seeds_struct
+        // Use SeedParams if there are params-only fields, otherwise use ()
+        let has_params_only = !params_only_fields.is_empty();
+        let seed_params_impl = if has_params_only {
+            quote! {
+                #ctx_seeds_struct
 
-            impl light_sdk::compressible::PdaSeedDerivation<#ctx_seeds_struct_name, ()> for #inner_type {
-                fn derive_pda_seeds_with_accounts(
-                    &self,
-                    program_id: &solana_pubkey::Pubkey,
-                    ctx_seeds: &#ctx_seeds_struct_name,
-                    _seed_params: &(),
-                ) -> std::result::Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey), solana_program_error::ProgramError> {
-                    #seed_derivation
+                impl light_sdk::compressible::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
+                    fn derive_pda_seeds_with_accounts(
+                        &self,
+                        program_id: &solana_pubkey::Pubkey,
+                        ctx_seeds: &#ctx_seeds_struct_name,
+                        seed_params: &SeedParams,
+                    ) -> std::result::Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey), solana_program_error::ProgramError> {
+                        #seed_derivation
+                    }
                 }
             }
-        });
+        } else {
+            quote! {
+                #ctx_seeds_struct
+
+                impl light_sdk::compressible::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
+                    fn derive_pda_seeds_with_accounts(
+                        &self,
+                        program_id: &solana_pubkey::Pubkey,
+                        ctx_seeds: &#ctx_seeds_struct_name,
+                        _seed_params: &SeedParams,
+                    ) -> std::result::Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey), solana_program_error::ProgramError> {
+                        #seed_derivation
+                    }
+                }
+            }
+        };
+        results.push(seed_params_impl);
     }
 
     Ok(results)
