@@ -1,18 +1,31 @@
 use anchor_lang::InstructionData;
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
-use light_token_sdk::token::{derive_mint_compressed_address, find_mint_address, SystemAccounts};
-use sdk_token_test::{CreateMintParamsData, CreateTwoMintsData};
+use light_token_sdk::token::{
+    config_pda, derive_mint_compressed_address, find_mint_address, rent_sponsor_pda,
+    SystemAccounts, LIGHT_TOKEN_PROGRAM_ID,
+};
+use sdk_token_test::{CreateMintsParams, MintParams};
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     signature::{Keypair, Signer},
 };
 
-/// Test creating two compressed mints using CPI context in a single transaction.
-/// First CPI writes first mint to CPI context, second CPI executes both with single proof.
-/// Both mints remain as compressed accounts (no Solana account created).
 #[tokio::test]
-async fn test_create_two_compressed_mints_cpi_context() {
-    // 1. Setup test environment
+async fn test_create_single_mint() {
+    test_create_mints(1).await;
+}
+
+#[tokio::test]
+async fn test_create_two_mints() {
+    test_create_mints(2).await;
+}
+
+#[tokio::test]
+async fn test_create_three_mints() {
+    test_create_mints(3).await;
+}
+
+async fn test_create_mints(n: usize) {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
         Some(vec![("sdk_token_test", sdk_token_test::ID)]),
@@ -21,141 +34,127 @@ async fn test_create_two_compressed_mints_cpi_context() {
     .unwrap();
 
     let payer = rpc.get_payer().insecure_clone();
+    let mint_signers: Vec<Keypair> = (0..n).map(|_| Keypair::new()).collect();
 
-    // 2. Generate two mint signers
-    let mint_signer_1 = Keypair::new();
-    let mint_signer_2 = Keypair::new();
-
-    // 3. Get tree info
     let address_tree_info = rpc.get_address_tree_v2();
     let state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
-    // 4. Derive addresses for both mints
-    let compression_address_1 =
-        derive_mint_compressed_address(&mint_signer_1.pubkey(), &address_tree_info.tree);
-    let compression_address_2 =
-        derive_mint_compressed_address(&mint_signer_2.pubkey(), &address_tree_info.tree);
-    let (mint_pda_1, bump_1) = find_mint_address(&mint_signer_1.pubkey());
-    let (mint_pda_2, bump_2) = find_mint_address(&mint_signer_2.pubkey());
+    let compression_addresses: Vec<[u8; 32]> = mint_signers
+        .iter()
+        .map(|signer| derive_mint_compressed_address(&signer.pubkey(), &address_tree_info.tree))
+        .collect();
 
-    // 5. Get SINGLE validity proof for BOTH addresses
+    let mint_pdas: Vec<(solana_sdk::pubkey::Pubkey, u8)> = mint_signers
+        .iter()
+        .map(|signer| find_mint_address(&signer.pubkey()))
+        .collect();
+
+    let addresses_with_trees: Vec<AddressWithTree> = compression_addresses
+        .iter()
+        .map(|addr| AddressWithTree {
+            address: *addr,
+            tree: address_tree_info.tree,
+        })
+        .collect();
+
     let proof_result = rpc
-        .get_validity_proof(
-            vec![],
-            vec![
-                AddressWithTree {
-                    address: compression_address_1,
-                    tree: address_tree_info.tree,
-                },
-                AddressWithTree {
-                    address: compression_address_2,
-                    tree: address_tree_info.tree,
-                },
-            ],
-            None,
-        )
+        .get_validity_proof(vec![], addresses_with_trees, None)
         .await
         .unwrap()
         .value;
 
-    // 6. Build CreateMintParamsData for both mints
-    let params_1 = CreateMintParamsData {
-        decimals: 9,
-        address_merkle_tree_root_index: proof_result.addresses[0].root_index,
-        mint_authority: payer.pubkey(),
-        compression_address: compression_address_1,
-        mint: mint_pda_1,
-        bump: bump_1,
-        freeze_authority: None,
-    };
+    let mints: Vec<MintParams> = mint_signers
+        .iter()
+        .zip(compression_addresses.iter())
+        .zip(mint_pdas.iter())
+        .enumerate()
+        .map(
+            |(i, ((signer, compression_address), (mint_pda, bump)))| MintParams {
+                decimals: (6 + i) as u8,
+                address_merkle_tree_root_index: proof_result.addresses[i].root_index,
+                mint_authority: payer.pubkey(),
+                compression_address: *compression_address,
+                mint: *mint_pda,
+                bump: *bump,
+                freeze_authority: None,
+                mint_seed_pubkey: signer.pubkey(),
+            },
+        )
+        .collect();
 
-    let params_2 = CreateMintParamsData {
-        decimals: 6,
-        address_merkle_tree_root_index: proof_result.addresses[1].root_index,
-        mint_authority: payer.pubkey(),
-        compression_address: compression_address_2,
-        mint: mint_pda_2,
-        bump: bump_2,
-        freeze_authority: None,
-    };
+    let params = CreateMintsParams::new(mints, proof_result.proof.0.unwrap());
 
-    // 7. Build instruction data
-    let data = CreateTwoMintsData {
-        params_1,
-        params_2,
-        proof: proof_result.proof.0.unwrap(),
-    };
-
-    // 8. Build account metas
     let system_accounts = SystemAccounts::default();
     let cpi_context_pubkey = state_tree_info
         .cpi_context
         .expect("CPI context account required");
-    let compressed_token_program_id =
-        solana_sdk::pubkey::Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
 
     // Account layout (remaining_accounts):
-    // - accounts[0]: light_system_program
-    // - accounts[1]: mint_signer_1 (SIGNER)
-    // - accounts[2]: mint_signer_2 (SIGNER)
-    // - accounts[3]: cpi_authority_pda
-    // - accounts[4]: registered_program_pda
-    // - accounts[5]: account_compression_authority
-    // - accounts[6]: account_compression_program
-    // - accounts[7]: system_program
-    // - accounts[8]: cpi_context_account (writable)
-    // - accounts[9]: output_queue (writable)
-    // - accounts[10]: address_tree (writable)
-    // - accounts[11]: compressed_token_program (for CPI)
-    let accounts = vec![
-        // Anchor accounts (signer is the payer)
+    // [0]: light_system_program
+    // [1..N+1]: mint_signers (SIGNER)
+    // [N+1..N+6]: system PDAs (cpi_authority, registered_program, compression_authority, compression_program, system_program)
+    // [N+6]: cpi_context_account
+    // [N+7]: output_queue
+    // [N+8]: address_tree
+    // [N+9]: compressible_config
+    // [N+10]: rent_sponsor
+    // [N+11]: state_merkle_tree
+    // [N+12..2N+12]: mint_pdas
+    // [2N+12]: compressed_token_program (for CPI)
+    let mut accounts = vec![
         AccountMeta::new(payer.pubkey(), true),
-        // remaining_accounts
-        AccountMeta::new_readonly(system_accounts.light_system_program, false), // [0]
-        AccountMeta::new_readonly(mint_signer_1.pubkey(), true),                 // [1] SIGNER
-        AccountMeta::new_readonly(mint_signer_2.pubkey(), true),                 // [2] SIGNER
-        AccountMeta::new_readonly(system_accounts.cpi_authority_pda, false),     // [3]
-        AccountMeta::new_readonly(system_accounts.registered_program_pda, false), // [4]
-        AccountMeta::new_readonly(system_accounts.account_compression_authority, false), // [5]
-        AccountMeta::new_readonly(system_accounts.account_compression_program, false), // [6]
-        AccountMeta::new_readonly(system_accounts.system_program, false),        // [7]
-        AccountMeta::new(cpi_context_pubkey, false),                             // [8]
-        AccountMeta::new(state_tree_info.queue, false),                          // [9]
-        AccountMeta::new(address_tree_info.tree, false),                         // [10]
-        AccountMeta::new_readonly(compressed_token_program_id, false),           // [11]
+        AccountMeta::new_readonly(system_accounts.light_system_program, false),
     ];
+
+    for signer in &mint_signers {
+        accounts.push(AccountMeta::new_readonly(signer.pubkey(), true));
+    }
+
+    accounts.extend(vec![
+        AccountMeta::new_readonly(system_accounts.cpi_authority_pda, false),
+        AccountMeta::new_readonly(system_accounts.registered_program_pda, false),
+        AccountMeta::new_readonly(system_accounts.account_compression_authority, false),
+        AccountMeta::new_readonly(system_accounts.account_compression_program, false),
+        AccountMeta::new_readonly(system_accounts.system_program, false),
+        AccountMeta::new(cpi_context_pubkey, false),
+        AccountMeta::new(state_tree_info.queue, false),
+        AccountMeta::new(address_tree_info.tree, false),
+        AccountMeta::new_readonly(config_pda().into(), false),
+        AccountMeta::new(rent_sponsor_pda().into(), false),
+        AccountMeta::new(state_tree_info.tree, false),
+    ]);
+
+    for (mint_pda, _) in &mint_pdas {
+        accounts.push(AccountMeta::new(*mint_pda, false));
+    }
+
+    // Append compressed token program at the end for CPI
+    accounts.push(AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false));
 
     let instruction = Instruction {
         program_id: sdk_token_test::ID,
         accounts,
-        data: sdk_token_test::instruction::CreateTwoMints { data }.data(),
+        data: sdk_token_test::instruction::CreateMints { params }.data(),
     };
 
-    // 9. Send transaction
-    rpc.create_and_send_transaction(
-        &[instruction],
-        &payer.pubkey(),
-        &[&payer, &mint_signer_1, &mint_signer_2],
-    )
-    .await
-    .unwrap();
+    let mut signers: Vec<&Keypair> = vec![&payer];
+    signers.extend(mint_signers.iter());
 
-    // 10. Verify both compressed mints were created by querying the indexer
-    // Since these are compressed accounts (no Solana account), we verify via indexer
-    let compressed_accounts = rpc
-        .indexer()
-        .unwrap()
-        .get_compressed_accounts_by_owner(&payer.pubkey(), None, None)
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &signers)
         .await
         .unwrap();
 
-    // Check that we have at least 2 compressed accounts (the mints)
-    assert!(
-        compressed_accounts.value.items.len() >= 2,
-        "Should have at least 2 compressed accounts"
-    );
+    for (i, (mint_pda, _)) in mint_pdas.iter().enumerate() {
+        let mint_account = rpc
+            .get_account(*mint_pda)
+            .await
+            .expect("Failed to get mint account")
+            .expect(&format!("Mint PDA {} should exist after decompress", i + 1));
 
-    println!("Successfully created two compressed mints in single transaction!");
-    println!("  Mint 1 address: {:?}", compression_address_1);
-    println!("  Mint 2 address: {:?}", compression_address_2);
+        assert!(
+            !mint_account.data.is_empty(),
+            "Mint {} account should have data",
+            i + 1
+        );
+    }
 }

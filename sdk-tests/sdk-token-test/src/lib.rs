@@ -18,13 +18,13 @@ mod process_compress_tokens;
 mod process_create_compressed_account;
 mod process_create_ctoken_with_compress_to_pubkey;
 mod process_create_escrow_pda;
+mod process_create_two_mints;
 mod process_decompress_full_cpi_context;
 mod process_decompress_tokens;
 mod process_four_invokes;
 pub mod process_four_transfer2;
 mod process_transfer_tokens;
 mod process_update_deposit;
-mod process_create_two_mints;
 
 use light_sdk::instruction::account_meta::CompressedAccountMeta;
 use light_sdk_types::cpi_accounts::{v2::CpiAccounts, CpiAccountsConfig};
@@ -35,14 +35,14 @@ use process_compress_tokens::process_compress_tokens;
 use process_create_compressed_account::process_create_compressed_account;
 use process_create_ctoken_with_compress_to_pubkey::process_create_ctoken_with_compress_to_pubkey;
 use process_create_escrow_pda::process_create_escrow_pda;
+use process_create_two_mints::process_create_mints;
+pub use process_create_two_mints::{CreateMintsParams, MintParams};
 use process_decompress_full_cpi_context::process_decompress_full_cpi_context;
 use process_decompress_tokens::process_decompress_tokens;
 use process_four_invokes::process_four_invokes;
 pub use process_four_invokes::{CompressParams, FourInvokesParams, TransferParams};
 use process_four_transfer2::process_four_transfer2;
 use process_transfer_tokens::process_transfer_tokens;
-use process_create_two_mints::process_create_two_mints;
-pub use process_create_two_mints::{CreateMintParamsData, CreateTwoMintsData};
 
 declare_id!("5p1t1GAaKtK1FKCh5Hd2Gu8JCu3eREhJm4Q2qYfTEPYK");
 
@@ -342,13 +342,16 @@ pub mod sdk_token_test {
         process_ctoken_pda(ctx, input)
     }
 
-    /// Create two compressed mints using CPI context in a single transaction.
-    /// First CPI writes first mint to CPI context, second CPI executes both with proof.
-    pub fn create_two_mints<'info>(
-        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
-        data: CreateTwoMintsData,
+    /// Create one or more compressed mints and decompress all to Solana accounts.
+    ///
+    /// Flow:
+    /// - N=1: Single CPI (create + decompress)
+    /// - N>1: 2N-1 CPIs (N-1 writes + 1 execute with decompress + N-1 decompress)
+    pub fn create_mints<'a, 'info>(
+        ctx: Context<'a, '_, 'info, 'info, Generic<'info>>,
+        params: CreateMintsParams,
     ) -> Result<()> {
-        process_create_two_mints(ctx, data)
+        process_create_mints(ctx, params)
     }
 }
 

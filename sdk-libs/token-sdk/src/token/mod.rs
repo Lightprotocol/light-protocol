@@ -25,6 +25,7 @@
 //! ## Mint
 //!
 //! - [`CreateMint`] - Create cMint
+//! - [`CreateMints`] - Create multiple cMints in a batch
 //! - [`MintTo`] - Mint tokens to ctoken accounts
 //!
 //! ## Revoke and Thaw
@@ -100,6 +101,7 @@ mod compressible;
 mod create;
 mod create_ata;
 mod create_mint;
+mod create_mints;
 mod decompress;
 mod decompress_mint;
 mod freeze;
@@ -125,6 +127,7 @@ pub use create_ata::{
     CreateTokenAtaCpi as CreateAssociatedAccountCpi, CreateTokenAtaCpi,
 };
 pub use create_mint::*;
+pub use create_mints::*;
 pub use decompress::Decompress;
 pub use decompress_mint::*;
 pub use freeze::*;

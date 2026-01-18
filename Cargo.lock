@@ -4247,6 +4247,7 @@ dependencies = [
  "arrayvec",
  "borsh 0.10.4",
  "light-account-checks",
+ "light-batched-merkle-tree",
  "light-compressed-account",
  "light-compressed-token",
  "light-compressible",
@@ -6117,6 +6118,8 @@ dependencies = [
  "light-token-types",
  "light-zero-copy",
  "serial_test",
+ "solana-account-info",
+ "solana-pubkey 2.4.0",
  "solana-sdk",
  "tokio",
 ]

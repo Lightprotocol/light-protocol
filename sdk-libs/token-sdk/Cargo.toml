@@ -31,6 +31,7 @@ light-compressed-account = { workspace = true, features = ["std", "solana"] }
 light-compressible = { workspace = true }
 light-token-interface = { workspace = true }
 light-sdk = { workspace = true, features = ["v2"] }
+light-batched-merkle-tree = { workspace = true }
 light-macros = { workspace = true }
 thiserror = { workspace = true }
 # Serialization
