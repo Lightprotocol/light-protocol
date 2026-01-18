@@ -6,8 +6,6 @@
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
 //! - CompressiblePack -> Pack + Unpack + PackedSingleCompressAsRecord
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
 use csdk_anchor_full_derived_test::{PackedSingleCompressAsRecord, SingleCompressAsRecord};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
@@ -15,6 +13,9 @@ use light_sdk::{
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation
@@ -101,7 +102,10 @@ fn test_compress_as_with_multiple_cached_values() {
 
         let compressed = record.compress_as();
         // All should compress cached to 0
-        assert_eq!(compressed.cached, 0, "cached should always be 0 after compress_as");
+        assert_eq!(
+            compressed.cached, 0,
+            "cached should always be 0 after compress_as"
+        );
     }
 }
 

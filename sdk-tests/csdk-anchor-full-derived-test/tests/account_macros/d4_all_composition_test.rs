@@ -10,8 +10,6 @@
 //! #[compress_as(cached_time = 0, end_time = None)] to override field values.
 //! This tests full Pack/Unpack behavior with compress_as attribute overrides.
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
 use csdk_anchor_full_derived_test::{AllCompositionRecord, PackedAllCompositionRecord};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
@@ -19,6 +17,9 @@ use light_sdk::{
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation
@@ -207,8 +208,8 @@ fn test_compress_as_preserves_non_override_fields() {
     assert_eq!(compressed.counter_1, 11);
     assert_eq!(compressed.counter_2, 22);
     assert_eq!(compressed.counter_3, 33);
-    assert_eq!(compressed.flag_1, false);
-    assert_eq!(compressed.flag_2, true);
+    assert!(!compressed.flag_1);
+    assert!(compressed.flag_2);
     assert_eq!(compressed.score, Some(99));
 }
 
@@ -271,7 +272,7 @@ fn test_hash_differs_for_different_counter_3() {
     let delegate = Pubkey::new_unique();
     let authority = Pubkey::new_unique();
 
-    let mut record1 = AllCompositionRecord {
+    let record1 = AllCompositionRecord {
         compression_info: None,
         owner,
         delegate,
@@ -369,7 +370,7 @@ fn test_pack_converts_all_pubkeys_to_indices() {
     assert_eq!(packed.owner, 0u8); // First pubkey
     assert_eq!(packed.delegate, 1u8); // Second pubkey
     assert_eq!(packed.authority, 2u8); // Third pubkey
-    // Option<Pubkey> is NOT converted to Option<u8> - it stays as Option<Pubkey>
+                                       // Option<Pubkey> is NOT converted to Option<u8> - it stays as Option<Pubkey>
     assert_eq!(packed.close_authority, Some(close_authority));
 }
 
@@ -422,8 +423,8 @@ fn test_compress_as_then_pack_applies_overrides() {
         name: "test".to_string(),
         hash: [0u8; 32],
         start_time: 100,
-        cached_time: 999,  // Should become 0 after compress_as
-        end_time: Some(999),  // Should become None after compress_as
+        cached_time: 999,    // Should become 0 after compress_as
+        end_time: Some(999), // Should become None after compress_as
         counter_1: 1,
         counter_2: 2,
         counter_3: 3,
@@ -438,7 +439,10 @@ fn test_compress_as_then_pack_applies_overrides() {
     let packed = compressed.pack(&mut packed_accounts);
 
     // compress_as overrides ARE applied when chained
-    assert_eq!(packed.cached_time, 0, "compress_as().pack() applies cached_time = 0 override");
+    assert_eq!(
+        packed.cached_time, 0,
+        "compress_as().pack() applies cached_time = 0 override"
+    );
     assert!(
         packed.end_time.is_none(),
         "compress_as().pack() applies end_time = None override"
@@ -508,7 +512,10 @@ fn test_pack_reuses_duplicate_pubkeys_for_direct_fields() {
     let packed = record1.pack(&mut packed_accounts);
 
     // owner and delegate are the same pubkey, should get the same index
-    assert_eq!(packed.owner, packed.delegate, "same pubkey should get same index");
+    assert_eq!(
+        packed.owner, packed.delegate,
+        "same pubkey should get same index"
+    );
 
     // Option<Pubkey> is NOT converted to Option<u8> - it stays as Option<Pubkey>
     assert_eq!(packed.close_authority, Some(shared_pubkey));

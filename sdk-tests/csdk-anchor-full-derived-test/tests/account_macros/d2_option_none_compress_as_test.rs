@@ -6,17 +6,16 @@
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
 //! - CompressiblePack -> Pack + Unpack + PackedOptionNoneCompressAsRecord
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
-use csdk_anchor_full_derived_test::{
-    OptionNoneCompressAsRecord, PackedOptionNoneCompressAsRecord,
-};
+use csdk_anchor_full_derived_test::{OptionNoneCompressAsRecord, PackedOptionNoneCompressAsRecord};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
     compressible::{CompressAs, CompressionInfo, Pack},
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation
@@ -71,7 +70,10 @@ fn test_compress_as_overrides_end_time_to_none() {
     let compressed = record.compress_as();
 
     // Per #[compress_as(end_time = None)], end_time should be None in compressed form
-    assert_eq!(compressed.end_time, None, "end_time should be None after compress_as");
+    assert_eq!(
+        compressed.end_time, None,
+        "end_time should be None after compress_as"
+    );
     // Other fields should be preserved
     assert_eq!(compressed.owner, owner);
     assert_eq!(compressed.start_time, start_time);
@@ -139,7 +141,10 @@ fn test_compress_as_with_various_end_time_values() {
 
         let compressed = record.compress_as();
         // All should compress end_time to None
-        assert_eq!(compressed.end_time, None, "end_time should always be None after compress_as");
+        assert_eq!(
+            compressed.end_time, None,
+            "end_time should always be None after compress_as"
+        );
     }
 }
 

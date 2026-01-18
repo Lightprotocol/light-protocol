@@ -9,8 +9,6 @@
 //! InfoLastRecord has 1 Pubkey field (owner) and demonstrates that
 //! compression_info can be placed in non-first position (ordering test).
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
 use csdk_anchor_full_derived_test::{InfoLastRecord, PackedInfoLastRecord};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
@@ -18,6 +16,9 @@ use light_sdk::{
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation
@@ -88,7 +89,7 @@ fn test_compress_as_preserves_all_field_types() {
     // Verify all fields are preserved despite compression_info being last
     assert_eq!(compressed.owner, owner);
     assert_eq!(compressed.counter, 42);
-    assert_eq!(compressed.flag, true);
+    assert!(compressed.flag);
     assert!(compressed.compression_info.is_none());
 }
 
@@ -189,7 +190,7 @@ fn test_packed_struct_has_u8_owner() {
 
     assert_eq!(packed.owner, 0u8);
     assert_eq!(packed.counter, 42u64);
-    assert_eq!(packed.flag, true);
+    assert!(packed.flag);
 }
 
 #[test]
@@ -209,7 +210,7 @@ fn test_pack_converts_pubkey_to_index() {
     // and packed.owner should be the index (0 for first pubkey)
     assert_eq!(packed.owner, 0u8);
     assert_eq!(packed.counter, 100);
-    assert_eq!(packed.flag, false);
+    assert!(!packed.flag);
 
     let mut packed_accounts = PackedAccounts::default();
     packed_accounts.insert_or_get(Pubkey::new_unique());

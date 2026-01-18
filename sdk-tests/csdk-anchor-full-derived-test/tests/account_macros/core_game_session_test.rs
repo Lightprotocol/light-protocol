@@ -9,8 +9,6 @@
 //! GameSession has #[compress_as(start_time = 0, end_time = None, score = 0)]
 //! which overrides field values during compression.
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
 use csdk_anchor_full_derived_test::{GameSession, PackedGameSession};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
@@ -18,6 +16,9 @@ use light_sdk::{
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation

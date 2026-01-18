@@ -6,8 +6,6 @@
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
 //! - CompressiblePack -> Pack + Unpack + PackedMultipleCompressAsRecord
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
 use csdk_anchor_full_derived_test::{MultipleCompressAsRecord, PackedMultipleCompressAsRecord};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
@@ -15,6 +13,9 @@ use light_sdk::{
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation
@@ -62,9 +63,9 @@ fn test_compress_as_overrides_all_marked_fields() {
     let record = MultipleCompressAsRecord {
         compression_info: Some(CompressionInfo::default()),
         owner,
-        start: 888,   // Original value
-        score: 777,   // Original value
-        cached: 666,  // Original value
+        start: 888,  // Original value
+        score: 777,  // Original value
+        cached: 666, // Original value
         counter,
     };
 

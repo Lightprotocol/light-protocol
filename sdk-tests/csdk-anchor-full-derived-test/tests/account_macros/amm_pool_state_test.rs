@@ -9,8 +9,6 @@
 //! PoolState has 10 Pubkey fields and multiple numeric fields, testing
 //! comprehensive Pack/Unpack behavior with multiple pubkey indices.
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
 use csdk_anchor_full_derived_test::{PackedPoolState, PoolState};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
@@ -18,6 +16,9 @@ use light_sdk::{
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation
@@ -552,7 +553,7 @@ fn test_pack_stores_all_pubkeys_in_packed_accounts() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = pool.pack(&mut packed_accounts);
+    let _packed = pool.pack(&mut packed_accounts);
 
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 10, "should have 10 pubkeys stored");

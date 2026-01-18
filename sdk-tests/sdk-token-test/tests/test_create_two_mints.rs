@@ -89,16 +89,16 @@ async fn test_create_mints(n: usize) {
         .cpi_context
         .expect("CPI context account required");
 
-    // Account layout (remaining_accounts):
+    // Account layout (remaining_accounts) must match SDK's create_mints expected order:
     // [0]: light_system_program
     // [1..N+1]: mint_signers (SIGNER)
     // [N+1..N+6]: system PDAs (cpi_authority, registered_program, compression_authority, compression_program, system_program)
     // [N+6]: cpi_context_account
     // [N+7]: output_queue
-    // [N+8]: address_tree
-    // [N+9]: compressible_config
-    // [N+10]: rent_sponsor
-    // [N+11]: state_merkle_tree
+    // [N+8]: state_merkle_tree
+    // [N+9]: address_tree (must be at index 1 in tree accounts for create_mint validation)
+    // [N+10]: compressible_config
+    // [N+11]: rent_sponsor
     // [N+12..2N+12]: mint_pdas
     // [2N+12]: compressed_token_program (for CPI)
     let mut accounts = vec![
@@ -117,11 +117,11 @@ async fn test_create_mints(n: usize) {
         AccountMeta::new_readonly(system_accounts.account_compression_program, false),
         AccountMeta::new_readonly(system_accounts.system_program, false),
         AccountMeta::new(cpi_context_pubkey, false),
-        AccountMeta::new(state_tree_info.queue, false),
-        AccountMeta::new(address_tree_info.tree, false),
-        AccountMeta::new_readonly(config_pda().into(), false),
-        AccountMeta::new(rent_sponsor_pda().into(), false),
-        AccountMeta::new(state_tree_info.tree, false),
+        AccountMeta::new(state_tree_info.queue, false), // output_queue at [N+7]
+        AccountMeta::new(state_tree_info.tree, false),  // state_merkle_tree at [N+8]
+        AccountMeta::new(address_tree_info.tree, false), // address_tree at [N+9]
+        AccountMeta::new_readonly(config_pda(), false),
+        AccountMeta::new(rent_sponsor_pda(), false),
     ]);
 
     for (mint_pda, _) in &mint_pdas {
@@ -149,7 +149,7 @@ async fn test_create_mints(n: usize) {
             .get_account(*mint_pda)
             .await
             .expect("Failed to get mint account")
-            .expect(&format!("Mint PDA {} should exist after decompress", i + 1));
+            .unwrap_or_else(|| panic!("Mint PDA {} should exist after decompress", i + 1));
 
         assert!(
             !mint_account.data.is_empty(),

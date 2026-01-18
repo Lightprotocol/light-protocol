@@ -500,7 +500,10 @@ pub fn rentfree_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<
 
     for item_struct in crate_ctx.structs_with_derive("Accounts") {
         if let Some(info) = extract_from_accounts_struct(item_struct)? {
-            if !info.pda_fields.is_empty() || !info.token_fields.is_empty() {
+            if !info.pda_fields.is_empty()
+                || !info.token_fields.is_empty()
+                || info.has_light_mint_fields
+            {
                 rentfree_struct_names.insert(info.struct_name.to_string());
                 pda_specs.extend(info.pda_fields);
                 token_specs.extend(info.token_fields);

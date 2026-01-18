@@ -10,13 +10,12 @@
 //! implementation where Packed = Self. Array fields are directly copied in pack/unpack.
 //! Therefore, no Pack/Unpack tests are needed.
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
 use csdk_anchor_full_derived_test::ArrayRecord;
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    compressible::{CompressAs, CompressionInfo},
-};
+use light_sdk::compressible::{CompressAs, CompressionInfo};
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation

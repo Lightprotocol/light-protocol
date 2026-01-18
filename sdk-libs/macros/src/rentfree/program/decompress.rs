@@ -213,7 +213,8 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
                 // If so, use seed_params.field instead of skipping
                 if let Some(field_name) = get_params_only_field_name(expr, state_field_names) {
                     if params_only_names.contains(&field_name) {
-                        let field_ident = syn::Ident::new(&field_name, proc_macro2::Span::call_site());
+                        let field_ident =
+                            syn::Ident::new(&field_name, proc_macro2::Span::call_site());
                         let binding_name =
                             syn::Ident::new(&format!("seed_{}", i), proc_macro2::Span::call_site());
 
@@ -226,8 +227,10 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
                         if has_conversion {
                             // u64 field with to_le_bytes conversion
                             // Must bind bytes to a variable to avoid temporary value dropped while borrowed
-                            let bytes_binding_name =
-                                syn::Ident::new(&format!("{}_bytes", binding_name), proc_macro2::Span::call_site());
+                            let bytes_binding_name = syn::Ident::new(
+                                &format!("{}_bytes", binding_name),
+                                proc_macro2::Span::call_site(),
+                            );
                             bindings.push(quote! {
                                 let #binding_name = seed_params.#field_ident
                                     .ok_or(solana_program_error::ProgramError::InvalidAccountData)?;

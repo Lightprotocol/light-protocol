@@ -69,6 +69,8 @@ pub struct ExtractedAccountsInfo {
     pub struct_name: Ident,
     pub pda_fields: Vec<ExtractedSeedSpec>,
     pub token_fields: Vec<ExtractedTokenSpec>,
+    /// True if struct has any #[light_mint] fields
+    pub has_light_mint_fields: bool,
 }
 
 /// Extract rentfree field info from an Accounts struct
@@ -82,6 +84,7 @@ pub fn extract_from_accounts_struct(
 
     let mut pda_fields = Vec::new();
     let mut token_fields = Vec::new();
+    let mut has_light_mint_fields = false;
 
     for field in fields {
         let field_ident = match &field.ident {
@@ -94,6 +97,16 @@ pub fn extract_from_accounts_struct(
             .attrs
             .iter()
             .any(|attr| attr.path().is_ident("rentfree"));
+
+        // Check for #[light_mint(...)] attribute
+        let has_light_mint = field
+            .attrs
+            .iter()
+            .any(|attr| attr.path().is_ident("light_mint"));
+
+        if has_light_mint {
+            has_light_mint_fields = true;
+        }
 
         // Check for #[rentfree_token(...)] attribute
         let token_attr = extract_rentfree_token_attr(&field.attrs);
@@ -146,8 +159,8 @@ pub fn extract_from_accounts_struct(
         }
     }
 
-    // If no rentfree fields found, return None
-    if pda_fields.is_empty() && token_fields.is_empty() {
+    // If no rentfree/light_mint fields found, return None
+    if pda_fields.is_empty() && token_fields.is_empty() && !has_light_mint_fields {
         return Ok(None);
     }
 
@@ -190,6 +203,7 @@ pub fn extract_from_accounts_struct(
         struct_name: item.ident.clone(),
         pda_fields,
         token_fields,
+        has_light_mint_fields,
     }))
 }
 
@@ -635,16 +649,18 @@ pub fn get_params_only_seed_fields_from_spec(
         if let SeedElement::Expression(expr) = seed {
             if let Some((field_name, has_conversion)) = extract_data_field_from_expr(expr) {
                 let field_str = field_name.to_string();
-                // Only include fields that are NOT on the state struct
-                if !state_field_names.contains(&field_str) {
-                    if !fields.iter().any(|(f, _, _): &(Ident, _, _)| f == &field_name) {
-                        let field_type: syn::Type = if has_conversion {
-                            syn::parse_quote!(u64)
-                        } else {
-                            syn::parse_quote!(solana_pubkey::Pubkey)
-                        };
-                        fields.push((field_name, field_type, has_conversion));
-                    }
+                // Only include fields that are NOT on the state struct and not already added
+                if !state_field_names.contains(&field_str)
+                    && !fields
+                        .iter()
+                        .any(|(f, _, _): &(Ident, _, _)| f == &field_name)
+                {
+                    let field_type: syn::Type = if has_conversion {
+                        syn::parse_quote!(u64)
+                    } else {
+                        syn::parse_quote!(solana_pubkey::Pubkey)
+                    };
+                    fields.push((field_name, field_type, has_conversion));
                 }
             }
         }
@@ -668,8 +684,8 @@ fn extract_data_field_from_expr(expr: &syn::Expr) -> Option<(Ident, bool)> {
         }
         syn::Expr::MethodCall(method_call) => {
             // Handle data.field.to_le_bytes().as_ref() etc.
-            let has_bytes_conversion = method_call.method == "to_le_bytes"
-                || method_call.method == "to_be_bytes";
+            let has_bytes_conversion =
+                method_call.method == "to_le_bytes" || method_call.method == "to_be_bytes";
             if has_bytes_conversion {
                 return extract_data_field_from_expr(&method_call.receiver)
                     .map(|(name, _)| (name, true));

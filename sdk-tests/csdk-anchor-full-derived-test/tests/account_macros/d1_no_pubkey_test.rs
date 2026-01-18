@@ -10,13 +10,12 @@
 //! implementation where Packed = Self. Therefore, no Pack/Unpack tests are needed - the
 //! struct is packed as-is without transformation.
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
 use csdk_anchor_full_derived_test::NoPubkeyRecord;
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    compressible::{CompressAs, CompressionInfo},
-};
+use light_sdk::compressible::{CompressAs, CompressionInfo};
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation
@@ -141,10 +140,7 @@ fn test_hash_differs_for_different_flag() {
     let hash1 = record1.hash::<Sha256>().expect("hash should succeed");
     let hash2 = record2.hash::<Sha256>().expect("hash should succeed");
 
-    assert_ne!(
-        hash1, hash2,
-        "different flag should produce different hash"
-    );
+    assert_ne!(hash1, hash2, "different flag should produce different hash");
 }
 
 #[test]

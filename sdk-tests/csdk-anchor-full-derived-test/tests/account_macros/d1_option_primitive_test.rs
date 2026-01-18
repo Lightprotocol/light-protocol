@@ -10,13 +10,12 @@
 //! implementation where Packed = Self. Option<primitive> types remain unchanged in the packed
 //! struct (not converted to Option<u8>). Therefore, no Pack/Unpack tests are needed.
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
 use csdk_anchor_full_derived_test::OptionPrimitiveRecord;
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    compressible::{CompressAs, CompressionInfo},
-};
+use light_sdk::compressible::{CompressAs, CompressionInfo};
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation

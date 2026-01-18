@@ -131,7 +131,6 @@ impl<'a> ZCpiContextAccount2<'a> {
         &'a mut self,
         instruction_data: &WrappedInstructionData<'b, T>,
     ) -> Result<(), SystemProgramError> {
-        let pre_address_len = self.new_addresses.len();
         // Cache owner bytes to avoid repeated calls
         let owner_bytes = instruction_data.owner().to_bytes();
 

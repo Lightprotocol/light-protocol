@@ -9,11 +9,12 @@
 //! This exercises the SHA256 hash mode for large structs.
 //! Pack/Unpack traits are NOT generated because there are no Pubkey fields.
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
 use csdk_anchor_full_derived_test::LargeRecord;
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::compressible::{CompressAs, CompressionInfo};
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation
@@ -198,7 +199,10 @@ fn test_hash_same_for_same_large_struct() {
     let hash1 = record1.hash::<Sha256>().expect("hash should succeed");
     let hash2 = record2.hash::<Sha256>().expect("hash should succeed");
 
-    assert_eq!(hash1, hash2, "identical large records should produce same hash");
+    assert_eq!(
+        hash1, hash2,
+        "identical large records should produce same hash"
+    );
 }
 
 #[test]

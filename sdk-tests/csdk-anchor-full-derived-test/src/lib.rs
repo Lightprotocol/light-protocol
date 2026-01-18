@@ -104,7 +104,10 @@ pub mod csdk_anchor_full_derived_test {
             D9FunctionCall, D9FunctionCallParams, D9Literal, D9LiteralParams, D9Mixed,
             D9MixedParams, D9Param, D9ParamBytes, D9ParamBytesParams, D9ParamParams,
         },
-        instruction_accounts::CreatePdasAndMintAuto,
+        instruction_accounts::{
+            CreateFourMints, CreateFourMintsParams, CreatePdasAndMintAuto, CreateTwoMints,
+            CreateTwoMintsParams,
+        },
         FullAutoWithMintParams, LIGHT_CPI_SIGNER,
     };
 
@@ -198,6 +201,30 @@ pub mod csdk_anchor_full_derived_test {
         params: D5RentfreeBareParams,
     ) -> Result<()> {
         crate::processors::process_create_single_record(ctx, params)
+    }
+
+    /// Test instruction that creates 2 mints in a single transaction.
+    /// Tests the multi-mint support in the RentFree macro.
+    #[allow(unused_variables)]
+    pub fn create_two_mints<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateTwoMints<'info>>,
+        params: CreateTwoMintsParams,
+    ) -> Result<()> {
+        // Both mints are created by the RentFree macro in pre_init
+        // Nothing to do here - just verify both mints exist
+        Ok(())
+    }
+
+    /// Test instruction that creates 4 mints in a single transaction.
+    /// Tests the multi-mint support in the RentFree macro scales beyond 2.
+    #[allow(unused_variables)]
+    pub fn create_four_mints<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateFourMints<'info>>,
+        params: CreateFourMintsParams,
+    ) -> Result<()> {
+        // All 4 mints are created by the RentFree macro in pre_init
+        // Nothing to do here - just verify all mints exist
+        Ok(())
     }
 
     /// AMM initialize instruction with all rentfree markers.

@@ -10,13 +10,12 @@
 //! implementation where Packed = Self. String fields use the clone() code path in pack/unpack.
 //! Therefore, no Pack/Unpack tests are needed.
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
 use csdk_anchor_full_derived_test::NonCopyRecord;
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    compressible::{CompressAs, CompressionInfo},
-};
+use light_sdk::compressible::{CompressAs, CompressionInfo};
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation
@@ -141,10 +140,7 @@ fn test_hash_differs_for_different_name() {
     let hash1 = record1.hash::<Sha256>().expect("hash should succeed");
     let hash2 = record2.hash::<Sha256>().expect("hash should succeed");
 
-    assert_ne!(
-        hash1, hash2,
-        "different name should produce different hash"
-    );
+    assert_ne!(hash1, hash2, "different name should produce different hash");
 }
 
 #[test]

@@ -75,8 +75,9 @@ pub fn assert_discriminator_slice_matches_array<T: LightDiscriminator>() {
 // =============================================================================
 
 /// Verifies compression_info() returns a valid reference when Some.
-pub fn assert_compression_info_returns_reference<T: HasCompressionInfo + CompressibleTestFactory>()
-{
+pub fn assert_compression_info_returns_reference<
+    T: HasCompressionInfo + CompressibleTestFactory,
+>() {
     let record = T::with_compression_info();
     let info = record.compression_info();
     // Just verify we can access it - the default values
@@ -135,8 +136,7 @@ pub fn assert_set_compression_info_none_works<T: HasCompressionInfo + Compressib
 
 /// Verifies compression_info() panics when compression_info is None.
 /// Call this from a test marked with `#[should_panic]`.
-pub fn assert_compression_info_panics_when_none<T: HasCompressionInfo + CompressibleTestFactory>()
-{
+pub fn assert_compression_info_panics_when_none<T: HasCompressionInfo + CompressibleTestFactory>() {
     let record = T::without_compression_info();
     // This should panic since compression_info is None
     let _ = record.compression_info();
@@ -279,8 +279,9 @@ pub fn assert_hash_includes_compression_info<T: DataHasher + CompressibleTestFac
 macro_rules! generate_trait_tests {
     ($type:ty) => {
         mod discriminator_tests {
-            use super::*;
             use $crate::shared::*;
+
+            use super::*;
 
             #[test]
             fn test_discriminator_is_8_bytes() {
@@ -304,8 +305,9 @@ macro_rules! generate_trait_tests {
         }
 
         mod has_compression_info_tests {
-            use super::*;
             use $crate::shared::*;
+
+            use super::*;
 
             #[test]
             fn test_compression_info_returns_reference() {
@@ -341,8 +343,9 @@ macro_rules! generate_trait_tests {
         }
 
         mod compress_as_tests {
-            use super::*;
             use $crate::shared::*;
+
+            use super::*;
 
             #[test]
             fn test_compress_as_sets_compression_info_to_none() {
@@ -356,8 +359,9 @@ macro_rules! generate_trait_tests {
         }
 
         mod size_tests {
-            use super::*;
             use $crate::shared::*;
+
+            use super::*;
 
             #[test]
             fn test_size_returns_positive() {
@@ -371,8 +375,9 @@ macro_rules! generate_trait_tests {
         }
 
         mod compressed_init_space_tests {
-            use super::*;
             use $crate::shared::*;
+
+            use super::*;
 
             #[test]
             fn test_compressed_init_space_includes_discriminator() {
@@ -381,8 +386,9 @@ macro_rules! generate_trait_tests {
         }
 
         mod data_hasher_tests {
-            use super::*;
             use $crate::shared::*;
+
+            use super::*;
 
             #[test]
             fn test_hash_produces_32_bytes() {

@@ -10,8 +10,6 @@
 //! Only direct Pubkey fields (like `owner: Pubkey`) are converted to u8 indices.
 //! Option<Pubkey> fields remain as Option<Pubkey> in the packed struct.
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
 use csdk_anchor_full_derived_test::OptionPubkeyRecord;
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
@@ -19,6 +17,9 @@ use light_sdk::{
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation
@@ -324,7 +325,11 @@ fn test_pack_option_pubkey_none_stays_none() {
     assert_eq!(packed.owner, 0u8);
     // Option<Pubkey> fields stay as Option<Pubkey> - NOT converted to Option<u8>
     assert_eq!(packed.delegate, None, "Option::None stays None");
-    assert_eq!(packed.close_authority, Some(close_authority), "Option::Some stays Some");
+    assert_eq!(
+        packed.close_authority,
+        Some(close_authority),
+        "Option::Some stays Some"
+    );
 
     // Only the direct Pubkey field (owner) is stored in packed_accounts
     let stored_pubkeys = packed_accounts.packed_pubkeys();

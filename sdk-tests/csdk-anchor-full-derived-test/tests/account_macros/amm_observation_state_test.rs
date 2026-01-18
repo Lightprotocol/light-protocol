@@ -9,15 +9,16 @@
 //! ObservationState has 1 Pubkey field (pool_id) and a nested array of Observation structs,
 //! testing Pack/Unpack behavior with array fields and nested data structures.
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
-use csdk_anchor_full_derived_test::{PackedObservationState, ObservationState, Observation};
+use csdk_anchor_full_derived_test::{Observation, ObservationState, PackedObservationState};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
     compressible::{CompressAs, CompressionInfo, Pack},
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation
@@ -107,7 +108,7 @@ fn test_compress_as_preserves_pool_id() {
     let inner = compressed.into_owned();
 
     assert_eq!(inner.pool_id, pool_id);
-    assert_eq!(inner.initialized, true);
+    assert!(inner.initialized);
     assert_eq!(inner.observation_index, 5);
 }
 
@@ -157,12 +158,8 @@ fn test_hash_differs_for_different_pool_id() {
     observation1.pool_id = Pubkey::new_unique();
     observation2.pool_id = Pubkey::new_unique();
 
-    let hash1 = observation1
-        .hash::<Sha256>()
-        .expect("hash should succeed");
-    let hash2 = observation2
-        .hash::<Sha256>()
-        .expect("hash should succeed");
+    let hash1 = observation1.hash::<Sha256>().expect("hash should succeed");
+    let hash2 = observation2.hash::<Sha256>().expect("hash should succeed");
 
     assert_ne!(
         hash1, hash2,
@@ -178,12 +175,8 @@ fn test_hash_differs_for_different_initialized() {
     observation1.initialized = true;
     observation2.initialized = false;
 
-    let hash1 = observation1
-        .hash::<Sha256>()
-        .expect("hash should succeed");
-    let hash2 = observation2
-        .hash::<Sha256>()
-        .expect("hash should succeed");
+    let hash1 = observation1.hash::<Sha256>().expect("hash should succeed");
+    let hash2 = observation2.hash::<Sha256>().expect("hash should succeed");
 
     assert_ne!(
         hash1, hash2,
@@ -199,12 +192,8 @@ fn test_hash_differs_for_different_observation_index() {
     observation1.observation_index = 1;
     observation2.observation_index = 2;
 
-    let hash1 = observation1
-        .hash::<Sha256>()
-        .expect("hash should succeed");
-    let hash2 = observation2
-        .hash::<Sha256>()
-        .expect("hash should succeed");
+    let hash1 = observation1.hash::<Sha256>().expect("hash should succeed");
+    let hash2 = observation2.hash::<Sha256>().expect("hash should succeed");
 
     assert_ne!(
         hash1, hash2,
@@ -220,12 +209,8 @@ fn test_hash_differs_for_different_observation_data() {
     observation1.observations[0].block_timestamp = 1000;
     observation2.observations[0].block_timestamp = 2000;
 
-    let hash1 = observation1
-        .hash::<Sha256>()
-        .expect("hash should succeed");
-    let hash2 = observation2
-        .hash::<Sha256>()
-        .expect("hash should succeed");
+    let hash1 = observation1.hash::<Sha256>().expect("hash should succeed");
+    let hash2 = observation2.hash::<Sha256>().expect("hash should succeed");
 
     assert_ne!(
         hash1, hash2,
@@ -359,7 +344,7 @@ fn test_pack_preserves_all_fields() {
     let mut packed_accounts = PackedAccounts::default();
     let packed = observation_state.pack(&mut packed_accounts);
 
-    assert_eq!(packed.initialized, true);
+    assert!(packed.initialized);
     assert_eq!(packed.observation_index, 42);
     assert_eq!(packed.observations[0].block_timestamp, 1000);
     assert_eq!(packed.observations[0].cumulative_token_0_price_x32, 5000);

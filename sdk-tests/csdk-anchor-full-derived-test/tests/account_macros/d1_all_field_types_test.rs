@@ -14,15 +14,16 @@
 //! - Option<primitives> (end_time, enabled) -> unchanged
 //! - Regular primitives (counter, flag) -> direct copy
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
-use csdk_anchor_full_derived_test::{PackedAllFieldTypesRecord, AllFieldTypesRecord};
+use csdk_anchor_full_derived_test::{AllFieldTypesRecord, PackedAllFieldTypesRecord};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
     compressible::{CompressAs, CompressionInfo, Pack},
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation
@@ -184,7 +185,10 @@ fn test_hash_differs_for_different_pubkey_field() {
     let hash1 = record1.hash::<Sha256>().expect("hash should succeed");
     let hash2 = record2.hash::<Sha256>().expect("hash should succeed");
 
-    assert_ne!(hash1, hash2, "different owner should produce different hash");
+    assert_ne!(
+        hash1, hash2,
+        "different owner should produce different hash"
+    );
 }
 
 #[test]
@@ -308,7 +312,10 @@ fn test_hash_differs_for_different_array_field() {
     let hash1 = record1.hash::<Sha256>().expect("hash should succeed");
     let hash2 = record2.hash::<Sha256>().expect("hash should succeed");
 
-    assert_ne!(hash1, hash2, "different hash array should produce different hash");
+    assert_ne!(
+        hash1, hash2,
+        "different hash array should produce different hash"
+    );
 }
 
 #[test]
@@ -387,7 +394,10 @@ fn test_hash_differs_for_different_primitive() {
     let hash1 = record1.hash::<Sha256>().expect("hash should succeed");
     let hash2 = record2.hash::<Sha256>().expect("hash should succeed");
 
-    assert_ne!(hash1, hash2, "different counter should produce different hash");
+    assert_ne!(
+        hash1, hash2,
+        "different counter should produce different hash"
+    );
 }
 
 // =============================================================================
@@ -419,7 +429,7 @@ fn test_packed_struct_has_all_types_converted() {
     assert_eq!(packed.close_authority, Some(close_authority));
     assert_eq!(packed.name, "test".to_string());
     assert_eq!(packed.counter, 42u64);
-    assert_eq!(packed.flag, false);
+    assert!(!packed.flag);
 }
 
 #[test]
@@ -455,7 +465,7 @@ fn test_pack_converts_all_pubkey_types() {
     assert_eq!(packed.close_authority, Some(close_authority));
     assert_eq!(packed.name, name);
     assert_eq!(packed.counter, 100);
-    assert_eq!(packed.flag, true);
+    assert!(packed.flag);
 
     // Only direct Pubkey fields are stored in packed_accounts (not Option<Pubkey>)
     let stored_pubkeys = packed_accounts.packed_pubkeys();
@@ -492,7 +502,10 @@ fn test_pack_with_option_pubkey_none() {
     assert_eq!(packed.owner, 0u8);
     assert_eq!(packed.delegate, 1u8);
     assert_eq!(packed.authority, 2u8);
-    assert_eq!(packed.close_authority, None, "Option::None should remain None");
+    assert_eq!(
+        packed.close_authority, None,
+        "Option::None should remain None"
+    );
 
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 3);

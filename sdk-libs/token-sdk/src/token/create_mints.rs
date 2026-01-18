@@ -20,17 +20,15 @@ use light_token_interface::{
     LIGHT_TOKEN_PROGRAM_ID,
 };
 use solana_account_info::AccountInfo;
-use solana_cpi::invoke;
 use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
+use super::SystemAccountInfos;
 use crate::compressed_token::mint_action::{
     get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
     MintActionMetaConfigCpiWrite,
 };
-
-use super::SystemAccountInfos;
 
 /// Default rent payment epochs (~24 hours)
 pub const DEFAULT_RENT_PAYMENT: u8 = 16;
@@ -73,6 +71,21 @@ pub struct CreateMintsParams<'a> {
     /// Lamports allocated for future write operations.
     /// Default: 766 (~3 hours per write)
     pub write_top_up: u32,
+    /// Offset for assigned_account_index when sharing CPI context with other accounts.
+    /// When creating mints alongside PDAs, this offset should be set to the number of
+    /// PDAs already written to the CPI context.
+    /// Default: 0 (no offset)
+    pub cpi_context_offset: u8,
+    /// Index of the output queue in tree accounts.
+    /// Default: 0
+    pub output_queue_index: u8,
+    /// Index of the address merkle tree in tree accounts.
+    /// Default: 1
+    pub address_tree_index: u8,
+    /// Index of the state merkle tree in tree accounts.
+    /// Required for decompress operations (discriminator validation).
+    /// Default: 2
+    pub state_tree_index: u8,
 }
 
 impl<'a> CreateMintsParams<'a> {
@@ -85,6 +98,10 @@ impl<'a> CreateMintsParams<'a> {
             proof,
             rent_payment: DEFAULT_RENT_PAYMENT,
             write_top_up: DEFAULT_WRITE_TOP_UP,
+            cpi_context_offset: 0,
+            output_queue_index: 0,
+            address_tree_index: 1,
+            state_tree_index: 2,
         }
     }
 
@@ -95,6 +112,34 @@ impl<'a> CreateMintsParams<'a> {
 
     pub fn with_write_top_up(mut self, write_top_up: u32) -> Self {
         self.write_top_up = write_top_up;
+        self
+    }
+
+    /// Set offset for assigned_account_index when sharing CPI context.
+    ///
+    /// Use this when creating mints alongside PDAs. The offset should be
+    /// the number of accounts already written to the CPI context.
+    pub fn with_cpi_context_offset(mut self, offset: u8) -> Self {
+        self.cpi_context_offset = offset;
+        self
+    }
+
+    /// Set the output queue index in tree accounts.
+    pub fn with_output_queue_index(mut self, index: u8) -> Self {
+        self.output_queue_index = index;
+        self
+    }
+
+    /// Set the address merkle tree index in tree accounts.
+    pub fn with_address_tree_index(mut self, index: u8) -> Self {
+        self.address_tree_index = index;
+        self
+    }
+
+    /// Set the state merkle tree index in tree accounts.
+    /// Required for decompress operations (discriminator validation).
+    pub fn with_state_tree_index(mut self, index: u8) -> Self {
+        self.state_tree_index = index;
         self
     }
 }
@@ -115,7 +160,6 @@ impl<'a> CreateMintsParams<'a> {
 ///     payer: payer.clone(),
 ///     address_tree: address_tree.clone(),
 ///     output_queue: output_queue.clone(),
-///     state_merkle_tree: state_tree.clone(),
 ///     compressible_config: config.clone(),
 ///     mints: vec![mint_pda1.clone(), mint_pda2.clone()],
 ///     rent_sponsor: rent_sponsor.clone(),
@@ -126,19 +170,19 @@ impl<'a> CreateMintsParams<'a> {
 /// ```
 pub struct CreateMintsCpi<'a, 'info> {
     /// Mint seed accounts (signers) - one per mint
-    pub mint_seed_accounts: &'info [AccountInfo<'info>],
+    pub mint_seed_accounts: &'a [AccountInfo<'info>],
     /// Fee payer (also used as authority)
     pub payer: AccountInfo<'info>,
     /// Address tree for new mint addresses
     pub address_tree: AccountInfo<'info>,
     /// Output queue for compressed accounts
     pub output_queue: AccountInfo<'info>,
-    /// State merkle tree (for decompress of earlier mints)
+    /// State merkle tree (required for decompress discriminator validation)
     pub state_merkle_tree: AccountInfo<'info>,
     /// CompressibleConfig account
     pub compressible_config: AccountInfo<'info>,
     /// Mint PDA accounts (writable) - one per mint
-    pub mints: &'info [AccountInfo<'info>],
+    pub mints: &'a [AccountInfo<'info>],
     /// Rent sponsor PDA
     pub rent_sponsor: AccountInfo<'info>,
     /// Standard Light Protocol system accounts
@@ -166,29 +210,26 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
     }
 
     /// Execute all CPIs to create and decompress all mints.
+    ///
+    /// Signer seeds are extracted from `SingleMintParams::mint_signer_seeds` and
+    /// `SingleMintParams::authority_seeds` for each CPI call (0, 1, or 2 seeds per call).
     pub fn invoke(self) -> Result<(), ProgramError> {
-        self.invoke_impl(None)
-    }
-
-    /// Execute all CPIs to create and decompress all mints with PDA signing.
-    pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
-        self.invoke_impl(Some(signer_seeds))
-    }
-
-    fn invoke_impl(self, signer_seeds: Option<&[&[&[u8]]]>) -> Result<(), ProgramError> {
         self.validate()?;
         let n = self.params.mints.len();
 
-        if n == 1 {
-            self.invoke_single_mint(signer_seeds)
+        // Use single mint path only when:
+        // - N=1 AND
+        // - No CPI context offset (no PDAs were written to CPI context first)
+        if n == 1 && self.params.cpi_context_offset == 0 {
+            self.invoke_single_mint()
         } else {
-            self.invoke_multiple_mints(signer_seeds)
+            self.invoke_multiple_mints()
         }
     }
 
     /// Handle the single mint case: create + decompress in one CPI.
     #[inline(never)]
-    fn invoke_single_mint(self, signer_seeds: Option<&[&[&[u8]]]>) -> Result<(), ProgramError> {
+    fn invoke_single_mint(self) -> Result<(), ProgramError> {
         let mint_params = &self.params.mints[0];
 
         let mint_data = build_mint_instruction_data(mint_params, self.mint_seed_accounts[0].key);
@@ -200,7 +241,7 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
 
         let instruction_data = MintActionCompressedInstructionData::new_mint(
             mint_params.address_merkle_tree_root_index,
-            self.params.proof.clone(),
+            self.params.proof,
             mint_data,
         )
         .with_decompress_mint(decompress_action);
@@ -219,12 +260,12 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
         );
         meta_config.input_queue = Some(*self.output_queue.key);
 
-        self.invoke_mint_action(instruction_data, meta_config, signer_seeds)
+        self.invoke_mint_action(instruction_data, meta_config, 0)
     }
 
     /// Handle the multiple mints case: N-1 writes + 1 execute + N-1 decompress.
     #[inline(never)]
-    fn invoke_multiple_mints(self, signer_seeds: Option<&[&[&[u8]]]>) -> Result<(), ProgramError> {
+    fn invoke_multiple_mints(self) -> Result<(), ProgramError> {
         let n = self.params.mints.len();
 
         // Get base leaf index before any CPIs modify the queue
@@ -237,37 +278,39 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
 
         // Write mints 0..N-2 to CPI context
         for i in 0..(n - 1) {
-            self.invoke_cpi_write(i, signer_seeds)?;
+            self.invoke_cpi_write(i)?;
         }
 
         // Execute: create last mint + decompress it
-        self.invoke_execute(n - 1, &decompress_action, signer_seeds)?;
+        self.invoke_execute(n - 1, &decompress_action)?;
 
         // Decompress remaining mints (0..N-2)
         for i in 0..(n - 1) {
-            self.invoke_decompress(i, base_leaf_index, &decompress_action, signer_seeds)?;
+            self.invoke_decompress(i, base_leaf_index, &decompress_action)?;
         }
 
         Ok(())
     }
 
     /// Invoke a CPI write instruction for a single mint.
+    /// Extracts signer seeds from mint params (0, 1, or 2 seeds).
     #[inline(never)]
-    fn invoke_cpi_write(
-        &self,
-        index: usize,
-        signer_seeds: Option<&[&[&[u8]]]>,
-    ) -> Result<(), ProgramError> {
+    fn invoke_cpi_write(&self, index: usize) -> Result<(), ProgramError> {
         let mint_params = &self.params.mints[index];
+        let offset = self.params.cpi_context_offset;
 
+        // When sharing CPI context with PDAs:
+        // - first_set_context: only true for index 0 AND offset 0 (first write to context)
+        // - set_context: true if appending to existing context (index > 0 or offset > 0)
+        // - assigned_account_index: offset + index (to not collide with PDA indices)
         let cpi_context = CpiContext {
-            set_context: index > 0,
-            first_set_context: index == 0,
-            in_tree_index: 1,
-            in_queue_index: 0,
-            out_queue_index: 0,
+            set_context: index > 0 || offset > 0,
+            first_set_context: index == 0 && offset == 0,
+            in_tree_index: self.params.address_tree_index,
+            in_queue_index: self.params.output_queue_index,
+            out_queue_index: self.params.output_queue_index,
             token_out_queue_index: 0,
-            assigned_account_index: index as u8,
+            assigned_account_index: offset + index as u8,
             read_only_address_trees: [0; 4],
             address_tree_pubkey: self.address_tree.key.to_bytes(),
         };
@@ -314,31 +357,39 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
             data: ix_data,
         };
 
-        if let Some(seeds) = signer_seeds {
-            solana_cpi::invoke_signed(&instruction, &account_infos, seeds)
-        } else {
-            invoke(&instruction, &account_infos)
+        // Build signer seeds - pack present seeds at start of array
+        let mut seeds: [&[&[u8]]; 2] = [&[], &[]];
+        let mut num_signers = 0;
+        if let Some(s) = mint_params.mint_signer_seeds {
+            seeds[num_signers] = s;
+            num_signers += 1;
         }
+        if let Some(s) = mint_params.authority_seeds {
+            seeds[num_signers] = s;
+            num_signers += 1;
+        }
+        solana_cpi::invoke_signed(&instruction, &account_infos, &seeds[..num_signers])
     }
 
     /// Invoke the execute instruction (create last mint + decompress).
+    /// Extracts signer seeds from mint params (0, 1, or 2 seeds).
     #[inline(never)]
     fn invoke_execute(
         &self,
         last_idx: usize,
         decompress_action: &DecompressMintAction,
-        signer_seeds: Option<&[&[&[u8]]]>,
     ) -> Result<(), ProgramError> {
         let mint_params = &self.params.mints[last_idx];
+        let offset = self.params.cpi_context_offset;
 
         let execute_cpi_context = CpiContext {
             set_context: false,
             first_set_context: false,
-            in_tree_index: 1,
-            in_queue_index: 1,
-            out_queue_index: 0,
+            in_tree_index: self.params.address_tree_index,
+            in_queue_index: self.params.address_tree_index, // CPI context queue index
+            out_queue_index: self.params.output_queue_index,
             token_out_queue_index: 0,
-            assigned_account_index: last_idx as u8,
+            assigned_account_index: offset + last_idx as u8,
             read_only_address_trees: [0; 4],
             address_tree_pubkey: self.address_tree.key.to_bytes(),
         };
@@ -348,11 +399,11 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
 
         let instruction_data = MintActionCompressedInstructionData::new_mint(
             mint_params.address_merkle_tree_root_index,
-            self.params.proof.clone(),
+            self.params.proof,
             mint_data,
         )
         .with_cpi_context(execute_cpi_context)
-        .with_decompress_mint(decompress_action.clone());
+        .with_decompress_mint(*decompress_action);
 
         let mut meta_config = MintActionMetaConfig::new_create_mint(
             *self.payer.key,
@@ -369,17 +420,17 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
         meta_config.cpi_context = Some(*self.cpi_context_account.key);
         meta_config.input_queue = Some(*self.output_queue.key);
 
-        self.invoke_mint_action(instruction_data, meta_config, signer_seeds)
+        self.invoke_mint_action(instruction_data, meta_config, last_idx)
     }
 
     /// Invoke decompress for a single mint.
+    /// Extracts signer seeds from mint params (0, 1, or 2 seeds).
     #[inline(never)]
     fn invoke_decompress(
         &self,
         index: usize,
         base_leaf_index: u32,
         decompress_action: &DecompressMintAction,
-        signer_seeds: Option<&[&[&[u8]]]>,
     ) -> Result<(), ProgramError> {
         let mint_params = &self.params.mints[index];
 
@@ -392,18 +443,19 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
             root_index: 0,
             max_top_up: 0,
             create_mint: None,
-            actions: vec![Action::DecompressMint(decompress_action.clone())],
+            actions: vec![Action::DecompressMint(*decompress_action)],
             proof: None,
             cpi_context: None,
             mint: Some(mint_data),
         };
 
+        // For prove_by_index, the tree_pubkey must be state_merkle_tree for discriminator validation
         let meta_config = MintActionMetaConfig::new(
             *self.payer.key,
             *self.payer.key,
-            *self.state_merkle_tree.key,
-            *self.output_queue.key,
-            *self.output_queue.key,
+            *self.state_merkle_tree.key, // tree_pubkey - state merkle tree for discriminator check
+            *self.output_queue.key,      // input_queue
+            *self.output_queue.key,      // output_queue
         )
         .with_compressible_mint(
             *self.mints[index].key,
@@ -411,16 +463,17 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
             *self.rent_sponsor.key,
         );
 
-        self.invoke_mint_action(instruction_data, meta_config, signer_seeds)
+        self.invoke_mint_action(instruction_data, meta_config, index)
     }
 
     /// Invoke a mint action instruction.
+    /// Extracts signer seeds from mint params at the given index (0, 1, or 2 seeds).
     #[inline(never)]
     fn invoke_mint_action(
         &self,
         instruction_data: MintActionCompressedInstructionData,
         meta_config: MintActionMetaConfig,
-        signer_seeds: Option<&[&[&[u8]]]>,
+        mint_index: usize,
     ) -> Result<(), ProgramError> {
         let account_metas = meta_config.to_account_metas();
         let ix_data = instruction_data
@@ -448,10 +501,10 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
         // CPI context, queues, trees
         account_infos.push(self.cpi_context_account.clone());
         account_infos.push(self.output_queue.clone());
+        account_infos.push(self.state_merkle_tree.clone());
         account_infos.push(self.address_tree.clone());
         account_infos.push(self.compressible_config.clone());
         account_infos.push(self.rent_sponsor.clone());
-        account_infos.push(self.state_merkle_tree.clone());
 
         // Add all mint PDAs
         for mint in self.mints {
@@ -464,11 +517,19 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
             data: ix_data,
         };
 
-        if let Some(seeds) = signer_seeds {
-            solana_cpi::invoke_signed(&instruction, &account_infos, seeds)
-        } else {
-            invoke(&instruction, &account_infos)
+        // Build signer seeds - pack present seeds at start of array
+        let mint_params = &self.params.mints[mint_index];
+        let mut seeds: [&[&[u8]]; 2] = [&[], &[]];
+        let mut num_signers = 0;
+        if let Some(s) = mint_params.mint_signer_seeds {
+            seeds[num_signers] = s;
+            num_signers += 1;
         }
+        if let Some(s) = mint_params.authority_seeds {
+            seeds[num_signers] = s;
+            num_signers += 1;
+        }
+        solana_cpi::invoke_signed(&instruction, &account_infos, &seeds[..num_signers])
     }
 }
 
@@ -519,10 +580,10 @@ fn get_base_leaf_index(output_queue: &AccountInfo) -> Result<u32, ProgramError> 
 /// - `[N+1..N+6]`: system PDAs (cpi_authority, registered_program, compression_authority, compression_program, system_program)
 /// - `[N+6]`: cpi_context_account (writable)
 /// - `[N+7]`: output_queue (writable)
-/// - `[N+8]`: address_tree (writable)
-/// - `[N+9]`: compressible_config
-/// - `[N+10]`: rent_sponsor (writable)
-/// - `[N+11]`: state_merkle_tree (writable)
+/// - `[N+8]`: state_merkle_tree (writable)
+/// - `[N+9]`: address_tree (writable)
+/// - `[N+10]`: compressible_config
+/// - `[N+11]`: rent_sponsor (writable)
 /// - `[N+12..2N+12]`: mint_pdas (writable)
 /// - `[2N+12]`: compressed_token_program (for CPI)
 pub fn create_mints<'a, 'info>(
@@ -543,10 +604,10 @@ pub fn create_mints<'a, 'info>(
     let system_program_idx = n + 5;
     let cpi_context_idx = n + 6;
     let output_queue_idx = n + 7;
-    let address_tree_idx = n + 8;
-    let compressible_config_idx = n + 9;
-    let rent_sponsor_idx = n + 10;
-    let state_merkle_tree_idx = n + 11;
+    let state_merkle_tree_idx = n + 8;
+    let address_tree_idx = n + 9;
+    let compressible_config_idx = n + 10;
+    let rent_sponsor_idx = n + 11;
     let mint_pdas_start = n + 12;
 
     // Build named struct from accounts slice

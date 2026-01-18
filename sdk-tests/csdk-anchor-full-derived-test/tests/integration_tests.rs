@@ -230,7 +230,8 @@ async fn test_d6_account() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D6AccountRecordSeeds;
-    ctx.assert_lifecycle(&pda, D6AccountRecordSeeds { owner }).await;
+    ctx.assert_lifecycle(&pda, D6AccountRecordSeeds { owner })
+        .await;
 }
 
 /// Tests D6Boxed: Box<Account<'info, T>> type
@@ -288,7 +289,8 @@ async fn test_d6_boxed() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D6BoxedRecordSeeds;
-    ctx.assert_lifecycle(&pda, D6BoxedRecordSeeds { owner }).await;
+    ctx.assert_lifecycle(&pda, D6BoxedRecordSeeds { owner })
+        .await;
 }
 
 // =============================================================================
@@ -350,7 +352,8 @@ async fn test_d8_pda_only() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D8PdaOnlyRecordSeeds;
-    ctx.assert_lifecycle(&pda, D8PdaOnlyRecordSeeds { owner }).await;
+    ctx.assert_lifecycle(&pda, D8PdaOnlyRecordSeeds { owner })
+        .await;
 }
 
 /// Tests D8MultiRentfree: Multiple #[rentfree] fields of same type
@@ -459,11 +462,7 @@ async fn test_d8_multi_rentfree() {
     .await
     .unwrap();
     ctx.rpc
-        .create_and_send_transaction(
-            &decompress_instructions,
-            &ctx.payer.pubkey(),
-            &[&ctx.payer],
-        )
+        .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
         .unwrap();
     ctx.assert_onchain_exists(&pda1).await;
@@ -492,11 +491,7 @@ async fn test_d8_multi_rentfree() {
     .await
     .unwrap();
     ctx.rpc
-        .create_and_send_transaction(
-            &decompress_instructions,
-            &ctx.payer.pubkey(),
-            &[&ctx.payer],
-        )
+        .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
         .unwrap();
     ctx.assert_onchain_exists(&pda2).await;
@@ -600,11 +595,7 @@ async fn test_d8_all() {
     .await
     .unwrap();
     ctx.rpc
-        .create_and_send_transaction(
-            &decompress_instructions,
-            &ctx.payer.pubkey(),
-            &[&ctx.payer],
-        )
+        .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
         .unwrap();
     ctx.assert_onchain_exists(&pda_single).await;
@@ -633,11 +624,7 @@ async fn test_d8_all() {
     .await
     .unwrap();
     ctx.rpc
-        .create_and_send_transaction(
-            &decompress_instructions,
-            &ctx.payer.pubkey(),
-            &[&ctx.payer],
-        )
+        .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
         .unwrap();
     ctx.assert_onchain_exists(&pda_multi).await;
@@ -879,7 +866,8 @@ async fn test_d9_param() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9ParamRecordSeeds;
-    ctx.assert_lifecycle(&pda, D9ParamRecordSeeds { owner }).await;
+    ctx.assert_lifecycle(&pda, D9ParamRecordSeeds { owner })
+        .await;
 }
 
 /// Tests D9ParamBytes: Param bytes seed expression (u64)
@@ -940,7 +928,8 @@ async fn test_d9_param_bytes() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9ParamBytesRecordSeeds;
-    ctx.assert_lifecycle(&pda, D9ParamBytesRecordSeeds { id }).await;
+    ctx.assert_lifecycle(&pda, D9ParamBytesRecordSeeds { id })
+        .await;
 }
 
 /// Tests D9Mixed: Mixed seed expression types
@@ -1071,7 +1060,8 @@ async fn test_d7_payer() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D7PayerRecordSeeds;
-    ctx.assert_lifecycle(&pda, D7PayerRecordSeeds { owner }).await;
+    ctx.assert_lifecycle(&pda, D7PayerRecordSeeds { owner })
+        .await;
 }
 
 /// Tests D7Creator: "creator" field name variant
@@ -1128,7 +1118,8 @@ async fn test_d7_creator() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D7CreatorRecordSeeds;
-    ctx.assert_lifecycle(&pda, D7CreatorRecordSeeds { owner }).await;
+    ctx.assert_lifecycle(&pda, D7CreatorRecordSeeds { owner })
+        .await;
 }
 
 // =============================================================================
@@ -1192,7 +1183,8 @@ async fn test_d9_function_call() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9FuncRecordSeeds;
-    ctx.assert_lifecycle(&pda, D9FuncRecordSeeds { key_a, key_b }).await;
+    ctx.assert_lifecycle(&pda, D9FuncRecordSeeds { key_a, key_b })
+        .await;
 }
 
 /// Tests D9All: All 6 seed expression types
@@ -1316,10 +1308,11 @@ async fn test_d9_all() {
             .get_account_info_interface(pda, &ctx.program_id)
             .await
             .unwrap();
-        let program_owned_accounts = vec![
-            RentFreeDecompressAccount::from_seeds(AccountInterface::from(&interface), seeds)
-                .unwrap(),
-        ];
+        let program_owned_accounts =
+            vec![
+                RentFreeDecompressAccount::from_seeds(AccountInterface::from(&interface), seeds)
+                    .unwrap(),
+            ];
         let decompress_instructions = create_load_accounts_instructions(
             &program_owned_accounts,
             &[],

@@ -6,8 +6,6 @@
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
 //! - CompressiblePack -> Pack + Unpack + PackedSinglePubkeyRecord
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
 use csdk_anchor_full_derived_test::{PackedSinglePubkeyRecord, SinglePubkeyRecord};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
@@ -15,6 +13,9 @@ use light_sdk::{
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation

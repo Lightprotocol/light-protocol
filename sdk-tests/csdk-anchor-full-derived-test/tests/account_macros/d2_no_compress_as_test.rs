@@ -6,8 +6,6 @@
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
 //! - CompressiblePack -> Pack + Unpack + PackedNoCompressAsRecord
 
-use super::shared::CompressibleTestFactory;
-use crate::generate_trait_tests;
 use csdk_anchor_full_derived_test::{NoCompressAsRecord, PackedNoCompressAsRecord};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
@@ -15,6 +13,9 @@ use light_sdk::{
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
+
+use super::shared::CompressibleTestFactory;
+use crate::generate_trait_tests;
 
 // =============================================================================
 // Factory Implementation
@@ -164,10 +165,7 @@ fn test_hash_differs_for_different_flag() {
     let hash1 = record1.hash::<Sha256>().expect("hash should succeed");
     let hash2 = record2.hash::<Sha256>().expect("hash should succeed");
 
-    assert_ne!(
-        hash1, hash2,
-        "different flag should produce different hash"
-    );
+    assert_ne!(hash1, hash2, "different flag should produce different hash");
 }
 
 #[test]
@@ -210,7 +208,7 @@ fn test_packed_struct_has_u8_owner() {
 
     assert_eq!(packed.owner, 0u8);
     assert_eq!(packed.counter, 42u64);
-    assert_eq!(packed.flag, true);
+    assert!(packed.flag);
 }
 
 #[test]
@@ -228,7 +226,7 @@ fn test_pack_converts_pubkey_to_index() {
 
     assert_eq!(packed.owner, 0u8);
     assert_eq!(packed.counter, 100);
-    assert_eq!(packed.flag, true);
+    assert!(packed.flag);
 }
 
 #[test]
