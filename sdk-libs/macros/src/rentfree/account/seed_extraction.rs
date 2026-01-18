@@ -622,39 +622,6 @@ pub fn get_data_fields(seeds: &[ClassifiedSeed]) -> Vec<(Ident, Option<Ident>)> 
     fields
 }
 
-/// Get params-only seed fields (data.* fields that don't exist on state struct).
-/// Returns (field_name, field_type, has_conversion).
-/// - has_conversion is true for fields using to_le_bytes(), to_be_bytes(), etc.
-/// - field_type is u64 for fields with byte conversion, Pubkey otherwise.
-pub fn get_params_only_seed_fields(
-    seeds: &[ClassifiedSeed],
-    state_field_names: &std::collections::HashSet<String>,
-) -> Vec<(Ident, syn::Type, bool)> {
-    let mut fields = Vec::new();
-    for seed in seeds {
-        if let ClassifiedSeed::DataField {
-            field_name,
-            conversion,
-        } = seed
-        {
-            let field_str = field_name.to_string();
-            // Only include fields that are NOT on the state struct
-            if !state_field_names.contains(&field_str) {
-                if !fields.iter().any(|(f, _, _): &(Ident, _, _)| f == field_name) {
-                    let has_conversion = conversion.is_some();
-                    let field_type: syn::Type = if has_conversion {
-                        syn::parse_quote!(u64)
-                    } else {
-                        syn::parse_quote!(solana_pubkey::Pubkey)
-                    };
-                    fields.push((field_name.clone(), field_type, has_conversion));
-                }
-            }
-        }
-    }
-    fields
-}
-
 /// Get params-only seed fields from a TokenSeedSpec.
 /// This is a convenience wrapper that works with the SeedElement type.
 pub fn get_params_only_seed_fields_from_spec(

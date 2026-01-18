@@ -11,7 +11,7 @@ pub fn close<'info>(
 
     if info.key == sol_destination.key {
         info.assign(&system_program_id);
-        info.realloc(0, false)
+        info.resize(0)
             .map_err(|_| LightSdkError::ConstraintViolation)?;
         return Ok(());
     }
@@ -38,7 +38,7 @@ pub fn close<'info>(
     }
 
     info.assign(&system_program_id);
-    info.realloc(0, false)
+    info.resize(0)
         .map_err(|_| LightSdkError::ConstraintViolation)?;
 
     Ok(())

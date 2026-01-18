@@ -74,55 +74,28 @@ pub fn generate_decompress_context_trait_impl(
                 }).collect();
                 quote! { variant_seed_params = SeedParams { #(#field_inits,)* ..Default::default() }; }
             };
-            // When no ctx_fields or params_only_fields, use simple pattern
-            if ctx_fields.is_empty() && params_only_fields.is_empty() {
-                quote! {
-                    RentFreeAccountVariant::#packed_variant_name { data: packed, .. } => {
-                        #ctx_seeds_construction
-                        #seed_params_update
-                        light_sdk::compressible::handle_packed_pda_variant::<#inner_type, #packed_inner_type, _, _>(
-                            &*self.rent_sponsor,
-                            cpi_accounts,
-                            address_space,
-                            &solana_accounts[i],
-                            i,
-                            &packed,
-                            &meta,
-                            post_system_accounts,
-                            &mut compressed_pda_infos,
-                            &program_id,
-                            &ctx_seeds,
-                            std::option::Option::Some(&variant_seed_params),
-                        )?;
-                    }
-                    RentFreeAccountVariant::#variant_name { .. } => {
-                        unreachable!("Unpacked variants should not be present during decompression");
-                    }
+            quote! {
+                RentFreeAccountVariant::#packed_variant_name { data: packed, #(#idx_field_patterns,)* #(#params_field_patterns,)* .. } => {
+                    #(#resolve_ctx_seeds)*
+                    #ctx_seeds_construction
+                    #seed_params_update
+                    light_sdk::compressible::handle_packed_pda_variant::<#inner_type, #packed_inner_type, _, _>(
+                        &*self.rent_sponsor,
+                        cpi_accounts,
+                        address_space,
+                        &solana_accounts[i],
+                        i,
+                        &packed,
+                        &meta,
+                        post_system_accounts,
+                        &mut compressed_pda_infos,
+                        &program_id,
+                        &ctx_seeds,
+                        std::option::Option::Some(&variant_seed_params),
+                    )?;
                 }
-            } else {
-                quote! {
-                    RentFreeAccountVariant::#packed_variant_name { data: packed, #(#idx_field_patterns,)* #(#params_field_patterns,)* .. } => {
-                        #(#resolve_ctx_seeds)*
-                        #ctx_seeds_construction
-                        #seed_params_update
-                        light_sdk::compressible::handle_packed_pda_variant::<#inner_type, #packed_inner_type, _, _>(
-                            &*self.rent_sponsor,
-                            cpi_accounts,
-                            address_space,
-                            &solana_accounts[i],
-                            i,
-                            &packed,
-                            &meta,
-                            post_system_accounts,
-                            &mut compressed_pda_infos,
-                            &program_id,
-                            &ctx_seeds,
-                            std::option::Option::Some(&variant_seed_params),
-                        )?;
-                    }
-                    RentFreeAccountVariant::#variant_name { .. } => {
-                        unreachable!("Unpacked variants should not be present during decompression");
-                    }
+                RentFreeAccountVariant::#variant_name { .. } => {
+                    unreachable!("Unpacked variants should not be present during decompression");
                 }
             }
         })

@@ -24,6 +24,7 @@ mod process_four_invokes;
 pub mod process_four_transfer2;
 mod process_transfer_tokens;
 mod process_update_deposit;
+mod process_create_two_mints;
 
 use light_sdk::instruction::account_meta::CompressedAccountMeta;
 use light_sdk_types::cpi_accounts::{v2::CpiAccounts, CpiAccountsConfig};
@@ -40,6 +41,8 @@ use process_four_invokes::process_four_invokes;
 pub use process_four_invokes::{CompressParams, FourInvokesParams, TransferParams};
 use process_four_transfer2::process_four_transfer2;
 use process_transfer_tokens::process_transfer_tokens;
+use process_create_two_mints::process_create_two_mints;
+pub use process_create_two_mints::{CreateMintParamsData, CreateTwoMintsData};
 
 declare_id!("5p1t1GAaKtK1FKCh5Hd2Gu8JCu3eREhJm4Q2qYfTEPYK");
 
@@ -337,6 +340,15 @@ pub mod sdk_token_test {
         input: ChainedCtokenInstructionData,
     ) -> Result<()> {
         process_ctoken_pda(ctx, input)
+    }
+
+    /// Create two compressed mints using CPI context in a single transaction.
+    /// First CPI writes first mint to CPI context, second CPI executes both with proof.
+    pub fn create_two_mints<'info>(
+        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        data: CreateTwoMintsData,
+    ) -> Result<()> {
+        process_create_two_mints(ctx, data)
     }
 }
 
