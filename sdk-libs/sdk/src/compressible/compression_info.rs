@@ -14,7 +14,7 @@ use crate::{instruction::PackedAccounts, AnchorDeserialize, AnchorSerialize, Pro
 pub trait Pack {
     type Packed: AnchorSerialize + Clone + std::fmt::Debug;
 
-    fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed;
+    fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Result<Self::Packed, ProgramError>;
 }
 
 pub trait Unpack {
@@ -34,10 +34,10 @@ pub enum AccountState {
 }
 
 pub trait HasCompressionInfo {
-    fn compression_info(&self) -> &CompressionInfo;
-    fn compression_info_mut(&mut self) -> &mut CompressionInfo;
+    fn compression_info(&self) -> Result<&CompressionInfo, ProgramError>;
+    fn compression_info_mut(&mut self) -> Result<&mut CompressionInfo, ProgramError>;
     fn compression_info_mut_opt(&mut self) -> &mut Option<CompressionInfo>;
-    fn set_compression_info_none(&mut self);
+    fn set_compression_info_none(&mut self) -> Result<(), ProgramError>;
 }
 
 /// Account space when compressed.
@@ -266,7 +266,7 @@ where
         .map_err(|_| ProgramError::Custom(0))?
         .minimum_balance(bytes as usize);
 
-    let ci = account_data.compression_info_mut();
+    let ci = account_data.compression_info_mut()?;
     let state = AccountRentState {
         num_bytes: bytes,
         current_slot,

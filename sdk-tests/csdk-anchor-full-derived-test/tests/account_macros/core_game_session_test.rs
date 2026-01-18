@@ -325,7 +325,7 @@ fn test_pack_converts_pubkey_to_index() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts);
+    let packed = record.pack(&mut packed_accounts).unwrap();
 
     // The player should have been added to packed_accounts
     // and packed.player should be the index (0 for first pubkey)
@@ -334,7 +334,7 @@ fn test_pack_converts_pubkey_to_index() {
 
     let mut packed_accounts = PackedAccounts::default();
     packed_accounts.insert_or_get(Pubkey::new_unique());
-    let packed = record.pack(&mut packed_accounts);
+    let packed = record.pack(&mut packed_accounts).unwrap();
 
     // The player should have been added to packed_accounts
     // and packed.player should be the index (1 for second pubkey)
@@ -367,8 +367,8 @@ fn test_pack_reuses_same_pubkey_index() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed1 = record1.pack(&mut packed_accounts);
-    let packed2 = record2.pack(&mut packed_accounts);
+    let packed1 = record1.pack(&mut packed_accounts).unwrap();
+    let packed2 = record2.pack(&mut packed_accounts).unwrap();
 
     // Same pubkey should get same index
     assert_eq!(
@@ -400,8 +400,8 @@ fn test_pack_different_pubkeys_get_different_indices() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed1 = record1.pack(&mut packed_accounts);
-    let packed2 = record2.pack(&mut packed_accounts);
+    let packed1 = record1.pack(&mut packed_accounts).unwrap();
+    let packed2 = record2.pack(&mut packed_accounts).unwrap();
 
     // Different pubkeys should get different indices
     assert_ne!(
@@ -433,8 +433,8 @@ fn test_pack_sets_compression_info_to_none() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed1 = record_with_info.pack(&mut packed_accounts);
-    let packed2 = record_without_info.pack(&mut packed_accounts);
+    let packed1 = record_with_info.pack(&mut packed_accounts).unwrap();
+    let packed2 = record_without_info.pack(&mut packed_accounts).unwrap();
 
     // Both packed structs should have compression_info = None
     assert!(
@@ -473,8 +473,8 @@ fn test_pack_stores_pubkeys_in_packed_accounts() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed1 = record1.pack(&mut packed_accounts);
-    let packed2 = record2.pack(&mut packed_accounts);
+    let packed1 = record1.pack(&mut packed_accounts).unwrap();
+    let packed2 = record2.pack(&mut packed_accounts).unwrap();
 
     // Verify pubkeys are stored and retrievable
     let stored_pubkeys = packed_accounts.packed_pubkeys();

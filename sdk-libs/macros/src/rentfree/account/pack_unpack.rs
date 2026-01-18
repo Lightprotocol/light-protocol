@@ -67,10 +67,10 @@ fn generate_with_packed_struct(
             type Packed = #packed_struct_name;
 
             #[inline(never)]
-            fn pack(&self, remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> Self::Packed {
-                #packed_struct_name {
+            fn pack(&self, remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
+                Ok(#packed_struct_name {
                     #(#pack_field_assignments,)*
-                }
+                })
             }
         }
     };
@@ -94,8 +94,8 @@ fn generate_with_packed_struct(
             type Packed = Self;
 
             #[inline(never)]
-            fn pack(&self, _remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> Self::Packed {
-                self.clone()
+            fn pack(&self, _remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
+                Ok(self.clone())
             }
         }
     };
@@ -158,8 +158,8 @@ fn generate_identity_pack_unpack(struct_name: &syn::Ident) -> Result<TokenStream
             type Packed = #struct_name;
 
             #[inline(never)]
-            fn pack(&self, _remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> Self::Packed {
-                self.clone()
+            fn pack(&self, _remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
+                Ok(self.clone())
             }
         }
     };

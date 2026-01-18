@@ -73,7 +73,7 @@ where
     let rent_exemption_lamports = Rent::get()
         .map_err(|_| LightSdkError::ConstraintViolation)?
         .minimum_balance(bytes as usize);
-    let ci = account_data.compression_info();
+    let ci = account_data.compression_info()?;
     let last_claimed_slot = ci.last_claimed_slot();
     let rent_cfg = ci.rent_config;
     let state = AccountRentState {
@@ -100,7 +100,7 @@ where
         return Err(LightSdkError::ConstraintViolation.into());
     }
 
-    account_data.compression_info_mut().set_compressed();
+    account_data.compression_info_mut()?.set_compressed();
     {
         let mut data = account_info
             .try_borrow_mut_data()

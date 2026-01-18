@@ -69,20 +69,21 @@ fn validate_compression_info_field(
 fn generate_has_compression_info_impl(struct_name: &Ident) -> TokenStream {
     quote! {
         impl light_sdk::compressible::HasCompressionInfo for #struct_name {
-            fn compression_info(&self) -> &light_sdk::compressible::CompressionInfo {
-                self.compression_info.as_ref().expect("compression_info must be set")
+            fn compression_info(&self) -> std::result::Result<&light_sdk::compressible::CompressionInfo, solana_program_error::ProgramError> {
+                self.compression_info.as_ref().ok_or(light_sdk::error::LightSdkError::MissingCompressionInfo.into())
             }
 
-            fn compression_info_mut(&mut self) -> &mut light_sdk::compressible::CompressionInfo {
-                self.compression_info.as_mut().expect("compression_info must be set")
+            fn compression_info_mut(&mut self) -> std::result::Result<&mut light_sdk::compressible::CompressionInfo, solana_program_error::ProgramError> {
+                self.compression_info.as_mut().ok_or(light_sdk::error::LightSdkError::MissingCompressionInfo.into())
             }
 
             fn compression_info_mut_opt(&mut self) -> &mut Option<light_sdk::compressible::CompressionInfo> {
                 &mut self.compression_info
             }
 
-            fn set_compression_info_none(&mut self) {
+            fn set_compression_info_none(&mut self) -> std::result::Result<(), solana_program_error::ProgramError> {
                 self.compression_info = None;
+                Ok(())
             }
         }
     }
@@ -182,11 +183,11 @@ fn generate_size_fields(fields: &Punctuated<Field, Token![,]>) -> Vec<TokenStrea
 fn generate_size_impl(struct_name: &Ident, size_fields: &[TokenStream]) -> TokenStream {
     quote! {
         impl light_sdk::account::Size for #struct_name {
-            fn size(&self) -> usize {
+            fn size(&self) -> std::result::Result<usize, solana_program_error::ProgramError> {
                 // Always allocate space for Some(CompressionInfo) since it will be set during decompression
                 // CompressionInfo size: 1 byte (Option discriminant) + <CompressionInfo as Space>::INIT_SPACE
                 let compression_info_size = 1 + <light_sdk::compressible::CompressionInfo as light_sdk::compressible::Space>::INIT_SPACE;
-                compression_info_size #(#size_fields)*
+                Ok(compression_info_size #(#size_fields)*)
             }
         }
     }

@@ -13,6 +13,72 @@ use std::{
 
 use syn::{Item, ItemStruct};
 
+// // =============================================================================
+// // CRATE CONTEXT BUILDER
+// // =============================================================================
+
+// /// Builder for constructing `CrateContext` with optional configuration.
+// ///
+// /// Provides a fluent API for setting up the crate parsing configuration.
+// /// This builder is available for future use when programs need to customize
+// /// crate context parsing (e.g., from a specific path instead of CARGO_MANIFEST_DIR).
+// #[allow(dead_code)]
+// pub struct CrateContextBuilder {
+//     /// Root path to parse from (if not using manifest)
+//     root_path: Option<PathBuf>,
+//     /// Whether to use CARGO_MANIFEST_DIR
+//     use_manifest: bool,
+// }
+
+// impl Default for CrateContextBuilder {
+//     fn default() -> Self {
+//         Self::new()
+//     }
+// }
+
+// #[allow(dead_code)]
+// impl CrateContextBuilder {
+//     /// Create a new builder with default configuration.
+//     pub fn new() -> Self {
+//         Self {
+//             root_path: None,
+//             use_manifest: false,
+//         }
+//     }
+
+//     /// Configure to parse from CARGO_MANIFEST_DIR.
+//     ///
+//     /// This is the most common usage for proc macros.
+//     pub fn from_manifest(mut self) -> Self {
+//         self.use_manifest = true;
+//         self.root_path = None;
+//         self
+//     }
+
+//     /// Configure to parse from a specific path.
+//     pub fn from_path(mut self, path: impl Into<PathBuf>) -> Self {
+//         self.root_path = Some(path.into());
+//         self.use_manifest = false;
+//         self
+//     }
+
+//     /// Build the CrateContext by parsing all modules.
+//     pub fn build(self) -> syn::Result<CrateContext> {
+//         if self.use_manifest {
+//             CrateContext::parse_from_manifest()
+//         } else if let Some(path) = self.root_path {
+//             CrateContext::parse(&path)
+//         } else {
+//             // Default to manifest if nothing specified
+//             CrateContext::parse_from_manifest()
+//         }
+//     }
+// }
+
+// =============================================================================
+// CRATE CONTEXT
+// =============================================================================
+
 /// Context containing all parsed modules in the crate.
 pub struct CrateContext {
     modules: BTreeMap<String, ParsedModule>,
@@ -65,12 +131,6 @@ impl CrateContext {
             .collect()
     }
 
-    /// Get a reference to a specific module by path (e.g., "crate::instruction_accounts").
-    #[allow(dead_code)]
-    pub fn module(&self, path: &str) -> Option<&ParsedModule> {
-        self.modules.get(path)
-    }
-
     /// Get the field names of a struct by its type.
     ///
     /// The type can be a simple identifier (e.g., "SinglePubkeyRecord") or
@@ -102,15 +162,6 @@ impl CrateContext {
 
 /// A parsed module containing its items.
 pub struct ParsedModule {
-    /// Module name (e.g., "instruction_accounts")
-    #[allow(dead_code)]
-    name: String,
-    /// File path where this module is defined
-    #[allow(dead_code)]
-    file: PathBuf,
-    /// Full module path (e.g., "crate::instruction_accounts")
-    #[allow(dead_code)]
-    path: String,
     /// All items in the module
     items: Vec<Item>,
 }
@@ -143,9 +194,6 @@ impl ParsedModule {
 
         // Create the root module
         let root_module = ParsedModule {
-            name: root_name.to_string(),
-            file: root.to_path_buf(),
-            path: module_path.to_string(),
             items: file.items.clone(),
         };
         modules.insert(module_path.to_string(), root_module);
@@ -159,9 +207,6 @@ impl ParsedModule {
                 if let Some((_, items)) = &item_mod.content {
                     // Inline module: mod foo { ... }
                     let inline_module = ParsedModule {
-                        name: mod_name.clone(),
-                        file: root.to_path_buf(),
-                        path: child_path.clone(),
                         items: items.clone(),
                     };
                     modules.insert(child_path, inline_module);

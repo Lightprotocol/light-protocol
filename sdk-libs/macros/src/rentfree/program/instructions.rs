@@ -10,21 +10,13 @@ pub use super::parsing::{
     SeedElement, TokenSeedSpec,
 };
 use super::{
-    compress::{
-        generate_compress_accounts_struct, generate_compress_context_impl,
-        generate_compress_instruction_entrypoint, generate_error_codes,
-        generate_process_compress_accounts_idempotent, validate_compressed_account_sizes,
-    },
-    decompress::{
-        generate_decompress_accounts_struct, generate_decompress_context_impl,
-        generate_decompress_instruction_entrypoint, generate_pda_seed_provider_impls,
-        generate_process_decompress_accounts_idempotent,
-    },
+    compress::CompressBuilder,
+    decompress::DecompressBuilder,
     parsing::{
         convert_classified_to_seed_elements, convert_classified_to_seed_elements_vec,
         extract_context_and_params, macro_error, wrap_function_with_rentfree,
     },
-    variant_enum::PdaCtxSeedInfo,
+    variant_enum::{PdaCtxSeedInfo, RentFreeVariantBuilder, TokenVariantBuilder},
 };
 use crate::{
     rentfree::shared_utils::{ident_to_type, qualify_type_with_crate},
@@ -45,8 +37,6 @@ fn codegen(
     instruction_data: Vec<InstructionDataSpec>,
     crate_ctx: &super::crate_context::CrateContext,
 ) -> Result<TokenStream> {
-    let size_validation_checks = validate_compressed_account_sizes(&account_types)?;
-
     let content = module.content.as_mut().unwrap();
 
     // Insert anchor_lang::prelude::* import at the beginning of the module
@@ -58,7 +48,7 @@ fn codegen(
     content.1.insert(0, anchor_import);
     let ctoken_enum = if let Some(ref token_seed_specs) = token_seeds {
         if !token_seed_specs.is_empty() {
-            super::variant_enum::generate_ctoken_account_variant_enum(token_seed_specs)?
+            TokenVariantBuilder::new(token_seed_specs).build()?
         } else {
             crate::rentfree::account::utils::generate_empty_ctoken_enum()
         }
@@ -112,8 +102,7 @@ fn codegen(
         })
         .unwrap_or_default();
 
-    let enum_and_traits =
-        super::variant_enum::compressed_account_variant_with_ctx_seeds(&pda_ctx_seeds)?;
+    let enum_and_traits = RentFreeVariantBuilder::new(&pda_ctx_seeds).build()?;
 
     // Collect all unique params-only seed fields across all variants for SeedParams struct
     // Use BTreeMap for deterministic ordering
@@ -265,11 +254,26 @@ fn codegen(
         }
     };
 
-    let error_codes = generate_error_codes(instruction_variant)?;
-    let decompress_accounts = generate_decompress_accounts_struct(instruction_variant)?;
+    // Create CompressBuilder to generate all compress-related code
+    let compress_builder = CompressBuilder::new(account_types.clone(), instruction_variant);
+    compress_builder.validate()?;
 
-    let pda_seed_provider_impls =
-        generate_pda_seed_provider_impls(&account_types, &pda_ctx_seeds, &pda_seeds)?;
+    let size_validation_checks = compress_builder.generate_size_validation()?;
+    let error_codes = compress_builder.generate_error_codes()?;
+
+    let token_variant_name = format_ident!("TokenAccountVariant");
+
+    // Create DecompressBuilder to generate all decompress-related code
+    let decompress_builder = DecompressBuilder::new(
+        pda_ctx_seeds.clone(),
+        token_variant_name,
+        account_types.clone(),
+        pda_seeds.clone(),
+    );
+    // Note: DecompressBuilder validation is optional for now since pda_seeds may be empty for TokenOnly
+
+    let decompress_accounts = decompress_builder.generate_accounts_struct()?;
+    let pda_seed_provider_impls = decompress_builder.generate_seed_provider_impls()?;
 
     let trait_impls: syn::ItemMod = syn::parse_quote! {
         mod __trait_impls {
@@ -283,17 +287,14 @@ fn codegen(
         }
     };
 
-    let token_variant_name = format_ident!("TokenAccountVariant");
+    let decompress_context_impl = decompress_builder.generate_context_impl()?;
+    let decompress_processor_fn = decompress_builder.generate_processor()?;
+    let decompress_instruction = decompress_builder.generate_entrypoint()?;
 
-    let decompress_context_impl =
-        generate_decompress_context_impl(pda_ctx_seeds.clone(), token_variant_name)?;
-    let decompress_processor_fn = generate_process_decompress_accounts_idempotent()?;
-    let decompress_instruction = generate_decompress_instruction_entrypoint()?;
-
-    let compress_accounts = generate_compress_accounts_struct(instruction_variant)?;
-    let compress_context_impl = generate_compress_context_impl(account_types.clone())?;
-    let compress_processor_fn = generate_process_compress_accounts_idempotent()?;
-    let compress_instruction = generate_compress_instruction_entrypoint()?;
+    let compress_accounts = compress_builder.generate_accounts_struct()?;
+    let compress_context_impl = compress_builder.generate_context_impl()?;
+    let compress_processor_fn = compress_builder.generate_processor()?;
+    let compress_instruction = compress_builder.generate_entrypoint()?;
 
     let module_tokens = quote! {
         mod __processor_functions {

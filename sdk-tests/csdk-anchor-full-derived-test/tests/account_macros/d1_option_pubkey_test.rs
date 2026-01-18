@@ -240,7 +240,7 @@ fn test_pack_converts_pubkey_fields_to_indices() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts);
+    let packed = record.pack(&mut packed_accounts).unwrap();
 
     // The packed struct should have owner as u8 index (0 since it's first pubkey)
     assert_eq!(packed.owner, 0u8);
@@ -261,7 +261,7 @@ fn test_pack_converts_pubkey_to_index() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts);
+    let packed = record.pack(&mut packed_accounts).unwrap();
 
     // The owner should have been added and packed.owner should be the index (0 for first pubkey)
     assert_eq!(packed.owner, 0u8);
@@ -290,7 +290,7 @@ fn test_pack_preserves_option_pubkey_as_option_pubkey() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts);
+    let packed = record.pack(&mut packed_accounts).unwrap();
 
     // Direct Pubkey field is converted to u8 index
     assert_eq!(packed.owner, 0u8);
@@ -319,7 +319,7 @@ fn test_pack_option_pubkey_none_stays_none() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts);
+    let packed = record.pack(&mut packed_accounts).unwrap();
 
     // Direct Pubkey field is converted to u8 index
     assert_eq!(packed.owner, 0u8);
@@ -353,7 +353,7 @@ fn test_pack_all_option_pubkeys_some() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts);
+    let packed = record.pack(&mut packed_accounts).unwrap();
 
     // Direct Pubkey field is converted to u8 index
     assert_eq!(packed.owner, 0u8);
@@ -380,7 +380,7 @@ fn test_pack_all_option_pubkeys_none() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts);
+    let packed = record.pack(&mut packed_accounts).unwrap();
 
     // Only owner should have been added
     assert_eq!(packed.owner, 0u8);
@@ -415,8 +415,8 @@ fn test_pack_reuses_same_pubkey_index_for_direct_fields() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed1 = record1.pack(&mut packed_accounts);
-    let packed2 = record2.pack(&mut packed_accounts);
+    let packed1 = record1.pack(&mut packed_accounts).unwrap();
+    let packed2 = record2.pack(&mut packed_accounts).unwrap();
 
     // Same direct Pubkey field should get same index
     assert_eq!(

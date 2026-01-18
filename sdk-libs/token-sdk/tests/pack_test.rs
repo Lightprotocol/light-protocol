@@ -25,7 +25,7 @@ fn test_token_data_packing() {
     };
 
     // Pack the token data
-    let packed = token_data.pack(&mut remaining_accounts);
+    let packed = token_data.pack(&mut remaining_accounts).unwrap();
 
     // Verify the packed data
     assert_eq!(packed.owner, 0); // First pubkey gets index 0
@@ -55,8 +55,11 @@ fn test_token_data_with_variant_packing() {
     impl Pack for MyVariant {
         type Packed = Self;
 
-        fn pack(&self, _remaining_accounts: &mut PackedAccounts) -> Self::Packed {
-            *self
+        fn pack(
+            &self,
+            _remaining_accounts: &mut PackedAccounts,
+        ) -> Result<Self::Packed, solana_program_error::ProgramError> {
+            Ok(*self)
         }
     }
 
@@ -76,7 +79,7 @@ fn test_token_data_with_variant_packing() {
 
     // Pack the wrapper
     let packed: PackedCompressibleTokenDataWithVariant<MyVariant> =
-        token_with_variant.pack(&mut remaining_accounts);
+        token_with_variant.pack(&mut remaining_accounts).unwrap();
 
     // Verify variant is unchanged
     assert!(matches!(packed.variant, MyVariant::TypeA));
@@ -114,8 +117,8 @@ fn test_deduplication_in_packing() {
     };
 
     // Pack both tokens
-    let packed1 = token1.pack(&mut remaining_accounts);
-    let packed2 = token2.pack(&mut remaining_accounts);
+    let packed1 = token1.pack(&mut remaining_accounts).unwrap();
+    let packed2 = token2.pack(&mut remaining_accounts).unwrap();
 
     // Both should reference the same indices
     assert_eq!(packed1.owner, packed2.owner);

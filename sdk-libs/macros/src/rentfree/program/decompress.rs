@@ -1,157 +1,264 @@
 //! Decompress code generation.
+//!
+//! This module provides the `DecompressBuilder` for generating decompress instruction
+//! code including context implementation, processor, entrypoint, accounts struct,
+//! and PDA seed provider implementations.
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Ident, Result};
+use syn::{Ident, Result, Type};
 
 use super::{
     expr_traversal::transform_expr_for_ctx_seeds,
-    parsing::{InstructionVariant, SeedElement, TokenSeedSpec},
+    parsing::{SeedElement, TokenSeedSpec},
     seed_utils::ctx_fields_to_set,
     variant_enum::PdaCtxSeedInfo,
 };
 use crate::rentfree::shared_utils::{is_constant_identifier, qualify_type_with_crate};
 
 // =============================================================================
-// DECOMPRESS CONTEXT IMPL
+// DECOMPRESS BUILDER
 // =============================================================================
 
-pub fn generate_decompress_context_impl(
+/// Builder for generating decompress instruction code.
+///
+/// Encapsulates all data needed to generate decompress-related code:
+/// context implementation, processor function, instruction entrypoint,
+/// accounts struct, and PDA seed provider implementations.
+pub(super) struct DecompressBuilder {
+    /// PDA context seed information for each variant.
     pda_ctx_seeds: Vec<PdaCtxSeedInfo>,
+    /// Token variant identifier (e.g., TokenAccountVariant).
     token_variant_ident: Ident,
-) -> Result<syn::ItemMod> {
-    let lifetime: syn::Lifetime = syn::parse_quote!('info);
+    /// Account types that can be decompressed.
+    account_types: Vec<Type>,
+    /// PDA seed specifications.
+    pda_seeds: Option<Vec<TokenSeedSpec>>,
+}
 
-    let trait_impl =
-        crate::rentfree::account::decompress_context::generate_decompress_context_trait_impl(
+impl DecompressBuilder {
+    /// Create a new DecompressBuilder with all required configuration.
+    ///
+    /// # Arguments
+    /// * `pda_ctx_seeds` - PDA context seed information for each variant
+    /// * `token_variant_ident` - Token variant identifier
+    /// * `account_types` - Account types that can be decompressed
+    /// * `pda_seeds` - PDA seed specifications
+    pub fn new(
+        pda_ctx_seeds: Vec<PdaCtxSeedInfo>,
+        token_variant_ident: Ident,
+        account_types: Vec<Type>,
+        pda_seeds: Option<Vec<TokenSeedSpec>>,
+    ) -> Self {
+        Self {
             pda_ctx_seeds,
             token_variant_ident,
-            lifetime,
-        )?;
-
-    Ok(syn::parse_quote! {
-        mod __decompress_context_impl {
-            use super::*;
-
-            #trait_impl
+            account_types,
+            pda_seeds,
         }
-    })
-}
-
-// =============================================================================
-// DECOMPRESS PROCESSOR
-// =============================================================================
-
-pub fn generate_process_decompress_accounts_idempotent() -> Result<syn::ItemFn> {
-    Ok(syn::parse_quote! {
-        #[inline(never)]
-        pub fn process_decompress_accounts_idempotent<'info>(
-            accounts: &DecompressAccountsIdempotent<'info>,
-            remaining_accounts: &[solana_account_info::AccountInfo<'info>],
-            proof: light_sdk::instruction::ValidityProof,
-            compressed_accounts: Vec<RentFreeAccountData>,
-            system_accounts_offset: u8,
-        ) -> Result<()> {
-            light_sdk::compressible::process_decompress_accounts_idempotent(
-                accounts,
-                remaining_accounts,
-                compressed_accounts,
-                proof,
-                system_accounts_offset,
-                LIGHT_CPI_SIGNER,
-                &crate::ID,
-                None,
-            )
-            .map_err(|e: solana_program_error::ProgramError| -> anchor_lang::error::Error { e.into() })
-        }
-    })
-}
-
-// =============================================================================
-// DECOMPRESS INSTRUCTION ENTRYPOINT
-// =============================================================================
-
-pub fn generate_decompress_instruction_entrypoint() -> Result<syn::ItemFn> {
-    Ok(syn::parse_quote! {
-        #[inline(never)]
-        pub fn decompress_accounts_idempotent<'info>(
-            ctx: Context<'_, '_, '_, 'info, DecompressAccountsIdempotent<'info>>,
-            proof: light_sdk::instruction::ValidityProof,
-            compressed_accounts: Vec<RentFreeAccountData>,
-            system_accounts_offset: u8,
-        ) -> Result<()> {
-            __processor_functions::process_decompress_accounts_idempotent(
-                &ctx.accounts,
-                &ctx.remaining_accounts,
-                proof,
-                compressed_accounts,
-                system_accounts_offset,
-            )
-        }
-    })
-}
-
-// =============================================================================
-// DECOMPRESS ACCOUNTS STRUCT
-// =============================================================================
-
-#[inline(never)]
-pub fn generate_decompress_accounts_struct(variant: InstructionVariant) -> Result<syn::ItemStruct> {
-    // Only Mixed variant is supported - PdaOnly and TokenOnly are not implemented
-    match variant {
-        InstructionVariant::PdaOnly | InstructionVariant::TokenOnly => {
-            unreachable!("decompress_accounts_struct only supports Mixed variant")
-        }
-        InstructionVariant::Mixed => {}
     }
 
-    let account_fields = vec![
-        quote! {
-            #[account(mut)]
-            pub fee_payer: Signer<'info>
-        },
-        quote! {
-            /// CHECK: Checked by SDK
-            pub config: AccountInfo<'info>
-        },
-        quote! {
-            /// CHECK: anyone can pay
-            #[account(mut)]
-            pub rent_sponsor: UncheckedAccount<'info>
-        },
-        quote! {
-            /// CHECK: optional - only needed if decompressing tokens
-            #[account(mut)]
-            pub ctoken_rent_sponsor: Option<AccountInfo<'info>>
-        },
-        quote! {
-            /// CHECK:
-            #[account(address = solana_pubkey::pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"))]
-            pub light_token_program: Option<UncheckedAccount<'info>>
-        },
-        quote! {
-            /// CHECK:
-            #[account(address = solana_pubkey::pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy"))]
-            pub ctoken_cpi_authority: Option<UncheckedAccount<'info>>
-        },
-        quote! {
-            /// CHECK: Checked by SDK
-            pub ctoken_config: Option<UncheckedAccount<'info>>
-        },
-    ];
+    // -------------------------------------------------------------------------
+    // Code Generation Methods
+    // -------------------------------------------------------------------------
 
-    let struct_def = quote! {
-        #[derive(Accounts)]
-        pub struct DecompressAccountsIdempotent<'info> {
-            #(#account_fields,)*
+    /// Generate the decompress context implementation module.
+    pub fn generate_context_impl(&self) -> Result<syn::ItemMod> {
+        let lifetime: syn::Lifetime = syn::parse_quote!('info);
+
+        let trait_impl =
+            crate::rentfree::account::decompress_context::generate_decompress_context_trait_impl(
+                self.pda_ctx_seeds.clone(),
+                self.token_variant_ident.clone(),
+                lifetime,
+            )?;
+
+        Ok(syn::parse_quote! {
+            mod __decompress_context_impl {
+                use super::*;
+
+                #trait_impl
+            }
+        })
+    }
+
+    /// Generate the processor function for decompress accounts.
+    pub fn generate_processor(&self) -> Result<syn::ItemFn> {
+        Ok(syn::parse_quote! {
+            #[inline(never)]
+            pub fn process_decompress_accounts_idempotent<'info>(
+                accounts: &DecompressAccountsIdempotent<'info>,
+                remaining_accounts: &[solana_account_info::AccountInfo<'info>],
+                proof: light_sdk::instruction::ValidityProof,
+                compressed_accounts: Vec<RentFreeAccountData>,
+                system_accounts_offset: u8,
+            ) -> Result<()> {
+                light_sdk::compressible::process_decompress_accounts_idempotent(
+                    accounts,
+                    remaining_accounts,
+                    compressed_accounts,
+                    proof,
+                    system_accounts_offset,
+                    LIGHT_CPI_SIGNER,
+                    &crate::ID,
+                    None,
+                )
+                .map_err(|e: solana_program_error::ProgramError| -> anchor_lang::error::Error { e.into() })
+            }
+        })
+    }
+
+    /// Generate the decompress instruction entrypoint function.
+    pub fn generate_entrypoint(&self) -> Result<syn::ItemFn> {
+        Ok(syn::parse_quote! {
+            #[inline(never)]
+            pub fn decompress_accounts_idempotent<'info>(
+                ctx: Context<'_, '_, '_, 'info, DecompressAccountsIdempotent<'info>>,
+                proof: light_sdk::instruction::ValidityProof,
+                compressed_accounts: Vec<RentFreeAccountData>,
+                system_accounts_offset: u8,
+            ) -> Result<()> {
+                __processor_functions::process_decompress_accounts_idempotent(
+                    &ctx.accounts,
+                    &ctx.remaining_accounts,
+                    proof,
+                    compressed_accounts,
+                    system_accounts_offset,
+                )
+            }
+        })
+    }
+
+    /// Generate the decompress accounts struct.
+    ///
+    /// The accounts struct is the same for all variants since it provides
+    /// shared infrastructure for decompression operations. The variant behavior
+    /// is determined by the context implementation, not the accounts struct.
+    pub fn generate_accounts_struct(&self) -> Result<syn::ItemStruct> {
+        Ok(syn::parse_quote! {
+            #[derive(Accounts)]
+            pub struct DecompressAccountsIdempotent<'info> {
+                #[account(mut)]
+                pub fee_payer: Signer<'info>,
+                /// CHECK: Checked by SDK
+                pub config: AccountInfo<'info>,
+                /// CHECK: anyone can pay
+                #[account(mut)]
+                pub rent_sponsor: UncheckedAccount<'info>,
+                /// CHECK: optional - only needed if decompressing tokens
+                #[account(mut)]
+                pub ctoken_rent_sponsor: Option<AccountInfo<'info>>,
+                /// CHECK:
+                #[account(address = solana_pubkey::pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"))]
+                pub light_token_program: Option<UncheckedAccount<'info>>,
+                /// CHECK:
+                #[account(address = solana_pubkey::pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy"))]
+                pub ctoken_cpi_authority: Option<UncheckedAccount<'info>>,
+                /// CHECK: Checked by SDK
+                pub ctoken_config: Option<UncheckedAccount<'info>>,
+            }
+        })
+    }
+
+    /// Generate PDA seed provider implementations.
+    pub fn generate_seed_provider_impls(&self) -> Result<Vec<TokenStream>> {
+        let pda_seed_specs = self.pda_seeds.as_ref().ok_or_else(|| {
+            let span_source = self
+                .account_types
+                .first()
+                .map(|t| quote::quote!(#t))
+                .unwrap_or_else(|| quote::quote!(unknown));
+            super::parsing::macro_error!(span_source, "No seed specifications provided")
+        })?;
+
+        let mut results = Vec::with_capacity(self.pda_ctx_seeds.len());
+
+        for ctx_info in self.pda_ctx_seeds.iter() {
+            let variant_str = ctx_info.variant_name.to_string();
+            let spec = pda_seed_specs
+                .iter()
+                .find(|s| s.variant == variant_str)
+                .ok_or_else(|| {
+                    super::parsing::macro_error!(
+                        &ctx_info.variant_name,
+                        "No seed specification for variant '{}'",
+                        variant_str
+                    )
+                })?;
+
+            let ctx_seeds_struct_name = format_ident!("{}CtxSeeds", ctx_info.variant_name);
+            let inner_type = qualify_type_with_crate(&ctx_info.inner_type);
+            let ctx_fields = &ctx_info.ctx_seed_fields;
+            let ctx_fields_decl: Vec<_> = ctx_fields
+                .iter()
+                .map(|field| {
+                    quote! { pub #field: solana_pubkey::Pubkey }
+                })
+                .collect();
+
+            let ctx_seeds_struct = if ctx_fields.is_empty() {
+                quote! {
+                    #[derive(Default)]
+                    pub struct #ctx_seeds_struct_name;
+                }
+            } else {
+                quote! {
+                    #[derive(Default)]
+                    pub struct #ctx_seeds_struct_name {
+                        #(#ctx_fields_decl),*
+                    }
+                }
+            };
+
+            let params_only_fields = &ctx_info.params_only_seed_fields;
+            let seed_derivation = generate_pda_seed_derivation_for_trait_with_ctx_seeds(
+                spec,
+                ctx_fields,
+                &ctx_info.state_field_names,
+                params_only_fields,
+            )?;
+
+            let has_params_only = !params_only_fields.is_empty();
+            let seed_params_impl = if has_params_only {
+                quote! {
+                    #ctx_seeds_struct
+
+                    impl light_sdk::compressible::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
+                        fn derive_pda_seeds_with_accounts(
+                            &self,
+                            program_id: &solana_pubkey::Pubkey,
+                            ctx_seeds: &#ctx_seeds_struct_name,
+                            seed_params: &SeedParams,
+                        ) -> std::result::Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey), solana_program_error::ProgramError> {
+                            #seed_derivation
+                        }
+                    }
+                }
+            } else {
+                quote! {
+                    #ctx_seeds_struct
+
+                    impl light_sdk::compressible::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
+                        fn derive_pda_seeds_with_accounts(
+                            &self,
+                            program_id: &solana_pubkey::Pubkey,
+                            ctx_seeds: &#ctx_seeds_struct_name,
+                            _seed_params: &SeedParams,
+                        ) -> std::result::Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey), solana_program_error::ProgramError> {
+                            #seed_derivation
+                        }
+                    }
+                }
+            };
+            results.push(seed_params_impl);
         }
-    };
 
-    syn::parse2(struct_def)
+        Ok(results)
+    }
 }
 
 // =============================================================================
-// PDA SEED DERIVATION
+// PDA SEED DERIVATION (Internal helpers used by DecompressBuilder)
 // =============================================================================
 
 /// Generate PDA seed derivation that uses CtxSeeds struct instead of DecompressAccountsIdempotent.
@@ -281,15 +388,6 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
     })
 }
 
-/// Check if a seed expression is a params-only seed (data.field where field doesn't exist on state)
-#[allow(dead_code)]
-fn is_params_only_seed(
-    expr: &syn::Expr,
-    state_field_names: &std::collections::HashSet<String>,
-) -> bool {
-    get_params_only_field_name(expr, state_field_names).is_some()
-}
-
 /// Get the field name from a params-only seed expression.
 /// Returns Some(field_name) if the expression is a data.field where field doesn't exist on state.
 fn get_params_only_field_name(
@@ -318,115 +416,4 @@ fn get_params_only_field_name(
         }
         _ => None,
     }
-}
-
-// =============================================================================
-// PDA SEED PROVIDER IMPLS
-// =============================================================================
-
-#[inline(never)]
-pub fn generate_pda_seed_provider_impls(
-    account_types: &[syn::Type],
-    pda_ctx_seeds: &[PdaCtxSeedInfo],
-    pda_seeds: &Option<Vec<TokenSeedSpec>>,
-) -> Result<Vec<TokenStream>> {
-    let pda_seed_specs = pda_seeds.as_ref().ok_or_else(|| {
-        // Use first account type for error span, or create a dummy span
-        let span_source = account_types
-            .first()
-            .map(|t| quote::quote!(#t))
-            .unwrap_or_else(|| quote::quote!(unknown));
-        super::parsing::macro_error!(span_source, "No seed specifications provided")
-    })?;
-
-    let mut results = Vec::with_capacity(pda_ctx_seeds.len());
-
-    // Iterate over pda_ctx_seeds which has both variant_name and inner_type
-    for ctx_info in pda_ctx_seeds.iter() {
-        // Match spec by variant_name (field name based)
-        let variant_str = ctx_info.variant_name.to_string();
-        let spec = pda_seed_specs
-            .iter()
-            .find(|s| s.variant == variant_str)
-            .ok_or_else(|| {
-                super::parsing::macro_error!(
-                    &ctx_info.variant_name,
-                    "No seed specification for variant '{}'",
-                    variant_str
-                )
-            })?;
-
-        // Use variant_name for struct naming (e.g., RecordCtxSeeds)
-        let ctx_seeds_struct_name = format_ident!("{}CtxSeeds", ctx_info.variant_name);
-        // Use inner_type for the impl (e.g., impl ... for crate::SinglePubkeyRecord)
-        // Qualify with crate:: to ensure it's accessible from generated code
-        let inner_type = qualify_type_with_crate(&ctx_info.inner_type);
-        let ctx_fields = &ctx_info.ctx_seed_fields;
-        let ctx_fields_decl: Vec<_> = ctx_fields
-            .iter()
-            .map(|field| {
-                quote! { pub #field: solana_pubkey::Pubkey }
-            })
-            .collect();
-
-        let ctx_seeds_struct = if ctx_fields.is_empty() {
-            quote! {
-                #[derive(Default)]
-                pub struct #ctx_seeds_struct_name;
-            }
-        } else {
-            quote! {
-                #[derive(Default)]
-                pub struct #ctx_seeds_struct_name {
-                    #(#ctx_fields_decl),*
-                }
-            }
-        };
-
-        let params_only_fields = &ctx_info.params_only_seed_fields;
-        let seed_derivation = generate_pda_seed_derivation_for_trait_with_ctx_seeds(
-            spec,
-            ctx_fields,
-            &ctx_info.state_field_names,
-            params_only_fields,
-        )?;
-
-        // Generate impl for inner_type, but use variant-based struct name
-        // Use SeedParams if there are params-only fields, otherwise use ()
-        let has_params_only = !params_only_fields.is_empty();
-        let seed_params_impl = if has_params_only {
-            quote! {
-                #ctx_seeds_struct
-
-                impl light_sdk::compressible::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
-                    fn derive_pda_seeds_with_accounts(
-                        &self,
-                        program_id: &solana_pubkey::Pubkey,
-                        ctx_seeds: &#ctx_seeds_struct_name,
-                        seed_params: &SeedParams,
-                    ) -> std::result::Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey), solana_program_error::ProgramError> {
-                        #seed_derivation
-                    }
-                }
-            }
-        } else {
-            quote! {
-                #ctx_seeds_struct
-
-                impl light_sdk::compressible::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
-                    fn derive_pda_seeds_with_accounts(
-                        &self,
-                        program_id: &solana_pubkey::Pubkey,
-                        ctx_seeds: &#ctx_seeds_struct_name,
-                        _seed_params: &SeedParams,
-                    ) -> std::result::Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey), solana_program_error::ProgramError> {
-                        #seed_derivation
-                    }
-                }
-            }
-        };
-        results.push(seed_params_impl);
-    }
-
-    Ok(results)
 }

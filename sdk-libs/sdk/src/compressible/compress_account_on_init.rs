@@ -82,10 +82,10 @@ where
     );
 
     if with_data {
-        account_data.compression_info_mut().set_compressed();
+        account_data.compression_info_mut()?.set_compressed();
     } else {
         account_data
-            .compression_info_mut()
+            .compression_info_mut()?
             .bump_last_claimed_slot()?;
     }
     {
@@ -105,7 +105,7 @@ where
 
     if with_data {
         let mut compressed_data = account_data.clone();
-        compressed_data.set_compression_info_none();
+        compressed_data.set_compression_info_none()?;
         compressed_account.account = compressed_data;
     } else {
         compressed_account.remove_data();
