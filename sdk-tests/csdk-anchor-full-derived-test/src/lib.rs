@@ -87,7 +87,7 @@ pub mod csdk_anchor_full_derived_test {
     #![allow(clippy::too_many_arguments)]
 
     use super::{
-        amm_test::{Deposit, InitializeParams, InitializePool, Withdraw},
+        amm_test::{Deposit, InitializeParams, InitializePool, Swap, TradeDirection, Withdraw},
         d5_markers::{
             D5AllMarkers, D5AllMarkersParams, D5LightToken, D5LightTokenParams, D5RentfreeBare,
             D5RentfreeBareParams,
@@ -268,11 +268,11 @@ pub mod csdk_anchor_full_derived_test {
         game_session.end_time = None;
         game_session.score = 0;
 
-        let cmint_key = ctx.accounts.cmint.key();
+        let cmint_key = ctx.accounts.mint.key();
         CreateTokenAccountCpi {
             payer: ctx.accounts.fee_payer.to_account_info(),
             account: ctx.accounts.vault.to_account_info(),
-            mint: ctx.accounts.cmint.to_account_info(),
+            mint: ctx.accounts.mint.to_account_info(),
             owner: ctx.accounts.vault_authority.key(),
         }
         .rent_free(
@@ -292,7 +292,7 @@ pub mod csdk_anchor_full_derived_test {
         CreateTokenAtaCpi {
             payer: ctx.accounts.fee_payer.to_account_info(),
             owner: ctx.accounts.fee_payer.to_account_info(),
-            mint: ctx.accounts.cmint.to_account_info(),
+            mint: ctx.accounts.mint.to_account_info(),
             ata: ctx.accounts.user_ata.to_account_info(),
             bump: params.user_ata_bump,
         }
@@ -308,7 +308,7 @@ pub mod csdk_anchor_full_derived_test {
 
         if params.vault_mint_amount > 0 {
             CTokenMintToCpi {
-                mint: ctx.accounts.cmint.to_account_info(),
+                mint: ctx.accounts.mint.to_account_info(),
                 destination: ctx.accounts.vault.to_account_info(),
                 amount: params.vault_mint_amount,
                 authority: ctx.accounts.mint_authority.to_account_info(),
@@ -320,7 +320,7 @@ pub mod csdk_anchor_full_derived_test {
 
         if params.user_ata_mint_amount > 0 {
             CTokenMintToCpi {
-                mint: ctx.accounts.cmint.to_account_info(),
+                mint: ctx.accounts.mint.to_account_info(),
                 destination: ctx.accounts.user_ata.to_account_info(),
                 amount: params.user_ata_mint_amount,
                 authority: ctx.accounts.mint_authority.to_account_info(),
@@ -396,6 +396,17 @@ pub mod csdk_anchor_full_derived_test {
     /// AMM withdraw instruction with BurnCpi.
     pub fn withdraw(ctx: Context<Withdraw>, lp_token_amount: u64) -> Result<()> {
         crate::amm_test::process_withdraw(ctx, lp_token_amount)
+    }
+
+    /// AMM swap instruction with directional vault aliases.
+    /// Tests divergent naming: input_vault/output_vault are aliases for token_0_vault/token_1_vault
+    pub fn swap(
+        ctx: Context<Swap>,
+        amount_in: u64,
+        minimum_amount_out: u64,
+        direction: TradeDirection,
+    ) -> Result<()> {
+        crate::amm_test::process_swap(ctx, amount_in, minimum_amount_out, direction)
     }
 
     // =========================================================================

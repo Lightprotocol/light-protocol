@@ -15,3 +15,9 @@ light-token-sdk = { workspace = true, features = ["anchor"] }
 
 anchor-lang = { workspace = true }
 solana-pubkey = { workspace = true }
+
+# Fast hashing for account maps
+ahash = "0.8"
+
+[dev-dependencies]
+light-client = { workspace = true }

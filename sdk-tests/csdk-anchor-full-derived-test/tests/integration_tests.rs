@@ -11,9 +11,8 @@ use anchor_lang::{InstructionData, ToAccountMetas};
 use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::LightAccountVariant;
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_compressible_client::{
-    create_load_accounts_instructions, get_create_accounts_proof, AccountInterface,
-    AccountInterfaceExt, CreateAccountsProofInput, InitializeRentFreeConfig,
-    RentFreeDecompressAccount,
+    create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
+    CreateAccountsProofInput, InitializeRentFreeConfig, PdaSpec,
 };
 use light_macros::pubkey;
 use light_program_test::{
@@ -120,30 +119,31 @@ impl TestContext {
             .await
             .expect("failed to get account interface");
         assert!(
-            account_interface.is_cold,
+            account_interface.is_cold(),
             "Account should be cold after compression"
         );
 
-        // Build decompression request
-        let program_owned_accounts = vec![RentFreeDecompressAccount::from_seeds(
-            AccountInterface::from(&account_interface),
-            seeds,
-        )
-        .expect("Seed verification failed")];
+        // Build variant from seeds and account data
+        let variant = seeds
+            .into_variant(&account_interface.account.data[8..])
+            .expect("Seed verification failed");
+
+        // Build PdaSpec
+        let spec = PdaSpec::new(account_interface.clone(), variant, self.program_id);
+
+        // Create AccountSpec slice
+        let specs: Vec<AccountSpec<RentFreeAccountVariant>> = vec![AccountSpec::Pda(spec)];
 
         // Create and execute decompression
-        let decompress_instructions = create_load_accounts_instructions(
-            &program_owned_accounts,
-            &[],
-            &[],
-            self.program_id,
+        let decompress_instructions = create_load_instructions(
+            &specs,
             self.payer.pubkey(),
             self.config_pda,
             self.payer.pubkey(),
             &self.rpc,
         )
         .await
-        .expect("create_load_accounts_instructions should succeed");
+        .expect("create_load_instructions should succeed");
 
         self.rpc
             .create_and_send_transaction(
@@ -446,16 +446,13 @@ async fn test_d8_multi_rentfree() {
         .get_account_info_interface(&pda1, &ctx.program_id)
         .await
         .unwrap();
-    let program_owned_accounts = vec![RentFreeDecompressAccount::from_seeds(
-        AccountInterface::from(&interface1),
-        D8MultiRecord1Seeds { owner, id1 },
-    )
-    .unwrap()];
-    let decompress_instructions = create_load_accounts_instructions(
-        &program_owned_accounts,
-        &[],
-        &[],
-        ctx.program_id,
+    let variant1 = D8MultiRecord1Seeds { owner, id1 }
+        .into_variant(&interface1.account.data[8..])
+        .unwrap();
+    let spec1 = PdaSpec::new(interface1.clone(), variant1, ctx.program_id);
+    let specs: Vec<AccountSpec<RentFreeAccountVariant>> = vec![AccountSpec::Pda(spec1)];
+    let decompress_instructions = create_load_instructions(
+        &specs,
         ctx.payer.pubkey(),
         ctx.config_pda,
         ctx.payer.pubkey(),
@@ -475,16 +472,13 @@ async fn test_d8_multi_rentfree() {
         .get_account_info_interface(&pda2, &ctx.program_id)
         .await
         .unwrap();
-    let program_owned_accounts = vec![RentFreeDecompressAccount::from_seeds(
-        AccountInterface::from(&interface2),
-        D8MultiRecord2Seeds { owner, id2 },
-    )
-    .unwrap()];
-    let decompress_instructions = create_load_accounts_instructions(
-        &program_owned_accounts,
-        &[],
-        &[],
-        ctx.program_id,
+    let variant2 = D8MultiRecord2Seeds { owner, id2 }
+        .into_variant(&interface2.account.data[8..])
+        .unwrap();
+    let spec2 = PdaSpec::new(interface2.clone(), variant2, ctx.program_id);
+    let specs: Vec<AccountSpec<RentFreeAccountVariant>> = vec![AccountSpec::Pda(spec2)];
+    let decompress_instructions = create_load_instructions(
+        &specs,
         ctx.payer.pubkey(),
         ctx.config_pda,
         ctx.payer.pubkey(),
@@ -579,16 +573,13 @@ async fn test_d8_all() {
         .get_account_info_interface(&pda_single, &ctx.program_id)
         .await
         .unwrap();
-    let program_owned_accounts = vec![RentFreeDecompressAccount::from_seeds(
-        AccountInterface::from(&interface_single),
-        D8AllSingleSeeds { owner },
-    )
-    .unwrap()];
-    let decompress_instructions = create_load_accounts_instructions(
-        &program_owned_accounts,
-        &[],
-        &[],
-        ctx.program_id,
+    let variant_single = D8AllSingleSeeds { owner }
+        .into_variant(&interface_single.account.data[8..])
+        .unwrap();
+    let spec_single = PdaSpec::new(interface_single.clone(), variant_single, ctx.program_id);
+    let specs: Vec<AccountSpec<RentFreeAccountVariant>> = vec![AccountSpec::Pda(spec_single)];
+    let decompress_instructions = create_load_instructions(
+        &specs,
         ctx.payer.pubkey(),
         ctx.config_pda,
         ctx.payer.pubkey(),
@@ -608,16 +599,13 @@ async fn test_d8_all() {
         .get_account_info_interface(&pda_multi, &ctx.program_id)
         .await
         .unwrap();
-    let program_owned_accounts = vec![RentFreeDecompressAccount::from_seeds(
-        AccountInterface::from(&interface_multi),
-        D8AllMultiSeeds { owner },
-    )
-    .unwrap()];
-    let decompress_instructions = create_load_accounts_instructions(
-        &program_owned_accounts,
-        &[],
-        &[],
-        ctx.program_id,
+    let variant_multi = D8AllMultiSeeds { owner }
+        .into_variant(&interface_multi.account.data[8..])
+        .unwrap();
+    let spec_multi = PdaSpec::new(interface_multi.clone(), variant_multi, ctx.program_id);
+    let specs: Vec<AccountSpec<RentFreeAccountVariant>> = vec![AccountSpec::Pda(spec_multi)];
+    let decompress_instructions = create_load_instructions(
+        &specs,
         ctx.payer.pubkey(),
         ctx.config_pda,
         ctx.payer.pubkey(),
@@ -1310,16 +1298,11 @@ async fn test_d9_all() {
             .get_account_info_interface(pda, &ctx.program_id)
             .await
             .unwrap();
-        let program_owned_accounts =
-            vec![
-                RentFreeDecompressAccount::from_seeds(AccountInterface::from(&interface), seeds)
-                    .unwrap(),
-            ];
-        let decompress_instructions = create_load_accounts_instructions(
-            &program_owned_accounts,
-            &[],
-            &[],
-            ctx.program_id,
+        let variant = seeds.into_variant(&interface.account.data[8..]).unwrap();
+        let spec = PdaSpec::new(interface.clone(), variant, ctx.program_id);
+        let specs: Vec<AccountSpec<RentFreeAccountVariant>> = vec![AccountSpec::Pda(spec)];
+        let decompress_instructions = create_load_instructions(
+            &specs,
             ctx.payer.pubkey(),
             ctx.config_pda,
             ctx.payer.pubkey(),
@@ -1365,10 +1348,6 @@ async fn test_d8_pda_only_full_lifecycle() {
         csdk_anchor_full_derived_test::D8PdaOnlyRecordSeeds, d8_builder_paths::D8PdaOnlyParams,
     };
     use light_compressible::rent::SLOTS_PER_EPOCH;
-    use light_compressible_client::{
-        create_load_accounts_instructions, AccountInterface, AccountInterfaceExt,
-        RentFreeDecompressAccount,
-    };
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -1444,26 +1423,23 @@ async fn test_d8_pda_only_full_lifecycle() {
         .get_account_info_interface(&pda, &ctx.program_id)
         .await
         .expect("failed to get account interface");
-    assert!(account_interface.is_cold, "Account should be cold");
+    assert!(account_interface.is_cold(), "Account should be cold");
 
-    let program_owned_accounts = vec![RentFreeDecompressAccount::from_seeds(
-        AccountInterface::from(&account_interface),
-        D8PdaOnlyRecordSeeds { owner },
-    )
-    .expect("Seed verification failed")];
+    let variant = D8PdaOnlyRecordSeeds { owner }
+        .into_variant(&account_interface.account.data[8..])
+        .expect("Seed verification failed");
+    let spec = PdaSpec::new(account_interface.clone(), variant, ctx.program_id);
+    let specs: Vec<AccountSpec<RentFreeAccountVariant>> = vec![AccountSpec::Pda(spec)];
 
-    let decompress_instructions = create_load_accounts_instructions(
-        &program_owned_accounts,
-        &[],
-        &[],
-        ctx.program_id,
+    let decompress_instructions = create_load_instructions(
+        &specs,
         ctx.payer.pubkey(),
         ctx.config_pda,
         ctx.payer.pubkey(),
         &ctx.rpc,
     )
     .await
-    .expect("create_load_accounts_instructions should succeed");
+    .expect("create_load_instructions should succeed");
 
     ctx.rpc
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])

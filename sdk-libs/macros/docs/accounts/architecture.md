@@ -93,7 +93,7 @@ Creates a compressed mint with automatic decompression.
     rent_payment = 2,                // Rent payment epochs (default: 2)
     write_top_up = 0                 // Write top-up lamports (default: 0)
 )]
-pub cmint: Account<'info, CMint>,
+pub mint: Account<'info, Mint>,
 ```
 
 #### `#[instruction(...)]` - Specify Instruction Parameters (Required)

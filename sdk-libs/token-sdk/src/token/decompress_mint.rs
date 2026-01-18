@@ -238,7 +238,7 @@ impl<'info> TryFrom<&DecompressMintCpi<'info>> for DecompressMint {
 /// along with PDAs and token accounts using a single proof.
 #[derive(Debug, Clone)]
 pub struct DecompressCMintWithCpiContext {
-    /// Mint seed pubkey (used to derive CMint PDA)
+    /// Mint seed pubkey (used to derive Mint PDA)
     pub mint_seed_pubkey: Pubkey,
     /// Fee payer
     pub payer: Pubkey,
@@ -270,8 +270,8 @@ pub struct DecompressCMintWithCpiContext {
 
 impl DecompressCMintWithCpiContext {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        // Derive CMint PDA
-        let (cmint_pda, _cmint_bump) = crate::token::find_mint_address(&self.mint_seed_pubkey);
+        // Derive Mint PDA
+        let (mint_pda, _cmint_bump) = crate::token::find_mint_address(&self.mint_seed_pubkey);
 
         // Build DecompressMintAction
         let action = DecompressMintAction {
@@ -287,7 +287,7 @@ impl DecompressCMintWithCpiContext {
         .with_decompress_mint(action)
         .with_cpi_context(self.cpi_context.clone());
 
-        // Build account metas with compressible CMint and CPI context
+        // Build account metas with compressible Mint and CPI context
         // Use provided config/rent_sponsor instead of hardcoded defaults
         let mut meta_config = MintActionMetaConfig::new(
             self.payer,
@@ -296,7 +296,7 @@ impl DecompressCMintWithCpiContext {
             self.input_queue,
             self.output_queue,
         )
-        .with_compressible_mint(cmint_pda, self.compressible_config, self.rent_sponsor);
+        .with_compressible_mint(mint_pda, self.compressible_config, self.rent_sponsor);
 
         meta_config.cpi_context = Some(self.cpi_context_pubkey);
 
@@ -316,14 +316,14 @@ impl DecompressCMintWithCpiContext {
 
 /// CPI struct for decompressing a mint with CPI context.
 pub struct DecompressCMintCpiWithContext<'info> {
-    /// Mint seed account (used to derive CMint PDA, does not sign)
+    /// Mint seed account (used to derive Mint PDA, does not sign)
     pub mint_seed: AccountInfo<'info>,
     /// Mint authority (must sign)
     pub authority: AccountInfo<'info>,
     /// Fee payer
     pub payer: AccountInfo<'info>,
-    /// CMint PDA account (writable)
-    pub cmint: AccountInfo<'info>,
+    /// Mint PDA account (writable)
+    pub mint: AccountInfo<'info>,
     /// CompressibleConfig account
     pub compressible_config: AccountInfo<'info>,
     /// Rent sponsor PDA account
@@ -392,7 +392,7 @@ impl<'info> DecompressCMintCpiWithContext<'info> {
             self.mint_seed.clone(),
             self.authority.clone(),
             self.compressible_config.clone(),
-            self.cmint.clone(),
+            self.mint.clone(),
             self.rent_sponsor.clone(),
             self.payer.clone(),
             // Use ctoken's CPI authority for the CPI, not the calling program's authority

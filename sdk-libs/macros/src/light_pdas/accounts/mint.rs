@@ -23,7 +23,7 @@ use super::parse::InfraFields;
 
 /// A field marked with #[light_account(init, mint, ...)]
 pub(super) struct LightMintField {
-    /// The field name where #[light_account(init)] is attached (CMint account)
+    /// The field name where #[light_account(init, mint, ...)] is attached (Mint account)
     pub field_ident: Ident,
     /// The mint_signer field (AccountInfo that seeds the mint PDA)
     pub mint_signer: Expr,

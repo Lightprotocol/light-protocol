@@ -1677,8 +1677,10 @@ dependencies = [
 name = "csdk-anchor-full-derived-test-sdk"
 version = "0.1.0"
 dependencies = [
+ "ahash",
  "anchor-lang",
  "csdk-anchor-full-derived-test",
+ "light-client",
  "light-compressible-client",
  "light-sdk",
  "light-token-sdk",

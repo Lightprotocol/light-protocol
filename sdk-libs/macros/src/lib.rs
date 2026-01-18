@@ -409,7 +409,7 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 /// pub struct CreateVault<'info> {
 ///     #[account(
 ///         mut,
-///         seeds = [b"vault", cmint.key().as_ref()],
+///         seeds = [b"vault", mint.key().as_ref()],
 ///         bump
 ///     )]
 ///     #[light_account(token, authority = [b"vault_authority"])]

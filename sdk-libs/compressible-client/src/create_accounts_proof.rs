@@ -43,7 +43,7 @@ pub enum CreateAccountsProofInput {
     Pda(Pubkey),
     /// PDA with explicit owner (for cross-program accounts)
     PdaWithOwner { pda: Pubkey, owner: Pubkey },
-    /// CMint (always uses LIGHT_TOKEN_PROGRAM_ID internally)
+    /// Mint (always uses LIGHT_TOKEN_PROGRAM_ID internally)
     Mint(Pubkey),
 }
 
@@ -60,7 +60,7 @@ impl CreateAccountsProofInput {
         Self::PdaWithOwner { pda, owner }
     }
 
-    /// Compressed mint (CMint).
+    /// Compressed mint (Mint).
     /// Address derived: `derive_mint_compressed_address(&mint_signer, &tree)`
     pub fn mint(mint_signer: Pubkey) -> Self {
         Self::Mint(mint_signer)

@@ -1,4 +1,4 @@
-//! Extension trait for unified hot/cold account interfaces.
+//! Extension trait for unified hot/cold account fetching.
 //!
 //! Blanket-implemented for `Rpc + Indexer`.
 
@@ -10,13 +10,10 @@ use light_client::{
 };
 use light_compressed_account::address::derive_address;
 use light_token_interface::{state::Mint, CMINT_ADDRESS_TREE};
-use light_token_sdk::token::{derive_mint_compressed_address, derive_token_ata, find_mint_address};
+use light_token_sdk::token::derive_token_ata;
 use solana_pubkey::Pubkey;
 
-use crate::{
-    AccountInfoInterface, AccountToFetch, AtaInterface, KeyedAccountInterface, MintInterface,
-    MintState, TokenAccountInterface,
-};
+use crate::{AccountInterface, AccountToFetch, MintInterface, MintState, TokenAccountInterface};
 
 fn indexer_err(e: impl std::fmt::Display) -> RpcError {
     RpcError::CustomError(format!("IndexerError: {}", e))
@@ -25,55 +22,52 @@ fn indexer_err(e: impl std::fmt::Display) -> RpcError {
 /// Extension trait for fetching unified hot/cold account interfaces.
 ///
 /// Blanket-implemented for all `Rpc + Indexer` types.
-/// TODO: move to server endpoint.
 #[async_trait]
 pub trait AccountInterfaceExt: Rpc + Indexer {
-    /// Fetch MintInterface for a mint signer.
-    async fn get_mint_interface(&self, signer: &Pubkey) -> Result<MintInterface, RpcError>;
+    /// Fetch MintInterface for a mint address.
+    async fn get_mint_interface(&self, address: &Pubkey) -> Result<MintInterface, RpcError>;
 
-    /// Fetch AccountInfoInterface for a rent-free PDA.
+    /// Fetch AccountInterface for a compressible PDA.
     async fn get_account_info_interface(
         &self,
         address: &Pubkey,
         program_id: &Pubkey,
-    ) -> Result<AccountInfoInterface, RpcError>;
+    ) -> Result<AccountInterface, RpcError>;
 
-    /// Fetch TokenAccountInterface for a token account address.
+    /// Fetch TokenAccountInterface for a program-owned token account.
     async fn get_token_account_interface(
         &self,
         address: &Pubkey,
     ) -> Result<TokenAccountInterface, RpcError>;
 
-    /// Fetch AtaInterface for an (owner, mint) pair.
+    /// Fetch TokenAccountInterface for an ATA (owner, mint) pair.
     async fn get_ata_interface(
         &self,
         owner: &Pubkey,
         mint: &Pubkey,
-    ) -> Result<AtaInterface, RpcError>;
+    ) -> Result<TokenAccountInterface, RpcError>;
 
     /// Fetch multiple accounts with automatic type dispatch.
-    ///
-    /// This is the primary method for fetching accounts returned by
-    /// `CompressibleProgram::get_accounts_to_update_typed()`.
-    /// Handles PDAs, tokens, and mints with the correct indexer endpoint.
     async fn get_multiple_account_interfaces(
         &self,
         accounts: &[AccountToFetch],
-    ) -> Result<Vec<KeyedAccountInterface>, RpcError>;
+    ) -> Result<Vec<AccountInterface>, RpcError>;
 }
 
 #[async_trait]
 impl<T: Rpc + Indexer> AccountInterfaceExt for T {
-    async fn get_mint_interface(&self, signer: &Pubkey) -> Result<MintInterface, RpcError> {
-        let (cmint, _) = find_mint_address(signer);
+    async fn get_mint_interface(&self, address: &Pubkey) -> Result<MintInterface, RpcError> {
         let address_tree = Pubkey::new_from_array(CMINT_ADDRESS_TREE);
-        let compressed_address = derive_mint_compressed_address(signer, &address_tree);
+        let compressed_address = derive_address(
+            &address.to_bytes(),
+            &address_tree.to_bytes(),
+            &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
+        );
 
         // On-chain first
-        if let Some(account) = self.get_account(cmint).await? {
+        if let Some(account) = self.get_account(*address).await? {
             return Ok(MintInterface {
-                cmint,
-                signer: *signer,
+                mint: *address,
                 address_tree,
                 compressed_address,
                 state: MintState::Hot { account },
@@ -91,8 +85,7 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
                 if !data.data.is_empty() {
                     if let Ok(mint_data) = Mint::try_from_slice(&data.data) {
                         return Ok(MintInterface {
-                            cmint,
-                            signer: *signer,
+                            mint: *address,
                             address_tree,
                             compressed_address,
                             state: MintState::Cold {
@@ -106,8 +99,7 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
         }
 
         Ok(MintInterface {
-            cmint,
-            signer: *signer,
+            mint: *address,
             address_tree,
             compressed_address,
             state: MintState::None,
@@ -118,7 +110,7 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
         &self,
         address: &Pubkey,
         program_id: &Pubkey,
-    ) -> Result<AccountInfoInterface, RpcError> {
+    ) -> Result<AccountInterface, RpcError> {
         let address_tree = self.get_address_tree_v2().tree;
         let compressed_address = derive_address(
             &address.to_bytes(),
@@ -128,7 +120,7 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
 
         // On-chain first
         if let Some(account) = self.get_account(*address).await? {
-            return Ok(AccountInfoInterface::hot(*address, account));
+            return Ok(AccountInterface::hot(*address, account));
         }
 
         // Compressed state
@@ -139,15 +131,11 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
 
         if let Some(compressed) = result.value {
             if compressed.data.as_ref().is_some_and(|d| !d.data.is_empty()) {
-                return Ok(AccountInfoInterface::cold(
-                    *address,
-                    compressed,
-                    *program_id,
-                ));
+                return Ok(AccountInterface::cold(*address, compressed, *program_id));
             }
         }
 
-        // Doesn't exist
+        // Doesn't exist - return empty hot account
         let account = solana_account::Account {
             lamports: 0,
             data: vec![],
@@ -155,7 +143,7 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
             executable: false,
             rent_epoch: 0,
         };
-        Ok(AccountInfoInterface::hot(*address, account))
+        Ok(AccountInterface::hot(*address, account))
     }
 
     async fn get_token_account_interface(
@@ -170,20 +158,18 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
                 .map_err(|e| RpcError::CustomError(format!("parse error: {}", e)));
         }
 
-        // Compressed state
+        // Compressed state - address is the owner for program-owned tokens
         let result = self
             .get_compressed_token_accounts_by_owner(address, None, None)
             .await
             .map_err(indexer_err)?;
 
         if let Some(compressed) = result.value.items.into_iter().next() {
-            let mint = compressed.token.mint;
+            // For program-owned tokens, owner = the PDA (same as token.owner)
             return Ok(TokenAccountInterface::cold(
                 *address,
                 compressed,
-                *address,
-                mint,
-                0,
+                *address, // owner_override = address (the PDA)
                 LIGHT_TOKEN_PROGRAM_ID.into(),
             ));
         }
@@ -198,19 +184,18 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
         &self,
         owner: &Pubkey,
         mint: &Pubkey,
-    ) -> Result<AtaInterface, RpcError> {
+    ) -> Result<TokenAccountInterface, RpcError> {
         use light_sdk::constants::LIGHT_TOKEN_PROGRAM_ID;
 
-        let (ata, bump) = derive_token_ata(owner, mint);
+        let (ata, _bump) = derive_token_ata(owner, mint);
 
         // On-chain first
         if let Some(account) = self.get_account(ata).await? {
-            let inner = TokenAccountInterface::hot(ata, account)
-                .map_err(|e| RpcError::CustomError(format!("parse error: {}", e)))?;
-            return Ok(AtaInterface::new(inner));
+            return TokenAccountInterface::hot(ata, account)
+                .map_err(|e| RpcError::CustomError(format!("parse error: {}", e)));
         }
 
-        // Compressed state
+        // Compressed state - for ATAs, query by the ATA address as owner
         let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions::new(
             Some(*mint),
         ));
@@ -220,15 +205,12 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
             .map_err(indexer_err)?;
 
         if let Some(compressed) = result.value.items.into_iter().next() {
-            let inner = TokenAccountInterface::cold(
+            return Ok(TokenAccountInterface::cold(
                 ata,
                 compressed,
-                *owner,
-                *mint,
-                bump,
+                *owner, // owner_override = wallet owner
                 LIGHT_TOKEN_PROGRAM_ID.into(),
-            );
-            return Ok(AtaInterface::new(inner));
+            ));
         }
 
         Err(RpcError::CustomError(format!(
@@ -240,28 +222,53 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
     async fn get_multiple_account_interfaces(
         &self,
         accounts: &[AccountToFetch],
-    ) -> Result<Vec<KeyedAccountInterface>, RpcError> {
+    ) -> Result<Vec<AccountInterface>, RpcError> {
+        // TODO: parallelize with futures::join_all
         let mut result = Vec::with_capacity(accounts.len());
 
         for account in accounts {
-            let keyed = match account {
+            let iface = match account {
                 AccountToFetch::Pda {
                     address,
                     program_id,
-                } => {
-                    let iface = self.get_account_info_interface(address, program_id).await?;
-                    KeyedAccountInterface::from_pda_interface(iface)
-                }
+                } => self.get_account_info_interface(address, program_id).await?,
                 AccountToFetch::Token { address } => {
-                    let iface = self.get_token_account_interface(address).await?;
-                    KeyedAccountInterface::from_token_interface(iface)
+                    let token_iface = self.get_token_account_interface(address).await?;
+                    AccountInterface {
+                        key: token_iface.key,
+                        account: token_iface.account,
+                        cold: token_iface.cold,
+                    }
                 }
-                AccountToFetch::Mint { signer } => {
-                    let iface = self.get_mint_interface(signer).await?;
-                    KeyedAccountInterface::from_mint_interface(iface)
+                AccountToFetch::Ata { wallet_owner, mint } => {
+                    let token_iface = self.get_ata_interface(wallet_owner, mint).await?;
+                    AccountInterface {
+                        key: token_iface.key,
+                        account: token_iface.account,
+                        cold: token_iface.cold,
+                    }
+                }
+                AccountToFetch::Mint { address } => {
+                    let mint_iface = self.get_mint_interface(address).await?;
+                    match mint_iface.state {
+                        MintState::Hot { account } => AccountInterface {
+                            key: mint_iface.mint,
+                            account,
+                            cold: None,
+                        },
+                        MintState::Cold { compressed, .. } => {
+                            let owner = compressed.owner;
+                            AccountInterface::cold(mint_iface.mint, compressed, owner)
+                        }
+                        MintState::None => AccountInterface {
+                            key: mint_iface.mint,
+                            account: Default::default(),
+                            cold: None,
+                        },
+                    }
                 }
             };
-            result.push(keyed);
+            result.push(iface);
         }
 
         Ok(result)

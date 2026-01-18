@@ -2,64 +2,62 @@
 //!
 //! Implements the `CompressibleProgram` trait to provide a Jupiter-style
 //! interface for clients to build decompression instructions.
-//!
-//! # Usage
-//!
-//! ```ignore
-//! use csdk_anchor_full_derived_test_sdk::{AmmSdk, AmmOperation};
-//! use light_compressible_client::{AccountInterfaceExt, KeyedAccountInterface};
-//!
-//! // 1. Fetch pool state interface
-//! let pool_interface = rpc.get_account_info_interface(&pool_pubkey, &program_id).await?;
-//! let keyed = KeyedAccountInterface::from_pda_interface(pool_interface);
-//!
-//! // 2. Create SDK from pool state
-//! let mut sdk = AmmSdk::from_keyed_accounts(&[keyed])?;
-//!
-//! // 3. Get accounts needed for Deposit
-//! let to_fetch = sdk.get_accounts_to_update_typed(&AmmOperation::Deposit);
-//!
-//! // 4. Fetch all accounts (unified method)
-//! let keyed_accounts = rpc.get_multiple_account_interfaces(&to_fetch).await?;
-//! sdk.update(&keyed_accounts)?;
-//!
-//! // 5. Get specs for decompression
-//! let specs = sdk.get_specs_for_operation(&AmmOperation::Deposit);
-//! ```
 
 use std::collections::HashMap;
 
 use anchor_lang::AnchorDeserialize;
+use csdk_anchor_full_derived_test::{
+    amm_test::{ObservationState, PoolState, AUTH_SEED, POOL_LP_MINT_SIGNER_SEED},
+    csdk_anchor_full_derived_test::{
+        ObservationStateSeeds, PoolStateSeeds, RentFreeAccountVariant, TokenAccountVariant,
+    },
+};
 use light_compressible_client::{
-    AccountToFetch, AllSpecs, AtaSpec, CompressibleProgram, KeyedAccountInterface, MintSpec,
-    ProgramOwnedSpec,
+    AccountInterface, AccountSpec, AccountToFetch, ColdContext, CompressibleProgram, PdaSpec,
 };
 use light_sdk::LightDiscriminator;
 use solana_pubkey::Pubkey;
 
-// Import types from the program crate
-use csdk_anchor_full_derived_test::amm_test::{
-    ObservationState, PoolState, AUTH_SEED, POOL_LP_MINT_SIGNER_SEED,
-};
-use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
-    ObservationStateSeeds, PoolStateSeeds, RentFreeAccountVariant, TokenAccountVariant,
-};
-
 /// Program ID for the AMM test program.
 pub const PROGRAM_ID: Pubkey = csdk_anchor_full_derived_test::ID;
 
+/// Map of account pubkeys to program-owned specs.
+pub type PdaSpecMap = HashMap<Pubkey, PdaSpec<RentFreeAccountVariant>, ahash::RandomState>;
+
+/// Map of account pubkeys to mint interfaces.
+pub type MintInterfaceMap = HashMap<Pubkey, AccountInterface, ahash::RandomState>;
+
 // =============================================================================
-// OPERATION ENUM
+// ACCOUNT KIND
 // =============================================================================
 
-/// AMM operations that may require loading cold accounts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AmmOperation {
-    /// Swap tokens - requires vaults
+pub enum AccountKind {
+    Pda,
+    Token,
+    Mint,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AccountRequirement {
+    pub pubkey: Option<Pubkey>,
+    pub kind: AccountKind,
+}
+
+impl AccountRequirement {
+    fn new(pubkey: Option<Pubkey>, kind: AccountKind) -> Self {
+        Self { pubkey, kind }
+    }
+}
+
+// =============================================================================
+// PROGRAM INSTRUCTION ENUM
+// =============================================================================
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AmmInstruction {
     Swap,
-    /// Deposit liquidity - requires vaults + LP mint
     Deposit,
-    /// Withdraw liquidity - requires vaults + LP mint
     Withdraw,
 }
 
@@ -67,16 +65,11 @@ pub enum AmmOperation {
 // ERROR TYPE
 // =============================================================================
 
-/// Errors that can occur in AMM SDK operations.
 #[derive(Debug, Clone)]
 pub enum AmmSdkError {
-    /// Failed to parse account data
     ParseError(String),
-    /// Unknown account discriminator
     UnknownDiscriminator([u8; 8]),
-    /// Missing required field
     MissingField(&'static str),
-    /// Pool state not yet parsed
     PoolStateNotParsed,
 }
 
@@ -97,13 +90,8 @@ impl std::error::Error for AmmSdkError {}
 // AMM SDK
 // =============================================================================
 
-/// Client SDK for the AMM program.
-///
-/// Caches parsed account data and specs for building decompression instructions.
-/// Initialize from pool state, then update with additional accounts as needed.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct AmmSdk {
-    // === EXTRACTED FROM POOLSTATE ===
     pool_state_pubkey: Option<Pubkey>,
     amm_config: Option<Pubkey>,
     token_0_mint: Option<Pubkey>,
@@ -112,48 +100,54 @@ pub struct AmmSdk {
     token_1_vault: Option<Pubkey>,
     lp_mint: Option<Pubkey>,
     observation_key: Option<Pubkey>,
-
-    // === DERIVED PDAS ===
     authority: Option<Pubkey>,
     lp_mint_signer: Option<Pubkey>,
+    program_owned_specs: PdaSpecMap,
+    mint_specs: MintInterfaceMap,
+}
 
-    // === SPECS CACHE ===
-    program_owned_specs: HashMap<Pubkey, ProgramOwnedSpec<RentFreeAccountVariant>>,
-    ata_specs: HashMap<Pubkey, AtaSpec>,
-    mint_specs: HashMap<Pubkey, MintSpec>,
+impl Default for AmmSdk {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AmmSdk {
-    /// Create a new empty SDK instance.
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            pool_state_pubkey: None,
+            amm_config: None,
+            token_0_mint: None,
+            token_1_mint: None,
+            token_0_vault: None,
+            token_1_vault: None,
+            lp_mint: None,
+            observation_key: None,
+            authority: None,
+            lp_mint_signer: None,
+            program_owned_specs: HashMap::with_hasher(ahash::RandomState::new()),
+            mint_specs: HashMap::with_hasher(ahash::RandomState::new()),
+        }
     }
 
-    /// Get the pool state pubkey if parsed.
     pub fn pool_state_pubkey(&self) -> Option<Pubkey> {
         self.pool_state_pubkey
     }
 
-    /// Get the LP mint pubkey if available.
     pub fn lp_mint(&self) -> Option<Pubkey> {
         self.lp_mint
     }
 
-    /// Get the LP mint signer pubkey if derived.
     pub fn lp_mint_signer(&self) -> Option<Pubkey> {
         self.lp_mint_signer
     }
 
-    /// Parse PoolState and extract all relevant pubkeys.
-    fn parse_pool_state(&mut self, account: &KeyedAccountInterface) -> Result<(), AmmSdkError> {
-        // Deserialize PoolState
-        let pool = PoolState::deserialize(&mut &account.data[8..])
+    fn parse_pool_state(&mut self, account: &AccountInterface) -> Result<(), AmmSdkError> {
+        let pool = PoolState::deserialize(&mut &account.data()[8..])
             .map_err(|e| AmmSdkError::ParseError(e.to_string()))?;
 
-        // Store pool pubkey
-        self.pool_state_pubkey = Some(account.pubkey);
+        self.pool_state_pubkey = Some(account.key);
 
-        // Extract all pubkeys directly from PoolState fields
         self.amm_config = Some(pool.amm_config);
         self.token_0_mint = Some(pool.token_0_mint);
         self.token_1_mint = Some(pool.token_1_mint);
@@ -162,18 +156,15 @@ impl AmmSdk {
         self.lp_mint = Some(pool.lp_mint);
         self.observation_key = Some(pool.observation_key);
 
-        // Derive authority PDA
         let (authority, _) = Pubkey::find_program_address(&[AUTH_SEED.as_bytes()], &PROGRAM_ID);
         self.authority = Some(authority);
 
-        // Derive lp_mint_signer PDA
         let (lp_mint_signer, _) = Pubkey::find_program_address(
-            &[POOL_LP_MINT_SIGNER_SEED, account.pubkey.as_ref()],
+            &[POOL_LP_MINT_SIGNER_SEED, account.key.as_ref()],
             &PROGRAM_ID,
         );
         self.lp_mint_signer = Some(lp_mint_signer);
 
-        // Build PoolState spec with seed values
         let variant = RentFreeAccountVariant::PoolState {
             data: pool,
             amm_config: self.amm_config.unwrap(),
@@ -181,31 +172,18 @@ impl AmmSdk {
             token_1_mint: self.token_1_mint.unwrap(),
         };
 
-        let spec = if account.is_cold {
-            let context = account
-                .pda_context()
-                .ok_or(AmmSdkError::MissingField("pda_context"))?
-                .clone();
-            ProgramOwnedSpec::cold(account.pubkey, variant, context)
-        } else {
-            ProgramOwnedSpec::hot(account.pubkey, variant)
-        };
-
-        self.program_owned_specs.insert(account.pubkey, spec);
+        let spec = PdaSpec::new(account.clone(), variant, PROGRAM_ID);
+        self.program_owned_specs.insert(account.key, spec);
 
         Ok(())
     }
 
-    /// Parse ObservationState and build spec.
-    fn parse_observation_state(
-        &mut self,
-        account: &KeyedAccountInterface,
-    ) -> Result<(), AmmSdkError> {
+    fn parse_observation_state(&mut self, account: &AccountInterface) -> Result<(), AmmSdkError> {
         let pool_state = self
             .pool_state_pubkey
             .ok_or(AmmSdkError::PoolStateNotParsed)?;
 
-        let observation = ObservationState::deserialize(&mut &account.data[8..])
+        let observation = ObservationState::deserialize(&mut &account.data()[8..])
             .map_err(|e| AmmSdkError::ParseError(e.to_string()))?;
 
         let variant = RentFreeAccountVariant::ObservationState {
@@ -213,25 +191,15 @@ impl AmmSdk {
             pool_state,
         };
 
-        let spec = if account.is_cold {
-            let context = account
-                .pda_context()
-                .ok_or(AmmSdkError::MissingField("pda_context"))?
-                .clone();
-            ProgramOwnedSpec::cold(account.pubkey, variant, context)
-        } else {
-            ProgramOwnedSpec::hot(account.pubkey, variant)
-        };
-
-        self.program_owned_specs.insert(account.pubkey, spec);
+        let spec = PdaSpec::new(account.clone(), variant, PROGRAM_ID);
+        self.program_owned_specs.insert(account.key, spec);
 
         Ok(())
     }
 
-    /// Parse token vault and build spec.
     fn parse_token_vault(
         &mut self,
-        account: &KeyedAccountInterface,
+        account: &AccountInterface,
         is_vault_0: bool,
     ) -> Result<(), AmmSdkError> {
         use light_token_sdk::compat::TokenData;
@@ -240,8 +208,7 @@ impl AmmSdk {
             .pool_state_pubkey
             .ok_or(AmmSdkError::PoolStateNotParsed)?;
 
-        // Parse TokenData from compressed account data
-        let token_data = TokenData::deserialize(&mut &account.data[..])
+        let token_data = TokenData::deserialize(&mut &account.data()[..])
             .map_err(|e| AmmSdkError::ParseError(e.to_string()))?;
 
         let variant = if is_vault_0 {
@@ -268,34 +235,40 @@ impl AmmSdk {
             })
         };
 
-        let spec = if account.is_cold {
-            let context = account
-                .pda_context()
-                .ok_or(AmmSdkError::MissingField("pda_context"))?
-                .clone();
-            ProgramOwnedSpec::cold(account.pubkey, variant, context)
+        // For token vaults, convert ColdContext::Token to ColdContext::Account
+        // because they're decompressed as PDAs, not as token accounts
+        let interface = if account.is_cold() {
+            let compressed_account = match &account.cold {
+                Some(ColdContext::Token(ct)) => ct.account.clone(),
+                Some(ColdContext::Account(ca)) => ca.clone(),
+                None => return Err(AmmSdkError::MissingField("cold_context")),
+            };
+            AccountInterface {
+                key: account.key,
+                account: account.account.clone(), // Keep original owner (SPL Token)
+                cold: Some(ColdContext::Account(compressed_account)),
+            }
         } else {
-            ProgramOwnedSpec::hot(account.pubkey, variant)
+            account.clone()
         };
 
-        self.program_owned_specs.insert(account.pubkey, spec);
+        // Decompression goes to PROGRAM_ID (AMM), not interface.account.owner (SPL/Light Token)
+        let spec = PdaSpec::new(interface, variant, PROGRAM_ID);
+        self.program_owned_specs.insert(account.key, spec);
 
         Ok(())
     }
 
-    /// Parse an account based on its discriminator or known pubkey.
-    fn parse_account(&mut self, account: &KeyedAccountInterface) -> Result<(), AmmSdkError> {
-        // Check if this is a known vault by pubkey
-        if Some(account.pubkey) == self.token_0_vault {
+    fn parse_account(&mut self, account: &AccountInterface) -> Result<(), AmmSdkError> {
+        if Some(account.key) == self.token_0_vault {
             return self.parse_token_vault(account, true);
         }
-        if Some(account.pubkey) == self.token_1_vault {
+        if Some(account.key) == self.token_1_vault {
             return self.parse_token_vault(account, false);
         }
 
-        // Try to identify by discriminator
-        if account.data.len() >= 8 {
-            let disc: [u8; 8] = account.data[..8].try_into().unwrap();
+        if account.data().len() >= 8 {
+            let disc: [u8; 8] = account.data()[..8].try_into().unwrap();
 
             if disc == PoolState::LIGHT_DISCRIMINATOR {
                 return self.parse_pool_state(account);
@@ -305,11 +278,24 @@ impl AmmSdk {
             }
         }
 
-        // Unknown account - skip silently (might be LP mint or other)
+        // Check if this is an LP mint by matching the signer
+        if let Some(lp_mint_signer) = self.lp_mint_signer {
+            if let Some(mint_signer) = account.mint_signer() {
+                if Pubkey::new_from_array(mint_signer) == lp_mint_signer {
+                    return self.parse_mint(account);
+                }
+            }
+        }
+
         Ok(())
     }
 
-    /// Derive the compressed address for the LP mint.
+    fn parse_mint(&mut self, account: &AccountInterface) -> Result<(), AmmSdkError> {
+        // Store AccountInterface directly - mints are just accounts with special data
+        self.mint_specs.insert(account.key, account.clone());
+        Ok(())
+    }
+
     pub fn derive_lp_mint_compressed_address(&self, address_tree: &Pubkey) -> Option<[u8; 32]> {
         self.lp_mint_signer.map(|signer| {
             light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
@@ -317,6 +303,28 @@ impl AmmSdk {
                 address_tree,
             )
         })
+    }
+
+    fn account_requirements(&self, ix: &AmmInstruction) -> Vec<AccountRequirement> {
+        match ix {
+            AmmInstruction::Swap => {
+                vec![
+                    AccountRequirement::new(self.pool_state_pubkey, AccountKind::Pda),
+                    AccountRequirement::new(self.token_0_vault, AccountKind::Token),
+                    AccountRequirement::new(self.token_1_vault, AccountKind::Token),
+                    AccountRequirement::new(self.observation_key, AccountKind::Pda),
+                ]
+            }
+            AmmInstruction::Deposit | AmmInstruction::Withdraw => {
+                vec![
+                    AccountRequirement::new(self.pool_state_pubkey, AccountKind::Pda),
+                    AccountRequirement::new(self.token_0_vault, AccountKind::Token),
+                    AccountRequirement::new(self.token_1_vault, AccountKind::Token),
+                    AccountRequirement::new(self.observation_key, AccountKind::Pda),
+                    AccountRequirement::new(self.lp_mint, AccountKind::Mint),
+                ]
+            }
+        }
     }
 }
 
@@ -326,172 +334,100 @@ impl AmmSdk {
 
 impl CompressibleProgram for AmmSdk {
     type Variant = RentFreeAccountVariant;
-    type Operation = AmmOperation;
+    type Instruction = AmmInstruction;
     type Error = AmmSdkError;
 
-    fn from_keyed_accounts(
-        accounts: &[KeyedAccountInterface],
-    ) -> std::result::Result<Self, Self::Error> {
+    fn program_id(&self) -> Pubkey {
+        PROGRAM_ID
+    }
+
+    fn from_keyed_accounts(accounts: &[AccountInterface]) -> Result<Self, Self::Error> {
         let mut sdk = Self::new();
 
         for account in accounts {
-            // Try to parse as pool state first (our root account)
-            if account.data.len() >= 8 {
-                let disc: [u8; 8] = account.data[..8].try_into().unwrap();
+            if account.data().len() >= 8 {
+                let disc: [u8; 8] = account.data()[..8].try_into().unwrap();
                 if disc == PoolState::LIGHT_DISCRIMINATOR {
                     sdk.parse_pool_state(account)?;
                 } else {
                     sdk.parse_account(account)?;
                 }
+            } else {
+                return Err(AmmSdkError::UnknownDiscriminator([0; 8]));
             }
         }
 
         Ok(sdk)
     }
 
-    fn get_accounts_to_update(&self, op: &Self::Operation) -> Vec<Pubkey> {
-        match op {
-            AmmOperation::Swap => {
-                // Swap needs: vaults
-                vec![self.token_0_vault, self.token_1_vault]
-                    .into_iter()
-                    .flatten()
-                    .collect()
-            }
-            AmmOperation::Deposit | AmmOperation::Withdraw => {
-                // Deposit/Withdraw needs: vaults + observation + lp_mint
-                vec![
-                    self.token_0_vault,
-                    self.token_1_vault,
-                    self.observation_key,
-                    self.lp_mint,
-                ]
-                .into_iter()
-                .flatten()
-                .collect()
-            }
-        }
+    fn get_accounts_to_update(&self, ix: &Self::Instruction) -> Vec<AccountToFetch> {
+        self.account_requirements(ix)
+            .into_iter()
+            .filter_map(|req| {
+                req.pubkey.map(|pubkey| match req.kind {
+                    AccountKind::Pda => AccountToFetch::pda(pubkey, PROGRAM_ID),
+                    AccountKind::Token => AccountToFetch::token(pubkey),
+                    AccountKind::Mint => AccountToFetch::mint(pubkey),
+                })
+            })
+            .collect()
     }
 
-    fn update(
-        &mut self,
-        accounts: &[KeyedAccountInterface],
-    ) -> std::result::Result<(), Self::Error> {
+    fn update(&mut self, accounts: &[AccountInterface]) -> Result<(), Self::Error> {
         for account in accounts {
             self.parse_account(account)?;
         }
         Ok(())
     }
 
-    fn get_all_specs(&self) -> AllSpecs<Self::Variant> {
-        AllSpecs {
-            program_owned: self.program_owned_specs.values().cloned().collect(),
-            atas: self.ata_specs.values().cloned().collect(),
-            mints: self.mint_specs.values().cloned().collect(),
-        }
+    fn get_all_specs(&self) -> Vec<AccountSpec<Self::Variant>> {
+        let mut specs = Vec::new();
+        specs.extend(
+            self.program_owned_specs
+                .values()
+                .cloned()
+                .map(AccountSpec::Pda),
+        );
+        specs.extend(self.mint_specs.values().cloned().map(AccountSpec::Mint));
+        specs
     }
 
-    fn get_specs_for_operation(&self, op: &Self::Operation) -> AllSpecs<Self::Variant> {
-        let keys: Vec<Pubkey> = match op {
-            AmmOperation::Swap => {
-                vec![
-                    self.pool_state_pubkey,
-                    self.token_0_vault,
-                    self.token_1_vault,
-                ]
-            }
-            AmmOperation::Deposit | AmmOperation::Withdraw => {
-                vec![
-                    self.pool_state_pubkey,
-                    self.token_0_vault,
-                    self.token_1_vault,
-                    self.observation_key,
-                ]
+    fn get_specs_for_instruction(&self, ix: &Self::Instruction) -> Vec<AccountSpec<Self::Variant>> {
+        let requirements = self.account_requirements(ix);
+        let mut specs = Vec::new();
+
+        for req in &requirements {
+            match req.kind {
+                AccountKind::Pda | AccountKind::Token => {
+                    if let Some(pubkey) = req.pubkey {
+                        if let Some(spec) = self.program_owned_specs.get(&pubkey) {
+                            specs.push(AccountSpec::Pda(spec.clone()));
+                        }
+                    }
+                }
+                AccountKind::Mint => {
+                    if let Some(mint_pubkey) = req.pubkey {
+                        if let Some(spec) = self.mint_specs.get(&mint_pubkey) {
+                            specs.push(AccountSpec::Mint(spec.clone()));
+                        }
+                    }
+                }
             }
         }
-        .into_iter()
-        .flatten()
-        .collect();
 
-        let program_owned = keys
-            .iter()
-            .filter_map(|k| self.program_owned_specs.get(k).cloned())
-            .collect();
-
-        // For Deposit/Withdraw, include LP mint spec if available
-        let mints = match op {
-            AmmOperation::Deposit | AmmOperation::Withdraw => self
-                .lp_mint
-                .and_then(|m| self.mint_specs.get(&m).cloned())
-                .into_iter()
-                .collect(),
-            _ => Vec::new(),
-        };
-
-        AllSpecs {
-            program_owned,
-            atas: self.ata_specs.values().cloned().collect(),
-            mints,
-        }
+        specs
     }
 }
 
 // =============================================================================
-// ACCOUNT FETCH HELPERS
+// HELPERS
 // =============================================================================
 
 impl AmmSdk {
-    /// Get accounts to update with fetch descriptors.
-    ///
-    /// Returns `AccountToFetch` descriptors that can be passed directly to
-    /// `rpc.get_multiple_account_interfaces()`. No type switching needed by caller.
-    pub fn get_accounts_to_update_typed(&self, op: &AmmOperation) -> Vec<AccountToFetch> {
-        let mut accounts = Vec::new();
-
-        // Pool state is a PDA
-        if let Some(address) = self.pool_state_pubkey {
-            accounts.push(AccountToFetch::pda(address, PROGRAM_ID));
-        }
-
-        // Vaults are token accounts
-        if let Some(address) = self.token_0_vault {
-            accounts.push(AccountToFetch::token(address));
-        }
-        if let Some(address) = self.token_1_vault {
-            accounts.push(AccountToFetch::token(address));
-        }
-
-        // Observation is a PDA, needed for Deposit/Withdraw
-        if matches!(op, AmmOperation::Deposit | AmmOperation::Withdraw) {
-            if let Some(address) = self.observation_key {
-                accounts.push(AccountToFetch::pda(address, PROGRAM_ID));
-            }
-        }
-
-        // LP mint is needed for Deposit/Withdraw
-        if matches!(op, AmmOperation::Deposit | AmmOperation::Withdraw) {
-            if let Some(signer) = self.lp_mint_signer {
-                accounts.push(AccountToFetch::mint(signer));
-            }
-        }
-
-        accounts
-    }
-
-    /// Get the program ID for this AMM.
     pub fn program_id(&self) -> Pubkey {
         PROGRAM_ID
     }
-}
 
-// =============================================================================
-// HELPER FUNCTIONS FOR SEED CONSTRUCTION
-// =============================================================================
-
-impl AmmSdk {
-    /// Create PoolStateSeeds from cached values.
-    ///
-    /// Useful when manually building `RentFreeDecompressAccount` without the trait.
     pub fn pool_state_seeds(&self) -> Result<PoolStateSeeds, AmmSdkError> {
         Ok(PoolStateSeeds {
             amm_config: self
@@ -506,7 +442,6 @@ impl AmmSdk {
         })
     }
 
-    /// Create ObservationStateSeeds from cached values.
     pub fn observation_state_seeds(&self) -> Result<ObservationStateSeeds, AmmSdkError> {
         Ok(ObservationStateSeeds {
             pool_state: self
@@ -515,7 +450,6 @@ impl AmmSdk {
         })
     }
 
-    /// Create Token0Vault variant from cached values.
     pub fn token_0_vault_variant(&self) -> Result<TokenAccountVariant, AmmSdkError> {
         Ok(TokenAccountVariant::Token0Vault {
             pool_state: self
@@ -527,7 +461,6 @@ impl AmmSdk {
         })
     }
 
-    /// Create Token1Vault variant from cached values.
     pub fn token_1_vault_variant(&self) -> Result<TokenAccountVariant, AmmSdkError> {
         Ok(TokenAccountVariant::Token1Vault {
             pool_state: self
