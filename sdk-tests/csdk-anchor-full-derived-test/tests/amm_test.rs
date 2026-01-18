@@ -29,8 +29,11 @@ use light_program_test::{
     Indexer, ProgramTestConfig, Rpc,
 };
 use light_token_interface::state::Token;
+use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
+use light_token_interface::instructions::mint_action::MintInstructionData;
 use light_token_sdk::token::{
-    find_mint_address, get_associated_token_address_and_bump, COMPRESSIBLE_CONFIG_V1,
+    find_mint_address, get_associated_token_address_and_bump, CreateAssociatedTokenAccount,
+    Decompress, DecompressMint, MintWithContext, COMPRESSIBLE_CONFIG_V1,
     LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
 };
 use solana_instruction::Instruction;
@@ -676,56 +679,189 @@ async fn test_amm_full_lifecycle() {
             },
         )
         .expect("PoolState seed verification failed"),
-        // RentFreeDecompressAccount::from_seeds(
-        //     AccountInterface::from(&observation_interface),
-        //     ObservationStateSeeds {
-        //         pool_state: pdas.pool_state,
-        //     },
-        // )
-        // .expect("ObservationState seed verification failed"),
-        // RentFreeDecompressAccount::from_ctoken(
-        //     AccountInterface::from(&vault_0_interface),
-        //     TokenAccountVariant::Token0Vault {
-        //         pool_state: pdas.pool_state,
-        //         token_0_mint: ctx.token_0_mint,
-        //     },
-        // )
-        // .expect("Token0Vault construction failed"),
-        // RentFreeDecompressAccount::from_ctoken(
-        //     AccountInterface::from(&vault_1_interface),
-        //     TokenAccountVariant::Token1Vault {
-        //         pool_state: pdas.pool_state,
-        //         token_1_mint: ctx.token_1_mint,
-        //     },
-        // )
-        // .expect("Token1Vault construction failed"),
+        RentFreeDecompressAccount::from_seeds(
+            AccountInterface::from(&observation_interface),
+            ObservationStateSeeds {
+                pool_state: pdas.pool_state,
+            },
+        )
+        .expect("ObservationState seed verification failed"),
+        RentFreeDecompressAccount::from_ctoken(
+            AccountInterface::from(&vault_0_interface),
+            TokenAccountVariant::Token0Vault {
+                pool_state: pdas.pool_state,
+                token_0_mint: ctx.token_0_mint,
+            },
+        )
+        .expect("Token0Vault construction failed"),
+        RentFreeDecompressAccount::from_ctoken(
+            AccountInterface::from(&vault_1_interface),
+            TokenAccountVariant::Token1Vault {
+                pool_state: pdas.pool_state,
+                token_1_mint: ctx.token_1_mint,
+            },
+        )
+        .expect("Token1Vault construction failed"),
     ];
-
-    // Create decompression instructions
-    let all_instructions = create_load_accounts_instructions(
-        &program_owned_accounts,
-        &[], //std::slice::from_ref(&creator_lp_interface.inner), TODO decompress directly from ctoken program
-        &[], // std::slice::from_ref(&lp_mint_interface), TODO decompress directly from ctoken program
-        ctx.program_id,
-        ctx.payer.pubkey(),
-        ctx.config_pda,
-        ctx.payer.pubkey(), // rent_sponsor
-        &ctx.rpc,
-    )
-    .await
-    .expect("create_load_accounts_instructions should succeed");
-
-    println!(
-        "  Generated {} decompression instructions",
-        all_instructions.len()
-    );
-
-    // Execute decompression
-    // Note: creator must sign because they own the LP token ATA being decompressed
-    ctx.rpc
-        .create_and_send_transaction(&all_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
+    for account in program_owned_accounts {
+        // Create decompression instructions
+        let all_instructions = create_load_accounts_instructions(
+            &[account],
+            &[], //std::slice::from_ref(&creator_lp_interface.inner), TODO decompress directly from ctoken program
+            &[], // std::slice::from_ref(&lp_mint_interface), TODO decompress directly from ctoken program
+            ctx.program_id,
+            ctx.payer.pubkey(),
+            ctx.config_pda,
+            ctx.payer.pubkey(), // rent_sponsor
+            &ctx.rpc,
+        )
         .await
-        .expect("Decompression should succeed");
+        .expect("create_load_accounts_instructions should succeed");
+
+        println!(
+            "  Generated {} decompression instructions",
+            all_instructions.len()
+        );
+
+        // Execute decompression
+        ctx.rpc
+            .create_and_send_transaction(&all_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
+            .await
+            .expect("Decompression should succeed");
+    }
+
+    // Decompress LP mint manually
+    if lp_mint_interface.is_cold() {
+        println!("  Decompressing LP mint...");
+        let (compressed, mint_data) = lp_mint_interface
+            .compressed()
+            .expect("LP mint should have compressed data");
+
+        // Get validity proof for the mint
+        let proof_result = ctx
+            .rpc
+            .get_validity_proof(vec![compressed.hash], vec![], None)
+            .await
+            .expect("get_validity_proof should succeed")
+            .value;
+
+        let account_info = &proof_result.accounts[0];
+        let state_tree = account_info.tree_info.tree;
+        let input_queue = account_info.tree_info.queue;
+        let output_queue = account_info
+            .tree_info
+            .next_tree_info
+            .as_ref()
+            .map(|n| n.queue)
+            .unwrap_or(input_queue);
+
+        let mint_instruction_data = MintInstructionData::try_from(mint_data.clone())
+            .expect("MintInstructionData conversion should succeed");
+
+        let decompress_mint_ix = DecompressMint {
+            payer: ctx.payer.pubkey(),
+            authority: ctx.payer.pubkey(),
+            state_tree,
+            input_queue,
+            output_queue,
+            compressed_mint_with_context: MintWithContext {
+                leaf_index: account_info.leaf_index as u32,
+                prove_by_index: account_info.root_index.proof_by_index(),
+                root_index: account_info.root_index.root_index().unwrap_or_default(),
+                address: lp_mint_interface.compressed_address,
+                mint: Some(mint_instruction_data),
+            },
+            proof: ValidityProof(proof_result.proof.into()),
+            rent_payment: 2,
+            write_top_up: 766,
+        }
+        .instruction()
+        .expect("DecompressMint instruction should succeed");
+
+        ctx.rpc
+            .create_and_send_transaction(&[decompress_mint_ix], &ctx.payer.pubkey(), &[&ctx.payer])
+            .await
+            .expect("LP mint decompression should succeed");
+    }
+
+    // Decompress creator LP token ATA manually
+    if creator_lp_interface.is_cold() {
+        println!("  Decompressing creator LP token ATA...");
+
+        // First create the ATA (idempotent)
+        let create_ata_ix =
+            CreateAssociatedTokenAccount::new(ctx.payer.pubkey(), ctx.creator.pubkey(), pdas.lp_mint)
+                .idempotent()
+                .instruction()
+                .expect("CreateAssociatedTokenAccount instruction should succeed");
+
+        ctx.rpc
+            .create_and_send_transaction(&[create_ata_ix], &ctx.payer.pubkey(), &[&ctx.payer])
+            .await
+            .expect("Create ATA should succeed");
+
+        // Get the compressed token account data
+        let load_context = creator_lp_interface
+            .inner
+            .load_context
+            .as_ref()
+            .expect("ATA should have load_context");
+        let compressed = &load_context.compressed;
+
+        // Get validity proof
+        let proof_result = ctx
+            .rpc
+            .get_validity_proof(vec![compressed.account.hash], vec![], None)
+            .await
+            .expect("get_validity_proof should succeed")
+            .value;
+
+        let account_info = &proof_result.accounts[0];
+
+        // Build TokenData from the compressed token account
+        use light_token_sdk::compat::TokenData;
+        let token_data = TokenData {
+            mint: compressed.token.mint,
+            owner: compressed.token.owner,
+            amount: compressed.token.amount,
+            delegate: compressed.token.delegate,
+            state: compressed.token.state,
+            tlv: compressed.token.tlv.clone(),
+        };
+
+        // Get discriminator from compressed account data
+        let discriminator = compressed
+            .account
+            .data
+            .as_ref()
+            .map(|d| d.discriminator)
+            .unwrap_or([0, 0, 0, 0, 0, 0, 0, 4]); // ShaFlat default
+
+        // Build Decompress instruction
+        let decompress_ix = Decompress {
+            token_data,
+            discriminator,
+            merkle_tree: account_info.tree_info.tree,
+            queue: account_info.tree_info.queue,
+            leaf_index: account_info.leaf_index as u32,
+            root_index: account_info.root_index.root_index().unwrap_or_default(),
+            destination: creator_lp_interface.inner.pubkey,
+            payer: ctx.payer.pubkey(),
+            signer: ctx.creator.pubkey(),
+            validity_proof: ValidityProof(proof_result.proof.into()),
+        }
+        .instruction()
+        .expect("Decompress instruction should succeed");
+
+        ctx.rpc
+            .create_and_send_transaction(
+                &[decompress_ix],
+                &ctx.payer.pubkey(),
+                &[&ctx.payer, &ctx.creator],
+            )
+            .await
+            .expect("ATA decompression should succeed");
+    }
 
     // ==========================================================================
     // PHASE 10: Assert decompression success
