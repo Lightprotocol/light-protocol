@@ -12,9 +12,12 @@
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_compressed_account::instruction_data::traits::LightInstructionData;
 use light_token_interface::{
-    instructions::mint_action::{
-        Action, CpiContext, DecompressMintAction, MintActionCompressedInstructionData,
-        MintInstructionData,
+    instructions::{
+        extensions::{ExtensionInstructionData, TokenMetadataInstructionData},
+        mint_action::{
+            Action, CpiContext, DecompressMintAction, MintActionCompressedInstructionData,
+            MintInstructionData,
+        },
     },
     state::MintMetadata,
     LIGHT_TOKEN_PROGRAM_ID,
@@ -53,6 +56,8 @@ pub struct SingleMintParams<'a> {
     pub authority_seeds: Option<&'a [&'a [u8]]>,
     /// Optional mint signer seeds for PDA signing
     pub mint_signer_seeds: Option<&'a [&'a [u8]]>,
+    /// Optional token metadata for the mint
+    pub token_metadata: Option<TokenMetadataInstructionData>,
 }
 
 /// Parameters for creating one or more compressed mints with decompression.
@@ -539,6 +544,12 @@ fn build_mint_instruction_data(
     mint_params: &SingleMintParams<'_>,
     mint_signer: &Pubkey,
 ) -> MintInstructionData {
+    // Convert token_metadata to extensions if present
+    let extensions = mint_params
+        .token_metadata
+        .clone()
+        .map(|metadata| vec![ExtensionInstructionData::TokenMetadata(metadata)]);
+
     MintInstructionData {
         supply: 0,
         decimals: mint_params.decimals,
@@ -551,7 +562,7 @@ fn build_mint_instruction_data(
         },
         mint_authority: Some(mint_params.mint_authority.to_bytes().into()),
         freeze_authority: mint_params.freeze_authority.map(|a| a.to_bytes().into()),
-        extensions: None,
+        extensions,
     }
 }
 

@@ -62,6 +62,7 @@ pub fn process_create_mints<'a, 'info>(
             mint_seed_pubkey: solana_pubkey::Pubkey::new_from_array(m.mint_seed_pubkey.to_bytes()),
             authority_seeds: None,
             mint_signer_seeds: None,
+            token_metadata: None,
         })
         .collect();
 

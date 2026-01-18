@@ -60,6 +60,57 @@ pub struct CreateMint<'info> {
 | `rent_payment` | Expression | `2u8` | Rent payment epochs for decompression. |
 | `write_top_up` | Expression | `0u32` | Write top-up lamports for decompression. |
 
+## TokenMetadata Fields
+
+Optional fields for creating a mint with the TokenMetadata extension:
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | Expression | - | Token name (expression yielding `Vec<u8>`). |
+| `symbol` | Expression | - | Token symbol (expression yielding `Vec<u8>`). |
+| `uri` | Expression | - | Token URI (expression yielding `Vec<u8>`). |
+| `update_authority` | Field reference | None | Optional update authority for metadata. |
+| `additional_metadata` | Expression | None | Additional key-value metadata (expression yielding `Option<Vec<AdditionalMetadata>>`). |
+
+### Validation Rules
+
+1. **Core fields are all-or-nothing**: `name`, `symbol`, and `uri` must ALL be specified together, or none at all.
+2. **Optional fields require core fields**: `update_authority` and `additional_metadata` require `name`, `symbol`, and `uri` to also be specified.
+
+### Metadata Example
+
+```rust
+#[light_mint(
+    mint_signer = mint_signer,
+    authority = fee_payer,
+    decimals = 9,
+    mint_seeds = &[SEED, self.authority.key().as_ref(), &[params.bump]],
+    // TokenMetadata fields
+    name = params.name.clone(),
+    symbol = params.symbol.clone(),
+    uri = params.uri.clone(),
+    update_authority = authority,
+    additional_metadata = params.additional_metadata.clone()
+)]
+pub cmint: UncheckedAccount<'info>,
+```
+
+**Invalid configurations (compile-time errors):**
+
+```rust
+// ERROR: name without symbol and uri
+#[light_mint(
+    ...,
+    name = params.name.clone()
+)]
+
+// ERROR: additional_metadata without name, symbol, uri
+#[light_mint(
+    ...,
+    additional_metadata = params.additional_metadata.clone()
+)]
+```
+
 ## How It Works
 
 ### Mint PDA Derivation

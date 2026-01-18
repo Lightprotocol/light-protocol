@@ -134,10 +134,10 @@ pub use freeze::*;
 use light_compressible::config::CompressibleConfig;
 pub use light_token_interface::{
     instructions::{
-        extensions::{CompressToPubkey, ExtensionInstructionData},
+        extensions::{CompressToPubkey, ExtensionInstructionData, TokenMetadataInstructionData},
         mint_action::MintWithContext,
     },
-    state::{Token, TokenDataVersion},
+    state::{AdditionalMetadata, Token, TokenDataVersion},
 };
 use light_token_types::POOL_SEED;
 pub use mint_to::{MintTo, MintToCpi};

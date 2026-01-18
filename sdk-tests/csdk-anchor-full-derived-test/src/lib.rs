@@ -105,7 +105,8 @@ pub mod csdk_anchor_full_derived_test {
             D9MixedParams, D9Param, D9ParamBytes, D9ParamBytesParams, D9ParamParams,
         },
         instruction_accounts::{
-            CreateFourMints, CreateFourMintsParams, CreatePdasAndMintAuto, CreateTwoMints,
+            CreateFourMints, CreateFourMintsParams, CreateMintWithMetadata,
+            CreateMintWithMetadataParams, CreatePdasAndMintAuto, CreateTwoMints,
             CreateTwoMintsParams,
         },
         FullAutoWithMintParams, LIGHT_CPI_SIGNER,
@@ -224,6 +225,18 @@ pub mod csdk_anchor_full_derived_test {
     ) -> Result<()> {
         // All 4 mints are created by the RentFree macro in pre_init
         // Nothing to do here - just verify all mints exist
+        Ok(())
+    }
+
+    /// Test instruction that creates a mint with metadata.
+    /// Tests the metadata support in the RentFree macro.
+    #[allow(unused_variables)]
+    pub fn create_mint_with_metadata<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateMintWithMetadata<'info>>,
+        params: CreateMintWithMetadataParams,
+    ) -> Result<()> {
+        // Mint with metadata is created by the RentFree macro in pre_init
+        // Nothing to do here - metadata is part of the mint creation
         Ok(())
     }
 

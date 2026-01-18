@@ -304,3 +304,70 @@ pub struct CreateFourMints<'info> {
 
     pub system_program: Program<'info, System>,
 }
+
+// =============================================================================
+// Mint With Metadata Test
+// =============================================================================
+
+pub const METADATA_MINT_SIGNER_SEED: &[u8] = b"metadata_mint_signer";
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct CreateMintWithMetadataParams {
+    pub create_accounts_proof: CreateAccountsProof,
+    pub mint_signer_bump: u8,
+    pub name: Vec<u8>,
+    pub symbol: Vec<u8>,
+    pub uri: Vec<u8>,
+    pub additional_metadata: Option<Vec<light_token_sdk::AdditionalMetadata>>,
+}
+
+/// Test instruction with #[light_mint] with metadata fields.
+/// Tests the metadata support in the RentFree macro.
+#[derive(Accounts, RentFree)]
+#[instruction(params: CreateMintWithMetadataParams)]
+pub struct CreateMintWithMetadata<'info> {
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+
+    pub authority: Signer<'info>,
+
+    /// CHECK: PDA derived from authority for mint signer
+    #[account(
+        seeds = [METADATA_MINT_SIGNER_SEED, authority.key().as_ref()],
+        bump,
+    )]
+    pub mint_signer: UncheckedAccount<'info>,
+
+    /// CHECK: Initialized by light_mint CPI with metadata
+    #[account(mut)]
+    #[light_mint(
+        mint_signer = mint_signer,
+        authority = fee_payer,
+        decimals = 9,
+        mint_seeds = &[METADATA_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_bump]],
+        name = params.name.clone(),
+        symbol = params.symbol.clone(),
+        uri = params.uri.clone(),
+        update_authority = authority,
+        additional_metadata = params.additional_metadata.clone()
+    )]
+    pub cmint: UncheckedAccount<'info>,
+
+    /// CHECK: Compression config
+    pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: CToken config
+    pub ctoken_compressible_config: AccountInfo<'info>,
+
+    /// CHECK: CToken rent sponsor
+    #[account(mut)]
+    pub ctoken_rent_sponsor: AccountInfo<'info>,
+
+    /// CHECK: CToken program
+    pub light_token_program: AccountInfo<'info>,
+
+    /// CHECK: CToken CPI authority
+    pub ctoken_cpi_authority: AccountInfo<'info>,
+
+    pub system_program: Program<'info, System>,
+}
