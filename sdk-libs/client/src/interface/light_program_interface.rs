@@ -246,4 +246,45 @@ pub trait LightProgramInterface: Sized {
     /// Get specs filtered for a specific instruction.
     #[must_use]
     fn get_specs_for_instruction(&self, ix: &Self::Instruction) -> Vec<AccountSpec<Self::Variant>>;
+
+    /// Get only cold specs from all cached specs.
+    #[must_use]
+    fn get_cold_specs(&self) -> Vec<AccountSpec<Self::Variant>> {
+        self.get_all_specs()
+            .into_iter()
+            .filter(|s| s.is_cold())
+            .collect()
+    }
+
+    /// Get only cold specs for a specific instruction.
+    #[must_use]
+    fn get_cold_specs_for_instruction(
+        &self,
+        ix: &Self::Instruction,
+    ) -> Vec<AccountSpec<Self::Variant>> {
+        self.get_specs_for_instruction(ix)
+            .into_iter()
+            .filter(|s| s.is_cold())
+            .collect()
+    }
+
+    /// Check if any accounts for this instruction are cold.
+    #[must_use]
+    fn needs_loading(&self, ix: &Self::Instruction) -> bool {
+        any_cold(&self.get_specs_for_instruction(ix))
+    }
+}
+
+/// Extract 8-byte discriminator from account data.
+#[inline]
+#[must_use]
+pub fn discriminator(data: &[u8]) -> Option<[u8; 8]> {
+    data.get(..8).and_then(|s| s.try_into().ok())
+}
+
+/// Check if account data matches a discriminator.
+#[inline]
+#[must_use]
+pub fn matches_discriminator(data: &[u8], disc: &[u8; 8]) -> bool {
+    discriminator(data) == Some(*disc)
 }

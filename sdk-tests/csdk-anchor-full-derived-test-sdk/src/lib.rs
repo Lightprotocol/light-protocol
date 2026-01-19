@@ -13,7 +13,8 @@ use csdk_anchor_full_derived_test::{
     },
 };
 use light_client::interface::{
-    AccountInterface, AccountSpec, AccountToFetch, ColdContext, LightProgramInterface, PdaSpec,
+    matches_discriminator, AccountInterface, AccountSpec, AccountToFetch, ColdContext,
+    LightProgramInterface, PdaSpec,
 };
 use light_sdk::LightDiscriminator;
 use solana_pubkey::Pubkey;
@@ -251,15 +252,11 @@ impl AmmSdk {
             return self.parse_token_vault(account, false);
         }
 
-        if account.data().len() >= 8 {
-            let disc: [u8; 8] = account.data()[..8].try_into().unwrap();
-
-            if disc == PoolState::LIGHT_DISCRIMINATOR {
-                return self.parse_pool_state(account);
-            }
-            if disc == ObservationState::LIGHT_DISCRIMINATOR {
-                return self.parse_observation_state(account);
-            }
+        if matches_discriminator(account.data(), &PoolState::LIGHT_DISCRIMINATOR) {
+            return self.parse_pool_state(account);
+        }
+        if matches_discriminator(account.data(), &ObservationState::LIGHT_DISCRIMINATOR) {
+            return self.parse_observation_state(account);
         }
 
         // Check if this is an LP mint by matching the signer
@@ -325,16 +322,12 @@ impl LightProgramInterface for AmmSdk {
         let mut sdk = Self::new();
 
         for account in accounts {
-            // Skip accounts with insufficient data (< 8 bytes for discriminator)
-            if account.data().len() >= 8 {
-                let disc: [u8; 8] = account.data()[..8].try_into().unwrap();
-                if disc == PoolState::LIGHT_DISCRIMINATOR {
-                    sdk.parse_pool_state(account)?;
-                } else {
-                    sdk.parse_account(account)?;
-                }
+            // Parse pool_state first (needed for other accounts), then remaining
+            if matches_discriminator(account.data(), &PoolState::LIGHT_DISCRIMINATOR) {
+                sdk.parse_pool_state(account)?;
+            } else {
+                sdk.parse_account(account)?;
             }
-            // Zero-length or short data is silently skipped
         }
 
         Ok(sdk)
