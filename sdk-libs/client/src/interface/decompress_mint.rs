@@ -98,7 +98,7 @@ impl MintInterface {
 }
 
 pub const DEFAULT_RENT_PAYMENT: u8 = 2;
-pub const DEFAULT_WRITE_TOP_UP: u32 = 766;
+pub const DEFAULT_WRITE_TOP_UP: u32 = 0;
 
 /// Builds load instruction for a cold mint. Returns empty vec if already hot.
 pub fn build_decompress_mint(
