@@ -378,7 +378,7 @@ async fn test_amm_full_lifecycle() {
         rent: solana_sdk::sysvar::rent::ID,
         compression_config: ctx.config_pda,
         light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        ctoken_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
+        rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID,
         light_token_cpi_authority: LIGHT_TOKEN_CPI_AUTHORITY,
     };

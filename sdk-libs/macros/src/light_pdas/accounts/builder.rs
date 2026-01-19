@@ -9,7 +9,7 @@ use syn::DeriveInput;
 
 use super::{
     mint::{InfraRefs, LightMintsBuilder},
-    parse::ParsedLightAccountsStruct,
+    parse::{InfraFieldType, ParsedLightAccountsStruct},
     pda::generate_pda_compress_blocks,
 };
 
@@ -59,6 +59,73 @@ impl LightAccountsBuilder {
                 ),
             ));
         }
+
+        // Validate infrastructure fields are present
+        self.validate_infra_fields()?;
+
+        Ok(())
+    }
+
+    /// Validate that required infrastructure fields are present.
+    fn validate_infra_fields(&self) -> Result<(), syn::Error> {
+        let has_pdas = self.has_pdas();
+        let has_mints = self.has_mints();
+
+        // Skip validation if no light_account fields
+        if !has_pdas && !has_mints {
+            return Ok(());
+        }
+
+        let mut missing = Vec::new();
+
+        // fee_payer is always required
+        if self.parsed.infra_fields.fee_payer.is_none() {
+            missing.push(InfraFieldType::FeePayer);
+        }
+
+        // PDAs require compression_config
+        if has_pdas && self.parsed.infra_fields.compression_config.is_none() {
+            missing.push(InfraFieldType::CompressionConfig);
+        }
+
+        // Mints require light_token_config, light_token_rent_sponsor, light_token_cpi_authority
+        if has_mints {
+            if self.parsed.infra_fields.light_token_config.is_none() {
+                missing.push(InfraFieldType::LightTokenConfig);
+            }
+            if self.parsed.infra_fields.light_token_rent_sponsor.is_none() {
+                missing.push(InfraFieldType::LightTokenRentSponsor);
+            }
+            if self.parsed.infra_fields.light_token_cpi_authority.is_none() {
+                missing.push(InfraFieldType::LightTokenCpiAuthority);
+            }
+        }
+
+        if !missing.is_empty() {
+            let context = if has_pdas && has_mints {
+                "PDA and mint"
+            } else if has_mints {
+                "mint"
+            } else {
+                "PDA"
+            };
+
+            let mut msg = format!(
+                "#[derive(LightAccounts)] with {} fields requires the following infrastructure fields:\n",
+                context
+            );
+
+            for field_type in &missing {
+                msg.push_str(&format!(
+                    "\n  - {} (add one of: {})",
+                    field_type.description(),
+                    field_type.accepted_names().join(", ")
+                ));
+            }
+
+            return Err(syn::Error::new_spanned(&self.parsed.struct_name, msg));
+        }
+
         Ok(())
     }
 

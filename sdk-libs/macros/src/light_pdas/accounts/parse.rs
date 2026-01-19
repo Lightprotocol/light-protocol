@@ -23,10 +23,36 @@ pub(super) use super::mint::LightMintField;
 pub(super) enum InfraFieldType {
     FeePayer,
     CompressionConfig,
-    CTokenConfig,
-    CTokenRentSponsor,
-    CTokenProgram,
-    CTokenCpiAuthority,
+    LightTokenConfig,
+    LightTokenRentSponsor,
+    LightTokenProgram,
+    LightTokenCpiAuthority,
+}
+
+impl InfraFieldType {
+    /// Returns the accepted field names for this infrastructure type.
+    pub fn accepted_names(&self) -> &'static [&'static str] {
+        match self {
+            InfraFieldType::FeePayer => &["fee_payer", "payer", "creator"],
+            InfraFieldType::CompressionConfig => &["compression_config"],
+            InfraFieldType::LightTokenConfig => &["light_token_compressible_config"],
+            InfraFieldType::LightTokenRentSponsor => &["light_token_rent_sponsor", "rent_sponsor"],
+            InfraFieldType::LightTokenProgram => &["light_token_program"],
+            InfraFieldType::LightTokenCpiAuthority => &["light_token_cpi_authority"],
+        }
+    }
+
+    /// Human-readable description for error messages.
+    pub fn description(&self) -> &'static str {
+        match self {
+            InfraFieldType::FeePayer => "fee payer (transaction signer)",
+            InfraFieldType::CompressionConfig => "compression config",
+            InfraFieldType::LightTokenConfig => "light token compressible config",
+            InfraFieldType::LightTokenRentSponsor => "light token rent sponsor",
+            InfraFieldType::LightTokenProgram => "light token program",
+            InfraFieldType::LightTokenCpiAuthority => "light token CPI authority",
+        }
+    }
 }
 
 /// Classifier for infrastructure fields by naming convention.
@@ -39,16 +65,12 @@ impl InfraFieldClassifier {
         match name {
             "fee_payer" | "payer" | "creator" => Some(InfraFieldType::FeePayer),
             "compression_config" => Some(InfraFieldType::CompressionConfig),
-            "light_token_compressible_config" | "ctoken_config" | "light_token_config_account" => {
-                Some(InfraFieldType::CTokenConfig)
+            "light_token_compressible_config" => Some(InfraFieldType::LightTokenConfig),
+            "light_token_rent_sponsor" | "rent_sponsor" => {
+                Some(InfraFieldType::LightTokenRentSponsor)
             }
-            "ctoken_rent_sponsor" | "light_token_rent_sponsor" => {
-                Some(InfraFieldType::CTokenRentSponsor)
-            }
-            "ctoken_program" | "light_token_program" => Some(InfraFieldType::CTokenProgram),
-            "light_token_cpi_authority"
-            | "light_token_program_cpi_authority"
-            | "compress_token_program_cpi_authority" => Some(InfraFieldType::CTokenCpiAuthority),
+            "light_token_program" => Some(InfraFieldType::LightTokenProgram),
+            "light_token_cpi_authority" => Some(InfraFieldType::LightTokenCpiAuthority),
             _ => None,
         }
     }
@@ -59,9 +81,9 @@ impl InfraFieldClassifier {
 pub(super) struct InfraFields {
     pub fee_payer: Option<Ident>,
     pub compression_config: Option<Ident>,
-    pub ctoken_config: Option<Ident>,
-    pub ctoken_rent_sponsor: Option<Ident>,
-    pub ctoken_program: Option<Ident>,
+    pub light_token_config: Option<Ident>,
+    pub light_token_rent_sponsor: Option<Ident>,
+    pub light_token_program: Option<Ident>,
     pub light_token_cpi_authority: Option<Ident>,
 }
 
@@ -71,10 +93,10 @@ impl InfraFields {
         match field_type {
             InfraFieldType::FeePayer => self.fee_payer = Some(ident),
             InfraFieldType::CompressionConfig => self.compression_config = Some(ident),
-            InfraFieldType::CTokenConfig => self.ctoken_config = Some(ident),
-            InfraFieldType::CTokenRentSponsor => self.ctoken_rent_sponsor = Some(ident),
-            InfraFieldType::CTokenProgram => self.ctoken_program = Some(ident),
-            InfraFieldType::CTokenCpiAuthority => self.light_token_cpi_authority = Some(ident),
+            InfraFieldType::LightTokenConfig => self.light_token_config = Some(ident),
+            InfraFieldType::LightTokenRentSponsor => self.light_token_rent_sponsor = Some(ident),
+            InfraFieldType::LightTokenProgram => self.light_token_program = Some(ident),
+            InfraFieldType::LightTokenCpiAuthority => self.light_token_cpi_authority = Some(ident),
         }
     }
 }

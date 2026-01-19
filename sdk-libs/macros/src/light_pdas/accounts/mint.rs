@@ -79,8 +79,8 @@ fn resolve_field_name(field: &Option<syn::Ident>, default: &str) -> TokenStream 
 pub(super) struct InfraRefs {
     pub fee_payer: TokenStream,
     pub compression_config: TokenStream,
-    pub ctoken_config: TokenStream,
-    pub ctoken_rent_sponsor: TokenStream,
+    pub light_token_config: TokenStream,
+    pub light_token_rent_sponsor: TokenStream,
     pub light_token_cpi_authority: TokenStream,
 }
 
@@ -90,13 +90,13 @@ impl InfraRefs {
         Self {
             fee_payer: resolve_field_name(&infra.fee_payer, "fee_payer"),
             compression_config: resolve_field_name(&infra.compression_config, "compression_config"),
-            ctoken_config: resolve_field_name(
-                &infra.ctoken_config,
+            light_token_config: resolve_field_name(
+                &infra.light_token_config,
                 "light_token_compressible_config",
             ),
-            ctoken_rent_sponsor: resolve_field_name(
-                &infra.ctoken_rent_sponsor,
-                "ctoken_rent_sponsor",
+            light_token_rent_sponsor: resolve_field_name(
+                &infra.light_token_rent_sponsor,
+                "light_token_rent_sponsor",
             ),
             light_token_cpi_authority: resolve_field_name(
                 &infra.light_token_cpi_authority,
@@ -166,8 +166,8 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
 
     // Infrastructure field references
     let fee_payer = &infra.fee_payer;
-    let ctoken_config = &infra.ctoken_config;
-    let ctoken_rent_sponsor = &infra.ctoken_rent_sponsor;
+    let light_token_config = &infra.light_token_config;
+    let light_token_rent_sponsor = &infra.light_token_rent_sponsor;
     let light_token_cpi_authority = &infra.light_token_cpi_authority;
 
     // Determine CPI context offset based on PDA context
@@ -385,9 +385,9 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                 address_tree: __address_tree.clone(),
                 output_queue: __output_queue.clone(),
                 state_merkle_tree: __state_merkle_tree.clone(),
-                compressible_config: self.#ctoken_config.to_account_info(),
+                compressible_config: self.#light_token_config.to_account_info(),
                 mints: &__mint_accounts,
-                rent_sponsor: self.#ctoken_rent_sponsor.to_account_info(),
+                rent_sponsor: self.#light_token_rent_sponsor.to_account_info(),
                 system_accounts: light_token_sdk::token::SystemAccountInfos {
                     light_system_program: cpi_accounts.light_system_program()?.clone(),
                     cpi_authority_pda: self.#light_token_cpi_authority.to_account_info(),

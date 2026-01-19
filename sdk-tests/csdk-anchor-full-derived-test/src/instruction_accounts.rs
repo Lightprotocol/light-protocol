@@ -104,7 +104,7 @@ pub struct CreatePdasAndMintAuto<'info> {
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
-    pub ctoken_rent_sponsor: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: CToken program
     pub light_token_program: AccountInfo<'info>,
@@ -182,7 +182,7 @@ pub struct CreateTwoMints<'info> {
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
-    pub ctoken_rent_sponsor: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: CToken program
     pub light_token_program: AccountInfo<'info>,
@@ -275,7 +275,7 @@ pub struct CreateThreeMints<'info> {
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
-    pub ctoken_rent_sponsor: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: CToken program
     pub light_token_program: AccountInfo<'info>,
@@ -342,7 +342,7 @@ pub struct CreateMintWithMetadata<'info> {
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
-    pub ctoken_rent_sponsor: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: CToken program
     pub light_token_program: AccountInfo<'info>,

@@ -26,7 +26,7 @@ pub use d9_seeds::*;
 pub use instruction_accounts::*;
 pub use instructions::{
     d7_infra_names::{
-        D7_ALL_AUTH_SEED, D7_ALL_VAULT_SEED, D7_CTOKEN_AUTH_SEED, D7_CTOKEN_VAULT_SEED,
+        D7_ALL_AUTH_SEED, D7_ALL_VAULT_SEED, D7_LIGHT_TOKEN_AUTH_SEED, D7_LIGHT_TOKEN_VAULT_SEED,
     },
     d9_seeds::{D9_ALL_SEED, D9_CONSTANT_SEED},
 };
@@ -94,8 +94,8 @@ pub mod csdk_anchor_full_derived_test {
         },
         d6_account_types::{D6Account, D6AccountParams, D6Boxed, D6BoxedParams},
         d7_infra_names::{
-            D7AllNames, D7AllNamesParams, D7Creator, D7CreatorParams, D7CtokenConfig,
-            D7CtokenConfigParams, D7Payer, D7PayerParams,
+            D7AllNames, D7AllNamesParams, D7Creator, D7CreatorParams, D7LightTokenConfig,
+            D7LightTokenConfigParams, D7Payer, D7PayerParams,
         },
         d8_builder_paths::{
             D8All, D8AllParams, D8MultiRentfree, D8MultiRentfreeParams, D8PdaOnly, D8PdaOnlyParams,
@@ -279,7 +279,7 @@ pub mod csdk_anchor_full_derived_test {
             ctx.accounts
                 .light_token_compressible_config
                 .to_account_info(),
-            ctx.accounts.ctoken_rent_sponsor.to_account_info(),
+            ctx.accounts.rent_sponsor.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
             &crate::ID,
         )
@@ -301,7 +301,7 @@ pub mod csdk_anchor_full_derived_test {
             ctx.accounts
                 .light_token_compressible_config
                 .to_account_info(),
-            ctx.accounts.ctoken_rent_sponsor.to_account_info(),
+            ctx.accounts.rent_sponsor.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
         )
         .invoke()?;
@@ -533,10 +533,10 @@ pub mod csdk_anchor_full_derived_test {
         Ok(())
     }
 
-    /// D7: "ctoken_config" naming variant for token accounts
-    pub fn d7_ctoken_config<'info>(
-        ctx: Context<'_, '_, '_, 'info, D7CtokenConfig<'info>>,
-        _params: D7CtokenConfigParams,
+    /// D7: "light_token_config" naming variant for token accounts
+    pub fn d7_light_token_config<'info>(
+        ctx: Context<'_, '_, '_, 'info, D7LightTokenConfig<'info>>,
+        _params: D7LightTokenConfigParams,
     ) -> Result<()> {
         use light_token_sdk::token::CreateTokenAccountCpi;
 
@@ -544,7 +544,7 @@ pub mod csdk_anchor_full_derived_test {
         // Derive the vault bump at runtime
         let (_, vault_bump) = Pubkey::find_program_address(
             &[
-                crate::d7_infra_names::D7_CTOKEN_VAULT_SEED,
+                crate::d7_infra_names::D7_LIGHT_TOKEN_VAULT_SEED,
                 mint_key.as_ref(),
             ],
             &crate::ID,
@@ -552,27 +552,27 @@ pub mod csdk_anchor_full_derived_test {
 
         CreateTokenAccountCpi {
             payer: ctx.accounts.fee_payer.to_account_info(),
-            account: ctx.accounts.d7_ctoken_vault.to_account_info(),
+            account: ctx.accounts.d7_light_token_vault.to_account_info(),
             mint: ctx.accounts.mint.to_account_info(),
-            owner: ctx.accounts.d7_ctoken_authority.key(),
+            owner: ctx.accounts.d7_light_token_authority.key(),
         }
         .rent_free(
             ctx.accounts
                 .light_token_compressible_config
                 .to_account_info(),
-            ctx.accounts.ctoken_rent_sponsor.to_account_info(),
+            ctx.accounts.light_token_rent_sponsor.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
             &crate::ID,
         )
         .invoke_signed(&[
-            crate::d7_infra_names::D7_CTOKEN_VAULT_SEED,
+            crate::d7_infra_names::D7_LIGHT_TOKEN_VAULT_SEED,
             mint_key.as_ref(),
             &[vault_bump],
         ])?;
         Ok(())
     }
 
-    /// D7: All naming variants combined (payer + ctoken config/sponsor)
+    /// D7: All naming variants combined (payer + light_token config/sponsor)
     pub fn d7_all_names<'info>(
         ctx: Context<'_, '_, '_, 'info, D7AllNames<'info>>,
         params: D7AllNamesParams,
@@ -600,7 +600,7 @@ pub mod csdk_anchor_full_derived_test {
             ctx.accounts
                 .light_token_compressible_config
                 .to_account_info(),
-            ctx.accounts.ctoken_rent_sponsor.to_account_info(),
+            ctx.accounts.rent_sponsor.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
             &crate::ID,
         )
@@ -1197,7 +1197,7 @@ pub mod csdk_anchor_full_derived_test {
             ctx.accounts
                 .light_token_compressible_config
                 .to_account_info(),
-            ctx.accounts.ctoken_rent_sponsor.to_account_info(),
+            ctx.accounts.light_token_rent_sponsor.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
             &crate::ID,
         )
@@ -1237,7 +1237,7 @@ pub mod csdk_anchor_full_derived_test {
             ctx.accounts
                 .light_token_compressible_config
                 .to_account_info(),
-            ctx.accounts.ctoken_rent_sponsor.to_account_info(),
+            ctx.accounts.light_token_rent_sponsor.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
             &crate::ID,
         )

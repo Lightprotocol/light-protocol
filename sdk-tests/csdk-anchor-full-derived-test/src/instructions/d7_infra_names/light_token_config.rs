@@ -1,26 +1,24 @@
-//! D5 Test: #[light_account(token)] attribute with authority seeds
+//! D7 Test: light_token naming variant
 //!
-//! Tests that the #[light_account(token, authority = [...])] attribute works correctly
-//! for token accounts that need custom authority derivation.
+//! Tests that #[light_account(token)] works with light_token infrastructure fields.
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
 use light_token_sdk::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
 
-pub const D5_VAULT_AUTH_SEED: &[u8] = b"d5_vault_auth";
-pub const D5_VAULT_SEED: &[u8] = b"d5_vault";
+pub const D7_LIGHT_TOKEN_AUTH_SEED: &[u8] = b"d7_light_token_auth";
+pub const D7_LIGHT_TOKEN_VAULT_SEED: &[u8] = b"d7_light_token_vault";
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct D5LightTokenParams {
+pub struct D7LightTokenConfigParams {
     pub create_accounts_proof: CreateAccountsProof,
-    pub vault_bump: u8,
 }
 
-/// Tests #[light_account(token, authority = [...])] attribute compilation.
+/// Tests #[light_account(token)] with `light_token_compressible_config` and `light_token_rent_sponsor` field names.
 #[derive(Accounts, LightAccounts)]
-#[instruction(params: D5LightTokenParams)]
-pub struct D5LightToken<'info> {
+#[instruction(params: D7LightTokenConfigParams)]
+pub struct D7LightTokenConfig<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
 
@@ -28,18 +26,18 @@ pub struct D5LightToken<'info> {
     pub mint: AccountInfo<'info>,
 
     #[account(
-        seeds = [D5_VAULT_AUTH_SEED],
+        seeds = [D7_LIGHT_TOKEN_AUTH_SEED],
         bump,
     )]
-    pub vault_authority: UncheckedAccount<'info>,
+    pub d7_light_token_authority: UncheckedAccount<'info>,
 
     #[account(
         mut,
-        seeds = [D5_VAULT_SEED, mint.key().as_ref()],
+        seeds = [D7_LIGHT_TOKEN_VAULT_SEED, mint.key().as_ref()],
         bump,
     )]
-    #[light_account(token, authority = [D5_VAULT_AUTH_SEED])]
-    pub d5_token_vault: UncheckedAccount<'info>,
+    #[light_account(token, authority = [D7_LIGHT_TOKEN_AUTH_SEED])]
+    pub d7_light_token_vault: UncheckedAccount<'info>,
 
     #[account(address = COMPRESSIBLE_CONFIG_V1)]
     pub light_token_compressible_config: AccountInfo<'info>,

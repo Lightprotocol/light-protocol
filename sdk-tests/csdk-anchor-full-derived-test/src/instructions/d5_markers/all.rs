@@ -6,7 +6,7 @@
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
-use light_token_sdk::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as CTOKEN_RENT_SPONSOR};
+use light_token_sdk::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -61,13 +61,13 @@ pub struct D5AllMarkers<'info> {
     #[account(address = COMPRESSIBLE_CONFIG_V1)]
     pub light_token_compressible_config: AccountInfo<'info>,
 
-    #[account(mut, address = CTOKEN_RENT_SPONSOR)]
-    pub ctoken_rent_sponsor: AccountInfo<'info>,
+    #[account(mut, address = LIGHT_TOKEN_RENT_SPONSOR)]
+    pub light_token_rent_sponsor: AccountInfo<'info>,
 
-    /// CHECK: CToken program
+    /// CHECK: Light token program
     pub light_token_program: AccountInfo<'info>,
 
-    /// CHECK: CToken CPI authority
+    /// CHECK: Light token CPI authority
     pub light_token_cpi_authority: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,

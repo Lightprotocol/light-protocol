@@ -4,7 +4,6 @@ use light_compressible_client::{
     get_create_accounts_proof, AccountInterfaceExt, CreateAccountsProofInput,
     InitializeRentFreeConfig,
 };
-use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
@@ -15,8 +14,6 @@ use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
-
-const RENT_SPONSOR: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 
 /// 2 PDAs + 1 CMint + 1 Vault + 1 User ATA, all in one instruction with single proof.
 /// After init: all accounts on-chain + parseable.
@@ -29,8 +26,7 @@ async fn test_create_pdas_and_mint_auto() {
     };
     use light_token_interface::state::Token;
     use light_token_sdk::token::{
-        get_associated_token_address_and_bump, COMPRESSIBLE_CONFIG_V1,
-        RENT_SPONSOR as CTOKEN_RENT_SPONSOR,
+        get_associated_token_address_and_bump, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
     };
 
     // Helpers
@@ -180,7 +176,7 @@ async fn test_create_pdas_and_mint_auto() {
         user_ata: user_ata_pda,
         compression_config: config_pda,
         light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
+        rent_sponsor: RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
@@ -476,8 +472,7 @@ async fn test_create_two_mints() {
         CreateTwoMintsParams, MINT_SIGNER_A_SEED, MINT_SIGNER_B_SEED,
     };
     use light_token_sdk::token::{
-        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1,
-        RENT_SPONSOR as CTOKEN_RENT_SPONSOR,
+        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
     };
 
     let program_id = csdk_anchor_full_derived_test::ID;
@@ -552,7 +547,7 @@ async fn test_create_two_mints() {
         cmint_b: cmint_b_pda,
         compression_config: config_pda,
         light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
+        rent_sponsor: RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
@@ -671,8 +666,7 @@ async fn test_create_multi_mints() {
         CreateThreeMintsParams, MINT_SIGNER_A_SEED, MINT_SIGNER_B_SEED, MINT_SIGNER_C_SEED,
     };
     use light_token_sdk::token::{
-        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1,
-        RENT_SPONSOR as CTOKEN_RENT_SPONSOR,
+        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
     };
 
     let program_id = csdk_anchor_full_derived_test::ID;
@@ -745,7 +739,7 @@ async fn test_create_multi_mints() {
         cmint_c: cmint_c_pda,
         compression_config: config_pda,
         light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
+        rent_sponsor: RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,

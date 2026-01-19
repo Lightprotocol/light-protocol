@@ -14,7 +14,7 @@ use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
 use light_token_sdk::token::{
     CreateTokenAccountCpi, CreateTokenAtaCpi, MintToCpi, COMPRESSIBLE_CONFIG_V1,
-    RENT_SPONSOR as CTOKEN_RENT_SPONSOR,
+    RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
 };
 
 use super::states::*;
@@ -150,8 +150,8 @@ pub struct InitializePool<'info> {
     #[account(address = COMPRESSIBLE_CONFIG_V1)]
     pub light_token_compressible_config: AccountInfo<'info>,
 
-    #[account(mut, address = CTOKEN_RENT_SPONSOR)]
-    pub ctoken_rent_sponsor: AccountInfo<'info>,
+    #[account(mut, address = LIGHT_TOKEN_RENT_SPONSOR)]
+    pub rent_sponsor: AccountInfo<'info>,
 
     pub light_token_program: AccountInfo<'info>,
 
@@ -177,7 +177,7 @@ pub fn process_initialize_pool<'info>(
         ctx.accounts
             .light_token_compressible_config
             .to_account_info(),
-        ctx.accounts.ctoken_rent_sponsor.to_account_info(),
+        ctx.accounts.rent_sponsor.to_account_info(),
         ctx.accounts.system_program.to_account_info(),
         &crate::ID,
     )
@@ -199,7 +199,7 @@ pub fn process_initialize_pool<'info>(
         ctx.accounts
             .light_token_compressible_config
             .to_account_info(),
-        ctx.accounts.ctoken_rent_sponsor.to_account_info(),
+        ctx.accounts.rent_sponsor.to_account_info(),
         ctx.accounts.system_program.to_account_info(),
         &crate::ID,
     )
@@ -223,7 +223,7 @@ pub fn process_initialize_pool<'info>(
         ctx.accounts
             .light_token_compressible_config
             .to_account_info(),
-        ctx.accounts.ctoken_rent_sponsor.to_account_info(),
+        ctx.accounts.rent_sponsor.to_account_info(),
         ctx.accounts.system_program.to_account_info(),
     )
     .invoke()?;
