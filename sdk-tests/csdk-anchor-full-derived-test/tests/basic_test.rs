@@ -594,7 +594,7 @@ async fn test_create_two_mints() {
     let mint_b: Mint = borsh::BorshDeserialize::deserialize(&mut &cmint_b_account.data[..])
         .expect("Failed to deserialize Mint B");
 
-    // Verify decimals match what was specified in #[light_mint]
+    // Verify decimals match what was specified in #[light_account(init)]
     assert_eq!(mint_a.base.decimals, 6, "Mint A should have 6 decimals");
     assert_eq!(mint_b.base.decimals, 9, "Mint B should have 9 decimals");
 
@@ -795,7 +795,7 @@ async fn test_create_multi_mints() {
     let mint_c: Mint = borsh::BorshDeserialize::deserialize(&mut &cmint_c_account.data[..])
         .expect("Failed to deserialize Mint C");
 
-    // Verify decimals match what was specified in #[light_mint]
+    // Verify decimals match what was specified in #[light_account(init)]
     assert_eq!(mint_a.base.decimals, 6, "Mint A should have 6 decimals");
     assert_eq!(mint_b.base.decimals, 8, "Mint B should have 8 decimals");
     assert_eq!(mint_c.base.decimals, 9, "Mint C should have 9 decimals");

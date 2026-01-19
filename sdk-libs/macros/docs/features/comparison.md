@@ -11,7 +11,7 @@ This document provides a comprehensive comparison between Anchor's account macro
 | Pre-allocated | `zero` | - | `zero` (same) |
 | PDA creation | `seeds + bump + init` | `seeds + bump + init` | `seeds + bump + init` + address registration |
 | Token account | - | `token::*` | `#[light_account(token)]` |
-| Mint creation | - | `mint::*` | `#[light_mint]` |
+| Mint creation | - | `mint::*` | `#[light_account(init)]` |
 | ATA creation | - | `associated_token::*` | Via `light_pre_init()` |
 
 ## Constraint Types Matrix
@@ -31,8 +31,8 @@ This document provides a comprehensive comparison between Anchor's account macro
 | `constraint` | Yes | Yes | Yes | Identical |
 | `token::mint` | - | Yes | Via `#[light_account(token)]` | Different syntax |
 | `token::authority` | - | Yes | Via `#[light_account(token)]` | Different syntax |
-| `mint::decimals` | - | Yes | Via `#[light_mint]` | Different syntax |
-| `mint::authority` | - | Yes | Via `#[light_mint]` | Different syntax |
+| `mint::decimals` | - | Yes | Via `#[light_account(init)]` | Different syntax |
+| `mint::authority` | - | Yes | Via `#[light_account(init)]` | Different syntax |
 | `compression_info` | - | - | Yes | RentFree only |
 | `compress_as` | - | - | Yes | RentFree only |
 
@@ -93,9 +93,9 @@ try_accounts() ───> light_pre_init() ───> handler() ───> light
 |----------------|---------------------|
 | `Account<'info, T>` | `Account<'info, T>` (with RentFree derive) |
 | `#[account(init)]` | `#[account(init)]` + compression hooks |
-| `#[account(init, token::mint = m)]` | `#[light_account(token)]` + `#[light_mint]` |
+| `#[account(init, token::mint = m)]` | `#[light_account(token)]` + `#[light_account(init)]` |
 | `Program<'info, Token>` | `Program<'info, CompressedToken>` |
-| `Account<'info, Mint>` | `UncheckedAccount<'info>` + `#[light_mint]` |
+| `Account<'info, Mint>` | `UncheckedAccount<'info>` + `#[light_account(init)]` |
 | `Account<'info, TokenAccount>` | `Account<'info, T>` with `#[light_account(token)]` |
 | `close = destination` | `close = destination` + compression cleanup |
 | Manual token CPI | Auto-generated in `light_pre_init()` |
@@ -209,7 +209,7 @@ pub struct MyData {
 3. **Add compress_as**: Annotate fields for hashing
 4. **Update program attribute**: Add `#[rentfree_program]`
 5. **Add Light accounts**: Include protocol programs in accounts struct
-6. **Update token handling**: Convert `mint::*` to `#[light_mint]`
+6. **Update token handling**: Convert `mint::*` to `#[light_account(init)]`
 
 ### Minimal Changes Example
 

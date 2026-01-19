@@ -91,7 +91,7 @@ pub struct CreateVault<'info> {
 
 ---
 
-### 4. `#[light_mint]`
+### 4. `#[light_account(init)]`
 
 **Purpose**: Creates a compressed mint alongside an on-chain mint PDA.
 
@@ -100,7 +100,7 @@ pub struct CreateVault<'info> {
 - Creates compressed mint via CPI to compressed token program
 - Links on-chain mint to compressed representation
 
-**Key insight**: Unlike Anchor's `mint::*` which runs during `try_accounts()`, `#[light_mint]` runs in `light_pre_init()` AFTER account deserialization.
+**Key insight**: Unlike Anchor's `mint::*` which runs during `try_accounts()`, `#[light_account(init)]` runs in `light_pre_init()` AFTER account deserialization.
 
 **Example**:
 ```rust
@@ -172,7 +172,7 @@ impl<'info> LightPreInit<'info> for CreateProfile<'info> {
     fn light_pre_init(&mut self, /* params */) -> Result<()> {
         // 1. Derive compressed account address
         // 2. Register with Light system program
-        // 3. Create compressed mint if #[light_mint]
+        // 3. Create compressed mint if #[light_account(init)]
         Ok(())
     }
 }
@@ -435,7 +435,7 @@ try_accounts() {
 }
 light_pre_init() {
     4. Register compressed address
-    5. Create compressed mint CPI (if #[light_mint])
+    5. Create compressed mint CPI (if #[light_account(init)])
 }
 // instruction handler
 light_finalize() {

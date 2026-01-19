@@ -1,4 +1,4 @@
-//! Integration tests for mint with metadata support in #[light_mint] macro.
+//! Integration tests for mint with metadata support in #[light_account(init)] macro.
 
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressible::rent::SLOTS_PER_EPOCH;
@@ -139,7 +139,7 @@ async fn test_create_mint_with_metadata() {
     let mint: Mint = borsh::BorshDeserialize::deserialize(&mut &cmint_account.data[..])
         .expect("Failed to deserialize Mint");
 
-    // Verify decimals match what was specified in #[light_mint]
+    // Verify decimals match what was specified in #[light_account(init)]
     assert_eq!(mint.base.decimals, 9, "Mint should have 9 decimals");
 
     // Verify mint authority

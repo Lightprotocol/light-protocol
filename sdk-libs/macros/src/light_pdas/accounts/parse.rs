@@ -89,15 +89,65 @@ pub(super) struct InfraFields {
 
 impl InfraFields {
     /// Set an infrastructure field by type.
-    pub fn set(&mut self, field_type: InfraFieldType, ident: Ident) {
+    /// Returns an error if the field is already set (duplicate detection).
+    pub fn set(&mut self, field_type: InfraFieldType, ident: Ident) -> Result<(), Error> {
         match field_type {
-            InfraFieldType::FeePayer => self.fee_payer = Some(ident),
-            InfraFieldType::CompressionConfig => self.compression_config = Some(ident),
-            InfraFieldType::LightTokenConfig => self.light_token_config = Some(ident),
-            InfraFieldType::LightTokenRentSponsor => self.light_token_rent_sponsor = Some(ident),
-            InfraFieldType::LightTokenProgram => self.light_token_program = Some(ident),
-            InfraFieldType::LightTokenCpiAuthority => self.light_token_cpi_authority = Some(ident),
+            InfraFieldType::FeePayer => {
+                if self.fee_payer.is_some() {
+                    return Err(Error::new_spanned(
+                        &ident,
+                        "duplicate infrastructure field: fee_payer",
+                    ));
+                }
+                self.fee_payer = Some(ident);
+            }
+            InfraFieldType::CompressionConfig => {
+                if self.compression_config.is_some() {
+                    return Err(Error::new_spanned(
+                        &ident,
+                        "duplicate infrastructure field: compression_config",
+                    ));
+                }
+                self.compression_config = Some(ident);
+            }
+            InfraFieldType::LightTokenConfig => {
+                if self.light_token_config.is_some() {
+                    return Err(Error::new_spanned(
+                        &ident,
+                        "duplicate infrastructure field: light_token_config",
+                    ));
+                }
+                self.light_token_config = Some(ident);
+            }
+            InfraFieldType::LightTokenRentSponsor => {
+                if self.light_token_rent_sponsor.is_some() {
+                    return Err(Error::new_spanned(
+                        &ident,
+                        "duplicate infrastructure field: light_token_rent_sponsor",
+                    ));
+                }
+                self.light_token_rent_sponsor = Some(ident);
+            }
+            InfraFieldType::LightTokenProgram => {
+                if self.light_token_program.is_some() {
+                    return Err(Error::new_spanned(
+                        &ident,
+                        "duplicate infrastructure field: light_token_program",
+                    ));
+                }
+                self.light_token_program = Some(ident);
+            }
+            InfraFieldType::LightTokenCpiAuthority => {
+                if self.light_token_cpi_authority.is_some() {
+                    return Err(Error::new_spanned(
+                        &ident,
+                        "duplicate infrastructure field: light_token_cpi_authority",
+                    ));
+                }
+                self.light_token_cpi_authority = Some(ident);
+            }
         }
+        Ok(())
     }
 }
 
@@ -188,7 +238,7 @@ pub(super) fn parse_light_accounts_struct(
         // Track infrastructure fields by naming convention using the classifier.
         // See InfraFieldClassifier for supported field names.
         if let Some(field_type) = InfraFieldClassifier::classify(&field_name) {
-            infra_fields.set(field_type, field_ident.clone());
+            infra_fields.set(field_type, field_ident.clone())?;
         }
 
         // Check for #[light_account(...)] - the unified syntax
@@ -198,28 +248,6 @@ pub(super) fn parse_light_accounts_struct(
                 LightAccountField::Mint(mint) => light_mint_fields.push(*mint),
             }
             continue; // Field processed, move to next
-        }
-
-        // Check for deprecated syntax and provide helpful error messages
-        for attr in &field.attrs {
-            if attr.path().is_ident("rentfree") {
-                return Err(Error::new_spanned(
-                    attr,
-                    "The #[light_account(init)] attribute has been replaced. \
-                     Use #[light_account(init)] for PDAs or \
-                     #[light_account(init, address_tree_info = ..., output_tree = ...)] with options.",
-                ));
-            }
-            if attr.path().is_ident("light_mint") {
-                return Err(Error::new_spanned(
-                    attr,
-                    "The #[light_account(init, mint,...)] attribute has been replaced. \
-                     Use #[light_account(init, mint, mint_signer = ..., authority = ..., decimals = ..., mint_seeds = ...)].",
-                ));
-            }
-
-            // TODO(future): Add parsing for #[light_account(token, ...)] attribute for token accounts and ATAs.
-            // Would need LightTokenField struct with: field_ident, authority_seeds, mint field ref.
         }
     }
 

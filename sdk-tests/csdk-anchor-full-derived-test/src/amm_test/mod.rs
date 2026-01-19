@@ -3,7 +3,7 @@
 //! Tests:
 //! - Multiple #[light_account(init)] fields
 //! - #[light_account(token)] with authority seeds
-//! - #[light_mint] for LP token creation
+//! - #[light_account(init)] for LP token creation
 //! - CreateTokenAccountCpi.rent_free()
 //! - CreateTokenAtaCpi.rent_free()
 //! - MintToCpi / BurnCpi

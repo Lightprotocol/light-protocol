@@ -338,7 +338,7 @@ pub struct DecompressCMintCpiWithContext<'info> {
     pub cpi_context_account: AccountInfo<'info>,
     /// System accounts for Light Protocol
     pub system_accounts: SystemAccountInfos<'info>,
-    /// CToken program's CPI authority (GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy)
+    /// Light token program's CPI authority (GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy)
     /// This is separate from system_accounts.cpi_authority_pda which is the calling program's authority
     pub light_token_cpi_authority: AccountInfo<'info>,
     /// Compressed mint with context (from indexer)

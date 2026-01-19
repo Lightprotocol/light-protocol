@@ -69,7 +69,7 @@ pub struct ExtractedAccountsInfo {
     pub struct_name: Ident,
     pub pda_fields: Vec<ExtractedSeedSpec>,
     pub token_fields: Vec<ExtractedTokenSpec>,
-    /// True if struct has any #[light_mint] fields
+    /// True if struct has any #[light_account(init)] fields
     pub has_light_mint_fields: bool,
 }
 
@@ -210,23 +210,18 @@ fn check_light_account_type(attrs: &[syn::Attribute]) -> (bool, bool) {
                 _ => continue,
             };
 
-            // Check if "mint" keyword is present among the tokens
-            let has_mint = tokens.clone().into_iter().any(|token| {
+            // Single pass to check for both "init" and "mint" keywords
+            let mut has_mint = false;
+            let mut has_init = false;
+            for token in tokens {
                 if let proc_macro2::TokenTree::Ident(ident) = token {
-                    ident == "mint"
-                } else {
-                    false
+                    if ident == "mint" {
+                        has_mint = true;
+                    } else if ident == "init" {
+                        has_init = true;
+                    }
                 }
-            });
-
-            // Check if "init" keyword is present
-            let has_init = tokens.into_iter().any(|token| {
-                if let proc_macro2::TokenTree::Ident(ident) = token {
-                    ident == "init"
-                } else {
-                    false
-                }
-            });
+            }
 
             if has_init {
                 // If has mint, it's a mint field; otherwise it's a PDA

@@ -10,7 +10,7 @@ rentfree/
 ├── README.md           # This file
 ├── accounts/           # #[derive(LightAccounts)] implementation
 │   ├── mod.rs          # Entry point: derive_rentfree()
-│   ├── parse.rs        # Parsing #[light_account(init)], #[light_mint] attributes
+│   ├── parse.rs        # Parsing #[light_account(init)], #[light_account(init)] attributes
 │   └── codegen.rs      # LightPreInit/LightFinalize trait generation
 ├── program/            # #[rentfree_program] implementation
 │   ├── mod.rs          # Entry point: rentfree_program_impl()
@@ -34,7 +34,7 @@ rentfree/
 
 Implements `#[derive(LightAccounts)]` for Anchor Accounts structs:
 
-- **parse.rs** - Parses `#[light_account(init)]`, `#[light_account(token)]`, `#[light_mint]` attributes
+- **parse.rs** - Parses `#[light_account(init)]`, `#[light_account(token)]`, `#[light_account(init)]` attributes
 - **codegen.rs** - Generates `LightPreInit` and `LightFinalize` trait implementations
 
 ### `program/` - RentFree Program Macro

@@ -1,9 +1,9 @@
 //! Unified #[light_account(...)] attribute parsing.
 //!
 //! This module provides a single unified syntax for all Light Protocol account types:
-//! - `#[light_account(init)]` - PDAs (replaces `#[light_account(init)]`)
-//! - `#[light_account(init, mint, ...)]` - Compressed mints (replaces `#[light_mint]`)
-//! - `#[light_account(token, ...)]` - Token accounts for compression (handled by light_program)
+//! - `#[light_account(init)]` - PDAs
+//! - `#[light_account(init, mint, ...)]` - Light Mints
+//! - `#[light_account(token, ...)]` - Light token accounts
 //!
 //! Note: Token fields are NOT processed here - they're handled by seed_extraction.rs
 //! in the light_program macro. This parser returns None for token fields.
@@ -89,11 +89,36 @@ impl Parse for LightAccountArgs {
         let first: Ident = input.parse()?;
 
         // If first argument is `token`, this is a token field handled by light_program
-        // Consume all remaining tokens and return
+        // Validate remaining tokens - only `authority = [...]` is allowed
         if first == "token" {
-            // Consume remaining tokens (e.g., ", authority = [...]")
             while !input.is_empty() {
-                let _: proc_macro2::TokenTree = input.parse()?;
+                input.parse::<Token![,]>()?;
+
+                if input.is_empty() {
+                    break;
+                }
+
+                let key: Ident = input.parse()?;
+                if key != "authority" {
+                    return Err(Error::new_spanned(
+                        &key,
+                        format!(
+                            "Unknown argument `{}` in #[light_account(token, ...)]. \
+                             Only `authority` is allowed.",
+                            key
+                        ),
+                    ));
+                }
+
+                input.parse::<Token![=]>()?;
+
+                // Parse the bracketed content for authority seeds
+                let content;
+                syn::bracketed!(content in input);
+                // Consume the bracket contents (validated by seed_extraction.rs)
+                while !content.is_empty() {
+                    let _: proc_macro2::TokenTree = content.parse()?;
+                }
             }
             return Ok(Self {
                 has_init: false,

@@ -83,7 +83,7 @@ impl<'a> LightVariantBuilder<'a> {
         let size_impl = self.generate_size_impl();
         let pack_impl = self.generate_pack_impl();
         let unpack_impl = self.generate_unpack_impl()?;
-        let rentfree_account_data_struct = self.generate_rentfree_account_data_struct();
+        let light_account_data_struct = self.generate_light_account_data_struct();
 
         Ok(quote! {
             #enum_def
@@ -94,7 +94,7 @@ impl<'a> LightVariantBuilder<'a> {
             #size_impl
             #pack_impl
             #unpack_impl
-            #rentfree_account_data_struct
+            #light_account_data_struct
         })
     }
 
@@ -488,7 +488,7 @@ impl<'a> LightVariantBuilder<'a> {
     }
 
     /// Generate the LightAccountData struct.
-    fn generate_rentfree_account_data_struct(&self) -> TokenStream {
+    fn generate_light_account_data_struct(&self) -> TokenStream {
         quote! {
             #[derive(Clone, Debug, anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)]
             pub struct LightAccountData {

@@ -131,7 +131,7 @@ pub struct CreateTwoMintsParams {
     pub mint_signer_b_bump: u8,
 }
 
-/// Test instruction with 2 #[light_mint] fields to verify multi-mint support.
+/// Test instruction with 2 #[light_account(init)] fields to verify multi-mint support.
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateTwoMintsParams)]
 pub struct CreateTwoMints<'info> {
@@ -207,7 +207,7 @@ pub struct CreateThreeMintsParams {
     pub mint_signer_c_bump: u8,
 }
 
-/// Test instruction with 3 #[light_mint] fields to verify multi-mint support.
+/// Test instruction with 3 #[light_account(init)] fields to verify multi-mint support.
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateThreeMintsParams)]
 pub struct CreateThreeMints<'info> {
@@ -302,7 +302,7 @@ pub struct CreateMintWithMetadataParams {
     pub additional_metadata: Option<Vec<light_token_sdk::AdditionalMetadata>>,
 }
 
-/// Test instruction with #[light_mint] with metadata fields.
+/// Test instruction with #[light_account(init)] with metadata fields.
 /// Tests the metadata support in the RentFree macro.
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateMintWithMetadataParams)]

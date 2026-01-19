@@ -134,7 +134,7 @@ impl LightAccountsBuilder {
         !self.parsed.rentfree_fields.is_empty()
     }
 
-    /// Query: any #[light_mint] fields?
+    /// Query: any #[light_account(init)] fields?
     pub fn has_mints(&self) -> bool {
         !self.parsed.light_mint_fields.is_empty()
     }

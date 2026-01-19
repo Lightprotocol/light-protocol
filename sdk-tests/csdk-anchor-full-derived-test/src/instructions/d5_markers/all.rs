@@ -1,7 +1,7 @@
 //! D5 Test: All marker types combined
 //!
 //! Tests #[light_account(init)] + #[light_account(token)] together in one instruction struct.
-//! Note: #[light_mint] is tested separately in amm_test/initialize.rs.
+//! Note: #[light_account(init)] is tested separately in amm_test/initialize.rs.
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;

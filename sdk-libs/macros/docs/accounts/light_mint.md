@@ -289,7 +289,7 @@ pub struct CreateMintAndPda<'info> {
 }
 ```
 
-When both `#[light_mint]` and `#[light_account(init)]` are present, the macro:
+When both `#[light_account(init)]` and `#[light_account(init)]` are present, the macro:
 1. Processes PDAs first, writing them to the CPI context
 2. Invokes mint_action with CPI context to batch the mint creation
 3. Uses `assigned_account_index` to order the mint relative to PDAs

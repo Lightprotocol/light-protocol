@@ -379,7 +379,7 @@ pub mod csdk_anchor_full_derived_test {
     }
 
     /// AMM initialize instruction with all light account markers.
-    /// Tests: 2x #[light_account(init)], 2x #[light_account(token)], 1x #[light_mint],
+    /// Tests: 2x #[light_account(init)], 2x #[light_account(token)], 1x #[light_account(init)],
     /// CreateTokenAccountCpi.rent_free(), CreateTokenAtaCpi.rent_free(), MintToCpi
     pub fn initialize_pool<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializePool<'info>>,

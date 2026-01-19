@@ -98,7 +98,7 @@ pub cmint: Account<'info, CMint>,
 
 #### `#[instruction(...)]` - Specify Instruction Parameters (Required)
 
-Must be present on the struct when using `#[light_account(init)]` or `#[light_mint]`.
+Must be present on the struct when using `#[light_account(init)]` or `#[light_account(init)]`.
 
 ```rust
 #[derive(Accounts, LightAccounts)]
@@ -128,13 +128,13 @@ Infrastructure fields are auto-detected by naming convention. No attribute requi
    |-- parse_rentfree_struct() extracts:
    |   - Struct name and generics
    |   - #[light_account(init)] fields -> RentFreeField
-   |   - #[light_mint] fields -> LightMintField
+   |   - #[light_account(init)] fields -> LightMintField
    |   - #[instruction] args
    |   - Infrastructure fields by naming convention
    |
 2. Validate
    |-- Total fields <= 255 (u8 index limit)
-   |-- #[instruction] required when #[light_account(init)] or #[light_mint] present
+   |-- #[instruction] required when #[light_account(init)] or #[light_account(init)] present
    |
 3. Generate pre_init Body
    |-- PDAs + Mints: generate_pre_init_pdas_and_mints()
@@ -540,7 +540,7 @@ sdk-libs/macros/src/rentfree/
 |   |   - PdaBlockBuilder
 |   |   - generate_pda_compress_blocks()
 |   +-- light_mint.rs    Mint action CPI generation
-|       - LightMintField (#[light_mint] data)
+|       - LightMintField (#[light_account(init)] data)
 |       - InfraRefs - resolved infrastructure field references
 |       - LightMintBuilder - builder pattern for mint CPI generation
 |       - CpiContextParts - encapsulates CPI context branching logic
@@ -571,13 +571,13 @@ sdk-libs/macros/src/rentfree/
 ## 5. Limitations
 
 ### Field Limits
-- **Maximum 255 fields**: Total `#[light_account(init)]` + `#[light_mint]` fields must be <= 255 (u8 index limit)
-- **Single mint field**: Currently only the first `#[light_mint]` field is processed
+- **Maximum 255 fields**: Total `#[light_account(init)]` + `#[light_account(init)]` fields must be <= 255 (u8 index limit)
+- **Single mint field**: Currently only the first `#[light_account(init)]` field is processed
 
 ### Type Restrictions
 - `#[light_account(init)]` only applies to `Account<'info, T>` or `Box<Account<'info, T>>` fields
 - Nested `Box<Box<Account<...>>>` is not supported
-- `#[light_account(init)]` and `#[light_mint]` are mutually exclusive on the same field
+- `#[light_account(init)]` and `#[light_account(init)]` are mutually exclusive on the same field
 
 ### No-op Fallback
 When no `#[instruction]` attribute is present, the macro generates no-op implementations for backwards compatibility with non-compressible Accounts structs.

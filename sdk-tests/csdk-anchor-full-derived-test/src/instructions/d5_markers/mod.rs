@@ -1,6 +1,6 @@
 //! D5: Field marker attributes
 //!
-//! Tests #[light_account(init)], #[light_account(token)], and #[light_mint] attribute parsing.
+//! Tests #[light_account(init)], #[light_account(token)], and #[light_account(init)] attribute parsing.
 
 mod all;
 mod light_token;
