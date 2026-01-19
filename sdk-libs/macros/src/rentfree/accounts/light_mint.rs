@@ -403,7 +403,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                     mint_seed_pubkey: #signer_key_ident,
                     authority_seeds: #authority_seeds_ident,
                     mint_signer_seeds: Some(#mint_seeds_ident),
-                    token_metadata: #token_metadata_ident,
+                    token_metadata: #token_metadata_ident.as_ref(),
                 };
             }
         })
