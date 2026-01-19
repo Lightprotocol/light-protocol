@@ -11,6 +11,7 @@ use super::{
     mint::{InfraRefs, LightMintsBuilder},
     parse::{InfraFieldType, ParsedLightAccountsStruct},
     pda::generate_pda_compress_blocks,
+    token::TokenAccountsBuilder,
 };
 
 /// Builder for RentFree derive macro code generation.
@@ -46,15 +47,20 @@ impl LightAccountsBuilder {
 
     /// Validate constraints (e.g., account count < 255).
     pub fn validate(&self) -> Result<(), syn::Error> {
-        let total = self.parsed.rentfree_fields.len() + self.parsed.light_mint_fields.len();
+        let total = self.parsed.rentfree_fields.len()
+            + self.parsed.light_mint_fields.len()
+            + self.parsed.token_account_fields.len()
+            + self.parsed.ata_fields.len();
         if total > 255 {
             return Err(syn::Error::new_spanned(
                 &self.parsed.struct_name,
                 format!(
-                    "Too many compression fields ({} PDAs + {} mints = {} total, maximum 255). \
+                    "Too many compression fields ({} PDAs + {} mints + {} tokens + {} ATAs = {} total, maximum 255). \
                      Light Protocol uses u8 for account indices.",
                     self.parsed.rentfree_fields.len(),
                     self.parsed.light_mint_fields.len(),
+                    self.parsed.token_account_fields.len(),
+                    self.parsed.ata_fields.len(),
                     total
                 ),
             ));
@@ -70,9 +76,11 @@ impl LightAccountsBuilder {
     fn validate_infra_fields(&self) -> Result<(), syn::Error> {
         let has_pdas = self.has_pdas();
         let has_mints = self.has_mints();
+        let has_token_accounts = self.has_token_accounts();
+        let has_atas = self.has_atas();
 
         // Skip validation if no light_account fields
-        if !has_pdas && !has_mints {
+        if !has_pdas && !has_mints && !has_token_accounts && !has_atas {
             return Ok(());
         }
 
@@ -88,27 +96,38 @@ impl LightAccountsBuilder {
             missing.push(InfraFieldType::CompressionConfig);
         }
 
-        // Mints require light_token_config, light_token_rent_sponsor, light_token_cpi_authority
-        if has_mints {
+        // Mints, token accounts, and ATAs require light_token infrastructure
+        let needs_token_infra = has_mints || has_token_accounts || has_atas;
+        if needs_token_infra {
             if self.parsed.infra_fields.light_token_config.is_none() {
                 missing.push(InfraFieldType::LightTokenConfig);
             }
             if self.parsed.infra_fields.light_token_rent_sponsor.is_none() {
                 missing.push(InfraFieldType::LightTokenRentSponsor);
             }
-            if self.parsed.infra_fields.light_token_cpi_authority.is_none() {
+            // CPI authority is required for mints and token accounts (PDA-based signing)
+            if (has_mints || has_token_accounts)
+                && self.parsed.infra_fields.light_token_cpi_authority.is_none()
+            {
                 missing.push(InfraFieldType::LightTokenCpiAuthority);
             }
         }
 
         if !missing.is_empty() {
-            let context = if has_pdas && has_mints {
-                "PDA and mint"
-            } else if has_mints {
-                "mint"
-            } else {
-                "PDA"
-            };
+            let mut types = Vec::new();
+            if has_pdas {
+                types.push("PDA");
+            }
+            if has_mints {
+                types.push("mint");
+            }
+            if has_token_accounts {
+                types.push("token account");
+            }
+            if has_atas {
+                types.push("ATA");
+            }
+            let context = types.join(", ");
 
             let mut msg = format!(
                 "#[derive(LightAccounts)] with {} fields requires the following infrastructure fields:\n",
@@ -129,14 +148,24 @@ impl LightAccountsBuilder {
         Ok(())
     }
 
-    /// Query: any #[light_account(init)] fields?
+    /// Query: any #[light_account(init)] PDA fields?
     pub fn has_pdas(&self) -> bool {
         !self.parsed.rentfree_fields.is_empty()
     }
 
-    /// Query: any #[light_account(init)] fields?
+    /// Query: any #[light_account(init, mint, ...)] fields?
     pub fn has_mints(&self) -> bool {
         !self.parsed.light_mint_fields.is_empty()
+    }
+
+    /// Query: any #[light_account(init, token, ...)] fields?
+    pub fn has_token_accounts(&self) -> bool {
+        !self.parsed.token_account_fields.is_empty()
+    }
+
+    /// Query: any #[light_account(init, ata, ...)] fields?
+    pub fn has_atas(&self) -> bool {
+        !self.parsed.ata_fields.is_empty()
     }
 
     /// Query: #[instruction(...)] present?
@@ -373,5 +402,25 @@ impl LightAccountsBuilder {
                 }
             }
         })
+    }
+
+    /// Check if token accounts or ATAs need finalize code generation.
+    pub fn needs_token_finalize(&self) -> bool {
+        TokenAccountsBuilder::new(
+            &self.parsed.token_account_fields,
+            &self.parsed.ata_fields,
+            &self.infra,
+        )
+        .needs_finalize()
+    }
+
+    /// Generate finalize body for token accounts and ATAs.
+    pub fn generate_token_finalize_body(&self) -> TokenStream {
+        TokenAccountsBuilder::new(
+            &self.parsed.token_account_fields,
+            &self.parsed.ata_fields,
+            &self.infra,
+        )
+        .generate_finalize_body()
     }
 }

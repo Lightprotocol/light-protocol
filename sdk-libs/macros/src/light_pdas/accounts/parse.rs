@@ -10,7 +10,7 @@ use syn::{
 };
 
 // Import unified parsing from light_account module
-use super::light_account::{parse_light_account_attr, LightAccountField};
+use super::light_account::{parse_light_account_attr, AtaField, LightAccountField, TokenAccountField};
 // Import LightMintField from mint module (for type export)
 pub(super) use super::mint::LightMintField;
 
@@ -157,6 +157,8 @@ pub(super) struct ParsedLightAccountsStruct {
     pub generics: syn::Generics,
     pub rentfree_fields: Vec<ParsedPdaField>,
     pub light_mint_fields: Vec<LightMintField>,
+    pub token_account_fields: Vec<TokenAccountField>,
+    pub ata_fields: Vec<AtaField>,
     pub instruction_args: Option<Vec<InstructionArg>>,
     /// Infrastructure fields detected by naming convention.
     pub infra_fields: InfraFields,
@@ -226,6 +228,8 @@ pub(super) fn parse_light_accounts_struct(
 
     let mut rentfree_fields = Vec::new();
     let mut light_mint_fields = Vec::new();
+    let mut token_account_fields = Vec::new();
+    let mut ata_fields = Vec::new();
     let mut infra_fields = InfraFields::default();
 
     for field in fields {
@@ -246,14 +250,19 @@ pub(super) fn parse_light_accounts_struct(
             match light_account_field {
                 LightAccountField::Pda(pda) => rentfree_fields.push((*pda).into()),
                 LightAccountField::Mint(mint) => light_mint_fields.push(*mint),
+                LightAccountField::TokenAccount(token) => token_account_fields.push(*token),
+                LightAccountField::Ata(ata) => ata_fields.push(*ata),
             }
             continue; // Field processed, move to next
         }
     }
 
     // Validation: #[light_account] fields require #[instruction] attribute
-    if (!rentfree_fields.is_empty() || !light_mint_fields.is_empty()) && instruction_args.is_none()
-    {
+    let has_light_account_fields = !rentfree_fields.is_empty()
+        || !light_mint_fields.is_empty()
+        || !token_account_fields.is_empty()
+        || !ata_fields.is_empty();
+    if has_light_account_fields && instruction_args.is_none() {
         return Err(Error::new_spanned(
             input,
             "#[light_account] fields require #[instruction(params: YourParamsType)] \
@@ -266,6 +275,8 @@ pub(super) fn parse_light_accounts_struct(
         generics,
         rentfree_fields,
         light_mint_fields,
+        token_account_fields,
+        ata_fields,
         instruction_args,
         infra_fields,
     })

@@ -26,9 +26,8 @@ pub enum LightAccountType {
     #[default]
     Pda, // Default (no type specifier) - for PDAs
     Mint, // `mint` keyword - for compressed mints
-          // Future:
-          // TokenAccount, // `token_account` keyword
-          // Ata,          // `ata` keyword
+    Token, // `token` keyword - for token accounts
+    Ata,   // `ata` keyword - for ATAs
 }
 
 // ============================================================================
@@ -36,12 +35,16 @@ pub enum LightAccountType {
 // ============================================================================
 
 /// Unified representation of a #[light_account(...)] field.
+#[derive(Debug)]
 pub enum LightAccountField {
     Pda(Box<PdaField>),
     Mint(Box<LightMintField>),
+    TokenAccount(Box<TokenAccountField>),
+    Ata(Box<AtaField>),
 }
 
 /// A field marked with #[light_account(init)] (PDA).
+#[derive(Debug)]
 pub struct PdaField {
     pub ident: Ident,
     /// The inner type T from Account<'info, T> or Box<Account<'info, T>>
@@ -50,6 +53,40 @@ pub struct PdaField {
     pub output_tree: Expr,
     /// True if the field is Box<Account<T>>, false if Account<T>
     pub is_boxed: bool,
+}
+
+/// A field marked with #[light_account([init,] token, ...)] (Token Account).
+#[derive(Clone, Debug)]
+pub struct TokenAccountField {
+    pub field_ident: Ident,
+    /// True if `init` keyword is present (generate creation code)
+    pub has_init: bool,
+    /// Seeds for the token account PDA (from #[account(seeds = [...], bump)])
+    pub seeds: Vec<Expr>,
+    /// Authority seeds for the PDA owner (from authority = [...] parameter)
+    pub authority_seeds: Vec<Expr>,
+    /// Mint reference (extracted from seeds or explicit parameter)
+    pub mint: Option<Expr>,
+    /// Owner reference (the PDA that owns this token account)
+    pub owner: Option<Expr>,
+    /// Compression-only flag (default: true when has_init = true)
+    pub compression_only: bool,
+}
+
+/// A field marked with #[light_account([init,] ata, ...)] (Associated Token Account).
+#[derive(Clone, Debug)]
+pub struct AtaField {
+    pub field_ident: Ident,
+    /// True if `init` keyword is present (generate creation code)
+    pub has_init: bool,
+    /// Owner of the ATA (from owner = ... parameter)
+    pub owner: Expr,
+    /// Mint for the ATA (from mint = ... parameter)
+    pub mint: Expr,
+    /// Bump seed (from #[account(seeds = [...], bump)])
+    pub bump: Option<Expr>,
+    /// Compression-only flag (default: true when has_init = true)
+    pub compression_only: bool,
 }
 
 // ============================================================================
@@ -85,53 +122,29 @@ struct LightAccountArgs {
 
 impl Parse for LightAccountArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        // First token must be `init` or `token`
+        // First token must be `init`, `token`, or `ata`
         let first: Ident = input.parse()?;
 
-        // If first argument is `token`, this is a token field handled by light_program
-        // Validate remaining tokens - only `authority = [...]` is allowed
-        if first == "token" {
-            while !input.is_empty() {
-                input.parse::<Token![,]>()?;
-
-                if input.is_empty() {
-                    break;
-                }
-
-                let key: Ident = input.parse()?;
-                if key != "authority" {
-                    return Err(Error::new_spanned(
-                        &key,
-                        format!(
-                            "Unknown argument `{}` in #[light_account(token, ...)]. \
-                             Only `authority` is allowed.",
-                            key
-                        ),
-                    ));
-                }
-
-                input.parse::<Token![=]>()?;
-
-                // Parse the bracketed content for authority seeds
-                let content;
-                syn::bracketed!(content in input);
-                // Consume the bracket contents (validated by seed_extraction.rs)
-                while !content.is_empty() {
-                    let _: proc_macro2::TokenTree = content.parse()?;
-                }
-            }
+        // Handle `token` or `ata` as first argument (mark-only mode, no init)
+        if first == "token" || first == "ata" {
+            let account_type = if first == "token" {
+                LightAccountType::Token
+            } else {
+                LightAccountType::Ata
+            };
+            let key_values = parse_token_ata_key_values(input, &first)?;
             return Ok(Self {
                 has_init: false,
-                is_token: true,
-                account_type: LightAccountType::Pda, // not used for token
-                key_values: Vec::new(),
+                is_token: true, // Skip in LightAccounts derive (for mark-only mode)
+                account_type,
+                key_values,
             });
         }
 
         if first != "init" {
             return Err(Error::new_spanned(
                 &first,
-                "First argument to #[light_account] must be `init` or `token`",
+                "First argument to #[light_account] must be `init`, `token`, or `ata`",
             ));
         }
 
@@ -142,18 +155,31 @@ impl Parse for LightAccountArgs {
         while !input.is_empty() {
             input.parse::<Token![,]>()?;
 
-            // Check if this is a type keyword (mint, token_account, ata)
+            // Check if this is a type keyword (mint, token, ata)
             if input.peek(Ident) {
                 let lookahead = input.fork();
                 let ident: Ident = lookahead.parse()?;
 
-                // Check for type keywords
-                if ident == "mint" && !lookahead.peek(Token![=]) {
-                    input.parse::<Ident>()?; // consume it
-                    account_type = LightAccountType::Mint;
-                    continue;
+                // Check for type keywords (not followed by `=`)
+                if !lookahead.peek(Token![=]) {
+                    if ident == "mint" {
+                        input.parse::<Ident>()?; // consume it
+                        account_type = LightAccountType::Mint;
+                        continue;
+                    } else if ident == "token" {
+                        input.parse::<Ident>()?; // consume it
+                        account_type = LightAccountType::Token;
+                        // Parse remaining token-specific key-values
+                        key_values = parse_token_ata_key_values(input, &ident)?;
+                        break;
+                    } else if ident == "ata" {
+                        input.parse::<Ident>()?; // consume it
+                        account_type = LightAccountType::Ata;
+                        // Parse remaining ata-specific key-values
+                        key_values = parse_token_ata_key_values(input, &ident)?;
+                        break;
+                    }
                 }
-                // Future: token_account, ata keywords
             }
 
             // Otherwise it's a key-value pair
@@ -172,13 +198,76 @@ impl Parse for LightAccountArgs {
     }
 }
 
+/// Parse key-value pairs for token and ata attributes.
+/// Handles both bracketed arrays (authority = [...]) and simple values (owner = ident).
+fn parse_token_ata_key_values(
+    input: ParseStream,
+    account_type_name: &Ident,
+) -> syn::Result<Vec<KeyValue>> {
+    let mut key_values = Vec::new();
+    let valid_keys = if account_type_name == "token" {
+        &["authority", "mint", "owner", "compression_only"][..]
+    } else {
+        // ata
+        &["owner", "mint", "bump", "compression_only"][..]
+    };
+
+    while !input.is_empty() {
+        input.parse::<Token![,]>()?;
+
+        if input.is_empty() {
+            break;
+        }
+
+        let key: Ident = input.parse()?;
+        let key_str = key.to_string();
+
+        if !valid_keys.contains(&key_str.as_str()) {
+            return Err(Error::new_spanned(
+                &key,
+                format!(
+                    "Unknown argument `{}` in #[light_account({}, ...)]. \
+                     Allowed: {}",
+                    key,
+                    account_type_name,
+                    valid_keys.join(", ")
+                ),
+            ));
+        }
+
+        input.parse::<Token![=]>()?;
+
+        // Handle bracketed content for authority seeds
+        let value: Expr = if key == "authority" && input.peek(syn::token::Bracket) {
+            let content;
+            syn::bracketed!(content in input);
+            // Parse as array expression
+            let mut elements = Vec::new();
+            while !content.is_empty() {
+                let elem: Expr = content.parse()?;
+                elements.push(elem);
+                if content.peek(Token![,]) {
+                    content.parse::<Token![,]>()?;
+                }
+            }
+            syn::parse_quote!([#(#elements),*])
+        } else {
+            input.parse()?
+        };
+
+        key_values.push(KeyValue { key, value });
+    }
+
+    Ok(key_values)
+}
+
 // ============================================================================
 // Main Parsing Function
 // ============================================================================
 
 /// Parse #[light_account(...)] attribute from a field.
-/// Returns None if no light_account attribute or if it's a token field (handled elsewhere).
-/// Returns Some(LightAccountField) for PDA or Mint fields.
+/// Returns None if no light_account attribute or if it's a mark-only token/ata field.
+/// Returns Some(LightAccountField) for PDA, Mint, or init Token/Ata fields.
 pub(super) fn parse_light_account_attr(
     field: &Field,
     field_ident: &Ident,
@@ -187,16 +276,20 @@ pub(super) fn parse_light_account_attr(
         if attr.path().is_ident("light_account") {
             let args: LightAccountArgs = attr.parse_args()?;
 
-            // Token fields are handled by light_program macro (seed_extraction.rs)
+            // Mark-only mode (token/ata without init) - handled by light_program macro
             // Return None so LightAccounts derive skips them
-            if args.is_token {
+            if args.is_token && !args.has_init {
                 return Ok(None);
             }
 
-            if !args.has_init {
+            // For PDA and Mint, init is required
+            if !args.has_init
+                && (args.account_type == LightAccountType::Pda
+                    || args.account_type == LightAccountType::Mint)
+            {
                 return Err(Error::new_spanned(
                     attr,
-                    "#[light_account] requires `init` as the first argument (or use `token` for token accounts)",
+                    "#[light_account] requires `init` as the first argument for PDA/Mint",
                 ));
             }
 
@@ -206,6 +299,12 @@ pub(super) fn parse_light_account_attr(
                 )))),
                 LightAccountType::Mint => Ok(Some(LightAccountField::Mint(Box::new(
                     build_mint_field(field_ident, &args.key_values, attr)?,
+                )))),
+                LightAccountType::Token => Ok(Some(LightAccountField::TokenAccount(Box::new(
+                    build_token_account_field(field_ident, &args.key_values, args.has_init, attr)?,
+                )))),
+                LightAccountType::Ata => Ok(Some(LightAccountField::Ata(Box::new(
+                    build_ata_field(field_ident, &args.key_values, args.has_init, attr)?,
                 )))),
             };
         }
@@ -375,6 +474,128 @@ fn build_mint_field(
     })
 }
 
+/// Build a TokenAccountField from parsed key-value pairs.
+fn build_token_account_field(
+    field_ident: &Ident,
+    key_values: &[KeyValue],
+    has_init: bool,
+    attr: &syn::Attribute,
+) -> Result<TokenAccountField, syn::Error> {
+    let mut authority: Option<Expr> = None;
+    let mut mint: Option<Expr> = None;
+    let mut owner: Option<Expr> = None;
+    let mut compression_only: Option<bool> = None;
+
+    for kv in key_values {
+        match kv.key.to_string().as_str() {
+            "authority" => authority = Some(kv.value.clone()),
+            "mint" => mint = Some(kv.value.clone()),
+            "owner" => owner = Some(kv.value.clone()),
+            "compression_only" => {
+                compression_only = Some(expr_to_bool(&kv.value, "compression_only")?);
+            }
+            other => {
+                return Err(Error::new_spanned(
+                    &kv.key,
+                    format!(
+                        "Unknown argument `{other}` for token. \
+                         Expected: authority, mint, owner, compression_only"
+                    ),
+                ));
+            }
+        }
+    }
+
+    // Validate required fields for init mode
+    if has_init {
+        if authority.is_none() {
+            return Err(Error::new_spanned(
+                attr,
+                "#[light_account(init, token, ...)] requires `authority = [...]` parameter",
+            ));
+        }
+    }
+
+    // Extract authority seeds from the array expression
+    let authority_seeds = if let Some(ref auth_expr) = authority {
+        extract_array_elements(auth_expr)?
+    } else {
+        Vec::new()
+    };
+
+    // Default compression_only to true when init is present
+    let compression_only = compression_only.unwrap_or(has_init);
+
+    Ok(TokenAccountField {
+        field_ident: field_ident.clone(),
+        has_init,
+        seeds: Vec::new(), // Seeds will be extracted from #[account(seeds = [...])] later
+        authority_seeds,
+        mint,
+        owner,
+        compression_only,
+    })
+}
+
+/// Build an AtaField from parsed key-value pairs.
+fn build_ata_field(
+    field_ident: &Ident,
+    key_values: &[KeyValue],
+    has_init: bool,
+    attr: &syn::Attribute,
+) -> Result<AtaField, syn::Error> {
+    let mut owner: Option<Expr> = None;
+    let mut mint: Option<Expr> = None;
+    let mut bump: Option<Expr> = None;
+    let mut compression_only: Option<bool> = None;
+
+    for kv in key_values {
+        match kv.key.to_string().as_str() {
+            "owner" => owner = Some(kv.value.clone()),
+            "mint" => mint = Some(kv.value.clone()),
+            "bump" => bump = Some(kv.value.clone()),
+            "compression_only" => {
+                compression_only = Some(expr_to_bool(&kv.value, "compression_only")?);
+            }
+            other => {
+                return Err(Error::new_spanned(
+                    &kv.key,
+                    format!(
+                        "Unknown argument `{other}` in #[light_account(ata, ...)]. \
+                         Allowed: owner, mint, bump, compression_only"
+                    ),
+                ));
+            }
+        }
+    }
+
+    // Validate required fields
+    let owner = owner.ok_or_else(|| {
+        Error::new_spanned(
+            attr,
+            "#[light_account([init,] ata, ...)] requires `owner` parameter",
+        )
+    })?;
+    let mint = mint.ok_or_else(|| {
+        Error::new_spanned(
+            attr,
+            "#[light_account([init,] ata, ...)] requires `mint` parameter",
+        )
+    })?;
+
+    // Default compression_only to true when init is present
+    let compression_only = compression_only.unwrap_or(has_init);
+
+    Ok(AtaField {
+        field_ident: field_ident.clone(),
+        has_init,
+        owner,
+        mint,
+        bump,
+        compression_only,
+    })
+}
+
 /// Convert an expression to an identifier (for field references).
 fn expr_to_ident(expr: &Expr, field_name: &str) -> Result<Ident, syn::Error> {
     match expr {
@@ -384,6 +605,51 @@ fn expr_to_ident(expr: &Expr, field_name: &str) -> Result<Ident, syn::Error> {
         _ => Err(Error::new_spanned(
             expr,
             format!("`{field_name}` must be a simple identifier"),
+        )),
+    }
+}
+
+/// Convert an expression to a boolean (for flags like compression_only).
+fn expr_to_bool(expr: &Expr, field_name: &str) -> Result<bool, syn::Error> {
+    match expr {
+        Expr::Lit(lit) => {
+            if let syn::Lit::Bool(b) = &lit.lit {
+                Ok(b.value)
+            } else {
+                Err(Error::new_spanned(
+                    expr,
+                    format!("`{field_name}` must be `true` or `false`"),
+                ))
+            }
+        }
+        Expr::Path(path) => {
+            let ident = path.path.get_ident().ok_or_else(|| {
+                Error::new_spanned(expr, format!("`{field_name}` must be `true` or `false`"))
+            })?;
+            match ident.to_string().as_str() {
+                "true" => Ok(true),
+                "false" => Ok(false),
+                _ => Err(Error::new_spanned(
+                    expr,
+                    format!("`{field_name}` must be `true` or `false`"),
+                )),
+            }
+        }
+        _ => Err(Error::new_spanned(
+            expr,
+            format!("`{field_name}` must be `true` or `false`"),
+        )),
+    }
+}
+
+/// Extract elements from an array expression.
+fn extract_array_elements(expr: &Expr) -> Result<Vec<Expr>, syn::Error> {
+    match expr {
+        Expr::Array(arr) => Ok(arr.elems.iter().cloned().collect()),
+        Expr::Reference(r) => extract_array_elements(&r.expr),
+        _ => Err(Error::new_spanned(
+            expr,
+            "Expected array expression like `[b\"seed\", other.key()]`",
         )),
     }
 }
@@ -604,5 +870,200 @@ mod tests {
         let result = parse_light_account_attr(&field, &ident);
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
+    }
+
+    // ========================================================================
+    // Token Account Tests
+    // ========================================================================
+
+    #[test]
+    fn test_parse_token_mark_only_returns_none() {
+        // Mark-only mode (no init) should return None for LightAccounts derive
+        let field: syn::Field = parse_quote! {
+            #[light_account(token, authority = [b"authority"])]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[test]
+    fn test_parse_token_init_creates_field() {
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, token, authority = [b"authority"])]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.is_some());
+
+        match result.unwrap() {
+            LightAccountField::TokenAccount(token) => {
+                assert_eq!(token.field_ident.to_string(), "vault");
+                assert!(token.has_init);
+                assert!(token.compression_only); // default true when has_init
+                assert!(!token.authority_seeds.is_empty());
+            }
+            _ => panic!("Expected TokenAccount field"),
+        }
+    }
+
+    #[test]
+    fn test_parse_token_init_with_compression_only_false() {
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, token, authority = [b"authority"], compression_only = false)]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.is_some());
+
+        match result.unwrap() {
+            LightAccountField::TokenAccount(token) => {
+                assert!(!token.compression_only);
+            }
+            _ => panic!("Expected TokenAccount field"),
+        }
+    }
+
+    #[test]
+    fn test_parse_token_init_missing_authority_fails() {
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, token)]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(err.contains("authority"));
+    }
+
+    // ========================================================================
+    // ATA Tests
+    // ========================================================================
+
+    #[test]
+    fn test_parse_ata_mark_only_returns_none() {
+        // Mark-only mode (no init) should return None for LightAccounts derive
+        let field: syn::Field = parse_quote! {
+            #[light_account(ata, owner = owner, mint = mint)]
+            pub user_ata: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[test]
+    fn test_parse_ata_init_creates_field() {
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, ata, owner = owner, mint = mint)]
+            pub user_ata: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.is_some());
+
+        match result.unwrap() {
+            LightAccountField::Ata(ata) => {
+                assert_eq!(ata.field_ident.to_string(), "user_ata");
+                assert!(ata.has_init);
+                assert!(ata.compression_only); // default true when has_init
+            }
+            _ => panic!("Expected Ata field"),
+        }
+    }
+
+    #[test]
+    fn test_parse_ata_init_with_compression_only_false() {
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, ata, owner = owner, mint = mint, compression_only = false)]
+            pub user_ata: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.is_some());
+
+        match result.unwrap() {
+            LightAccountField::Ata(ata) => {
+                assert!(!ata.compression_only);
+            }
+            _ => panic!("Expected Ata field"),
+        }
+    }
+
+    #[test]
+    fn test_parse_ata_init_missing_owner_fails() {
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, ata, mint = mint)]
+            pub user_ata: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(err.contains("owner"));
+    }
+
+    #[test]
+    fn test_parse_ata_init_missing_mint_fails() {
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, ata, owner = owner)]
+            pub user_ata: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(err.contains("mint"));
+    }
+
+    #[test]
+    fn test_parse_token_unknown_argument_fails() {
+        let field: syn::Field = parse_quote! {
+            #[light_account(token, authority = [b"auth"], unknown = foo)]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(err.contains("unknown"));
+    }
+
+    #[test]
+    fn test_parse_ata_unknown_argument_fails() {
+        let field: syn::Field = parse_quote! {
+            #[light_account(ata, owner = owner, mint = mint, unknown = foo)]
+            pub user_ata: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(err.contains("unknown"));
     }
 }

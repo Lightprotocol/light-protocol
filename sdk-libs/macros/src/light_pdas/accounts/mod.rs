@@ -18,6 +18,7 @@ mod light_account;
 mod mint;
 mod parse;
 mod pda;
+mod token;
 
 use proc_macro2::TokenStream;
 use syn::DeriveInput;

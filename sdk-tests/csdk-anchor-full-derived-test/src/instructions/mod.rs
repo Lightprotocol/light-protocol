@@ -12,3 +12,4 @@ pub mod d6_account_types;
 pub mod d7_infra_names;
 pub mod d8_builder_paths;
 pub mod d9_seeds;
+pub mod d10_token_accounts;

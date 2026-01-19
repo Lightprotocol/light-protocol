@@ -398,6 +398,39 @@ pub fn extract_context_and_params(fn_item: &ItemFn) -> Option<(String, Ident)> {
     }
 }
 
+/// Check if a function body is a simple delegation (single expression that moves ctx).
+/// Returns true for patterns like `crate::module::function(ctx, params)`.
+/// Does NOT match simple returns like `Ok(())` since those don't consume ctx.
+fn is_delegation_body(block: &syn::Block) -> bool {
+    // Check if block has exactly one statement that's an expression
+    if block.stmts.len() != 1 {
+        return false;
+    }
+    match &block.stmts[0] {
+        syn::Stmt::Expr(expr, _) => {
+            // Check if it's a function call that takes ctx as an argument
+            match expr {
+                syn::Expr::Call(call) => call_has_ctx_arg(&call.args),
+                syn::Expr::MethodCall(call) => call_has_ctx_arg(&call.args),
+                _ => false,
+            }
+        }
+        _ => false,
+    }
+}
+
+/// Check if any argument in the call is `ctx` (moving the context).
+fn call_has_ctx_arg(args: &syn::punctuated::Punctuated<syn::Expr, syn::token::Comma>) -> bool {
+    for arg in args {
+        if let syn::Expr::Path(path) = arg {
+            if path.path.is_ident("ctx") {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// Wrap a function with pre_init/finalize logic.
 pub fn wrap_function_with_light(fn_item: &ItemFn, params_ident: &Ident) -> ItemFn {
     let fn_vis = &fn_item.vis;
@@ -405,30 +438,51 @@ pub fn wrap_function_with_light(fn_item: &ItemFn, params_ident: &Ident) -> ItemF
     let fn_block = &fn_item.block;
     let fn_attrs = &fn_item.attrs;
 
-    let wrapped: ItemFn = syn::parse_quote! {
-        #(#fn_attrs)*
-        #fn_vis #fn_sig {
-            // Phase 1: Pre-init (creates mints via CPI context write, registers compressed addresses)
-            use light_sdk::interface::{LightPreInit, LightFinalize};
-            let _ = ctx.accounts.light_pre_init(ctx.remaining_accounts, &#params_ident)
-                .map_err(|e: light_sdk::error::LightSdkError| -> solana_program_error::ProgramError {
-                    e.into()
-                })?;
+    // Check if this handler delegates to another function (which moves ctx)
+    // In that case, skip finalize since the delegated function handles everything
+    let is_delegation = is_delegation_body(fn_block);
 
-            // Execute the original handler body
-            #fn_block
+    if is_delegation {
+        // For delegation handlers, just add pre_init before the delegation call
+        syn::parse_quote! {
+            #(#fn_attrs)*
+            #fn_vis #fn_sig {
+                // Phase 1: Pre-init (creates mints via CPI context write, registers compressed addresses)
+                use light_sdk::interface::{LightPreInit, LightFinalize};
+                let _ = ctx.accounts.light_pre_init(ctx.remaining_accounts, &#params_ident)
+                    .map_err(|e: light_sdk::error::LightSdkError| -> solana_program_error::ProgramError {
+                        e.into()
+                    })?;
 
-            // TODO(diff-pr): Reactivate light_finalize for top up transfers.
-            // Currently disabled because user code may move ctx, making it
-            // inaccessible after the handler body executes. When top up
-            // transfers are implemented, we'll need to store AccountInfo
-            // references before user code runs.
-            //
-            // if __light_handler_result.is_ok() {
-            //     ctx.accounts.light_finalize(ctx.remaining_accounts, &params, __has_pre_init)?;
-            // }
+                // Execute delegation - this handles its own logic including any finalize
+                #fn_block
+            }
         }
-    };
+    } else {
+        // For non-delegation handlers, add both pre_init and finalize
+        syn::parse_quote! {
+            #(#fn_attrs)*
+            #fn_vis #fn_sig {
+                // Phase 1: Pre-init (creates mints via CPI context write, registers compressed addresses)
+                use light_sdk::interface::{LightPreInit, LightFinalize};
+                let __has_pre_init = ctx.accounts.light_pre_init(ctx.remaining_accounts, &#params_ident)
+                    .map_err(|e: light_sdk::error::LightSdkError| -> solana_program_error::ProgramError {
+                        e.into()
+                    })?;
 
-    wrapped
+                // Execute the original handler body and capture result
+                let __user_result: anchor_lang::Result<()> = #fn_block;
+                // Propagate any errors from user code
+                __user_result?;
+
+                // Phase 2: Finalize (creates token accounts/ATAs via CPI)
+                ctx.accounts.light_finalize(ctx.remaining_accounts, &#params_ident, __has_pre_init)
+                    .map_err(|e: light_sdk::error::LightSdkError| -> solana_program_error::ProgramError {
+                        e.into()
+                    })?;
+
+                Ok(())
+            }
+        }
+    }
 }
