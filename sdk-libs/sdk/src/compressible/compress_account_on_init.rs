@@ -92,7 +92,8 @@ where
         let mut data = account_info
             .try_borrow_mut_data()
             .map_err(|_| LightSdkError::ConstraintViolation)?;
-        account_data.serialize(&mut &mut data[..]).map_err(|e| {
+        // Skip the 8-byte Anchor discriminator when serializing
+        account_data.serialize(&mut &mut data[8..]).map_err(|e| {
             msg!("Failed to serialize account data: {}", e);
             LightSdkError::ConstraintViolation
         })?;

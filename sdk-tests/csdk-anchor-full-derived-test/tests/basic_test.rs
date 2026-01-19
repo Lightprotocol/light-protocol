@@ -663,10 +663,10 @@ async fn test_create_two_mints() {
     );
 }
 
-/// Test creating 3 mints in a single instruction.
+/// Test creating multiple mints (3) in a single instruction.
 /// Verifies multi-mint support in the RentFree macro scales beyond 2.
 #[tokio::test]
-async fn test_create_three_mints() {
+async fn test_create_multi_mints() {
     use csdk_anchor_full_derived_test::instruction_accounts::{
         CreateThreeMintsParams, MINT_SIGNER_A_SEED, MINT_SIGNER_B_SEED, MINT_SIGNER_C_SEED,
     };

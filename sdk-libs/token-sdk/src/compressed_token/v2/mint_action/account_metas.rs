@@ -48,6 +48,7 @@ impl MintActionMetaConfig {
     }
 
     /// Create a new MintActionMetaConfig for operations on an existing compressed mint.
+    #[inline(never)]
     pub fn new(
         fee_payer: Pubkey,
         authority: Pubkey,
@@ -139,6 +140,7 @@ impl MintActionMetaConfig {
 
     /// Get the account metas for a mint action instruction
     #[profile]
+    #[inline(never)]
     pub fn to_account_metas(self) -> Vec<AccountMeta> {
         let default_pubkeys = TokenDefaultAccounts::default();
         let mut metas = Vec::new();

@@ -15,8 +15,8 @@ use light_token_interface::{
     instructions::{
         extensions::{ExtensionInstructionData, TokenMetadataInstructionData},
         mint_action::{
-            Action, CpiContext, DecompressMintAction, MintActionCompressedInstructionData,
-            MintInstructionData,
+            Action, CpiContext, CreateMint, DecompressMintAction,
+            MintActionCompressedInstructionData, MintInstructionData,
         },
     },
     state::MintMetadata,
@@ -56,8 +56,8 @@ pub struct SingleMintParams<'a> {
     pub authority_seeds: Option<&'a [&'a [u8]]>,
     /// Optional mint signer seeds for PDA signing
     pub mint_signer_seeds: Option<&'a [&'a [u8]]>,
-    /// Optional token metadata for the mint
-    pub token_metadata: Option<TokenMetadataInstructionData>,
+    /// Optional token metadata for the mint (reference to avoid stack overflow)
+    pub token_metadata: Option<&'a TokenMetadataInstructionData>,
 }
 
 /// Parameters for creating one or more compressed mints with decompression.
@@ -94,6 +94,7 @@ pub struct CreateMintsParams<'a> {
 }
 
 impl<'a> CreateMintsParams<'a> {
+    #[inline(never)]
     pub fn new(
         mints: &'a [SingleMintParams<'a>],
         proof: light_compressed_account::instruction_data::compressed_proof::CompressedProof,
@@ -200,6 +201,7 @@ pub struct CreateMintsCpi<'a, 'info> {
 
 impl<'a, 'info> CreateMintsCpi<'a, 'info> {
     /// Validate that the struct is properly constructed.
+    #[inline(never)]
     pub fn validate(&self) -> Result<(), ProgramError> {
         let n = self.params.mints.len();
         if n == 0 {
@@ -218,6 +220,7 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
     ///
     /// Signer seeds are extracted from `SingleMintParams::mint_signer_seeds` and
     /// `SingleMintParams::authority_seeds` for each CPI call (0, 1, or 2 seeds per call).
+    #[inline(never)]
     pub fn invoke(self) -> Result<(), ProgramError> {
         self.validate()?;
         let n = self.params.mints.len();
@@ -387,28 +390,31 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
         let mint_params = &self.params.mints[last_idx];
         let offset = self.params.cpi_context_offset;
 
-        let execute_cpi_context = CpiContext {
-            set_context: false,
-            first_set_context: false,
-            in_tree_index: self.params.address_tree_index,
-            in_queue_index: self.params.address_tree_index, // CPI context queue index
-            out_queue_index: self.params.output_queue_index,
-            token_out_queue_index: 0,
-            assigned_account_index: offset + last_idx as u8,
-            read_only_address_trees: [0; 4],
-            address_tree_pubkey: self.address_tree.key.to_bytes(),
-        };
-
         let mint_data =
             build_mint_instruction_data(mint_params, self.mint_seed_accounts[last_idx].key);
 
-        let instruction_data = MintActionCompressedInstructionData::new_mint(
-            mint_params.address_merkle_tree_root_index,
-            self.params.proof,
-            mint_data,
-        )
-        .with_cpi_context(execute_cpi_context)
-        .with_decompress_mint(*decompress_action);
+        // Create struct directly to reduce stack usage (avoid builder pattern intermediates)
+        let instruction_data = MintActionCompressedInstructionData {
+            leaf_index: 0,
+            prove_by_index: false,
+            root_index: mint_params.address_merkle_tree_root_index,
+            max_top_up: 0,
+            create_mint: Some(CreateMint::default()),
+            actions: vec![Action::DecompressMint(*decompress_action)],
+            proof: Some(self.params.proof),
+            cpi_context: Some(CpiContext {
+                set_context: false,
+                first_set_context: false,
+                in_tree_index: self.params.address_tree_index,
+                in_queue_index: self.params.address_tree_index,
+                out_queue_index: self.params.output_queue_index,
+                token_out_queue_index: 0,
+                assigned_account_index: offset + last_idx as u8,
+                read_only_address_trees: [0; 4],
+                address_tree_pubkey: self.address_tree.key.to_bytes(),
+            }),
+            mint: Some(mint_data),
+        };
 
         let mut meta_config = MintActionMetaConfig::new_create_mint(
             *self.payer.key,
@@ -547,7 +553,7 @@ fn build_mint_instruction_data(
     // Convert token_metadata to extensions if present
     let extensions = mint_params
         .token_metadata
-        .clone()
+        .cloned()
         .map(|metadata| vec![ExtensionInstructionData::TokenMetadata(metadata)]);
 
     MintInstructionData {
@@ -597,6 +603,7 @@ fn get_base_leaf_index(output_queue: &AccountInfo) -> Result<u32, ProgramError> 
 /// - `[N+11]`: rent_sponsor (writable)
 /// - `[N+12..2N+12]`: mint_pdas (writable)
 /// - `[2N+12]`: compressed_token_program (for CPI)
+#[inline(never)]
 pub fn create_mints<'a, 'info>(
     payer: &AccountInfo<'info>,
     accounts: &'info [AccountInfo<'info>],
@@ -622,7 +629,7 @@ pub fn create_mints<'a, 'info>(
     let mint_pdas_start = n + 12;
 
     // Build named struct from accounts slice
-    CreateMintsCpi {
+    let cpi = CreateMintsCpi {
         mint_seed_accounts: &accounts[mint_signers_start..mint_signers_start + n],
         payer: payer.clone(),
         address_tree: accounts[address_tree_idx].clone(),
@@ -641,8 +648,8 @@ pub fn create_mints<'a, 'info>(
         },
         cpi_context_account: accounts[cpi_context_idx].clone(),
         params,
-    }
-    .invoke()
+    };
+    cpi.invoke()
 }
 
 // // ============================================================================
