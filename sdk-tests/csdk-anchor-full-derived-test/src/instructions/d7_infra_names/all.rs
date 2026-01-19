@@ -4,8 +4,8 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
-use light_token_sdk::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as CTOKEN_RENT_SPONSOR};
+use light_sdk_macros::LightAccounts;
+use light_token_sdk::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -20,9 +20,9 @@ pub struct D7AllNamesParams {
 
 /// Tests multiple naming variants:
 /// - `payer` as the fee payer field
-/// - `ctoken_compressible_config` for config
-/// - `ctoken_rent_sponsor` for rent sponsor
-#[derive(Accounts, RentFree)]
+/// - `light_token_compressible_config` for config
+/// - `rent_sponsor` for rent sponsor (short form)
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D7AllNamesParams)]
 pub struct D7AllNames<'info> {
     #[account(mut)]
@@ -47,7 +47,7 @@ pub struct D7AllNames<'info> {
         seeds = [b"d7_all_record", params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d7_all_record: Account<'info, SinglePubkeyRecord>,
 
     #[account(
@@ -55,20 +55,20 @@ pub struct D7AllNames<'info> {
         seeds = [D7_ALL_VAULT_SEED, mint.key().as_ref()],
         bump,
     )]
-    #[rentfree_token(authority = [D7_ALL_AUTH_SEED])]
+    #[light_account(token, authority = [D7_ALL_AUTH_SEED])]
     pub d7_all_vault: UncheckedAccount<'info>,
 
     #[account(address = COMPRESSIBLE_CONFIG_V1)]
-    pub ctoken_compressible_config: AccountInfo<'info>,
+    pub light_token_compressible_config: AccountInfo<'info>,
 
-    #[account(mut, address = CTOKEN_RENT_SPONSOR)]
-    pub ctoken_rent_sponsor: AccountInfo<'info>,
+    #[account(mut, address = LIGHT_TOKEN_RENT_SPONSOR)]
+    pub rent_sponsor: AccountInfo<'info>,
 
-    /// CHECK: CToken program
+    /// CHECK: Light token program
     pub light_token_program: AccountInfo<'info>,
 
-    /// CHECK: CToken CPI authority
-    pub ctoken_cpi_authority: AccountInfo<'info>,
+    /// CHECK: Light token CPI authority
+    pub light_token_cpi_authority: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }

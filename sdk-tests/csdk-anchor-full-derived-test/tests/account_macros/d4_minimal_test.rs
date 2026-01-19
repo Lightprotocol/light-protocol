@@ -1,6 +1,6 @@
 //! D4 Tests: MinimalRecord trait derive tests
 //!
-//! Tests each trait derived by `RentFreeAccount` macro for `MinimalRecord`:
+//! Tests each trait derived by `LightAccount` macro for `MinimalRecord`:
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace

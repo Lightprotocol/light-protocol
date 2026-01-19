@@ -4,7 +4,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -15,7 +15,7 @@ pub struct D9ParamParams {
 }
 
 /// Tests ClassifiedSeed::DataField with params.owner.as_ref() seeds.
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ParamParams)]
 pub struct D9Param<'info> {
     #[account(mut)]
@@ -31,7 +31,7 @@ pub struct D9Param<'info> {
         seeds = [b"d9_param", params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d9_param_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

@@ -1,4 +1,4 @@
-//! Shared generic test helpers for RentFreeAccount-derived traits.
+//! Shared generic test helpers for LightAccount-derived traits.
 //!
 //! These functions test trait implementations generically and can be reused
 //! across different account struct types.

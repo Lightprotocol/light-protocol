@@ -10,7 +10,7 @@ Documentation for the rentfree macro system in `light-sdk-macros`. These macros 
 |------|-------------|
 | **`CLAUDE.md`** | This file - documentation structure guide |
 | **`../CLAUDE.md`** | Main entry point for sdk-libs/macros |
-| **`rentfree.md`** | `#[derive(RentFree)]` macro and trait derives |
+| **`rentfree.md`** | `#[derive(LightAccounts)]` macro and trait derives |
 | **`rentfree_program/`** | `#[rentfree_program]` attribute macro |
 | **`rentfree_program/architecture.md`** | Architecture overview, usage, generated items |
 | **`rentfree_program/codegen.md`** | Technical implementation details (code generation) |
@@ -19,13 +19,13 @@ Documentation for the rentfree macro system in `light-sdk-macros`. These macros 
 
 ### Accounts Field Attributes
 
-Field-level attributes applied inside `#[derive(RentFree)]` Accounts structs:
+Field-level attributes applied inside `#[derive(LightAccounts)]` Accounts structs:
 
 | File | Attribute | Description |
 |------|-----------|-------------|
-| **`accounts/light_mint.md`** | `#[light_mint(...)]` | Creates compressed mint with automatic decompression |
+| **`accounts/light_mint.md`** | `#[light_account(init, mint,...)]` | Creates compressed mint with automatic decompression |
 
-See also: `#[rentfree]` attribute documented in `rentfree.md`
+See also: `#[light_account(init)]` attribute documented in `rentfree.md`
 
 ### Account Trait Documentation
 
@@ -51,7 +51,7 @@ See also: `#[rentfree]` attribute documented in `rentfree.md`
 ```
 #[rentfree_program]          <- Program-level (rentfree_program/)
     |
-    +-- Discovers #[derive(RentFree)] structs
+    +-- Discovers #[derive(LightAccounts)] structs
     |
     +-- Generates:
         - RentFreeAccountVariant enum
@@ -59,7 +59,7 @@ See also: `#[rentfree]` attribute documented in `rentfree.md`
         - Compress/Decompress instructions
         - Config instructions
 
-#[derive(RentFree)]          <- Account-level (rentfree.md)
+#[derive(LightAccounts)]          <- Account-level (rentfree.md)
     |
     +-- Generates LightPreInit + LightFinalize impls
     |
@@ -76,7 +76,7 @@ See also: `#[rentfree]` attribute documented in `rentfree.md`
 ```
 sdk-libs/macros/src/rentfree/
 ├── account/         # Trait derive macros for account data structs
-├── accounts/        # #[derive(RentFree)] implementation
+├── accounts/        # #[derive(LightAccounts)] implementation
 ├── program/         # #[rentfree_program] implementation
 ├── shared_utils.rs  # Common utilities
 └── mod.rs           # Module exports

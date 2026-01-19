@@ -5,11 +5,11 @@
 
 use anchor_lang::prelude::*;
 use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
-use light_sdk_macros::RentFreeAccount;
+use light_sdk_macros::LightAccount;
 
 /// A struct without any compress_as attribute.
 /// All fields are compressed as-is using self.field.
-#[derive(Default, Debug, InitSpace, RentFreeAccount)]
+#[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct NoCompressAsRecord {
     pub compression_info: Option<CompressionInfo>,

@@ -1,6 +1,6 @@
 //! D1 Tests: OptionPrimitiveRecord trait derive tests
 //!
-//! Tests each trait derived by `RentFreeAccount` macro for `OptionPrimitiveRecord`:
+//! Tests each trait derived by `LightAccount` macro for `OptionPrimitiveRecord`:
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace

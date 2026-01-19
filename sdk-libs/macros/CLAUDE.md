@@ -13,7 +13,7 @@ This crate provides macros that enable rent-free compressed accounts on Solana w
 
 | Macro | Type | Purpose |
 |-------|------|---------|
-| `#[derive(RentFree)]` | Derive | Generates `LightPreInit`/`LightFinalize` for Accounts structs |
+| `#[derive(LightAccounts)]` | Derive | Generates `LightPreInit`/`LightFinalize` for Accounts structs |
 | `#[rentfree_program]` | Attribute | Program-level auto-discovery and instruction generation |
 | `#[derive(LightCompressible)]` | Derive | Combined traits for compressible account data |
 | `#[derive(Compressible)]` | Derive | Compression traits (HasCompressionInfo, CompressAs, Size) |
@@ -24,7 +24,7 @@ This crate provides macros that enable rent-free compressed accounts on Solana w
 Detailed macro documentation is in the `docs/` directory:
 
 - **`docs/CLAUDE.md`** - Documentation structure guide
-- **`docs/rentfree.md`** - `#[derive(RentFree)]` and trait derives
+- **`docs/rentfree.md`** - `#[derive(LightAccounts)]` and trait derives
 - **`docs/rentfree_program/`** - `#[rentfree_program]` attribute macro (architecture.md + codegen.md)
 
 ## Source Structure
@@ -32,9 +32,9 @@ Detailed macro documentation is in the `docs/` directory:
 ```
 src/
 ├── lib.rs                 # Macro entry points
-├── rentfree/              # RentFree macro system
+├── rentfree/              # LightAccounts macro system
 │   ├── account/           # Trait derive macros for account data structs
-│   ├── accounts/          # #[derive(RentFree)] for Accounts structs
+│   ├── accounts/          # #[derive(LightAccounts)] for Accounts structs
 │   ├── program/           # #[rentfree_program] attribute macro
 │   └── shared_utils.rs    # Common utilities
 └── hasher/                # LightHasherSha derive macro
@@ -43,7 +43,7 @@ src/
 ## Usage Example
 
 ```rust
-use light_sdk_macros::{rentfree_program, RentFree, LightCompressible};
+use light_sdk_macros::{rentfree_program, LightAccounts, LightCompressible};
 
 // State account with compression support
 #[derive(Default, Debug, InitSpace, LightCompressible)]
@@ -55,14 +55,14 @@ pub struct UserRecord {
 }
 
 // Accounts struct with rent-free field
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateParams)]
 pub struct Create<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
 
     #[account(init, payer = fee_payer, space = 8 + UserRecord::INIT_SPACE, seeds = [b"user", params.owner.as_ref()], bump)]
-    #[rentfree]
+    #[light_account(init)]
     pub user_record: Account<'info, UserRecord>,
 }
 

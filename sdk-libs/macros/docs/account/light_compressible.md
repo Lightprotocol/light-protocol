@@ -4,7 +4,7 @@
 
 The `#[derive(LightCompressible)]` macro is a convenience derive that combines all traits required for a fully compressible account. It is the recommended way to prepare account structs for Light Protocol's rent-free compression system.
 
-**When to use**: Apply this derive to any account struct that will be used with `#[rentfree]` in an Accounts struct. This is the standard approach for most use cases.
+**When to use**: Apply this derive to any account struct that will be used with `#[light_account(init)]` in an Accounts struct. This is the standard approach for most use cases.
 
 **Source**: `sdk-libs/macros/src/rentfree/traits/light_compressible.rs` (lines 56-79)
 
@@ -83,11 +83,11 @@ INPUT                           GENERATED
 |   Data Struct     | --> |   Accounts Struct | --> |   Runtime         |
 +-------------------+     +-------------------+     +-------------------+
 | #[derive(         |     | #[derive(Accounts,|     | light_pre_init()  |
-|  LightCompressible)]   |   RentFree)]       |     |   Uses:           |
+|  LightCompressible)]   |   LightAccounts)]       |     |   Uses:           |
 |                   |     | #[instruction]    |     |   - DataHasher    |
 | Provides:         |     | pub struct Create |     |   - LightDiscrim. |
 | - Hashing         |     | {                 |     |   - HasCompression|
-| - Discriminator   |     |   #[rentfree]     |     |     Info          |
+| - Discriminator   |     |   #[light_account(init)]     |     |     Info          |
 | - Compression     |     |   pub user_record |     |   - CompressAs    |
 | - Pack/Unpack     |     | }                 |     |   - Size          |
 +-------------------+     +-------------------+     |   - Pack          |
@@ -256,9 +256,9 @@ If no `Pubkey` fields exist, identity implementations are generated instead.
 
 ---
 
-## 10. Usage with RentFree
+## 10. Usage with LightAccounts
 
-`LightCompressible` prepares the data struct for use with `#[derive(RentFree)]` on Accounts structs:
+`LightCompressible` prepares the data struct for use with `#[derive(LightAccounts)]` on Accounts structs:
 
 ```rust
 // Data struct - apply LightCompressible
@@ -271,14 +271,14 @@ pub struct UserRecord {
 }
 
 // Accounts struct - apply RentFree
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateParams)]
 pub struct Create<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
 
     #[account(init, payer = fee_payer, space = 8 + UserRecord::INIT_SPACE, ...)]
-    #[rentfree]
+    #[light_account(init)]
     pub user_record: Account<'info, UserRecord>,
 }
 ```

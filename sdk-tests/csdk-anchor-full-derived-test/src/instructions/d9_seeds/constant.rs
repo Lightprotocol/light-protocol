@@ -4,7 +4,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -16,7 +16,7 @@ pub struct D9ConstantParams {
 }
 
 /// Tests ClassifiedSeed::Constant with constant identifier seeds.
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ConstantParams)]
 pub struct D9Constant<'info> {
     #[account(mut)]
@@ -32,7 +32,7 @@ pub struct D9Constant<'info> {
         seeds = [D9_CONSTANT_SEED],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d9_constant_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

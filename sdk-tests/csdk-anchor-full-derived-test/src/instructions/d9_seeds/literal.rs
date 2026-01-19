@@ -4,7 +4,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -14,7 +14,7 @@ pub struct D9LiteralParams {
 }
 
 /// Tests ClassifiedSeed::Literal with byte literal seeds.
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9LiteralParams)]
 pub struct D9Literal<'info> {
     #[account(mut)]
@@ -30,7 +30,7 @@ pub struct D9Literal<'info> {
         seeds = [b"d9_literal_record"],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d9_literal_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

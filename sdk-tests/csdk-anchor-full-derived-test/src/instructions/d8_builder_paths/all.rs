@@ -1,10 +1,10 @@
-//! D8 Test: Multiple #[rentfree] fields with different state types
+//! D8 Test: Multiple #[light_account(init)] fields with different state types
 //!
-//! Tests the builder path with multiple #[rentfree] fields of different state types.
+//! Tests the builder path with multiple #[light_account(init)] fields of different state types.
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::{
     d1_field_types::single_pubkey::SinglePubkeyRecord,
@@ -17,8 +17,8 @@ pub struct D8AllParams {
     pub owner: Pubkey,
 }
 
-/// Tests builder path with multiple #[rentfree] fields of different state types.
-#[derive(Accounts, RentFree)]
+/// Tests builder path with multiple #[light_account(init)] fields of different state types.
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D8AllParams)]
 pub struct D8All<'info> {
     #[account(mut)]
@@ -34,7 +34,7 @@ pub struct D8All<'info> {
         seeds = [b"d8_all_single", params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d8_all_single: Account<'info, SinglePubkeyRecord>,
 
     #[account(
@@ -44,7 +44,7 @@ pub struct D8All<'info> {
         seeds = [b"d8_all_multi", params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d8_all_multi: Box<Account<'info, MultipleCompressAsRecord>>,
 
     pub system_program: Program<'info, System>,

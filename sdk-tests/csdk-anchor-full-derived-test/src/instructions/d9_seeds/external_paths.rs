@@ -7,7 +7,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -22,7 +22,7 @@ pub struct D9ExternalSdkTypesParams {
 }
 
 /// Tests external crate path: light_sdk_types::constants::CPI_AUTHORITY_PDA_SEED
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ExternalSdkTypesParams)]
 pub struct D9ExternalSdkTypes<'info> {
     #[account(mut)]
@@ -38,7 +38,7 @@ pub struct D9ExternalSdkTypes<'info> {
         seeds = [b"d9_ext_sdk", light_sdk_types::constants::CPI_AUTHORITY_PDA_SEED, params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -55,7 +55,7 @@ pub struct D9ExternalCtokenParams {
 }
 
 /// Tests external crate path: light_token_types::constants::POOL_SEED
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ExternalCtokenParams)]
 pub struct D9ExternalCtoken<'info> {
     #[account(mut)]
@@ -71,7 +71,7 @@ pub struct D9ExternalCtoken<'info> {
         seeds = [b"d9_ext_ctoken", light_token_types::constants::POOL_SEED, params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -88,7 +88,7 @@ pub struct D9ExternalMixedParams {
 }
 
 /// Tests multiple external crate constants mixed together
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ExternalMixedParams)]
 pub struct D9ExternalMixed<'info> {
     #[account(mut)]
@@ -108,7 +108,7 @@ pub struct D9ExternalMixed<'info> {
         ],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -128,7 +128,7 @@ pub struct D9ExternalWithLocalParams {
 }
 
 /// Tests external constant combined with local constant
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ExternalWithLocalParams)]
 pub struct D9ExternalWithLocal<'info> {
     #[account(mut)]
@@ -144,7 +144,7 @@ pub struct D9ExternalWithLocal<'info> {
         seeds = [D9_EXTERNAL_LOCAL, light_sdk_types::constants::RENT_SPONSOR_SEED, params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -161,7 +161,7 @@ pub struct D9ExternalBumpParams {
 }
 
 /// Tests external constant path with bump attribute
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ExternalBumpParams)]
 pub struct D9ExternalBump<'info> {
     #[account(mut)]
@@ -177,7 +177,7 @@ pub struct D9ExternalBump<'info> {
         seeds = [light_token_interface::COMPRESSED_MINT_SEED, params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -196,7 +196,7 @@ pub struct D9ExternalReexportParams {
 }
 
 /// Tests re-exported external constant
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ExternalReexportParams)]
 pub struct D9ExternalReexport<'info> {
     #[account(mut)]
@@ -212,7 +212,7 @@ pub struct D9ExternalReexport<'info> {
         seeds = [REEXPORTED_SEED],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

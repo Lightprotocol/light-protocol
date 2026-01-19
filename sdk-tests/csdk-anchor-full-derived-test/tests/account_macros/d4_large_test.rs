@@ -1,6 +1,6 @@
 //! D4 Tests: LargeRecord trait derive tests
 //!
-//! Tests each trait derived by `RentFreeAccount` macro for `LargeRecord`:
+//! Tests each trait derived by `LightAccount` macro for `LargeRecord`:
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace

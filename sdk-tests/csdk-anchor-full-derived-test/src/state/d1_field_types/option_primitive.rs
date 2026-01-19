@@ -5,11 +5,11 @@
 
 use anchor_lang::prelude::*;
 use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
-use light_sdk_macros::RentFreeAccount;
+use light_sdk_macros::LightAccount;
 
 /// A struct with Option<primitive> fields.
 /// These stay as Option<T> in the packed struct (not Option<u8>).
-#[derive(Default, Debug, InitSpace, RentFreeAccount)]
+#[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct OptionPrimitiveRecord {
     pub compression_info: Option<CompressionInfo>,

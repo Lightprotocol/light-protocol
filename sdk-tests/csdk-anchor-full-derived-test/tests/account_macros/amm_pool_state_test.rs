@@ -1,6 +1,6 @@
 //! AMM PoolState Tests: PoolState trait derive tests
 //!
-//! Tests each trait derived by `RentFreeAccount` macro for `PoolState`:
+//! Tests each trait derived by `LightAccount` macro for `PoolState`:
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace

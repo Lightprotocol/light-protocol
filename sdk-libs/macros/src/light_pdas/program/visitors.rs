@@ -1,0 +1,586 @@
+//! Visitor-based AST traversal utilities using syn's Visit trait.
+//!
+//! This module provides:
+//! - `FieldExtractor`: A visitor for extracting field names from expressions
+//! - `ClientSeedInfo`: Classification of seed elements for client code generation
+//! - `classify_seed`: Classify a seed element into a `ClientSeedInfo`
+//! - `generate_client_seed_code`: Generate (parameter, expression) from classified seed
+//!
+//! The implementation stores references during traversal to avoid allocations,
+//! only cloning identifiers when producing the final output.
+
+use std::collections::HashSet;
+
+use proc_macro2::TokenStream;
+use quote::quote;
+use syn::{
+    visit::{self, Visit},
+    Expr, Ident, Member,
+};
+
+use super::instructions::{InstructionDataSpec, SeedElement};
+use crate::light_pdas::{account::utils::is_pubkey_type, shared_utils::is_constant_identifier};
+
+/// Visitor that extracts field names matching ctx.field, ctx.accounts.field, or data.field patterns.
+///
+/// Uses syn's Visit trait for efficient read-only traversal. Stores references during
+/// traversal to minimize allocations, only cloning when producing final output.
+///
+/// # Example
+/// ```ignore
+/// let fields = FieldExtractor::ctx_fields(&["fee_payer"])
+///     .extract(&some_expr);
+/// ```
+pub struct FieldExtractor<'ast, 'cfg> {
+    /// Extract ctx.field and ctx.accounts.field patterns
+    extract_ctx: bool,
+    /// Extract data.field patterns
+    extract_data: bool,
+    /// Field names to exclude from results
+    excluded: &'cfg [&'cfg str],
+    /// Collected field references (avoids cloning during traversal)
+    fields: Vec<&'ast Ident>,
+    /// Track seen field names for deduplication
+    seen: HashSet<String>,
+}
+
+impl<'ast, 'cfg> FieldExtractor<'ast, 'cfg> {
+    /// Create an extractor for ctx.field and ctx.accounts.field patterns.
+    ///
+    /// Excludes common infrastructure fields like fee_payer, rent_sponsor, etc.
+    pub fn ctx_fields(excluded: &'cfg [&'cfg str]) -> Self {
+        Self {
+            extract_ctx: true,
+            extract_data: false,
+            excluded,
+            fields: Vec::new(),
+            seen: HashSet::new(),
+        }
+    }
+
+    /// Create an extractor for data.field patterns.
+    pub fn data_fields() -> Self {
+        Self {
+            extract_ctx: false,
+            extract_data: true,
+            excluded: &[],
+            fields: Vec::new(),
+            seen: HashSet::new(),
+        }
+    }
+
+    /// Extract field names from the given expression.
+    ///
+    /// Visits the expression tree and collects all field names matching the configured patterns.
+    /// Returns deduplicated field identifiers in order of first occurrence.
+    /// Cloning is deferred until this final output stage.
+    pub fn extract(mut self, expr: &'ast Expr) -> Vec<Ident> {
+        self.visit_expr(expr);
+        // Clone only when producing final output
+        self.fields.into_iter().cloned().collect()
+    }
+
+    /// Try to add a field reference if not excluded and not already seen.
+    fn try_add(&mut self, field: &'ast Ident) {
+        let name = field.to_string();
+        if !self.excluded.contains(&name.as_str()) && self.seen.insert(name) {
+            self.fields.push(field);
+        }
+    }
+
+    /// Check if the base expression is `ctx.accounts`.
+    pub fn is_ctx_accounts(base: &Expr) -> bool {
+        if let Expr::Field(nested) = base {
+            if let Member::Named(member) = &nested.member {
+                return member == "accounts" && Self::is_path_ident(&nested.base, "ctx");
+            }
+        }
+        false
+    }
+
+    /// Check if an expression is a path with the given identifier.
+    fn is_path_ident(expr: &Expr, ident: &str) -> bool {
+        matches!(expr, Expr::Path(p) if p.path.is_ident(ident))
+    }
+}
+
+impl<'ast, 'cfg> Visit<'ast> for FieldExtractor<'ast, 'cfg> {
+    fn visit_expr_field(&mut self, node: &'ast syn::ExprField) {
+        if let Member::Named(field_name) = &node.member {
+            // Check for ctx.accounts.field pattern
+            if self.extract_ctx && Self::is_ctx_accounts(&node.base) {
+                self.try_add(field_name);
+                // Don't recurse further - we found our target
+                return;
+            }
+
+            // Check for ctx.field pattern (direct access)
+            if self.extract_ctx && Self::is_path_ident(&node.base, "ctx") {
+                self.try_add(field_name);
+                return;
+            }
+
+            // Check for data.field pattern
+            if self.extract_data && Self::is_path_ident(&node.base, "data") {
+                self.try_add(field_name);
+                return;
+            }
+        }
+
+        // Continue visiting child expressions
+        visit::visit_expr_field(self, node);
+    }
+}
+
+// =============================================================================
+// CLIENT SEED CLASSIFICATION
+// =============================================================================
+
+/// Classified seed for client code generation.
+///
+/// Separates "what kind of seed is this?" from "what code to generate?".
+/// Each variant captures all info needed for the generation phase.
+#[derive(Debug, Clone)]
+pub enum ClientSeedInfo {
+    /// String literal: "seed" -> "seed".as_bytes()
+    Literal(String),
+    /// Byte literal: b"seed" -> &[...]
+    ByteLiteral(Vec<u8>),
+    /// Constant: SEED -> crate::SEED.as_ref()
+    Constant { name: Ident, is_cpi_signer: bool },
+    /// ctx.field or ctx.accounts.field -> Pubkey parameter
+    CtxField { field: Ident, method: Option<Ident> },
+    /// data.field -> typed parameter from instruction_data
+    DataField { field: Ident, method: Option<Ident> },
+    /// Function call - stored as original expression for proper AST transformation
+    FunctionCall(Box<syn::ExprCall>),
+    /// Raw identifier that becomes a Pubkey parameter
+    Identifier(Ident),
+    /// Fallback for expressions that don't match other patterns
+    RawExpr(Box<syn::Expr>),
+}
+
+/// Classify a SeedElement for client code generation.
+pub fn classify_seed(seed: &SeedElement) -> syn::Result<ClientSeedInfo> {
+    match seed {
+        SeedElement::Literal(lit) => Ok(ClientSeedInfo::Literal(lit.value())),
+        SeedElement::Expression(expr) => classify_seed_expr(expr),
+    }
+}
+
+/// Classify an expression into a ClientSeedInfo variant.
+fn classify_seed_expr(expr: &syn::Expr) -> syn::Result<ClientSeedInfo> {
+    match expr {
+        syn::Expr::Field(field_expr) => classify_field_expr(field_expr),
+        syn::Expr::MethodCall(method_call) => classify_method_call(method_call),
+        syn::Expr::Lit(lit_expr) => classify_lit_expr(lit_expr),
+        syn::Expr::Path(path_expr) => classify_path_expr(path_expr),
+        syn::Expr::Call(call_expr) => classify_call_expr(call_expr),
+        syn::Expr::Reference(ref_expr) => classify_seed_expr(&ref_expr.expr),
+        _ => Ok(ClientSeedInfo::RawExpr(Box::new(expr.clone()))),
+    }
+}
+
+/// Classify a field expression (e.g., ctx.field, data.field).
+fn classify_field_expr(field_expr: &syn::ExprField) -> syn::Result<ClientSeedInfo> {
+    if let Member::Named(field_name) = &field_expr.member {
+        // Check for ctx.accounts.field pattern
+        if FieldExtractor::is_ctx_accounts(&field_expr.base) {
+            return Ok(ClientSeedInfo::CtxField {
+                field: field_name.clone(),
+                method: None,
+            });
+        }
+
+        // Check for direct base.field patterns
+        if let syn::Expr::Path(path) = &*field_expr.base {
+            if let Some(segment) = path.path.segments.first() {
+                if segment.ident == "data" {
+                    return Ok(ClientSeedInfo::DataField {
+                        field: field_name.clone(),
+                        method: None,
+                    });
+                }
+                if segment.ident == "ctx" {
+                    return Ok(ClientSeedInfo::CtxField {
+                        field: field_name.clone(),
+                        method: None,
+                    });
+                }
+            }
+        }
+
+        // Unrecognized field pattern - preserve as raw expression
+        // This lets downstream code decide how to handle it
+        return Ok(ClientSeedInfo::RawExpr(Box::new(syn::Expr::Field(
+            field_expr.clone(),
+        ))));
+    }
+
+    Ok(ClientSeedInfo::RawExpr(Box::new(syn::Expr::Field(
+        field_expr.clone(),
+    ))))
+}
+
+/// Classify a method call expression (e.g., data.field.method(), ctx.accounts.field.key()).
+fn classify_method_call(method_call: &syn::ExprMethodCall) -> syn::Result<ClientSeedInfo> {
+    // Check if receiver is a field expression
+    if let syn::Expr::Field(field_expr) = &*method_call.receiver {
+        if let Member::Named(field_name) = &field_expr.member {
+            // Check for ctx.accounts.field.method() pattern
+            if FieldExtractor::is_ctx_accounts(&field_expr.base) {
+                return Ok(ClientSeedInfo::CtxField {
+                    field: field_name.clone(),
+                    method: Some(method_call.method.clone()),
+                });
+            }
+
+            // Check for direct base.field patterns
+            if let syn::Expr::Path(path) = &*field_expr.base {
+                if let Some(segment) = path.path.segments.first() {
+                    if segment.ident == "data" {
+                        return Ok(ClientSeedInfo::DataField {
+                            field: field_name.clone(),
+                            method: Some(method_call.method.clone()),
+                        });
+                    }
+                    if segment.ident == "ctx" {
+                        return Ok(ClientSeedInfo::CtxField {
+                            field: field_name.clone(),
+                            method: Some(method_call.method.clone()),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Check if receiver is a path identifier (e.g., ident.as_ref())
+    if let syn::Expr::Path(path_expr) = &*method_call.receiver {
+        if let Some(ident) = path_expr.path.get_ident() {
+            return Ok(ClientSeedInfo::Identifier(ident.clone()));
+        }
+    }
+
+    Ok(ClientSeedInfo::RawExpr(Box::new(syn::Expr::MethodCall(
+        method_call.clone(),
+    ))))
+}
+
+/// Classify a literal expression.
+fn classify_lit_expr(lit_expr: &syn::ExprLit) -> syn::Result<ClientSeedInfo> {
+    if let syn::Lit::ByteStr(byte_str) = &lit_expr.lit {
+        Ok(ClientSeedInfo::ByteLiteral(byte_str.value()))
+    } else {
+        Ok(ClientSeedInfo::RawExpr(Box::new(syn::Expr::Lit(
+            lit_expr.clone(),
+        ))))
+    }
+}
+
+/// Classify a path expression (constant or identifier).
+fn classify_path_expr(path_expr: &syn::ExprPath) -> syn::Result<ClientSeedInfo> {
+    if let Some(ident) = path_expr.path.get_ident() {
+        let ident_str = ident.to_string();
+        if is_constant_identifier(&ident_str) {
+            return Ok(ClientSeedInfo::Constant {
+                name: ident.clone(),
+                is_cpi_signer: ident_str == "LIGHT_CPI_SIGNER",
+            });
+        }
+        return Ok(ClientSeedInfo::Identifier(ident.clone()));
+    }
+    Ok(ClientSeedInfo::RawExpr(Box::new(syn::Expr::Path(
+        path_expr.clone(),
+    ))))
+}
+
+/// Classify a function call expression.
+/// We store the original expression because function call arguments need AST transformation,
+/// not simple classification - we need to preserve method calls like `.key()` while mapping
+/// base identifiers to parameters.
+fn classify_call_expr(call_expr: &syn::ExprCall) -> syn::Result<ClientSeedInfo> {
+    Ok(ClientSeedInfo::FunctionCall(Box::new(call_expr.clone())))
+}
+
+// =============================================================================
+// CLIENT CODE GENERATION
+// =============================================================================
+
+/// Map a function call argument, extracting parameters and transforming ctx/data references.
+///
+/// This preserves the expression structure (method calls, references) while replacing
+/// `ctx.field`, `ctx.accounts.field`, and `data.field` with just the field name.
+/// Returns the transformed expression and collects parameters into the provided vectors.
+fn map_call_arg(
+    arg: &syn::Expr,
+    instruction_data: &[InstructionDataSpec],
+    seen_params: &mut HashSet<String>,
+    parameters: &mut Vec<TokenStream>,
+) -> syn::Result<TokenStream> {
+    match arg {
+        syn::Expr::Reference(ref_expr) => {
+            let inner = map_call_arg(&ref_expr.expr, instruction_data, seen_params, parameters)?;
+            Ok(quote! { &#inner })
+        }
+        syn::Expr::Field(field_expr) => {
+            if let syn::Member::Named(field_name) = &field_expr.member {
+                // Check for ctx.accounts.field
+                if FieldExtractor::is_ctx_accounts(&field_expr.base) {
+                    if seen_params.insert(field_name.to_string()) {
+                        parameters.push(quote! { #field_name: &solana_pubkey::Pubkey });
+                    }
+                    return Ok(quote! { #field_name });
+                }
+                // Check for ctx.field or data.field
+                if let syn::Expr::Path(path) = &*field_expr.base {
+                    if let Some(segment) = path.path.segments.first() {
+                        if segment.ident == "data" {
+                            if let Some(data_spec) = instruction_data
+                                .iter()
+                                .find(|d| d.field_name == *field_name)
+                            {
+                                if seen_params.insert(field_name.to_string()) {
+                                    let param_type = &data_spec.field_type;
+                                    let param_with_ref = if is_pubkey_type(param_type) {
+                                        quote! { #field_name: &#param_type }
+                                    } else {
+                                        quote! { #field_name: #param_type }
+                                    };
+                                    parameters.push(param_with_ref);
+                                }
+                                return Ok(quote! { #field_name });
+                            }
+                        } else if segment.ident == "ctx" {
+                            if seen_params.insert(field_name.to_string()) {
+                                parameters.push(quote! { #field_name: &solana_pubkey::Pubkey });
+                            }
+                            return Ok(quote! { #field_name });
+                        }
+                    }
+                }
+            }
+            Ok(quote! { #field_expr })
+        }
+        syn::Expr::MethodCall(method_call) => {
+            let receiver = map_call_arg(
+                &method_call.receiver,
+                instruction_data,
+                seen_params,
+                parameters,
+            )?;
+            let method = &method_call.method;
+            let args: Vec<TokenStream> = method_call
+                .args
+                .iter()
+                .map(|a| map_call_arg(a, instruction_data, seen_params, parameters))
+                .collect::<syn::Result<_>>()?;
+            Ok(quote! { (#receiver).#method(#(#args),*) })
+        }
+        syn::Expr::Call(nested_call) => {
+            let func = &nested_call.func;
+            let args: Vec<TokenStream> = nested_call
+                .args
+                .iter()
+                .map(|a| map_call_arg(a, instruction_data, seen_params, parameters))
+                .collect::<syn::Result<_>>()?;
+            Ok(quote! { (#func)(#(#args),*) })
+        }
+        syn::Expr::Path(path_expr) => {
+            // Check if this is a simple identifier that should become a parameter
+            if let Some(ident) = path_expr.path.get_ident() {
+                let name = ident.to_string();
+                if name != "ctx"
+                    && name != "data"
+                    && !is_constant_identifier(&name)
+                    && seen_params.insert(name)
+                {
+                    parameters.push(quote! { #ident: &solana_pubkey::Pubkey });
+                }
+            }
+            Ok(quote! { #path_expr })
+        }
+        _ => Ok(quote! { #arg }),
+    }
+}
+
+/// Generate code for a classified seed, adding to the provided parameter and expression lists.
+///
+/// This modifies the parameters and expressions vectors directly rather than returning
+/// individual values, which allows for proper handling of function call seeds that may
+/// contribute multiple parameters.
+pub fn generate_client_seed_code(
+    info: &ClientSeedInfo,
+    instruction_data: &[InstructionDataSpec],
+    seen_params: &mut HashSet<String>,
+    parameters: &mut Vec<TokenStream>,
+    expressions: &mut Vec<TokenStream>,
+) -> syn::Result<()> {
+    match info {
+        ClientSeedInfo::Literal(s) => {
+            expressions.push(quote! { #s.as_bytes() });
+        }
+
+        ClientSeedInfo::ByteLiteral(bytes) => {
+            expressions.push(quote! { &[#(#bytes),*] });
+        }
+
+        ClientSeedInfo::Constant {
+            name,
+            is_cpi_signer,
+        } => {
+            let expr = if *is_cpi_signer {
+                quote! { crate::#name.cpi_signer.as_ref() }
+            } else {
+                quote! { { let __seed: &[u8] = crate::#name.as_ref(); __seed } }
+            };
+            expressions.push(expr);
+        }
+
+        ClientSeedInfo::CtxField { field, method } => {
+            if seen_params.insert(field.to_string()) {
+                parameters.push(quote! { #field: &solana_pubkey::Pubkey });
+            }
+            let expr = match method {
+                Some(m) => quote! { #field.#m().as_ref() },
+                None => quote! { #field.as_ref() },
+            };
+            expressions.push(expr);
+        }
+
+        ClientSeedInfo::DataField { field, method } => {
+            let data_spec = instruction_data
+                .iter()
+                .find(|d| d.field_name == *field)
+                .ok_or_else(|| {
+                    syn::Error::new(
+                        field.span(),
+                        format!("data.{} used in seeds but no type specified", field),
+                    )
+                })?;
+
+            if seen_params.insert(field.to_string()) {
+                let param_type = &data_spec.field_type;
+                let param_with_ref = if is_pubkey_type(param_type) {
+                    quote! { #field: &#param_type }
+                } else {
+                    quote! { #field: #param_type }
+                };
+                parameters.push(param_with_ref);
+            }
+
+            let expr = match method {
+                Some(m) => quote! { #field.#m().as_ref() },
+                None => quote! { #field.as_ref() },
+            };
+            expressions.push(expr);
+        }
+
+        ClientSeedInfo::Identifier(ident) => {
+            if seen_params.insert(ident.to_string()) {
+                parameters.push(quote! { #ident: &solana_pubkey::Pubkey });
+            }
+            expressions.push(quote! { #ident.as_ref() });
+        }
+
+        ClientSeedInfo::FunctionCall(call_expr) => {
+            let mut mapped_args: Vec<TokenStream> = Vec::new();
+            for arg in &call_expr.args {
+                let mapped = map_call_arg(arg, instruction_data, seen_params, parameters)?;
+                mapped_args.push(mapped);
+            }
+            let func = &call_expr.func;
+            expressions.push(quote! { (#func)(#(#mapped_args),*).as_ref() });
+        }
+
+        ClientSeedInfo::RawExpr(expr) => {
+            expressions.push(quote! { { let __seed: &[u8] = (#expr).as_ref(); __seed } });
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_ctx_accounts_field() {
+        let expr: Expr = syn::parse_quote!(ctx.accounts.user);
+        let fields = FieldExtractor::ctx_fields(&[]).extract(&expr);
+        assert_eq!(fields.len(), 1);
+        assert_eq!(fields[0].to_string(), "user");
+    }
+
+    #[test]
+    fn test_extract_ctx_direct_field() {
+        let expr: Expr = syn::parse_quote!(ctx.program_id);
+        let fields = FieldExtractor::ctx_fields(&[]).extract(&expr);
+        assert_eq!(fields.len(), 1);
+        assert_eq!(fields[0].to_string(), "program_id");
+    }
+
+    #[test]
+    fn test_extract_data_field() {
+        let expr: Expr = syn::parse_quote!(data.owner);
+        let fields = FieldExtractor::data_fields().extract(&expr);
+        assert_eq!(fields.len(), 1);
+        assert_eq!(fields[0].to_string(), "owner");
+    }
+
+    #[test]
+    fn test_extract_nested_in_method_call() {
+        let expr: Expr = syn::parse_quote!(ctx.accounts.user.key());
+        let fields = FieldExtractor::ctx_fields(&[]).extract(&expr);
+        assert_eq!(fields.len(), 1);
+        assert_eq!(fields[0].to_string(), "user");
+    }
+
+    #[test]
+    fn test_extract_nested_in_reference() {
+        let expr: Expr = syn::parse_quote!(&ctx.accounts.user.key());
+        let fields = FieldExtractor::ctx_fields(&[]).extract(&expr);
+        assert_eq!(fields.len(), 1);
+        assert_eq!(fields[0].to_string(), "user");
+    }
+
+    #[test]
+    fn test_excludes_fields() {
+        let expr: Expr = syn::parse_quote!(ctx.accounts.fee_payer);
+        let fields = FieldExtractor::ctx_fields(&["fee_payer"]).extract(&expr);
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_deduplicates_fields() {
+        let expr: Expr = syn::parse_quote!({
+            ctx.accounts.user.key();
+            ctx.accounts.user.owner();
+        });
+        let fields = FieldExtractor::ctx_fields(&[]).extract(&expr);
+        assert_eq!(fields.len(), 1);
+        assert_eq!(fields[0].to_string(), "user");
+    }
+
+    #[test]
+    fn test_extract_from_call_args() {
+        let expr: Expr = syn::parse_quote!(some_fn(&ctx.accounts.user, data.amount));
+        let ctx_fields = FieldExtractor::ctx_fields(&[]).extract(&expr);
+        let data_fields = FieldExtractor::data_fields().extract(&expr);
+        assert_eq!(ctx_fields.len(), 1);
+        assert_eq!(ctx_fields[0].to_string(), "user");
+        assert_eq!(data_fields.len(), 1);
+        assert_eq!(data_fields[0].to_string(), "amount");
+    }
+
+    #[test]
+    fn test_separate_extractors_for_ctx_and_data() {
+        let expr: Expr = syn::parse_quote!((ctx.accounts.user, data.amount));
+        let ctx_fields = FieldExtractor::ctx_fields(&[]).extract(&expr);
+        let data_fields = FieldExtractor::data_fields().extract(&expr);
+        assert_eq!(ctx_fields.len(), 1);
+        assert_eq!(ctx_fields[0].to_string(), "user");
+        assert_eq!(data_fields.len(), 1);
+        assert_eq!(data_fields[0].to_string(), "amount");
+    }
+}

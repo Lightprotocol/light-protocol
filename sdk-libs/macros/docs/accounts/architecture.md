@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-The `#[derive(RentFree)]` macro and associated trait derives enable rent-free compressed accounts on Solana with minimal boilerplate. These macros generate code for:
+The `#[derive(LightAccounts)]` macro and associated trait derives enable rent-free compressed accounts on Solana with minimal boilerplate. These macros generate code for:
 
 - Pre-instruction compression setup (`LightPreInit` trait)
 - Post-instruction cleanup (`LightFinalize` trait)
@@ -16,7 +16,7 @@ sdk-libs/macros/src/rentfree/
 |-- mod.rs                    # Module exports
 |-- shared_utils.rs           # Common utilities (constant detection, identifier extraction)
 |
-|-- accounts/                 # #[derive(RentFree)] for Accounts structs
+|-- accounts/                 # #[derive(LightAccounts)] for Accounts structs
 |   |-- mod.rs                # Module entry point
 |   |-- derive.rs             # Orchestration layer
 |   |-- builder.rs            # Code generation builder
@@ -36,7 +36,7 @@ sdk-libs/macros/src/rentfree/
 
 ---
 
-## 2. `#[derive(RentFree)]` Derive Macro
+## 2. `#[derive(LightAccounts)]` Derive Macro
 
 ### 2.1 Purpose
 
@@ -46,12 +46,12 @@ Generates `LightPreInit` and `LightFinalize` trait implementations for Anchor Ac
 
 ### 2.2 Supported Attributes
 
-#### `#[rentfree]` - Mark PDA Fields for Compression
+#### `#[light_account(init)]` - Mark PDA Fields for Compression
 
 Applied to `Account<'info, T>` or `Box<Account<'info, T>>` fields.
 
 ```rust
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateParams)]
 pub struct CreateAccounts<'info> {
     #[account(
@@ -61,7 +61,7 @@ pub struct CreateAccounts<'info> {
         seeds = [b"user", params.owner.as_ref()],
         bump
     )]
-    #[rentfree]  // Uses default address_tree_info and output_tree from params
+    #[light_account(init)]  // Uses default address_tree_info and output_tree from params
     pub user_record: Account<'info, UserRecord>,
 }
 ```
@@ -78,12 +78,12 @@ pub struct CreateAccounts<'info> {
 pub user_record: Account<'info, UserRecord>,
 ```
 
-#### `#[light_mint(...)]` - Mark Mint Fields
+#### `#[light_account(init, mint,...)]` - Mark Mint Fields
 
 Creates a compressed mint with automatic decompression.
 
 ```rust
-#[light_mint(
+#[light_account(init, mint,
     mint_signer = mint_signer,      // AccountInfo that seeds the mint PDA (required)
     authority = authority,           // Mint authority (required)
     decimals = 9,                    // Token decimals (required)
@@ -98,10 +98,10 @@ pub cmint: Account<'info, CMint>,
 
 #### `#[instruction(...)]` - Specify Instruction Parameters (Required)
 
-Must be present on the struct when using `#[rentfree]` or `#[light_mint]`.
+Must be present on the struct when using `#[light_account(init)]` or `#[light_account(init)]`.
 
 ```rust
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateParams)]
 pub struct CreateAccounts<'info> { ... }
 ```
@@ -114,10 +114,10 @@ Infrastructure fields are auto-detected by naming convention. No attribute requi
 |------------|----------------|
 | Fee Payer | `fee_payer`, `payer`, `creator` |
 | Compression Config | `compression_config` |
-| CToken Config | `ctoken_compressible_config`, `ctoken_config`, `light_token_config_account` |
+| CToken Config | `light_token_compressible_config`, `ctoken_config`, `light_token_config_account` |
 | CToken Rent Sponsor | `ctoken_rent_sponsor`, `light_token_rent_sponsor` |
 | CToken Program | `ctoken_program`, `light_token_program` |
-| CToken CPI Authority | `ctoken_cpi_authority`, `light_token_program_cpi_authority`, `compress_token_program_cpi_authority` |
+| CToken CPI Authority | `light_token_cpi_authority`, `light_token_program_cpi_authority`, `compress_token_program_cpi_authority` |
 
 **Source**: `sdk-libs/macros/src/rentfree/accounts/parse.rs` (lines 30-53)
 
@@ -127,14 +127,14 @@ Infrastructure fields are auto-detected by naming convention. No attribute requi
 1. Parse
    |-- parse_rentfree_struct() extracts:
    |   - Struct name and generics
-   |   - #[rentfree] fields -> RentFreeField
-   |   - #[light_mint] fields -> LightMintField
+   |   - #[light_account(init)] fields -> RentFreeField
+   |   - #[light_account(init)] fields -> LightMintField
    |   - #[instruction] args
    |   - Infrastructure fields by naming convention
    |
 2. Validate
    |-- Total fields <= 255 (u8 index limit)
-   |-- #[instruction] required when #[rentfree] or #[light_mint] present
+   |-- #[instruction] required when #[light_account(init)] or #[light_account(init)] present
    |
 3. Generate pre_init Body
    |-- PDAs + Mints: generate_pre_init_pdas_and_mints()
@@ -156,7 +156,7 @@ Infrastructure fields are auto-detected by naming convention. No attribute requi
 **Input**:
 
 ```rust
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateParams)]
 pub struct CreateAccounts<'info> {
     #[account(mut)]
@@ -171,7 +171,7 @@ pub struct CreateAccounts<'info> {
         seeds = [b"user", params.owner.as_ref()],
         bump
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub user_record: Account<'info, UserRecord>,
 }
 ```
@@ -254,7 +254,7 @@ The following diagram shows how the derive macros compose together to enable ren
                             ====================
 
                         +--------------------+
-                        | #[derive(RentFree)]|  <-- Applied to Anchor Accounts struct
+                        | #[derive(LightAccounts)]|  <-- Applied to Anchor Accounts struct
                         +--------------------+
                                  |
                                  | generates
@@ -327,11 +327,11 @@ The following diagram shows how the derive macros compose together to enable ren
     |  }                                                                |
     |                                                                   |
     |  // Accounts struct - apply RentFree                              |
-    |  #[derive(Accounts, RentFree)]                                    |
+    |  #[derive(Accounts, LightAccounts)]                                    |
     |  #[instruction(params: CreateParams)]                             |
     |  pub struct Create<'info> {                                       |
     |      #[account(init, ...)]                                        |
-    |      #[rentfree]                       <-- Marks for compression  |
+    |      #[light_account(init)]                       <-- Marks for compression  |
     |      pub user_record: Account<'info, UserRecord>,                 |
     |  }                                                                |
     |                                                                   |
@@ -533,14 +533,14 @@ sdk-libs/macros/src/rentfree/
 |   |-- builder.rs       RentFreeBuilder for code generation
 |   |-- parse.rs         Attribute parsing with darling
 |   |   - ParsedRentFreeStruct
-|   |   - RentFreeField (#[rentfree] data)
+|   |   - RentFreeField (#[light_account(init)] data)
 |   |   - InfraFields (auto-detected infrastructure)
 |   |   - InfraFieldClassifier (naming convention matching)
 |   |-- pda.rs           PDA compression block generation
 |   |   - PdaBlockBuilder
 |   |   - generate_pda_compress_blocks()
 |   +-- light_mint.rs    Mint action CPI generation
-|       - LightMintField (#[light_mint] data)
+|       - LightMintField (#[light_account(init)] data)
 |       - InfraRefs - resolved infrastructure field references
 |       - LightMintBuilder - builder pattern for mint CPI generation
 |       - CpiContextParts - encapsulates CPI context branching logic
@@ -571,13 +571,13 @@ sdk-libs/macros/src/rentfree/
 ## 5. Limitations
 
 ### Field Limits
-- **Maximum 255 fields**: Total `#[rentfree]` + `#[light_mint]` fields must be <= 255 (u8 index limit)
-- **Single mint field**: Currently only the first `#[light_mint]` field is processed
+- **Maximum 255 fields**: Total `#[light_account(init)]` + `#[light_account(init)]` fields must be <= 255 (u8 index limit)
+- **Single mint field**: Currently only the first `#[light_account(init)]` field is processed
 
 ### Type Restrictions
-- `#[rentfree]` only applies to `Account<'info, T>` or `Box<Account<'info, T>>` fields
+- `#[light_account(init)]` only applies to `Account<'info, T>` or `Box<Account<'info, T>>` fields
 - Nested `Box<Box<Account<...>>>` is not supported
-- `#[rentfree]` and `#[light_mint]` are mutually exclusive on the same field
+- `#[light_account(init)]` and `#[light_account(init)]` are mutually exclusive on the same field
 
 ### No-op Fallback
 When no `#[instruction]` attribute is present, the macro generates no-op implementations for backwards compatibility with non-compressible Accounts structs.

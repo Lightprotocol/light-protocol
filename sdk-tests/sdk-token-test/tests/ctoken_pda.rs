@@ -227,7 +227,7 @@ pub async fn create_mint<R: Rpc + Indexer>(
         mint_authority: mint_authority.pubkey(),
         mint_seed: mint_seed.pubkey(),
         light_token_program: Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
-        ctoken_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
+        light_token_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
     };
 
     let pda_new_address_params = light_sdk::address::NewAddressParamsAssignedPacked {

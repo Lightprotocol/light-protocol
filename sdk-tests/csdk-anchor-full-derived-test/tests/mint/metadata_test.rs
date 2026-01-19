@@ -1,4 +1,4 @@
-//! Integration tests for mint with metadata support in #[light_mint] macro.
+//! Integration tests for mint with metadata support in #[light_account(init)] macro.
 
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressible::rent::SLOTS_PER_EPOCH;
@@ -6,7 +6,6 @@ use light_compressible_client::{
     decompress_mint::decompress_mint, get_create_accounts_proof, AccountInterfaceExt,
     CreateAccountsProofInput, InitializeRentFreeConfig,
 };
-use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
@@ -16,8 +15,6 @@ use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
-
-const RENT_SPONSOR: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 
 /// Test creating a mint with metadata and full lifecycle.
 /// Phase 1: Create mint on-chain with metadata (name, symbol, uri, update_authority, additional_metadata)
@@ -29,8 +26,7 @@ async fn test_create_mint_with_metadata() {
         CreateMintWithMetadataParams, METADATA_MINT_SIGNER_SEED,
     };
     use light_token_sdk::token::{
-        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1,
-        RENT_SPONSOR as CTOKEN_RENT_SPONSOR,
+        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
     };
 
     let program_id = csdk_anchor_full_derived_test::ID;
@@ -99,10 +95,10 @@ async fn test_create_mint_with_metadata() {
         mint_signer: mint_signer_pda,
         cmint: cmint_pda,
         compression_config: config_pda,
-        ctoken_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
+        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        rent_sponsor: RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
-        ctoken_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
+        light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -143,7 +139,7 @@ async fn test_create_mint_with_metadata() {
     let mint: Mint = borsh::BorshDeserialize::deserialize(&mut &cmint_account.data[..])
         .expect("Failed to deserialize Mint");
 
-    // Verify decimals match what was specified in #[light_mint]
+    // Verify decimals match what was specified in #[light_account(init)]
     assert_eq!(mint.base.decimals, 9, "Mint should have 9 decimals");
 
     // Verify mint authority

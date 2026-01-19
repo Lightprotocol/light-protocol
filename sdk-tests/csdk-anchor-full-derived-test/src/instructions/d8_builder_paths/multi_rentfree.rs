@@ -1,10 +1,10 @@
-//! D8 Test: Multiple #[rentfree] fields
+//! D8 Test: Multiple #[light_account(init)] fields
 //!
-//! Tests the builder path with multiple #[rentfree] PDA accounts of the same type.
+//! Tests the builder path with multiple #[light_account(init)] PDA accounts of the same type.
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -16,8 +16,8 @@ pub struct D8MultiRentfreeParams {
     pub id2: u64,
 }
 
-/// Tests builder path with multiple #[rentfree] fields of the same type.
-#[derive(Accounts, RentFree)]
+/// Tests builder path with multiple #[light_account(init)] fields of the same type.
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D8MultiRentfreeParams)]
 pub struct D8MultiRentfree<'info> {
     #[account(mut)]
@@ -33,7 +33,7 @@ pub struct D8MultiRentfree<'info> {
         seeds = [b"d8_multi_1", params.owner.as_ref(), params.id1.to_le_bytes().as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d8_multi_record1: Account<'info, SinglePubkeyRecord>,
 
     #[account(
@@ -43,7 +43,7 @@ pub struct D8MultiRentfree<'info> {
         seeds = [b"d8_multi_2", params.owner.as_ref(), params.id2.to_le_bytes().as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d8_multi_record2: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

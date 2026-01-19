@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::*;
 
@@ -21,7 +21,7 @@ pub const LP_MINT_SIGNER_SEED: &[u8] = b"lp_mint_signer";
 pub const AUTO_VAULT_SEED: &[u8] = b"auto_vault";
 pub const AUTO_VAULT_AUTHORITY_SEED: &[u8] = b"auto_vault_authority";
 
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: FullAutoWithMintParams)]
 pub struct CreatePdasAndMintAuto<'info> {
     #[account(mut)]
@@ -52,7 +52,7 @@ pub struct CreatePdasAndMintAuto<'info> {
         ],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub user_record: Account<'info, UserRecord>,
 
     #[account(
@@ -66,12 +66,12 @@ pub struct CreatePdasAndMintAuto<'info> {
         ],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub game_session: Account<'info, GameSession>,
 
     /// CHECK: Initialized by mint_action
     #[account(mut)]
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer,
         authority = mint_authority,
         decimals = 9,
@@ -85,7 +85,7 @@ pub struct CreatePdasAndMintAuto<'info> {
         seeds = [VAULT_SEED, cmint.key().as_ref()],
         bump,
     )]
-    #[rentfree_token(authority = [b"vault_authority"])]
+    #[light_account(token, authority = [b"vault_authority"])]
     pub vault: UncheckedAccount<'info>,
 
     /// CHECK: PDA used as vault owner
@@ -100,17 +100,17 @@ pub struct CreatePdasAndMintAuto<'info> {
     pub compression_config: AccountInfo<'info>,
 
     /// CHECK: CToken config
-    pub ctoken_compressible_config: AccountInfo<'info>,
+    pub light_token_compressible_config: AccountInfo<'info>,
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
-    pub ctoken_rent_sponsor: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: CToken program
     pub light_token_program: AccountInfo<'info>,
 
     /// CHECK: CToken CPI authority
-    pub ctoken_cpi_authority: AccountInfo<'info>,
+    pub light_token_cpi_authority: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -131,8 +131,8 @@ pub struct CreateTwoMintsParams {
     pub mint_signer_b_bump: u8,
 }
 
-/// Test instruction with 2 #[light_mint] fields to verify multi-mint support.
-#[derive(Accounts, RentFree)]
+/// Test instruction with 2 #[light_account(init)] fields to verify multi-mint support.
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateTwoMintsParams)]
 pub struct CreateTwoMints<'info> {
     #[account(mut)]
@@ -156,7 +156,7 @@ pub struct CreateTwoMints<'info> {
 
     /// CHECK: Initialized by mint_action - first mint
     #[account(mut)]
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer_a,
         authority = fee_payer,
         decimals = 6,
@@ -166,7 +166,7 @@ pub struct CreateTwoMints<'info> {
 
     /// CHECK: Initialized by mint_action - second mint
     #[account(mut)]
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer_b,
         authority = fee_payer,
         decimals = 9,
@@ -178,17 +178,17 @@ pub struct CreateTwoMints<'info> {
     pub compression_config: AccountInfo<'info>,
 
     /// CHECK: CToken config
-    pub ctoken_compressible_config: AccountInfo<'info>,
+    pub light_token_compressible_config: AccountInfo<'info>,
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
-    pub ctoken_rent_sponsor: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: CToken program
     pub light_token_program: AccountInfo<'info>,
 
     /// CHECK: CToken CPI authority
-    pub ctoken_cpi_authority: AccountInfo<'info>,
+    pub light_token_cpi_authority: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -207,8 +207,8 @@ pub struct CreateThreeMintsParams {
     pub mint_signer_c_bump: u8,
 }
 
-/// Test instruction with 3 #[light_mint] fields to verify multi-mint support.
-#[derive(Accounts, RentFree)]
+/// Test instruction with 3 #[light_account(init)] fields to verify multi-mint support.
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateThreeMintsParams)]
 pub struct CreateThreeMints<'info> {
     #[account(mut)]
@@ -239,7 +239,7 @@ pub struct CreateThreeMints<'info> {
 
     /// CHECK: Initialized by light_mint CPI
     #[account(mut)]
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer_a,
         authority = fee_payer,
         decimals = 6,
@@ -249,7 +249,7 @@ pub struct CreateThreeMints<'info> {
 
     /// CHECK: Initialized by light_mint CPI
     #[account(mut)]
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer_b,
         authority = fee_payer,
         decimals = 8,
@@ -259,7 +259,7 @@ pub struct CreateThreeMints<'info> {
 
     /// CHECK: Initialized by light_mint CPI
     #[account(mut)]
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer_c,
         authority = fee_payer,
         decimals = 9,
@@ -271,17 +271,17 @@ pub struct CreateThreeMints<'info> {
     pub compression_config: AccountInfo<'info>,
 
     /// CHECK: CToken config
-    pub ctoken_compressible_config: AccountInfo<'info>,
+    pub light_token_compressible_config: AccountInfo<'info>,
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
-    pub ctoken_rent_sponsor: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: CToken program
     pub light_token_program: AccountInfo<'info>,
 
     /// CHECK: CToken CPI authority
-    pub ctoken_cpi_authority: AccountInfo<'info>,
+    pub light_token_cpi_authority: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -302,9 +302,9 @@ pub struct CreateMintWithMetadataParams {
     pub additional_metadata: Option<Vec<light_token_sdk::AdditionalMetadata>>,
 }
 
-/// Test instruction with #[light_mint] with metadata fields.
+/// Test instruction with #[light_account(init)] with metadata fields.
 /// Tests the metadata support in the RentFree macro.
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateMintWithMetadataParams)]
 pub struct CreateMintWithMetadata<'info> {
     #[account(mut)]
@@ -321,7 +321,7 @@ pub struct CreateMintWithMetadata<'info> {
 
     /// CHECK: Initialized by light_mint CPI with metadata
     #[account(mut)]
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer,
         authority = fee_payer,
         decimals = 9,
@@ -338,17 +338,17 @@ pub struct CreateMintWithMetadata<'info> {
     pub compression_config: AccountInfo<'info>,
 
     /// CHECK: CToken config
-    pub ctoken_compressible_config: AccountInfo<'info>,
+    pub light_token_compressible_config: AccountInfo<'info>,
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
-    pub ctoken_rent_sponsor: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: CToken program
     pub light_token_program: AccountInfo<'info>,
 
     /// CHECK: CToken CPI authority
-    pub ctoken_cpi_authority: AccountInfo<'info>,
+    pub light_token_cpi_authority: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }

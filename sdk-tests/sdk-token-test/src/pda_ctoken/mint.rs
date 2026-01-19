@@ -57,7 +57,7 @@ pub fn process_mint_action<'a, 'info>(
         mint_signer: Some(ctx.accounts.mint_seed.as_ref()),
         authority: ctx.accounts.mint_authority.as_ref(),
         fee_payer: ctx.accounts.payer.as_ref(),
-        compressed_token_cpi_authority: ctx.accounts.ctoken_cpi_authority.as_ref(),
+        compressed_token_cpi_authority: ctx.accounts.light_token_cpi_authority.as_ref(),
         registered_program_pda: cpi_accounts.registered_program_pda().unwrap(),
         account_compression_authority: cpi_accounts.account_compression_authority().unwrap(),
         account_compression_program: cpi_accounts.account_compression_program().unwrap(),
@@ -75,7 +75,7 @@ pub fn process_mint_action<'a, 'info>(
 
     // Get all account infos needed for the mint action
     let mut account_infos = cpi_accounts.to_account_infos();
-    account_infos.push(ctx.accounts.ctoken_cpi_authority.to_account_info());
+    account_infos.push(ctx.accounts.light_token_cpi_authority.to_account_info());
     account_infos.push(ctx.accounts.light_token_program.to_account_info());
     account_infos.push(ctx.accounts.mint_authority.to_account_info());
     account_infos.push(ctx.accounts.mint_seed.to_account_info());

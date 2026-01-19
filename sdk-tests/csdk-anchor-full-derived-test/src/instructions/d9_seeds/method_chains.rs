@@ -9,7 +9,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -29,7 +29,7 @@ pub struct D9MethodAsRefParams {
 }
 
 /// Tests constant.as_ref() method call
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9MethodAsRefParams)]
 pub struct D9MethodAsRef<'info> {
     #[account(mut)]
@@ -45,7 +45,7 @@ pub struct D9MethodAsRef<'info> {
         seeds = [D9_METHOD_BYTES.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -61,7 +61,7 @@ pub struct D9MethodAsBytesParams {
 }
 
 /// Tests string_constant.as_bytes() method call
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9MethodAsBytesParams)]
 pub struct D9MethodAsBytes<'info> {
     #[account(mut)]
@@ -77,7 +77,7 @@ pub struct D9MethodAsBytes<'info> {
         seeds = [D9_METHOD_STR.as_bytes()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -93,7 +93,7 @@ pub struct D9MethodQualifiedAsBytesParams {
 }
 
 /// Tests crate::path::CONST.as_bytes() - the pattern that caused type inference issues
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9MethodQualifiedAsBytesParams)]
 pub struct D9MethodQualifiedAsBytes<'info> {
     #[account(mut)]
@@ -109,7 +109,7 @@ pub struct D9MethodQualifiedAsBytes<'info> {
         seeds = [crate::instructions::d9_seeds::method_chains::D9_METHOD_STR.as_bytes()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -126,7 +126,7 @@ pub struct D9MethodToLeBytesParams {
 }
 
 /// Tests params.field.to_le_bytes().as_ref() chain
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9MethodToLeBytesParams)]
 pub struct D9MethodToLeBytes<'info> {
     #[account(mut)]
@@ -142,7 +142,7 @@ pub struct D9MethodToLeBytes<'info> {
         seeds = [b"d9_le", params.id.to_le_bytes().as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -159,7 +159,7 @@ pub struct D9MethodToBeBytesParams {
 }
 
 /// Tests params.field.to_be_bytes().as_ref() chain
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9MethodToBeBytesParams)]
 pub struct D9MethodToBeBytes<'info> {
     #[account(mut)]
@@ -175,7 +175,7 @@ pub struct D9MethodToBeBytes<'info> {
         seeds = [b"d9_be", params.id.to_be_bytes().as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -193,7 +193,7 @@ pub struct D9MethodMixedParams {
 }
 
 /// Tests mixing different method calls in same seeds
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9MethodMixedParams)]
 pub struct D9MethodMixed<'info> {
     #[account(mut)]
@@ -209,7 +209,7 @@ pub struct D9MethodMixed<'info> {
         seeds = [D9_METHOD_STR.as_bytes(), params.owner.as_ref(), params.id.to_le_bytes().as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

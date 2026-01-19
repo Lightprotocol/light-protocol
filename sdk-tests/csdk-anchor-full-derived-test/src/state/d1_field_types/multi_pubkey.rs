@@ -5,11 +5,11 @@
 
 use anchor_lang::prelude::*;
 use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
-use light_sdk_macros::RentFreeAccount;
+use light_sdk_macros::LightAccount;
 
 /// A struct with multiple Pubkey fields.
 /// PackedMultiPubkeyRecord will have: owner_index, delegate_index, authority_index: u8
-#[derive(Default, Debug, InitSpace, RentFreeAccount)]
+#[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct MultiPubkeyRecord {
     pub compression_info: Option<CompressionInfo>,

@@ -4,11 +4,11 @@
 
 use anchor_lang::prelude::*;
 use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
-use light_sdk_macros::RentFreeAccount;
+use light_sdk_macros::LightAccount;
 
 /// A struct with multiple compress_as overrides.
 /// start, score, and cached all have compression overrides.
-#[derive(Default, Debug, InitSpace, RentFreeAccount)]
+#[derive(Default, Debug, InitSpace, LightAccount)]
 #[compress_as(start = 0, score = 0, cached = 0)]
 #[account]
 pub struct MultipleCompressAsRecord {

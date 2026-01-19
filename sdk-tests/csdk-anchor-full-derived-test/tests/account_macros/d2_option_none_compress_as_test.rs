@@ -1,6 +1,6 @@
 //! D2 Tests: OptionNoneCompressAsRecord trait derive tests
 //!
-//! Tests each trait derived by `RentFreeAccount` macro for `OptionNoneCompressAsRecord`:
+//! Tests each trait derived by `LightAccount` macro for `OptionNoneCompressAsRecord`:
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace

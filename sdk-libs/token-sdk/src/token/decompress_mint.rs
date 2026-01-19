@@ -338,9 +338,9 @@ pub struct DecompressCMintCpiWithContext<'info> {
     pub cpi_context_account: AccountInfo<'info>,
     /// System accounts for Light Protocol
     pub system_accounts: SystemAccountInfos<'info>,
-    /// CToken program's CPI authority (GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy)
+    /// Light token program's CPI authority (GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy)
     /// This is separate from system_accounts.cpi_authority_pda which is the calling program's authority
-    pub ctoken_cpi_authority: AccountInfo<'info>,
+    pub light_token_cpi_authority: AccountInfo<'info>,
     /// Compressed mint with context (from indexer)
     pub compressed_mint_with_context: MintWithContext,
     /// Validity proof for the compressed mint
@@ -396,7 +396,7 @@ impl<'info> DecompressCMintCpiWithContext<'info> {
             self.rent_sponsor.clone(),
             self.payer.clone(),
             // Use ctoken's CPI authority for the CPI, not the calling program's authority
-            self.ctoken_cpi_authority.clone(),
+            self.light_token_cpi_authority.clone(),
             self.system_accounts.registered_program_pda.clone(),
             self.system_accounts.account_compression_authority.clone(),
             self.system_accounts.account_compression_program.clone(),

@@ -251,7 +251,7 @@ pub mod compressible_instruction {
         use super::*;
 
         /// Returns program account metas for decompress_accounts_idempotent with CToken support.
-        /// Includes ctoken_rent_sponsor, light_token_program, ctoken_cpi_authority, ctoken_config.
+        /// Includes ctoken_rent_sponsor, light_token_program, light_token_cpi_authority, ctoken_config.
         pub fn accounts(
             fee_payer: Pubkey,
             config: Pubkey,

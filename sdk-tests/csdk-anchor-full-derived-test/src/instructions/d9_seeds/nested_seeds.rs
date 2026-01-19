@@ -7,7 +7,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -40,7 +40,7 @@ pub struct D9NestedSimpleParams {
 }
 
 /// Tests params.nested.owner.as_ref() pattern
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9NestedSimpleParams)]
 pub struct D9NestedSimple<'info> {
     #[account(mut)]
@@ -56,7 +56,7 @@ pub struct D9NestedSimple<'info> {
         seeds = [b"d9_nested_simple", params.nested.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -73,7 +73,7 @@ pub struct D9NestedDoubleParams {
 }
 
 /// Tests params.outer.nested.owner.as_ref() pattern (double nested)
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9NestedDoubleParams)]
 pub struct D9NestedDouble<'info> {
     #[account(mut)]
@@ -89,7 +89,7 @@ pub struct D9NestedDouble<'info> {
         seeds = [b"d9_nested_double", params.outer.nested.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -106,7 +106,7 @@ pub struct D9NestedArrayFieldParams {
 }
 
 /// Tests params.outer.array as seed (array field in nested struct)
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9NestedArrayFieldParams)]
 pub struct D9NestedArrayField<'info> {
     #[account(mut)]
@@ -122,7 +122,7 @@ pub struct D9NestedArrayField<'info> {
         seeds = [b"d9_nested_array", params.outer.array.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -140,7 +140,7 @@ pub struct D9ArrayIndexParams {
 }
 
 /// Tests params.arrays[2].as_slice() pattern (array indexing)
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ArrayIndexParams)]
 pub struct D9ArrayIndex<'info> {
     #[account(mut)]
@@ -156,7 +156,7 @@ pub struct D9ArrayIndex<'info> {
         seeds = [b"d9_array_idx", params.arrays[2].as_slice()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -173,7 +173,7 @@ pub struct D9NestedBytesParams {
 }
 
 /// Tests params.nested.id.to_le_bytes().as_ref() pattern
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9NestedBytesParams)]
 pub struct D9NestedBytes<'info> {
     #[account(mut)]
@@ -189,7 +189,7 @@ pub struct D9NestedBytes<'info> {
         seeds = [b"d9_nested_bytes", params.nested.id.to_le_bytes().as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -206,7 +206,7 @@ pub struct D9NestedCombinedParams {
 }
 
 /// Tests combining multiple nested accessors in seeds array
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9NestedCombinedParams)]
 pub struct D9NestedCombined<'info> {
     #[account(mut)]
@@ -226,7 +226,7 @@ pub struct D9NestedCombined<'info> {
         ],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

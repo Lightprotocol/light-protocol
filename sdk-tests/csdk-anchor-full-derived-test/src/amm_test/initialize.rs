@@ -1,9 +1,9 @@
-//! Initialize instruction with all rentfree markers.
+//! Initialize instruction with all light account markers.
 //!
 //! Tests:
-//! - 2x #[rentfree] (pool_state, observation_state)
-//! - 2x #[rentfree_token(authority = [...])] (token_0_vault, token_1_vault)
-//! - 1x #[light_mint(...)] (lp_mint)
+//! - 2x #[light_account(init)] (pool_state, observation_state)
+//! - 2x #[light_account(token, authority = [...])] (token_0_vault, token_1_vault)
+//! - 1x #[light_account(init, mint,...)] (lp_mint)
 //! - CreateTokenAccountCpi.rent_free()
 //! - CreateTokenAtaCpi.rent_free()
 //! - MintToCpi
@@ -11,10 +11,10 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 use light_token_sdk::token::{
     CreateTokenAccountCpi, CreateTokenAtaCpi, MintToCpi, COMPRESSIBLE_CONFIG_V1,
-    RENT_SPONSOR as CTOKEN_RENT_SPONSOR,
+    RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
 };
 
 use super::states::*;
@@ -30,7 +30,7 @@ pub struct InitializeParams {
     pub authority_bump: u8,
 }
 
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: InitializeParams)]
 pub struct InitializePool<'info> {
     #[account(mut)]
@@ -58,7 +58,7 @@ pub struct InitializePool<'info> {
         payer = creator,
         space = 8 + PoolState::INIT_SPACE
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub pool_state: Box<Account<'info, PoolState>>,
 
     #[account(
@@ -77,7 +77,7 @@ pub struct InitializePool<'info> {
     pub lp_mint_signer: UncheckedAccount<'info>, // TODO: check where the cpi gets the seeds from
 
     #[account(mut)]
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = lp_mint_signer,
         authority = authority,
         decimals = 9,
@@ -112,7 +112,7 @@ pub struct InitializePool<'info> {
         ],
         bump,
     )]
-    #[rentfree_token(authority = [AUTH_SEED.as_bytes()])]
+    #[light_account(token, authority = [AUTH_SEED.as_bytes()])]
     pub token_0_vault: UncheckedAccount<'info>,
 
     #[account(
@@ -124,7 +124,7 @@ pub struct InitializePool<'info> {
         ],
         bump,
     )]
-    #[rentfree_token(authority = [AUTH_SEED.as_bytes()])]
+    #[light_account(token, authority = [AUTH_SEED.as_bytes()])]
     pub token_1_vault: UncheckedAccount<'info>,
 
     #[account(
@@ -134,7 +134,7 @@ pub struct InitializePool<'info> {
         payer = creator,
         space = 8 + ObservationState::INIT_SPACE
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub observation_state: Box<Account<'info, ObservationState>>,
 
     pub token_program: Interface<'info, TokenInterface>,
@@ -148,15 +148,15 @@ pub struct InitializePool<'info> {
     pub compression_config: AccountInfo<'info>,
 
     #[account(address = COMPRESSIBLE_CONFIG_V1)]
-    pub ctoken_compressible_config: AccountInfo<'info>,
+    pub light_token_compressible_config: AccountInfo<'info>,
 
-    #[account(mut, address = CTOKEN_RENT_SPONSOR)]
-    pub ctoken_rent_sponsor: AccountInfo<'info>,
+    #[account(mut, address = LIGHT_TOKEN_RENT_SPONSOR)]
+    pub rent_sponsor: AccountInfo<'info>,
 
     pub light_token_program: AccountInfo<'info>,
 
     /// CHECK: CToken CPI authority.
-    pub ctoken_cpi_authority: AccountInfo<'info>,
+    pub light_token_cpi_authority: AccountInfo<'info>,
 }
 
 /// Initialize instruction handler (noop for compilation test).
@@ -174,8 +174,10 @@ pub fn process_initialize_pool<'info>(
         owner: ctx.accounts.authority.key(),
     }
     .rent_free(
-        ctx.accounts.ctoken_compressible_config.to_account_info(),
-        ctx.accounts.ctoken_rent_sponsor.to_account_info(),
+        ctx.accounts
+            .light_token_compressible_config
+            .to_account_info(),
+        ctx.accounts.rent_sponsor.to_account_info(),
         ctx.accounts.system_program.to_account_info(),
         &crate::ID,
     )
@@ -194,8 +196,10 @@ pub fn process_initialize_pool<'info>(
         owner: ctx.accounts.authority.key(),
     }
     .rent_free(
-        ctx.accounts.ctoken_compressible_config.to_account_info(),
-        ctx.accounts.ctoken_rent_sponsor.to_account_info(),
+        ctx.accounts
+            .light_token_compressible_config
+            .to_account_info(),
+        ctx.accounts.rent_sponsor.to_account_info(),
         ctx.accounts.system_program.to_account_info(),
         &crate::ID,
     )
@@ -216,8 +220,10 @@ pub fn process_initialize_pool<'info>(
     }
     .idempotent()
     .rent_free(
-        ctx.accounts.ctoken_compressible_config.to_account_info(),
-        ctx.accounts.ctoken_rent_sponsor.to_account_info(),
+        ctx.accounts
+            .light_token_compressible_config
+            .to_account_info(),
+        ctx.accounts.rent_sponsor.to_account_info(),
         ctx.accounts.system_program.to_account_info(),
     )
     .invoke()?;
