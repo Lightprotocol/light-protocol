@@ -4,7 +4,7 @@
 // };
 // use light_compressed_token::mint_action::accounts::{AccountsConfig, MintActionAccounts};
 // use light_compressed_token::ErrorCode;
-// use light_token_interface::CMINT_ADDRESS_TREE;
+// use light_token_interface::MINT_ADDRESS_TREE;
 // use pinocchio::account_info::AccountInfo;
 // use pinocchio::pubkey::Pubkey;
 
@@ -33,7 +33,7 @@
 // // Address tree for compressed mint creation (checked in accounts.rs:166)
 // pub fn get_address_tree_account_meta() -> AccountMeta {
 //     AccountMeta {
-//         pubkey: CMINT_ADDRESS_TREE.into(),
+//         pubkey: MINT_ADDRESS_TREE.into(),
 //         is_signer: false,
 //         is_writable: true,
 //     }

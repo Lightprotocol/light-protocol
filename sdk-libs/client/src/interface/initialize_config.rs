@@ -1,10 +1,10 @@
-//! Helper for initializing compression config with sensible defaults.
+//! Helper for initializing config with sensible defaults.
 
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
-use light_sdk::compressible::config::CompressibleConfig;
+use light_sdk::interface::config::LightConfig;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
@@ -25,23 +25,7 @@ pub struct InitializeCompressionConfigAnchorData {
     pub address_space: Vec<Pubkey>,
 }
 
-/// Builder for creating `initialize_compression_config` instruction with sensible defaults.
-///
-/// Uses:
-/// - Address tree v2 (`amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx`)
-/// - Default rent config
-/// - Default write top-up (5000 lamports)
-///
-/// # Example
-/// ```ignore
-/// let (instruction, config_pda) = InitializeRentFreeConfig::new(
-///     &program_id,
-///     &fee_payer,
-///     &program_data_pda,
-///     rent_sponsor_pubkey,
-///     compression_authority_pubkey,
-/// ).build();
-/// ```
+/// Builder for `initialize_compression_config` instruction with sensible defaults.
 pub struct InitializeRentFreeConfig {
     program_id: Pubkey,
     fee_payer: Pubkey,
@@ -56,14 +40,6 @@ pub struct InitializeRentFreeConfig {
 }
 
 impl InitializeRentFreeConfig {
-    /// Creates a new builder with required fields and default values.
-    ///
-    /// # Arguments
-    /// * `program_id` - The program that owns the compression config
-    /// * `fee_payer` - The account paying for the transaction
-    /// * `program_data_pda` - The program data PDA (BPF upgradeable loader)
-    /// * `rent_sponsor` - The rent sponsor pubkey
-    /// * `compression_authority` - The compression authority pubkey
     pub fn new(
         program_id: &Pubkey,
         fee_payer: &Pubkey,
@@ -85,42 +61,34 @@ impl InitializeRentFreeConfig {
         }
     }
 
-    /// Sets the authority signer (defaults to fee_payer if not set).
     pub fn authority(mut self, authority: Pubkey) -> Self {
         self.authority = Some(authority);
         self
     }
 
-    /// Overrides the default rent config.
     pub fn rent_config(mut self, rent_config: light_compressible::rent::RentConfig) -> Self {
         self.rent_config = rent_config;
         self
     }
 
-    /// Overrides the default write top-up value.
     pub fn write_top_up(mut self, write_top_up: u32) -> Self {
         self.write_top_up = write_top_up;
         self
     }
 
-    /// Overrides the default address space (address tree v2).
     pub fn address_space(mut self, address_space: Vec<Pubkey>) -> Self {
         self.address_space = address_space;
         self
     }
 
-    /// Sets the config bump (default 0).
     pub fn config_bump(mut self, config_bump: u8) -> Self {
         self.config_bump = config_bump;
         self
     }
 
-    /// Builds the instruction and returns (instruction, config_pda).
-    ///
-    /// The returned instruction is ready to send with Anchor's generated discriminator.
     pub fn build(self) -> (Instruction, Pubkey) {
         let authority = self.authority.unwrap_or(self.fee_payer);
-        let (config_pda, _) = CompressibleConfig::derive_pda(&self.program_id, self.config_bump);
+        let (config_pda, _) = LightConfig::derive_pda(&self.program_id, self.config_bump);
 
         let accounts = vec![
             AccountMeta::new(self.fee_payer, true), // payer

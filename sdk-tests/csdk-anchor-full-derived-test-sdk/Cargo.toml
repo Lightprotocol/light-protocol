@@ -5,11 +5,11 @@ description = "Client SDK for csdk-anchor-full-derived-test program"
 edition = "2021"
 
 [dependencies]
-# Program crate for types (RentFreeAccountVariant, PoolState, etc.)
+# Program crate for types (LightAccountVariant, PoolState, etc.)
 csdk-anchor-full-derived-test = { path = "../csdk-anchor-full-derived-test", features = ["no-entrypoint"] }
 
 # SDK trait and types
-light-compressible-client = { workspace = true, features = ["anchor"] }
+light-client = { workspace = true, features = ["v2", "anchor"] }
 light-sdk = { workspace = true, features = ["anchor", "v2"] }
 light-token-sdk = { workspace = true, features = ["anchor"] }
 
@@ -18,6 +18,3 @@ solana-pubkey = { workspace = true }
 
 # Fast hashing for account maps
 ahash = "0.8"
-
-[dev-dependencies]
-light-client = { workspace = true }

@@ -1645,7 +1645,6 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressible",
- "light-compressible-client",
  "light-hasher",
  "light-heap",
  "light-macros",
@@ -1681,7 +1680,6 @@ dependencies = [
  "anchor-lang",
  "csdk-anchor-full-derived-test",
  "light-client",
- "light-compressible-client",
  "light-sdk",
  "light-token-sdk",
  "solana-pubkey 2.4.0",
@@ -3561,12 +3559,15 @@ dependencies = [
 name = "light-client"
 version = "0.17.2"
 dependencies = [
+ "anchor-lang",
  "async-trait",
  "base64 0.13.1",
  "borsh 0.10.4",
  "bs58",
+ "futures",
  "lazy_static",
  "light-compressed-account",
+ "light-compressible",
  "light-concurrent-merkle-tree",
  "light-event",
  "light-hasher",
@@ -3580,6 +3581,7 @@ dependencies = [
  "num-bigint 0.4.6",
  "photon-api",
  "rand 0.8.5",
+ "smallvec",
  "solana-account",
  "solana-account-decoder-client-types",
  "solana-address-lookup-table-interface",
@@ -3591,6 +3593,7 @@ dependencies = [
  "solana-instruction",
  "solana-keypair",
  "solana-message",
+ "solana-program",
  "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "solana-rpc-client",
@@ -3599,6 +3602,7 @@ dependencies = [
  "solana-transaction",
  "solana-transaction-error",
  "solana-transaction-status-client-types",
+ "spl-token-2022 7.0.0",
  "thiserror 2.0.17",
  "tokio",
  "tracing",
@@ -3694,30 +3698,6 @@ dependencies = [
  "solana-sysvar",
  "thiserror 2.0.17",
  "zerocopy",
-]
-
-[[package]]
-name = "light-compressible-client"
-version = "0.17.1"
-dependencies = [
- "anchor-lang",
- "async-trait",
- "borsh 0.10.4",
- "futures",
- "light-client",
- "light-compressed-account",
- "light-compressible",
- "light-sdk",
- "light-token-interface",
- "light-token-sdk",
- "smallvec",
- "solana-account",
- "solana-instruction",
- "solana-program",
- "solana-program-error 2.2.2",
- "solana-pubkey 2.4.0",
- "spl-token-2022 7.0.0",
- "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -3922,7 +3902,6 @@ dependencies = [
  "light-compressed-account",
  "light-compressed-token",
  "light-compressible",
- "light-compressible-client",
  "light-concurrent-merkle-tree",
  "light-event",
  "light-hasher",
@@ -6042,7 +6021,6 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressible",
- "light-compressible-client",
  "light-program-test",
  "light-sdk",
  "light-sdk-types",

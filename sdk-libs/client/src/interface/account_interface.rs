@@ -1,14 +1,13 @@
 //! Unified account interfaces for hot/cold account handling.
 //!
 //! Core types:
-//! - `AccountInterface` - Generic compressible account (PDAs, mints)
+//! - `AccountInterface` - Generic account (PDAs, mints)
 //! - `TokenAccountInterface` - Token accounts (ATAs, program-owned vaults)
 //!
 //! All interfaces use standard Solana/SPL types:
 //! - `solana_account::Account` for raw account data
 //! - `spl_token_2022::state::Account` for parsed token data
 
-use light_client::indexer::{CompressedAccount, CompressedTokenAccount, TreeInfo};
 use light_token_interface::state::ExtensionStruct;
 use light_token_sdk::token::derive_token_ata;
 use solana_account::Account;
@@ -16,7 +15,8 @@ use solana_pubkey::Pubkey;
 use spl_token_2022::state::Account as SplTokenAccount;
 use thiserror::Error;
 
-use crate::ColdContext;
+use super::ColdContext;
+use crate::indexer::{CompressedAccount, CompressedTokenAccount, TreeInfo};
 
 /// Error type for account interface operations.
 #[derive(Debug, Error)]
@@ -31,22 +31,18 @@ pub enum AccountInterfaceError {
     ParseError(String),
 }
 
-// ============================================================================
-// AccountInterface - Generic compressible accounts (PDAs, mints, tokens)
-// ============================================================================
-
-/// Unified account interface for all compressible accounts.
+/// Unified account interface for PDAs, mints, and tokens.
 ///
 /// Uses standard `solana_account::Account` for raw data.
 /// For hot accounts: actual on-chain bytes.
-/// For cold accounts: synthetic bytes from compressed data.
+/// For cold accounts: synthetic bytes from cold data.
 #[derive(Debug, Clone)]
 pub struct AccountInterface {
     /// The account's public key.
     pub key: Pubkey,
     /// Standard Solana Account (lamports, data, owner, executable, rent_epoch).
     pub account: Account,
-    /// Cold context (only present when compressed).
+    /// Cold context (only present when cold).
     pub cold: Option<ColdContext>,
 }
 
@@ -60,7 +56,7 @@ impl AccountInterface {
         }
     }
 
-    /// Create a cold (compressed) account interface for a PDA/mint.
+    /// Create a cold account interface for a PDA/mint.
     pub fn cold(key: Pubkey, compressed: CompressedAccount, owner: Pubkey) -> Self {
         let data = compressed
             .data
@@ -85,7 +81,7 @@ impl AccountInterface {
         }
     }
 
-    /// Create a cold (compressed) account interface for a token account.
+    /// Create a cold account interface for a token account.
     pub fn cold_token(
         key: Pubkey,
         compressed: CompressedTokenAccount,
@@ -121,13 +117,13 @@ impl AccountInterface {
         }
     }
 
-    /// Whether this account is compressed (needs decompression).
+    /// Whether this account is cold.
     #[inline]
     pub fn is_cold(&self) -> bool {
         self.cold.is_some()
     }
 
-    /// Whether this account is on-chain (no decompression needed).
+    /// Whether this account is hot.
     #[inline]
     pub fn is_hot(&self) -> bool {
         self.cold.is_none()
@@ -139,7 +135,7 @@ impl AccountInterface {
         &self.account.data
     }
 
-    /// Get the compressed account hash if cold.
+    /// Get the account hash if cold.
     pub fn hash(&self) -> Option<[u8; 32]> {
         match &self.cold {
             Some(ColdContext::Account(c)) => Some(c.hash),
@@ -166,7 +162,7 @@ impl AccountInterface {
         }
     }
 
-    /// Get as CompressedAccount if cold account type (PDA/mint).
+    /// Get as CompressedAccount if cold account type.
     pub fn as_compressed_account(&self) -> Option<&CompressedAccount> {
         match &self.cold {
             Some(ColdContext::Account(c)) => Some(c),
@@ -198,15 +194,11 @@ impl AccountInterface {
         self.as_mint().map(|m| m.metadata.mint_signer)
     }
 
-    /// Get mint compressed address if this is a cold mint.
+    /// Get mint address if this is a cold mint.
     pub fn mint_compressed_address(&self) -> Option<[u8; 32]> {
         self.as_mint().map(|m| m.metadata.compressed_address())
     }
 }
-
-// ============================================================================
-// TokenAccountInterface - Token accounts (ATAs, program-owned vaults)
-// ============================================================================
 
 /// Token account interface with both raw and parsed data.
 ///
@@ -222,13 +214,11 @@ pub struct TokenAccountInterface {
     pub key: Pubkey,
     /// Standard Solana Account (lamports, data, owner, executable, rent_epoch).
     pub account: Account,
-    /// Parsed SPL Token Account - standard type.
-    /// For cold ATAs: owner is wallet_owner (from fetch params).
-    /// For cold program-owned: owner is the PDA.
+    /// Parsed SPL Token Account.
     pub parsed: SplTokenAccount,
-    /// Cold context (only present when compressed).
+    /// Cold context (only present when cold).
     pub cold: Option<ColdContext>,
-    /// Optional TLV extension data (compressed token extensions).
+    /// Optional TLV extension data.
     pub extensions: Option<Vec<ExtensionStruct>>,
 }
 
@@ -253,11 +243,11 @@ impl TokenAccountInterface {
         })
     }
 
-    /// Create a cold (compressed) token account interface.
+    /// Create a cold token account interface.
     ///
     /// # Arguments
     /// * `key` - The token account address
-    /// * `compressed` - The compressed token account from indexer
+    /// * `compressed` - The cold token account from indexer
     /// * `owner_override` - For ATAs, pass the wallet owner. For program-owned, pass the PDA.
     /// * `program_owner` - The program that owns this account (usually LIGHT_TOKEN_PROGRAM_ID)
     pub fn cold(
@@ -271,13 +261,9 @@ impl TokenAccountInterface {
 
         let token = &compressed.token;
 
-        // Create SPL Token Account from TokenData
-        // IMPORTANT: Use owner_override, not token.owner
-        // For ATAs: token.owner = ATA address, but we want wallet_owner
-        // For program-owned: owner_override = PDA = token.owner (same)
         let parsed = SplTokenAccount {
             mint: token.mint,
-            owner: owner_override, // Use override, not token.owner
+            owner: owner_override,
             amount: token.amount,
             delegate: token.delegate.into(),
             state: match token.state {
@@ -289,11 +275,9 @@ impl TokenAccountInterface {
             close_authority: solana_program::program_option::COption::None,
         };
 
-        // Pack into synthetic Account bytes (165 bytes SPL Token Account format)
         let mut data = vec![0u8; SplTokenAccount::LEN];
         SplTokenAccount::pack(parsed, &mut data).expect("pack should never fail");
 
-        // Store extensions separately (not appended to data - they're compressed-specific)
         let extensions = token.tlv.clone();
 
         let account = Account {
@@ -313,13 +297,13 @@ impl TokenAccountInterface {
         }
     }
 
-    /// Whether this account is compressed (needs decompression).
+    /// Whether this account is cold.
     #[inline]
     pub fn is_cold(&self) -> bool {
         self.cold.is_some()
     }
 
-    /// Whether this account is on-chain (no decompression needed).
+    /// Whether this account is hot.
     #[inline]
     pub fn is_hot(&self) -> bool {
         self.cold.is_none()
@@ -363,7 +347,7 @@ impl TokenAccountInterface {
         self.parsed.state == spl_token_2022::state::AccountState::Frozen
     }
 
-    /// Get the compressed account hash if cold (for validity proof).
+    /// Get the account hash if cold.
     #[inline]
     pub fn hash(&self) -> Option<[u8; 32]> {
         self.compressed().map(|c| c.account.hash)

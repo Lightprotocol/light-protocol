@@ -10,7 +10,7 @@ use light_token_interface::{
         MintToAction, MintWithContext,
     },
     state::MintMetadata,
-    CMINT_ADDRESS_TREE, LIGHT_TOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID, MINT_ADDRESS_TREE,
 };
 use light_token_sdk::compressed_token::{
     create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
@@ -436,7 +436,7 @@ async fn test_execute_cpi_context_invalid_tree_index() {
         token_out_queue_index: 0,
         assigned_account_index: 0,
         read_only_address_trees: [0; 4],
-        address_tree_pubkey: CMINT_ADDRESS_TREE,
+        address_tree_pubkey: MINT_ADDRESS_TREE,
     };
 
     // Build instruction data for execute mode - must mark as create_mint
@@ -452,7 +452,7 @@ async fn test_execute_cpi_context_invalid_tree_index() {
         payer.pubkey(),
         mint_authority.pubkey(),
         mint_seed.pubkey(),
-        Pubkey::new_from_array(CMINT_ADDRESS_TREE),
+        Pubkey::new_from_array(MINT_ADDRESS_TREE),
         output_queue,
     );
 

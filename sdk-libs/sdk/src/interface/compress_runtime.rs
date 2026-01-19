@@ -19,7 +19,7 @@ pub trait CompressContext<'info> {
         account_info: &AccountInfo<'info>,
         meta: &CompressedAccountMetaNoLamportsNoAddress,
         cpi_accounts: &crate::cpi::v2::CpiAccounts<'_, 'info>,
-        compression_config: &crate::compressible::CompressibleConfig,
+        compression_config: &crate::interface::LightConfig,
         program_id: &Pubkey,
     ) -> Result<Option<CompressedAccountInfo>, ProgramError>;
 }
@@ -44,8 +44,7 @@ where
 
     let proof = crate::instruction::ValidityProof::new(None);
 
-    let compression_config =
-        crate::compressible::CompressibleConfig::load_checked(ctx.config(), program_id)?;
+    let compression_config = crate::interface::LightConfig::load_checked(ctx.config(), program_id)?;
 
     if *ctx.rent_sponsor().key != compression_config.rent_sponsor {
         msg!(
@@ -126,7 +125,7 @@ where
 
         for idx in pda_indices_to_close {
             let mut info = solana_accounts[idx].clone();
-            crate::compressible::close::close(&mut info, ctx.rent_sponsor().clone())
+            crate::interface::close::close(&mut info, ctx.rent_sponsor().clone())
                 .map_err(ProgramError::from)?;
         }
     }

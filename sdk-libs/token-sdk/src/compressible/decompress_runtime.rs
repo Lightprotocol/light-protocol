@@ -1,6 +1,6 @@
 //! Runtime helpers for token decompression.
 // Re-export TokenSeedProvider from sdk (canonical definition).
-pub use light_sdk::compressible::TokenSeedProvider;
+pub use light_sdk::interface::TokenSeedProvider;
 use light_sdk::{cpi::v2::CpiAccounts, instruction::ValidityProof};
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
 use light_token_interface::instructions::{

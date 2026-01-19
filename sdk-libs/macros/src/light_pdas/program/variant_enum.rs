@@ -224,7 +224,7 @@ impl<'a> LightVariantBuilder<'a> {
             let inner_type = qualify_type_with_crate(&info.inner_type);
             let packed_variant_name = format_ident!("Packed{}", variant_name);
             quote! {
-                LightAccountVariant::#variant_name { data, .. } => <#inner_type as light_sdk::compressible::HasCompressionInfo>::compression_info(data),
+                LightAccountVariant::#variant_name { data, .. } => <#inner_type as light_sdk::interface::HasCompressionInfo>::compression_info(data),
                 LightAccountVariant::#packed_variant_name { .. } => Err(light_sdk::error::LightSdkError::PackedVariantCompressionInfo.into()),
             }
         });
@@ -234,7 +234,7 @@ impl<'a> LightVariantBuilder<'a> {
             let inner_type = qualify_type_with_crate(&info.inner_type);
             let packed_variant_name = format_ident!("Packed{}", variant_name);
             quote! {
-                LightAccountVariant::#variant_name { data, .. } => <#inner_type as light_sdk::compressible::HasCompressionInfo>::compression_info_mut(data),
+                LightAccountVariant::#variant_name { data, .. } => <#inner_type as light_sdk::interface::HasCompressionInfo>::compression_info_mut(data),
                 LightAccountVariant::#packed_variant_name { .. } => Err(light_sdk::error::LightSdkError::PackedVariantCompressionInfo.into()),
             }
         });
@@ -244,7 +244,7 @@ impl<'a> LightVariantBuilder<'a> {
             let inner_type = qualify_type_with_crate(&info.inner_type);
             let packed_variant_name = format_ident!("Packed{}", variant_name);
             quote! {
-                LightAccountVariant::#variant_name { data, .. } => <#inner_type as light_sdk::compressible::HasCompressionInfo>::compression_info_mut_opt(data),
+                LightAccountVariant::#variant_name { data, .. } => <#inner_type as light_sdk::interface::HasCompressionInfo>::compression_info_mut_opt(data),
                 LightAccountVariant::#packed_variant_name { .. } => panic!("compression_info_mut_opt not supported on packed variants"),
             }
         });
@@ -254,7 +254,7 @@ impl<'a> LightVariantBuilder<'a> {
             let inner_type = qualify_type_with_crate(&info.inner_type);
             let packed_variant_name = format_ident!("Packed{}", variant_name);
             quote! {
-                LightAccountVariant::#variant_name { data, .. } => <#inner_type as light_sdk::compressible::HasCompressionInfo>::set_compression_info_none(data),
+                LightAccountVariant::#variant_name { data, .. } => <#inner_type as light_sdk::interface::HasCompressionInfo>::set_compression_info_none(data),
                 LightAccountVariant::#packed_variant_name { .. } => Err(light_sdk::error::LightSdkError::PackedVariantCompressionInfo.into()),
             }
         });
@@ -276,22 +276,22 @@ impl<'a> LightVariantBuilder<'a> {
         };
 
         quote! {
-            impl light_sdk::compressible::HasCompressionInfo for LightAccountVariant {
-                fn compression_info(&self) -> std::result::Result<&light_sdk::compressible::CompressionInfo, solana_program_error::ProgramError> {
+            impl light_sdk::interface::HasCompressionInfo for LightAccountVariant {
+                fn compression_info(&self) -> std::result::Result<&light_sdk::interface::CompressionInfo, solana_program_error::ProgramError> {
                     match self {
                         #(#compression_info_match_arms)*
                         #ctoken_arms
                     }
                 }
 
-                fn compression_info_mut(&mut self) -> std::result::Result<&mut light_sdk::compressible::CompressionInfo, solana_program_error::ProgramError> {
+                fn compression_info_mut(&mut self) -> std::result::Result<&mut light_sdk::interface::CompressionInfo, solana_program_error::ProgramError> {
                     match self {
                         #(#compression_info_mut_match_arms)*
                         #ctoken_arms
                     }
                 }
 
-                fn compression_info_mut_opt(&mut self) -> &mut Option<light_sdk::compressible::CompressionInfo> {
+                fn compression_info_mut_opt(&mut self) -> &mut Option<light_sdk::interface::CompressionInfo> {
                     match self {
                         #(#compression_info_mut_opt_match_arms)*
                         #ctoken_arms_mut_opt
@@ -363,7 +363,7 @@ impl<'a> LightVariantBuilder<'a> {
                 quote! {
                     LightAccountVariant::#packed_variant_name { .. } => Err(solana_program_error::ProgramError::InvalidAccountData),
                     LightAccountVariant::#variant_name { data, .. } => Ok(LightAccountVariant::#packed_variant_name {
-                        data: <#inner_type as light_sdk::compressible::Pack>::pack(data, remaining_accounts)?,
+                        data: <#inner_type as light_sdk::interface::Pack>::pack(data, remaining_accounts)?,
                     }),
                 }
             } else {
@@ -372,7 +372,7 @@ impl<'a> LightVariantBuilder<'a> {
                     LightAccountVariant::#variant_name { data, #(#ctx_field_names,)* #(#params_field_names,)* .. } => {
                         #(#pack_ctx_seeds)*
                         Ok(LightAccountVariant::#packed_variant_name {
-                            data: <#inner_type as light_sdk::compressible::Pack>::pack(data, remaining_accounts)?,
+                            data: <#inner_type as light_sdk::interface::Pack>::pack(data, remaining_accounts)?,
                             #(#idx_field_names,)*
                             #(#params_field_names: *#params_field_names,)*
                         })
@@ -393,7 +393,7 @@ impl<'a> LightVariantBuilder<'a> {
         };
 
         quote! {
-            impl light_sdk::compressible::Pack for LightAccountVariant {
+            impl light_sdk::interface::Pack for LightAccountVariant {
                 type Packed = Self;
 
                 fn pack(&self, remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
@@ -442,7 +442,7 @@ impl<'a> LightVariantBuilder<'a> {
             if ctx_fields.is_empty() && params_only_fields.is_empty() {
                 unpack_match_arms.push(quote! {
                     LightAccountVariant::#packed_variant_name { data, .. } => Ok(LightAccountVariant::#variant_name {
-                        data: <#packed_inner_type as light_sdk::compressible::Unpack>::unpack(data, remaining_accounts)?,
+                        data: <#packed_inner_type as light_sdk::interface::Unpack>::unpack(data, remaining_accounts)?,
                     }),
                     LightAccountVariant::#variant_name { .. } => Err(solana_program_error::ProgramError::InvalidAccountData),
                 });
@@ -451,7 +451,7 @@ impl<'a> LightVariantBuilder<'a> {
                     LightAccountVariant::#packed_variant_name { data, #(#idx_field_names,)* #(#params_field_names,)* .. } => {
                         #(#unpack_ctx_seeds)*
                         Ok(LightAccountVariant::#variant_name {
-                            data: <#packed_inner_type as light_sdk::compressible::Unpack>::unpack(data, remaining_accounts)?,
+                            data: <#packed_inner_type as light_sdk::interface::Unpack>::unpack(data, remaining_accounts)?,
                             #(#ctx_field_names,)*
                             #(#params_field_names: *#params_field_names,)*
                         })
@@ -471,7 +471,7 @@ impl<'a> LightVariantBuilder<'a> {
         };
 
         Ok(quote! {
-            impl light_sdk::compressible::Unpack for LightAccountVariant {
+            impl light_sdk::interface::Unpack for LightAccountVariant {
                 type Unpacked = Self;
 
                 fn unpack(
@@ -735,7 +735,7 @@ impl<'a> TokenVariantBuilder<'a> {
     /// Generate the IntoCTokenVariant implementation.
     fn generate_into_ctoken_variant_impl(&self) -> TokenStream {
         quote! {
-            impl light_sdk::compressible::IntoCTokenVariant<LightAccountVariant, light_token_sdk::compat::TokenData> for TokenAccountVariant {
+            impl light_sdk::interface::IntoCTokenVariant<LightAccountVariant, light_token_sdk::compat::TokenData> for TokenAccountVariant {
                 fn into_ctoken_variant(self, token_data: light_token_sdk::compat::TokenData) -> LightAccountVariant {
                     LightAccountVariant::CTokenData(light_token_sdk::compat::CTokenData {
                         variant: self,

@@ -1,4 +1,4 @@
-//! CompressibleProgram trait unit tests for AmmSdk.
+//! LightProgramInterface trait unit tests for AmmSdk.
 //!
 //! Tests cover:
 //! - Core trait methods (from_keyed_accounts, update, get_specs_for_instruction)
@@ -11,11 +11,11 @@ use std::collections::HashSet;
 
 use csdk_anchor_full_derived_test::{
     amm_test::{ObservationState, PoolState},
-    csdk_anchor_full_derived_test::RentFreeAccountVariant,
+    csdk_anchor_full_derived_test::LightAccountVariant,
 };
 use csdk_anchor_full_derived_test_sdk::{AmmInstruction, AmmSdk, AmmSdkError};
-use light_compressible_client::{
-    all_hot, any_cold, Account, AccountInterface, AccountSpec, CompressibleProgram, PdaSpec,
+use light_client::interface::{
+    all_hot, any_cold, Account, AccountInterface, AccountSpec, LightProgramInterface, PdaSpec,
 };
 use light_sdk::LightDiscriminator;
 use solana_pubkey::Pubkey;
@@ -220,7 +220,7 @@ fn test_get_all_empty() {
 #[test]
 fn test_all_specs_helpers() {
     // Test all_hot() and any_cold() helpers
-    let specs: Vec<AccountSpec<RentFreeAccountVariant>> = vec![];
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![];
 
     assert!(all_hot(&specs), "Empty is all hot");
     assert!(!any_cold(&specs), "Empty has no cold");
@@ -430,13 +430,13 @@ fn test_edge_all_hot_check() {
     );
     let hot_spec = PdaSpec::new(
         hot_interface,
-        RentFreeAccountVariant::ObservationState {
+        LightAccountVariant::ObservationState {
             data: ObservationState::default(),
             pool_state: Pubkey::new_unique(),
         },
         csdk_anchor_full_derived_test_sdk::PROGRAM_ID,
     );
-    let specs: Vec<AccountSpec<RentFreeAccountVariant>> = vec![AccountSpec::Pda(hot_spec)];
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(hot_spec)];
 
     assert!(
         all_hot(&specs),
@@ -488,7 +488,7 @@ fn test_get_accounts_to_update_empty() {
 #[test]
 fn test_get_accounts_to_update_categories() {
     // Verify typed accounts have correct categories
-    use light_compressible_client::AccountToFetch;
+    use light_client::interface::AccountToFetch;
 
     let sdk = AmmSdk::new();
     let typed = sdk.get_accounts_to_update(&AmmInstruction::Deposit);
@@ -913,7 +913,7 @@ fn test_swap_and_deposit_share_vault_specs() {
 
 #[test]
 fn test_canonical_variant_independent_of_alias() {
-    // The RentFreeAccountVariant enum uses CANONICAL names:
+    // The LightAccountVariant enum uses CANONICAL names:
     // - Token0Vault { pool_state, token_0_mint }
     // - Token1Vault { pool_state, token_1_mint }
     //
@@ -943,13 +943,13 @@ fn test_canonical_variant_independent_of_alias() {
     for spec in &specs {
         if let AccountSpec::Pda(pda) = spec {
             match &pda.variant {
-                RentFreeAccountVariant::PoolState { .. } => {
+                LightAccountVariant::PoolState { .. } => {
                     // Canonical: PoolState
                 }
-                RentFreeAccountVariant::ObservationState { .. } => {
+                LightAccountVariant::ObservationState { .. } => {
                     // Canonical: ObservationState
                 }
-                RentFreeAccountVariant::CTokenData(ctoken) => {
+                LightAccountVariant::CTokenData(ctoken) => {
                     // Canonical: Token0Vault or Token1Vault
                     match &ctoken.variant {
                         csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::TokenAccountVariant::Token0Vault { .. } => {}

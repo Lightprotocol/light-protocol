@@ -16,11 +16,11 @@ use csdk_anchor_full_derived_test::amm_test::{
 };
 // SDK for AmmSdk-based approach
 use csdk_anchor_full_derived_test_sdk::{AmmInstruction, AmmSdk};
-use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_compressible_client::{
-    create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, CompressibleProgram,
-    CreateAccountsProofInput, InitializeRentFreeConfig,
+use light_client::interface::{
+    create_load_instructions, get_create_accounts_proof, AccountInterfaceExt,
+    CreateAccountsProofInput, InitializeRentFreeConfig, LightProgramInterface,
 };
+use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
@@ -554,7 +554,7 @@ async fn test_amm_full_lifecycle() {
 
     let pool_interface = ctx
         .rpc
-        .get_account_info_interface(&pdas.pool_state, &ctx.program_id)
+        .get_account_interface(&pdas.pool_state, &ctx.program_id)
         .await
         .expect("failed to get pool_state");
     assert!(pool_interface.is_cold(), "pool_state should be cold");
@@ -583,7 +583,7 @@ async fn test_amm_full_lifecycle() {
         .expect("failed to get creator_lp_token");
 
     // add ata
-    use light_compressible_client::AccountSpec;
+    use light_client::interface::AccountSpec;
     let mut all_specs = specs;
     all_specs.push(AccountSpec::Ata(creator_lp_interface));
 

@@ -25,12 +25,11 @@ light-compressed-account = { workspace = true, features = ["anchor", "poseidon"]
 light-batched-merkle-tree = { workspace = true, features = ["test-only"], optional = true }
 light-event = { workspace = true }
 # unreleased
-light-client = { workspace = true, features = ["program-test"] }
+light-client = { workspace = true, features = ["program-test", "anchor"] }
 light-prover-client = { workspace = true }
 light-zero-copy = { workspace = true }
 litesvm = { workspace = true }
 spl-token-2022 = { workspace = true }
-light-compressible-client = { workspace = true, features = ["anchor"] }
 
 
 light-registry = { workspace = true, features = ["cpi"], optional = true }

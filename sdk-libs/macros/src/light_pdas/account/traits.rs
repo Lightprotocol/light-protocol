@@ -68,16 +68,16 @@ fn validate_compression_info_field(
 /// Generates the HasCompressionInfo trait implementation
 fn generate_has_compression_info_impl(struct_name: &Ident) -> TokenStream {
     quote! {
-        impl light_sdk::compressible::HasCompressionInfo for #struct_name {
-            fn compression_info(&self) -> std::result::Result<&light_sdk::compressible::CompressionInfo, solana_program_error::ProgramError> {
+        impl light_sdk::interface::HasCompressionInfo for #struct_name {
+            fn compression_info(&self) -> std::result::Result<&light_sdk::interface::CompressionInfo, solana_program_error::ProgramError> {
                 self.compression_info.as_ref().ok_or(light_sdk::error::LightSdkError::MissingCompressionInfo.into())
             }
 
-            fn compression_info_mut(&mut self) -> std::result::Result<&mut light_sdk::compressible::CompressionInfo, solana_program_error::ProgramError> {
+            fn compression_info_mut(&mut self) -> std::result::Result<&mut light_sdk::interface::CompressionInfo, solana_program_error::ProgramError> {
                 self.compression_info.as_mut().ok_or(light_sdk::error::LightSdkError::MissingCompressionInfo.into())
             }
 
-            fn compression_info_mut_opt(&mut self) -> &mut Option<light_sdk::compressible::CompressionInfo> {
+            fn compression_info_mut_opt(&mut self) -> &mut Option<light_sdk::interface::CompressionInfo> {
                 &mut self.compression_info
             }
 
@@ -142,7 +142,7 @@ fn generate_compress_as_impl(
     field_assignments: &[TokenStream],
 ) -> TokenStream {
     quote! {
-        impl light_sdk::compressible::CompressAs for #struct_name {
+        impl light_sdk::interface::CompressAs for #struct_name {
             type Output = Self;
 
             fn compress_as(&self) -> std::borrow::Cow<'_, Self::Output> {
@@ -190,7 +190,7 @@ fn generate_size_impl(struct_name: &Ident, size_fields: &[TokenStream]) -> Token
             fn size(&self) -> std::result::Result<usize, solana_program_error::ProgramError> {
                 // Always allocate space for Some(CompressionInfo) since it will be set during decompression
                 // CompressionInfo size: 1 byte (Option discriminant) + <CompressionInfo as Space>::INIT_SPACE
-                let compression_info_size = 1 + <light_sdk::compressible::CompressionInfo as light_sdk::compressible::Space>::INIT_SPACE;
+                let compression_info_size = 1 + <light_sdk::interface::CompressionInfo as light_sdk::interface::Space>::INIT_SPACE;
                 Ok(compression_info_size #(#size_fields)*)
             }
         }
@@ -200,7 +200,7 @@ fn generate_size_impl(struct_name: &Ident, size_fields: &[TokenStream]) -> Token
 /// Generates the CompressedInitSpace trait implementation
 fn generate_compressed_init_space_impl(struct_name: &Ident) -> TokenStream {
     quote! {
-        impl light_sdk::compressible::CompressedInitSpace for #struct_name {
+        impl light_sdk::interface::CompressedInitSpace for #struct_name {
             const COMPRESSED_INIT_SPACE: usize = Self::LIGHT_DISCRIMINATOR.len() + Self::INIT_SPACE;
         }
     }

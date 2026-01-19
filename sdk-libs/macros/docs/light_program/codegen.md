@@ -14,7 +14,7 @@ sdk-libs/macros/src/rentfree/program/
 |                          # CompressContext trait impl, compress processor
 |-- decompress.rs          # DecompressAccountsIdempotent generation
 |                          # DecompressContext trait impl, PDA seed provider impls
-|-- variant_enum.rs        # RentFreeAccountVariant enum generation
+|-- variant_enum.rs        # LightAccountVariant enum generation
 |                          # TokenAccountVariant/PackedTokenAccountVariant generation
 |                          # Pack/Unpack trait implementations
 |-- seed_codegen.rs        # Client seed function generation

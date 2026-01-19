@@ -1,9 +1,9 @@
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_compressible_client::{
+use light_client::interface::{
     get_create_accounts_proof, AccountInterfaceExt, CreateAccountsProofInput,
     InitializeRentFreeConfig,
 };
+use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
@@ -14,8 +14,6 @@ use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
-
-const RENT_SPONSOR: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 
 /// 2 PDAs + 1 Mint + 1 Vault + 1 User ATA, all in one instruction with single proof.
 /// After init: all accounts on-chain + parseable.
@@ -304,23 +302,23 @@ async fn test_create_pdas_and_mint_auto() {
     // PHASE 3: Decompress all accounts via create_load_instructions
     use anchor_lang::AnchorDeserialize;
     use csdk_anchor_full_derived_test::{
-        csdk_anchor_full_derived_test::{RentFreeAccountVariant, TokenAccountVariant},
+        csdk_anchor_full_derived_test::{LightAccountVariant, TokenAccountVariant},
         GameSession as GameSessionState, UserRecord,
     };
-    use light_compressible_client::{
+    use light_client::interface::{
         create_load_instructions, AccountInterface, AccountSpec, ColdContext, PdaSpec,
     };
     use light_token_sdk::compat::{CTokenData, TokenData};
 
     // Fetch unified interfaces (hot/cold transparent)
     let user_interface = rpc
-        .get_account_info_interface(&user_record_pda, &program_id)
+        .get_account_interface(&user_record_pda, &program_id)
         .await
         .expect("failed to get user");
     assert!(user_interface.is_cold(), "UserRecord should be cold");
 
     let game_interface = rpc
-        .get_account_info_interface(&game_session_pda, &program_id)
+        .get_account_interface(&game_session_pda, &program_id)
         .await
         .expect("failed to get game");
     assert!(game_interface.is_cold(), "GameSession should be cold");
@@ -335,7 +333,7 @@ async fn test_create_pdas_and_mint_auto() {
     // Build PdaSpec for UserRecord
     let user_data = UserRecord::deserialize(&mut &user_interface.account.data[8..])
         .expect("Failed to parse UserRecord");
-    let user_variant = RentFreeAccountVariant::UserRecord {
+    let user_variant = LightAccountVariant::UserRecord {
         data: user_data,
         authority: authority.pubkey(),
         mint_authority: mint_authority.pubkey(),
@@ -345,7 +343,7 @@ async fn test_create_pdas_and_mint_auto() {
     // Build PdaSpec for GameSession
     let game_data = GameSessionState::deserialize(&mut &game_interface.account.data[8..])
         .expect("Failed to parse GameSession");
-    let game_variant = RentFreeAccountVariant::GameSession {
+    let game_variant = LightAccountVariant::GameSession {
         data: game_data,
         fee_payer: payer.pubkey(),
         authority: authority.pubkey(),
@@ -356,7 +354,7 @@ async fn test_create_pdas_and_mint_auto() {
     // Vault is fetched as token account but decompressed as PDA, so convert cold context
     let token_data = TokenData::deserialize(&mut &vault_interface.account.data[..])
         .expect("Failed to parse TokenData");
-    let vault_variant = RentFreeAccountVariant::CTokenData(CTokenData {
+    let vault_variant = LightAccountVariant::CTokenData(CTokenData {
         variant: TokenAccountVariant::Vault { mint: mint_pda },
         token_data,
     });
@@ -409,7 +407,7 @@ async fn test_create_pdas_and_mint_auto() {
     };
 
     // Build AccountSpec slice for all accounts
-    let specs: Vec<AccountSpec<RentFreeAccountVariant>> = vec![
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
         AccountSpec::Pda(user_spec),
         AccountSpec::Pda(game_spec),
         AccountSpec::Pda(vault_spec),

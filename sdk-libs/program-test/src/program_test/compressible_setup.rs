@@ -1,10 +1,9 @@
-//! Test helpers for compressible account operations
-//!
-//! This module provides common functionality for testing compressible accounts,
-//! including mock program data setup and configuration management.
+//! Test helpers for cold account operations.
 
-use light_client::rpc::{Rpc, RpcError};
-use light_compressible_client::compressible_instruction;
+use light_client::{
+    interface::instructions,
+    rpc::{Rpc, RpcError},
+};
 use solana_sdk::{
     bpf_loader_upgradeable,
     pubkey::Pubkey,
@@ -13,10 +12,7 @@ use solana_sdk::{
 
 use crate::program_test::TestRpc;
 
-/// Create mock program data account for testing
-///
-/// This creates a minimal program data account structure that mimics
-/// what the BPF loader would create for deployed programs.
+/// Create mock program data account for testing.
 pub fn create_mock_program_data(authority: Pubkey) -> Vec<u8> {
     let mut data = vec![0u8; 1024];
     data[0..4].copy_from_slice(&3u32.to_le_bytes()); // Program data discriminator
@@ -26,19 +22,7 @@ pub fn create_mock_program_data(authority: Pubkey) -> Vec<u8> {
     data
 }
 
-/// Setup mock program data account for testing
-///
-/// For testing without ledger, LiteSVM does not create program data accounts,
-/// so we need to create them manually. This is required for programs that
-/// check their upgrade authority.
-///
-/// # Arguments
-/// * `rpc` - The test RPC client
-/// * `payer` - The payer keypair (used as authority)
-/// * `program_id` - The program ID to create data account for
-///
-/// # Returns
-/// The pubkey of the created program data account
+/// Setup mock program data account for testing.
 pub fn setup_mock_program_data<T: TestRpc>(
     rpc: &mut T,
     payer: &Keypair,
@@ -58,18 +42,6 @@ pub fn setup_mock_program_data<T: TestRpc>(
     program_data_pda
 }
 
-/// Initialize compression config for a program
-///
-/// # Arguments
-/// * `rpc` - The test RPC client
-/// * `payer` - The transaction fee payer
-/// * `program_id` - The program to initialize config for
-/// * `authority` - The config authority (can be same as payer)
-/// * `rent_sponsor` - Where to send rent from compressed accounts
-/// * `address_space` - List of address trees for this program
-///
-/// # Returns
-/// `Result<Signature, RpcError>` - The transaction signature
 #[allow(clippy::too_many_arguments)]
 pub async fn initialize_compression_config<T: Rpc>(
     rpc: &mut T,
@@ -87,7 +59,7 @@ pub async fn initialize_compression_config<T: Rpc>(
         ));
     }
 
-    let instruction = compressible_instruction::initialize_compression_config(
+    let instruction = instructions::initialize_config(
         program_id,
         discriminator,
         &payer.pubkey(),
@@ -107,19 +79,6 @@ pub async fn initialize_compression_config<T: Rpc>(
         .await
 }
 
-/// Update compression config for a program
-///
-/// # Arguments
-/// * `rpc` - The test RPC client
-/// * `payer` - The transaction fee payer
-/// * `program_id` - The program to update config for
-/// * `authority` - The current config authority
-/// * `new_rent_sponsor` - New rent recipient (optional)
-/// * `new_address_space` - New address space list (optional)
-/// * `new_update_authority` - New authority (optional)
-///
-/// # Returns
-/// `Result<Signature, RpcError>` - The transaction signature
 #[allow(clippy::too_many_arguments)]
 pub async fn update_compression_config<T: Rpc>(
     rpc: &mut T,
@@ -131,7 +90,7 @@ pub async fn update_compression_config<T: Rpc>(
     new_update_authority: Option<Pubkey>,
     discriminator: &[u8],
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
-    let instruction = compressible_instruction::update_compression_config(
+    let instruction = instructions::update_config(
         program_id,
         discriminator,
         &authority.pubkey(),

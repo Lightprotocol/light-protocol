@@ -1,28 +1,24 @@
-//! CompressibleProgram trait and supporting types for client-side SDK patterns.
+//! LightProgramInterface trait and supporting types for client-side SDK patterns.
 //!
 //! Core types:
-//! - `ColdContext` - Compressed data for cold accounts (Account or Token)
-//! - `PdaSpec` - Spec for PDA decompression with typed variant
-//! - `AccountSpec` - Unified spec enum for decompression instruction building
-//! - `CompressibleProgram` - Trait for program SDKs
+//! - `ColdContext` - Cold data context (Account or Token)
+//! - `PdaSpec` - Spec for PDA loading with typed variant
+//! - `AccountSpec` - Unified spec enum for load instruction building
+//! - `LightProgramInterface` - Trait for program SDKs
 
 use std::fmt::Debug;
 
-use light_client::indexer::{CompressedAccount, CompressedTokenAccount};
-use light_sdk::compressible::Pack;
+use light_sdk::interface::Pack;
 use light_token_sdk::token::derive_token_ata;
 use solana_pubkey::Pubkey;
 
-use crate::{AccountInterface, TokenAccountInterface};
-
-// =============================================================================
-// ACCOUNT TO FETCH
-// =============================================================================
+use super::{AccountInterface, TokenAccountInterface};
+use crate::indexer::{CompressedAccount, CompressedTokenAccount};
 
 /// Account descriptor for fetching. Routes to the correct indexer endpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AccountToFetch {
-    /// PDA account - uses `get_account_info_interface(address, program_id)`
+    /// PDA account - uses `get_account_interface(address, program_id)`
     Pda { address: Pubkey, program_id: Pubkey },
     /// Token account (program-owned) - uses `get_token_account_interface(address)`
     Token { address: Pubkey },
@@ -63,42 +59,34 @@ impl AccountToFetch {
     }
 }
 
-// =============================================================================
-// COLD CONTEXT - Structural, not semantic
-// =============================================================================
-
-/// Context for cold (compressed) accounts.
+/// Context for cold accounts.
 ///
 /// Two variants based on data structure, not account type:
-/// - `Account` - PDAs, mints (CompressedAccount)
-/// - `Token` - ATAs, program-owned tokens (CompressedTokenAccount)
+/// - `Account` - PDA
+/// - `Token` - Token account
 #[derive(Clone, Debug)]
 pub enum ColdContext {
-    /// CompressedAccount for PDAs and mints
+    /// PDA
     Account(CompressedAccount),
-    /// CompressedTokenAccount for all token accounts
+    /// Token account
     Token(CompressedTokenAccount),
 }
 
-// =============================================================================
-// SPEC TYPES
-// =============================================================================
-
-/// Specification for a program-owned account (PDA) with typed variant.
+/// Specification for a program-owned PDA with typed variant.
 ///
-/// Embeds `AccountInterface` for account data and adds `variant` for typed seed values.
+/// Embeds `AccountInterface` for account data and adds `variant` for typed variant.
 #[derive(Clone, Debug)]
 pub struct PdaSpec<V> {
-    /// The account interface (key, account data, cold context).
+    /// The account interface.
     pub interface: AccountInterface,
     /// The typed variant with all seed values populated.
     pub variant: V,
-    /// The program to call for decompression (may differ from interface.account.owner).
+    /// The program owner to call for loading the account.
     pub program_id: Pubkey,
 }
 
 impl<V> PdaSpec<V> {
-    /// Create a new PdaSpec from an interface, variant, and decompression program.
+    /// Create a new PdaSpec from an interface, variant, and program owner.
     #[must_use]
     pub fn new(interface: AccountInterface, variant: V, program_id: Pubkey) -> Self {
         Self {
@@ -115,21 +103,21 @@ impl<V> PdaSpec<V> {
         self.interface.key
     }
 
-    /// The program to call for decompression.
+    /// The program owner to call for loading the account.
     #[inline]
     #[must_use]
     pub fn program_id(&self) -> Pubkey {
         self.program_id
     }
 
-    /// Whether this account is compressed.
+    /// Whether this account is cold and must be loaded.
     #[inline]
     #[must_use]
     pub fn is_cold(&self) -> bool {
         self.interface.is_cold()
     }
 
-    /// Whether this account is on-chain.
+    /// Whether this account is hot and will not be loaded.
     #[inline]
     #[must_use]
     pub fn is_hot(&self) -> bool {
@@ -142,7 +130,7 @@ impl<V> PdaSpec<V> {
         self.interface.as_compressed_account()
     }
 
-    /// Get the compressed account hash if cold.
+    /// Get the cold account hash.
     #[must_use]
     pub fn hash(&self) -> Option<[u8; 32]> {
         self.interface.hash()
@@ -156,18 +144,14 @@ impl<V> PdaSpec<V> {
     }
 }
 
-// =============================================================================
-// UNIFIED ACCOUNT SPEC ENUM
-// =============================================================================
-
-/// Unified account specification for decompression.
+/// Account specification for loading cold accounts.
 #[derive(Clone, Debug)]
 pub enum AccountSpec<V> {
-    /// Program-owned account (PDA) with typed variant
+    /// Program-owned PDA with typed variant.
     Pda(PdaSpec<V>),
-    /// Associated token account (uses TokenAccountInterface directly)
+    /// Associated token account
     Ata(TokenAccountInterface),
-    /// Light mint (uses AccountInterface directly - mints are PDAs with special data)
+    /// Light token mint
     Mint(AccountInterface),
 }
 
@@ -230,13 +214,9 @@ pub fn all_hot<V>(specs: &[AccountSpec<V>]) -> bool {
     specs.iter().all(|s| s.is_hot())
 }
 
-// =============================================================================
-// COMPRESSIBLE PROGRAM TRAIT
-// =============================================================================
-
-/// Trait for programs to expose their compressible account structure to clients.
-pub trait CompressibleProgram: Sized {
-    /// The program's compressed account variant enum.
+/// Trait for programs to give clients a unified API to load cold program accounts.
+pub trait LightProgramInterface: Sized {
+    /// The program's interface account variant enum.
     type Variant: Pack + Clone + Debug;
 
     /// Program-specific instruction enum.

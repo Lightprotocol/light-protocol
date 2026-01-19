@@ -63,7 +63,7 @@ fn generate_with_packed_struct(
     });
 
     let pack_impl = quote! {
-        impl light_sdk::compressible::Pack for #struct_name {
+        impl light_sdk::interface::Pack for #struct_name {
             type Packed = #packed_struct_name;
 
             #[inline(never)]
@@ -76,7 +76,7 @@ fn generate_with_packed_struct(
     };
 
     let unpack_impl_original = quote! {
-        impl light_sdk::compressible::Unpack for #struct_name {
+        impl light_sdk::interface::Unpack for #struct_name {
             type Unpacked = Self;
 
             #[inline(never)]
@@ -90,7 +90,7 @@ fn generate_with_packed_struct(
     };
 
     let pack_impl_packed = quote! {
-        impl light_sdk::compressible::Pack for #packed_struct_name {
+        impl light_sdk::interface::Pack for #packed_struct_name {
             type Packed = Self;
 
             #[inline(never)]
@@ -118,7 +118,7 @@ fn generate_with_packed_struct(
     });
 
     let unpack_impl_packed = quote! {
-        impl light_sdk::compressible::Unpack for #packed_struct_name {
+        impl light_sdk::interface::Unpack for #packed_struct_name {
             type Unpacked = #struct_name;
 
             #[inline(never)]
@@ -154,7 +154,7 @@ fn generate_identity_pack_unpack(struct_name: &syn::Ident) -> Result<TokenStream
     };
 
     let pack_impl = quote! {
-        impl light_sdk::compressible::Pack for #struct_name {
+        impl light_sdk::interface::Pack for #struct_name {
             type Packed = #struct_name;
 
             #[inline(never)]
@@ -165,7 +165,7 @@ fn generate_identity_pack_unpack(struct_name: &syn::Ident) -> Result<TokenStream
     };
 
     let unpack_impl = quote! {
-        impl light_sdk::compressible::Unpack for #struct_name {
+        impl light_sdk::interface::Unpack for #struct_name {
             type Unpacked = Self;
 
             #[inline(never)]

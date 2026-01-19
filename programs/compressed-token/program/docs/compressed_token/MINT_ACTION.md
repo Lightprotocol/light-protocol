@@ -107,7 +107,7 @@ The account ordering differs based on whether writing to CPI context or executin
 14. address_merkle_tree OR in_merkle_tree
 
 - (mutable)
-- If create_mint is Some: address_merkle_tree for new mint (must be CMINT_ADDRESS_TREE)
+- If create_mint is Some: address_merkle_tree for new mint (must be MINT_ADDRESS_TREE)
 - If create_mint is None: in_merkle_tree for existing mint validation
 
 15. in_output_queue
@@ -142,7 +142,7 @@ The account ordering differs based on whether writing to CPI context or executin
 2. **Validate and parse accounts:**
    - Check authority is signer
    - Validate CMint account matches expected mint pubkey (when cmint_pubkey provided)
-   - For create_mint: validate address_merkle_tree is CMINT_ADDRESS_TREE
+   - For create_mint: validate address_merkle_tree is MINT_ADDRESS_TREE
    - Parse compressible config when DecompressMint or CompressAndCloseMint action present
    - Extract packed accounts for dynamic operations
 

@@ -151,7 +151,7 @@ impl LightAccountsBuilder {
 
         Ok(quote! {
             #[automatically_derived]
-            impl #impl_generics light_sdk::compressible::LightPreInit<'info, ()> for #struct_name #ty_generics #where_clause {
+            impl #impl_generics light_sdk::interface::LightPreInit<'info, ()> for #struct_name #ty_generics #where_clause {
                 fn light_pre_init(
                     &mut self,
                     _remaining: &[solana_account_info::AccountInfo<'info>],
@@ -162,7 +162,7 @@ impl LightAccountsBuilder {
             }
 
             #[automatically_derived]
-            impl #impl_generics light_sdk::compressible::LightFinalize<'info, ()> for #struct_name #ty_generics #where_clause {
+            impl #impl_generics light_sdk::interface::LightFinalize<'info, ()> for #struct_name #ty_generics #where_clause {
                 fn light_finalize(
                     &mut self,
                     _remaining: &[solana_account_info::AccountInfo<'info>],
@@ -211,7 +211,7 @@ impl LightAccountsBuilder {
             );
 
             // Load compression config
-            let compression_config_data = light_sdk::compressible::CompressibleConfig::load_checked(
+            let compression_config_data = light_sdk::interface::LightConfig::load_checked(
                 &self.#compression_config,
                 &crate::ID
             )?;
@@ -301,7 +301,7 @@ impl LightAccountsBuilder {
             );
 
             // Load compression config
-            let compression_config_data = light_sdk::compressible::CompressibleConfig::load_checked(
+            let compression_config_data = light_sdk::interface::LightConfig::load_checked(
                 &self.#compression_config,
                 &crate::ID
             )?;
@@ -336,7 +336,7 @@ impl LightAccountsBuilder {
 
         Ok(quote! {
             #[automatically_derived]
-            impl #impl_generics light_sdk::compressible::LightPreInit<'info, #params_type> for #struct_name #ty_generics #where_clause {
+            impl #impl_generics light_sdk::interface::LightPreInit<'info, #params_type> for #struct_name #ty_generics #where_clause {
                 fn light_pre_init(
                     &mut self,
                     _remaining: &[solana_account_info::AccountInfo<'info>],
@@ -361,7 +361,7 @@ impl LightAccountsBuilder {
 
         Ok(quote! {
             #[automatically_derived]
-            impl #impl_generics light_sdk::compressible::LightFinalize<'info, #params_type> for #struct_name #ty_generics #where_clause {
+            impl #impl_generics light_sdk::interface::LightFinalize<'info, #params_type> for #struct_name #ty_generics #where_clause {
                 fn light_finalize(
                     &mut self,
                     _remaining: &[solana_account_info::AccountInfo<'info>],

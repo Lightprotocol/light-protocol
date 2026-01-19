@@ -3,8 +3,8 @@ use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut;
 use light_program_profiler::profile;
 use light_token_interface::{
-    instructions::mint_action::ZMintActionCompressedInstructionData, CMINT_ADDRESS_TREE,
-    COMPRESSED_MINT_SEED,
+    instructions::mint_action::ZMintActionCompressedInstructionData, COMPRESSED_MINT_SEED,
+    MINT_ADDRESS_TREE,
 };
 use pinocchio::pubkey::pubkey_eq;
 use spl_pod::solana_msg::msg;
@@ -63,7 +63,7 @@ pub fn process_create_mint_action(
     // the light system program checks correct address derivation and we check
     // the address tree in new_address_params.
     if let Some(cpi_context) = &parsed_instruction_data.cpi_context {
-        if !pubkey_eq(&cpi_context.address_tree_pubkey, &CMINT_ADDRESS_TREE) {
+        if !pubkey_eq(&cpi_context.address_tree_pubkey, &MINT_ADDRESS_TREE) {
             msg!("Invalid address tree pubkey in cpi context");
             return Err(ErrorCode::MintActionInvalidCpiContextAddressTreePubkey.into());
         }
@@ -73,7 +73,7 @@ pub fn process_create_mint_action(
             &crate::LIGHT_CPI_SIGNER.program_id,
         );
         // Validate derived address matches the compressed_address computed from metadata
-        // (derived from mint PDA, CMINT_ADDRESS_TREE, and LIGHT_TOKEN_PROGRAM_ID)
+        // (derived from mint PDA, MINT_ADDRESS_TREE, and LIGHT_TOKEN_PROGRAM_ID)
         if address != mint.metadata.compressed_address() {
             msg!("Invalid compressed mint address derivation");
             return Err(ErrorCode::MintActionInvalidMintAddress.into());

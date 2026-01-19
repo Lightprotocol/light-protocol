@@ -1,46 +1,48 @@
-//! Extension trait for unified hot/cold account fetching.
-//!
-//! Blanket-implemented for `Rpc + Indexer`.
-
 use async_trait::async_trait;
 use borsh::BorshDeserialize as _;
-use light_client::{
-    indexer::{GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer},
-    rpc::{Rpc, RpcError},
-};
 use light_compressed_account::address::derive_address;
-use light_token_interface::{state::Mint, CMINT_ADDRESS_TREE};
+use light_token_interface::{state::Mint, MINT_ADDRESS_TREE};
 use light_token_sdk::token::derive_token_ata;
 use solana_pubkey::Pubkey;
 
-use crate::{AccountInterface, AccountToFetch, MintInterface, MintState, TokenAccountInterface};
+use super::{AccountInterface, AccountToFetch, MintInterface, MintState, TokenAccountInterface};
+use crate::{
+    indexer::{GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer},
+    rpc::{Rpc, RpcError},
+};
 
 fn indexer_err(e: impl std::fmt::Display) -> RpcError {
     RpcError::CustomError(format!("IndexerError: {}", e))
 }
 
-/// Extension trait for fetching unified hot/cold account interfaces.
-///
-/// Blanket-implemented for all `Rpc + Indexer` types.
+/// Extension trait for fetching account interfaces (unified hot/cold handling).
 #[async_trait]
 pub trait AccountInterfaceExt: Rpc + Indexer {
-    /// Fetch MintInterface for a mint address.
+    /// Fetch MintInterface for a mint account.
+    ///
+    /// Use this instead of get_account + unpack_mint.
     async fn get_mint_interface(&self, address: &Pubkey) -> Result<MintInterface, RpcError>;
 
-    /// Fetch AccountInterface for a compressible PDA.
-    async fn get_account_info_interface(
+    /// Fetch AccountInterface for an account.
+    ///
+    /// Use this instead of get_account.
+    async fn get_account_interface(
         &self,
         address: &Pubkey,
         program_id: &Pubkey,
     ) -> Result<AccountInterface, RpcError>;
 
-    /// Fetch TokenAccountInterface for a program-owned token account.
+    /// Fetch TokenAccountInterface for a token account.
+    ///
+    /// Use this instead of get_token_account.
     async fn get_token_account_interface(
         &self,
         address: &Pubkey,
     ) -> Result<TokenAccountInterface, RpcError>;
 
-    /// Fetch TokenAccountInterface for an ATA (owner, mint) pair.
+    /// Fetch TokenAccountInterface for an associated token account.
+    ///
+    /// Use this for all ATAs.
     async fn get_ata_interface(
         &self,
         owner: &Pubkey,
@@ -48,33 +50,38 @@ pub trait AccountInterfaceExt: Rpc + Indexer {
     ) -> Result<TokenAccountInterface, RpcError>;
 
     /// Fetch multiple accounts with automatic type dispatch.
+    ///
+    /// Use this instead of get_multiple_accounts.
     async fn get_multiple_account_interfaces(
         &self,
         accounts: &[AccountToFetch],
     ) -> Result<Vec<AccountInterface>, RpcError>;
 }
 
+// TODO: move all these to native RPC methods with single roundtrip.
 #[async_trait]
 impl<T: Rpc + Indexer> AccountInterfaceExt for T {
     async fn get_mint_interface(&self, address: &Pubkey) -> Result<MintInterface, RpcError> {
-        let address_tree = Pubkey::new_from_array(CMINT_ADDRESS_TREE);
+        let address_tree = Pubkey::new_from_array(MINT_ADDRESS_TREE);
         let compressed_address = derive_address(
             &address.to_bytes(),
             &address_tree.to_bytes(),
             &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
         );
 
-        // On-chain first
+        // Hot
         if let Some(account) = self.get_account(*address).await? {
-            return Ok(MintInterface {
-                mint: *address,
-                address_tree,
-                compressed_address,
-                state: MintState::Hot { account },
-            });
+            if account.lamports > 0 {
+                return Ok(MintInterface {
+                    mint: *address,
+                    address_tree,
+                    compressed_address,
+                    state: MintState::Hot { account },
+                });
+            }
         }
 
-        // Compressed state
+        // Cold
         let result = self
             .get_compressed_account(compressed_address, None)
             .await
@@ -106,7 +113,7 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
         })
     }
 
-    async fn get_account_info_interface(
+    async fn get_account_interface(
         &self,
         address: &Pubkey,
         program_id: &Pubkey,
@@ -118,12 +125,14 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
             &program_id.to_bytes(),
         );
 
-        // On-chain first
+        // Hot
         if let Some(account) = self.get_account(*address).await? {
-            return Ok(AccountInterface::hot(*address, account));
+            if account.lamports > 0 {
+                return Ok(AccountInterface::hot(*address, account));
+            }
         }
 
-        // Compressed state
+        // Cold
         let result = self
             .get_compressed_account(compressed_address, None)
             .await
@@ -135,7 +144,7 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
             }
         }
 
-        // Doesn't exist - return empty hot account
+        // Doesn't exist.
         let account = solana_account::Account {
             lamports: 0,
             data: vec![],
@@ -152,24 +161,25 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
     ) -> Result<TokenAccountInterface, RpcError> {
         use light_sdk::constants::LIGHT_TOKEN_PROGRAM_ID;
 
-        // On-chain first
+        // Hot
         if let Some(account) = self.get_account(*address).await? {
-            return TokenAccountInterface::hot(*address, account)
-                .map_err(|e| RpcError::CustomError(format!("parse error: {}", e)));
+            if account.lamports > 0 {
+                return TokenAccountInterface::hot(*address, account)
+                    .map_err(|e| RpcError::CustomError(format!("parse error: {}", e)));
+            }
         }
 
-        // Compressed state - address is the owner for program-owned tokens
+        // Cold (program-owned tokens: address = owner)
         let result = self
             .get_compressed_token_accounts_by_owner(address, None, None)
             .await
             .map_err(indexer_err)?;
 
         if let Some(compressed) = result.value.items.into_iter().next() {
-            // For program-owned tokens, owner = the PDA (same as token.owner)
             return Ok(TokenAccountInterface::cold(
                 *address,
                 compressed,
-                *address, // owner_override = address (the PDA)
+                *address, // owner = hot address
                 LIGHT_TOKEN_PROGRAM_ID.into(),
             ));
         }
@@ -189,13 +199,15 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
 
         let (ata, _bump) = derive_token_ata(owner, mint);
 
-        // On-chain first
+        // Hot
         if let Some(account) = self.get_account(ata).await? {
-            return TokenAccountInterface::hot(ata, account)
-                .map_err(|e| RpcError::CustomError(format!("parse error: {}", e)));
+            if account.lamports > 0 {
+                return TokenAccountInterface::hot(ata, account)
+                    .map_err(|e| RpcError::CustomError(format!("parse error: {}", e)));
+            }
         }
 
-        // Compressed state - for ATAs, query by the ATA address as owner
+        // Cold (ATA query by address)
         let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions::new(
             Some(*mint),
         ));
@@ -223,7 +235,7 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
         &self,
         accounts: &[AccountToFetch],
     ) -> Result<Vec<AccountInterface>, RpcError> {
-        // TODO: parallelize with futures::join_all
+        // TODO: concurrent with futures
         let mut result = Vec::with_capacity(accounts.len());
 
         for account in accounts {
@@ -231,7 +243,7 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
                 AccountToFetch::Pda {
                     address,
                     program_id,
-                } => self.get_account_info_interface(address, program_id).await?,
+                } => self.get_account_interface(address, program_id).await?,
                 AccountToFetch::Token { address } => {
                     let token_iface = self.get_token_account_interface(address).await?;
                     AccountInterface {

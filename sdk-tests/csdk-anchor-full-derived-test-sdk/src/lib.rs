@@ -1,6 +1,6 @@
 //! Client SDK for the AMM test program.
 //!
-//! Implements the `CompressibleProgram` trait to provide a Jupiter-style
+//! Implements the `LightProgramInterface` trait to provide a Jupiter-style
 //! interface for clients to build decompression instructions.
 
 use std::collections::HashMap;
@@ -9,11 +9,11 @@ use anchor_lang::AnchorDeserialize;
 use csdk_anchor_full_derived_test::{
     amm_test::{ObservationState, PoolState, AUTH_SEED, POOL_LP_MINT_SIGNER_SEED},
     csdk_anchor_full_derived_test::{
-        ObservationStateSeeds, PoolStateSeeds, RentFreeAccountVariant, TokenAccountVariant,
+        LightAccountVariant, ObservationStateSeeds, PoolStateSeeds, TokenAccountVariant,
     },
 };
-use light_compressible_client::{
-    AccountInterface, AccountSpec, AccountToFetch, ColdContext, CompressibleProgram, PdaSpec,
+use light_client::interface::{
+    AccountInterface, AccountSpec, AccountToFetch, ColdContext, LightProgramInterface, PdaSpec,
 };
 use light_sdk::LightDiscriminator;
 use solana_pubkey::Pubkey;
@@ -22,14 +22,10 @@ use solana_pubkey::Pubkey;
 pub const PROGRAM_ID: Pubkey = csdk_anchor_full_derived_test::ID;
 
 /// Map of account pubkeys to program-owned specs.
-pub type PdaSpecMap = HashMap<Pubkey, PdaSpec<RentFreeAccountVariant>, ahash::RandomState>;
+pub type PdaSpecMap = HashMap<Pubkey, PdaSpec<LightAccountVariant>, ahash::RandomState>;
 
 /// Map of account pubkeys to mint interfaces.
 pub type MintInterfaceMap = HashMap<Pubkey, AccountInterface, ahash::RandomState>;
-
-// =============================================================================
-// ACCOUNT KIND
-// =============================================================================
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccountKind {
@@ -50,20 +46,12 @@ impl AccountRequirement {
     }
 }
 
-// =============================================================================
-// PROGRAM INSTRUCTION ENUM
-// =============================================================================
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AmmInstruction {
     Swap,
     Deposit,
     Withdraw,
 }
-
-// =============================================================================
-// ERROR TYPE
-// =============================================================================
 
 #[derive(Debug, Clone)]
 pub enum AmmSdkError {
@@ -85,10 +73,6 @@ impl std::fmt::Display for AmmSdkError {
 }
 
 impl std::error::Error for AmmSdkError {}
-
-// =============================================================================
-// AMM SDK
-// =============================================================================
 
 #[derive(Debug)]
 pub struct AmmSdk {
@@ -165,7 +149,7 @@ impl AmmSdk {
         );
         self.lp_mint_signer = Some(lp_mint_signer);
 
-        let variant = RentFreeAccountVariant::PoolState {
+        let variant = LightAccountVariant::PoolState {
             data: pool,
             amm_config: self.amm_config.unwrap(),
             token_0_mint: self.token_0_mint.unwrap(),
@@ -186,7 +170,7 @@ impl AmmSdk {
         let observation = ObservationState::deserialize(&mut &account.data()[8..])
             .map_err(|e| AmmSdkError::ParseError(e.to_string()))?;
 
-        let variant = RentFreeAccountVariant::ObservationState {
+        let variant = LightAccountVariant::ObservationState {
             data: observation,
             pool_state,
         };
@@ -215,7 +199,7 @@ impl AmmSdk {
             let token_0_mint = self
                 .token_0_mint
                 .ok_or(AmmSdkError::MissingField("token_0_mint"))?;
-            RentFreeAccountVariant::CTokenData(light_token_sdk::compat::CTokenData {
+            LightAccountVariant::CTokenData(light_token_sdk::compat::CTokenData {
                 variant: TokenAccountVariant::Token0Vault {
                     pool_state,
                     token_0_mint,
@@ -226,7 +210,7 @@ impl AmmSdk {
             let token_1_mint = self
                 .token_1_mint
                 .ok_or(AmmSdkError::MissingField("token_1_mint"))?;
-            RentFreeAccountVariant::CTokenData(light_token_sdk::compat::CTokenData {
+            LightAccountVariant::CTokenData(light_token_sdk::compat::CTokenData {
                 variant: TokenAccountVariant::Token1Vault {
                     pool_state,
                     token_1_mint,
@@ -328,12 +312,8 @@ impl AmmSdk {
     }
 }
 
-// =============================================================================
-// COMPRESSIBLE PROGRAM TRAIT IMPLEMENTATION
-// =============================================================================
-
-impl CompressibleProgram for AmmSdk {
-    type Variant = RentFreeAccountVariant;
+impl LightProgramInterface for AmmSdk {
+    type Variant = LightAccountVariant;
     type Instruction = AmmInstruction;
     type Error = AmmSdkError;
 
@@ -345,6 +325,7 @@ impl CompressibleProgram for AmmSdk {
         let mut sdk = Self::new();
 
         for account in accounts {
+            // Skip accounts with insufficient data (< 8 bytes for discriminator)
             if account.data().len() >= 8 {
                 let disc: [u8; 8] = account.data()[..8].try_into().unwrap();
                 if disc == PoolState::LIGHT_DISCRIMINATOR {
@@ -352,9 +333,8 @@ impl CompressibleProgram for AmmSdk {
                 } else {
                     sdk.parse_account(account)?;
                 }
-            } else {
-                return Err(AmmSdkError::UnknownDiscriminator([0; 8]));
             }
+            // Zero-length or short data is silently skipped
         }
 
         Ok(sdk)
@@ -418,10 +398,6 @@ impl CompressibleProgram for AmmSdk {
         specs
     }
 }
-
-// =============================================================================
-// HELPERS
-// =============================================================================
 
 impl AmmSdk {
     pub fn program_id(&self) -> Pubkey {

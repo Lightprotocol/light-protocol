@@ -79,7 +79,7 @@ pub fn generate_decompress_context_trait_impl(
                     #(#resolve_ctx_seeds)*
                     #ctx_seeds_construction
                     #seed_params_update
-                    light_sdk::compressible::handle_packed_pda_variant::<#inner_type, #packed_inner_type, _, _>(
+                    light_sdk::interface::handle_packed_pda_variant::<#inner_type, #packed_inner_type, _, _>(
                         &*self.rent_sponsor,
                         cpi_accounts,
                         address_space,
@@ -104,7 +104,7 @@ pub fn generate_decompress_context_trait_impl(
     let packed_token_variant_ident = format_ident!("Packed{}", token_variant_ident);
 
     Ok(quote! {
-        impl<#lifetime> light_sdk::compressible::DecompressContext<#lifetime> for DecompressAccountsIdempotent<#lifetime> {
+        impl<#lifetime> light_sdk::interface::DecompressContext<#lifetime> for DecompressAccountsIdempotent<#lifetime> {
             type CompressedData = LightAccountData;
             type PackedTokenData = light_token_sdk::compat::PackedCTokenData<#packed_token_variant_ident>;
             type CompressedMeta = light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;

@@ -85,6 +85,7 @@
 pub mod constants;
 pub mod fee;
 pub mod indexer;
+pub mod interface;
 pub mod local_test_validator;
 pub mod rpc;
 

@@ -148,9 +148,9 @@ where
         + Default
         + AnchorSerialize
         + AnchorDeserialize
-        + crate::compressible::HasCompressionInfo
+        + crate::interface::HasCompressionInfo
         + 'info,
-    P: crate::compressible::Unpack<Unpacked = T>,
+    P: crate::interface::Unpack<Unpacked = T>,
     S: Default,
 {
     let data: T = P::unpack(packed, post_system_accounts)?;
@@ -182,10 +182,10 @@ where
         for i in 0..len {
             seed_refs[i] = seeds_vec[i].as_slice();
         }
-        crate::compressible::decompress_idempotent::prepare_account_for_decompression_idempotent::<T>(
+        crate::interface::decompress_idempotent::prepare_account_for_decompression_idempotent::<T>(
             program_id,
             data,
-            crate::compressible::decompress_idempotent::into_compressed_meta_with_address(
+            crate::interface::decompress_idempotent::into_compressed_meta_with_address(
                 meta,
                 solana_account,
                 address_space,
@@ -221,8 +221,7 @@ pub fn process_decompress_accounts_idempotent<'info, Ctx>(
 where
     Ctx: DecompressContext<'info>,
 {
-    let compression_config =
-        crate::compressible::CompressibleConfig::load_checked(ctx.config(), program_id)?;
+    let compression_config = crate::interface::LightConfig::load_checked(ctx.config(), program_id)?;
     let address_space = compression_config.address_space[0];
 
     let (has_tokens, has_pdas) = check_account_types(&compressed_accounts);

@@ -230,7 +230,7 @@ fn codegen(
                             })
                         }
                     }
-                    impl light_sdk::compressible::IntoVariant<LightAccountVariant> for #seeds_struct_name {
+                    impl light_sdk::interface::IntoVariant<LightAccountVariant> for #seeds_struct_name {
                         fn into_variant(self, data: &[u8]) -> std::result::Result<LightAccountVariant, anchor_lang::error::Error> {
                             LightAccountVariant::#constructor_name(data, self)
                         }
@@ -282,7 +282,7 @@ fn codegen(
         mod __trait_impls {
             use super::*;
 
-            impl light_sdk::compressible::HasTokenVariant for LightAccountData {
+            impl light_sdk::interface::HasTokenVariant for LightAccountData {
                 fn is_packed_token(&self) -> bool {
                     matches!(self.data, LightAccountVariant::PackedCTokenData(_))
                 }
@@ -344,7 +344,7 @@ fn codegen(
             rent_config: light_compressible::rent::RentConfig,
             address_space: Vec<Pubkey>,
         ) -> Result<()> {
-            light_sdk::compressible::process_initialize_compression_config_checked(
+            light_sdk::interface::process_initialize_light_config_checked(
                 &ctx.accounts.config.to_account_info(),
                 &ctx.accounts.authority.to_account_info(),
                 &ctx.accounts.program_data.to_account_info(),
@@ -374,7 +374,7 @@ fn codegen(
             new_address_space: Option<Vec<Pubkey>>,
             new_update_authority: Option<Pubkey>,
         ) -> Result<()> {
-            light_sdk::compressible::process_update_compression_config(
+            light_sdk::interface::process_update_light_config(
                 ctx.accounts.config.as_ref(),
                 ctx.accounts.update_authority.as_ref(),
                 new_update_authority.as_ref(),

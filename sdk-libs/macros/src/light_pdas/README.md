@@ -16,7 +16,7 @@ rentfree/
 │   ├── mod.rs          # Entry point: rentfree_program_impl()
 │   ├── instructions.rs # Instruction generation and handler wrapping
 │   ├── crate_context.rs # Crate scanning for #[derive(Accounts)] structs
-│   ├── variant_enum.rs # RentFreeAccountVariant enum generation
+│   ├── variant_enum.rs # LightAccountVariant enum generation
 │   └── seed_providers.rs # PDA/CToken seed derivation implementations
 └── traits/             # Shared trait derive macros
     ├── mod.rs          # Module declaration
@@ -43,7 +43,7 @@ Implements `#[rentfree_program]` attribute macro:
 
 - **instructions.rs** - Main macro logic, generates compress/decompress handlers
 - **crate_context.rs** - Scans crate for `#[derive(Accounts)]` structs
-- **variant_enum.rs** - Generates `RentFreeAccountVariant` enum with all traits
+- **variant_enum.rs** - Generates `LightAccountVariant` enum with all traits
 - **seed_providers.rs** - PDA and CToken seed provider implementations
 
 ### `traits/` - Shared Trait Derives

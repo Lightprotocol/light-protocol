@@ -28,7 +28,7 @@ use crate::{
 ///
 /// ```ignore
 /// use light_sdk_macros::LightCompressible;
-/// use light_sdk::compressible::CompressionInfo;
+/// use light_sdk::interface::CompressionInfo;
 /// use solana_pubkey::Pubkey;
 ///
 /// #[derive(Default, Debug, InitSpace, LightCompressible)]

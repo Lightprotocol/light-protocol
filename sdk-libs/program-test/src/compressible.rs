@@ -16,7 +16,7 @@ use light_compressible::rent::RentConfig;
 #[cfg(feature = "devenv")]
 use light_compressible::rent::SLOTS_PER_EPOCH;
 #[cfg(feature = "devenv")]
-use light_sdk::compressible::CompressibleConfig as CpdaCompressibleConfig;
+use light_sdk::interface::LightConfig;
 #[cfg(feature = "devenv")]
 use light_token_interface::state::{Mint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT};
 #[cfg(feature = "devenv")]
@@ -288,13 +288,13 @@ pub async fn auto_compress_program_pdas(
 
     let payer = rpc.get_payer().insecure_clone();
 
-    let config_pda = CpdaCompressibleConfig::derive_pda(&program_id, 0).0;
+    let config_pda = LightConfig::derive_pda(&program_id, 0).0;
 
     let cfg_acc_opt = rpc.get_account(config_pda).await?;
     let Some(cfg_acc) = cfg_acc_opt else {
         return Ok(());
     };
-    let cfg = CpdaCompressibleConfig::try_from_slice(&cfg_acc.data)
+    let cfg = LightConfig::try_from_slice(&cfg_acc.data)
         .map_err(|e| RpcError::CustomError(format!("config deserialize: {e:?}")))?;
     let rent_sponsor = cfg.rent_sponsor;
     // compression_authority is the payer by default for auto-compress
@@ -347,9 +347,8 @@ async fn try_compress_chunk(
     program_metas: &[solana_instruction::AccountMeta],
     address_tree: &Pubkey,
 ) {
-    use light_client::indexer::Indexer;
+    use light_client::{indexer::Indexer, interface::instructions};
     use light_compressed_account::address::derive_address;
-    use light_compressible_client::compressible_instruction;
     use solana_sdk::signature::Signer;
 
     // Attempt compression per-account idempotently.
@@ -378,10 +377,10 @@ async fn try_compress_chunk(
             continue;
         };
 
-        // Build single-PDA compress instruction
-        let Ok(ix) = compressible_instruction::compress_accounts_idempotent(
+        // Build compress instruction
+        let Ok(ix) = instructions::build_compress_accounts_idempotent(
             program_id,
-            &compressible_instruction::COMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
+            &instructions::COMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
             &[*pda],
             std::slice::from_ref(acc),
             program_metas,

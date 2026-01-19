@@ -1,32 +1,12 @@
 //! Helper for packing validity proofs into remaining accounts.
-//!
-//! # Usage
-//!
-//! ```rust,ignore
-//! // 1. Derive addresses & get proof
-//! let proof = rpc.get_validity_proof(hashes, addresses, None).await?.value;
-//!
-//! // 2. Pack into remaining accounts
-//! let packed = pack_proof(&program_id, proof.clone(), &output_tree, cpi_context)?;
-//!
-//! // 3. Build instruction
-//! let ix = Instruction {
-//!     program_id,
-//!     accounts: [my_accounts.to_account_metas(None), packed.remaining_accounts].concat(),
-//!     data: MyInstruction {
-//!         proof: proof.proof,
-//!         address_tree_infos: packed.packed_tree_infos.address_trees,
-//!         output_tree_index: packed.output_tree_index,
-//!     }.data(),
-//! };
-//! ```
 
-use light_client::indexer::{TreeInfo, ValidityProofWithContext};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 pub use light_sdk::instruction::{PackedAddressTreeInfo, PackedStateTreeInfo};
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 use thiserror::Error;
+
+use crate::indexer::{TreeInfo, ValidityProofWithContext};
 
 #[derive(Debug, Error)]
 pub enum PackError {
@@ -63,21 +43,6 @@ pub struct PackedProofResult {
 }
 
 /// Packs a validity proof into remaining accounts for instruction building.
-///
-/// Handles all the `PackedAccounts` boilerplate:
-/// - Adds system accounts (with optional CPI context)
-/// - Inserts output tree queue
-/// - Packs tree infos from proof
-///
-/// # Arguments
-/// - `program_id`: Your program's ID
-/// - `proof`: Validity proof from `get_validity_proof()`
-/// - `output_tree`: Tree info for writing outputs (from `get_random_state_tree_info()`)
-/// - `cpi_context`: CPI context pubkey. Required when mixing PDAs with tokens in same tx.
-///   Get from `tree_info.cpi_context`.
-///
-/// # Returns
-/// `PackedProofResult` containing remaining accounts and indices for instruction data.
 pub fn pack_proof(
     program_id: &Pubkey,
     proof: ValidityProofWithContext,
@@ -87,20 +52,7 @@ pub fn pack_proof(
     pack_proof_internal(program_id, proof, output_tree, cpi_context, false)
 }
 
-/// Packs a validity proof with state merkle tree for mint creation.
-///
-/// Same as `pack_proof` but also includes the state merkle tree in remaining accounts.
-/// This is required for mint creation because the decompress operation needs the state
-/// merkle tree for discriminator validation.
-///
-/// # Arguments
-/// - `program_id`: Your program's ID
-/// - `proof`: Validity proof from `get_validity_proof()`
-/// - `output_tree`: Tree info for writing outputs (from `get_random_state_tree_info()`)
-/// - `cpi_context`: CPI context pubkey. Required for mint creation.
-///
-/// # Returns
-/// `PackedProofResult` with `state_tree_index` populated.
+/// Same as `pack_proof` but also includes state merkle tree for mint creation.
 pub fn pack_proof_for_mints(
     program_id: &Pubkey,
     proof: ValidityProofWithContext,
@@ -132,8 +84,7 @@ fn pack_proof_internal(
         .unwrap_or(output_tree.queue);
     let output_tree_index = packed.insert_or_get(output_queue);
 
-    // For mint creation: pack address tree first (must be at index 1 per program validation),
-    // then state tree. For non-mint: just pack tree infos normally.
+    // For mint creation: pack address tree first (index 1), then state tree.
     let (client_packed_tree_infos, state_tree_index) = if include_state_tree {
         // Pack tree infos first to ensure address tree is at index 1
         let tree_infos = proof.pack_tree_infos(&mut packed);

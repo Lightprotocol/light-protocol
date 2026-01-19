@@ -5,7 +5,7 @@ use light_compressible::config::CompressibleConfig;
 use light_program_profiler::profile;
 use light_token_interface::{
     instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
-    CMINT_ADDRESS_TREE,
+    MINT_ADDRESS_TREE,
 };
 use light_zero_copy::U16;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
@@ -323,10 +323,10 @@ impl<'info> MintActionAccounts<'info> {
 
         // Validate address merkle tree when creating mint
         if let Some(address_tree) = accounts.address_merkle_tree {
-            if *address_tree.key() != CMINT_ADDRESS_TREE {
+            if *address_tree.key() != MINT_ADDRESS_TREE {
                 msg!(
                     "Create mint action expects address Merkle tree {:?} received: {:?}",
-                    solana_pubkey::Pubkey::from(CMINT_ADDRESS_TREE),
+                    solana_pubkey::Pubkey::from(MINT_ADDRESS_TREE),
                     solana_pubkey::Pubkey::from(*address_tree.key())
                 );
                 return Err(ErrorCode::InvalidAddressTree.into());

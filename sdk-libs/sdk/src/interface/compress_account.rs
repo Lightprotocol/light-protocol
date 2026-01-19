@@ -49,7 +49,7 @@ where
         + AnchorDeserialize
         + HasCompressionInfo
         + Default
-        + crate::compressible::compression_info::CompressedInitSpace,
+        + crate::interface::compression_info::CompressedInitSpace,
 {
     use light_compressed_account::address::derive_address;
 
@@ -122,7 +122,7 @@ where
     };
     compressed_account.account = compressed_data;
     {
-        use crate::compressible::compression_info::CompressedInitSpace;
+        use crate::interface::compression_info::CompressedInitSpace;
         let __lp_size = 8 + <A::Output as CompressedInitSpace>::COMPRESSED_INIT_SPACE;
         if __lp_size > 800 {
             msg!(

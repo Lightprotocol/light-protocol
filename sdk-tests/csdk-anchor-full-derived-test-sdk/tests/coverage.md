@@ -1,8 +1,8 @@
-# CompressibleProgram Trait Test Coverage Plan
+# LightProgramInterface Trait Test Coverage Plan
 
 ## Overview
 
-Comprehensive test coverage for the `CompressibleProgram` trait to ensure robust SDK implementations.
+Comprehensive test coverage for the `LightProgramInterface` trait to ensure robust SDK implementations.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -16,7 +16,7 @@ Comprehensive test coverage for the `CompressibleProgram` trait to ensure robust
 │           │                    │                    │                       │
 │           v                    v                    v                       │
 │  ┌────────────────────────────────────────────────────────────┐             │
-│  │               CompressibleProgram Trait                    │             │
+│  │               LightProgramInterface Trait                    │             │
 │  │  ┌──────────────────┐  ┌──────────────────┐               │             │
 │  │  │from_keyed_accounts│  │get_accounts_to_  │               │             │
 │  │  │                  │  │update            │               │             │
@@ -309,10 +309,10 @@ Comprehensive test coverage for the `CompressibleProgram` trait to ensure robust
 │                   EXHAUSTIVE IMPLEMENTATION REQUIREMENTS                     │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   A valid CompressibleProgram implementation MUST:                          │
+│   A valid LightProgramInterface implementation MUST:                          │
 │                                                                             │
 │   1. VARIANT COMPLETENESS                                                   │
-│      □ RentFreeAccountVariant covers ALL #[rentfree] accounts               │
+│      □ LightAccountVariant covers ALL #[light_account] accounts             │
 │      □ TokenAccountVariant covers ALL #[rentfree_token] accounts            │
 │      □ No rentfree account left unrepresented                               │
 │                                                                             │
@@ -334,7 +334,7 @@ Comprehensive test coverage for the `CompressibleProgram` trait to ensure robust
 │   VALIDATION CHECKS TO IMPLEMENT:                                           │
 │                                                                             │
 │   ┌───────────────────────────────────────────────────────────────────┐     │
-│   │  fn validate_implementation<T: CompressibleProgram>() {           │     │
+│   │  fn validate_implementation<T: LightProgramInterface>() {           │     │
 │   │      // 1. Create SDK from known root                             │     │
 │   │      // 2. For each Operation:                                    │     │
 │   │      //    - get_accounts_to_update returns non-empty             │     │
