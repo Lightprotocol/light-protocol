@@ -3,6 +3,8 @@
 //! These tests verify that the macro-generated code works correctly at runtime
 //! by testing the full lifecycle: create account -> verify on-chain -> compress -> decompress.
 
+#![allow(clippy::useless_asref)] // Testing that macro handles .as_ref() patterns
+
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
@@ -1769,4 +1771,3190 @@ async fn test_d7_all_names() {
     ctx.assert_lifecycle(&d7_all_record, D7AllRecordSeeds { owner })
         .await;
     // Note: Token vault decompression not tested - requires TokenAccountVariant
+}
+
+// =============================================================================
+// D9 Qualified Paths Tests
+// =============================================================================
+
+/// Tests D9QualifiedBare: Bare constant (no path prefix)
+#[tokio::test]
+async fn test_d9_qualified_bare() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9QualifiedBareParams,
+        instructions::d9_seeds::qualified_paths::D9_QUALIFIED_LOCAL,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA using bare constant
+    let (pda, _) = Pubkey::find_program_address(&[D9_QUALIFIED_LOCAL], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedBare {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9QualifiedBare {
+        _params: D9QualifiedBareParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9QualifiedBare instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9QualifiedSelf: self:: prefix path qualification
+#[tokio::test]
+async fn test_d9_qualified_self() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9QualifiedSelfParams,
+        instructions::d9_seeds::qualified_paths::D9_QUALIFIED_LOCAL,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA using self:: prefix (same constant as bare)
+    let (pda, _) = Pubkey::find_program_address(&[D9_QUALIFIED_LOCAL], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedSelf {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9QualifiedSelf {
+        _params: D9QualifiedSelfParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9QualifiedSelf instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9QualifiedCrate: crate:: prefix path qualification
+#[tokio::test]
+async fn test_d9_qualified_crate() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9QualifiedCrateParams,
+        instructions::d9_seeds::qualified_paths::D9_QUALIFIED_CRATE,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA using crate:: qualified constant
+    let (pda, _) = Pubkey::find_program_address(&[D9_QUALIFIED_CRATE], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedCrate {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9QualifiedCrate {
+        _params: D9QualifiedCrateParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9QualifiedCrate instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9QualifiedDeep: Deeply nested crate path
+#[tokio::test]
+async fn test_d9_qualified_deep() {
+    use csdk_anchor_full_derived_test::{d9_seeds::D9QualifiedDeepParams, D9_CONSTANT_SEED};
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA using deeply nested crate path
+    let (pda, _) = Pubkey::find_program_address(&[D9_CONSTANT_SEED], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedDeep {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9QualifiedDeep {
+        _params: D9QualifiedDeepParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9QualifiedDeep instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9QualifiedMixed: Mixed qualified and bare paths in same seeds
+#[tokio::test]
+async fn test_d9_qualified_mixed() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9QualifiedMixedParams,
+        instructions::d9_seeds::qualified_paths::D9_QUALIFIED_LOCAL, D9_CONSTANT_SEED,
+    };
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA using mixed paths
+    let (pda, _) = Pubkey::find_program_address(
+        &[D9_QUALIFIED_LOCAL, D9_CONSTANT_SEED, owner.as_ref()],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedMixed {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9QualifiedMixed {
+        params: D9QualifiedMixedParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9QualifiedMixed instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+// =============================================================================
+// D9 Method Chains Tests
+// =============================================================================
+
+/// Tests D9MethodAsRef: constant.as_ref()
+#[tokio::test]
+async fn test_d9_method_as_ref() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9MethodAsRefParams, instructions::d9_seeds::method_chains::D9_METHOD_BYTES,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(&[D9_METHOD_BYTES.as_ref()], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9MethodAsRef {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9MethodAsRef {
+        _params: D9MethodAsRefParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9MethodAsRef instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9MethodAsBytes: string_constant.as_bytes()
+#[tokio::test]
+async fn test_d9_method_as_bytes() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9MethodAsBytesParams, instructions::d9_seeds::method_chains::D9_METHOD_STR,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(&[D9_METHOD_STR.as_bytes()], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9MethodAsBytes {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9MethodAsBytes {
+        _params: D9MethodAsBytesParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9MethodAsBytes instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9MethodQualifiedAsBytes: crate::path::CONST.as_bytes()
+#[tokio::test]
+async fn test_d9_method_qualified_as_bytes() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9MethodQualifiedAsBytesParams,
+        instructions::d9_seeds::method_chains::D9_METHOD_STR,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(&[D9_METHOD_STR.as_bytes()], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9MethodQualifiedAsBytes {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9MethodQualifiedAsBytes {
+        _params: D9MethodQualifiedAsBytesParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9MethodQualifiedAsBytes instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9MethodToLeBytes: params.field.to_le_bytes().as_ref()
+#[tokio::test]
+async fn test_d9_method_to_le_bytes() {
+    use csdk_anchor_full_derived_test::d9_seeds::D9MethodToLeBytesParams;
+
+    let mut ctx = TestContext::new().await;
+    let id = 12345u64;
+
+    // Derive PDA
+    let (pda, _) =
+        Pubkey::find_program_address(&[b"d9_le", id.to_le_bytes().as_ref()], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9MethodToLeBytes {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9MethodToLeBytes {
+        _params: D9MethodToLeBytesParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            id,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9MethodToLeBytes instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9MethodToBeBytes: params.field.to_be_bytes().as_ref()
+#[tokio::test]
+async fn test_d9_method_to_be_bytes() {
+    use csdk_anchor_full_derived_test::d9_seeds::D9MethodToBeBytesParams;
+
+    let mut ctx = TestContext::new().await;
+    let id = 67890u64;
+
+    // Derive PDA
+    let (pda, _) =
+        Pubkey::find_program_address(&[b"d9_be", id.to_be_bytes().as_ref()], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9MethodToBeBytes {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9MethodToBeBytes {
+        _params: D9MethodToBeBytesParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            id,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9MethodToBeBytes instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9MethodMixed: Mixed methods in seeds
+#[tokio::test]
+async fn test_d9_method_mixed() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9MethodMixedParams, instructions::d9_seeds::method_chains::D9_METHOD_STR,
+    };
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+    let id = 11111u64;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(
+        &[
+            D9_METHOD_STR.as_bytes(),
+            owner.as_ref(),
+            id.to_le_bytes().as_ref(),
+        ],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9MethodMixed {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9MethodMixed {
+        params: D9MethodMixedParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+            id,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9MethodMixed instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+// =============================================================================
+// D9 Array Bumps Tests
+// =============================================================================
+
+/// Tests D9BumpLiteral: Literal seed with bump
+#[tokio::test]
+async fn test_d9_bump_literal() {
+    use csdk_anchor_full_derived_test::d9_seeds::D9BumpLiteralParams;
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(&[b"d9_bump_lit"], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9BumpLiteral {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9BumpLiteral {
+        _params: D9BumpLiteralParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9BumpLiteral instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9BumpConstant: Constant seed with bump
+#[tokio::test]
+async fn test_d9_bump_constant() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9BumpConstantParams, instructions::d9_seeds::array_bumps::D9_BUMP_SEED,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(&[D9_BUMP_SEED], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9BumpConstant {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9BumpConstant {
+        _params: D9BumpConstantParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9BumpConstant instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9BumpQualified: Qualified path with bump
+#[tokio::test]
+async fn test_d9_bump_qualified() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9BumpQualifiedParams, instructions::d9_seeds::array_bumps::D9_BUMP_STR,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(&[D9_BUMP_STR.as_bytes()], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9BumpQualified {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9BumpQualified {
+        _params: D9BumpQualifiedParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9BumpQualified instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9BumpParam: Param seed with bump
+#[tokio::test]
+async fn test_d9_bump_param() {
+    use csdk_anchor_full_derived_test::d9_seeds::D9BumpParamParams;
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA
+    let (pda, _) =
+        Pubkey::find_program_address(&[b"d9_bump_param", owner.as_ref()], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9BumpParam {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9BumpParam {
+        params: D9BumpParamParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9BumpParam instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9BumpCtx: Ctx account seed with bump
+#[tokio::test]
+async fn test_d9_bump_ctx() {
+    use csdk_anchor_full_derived_test::d9_seeds::D9BumpCtxParams;
+
+    let mut ctx = TestContext::new().await;
+    let authority = Keypair::new();
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(
+        &[b"d9_bump_ctx", authority.pubkey().as_ref()],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9BumpCtx {
+        fee_payer: ctx.payer.pubkey(),
+        authority: authority.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9BumpCtx {
+        _params: D9BumpCtxParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9BumpCtx instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9BumpMixed: Multiple seeds with bump
+#[tokio::test]
+async fn test_d9_bump_mixed() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9BumpMixedParams, instructions::d9_seeds::array_bumps::D9_BUMP_SEED,
+    };
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+    let id = 54321u64;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(
+        &[
+            b"d9_bump_mix",
+            D9_BUMP_SEED,
+            owner.as_ref(),
+            id.to_le_bytes().as_ref(),
+        ],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9BumpMixed {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9BumpMixed {
+        params: D9BumpMixedParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+            id,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9BumpMixed instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+// =============================================================================
+// D9 Complex Mixed Tests
+// =============================================================================
+
+/// Tests D9ComplexThree: 3 seeds - literal + constant + param
+#[tokio::test]
+async fn test_d9_complex_three() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9ComplexThreeParams, instructions::d9_seeds::complex_mixed::D9_COMPLEX_PREFIX,
+    };
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(
+        &[b"d9_complex3", D9_COMPLEX_PREFIX, owner.as_ref()],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexThree {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ComplexThree {
+        params: D9ComplexThreeParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ComplexThree instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9ComplexFour: 4 seeds - version + namespace + param + bytes
+#[tokio::test]
+async fn test_d9_complex_four() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9ComplexFourParams,
+        instructions::d9_seeds::complex_mixed::{D9_COMPLEX_NAMESPACE, D9_COMPLEX_V1},
+    };
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+    let id = 99999u64;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(
+        &[
+            D9_COMPLEX_V1,
+            D9_COMPLEX_NAMESPACE.as_bytes(),
+            owner.as_ref(),
+            id.to_le_bytes().as_ref(),
+        ],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexFour {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ComplexFour {
+        params: D9ComplexFourParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+            id,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ComplexFour instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9ComplexFive: 5 seeds with ctx account
+#[tokio::test]
+async fn test_d9_complex_five() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9ComplexFiveParams,
+        instructions::d9_seeds::complex_mixed::{D9_COMPLEX_NAMESPACE, D9_COMPLEX_V1},
+    };
+
+    let mut ctx = TestContext::new().await;
+    let authority = Keypair::new();
+    let owner = Keypair::new().pubkey();
+    let id = 88888u64;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(
+        &[
+            D9_COMPLEX_V1,
+            D9_COMPLEX_NAMESPACE.as_bytes(),
+            authority.pubkey().as_ref(),
+            owner.as_ref(),
+            id.to_le_bytes().as_ref(),
+        ],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexFive {
+        fee_payer: ctx.payer.pubkey(),
+        authority: authority.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ComplexFive {
+        params: D9ComplexFiveParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+            id,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ComplexFive instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9ComplexQualifiedMix: Qualified paths mixed with local
+#[tokio::test]
+async fn test_d9_complex_qualified_mix() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9ComplexQualifiedMixParams,
+        instructions::d9_seeds::complex_mixed::{D9_COMPLEX_PREFIX, D9_COMPLEX_V1},
+    };
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(
+        &[D9_COMPLEX_V1, D9_COMPLEX_PREFIX, owner.as_ref()],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexQualifiedMix {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ComplexQualifiedMix {
+        params: D9ComplexQualifiedMixParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ComplexQualifiedMix instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9ComplexFunc: Function call combined with other seeds
+#[tokio::test]
+async fn test_d9_complex_func() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9ComplexFuncParams, instructions::d9_seeds::complex_mixed::D9_COMPLEX_V1,
+    };
+
+    let mut ctx = TestContext::new().await;
+    let key_a = Keypair::new().pubkey();
+    let key_b = Keypair::new().pubkey();
+    let id = 77777u64;
+
+    // Derive PDA using max_key
+    let max_key = csdk_anchor_full_derived_test::max_key(&key_a, &key_b);
+    let (pda, _) = Pubkey::find_program_address(
+        &[D9_COMPLEX_V1, max_key.as_ref(), id.to_le_bytes().as_ref()],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexFunc {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ComplexFunc {
+        params: D9ComplexFuncParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            key_a,
+            key_b,
+            id,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ComplexFunc instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9ComplexAllQualified: All paths being fully qualified
+#[tokio::test]
+async fn test_d9_complex_all_qualified() {
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9ComplexAllQualifiedParams,
+        instructions::d9_seeds::complex_mixed::{D9_COMPLEX_NAMESPACE, D9_COMPLEX_V1},
+    };
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(
+        &[
+            D9_COMPLEX_V1,
+            D9_COMPLEX_NAMESPACE.as_bytes(),
+            owner.as_ref(),
+        ],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexAllQualified {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ComplexAllQualified {
+        params: D9ComplexAllQualifiedParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ComplexAllQualified instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9ComplexProgramId: Program ID as seed
+#[tokio::test]
+async fn test_d9_complex_program_id() {
+    use csdk_anchor_full_derived_test::d9_seeds::D9ComplexProgramIdParams;
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA using program ID
+    let (pda, _) = Pubkey::find_program_address(
+        &[b"d9_progid", ctx.program_id.as_ref(), owner.as_ref()],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexProgramId {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ComplexProgramId {
+        params: D9ComplexProgramIdParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ComplexProgramId instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9ComplexIdFunc: id() function call as seed
+#[tokio::test]
+async fn test_d9_complex_id_func() {
+    use csdk_anchor_full_derived_test::d9_seeds::D9ComplexIdFuncParams;
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA using id() function (same result as program ID)
+    let (pda, _) = Pubkey::find_program_address(
+        &[b"d9_idfunc", ctx.program_id.as_ref(), owner.as_ref()],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexIdFunc {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ComplexIdFunc {
+        params: D9ComplexIdFuncParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ComplexIdFunc instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+// =============================================================================
+// D9 Edge Cases Tests
+// =============================================================================
+
+/// Tests D9EdgeEmpty: Empty literal placeholder
+#[tokio::test]
+async fn test_d9_edge_empty() {
+    use csdk_anchor_full_derived_test::d9_seeds::D9EdgeEmptyParams;
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(
+        &[&b"d9_edge_empty"[..], &b"_"[..], owner.as_ref()],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeEmpty {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9EdgeEmpty {
+        params: D9EdgeEmptyParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9EdgeEmpty instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9EdgeSingleByte: Single byte constant
+#[tokio::test]
+async fn test_d9_edge_single_byte() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        edge_cases::D9_SINGLE_BYTE, D9EdgeSingleByteParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(&[D9_SINGLE_BYTE], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeSingleByte {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9EdgeSingleByte {
+        _params: D9EdgeSingleByteParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9EdgeSingleByte instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9EdgeSingleLetter: Single letter constant name
+#[tokio::test]
+async fn test_d9_edge_single_letter() {
+    use csdk_anchor_full_derived_test::d9_seeds::{edge_cases::A, D9EdgeSingleLetterParams};
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(&[A], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeSingleLetter {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9EdgeSingleLetter {
+        _params: D9EdgeSingleLetterParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9EdgeSingleLetter instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9EdgeDigits: Constant name with digits
+#[tokio::test]
+async fn test_d9_edge_digits() {
+    use csdk_anchor_full_derived_test::d9_seeds::{edge_cases::SEED_123, D9EdgeDigitsParams};
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(&[SEED_123], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeDigits {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9EdgeDigits {
+        _params: D9EdgeDigitsParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9EdgeDigits instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9EdgeUnderscore: Leading underscore constant
+#[tokio::test]
+async fn test_d9_edge_underscore() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        edge_cases::_UNDERSCORE_CONST, D9EdgeUnderscoreParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(&[_UNDERSCORE_CONST], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeUnderscore {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9EdgeUnderscore {
+        _params: D9EdgeUnderscoreParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9EdgeUnderscore instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9EdgeManyLiterals: Many literals in seeds
+#[tokio::test]
+async fn test_d9_edge_many_literals() {
+    use csdk_anchor_full_derived_test::d9_seeds::D9EdgeManyLiteralsParams;
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA with 5 byte literals
+    let (pda, _) = Pubkey::find_program_address(&[b"a", b"b", b"c", b"d", b"e"], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeManyLiterals {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9EdgeManyLiterals {
+        _params: D9EdgeManyLiteralsParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9EdgeManyLiterals instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9EdgeMixed: Mixed edge cases
+#[tokio::test]
+async fn test_d9_edge_mixed() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        edge_cases::{A, SEED_123, _UNDERSCORE_CONST},
+        D9EdgeMixedParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(
+        &[A, SEED_123, _UNDERSCORE_CONST, owner.as_ref()],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeMixed {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9EdgeMixed {
+        params: D9EdgeMixedParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9EdgeMixed instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+// =============================================================================
+// D9 External Paths Tests
+// =============================================================================
+
+/// Tests D9ExternalSdkTypes: External crate (light_sdk_types)
+#[tokio::test]
+async fn test_d9_external_sdk_types() {
+    use csdk_anchor_full_derived_test::d9_seeds::D9ExternalSdkTypesParams;
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA using external constant
+    let (pda, _) = Pubkey::find_program_address(
+        &[
+            b"d9_ext_sdk",
+            light_sdk_types::constants::CPI_AUTHORITY_PDA_SEED,
+            owner.as_ref(),
+        ],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalSdkTypes {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ExternalSdkTypes {
+        params: D9ExternalSdkTypesParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ExternalSdkTypes instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9ExternalCtoken: External crate (light_token_types)
+#[tokio::test]
+async fn test_d9_external_ctoken() {
+    use csdk_anchor_full_derived_test::d9_seeds::D9ExternalCtokenParams;
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA using external constant
+    let (pda, _) = Pubkey::find_program_address(
+        &[
+            b"d9_ext_ctoken",
+            light_token_interface::POOL_SEED,
+            owner.as_ref(),
+        ],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalCtoken {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ExternalCtoken {
+        params: D9ExternalCtokenParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ExternalCtoken instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9ExternalMixed: Multiple external crates mixed
+#[tokio::test]
+async fn test_d9_external_mixed() {
+    use csdk_anchor_full_derived_test::d9_seeds::D9ExternalMixedParams;
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA using mixed external constants
+    let (pda, _) = Pubkey::find_program_address(
+        &[
+            light_sdk_types::constants::CPI_AUTHORITY_PDA_SEED,
+            light_token_interface::POOL_SEED,
+            owner.as_ref(),
+        ],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalMixed {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ExternalMixed {
+        params: D9ExternalMixedParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ExternalMixed instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9ExternalWithLocal: External with local constant
+#[tokio::test]
+async fn test_d9_external_with_local() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        external_paths::D9_EXTERNAL_LOCAL, D9ExternalWithLocalParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(
+        &[
+            D9_EXTERNAL_LOCAL,
+            light_sdk_types::constants::RENT_SPONSOR_SEED,
+            owner.as_ref(),
+        ],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalWithLocal {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ExternalWithLocal {
+        params: D9ExternalWithLocalParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ExternalWithLocal instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9ExternalBump: External constant with bump
+#[tokio::test]
+async fn test_d9_external_bump() {
+    use csdk_anchor_full_derived_test::d9_seeds::D9ExternalBumpParams;
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(
+        &[light_token_interface::COMPRESSED_MINT_SEED, owner.as_ref()],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalBump {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ExternalBump {
+        params: D9ExternalBumpParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ExternalBump instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9ExternalReexport: Re-exported external constant
+#[tokio::test]
+async fn test_d9_external_reexport() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        external_paths::REEXPORTED_SEED, D9ExternalReexportParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA using re-exported constant
+    let (pda, _) = Pubkey::find_program_address(&[REEXPORTED_SEED], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalReexport {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ExternalReexport {
+        _params: D9ExternalReexportParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ExternalReexport instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+// =============================================================================
+// D9 Nested Seeds Tests
+// =============================================================================
+
+/// Tests D9NestedSimple: Simple nested struct access
+#[tokio::test]
+async fn test_d9_nested_simple() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        nested_seeds::InnerNested, D9NestedSimpleParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA
+    let (pda, _) =
+        Pubkey::find_program_address(&[b"d9_nested_simple", owner.as_ref()], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9NestedSimple {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9NestedSimple {
+        params: D9NestedSimpleParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            nested: InnerNested { owner, id: 0 },
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9NestedSimple instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9NestedDouble: Double nested struct access
+#[tokio::test]
+async fn test_d9_nested_double() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        nested_seeds::{InnerNested, OuterNested},
+        D9NestedDoubleParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA
+    let (pda, _) =
+        Pubkey::find_program_address(&[b"d9_nested_double", owner.as_ref()], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9NestedDouble {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9NestedDouble {
+        params: D9NestedDoubleParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            outer: OuterNested {
+                array: [0; 16],
+                nested: InnerNested { owner, id: 0 },
+            },
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9NestedDouble instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9NestedArrayField: Nested array field access
+#[tokio::test]
+async fn test_d9_nested_array_field() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        nested_seeds::{InnerNested, OuterNested},
+        D9NestedArrayFieldParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+    let array = [1u8, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+
+    // Derive PDA
+    let (pda, _) =
+        Pubkey::find_program_address(&[b"d9_nested_array", array.as_ref()], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9NestedArrayField {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9NestedArrayField {
+        params: D9NestedArrayFieldParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            outer: OuterNested {
+                array,
+                nested: InnerNested { owner, id: 0 },
+            },
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9NestedArrayField instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9ArrayIndex: Array indexing params.arrays[2].as_slice()
+#[tokio::test]
+async fn test_d9_array_index() {
+    use csdk_anchor_full_derived_test::d9_seeds::D9ArrayIndexParams;
+
+    let mut ctx = TestContext::new().await;
+
+    // Create 2D array with deterministic values
+    let mut arrays = [[0u8; 16]; 10];
+    arrays[2] = [42u8; 16]; // The indexed array
+
+    // Derive PDA using the indexed array
+    let (pda, _) =
+        Pubkey::find_program_address(&[b"d9_array_idx", arrays[2].as_slice()], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ArrayIndex {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ArrayIndex {
+        _params: D9ArrayIndexParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            arrays,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ArrayIndex instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9NestedBytes: Nested struct with bytes conversion
+#[tokio::test]
+async fn test_d9_nested_bytes() {
+    use csdk_anchor_full_derived_test::d9_seeds::{nested_seeds::InnerNested, D9NestedBytesParams};
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+    let id = 123456u64;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(
+        &[b"d9_nested_bytes", id.to_le_bytes().as_ref()],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9NestedBytes {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9NestedBytes {
+        params: D9NestedBytesParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            nested: InnerNested { owner, id },
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9NestedBytes instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9NestedCombined: Multiple nested seeds combined
+#[tokio::test]
+async fn test_d9_nested_combined() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        nested_seeds::{InnerNested, OuterNested},
+        D9NestedCombinedParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+    let array = [7u8; 16];
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(
+        &[b"d9_nested_combined", array.as_ref(), owner.as_ref()],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9NestedCombined {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9NestedCombined {
+        params: D9NestedCombinedParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            outer: OuterNested {
+                array,
+                nested: InnerNested { owner, id: 0 },
+            },
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9NestedCombined instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+// =============================================================================
+// D9 Const Patterns Tests
+// =============================================================================
+
+/// Tests D9AssocConst: Associated constant
+#[tokio::test]
+async fn test_d9_assoc_const() {
+    use csdk_anchor_full_derived_test::d9_seeds::{const_patterns::SeedHolder, D9AssocConstParams};
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(&[SeedHolder::SEED], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9AssocConst {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9AssocConst {
+        _params: D9AssocConstParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9AssocConst instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9AssocConstMethod: Associated constant with method
+#[tokio::test]
+async fn test_d9_assoc_const_method() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::SeedHolder, D9AssocConstMethodParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) =
+        Pubkey::find_program_address(&[SeedHolder::NAMESPACE.as_bytes()], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9AssocConstMethod {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9AssocConstMethod {
+        _params: D9AssocConstMethodParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9AssocConstMethod instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9MultiAssocConst: Multiple associated constants
+#[tokio::test]
+async fn test_d9_multi_assoc_const() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::{AnotherHolder, SeedHolder},
+        D9MultiAssocConstParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(
+        &[SeedHolder::SEED, AnotherHolder::PREFIX, owner.as_ref()],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9MultiAssocConst {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9MultiAssocConst {
+        params: D9MultiAssocConstParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9MultiAssocConst instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9ConstFn: Const fn call
+#[tokio::test]
+async fn test_d9_const_fn() {
+    use csdk_anchor_full_derived_test::d9_seeds::{const_patterns::const_seed, D9ConstFnParams};
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(&[const_seed()], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ConstFn {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ConstFn {
+        _params: D9ConstFnParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ConstFn instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9ConstFnGeneric: Const fn with generic
+#[tokio::test]
+async fn test_d9_const_fn_generic() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::identity_seed, D9ConstFnGenericParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) =
+        Pubkey::find_program_address(&[identity_seed::<12>(b"generic_seed")], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ConstFnGeneric {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ConstFnGeneric {
+        _params: D9ConstFnGenericParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ConstFnGeneric instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9TraitAssocConst: Trait associated constant
+#[tokio::test]
+async fn test_d9_trait_assoc_const() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::{HasSeed, SeedHolder},
+        D9TraitAssocConstParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) =
+        Pubkey::find_program_address(&[<SeedHolder as HasSeed>::TRAIT_SEED], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9TraitAssocConst {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9TraitAssocConst {
+        _params: D9TraitAssocConstParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9TraitAssocConst instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9Static: Static variable
+#[tokio::test]
+async fn test_d9_static() {
+    use csdk_anchor_full_derived_test::d9_seeds::{const_patterns::STATIC_SEED, D9StaticParams};
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(&[&STATIC_SEED], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9Static {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9Static {
+        _params: D9StaticParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9Static instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9QualifiedConstFn: Qualified const fn
+#[tokio::test]
+async fn test_d9_qualified_const_fn() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::const_seed, D9QualifiedConstFnParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(&[const_seed()], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedConstFn {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9QualifiedConstFn {
+        _params: D9QualifiedConstFnParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9QualifiedConstFn instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9FullyQualifiedAssoc: Fully qualified associated constant
+#[tokio::test]
+async fn test_d9_fully_qualified_assoc() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::SeedHolder, D9FullyQualifiedAssocParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(&[SeedHolder::SEED], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9FullyQualifiedAssoc {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9FullyQualifiedAssoc {
+        _params: D9FullyQualifiedAssocParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9FullyQualifiedAssoc instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9FullyQualifiedTrait: Fully qualified trait associated constant
+#[tokio::test]
+async fn test_d9_fully_qualified_trait() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::{HasSeed, SeedHolder},
+        D9FullyQualifiedTraitParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) =
+        Pubkey::find_program_address(&[<SeedHolder as HasSeed>::TRAIT_SEED], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9FullyQualifiedTrait {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9FullyQualifiedTrait {
+        _params: D9FullyQualifiedTraitParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9FullyQualifiedTrait instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9FullyQualifiedGeneric: Fully qualified const fn with generic
+#[tokio::test]
+async fn test_d9_fully_qualified_generic() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::identity_seed, D9FullyQualifiedGenericParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+
+    // Derive PDA
+    let (pda, _) =
+        Pubkey::find_program_address(&[identity_seed::<10>(b"fq_generic")], &ctx.program_id);
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9FullyQualifiedGeneric {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9FullyQualifiedGeneric {
+        _params: D9FullyQualifiedGenericParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9FullyQualifiedGeneric instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
+}
+
+/// Tests D9ConstCombined: Combined const patterns
+#[tokio::test]
+async fn test_d9_const_combined() {
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::{const_seed, SeedHolder},
+        D9ConstCombinedParams,
+    };
+
+    let mut ctx = TestContext::new().await;
+    let owner = Keypair::new().pubkey();
+
+    // Derive PDA
+    let (pda, _) = Pubkey::find_program_address(
+        &[SeedHolder::SEED, const_seed(), owner.as_ref()],
+        &ctx.program_id,
+    );
+
+    // Get proof
+    let proof_result = get_create_accounts_proof(
+        &ctx.rpc,
+        &ctx.program_id,
+        vec![CreateAccountsProofInput::pda(pda)],
+    )
+    .await
+    .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D9ConstCombined {
+        fee_payer: ctx.payer.pubkey(),
+        compression_config: ctx.config_pda,
+        record: pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9ConstCombined {
+        params: D9ConstCombinedParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D9ConstCombined instruction should succeed");
+
+    ctx.assert_onchain_exists(&pda).await;
 }

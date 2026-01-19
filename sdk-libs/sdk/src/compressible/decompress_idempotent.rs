@@ -115,7 +115,7 @@ where
     // Account space needs to include discriminator + serialized data
     // T::size() already includes the full Option<CompressionInfo> footprint
     let discriminator_len = T::LIGHT_DISCRIMINATOR.len();
-    let space = discriminator_len + T::size(&light_account.account);
+    let space = discriminator_len + T::size(&light_account.account)?;
     let rent_minimum_balance = rent.minimum_balance(space);
 
     invoke_create_account_with_heap(

@@ -139,7 +139,7 @@ use crate::{
 const DEFAULT_DATA_HASH: [u8; 32] = [0u8; 32];
 
 pub trait Size {
-    fn size(&self) -> usize;
+    fn size(&self) -> Result<usize, solana_program_error::ProgramError>;
 }
 pub use sha::LightAccount;
 /// SHA256 borsh flat hashed Light Account.
@@ -303,7 +303,7 @@ pub mod __internal {
             &self.owner
         }
         /// Get the byte size of the account type.
-        pub fn size(&self) -> usize
+        pub fn size(&self) -> Result<usize, solana_program_error::ProgramError>
         where
             A: Size,
         {

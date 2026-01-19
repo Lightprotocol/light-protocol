@@ -273,7 +273,7 @@ fn test_pack_converts_pool_id_to_index() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = observation_state.pack(&mut packed_accounts);
+    let packed = observation_state.pack(&mut packed_accounts).unwrap();
 
     // The pool_id should have been added to packed_accounts and assigned index 0
     assert_eq!(packed.pool_id, 0u8);
@@ -311,7 +311,7 @@ fn test_pack_with_pre_existing_pubkeys() {
     // Pre-insert another pubkey
     packed_accounts.insert_or_get(Pubkey::new_unique());
 
-    let packed = observation_state.pack(&mut packed_accounts);
+    let packed = observation_state.pack(&mut packed_accounts).unwrap();
 
     // The pool_id should have been added and assigned index 1 (since index 0 is taken)
     assert_eq!(packed.pool_id, 1u8);
@@ -342,7 +342,7 @@ fn test_pack_preserves_all_fields() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = observation_state.pack(&mut packed_accounts);
+    let packed = observation_state.pack(&mut packed_accounts).unwrap();
 
     assert!(packed.initialized);
     assert_eq!(packed.observation_index, 42);
@@ -378,7 +378,7 @@ fn test_pack_sets_compression_info_to_none() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = observation_with_info.pack(&mut packed_accounts);
+    let packed = observation_with_info.pack(&mut packed_accounts).unwrap();
 
     assert!(
         packed.compression_info.is_none(),
@@ -432,8 +432,8 @@ fn test_pack_different_pool_ids_get_different_indices() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed1 = observation1.pack(&mut packed_accounts);
-    let packed2 = observation2.pack(&mut packed_accounts);
+    let packed1 = observation1.pack(&mut packed_accounts).unwrap();
+    let packed2 = observation2.pack(&mut packed_accounts).unwrap();
 
     // Different pool IDs should get different indices
     assert_ne!(
@@ -487,8 +487,8 @@ fn test_pack_reuses_same_pool_id_index() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed1 = observation1.pack(&mut packed_accounts);
-    let packed2 = observation2.pack(&mut packed_accounts);
+    let packed1 = observation1.pack(&mut packed_accounts).unwrap();
+    let packed2 = observation2.pack(&mut packed_accounts).unwrap();
 
     // Same pool_id should get same index
     assert_eq!(
@@ -522,7 +522,7 @@ fn test_pack_stores_pool_id_in_packed_accounts() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = observation_state.pack(&mut packed_accounts);
+    let packed = observation_state.pack(&mut packed_accounts).unwrap();
 
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 1, "should have 1 pubkey stored");

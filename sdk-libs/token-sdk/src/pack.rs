@@ -16,7 +16,7 @@ use crate::{AnchorDeserialize, AnchorSerialize};
 // The sdk has identical trait definitions in light_sdk::compressible.
 pub trait Pack {
     type Packed;
-    fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed;
+    fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Result<Self::Packed, ProgramError>;
 }
 pub trait Unpack {
     type Unpacked;
@@ -150,8 +150,11 @@ pub mod compat {
     impl Pack for TokenData {
         type Packed = InputTokenDataCompressible;
 
-        fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
-            InputTokenDataCompressible {
+        fn pack(
+            &self,
+            remaining_accounts: &mut PackedAccounts,
+        ) -> Result<Self::Packed, ProgramError> {
+            Ok(InputTokenDataCompressible {
                 owner: remaining_accounts.insert_or_get(self.owner),
                 mint: remaining_accounts.insert_or_get_read_only(self.mint),
                 amount: self.amount,
@@ -162,7 +165,7 @@ pub mod compat {
                     0
                 },
                 version: TokenDataVersion::ShaFlat as u8,
-            }
+            })
         }
     }
 
@@ -236,11 +239,14 @@ pub mod compat {
     {
         type Packed = PackedTokenDataWithVariant<V::Packed>;
 
-        fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
-            PackedTokenDataWithVariant {
-                variant: self.variant.pack(remaining_accounts),
-                token_data: self.token_data.pack(remaining_accounts),
-            }
+        fn pack(
+            &self,
+            remaining_accounts: &mut PackedAccounts,
+        ) -> Result<Self::Packed, ProgramError> {
+            Ok(PackedTokenDataWithVariant {
+                variant: self.variant.pack(remaining_accounts)?,
+                token_data: self.token_data.pack(remaining_accounts)?,
+            })
         }
     }
 
@@ -270,11 +276,14 @@ pub mod compat {
     {
         type Packed = PackedTokenDataWithVariant<V::Packed>;
 
-        fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
-            PackedTokenDataWithVariant {
-                variant: self.variant.pack(remaining_accounts),
-                token_data: self.token_data.pack(remaining_accounts),
-            }
+        fn pack(
+            &self,
+            remaining_accounts: &mut PackedAccounts,
+        ) -> Result<Self::Packed, ProgramError> {
+            Ok(PackedTokenDataWithVariant {
+                variant: self.variant.pack(remaining_accounts)?,
+                token_data: self.token_data.pack(remaining_accounts)?,
+            })
         }
     }
 

@@ -51,12 +51,24 @@ pub(super) struct LightMintField {
     pub rent_payment: Option<Expr>,
     /// Write top-up lamports for decompression (default: 0)
     pub write_top_up: Option<Expr>,
+    // Metadata extension fields
+    /// Token name for TokenMetadata extension
+    pub name: Option<Expr>,
+    /// Token symbol for TokenMetadata extension
+    pub symbol: Option<Expr>,
+    /// Token URI for TokenMetadata extension
+    pub uri: Option<Expr>,
+    /// Update authority field reference for TokenMetadata extension
+    pub update_authority: Option<Ident>,
+    /// Additional metadata key-value pairs for TokenMetadata extension
+    pub additional_metadata: Option<Expr>,
 }
 
 /// Arguments inside #[light_mint(...)] parsed by darling.
 ///
 /// Required fields (darling auto-validates): mint_signer, authority, decimals
 /// Optional fields: address_tree_info, freeze_authority, mint_seeds, authority_seeds, rent_payment, write_top_up
+/// Metadata fields (all optional): name, symbol, uri, update_authority, additional_metadata
 #[derive(FromMeta)]
 struct LightMintArgs {
     /// The mint_signer field (AccountInfo that seeds the mint PDA) - REQUIRED
@@ -82,6 +94,56 @@ struct LightMintArgs {
     /// Write top-up lamports for decompression
     #[darling(default)]
     write_top_up: Option<MetaExpr>,
+    // Metadata extension fields
+    /// Token name for TokenMetadata extension (expression yielding Vec<u8>)
+    #[darling(default)]
+    name: Option<MetaExpr>,
+    /// Token symbol for TokenMetadata extension (expression yielding Vec<u8>)
+    #[darling(default)]
+    symbol: Option<MetaExpr>,
+    /// Token URI for TokenMetadata extension (expression yielding Vec<u8>)
+    #[darling(default)]
+    uri: Option<MetaExpr>,
+    /// Update authority field reference for TokenMetadata extension
+    #[darling(default)]
+    update_authority: Option<Ident>,
+    /// Additional metadata for TokenMetadata extension (expression yielding Option<Vec<AdditionalMetadata>>)
+    #[darling(default)]
+    additional_metadata: Option<MetaExpr>,
+}
+
+/// Validates TokenMetadata field requirements.
+///
+/// Rules:
+/// 1. `name`, `symbol`, `uri` must all be defined together or none
+/// 2. `update_authority` and `additional_metadata` require `name`, `symbol`, `uri`
+fn validate_metadata_fields(args: &LightMintArgs) -> Result<(), &'static str> {
+    let has_name = args.name.is_some();
+    let has_symbol = args.symbol.is_some();
+    let has_uri = args.uri.is_some();
+    let has_update_authority = args.update_authority.is_some();
+    let has_additional_metadata = args.additional_metadata.is_some();
+
+    let core_metadata_count = [has_name, has_symbol, has_uri]
+        .iter()
+        .filter(|&&x| x)
+        .count();
+
+    // Rule 1: name, symbol, uri must all be defined together or none
+    if core_metadata_count > 0 && core_metadata_count < 3 {
+        return Err(
+            "TokenMetadata requires all of `name`, `symbol`, and `uri` to be specified together",
+        );
+    }
+
+    // Rule 2: update_authority and additional_metadata require name, symbol, uri
+    if (has_update_authority || has_additional_metadata) && core_metadata_count == 0 {
+        return Err(
+            "`update_authority` and `additional_metadata` require `name`, `symbol`, and `uri` to also be specified",
+        );
+    }
+
+    Ok(())
 }
 
 /// Parse #[light_mint(...)] attribute from a field.
@@ -95,6 +157,9 @@ pub(super) fn parse_light_mint_attr(
             // Use darling to parse the attribute arguments
             let args = LightMintArgs::from_meta(&attr.meta)
                 .map_err(|e| syn::Error::new_spanned(attr, e.to_string()))?;
+
+            // Validate metadata fields
+            validate_metadata_fields(&args).map_err(|msg| syn::Error::new_spanned(attr, msg))?;
 
             // address_tree_info defaults to params.create_accounts_proof.address_tree_info
             let address_tree_info = args.address_tree_info.map(Into::into).unwrap_or_else(|| {
@@ -112,6 +177,12 @@ pub(super) fn parse_light_mint_attr(
                 authority_seeds: args.authority_seeds.map(Into::into),
                 rent_payment: args.rent_payment.map(Into::into),
                 write_top_up: args.write_top_up.map(Into::into),
+                // Metadata extension fields
+                name: args.name.map(Into::into),
+                symbol: args.symbol.map(Into::into),
+                uri: args.uri.map(Into::into),
+                update_authority: args.update_authority,
+                additional_metadata: args.additional_metadata.map(Into::into),
             }));
         }
     }
@@ -264,6 +335,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
             let signer_key_ident = format_ident!("__mint_signer_key_{}", idx);
             let mint_seeds_ident = format_ident!("__mint_seeds_{}", idx);
             let authority_seeds_ident = format_ident!("__authority_seeds_{}", idx);
+            let token_metadata_ident = format_ident!("__mint_token_metadata_{}", idx);
 
             // Generate optional authority seeds binding
             let authority_seeds_binding = match authority_seeds {
@@ -276,6 +348,39 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                 },
             };
 
+            // Check if metadata is present (validation guarantees name/symbol/uri are all-or-nothing)
+            let has_metadata = mint.name.is_some();
+
+            // Generate token_metadata binding
+            let token_metadata_binding = if has_metadata {
+                // name, symbol, uri are guaranteed to be present by validation
+                let name_expr = mint.name.as_ref().map(|e| quote! { #e }).unwrap();
+                let symbol_expr = mint.symbol.as_ref().map(|e| quote! { #e }).unwrap();
+                let uri_expr = mint.uri.as_ref().map(|e| quote! { #e }).unwrap();
+                let update_authority_expr = mint.update_authority.as_ref()
+                    .map(|f| quote! { Some(self.#f.to_account_info().key.to_bytes().into()) })
+                    .unwrap_or_else(|| quote! { None });
+                let additional_metadata_expr = mint.additional_metadata.as_ref()
+                    .map(|e| quote! { #e })
+                    .unwrap_or_else(|| quote! { None });
+
+                quote! {
+                    let #token_metadata_ident: Option<light_token_sdk::TokenMetadataInstructionData> = Some(
+                        light_token_sdk::TokenMetadataInstructionData {
+                            update_authority: #update_authority_expr,
+                            name: #name_expr,
+                            symbol: #symbol_expr,
+                            uri: #uri_expr,
+                            additional_metadata: #additional_metadata_expr,
+                        }
+                    );
+                }
+            } else {
+                quote! {
+                    let #token_metadata_ident: Option<light_token_sdk::TokenMetadataInstructionData> = None;
+                }
+            };
+
             quote! {
                 // Mint #idx: derive PDA and build params
                 let #signer_key_ident = *self.#mint_signer.to_account_info().key;
@@ -283,6 +388,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
 
                 let #mint_seeds_ident: &[&[u8]] = #mint_seeds;
                 #authority_seeds_binding
+                #token_metadata_binding
 
                 let __tree_info = &#address_tree_info;
 
@@ -297,6 +403,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                     mint_seed_pubkey: #signer_key_ident,
                     authority_seeds: #authority_seeds_ident,
                     mint_signer_seeds: Some(#mint_seeds_ident),
+                    token_metadata: #token_metadata_ident.as_ref(),
                 };
             }
         })

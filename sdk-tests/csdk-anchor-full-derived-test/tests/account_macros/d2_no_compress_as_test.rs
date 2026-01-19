@@ -222,7 +222,7 @@ fn test_pack_converts_pubkey_to_index() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts);
+    let packed = record.pack(&mut packed_accounts).unwrap();
 
     assert_eq!(packed.owner, 0u8);
     assert_eq!(packed.counter, 100);
@@ -248,8 +248,8 @@ fn test_pack_reuses_same_pubkey_index() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed1 = record1.pack(&mut packed_accounts);
-    let packed2 = record2.pack(&mut packed_accounts);
+    let packed1 = record1.pack(&mut packed_accounts).unwrap();
+    let packed2 = record2.pack(&mut packed_accounts).unwrap();
 
     assert_eq!(
         packed1.owner, packed2.owner,
@@ -274,8 +274,8 @@ fn test_pack_different_pubkeys_get_different_indices() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed1 = record1.pack(&mut packed_accounts);
-    let packed2 = record2.pack(&mut packed_accounts);
+    let packed1 = record1.pack(&mut packed_accounts).unwrap();
+    let packed2 = record2.pack(&mut packed_accounts).unwrap();
 
     assert_ne!(
         packed1.owner, packed2.owner,
@@ -300,8 +300,8 @@ fn test_pack_sets_compression_info_to_none() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed1 = record_with_info.pack(&mut packed_accounts);
-    let packed2 = record_without_info.pack(&mut packed_accounts);
+    let packed1 = record_with_info.pack(&mut packed_accounts).unwrap();
+    let packed2 = record_without_info.pack(&mut packed_accounts).unwrap();
 
     assert!(
         packed1.compression_info.is_none(),
@@ -333,8 +333,8 @@ fn test_pack_stores_pubkeys_in_packed_accounts() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed1 = record1.pack(&mut packed_accounts);
-    let packed2 = record2.pack(&mut packed_accounts);
+    let packed1 = record1.pack(&mut packed_accounts).unwrap();
+    let packed2 = record2.pack(&mut packed_accounts).unwrap();
 
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 2, "should have 2 pubkeys stored");
@@ -362,7 +362,7 @@ fn test_pack_index_assignment_order() {
             counter: 0,
             flag: false,
         };
-        let packed = record.pack(&mut packed_accounts);
+        let packed = record.pack(&mut packed_accounts).unwrap();
         indices.push(packed.owner);
     }
 

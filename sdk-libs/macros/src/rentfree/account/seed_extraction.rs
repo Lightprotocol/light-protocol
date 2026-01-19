@@ -497,18 +497,15 @@ pub fn classify_seed_expr(expr: &Expr) -> syn::Result<ClassifiedSeed> {
         // Reference like &account.key()
         Expr::Reference(r) => classify_seed_expr(&r.expr),
 
-        // Field access like params.owner - direct field reference
+        // Field access like params.owner or params.nested.owner - direct field reference
         Expr::Field(field) => {
             if let syn::Member::Named(field_name) = &field.member {
-                if let Expr::Path(path) = &*field.base {
-                    if let Some(base_ident) = path.path.get_ident() {
-                        if base_ident == "params" {
-                            return Ok(ClassifiedSeed::DataField {
-                                field_name: field_name.clone(),
-                                conversion: None,
-                            });
-                        }
-                    }
+                // Check if root of the expression is "params"
+                if is_params_rooted(&field.base) {
+                    return Ok(ClassifiedSeed::DataField {
+                        field_name: field_name.clone(),
+                        conversion: None,
+                    });
                 }
                 // ctx.field or account.field - treat as ctx account
                 return Ok(ClassifiedSeed::CtxAccount(field_name.clone()));
@@ -541,6 +538,38 @@ pub fn classify_seed_expr(expr: &Expr) -> syn::Result<ClassifiedSeed> {
             Ok(ClassifiedSeed::FunctionCall { func, ctx_args })
         }
 
+        // Index expression - handles two cases:
+        // 1. b"literal"[..] - converts [u8; N] to &[u8]
+        // 2. params.arrays[2] - array indexing on params field
+        Expr::Index(idx) => {
+            // Case 1: Check if the index is a full range (..) on byte literal
+            if let Expr::Range(range) = &*idx.index {
+                if range.start.is_none() && range.end.is_none() {
+                    // This is a full range [..], now check if expr is a byte string literal
+                    if let Expr::Lit(lit) = &*idx.expr {
+                        if let syn::Lit::ByteStr(bs) = &lit.lit {
+                            return Ok(ClassifiedSeed::Literal(bs.value()));
+                        }
+                    }
+                }
+            }
+
+            // Case 2: Array indexing on params field like params.arrays[2]
+            if is_params_rooted(&idx.expr) {
+                if let Some(field_name) = extract_terminal_field(&idx.expr) {
+                    return Ok(ClassifiedSeed::DataField {
+                        field_name,
+                        conversion: None,
+                    });
+                }
+            }
+
+            Err(syn::Error::new_spanned(
+                expr,
+                format!("Unsupported index expression in seeds: {:?}", expr),
+            ))
+        }
+
         _ => Err(syn::Error::new_spanned(
             expr,
             format!("Unsupported seed expression: {:?}", expr),
@@ -550,48 +579,41 @@ pub fn classify_seed_expr(expr: &Expr) -> syn::Result<ClassifiedSeed> {
 
 /// Classify a method call expression like account.key().as_ref()
 fn classify_method_call(mc: &syn::ExprMethodCall) -> syn::Result<ClassifiedSeed> {
-    // Unwrap .as_ref() or .as_bytes() at the end
-    if mc.method == "as_ref" || mc.method == "as_bytes" {
+    // Unwrap .as_ref(), .as_bytes(), or .as_slice() at the end - these are terminal conversions
+    if mc.method == "as_ref" || mc.method == "as_bytes" || mc.method == "as_slice" {
         return classify_seed_expr(&mc.receiver);
     }
 
-    // Handle params.field.to_le_bytes() directly
-    if mc.method == "to_le_bytes" || mc.method == "to_be_bytes" {
-        if let Some((field_name, base)) = extract_params_field(&mc.receiver) {
-            if base == "params" {
-                return Ok(ClassifiedSeed::DataField {
-                    field_name,
-                    conversion: Some(mc.method.clone()),
-                });
-            }
+    // Handle params.field.to_le_bytes() or params.nested.field.to_le_bytes()
+    if (mc.method == "to_le_bytes" || mc.method == "to_be_bytes") && is_params_rooted(&mc.receiver)
+    {
+        if let Some(field_name) = extract_terminal_field(&mc.receiver) {
+            return Ok(ClassifiedSeed::DataField {
+                field_name,
+                conversion: Some(mc.method.clone()),
+            });
         }
     }
 
     // Handle account.key()
     if mc.method == "key" {
         if let Some(ident) = extract_terminal_ident(&mc.receiver, false) {
-            // Check if it's params.field or ctx.account
-            if let Expr::Field(field) = &*mc.receiver {
-                if let Expr::Path(path) = &*field.base {
-                    if let Some(base_ident) = path.path.get_ident() {
-                        if base_ident == "params" {
-                            if let syn::Member::Named(field_name) = &field.member {
-                                return Ok(ClassifiedSeed::DataField {
-                                    field_name: field_name.clone(),
-                                    conversion: None,
-                                });
-                            }
-                        }
-                    }
+            // Check if it's rooted in params
+            if is_params_rooted(&mc.receiver) {
+                if let Some(field_name) = extract_terminal_field(&mc.receiver) {
+                    return Ok(ClassifiedSeed::DataField {
+                        field_name,
+                        conversion: None,
+                    });
                 }
             }
             return Ok(ClassifiedSeed::CtxAccount(ident));
         }
     }
 
-    // params.field.as_ref() directly
-    if let Some((field_name, base)) = extract_params_field(&mc.receiver) {
-        if base == "params" {
+    // params.field or params.nested.field - check for params-rooted access
+    if is_params_rooted(&mc.receiver) {
+        if let Some(field_name) = extract_terminal_field(&mc.receiver) {
             return Ok(ClassifiedSeed::DataField {
                 field_name,
                 conversion: None,
@@ -605,18 +627,38 @@ fn classify_method_call(mc: &syn::ExprMethodCall) -> syn::Result<ClassifiedSeed>
     ))
 }
 
-/// Extract field name from params.field or similar
-fn extract_params_field(expr: &Expr) -> Option<(Ident, String)> {
-    if let Expr::Field(field) = expr {
-        if let syn::Member::Named(field_name) = &field.member {
-            if let Expr::Path(path) = &*field.base {
-                if let Some(base_ident) = path.path.get_ident() {
-                    return Some((field_name.clone(), base_ident.to_string()));
-                }
+/// Check if an expression is rooted in "params" (handles nested access like params.nested.field)
+fn is_params_rooted(expr: &Expr) -> bool {
+    match expr {
+        Expr::Path(path) => path.path.get_ident().is_some_and(|ident| ident == "params"),
+        Expr::Field(field) => {
+            // Recursively check the base
+            is_params_rooted(&field.base)
+        }
+        Expr::Index(idx) => {
+            // For array indexing like params.arrays[2], check the base
+            is_params_rooted(&idx.expr)
+        }
+        _ => false,
+    }
+}
+
+/// Extract the terminal field name from a nested field access (e.g., params.nested.owner -> owner)
+fn extract_terminal_field(expr: &Expr) -> Option<Ident> {
+    match expr {
+        Expr::Field(field) => {
+            if let syn::Member::Named(field_name) = &field.member {
+                Some(field_name.clone())
+            } else {
+                None
             }
         }
+        Expr::Index(idx) => {
+            // For indexed access, get the field name from the base
+            extract_terminal_field(&idx.expr)
+        }
+        _ => None,
     }
-    None
 }
 
 /// Get data field names from classified seeds

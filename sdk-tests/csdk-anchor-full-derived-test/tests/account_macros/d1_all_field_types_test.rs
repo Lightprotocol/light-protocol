@@ -455,7 +455,7 @@ fn test_pack_converts_all_pubkey_types() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts);
+    let packed = record.pack(&mut packed_accounts).unwrap();
 
     // Direct Pubkey fields are converted to u8 indices
     assert_eq!(packed.owner, 0u8);
@@ -496,7 +496,7 @@ fn test_pack_with_option_pubkey_none() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts);
+    let packed = record.pack(&mut packed_accounts).unwrap();
 
     // Only three pubkeys should have been added
     assert_eq!(packed.owner, 0u8);
@@ -546,8 +546,8 @@ fn test_pack_reuses_pubkey_indices() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed1 = record1.pack(&mut packed_accounts);
-    let packed2 = record2.pack(&mut packed_accounts);
+    let packed1 = record1.pack(&mut packed_accounts).unwrap();
+    let packed2 = record2.pack(&mut packed_accounts).unwrap();
 
     // Same pubkeys should get same indices
     assert_eq!(packed1.owner, packed2.owner);
@@ -584,7 +584,7 @@ fn test_pack_preserves_non_pubkey_fields() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts);
+    let packed = record.pack(&mut packed_accounts).unwrap();
 
     // All non-Pubkey fields should be preserved
     assert_eq!(packed.name, name);

@@ -35,18 +35,18 @@ pub(super) fn derive_rentfree(input: &DeriveInput) -> Result<TokenStream, syn::E
 
     // Generate pre_init body based on what fields we have
     let pre_init = if builder.has_pdas() && builder.has_mints() {
-        builder.generate_pre_init_pdas_and_mints()
+        builder.generate_pre_init_pdas_and_mints()?
     } else if builder.has_mints() {
-        builder.generate_pre_init_mints_only()
+        builder.generate_pre_init_mints_only()?
     } else if builder.has_pdas() {
-        builder.generate_pre_init_pdas_only()
+        builder.generate_pre_init_pdas_only()?
     } else {
         quote! { Ok(false) }
     };
 
     // Generate trait implementations
-    let pre_init_impl = builder.generate_pre_init_impl(pre_init);
-    let finalize_impl = builder.generate_finalize_impl(quote! { Ok(()) });
+    let pre_init_impl = builder.generate_pre_init_impl(pre_init)?;
+    let finalize_impl = builder.generate_finalize_impl(quote! { Ok(()) })?;
 
     Ok(quote! {
         #pre_init_impl

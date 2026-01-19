@@ -82,17 +82,18 @@ where
     );
 
     if with_data {
-        account_data.compression_info_mut().set_compressed();
+        account_data.compression_info_mut()?.set_compressed();
     } else {
         account_data
-            .compression_info_mut()
+            .compression_info_mut()?
             .bump_last_claimed_slot()?;
     }
     {
         let mut data = account_info
             .try_borrow_mut_data()
             .map_err(|_| LightSdkError::ConstraintViolation)?;
-        account_data.serialize(&mut &mut data[..]).map_err(|e| {
+        // Skip the 8-byte Anchor discriminator when serializing
+        account_data.serialize(&mut &mut data[8..]).map_err(|e| {
             msg!("Failed to serialize account data: {}", e);
             LightSdkError::ConstraintViolation
         })?;
@@ -105,7 +106,7 @@ where
 
     if with_data {
         let mut compressed_data = account_data.clone();
-        compressed_data.set_compression_info_none();
+        compressed_data.set_compression_info_none()?;
         compressed_account.account = compressed_data;
     } else {
         compressed_account.remove_data();

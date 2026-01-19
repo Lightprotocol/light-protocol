@@ -79,7 +79,9 @@ pub fn assert_compression_info_returns_reference<
     T: HasCompressionInfo + CompressibleTestFactory,
 >() {
     let record = T::with_compression_info();
-    let info = record.compression_info();
+    let info = record
+        .compression_info()
+        .expect("compression_info should be Some");
     // Just verify we can access it - the default values
     assert_eq!(info.config_version, 0);
     assert_eq!(info.lamports_per_write, 0);
@@ -92,13 +94,27 @@ pub fn assert_compression_info_mut_allows_modification<
     let mut record = T::with_compression_info();
 
     {
-        let info = record.compression_info_mut();
+        let info = record
+            .compression_info_mut()
+            .expect("compression_info should be Some");
         info.config_version = 99;
         info.lamports_per_write = 1000;
     }
 
-    assert_eq!(record.compression_info().config_version, 99);
-    assert_eq!(record.compression_info().lamports_per_write, 1000);
+    assert_eq!(
+        record
+            .compression_info()
+            .expect("compression_info should be Some")
+            .config_version,
+        99
+    );
+    assert_eq!(
+        record
+            .compression_info()
+            .expect("compression_info should be Some")
+            .lamports_per_write,
+        1000
+    );
 }
 
 /// Verifies compression_info_mut_opt() returns a mutable reference to the Option.
@@ -128,28 +144,30 @@ pub fn assert_set_compression_info_none_works<T: HasCompressionInfo + Compressib
     // Verify it starts as Some
     assert!(record.compression_info_mut_opt().is_some());
 
-    record.set_compression_info_none();
+    record
+        .set_compression_info_none()
+        .expect("set_compression_info_none should succeed");
 
     // Verify it's now None
     assert!(record.compression_info_mut_opt().is_none());
 }
 
-/// Verifies compression_info() panics when compression_info is None.
-/// Call this from a test marked with `#[should_panic]`.
-pub fn assert_compression_info_panics_when_none<T: HasCompressionInfo + CompressibleTestFactory>() {
+/// Verifies compression_info() returns Err when compression_info is None.
+pub fn assert_compression_info_returns_err_when_none<
+    T: HasCompressionInfo + CompressibleTestFactory,
+>() {
     let record = T::without_compression_info();
-    // This should panic since compression_info is None
-    let _ = record.compression_info();
+    // This should return Err since compression_info is None
+    assert!(record.compression_info().is_err());
 }
 
-/// Verifies compression_info_mut() panics when compression_info is None.
-/// Call this from a test marked with `#[should_panic]`.
-pub fn assert_compression_info_mut_panics_when_none<
+/// Verifies compression_info_mut() returns Err when compression_info is None.
+pub fn assert_compression_info_mut_returns_err_when_none<
     T: HasCompressionInfo + CompressibleTestFactory,
 >() {
     let mut record = T::without_compression_info();
-    // This should panic since compression_info is None
-    let _ = record.compression_info_mut();
+    // This should return Err since compression_info is None
+    assert!(record.compression_info_mut().is_err());
 }
 
 // =============================================================================
@@ -191,7 +209,7 @@ pub fn assert_compress_as_returns_owned_cow<
 /// Verifies size() returns a positive value.
 pub fn assert_size_returns_positive<T: Size + CompressibleTestFactory>() {
     let record = T::with_compression_info();
-    let size = record.size();
+    let size = record.size().expect("size should succeed");
     assert!(size > 0, "size should be positive");
 }
 
@@ -200,8 +218,8 @@ pub fn assert_size_is_deterministic<T: Size + CompressibleTestFactory + Clone>()
     let record = T::with_compression_info();
     let record_clone = record.clone();
 
-    let size1 = record.size();
-    let size2 = record_clone.size();
+    let size1 = record.size().expect("size should succeed");
+    let size2 = record_clone.size().expect("size should succeed");
 
     assert_eq!(size1, size2, "size should be deterministic for same data");
 }
@@ -330,15 +348,13 @@ macro_rules! generate_trait_tests {
             }
 
             #[test]
-            #[should_panic]
-            fn test_compression_info_panics_when_none() {
-                assert_compression_info_panics_when_none::<$type>();
+            fn test_compression_info_returns_err_when_none() {
+                assert_compression_info_returns_err_when_none::<$type>();
             }
 
             #[test]
-            #[should_panic]
-            fn test_compression_info_mut_panics_when_none() {
-                assert_compression_info_mut_panics_when_none::<$type>();
+            fn test_compression_info_mut_returns_err_when_none() {
+                assert_compression_info_mut_returns_err_when_none::<$type>();
             }
         }
 

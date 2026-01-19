@@ -4,6 +4,7 @@ use light_sdk_types::{
     instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress, CpiSigner,
 };
 use solana_account_info::AccountInfo;
+use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
@@ -47,9 +48,19 @@ where
         crate::compressible::CompressibleConfig::load_checked(ctx.config(), program_id)?;
 
     if *ctx.rent_sponsor().key != compression_config.rent_sponsor {
+        msg!(
+            "invalid rent sponsor {:?} != {:?}, expected",
+            *ctx.rent_sponsor().key,
+            compression_config.rent_sponsor
+        );
         return Err(ProgramError::Custom(0));
     }
     if *ctx.compression_authority().key != compression_config.compression_authority {
+        msg!(
+            "invalid rent sponsor {:?} != {:?}, expected",
+            *ctx.compression_authority().key,
+            compression_config.compression_authority
+        );
         return Err(ProgramError::Custom(0));
     }
 

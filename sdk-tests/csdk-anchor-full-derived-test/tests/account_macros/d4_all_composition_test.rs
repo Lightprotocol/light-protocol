@@ -364,7 +364,7 @@ fn test_pack_converts_all_pubkeys_to_indices() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts);
+    let packed = record.pack(&mut packed_accounts).unwrap();
 
     // Direct Pubkey fields are converted to u8 indices
     assert_eq!(packed.owner, 0u8); // First pubkey
@@ -400,7 +400,7 @@ fn test_pack_does_not_apply_compress_as_overrides() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts);
+    let packed = record.pack(&mut packed_accounts).unwrap();
 
     // Pack preserves field values - compress_as overrides are NOT applied
     assert_eq!(packed.cached_time, 999, "pack preserves cached_time value");
@@ -436,7 +436,7 @@ fn test_compress_as_then_pack_applies_overrides() {
     // Chain compress_as() then pack()
     let compressed = record.compress_as();
     let mut packed_accounts = PackedAccounts::default();
-    let packed = compressed.pack(&mut packed_accounts);
+    let packed = compressed.pack(&mut packed_accounts).unwrap();
 
     // compress_as overrides ARE applied when chained
     assert_eq!(
@@ -476,7 +476,7 @@ fn test_pack_preserves_start_time_without_override() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts);
+    let packed = record.pack(&mut packed_accounts).unwrap();
 
     assert_eq!(
         packed.start_time, start_time_value,
@@ -509,7 +509,7 @@ fn test_pack_reuses_duplicate_pubkeys_for_direct_fields() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record1.pack(&mut packed_accounts);
+    let packed = record1.pack(&mut packed_accounts).unwrap();
 
     // owner and delegate are the same pubkey, should get the same index
     assert_eq!(
@@ -547,7 +547,7 @@ fn test_pack_sets_compression_info_to_none() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts);
+    let packed = record.pack(&mut packed_accounts).unwrap();
 
     assert!(
         packed.compression_info.is_none(),

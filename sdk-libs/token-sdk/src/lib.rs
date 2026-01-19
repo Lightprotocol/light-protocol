@@ -78,4 +78,8 @@ use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSeria
 pub use light_compressed_account::instruction_data::compressed_proof::{
     CompressedProof, ValidityProof,
 };
+pub use light_token_interface::{
+    instructions::extensions::{ExtensionInstructionData, TokenMetadataInstructionData},
+    state::AdditionalMetadata,
+};
 pub use pack::compat;

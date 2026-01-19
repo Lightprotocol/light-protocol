@@ -23,6 +23,7 @@ pub trait InstructionDiscriminator {
 pub trait LightInstructionData: InstructionDiscriminator + AnchorSerialize {
     #[cfg(feature = "alloc")]
     #[profile]
+    #[inline(never)]
     fn data(&self) -> Result<crate::Vec<u8>, CompressedAccountError> {
         let inputs = AnchorSerialize::try_to_vec(self)
             .map_err(|_| CompressedAccountError::InvalidArgument)?;

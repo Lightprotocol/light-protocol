@@ -53,9 +53,10 @@ pub fn seed_element_to_ref_expr(seed: &SeedElement, config: &SeedConversionConfi
                 }
             }
 
-            // Handle uppercase constants
+            // Handle uppercase constants (single-segment and multi-segment paths)
             if let syn::Expr::Path(path_expr) = &**expr {
                 if let Some(ident) = path_expr.path.get_ident() {
+                    // Single-segment path like AUTH_SEED
                     let ident_str = ident.to_string();
                     if is_constant_identifier(&ident_str) {
                         if config.handle_light_cpi_signer && ident_str == "LIGHT_CPI_SIGNER" {
@@ -63,6 +64,12 @@ pub fn seed_element_to_ref_expr(seed: &SeedElement, config: &SeedConversionConfi
                         } else {
                             return quote! { { let __seed: &[u8] = crate::#ident.as_ref(); __seed } };
                         }
+                    }
+                } else if let Some(last_seg) = path_expr.path.segments.last() {
+                    // Multi-segment path like crate::AUTH_SEED
+                    if is_constant_identifier(&last_seg.ident.to_string()) {
+                        let path = &path_expr.path;
+                        return quote! { { let __seed: &[u8] = #path.as_ref(); __seed } };
                     }
                 }
             }
@@ -74,8 +81,8 @@ pub fn seed_element_to_ref_expr(seed: &SeedElement, config: &SeedConversionConfi
                 }
             }
 
-            // Fallback
-            quote! { (#expr).as_ref() }
+            // Fallback - wrap in type-annotated block to ensure type inference succeeds
+            quote! { { let __seed: &[u8] = (#expr).as_ref(); __seed } }
         }
     }
 }

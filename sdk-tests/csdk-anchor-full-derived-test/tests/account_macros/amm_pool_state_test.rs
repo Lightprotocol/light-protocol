@@ -295,7 +295,7 @@ fn test_pack_converts_all_10_pubkeys_to_indices() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = pool.pack(&mut packed_accounts);
+    let packed = pool.pack(&mut packed_accounts).unwrap();
 
     // All 10 pubkeys should have been added and assigned indices 0-9
     assert_eq!(packed.amm_config, 0u8);
@@ -349,7 +349,7 @@ fn test_pack_reuses_same_pubkey_indices() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = pool.pack(&mut packed_accounts);
+    let packed = pool.pack(&mut packed_accounts).unwrap();
 
     // Same pubkey should get same index
     assert_eq!(
@@ -388,7 +388,7 @@ fn test_pack_preserves_numeric_fields() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = pool.pack(&mut packed_accounts);
+    let packed = pool.pack(&mut packed_accounts).unwrap();
 
     assert_eq!(packed.auth_bump, 127);
     assert_eq!(packed.status, 2);
@@ -435,7 +435,7 @@ fn test_pack_sets_compression_info_to_none() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = pool_with_info.pack(&mut packed_accounts);
+    let packed = pool_with_info.pack(&mut packed_accounts).unwrap();
 
     assert!(
         packed.compression_info.is_none(),
@@ -500,8 +500,8 @@ fn test_pack_different_pubkeys_get_different_indices() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed1 = pool1.pack(&mut packed_accounts);
-    let packed2 = pool2.pack(&mut packed_accounts);
+    let packed1 = pool1.pack(&mut packed_accounts).unwrap();
+    let packed2 = pool2.pack(&mut packed_accounts).unwrap();
 
     // Different pubkeys should get different indices
     assert_ne!(
@@ -553,7 +553,7 @@ fn test_pack_stores_all_pubkeys_in_packed_accounts() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let _packed = pool.pack(&mut packed_accounts);
+    let _packed = pool.pack(&mut packed_accounts).unwrap();
 
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 10, "should have 10 pubkeys stored");

@@ -107,6 +107,14 @@ pub enum LightSdkError {
     ExpectedSelfProgram,
     #[error("Expected CPI context to be provided")]
     ExpectedCpiContext,
+    #[error("Account missing compression_info field")]
+    MissingCompressionInfo,
+    #[error("Cannot access compression_info on packed variant")]
+    PackedVariantCompressionInfo,
+    #[error("CToken variant does not support compression_info operations")]
+    CTokenCompressionInfo,
+    #[error("Unexpected unpacked variant during decompression")]
+    UnexpectedUnpackedVariant,
 }
 
 impl From<LightSdkError> for ProgramError {
@@ -196,6 +204,10 @@ impl From<LightSdkError> for u32 {
             LightSdkError::ExpectedTreeInfo => 16041,
             LightSdkError::ExpectedSelfProgram => 16042,
             LightSdkError::ExpectedCpiContext => 16043,
+            LightSdkError::MissingCompressionInfo => 16044,
+            LightSdkError::PackedVariantCompressionInfo => 16045,
+            LightSdkError::CTokenCompressionInfo => 16046,
+            LightSdkError::UnexpectedUnpackedVariant => 16047,
         }
     }
 }

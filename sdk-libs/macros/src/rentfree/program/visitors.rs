@@ -494,7 +494,7 @@ pub fn generate_client_seed_code(
         }
 
         ClientSeedInfo::RawExpr(expr) => {
-            expressions.push(quote! { (#expr).as_ref() });
+            expressions.push(quote! { { let __seed: &[u8] = (#expr).as_ref(); __seed } });
         }
     }
     Ok(())

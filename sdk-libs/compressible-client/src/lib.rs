@@ -480,7 +480,7 @@ pub mod compressible_instruction {
                 "Tree info index out of bounds - compressed_accounts length must match validity proof accounts length",
             )?;
 
-            let packed_data = data.pack(&mut remaining_accounts);
+            let packed_data = data.pack(&mut remaining_accounts)?;
             typed_compressed_accounts.push(CompressedAccountData {
                 meta: CompressedAccountMetaNoLamportsNoAddress {
                     tree_info,
