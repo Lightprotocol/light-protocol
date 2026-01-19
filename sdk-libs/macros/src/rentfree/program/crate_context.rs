@@ -14,66 +14,6 @@ use std::{
 use syn::{Item, ItemStruct};
 
 // // =============================================================================
-// // CRATE CONTEXT BUILDER
-// // =============================================================================
-
-// /// Builder for constructing `CrateContext` with optional configuration.
-// ///
-// /// Provides a fluent API for setting up the crate parsing configuration.
-// /// This builder is available for future use when programs need to customize
-// /// crate context parsing (e.g., from a specific path instead of CARGO_MANIFEST_DIR).
-// #[allow(dead_code)]
-// pub struct CrateContextBuilder {
-//     /// Root path to parse from (if not using manifest)
-//     root_path: Option<PathBuf>,
-//     /// Whether to use CARGO_MANIFEST_DIR
-//     use_manifest: bool,
-// }
-
-// impl Default for CrateContextBuilder {
-//     fn default() -> Self {
-//         Self::new()
-//     }
-// }
-
-// #[allow(dead_code)]
-// impl CrateContextBuilder {
-//     /// Create a new builder with default configuration.
-//     pub fn new() -> Self {
-//         Self {
-//             root_path: None,
-//             use_manifest: false,
-//         }
-//     }
-
-//     /// Configure to parse from CARGO_MANIFEST_DIR.
-//     ///
-//     /// This is the most common usage for proc macros.
-//     pub fn from_manifest(mut self) -> Self {
-//         self.use_manifest = true;
-//         self.root_path = None;
-//         self
-//     }
-
-//     /// Configure to parse from a specific path.
-//     pub fn from_path(mut self, path: impl Into<PathBuf>) -> Self {
-//         self.root_path = Some(path.into());
-//         self.use_manifest = false;
-//         self
-//     }
-
-//     /// Build the CrateContext by parsing all modules.
-//     pub fn build(self) -> syn::Result<CrateContext> {
-//         if self.use_manifest {
-//             CrateContext::parse_from_manifest()
-//         } else if let Some(path) = self.root_path {
-//             CrateContext::parse(&path)
-//         } else {
-//             // Default to manifest if nothing specified
-//             CrateContext::parse_from_manifest()
-//         }
-//     }
-// }
 
 // =============================================================================
 // CRATE CONTEXT
