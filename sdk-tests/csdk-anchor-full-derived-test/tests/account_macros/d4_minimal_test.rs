@@ -9,7 +9,7 @@
 
 use csdk_anchor_full_derived_test::MinimalRecord;
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::compressible::{CompressAs, CompressionInfo};
+use light_sdk::interface::{CompressAs, CompressionInfo};
 
 use super::shared::CompressibleTestFactory;
 use crate::generate_trait_tests;

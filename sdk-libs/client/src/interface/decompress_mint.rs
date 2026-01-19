@@ -1,91 +1,77 @@
-//! Mint interface types for hot/cold CMint handling.
-//!
-//! Use `AccountInterfaceExt::get_mint_interface()` to fetch,
-//! then pass to `create_load_accounts_instructions()` for decompression.
+//! Mint interface types for hot/cold handling.
 
 use borsh::BorshDeserialize;
-use light_client::indexer::{CompressedAccount, Indexer, ValidityProofWithContext};
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 use light_token_interface::{
     instructions::mint_action::{MintInstructionData, MintWithContext},
     state::Mint,
-    CMINT_ADDRESS_TREE,
+    MINT_ADDRESS_TREE,
 };
-use light_token_sdk::token::{derive_mint_compressed_address, find_mint_address, DecompressMint};
+use light_token_sdk::token::{derive_mint_compressed_address, DecompressMint};
 use solana_account::Account;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 use thiserror::Error;
 
-/// Error type for decompress mint operations.
+use crate::indexer::{CompressedAccount, Indexer, ValidityProofWithContext};
+
+/// Error type for mint load operations.
 #[derive(Debug, Error)]
 pub enum DecompressMintError {
-    #[error("Compressed mint not found for signer {signer:?}")]
-    MintNotFound { signer: Pubkey },
+    #[error("Mint not found for address {address:?}")]
+    MintNotFound { address: Pubkey },
 
-    #[error("Missing compressed mint data in account")]
+    #[error("Missing mint data in cold account")]
     MissingMintData,
 
     #[error("Program error: {0}")]
     ProgramError(#[from] solana_program_error::ProgramError),
 
-    #[error("Mint already decompressed")]
+    #[error("Mint already hot")]
     AlreadyDecompressed,
 
     #[error("Validity proof required for cold mint")]
     ProofRequired,
 
     #[error("Indexer error: {0}")]
-    IndexerError(#[from] light_client::indexer::IndexerError),
+    IndexerError(#[from] crate::indexer::IndexerError),
 }
 
-/// State of a CMint - either on-chain (hot), compressed (cold), or non-existent.
+/// Mint state: hot (on-chain), cold (compressed), or none.
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum MintState {
-    /// CMint exists on-chain - no decompression needed.
+    /// On-chain.
     Hot { account: Account },
-    /// CMint is compressed - needs decompression.
+    /// Compressed.
     Cold {
         compressed: CompressedAccount,
         mint_data: Mint,
     },
-    /// CMint doesn't exist (neither on-chain nor compressed).
+    /// Doesn't exist.
     None,
 }
 
-/// Interface for a CMint that provides all info needed for decompression.
-///
-/// Fetch via `rpc.get_mint_interface(&signer)`, then pass to
-/// `create_load_accounts_instructions()` for decompression.
+/// Mint interface for hot/cold handling.
 #[derive(Debug, Clone)]
 pub struct MintInterface {
-    /// The CMint PDA pubkey.
-    pub cmint: Pubkey,
-    /// The mint signer pubkey (used to derive CMint).
-    pub signer: Pubkey,
-    /// Address tree where compressed mint lives.
+    pub mint: Pubkey,
     pub address_tree: Pubkey,
-    /// Compressed address (for proof).
     pub compressed_address: [u8; 32],
-    /// Current state of the CMint.
     pub state: MintState,
 }
 
 impl MintInterface {
-    /// Returns true if this CMint needs decompression (is cold).
     #[inline]
     pub fn is_cold(&self) -> bool {
         matches!(self.state, MintState::Cold { .. })
     }
 
-    /// Returns true if this CMint exists on-chain (is hot).
     #[inline]
     pub fn is_hot(&self) -> bool {
         matches!(self.state, MintState::Hot { .. })
     }
 
-    /// Returns the compressed account hash if cold.
     pub fn hash(&self) -> Option<[u8; 32]> {
         match &self.state {
             MintState::Cold { compressed, .. } => Some(compressed.hash),
@@ -93,7 +79,6 @@ impl MintInterface {
         }
     }
 
-    /// Returns the on-chain account if hot.
     pub fn account(&self) -> Option<&Account> {
         match &self.state {
             MintState::Hot { account } => Some(account),
@@ -101,7 +86,6 @@ impl MintInterface {
         }
     }
 
-    /// Returns the compressed account and mint data if cold.
     pub fn compressed(&self) -> Option<(&CompressedAccount, &Mint)> {
         match &self.state {
             MintState::Cold {
@@ -113,26 +97,10 @@ impl MintInterface {
     }
 }
 
-/// Default rent payment in epochs (~24 hours per epoch)
 pub const DEFAULT_RENT_PAYMENT: u8 = 2;
-/// Default write top-up lamports (~3 hours rent per write)
 pub const DEFAULT_WRITE_TOP_UP: u32 = 766;
 
-/// Builds decompress instruction for a CMint synchronously.
-///
-/// This is a high-performance API for apps that pre-fetch mint state.
-/// Returns empty vec if mint is hot (on-chain) - fast exit.
-///
-/// # Arguments
-/// * `mint` - Pre-fetched MintInterface (from `get_mint_interface`)
-/// * `fee_payer` - Fee payer pubkey
-/// * `validity_proof` - Proof for cold mint (required if cold, ignored if hot)
-/// * `rent_payment` - Rent payment in epochs (default: 2)
-/// * `write_top_up` - Lamports for future writes (default: 766)
-///
-/// # Returns
-/// * Vec with single decompress instruction
-/// * Empty vec if mint is hot
+/// Builds load instruction for a cold mint. Returns empty vec if already hot.
 pub fn build_decompress_mint(
     mint: &MintInterface,
     fee_payer: Pubkey,
@@ -196,19 +164,7 @@ pub fn build_decompress_mint(
     Ok(vec![ix])
 }
 
-/// High-performance wrapper: decompress pre-fetched mint.
-///
-/// Takes pre-fetched `MintInterface`, fetches proof internally, builds instruction.
-/// Returns empty vec if mint is hot (on-chain) - fast exit.
-///
-/// # Example
-/// ```ignore
-/// // Pre-fetch mint state
-/// let mint = rpc.get_mint_interface(&signer).await?;
-///
-/// // Decompress if cold (fetches proof internally)
-/// let instructions = decompress_mint(&mint, fee_payer, &rpc).await?;
-/// ```
+/// Load (decompress) a pre-fetched mint. Returns empty vec if already hot.
 pub async fn decompress_mint<I: Indexer>(
     mint: &MintInterface,
     fee_payer: Pubkey,
@@ -237,18 +193,12 @@ pub async fn decompress_mint<I: Indexer>(
     build_decompress_mint(mint, fee_payer, Some(proof), None, None)
 }
 
-/// Request to decompress a compressed CMint.
+/// Request to load (decompress) a cold mint.
 #[derive(Debug, Clone)]
 pub struct DecompressMintRequest {
-    /// The seed pubkey used to derive the CMint PDA.
-    /// This is the same value passed as `mint_signer` when the mint was created.
     pub mint_seed_pubkey: Pubkey,
-    /// Address tree where the compressed mint was created.
-    /// If None, uses the default cmint address tree.
     pub address_tree: Option<Pubkey>,
-    /// Rent payment in epochs (must be 0 or >= 2). Default: 2
     pub rent_payment: Option<u8>,
-    /// Lamports for future write operations. Default: 766
     pub write_top_up: Option<u32>,
 }
 
@@ -278,10 +228,7 @@ impl DecompressMintRequest {
     }
 }
 
-/// Decompresses a compressed Mint to an on-chain Mint Solana account.
-///
-/// This is permissionless - any fee_payer can decompress any compressed mint.
-/// Returns empty vec if already decompressed (idempotent).
+/// Loads (decompresses) a cold mint to on-chain. Idempotent.
 pub async fn decompress_mint_idempotent<I: Indexer>(
     request: DecompressMintRequest,
     fee_payer: Pubkey,
@@ -290,27 +237,26 @@ pub async fn decompress_mint_idempotent<I: Indexer>(
     // 1. Derive addresses
     let address_tree = request
         .address_tree
-        .unwrap_or(Pubkey::new_from_array(CMINT_ADDRESS_TREE));
+        .unwrap_or(Pubkey::new_from_array(MINT_ADDRESS_TREE));
     let compressed_address =
         derive_mint_compressed_address(&request.mint_seed_pubkey, &address_tree);
 
-    // 2. Fetch compressed mint account from indexer
+    // 2. Fetch cold mint from indexer
     let compressed_account = indexer
         .get_compressed_account(compressed_address, None)
         .await?
         .value
         .ok_or(DecompressMintError::MintNotFound {
-            signer: request.mint_seed_pubkey,
+            address: request.mint_seed_pubkey,
         })?;
 
-    // 3. Check if data is empty (already decompressed - empty shell remains)
-    // After decompression, the compressed account has empty data but the address persists.
+    // 3. Check if data is empty (already hot)
     let data = match compressed_account.data.as_ref() {
         Some(d) if !d.data.is_empty() => d,
         _ => return Ok(vec![]), // Empty data = already decompressed (idempotent)
     };
 
-    // 4. Parse mint data from compressed account
+    // 4. Parse mint data from cold account
     let mint_data =
         Mint::try_from_slice(&data.data).map_err(|_| DecompressMintError::MissingMintData)?;
 
@@ -337,8 +283,6 @@ pub async fn decompress_mint_idempotent<I: Indexer>(
         .unwrap_or(input_queue);
 
     // 7. Build MintWithContext
-    // NOTE: prove_by_index and leaf_index come from account_info (the proof), not compressed_account
-    // The query may have stale values, but the proof is authoritative.
     let mint_instruction_data = MintInstructionData::try_from(mint_data)
         .map_err(|_| DecompressMintError::MissingMintData)?;
 
@@ -369,16 +313,18 @@ pub async fn decompress_mint_idempotent<I: Indexer>(
     Ok(vec![ix])
 }
 
-/// Derive MintInterface from signer pubkey and on-chain/compressed state.
-/// Helper for creating MintInterface when you have the data.
+/// Create MintInterface from mint address and state data.
 pub fn create_mint_interface(
-    signer: Pubkey,
+    address: Pubkey,
     address_tree: Pubkey,
     onchain_account: Option<Account>,
     compressed: Option<(CompressedAccount, Mint)>,
 ) -> MintInterface {
-    let (cmint, _) = find_mint_address(&signer);
-    let compressed_address = derive_mint_compressed_address(&signer, &address_tree);
+    let compressed_address = light_compressed_account::address::derive_address(
+        &address.to_bytes(),
+        &address_tree.to_bytes(),
+        &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
+    );
 
     let state = if let Some(account) = onchain_account {
         MintState::Hot { account }
@@ -392,8 +338,7 @@ pub fn create_mint_interface(
     };
 
     MintInterface {
-        cmint,
-        signer,
+        mint: address,
         address_tree,
         compressed_address,
         state,

@@ -16,7 +16,7 @@ use light_token_interface::{
         },
     },
     state::MintMetadata,
-    CMINT_ADDRESS_TREE,
+    MINT_ADDRESS_TREE,
 };
 use light_zero_copy::traits::ZeroCopyAt;
 use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
@@ -132,7 +132,7 @@ fn random_cpi_context(rng: &mut StdRng) -> CpiContext {
         token_out_queue_index: rng.gen::<u8>(),
         assigned_account_index: rng.gen::<u8>(),
         read_only_address_trees: [0u8; 4],
-        address_tree_pubkey: CMINT_ADDRESS_TREE,
+        address_tree_pubkey: MINT_ADDRESS_TREE,
     }
 }
 

@@ -86,10 +86,7 @@ impl CompressionInfo {
     /// Rent sponsor is always the config's rent_sponsor (not stored per-account).
     /// This means rent always flows to the protocol's rent pool upon compression,
     /// regardless of who paid for account creation.
-    pub fn new_from_config(
-        cfg: &crate::compressible::CompressibleConfig,
-        current_slot: u64,
-    ) -> Self {
+    pub fn new_from_config(cfg: &crate::interface::LightConfig, current_slot: u64) -> Self {
         Self {
             config_version: cfg.version as u16,
             lamports_per_write: cfg.write_top_up,

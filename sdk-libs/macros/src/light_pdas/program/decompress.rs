@@ -93,7 +93,7 @@ impl DecompressBuilder {
                 compressed_accounts: Vec<LightAccountData>,
                 system_accounts_offset: u8,
             ) -> Result<()> {
-                light_sdk::compressible::process_decompress_accounts_idempotent(
+                light_sdk::interface::process_decompress_accounts_idempotent(
                     accounts,
                     remaining_accounts,
                     compressed_accounts,
@@ -223,7 +223,7 @@ impl DecompressBuilder {
                 quote! {
                     #ctx_seeds_struct
 
-                    impl light_sdk::compressible::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
+                    impl light_sdk::interface::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
                         fn derive_pda_seeds_with_accounts(
                             &self,
                             program_id: &solana_pubkey::Pubkey,
@@ -238,7 +238,7 @@ impl DecompressBuilder {
                 quote! {
                     #ctx_seeds_struct
 
-                    impl light_sdk::compressible::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
+                    impl light_sdk::interface::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
                         fn derive_pda_seeds_with_accounts(
                             &self,
                             program_id: &solana_pubkey::Pubkey,

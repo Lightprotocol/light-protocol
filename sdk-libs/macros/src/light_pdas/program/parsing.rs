@@ -409,7 +409,7 @@ pub fn wrap_function_with_light(fn_item: &ItemFn, params_ident: &Ident) -> ItemF
         #(#fn_attrs)*
         #fn_vis #fn_sig {
             // Phase 1: Pre-init (creates mints via CPI context write, registers compressed addresses)
-            use light_sdk::compressible::{LightPreInit, LightFinalize};
+            use light_sdk::interface::{LightPreInit, LightFinalize};
             let _ = ctx.accounts.light_pre_init(ctx.remaining_accounts, &#params_ident)
                 .map_err(|e: light_sdk::error::LightSdkError| -> solana_program_error::ProgramError {
                     e.into()

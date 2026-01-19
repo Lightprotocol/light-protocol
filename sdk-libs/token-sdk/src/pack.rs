@@ -13,7 +13,7 @@ use crate::{AnchorDeserialize, AnchorSerialize};
 
 // Note: We define Pack/Unpack traits locally to circumvent the orphan rule.
 // This allows implementing them for external types like TokenData from ctoken-interface.
-// The sdk has identical trait definitions in light_sdk::compressible.
+// The sdk has identical trait definitions in light_sdk::interface.
 pub trait Pack {
     type Packed;
     fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Result<Self::Packed, ProgramError>;

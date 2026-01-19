@@ -85,7 +85,7 @@ pub fn generate_ctoken_seed_provider_implementation(
 
     // Phase 8: New trait signature - no ctx/accounts parameter needed
     Ok(quote! {
-        impl light_sdk::compressible::TokenSeedProvider for TokenAccountVariant {
+        impl light_sdk::interface::TokenSeedProvider for TokenAccountVariant {
             fn get_seeds(
                 &self,
                 program_id: &solana_pubkey::Pubkey,

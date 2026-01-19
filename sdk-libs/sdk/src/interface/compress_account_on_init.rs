@@ -35,7 +35,7 @@ use crate::{
 pub fn prepare_compressed_account_on_init<'info, A>(
     account_info: &AccountInfo<'info>,
     account_data: &mut A,
-    compression_config: &crate::compressible::CompressibleConfig,
+    compression_config: &crate::interface::LightConfig,
     address: [u8; 32],
     new_address_param: NewAddressParamsAssignedPacked,
     output_state_tree_index: u8,

@@ -54,7 +54,7 @@ See also: `#[light_account(init)]` attribute documented in `rentfree.md`
     +-- Discovers #[derive(LightAccounts)] structs
     |
     +-- Generates:
-        - RentFreeAccountVariant enum
+        - LightAccountVariant enum
         - Seeds structs
         - Compress/Decompress instructions
         - Config instructions

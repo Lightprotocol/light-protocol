@@ -19,7 +19,7 @@ use light_token_interface::{
         AdditionalMetadata, AdditionalMetadataConfig, BaseMint, CompressionInfo, ExtensionStruct,
         Mint, MintMetadata, TokenMetadata, ZExtensionStruct, ZMint, ACCOUNT_TYPE_MINT,
     },
-    CMINT_ADDRESS_TREE, COMPRESSED_MINT_SEED, LIGHT_TOKEN_PROGRAM_ID,
+    COMPRESSED_MINT_SEED, LIGHT_TOKEN_PROGRAM_ID, MINT_ADDRESS_TREE,
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 use rand::Rng;
@@ -72,7 +72,7 @@ fn test_rnd_create_compressed_mint_account() {
         // Derive compressed account address using the same constants as compressed_address() method
         let compressed_account_address = derive_address(
             &mint_pda.to_bytes(),
-            &CMINT_ADDRESS_TREE,
+            &MINT_ADDRESS_TREE,
             &LIGHT_TOKEN_PROGRAM_ID,
         );
 

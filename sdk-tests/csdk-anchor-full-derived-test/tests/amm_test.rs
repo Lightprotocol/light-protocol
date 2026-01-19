@@ -10,30 +10,26 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
-use csdk_anchor_full_derived_test::{
-    amm_test::{
-        InitializeParams, AUTH_SEED, OBSERVATION_SEED, POOL_LP_MINT_SIGNER_SEED, POOL_SEED,
-        POOL_VAULT_SEED,
-    },
-    csdk_anchor_full_derived_test::{ObservationStateSeeds, PoolStateSeeds, TokenAccountVariant},
+use csdk_anchor_full_derived_test::amm_test::{
+    InitializeParams, AUTH_SEED, OBSERVATION_SEED, POOL_LP_MINT_SIGNER_SEED, POOL_SEED,
+    POOL_VAULT_SEED,
 };
-use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
+// SDK for AmmSdk-based approach
+use csdk_anchor_full_derived_test_sdk::{AmmInstruction, AmmSdk};
+use light_client::interface::{
+    create_load_instructions, get_create_accounts_proof, AccountInterfaceExt,
+    CreateAccountsProofInput, InitializeRentFreeConfig, LightProgramInterface,
+};
 use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_compressible_client::{
-    create_load_accounts_instructions, get_create_accounts_proof, AccountInterface,
-    AccountInterfaceExt, CreateAccountsProofInput, InitializeRentFreeConfig,
-    RentFreeDecompressAccount,
-};
 use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
 };
-use light_token_interface::{instructions::mint_action::MintInstructionData, state::Token};
+use light_token_interface::state::Token;
 use light_token_sdk::token::{
-    find_mint_address, get_associated_token_address_and_bump, CreateAssociatedTokenAccount,
-    Decompress, DecompressMint, MintWithContext, COMPRESSIBLE_CONFIG_V1, LIGHT_TOKEN_CPI_AUTHORITY,
-    LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
+    find_mint_address, get_associated_token_address_and_bump, COMPRESSIBLE_CONFIG_V1,
+    LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
 };
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
@@ -41,10 +37,6 @@ use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
 const RENT_SPONSOR: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
-
-// =============================================================================
-// Assertion Helpers
-// =============================================================================
 
 async fn assert_onchain_exists(rpc: &mut LightProgramTest, pda: &Pubkey) {
     assert!(
@@ -297,14 +289,8 @@ fn derive_amm_pdas(
 /// AMM full lifecycle integration test
 #[tokio::test]
 async fn test_amm_full_lifecycle() {
-    // ==========================================================================
-    // PHASE 1: Setup
-    // ==========================================================================
     let mut ctx = setup().await;
 
-    // ==========================================================================
-    // PHASE 2: Derive PDAs
-    // ==========================================================================
     let pdas = derive_amm_pdas(
         &ctx.program_id,
         &ctx.amm_config.pubkey(),
@@ -313,19 +299,6 @@ async fn test_amm_full_lifecycle() {
         &ctx.creator.pubkey(),
     );
 
-    println!("Derived PDAs:");
-    println!("  pool_state: {}", pdas.pool_state);
-    println!("  observation_state: {}", pdas.observation_state);
-    println!("  authority: {}", pdas.authority);
-    println!("  token_0_vault: {}", pdas.token_0_vault);
-    println!("  token_1_vault: {}", pdas.token_1_vault);
-    println!("  lp_mint_signer: {}", pdas.lp_mint_signer);
-    println!("  lp_mint: {}", pdas.lp_mint);
-    println!("  creator_lp_token: {}", pdas.creator_lp_token);
-
-    // ==========================================================================
-    // PHASE 3: Get create accounts proof
-    // ==========================================================================
     let proof_result = get_create_accounts_proof(
         &ctx.rpc,
         &ctx.program_id,
@@ -338,9 +311,6 @@ async fn test_amm_full_lifecycle() {
     .await
     .unwrap();
 
-    // ==========================================================================
-    // PHASE 4: Initialize Pool
-    // ==========================================================================
     let init_amount_0 = 1000u64;
     let init_amount_1 = 1000u64;
     let open_time = 0u64;
@@ -406,9 +376,6 @@ async fn test_amm_full_lifecycle() {
         .await
         .expect("Initialize pool should succeed");
 
-    // ==========================================================================
-    // PHASE 5: Verify Initial State (assert_after_initialize)
-    // ==========================================================================
     assert_onchain_exists(&mut ctx.rpc, &pdas.pool_state).await;
     assert_onchain_exists(&mut ctx.rpc, &pdas.observation_state).await;
     assert_onchain_exists(&mut ctx.rpc, &pdas.lp_mint).await;
@@ -416,7 +383,6 @@ async fn test_amm_full_lifecycle() {
     assert_onchain_exists(&mut ctx.rpc, &pdas.token_1_vault).await;
     assert_onchain_exists(&mut ctx.rpc, &pdas.creator_lp_token).await;
 
-    // Verify creator LP token balance (should have initial LP amount from initialize)
     let lp_token_data = parse_token(
         &ctx.rpc
             .get_account(pdas.creator_lp_token)
@@ -430,11 +396,8 @@ async fn test_amm_full_lifecycle() {
         initial_lp_balance > 0,
         "Creator should have received LP tokens"
     );
-    println!("Initial LP balance: {}", initial_lp_balance);
 
-    // ==========================================================================
-    // PHASE 6: Deposit
-    // ==========================================================================
+    // Deposit
     let deposit_amount = 500u64;
 
     let deposit_accounts = csdk_anchor_full_derived_test::accounts::Deposit {
@@ -473,7 +436,7 @@ async fn test_amm_full_lifecycle() {
         .await
         .expect("Deposit should succeed");
 
-    // Verify LP balance after deposit (assert_after_deposit)
+    // Verify LP balance after deposit
     let lp_token_data_after_deposit = parse_token(
         &ctx.rpc
             .get_account(pdas.creator_lp_token)
@@ -487,14 +450,8 @@ async fn test_amm_full_lifecycle() {
         lp_token_data_after_deposit.amount, expected_balance_after_deposit,
         "LP balance should increase after deposit"
     );
-    println!(
-        "LP balance after deposit: {} (expected: {})",
-        lp_token_data_after_deposit.amount, expected_balance_after_deposit
-    );
 
-    // ==========================================================================
-    // PHASE 7: Withdraw
-    // ==========================================================================
+    // Withdraw
     let withdraw_amount = 200u64;
 
     let withdraw_accounts = csdk_anchor_full_derived_test::accounts::Withdraw {
@@ -533,7 +490,6 @@ async fn test_amm_full_lifecycle() {
         .await
         .expect("Withdraw should succeed");
 
-    // Verify LP balance after withdraw (assert_after_withdraw)
     let lp_token_data_after_withdraw = parse_token(
         &ctx.rpc
             .get_account(pdas.creator_lp_token)
@@ -547,21 +503,14 @@ async fn test_amm_full_lifecycle() {
         lp_token_data_after_withdraw.amount, expected_balance_after_withdraw,
         "LP balance should decrease after withdraw"
     );
-    println!(
-        "LP balance after withdraw: {} (expected: {})",
-        lp_token_data_after_withdraw.amount, expected_balance_after_withdraw
-    );
 
-    // ==========================================================================
-    // PHASE 8: Advance Epochs (trigger auto-compression)
-    // ==========================================================================
-    println!("\nAdvancing epochs to trigger auto-compression...");
+    // Advance epochs to trigger auto-compression
     ctx.rpc
         .warp_slot_forward(SLOTS_PER_EPOCH * 30)
         .await
         .unwrap();
 
-    // Derive compressed addresses for verification
+    // Derive compressed addresses
     let address_tree_pubkey = ctx.rpc.get_address_tree_v2().tree;
 
     let pool_compressed_address = light_compressed_account::address::derive_address(
@@ -603,274 +552,60 @@ async fn test_amm_full_lifecycle() {
     )
     .await;
 
-    println!("All accounts compressed successfully!");
-
-    // ==========================================================================
-    // PHASE 9: Decompress accounts
-    // ==========================================================================
-    println!("\nPhase 9: Decompressing all accounts...");
-
-    // Fetch unified interfaces (hot/cold transparent) for PDAs
     let pool_interface = ctx
         .rpc
-        .get_account_info_interface(&pdas.pool_state, &ctx.program_id)
+        .get_account_interface(&pdas.pool_state, &ctx.program_id)
         .await
         .expect("failed to get pool_state");
-    assert!(pool_interface.is_cold, "pool_state should be cold");
+    assert!(pool_interface.is_cold(), "pool_state should be cold");
 
-    let observation_interface = ctx
+    // Create Program Interface SDK.
+    let mut sdk = AmmSdk::from_keyed_accounts(&[pool_interface])
+        .expect("ProgrammSdk::from_keyed_accounts should succeed");
+
+    let accounts_to_fetch = sdk.get_accounts_to_update(&AmmInstruction::Deposit);
+
+    let keyed_accounts = ctx
         .rpc
-        .get_account_info_interface(&pdas.observation_state, &ctx.program_id)
+        .get_multiple_account_interfaces(&accounts_to_fetch)
         .await
-        .expect("failed to get observation_state");
-    assert!(
-        observation_interface.is_cold,
-        "observation_state should be cold"
-    );
+        .expect("get_multiple_account_interfaces should succeed");
 
-    // Fetch token account interfaces for vaults
-    let vault_0_interface = ctx
-        .rpc
-        .get_token_account_interface(&pdas.token_0_vault)
-        .await
-        .expect("failed to get token_0_vault");
-    assert!(vault_0_interface.is_cold, "token_0_vault should be cold");
+    sdk.update(&keyed_accounts)
+        .expect("sdk.update should succeed");
 
-    let vault_1_interface = ctx
-        .rpc
-        .get_token_account_interface(&pdas.token_1_vault)
-        .await
-        .expect("failed to get token_1_vault");
-    assert!(vault_1_interface.is_cold, "token_1_vault should be cold");
+    let specs = sdk.get_specs_for_instruction(&AmmInstruction::Deposit);
 
-    // Fetch ATA interface for creator LP token
     let creator_lp_interface = ctx
         .rpc
         .get_ata_interface(&ctx.creator.pubkey(), &pdas.lp_mint)
         .await
         .expect("failed to get creator_lp_token");
-    assert!(
-        creator_lp_interface.is_cold(),
-        "creator_lp_token should be cold"
-    );
-    assert_eq!(
-        creator_lp_interface.amount(),
-        expected_balance_after_withdraw,
-        "Compressed LP token amount should match"
-    );
 
-    // Fetch mint interface for LP mint
-    let lp_mint_interface = ctx
-        .rpc
-        .get_mint_interface(&pdas.lp_mint_signer)
-        .await
-        .expect("failed to get lp_mint");
-    assert!(lp_mint_interface.is_cold(), "lp_mint should be cold");
+    // add ata
+    use light_client::interface::AccountSpec;
+    let mut all_specs = specs;
+    all_specs.push(AccountSpec::Ata(creator_lp_interface));
 
-    // Build RentFreeDecompressAccount list for program-owned accounts
-    let program_owned_accounts = vec![
-        RentFreeDecompressAccount::from_seeds(
-            AccountInterface::from(&pool_interface),
-            PoolStateSeeds {
-                amm_config: ctx.amm_config.pubkey(),
-                token_0_mint: ctx.token_0_mint,
-                token_1_mint: ctx.token_1_mint,
-            },
-        )
-        .expect("PoolState seed verification failed"),
-        RentFreeDecompressAccount::from_seeds(
-            AccountInterface::from(&observation_interface),
-            ObservationStateSeeds {
-                pool_state: pdas.pool_state,
-            },
-        )
-        .expect("ObservationState seed verification failed"),
-        RentFreeDecompressAccount::from_ctoken(
-            AccountInterface::from(&vault_0_interface),
-            TokenAccountVariant::Token0Vault {
-                pool_state: pdas.pool_state,
-                token_0_mint: ctx.token_0_mint,
-            },
-        )
-        .expect("Token0Vault construction failed"),
-        RentFreeDecompressAccount::from_ctoken(
-            AccountInterface::from(&vault_1_interface),
-            TokenAccountVariant::Token1Vault {
-                pool_state: pdas.pool_state,
-                token_1_mint: ctx.token_1_mint,
-            },
-        )
-        .expect("Token1Vault construction failed"),
-    ];
-    for account in program_owned_accounts {
-        // Create decompression instructions
-        let all_instructions = create_load_accounts_instructions(
-            &[account],
-            &[], //std::slice::from_ref(&creator_lp_interface.inner), TODO decompress directly from ctoken program
-            &[], // std::slice::from_ref(&lp_mint_interface), TODO decompress directly from ctoken program
-            ctx.program_id,
-            ctx.payer.pubkey(),
-            ctx.config_pda,
-            ctx.payer.pubkey(), // rent_sponsor
-            &ctx.rpc,
+    let decompress_ixs = create_load_instructions(
+        &all_specs,
+        ctx.payer.pubkey(),
+        ctx.config_pda,
+        ctx.payer.pubkey(),
+        &ctx.rpc,
+    )
+    .await
+    .expect("create_load_instructions should succeed");
+
+    ctx.rpc
+        .create_and_send_transaction(
+            &decompress_ixs,
+            &ctx.payer.pubkey(),
+            &[&ctx.payer, &ctx.creator],
         )
         .await
-        .expect("create_load_accounts_instructions should succeed");
+        .expect("Decompression should succeed");
 
-        println!(
-            "  Generated {} decompression instructions",
-            all_instructions.len()
-        );
-
-        // Execute decompression
-        ctx.rpc
-            .create_and_send_transaction(&all_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
-            .await
-            .expect("Decompression should succeed");
-    }
-
-    // Decompress LP mint manually
-    if lp_mint_interface.is_cold() {
-        println!("  Decompressing LP mint...");
-        let (compressed, mint_data) = lp_mint_interface
-            .compressed()
-            .expect("LP mint should have compressed data");
-
-        // Get validity proof for the mint
-        let proof_result = ctx
-            .rpc
-            .get_validity_proof(vec![compressed.hash], vec![], None)
-            .await
-            .expect("get_validity_proof should succeed")
-            .value;
-
-        let account_info = &proof_result.accounts[0];
-        let state_tree = account_info.tree_info.tree;
-        let input_queue = account_info.tree_info.queue;
-        let output_queue = account_info
-            .tree_info
-            .next_tree_info
-            .as_ref()
-            .map(|n| n.queue)
-            .unwrap_or(input_queue);
-
-        let mint_instruction_data = MintInstructionData::try_from(mint_data.clone())
-            .expect("MintInstructionData conversion should succeed");
-
-        let decompress_mint_ix = DecompressMint {
-            payer: ctx.payer.pubkey(),
-            authority: ctx.payer.pubkey(),
-            state_tree,
-            input_queue,
-            output_queue,
-            compressed_mint_with_context: MintWithContext {
-                leaf_index: account_info.leaf_index as u32,
-                prove_by_index: account_info.root_index.proof_by_index(),
-                root_index: account_info.root_index.root_index().unwrap_or_default(),
-                address: lp_mint_interface.compressed_address,
-                mint: Some(mint_instruction_data),
-            },
-            proof: ValidityProof(proof_result.proof.into()),
-            rent_payment: 2,
-            write_top_up: 766,
-        }
-        .instruction()
-        .expect("DecompressMint instruction should succeed");
-
-        ctx.rpc
-            .create_and_send_transaction(&[decompress_mint_ix], &ctx.payer.pubkey(), &[&ctx.payer])
-            .await
-            .expect("LP mint decompression should succeed");
-    }
-
-    // Decompress creator LP token ATA manually
-    if creator_lp_interface.is_cold() {
-        println!("  Decompressing creator LP token ATA...");
-
-        // First create the ATA (idempotent)
-        let create_ata_ix = CreateAssociatedTokenAccount::new(
-            ctx.payer.pubkey(),
-            ctx.creator.pubkey(),
-            pdas.lp_mint,
-        )
-        .idempotent()
-        .instruction()
-        .expect("CreateAssociatedTokenAccount instruction should succeed");
-
-        ctx.rpc
-            .create_and_send_transaction(&[create_ata_ix], &ctx.payer.pubkey(), &[&ctx.payer])
-            .await
-            .expect("Create ATA should succeed");
-
-        // Get the compressed token account data
-        let load_context = creator_lp_interface
-            .inner
-            .load_context
-            .as_ref()
-            .expect("ATA should have load_context");
-        let compressed = &load_context.compressed;
-
-        // Get validity proof
-        let proof_result = ctx
-            .rpc
-            .get_validity_proof(vec![compressed.account.hash], vec![], None)
-            .await
-            .expect("get_validity_proof should succeed")
-            .value;
-
-        let account_info = &proof_result.accounts[0];
-
-        // Build TokenData from the compressed token account
-        use light_token_sdk::compat::TokenData;
-        let token_data = TokenData {
-            mint: compressed.token.mint,
-            owner: compressed.token.owner,
-            amount: compressed.token.amount,
-            delegate: compressed.token.delegate,
-            state: compressed.token.state,
-            tlv: compressed.token.tlv.clone(),
-        };
-
-        // Get discriminator from compressed account data
-        let discriminator = compressed
-            .account
-            .data
-            .as_ref()
-            .map(|d| d.discriminator)
-            .unwrap_or([0, 0, 0, 0, 0, 0, 0, 4]); // ShaFlat default
-
-        // Build Decompress instruction
-        let decompress_ix = Decompress {
-            token_data,
-            discriminator,
-            merkle_tree: account_info.tree_info.tree,
-            queue: account_info.tree_info.queue,
-            leaf_index: account_info.leaf_index as u32,
-            root_index: account_info.root_index.root_index().unwrap_or_default(),
-            destination: creator_lp_interface.inner.pubkey,
-            payer: ctx.payer.pubkey(),
-            signer: ctx.creator.pubkey(),
-            validity_proof: ValidityProof(proof_result.proof.into()),
-        }
-        .instruction()
-        .expect("Decompress instruction should succeed");
-
-        ctx.rpc
-            .create_and_send_transaction(
-                &[decompress_ix],
-                &ctx.payer.pubkey(),
-                &[&ctx.payer, &ctx.creator],
-            )
-            .await
-            .expect("ATA decompression should succeed");
-    }
-
-    // ==========================================================================
-    // PHASE 10: Assert decompression success
-    // ==========================================================================
-    println!("\nPhase 10: Verifying decompression...");
-
-    // All accounts should be back on-chain
     assert_onchain_exists(&mut ctx.rpc, &pdas.pool_state).await;
     assert_onchain_exists(&mut ctx.rpc, &pdas.observation_state).await;
     assert_onchain_exists(&mut ctx.rpc, &pdas.lp_mint).await;
@@ -878,7 +613,7 @@ async fn test_amm_full_lifecycle() {
     assert_onchain_exists(&mut ctx.rpc, &pdas.token_1_vault).await;
     assert_onchain_exists(&mut ctx.rpc, &pdas.creator_lp_token).await;
 
-    // Verify LP token balance preserved after decompression
+    // Verify LP token balance
     let lp_token_after_decompression = parse_token(
         &ctx.rpc
             .get_account(pdas.creator_lp_token)
@@ -891,12 +626,8 @@ async fn test_amm_full_lifecycle() {
         lp_token_after_decompression.amount, expected_balance_after_withdraw,
         "LP token balance should be preserved after decompression"
     );
-    println!(
-        "  LP balance after decompression: {} (expected: {})",
-        lp_token_after_decompression.amount, expected_balance_after_withdraw
-    );
 
-    // Verify compressed token accounts are consumed
+    // Verify compressed token accounts
     let remaining_vault_0 = ctx
         .rpc
         .get_compressed_token_accounts_by_owner(&pdas.token_0_vault, None, None)
@@ -932,11 +663,4 @@ async fn test_amm_full_lifecycle() {
         remaining_creator_lp.is_empty(),
         "Compressed creator_lp_token should be consumed"
     );
-
-    println!("\nAMM full lifecycle test completed successfully!");
-    println!("  - Initialize: OK");
-    println!("  - Deposit: OK");
-    println!("  - Withdraw: OK");
-    println!("  - Compression: OK");
-    println!("  - Decompression: OK");
 }

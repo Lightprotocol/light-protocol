@@ -33,7 +33,6 @@ members = [
     "sdk-libs/sdk-types",
     "sdk-libs/photon-api",
     "sdk-libs/program-test",
-    "sdk-libs/compressible-client",
     "xtask",
     "program-tests/account-compression-test",
     "program-tests/batched-merkle-tree-test",
@@ -57,6 +56,7 @@ members = [
     "sdk-tests/sdk-token-test",
     "sdk-tests/sdk-light-token-test",
     "sdk-tests/csdk-anchor-full-derived-test",
+    "sdk-tests/csdk-anchor-full-derived-test-sdk",
     "forester-utils",
     "forester",
     "sparse-merkle-tree",
@@ -122,6 +122,7 @@ solana-system-interface = { version = "1" }
 solana-security-txt = "1.1.1"
 spl-token = "7.0.0"
 spl-token-2022 = { version = "7.0.0", features = ["no-entrypoint"] }
+spl-token-2022-interface = "1.0.0"
 spl-pod = "0.5.1"
 pinocchio = { version = "0.9" }
 pinocchio-pubkey = { version = "0.3.0" }
@@ -189,7 +190,6 @@ light-sdk-macros = { path = "sdk-libs/macros", version = "0.17.1" }
 light-sdk-types = { path = "sdk-libs/sdk-types", version = "0.17.1", default-features = false }
 light-compressed-account = { path = "program-libs/compressed-account", version = "0.7.0", default-features = false }
 light-compressible = { path = "program-libs/compressible", version = "0.2.0", default-features = false }
-light-compressible-client = { path = "sdk-libs/compressible-client", version = "0.17.1" }
 light-token-interface = { path = "program-libs/token-interface", version = "0.1.0" }
 light-account-checks = { path = "program-libs/account-checks", version = "0.6.0", default-features = false }
 light-verifier = { path = "program-libs/verifier", version = "6.0.0" }

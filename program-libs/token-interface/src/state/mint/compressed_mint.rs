@@ -8,8 +8,8 @@ use pinocchio::account_info::AccountInfo;
 use solana_msg::msg;
 
 use crate::{
-    state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, TokenError, CMINT_ADDRESS_TREE,
-    LIGHT_TOKEN_PROGRAM_ID,
+    state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, TokenError, LIGHT_TOKEN_PROGRAM_ID,
+    MINT_ADDRESS_TREE,
 };
 
 /// AccountType::Mint discriminator value
@@ -90,22 +90,22 @@ pub struct MintMetadata {
 }
 
 impl MintMetadata {
-    /// Derives the compressed address from mint PDA, CMINT_ADDRESS_TREE and LIGHT_TOKEN_PROGRAM_ID
+    /// Derives the compressed address from mint PDA, MINT_ADDRESS_TREE and LIGHT_TOKEN_PROGRAM_ID
     pub fn compressed_address(&self) -> [u8; 32] {
         derive_address(
             self.mint.array_ref(),
-            &CMINT_ADDRESS_TREE,
+            &MINT_ADDRESS_TREE,
             &LIGHT_TOKEN_PROGRAM_ID,
         )
     }
 }
 
 impl ZMintMetadata<'_> {
-    /// Derives the compressed address from mint PDA, CMINT_ADDRESS_TREE and LIGHT_TOKEN_PROGRAM_ID
+    /// Derives the compressed address from mint PDA, MINT_ADDRESS_TREE and LIGHT_TOKEN_PROGRAM_ID
     pub fn compressed_address(&self) -> [u8; 32] {
         derive_address(
             self.mint.array_ref(),
-            &CMINT_ADDRESS_TREE,
+            &MINT_ADDRESS_TREE,
             &LIGHT_TOKEN_PROGRAM_ID,
         )
     }

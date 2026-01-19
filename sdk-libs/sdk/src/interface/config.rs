@@ -16,10 +16,10 @@ pub const MAX_ADDRESS_TREES_PER_SPACE: usize = 1;
 const BPF_LOADER_UPGRADEABLE_ID: Pubkey =
     Pubkey::from_str_const("BPFLoaderUpgradeab1e11111111111111111111111");
 
-// TODO: add rent_authority + rent_func like in ctoken.
+// TODO: add rent_authority + rent_func like in token.
 /// Global configuration for compressible accounts
 #[derive(Clone, AnchorDeserialize, AnchorSerialize, Debug)]
-pub struct CompressibleConfig {
+pub struct LightConfig {
     /// Config version for future upgrades
     pub version: u8,
     /// Lamports to top up on each write (heuristic)
@@ -40,7 +40,7 @@ pub struct CompressibleConfig {
     pub address_space: Vec<Pubkey>,
 }
 
-impl CompressibleConfig {
+impl LightConfig {
     pub const LEN: usize = 1
         + 4
         + 32
@@ -52,7 +52,7 @@ impl CompressibleConfig {
         + 4
         + (32 * MAX_ADDRESS_TREES_PER_SPACE);
 
-    /// Calculate the exact size needed for a CompressibleConfig with the given
+    /// Calculate the exact size needed for a LightConfig with the given
     /// number of address spaces
     pub fn size_for_address_space(num_address_trees: usize) -> usize {
         1 + 4
@@ -85,14 +85,14 @@ impl CompressibleConfig {
     pub fn validate(&self) -> Result<(), crate::ProgramError> {
         if self.version != 1 {
             msg!(
-                "CompressibleConfig validation failed: Unsupported config version: {}",
+                "LightConfig validation failed: Unsupported config version: {}",
                 self.version
             );
             return Err(LightSdkError::ConstraintViolation.into());
         }
         if self.address_space.len() != 1 {
             msg!(
-                "CompressibleConfig validation failed: Address space must contain exactly 1 pubkey, found: {}",
+                "LightConfig validation failed: Address space must contain exactly 1 pubkey, found: {}",
                 self.address_space.len()
             );
             return Err(LightSdkError::ConstraintViolation.into());
@@ -100,7 +100,7 @@ impl CompressibleConfig {
         // For now, only allow config_bump = 0 to keep it simple
         if self.config_bump != 0 {
             msg!(
-                "CompressibleConfig validation failed: Config bump must be 0 for now, found: {}",
+                "LightConfig validation failed: Config bump must be 0 for now, found: {}",
                 self.config_bump
             );
             return Err(LightSdkError::ConstraintViolation.into());
@@ -116,7 +116,7 @@ impl CompressibleConfig {
     ) -> Result<Self, crate::ProgramError> {
         if account.owner != program_id {
             msg!(
-                "CompressibleConfig::load_checked failed: Config account owner mismatch. Expected: {:?}. Found: {:?}.",
+                "LightConfig::load_checked failed: Config account owner mismatch. Expected: {:?}. Found: {:?}.",
                 program_id,
                 account.owner
             );
@@ -125,7 +125,7 @@ impl CompressibleConfig {
         let data = account.try_borrow_data()?;
         let config = Self::try_from_slice(&data).map_err(|err| {
             msg!(
-                "CompressibleConfig::load_checked failed: Failed to deserialize config data: {:?}",
+                "LightConfig::load_checked failed: Failed to deserialize config data: {:?}",
                 err
             );
             LightSdkError::Borsh
@@ -136,7 +136,7 @@ impl CompressibleConfig {
         let (expected_pda, _) = Self::derive_pda(program_id, config.config_bump);
         if expected_pda != *account.key {
             msg!(
-                "CompressibleConfig::load_checked failed: Config account key mismatch. Expected PDA: {:?}. Found: {:?}.",
+                "LightConfig::load_checked failed: Config account key mismatch. Expected PDA: {:?}. Found: {:?}.",
                 expected_pda,
                 account.key
             );
@@ -176,7 +176,7 @@ impl CompressibleConfig {
 /// * `Ok(())` if config was created successfully
 /// * `Err(ProgramError)` if there was an error
 #[allow(clippy::too_many_arguments)]
-pub fn process_initialize_compression_config_account_info<'info>(
+pub fn process_initialize_light_config<'info>(
     config_account: &AccountInfo<'info>,
     update_authority: &AccountInfo<'info>,
     rent_sponsor: &Pubkey,
@@ -220,14 +220,14 @@ pub fn process_initialize_compression_config_account_info<'info>(
     }
 
     // CHECK: pda derivation
-    let (derived_pda, bump) = CompressibleConfig::derive_pda(program_id, config_bump);
+    let (derived_pda, bump) = LightConfig::derive_pda(program_id, config_bump);
     if derived_pda != *config_account.key {
         msg!("Invalid config PDA");
         return Err(LightSdkError::ConstraintViolation.into());
     }
 
     let rent = Rent::get().map_err(LightSdkError::from)?;
-    let account_size = CompressibleConfig::size_for_address_space(address_space.len());
+    let account_size = LightConfig::size_for_address_space(address_space.len());
     let rent_lamports = rent.minimum_balance(account_size);
 
     // Use u16 to_le_bytes to match derive_pda (2 bytes instead of 1)
@@ -256,7 +256,7 @@ pub fn process_initialize_compression_config_account_info<'info>(
     )
     .map_err(LightSdkError::from)?;
 
-    let config = CompressibleConfig {
+    let config = LightConfig {
         version: 1,
         write_top_up,
         update_authority: *update_authority.key,
@@ -295,7 +295,7 @@ pub fn process_initialize_compression_config_account_info<'info>(
 /// * `Ok(())` if config was updated successfully
 /// * `Err(ProgramError)` if there was an error
 #[allow(clippy::too_many_arguments)]
-pub fn process_update_compression_config<'info>(
+pub fn process_update_light_config<'info>(
     config_account: &AccountInfo<'info>,
     authority: &AccountInfo<'info>,
     new_update_authority: Option<&Pubkey>,
@@ -307,7 +307,7 @@ pub fn process_update_compression_config<'info>(
     owner_program_id: &Pubkey,
 ) -> Result<(), crate::ProgramError> {
     // CHECK: PDA derivation
-    let mut config = CompressibleConfig::load_checked(config_account, owner_program_id)?;
+    let mut config = LightConfig::load_checked(config_account, owner_program_id)?;
 
     // CHECK: signer
     if !authority.is_signer {
@@ -460,7 +460,7 @@ pub fn check_program_upgrade_authority(
 /// * `Ok(())` if config was created successfully
 /// * `Err(ProgramError)` if there was an error or authority validation fails
 #[allow(clippy::too_many_arguments)]
-pub fn process_initialize_compression_config_checked<'info>(
+pub fn process_initialize_light_config_checked<'info>(
     config_account: &AccountInfo<'info>,
     update_authority: &AccountInfo<'info>,
     program_data_account: &AccountInfo<'info>,
@@ -486,7 +486,7 @@ pub fn process_initialize_compression_config_checked<'info>(
     check_program_upgrade_authority(program_id, program_data_account, update_authority)?;
 
     // Create the config with validated authority
-    process_initialize_compression_config_account_info(
+    process_initialize_light_config(
         config_account,
         update_authority,
         rent_sponsor,

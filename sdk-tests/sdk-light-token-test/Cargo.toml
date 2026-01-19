@@ -23,7 +23,6 @@ light-token-interface = { workspace = true }
 light-sdk = { workspace = true, features = ["v2"] }
 light-sdk-types = { workspace = true }
 light-client = { workspace = true, optional = true }
-light-compressible-client = { workspace = true, optional = true }
 
 # Solana dependencies
 solana-program = "2.2"
@@ -39,7 +38,6 @@ solana-sdk = { version = "2.2", optional = true }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-client = { workspace = true }
 light-compressible = { workspace = true }
-light-compressible-client = { workspace = true }
 light-compressed-account = { workspace = true }
 light-token-client = { workspace = true }
 light-test-utils = { workspace = true, features = ["devenv"] }

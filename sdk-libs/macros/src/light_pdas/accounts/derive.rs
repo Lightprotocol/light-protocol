@@ -7,14 +7,14 @@
 //!
 //! Design for mints:
 //! - At mint init, we CREATE + DECOMPRESS atomically
-//! - After init, the CMint should always be in decompressed/"hot" state
+//! - After init, the Mint should always be in decompressed/"hot" state
 //!
 //! Flow for PDAs + mints:
 //! 1. Pre-init: ALL compression logic executes here
 //!    a. Write PDAs to CPI context
 //!    b. Invoke mint_action with decompress + CPI context
-//!    c. CMint is now "hot" and usable
-//! 2. Instruction body: Can use hot CMint (mintTo, transfers, etc.)
+//!    c. Mint is now "hot" and usable
+//! 2. Instruction body: Can use hot Mint (mintTo, transfers, etc.)
 //! 3. Finalize: No-op (all work done in pre_init)
 
 use proc_macro2::TokenStream;

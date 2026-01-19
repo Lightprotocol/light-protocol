@@ -1,7 +1,7 @@
 use light_compressed_account::instruction_data::zero_copy_set::CompressedCpiContextTrait;
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
-use crate::{AnchorDeserialize, AnchorSerialize, CMINT_ADDRESS_TREE};
+use crate::{AnchorDeserialize, AnchorSerialize, MINT_ADDRESS_TREE};
 
 #[repr(C)]
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut, PartialEq)]
@@ -32,7 +32,7 @@ impl Default for CpiContext {
             token_out_queue_index: 0,
             assigned_account_index: 0,
             read_only_address_trees: [0; 4],
-            address_tree_pubkey: CMINT_ADDRESS_TREE,
+            address_tree_pubkey: MINT_ADDRESS_TREE,
         }
     }
 }

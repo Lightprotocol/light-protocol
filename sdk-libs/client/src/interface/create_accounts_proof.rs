@@ -1,23 +1,19 @@
-//! Helper for getting validity proofs for creating new compressed accounts (INIT flow).
-//!
-//! This module provides an opinionated helper that:
-//! - Uses a single address tree (V2) for all addresses
-//! - Handles address derivation internally based on input type
-//! - Packs proof into remaining accounts
-//! - Returns a single `address_tree_info` since all accounts use the same tree
+//! Helper for getting validity proofs for creating new rent free accounts.
+//! Programs must pass this to light accounts that they initialize.
 
-use light_client::{
-    indexer::{AddressWithTree, Indexer, IndexerError, ValidityProofWithContext},
-    rpc::{Rpc, RpcError},
-};
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 use light_sdk::instruction::PackedAddressTreeInfo;
+use light_token_interface::MINT_ADDRESS_TREE;
 use light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 use thiserror::Error;
 
-use crate::pack::{pack_proof, pack_proof_for_mints, PackError};
+use super::pack::{pack_proof, pack_proof_for_mints, PackError};
+use crate::{
+    indexer::{AddressWithTree, Indexer, IndexerError, ValidityProofWithContext},
+    rpc::{Rpc, RpcError},
+};
 
 /// Error type for create accounts proof operations.
 #[derive(Debug, Error)]
@@ -35,15 +31,15 @@ pub enum CreateAccountsProofError {
     Pack(#[from] PackError),
 }
 
-/// Input for creating new compressed accounts.
-/// `program_id` from main function is used as default owner for `Pda` variant.
+/// Input for creating new accounts.
+/// `program_id` from main fn is used as default owner for `Pda` variant.
 #[derive(Clone, Debug)]
 pub enum CreateAccountsProofInput {
     /// PDA owned by the calling program (uses program_id from main fn)
     Pda(Pubkey),
     /// PDA with explicit owner (for cross-program accounts)
     PdaWithOwner { pda: Pubkey, owner: Pubkey },
-    /// CMint (always uses LIGHT_TOKEN_PROGRAM_ID internally)
+    /// Mint (always uses LIGHT_TOKEN_PROGRAM_ID internally)
     Mint(Pubkey),
 }
 
@@ -60,13 +56,13 @@ impl CreateAccountsProofInput {
         Self::PdaWithOwner { pda, owner }
     }
 
-    /// Compressed mint (CMint).
+    /// Compressed mint (Mint).
     /// Address derived: `derive_mint_compressed_address(&mint_signer, &tree)`
     pub fn mint(mint_signer: Pubkey) -> Self {
         Self::Mint(mint_signer)
     }
 
-    /// Derive the compressed address.
+    /// Derive the cold address (mints always use MINT_ADDRESS_TREE).
     fn derive_address(&self, address_tree: &Pubkey, program_id: &Pubkey) -> [u8; 32] {
         match self {
             Self::Pda(pda) => light_compressed_account::address::derive_address(
@@ -79,12 +75,23 @@ impl CreateAccountsProofInput {
                 &address_tree.to_bytes(),
                 &owner.to_bytes(),
             ),
-            Self::Mint(signer) => derive_mint_compressed_address(signer, address_tree),
+            // Mints always use MINT_ADDRESS_TREE regardless of passed tree
+            Self::Mint(signer) => {
+                derive_mint_compressed_address(signer, &Pubkey::new_from_array(MINT_ADDRESS_TREE))
+            }
+        }
+    }
+
+    /// Get the address tree for this input type.
+    fn address_tree(&self, default_tree: &Pubkey) -> Pubkey {
+        match self {
+            Self::Pda(_) | Self::PdaWithOwner { .. } => *default_tree,
+            // Mints always use MINT_ADDRESS_TREE
+            Self::Mint(_) => Pubkey::new_from_array(MINT_ADDRESS_TREE),
         }
     }
 }
 
-// Re-export from light-compressible (SBF-compatible)
 pub use light_compressible::CreateAccountsProof;
 
 /// Result of `get_create_accounts_proof`.
@@ -95,43 +102,7 @@ pub struct CreateAccountsProofResult {
     pub remaining_accounts: Vec<AccountMeta>,
 }
 
-/// Gets validity proof for creating new compressed accounts (INIT flow).
-///
-/// Opinionated helper that:
-/// - Uses a single address tree (V2) for all addresses
-/// - Handles address derivation internally based on input type
-/// - Packs proof into remaining accounts
-///
-/// # Arguments
-/// * `rpc` - RPC client implementing `Rpc + Indexer` traits
-/// * `program_id` - Your program's ID (used as default owner for Pda inputs + system config)
-/// * `inputs` - Vec of `CreateAccountsProofInput` describing accounts to create
-///
-/// # Returns
-/// `CreateAccountsProofResult` containing proof and remaining accounts.
-///
-/// # Example
-/// ```rust,ignore
-/// let result = get_create_accounts_proof(
-///     &rpc,
-///     &program_id,
-///     vec![
-///         CreateAccountsProofInput::pda(user_pda),
-///         CreateAccountsProofInput::pda(game_pda),
-///         CreateAccountsProofInput::mint(mint_signer_pda),
-///     ],
-/// ).await?;
-///
-/// // Just pass create_accounts_proof to instruction - macros use defaults
-/// let ix = Instruction {
-///     program_id,
-///     accounts: [my_accounts.to_account_metas(None), result.remaining_accounts].concat(),
-///     data: MyInstruction {
-///         create_accounts_proof: result.create_accounts_proof,
-///         // ... other params
-///     }.data(),
-/// };
-/// ```
+/// Gets validity proof for creating new cold accounts (INIT flow).
 pub async fn get_create_accounts_proof<R: Rpc + Indexer>(
     rpc: &R,
     program_id: &Pubkey,
@@ -166,18 +137,19 @@ pub async fn get_create_accounts_proof<R: Rpc + Indexer>(
     let address_tree = rpc.get_address_tree_v2();
     let address_tree_pubkey = address_tree.tree;
 
-    // 2. Derive all compressed addresses (program_id used as default owner for Pda)
+    // 2. Derive all cold addresses
     let derived_addresses: Vec<[u8; 32]> = inputs
         .iter()
         .map(|input| input.derive_address(&address_tree_pubkey, program_id))
         .collect();
 
-    // 3. Build AddressWithTree for each (all use same tree)
-    let addresses_with_trees: Vec<AddressWithTree> = derived_addresses
+    // 3. Build AddressWithTree for each
+    let addresses_with_trees: Vec<AddressWithTree> = inputs
         .iter()
-        .map(|&address| AddressWithTree {
+        .zip(derived_addresses.iter())
+        .map(|(input, &address)| AddressWithTree {
             address,
-            tree: address_tree_pubkey,
+            tree: input.address_tree(&address_tree_pubkey),
         })
         .collect();
 
@@ -192,8 +164,7 @@ pub async fn get_create_accounts_proof<R: Rpc + Indexer>(
         .get_random_state_tree_info()
         .map_err(CreateAccountsProofError::Rpc)?;
 
-    // 6. Determine CPI context and whether we have mints
-    // For INIT with mints: need CPI context for cross-program invocation
+    // 6. Determine CPI context (needed for mints)
     let has_mints = inputs
         .iter()
         .any(|i| matches!(i, CreateAccountsProofInput::Mint(_)));

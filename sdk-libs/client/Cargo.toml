@@ -10,6 +10,7 @@ description = "Client library for Light Protocol"
 devenv = ["v2"]
 v2 = []
 program-test = ["solana-banks-client", "litesvm"]
+anchor = ["anchor-lang", "light-sdk/anchor", "light-token-sdk/anchor"]
 
 [dependencies]
 # Solana dependencies
@@ -35,23 +36,27 @@ solana-address-lookup-table-interface = { version = "2.2.1", features = [
     "bincode",
 ] }
 solana-message = { workspace = true }
+spl-token-2022-interface = { workspace = true }
+spl-pod = { workspace = true }
 
 # Light Protocol dependencies
 light-merkle-tree-metadata = { workspace = true, features = ["solana"] }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
-light-sdk = { workspace = true }
+light-sdk = { workspace = true, features = ["v2", "cpi-context"] }
 light-hasher = { workspace = true, features = ["poseidon"] }
 light-compressed-account = { workspace = true, features = ["solana", "poseidon"] }
-light-token-sdk = { workspace = true }
+light-token-sdk = { workspace = true, features = ["cpi-context"] }
 light-token-interface = { workspace = true }
 light-event = { workspace = true }
+light-compressible = { workspace = true }
 
 photon-api = { workspace = true }
 light-prover-client = { workspace = true }
 litesvm = { workspace = true, optional = true }
 
 # External dependencies
+anchor-lang = { workspace = true, optional = true }
 borsh = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
@@ -59,6 +64,8 @@ num-bigint = { workspace = true }
 base64 = { workspace = true }
 bs58 = { workspace = true }
 tokio = { workspace = true, features = ["rt", "time"] }
+futures = { workspace = true }
+smallvec = { workspace = true }
 
 tracing = { workspace = true }
 lazy_static = { workspace = true }

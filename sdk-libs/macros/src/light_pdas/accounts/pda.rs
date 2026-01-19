@@ -139,7 +139,7 @@ impl<'a> PdaBlockBuilder<'a> {
         let compressed_infos = &self.idents.compressed_infos;
 
         quote! {
-            let #compressed_infos = light_sdk::compressible::prepare_compressed_account_on_init::<#inner_type>(
+            let #compressed_infos = light_sdk::interface::prepare_compressed_account_on_init::<#inner_type>(
                 &#account_info,
                 #account_data,
                 &compression_config_data,

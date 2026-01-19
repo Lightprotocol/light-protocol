@@ -1,11 +1,11 @@
 //! Integration tests for mint with metadata support in #[light_account(init)] macro.
 
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_compressible_client::{
+use light_client::interface::{
     decompress_mint::decompress_mint, get_create_accounts_proof, AccountInterfaceExt,
     CreateAccountsProofInput, InitializeRentFreeConfig,
 };
+use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
@@ -190,12 +190,13 @@ async fn test_create_mint_with_metadata() {
     assert_eq!(additional[1].key, b"version".to_vec());
     assert_eq!(additional[1].value, b"1.0.0".to_vec());
 
-    // Verify compressed address registered
-    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
+    // Verify compressed address registered (mints always use MINT_ADDRESS_TREE)
+    use light_token_interface::MINT_ADDRESS_TREE;
+    let mint_address_tree = solana_pubkey::Pubkey::new_from_array(MINT_ADDRESS_TREE);
     let mint_compressed_address =
         light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
             &mint_signer_pda,
-            &address_tree_pubkey,
+            &mint_address_tree,
         );
     let compressed_mint = rpc
         .get_compressed_account(mint_compressed_address, None)
@@ -246,8 +247,9 @@ async fn test_create_mint_with_metadata() {
     // PHASE 3: Decompress mint and verify metadata is preserved
 
     // Fetch mint interface (unified hot/cold handling)
+    // Note: pass the mint PDA (cmint_pda), not the mint signer seed
     let mint_interface = rpc
-        .get_mint_interface(&mint_signer_pda)
+        .get_mint_interface(&cmint_pda)
         .await
         .expect("get_mint_interface should succeed");
     assert!(mint_interface.is_cold(), "Mint should be cold after warp");

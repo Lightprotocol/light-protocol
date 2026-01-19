@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `#[light_account(init, mint,...)]` attribute marks a field in an Anchor Accounts struct for compressed mint creation. When applied to a `CMint` account field, it generates code to create a compressed mint with automatic decompression support.
+The `#[light_account(init, mint,...)]` attribute marks a field in an Anchor Accounts struct for compressed mint creation. When applied to a `Mint` account field, it generates code to create a compressed mint with automatic decompression support.
 
 **Source**: `sdk-libs/macros/src/rentfree/accounts/light_mint.rs`
 
@@ -24,14 +24,14 @@ pub struct CreateMint<'info> {
 
     pub authority: Signer<'info>,
 
-    /// The CMint account to create
+    /// The Mint account to create
     #[light_account(init, mint,
         mint_signer = mint_signer,
         authority = authority,
         decimals = 9,
         mint_seeds = &[b"mint_signer", &[ctx.bumps.mint_signer]]
     )]
-    pub cmint: Account<'info, CMint>,
+    pub mint: Account<'info, Mint>,
 
     // Infrastructure accounts (auto-detected by name)
     pub light_token_compressible_config: Account<'info, CtokenConfig>,
@@ -92,7 +92,7 @@ Optional fields for creating a mint with the TokenMetadata extension:
     update_authority = authority,
     additional_metadata = params.additional_metadata.clone()
 )]
-pub cmint: UncheckedAccount<'info>,
+pub mint: UncheckedAccount<'info>,
 ```
 
 **Invalid configurations (compile-time errors):**
@@ -132,7 +132,7 @@ The `mint_seeds` attribute provides the PDA signer seeds used for `invoke_signed
     decimals = 9,
     mint_seeds = &[LP_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_bump]]
 )]
-pub cmint: UncheckedAccount<'info>,
+pub mint: UncheckedAccount<'info>,
 ```
 
 **Syntax notes:**
@@ -184,7 +184,7 @@ pub struct CreateBasicMint<'info> {
         decimals = 6,
         mint_seeds = &[b"mint", &[ctx.bumps.mint_signer]]
     )]
-    pub cmint: Account<'info, CMint>,
+    pub mint: Account<'info, Mint>,
 
     // ... infrastructure accounts
 }
@@ -216,7 +216,7 @@ pub struct CreateMintWithPdaAuthority<'info> {
         mint_seeds = &[b"mint", &[ctx.bumps.mint_signer]],
         authority_seeds = &[b"authority", &[ctx.bumps.authority]]
     )]
-    pub cmint: Account<'info, CMint>,
+    pub mint: Account<'info, Mint>,
 
     // ... infrastructure accounts
 }
@@ -232,7 +232,7 @@ pub struct CreateMintWithPdaAuthority<'info> {
     mint_seeds = &[b"mint", &[bump]],
     freeze_authority = freeze_auth
 )]
-pub cmint: Account<'info, CMint>,
+pub mint: Account<'info, Mint>,
 
 /// Optional freeze authority
 pub freeze_auth: Signer<'info>,
@@ -249,7 +249,7 @@ pub freeze_auth: Signer<'info>,
     rent_payment = 4,      // 4 epochs of rent
     write_top_up = 1000    // Extra lamports for writes
 )]
-pub cmint: Account<'info, CMint>,
+pub mint: Account<'info, Mint>,
 ```
 
 ### Combined with #[light_account(init)] PDAs
@@ -273,7 +273,7 @@ pub struct CreateMintAndPda<'info> {
         decimals = 9,
         mint_seeds = &[b"mint", &[ctx.bumps.mint_signer]]
     )]
-    pub cmint: Account<'info, CMint>,
+    pub mint: Account<'info, Mint>,
 
     #[account(
         init,

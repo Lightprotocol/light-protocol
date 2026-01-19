@@ -300,7 +300,7 @@ pub fn compressible_pack(input: TokenStream) -> TokenStream {
 ///
 /// ```ignore
 /// use light_sdk_macros::LightAccount;
-/// use light_sdk::compressible::CompressionInfo;
+/// use light_sdk::interface::CompressionInfo;
 /// use solana_pubkey::Pubkey;
 ///
 /// #[derive(Default, Debug, InitSpace, LightAccount)]
@@ -378,7 +378,7 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 /// - Accounts marked with `#[light_account(init, mint, ...)]` (compressed mints)
 /// - Accounts marked with `#[light_account(token, ...)]` (rent-free token accounts)
 ///
-/// The trait is defined in `light_sdk::compressible::LightFinalize`.
+/// The trait is defined in `light_sdk::interface::LightFinalize`.
 ///
 /// ## Usage - PDAs
 ///
@@ -409,7 +409,7 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 /// pub struct CreateVault<'info> {
 ///     #[account(
 ///         mut,
-///         seeds = [b"vault", cmint.key().as_ref()],
+///         seeds = [b"vault", mint.key().as_ref()],
 ///         bump
 ///     )]
 ///     #[light_account(token, authority = [b"vault_authority"])]

@@ -40,10 +40,10 @@ light-token-types = { workspace = true, features = ["anchor"] }
 light-compressible = { workspace = true, features = ["anchor"] }
 
 [dev-dependencies]
+csdk-anchor-full-derived-test-sdk = { path = "../csdk-anchor-full-derived-test-sdk" }
 light-token-client = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv", "v2"] }
-light-client = { workspace = true, features = ["v2"] }
-light-compressible-client = { workspace = true, features = ["anchor"] }
+light-client = { workspace = true, features = ["v2", "anchor"] }
 light-test-utils = { workspace = true }
 tokio = { workspace = true }
 solana-sdk = { workspace = true }

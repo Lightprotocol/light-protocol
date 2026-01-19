@@ -77,12 +77,12 @@ pub struct CreatePdasAndMintAuto<'info> {
         decimals = 9,
         mint_seeds = &[LP_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_bump]]
     )]
-    pub cmint: UncheckedAccount<'info>,
+    pub mint: UncheckedAccount<'info>,
 
     /// CHECK: Initialized via CToken CPI
     #[account(
         mut,
-        seeds = [VAULT_SEED, cmint.key().as_ref()],
+        seeds = [VAULT_SEED, mint.key().as_ref()],
         bump,
     )]
     #[light_account(token, authority = [b"vault_authority"])]

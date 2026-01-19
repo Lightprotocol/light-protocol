@@ -96,7 +96,7 @@ impl CompressBuilder {
                         .map_err(__anchor_to_program_error)?;
                     drop(data_borrow);
 
-                    let compressed_info = light_sdk::compressible::compress_account::prepare_account_for_compression::<#name>(
+                    let compressed_info = light_sdk::interface::compress_account::prepare_account_for_compression::<#name>(
                         program_id,
                         account_info,
                         &mut account_data,
@@ -113,7 +113,7 @@ impl CompressBuilder {
             mod __compress_context_impl {
                 use super::*;
                 use light_sdk::LightDiscriminator;
-                use light_sdk::compressible::HasCompressionInfo;
+                use light_sdk::interface::HasCompressionInfo;
 
                 #[inline(always)]
                 fn __anchor_to_program_error<E: Into<anchor_lang::error::Error>>(e: E) -> solana_program_error::ProgramError {
@@ -126,7 +126,7 @@ impl CompressBuilder {
                     solana_program_error::ProgramError::Custom(code)
                 }
 
-                impl<#lifetime> light_sdk::compressible::CompressContext<#lifetime> for CompressAccountsIdempotent<#lifetime> {
+                impl<#lifetime> light_sdk::interface::CompressContext<#lifetime> for CompressAccountsIdempotent<#lifetime> {
                     fn fee_payer(&self) -> &solana_account_info::AccountInfo<#lifetime> {
                         &*self.fee_payer
                     }
@@ -148,7 +148,7 @@ impl CompressBuilder {
                         account_info: &solana_account_info::AccountInfo<#lifetime>,
                         meta: &light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                         cpi_accounts: &light_sdk::cpi::v2::CpiAccounts<'_, #lifetime>,
-                        compression_config: &light_sdk::compressible::CompressibleConfig,
+                        compression_config: &light_sdk::interface::LightConfig,
                         program_id: &solana_pubkey::Pubkey,
                     ) -> std::result::Result<Option<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>, solana_program_error::ProgramError> {
                         let data = account_info.try_borrow_data().map_err(__anchor_to_program_error)?;
@@ -174,7 +174,7 @@ impl CompressBuilder {
                 compressed_accounts: Vec<light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress>,
                 system_accounts_offset: u8,
             ) -> Result<()> {
-                light_sdk::compressible::compress_runtime::process_compress_pda_accounts_idempotent(
+                light_sdk::interface::compress_runtime::process_compress_pda_accounts_idempotent(
                     accounts,
                     remaining_accounts,
                     compressed_accounts,
@@ -240,7 +240,7 @@ impl CompressBuilder {
             let qualified_type = qualify_type_with_crate(account_type);
             quote! {
                 const _: () = {
-                    const COMPRESSED_SIZE: usize = 8 + <#qualified_type as light_sdk::compressible::compression_info::CompressedInitSpace>::COMPRESSED_INIT_SPACE;
+                    const COMPRESSED_SIZE: usize = 8 + <#qualified_type as light_sdk::interface::compression_info::CompressedInitSpace>::COMPRESSED_INIT_SPACE;
                     if COMPRESSED_SIZE > 800 {
                         panic!(concat!(
                             "Compressed account '", stringify!(#qualified_type), "' exceeds 800-byte compressible account size limit. If you need support for larger accounts, send a message to team@lightprotocol.com"

@@ -1641,10 +1641,10 @@ dependencies = [
  "anchor-spl 0.31.1 (git+https://github.com/lightprotocol/anchor?rev=da005d7f)",
  "bincode",
  "borsh 0.10.4",
+ "csdk-anchor-full-derived-test-sdk",
  "light-client",
  "light-compressed-account",
  "light-compressible",
- "light-compressible-client",
  "light-hasher",
  "light-heap",
  "light-macros",
@@ -1670,6 +1670,19 @@ dependencies = [
  "solana-signature",
  "solana-signer",
  "tokio",
+]
+
+[[package]]
+name = "csdk-anchor-full-derived-test-sdk"
+version = "0.1.0"
+dependencies = [
+ "ahash",
+ "anchor-lang",
+ "csdk-anchor-full-derived-test",
+ "light-client",
+ "light-sdk",
+ "light-token-sdk",
+ "solana-pubkey 2.4.0",
 ]
 
 [[package]]
@@ -3546,12 +3559,15 @@ dependencies = [
 name = "light-client"
 version = "0.17.2"
 dependencies = [
+ "anchor-lang",
  "async-trait",
  "base64 0.13.1",
  "borsh 0.10.4",
  "bs58",
+ "futures",
  "lazy_static",
  "light-compressed-account",
+ "light-compressible",
  "light-concurrent-merkle-tree",
  "light-event",
  "light-hasher",
@@ -3565,6 +3581,7 @@ dependencies = [
  "num-bigint 0.4.6",
  "photon-api",
  "rand 0.8.5",
+ "smallvec",
  "solana-account",
  "solana-account-decoder-client-types",
  "solana-address-lookup-table-interface",
@@ -3584,6 +3601,8 @@ dependencies = [
  "solana-transaction",
  "solana-transaction-error",
  "solana-transaction-status-client-types",
+ "spl-pod",
+ "spl-token-2022-interface",
  "thiserror 2.0.17",
  "tokio",
  "tracing",
@@ -3679,30 +3698,6 @@ dependencies = [
  "solana-sysvar",
  "thiserror 2.0.17",
  "zerocopy",
-]
-
-[[package]]
-name = "light-compressible-client"
-version = "0.17.1"
-dependencies = [
- "anchor-lang",
- "async-trait",
- "borsh 0.10.4",
- "futures",
- "light-client",
- "light-compressed-account",
- "light-compressible",
- "light-sdk",
- "light-token-interface",
- "light-token-sdk",
- "smallvec",
- "solana-account",
- "solana-instruction",
- "solana-program",
- "solana-program-error 2.2.2",
- "solana-pubkey 2.4.0",
- "spl-token-2022 7.0.0",
- "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -3907,7 +3902,6 @@ dependencies = [
  "light-compressed-account",
  "light-compressed-token",
  "light-compressible",
- "light-compressible-client",
  "light-concurrent-merkle-tree",
  "light-event",
  "light-hasher",
@@ -6027,7 +6021,6 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressible",
- "light-compressible-client",
  "light-program-test",
  "light-sdk",
  "light-sdk-types",
@@ -9736,6 +9729,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "spl-token-2022-interface"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62d7ae2ee6b856f8ddcbdc3b3a9f4d2141582bbe150f93e5298ee97e0251fa04"
+dependencies = [
+ "arrayref",
+ "bytemuck",
+ "num-derive 0.4.2",
+ "num-traits",
+ "num_enum",
+ "solana-account-info",
+ "solana-decode-error",
+ "solana-instruction",
+ "solana-msg 2.2.1",
+ "solana-program-error 2.2.2",
+ "solana-program-option",
+ "solana-program-pack",
+ "solana-pubkey 2.4.0",
+ "solana-sdk-ids",
+ "solana-zk-sdk",
+ "spl-pod",
+ "spl-token-confidential-transfer-proof-extraction 0.4.1",
+ "spl-token-confidential-transfer-proof-generation 0.4.1",
+ "spl-token-group-interface 0.6.0",
+ "spl-token-metadata-interface 0.7.0",
+ "spl-type-length-value 0.8.0",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "spl-token-confidential-transfer-ciphertext-arithmetic"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9778,6 +9801,26 @@ name = "spl-token-confidential-transfer-proof-extraction"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe2629860ff04c17bafa9ba4bed8850a404ecac81074113e1f840dbd0ebb7bd6"
+dependencies = [
+ "bytemuck",
+ "solana-account-info",
+ "solana-curve25519",
+ "solana-instruction",
+ "solana-instructions-sysvar",
+ "solana-msg 2.2.1",
+ "solana-program-error 2.2.2",
+ "solana-pubkey 2.4.0",
+ "solana-sdk-ids",
+ "solana-zk-sdk",
+ "spl-pod",
+ "thiserror 2.0.17",
+]
+
+[[package]]
+name = "spl-token-confidential-transfer-proof-extraction"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "512c85bdbbb4cbcc2038849a9e164c958b16541f252b53ea1a3933191c0a4a1a"
 dependencies = [
  "bytemuck",
  "solana-account-info",

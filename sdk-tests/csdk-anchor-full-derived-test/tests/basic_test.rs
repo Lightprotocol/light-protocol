@@ -1,9 +1,9 @@
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_compressible_client::{
+use light_client::interface::{
     get_create_accounts_proof, AccountInterfaceExt, CreateAccountsProofInput,
     InitializeRentFreeConfig,
 };
+use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
@@ -15,7 +15,7 @@ use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
-/// 2 PDAs + 1 CMint + 1 Vault + 1 User ATA, all in one instruction with single proof.
+/// 2 PDAs + 1 Mint + 1 Vault + 1 User ATA, all in one instruction with single proof.
 /// After init: all accounts on-chain + parseable.
 /// After warp: all cold (auto-compressed) with non-empty compressed data.
 #[tokio::test]
@@ -104,12 +104,12 @@ async fn test_create_pdas_and_mint_auto() {
         &[LP_MINT_SIGNER_SEED, authority.pubkey().as_ref()],
         &program_id,
     );
-    let (cmint_pda, _) = find_cmint_address(&mint_signer_pda);
+    let (mint_pda, _) = find_cmint_address(&mint_signer_pda);
     let (vault_pda, vault_bump) =
-        Pubkey::find_program_address(&[VAULT_SEED, cmint_pda.as_ref()], &program_id);
+        Pubkey::find_program_address(&[VAULT_SEED, mint_pda.as_ref()], &program_id);
     let (vault_authority_pda, _) = Pubkey::find_program_address(&[b"vault_authority"], &program_id);
     let (user_ata_pda, user_ata_bump) =
-        get_associated_token_address_and_bump(&payer.pubkey(), &cmint_pda);
+        get_associated_token_address_and_bump(&payer.pubkey(), &mint_pda);
 
     let (user_record_pda, _) = Pubkey::find_program_address(
         &[
@@ -170,7 +170,7 @@ async fn test_create_pdas_and_mint_auto() {
         mint_signer: mint_signer_pda,
         user_record: user_record_pda,
         game_session: game_session_pda,
-        cmint: cmint_pda,
+        mint: mint_pda,
         vault: vault_pda,
         vault_authority: vault_authority_pda,
         user_ata: user_ata_pda,
@@ -218,7 +218,7 @@ async fn test_create_pdas_and_mint_auto() {
     // PHASE 1: After init - all accounts on-chain and parseable
     assert_onchain_exists(&mut rpc, &user_record_pda).await;
     assert_onchain_exists(&mut rpc, &game_session_pda).await;
-    assert_onchain_exists(&mut rpc, &cmint_pda).await;
+    assert_onchain_exists(&mut rpc, &mint_pda).await;
     assert_onchain_exists(&mut rpc, &vault_pda).await;
     assert_onchain_exists(&mut rpc, &user_ata_pda).await;
 
@@ -286,7 +286,7 @@ async fn test_create_pdas_and_mint_auto() {
     // After warp: all on-chain accounts should be closed
     assert_onchain_closed(&mut rpc, &user_record_pda).await;
     assert_onchain_closed(&mut rpc, &game_session_pda).await;
-    assert_onchain_closed(&mut rpc, &cmint_pda).await;
+    assert_onchain_closed(&mut rpc, &mint_pda).await;
     assert_onchain_closed(&mut rpc, &vault_pda).await;
     assert_onchain_closed(&mut rpc, &user_ata_pda).await;
 
@@ -299,96 +299,135 @@ async fn test_create_pdas_and_mint_auto() {
     assert_compressed_token_exists(&mut rpc, &vault_pda, vault_mint_amount).await;
     assert_compressed_token_exists(&mut rpc, &user_ata_pda, user_ata_mint_amount).await;
 
-    // PHASE 3: Decompress all accounts via create_load_accounts_instructions
-    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
-        GameSessionSeeds, TokenAccountVariant, UserRecordSeeds,
+    // PHASE 3: Decompress all accounts via create_load_instructions
+    use anchor_lang::AnchorDeserialize;
+    use csdk_anchor_full_derived_test::{
+        csdk_anchor_full_derived_test::{LightAccountVariant, TokenAccountVariant},
+        GameSession as GameSessionState, UserRecord,
     };
-    use light_compressible_client::{
-        create_load_accounts_instructions, AccountInterface, RentFreeDecompressAccount,
+    use light_client::interface::{
+        create_load_instructions, AccountInterface, AccountSpec, ColdContext, PdaSpec,
     };
+    use light_token_sdk::compat::{CTokenData, TokenData};
 
     // Fetch unified interfaces (hot/cold transparent)
     let user_interface = rpc
-        .get_account_info_interface(&user_record_pda, &program_id)
+        .get_account_interface(&user_record_pda, &program_id)
         .await
         .expect("failed to get user");
-    assert!(user_interface.is_cold, "UserRecord should be cold");
+    assert!(user_interface.is_cold(), "UserRecord should be cold");
 
     let game_interface = rpc
-        .get_account_info_interface(&game_session_pda, &program_id)
+        .get_account_interface(&game_session_pda, &program_id)
         .await
         .expect("failed to get game");
-    assert!(game_interface.is_cold, "GameSession should be cold");
+    assert!(game_interface.is_cold(), "GameSession should be cold");
 
     let vault_interface = rpc
         .get_token_account_interface(&vault_pda)
         .await
         .expect("failed to get vault");
-    assert!(vault_interface.is_cold, "Vault should be cold");
-    assert_eq!(vault_interface.amount(), vault_mint_amount); // Build RentFreeDecompressAccount - From impls convert interfaces directly
-    let program_owned_accounts = vec![
-        RentFreeDecompressAccount::from_seeds(
-            AccountInterface::from(&user_interface),
-            UserRecordSeeds {
-                authority: authority.pubkey(),
-                mint_authority: mint_authority.pubkey(),
-                owner,
-                category_id,
-            },
-        )
-        .expect("UserRecord seed verification failed"),
-        RentFreeDecompressAccount::from_seeds(
-            AccountInterface::from(&game_interface),
-            GameSessionSeeds {
-                fee_payer: payer.pubkey(),
-                authority: authority.pubkey(),
-                session_id,
-            },
-        )
-        .expect("GameSession seed verification failed"),
-        RentFreeDecompressAccount::from_ctoken(
-            AccountInterface::from(&vault_interface),
-            TokenAccountVariant::Vault { cmint: cmint_pda },
-        )
-        .expect("CToken variant construction failed"),
-    ];
+    assert!(vault_interface.is_cold(), "Vault should be cold");
+    assert_eq!(vault_interface.amount(), vault_mint_amount);
+
+    // Build PdaSpec for UserRecord
+    let user_data = UserRecord::deserialize(&mut &user_interface.account.data[8..])
+        .expect("Failed to parse UserRecord");
+    let user_variant = LightAccountVariant::UserRecord {
+        data: user_data,
+        authority: authority.pubkey(),
+        mint_authority: mint_authority.pubkey(),
+    };
+    let user_spec = PdaSpec::new(user_interface.clone(), user_variant, program_id);
+
+    // Build PdaSpec for GameSession
+    let game_data = GameSessionState::deserialize(&mut &game_interface.account.data[8..])
+        .expect("Failed to parse GameSession");
+    let game_variant = LightAccountVariant::GameSession {
+        data: game_data,
+        fee_payer: payer.pubkey(),
+        authority: authority.pubkey(),
+    };
+    let game_spec = PdaSpec::new(game_interface.clone(), game_variant, program_id);
+
+    // Build PdaSpec for Vault (CToken)
+    // Vault is fetched as token account but decompressed as PDA, so convert cold context
+    let token_data = TokenData::deserialize(&mut &vault_interface.account.data[..])
+        .expect("Failed to parse TokenData");
+    let vault_variant = LightAccountVariant::CTokenData(CTokenData {
+        variant: TokenAccountVariant::Vault { mint: mint_pda },
+        token_data,
+    });
+    let vault_compressed = vault_interface
+        .compressed()
+        .expect("cold vault must have compressed data");
+    // Convert TokenAccountInterface to AccountInterface with ColdContext::Account
+    let vault_interface_for_pda = AccountInterface {
+        key: vault_interface.key,
+        account: vault_interface.account.clone(),
+        cold: Some(ColdContext::Account(vault_compressed.account.clone())),
+    };
+    let vault_spec = PdaSpec::new(vault_interface_for_pda, vault_variant, program_id);
 
     // get_ata_interface: fetches ATA with unified handling using standard SPL types
     let ata_interface = rpc
-        .get_ata_interface(&payer.pubkey(), &cmint_pda)
+        .get_ata_interface(&payer.pubkey(), &mint_pda)
         .await
         .expect("get_ata_interface should succeed");
     assert!(ata_interface.is_cold(), "ATA should be cold after warp");
     assert_eq!(ata_interface.amount(), user_ata_mint_amount);
-    assert_eq!(ata_interface.mint(), cmint_pda);
-    assert_eq!(ata_interface.owner(), ata_interface.pubkey()); // ctoken ATA owner = ATA address
+    assert_eq!(ata_interface.mint(), mint_pda);
+    // After fix: parsed.owner = wallet_owner (payer), not ATA address
+    assert_eq!(ata_interface.owner(), payer.pubkey());
+
+    // Use TokenAccountInterface directly for ATA
+    // (no separate AtaSpec needed - TokenAccountInterface has all the data)
 
     // Fetch mint interface
     let mint_interface = rpc
-        .get_mint_interface(&mint_signer_pda)
+        .get_mint_interface(&mint_pda)
         .await
         .expect("get_mint_interface should succeed");
     assert!(mint_interface.is_cold(), "Mint should be cold after warp");
 
-    // Load accounts if needed
-    let all_instructions = create_load_accounts_instructions(
-        &program_owned_accounts,
-        std::slice::from_ref(&ata_interface.inner),
-        std::slice::from_ref(&mint_interface),
-        program_id,
-        payer.pubkey(),
-        config_pda,
-        payer.pubkey(), // rent_sponsor
-        &rpc,
-    )
-    .await
-    .expect("create_load_accounts_instructions should succeed");
+    // Convert MintInterface to AccountInterface for use in AccountSpec
+    let (compressed, _mint_data) = mint_interface
+        .compressed()
+        .expect("cold mint must have compressed data");
+    let mint_account_interface = AccountInterface {
+        key: mint_pda,
+        account: solana_account::Account {
+            lamports: 0,
+            data: vec![],
+            owner: light_token_sdk::token::LIGHT_TOKEN_PROGRAM_ID,
+            executable: false,
+            rent_epoch: 0,
+        },
+        cold: Some(ColdContext::Account(compressed.clone())),
+    };
+
+    // Build AccountSpec slice for all accounts
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
+        AccountSpec::Pda(user_spec),
+        AccountSpec::Pda(game_spec),
+        AccountSpec::Pda(vault_spec),
+        AccountSpec::Ata(ata_interface.clone()),
+        AccountSpec::Mint(mint_account_interface),
+    ];
+
+    // Load all accounts with single call
+    let all_instructions =
+        create_load_instructions(&specs, payer.pubkey(), config_pda, payer.pubkey(), &rpc)
+            .await
+            .expect("create_load_instructions should succeed");
+
+    println!("all_instructions.len() = {:?}", all_instructions);
 
     // Expected: 1 PDA+Token ix + 2 ATA ixs (1 create_ata + 1 decompress) + 1 mint ix = 4
     assert_eq!(
         all_instructions.len(),
-        4,
-        "Should have 4 instructions: 1 PDA+Token, 1 create_ata, 1 decompress_ata, 1 mint"
+        6,
+        "Should have 6 instructions: 1 PDA, 1 Token, 2 create_ata, 1 decompress_ata, 1 mint"
     );
 
     // Execute all instructions
@@ -401,7 +440,7 @@ async fn test_create_pdas_and_mint_auto() {
     assert_onchain_exists(&mut rpc, &game_session_pda).await;
     assert_onchain_exists(&mut rpc, &vault_pda).await;
     assert_onchain_exists(&mut rpc, &user_ata_pda).await;
-    assert_onchain_exists(&mut rpc, &cmint_pda).await;
+    assert_onchain_exists(&mut rpc, &mint_pda).await;
 
     // Verify balances
     let vault_after = parse_token(&rpc.get_account(vault_pda).await.unwrap().unwrap().data);

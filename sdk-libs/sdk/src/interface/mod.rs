@@ -30,9 +30,9 @@ pub use compression_info::{
     OPTION_COMPRESSION_INFO_SPACE,
 };
 pub use config::{
-    process_initialize_compression_config_account_info,
-    process_initialize_compression_config_checked, process_update_compression_config,
-    CompressibleConfig, COMPRESSIBLE_CONFIG_SEED, MAX_ADDRESS_TREES_PER_SPACE,
+    process_initialize_light_config, process_initialize_light_config_checked,
+    process_update_light_config, LightConfig, COMPRESSIBLE_CONFIG_SEED,
+    MAX_ADDRESS_TREES_PER_SPACE,
 };
 #[cfg(feature = "v2")]
 pub use decompress_idempotent::{

@@ -87,7 +87,7 @@ Context account seeds become fields in the variant enum. Instruction data seeds 
                          GENERATED ARTIFACTS
 +------------------------------------------------------------------+
 |                                                                  |
-|  RentFreeAccountVariant         TokenAccountVariant              |
+|  LightAccountVariant         TokenAccountVariant              |
 |  +------------------------+     +------------------------+       |
 |  | UserRecord { data, .. }|     | Vault { mint }         |       |
 |  | PackedUserRecord {...} |     | PackedVault { mint_idx}|       |
@@ -196,7 +196,7 @@ Rent returned to sponsor
 
 | Item | Purpose |
 |------|---------|
-| `RentFreeAccountVariant` | Unified enum for all compressible account types (packed + unpacked) |
+| `LightAccountVariant` | Unified enum for all compressible account types (packed + unpacked) |
 | `TokenAccountVariant` | Enum for token account types |
 | `{Type}Seeds` | Client-side PDA derivation with seed values |
 | `{Type}CtxSeeds` | Decompression context with resolved Pubkeys |
