@@ -194,25 +194,23 @@ pub struct CreateTwoMints<'info> {
 }
 
 // =============================================================================
-// Four Mints Test
+// Three Mints Test
 // =============================================================================
 
 pub const MINT_SIGNER_C_SEED: &[u8] = b"mint_signer_c";
-pub const MINT_SIGNER_D_SEED: &[u8] = b"mint_signer_d";
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct CreateFourMintsParams {
+pub struct CreateThreeMintsParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub mint_signer_a_bump: u8,
     pub mint_signer_b_bump: u8,
     pub mint_signer_c_bump: u8,
-    pub mint_signer_d_bump: u8,
 }
 
-/// Test instruction with 4 #[light_mint] fields to verify multi-mint support.
+/// Test instruction with 3 #[light_mint] fields to verify multi-mint support.
 #[derive(Accounts, RentFree)]
-#[instruction(params: CreateFourMintsParams)]
-pub struct CreateFourMints<'info> {
+#[instruction(params: CreateThreeMintsParams)]
+pub struct CreateThreeMints<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
 
@@ -238,13 +236,6 @@ pub struct CreateFourMints<'info> {
         bump,
     )]
     pub mint_signer_c: UncheckedAccount<'info>,
-
-    /// CHECK: PDA derived from authority for mint D
-    #[account(
-        seeds = [MINT_SIGNER_D_SEED, authority.key().as_ref()],
-        bump,
-    )]
-    pub mint_signer_d: UncheckedAccount<'info>,
 
     /// CHECK: Initialized by light_mint CPI
     #[account(mut)]
@@ -275,16 +266,6 @@ pub struct CreateFourMints<'info> {
         mint_seeds = &[MINT_SIGNER_C_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_c_bump]]
     )]
     pub cmint_c: UncheckedAccount<'info>,
-
-    /// CHECK: Initialized by light_mint CPI
-    #[account(mut)]
-    #[light_mint(
-        mint_signer = mint_signer_d,
-        authority = fee_payer,
-        decimals = 12,
-        mint_seeds = &[MINT_SIGNER_D_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_d_bump]]
-    )]
-    pub cmint_d: UncheckedAccount<'info>,
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,

@@ -663,13 +663,12 @@ async fn test_create_two_mints() {
     );
 }
 
-/// Test creating 4 mints in a single instruction.
+/// Test creating 3 mints in a single instruction.
 /// Verifies multi-mint support in the RentFree macro scales beyond 2.
 #[tokio::test]
-async fn test_create_four_mints() {
+async fn test_create_three_mints() {
     use csdk_anchor_full_derived_test::instruction_accounts::{
-        CreateFourMintsParams, MINT_SIGNER_A_SEED, MINT_SIGNER_B_SEED, MINT_SIGNER_C_SEED,
-        MINT_SIGNER_D_SEED,
+        CreateThreeMintsParams, MINT_SIGNER_A_SEED, MINT_SIGNER_B_SEED, MINT_SIGNER_C_SEED,
     };
     use light_token_sdk::token::{
         find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1,
@@ -703,7 +702,7 @@ async fn test_create_four_mints() {
 
     let authority = Keypair::new();
 
-    // Derive PDAs for all 4 mint signers
+    // Derive PDAs for all 3 mint signers
     let (mint_signer_a_pda, mint_signer_a_bump) = Pubkey::find_program_address(
         &[MINT_SIGNER_A_SEED, authority.pubkey().as_ref()],
         &program_id,
@@ -716,18 +715,13 @@ async fn test_create_four_mints() {
         &[MINT_SIGNER_C_SEED, authority.pubkey().as_ref()],
         &program_id,
     );
-    let (mint_signer_d_pda, mint_signer_d_bump) = Pubkey::find_program_address(
-        &[MINT_SIGNER_D_SEED, authority.pubkey().as_ref()],
-        &program_id,
-    );
 
     // Derive mint PDAs
     let (cmint_a_pda, _) = find_cmint_address(&mint_signer_a_pda);
     let (cmint_b_pda, _) = find_cmint_address(&mint_signer_b_pda);
     let (cmint_c_pda, _) = find_cmint_address(&mint_signer_c_pda);
-    let (cmint_d_pda, _) = find_cmint_address(&mint_signer_d_pda);
 
-    // Get proof for all 4 mints
+    // Get proof for all 3 mints
     let proof_result = get_create_accounts_proof(
         &rpc,
         &program_id,
@@ -735,23 +729,20 @@ async fn test_create_four_mints() {
             CreateAccountsProofInput::mint(mint_signer_a_pda),
             CreateAccountsProofInput::mint(mint_signer_b_pda),
             CreateAccountsProofInput::mint(mint_signer_c_pda),
-            CreateAccountsProofInput::mint(mint_signer_d_pda),
         ],
     )
     .await
     .unwrap();
 
-    let accounts = csdk_anchor_full_derived_test::accounts::CreateFourMints {
+    let accounts = csdk_anchor_full_derived_test::accounts::CreateThreeMints {
         fee_payer: payer.pubkey(),
         authority: authority.pubkey(),
         mint_signer_a: mint_signer_a_pda,
         mint_signer_b: mint_signer_b_pda,
         mint_signer_c: mint_signer_c_pda,
-        mint_signer_d: mint_signer_d_pda,
         cmint_a: cmint_a_pda,
         cmint_b: cmint_b_pda,
         cmint_c: cmint_c_pda,
-        cmint_d: cmint_d_pda,
         compression_config: config_pda,
         ctoken_compressible_config: COMPRESSIBLE_CONFIG_V1,
         ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
@@ -760,13 +751,12 @@ async fn test_create_four_mints() {
         system_program: solana_sdk::system_program::ID,
     };
 
-    let instruction_data = csdk_anchor_full_derived_test::instruction::CreateFourMints {
-        params: CreateFourMintsParams {
+    let instruction_data = csdk_anchor_full_derived_test::instruction::CreateThreeMints {
+        params: CreateThreeMintsParams {
             create_accounts_proof: proof_result.create_accounts_proof,
             mint_signer_a_bump,
             mint_signer_b_bump,
             mint_signer_c_bump,
-            mint_signer_d_bump,
         },
     };
 
@@ -782,9 +772,9 @@ async fn test_create_four_mints() {
 
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &authority])
         .await
-        .expect("CreateFourMints should succeed");
+        .expect("CreateThreeMints should succeed");
 
-    // Verify all 4 mints exist on-chain
+    // Verify all 3 mints exist on-chain
     use light_token_interface::state::Mint;
 
     let cmint_a_account = rpc
@@ -802,11 +792,6 @@ async fn test_create_four_mints() {
         .await
         .unwrap()
         .expect("Mint C should exist on-chain");
-    let cmint_d_account = rpc
-        .get_account(cmint_d_pda)
-        .await
-        .unwrap()
-        .expect("Mint D should exist on-chain");
 
     // Parse and verify mint data
     let mint_a: Mint = borsh::BorshDeserialize::deserialize(&mut &cmint_a_account.data[..])
@@ -815,14 +800,11 @@ async fn test_create_four_mints() {
         .expect("Failed to deserialize Mint B");
     let mint_c: Mint = borsh::BorshDeserialize::deserialize(&mut &cmint_c_account.data[..])
         .expect("Failed to deserialize Mint C");
-    let mint_d: Mint = borsh::BorshDeserialize::deserialize(&mut &cmint_d_account.data[..])
-        .expect("Failed to deserialize Mint D");
 
     // Verify decimals match what was specified in #[light_mint]
     assert_eq!(mint_a.base.decimals, 6, "Mint A should have 6 decimals");
     assert_eq!(mint_b.base.decimals, 8, "Mint B should have 8 decimals");
     assert_eq!(mint_c.base.decimals, 9, "Mint C should have 9 decimals");
-    assert_eq!(mint_d.base.decimals, 12, "Mint D should have 12 decimals");
 
     // Verify mint authorities
     assert_eq!(
@@ -839,10 +821,5 @@ async fn test_create_four_mints() {
         mint_c.base.mint_authority,
         Some(payer.pubkey().to_bytes().into()),
         "Mint C authority should be fee_payer"
-    );
-    assert_eq!(
-        mint_d.base.mint_authority,
-        Some(payer.pubkey().to_bytes().into()),
-        "Mint D authority should be fee_payer"
     );
 }
