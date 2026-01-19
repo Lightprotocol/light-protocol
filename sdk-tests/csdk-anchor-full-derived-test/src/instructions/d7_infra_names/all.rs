@@ -20,7 +20,7 @@ pub struct D7AllNamesParams {
 
 /// Tests multiple naming variants:
 /// - `payer` as the fee payer field
-/// - `ctoken_compressible_config` for config
+/// - `light_token_compressible_config` for config
 /// - `ctoken_rent_sponsor` for rent sponsor
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: D7AllNamesParams)]
@@ -55,11 +55,11 @@ pub struct D7AllNames<'info> {
         seeds = [D7_ALL_VAULT_SEED, mint.key().as_ref()],
         bump,
     )]
-    #[rentfree_token(authority = [D7_ALL_AUTH_SEED])]
+    #[light_account(token, authority = [D7_ALL_AUTH_SEED])]
     pub d7_all_vault: UncheckedAccount<'info>,
 
     #[account(address = COMPRESSIBLE_CONFIG_V1)]
-    pub ctoken_compressible_config: AccountInfo<'info>,
+    pub light_token_compressible_config: AccountInfo<'info>,
 
     #[account(mut, address = CTOKEN_RENT_SPONSOR)]
     pub ctoken_rent_sponsor: AccountInfo<'info>,
@@ -68,7 +68,7 @@ pub struct D7AllNames<'info> {
     pub light_token_program: AccountInfo<'info>,
 
     /// CHECK: CToken CPI authority
-    pub ctoken_cpi_authority: AccountInfo<'info>,
+    pub light_token_cpi_authority: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }

@@ -54,7 +54,7 @@ pub fn process_mint_action<'a, 'info>(
         mint_signer: Some(ctx.accounts.mint_seed.as_ref()),
         authority: ctx.accounts.mint_authority.as_ref(),
         fee_payer: ctx.accounts.payer.as_ref(),
-        cpi_authority_pda: ctx.accounts.ctoken_cpi_authority.as_ref(),
+        cpi_authority_pda: ctx.accounts.light_token_cpi_authority.as_ref(),
         cpi_context: cpi_accounts.cpi_context().unwrap(),
         cpi_signer: crate::LIGHT_CPI_SIGNER,
         recipient_token_accounts: vec![],

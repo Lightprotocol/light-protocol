@@ -1478,13 +1478,13 @@ async fn test_d8_pda_only_full_lifecycle() {
 // D5 Markers Token Tests (require mint setup)
 // =============================================================================
 
-/// Tests D5RentfreeToken: #[rentfree_token] attribute
+/// Tests D5LightToken: #[light_account(token)] attribute
 /// NOTE: This test is skipped because token-only instructions (no #[light_account(init)] PDAs)
 /// still require a CreateAccountsProof but get_create_accounts_proof fails with empty inputs.
 #[tokio::test]
-async fn test_d5_rentfree_token() {
+async fn test_d5_light_token() {
     use csdk_anchor_full_derived_test::d5_markers::{
-        D5RentfreeTokenParams, D5_VAULT_AUTH_SEED, D5_VAULT_SEED,
+        D5LightTokenParams, D5_VAULT_AUTH_SEED, D5_VAULT_SEED,
     };
     use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
     use light_token_sdk::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as CTOKEN_RENT_SPONSOR};
@@ -1505,20 +1505,20 @@ async fn test_d5_rentfree_token() {
         .unwrap();
 
     // Build instruction
-    let accounts = csdk_anchor_full_derived_test::accounts::D5RentfreeToken {
+    let accounts = csdk_anchor_full_derived_test::accounts::D5LightToken {
         fee_payer: ctx.payer.pubkey(),
         mint,
         vault_authority,
         d5_token_vault: vault,
-        ctoken_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
         ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
-        ctoken_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
+        light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
     };
 
-    let instruction_data = csdk_anchor_full_derived_test::instruction::D5RentfreeToken {
-        params: D5RentfreeTokenParams {
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D5LightToken {
+        params: D5LightTokenParams {
             create_accounts_proof: proof_result.create_accounts_proof,
             vault_bump,
         },
@@ -1537,7 +1537,7 @@ async fn test_d5_rentfree_token() {
     ctx.rpc
         .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
         .await
-        .expect("D5RentfreeToken instruction should succeed");
+        .expect("D5LightToken instruction should succeed");
 
     // Verify token vault exists
     ctx.assert_onchain_exists(&vault).await;
@@ -1545,7 +1545,7 @@ async fn test_d5_rentfree_token() {
     // Note: Token vault decompression not tested - requires TokenAccountVariant
 }
 
-/// Tests D5AllMarkers: #[light_account(init)] + #[rentfree_token] combined
+/// Tests D5AllMarkers: #[light_account(init)] + #[light_account(token)] combined
 #[tokio::test]
 async fn test_d5_all_markers() {
     use csdk_anchor_full_derived_test::d5_markers::{
@@ -1584,10 +1584,10 @@ async fn test_d5_all_markers() {
         d5_all_authority,
         d5_all_record,
         d5_all_vault,
-        ctoken_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
         ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
-        ctoken_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
+        light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1628,7 +1628,7 @@ async fn test_d5_all_markers() {
 // D7 Infrastructure Names Token Tests (require mint setup)
 // =============================================================================
 
-/// Tests D7CtokenConfig: ctoken_compressible_config/ctoken_rent_sponsor naming
+/// Tests D7CtokenConfig: light_token_compressible_config/ctoken_rent_sponsor naming
 /// Token-only instruction (no #[light_account(init)] PDAs) - verifies infrastructure field naming.
 #[tokio::test]
 async fn test_d7_ctoken_config() {
@@ -1660,10 +1660,10 @@ async fn test_d7_ctoken_config() {
         mint,
         d7_ctoken_authority,
         d7_ctoken_vault,
-        ctoken_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
         ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
-        ctoken_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
+        light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1733,10 +1733,10 @@ async fn test_d7_all_names() {
         d7_all_authority,
         d7_all_record,
         d7_all_vault,
-        ctoken_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
         ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
-        ctoken_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
+        light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
     };
 

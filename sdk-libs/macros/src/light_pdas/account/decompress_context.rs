@@ -131,7 +131,7 @@ pub fn generate_decompress_context_trait_impl(
             }
 
             fn token_cpi_authority(&self) -> std::option::Option<&solana_account_info::AccountInfo<#lifetime>> {
-                self.ctoken_cpi_authority.as_ref().map(|a| &**a)
+                self.light_token_cpi_authority.as_ref().map(|a| &**a)
             }
 
             fn token_config(&self) -> std::option::Option<&solana_account_info::AccountInfo<#lifetime>> {

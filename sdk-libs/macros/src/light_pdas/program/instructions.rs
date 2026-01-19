@@ -519,7 +519,7 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
     if pda_specs.is_empty() && token_specs.is_empty() {
         return Err(macro_error!(
             &module,
-            "No #[light_account(init)] or #[rentfree_token] fields found in any Accounts struct.\n\
+            "No #[light_account(init)] or #[light_account(token)] fields found in any Accounts struct.\n\
              Ensure your Accounts structs are in modules declared with `pub mod xxx;`"
         ));
     }

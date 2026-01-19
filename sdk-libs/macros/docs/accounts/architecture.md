@@ -114,10 +114,10 @@ Infrastructure fields are auto-detected by naming convention. No attribute requi
 |------------|----------------|
 | Fee Payer | `fee_payer`, `payer`, `creator` |
 | Compression Config | `compression_config` |
-| CToken Config | `ctoken_compressible_config`, `ctoken_config`, `light_token_config_account` |
+| CToken Config | `light_token_compressible_config`, `ctoken_config`, `light_token_config_account` |
 | CToken Rent Sponsor | `ctoken_rent_sponsor`, `light_token_rent_sponsor` |
 | CToken Program | `ctoken_program`, `light_token_program` |
-| CToken CPI Authority | `ctoken_cpi_authority`, `light_token_program_cpi_authority`, `compress_token_program_cpi_authority` |
+| CToken CPI Authority | `light_token_cpi_authority`, `light_token_program_cpi_authority`, `compress_token_program_cpi_authority` |
 
 **Source**: `sdk-libs/macros/src/rentfree/accounts/parse.rs` (lines 30-53)
 

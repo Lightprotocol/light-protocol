@@ -1,8 +1,8 @@
-//! Initialize instruction with all rentfree markers.
+//! Initialize instruction with all light account markers.
 //!
 //! Tests:
 //! - 2x #[light_account(init)] (pool_state, observation_state)
-//! - 2x #[rentfree_token(authority = [...])] (token_0_vault, token_1_vault)
+//! - 2x #[light_account(token, authority = [...])] (token_0_vault, token_1_vault)
 //! - 1x #[light_account(init, mint,...)] (lp_mint)
 //! - CreateTokenAccountCpi.rent_free()
 //! - CreateTokenAtaCpi.rent_free()
@@ -112,7 +112,7 @@ pub struct InitializePool<'info> {
         ],
         bump,
     )]
-    #[rentfree_token(authority = [AUTH_SEED.as_bytes()])]
+    #[light_account(token, authority = [AUTH_SEED.as_bytes()])]
     pub token_0_vault: UncheckedAccount<'info>,
 
     #[account(
@@ -124,7 +124,7 @@ pub struct InitializePool<'info> {
         ],
         bump,
     )]
-    #[rentfree_token(authority = [AUTH_SEED.as_bytes()])]
+    #[light_account(token, authority = [AUTH_SEED.as_bytes()])]
     pub token_1_vault: UncheckedAccount<'info>,
 
     #[account(
@@ -148,7 +148,7 @@ pub struct InitializePool<'info> {
     pub compression_config: AccountInfo<'info>,
 
     #[account(address = COMPRESSIBLE_CONFIG_V1)]
-    pub ctoken_compressible_config: AccountInfo<'info>,
+    pub light_token_compressible_config: AccountInfo<'info>,
 
     #[account(mut, address = CTOKEN_RENT_SPONSOR)]
     pub ctoken_rent_sponsor: AccountInfo<'info>,
@@ -156,7 +156,7 @@ pub struct InitializePool<'info> {
     pub light_token_program: AccountInfo<'info>,
 
     /// CHECK: CToken CPI authority.
-    pub ctoken_cpi_authority: AccountInfo<'info>,
+    pub light_token_cpi_authority: AccountInfo<'info>,
 }
 
 /// Initialize instruction handler (noop for compilation test).
@@ -174,7 +174,9 @@ pub fn process_initialize_pool<'info>(
         owner: ctx.accounts.authority.key(),
     }
     .rent_free(
-        ctx.accounts.ctoken_compressible_config.to_account_info(),
+        ctx.accounts
+            .light_token_compressible_config
+            .to_account_info(),
         ctx.accounts.ctoken_rent_sponsor.to_account_info(),
         ctx.accounts.system_program.to_account_info(),
         &crate::ID,
@@ -194,7 +196,9 @@ pub fn process_initialize_pool<'info>(
         owner: ctx.accounts.authority.key(),
     }
     .rent_free(
-        ctx.accounts.ctoken_compressible_config.to_account_info(),
+        ctx.accounts
+            .light_token_compressible_config
+            .to_account_info(),
         ctx.accounts.ctoken_rent_sponsor.to_account_info(),
         ctx.accounts.system_program.to_account_info(),
         &crate::ID,
@@ -216,7 +220,9 @@ pub fn process_initialize_pool<'info>(
     }
     .idempotent()
     .rent_free(
-        ctx.accounts.ctoken_compressible_config.to_account_info(),
+        ctx.accounts
+            .light_token_compressible_config
+            .to_account_info(),
         ctx.accounts.ctoken_rent_sponsor.to_account_info(),
         ctx.accounts.system_program.to_account_info(),
     )

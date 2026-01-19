@@ -13,5 +13,5 @@ pub struct CTokenPda<'info> {
     /// CHECK:
     pub light_token_program: UncheckedAccount<'info>,
     /// CHECK:
-    pub ctoken_cpi_authority: UncheckedAccount<'info>,
+    pub light_token_cpi_authority: UncheckedAccount<'info>,
 }

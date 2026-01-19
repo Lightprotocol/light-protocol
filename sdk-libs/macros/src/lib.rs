@@ -376,7 +376,7 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 /// compression finalize logic for:
 /// - Accounts marked with `#[light_account(init)]` (PDAs)
 /// - Accounts marked with `#[light_account(init, mint, ...)]` (compressed mints)
-/// - Accounts marked with `#[rentfree_token(...)]` (rent-free token accounts)
+/// - Accounts marked with `#[light_account(token, ...)]` (rent-free token accounts)
 ///
 /// The trait is defined in `light_sdk::compressible::LightFinalize`.
 ///
@@ -412,7 +412,7 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 ///         seeds = [b"vault", cmint.key().as_ref()],
 ///         bump
 ///     )]
-///     #[rentfree_token(authority = [b"vault_authority"])]
+///     #[light_account(token, authority = [b"vault_authority"])]
 ///     pub vault: UncheckedAccount<'info>,
 /// }
 /// ```
@@ -447,7 +447,7 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 /// - `ID`: Program ID (from declare_id!)
 ///
 /// The struct should have fields named `fee_payer` (or `payer`) and `compression_config`.
-#[proc_macro_derive(LightAccounts, attributes(light_account, rentfree_token, instruction))]
+#[proc_macro_derive(LightAccounts, attributes(light_account, instruction))]
 pub fn light_accounts_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     into_token_stream(light_pdas::accounts::derive_light_accounts(input))

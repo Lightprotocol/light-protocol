@@ -66,7 +66,7 @@ pub struct GameState {
 
 ---
 
-### 3. `#[rentfree_token]`
+### 3. `#[light_account(token)]`
 
 **Purpose**: Marks an account as a token account that can be compressed/decompressed.
 
@@ -77,14 +77,15 @@ pub struct GameState {
 
 **Example**:
 ```rust
-#[derive(LightAccounts)]
-#[rentfree_token]
-pub struct MyTokenAccount {
-    pub mint: Pubkey,
-    pub owner: Pubkey,
-    pub amount: u64,
-    #[compression_info]
-    pub compression_info: CompressionInfo,
+#[derive(Accounts, LightAccounts)]
+pub struct CreateVault<'info> {
+    #[account(
+        mut,
+        seeds = [b"vault", mint.key().as_ref()],
+        bump
+    )]
+    #[light_account(token, authority = [b"vault_authority"])]
+    pub vault: UncheckedAccount<'info>,
 }
 ```
 

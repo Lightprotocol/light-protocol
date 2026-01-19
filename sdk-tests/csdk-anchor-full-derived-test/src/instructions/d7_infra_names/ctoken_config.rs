@@ -1,6 +1,6 @@
 //! D7 Test: "ctoken_config" naming variant
 //!
-//! Tests that #[rentfree_token] works with alternative naming for ctoken infrastructure fields.
+//! Tests that #[light_account(token)] works with alternative naming for ctoken infrastructure fields.
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
@@ -15,7 +15,7 @@ pub struct D7CtokenConfigParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
 
-/// Tests #[rentfree_token] with `ctoken_compressible_config` and `ctoken_rent_sponsor` field names.
+/// Tests #[light_account(token)] with `light_token_compressible_config` and `ctoken_rent_sponsor` field names.
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: D7CtokenConfigParams)]
 pub struct D7CtokenConfig<'info> {
@@ -36,11 +36,11 @@ pub struct D7CtokenConfig<'info> {
         seeds = [D7_CTOKEN_VAULT_SEED, mint.key().as_ref()],
         bump,
     )]
-    #[rentfree_token(authority = [D7_CTOKEN_AUTH_SEED])]
+    #[light_account(token, authority = [D7_CTOKEN_AUTH_SEED])]
     pub d7_ctoken_vault: UncheckedAccount<'info>,
 
     #[account(address = COMPRESSIBLE_CONFIG_V1)]
-    pub ctoken_compressible_config: AccountInfo<'info>,
+    pub light_token_compressible_config: AccountInfo<'info>,
 
     #[account(mut, address = CTOKEN_RENT_SPONSOR)]
     pub ctoken_rent_sponsor: AccountInfo<'info>,
@@ -49,7 +49,7 @@ pub struct D7CtokenConfig<'info> {
     pub light_token_program: AccountInfo<'info>,
 
     /// CHECK: CToken CPI authority
-    pub ctoken_cpi_authority: AccountInfo<'info>,
+    pub light_token_cpi_authority: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }

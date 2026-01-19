@@ -153,7 +153,7 @@ impl DecompressBuilder {
                 pub light_token_program: Option<UncheckedAccount<'info>>,
                 /// CHECK:
                 #[account(address = solana_pubkey::pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy"))]
-                pub ctoken_cpi_authority: Option<UncheckedAccount<'info>>,
+                pub light_token_cpi_authority: Option<UncheckedAccount<'info>>,
                 /// CHECK: Checked by SDK
                 pub ctoken_config: Option<UncheckedAccount<'info>>,
             }

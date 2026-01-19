@@ -99,10 +99,10 @@ async fn test_create_mint_with_metadata() {
         mint_signer: mint_signer_pda,
         cmint: cmint_pda,
         compression_config: config_pda,
-        ctoken_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
         ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
-        ctoken_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
+        light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
     };
 

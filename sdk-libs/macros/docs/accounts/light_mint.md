@@ -34,10 +34,10 @@ pub struct CreateMint<'info> {
     pub cmint: Account<'info, CMint>,
 
     // Infrastructure accounts (auto-detected by name)
-    pub ctoken_compressible_config: Account<'info, CtokenConfig>,
+    pub light_token_compressible_config: Account<'info, CtokenConfig>,
     pub ctoken_rent_sponsor: Account<'info, CtokenRentSponsor>,
     pub light_token_program: Program<'info, LightTokenProgram>,
-    pub ctoken_cpi_authority: AccountInfo<'info>,
+    pub light_token_cpi_authority: AccountInfo<'info>,
 }
 ```
 
@@ -301,10 +301,10 @@ The macro requires certain infrastructure accounts, auto-detected by naming conv
 | Account Type | Accepted Names |
 |--------------|----------------|
 | Fee Payer | `fee_payer`, `payer`, `creator` |
-| CToken Config | `ctoken_compressible_config`, `ctoken_config`, `light_token_config_account` |
+| CToken Config | `light_token_compressible_config`, `ctoken_config`, `light_token_config_account` |
 | CToken Rent Sponsor | `ctoken_rent_sponsor`, `light_token_rent_sponsor` |
 | CToken Program | `ctoken_program`, `light_token_program` |
-| CToken CPI Authority | `ctoken_cpi_authority`, `light_token_program_cpi_authority`, `compress_token_program_cpi_authority` |
+| CToken CPI Authority | `light_token_cpi_authority`, `light_token_program_cpi_authority`, `compress_token_program_cpi_authority` |
 
 ## Validation
 

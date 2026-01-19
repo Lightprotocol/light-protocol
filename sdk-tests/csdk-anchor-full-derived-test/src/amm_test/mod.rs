@@ -2,7 +2,7 @@
 //!
 //! Tests:
 //! - Multiple #[light_account(init)] fields
-//! - #[rentfree_token] with authority seeds
+//! - #[light_account(token)] with authority seeds
 //! - #[light_mint] for LP token creation
 //! - CreateTokenAccountCpi.rent_free()
 //! - CreateTokenAtaCpi.rent_free()

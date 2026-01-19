@@ -1,6 +1,6 @@
 //! D5 Test: All marker types combined
 //!
-//! Tests #[light_account(init)] + #[rentfree_token] together in one instruction struct.
+//! Tests #[light_account(init)] + #[light_account(token)] together in one instruction struct.
 //! Note: #[light_mint] is tested separately in amm_test/initialize.rs.
 
 use anchor_lang::prelude::*;
@@ -21,7 +21,7 @@ pub struct D5AllMarkersParams {
 
 /// Tests all marker types in one struct:
 /// - #[light_account(init)] for PDA account
-/// - #[rentfree_token] for token vault
+/// - #[light_account(token)] for token vault
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: D5AllMarkersParams)]
 pub struct D5AllMarkers<'info> {
@@ -55,11 +55,11 @@ pub struct D5AllMarkers<'info> {
         seeds = [D5_ALL_VAULT_SEED, mint.key().as_ref()],
         bump,
     )]
-    #[rentfree_token(authority = [D5_ALL_AUTH_SEED])]
+    #[light_account(token, authority = [D5_ALL_AUTH_SEED])]
     pub d5_all_vault: UncheckedAccount<'info>,
 
     #[account(address = COMPRESSIBLE_CONFIG_V1)]
-    pub ctoken_compressible_config: AccountInfo<'info>,
+    pub light_token_compressible_config: AccountInfo<'info>,
 
     #[account(mut, address = CTOKEN_RENT_SPONSOR)]
     pub ctoken_rent_sponsor: AccountInfo<'info>,
@@ -68,7 +68,7 @@ pub struct D5AllMarkers<'info> {
     pub light_token_program: AccountInfo<'info>,
 
     /// CHECK: CToken CPI authority
-    pub ctoken_cpi_authority: AccountInfo<'info>,
+    pub light_token_cpi_authority: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }

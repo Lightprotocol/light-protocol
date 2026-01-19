@@ -159,7 +159,7 @@ const _: () = {
 
 The macro supports three instruction variants based on field types:
 - `PdaOnly`: Only `#[light_account(init)]` PDA fields
-- `TokenOnly`: Only `#[rentfree_token]` token fields
+- `TokenOnly`: Only `#[light_account(token)]` token fields
 - `Mixed`: Both PDA and token fields (most common)
 
 Currently, only `Mixed` variant is fully implemented. `PdaOnly` and `TokenOnly` will error at runtime.

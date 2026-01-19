@@ -89,8 +89,8 @@ pub mod csdk_anchor_full_derived_test {
     use super::{
         amm_test::{Deposit, InitializeParams, InitializePool, Withdraw},
         d5_markers::{
-            D5AllMarkers, D5AllMarkersParams, D5RentfreeBare, D5RentfreeBareParams,
-            D5RentfreeToken, D5RentfreeTokenParams,
+            D5AllMarkers, D5AllMarkersParams, D5LightToken, D5LightTokenParams, D5RentfreeBare,
+            D5RentfreeBareParams,
         },
         d6_account_types::{D6Account, D6AccountParams, D6Boxed, D6BoxedParams},
         d7_infra_names::{
@@ -276,7 +276,9 @@ pub mod csdk_anchor_full_derived_test {
             owner: ctx.accounts.vault_authority.key(),
         }
         .rent_free(
-            ctx.accounts.ctoken_compressible_config.to_account_info(),
+            ctx.accounts
+                .light_token_compressible_config
+                .to_account_info(),
             ctx.accounts.ctoken_rent_sponsor.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
             &crate::ID,
@@ -296,7 +298,9 @@ pub mod csdk_anchor_full_derived_test {
         }
         .idempotent()
         .rent_free(
-            ctx.accounts.ctoken_compressible_config.to_account_info(),
+            ctx.accounts
+                .light_token_compressible_config
+                .to_account_info(),
             ctx.accounts.ctoken_rent_sponsor.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
         )
@@ -374,8 +378,8 @@ pub mod csdk_anchor_full_derived_test {
         Ok(())
     }
 
-    /// AMM initialize instruction with all rentfree markers.
-    /// Tests: 2x #[light_account(init)], 2x #[rentfree_token], 1x #[light_mint],
+    /// AMM initialize instruction with all light account markers.
+    /// Tests: 2x #[light_account(init)], 2x #[light_account(token)], 1x #[light_mint],
     /// CreateTokenAccountCpi.rent_free(), CreateTokenAtaCpi.rent_free(), MintToCpi
     pub fn initialize_pool<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializePool<'info>>,
@@ -553,7 +557,9 @@ pub mod csdk_anchor_full_derived_test {
             owner: ctx.accounts.d7_ctoken_authority.key(),
         }
         .rent_free(
-            ctx.accounts.ctoken_compressible_config.to_account_info(),
+            ctx.accounts
+                .light_token_compressible_config
+                .to_account_info(),
             ctx.accounts.ctoken_rent_sponsor.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
             &crate::ID,
@@ -591,7 +597,9 @@ pub mod csdk_anchor_full_derived_test {
             owner: ctx.accounts.d7_all_authority.key(),
         }
         .rent_free(
-            ctx.accounts.ctoken_compressible_config.to_account_info(),
+            ctx.accounts
+                .light_token_compressible_config
+                .to_account_info(),
             ctx.accounts.ctoken_rent_sponsor.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
             &crate::ID,
@@ -1171,10 +1179,10 @@ pub mod csdk_anchor_full_derived_test {
     // D5 Additional Markers Tests
     // =========================================================================
 
-    /// D5: #[rentfree_token] attribute test
-    pub fn d5_rentfree_token<'info>(
-        ctx: Context<'_, '_, '_, 'info, D5RentfreeToken<'info>>,
-        params: D5RentfreeTokenParams,
+    /// D5: #[light_account(token)] attribute test
+    pub fn d5_light_token<'info>(
+        ctx: Context<'_, '_, '_, 'info, D5LightToken<'info>>,
+        params: D5LightTokenParams,
     ) -> Result<()> {
         use light_token_sdk::token::CreateTokenAccountCpi;
 
@@ -1186,7 +1194,9 @@ pub mod csdk_anchor_full_derived_test {
             owner: ctx.accounts.vault_authority.key(),
         }
         .rent_free(
-            ctx.accounts.ctoken_compressible_config.to_account_info(),
+            ctx.accounts
+                .light_token_compressible_config
+                .to_account_info(),
             ctx.accounts.ctoken_rent_sponsor.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
             &crate::ID,
@@ -1199,7 +1209,7 @@ pub mod csdk_anchor_full_derived_test {
         Ok(())
     }
 
-    /// D5: All markers combined (#[light_account(init)] + #[rentfree_token])
+    /// D5: All markers combined (#[light_account(init)] + #[light_account(token)])
     pub fn d5_all_markers<'info>(
         ctx: Context<'_, '_, '_, 'info, D5AllMarkers<'info>>,
         params: D5AllMarkersParams,
@@ -1224,7 +1234,9 @@ pub mod csdk_anchor_full_derived_test {
             owner: ctx.accounts.d5_all_authority.key(),
         }
         .rent_free(
-            ctx.accounts.ctoken_compressible_config.to_account_info(),
+            ctx.accounts
+                .light_token_compressible_config
+                .to_account_info(),
             ctx.accounts.ctoken_rent_sponsor.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
             &crate::ID,

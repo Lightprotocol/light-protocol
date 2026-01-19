@@ -39,14 +39,14 @@ impl InfraFieldClassifier {
         match name {
             "fee_payer" | "payer" | "creator" => Some(InfraFieldType::FeePayer),
             "compression_config" => Some(InfraFieldType::CompressionConfig),
-            "ctoken_compressible_config" | "ctoken_config" | "light_token_config_account" => {
+            "light_token_compressible_config" | "ctoken_config" | "light_token_config_account" => {
                 Some(InfraFieldType::CTokenConfig)
             }
             "ctoken_rent_sponsor" | "light_token_rent_sponsor" => {
                 Some(InfraFieldType::CTokenRentSponsor)
             }
             "ctoken_program" | "light_token_program" => Some(InfraFieldType::CTokenProgram),
-            "ctoken_cpi_authority"
+            "light_token_cpi_authority"
             | "light_token_program_cpi_authority"
             | "compress_token_program_cpi_authority" => Some(InfraFieldType::CTokenCpiAuthority),
             _ => None,
@@ -62,7 +62,7 @@ pub(super) struct InfraFields {
     pub ctoken_config: Option<Ident>,
     pub ctoken_rent_sponsor: Option<Ident>,
     pub ctoken_program: Option<Ident>,
-    pub ctoken_cpi_authority: Option<Ident>,
+    pub light_token_cpi_authority: Option<Ident>,
 }
 
 impl InfraFields {
@@ -74,7 +74,7 @@ impl InfraFields {
             InfraFieldType::CTokenConfig => self.ctoken_config = Some(ident),
             InfraFieldType::CTokenRentSponsor => self.ctoken_rent_sponsor = Some(ident),
             InfraFieldType::CTokenProgram => self.ctoken_program = Some(ident),
-            InfraFieldType::CTokenCpiAuthority => self.ctoken_cpi_authority = Some(ident),
+            InfraFieldType::CTokenCpiAuthority => self.light_token_cpi_authority = Some(ident),
         }
     }
 }
@@ -196,8 +196,8 @@ pub(super) fn parse_light_accounts_struct(
                 ));
             }
 
-            // TODO(future): Add parsing for #[rentfree_token(...)] attribute for token accounts and ATAs.
-            // Would need RentFreeTokenField struct with: field_ident, authority_seeds, mint field ref.
+            // TODO(future): Add parsing for #[light_account(token, ...)] attribute for token accounts and ATAs.
+            // Would need LightTokenField struct with: field_ident, authority_seeds, mint field ref.
         }
     }
 

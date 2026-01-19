@@ -85,7 +85,7 @@ pub struct CreatePdasAndMintAuto<'info> {
         seeds = [VAULT_SEED, cmint.key().as_ref()],
         bump,
     )]
-    #[rentfree_token(authority = [b"vault_authority"])]
+    #[light_account(token, authority = [b"vault_authority"])]
     pub vault: UncheckedAccount<'info>,
 
     /// CHECK: PDA used as vault owner
@@ -100,7 +100,7 @@ pub struct CreatePdasAndMintAuto<'info> {
     pub compression_config: AccountInfo<'info>,
 
     /// CHECK: CToken config
-    pub ctoken_compressible_config: AccountInfo<'info>,
+    pub light_token_compressible_config: AccountInfo<'info>,
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
@@ -110,7 +110,7 @@ pub struct CreatePdasAndMintAuto<'info> {
     pub light_token_program: AccountInfo<'info>,
 
     /// CHECK: CToken CPI authority
-    pub ctoken_cpi_authority: AccountInfo<'info>,
+    pub light_token_cpi_authority: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -178,7 +178,7 @@ pub struct CreateTwoMints<'info> {
     pub compression_config: AccountInfo<'info>,
 
     /// CHECK: CToken config
-    pub ctoken_compressible_config: AccountInfo<'info>,
+    pub light_token_compressible_config: AccountInfo<'info>,
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
@@ -188,7 +188,7 @@ pub struct CreateTwoMints<'info> {
     pub light_token_program: AccountInfo<'info>,
 
     /// CHECK: CToken CPI authority
-    pub ctoken_cpi_authority: AccountInfo<'info>,
+    pub light_token_cpi_authority: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -271,7 +271,7 @@ pub struct CreateThreeMints<'info> {
     pub compression_config: AccountInfo<'info>,
 
     /// CHECK: CToken config
-    pub ctoken_compressible_config: AccountInfo<'info>,
+    pub light_token_compressible_config: AccountInfo<'info>,
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
@@ -281,7 +281,7 @@ pub struct CreateThreeMints<'info> {
     pub light_token_program: AccountInfo<'info>,
 
     /// CHECK: CToken CPI authority
-    pub ctoken_cpi_authority: AccountInfo<'info>,
+    pub light_token_cpi_authority: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -338,7 +338,7 @@ pub struct CreateMintWithMetadata<'info> {
     pub compression_config: AccountInfo<'info>,
 
     /// CHECK: CToken config
-    pub ctoken_compressible_config: AccountInfo<'info>,
+    pub light_token_compressible_config: AccountInfo<'info>,
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
@@ -348,7 +348,7 @@ pub struct CreateMintWithMetadata<'info> {
     pub light_token_program: AccountInfo<'info>,
 
     /// CHECK: CToken CPI authority
-    pub ctoken_cpi_authority: AccountInfo<'info>,
+    pub light_token_cpi_authority: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }

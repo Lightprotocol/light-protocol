@@ -10,7 +10,7 @@ This document provides a comprehensive comparison between Anchor's account macro
 | Idempotent create | `init_if_needed` | `init_if_needed` | `init_if_needed` + compression check |
 | Pre-allocated | `zero` | - | `zero` (same) |
 | PDA creation | `seeds + bump + init` | `seeds + bump + init` | `seeds + bump + init` + address registration |
-| Token account | - | `token::*` | `#[rentfree_token]` |
+| Token account | - | `token::*` | `#[light_account(token)]` |
 | Mint creation | - | `mint::*` | `#[light_mint]` |
 | ATA creation | - | `associated_token::*` | Via `light_pre_init()` |
 
@@ -29,8 +29,8 @@ This document provides a comprehensive comparison between Anchor's account macro
 | `seeds + bump` | Yes | Yes | Yes + address derivation | Extended |
 | `rent_exempt` | Yes | Yes | N/A | Rent-free by design |
 | `constraint` | Yes | Yes | Yes | Identical |
-| `token::mint` | - | Yes | Via `#[rentfree_token]` | Different syntax |
-| `token::authority` | - | Yes | Via `#[rentfree_token]` | Different syntax |
+| `token::mint` | - | Yes | Via `#[light_account(token)]` | Different syntax |
+| `token::authority` | - | Yes | Via `#[light_account(token)]` | Different syntax |
 | `mint::decimals` | - | Yes | Via `#[light_mint]` | Different syntax |
 | `mint::authority` | - | Yes | Via `#[light_mint]` | Different syntax |
 | `compression_info` | - | - | Yes | RentFree only |
@@ -93,10 +93,10 @@ try_accounts() ───> light_pre_init() ───> handler() ───> light
 |----------------|---------------------|
 | `Account<'info, T>` | `Account<'info, T>` (with RentFree derive) |
 | `#[account(init)]` | `#[account(init)]` + compression hooks |
-| `#[account(init, token::mint = m)]` | `#[rentfree_token]` + `#[light_mint]` |
+| `#[account(init, token::mint = m)]` | `#[light_account(token)]` + `#[light_mint]` |
 | `Program<'info, Token>` | `Program<'info, CompressedToken>` |
 | `Account<'info, Mint>` | `UncheckedAccount<'info>` + `#[light_mint]` |
-| `Account<'info, TokenAccount>` | `Account<'info, T>` with `#[rentfree_token]` |
+| `Account<'info, TokenAccount>` | `Account<'info, T>` with `#[light_account(token)]` |
 | `close = destination` | `close = destination` + compression cleanup |
 | Manual token CPI | Auto-generated in `light_pre_init()` |
 
@@ -105,7 +105,7 @@ try_accounts() ───> light_pre_init() ───> handler() ───> light
 | Anchor SPL Type | Light RentFree Type |
 |-----------------|---------------------|
 | `Mint` | `UncheckedAccount` (during init) |
-| `TokenAccount` | Custom struct with `#[rentfree_token]` |
+| `TokenAccount` | Custom struct with `#[light_account(token)]` |
 | `Token` program | `CompressedToken` program |
 | `TokenInterface` | Not yet supported |
 | `InterfaceAccount` | Not yet supported |

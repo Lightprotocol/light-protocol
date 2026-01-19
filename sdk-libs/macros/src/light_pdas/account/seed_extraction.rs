@@ -48,12 +48,12 @@ pub struct ExtractedSeedSpec {
     pub seeds: Vec<ClassifiedSeed>,
 }
 
-/// Extracted token specification for a #[rentfree_token = Variant] field
+/// Extracted token specification for a #[light_account(token, ...)] field
 #[derive(Clone, Debug)]
 pub struct ExtractedTokenSpec {
     /// The field name in the Accounts struct
     pub field_name: Ident,
-    /// The variant name from #[rentfree_token = Variant]
+    /// The variant name derived from field name
     pub variant_name: Ident,
     /// Seeds from #[account(seeds = [...])]
     pub seeds: Vec<ClassifiedSeed>,
@@ -100,8 +100,8 @@ pub fn extract_from_accounts_struct(
             has_light_mint_fields = true;
         }
 
-        // Check for #[rentfree_token(...)] attribute
-        let token_attr = extract_rentfree_token_attr(&field.attrs);
+        // Check for #[light_account(token, ...)] attribute
+        let token_attr = extract_light_token_attr(&field.attrs);
 
         if has_light_account_pda {
             // Extract inner type from Account<'info, T> or Box<Account<'info, T>>
@@ -237,108 +237,83 @@ fn check_light_account_type(attrs: &[syn::Attribute]) -> (bool, bool) {
     (false, false)
 }
 
-/// Parsed #[rentfree_token(...)] attribute
-struct RentFreeTokenAttr {
+/// Parsed #[light_account(token, ...)] attribute
+struct LightTokenAttr {
     /// Optional variant name - if None, derived from field name
     variant_name: Option<Ident>,
     authority_seeds: Option<Vec<ClassifiedSeed>>,
 }
 
-/// Extract #[rentfree_token(authority = [...])] attribute
-/// Variant name is now derived from field name, not specified in attribute
-fn extract_rentfree_token_attr(attrs: &[syn::Attribute]) -> Option<RentFreeTokenAttr> {
+/// Extract #[light_account(token, authority = [...])] attribute
+/// Variant name is derived from field name, not specified in attribute
+fn extract_light_token_attr(attrs: &[syn::Attribute]) -> Option<LightTokenAttr> {
     for attr in attrs {
-        if attr.path().is_ident("rentfree_token") {
-            match &attr.meta {
-                // #[rentfree_token = Variant] (deprecated but still supported)
-                syn::Meta::NameValue(nv) => {
-                    if let Expr::Path(path) = &nv.value {
-                        if let Some(ident) = path.path.get_ident() {
-                            return Some(RentFreeTokenAttr {
-                                variant_name: Some(ident.clone()),
-                                authority_seeds: None,
-                            });
-                        }
-                    }
+        if attr.path().is_ident("light_account") {
+            let tokens = match &attr.meta {
+                syn::Meta::List(list) => list.tokens.clone(),
+                _ => continue,
+            };
+
+            // Check if "token" keyword is present (without requiring "init")
+            let has_token = tokens
+                .clone()
+                .into_iter()
+                .any(|t| matches!(&t, proc_macro2::TokenTree::Ident(ident) if ident == "token"));
+
+            if has_token {
+                // Parse authority = [...] if present
+                if let Ok(parsed) = parse_light_token_list(&tokens) {
+                    return Some(parsed);
                 }
-                // #[rentfree_token(authority = [...])] or #[rentfree_token(Variant, authority = [...])]
-                syn::Meta::List(list) => {
-                    if let Ok(parsed) = parse_rentfree_token_list(&list.tokens) {
-                        return Some(parsed);
-                    }
-                    // Fallback: try parsing as just an identifier (deprecated)
-                    if let Ok(ident) = syn::parse2::<Ident>(list.tokens.clone()) {
-                        return Some(RentFreeTokenAttr {
-                            variant_name: Some(ident),
-                            authority_seeds: None,
-                        });
-                    }
-                }
-                // #[rentfree_token] with no arguments
-                syn::Meta::Path(_) => {
-                    return Some(RentFreeTokenAttr {
-                        variant_name: None,
-                        authority_seeds: None,
-                    });
-                }
+                return Some(LightTokenAttr {
+                    variant_name: None,
+                    authority_seeds: None,
+                });
             }
         }
     }
     None
 }
 
-/// Parse rentfree_token(authority = [...]) or rentfree_token(Variant, authority = [...]) content
-fn parse_rentfree_token_list(tokens: &proc_macro2::TokenStream) -> syn::Result<RentFreeTokenAttr> {
+/// Parse light_account(token, authority = [...]) content
+fn parse_light_token_list(tokens: &proc_macro2::TokenStream) -> syn::Result<LightTokenAttr> {
     use syn::parse::Parser;
 
-    let parser = |input: syn::parse::ParseStream| -> syn::Result<RentFreeTokenAttr> {
-        let mut variant_name = None;
+    let parser = |input: syn::parse::ParseStream| -> syn::Result<LightTokenAttr> {
         let mut authority_seeds = None;
 
-        // Check if first token is authority = [...] or a variant name
-        if input.peek(Ident) {
-            let ident: Ident = input.parse()?;
+        // Parse comma-separated items looking for "token" and "authority = [...]"
+        while !input.is_empty() {
+            if input.peek(Ident) {
+                let ident: Ident = input.parse()?;
 
-            if ident == "authority" {
-                // First token is authority, parse the seeds
-                input.parse::<syn::Token![=]>()?;
-                let array: syn::ExprArray = input.parse()?;
-                let mut seeds = Vec::new();
-                for elem in &array.elems {
-                    if let Ok(seed) = classify_seed_expr(elem) {
-                        seeds.push(seed);
-                    }
-                }
-                authority_seeds = Some(seeds);
-            } else {
-                // First token is variant name (deprecated but supported)
-                variant_name = Some(ident);
-
-                // Check for comma and additional args
-                while input.peek(syn::Token![,]) {
-                    input.parse::<syn::Token![,]>()?;
-
-                    // Look for authority = [...]
-                    if input.peek(Ident) {
-                        let key: Ident = input.parse()?;
-                        if key == "authority" {
-                            input.parse::<syn::Token![=]>()?;
-                            let array: syn::ExprArray = input.parse()?;
-                            let mut seeds = Vec::new();
-                            for elem in &array.elems {
-                                if let Ok(seed) = classify_seed_expr(elem) {
-                                    seeds.push(seed);
-                                }
-                            }
-                            authority_seeds = Some(seeds);
+                if ident == "token" {
+                    // Skip the token keyword, continue parsing
+                } else if ident == "authority" {
+                    // Parse authority = [...]
+                    input.parse::<syn::Token![=]>()?;
+                    let array: syn::ExprArray = input.parse()?;
+                    let mut seeds = Vec::new();
+                    for elem in &array.elems {
+                        if let Ok(seed) = classify_seed_expr(elem) {
+                            seeds.push(seed);
                         }
                     }
+                    authority_seeds = Some(seeds);
                 }
+            }
+
+            // Skip comma if present
+            if input.peek(syn::Token![,]) {
+                input.parse::<syn::Token![,]>()?;
+            } else if !input.is_empty() {
+                // Skip unexpected tokens
+                let _: proc_macro2::TokenTree = input.parse()?;
             }
         }
 
-        Ok(RentFreeTokenAttr {
-            variant_name,
+        Ok(LightTokenAttr {
+            variant_name: None, // Variant name is always derived from field name
             authority_seeds,
         })
     };

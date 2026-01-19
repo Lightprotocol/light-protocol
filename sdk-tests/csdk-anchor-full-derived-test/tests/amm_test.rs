@@ -377,10 +377,10 @@ async fn test_amm_full_lifecycle() {
         system_program: solana_sdk::system_program::ID,
         rent: solana_sdk::sysvar::rent::ID,
         compression_config: ctx.config_pda,
-        ctoken_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
         ctoken_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID,
-        ctoken_cpi_authority: LIGHT_TOKEN_CPI_AUTHORITY,
+        light_token_cpi_authority: LIGHT_TOKEN_CPI_AUTHORITY,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::InitializePool {

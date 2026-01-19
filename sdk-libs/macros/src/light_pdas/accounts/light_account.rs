@@ -3,10 +3,10 @@
 //! This module provides a single unified syntax for all Light Protocol account types:
 //! - `#[light_account(init)]` - PDAs (replaces `#[light_account(init)]`)
 //! - `#[light_account(init, mint, ...)]` - Compressed mints (replaces `#[light_mint]`)
+//! - `#[light_account(token, ...)]` - Token accounts for compression (handled by light_program)
 //!
-//! Future extensions:
-//! - `#[light_account(init, token_account, ...)]` - Token accounts
-//! - `#[light_account(init, ata, ...)]` - Associated token accounts
+//! Note: Token fields are NOT processed here - they're handled by seed_extraction.rs
+//! in the light_program macro. This parser returns None for token fields.
 
 use syn::{
     parse::{Parse, ParseStream},
@@ -73,8 +73,10 @@ impl Parse for KeyValue {
 
 /// Parsed arguments from #[light_account(init, [mint,] ...)].
 struct LightAccountArgs {
-    /// True if `init` keyword is present (required).
+    /// True if `init` keyword is present (required for PDA/Mint).
     has_init: bool,
+    /// True if `token` keyword is present (marks token fields - skip in LightAccounts derive).
+    is_token: bool,
     /// The account type (Pda, Mint, etc.).
     account_type: LightAccountType,
     /// Key-value pairs for additional arguments.
@@ -83,12 +85,28 @@ struct LightAccountArgs {
 
 impl Parse for LightAccountArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        // First token must be `init`
+        // First token must be `init` or `token`
         let first: Ident = input.parse()?;
+
+        // If first argument is `token`, this is a token field handled by light_program
+        // Consume all remaining tokens and return
+        if first == "token" {
+            // Consume remaining tokens (e.g., ", authority = [...]")
+            while !input.is_empty() {
+                let _: proc_macro2::TokenTree = input.parse()?;
+            }
+            return Ok(Self {
+                has_init: false,
+                is_token: true,
+                account_type: LightAccountType::Pda, // not used for token
+                key_values: Vec::new(),
+            });
+        }
+
         if first != "init" {
             return Err(Error::new_spanned(
                 &first,
-                "First argument to #[light_account] must be `init`",
+                "First argument to #[light_account] must be `init` or `token`",
             ));
         }
 
@@ -122,6 +140,7 @@ impl Parse for LightAccountArgs {
 
         Ok(Self {
             has_init: true,
+            is_token: false,
             account_type,
             key_values,
         })
@@ -133,7 +152,8 @@ impl Parse for LightAccountArgs {
 // ============================================================================
 
 /// Parse #[light_account(...)] attribute from a field.
-/// Returns None if no light_account attribute, Some(LightAccountField) if found.
+/// Returns None if no light_account attribute or if it's a token field (handled elsewhere).
+/// Returns Some(LightAccountField) for PDA or Mint fields.
 pub(super) fn parse_light_account_attr(
     field: &Field,
     field_ident: &Ident,
@@ -142,10 +162,16 @@ pub(super) fn parse_light_account_attr(
         if attr.path().is_ident("light_account") {
             let args: LightAccountArgs = attr.parse_args()?;
 
+            // Token fields are handled by light_program macro (seed_extraction.rs)
+            // Return None so LightAccounts derive skips them
+            if args.is_token {
+                return Ok(None);
+            }
+
             if !args.has_init {
                 return Err(Error::new_spanned(
                     attr,
-                    "#[light_account] requires `init` as the first argument",
+                    "#[light_account] requires `init` as the first argument (or use `token` for token accounts)",
                 ));
             }
 

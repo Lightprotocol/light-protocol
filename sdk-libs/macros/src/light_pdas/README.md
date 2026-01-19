@@ -34,7 +34,7 @@ rentfree/
 
 Implements `#[derive(LightAccounts)]` for Anchor Accounts structs:
 
-- **parse.rs** - Parses `#[light_account(init)]`, `#[rentfree_token]`, `#[light_mint]` attributes
+- **parse.rs** - Parses `#[light_account(init)]`, `#[light_account(token)]`, `#[light_mint]` attributes
 - **codegen.rs** - Generates `LightPreInit` and `LightFinalize` trait implementations
 
 ### `program/` - RentFree Program Macro

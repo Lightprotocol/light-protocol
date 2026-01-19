@@ -81,7 +81,7 @@ pub(super) struct InfraRefs {
     pub compression_config: TokenStream,
     pub ctoken_config: TokenStream,
     pub ctoken_rent_sponsor: TokenStream,
-    pub ctoken_cpi_authority: TokenStream,
+    pub light_token_cpi_authority: TokenStream,
 }
 
 impl InfraRefs {
@@ -90,14 +90,17 @@ impl InfraRefs {
         Self {
             fee_payer: resolve_field_name(&infra.fee_payer, "fee_payer"),
             compression_config: resolve_field_name(&infra.compression_config, "compression_config"),
-            ctoken_config: resolve_field_name(&infra.ctoken_config, "ctoken_compressible_config"),
+            ctoken_config: resolve_field_name(
+                &infra.ctoken_config,
+                "light_token_compressible_config",
+            ),
             ctoken_rent_sponsor: resolve_field_name(
                 &infra.ctoken_rent_sponsor,
                 "ctoken_rent_sponsor",
             ),
-            ctoken_cpi_authority: resolve_field_name(
-                &infra.ctoken_cpi_authority,
-                "ctoken_cpi_authority",
+            light_token_cpi_authority: resolve_field_name(
+                &infra.light_token_cpi_authority,
+                "light_token_cpi_authority",
             ),
         }
     }
@@ -165,7 +168,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
     let fee_payer = &infra.fee_payer;
     let ctoken_config = &infra.ctoken_config;
     let ctoken_rent_sponsor = &infra.ctoken_rent_sponsor;
-    let ctoken_cpi_authority = &infra.ctoken_cpi_authority;
+    let light_token_cpi_authority = &infra.light_token_cpi_authority;
 
     // Determine CPI context offset based on PDA context
     let (cpi_context_offset, output_tree_setup) = match &builder.pda_context {
@@ -387,7 +390,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                 rent_sponsor: self.#ctoken_rent_sponsor.to_account_info(),
                 system_accounts: light_token_sdk::token::SystemAccountInfos {
                     light_system_program: cpi_accounts.light_system_program()?.clone(),
-                    cpi_authority_pda: self.#ctoken_cpi_authority.to_account_info(),
+                    cpi_authority_pda: self.#light_token_cpi_authority.to_account_info(),
                     registered_program_pda: cpi_accounts.registered_program_pda()?.clone(),
                     account_compression_authority: cpi_accounts.account_compression_authority()?.clone(),
                     account_compression_program: cpi_accounts.account_compression_program()?.clone(),

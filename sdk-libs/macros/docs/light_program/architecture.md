@@ -13,7 +13,7 @@ The `#[rentfree_program]` attribute macro provides program-level auto-discovery 
 | Program module | `#[rentfree_program]` | Discovers fields, generates instructions, wraps handlers |
 | Accounts struct | `#[derive(LightAccounts)]` | Generates `LightPreInit`/`LightFinalize` trait impls |
 | Account field | `#[light_account(init)]` | Marks PDA for compression |
-| Account field | `#[rentfree_token(authority=[...])]` | Marks token account for compression |
+| Account field | `#[light_account(token, authority=[...])]` | Marks token account for compression |
 | State struct | `#[derive(LightCompressible)]` | Generates compression traits + `Packed{Type}` |
 | State struct | `compression_info: Option<CompressionInfo>` | Required field for compression metadata |
 
@@ -57,7 +57,7 @@ pub mod my_program {
 |  For each #[derive(Accounts)] struct:                    |
 |                                                          |
 |    1. Find #[light_account(init)] fields      --> PDA accounts      |
-|    2. Find #[rentfree_token] fields --> Token accounts   |
+|    2. Find #[light_account(token)] fields --> Token accounts   |
 |    3. Parse #[account(seeds=[...])] --> Seed expressions |
 |    4. Parse #[instruction(...)]    --> Params type       |
 |                                                          |
@@ -224,4 +224,4 @@ Seeds in `#[account(seeds = [...])]` can reference:
 | Max size | 800 bytes per compressed account (compile-time check) |
 | Module discovery | Requires `pub mod name;` pattern (not inline `mod name {}`) |
 | Instruction variants | Only `Mixed` (PDA + token) fully implemented |
-| Token authority | `#[rentfree_token]` requires `authority = [...]` seeds |
+| Token authority | `#[light_account(token)]` requires `authority = [...]` seeds |
