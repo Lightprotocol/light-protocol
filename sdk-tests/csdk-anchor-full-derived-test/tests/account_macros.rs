@@ -1,6 +1,6 @@
-//! Unit tests for RentFreeAccount-derived traits
+//! Unit tests for LightAccount-derived traits
 //!
-//! Tests individual traits derived by the `RentFreeAccount` macro on account data structs.
+//! Tests individual traits derived by the `LightAccount` macro on account data structs.
 
 #[path = "account_macros/shared.rs"]
 pub mod shared;

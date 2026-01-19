@@ -4,7 +4,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::{
     d1_field_types::single_pubkey::SinglePubkeyRecord,
@@ -20,7 +20,7 @@ pub struct D6AllParams {
 /// Tests both account types in one struct:
 /// - Account<'info, T> (direct)
 /// - Box<Account<'info, T>> (boxed)
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D6AllParams)]
 pub struct D6All<'info> {
     #[account(mut)]
@@ -36,7 +36,7 @@ pub struct D6All<'info> {
         seeds = [b"d6_all_direct", params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d6_all_direct: Account<'info, SinglePubkeyRecord>,
 
     #[account(
@@ -46,7 +46,7 @@ pub struct D6All<'info> {
         seeds = [b"d6_all_boxed", params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d6_all_boxed: Box<Account<'info, MultipleCompressAsRecord>>,
 
     pub system_program: Program<'info, System>,

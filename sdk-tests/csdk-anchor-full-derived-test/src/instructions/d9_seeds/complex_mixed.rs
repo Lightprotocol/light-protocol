@@ -7,7 +7,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -27,7 +27,7 @@ pub struct D9ComplexThreeParams {
 }
 
 /// Tests 3 seeds: literal + constant + param.as_ref()
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ComplexThreeParams)]
 pub struct D9ComplexThree<'info> {
     #[account(mut)]
@@ -43,7 +43,7 @@ pub struct D9ComplexThree<'info> {
         seeds = [b"d9_complex3", D9_COMPLEX_PREFIX, params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -61,7 +61,7 @@ pub struct D9ComplexFourParams {
 }
 
 /// Tests 4 seeds: version + namespace + param + bytes
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ComplexFourParams)]
 pub struct D9ComplexFour<'info> {
     #[account(mut)]
@@ -77,7 +77,7 @@ pub struct D9ComplexFour<'info> {
         seeds = [D9_COMPLEX_V1, D9_COMPLEX_NAMESPACE.as_bytes(), params.owner.as_ref(), params.id.to_le_bytes().as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -95,7 +95,7 @@ pub struct D9ComplexFiveParams {
 }
 
 /// Tests 5 seeds with context account
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ComplexFiveParams)]
 pub struct D9ComplexFive<'info> {
     #[account(mut)]
@@ -114,7 +114,7 @@ pub struct D9ComplexFive<'info> {
         seeds = [D9_COMPLEX_V1, D9_COMPLEX_NAMESPACE.as_bytes(), authority.key().as_ref(), params.owner.as_ref(), params.id.to_le_bytes().as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -131,7 +131,7 @@ pub struct D9ComplexQualifiedMixParams {
 }
 
 /// Tests qualified crate paths mixed with local constants
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ComplexQualifiedMixParams)]
 pub struct D9ComplexQualifiedMix<'info> {
     #[account(mut)]
@@ -147,7 +147,7 @@ pub struct D9ComplexQualifiedMix<'info> {
         seeds = [crate::instructions::d9_seeds::complex_mixed::D9_COMPLEX_V1, D9_COMPLEX_PREFIX, params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -166,7 +166,7 @@ pub struct D9ComplexFuncParams {
 }
 
 /// Tests function call combined with other seed types
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ComplexFuncParams)]
 pub struct D9ComplexFunc<'info> {
     #[account(mut)]
@@ -182,7 +182,7 @@ pub struct D9ComplexFunc<'info> {
         seeds = [D9_COMPLEX_V1, crate::max_key(&params.key_a, &params.key_b).as_ref(), params.id.to_le_bytes().as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -199,7 +199,7 @@ pub struct D9ComplexAllQualifiedParams {
 }
 
 /// Tests all paths being fully qualified
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ComplexAllQualifiedParams)]
 pub struct D9ComplexAllQualified<'info> {
     #[account(mut)]
@@ -219,7 +219,7 @@ pub struct D9ComplexAllQualified<'info> {
         ],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -236,7 +236,7 @@ pub struct D9ComplexProgramIdParams {
 }
 
 /// Tests using crate::ID (program ID) as a seed element
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ComplexProgramIdParams)]
 pub struct D9ComplexProgramId<'info> {
     #[account(mut)]
@@ -252,7 +252,7 @@ pub struct D9ComplexProgramId<'info> {
         seeds = [b"d9_progid", crate::ID.as_ref(), params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -269,7 +269,7 @@ pub struct D9ComplexIdFuncParams {
 }
 
 /// Tests using crate::id() function call as a seed element
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ComplexIdFuncParams)]
 pub struct D9ComplexIdFunc<'info> {
     #[account(mut)]
@@ -285,7 +285,7 @@ pub struct D9ComplexIdFunc<'info> {
         seeds = [b"d9_idfunc", crate::id().as_ref(), params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

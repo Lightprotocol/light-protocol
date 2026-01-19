@@ -2,7 +2,7 @@
 
 use anchor_lang::prelude::*;
 use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
-use light_sdk_macros::RentFreeAccount;
+use light_sdk_macros::LightAccount;
 
 pub const POOL_SEED: &str = "pool";
 pub const POOL_VAULT_SEED: &str = "pool_vault";
@@ -10,7 +10,7 @@ pub const OBSERVATION_SEED: &str = "observation";
 pub const POOL_LP_MINT_SIGNER_SEED: &[u8] = b"pool_lp_mint";
 pub const AUTH_SEED: &str = "vault_and_lp_mint_auth_seed";
 
-#[derive(Default, Debug, InitSpace, RentFreeAccount)]
+#[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 #[repr(C)]
 pub struct PoolState {
@@ -49,7 +49,7 @@ pub struct Observation {
     pub cumulative_token_1_price_x32: u128,
 }
 
-#[derive(Default, Debug, InitSpace, RentFreeAccount)]
+#[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct ObservationState {
     pub compression_info: Option<CompressionInfo>,

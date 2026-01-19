@@ -1,6 +1,6 @@
 //! AMM ObservationState Tests: ObservationState trait derive tests
 //!
-//! Tests each trait derived by `RentFreeAccount` macro for `ObservationState`:
+//! Tests each trait derived by `LightAccount` macro for `ObservationState`:
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace

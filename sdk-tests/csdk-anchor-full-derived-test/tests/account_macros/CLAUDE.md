@@ -1,10 +1,10 @@
 # Account Macros Test Directory
 
-This directory contains unit tests for trait implementations derived by the `#[derive(RentFreeAccount)]` and `#[derive(LightCompressible)]` macros on account data structs.
+This directory contains unit tests for trait implementations derived by the `#[derive(LightAccount)]` and `#[derive(LightCompressible)]` macros on account data structs.
 
 ## Test Coverage Requirement
 
-**Every account struct** with `#[derive(RentFreeAccount)]` or `#[derive(LightCompressible)]` **must have its own dedicated test file** in this directory.
+**Every account struct** with `#[derive(LightAccount)]` or `#[derive(LightCompressible)]` **must have its own dedicated test file** in this directory.
 
 ## Directory Structure
 

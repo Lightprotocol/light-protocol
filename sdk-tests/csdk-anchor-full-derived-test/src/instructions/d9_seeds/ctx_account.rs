@@ -4,7 +4,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -14,7 +14,7 @@ pub struct D9CtxAccountParams {
 }
 
 /// Tests ClassifiedSeed::CtxAccount with authority.key() seeds.
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9CtxAccountParams)]
 pub struct D9CtxAccount<'info> {
     #[account(mut)]
@@ -33,7 +33,7 @@ pub struct D9CtxAccount<'info> {
         seeds = [b"d9_ctx", authority.key().as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d9_ctx_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

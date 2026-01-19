@@ -1,6 +1,6 @@
 //! D2 Tests: SingleCompressAsRecord trait derive tests
 //!
-//! Tests each trait derived by `RentFreeAccount` macro for `SingleCompressAsRecord`:
+//! Tests each trait derived by `LightAccount` macro for `SingleCompressAsRecord`:
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace

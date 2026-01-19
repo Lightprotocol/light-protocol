@@ -1,6 +1,6 @@
 //! Core Tests: UserRecord trait derive tests
 //!
-//! Tests each trait derived by `RentFreeAccount` macro for `UserRecord`:
+//! Tests each trait derived by `LightAccount` macro for `UserRecord`:
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace

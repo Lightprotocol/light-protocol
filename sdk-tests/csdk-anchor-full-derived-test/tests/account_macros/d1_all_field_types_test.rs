@@ -1,6 +1,6 @@
 //! D1 Tests: AllFieldTypesRecord trait derive tests
 //!
-//! Tests each trait derived by `RentFreeAccount` macro for `AllFieldTypesRecord`:
+//! Tests each trait derived by `LightAccount` macro for `AllFieldTypesRecord`:
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace

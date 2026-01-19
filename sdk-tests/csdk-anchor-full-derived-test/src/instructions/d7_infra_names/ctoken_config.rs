@@ -4,7 +4,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 use light_token_sdk::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as CTOKEN_RENT_SPONSOR};
 
 pub const D7_CTOKEN_AUTH_SEED: &[u8] = b"d7_ctoken_auth";
@@ -16,7 +16,7 @@ pub struct D7CtokenConfigParams {
 }
 
 /// Tests #[rentfree_token] with `ctoken_compressible_config` and `ctoken_rent_sponsor` field names.
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D7CtokenConfigParams)]
 pub struct D7CtokenConfig<'info> {
     #[account(mut)]

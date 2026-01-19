@@ -1,11 +1,11 @@
 //! D6 Test: Box<Account<'info, T>> type
 //!
-//! Tests that #[rentfree] works with Box<Account<'info, T>> (boxed account).
+//! Tests that #[light_account(init)] works with Box<Account<'info, T>> (boxed account).
 //! This exercises the Box unwrap path in seed_extraction.rs with is_boxed = true.
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -15,8 +15,8 @@ pub struct D6BoxedParams {
     pub owner: Pubkey,
 }
 
-/// Tests #[rentfree] with Box<Account<'info, T>> type.
-#[derive(Accounts, RentFree)]
+/// Tests #[light_account(init)] with Box<Account<'info, T>> type.
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D6BoxedParams)]
 pub struct D6Boxed<'info> {
     #[account(mut)]
@@ -32,7 +32,7 @@ pub struct D6Boxed<'info> {
         seeds = [b"d6_boxed", params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d6_boxed_record: Box<Account<'info, SinglePubkeyRecord>>,
 
     pub system_program: Program<'info, System>,

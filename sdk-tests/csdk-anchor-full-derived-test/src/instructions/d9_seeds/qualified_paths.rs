@@ -8,7 +8,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -28,7 +28,7 @@ pub struct D9QualifiedBareParams {
 }
 
 /// Tests bare constant reference without path prefix
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9QualifiedBareParams)]
 pub struct D9QualifiedBare<'info> {
     #[account(mut)]
@@ -44,7 +44,7 @@ pub struct D9QualifiedBare<'info> {
         seeds = [D9_QUALIFIED_LOCAL],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -60,7 +60,7 @@ pub struct D9QualifiedSelfParams {
 }
 
 /// Tests self:: prefix path qualification
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9QualifiedSelfParams)]
 pub struct D9QualifiedSelf<'info> {
     #[account(mut)]
@@ -76,7 +76,7 @@ pub struct D9QualifiedSelf<'info> {
         seeds = [self::D9_QUALIFIED_LOCAL],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -92,7 +92,7 @@ pub struct D9QualifiedCrateParams {
 }
 
 /// Tests crate:: prefix path qualification
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9QualifiedCrateParams)]
 pub struct D9QualifiedCrate<'info> {
     #[account(mut)]
@@ -108,7 +108,7 @@ pub struct D9QualifiedCrate<'info> {
         seeds = [crate::instructions::d9_seeds::qualified_paths::D9_QUALIFIED_CRATE],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -124,7 +124,7 @@ pub struct D9QualifiedDeepParams {
 }
 
 /// Tests deeply nested crate path
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9QualifiedDeepParams)]
 pub struct D9QualifiedDeep<'info> {
     #[account(mut)]
@@ -140,7 +140,7 @@ pub struct D9QualifiedDeep<'info> {
         seeds = [crate::instructions::d9_seeds::D9_CONSTANT_SEED],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -157,7 +157,7 @@ pub struct D9QualifiedMixedParams {
 }
 
 /// Tests mixing qualified and bare paths in same seeds
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9QualifiedMixedParams)]
 pub struct D9QualifiedMixed<'info> {
     #[account(mut)]
@@ -173,7 +173,7 @@ pub struct D9QualifiedMixed<'info> {
         seeds = [D9_QUALIFIED_LOCAL, crate::instructions::d9_seeds::D9_CONSTANT_SEED, params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

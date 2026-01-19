@@ -6,7 +6,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -26,7 +26,7 @@ pub struct D9BumpLiteralParams {
 }
 
 /// Tests literal seed with bump attribute
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9BumpLiteralParams)]
 pub struct D9BumpLiteral<'info> {
     #[account(mut)]
@@ -42,7 +42,7 @@ pub struct D9BumpLiteral<'info> {
         seeds = [b"d9_bump_lit"],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -58,7 +58,7 @@ pub struct D9BumpConstantParams {
 }
 
 /// Tests constant seed with bump attribute
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9BumpConstantParams)]
 pub struct D9BumpConstant<'info> {
     #[account(mut)]
@@ -74,7 +74,7 @@ pub struct D9BumpConstant<'info> {
         seeds = [D9_BUMP_SEED],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -90,7 +90,7 @@ pub struct D9BumpQualifiedParams {
 }
 
 /// Tests crate::path::CONST.as_bytes() with bump - the pattern that caused type inference issues
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9BumpQualifiedParams)]
 pub struct D9BumpQualified<'info> {
     #[account(mut)]
@@ -106,7 +106,7 @@ pub struct D9BumpQualified<'info> {
         seeds = [crate::instructions::d9_seeds::array_bumps::D9_BUMP_STR.as_bytes()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -123,7 +123,7 @@ pub struct D9BumpParamParams {
 }
 
 /// Tests params.owner.as_ref() with bump
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9BumpParamParams)]
 pub struct D9BumpParam<'info> {
     #[account(mut)]
@@ -139,7 +139,7 @@ pub struct D9BumpParam<'info> {
         seeds = [b"d9_bump_param", params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -155,7 +155,7 @@ pub struct D9BumpCtxParams {
 }
 
 /// Tests account.key().as_ref() with bump
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9BumpCtxParams)]
 pub struct D9BumpCtx<'info> {
     #[account(mut)]
@@ -174,7 +174,7 @@ pub struct D9BumpCtx<'info> {
         seeds = [b"d9_bump_ctx", authority.key().as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -192,7 +192,7 @@ pub struct D9BumpMixedParams {
 }
 
 /// Tests literal + constant + param + bytes with bump
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9BumpMixedParams)]
 pub struct D9BumpMixed<'info> {
     #[account(mut)]
@@ -208,7 +208,7 @@ pub struct D9BumpMixed<'info> {
         seeds = [b"d9_bump_mix", D9_BUMP_SEED, params.owner.as_ref(), params.id.to_le_bytes().as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

@@ -1,6 +1,6 @@
 //! D4 Tests: InfoLastRecord trait derive tests
 //!
-//! Tests each trait derived by `RentFreeAccount` macro for `InfoLastRecord`:
+//! Tests each trait derived by `LightAccount` macro for `InfoLastRecord`:
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace

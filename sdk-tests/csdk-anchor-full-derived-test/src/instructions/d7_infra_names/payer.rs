@@ -1,10 +1,10 @@
 //! D7 Test: "payer" field name variant
 //!
-//! Tests that #[rentfree] works when the payer field is named `payer` instead of `fee_payer`.
+//! Tests that #[light_account(init)] works when the payer field is named `payer` instead of `fee_payer`.
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -14,8 +14,8 @@ pub struct D7PayerParams {
     pub owner: Pubkey,
 }
 
-/// Tests #[rentfree] with `payer` field name (InfraFieldClassifier FeePayer variant).
-#[derive(Accounts, RentFree)]
+/// Tests #[light_account(init)] with `payer` field name (InfraFieldClassifier FeePayer variant).
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D7PayerParams)]
 pub struct D7Payer<'info> {
     #[account(mut)]
@@ -31,7 +31,7 @@ pub struct D7Payer<'info> {
         seeds = [b"d7_payer", params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d7_payer_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

@@ -7,10 +7,10 @@
 
 use anchor_lang::prelude::*;
 use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
-use light_sdk_macros::RentFreeAccount;
+use light_sdk_macros::LightAccount;
 
 /// Comprehensive struct with all compress_as variations.
-#[derive(Default, Debug, InitSpace, RentFreeAccount)]
+#[derive(Default, Debug, InitSpace, LightAccount)]
 #[compress_as(time = 0, end = None, score = 0, cached = 0)]
 #[account]
 pub struct AllCompressAsRecord {

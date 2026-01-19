@@ -8,7 +8,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -63,7 +63,7 @@ pub struct D9AssocConstParams {
 }
 
 /// Tests SomeStruct::CONSTANT pattern
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9AssocConstParams)]
 pub struct D9AssocConst<'info> {
     #[account(mut)]
@@ -79,7 +79,7 @@ pub struct D9AssocConst<'info> {
         seeds = [SeedHolder::SEED],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -95,7 +95,7 @@ pub struct D9AssocConstMethodParams {
 }
 
 /// Tests SomeStruct::CONSTANT.as_bytes() pattern
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9AssocConstMethodParams)]
 pub struct D9AssocConstMethod<'info> {
     #[account(mut)]
@@ -111,7 +111,7 @@ pub struct D9AssocConstMethod<'info> {
         seeds = [SeedHolder::NAMESPACE.as_bytes()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -128,7 +128,7 @@ pub struct D9MultiAssocConstParams {
 }
 
 /// Tests multiple associated constants from different types
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9MultiAssocConstParams)]
 pub struct D9MultiAssocConst<'info> {
     #[account(mut)]
@@ -144,7 +144,7 @@ pub struct D9MultiAssocConst<'info> {
         seeds = [SeedHolder::SEED, AnotherHolder::PREFIX, params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -160,7 +160,7 @@ pub struct D9ConstFnParams {
 }
 
 /// Tests const_fn() pattern
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ConstFnParams)]
 pub struct D9ConstFn<'info> {
     #[account(mut)]
@@ -176,7 +176,7 @@ pub struct D9ConstFn<'info> {
         seeds = [const_seed()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -192,7 +192,7 @@ pub struct D9ConstFnGenericParams {
 }
 
 /// Tests const_fn::<N>() pattern with const generics
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ConstFnGenericParams)]
 pub struct D9ConstFnGeneric<'info> {
     #[account(mut)]
@@ -208,7 +208,7 @@ pub struct D9ConstFnGeneric<'info> {
         seeds = [identity_seed::<12>(b"generic_seed")],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -224,7 +224,7 @@ pub struct D9TraitAssocConstParams {
 }
 
 /// Tests <Type as Trait>::CONSTANT pattern
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9TraitAssocConstParams)]
 pub struct D9TraitAssocConst<'info> {
     #[account(mut)]
@@ -240,7 +240,7 @@ pub struct D9TraitAssocConst<'info> {
         seeds = [<SeedHolder as HasSeed>::TRAIT_SEED],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -256,7 +256,7 @@ pub struct D9StaticParams {
 }
 
 /// Tests static variable as seed
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9StaticParams)]
 pub struct D9Static<'info> {
     #[account(mut)]
@@ -272,7 +272,7 @@ pub struct D9Static<'info> {
         seeds = [&STATIC_SEED],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -288,7 +288,7 @@ pub struct D9QualifiedConstFnParams {
 }
 
 /// Tests crate::module::const_fn() pattern
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9QualifiedConstFnParams)]
 pub struct D9QualifiedConstFn<'info> {
     #[account(mut)]
@@ -304,7 +304,7 @@ pub struct D9QualifiedConstFn<'info> {
         seeds = [crate::instructions::d9_seeds::const_patterns::const_seed()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -320,7 +320,7 @@ pub struct D9FullyQualifiedAssocParams {
 }
 
 /// Tests crate::module::Type::CONSTANT pattern (fully qualified associated constant)
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9FullyQualifiedAssocParams)]
 pub struct D9FullyQualifiedAssoc<'info> {
     #[account(mut)]
@@ -336,7 +336,7 @@ pub struct D9FullyQualifiedAssoc<'info> {
         seeds = [crate::instructions::d9_seeds::const_patterns::SeedHolder::SEED],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -352,7 +352,7 @@ pub struct D9FullyQualifiedTraitParams {
 }
 
 /// Tests <crate::path::Type as crate::path::Trait>::CONSTANT pattern
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9FullyQualifiedTraitParams)]
 pub struct D9FullyQualifiedTrait<'info> {
     #[account(mut)]
@@ -368,7 +368,7 @@ pub struct D9FullyQualifiedTrait<'info> {
         seeds = [<crate::instructions::d9_seeds::const_patterns::SeedHolder as crate::instructions::d9_seeds::const_patterns::HasSeed>::TRAIT_SEED],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -384,7 +384,7 @@ pub struct D9FullyQualifiedGenericParams {
 }
 
 /// Tests crate::module::const_fn::<N>() pattern
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9FullyQualifiedGenericParams)]
 pub struct D9FullyQualifiedGeneric<'info> {
     #[account(mut)]
@@ -400,7 +400,7 @@ pub struct D9FullyQualifiedGeneric<'info> {
         seeds = [crate::instructions::d9_seeds::const_patterns::identity_seed::<10>(b"fq_generic")],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -417,7 +417,7 @@ pub struct D9ConstCombinedParams {
 }
 
 /// Tests combining various constant patterns with full paths
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ConstCombinedParams)]
 pub struct D9ConstCombined<'info> {
     #[account(mut)]
@@ -437,7 +437,7 @@ pub struct D9ConstCombined<'info> {
         ],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

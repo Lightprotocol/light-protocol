@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::*;
 
@@ -21,7 +21,7 @@ pub const LP_MINT_SIGNER_SEED: &[u8] = b"lp_mint_signer";
 pub const AUTO_VAULT_SEED: &[u8] = b"auto_vault";
 pub const AUTO_VAULT_AUTHORITY_SEED: &[u8] = b"auto_vault_authority";
 
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: FullAutoWithMintParams)]
 pub struct CreatePdasAndMintAuto<'info> {
     #[account(mut)]
@@ -52,7 +52,7 @@ pub struct CreatePdasAndMintAuto<'info> {
         ],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub user_record: Account<'info, UserRecord>,
 
     #[account(
@@ -66,12 +66,12 @@ pub struct CreatePdasAndMintAuto<'info> {
         ],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub game_session: Account<'info, GameSession>,
 
     /// CHECK: Initialized by mint_action
     #[account(mut)]
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer,
         authority = mint_authority,
         decimals = 9,
@@ -132,7 +132,7 @@ pub struct CreateTwoMintsParams {
 }
 
 /// Test instruction with 2 #[light_mint] fields to verify multi-mint support.
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateTwoMintsParams)]
 pub struct CreateTwoMints<'info> {
     #[account(mut)]
@@ -156,7 +156,7 @@ pub struct CreateTwoMints<'info> {
 
     /// CHECK: Initialized by mint_action - first mint
     #[account(mut)]
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer_a,
         authority = fee_payer,
         decimals = 6,
@@ -166,7 +166,7 @@ pub struct CreateTwoMints<'info> {
 
     /// CHECK: Initialized by mint_action - second mint
     #[account(mut)]
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer_b,
         authority = fee_payer,
         decimals = 9,
@@ -208,7 +208,7 @@ pub struct CreateThreeMintsParams {
 }
 
 /// Test instruction with 3 #[light_mint] fields to verify multi-mint support.
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateThreeMintsParams)]
 pub struct CreateThreeMints<'info> {
     #[account(mut)]
@@ -239,7 +239,7 @@ pub struct CreateThreeMints<'info> {
 
     /// CHECK: Initialized by light_mint CPI
     #[account(mut)]
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer_a,
         authority = fee_payer,
         decimals = 6,
@@ -249,7 +249,7 @@ pub struct CreateThreeMints<'info> {
 
     /// CHECK: Initialized by light_mint CPI
     #[account(mut)]
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer_b,
         authority = fee_payer,
         decimals = 8,
@@ -259,7 +259,7 @@ pub struct CreateThreeMints<'info> {
 
     /// CHECK: Initialized by light_mint CPI
     #[account(mut)]
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer_c,
         authority = fee_payer,
         decimals = 9,
@@ -304,7 +304,7 @@ pub struct CreateMintWithMetadataParams {
 
 /// Test instruction with #[light_mint] with metadata fields.
 /// Tests the metadata support in the RentFree macro.
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateMintWithMetadataParams)]
 pub struct CreateMintWithMetadata<'info> {
     #[account(mut)]
@@ -321,7 +321,7 @@ pub struct CreateMintWithMetadata<'info> {
 
     /// CHECK: Initialized by light_mint CPI with metadata
     #[account(mut)]
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer,
         authority = fee_payer,
         decimals = 9,

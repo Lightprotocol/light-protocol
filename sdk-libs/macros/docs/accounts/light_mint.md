@@ -1,8 +1,8 @@
-# `#[light_mint(...)]` Attribute
+# `#[light_account(init, mint,...)]` Attribute
 
 ## Overview
 
-The `#[light_mint(...)]` attribute marks a field in an Anchor Accounts struct for compressed mint creation. When applied to a `CMint` account field, it generates code to create a compressed mint with automatic decompression support.
+The `#[light_account(init, mint,...)]` attribute marks a field in an Anchor Accounts struct for compressed mint creation. When applied to a `CMint` account field, it generates code to create a compressed mint with automatic decompression support.
 
 **Source**: `sdk-libs/macros/src/rentfree/accounts/light_mint.rs`
 
@@ -12,7 +12,7 @@ The `#[light_mint(...)]` attribute marks a field in an Anchor Accounts struct fo
 use light_sdk_macros::RentFree;
 use anchor_lang::prelude::*;
 
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateParams)]
 pub struct CreateMint<'info> {
     #[account(mut)]
@@ -25,7 +25,7 @@ pub struct CreateMint<'info> {
     pub authority: Signer<'info>,
 
     /// The CMint account to create
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer,
         authority = authority,
         decimals = 9,
@@ -80,7 +80,7 @@ Optional fields for creating a mint with the TokenMetadata extension:
 ### Metadata Example
 
 ```rust
-#[light_mint(
+#[light_account(init, mint,
     mint_signer = mint_signer,
     authority = fee_payer,
     decimals = 9,
@@ -99,13 +99,13 @@ pub cmint: UncheckedAccount<'info>,
 
 ```rust
 // ERROR: name without symbol and uri
-#[light_mint(
+#[light_account(init, mint,
     ...,
     name = params.name.clone()
 )]
 
 // ERROR: additional_metadata without name, symbol, uri
-#[light_mint(
+#[light_account(init, mint,
     ...,
     additional_metadata = params.additional_metadata.clone()
 )]
@@ -126,7 +126,7 @@ let (mint_pda, bump) = light_token_sdk::token::find_mint_address(mint_signer.key
 The `mint_seeds` attribute provides the PDA signer seeds used for `invoke_signed` when calling the light token program. These seeds must derive to the `mint_signer` pubkey for the CPI to succeed.
 
 ```rust
-#[light_mint(
+#[light_account(init, mint,
     mint_signer = mint_signer,
     authority = mint_authority,
     decimals = 9,
@@ -159,14 +159,14 @@ invoke_signed(&mint_action_ix, &account_infos, &[mint_seeds])?;
 
 ### CPI Context Integration
 
-When used alongside `#[rentfree]` PDAs, the mint is batched with PDA compression in a single CPI context. The mint receives an `assigned_account_index` to order it relative to PDAs.
+When used alongside `#[light_account(init)]` PDAs, the mint is batched with PDA compression in a single CPI context. The mint receives an `assigned_account_index` to order it relative to PDAs.
 
 ## Examples
 
 ### Basic Mint Creation
 
 ```rust
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateParams)]
 pub struct CreateBasicMint<'info> {
     #[account(mut)]
@@ -178,7 +178,7 @@ pub struct CreateBasicMint<'info> {
 
     pub authority: Signer<'info>,
 
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer,
         authority = authority,
         decimals = 6,
@@ -195,7 +195,7 @@ pub struct CreateBasicMint<'info> {
 When the authority is a PDA, provide `authority_seeds`:
 
 ```rust
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateParams)]
 pub struct CreateMintWithPdaAuthority<'info> {
     #[account(mut)]
@@ -209,7 +209,7 @@ pub struct CreateMintWithPdaAuthority<'info> {
     #[account(seeds = [b"authority"], bump)]
     pub authority: AccountInfo<'info>,
 
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer,
         authority = authority,
         decimals = 9,
@@ -225,7 +225,7 @@ pub struct CreateMintWithPdaAuthority<'info> {
 ### Mint with Freeze Authority
 
 ```rust
-#[light_mint(
+#[light_account(init, mint,
     mint_signer = mint_signer,
     authority = authority,
     decimals = 9,
@@ -241,7 +241,7 @@ pub freeze_auth: Signer<'info>,
 ### Custom Decompression Settings
 
 ```rust
-#[light_mint(
+#[light_account(init, mint,
     mint_signer = mint_signer,
     authority = authority,
     decimals = 9,
@@ -252,10 +252,10 @@ pub freeze_auth: Signer<'info>,
 pub cmint: Account<'info, CMint>,
 ```
 
-### Combined with #[rentfree] PDAs
+### Combined with #[light_account(init)] PDAs
 
 ```rust
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateParams)]
 pub struct CreateMintAndPda<'info> {
     #[account(mut)]
@@ -267,7 +267,7 @@ pub struct CreateMintAndPda<'info> {
 
     pub authority: Signer<'info>,
 
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = mint_signer,
         authority = authority,
         decimals = 9,
@@ -282,14 +282,14 @@ pub struct CreateMintAndPda<'info> {
         seeds = [b"token", params.owner.as_ref()],
         bump
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub token_account: Account<'info, TokenAccount>,
 
     // ... infrastructure accounts
 }
 ```
 
-When both `#[light_mint]` and `#[rentfree]` are present, the macro:
+When both `#[light_mint]` and `#[light_account(init)]` are present, the macro:
 1. Processes PDAs first, writing them to the CPI context
 2. Invokes mint_action with CPI context to batch the mint creation
 3. Uses `assigned_account_index` to order the mint relative to PDAs

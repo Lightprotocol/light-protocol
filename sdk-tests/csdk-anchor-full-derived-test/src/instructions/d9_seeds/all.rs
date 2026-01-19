@@ -10,7 +10,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -26,7 +26,7 @@ pub struct D9AllParams {
 }
 
 /// Tests all 6 seed types in one struct.
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9AllParams)]
 pub struct D9All<'info> {
     #[account(mut)]
@@ -46,7 +46,7 @@ pub struct D9All<'info> {
         seeds = [b"d9_all_lit"],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d9_all_lit: Account<'info, SinglePubkeyRecord>,
 
     // Test 2: Constant
@@ -57,7 +57,7 @@ pub struct D9All<'info> {
         seeds = [D9_ALL_SEED],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d9_all_const: Account<'info, SinglePubkeyRecord>,
 
     // Test 3: CtxAccount
@@ -68,7 +68,7 @@ pub struct D9All<'info> {
         seeds = [b"d9_all_ctx", authority.key().as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d9_all_ctx: Account<'info, SinglePubkeyRecord>,
 
     // Test 4: DataField (param Pubkey)
@@ -79,7 +79,7 @@ pub struct D9All<'info> {
         seeds = [b"d9_all_param", params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d9_all_param: Account<'info, SinglePubkeyRecord>,
 
     // Test 5: DataField (bytes conversion)
@@ -90,7 +90,7 @@ pub struct D9All<'info> {
         seeds = [b"d9_all_bytes", params.id.to_le_bytes().as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d9_all_bytes: Account<'info, SinglePubkeyRecord>,
 
     // Test 6: FunctionCall
@@ -101,7 +101,7 @@ pub struct D9All<'info> {
         seeds = [b"d9_all_func", crate::max_key(&params.key_a, &params.key_b).as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d9_all_func: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

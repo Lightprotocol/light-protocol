@@ -3,7 +3,7 @@
 
 use anchor_lang::prelude::*;
 use light_sdk::{derive_light_cpi_signer, derive_light_rent_sponsor_pda};
-use light_sdk_macros::rentfree_program;
+use light_sdk_macros::light_program;
 use light_sdk_types::CpiSigner;
 
 pub mod amm_test;
@@ -81,7 +81,7 @@ pub fn program_rent_sponsor() -> Pubkey {
 
 pub const GAME_SESSION_SEED: &str = "game_session";
 
-#[rentfree_program]
+#[light_program]
 #[program]
 pub mod csdk_anchor_full_derived_test {
     #![allow(clippy::too_many_arguments)]
@@ -329,7 +329,7 @@ pub mod csdk_anchor_full_derived_test {
         Ok(())
     }
 
-    /// Second instruction to test #[rentfree_program] with multiple instructions.
+    /// Second instruction to test #[light_program] with multiple instructions.
     /// Delegates to nested processor in separate module.
     pub fn create_single_record<'info>(
         ctx: Context<'_, '_, '_, 'info, D5RentfreeBare<'info>>,
@@ -375,7 +375,7 @@ pub mod csdk_anchor_full_derived_test {
     }
 
     /// AMM initialize instruction with all rentfree markers.
-    /// Tests: 2x #[rentfree], 2x #[rentfree_token], 1x #[light_mint],
+    /// Tests: 2x #[light_account(init)], 2x #[rentfree_token], 1x #[light_mint],
     /// CreateTokenAccountCpi.rent_free(), CreateTokenAtaCpi.rent_free(), MintToCpi
     pub fn initialize_pool<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializePool<'info>>,
@@ -420,7 +420,7 @@ pub mod csdk_anchor_full_derived_test {
     // D8 Builder Paths: Builder code generation paths
     // =========================================================================
 
-    /// D8: Only #[rentfree] fields (no token accounts)
+    /// D8: Only #[light_account(init)] fields (no token accounts)
     pub fn d8_pda_only<'info>(
         ctx: Context<'_, '_, '_, 'info, D8PdaOnly<'info>>,
         params: D8PdaOnlyParams,
@@ -429,7 +429,7 @@ pub mod csdk_anchor_full_derived_test {
         Ok(())
     }
 
-    /// D8: Multiple #[rentfree] fields of same type
+    /// D8: Multiple #[light_account(init)] fields of same type
     pub fn d8_multi_rentfree<'info>(
         ctx: Context<'_, '_, '_, 'info, D8MultiRentfree<'info>>,
         params: D8MultiRentfreeParams,
@@ -439,7 +439,7 @@ pub mod csdk_anchor_full_derived_test {
         Ok(())
     }
 
-    /// D8: Multiple #[rentfree] fields of different types
+    /// D8: Multiple #[light_account(init)] fields of different types
     pub fn d8_all<'info>(
         ctx: Context<'_, '_, '_, 'info, D8All<'info>>,
         params: D8AllParams,
@@ -1199,7 +1199,7 @@ pub mod csdk_anchor_full_derived_test {
         Ok(())
     }
 
-    /// D5: All markers combined (#[rentfree] + #[rentfree_token])
+    /// D5: All markers combined (#[light_account(init)] + #[rentfree_token])
     pub fn d5_all_markers<'info>(
         ctx: Context<'_, '_, '_, 'info, D5AllMarkers<'info>>,
         params: D5AllMarkersParams,

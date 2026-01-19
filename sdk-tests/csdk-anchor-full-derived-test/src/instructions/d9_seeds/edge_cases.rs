@@ -10,7 +10,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -37,7 +37,7 @@ pub struct D9EdgeEmptyParams {
 }
 
 /// Tests minimal byte literal seed
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9EdgeEmptyParams)]
 pub struct D9EdgeEmpty<'info> {
     #[account(mut)]
@@ -53,7 +53,7 @@ pub struct D9EdgeEmpty<'info> {
         seeds = [&b"d9_edge_empty"[..], &b"_"[..], params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -69,7 +69,7 @@ pub struct D9EdgeSingleByteParams {
 }
 
 /// Tests single byte constant
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9EdgeSingleByteParams)]
 pub struct D9EdgeSingleByte<'info> {
     #[account(mut)]
@@ -85,7 +85,7 @@ pub struct D9EdgeSingleByte<'info> {
         seeds = [D9_SINGLE_BYTE],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -101,7 +101,7 @@ pub struct D9EdgeSingleLetterParams {
 }
 
 /// Tests single letter constant name (A)
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9EdgeSingleLetterParams)]
 pub struct D9EdgeSingleLetter<'info> {
     #[account(mut)]
@@ -117,7 +117,7 @@ pub struct D9EdgeSingleLetter<'info> {
         seeds = [A],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -133,7 +133,7 @@ pub struct D9EdgeDigitsParams {
 }
 
 /// Tests constant name containing digits (SEED_123)
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9EdgeDigitsParams)]
 pub struct D9EdgeDigits<'info> {
     #[account(mut)]
@@ -149,7 +149,7 @@ pub struct D9EdgeDigits<'info> {
         seeds = [SEED_123],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -165,7 +165,7 @@ pub struct D9EdgeUnderscoreParams {
 }
 
 /// Tests leading underscore constant name
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9EdgeUnderscoreParams)]
 pub struct D9EdgeUnderscore<'info> {
     #[account(mut)]
@@ -181,7 +181,7 @@ pub struct D9EdgeUnderscore<'info> {
         seeds = [_UNDERSCORE_CONST],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -197,7 +197,7 @@ pub struct D9EdgeManyLiteralsParams {
 }
 
 /// Tests many byte literals in same seeds array
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9EdgeManyLiteralsParams)]
 pub struct D9EdgeManyLiterals<'info> {
     #[account(mut)]
@@ -213,7 +213,7 @@ pub struct D9EdgeManyLiterals<'info> {
         seeds = [b"a", b"b", b"c", b"d", b"e"],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
@@ -230,7 +230,7 @@ pub struct D9EdgeMixedParams {
 }
 
 /// Tests mixing various edge case constants
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9EdgeMixedParams)]
 pub struct D9EdgeMixed<'info> {
     #[account(mut)]
@@ -246,7 +246,7 @@ pub struct D9EdgeMixed<'info> {
         seeds = [A, SEED_123, _UNDERSCORE_CONST, params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

@@ -4,7 +4,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -16,7 +16,7 @@ pub struct D9FunctionCallParams {
 }
 
 /// Tests ClassifiedSeed::FunctionCall with max_key(&a, &b) seeds.
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9FunctionCallParams)]
 pub struct D9FunctionCall<'info> {
     #[account(mut)]
@@ -32,7 +32,7 @@ pub struct D9FunctionCall<'info> {
         seeds = [b"d9_func", crate::max_key(&params.key_a, &params.key_b).as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d9_func_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

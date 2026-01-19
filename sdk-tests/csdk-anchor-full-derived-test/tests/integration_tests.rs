@@ -8,7 +8,7 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
-use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::RentFreeAccountVariant;
+use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::LightAccountVariant;
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_compressible_client::{
     create_load_accounts_instructions, get_create_accounts_proof, AccountInterface,
@@ -104,7 +104,7 @@ impl TestContext {
     /// Runs the full compression/decompression lifecycle for a single PDA.
     async fn assert_lifecycle<S>(&mut self, pda: &Pubkey, seeds: S)
     where
-        S: IntoVariant<RentFreeAccountVariant>,
+        S: IntoVariant<LightAccountVariant>,
     {
         // Warp to trigger compression
         self.rpc
@@ -299,7 +299,7 @@ async fn test_d6_boxed() {
 // D8 Builder Paths Tests
 // =============================================================================
 
-/// Tests D8PdaOnly: Only #[rentfree] fields (no token accounts)
+/// Tests D8PdaOnly: Only #[light_account(init)] fields (no token accounts)
 #[tokio::test]
 async fn test_d8_pda_only() {
     use csdk_anchor_full_derived_test::d8_builder_paths::D8PdaOnlyParams;
@@ -358,7 +358,7 @@ async fn test_d8_pda_only() {
         .await;
 }
 
-/// Tests D8MultiRentfree: Multiple #[rentfree] fields of same type
+/// Tests D8MultiRentfree: Multiple #[light_account(init)] fields of same type
 #[tokio::test]
 async fn test_d8_multi_rentfree() {
     use csdk_anchor_full_derived_test::d8_builder_paths::D8MultiRentfreeParams;
@@ -499,7 +499,7 @@ async fn test_d8_multi_rentfree() {
     ctx.assert_onchain_exists(&pda2).await;
 }
 
-/// Tests D8All: Multiple #[rentfree] fields of different types
+/// Tests D8All: Multiple #[light_account(init)] fields of different types
 #[tokio::test]
 async fn test_d8_all() {
     use csdk_anchor_full_derived_test::d8_builder_paths::D8AllParams;
@@ -1300,7 +1300,7 @@ async fn test_d9_all() {
     ctx.assert_onchain_closed(&pda_func).await;
 
     // Helper to decompress a single account
-    async fn decompress_one<S: IntoVariant<RentFreeAccountVariant>>(
+    async fn decompress_one<S: IntoVariant<LightAccountVariant>>(
         ctx: &mut TestContext,
         pda: &Pubkey,
         seeds: S,
@@ -1479,7 +1479,7 @@ async fn test_d8_pda_only_full_lifecycle() {
 // =============================================================================
 
 /// Tests D5RentfreeToken: #[rentfree_token] attribute
-/// NOTE: This test is skipped because token-only instructions (no #[rentfree] PDAs)
+/// NOTE: This test is skipped because token-only instructions (no #[light_account(init)] PDAs)
 /// still require a CreateAccountsProof but get_create_accounts_proof fails with empty inputs.
 #[tokio::test]
 async fn test_d5_rentfree_token() {
@@ -1545,7 +1545,7 @@ async fn test_d5_rentfree_token() {
     // Note: Token vault decompression not tested - requires TokenAccountVariant
 }
 
-/// Tests D5AllMarkers: #[rentfree] + #[rentfree_token] combined
+/// Tests D5AllMarkers: #[light_account(init)] + #[rentfree_token] combined
 #[tokio::test]
 async fn test_d5_all_markers() {
     use csdk_anchor_full_derived_test::d5_markers::{
@@ -1629,7 +1629,7 @@ async fn test_d5_all_markers() {
 // =============================================================================
 
 /// Tests D7CtokenConfig: ctoken_compressible_config/ctoken_rent_sponsor naming
-/// Token-only instruction (no #[rentfree] PDAs) - verifies infrastructure field naming.
+/// Token-only instruction (no #[light_account(init)] PDAs) - verifies infrastructure field naming.
 #[tokio::test]
 async fn test_d7_ctoken_config() {
     use csdk_anchor_full_derived_test::d7_infra_names::{

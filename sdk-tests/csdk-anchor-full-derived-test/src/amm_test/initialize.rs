@@ -1,9 +1,9 @@
 //! Initialize instruction with all rentfree markers.
 //!
 //! Tests:
-//! - 2x #[rentfree] (pool_state, observation_state)
+//! - 2x #[light_account(init)] (pool_state, observation_state)
 //! - 2x #[rentfree_token(authority = [...])] (token_0_vault, token_1_vault)
-//! - 1x #[light_mint(...)] (lp_mint)
+//! - 1x #[light_account(init, mint,...)] (lp_mint)
 //! - CreateTokenAccountCpi.rent_free()
 //! - CreateTokenAtaCpi.rent_free()
 //! - MintToCpi
@@ -11,7 +11,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 use light_token_sdk::token::{
     CreateTokenAccountCpi, CreateTokenAtaCpi, MintToCpi, COMPRESSIBLE_CONFIG_V1,
     RENT_SPONSOR as CTOKEN_RENT_SPONSOR,
@@ -30,7 +30,7 @@ pub struct InitializeParams {
     pub authority_bump: u8,
 }
 
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: InitializeParams)]
 pub struct InitializePool<'info> {
     #[account(mut)]
@@ -58,7 +58,7 @@ pub struct InitializePool<'info> {
         payer = creator,
         space = 8 + PoolState::INIT_SPACE
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub pool_state: Box<Account<'info, PoolState>>,
 
     #[account(
@@ -77,7 +77,7 @@ pub struct InitializePool<'info> {
     pub lp_mint_signer: UncheckedAccount<'info>, // TODO: check where the cpi gets the seeds from
 
     #[account(mut)]
-    #[light_mint(
+    #[light_account(init, mint,
         mint_signer = lp_mint_signer,
         authority = authority,
         decimals = 9,
@@ -134,7 +134,7 @@ pub struct InitializePool<'info> {
         payer = creator,
         space = 8 + ObservationState::INIT_SPACE
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub observation_state: Box<Account<'info, ObservationState>>,
 
     pub token_program: Interface<'info, TokenInterface>,

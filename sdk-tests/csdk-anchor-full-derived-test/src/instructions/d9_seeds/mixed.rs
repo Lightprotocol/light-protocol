@@ -4,7 +4,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -15,7 +15,7 @@ pub struct D9MixedParams {
 }
 
 /// Tests multiple seed types combined: literal + ctx_account + param.
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D9MixedParams)]
 pub struct D9Mixed<'info> {
     #[account(mut)]
@@ -34,7 +34,7 @@ pub struct D9Mixed<'info> {
         seeds = [b"d9_mixed", authority.key().as_ref(), params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d9_mixed_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,

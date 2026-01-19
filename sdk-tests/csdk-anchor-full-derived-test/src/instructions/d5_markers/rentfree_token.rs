@@ -5,7 +5,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 use light_token_sdk::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as CTOKEN_RENT_SPONSOR};
 
 pub const D5_VAULT_AUTH_SEED: &[u8] = b"d5_vault_auth";
@@ -18,7 +18,7 @@ pub struct D5RentfreeTokenParams {
 }
 
 /// Tests #[rentfree_token(authority = [...])] attribute compilation.
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D5RentfreeTokenParams)]
 pub struct D5RentfreeToken<'info> {
     #[account(mut)]

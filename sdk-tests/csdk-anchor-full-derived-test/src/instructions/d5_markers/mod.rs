@@ -1,6 +1,6 @@
 //! D5: Field marker attributes
 //!
-//! Tests #[rentfree], #[rentfree_token], and #[light_mint] attribute parsing.
+//! Tests #[light_account(init)], #[rentfree_token], and #[light_mint] attribute parsing.
 
 mod all;
 mod rentfree_bare;

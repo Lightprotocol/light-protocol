@@ -4,7 +4,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 use light_token_sdk::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as CTOKEN_RENT_SPONSOR};
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
@@ -22,7 +22,7 @@ pub struct D7AllNamesParams {
 /// - `payer` as the fee payer field
 /// - `ctoken_compressible_config` for config
 /// - `ctoken_rent_sponsor` for rent sponsor
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D7AllNamesParams)]
 pub struct D7AllNames<'info> {
     #[account(mut)]
@@ -47,7 +47,7 @@ pub struct D7AllNames<'info> {
         seeds = [b"d7_all_record", params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d7_all_record: Account<'info, SinglePubkeyRecord>,
 
     #[account(

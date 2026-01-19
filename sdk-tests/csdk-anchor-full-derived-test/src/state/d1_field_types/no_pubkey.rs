@@ -5,11 +5,11 @@
 
 use anchor_lang::prelude::*;
 use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
-use light_sdk_macros::RentFreeAccount;
+use light_sdk_macros::LightAccount;
 
 /// A struct with only primitive fields - no Pubkey.
 /// This tests the identity Pack path where PackedNoPubkeyRecord = NoPubkeyRecord.
-#[derive(Default, Debug, InitSpace, RentFreeAccount)]
+#[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct NoPubkeyRecord {
     pub compression_info: Option<CompressionInfo>,

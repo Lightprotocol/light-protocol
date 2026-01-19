@@ -1,6 +1,6 @@
 //! Core Tests: GameSession trait derive tests
 //!
-//! Tests each trait derived by `RentFreeAccount` macro for `GameSession`:
+//! Tests each trait derived by `LightAccount` macro for `GameSession`:
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace

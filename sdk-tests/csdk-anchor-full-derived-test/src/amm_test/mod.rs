@@ -1,7 +1,7 @@
 //! AMM test cases based on cp-swap-reference patterns.
 //!
 //! Tests:
-//! - Multiple #[rentfree] fields
+//! - Multiple #[light_account(init)] fields
 //! - #[rentfree_token] with authority seeds
 //! - #[light_mint] for LP token creation
 //! - CreateTokenAccountCpi.rent_free()

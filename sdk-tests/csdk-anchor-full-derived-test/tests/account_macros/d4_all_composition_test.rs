@@ -1,6 +1,6 @@
 //! D4 Tests: AllCompositionRecord trait derive tests
 //!
-//! Tests each trait derived by `RentFreeAccount` macro for `AllCompositionRecord`:
+//! Tests each trait derived by `LightAccount` macro for `AllCompositionRecord`:
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace

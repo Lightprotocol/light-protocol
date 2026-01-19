@@ -1,6 +1,6 @@
 //! D1 Tests: NonCopyRecord trait derive tests
 //!
-//! Tests each trait derived by `RentFreeAccount` macro for `NonCopyRecord`:
+//! Tests each trait derived by `LightAccount` macro for `NonCopyRecord`:
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace

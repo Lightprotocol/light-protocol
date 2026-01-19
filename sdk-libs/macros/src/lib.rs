@@ -8,8 +8,8 @@ use utils::into_token_stream;
 mod account;
 mod discriminator;
 mod hasher;
+mod light_pdas;
 mod rent_sponsor;
-mod rentfree;
 mod utils;
 
 #[proc_macro_derive(LightDiscriminator)]
@@ -124,7 +124,7 @@ pub fn light_hasher_sha(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(HasCompressionInfo)]
 pub fn has_compression_info(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    into_token_stream(rentfree::account::traits::derive_has_compression_info(
+    into_token_stream(light_pdas::account::traits::derive_has_compression_info(
         input,
     ))
 }
@@ -166,28 +166,28 @@ pub fn has_compression_info(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(CompressAs, attributes(compress_as))]
 pub fn compress_as_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    into_token_stream(rentfree::account::traits::derive_compress_as(input))
+    into_token_stream(light_pdas::account::traits::derive_compress_as(input))
 }
 
-/// Auto-discovering rent-free program macro that reads external module files.
+/// Auto-discovering Light program macro that reads external module files.
 ///
-/// This macro automatically discovers #[rentfree] fields in Accounts structs
+/// This macro automatically discovers #[light_account(init)] fields in Accounts structs
 /// by reading external module files. No explicit type list needed!
 ///
-/// It also **automatically wraps** instruction handlers that use rentfree Accounts
+/// It also **automatically wraps** instruction handlers that use Light Accounts
 /// structs with `light_pre_init`/`light_finalize` logic - no separate attribute needed!
 ///
 /// Usage:
 /// ```ignore
-/// #[rentfree_program]
+/// #[light_program]
 /// #[program]
 /// pub mod my_program {
 ///     pub mod instruction_accounts;  // Macro reads this file!
 ///     pub mod state;
-///     
+///
 ///     use instruction_accounts::*;
 ///     use state::*;
-///     
+///
 ///     pub fn create_user(ctx: Context<CreateUser>, params: Params) -> Result<()> {
 ///         // Your business logic
 ///     }
@@ -196,18 +196,15 @@ pub fn compress_as_derive(input: TokenStream) -> TokenStream {
 ///
 /// The macro:
 /// 1. Scans the crate's `src/` directory for `#[derive(Accounts)]` structs
-/// 2. Extracts seeds from `#[account(seeds = [...])]` on `#[rentfree]` fields
+/// 2. Extracts seeds from `#[account(seeds = [...])]` on `#[light_account(init)]` fields
 /// 3. Auto-wraps instruction handlers that use those Accounts structs
 /// 4. Generates all necessary types, enums, and instruction handlers
 ///
 /// Seeds are declared ONCE in Anchor attributes - no duplication!
 #[proc_macro_attribute]
-pub fn rentfree_program(args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn light_program(args: TokenStream, input: TokenStream) -> TokenStream {
     let module = syn::parse_macro_input!(input as syn::ItemMod);
-    into_token_stream(rentfree::program::rentfree_program_impl(
-        args.into(),
-        module,
-    ))
+    into_token_stream(light_pdas::program::light_program_impl(args.into(), module))
 }
 
 #[proc_macro_attribute]
@@ -249,7 +246,7 @@ pub fn account(_: TokenStream, input: TokenStream) -> TokenStream {
 /// pub struct GameSession {
 ///     pub compression_info: Option<CompressionInfo>,
 ///     pub session_id: u64,        // KEPT
-///     pub player: Pubkey,         // KEPT  
+///     pub player: Pubkey,         // KEPT
 ///     pub game_type: String,      // KEPT
 ///     pub start_time: u64,        // RESET to 0
 ///     pub end_time: Option<u64>,  // RESET to None
@@ -259,7 +256,7 @@ pub fn account(_: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Compressible, attributes(compress_as, light_seeds))]
 pub fn compressible_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(rentfree::account::traits::derive_compressible(input))
+    into_token_stream(light_pdas::account::traits::derive_compressible(input))
 }
 
 /// Automatically implements Pack and Unpack traits for compressible accounts.
@@ -286,12 +283,12 @@ pub fn compressible_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(CompressiblePack)]
 pub fn compressible_pack(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(rentfree::account::pack_unpack::derive_compressible_pack(
+    into_token_stream(light_pdas::account::pack_unpack::derive_compressible_pack(
         input,
     ))
 }
 
-/// Consolidates all required traits for rent-free state accounts into a single derive.
+/// Consolidates all required traits for Light Protocol state accounts into a single derive.
 ///
 /// This macro is equivalent to deriving:
 /// - `LightHasherSha` (SHA256/ShaFlat hashing - type 3)
@@ -302,11 +299,11 @@ pub fn compressible_pack(input: TokenStream) -> TokenStream {
 /// ## Example
 ///
 /// ```ignore
-/// use light_sdk_macros::RentFreeAccount;
+/// use light_sdk_macros::LightAccount;
 /// use light_sdk::compressible::CompressionInfo;
 /// use solana_pubkey::Pubkey;
 ///
-/// #[derive(Default, Debug, InitSpace, RentFreeAccount)]
+/// #[derive(Default, Debug, InitSpace, LightAccount)]
 /// #[account]
 /// pub struct UserRecord {
 ///     pub owner: Pubkey,
@@ -333,10 +330,10 @@ pub fn compressible_pack(input: TokenStream) -> TokenStream {
 /// - The `compression_info` field is auto-detected and handled (no `#[skip]` needed)
 /// - SHA256 (ShaFlat) hashes the entire serialized struct (no `#[hash]` needed)
 /// - The struct must have a `compression_info: Option<CompressionInfo>` field
-#[proc_macro_derive(RentFreeAccount, attributes(compress_as))]
-pub fn rent_free_account(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(LightAccount, attributes(compress_as))]
+pub fn light_account_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(rentfree::account::light_compressible::derive_rentfree_account(input))
+    into_token_stream(light_pdas::account::light_compressible::derive_light_account(input))
 }
 
 /// Derives a Rent Sponsor PDA for a program at compile time.
@@ -373,33 +370,33 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
     rent_sponsor::derive_light_rent_sponsor(input)
 }
 
-/// Generates `RentFree` trait implementation for rent-free accounts and light-mints.
+/// Generates `LightFinalize` trait implementation for Light Protocol accounts.
 ///
 /// This derive macro works alongside Anchor's `#[derive(Accounts)]` to add
 /// compression finalize logic for:
-/// - Accounts marked with `#[rentfree]` (rent-free PDAs)
+/// - Accounts marked with `#[light_account(init)]` (PDAs)
+/// - Accounts marked with `#[light_account(init, mint, ...)]` (compressed mints)
 /// - Accounts marked with `#[rentfree_token(...)]` (rent-free token accounts)
-/// - Accounts marked with `#[light_mint(...)]` (light-mint creation)
 ///
 /// The trait is defined in `light_sdk::compressible::LightFinalize`.
 ///
-/// ## Usage - Rent-free PDAs
+/// ## Usage - PDAs
 ///
 /// ```ignore
-/// #[derive(Accounts, RentFree)]
+/// #[derive(Accounts, LightAccounts)]
 /// #[instruction(params: CompressionParams)]
-/// pub struct CreateRentFree<'info> {
+/// pub struct CreatePda<'info> {
 ///     #[account(mut)]
 ///     pub fee_payer: Signer<'info>,
-///     
+///
 ///     #[account(
 ///         init, payer = fee_payer, space = 8 + MyData::INIT_SPACE,
 ///         seeds = [b"my_data", authority.key().as_ref()],
 ///         bump
 ///     )]
-///     #[rentfree]
+///     #[light_account(init)]
 ///     pub my_account: Account<'info, MyData>,
-///     
+///
 ///     /// CHECK: Compression config
 ///     pub compression_config: AccountInfo<'info>,
 /// }
@@ -408,14 +405,13 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 /// ## Usage - Rent-free Token Accounts
 ///
 /// ```ignore
-/// #[derive(Accounts, RentFree)]
+/// #[derive(Accounts, LightAccounts)]
 /// pub struct CreateVault<'info> {
 ///     #[account(
 ///         mut,
 ///         seeds = [b"vault", cmint.key().as_ref()],
 ///         bump
 ///     )]
-///     // Variant name derived from field name: vault -> Vault
 ///     #[rentfree_token(authority = [b"vault_authority"])]
 ///     pub vault: UncheckedAccount<'info>,
 /// }
@@ -424,21 +420,21 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 /// ## Usage - Light Mints
 ///
 /// ```ignore
-/// #[derive(Accounts, RentFree)]
+/// #[derive(Accounts, LightAccounts)]
 /// #[instruction(params: MintParams)]
 /// pub struct CreateMint<'info> {
 ///     #[account(mut)]
 ///     pub fee_payer: Signer<'info>,
-///     
+///
 ///     #[account(mut)]
-///     #[light_mint(
+///     #[light_account(init, mint,
 ///         mint_signer = mint_signer,
 ///         authority = authority,
 ///         decimals = 9,
-///         signer_seeds = &[...]
+///         mint_seeds = &[...]
 ///     )]
 ///     pub mint: UncheckedAccount<'info>,
-///     
+///
 ///     pub mint_signer: Signer<'info>,
 ///     pub authority: Signer<'info>,
 /// }
@@ -451,11 +447,8 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 /// - `ID`: Program ID (from declare_id!)
 ///
 /// The struct should have fields named `fee_payer` (or `payer`) and `compression_config`.
-#[proc_macro_derive(
-    RentFree,
-    attributes(rentfree, rentfree_token, light_mint, instruction)
-)]
-pub fn rent_free_derive(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(LightAccounts, attributes(light_account, rentfree_token, instruction))]
+pub fn light_accounts_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(rentfree::accounts::derive_rentfree(input))
+    into_token_stream(light_pdas::accounts::derive_light_accounts(input))
 }

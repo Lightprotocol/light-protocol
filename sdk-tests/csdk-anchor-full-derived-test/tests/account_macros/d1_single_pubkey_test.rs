@@ -1,6 +1,6 @@
 //! D1 Tests: SinglePubkeyRecord trait derive tests
 //!
-//! Tests each trait derived by `RentFreeAccount` macro for `SinglePubkeyRecord`:
+//! Tests each trait derived by `LightAccount` macro for `SinglePubkeyRecord`:
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace

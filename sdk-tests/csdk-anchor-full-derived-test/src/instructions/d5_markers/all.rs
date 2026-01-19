@@ -1,11 +1,11 @@
 //! D5 Test: All marker types combined
 //!
-//! Tests #[rentfree] + #[rentfree_token] together in one instruction struct.
+//! Tests #[light_account(init)] + #[rentfree_token] together in one instruction struct.
 //! Note: #[light_mint] is tested separately in amm_test/initialize.rs.
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 use light_token_sdk::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as CTOKEN_RENT_SPONSOR};
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
@@ -20,9 +20,9 @@ pub struct D5AllMarkersParams {
 }
 
 /// Tests all marker types in one struct:
-/// - #[rentfree] for PDA account
+/// - #[light_account(init)] for PDA account
 /// - #[rentfree_token] for token vault
-#[derive(Accounts, RentFree)]
+#[derive(Accounts, LightAccounts)]
 #[instruction(params: D5AllMarkersParams)]
 pub struct D5AllMarkers<'info> {
     #[account(mut)]
@@ -47,7 +47,7 @@ pub struct D5AllMarkers<'info> {
         seeds = [b"d5_all_record", params.owner.as_ref()],
         bump,
     )]
-    #[rentfree]
+    #[light_account(init)]
     pub d5_all_record: Account<'info, SinglePubkeyRecord>,
 
     #[account(
