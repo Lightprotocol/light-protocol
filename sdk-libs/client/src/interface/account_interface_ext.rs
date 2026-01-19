@@ -90,17 +90,17 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
         if let Some(compressed) = result.value {
             if let Some(data) = compressed.data.as_ref() {
                 if !data.data.is_empty() {
-                    if let Ok(mint_data) = Mint::try_from_slice(&data.data) {
-                        return Ok(MintInterface {
-                            mint: *address,
-                            address_tree,
-                            compressed_address,
-                            state: MintState::Cold {
-                                compressed,
-                                mint_data,
-                            },
-                        });
-                    }
+                    let mint_data = Mint::try_from_slice(&data.data)
+                        .map_err(|e| RpcError::CustomError(format!("mint parse error: {}", e)))?;
+                    return Ok(MintInterface {
+                        mint: *address,
+                        address_tree,
+                        compressed_address,
+                        state: MintState::Cold {
+                            compressed,
+                            mint_data,
+                        },
+                    });
                 }
             }
         }

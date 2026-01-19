@@ -36,8 +36,8 @@ solana-address-lookup-table-interface = { version = "2.2.1", features = [
     "bincode",
 ] }
 solana-message = { workspace = true }
-solana-program = { workspace = true }
-spl-token-2022 = { workspace = true }
+spl-token-2022-interface = { workspace = true }
+spl-pod = { workspace = true }
 
 # Light Protocol dependencies
 light-merkle-tree-metadata = { workspace = true, features = ["solana"] }
@@ -56,7 +56,7 @@ light-prover-client = { workspace = true }
 litesvm = { workspace = true, optional = true }
 
 # External dependencies
-anchor-lang = { workspace = true, features = ["idl-build"], optional = true }
+anchor-lang = { workspace = true, optional = true }
 borsh = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }

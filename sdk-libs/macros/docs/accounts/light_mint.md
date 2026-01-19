@@ -168,7 +168,7 @@ When used alongside `#[light_account(init)]` PDAs, the mint is batched with PDA 
 ```rust
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateParams)]
-pub struct CreateBasimint<'info> {
+pub struct CreateBasicMint<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
 

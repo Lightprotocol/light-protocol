@@ -6,13 +6,20 @@
 //!
 //! All interfaces use standard Solana/SPL types:
 //! - `solana_account::Account` for raw account data
-//! - `spl_token_2022::state::Account` for parsed token data
+//! - `spl_token_2022_interface::pod::PodAccount` for parsed token data
 
 use light_token_interface::state::ExtensionStruct;
 use light_token_sdk::token::derive_token_ata;
 use solana_account::Account;
 use solana_pubkey::Pubkey;
-use spl_token_2022::state::Account as SplTokenAccount;
+use spl_pod::{
+    bytemuck::{pod_bytes_of, pod_from_bytes, pod_get_packed_len},
+    primitives::PodU64,
+};
+use spl_token_2022_interface::{
+    pod::{PodAccount, PodCOption},
+    state::AccountState,
+};
 use thiserror::Error;
 
 use super::ColdContext;
@@ -87,22 +94,21 @@ impl AccountInterface {
         compressed: CompressedTokenAccount,
         wallet_owner: Pubkey,
     ) -> Self {
-        use solana_program::program_pack::Pack;
-        use spl_token_2022::state::Account as SplAccount;
-
         let token = &compressed.token;
-        let parsed = SplAccount {
+        let parsed = PodAccount {
             mint: token.mint,
             owner: wallet_owner,
-            amount: token.amount,
-            delegate: token.delegate.into(),
-            state: spl_token_2022::state::AccountState::Initialized,
-            is_native: solana_program::program_option::COption::None,
-            delegated_amount: 0,
-            close_authority: solana_program::program_option::COption::None,
+            amount: PodU64::from(token.amount),
+            delegate: match token.delegate {
+                Some(pk) => PodCOption::some(pk),
+                None => PodCOption::none(),
+            },
+            state: AccountState::Initialized as u8,
+            is_native: PodCOption::none(),
+            delegated_amount: PodU64::from(0u64),
+            close_authority: PodCOption::none(),
         };
-        let mut data = vec![0u8; SplAccount::LEN];
-        SplAccount::pack(parsed, &mut data).expect("pack should never fail");
+        let data = pod_bytes_of(&parsed).to_vec();
 
         Self {
             key,
@@ -204,7 +210,7 @@ impl AccountInterface {
 ///
 /// Uses standard types:
 /// - `solana_account::Account` for raw bytes
-/// - `spl_token_2022::state::Account` for parsed token data
+/// - `spl_token_2022_interface::pod::PodAccount` for parsed token data
 ///
 /// For ATAs: `parsed.owner` is the wallet owner (set from fetch params).
 /// For program-owned: `parsed.owner` is the PDA.
@@ -214,8 +220,8 @@ pub struct TokenAccountInterface {
     pub key: Pubkey,
     /// Standard Solana Account (lamports, data, owner, executable, rent_epoch).
     pub account: Account,
-    /// Parsed SPL Token Account.
-    pub parsed: SplTokenAccount,
+    /// Parsed SPL Token Account (POD format).
+    pub parsed: PodAccount,
     /// Cold context (only present when cold).
     pub cold: Option<ColdContext>,
     /// Optional TLV extension data.
@@ -225,19 +231,18 @@ pub struct TokenAccountInterface {
 impl TokenAccountInterface {
     /// Create a hot (on-chain) token account interface.
     pub fn hot(key: Pubkey, account: Account) -> Result<Self, AccountInterfaceError> {
-        use solana_program::program_pack::Pack;
-
-        if account.data.len() < SplTokenAccount::LEN {
+        let pod_len = pod_get_packed_len::<PodAccount>();
+        if account.data.len() < pod_len {
             return Err(AccountInterfaceError::InvalidData);
         }
 
-        let parsed = SplTokenAccount::unpack(&account.data[..SplTokenAccount::LEN])
+        let parsed: &PodAccount = pod_from_bytes(&account.data[..pod_len])
             .map_err(|e| AccountInterfaceError::ParseError(e.to_string()))?;
 
         Ok(Self {
             key,
+            parsed: *parsed,
             account,
-            parsed,
             cold: None,
             extensions: None,
         })
@@ -256,27 +261,28 @@ impl TokenAccountInterface {
         owner_override: Pubkey,
         program_owner: Pubkey,
     ) -> Self {
-        use light_token_sdk::compat::AccountState;
-        use solana_program::program_pack::Pack;
+        use light_token_sdk::compat::AccountState as LightAccountState;
 
         let token = &compressed.token;
 
-        let parsed = SplTokenAccount {
+        let parsed = PodAccount {
             mint: token.mint,
             owner: owner_override,
-            amount: token.amount,
-            delegate: token.delegate.into(),
-            state: match token.state {
-                AccountState::Frozen => spl_token_2022::state::AccountState::Frozen,
-                _ => spl_token_2022::state::AccountState::Initialized,
+            amount: PodU64::from(token.amount),
+            delegate: match token.delegate {
+                Some(pk) => PodCOption::some(pk),
+                None => PodCOption::none(),
             },
-            is_native: solana_program::program_option::COption::None,
-            delegated_amount: 0,
-            close_authority: solana_program::program_option::COption::None,
+            state: match token.state {
+                LightAccountState::Frozen => AccountState::Frozen as u8,
+                _ => AccountState::Initialized as u8,
+            },
+            is_native: PodCOption::none(),
+            delegated_amount: PodU64::from(0u64),
+            close_authority: PodCOption::none(),
         };
 
-        let mut data = vec![0u8; SplTokenAccount::LEN];
-        SplTokenAccount::pack(parsed, &mut data).expect("pack should never fail");
+        let data = pod_bytes_of(&parsed).to_vec();
 
         let extensions = token.tlv.clone();
 
@@ -320,13 +326,17 @@ impl TokenAccountInterface {
     /// Get amount.
     #[inline]
     pub fn amount(&self) -> u64 {
-        self.parsed.amount
+        u64::from(self.parsed.amount)
     }
 
     /// Get delegate.
     #[inline]
     pub fn delegate(&self) -> Option<Pubkey> {
-        self.parsed.delegate.into()
+        if self.parsed.delegate.is_some() {
+            Some(self.parsed.delegate.value)
+        } else {
+            None
+        }
     }
 
     /// Get mint.
@@ -344,7 +354,7 @@ impl TokenAccountInterface {
     /// Check if frozen.
     #[inline]
     pub fn is_frozen(&self) -> bool {
-        self.parsed.state == spl_token_2022::state::AccountState::Frozen
+        self.parsed.state == AccountState::Frozen as u8
     }
 
     /// Get the account hash if cold.

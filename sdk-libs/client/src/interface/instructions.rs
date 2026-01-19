@@ -217,11 +217,15 @@ where
 
     // When mixing PDAs + tokens, use first token's CPI context
     if has_pdas && has_tokens {
-        let first_token_cpi = cold_accounts
+        let first_token_acc = cold_accounts
             .iter()
             .find(|(acc, _)| acc.owner == LIGHT_TOKEN_PROGRAM_ID)
-            .map(|(acc, _)| acc.tree_info.cpi_context.unwrap())
-            .expect("has_tokens");
+            .ok_or("expected at least one token account when has_tokens is true")?;
+        let first_token_cpi = first_token_acc
+            .0
+            .tree_info
+            .cpi_context
+            .ok_or("missing cpi_context on token account")?;
         let config = SystemAccountMetaConfig::new_with_cpi_context(*program_id, first_token_cpi);
         remaining_accounts.add_system_accounts_v2(config)?;
     } else {
@@ -235,7 +239,7 @@ where
     let tree_infos = &packed_tree_infos
         .state_trees
         .as_ref()
-        .unwrap()
+        .ok_or("missing state_trees in packed_tree_infos")?
         .packed_tree_infos;
 
     let mut accounts = program_account_metas.to_vec();
@@ -304,7 +308,10 @@ pub fn build_compress_accounts_idempotent(
     let output_state_tree_index = remaining_accounts.insert_or_get(output_queue);
 
     let packed_tree_infos = proof.pack_tree_infos(&mut remaining_accounts);
-    let tree_infos = packed_tree_infos.state_trees.as_ref().unwrap();
+    let tree_infos = packed_tree_infos
+        .state_trees
+        .as_ref()
+        .ok_or("missing state_trees in packed_tree_infos")?;
 
     let cold_metas: Vec<_> = tree_infos
         .packed_tree_infos

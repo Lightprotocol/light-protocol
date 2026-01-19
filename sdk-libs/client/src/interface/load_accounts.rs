@@ -58,6 +58,12 @@ pub enum LoadAccountsError {
 
     #[error("Cold mint at index {index} (mint {mint}) missing hash")]
     MissingMintHash { index: usize, mint: Pubkey },
+
+    #[error("ATA at index {index} (pubkey {pubkey}) missing compressed data or ATA bump")]
+    MissingAtaContext { index: usize, pubkey: Pubkey },
+
+    #[error("Tree info index {index} out of bounds (len {len})")]
+    TreeInfoIndexOutOfBounds { index: usize, len: usize },
 }
 
 const MAX_ATAS_PER_IX: usize = 8;
@@ -274,12 +280,27 @@ struct AtaContext<'a> {
 }
 
 impl<'a> AtaContext<'a> {
-    fn from_interface(iface: &'a TokenAccountInterface) -> Option<Self> {
-        Some(Self {
-            compressed: iface.compressed()?,
+    fn from_interface(
+        iface: &'a TokenAccountInterface,
+        index: usize,
+    ) -> Result<Self, LoadAccountsError> {
+        let compressed = iface
+            .compressed()
+            .ok_or(LoadAccountsError::MissingAtaContext {
+                index,
+                pubkey: iface.key,
+            })?;
+        let bump = iface
+            .ata_bump()
+            .ok_or(LoadAccountsError::MissingAtaContext {
+                index,
+                pubkey: iface.key,
+            })?;
+        Ok(Self {
+            compressed,
             wallet_owner: iface.owner(),
             mint: iface.mint(),
-            bump: iface.ata_bump()?,
+            bump,
         })
     }
 }
@@ -291,8 +312,9 @@ fn build_ata_load(
 ) -> Result<Vec<Instruction>, LoadAccountsError> {
     let contexts: Vec<AtaContext> = ifaces
         .iter()
-        .filter_map(|a| AtaContext::from_interface(a))
-        .collect();
+        .enumerate()
+        .map(|(i, a)| AtaContext::from_interface(a, i))
+        .collect::<Result<Vec<_>, _>>()?;
 
     let mut out = Vec::with_capacity(contexts.len() + 1);
 
@@ -326,7 +348,12 @@ fn build_transfer2(
 
     for (i, ctx) in contexts.iter().enumerate() {
         let token = &ctx.compressed.token;
-        let tree = &tree_infos.packed_tree_infos[i];
+        let tree = tree_infos.packed_tree_infos.get(i).ok_or(
+            LoadAccountsError::TreeInfoIndexOutOfBounds {
+                index: i,
+                len: tree_infos.packed_tree_infos.len(),
+            },
+        )?;
 
         let owner_idx = packed.insert_or_get_config(ctx.wallet_owner, true, false);
         let ata_idx = packed.insert_or_get(derive_token_ata(&ctx.wallet_owner, &ctx.mint).0);
