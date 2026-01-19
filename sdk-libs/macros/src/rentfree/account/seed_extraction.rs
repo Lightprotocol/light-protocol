@@ -585,14 +585,13 @@ fn classify_method_call(mc: &syn::ExprMethodCall) -> syn::Result<ClassifiedSeed>
     }
 
     // Handle params.field.to_le_bytes() or params.nested.field.to_le_bytes()
-    if mc.method == "to_le_bytes" || mc.method == "to_be_bytes" {
-        if is_params_rooted(&mc.receiver) {
-            if let Some(field_name) = extract_terminal_field(&mc.receiver) {
-                return Ok(ClassifiedSeed::DataField {
-                    field_name,
-                    conversion: Some(mc.method.clone()),
-                });
-            }
+    if (mc.method == "to_le_bytes" || mc.method == "to_be_bytes") && is_params_rooted(&mc.receiver)
+    {
+        if let Some(field_name) = extract_terminal_field(&mc.receiver) {
+            return Ok(ClassifiedSeed::DataField {
+                field_name,
+                conversion: Some(mc.method.clone()),
+            });
         }
     }
 
@@ -631,9 +630,7 @@ fn classify_method_call(mc: &syn::ExprMethodCall) -> syn::Result<ClassifiedSeed>
 /// Check if an expression is rooted in "params" (handles nested access like params.nested.field)
 fn is_params_rooted(expr: &Expr) -> bool {
     match expr {
-        Expr::Path(path) => {
-            path.path.get_ident().is_some_and(|ident| ident == "params")
-        }
+        Expr::Path(path) => path.path.get_ident().is_some_and(|ident| ident == "params"),
         Expr::Field(field) => {
             // Recursively check the base
             is_params_rooted(&field.base)

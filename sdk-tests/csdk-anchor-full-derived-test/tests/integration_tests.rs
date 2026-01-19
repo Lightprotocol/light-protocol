@@ -3,6 +3,8 @@
 //! These tests verify that the macro-generated code works correctly at runtime
 //! by testing the full lifecycle: create account -> verify on-chain -> compress -> decompress.
 
+#![allow(clippy::useless_asref)] // Testing that macro handles .as_ref() patterns
+
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
@@ -1778,8 +1780,10 @@ async fn test_d7_all_names() {
 /// Tests D9QualifiedBare: Bare constant (no path prefix)
 #[tokio::test]
 async fn test_d9_qualified_bare() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9QualifiedBareParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::qualified_paths::D9_QUALIFIED_LOCAL;
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9QualifiedBareParams,
+        instructions::d9_seeds::qualified_paths::D9_QUALIFIED_LOCAL,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -1830,8 +1834,10 @@ async fn test_d9_qualified_bare() {
 /// Tests D9QualifiedSelf: self:: prefix path qualification
 #[tokio::test]
 async fn test_d9_qualified_self() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9QualifiedSelfParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::qualified_paths::D9_QUALIFIED_LOCAL;
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9QualifiedSelfParams,
+        instructions::d9_seeds::qualified_paths::D9_QUALIFIED_LOCAL,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -1882,8 +1888,10 @@ async fn test_d9_qualified_self() {
 /// Tests D9QualifiedCrate: crate:: prefix path qualification
 #[tokio::test]
 async fn test_d9_qualified_crate() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9QualifiedCrateParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::qualified_paths::D9_QUALIFIED_CRATE;
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9QualifiedCrateParams,
+        instructions::d9_seeds::qualified_paths::D9_QUALIFIED_CRATE,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -1934,8 +1942,7 @@ async fn test_d9_qualified_crate() {
 /// Tests D9QualifiedDeep: Deeply nested crate path
 #[tokio::test]
 async fn test_d9_qualified_deep() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9QualifiedDeepParams;
-    use csdk_anchor_full_derived_test::D9_CONSTANT_SEED;
+    use csdk_anchor_full_derived_test::{d9_seeds::D9QualifiedDeepParams, D9_CONSTANT_SEED};
 
     let mut ctx = TestContext::new().await;
 
@@ -1986,9 +1993,10 @@ async fn test_d9_qualified_deep() {
 /// Tests D9QualifiedMixed: Mixed qualified and bare paths in same seeds
 #[tokio::test]
 async fn test_d9_qualified_mixed() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9QualifiedMixedParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::qualified_paths::D9_QUALIFIED_LOCAL;
-    use csdk_anchor_full_derived_test::D9_CONSTANT_SEED;
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9QualifiedMixedParams,
+        instructions::d9_seeds::qualified_paths::D9_QUALIFIED_LOCAL, D9_CONSTANT_SEED,
+    };
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -2048,8 +2056,9 @@ async fn test_d9_qualified_mixed() {
 /// Tests D9MethodAsRef: constant.as_ref()
 #[tokio::test]
 async fn test_d9_method_as_ref() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9MethodAsRefParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::method_chains::D9_METHOD_BYTES;
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9MethodAsRefParams, instructions::d9_seeds::method_chains::D9_METHOD_BYTES,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -2100,8 +2109,9 @@ async fn test_d9_method_as_ref() {
 /// Tests D9MethodAsBytes: string_constant.as_bytes()
 #[tokio::test]
 async fn test_d9_method_as_bytes() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9MethodAsBytesParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::method_chains::D9_METHOD_STR;
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9MethodAsBytesParams, instructions::d9_seeds::method_chains::D9_METHOD_STR,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -2152,8 +2162,10 @@ async fn test_d9_method_as_bytes() {
 /// Tests D9MethodQualifiedAsBytes: crate::path::CONST.as_bytes()
 #[tokio::test]
 async fn test_d9_method_qualified_as_bytes() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9MethodQualifiedAsBytesParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::method_chains::D9_METHOD_STR;
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9MethodQualifiedAsBytesParams,
+        instructions::d9_seeds::method_chains::D9_METHOD_STR,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -2312,8 +2324,9 @@ async fn test_d9_method_to_be_bytes() {
 /// Tests D9MethodMixed: Mixed methods in seeds
 #[tokio::test]
 async fn test_d9_method_mixed() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9MethodMixedParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::method_chains::D9_METHOD_STR;
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9MethodMixedParams, instructions::d9_seeds::method_chains::D9_METHOD_STR,
+    };
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -2430,8 +2443,9 @@ async fn test_d9_bump_literal() {
 /// Tests D9BumpConstant: Constant seed with bump
 #[tokio::test]
 async fn test_d9_bump_constant() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9BumpConstantParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::array_bumps::D9_BUMP_SEED;
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9BumpConstantParams, instructions::d9_seeds::array_bumps::D9_BUMP_SEED,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -2482,8 +2496,9 @@ async fn test_d9_bump_constant() {
 /// Tests D9BumpQualified: Qualified path with bump
 #[tokio::test]
 async fn test_d9_bump_qualified() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9BumpQualifiedParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::array_bumps::D9_BUMP_STR;
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9BumpQualifiedParams, instructions::d9_seeds::array_bumps::D9_BUMP_STR,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -2644,8 +2659,9 @@ async fn test_d9_bump_ctx() {
 /// Tests D9BumpMixed: Multiple seeds with bump
 #[tokio::test]
 async fn test_d9_bump_mixed() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9BumpMixedParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::array_bumps::D9_BUMP_SEED;
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9BumpMixedParams, instructions::d9_seeds::array_bumps::D9_BUMP_SEED,
+    };
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -2712,8 +2728,9 @@ async fn test_d9_bump_mixed() {
 /// Tests D9ComplexThree: 3 seeds - literal + constant + param
 #[tokio::test]
 async fn test_d9_complex_three() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9ComplexThreeParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::complex_mixed::D9_COMPLEX_PREFIX;
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9ComplexThreeParams, instructions::d9_seeds::complex_mixed::D9_COMPLEX_PREFIX,
+    };
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -2769,9 +2786,9 @@ async fn test_d9_complex_three() {
 /// Tests D9ComplexFour: 4 seeds - version + namespace + param + bytes
 #[tokio::test]
 async fn test_d9_complex_four() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9ComplexFourParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::complex_mixed::{
-        D9_COMPLEX_NAMESPACE, D9_COMPLEX_V1,
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9ComplexFourParams,
+        instructions::d9_seeds::complex_mixed::{D9_COMPLEX_NAMESPACE, D9_COMPLEX_V1},
     };
 
     let mut ctx = TestContext::new().await;
@@ -2835,9 +2852,9 @@ async fn test_d9_complex_four() {
 /// Tests D9ComplexFive: 5 seeds with ctx account
 #[tokio::test]
 async fn test_d9_complex_five() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9ComplexFiveParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::complex_mixed::{
-        D9_COMPLEX_NAMESPACE, D9_COMPLEX_V1,
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9ComplexFiveParams,
+        instructions::d9_seeds::complex_mixed::{D9_COMPLEX_NAMESPACE, D9_COMPLEX_V1},
     };
 
     let mut ctx = TestContext::new().await;
@@ -2904,9 +2921,9 @@ async fn test_d9_complex_five() {
 /// Tests D9ComplexQualifiedMix: Qualified paths mixed with local
 #[tokio::test]
 async fn test_d9_complex_qualified_mix() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9ComplexQualifiedMixParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::complex_mixed::{
-        D9_COMPLEX_PREFIX, D9_COMPLEX_V1,
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9ComplexQualifiedMixParams,
+        instructions::d9_seeds::complex_mixed::{D9_COMPLEX_PREFIX, D9_COMPLEX_V1},
     };
 
     let mut ctx = TestContext::new().await;
@@ -2963,8 +2980,9 @@ async fn test_d9_complex_qualified_mix() {
 /// Tests D9ComplexFunc: Function call combined with other seeds
 #[tokio::test]
 async fn test_d9_complex_func() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9ComplexFuncParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::complex_mixed::D9_COMPLEX_V1;
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9ComplexFuncParams, instructions::d9_seeds::complex_mixed::D9_COMPLEX_V1,
+    };
 
     let mut ctx = TestContext::new().await;
     let key_a = Keypair::new().pubkey();
@@ -3025,9 +3043,9 @@ async fn test_d9_complex_func() {
 /// Tests D9ComplexAllQualified: All paths being fully qualified
 #[tokio::test]
 async fn test_d9_complex_all_qualified() {
-    use csdk_anchor_full_derived_test::d9_seeds::D9ComplexAllQualifiedParams;
-    use csdk_anchor_full_derived_test::instructions::d9_seeds::complex_mixed::{
-        D9_COMPLEX_NAMESPACE, D9_COMPLEX_V1,
+    use csdk_anchor_full_derived_test::{
+        d9_seeds::D9ComplexAllQualifiedParams,
+        instructions::d9_seeds::complex_mixed::{D9_COMPLEX_NAMESPACE, D9_COMPLEX_V1},
     };
 
     let mut ctx = TestContext::new().await;
@@ -3260,8 +3278,9 @@ async fn test_d9_edge_empty() {
 /// Tests D9EdgeSingleByte: Single byte constant
 #[tokio::test]
 async fn test_d9_edge_single_byte() {
-    use csdk_anchor_full_derived_test::d9_seeds::edge_cases::D9_SINGLE_BYTE;
-    use csdk_anchor_full_derived_test::d9_seeds::D9EdgeSingleByteParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        edge_cases::D9_SINGLE_BYTE, D9EdgeSingleByteParams,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -3312,8 +3331,7 @@ async fn test_d9_edge_single_byte() {
 /// Tests D9EdgeSingleLetter: Single letter constant name
 #[tokio::test]
 async fn test_d9_edge_single_letter() {
-    use csdk_anchor_full_derived_test::d9_seeds::edge_cases::A;
-    use csdk_anchor_full_derived_test::d9_seeds::D9EdgeSingleLetterParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{edge_cases::A, D9EdgeSingleLetterParams};
 
     let mut ctx = TestContext::new().await;
 
@@ -3364,8 +3382,7 @@ async fn test_d9_edge_single_letter() {
 /// Tests D9EdgeDigits: Constant name with digits
 #[tokio::test]
 async fn test_d9_edge_digits() {
-    use csdk_anchor_full_derived_test::d9_seeds::edge_cases::SEED_123;
-    use csdk_anchor_full_derived_test::d9_seeds::D9EdgeDigitsParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{edge_cases::SEED_123, D9EdgeDigitsParams};
 
     let mut ctx = TestContext::new().await;
 
@@ -3416,8 +3433,9 @@ async fn test_d9_edge_digits() {
 /// Tests D9EdgeUnderscore: Leading underscore constant
 #[tokio::test]
 async fn test_d9_edge_underscore() {
-    use csdk_anchor_full_derived_test::d9_seeds::edge_cases::_UNDERSCORE_CONST;
-    use csdk_anchor_full_derived_test::d9_seeds::D9EdgeUnderscoreParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        edge_cases::_UNDERSCORE_CONST, D9EdgeUnderscoreParams,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -3519,8 +3537,10 @@ async fn test_d9_edge_many_literals() {
 /// Tests D9EdgeMixed: Mixed edge cases
 #[tokio::test]
 async fn test_d9_edge_mixed() {
-    use csdk_anchor_full_derived_test::d9_seeds::edge_cases::{A, SEED_123, _UNDERSCORE_CONST};
-    use csdk_anchor_full_derived_test::d9_seeds::D9EdgeMixedParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        edge_cases::{A, SEED_123, _UNDERSCORE_CONST},
+        D9EdgeMixedParams,
+    };
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -3760,8 +3780,9 @@ async fn test_d9_external_mixed() {
 /// Tests D9ExternalWithLocal: External with local constant
 #[tokio::test]
 async fn test_d9_external_with_local() {
-    use csdk_anchor_full_derived_test::d9_seeds::external_paths::D9_EXTERNAL_LOCAL;
-    use csdk_anchor_full_derived_test::d9_seeds::D9ExternalWithLocalParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        external_paths::D9_EXTERNAL_LOCAL, D9ExternalWithLocalParams,
+    };
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -3877,8 +3898,9 @@ async fn test_d9_external_bump() {
 /// Tests D9ExternalReexport: Re-exported external constant
 #[tokio::test]
 async fn test_d9_external_reexport() {
-    use csdk_anchor_full_derived_test::d9_seeds::external_paths::REEXPORTED_SEED;
-    use csdk_anchor_full_derived_test::d9_seeds::D9ExternalReexportParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        external_paths::REEXPORTED_SEED, D9ExternalReexportParams,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -3933,8 +3955,9 @@ async fn test_d9_external_reexport() {
 /// Tests D9NestedSimple: Simple nested struct access
 #[tokio::test]
 async fn test_d9_nested_simple() {
-    use csdk_anchor_full_derived_test::d9_seeds::nested_seeds::InnerNested;
-    use csdk_anchor_full_derived_test::d9_seeds::D9NestedSimpleParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        nested_seeds::InnerNested, D9NestedSimpleParams,
+    };
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -3988,8 +4011,10 @@ async fn test_d9_nested_simple() {
 /// Tests D9NestedDouble: Double nested struct access
 #[tokio::test]
 async fn test_d9_nested_double() {
-    use csdk_anchor_full_derived_test::d9_seeds::nested_seeds::{InnerNested, OuterNested};
-    use csdk_anchor_full_derived_test::d9_seeds::D9NestedDoubleParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        nested_seeds::{InnerNested, OuterNested},
+        D9NestedDoubleParams,
+    };
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -4046,8 +4071,10 @@ async fn test_d9_nested_double() {
 /// Tests D9NestedArrayField: Nested array field access
 #[tokio::test]
 async fn test_d9_nested_array_field() {
-    use csdk_anchor_full_derived_test::d9_seeds::nested_seeds::{InnerNested, OuterNested};
-    use csdk_anchor_full_derived_test::d9_seeds::D9NestedArrayFieldParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        nested_seeds::{InnerNested, OuterNested},
+        D9NestedArrayFieldParams,
+    };
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -4162,8 +4189,7 @@ async fn test_d9_array_index() {
 /// Tests D9NestedBytes: Nested struct with bytes conversion
 #[tokio::test]
 async fn test_d9_nested_bytes() {
-    use csdk_anchor_full_derived_test::d9_seeds::nested_seeds::InnerNested;
-    use csdk_anchor_full_derived_test::d9_seeds::D9NestedBytesParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{nested_seeds::InnerNested, D9NestedBytesParams};
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -4220,8 +4246,10 @@ async fn test_d9_nested_bytes() {
 /// Tests D9NestedCombined: Multiple nested seeds combined
 #[tokio::test]
 async fn test_d9_nested_combined() {
-    use csdk_anchor_full_derived_test::d9_seeds::nested_seeds::{InnerNested, OuterNested};
-    use csdk_anchor_full_derived_test::d9_seeds::D9NestedCombinedParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        nested_seeds::{InnerNested, OuterNested},
+        D9NestedCombinedParams,
+    };
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -4285,8 +4313,7 @@ async fn test_d9_nested_combined() {
 /// Tests D9AssocConst: Associated constant
 #[tokio::test]
 async fn test_d9_assoc_const() {
-    use csdk_anchor_full_derived_test::d9_seeds::const_patterns::SeedHolder;
-    use csdk_anchor_full_derived_test::d9_seeds::D9AssocConstParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{const_patterns::SeedHolder, D9AssocConstParams};
 
     let mut ctx = TestContext::new().await;
 
@@ -4337,8 +4364,9 @@ async fn test_d9_assoc_const() {
 /// Tests D9AssocConstMethod: Associated constant with method
 #[tokio::test]
 async fn test_d9_assoc_const_method() {
-    use csdk_anchor_full_derived_test::d9_seeds::const_patterns::SeedHolder;
-    use csdk_anchor_full_derived_test::d9_seeds::D9AssocConstMethodParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::SeedHolder, D9AssocConstMethodParams,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -4390,8 +4418,10 @@ async fn test_d9_assoc_const_method() {
 /// Tests D9MultiAssocConst: Multiple associated constants
 #[tokio::test]
 async fn test_d9_multi_assoc_const() {
-    use csdk_anchor_full_derived_test::d9_seeds::const_patterns::{AnotherHolder, SeedHolder};
-    use csdk_anchor_full_derived_test::d9_seeds::D9MultiAssocConstParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::{AnotherHolder, SeedHolder},
+        D9MultiAssocConstParams,
+    };
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -4447,8 +4477,7 @@ async fn test_d9_multi_assoc_const() {
 /// Tests D9ConstFn: Const fn call
 #[tokio::test]
 async fn test_d9_const_fn() {
-    use csdk_anchor_full_derived_test::d9_seeds::const_patterns::const_seed;
-    use csdk_anchor_full_derived_test::d9_seeds::D9ConstFnParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{const_patterns::const_seed, D9ConstFnParams};
 
     let mut ctx = TestContext::new().await;
 
@@ -4499,8 +4528,9 @@ async fn test_d9_const_fn() {
 /// Tests D9ConstFnGeneric: Const fn with generic
 #[tokio::test]
 async fn test_d9_const_fn_generic() {
-    use csdk_anchor_full_derived_test::d9_seeds::const_patterns::identity_seed;
-    use csdk_anchor_full_derived_test::d9_seeds::D9ConstFnGenericParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::identity_seed, D9ConstFnGenericParams,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -4552,8 +4582,10 @@ async fn test_d9_const_fn_generic() {
 /// Tests D9TraitAssocConst: Trait associated constant
 #[tokio::test]
 async fn test_d9_trait_assoc_const() {
-    use csdk_anchor_full_derived_test::d9_seeds::const_patterns::{HasSeed, SeedHolder};
-    use csdk_anchor_full_derived_test::d9_seeds::D9TraitAssocConstParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::{HasSeed, SeedHolder},
+        D9TraitAssocConstParams,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -4605,8 +4637,7 @@ async fn test_d9_trait_assoc_const() {
 /// Tests D9Static: Static variable
 #[tokio::test]
 async fn test_d9_static() {
-    use csdk_anchor_full_derived_test::d9_seeds::const_patterns::STATIC_SEED;
-    use csdk_anchor_full_derived_test::d9_seeds::D9StaticParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{const_patterns::STATIC_SEED, D9StaticParams};
 
     let mut ctx = TestContext::new().await;
 
@@ -4657,8 +4688,9 @@ async fn test_d9_static() {
 /// Tests D9QualifiedConstFn: Qualified const fn
 #[tokio::test]
 async fn test_d9_qualified_const_fn() {
-    use csdk_anchor_full_derived_test::d9_seeds::const_patterns::const_seed;
-    use csdk_anchor_full_derived_test::d9_seeds::D9QualifiedConstFnParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::const_seed, D9QualifiedConstFnParams,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -4709,8 +4741,9 @@ async fn test_d9_qualified_const_fn() {
 /// Tests D9FullyQualifiedAssoc: Fully qualified associated constant
 #[tokio::test]
 async fn test_d9_fully_qualified_assoc() {
-    use csdk_anchor_full_derived_test::d9_seeds::const_patterns::SeedHolder;
-    use csdk_anchor_full_derived_test::d9_seeds::D9FullyQualifiedAssocParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::SeedHolder, D9FullyQualifiedAssocParams,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -4761,8 +4794,10 @@ async fn test_d9_fully_qualified_assoc() {
 /// Tests D9FullyQualifiedTrait: Fully qualified trait associated constant
 #[tokio::test]
 async fn test_d9_fully_qualified_trait() {
-    use csdk_anchor_full_derived_test::d9_seeds::const_patterns::{HasSeed, SeedHolder};
-    use csdk_anchor_full_derived_test::d9_seeds::D9FullyQualifiedTraitParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::{HasSeed, SeedHolder},
+        D9FullyQualifiedTraitParams,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -4814,8 +4849,9 @@ async fn test_d9_fully_qualified_trait() {
 /// Tests D9FullyQualifiedGeneric: Fully qualified const fn with generic
 #[tokio::test]
 async fn test_d9_fully_qualified_generic() {
-    use csdk_anchor_full_derived_test::d9_seeds::const_patterns::identity_seed;
-    use csdk_anchor_full_derived_test::d9_seeds::D9FullyQualifiedGenericParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::identity_seed, D9FullyQualifiedGenericParams,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -4867,8 +4903,10 @@ async fn test_d9_fully_qualified_generic() {
 /// Tests D9ConstCombined: Combined const patterns
 #[tokio::test]
 async fn test_d9_const_combined() {
-    use csdk_anchor_full_derived_test::d9_seeds::const_patterns::{const_seed, SeedHolder};
-    use csdk_anchor_full_derived_test::d9_seeds::D9ConstCombinedParams;
+    use csdk_anchor_full_derived_test::d9_seeds::{
+        const_patterns::{const_seed, SeedHolder},
+        D9ConstCombinedParams,
+    };
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
