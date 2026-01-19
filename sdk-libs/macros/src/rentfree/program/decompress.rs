@@ -303,14 +303,23 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
                     }
                 }
 
-                // Handle uppercase constants
+                // Handle uppercase constants (single-segment and multi-segment paths)
                 if let syn::Expr::Path(path_expr) = &**expr {
                     if let Some(ident) = path_expr.path.get_ident() {
+                        // Single-segment path like AUTH_SEED
                         let ident_str = ident.to_string();
                         if is_constant_identifier(&ident_str) {
                             seed_refs.push(
                                 quote! { { let __seed: &[u8] = crate::#ident.as_ref(); __seed } },
                             );
+                            continue;
+                        }
+                    } else if let Some(last_seg) = path_expr.path.segments.last() {
+                        // Multi-segment path like crate::AUTH_SEED
+                        if is_constant_identifier(&last_seg.ident.to_string()) {
+                            let path = &path_expr.path;
+                            seed_refs
+                                .push(quote! { { let __seed: &[u8] = #path.as_ref(); __seed } });
                             continue;
                         }
                     }

@@ -193,7 +193,7 @@ fn parse_authority_seeds(content: ParseStream) -> Result<Vec<SeedElement>> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum SeedElement {
     Literal(LitStr),
     Expression(Box<Expr>),
@@ -411,9 +411,8 @@ pub fn wrap_function_with_rentfree(fn_item: &ItemFn, params_ident: &Ident) -> It
             // Phase 1: Pre-init (creates mints via CPI context write, registers compressed addresses)
             use light_sdk::compressible::{LightPreInit, LightFinalize};
             let _ = ctx.accounts.light_pre_init(ctx.remaining_accounts, &#params_ident)
-                .map_err(|e| {
-                    let pe: solana_program_error::ProgramError = e.into();
-                    pe
+                .map_err(|e: light_sdk::error::LightSdkError| -> solana_program_error::ProgramError {
+                    e.into()
                 })?;
 
             // Execute the original handler body

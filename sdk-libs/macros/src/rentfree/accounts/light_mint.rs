@@ -159,8 +159,7 @@ pub(super) fn parse_light_mint_attr(
                 .map_err(|e| syn::Error::new_spanned(attr, e.to_string()))?;
 
             // Validate metadata fields
-            validate_metadata_fields(&args)
-                .map_err(|msg| syn::Error::new_spanned(attr, msg))?;
+            validate_metadata_fields(&args).map_err(|msg| syn::Error::new_spanned(attr, msg))?;
 
             // address_tree_info defaults to params.create_accounts_proof.address_tree_info
             let address_tree_info = args.address_tree_info.map(Into::into).unwrap_or_else(|| {
