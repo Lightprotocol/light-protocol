@@ -433,7 +433,10 @@ fn build_mint_load(
     proof: ValidityProofWithContext,
     fee_payer: Pubkey,
 ) -> Result<Instruction, LoadAccountsError> {
-    let acc = &proof.accounts[0];
+    let acc = proof
+        .accounts
+        .first()
+        .ok_or_else(|| LoadAccountsError::BuildInstruction("proof has no accounts".into()))?;
     let state_tree = acc.tree_info.tree;
     let input_queue = acc.tree_info.queue;
     let output_queue = acc

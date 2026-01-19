@@ -94,6 +94,7 @@ impl AccountInterface {
         compressed: CompressedTokenAccount,
         wallet_owner: Pubkey,
     ) -> Self {
+        use light_token_sdk::compat::AccountState as LightAccountState;
         let token = &compressed.token;
         let parsed = PodAccount {
             mint: token.mint,
@@ -103,7 +104,10 @@ impl AccountInterface {
                 Some(pk) => PodCOption::some(pk),
                 None => PodCOption::none(),
             },
-            state: AccountState::Initialized as u8,
+            state: match token.state {
+                LightAccountState::Frozen => AccountState::Frozen as u8,
+                _ => AccountState::Initialized as u8,
+            },
             is_native: PodCOption::none(),
             delegated_amount: PodU64::from(0u64),
             close_authority: PodCOption::none(),
