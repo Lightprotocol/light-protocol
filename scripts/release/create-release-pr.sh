@@ -25,8 +25,24 @@ fi
 # Function to get version changes between two git refs
 # Output format: One line per package: "package-name old-version new-version"
 get_version_changes() {
-    local base_ref="$1"
-    local head_ref="$2"
+    local release_type="$1"
+    local base_ref="$2"
+    local head_ref="$3"
+
+    # Set the grep pattern based on release type
+    local grep_pattern
+    case "$release_type" in
+      program-libs)
+        grep_pattern='program-libs/'
+        ;;
+      sdk-libs)
+        grep_pattern='(sdk-libs|program-tests/merkle-tree|sparse-merkle-tree|prover)/'
+        ;;
+      *)
+        echo "Error: Release type must be 'program-libs' or 'sdk-libs'" >&2
+        return 1
+        ;;
+    esac
 
     # Fetch if comparing against remote refs
     if [[ "$base_ref" == origin/* ]]; then
@@ -44,23 +60,25 @@ get_version_changes() {
         diff_args=("$base_ref...$head_ref")
     fi
 
-    # Get list of changed Cargo.toml files in program-libs, sdk-libs, program-tests/merkle-tree, sparse-merkle-tree, and prover
+    # Get list of changed Cargo.toml files in the specified directory
     while IFS= read -r file; do
         # Extract old and new version from the diff
         local versions=$(git diff "${diff_args[@]}" -- "$file" | grep -E '^\+version|^-version' | grep -v '+++\|---')
         local old_ver=$(echo "$versions" | grep '^-version' | head -1 | awk -F'"' '{print $2}')
         local new_ver=$(echo "$versions" | grep '^\+version' | head -1 | awk -F'"' '{print $2}')
 
-        # Only process if version actually changed
-        if [ -n "$old_ver" ] && [ -n "$new_ver" ] && [ "$old_ver" != "$new_ver" ]; then
+        # Process if: new crate (old_ver empty, new_ver exists) OR version changed
+        if [ -n "$new_ver" ] && { [ -z "$old_ver" ] || [ "$old_ver" != "$new_ver" ]; }; then
             # Extract actual package name from Cargo.toml
             local pkg_name=$(grep '^name = ' "$file" | head -1 | awk -F'"' '{print $2}')
 
             if [ -n "$pkg_name" ]; then
-                echo "$pkg_name $old_ver $new_ver"
+                # Use "new" for new crates without previous version
+                local display_old="${old_ver:-new}"
+                echo "$pkg_name $display_old $new_ver"
             fi
         fi
-    done < <(git diff "${diff_args[@]}" --name-only -- '**/Cargo.toml' | grep -E '(program-libs|sdk-libs|program-tests/merkle-tree|sparse-merkle-tree|prover)/')
+    done < <(git diff "${diff_args[@]}" --name-only -- '**/Cargo.toml' | grep -E "$grep_pattern")
 }
 
 # Check if there are changes
@@ -85,7 +103,7 @@ echo "Comparing against: $TARGET_BRANCH"
 echo ""
 
 # Get version changes using the function
-VERSION_CHANGES_RAW=$(get_version_changes "$TARGET_BRANCH" "HEAD")
+VERSION_CHANGES_RAW=$(get_version_changes "$RELEASE_TYPE" "$TARGET_BRANCH" "HEAD")
 
 # Build packages array and formatted version changes
 PACKAGES=()
@@ -111,7 +129,7 @@ echo ""
 
 # Validate packages using the validation script (comparing against target branch)
 # Note: Changes are in working directory but not yet committed
-if "$SCRIPT_DIR/validate-packages.sh" "$TARGET_BRANCH" "HEAD"; then
+if "$SCRIPT_DIR/validate-packages.sh" "$RELEASE_TYPE" "$TARGET_BRANCH" "HEAD"; then
     echo ""
     echo "All crates validated successfully"
 else

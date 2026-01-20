@@ -3,10 +3,11 @@ set -euo pipefail
 
 # Validate or publish packages using cargo-release
 # Usage:
-#   ./scripts/validate-packages.sh [base-ref] [head-ref]           # Dry-run validation
-#   ./scripts/validate-packages.sh --execute [base-ref] [head-ref] # Actual publish
+#   ./scripts/validate-packages.sh <release-type> [base-ref] [head-ref]           # Dry-run validation
+#   ./scripts/validate-packages.sh --execute <release-type> [base-ref] [head-ref] # Actual publish
 # Arguments:
 #   --execute: Actually publish to crates.io (default: dry-run only)
+#   release-type: Type of release (program-libs or sdk-libs)
 #   base-ref: Base reference to compare against (default: origin/main)
 #   head-ref: Head reference to compare (default: HEAD)
 # Exits with 0 on success, 1 on failure
@@ -20,15 +21,22 @@ if [ "${1:-}" = "--execute" ]; then
   shift
 fi
 
-BASE_REF="${1:-origin/main}"
-HEAD_REF="${2:-HEAD}"
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 [--execute] <program-libs|sdk-libs> [base-ref] [head-ref]" >&2
+    exit 1
+fi
+
+RELEASE_TYPE=$1
+BASE_REF="${2:-origin/main}"
+HEAD_REF="${3:-HEAD}"
 
 echo "Detecting packages with version changes..."
+echo "Release type: $RELEASE_TYPE"
 echo "Comparing: $BASE_REF...$HEAD_REF"
 echo ""
 
 # Detect packages using the detection script
-PACKAGES_STRING=$("$SCRIPT_DIR/detect-version-changes.sh" "$BASE_REF" "$HEAD_REF")
+PACKAGES_STRING=$("$SCRIPT_DIR/detect-version-changes.sh" "$RELEASE_TYPE" "$BASE_REF" "$HEAD_REF")
 
 # Convert to array
 read -ra PACKAGES <<< "$PACKAGES_STRING"

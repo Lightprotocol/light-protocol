@@ -1,6 +1,6 @@
 [package]
 name = "light-token-types"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 description = "ctoken and compressed token types for Light Protocol"
 license = "Apache-2.0"
@@ -18,7 +18,7 @@ idl-build = ["anchor-lang/idl-build", "anchor", "light-sdk-types/idl-build"]
 borsh = { workspace = true }
 light-macros = { workspace = true }
 anchor-lang = { workspace = true, optional = true }
-light-sdk-types = { workspace = true }
+light-sdk-types = { workspace = true, features = ["std"] }
 light-account-checks = { workspace = true }
 light-compressed-account = { workspace = true, features = ["std"] }
 thiserror = { workspace = true }
