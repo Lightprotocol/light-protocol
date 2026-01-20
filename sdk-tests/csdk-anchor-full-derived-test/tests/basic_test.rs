@@ -856,3 +856,609 @@ async fn test_create_multi_mints() {
         "Mint C authority should be fee_payer"
     );
 }
+
+/// Helper function to set up test context for D9 instruction data tests.
+/// Returns (rpc, payer, program_id, config_pda).
+async fn setup_d9_test_context() -> (LightProgramTest, Keypair, Pubkey, Pubkey) {
+    use light_token_sdk::token::RENT_SPONSOR;
+
+    let program_id = csdk_anchor_full_derived_test::ID;
+    let mut config = ProgramTestConfig::new_v2(
+        true,
+        Some(vec![("csdk_anchor_full_derived_test", program_id)]),
+    );
+    config = config.with_light_protocol_events();
+
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
+
+    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+        &program_id,
+        &payer.pubkey(),
+        &program_data_pda,
+        RENT_SPONSOR,
+        payer.pubkey(),
+    )
+    .build();
+
+    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
+        .await
+        .expect("Initialize config should succeed");
+
+    (rpc, payer, program_id, config_pda)
+}
+
+/// Test D9InstrSinglePubkey - seeds = [b"instr_single", params.owner.as_ref()]
+#[tokio::test]
+async fn test_d9_instr_single_pubkey() {
+    use csdk_anchor_full_derived_test::D9SinglePubkeyParams;
+
+    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+
+    let owner = Keypair::new().pubkey();
+    let (record_pda, _) =
+        Pubkey::find_program_address(&[b"instr_single", owner.as_ref()], &program_id);
+
+    let proof_result = get_create_accounts_proof(
+        &rpc,
+        &program_id,
+        vec![CreateAccountsProofInput::pda(record_pda)],
+    )
+    .await
+    .unwrap();
+
+    let accounts = csdk_anchor_full_derived_test::accounts::D9InstrSinglePubkey {
+        fee_payer: payer.pubkey(),
+        compression_config: config_pda,
+        record: record_pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrSinglePubkey {
+        params: D9SinglePubkeyParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await
+        .expect("D9InstrSinglePubkey should succeed");
+
+    assert!(
+        rpc.get_account(record_pda).await.unwrap().is_some(),
+        "Record PDA should exist"
+    );
+}
+
+/// Test D9InstrU64 - seeds = [b"instr_u64_", params.amount.to_le_bytes().as_ref()]
+#[tokio::test]
+async fn test_d9_instr_u64() {
+    use csdk_anchor_full_derived_test::D9U64Params;
+
+    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+
+    let amount = 12345u64;
+    let (record_pda, _) =
+        Pubkey::find_program_address(&[b"instr_u64_", amount.to_le_bytes().as_ref()], &program_id);
+
+    let proof_result = get_create_accounts_proof(
+        &rpc,
+        &program_id,
+        vec![CreateAccountsProofInput::pda(record_pda)],
+    )
+    .await
+    .unwrap();
+
+    let accounts = csdk_anchor_full_derived_test::accounts::D9InstrU64 {
+        fee_payer: payer.pubkey(),
+        compression_config: config_pda,
+        record: record_pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrU64 {
+        _params: D9U64Params {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            amount,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await
+        .expect("D9InstrU64 should succeed");
+
+    assert!(
+        rpc.get_account(record_pda).await.unwrap().is_some(),
+        "Record PDA should exist"
+    );
+}
+
+/// Test D9InstrMultiField - seeds = [b"instr_multi", params.owner.as_ref(), &params.amount.to_le_bytes()]
+#[tokio::test]
+async fn test_d9_instr_multi_field() {
+    use csdk_anchor_full_derived_test::D9MultiFieldParams;
+
+    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+
+    let owner = Keypair::new().pubkey();
+    let amount = 99999u64;
+    let (record_pda, _) = Pubkey::find_program_address(
+        &[b"instr_multi", owner.as_ref(), &amount.to_le_bytes()],
+        &program_id,
+    );
+
+    let proof_result = get_create_accounts_proof(
+        &rpc,
+        &program_id,
+        vec![CreateAccountsProofInput::pda(record_pda)],
+    )
+    .await
+    .unwrap();
+
+    let accounts = csdk_anchor_full_derived_test::accounts::D9InstrMultiField {
+        fee_payer: payer.pubkey(),
+        compression_config: config_pda,
+        record: record_pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrMultiField {
+        params: D9MultiFieldParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+            amount,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await
+        .expect("D9InstrMultiField should succeed");
+
+    assert!(
+        rpc.get_account(record_pda).await.unwrap().is_some(),
+        "Record PDA should exist"
+    );
+}
+
+/// Test D9InstrMixedCtx - seeds = [b"instr_mixed", authority.key().as_ref(), params.data_key.as_ref()]
+#[tokio::test]
+async fn test_d9_instr_mixed_ctx() {
+    use csdk_anchor_full_derived_test::D9MixedCtxParams;
+
+    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+    let authority = Keypair::new();
+
+    let data_key = Keypair::new().pubkey();
+    let (record_pda, _) = Pubkey::find_program_address(
+        &[
+            b"instr_mixed",
+            authority.pubkey().as_ref(),
+            data_key.as_ref(),
+        ],
+        &program_id,
+    );
+
+    let proof_result = get_create_accounts_proof(
+        &rpc,
+        &program_id,
+        vec![CreateAccountsProofInput::pda(record_pda)],
+    )
+    .await
+    .unwrap();
+
+    let accounts = csdk_anchor_full_derived_test::accounts::D9InstrMixedCtx {
+        fee_payer: payer.pubkey(),
+        authority: authority.pubkey(),
+        compression_config: config_pda,
+        record: record_pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrMixedCtx {
+        params: D9MixedCtxParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            data_key,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &authority])
+        .await
+        .expect("D9InstrMixedCtx should succeed");
+
+    assert!(
+        rpc.get_account(record_pda).await.unwrap().is_some(),
+        "Record PDA should exist"
+    );
+}
+
+/// Test D9InstrTriple - seeds = [b"instr_triple", params.key_a.as_ref(), params.value_b.to_le_bytes().as_ref()]
+#[tokio::test]
+async fn test_d9_instr_triple() {
+    use csdk_anchor_full_derived_test::D9TripleParams;
+
+    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+
+    let key_a = Keypair::new().pubkey();
+    let value_b = 777u64;
+    let flag_c = 42u8;
+    let (record_pda, _) = Pubkey::find_program_address(
+        &[
+            b"instr_triple",
+            key_a.as_ref(),
+            value_b.to_le_bytes().as_ref(),
+        ],
+        &program_id,
+    );
+
+    let proof_result = get_create_accounts_proof(
+        &rpc,
+        &program_id,
+        vec![CreateAccountsProofInput::pda(record_pda)],
+    )
+    .await
+    .unwrap();
+
+    let accounts = csdk_anchor_full_derived_test::accounts::D9InstrTriple {
+        fee_payer: payer.pubkey(),
+        compression_config: config_pda,
+        record: record_pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrTriple {
+        params: D9TripleParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            key_a,
+            value_b,
+            flag_c,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await
+        .expect("D9InstrTriple should succeed");
+
+    assert!(
+        rpc.get_account(record_pda).await.unwrap().is_some(),
+        "Record PDA should exist"
+    );
+}
+
+/// Test D9InstrBigEndian - seeds = [b"instr_be", &params.value.to_be_bytes()]
+#[tokio::test]
+async fn test_d9_instr_big_endian() {
+    use csdk_anchor_full_derived_test::D9BigEndianParams;
+
+    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+
+    let value = 0xDEADBEEFu64;
+    let (record_pda, _) =
+        Pubkey::find_program_address(&[b"instr_be", &value.to_be_bytes()], &program_id);
+
+    let proof_result = get_create_accounts_proof(
+        &rpc,
+        &program_id,
+        vec![CreateAccountsProofInput::pda(record_pda)],
+    )
+    .await
+    .unwrap();
+
+    let accounts = csdk_anchor_full_derived_test::accounts::D9InstrBigEndian {
+        fee_payer: payer.pubkey(),
+        compression_config: config_pda,
+        record: record_pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrBigEndian {
+        _params: D9BigEndianParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            value,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await
+        .expect("D9InstrBigEndian should succeed");
+
+    assert!(
+        rpc.get_account(record_pda).await.unwrap().is_some(),
+        "Record PDA should exist"
+    );
+}
+
+/// Test D9InstrMultiU64 - seeds = [b"multi_u64", params.id.to_le_bytes().as_ref(), params.counter.to_le_bytes().as_ref()]
+#[tokio::test]
+async fn test_d9_instr_multi_u64() {
+    use csdk_anchor_full_derived_test::D9MultiU64Params;
+
+    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+
+    let id = 100u64;
+    let counter = 200u64;
+    let (record_pda, _) = Pubkey::find_program_address(
+        &[
+            b"multi_u64",
+            id.to_le_bytes().as_ref(),
+            counter.to_le_bytes().as_ref(),
+        ],
+        &program_id,
+    );
+
+    let proof_result = get_create_accounts_proof(
+        &rpc,
+        &program_id,
+        vec![CreateAccountsProofInput::pda(record_pda)],
+    )
+    .await
+    .unwrap();
+
+    let accounts = csdk_anchor_full_derived_test::accounts::D9InstrMultiU64 {
+        fee_payer: payer.pubkey(),
+        compression_config: config_pda,
+        record: record_pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrMultiU64 {
+        _params: D9MultiU64Params {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            id,
+            counter,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await
+        .expect("D9InstrMultiU64 should succeed");
+
+    assert!(
+        rpc.get_account(record_pda).await.unwrap().is_some(),
+        "Record PDA should exist"
+    );
+}
+
+/// Test D9InstrChainedAsRef - seeds = [b"instr_chain", params.key.as_ref()]
+#[tokio::test]
+async fn test_d9_instr_chained_as_ref() {
+    use csdk_anchor_full_derived_test::D9ChainedAsRefParams;
+
+    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+
+    let key = Keypair::new().pubkey();
+    let (record_pda, _) =
+        Pubkey::find_program_address(&[b"instr_chain", key.as_ref()], &program_id);
+
+    let proof_result = get_create_accounts_proof(
+        &rpc,
+        &program_id,
+        vec![CreateAccountsProofInput::pda(record_pda)],
+    )
+    .await
+    .unwrap();
+
+    let accounts = csdk_anchor_full_derived_test::accounts::D9InstrChainedAsRef {
+        fee_payer: payer.pubkey(),
+        compression_config: config_pda,
+        record: record_pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrChainedAsRef {
+        params: D9ChainedAsRefParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            key,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await
+        .expect("D9InstrChainedAsRef should succeed");
+
+    assert!(
+        rpc.get_account(record_pda).await.unwrap().is_some(),
+        "Record PDA should exist"
+    );
+}
+
+/// Test D9InstrConstMixed - seeds = [D9_INSTR_SEED, params.owner.as_ref()]
+#[tokio::test]
+async fn test_d9_instr_const_mixed() {
+    use csdk_anchor_full_derived_test::{
+        instructions::d9_seeds::instruction_data::D9_INSTR_SEED, D9ConstMixedParams,
+    };
+
+    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+
+    let owner = Keypair::new().pubkey();
+    let (record_pda, _) =
+        Pubkey::find_program_address(&[D9_INSTR_SEED, owner.as_ref()], &program_id);
+
+    let proof_result = get_create_accounts_proof(
+        &rpc,
+        &program_id,
+        vec![CreateAccountsProofInput::pda(record_pda)],
+    )
+    .await
+    .unwrap();
+
+    let accounts = csdk_anchor_full_derived_test::accounts::D9InstrConstMixed {
+        fee_payer: payer.pubkey(),
+        compression_config: config_pda,
+        record: record_pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrConstMixed {
+        params: D9ConstMixedParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            owner,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await
+        .expect("D9InstrConstMixed should succeed");
+
+    assert!(
+        rpc.get_account(record_pda).await.unwrap().is_some(),
+        "Record PDA should exist"
+    );
+}
+
+/// Test D9InstrComplexMixed - seeds = [b"complex", authority.key().as_ref(), params.data_owner.as_ref(), &params.data_amount.to_le_bytes()]
+#[tokio::test]
+async fn test_d9_instr_complex_mixed() {
+    use csdk_anchor_full_derived_test::D9ComplexMixedParams;
+
+    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+    let authority = Keypair::new();
+
+    let data_owner = Keypair::new().pubkey();
+    let data_amount = 55555u64;
+    let (record_pda, _) = Pubkey::find_program_address(
+        &[
+            b"complex",
+            authority.pubkey().as_ref(),
+            data_owner.as_ref(),
+            &data_amount.to_le_bytes(),
+        ],
+        &program_id,
+    );
+
+    let proof_result = get_create_accounts_proof(
+        &rpc,
+        &program_id,
+        vec![CreateAccountsProofInput::pda(record_pda)],
+    )
+    .await
+    .unwrap();
+
+    let accounts = csdk_anchor_full_derived_test::accounts::D9InstrComplexMixed {
+        fee_payer: payer.pubkey(),
+        authority: authority.pubkey(),
+        compression_config: config_pda,
+        record: record_pda,
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D9InstrComplexMixed {
+        params: D9ComplexMixedParams {
+            create_accounts_proof: proof_result.create_accounts_proof,
+            data_owner,
+            data_amount,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &authority])
+        .await
+        .expect("D9InstrComplexMixed should succeed");
+
+    assert!(
+        rpc.get_account(record_pda).await.unwrap().is_some(),
+        "Record PDA should exist"
+    );
+}

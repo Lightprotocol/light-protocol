@@ -23,6 +23,8 @@ pub use d6_account_types::*;
 pub use d7_infra_names::*;
 pub use d8_builder_paths::*;
 pub use d9_seeds::*;
+pub mod d10_token_accounts;
+pub use d10_token_accounts::*;
 pub use instruction_accounts::*;
 pub use instructions::{
     d7_infra_names::{
@@ -111,6 +113,8 @@ pub mod csdk_anchor_full_derived_test {
             D9AssocConstMethod,
             D9AssocConstMethodParams,
             D9AssocConstParams,
+            // Instruction data tests (various params struct patterns)
+            D9BigEndianParams,
             D9BumpConstant,
             D9BumpConstantParams,
             D9BumpCtx,
@@ -124,6 +128,7 @@ pub mod csdk_anchor_full_derived_test {
             D9BumpParamParams,
             D9BumpQualified,
             D9BumpQualifiedParams,
+            D9ChainedAsRefParams,
             D9ComplexAllQualified,
             D9ComplexAllQualifiedParams,
             D9ComplexFive,
@@ -134,6 +139,7 @@ pub mod csdk_anchor_full_derived_test {
             D9ComplexFuncParams,
             D9ComplexIdFunc,
             D9ComplexIdFuncParams,
+            D9ComplexMixedParams,
             D9ComplexProgramId,
             D9ComplexProgramIdParams,
             D9ComplexQualifiedMix,
@@ -147,6 +153,7 @@ pub mod csdk_anchor_full_derived_test {
             D9ConstFnGeneric,
             D9ConstFnGenericParams,
             D9ConstFnParams,
+            D9ConstMixedParams,
             D9Constant,
             D9ConstantParams,
             D9CtxAccount,
@@ -187,6 +194,16 @@ pub mod csdk_anchor_full_derived_test {
             D9FullyQualifiedTraitParams,
             D9FunctionCall,
             D9FunctionCallParams,
+            D9InstrBigEndian,
+            D9InstrChainedAsRef,
+            D9InstrComplexMixed,
+            D9InstrConstMixed,
+            D9InstrMixedCtx,
+            D9InstrMultiField,
+            D9InstrMultiU64,
+            D9InstrSinglePubkey,
+            D9InstrTriple,
+            D9InstrU64,
             D9Literal,
             D9LiteralParams,
             D9MethodAsBytes,
@@ -203,9 +220,12 @@ pub mod csdk_anchor_full_derived_test {
             D9MethodToLeBytes,
             D9MethodToLeBytesParams,
             D9Mixed,
+            D9MixedCtxParams,
             D9MixedParams,
             D9MultiAssocConst,
             D9MultiAssocConstParams,
+            D9MultiFieldParams,
+            D9MultiU64Params,
             D9NestedArrayField,
             D9NestedArrayFieldParams,
             D9NestedBytes,
@@ -234,14 +254,20 @@ pub mod csdk_anchor_full_derived_test {
             D9QualifiedMixedParams,
             D9QualifiedSelf,
             D9QualifiedSelfParams,
+            D9SinglePubkeyParams,
             D9Static,
             D9StaticParams,
             D9TraitAssocConst,
             D9TraitAssocConstParams,
+            D9TripleParams,
+            D9U64Params,
         },
         instruction_accounts::{
             CreateMintWithMetadata, CreateMintWithMetadataParams, CreatePdasAndMintAuto,
             CreateThreeMints, CreateThreeMintsParams, CreateTwoMints, CreateTwoMintsParams,
+        },
+        instructions::d10_token_accounts::{
+            D10SingleAta, D10SingleAtaParams, D10SingleVault, D10SingleVaultParams,
         },
         FullAutoWithMintParams, LIGHT_CPI_SIGNER,
     };
@@ -344,9 +370,10 @@ pub mod csdk_anchor_full_derived_test {
 
     /// Test instruction that creates 2 mints in a single transaction.
     /// Tests the multi-mint support in the RentFree macro.
+    /// Also tests dynamic context name detection using "context" instead of "ctx".
     #[allow(unused_variables)]
     pub fn create_two_mints<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateTwoMints<'info>>,
+        context: Context<'_, '_, '_, 'info, CreateTwoMints<'info>>,
         params: CreateTwoMintsParams,
     ) -> Result<()> {
         // Both mints are created by the RentFree macro in pre_init
@@ -356,9 +383,10 @@ pub mod csdk_anchor_full_derived_test {
 
     /// Test instruction that creates 3 mints in a single transaction.
     /// Tests the multi-mint support in the RentFree macro scales beyond 2.
+    /// Also tests dynamic context name detection using "anchor_ctx" instead of "ctx".
     #[allow(unused_variables)]
     pub fn create_three_mints<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateThreeMints<'info>>,
+        anchor_ctx: Context<'_, '_, '_, 'info, CreateThreeMints<'info>>,
         params: CreateThreeMintsParams,
     ) -> Result<()> {
         // All 3 mints are created by the RentFree macro in pre_init
@@ -368,9 +396,10 @@ pub mod csdk_anchor_full_derived_test {
 
     /// Test instruction that creates a mint with metadata.
     /// Tests the metadata support in the RentFree macro.
+    /// Also tests dynamic context name detection using "c" (single letter) instead of "ctx".
     #[allow(unused_variables)]
     pub fn create_mint_with_metadata<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateMintWithMetadata<'info>>,
+        c: Context<'_, '_, '_, 'info, CreateMintWithMetadata<'info>>,
         params: CreateMintWithMetadataParams,
     ) -> Result<()> {
         // Mint with metadata is created by the RentFree macro in pre_init
@@ -1187,6 +1216,100 @@ pub mod csdk_anchor_full_derived_test {
     }
 
     // =========================================================================
+    // D9 Instruction Data Tests (various params struct patterns)
+    // =========================================================================
+
+    /// D9: Standard params with single Pubkey field
+    pub fn d9_instr_single_pubkey<'info>(
+        ctx: Context<'_, '_, '_, 'info, D9InstrSinglePubkey<'info>>,
+        params: D9SinglePubkeyParams,
+    ) -> Result<()> {
+        ctx.accounts.record.owner = params.owner;
+        Ok(())
+    }
+
+    /// D9: Params with u64 field requiring to_le_bytes
+    pub fn d9_instr_u64<'info>(
+        ctx: Context<'_, '_, '_, 'info, D9InstrU64<'info>>,
+        _params: D9U64Params,
+    ) -> Result<()> {
+        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        Ok(())
+    }
+
+    /// D9: Multiple data fields in seeds (owner + amount)
+    pub fn d9_instr_multi_field<'info>(
+        ctx: Context<'_, '_, '_, 'info, D9InstrMultiField<'info>>,
+        params: D9MultiFieldParams,
+    ) -> Result<()> {
+        ctx.accounts.record.owner = params.owner;
+        Ok(())
+    }
+
+    /// D9: Mixed params and ctx account in seeds
+    pub fn d9_instr_mixed_ctx<'info>(
+        ctx: Context<'_, '_, '_, 'info, D9InstrMixedCtx<'info>>,
+        params: D9MixedCtxParams,
+    ) -> Result<()> {
+        ctx.accounts.record.owner = params.data_key;
+        Ok(())
+    }
+
+    /// D9: Three data fields with different types
+    pub fn d9_instr_triple<'info>(
+        ctx: Context<'_, '_, '_, 'info, D9InstrTriple<'info>>,
+        params: D9TripleParams,
+    ) -> Result<()> {
+        ctx.accounts.record.owner = params.key_a;
+        Ok(())
+    }
+
+    /// D9: to_be_bytes conversion (big endian)
+    pub fn d9_instr_big_endian<'info>(
+        ctx: Context<'_, '_, '_, 'info, D9InstrBigEndian<'info>>,
+        _params: D9BigEndianParams,
+    ) -> Result<()> {
+        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        Ok(())
+    }
+
+    /// D9: Multiple u64 fields with to_le_bytes
+    pub fn d9_instr_multi_u64<'info>(
+        ctx: Context<'_, '_, '_, 'info, D9InstrMultiU64<'info>>,
+        _params: D9MultiU64Params,
+    ) -> Result<()> {
+        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        Ok(())
+    }
+
+    /// D9: Pubkey with as_ref chained
+    pub fn d9_instr_chained_as_ref<'info>(
+        ctx: Context<'_, '_, '_, 'info, D9InstrChainedAsRef<'info>>,
+        params: D9ChainedAsRefParams,
+    ) -> Result<()> {
+        ctx.accounts.record.owner = params.key;
+        Ok(())
+    }
+
+    /// D9: Constant mixed with params
+    pub fn d9_instr_const_mixed<'info>(
+        ctx: Context<'_, '_, '_, 'info, D9InstrConstMixed<'info>>,
+        params: D9ConstMixedParams,
+    ) -> Result<()> {
+        ctx.accounts.record.owner = params.owner;
+        Ok(())
+    }
+
+    /// D9: Complex mixed - literal + constant + ctx + params
+    pub fn d9_instr_complex_mixed<'info>(
+        ctx: Context<'_, '_, '_, 'info, D9InstrComplexMixed<'info>>,
+        params: D9ComplexMixedParams,
+    ) -> Result<()> {
+        ctx.accounts.record.owner = params.data_owner;
+        Ok(())
+    }
+
+    // =========================================================================
     // D5 Additional Markers Tests
     // =========================================================================
 
@@ -1257,6 +1380,40 @@ pub mod csdk_anchor_full_derived_test {
             mint_key.as_ref(),
             &[vault_bump],
         ])?;
+        Ok(())
+    }
+
+    // =========================================================================
+    // D10 Token Account Tests (auto-generated via #[light_account(init, token)])
+    // =========================================================================
+
+    /// D10: Single vault with #[light_account(init, token, ...)]
+    /// This tests automatic code generation for token account creation.
+    /// The macro should generate CreateTokenAccountCpi in LightFinalize.
+    /// Also tests dynamic context name detection using "my_ctx" instead of "ctx".
+    #[allow(unused_variables)]
+    pub fn d10_single_vault<'info>(
+        my_ctx: Context<'_, '_, '_, 'info, D10SingleVault<'info>>,
+        params: D10SingleVaultParams,
+    ) -> Result<()> {
+        // Token account creation is handled by the LightFinalize trait implementation
+        // generated by the #[light_account(init, token, ...)] macro.
+        // This handler can be empty - the macro handles everything.
+        Ok(())
+    }
+
+    /// D10: Single ATA with #[light_account(init, associated_token, ...)]
+    /// This tests automatic code generation for ATA creation.
+    /// The macro should generate create_associated_token_account_idempotent in LightFinalize.
+    /// Also tests dynamic context name detection using "cx" instead of "ctx".
+    #[allow(unused_variables)]
+    pub fn d10_single_ata<'info>(
+        cx: Context<'_, '_, '_, 'info, D10SingleAta<'info>>,
+        params: D10SingleAtaParams,
+    ) -> Result<()> {
+        // ATA creation is handled by the LightFinalize trait implementation
+        // generated by the #[light_account(init, associated_token, ...)] macro.
+        // This handler can be empty - the macro handles everything.
         Ok(())
     }
 }

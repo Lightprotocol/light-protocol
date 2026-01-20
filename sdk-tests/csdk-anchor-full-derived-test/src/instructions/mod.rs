@@ -7,6 +7,7 @@
 //! - d8_builder_paths: Builder code generation paths
 //! - d9_seeds: Seed expression classification
 
+pub mod d10_token_accounts;
 pub mod d5_markers;
 pub mod d6_account_types;
 pub mod d7_infra_names;

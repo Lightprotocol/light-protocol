@@ -38,6 +38,8 @@ pub struct FieldExtractor<'ast, 'cfg> {
     extract_data: bool,
     /// Field names to exclude from results
     excluded: &'cfg [&'cfg str],
+    /// The context parameter name (e.g., "ctx", "context", "anchor_ctx")
+    ctx_name: &'cfg str,
     /// Collected field references (avoids cloning during traversal)
     fields: Vec<&'ast Ident>,
     /// Track seen field names for deduplication
@@ -47,12 +49,22 @@ pub struct FieldExtractor<'ast, 'cfg> {
 impl<'ast, 'cfg> FieldExtractor<'ast, 'cfg> {
     /// Create an extractor for ctx.field and ctx.accounts.field patterns.
     ///
+    /// Uses the default context name "ctx".
     /// Excludes common infrastructure fields like fee_payer, rent_sponsor, etc.
     pub fn ctx_fields(excluded: &'cfg [&'cfg str]) -> Self {
+        Self::ctx_fields_with_name(excluded, "ctx")
+    }
+
+    /// Create an extractor for ctx.field and ctx.accounts.field patterns with a custom context name.
+    ///
+    /// `ctx_name` is the context parameter name (e.g., "ctx", "context", "anchor_ctx").
+    /// Excludes common infrastructure fields like fee_payer, rent_sponsor, etc.
+    pub fn ctx_fields_with_name(excluded: &'cfg [&'cfg str], ctx_name: &'cfg str) -> Self {
         Self {
             extract_ctx: true,
             extract_data: false,
             excluded,
+            ctx_name,
             fields: Vec::new(),
             seen: HashSet::new(),
         }
@@ -64,6 +76,7 @@ impl<'ast, 'cfg> FieldExtractor<'ast, 'cfg> {
             extract_ctx: false,
             extract_data: true,
             excluded: &[],
+            ctx_name: "ctx", // Not used for data extraction, but needed for struct
             fields: Vec::new(),
             seen: HashSet::new(),
         }
@@ -88,18 +101,42 @@ impl<'ast, 'cfg> FieldExtractor<'ast, 'cfg> {
         }
     }
 
-    /// Check if the base expression is `ctx.accounts`.
+    /// Check if the base expression is `<ctx_name>.accounts` (e.g., `ctx.accounts`, `context.accounts`).
+    /// Uses the default context name "ctx".
     pub fn is_ctx_accounts(base: &Expr) -> bool {
+        Self::is_ctx_accounts_with_name(base, "ctx")
+    }
+
+    /// Check if the base expression is `<ctx_name>.accounts` with a custom context name.
+    pub fn is_ctx_accounts_with_name(base: &Expr, ctx_name: &str) -> bool {
         if let Expr::Field(nested) = base {
             if let Member::Named(member) = &nested.member {
-                return member == "accounts" && Self::is_path_ident(&nested.base, "ctx");
+                return member == "accounts" && Self::is_path_ident(&nested.base, ctx_name);
             }
         }
         false
     }
 
+    /// Check if the base expression matches the `<any>.accounts` pattern.
+    /// This is flexible and accepts any identifier before `.accounts` (ctx, context, anchor_ctx, etc.).
+    /// Returns the identifier name if matched.
+    pub fn is_any_ctx_accounts(base: &Expr) -> Option<String> {
+        if let Expr::Field(nested) = base {
+            if let Member::Named(member) = &nested.member {
+                if member == "accounts" {
+                    if let Expr::Path(path) = &*nested.base {
+                        if let Some(ident) = path.path.get_ident() {
+                            return Some(ident.to_string());
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
     /// Check if an expression is a path with the given identifier.
-    fn is_path_ident(expr: &Expr, ident: &str) -> bool {
+    pub fn is_path_ident(expr: &Expr, ident: &str) -> bool {
         matches!(expr, Expr::Path(p) if p.path.is_ident(ident))
     }
 }
@@ -107,15 +144,15 @@ impl<'ast, 'cfg> FieldExtractor<'ast, 'cfg> {
 impl<'ast, 'cfg> Visit<'ast> for FieldExtractor<'ast, 'cfg> {
     fn visit_expr_field(&mut self, node: &'ast syn::ExprField) {
         if let Member::Named(field_name) = &node.member {
-            // Check for ctx.accounts.field pattern
-            if self.extract_ctx && Self::is_ctx_accounts(&node.base) {
+            // Check for ctx.accounts.field pattern (using configured ctx_name)
+            if self.extract_ctx && Self::is_ctx_accounts_with_name(&node.base, self.ctx_name) {
                 self.try_add(field_name);
                 // Don't recurse further - we found our target
                 return;
             }
 
-            // Check for ctx.field pattern (direct access)
-            if self.extract_ctx && Self::is_path_ident(&node.base, "ctx") {
+            // Check for ctx.field pattern (direct access, using configured ctx_name)
+            if self.extract_ctx && Self::is_path_ident(&node.base, self.ctx_name) {
                 self.try_add(field_name);
                 return;
             }
@@ -182,10 +219,11 @@ fn classify_seed_expr(expr: &syn::Expr) -> syn::Result<ClientSeedInfo> {
 }
 
 /// Classify a field expression (e.g., ctx.field, data.field).
+/// Accepts any context name (ctx, context, anchor_ctx, etc.) for `.accounts.field` patterns.
 fn classify_field_expr(field_expr: &syn::ExprField) -> syn::Result<ClientSeedInfo> {
     if let Member::Named(field_name) = &field_expr.member {
-        // Check for ctx.accounts.field pattern
-        if FieldExtractor::is_ctx_accounts(&field_expr.base) {
+        // Check for <any>.accounts.field pattern (ctx.accounts.field, context.accounts.field, etc.)
+        if FieldExtractor::is_any_ctx_accounts(&field_expr.base).is_some() {
             return Ok(ClientSeedInfo::CtxField {
                 field: field_name.clone(),
                 method: None,
@@ -201,12 +239,12 @@ fn classify_field_expr(field_expr: &syn::ExprField) -> syn::Result<ClientSeedInf
                         method: None,
                     });
                 }
-                if segment.ident == "ctx" {
-                    return Ok(ClientSeedInfo::CtxField {
-                        field: field_name.clone(),
-                        method: None,
-                    });
-                }
+                // Any other single identifier followed by .field is likely a context field
+                // This handles ctx.bumps, context.program_id, etc.
+                return Ok(ClientSeedInfo::CtxField {
+                    field: field_name.clone(),
+                    method: None,
+                });
             }
         }
 
@@ -223,12 +261,13 @@ fn classify_field_expr(field_expr: &syn::ExprField) -> syn::Result<ClientSeedInf
 }
 
 /// Classify a method call expression (e.g., data.field.method(), ctx.accounts.field.key()).
+/// Accepts any context name (ctx, context, anchor_ctx, etc.) for `.accounts.field.method()` patterns.
 fn classify_method_call(method_call: &syn::ExprMethodCall) -> syn::Result<ClientSeedInfo> {
     // Check if receiver is a field expression
     if let syn::Expr::Field(field_expr) = &*method_call.receiver {
         if let Member::Named(field_name) = &field_expr.member {
-            // Check for ctx.accounts.field.method() pattern
-            if FieldExtractor::is_ctx_accounts(&field_expr.base) {
+            // Check for <any>.accounts.field.method() pattern
+            if FieldExtractor::is_any_ctx_accounts(&field_expr.base).is_some() {
                 return Ok(ClientSeedInfo::CtxField {
                     field: field_name.clone(),
                     method: Some(method_call.method.clone()),
@@ -244,12 +283,11 @@ fn classify_method_call(method_call: &syn::ExprMethodCall) -> syn::Result<Client
                             method: Some(method_call.method.clone()),
                         });
                     }
-                    if segment.ident == "ctx" {
-                        return Ok(ClientSeedInfo::CtxField {
-                            field: field_name.clone(),
-                            method: Some(method_call.method.clone()),
-                        });
-                    }
+                    // Any other single identifier followed by .field is likely a context field
+                    return Ok(ClientSeedInfo::CtxField {
+                        field: field_name.clone(),
+                        method: Some(method_call.method.clone()),
+                    });
                 }
             }
         }
