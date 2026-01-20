@@ -90,10 +90,12 @@ impl BatchInstruction {
     }
 }
 
-/// Entry in the ordered proof buffer: instruction + timing info
+/// Entry in the ordered proof buffer: instruction + timing info + roots for caching
 #[derive(Clone)]
 struct BufferEntry {
     instruction: BatchInstruction,
+    old_root: [u8; 32],
+    new_root: [u8; 32],
     round_trip_ms: u64,
     proof_ms: u64,
     submitted_at: std::time::Instant,
@@ -124,10 +126,13 @@ impl OrderedProofBuffer {
         self.len
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn insert(
         &mut self,
         seq: u64,
         instruction: BatchInstruction,
+        old_root: [u8; 32],
+        new_root: [u8; 32],
         round_trip_ms: u64,
         proof_ms: u64,
         submitted_at: std::time::Instant,
@@ -145,6 +150,8 @@ impl OrderedProofBuffer {
         }
         self.buffer[idx] = Some(BufferEntry {
             instruction,
+            old_root,
+            new_root,
             round_trip_ms,
             proof_ms,
             submitted_at,
@@ -172,7 +179,7 @@ pub struct TxSender<R: Rpc> {
     buffer: OrderedProofBuffer,
     zkp_batch_size: u64,
     last_seen_root: [u8; 32],
-    pending_batch: Vec<(BatchInstruction, u64)>, // (instruction, seq)
+    pending_batch: Vec<(BatchInstruction, u64, [u8; 32], [u8; 32])>, // (instruction, seq, old_root, new_root)
     pending_batch_round_trip_ms: u64,
     pending_batch_proof_ms: u64,
     /// Earliest submission time in the pending batch (for end-to-end latency)
@@ -245,7 +252,7 @@ impl<R: Rpc> TxSender<R> {
         mut proof_rx: mpsc::Receiver<ProofJobResult>,
     ) -> crate::Result<TxSenderResult> {
         let (batch_tx, mut batch_rx) = mpsc::unbounded_channel::<(
-            Vec<(BatchInstruction, u64)>,
+            Vec<(BatchInstruction, u64, [u8; 32], [u8; 32])>,
             u64,
             Option<std::time::Instant>,
         )>();
@@ -260,9 +267,12 @@ impl<R: Rpc> TxSender<R> {
             while let Some((batch, _batch_round_trip, batch_earliest_submit)) =
                 batch_rx.recv().await
             {
-                let items_count: usize = batch.iter().map(|(instr, _)| instr.items_count()).sum();
-                let first_seq = batch.first().map(|(_, s)| *s).unwrap_or(0);
-                let last_seq = batch.last().map(|(_, s)| *s).unwrap_or(0);
+                let items_count: usize = batch
+                    .iter()
+                    .map(|(instr, _, _, _)| instr.items_count())
+                    .sum();
+                let first_seq = batch.first().map(|(_, s, _, _)| *s).unwrap_or(0);
+                let last_seq = batch.last().map(|(_, s, _, _)| *s).unwrap_or(0);
 
                 let mut all_instructions: Vec<Instruction> = Vec::new();
                 let mut last_root: Option<[u8; 32]> = None;
@@ -270,7 +280,7 @@ impl<R: Rpc> TxSender<R> {
                 let mut nullify_count = 0usize;
                 let mut _address_append_count = 0usize;
 
-                for (instr, _seq) in &batch {
+                for (instr, _seq, _, _) in &batch {
                     let res = match instr {
                         BatchInstruction::Append(proofs) => {
                             append_count += 1;
@@ -464,6 +474,8 @@ impl<R: Rpc> TxSender<R> {
             if !self.buffer.insert(
                 result.seq,
                 instruction,
+                result.old_root,
+                result.new_root,
                 result.round_trip_ms,
                 result.proof_duration_ms,
                 result.submitted_at,
@@ -473,7 +485,8 @@ impl<R: Rpc> TxSender<R> {
 
             while let Some(entry) = self.buffer.pop_next() {
                 let seq = self.buffer.expected_seq() - 1;
-                self.pending_batch.push((entry.instruction, seq));
+                self.pending_batch
+                    .push((entry.instruction, seq, entry.old_root, entry.new_root));
                 self.pending_batch_round_trip_ms += entry.round_trip_ms;
                 self.pending_batch_proof_ms += entry.proof_ms;
                 self.pending_batch_earliest_submit =
@@ -524,7 +537,7 @@ impl<R: Rpc> TxSender<R> {
     }
 
     async fn save_proofs_to_cache(
-        &self,
+        &mut self,
         proof_rx: &mut mpsc::Receiver<ProofJobResult>,
         current_result: Option<ProofJobResult>,
     ) -> usize {
@@ -540,6 +553,22 @@ impl<R: Rpc> TxSender<R> {
 
         cache.start_warming(self.last_seen_root).await;
 
+        // Save proofs from pending_batch (already processed but not yet sent)
+        for (instruction, seq, old_root, new_root) in self.pending_batch.drain(..) {
+            cache.add_proof(seq, old_root, new_root, instruction).await;
+            saved += 1;
+        }
+
+        // Save proofs from the reorder buffer (received but waiting for in-order processing)
+        while let Some(entry) = self.buffer.pop_next() {
+            let seq = self.buffer.expected_seq() - 1;
+            cache
+                .add_proof(seq, entry.old_root, entry.new_root, entry.instruction)
+                .await;
+            saved += 1;
+        }
+
+        // Save the current result if provided
         if let Some(result) = current_result {
             if let Ok(instruction) = result.result {
                 cache
@@ -549,6 +578,7 @@ impl<R: Rpc> TxSender<R> {
             }
         }
 
+        // Drain remaining proofs from the channel
         while let Ok(result) = proof_rx.try_recv() {
             if let Ok(instruction) = result.result {
                 cache
