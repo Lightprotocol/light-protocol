@@ -8,7 +8,7 @@ use solana_pubkey::Pubkey;
 /// # Revoke delegation for a Light Token account:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::Revoke;
+/// # use light_token::token::Revoke;
 /// # let token_account = Pubkey::new_unique();
 /// # let owner = Pubkey::new_unique();
 /// let instruction = Revoke {
@@ -26,7 +26,7 @@ pub struct Revoke {
 
 /// # Revoke Light Token via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::RevokeCpi;
+/// # use light_token::token::RevokeCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let token_account: AccountInfo = todo!();
 /// # let owner: AccountInfo = todo!();

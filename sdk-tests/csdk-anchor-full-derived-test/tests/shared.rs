@@ -15,21 +15,17 @@ pub async fn setup_create_mint(
     decimals: u8,
     recipients: Vec<(u64, Pubkey)>,
 ) -> (Pubkey, [u8; 32], Vec<Pubkey>, Keypair) {
-    use light_token_sdk::token::{
-        CreateAssociatedTokenAccount, CreateMint, CreateMintParams, MintTo,
-    };
+    use light_token::token::{CreateAssociatedTokenAccount, CreateMint, CreateMintParams, MintTo};
 
     let mint_seed = Keypair::new();
     let address_tree = rpc.get_address_tree_v2();
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     // Derive compression address using SDK helpers
-    let compression_address = light_token_sdk::token::derive_mint_compressed_address(
-        &mint_seed.pubkey(),
-        &address_tree.tree,
-    );
+    let compression_address =
+        light_token::token::derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree.tree);
 
-    let (mint, bump) = light_token_sdk::token::find_mint_address(&mint_seed.pubkey());
+    let (mint, bump) = light_token::token::find_mint_address(&mint_seed.pubkey());
 
     // Get validity proof for the address
     let rpc_result = rpc
@@ -93,7 +89,7 @@ pub async fn setup_create_mint(
     }
 
     // Create ATAs for each recipient
-    use light_token_sdk::token::derive_token_ata;
+    use light_token::token::derive_token_ata;
 
     let mut ata_pubkeys = Vec::with_capacity(recipients.len());
 

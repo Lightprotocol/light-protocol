@@ -9,7 +9,7 @@
 //! - output_vault.key() == pool_state.token_0_vault || output_vault.key() == pool_state.token_1_vault
 
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use light_anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use super::states::*;
 

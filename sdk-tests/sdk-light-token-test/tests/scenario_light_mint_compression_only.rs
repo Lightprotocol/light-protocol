@@ -16,7 +16,7 @@ mod shared;
 use borsh::BorshDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
-use light_token_sdk::token::{
+use light_token::token::{
     CompressibleParams, CreateAssociatedTokenAccount, Decompress, Token, Transfer,
 };
 use solana_sdk::{signature::Keypair, signer::Signer};

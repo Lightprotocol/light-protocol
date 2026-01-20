@@ -187,7 +187,7 @@ impl AmmSdk {
         account: &AccountInterface,
         is_vault_0: bool,
     ) -> Result<(), AmmSdkError> {
-        use light_token_sdk::compat::TokenData;
+        use light_token::compat::TokenData;
 
         let pool_state = self
             .pool_state_pubkey
@@ -200,7 +200,7 @@ impl AmmSdk {
             let token_0_mint = self
                 .token_0_mint
                 .ok_or(AmmSdkError::MissingField("token_0_mint"))?;
-            LightAccountVariant::CTokenData(light_token_sdk::compat::CTokenData {
+            LightAccountVariant::CTokenData(light_token::compat::CTokenData {
                 variant: TokenAccountVariant::Token0Vault {
                     pool_state,
                     token_0_mint,
@@ -211,7 +211,7 @@ impl AmmSdk {
             let token_1_mint = self
                 .token_1_mint
                 .ok_or(AmmSdkError::MissingField("token_1_mint"))?;
-            LightAccountVariant::CTokenData(light_token_sdk::compat::CTokenData {
+            LightAccountVariant::CTokenData(light_token::compat::CTokenData {
                 variant: TokenAccountVariant::Token1Vault {
                     pool_state,
                     token_1_mint,
@@ -279,7 +279,7 @@ impl AmmSdk {
 
     pub fn derive_lp_mint_compressed_address(&self, address_tree: &Pubkey) -> Option<[u8; 32]> {
         self.lp_mint_signer.map(|signer| {
-            light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
+            light_token::compressed_token::create_compressed_mint::derive_mint_compressed_address(
                 &signer,
                 address_tree,
             )

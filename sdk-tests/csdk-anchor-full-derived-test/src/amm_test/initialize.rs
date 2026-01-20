@@ -9,10 +9,10 @@
 //! - MintToCpi
 
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use light_anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
-use light_token_sdk::token::{
+use light_token::token::{
     CreateTokenAccountCpi, CreateTokenAtaCpi, MintToCpi, COMPRESSIBLE_CONFIG_V1,
     RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
 };

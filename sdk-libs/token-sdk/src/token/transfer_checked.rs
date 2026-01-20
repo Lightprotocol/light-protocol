@@ -8,7 +8,7 @@ use solana_pubkey::Pubkey;
 /// # Create a transfer ctoken checked instruction:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::TransferChecked;
+/// # use light_token::token::TransferChecked;
 /// # let source = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
 /// # let destination = Pubkey::new_unique();
@@ -38,7 +38,7 @@ pub struct TransferChecked {
 
 /// # Transfer ctoken checked via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::TransferCheckedCpi;
+/// # use light_token::token::TransferCheckedCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let source: AccountInfo = todo!();
 /// # let mint: AccountInfo = todo!();

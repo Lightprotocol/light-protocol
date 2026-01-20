@@ -6,7 +6,7 @@ use light_sdk::{
         InvokeLightSystemProgram, LightCpiInstruction,
     },
 };
-use light_token_sdk::ValidityProof;
+use light_token::ValidityProof;
 
 use crate::process_update_deposit::CompressedEscrowPda;
 

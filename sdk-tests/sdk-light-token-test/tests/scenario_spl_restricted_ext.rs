@@ -18,7 +18,7 @@ use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestCon
 use light_test_utils::mint_2022::{
     create_mint_22_with_extensions, create_token_22_account, mint_spl_tokens_22,
 };
-use light_token_sdk::{
+use light_token::{
     spl_interface::find_spl_interface_pda_with_index,
     token::{
         derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, Decompress,

@@ -4,7 +4,7 @@ mod shared;
 
 use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_token_sdk::token::{rent_sponsor_pda, LIGHT_TOKEN_PROGRAM_ID};
+use light_token::token::{rent_sponsor_pda, LIGHT_TOKEN_PROGRAM_ID};
 use native_ctoken_examples::{InstructionType, ID, TOKEN_ACCOUNT_SEED};
 use shared::*;
 use solana_sdk::{

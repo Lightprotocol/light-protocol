@@ -154,7 +154,7 @@ use light_sdk::{
 use light_sparse_merkle_tree::{
     changelog::ChangelogEntry, indexed_changelog::IndexedChangelogEntry, SparseMerkleTree,
 };
-use light_token_sdk::compat::{AccountState, TokenDataWithMerkleContext};
+use light_token::compat::{AccountState, TokenDataWithMerkleContext};
 use log::info;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;

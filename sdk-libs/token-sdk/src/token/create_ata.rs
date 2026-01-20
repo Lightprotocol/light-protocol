@@ -28,7 +28,7 @@ pub fn derive_token_ata(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
 /// # Create an associated ctoken account instruction:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::CreateAssociatedTokenAccount;
+/// # use light_token::token::CreateAssociatedTokenAccount;
 /// # let payer = Pubkey::new_unique();
 /// # let owner = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();

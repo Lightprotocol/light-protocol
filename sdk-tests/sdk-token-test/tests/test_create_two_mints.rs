@@ -1,6 +1,6 @@
 use anchor_lang::InstructionData;
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
-use light_token_sdk::token::{
+use light_token::token::{
     config_pda, derive_mint_compressed_address, find_mint_address, rent_sponsor_pda,
     SystemAccounts, LIGHT_TOKEN_PROGRAM_ID,
 };

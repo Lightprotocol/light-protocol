@@ -10,12 +10,8 @@ pub use light_test_utils::{
     },
     Rpc, RpcError,
 };
-pub use light_token_client::actions::transfer2::{self};
-use light_token_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
-pub use light_token_sdk::token::{
-    derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
-};
-use light_token_sdk::{
+pub use light_token::token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount};
+use light_token::{
     compressed_token::{
         transfer2::{
             create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config,
@@ -26,6 +22,8 @@ use light_token_sdk::{
     spl_interface::find_spl_interface_pda_with_index,
     ValidityProof,
 };
+pub use light_token_client::actions::transfer2::{self};
+use light_token_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
 use solana_sdk::pubkey::Pubkey;
 pub use solana_sdk::{instruction::Instruction, signature::Keypair, signer::Signer};
 pub use spl_token_2022::pod::PodAccount;

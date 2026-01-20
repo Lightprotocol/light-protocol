@@ -33,7 +33,7 @@ NO_DEFAULT_CRATES=(
     "light-sdk-types"
     "light-sdk-pinocchio"
     "light-sdk-macros"
-    "light-token-sdk"
+    "light-token"
     "light-token-types"
     "light-sdk"
     "csdk-anchor-full-derived-test"
@@ -98,7 +98,7 @@ ANCHOR_CRATES=(
     "light-compressible"
     "light-sdk-types"
     "light-sdk"
-    "light-token-sdk"
+    "light-token"
     "light-token-types"
 )
 

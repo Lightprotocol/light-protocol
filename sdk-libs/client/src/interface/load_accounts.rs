@@ -4,15 +4,7 @@ use light_compressed_account::{
     compressed_account::PackedMerkleContext, instruction_data::compressed_proof::ValidityProof,
 };
 use light_sdk::{compressible::Pack, instruction::PackedAccounts};
-use light_token_interface::{
-    instructions::{
-        extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
-        mint_action::{MintInstructionData, MintWithContext},
-        transfer2::MultiInputTokenDataWithContext,
-    },
-    state::{ExtensionStruct, TokenDataVersion},
-};
-use light_token_sdk::{
+use light_token::{
     compat::AccountState,
     compressed_token::{
         transfer2::{
@@ -24,6 +16,14 @@ use light_token_sdk::{
     token::{
         derive_token_ata, CreateAssociatedTokenAccount, DecompressMint, LIGHT_TOKEN_PROGRAM_ID,
     },
+};
+use light_token_interface::{
+    instructions::{
+        extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
+        mint_action::{MintInstructionData, MintWithContext},
+        transfer2::MultiInputTokenDataWithContext,
+    },
+    state::{ExtensionStruct, TokenDataVersion},
 };
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
@@ -48,7 +48,7 @@ pub enum LoadAccountsError {
     BuildInstruction(String),
 
     #[error("Token SDK error: {0}")]
-    TokenSdk(#[from] light_token_sdk::error::TokenSdkError),
+    TokenSdk(#[from] light_token::error::TokenSdkError),
 
     #[error("Cold PDA at index {index} (pubkey {pubkey}) missing data")]
     MissingPdaCompressed { index: usize, pubkey: Pubkey },

@@ -5,7 +5,7 @@ use light_client::indexer::{
 };
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_event::event::PublicTransactionEvent;
-use light_token_sdk::compat::TokenDataWithMerkleContext;
+use light_token::compat::TokenDataWithMerkleContext;
 use solana_sdk::signature::Keypair;
 
 use super::{address_tree::AddressMerkleTreeBundle, state_tree::StateMerkleTreeBundle};

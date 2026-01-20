@@ -51,7 +51,7 @@ pub trait IntoVariant<V> {
 /// }
 /// ```
 ///
-/// Type parameter `T` is typically `light_token_sdk::compat::TokenData`.
+/// Type parameter `T` is typically `light_token::compat::TokenData`.
 pub trait IntoCTokenVariant<V, T> {
     /// Construct variant from CToken variant and token data.
     ///

@@ -11,7 +11,7 @@ default = ["v2"]
 devenv = ["v2"]
 v2 = []
 program-test = ["solana-banks-client", "litesvm"]
-anchor = ["anchor-lang", "light-sdk/anchor", "light-token-sdk/anchor"]
+anchor = ["anchor-lang", "light-sdk/anchor", "light-token/anchor"]
 
 [dependencies]
 # Solana dependencies
@@ -47,7 +47,7 @@ light-indexed-merkle-tree = { workspace = true }
 light-sdk = { workspace = true, features = ["v2", "cpi-context"] }
 light-hasher = { workspace = true, features = ["poseidon"] }
 light-compressed-account = { workspace = true, features = ["solana", "poseidon"] }
-light-token-sdk = { workspace = true, features = ["cpi-context"] }
+light-token = { workspace = true, features = ["cpi-context"] }
 light-token-interface = { workspace = true }
 light-event = { workspace = true }
 light-compressible = { workspace = true }

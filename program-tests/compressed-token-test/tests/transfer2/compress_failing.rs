@@ -40,10 +40,7 @@ use light_program_test::{
 };
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::RpcError;
-use light_token_interface::{
-    instructions::mint_action::Recipient, state::TokenDataVersion, TokenError,
-};
-use light_token_sdk::{
+use light_token::{
     compressed_token::{
         create_compressed_mint::find_mint_address,
         transfer2::{
@@ -54,6 +51,9 @@ use light_token_sdk::{
     },
     token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
     ValidityProof,
+};
+use light_token_interface::{
+    instructions::mint_action::Recipient, state::TokenDataVersion, TokenError,
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 // ============================================================================

@@ -38,7 +38,7 @@ use light_test_utils::{
     },
     Rpc, RpcError,
 };
-use light_token_sdk::{
+use light_token::{
     compressed_token::{
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,

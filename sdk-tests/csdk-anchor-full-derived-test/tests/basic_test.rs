@@ -9,7 +9,7 @@ use light_program_test::{
     Indexer, ProgramTestConfig, Rpc,
 };
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token_sdk::token::find_mint_address as find_cmint_address;
+use light_token::token::find_mint_address as find_cmint_address;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -24,10 +24,10 @@ async fn test_create_pdas_and_mint_auto() {
         instruction_accounts::{LP_MINT_SIGNER_SEED, VAULT_SEED},
         FullAutoWithMintParams, GameSession,
     };
-    use light_token_interface::state::Token;
-    use light_token_sdk::token::{
+    use light_token::token::{
         get_associated_token_address_and_bump, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
     };
+    use light_token_interface::state::Token;
 
     // Helpers
     async fn assert_onchain_exists(rpc: &mut LightProgramTest, pda: &Pubkey) {
@@ -158,7 +158,7 @@ async fn test_create_pdas_and_mint_auto() {
         &program_id.to_bytes(),
     );
     let mint_compressed_address =
-        light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
+        light_token::compressed_token::create_compressed_mint::derive_mint_compressed_address(
             &mint_signer_pda,
             &address_tree_pubkey,
         );
@@ -308,7 +308,7 @@ async fn test_create_pdas_and_mint_auto() {
     use light_client::interface::{
         create_load_instructions, AccountInterface, AccountSpec, ColdContext, PdaSpec,
     };
-    use light_token_sdk::compat::{CTokenData, TokenData};
+    use light_token::compat::{CTokenData, TokenData};
 
     // Fetch unified interfaces (hot/cold transparent)
     let user_interface = rpc
@@ -399,7 +399,7 @@ async fn test_create_pdas_and_mint_auto() {
         account: solana_account::Account {
             lamports: 0,
             data: vec![],
-            owner: light_token_sdk::token::LIGHT_TOKEN_PROGRAM_ID,
+            owner: light_token::token::LIGHT_TOKEN_PROGRAM_ID,
             executable: false,
             rent_epoch: 0,
         },
@@ -510,7 +510,7 @@ async fn test_create_two_mints() {
     use csdk_anchor_full_derived_test::instruction_accounts::{
         CreateTwoMintsParams, MINT_SIGNER_A_SEED, MINT_SIGNER_B_SEED,
     };
-    use light_token_sdk::token::{
+    use light_token::token::{
         find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
     };
 
@@ -653,7 +653,7 @@ async fn test_create_two_mints() {
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
     let mint_a_compressed_address =
-        light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
+        light_token::compressed_token::create_compressed_mint::derive_mint_compressed_address(
             &mint_signer_a_pda,
             &address_tree_pubkey,
         );
@@ -670,7 +670,7 @@ async fn test_create_two_mints() {
     );
 
     let mint_b_compressed_address =
-        light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
+        light_token::compressed_token::create_compressed_mint::derive_mint_compressed_address(
             &mint_signer_b_pda,
             &address_tree_pubkey,
         );
@@ -704,7 +704,7 @@ async fn test_create_multi_mints() {
     use csdk_anchor_full_derived_test::instruction_accounts::{
         CreateThreeMintsParams, MINT_SIGNER_A_SEED, MINT_SIGNER_B_SEED, MINT_SIGNER_C_SEED,
     };
-    use light_token_sdk::token::{
+    use light_token::token::{
         find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
     };
 
@@ -860,7 +860,7 @@ async fn test_create_multi_mints() {
 /// Helper function to set up test context for D9 instruction data tests.
 /// Returns (rpc, payer, program_id, config_pda).
 async fn setup_d9_test_context() -> (LightProgramTest, Keypair, Pubkey, Pubkey) {
-    use light_token_sdk::token::RENT_SPONSOR;
+    use light_token::token::RENT_SPONSOR;
 
     let program_id = csdk_anchor_full_derived_test::ID;
     let mut config = ProgramTestConfig::new_v2(

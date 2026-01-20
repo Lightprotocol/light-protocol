@@ -5,15 +5,15 @@ use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
 };
+use light_token::{
+    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
+    token::CreateAssociatedTokenAccount,
+};
 use light_token_client::{
     actions::create_mint,
     instructions::mint_action::{MintActionType, MintToRecipient},
 };
 use light_token_interface::state::{extensions::AdditionalMetadata, Mint};
-use light_token_sdk::{
-    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
-    token::CreateAssociatedTokenAccount,
-};
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
 
@@ -137,7 +137,7 @@ async fn test_random_mint_action() {
             .await
             .unwrap();
 
-        let ata = light_token_sdk::token::derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0;
+        let ata = light_token::token::derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0;
 
         ctoken_atas.push(ata);
     }

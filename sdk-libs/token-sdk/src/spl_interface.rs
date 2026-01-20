@@ -40,8 +40,8 @@ pub fn derive_spl_interface_pda(mint: &Pubkey, index: u8, restricted: bool) -> S
 ///
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::spl_interface::CreateSplInterfacePda;
-/// # use light_token_sdk::constants::SPL_TOKEN_PROGRAM_ID;
+/// # use light_token::spl_interface::CreateSplInterfacePda;
+/// # use light_token::constants::SPL_TOKEN_PROGRAM_ID;
 /// # let fee_payer = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
 /// # let token_program = SPL_TOKEN_PROGRAM_ID;

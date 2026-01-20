@@ -14,7 +14,7 @@ use crate::token::{compressible::CompressibleParamsCpi, CompressibleParams};
 /// # Create a create ctoken account instruction:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::CreateTokenAccount;
+/// # use light_token::token::CreateTokenAccount;
 /// # let payer = Pubkey::new_unique();
 /// # let account = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();

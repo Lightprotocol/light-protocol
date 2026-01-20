@@ -65,7 +65,7 @@ use light_prover_client::{
     },
 };
 use light_sdk::light_hasher::Hash;
-use light_token_sdk::compat::{TokenData, TokenDataWithMerkleContext};
+use light_token::compat::{TokenData, TokenDataWithMerkleContext};
 use log::info;
 use num_bigint::{BigInt, BigUint};
 use num_traits::FromBytes;

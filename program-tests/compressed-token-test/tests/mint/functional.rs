@@ -13,6 +13,10 @@ use light_test_utils::{
     mint_assert::assert_compressed_mint_account,
     Rpc,
 };
+use light_token::{
+    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
+    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
+};
 use light_token_client::{
     actions::{create_mint, mint_to_compressed, transfer, transfer2},
     instructions::{
@@ -32,10 +36,6 @@ use light_token_interface::{
         ACCOUNT_TYPE_MINT,
     },
     COMPRESSED_MINT_SEED,
-};
-use light_token_sdk::{
-    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
-    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
 };
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};

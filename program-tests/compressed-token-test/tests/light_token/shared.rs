@@ -14,12 +14,12 @@ pub use light_test_utils::{
     assert_transfer2::assert_transfer2_compress,
     Rpc, RpcError,
 };
-pub use light_token_client::{
-    actions::transfer2::compress, instructions::transfer2::CompressInput,
-};
-pub use light_token_sdk::token::{
+pub use light_token::token::{
     derive_token_ata, Approve, CloseAccount, CompressibleParams, CreateAssociatedTokenAccount,
     CreateTokenAccount, Revoke,
+};
+pub use light_token_client::{
+    actions::transfer2::compress, instructions::transfer2::CompressInput,
 };
 pub use serial_test::serial;
 pub use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -739,7 +739,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
     };
 
     // Add system accounts
-    use light_token_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
+    use light_token::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
     let config = CTokenCompressAndCloseAccounts {
         compressed_token_program: compressed_token_program_id,
         cpi_authority_pda: Pubkey::find_program_address(
@@ -894,7 +894,7 @@ pub async fn approve_and_assert(
 ) {
     println!("Approve initiated for: {}", name);
 
-    // Use light-token-sdk
+    // Use light-token
     let approve_ix = Approve {
         token_account: context.token_account_keypair.pubkey(),
         delegate,
@@ -969,7 +969,7 @@ pub async fn approve_and_assert_fails(
 pub async fn revoke_and_assert(context: &mut AccountTestContext, name: &str) {
     println!("Revoke initiated for: {}", name);
 
-    // Use light-token-sdk
+    // Use light-token
     let revoke_ix = Revoke {
         token_account: context.token_account_keypair.pubkey(),
         owner: context.owner_keypair.pubkey(),

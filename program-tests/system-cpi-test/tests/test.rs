@@ -38,7 +38,7 @@ use light_test_utils::{
     },
     Rpc, RpcError,
 };
-use light_token_sdk::compat::{AccountState, TokenDataWithMerkleContext};
+use light_token::compat::{AccountState, TokenDataWithMerkleContext};
 use light_verifier::VerifierError;
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};

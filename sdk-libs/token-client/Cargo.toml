@@ -13,7 +13,7 @@ light-compressible = { workspace = true, features = ["anchor"] }
 light-token-interface = { workspace = true }
 light-sdk = { workspace = true }
 light-client = { workspace = true, features = ["v2"] }
-light-token-sdk = { workspace = true }
+light-token = { workspace = true }
 light-zero-copy = { workspace = true }
 
 # Solana dependencies

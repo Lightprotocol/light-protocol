@@ -9,7 +9,7 @@
 - Accounts struct: `programs/compressed-token/anchor/src/instructions/create_token_pool.rs:171-201`
 
 **description:**
-Token pool pda is renamed to spl interface pda in the light-token-sdk.
+Token pool pda is renamed to spl interface pda in the light-token.
 1. Creates additional token pools for a mint (indexes 1-4) after the initial pool (index 0) exists
 2. Requires the previous pool (index-1) to exist, enforcing sequential pool creation. This ensures mint extensions were already validated during `create_token_pool` for pool index 0
 3. Maximum 5 pools per mint (NUM_MAX_POOL_ACCOUNTS = 5, defined in programs/compressed-token/anchor/src/constants.rs)

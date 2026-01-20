@@ -4,7 +4,7 @@ use light_program_test::{
 };
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::spl::create_mint_helper;
-use light_token_sdk::token::LIGHT_TOKEN_PROGRAM_ID;
+use light_token::token::LIGHT_TOKEN_PROGRAM_ID;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,

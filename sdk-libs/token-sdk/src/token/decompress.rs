@@ -25,8 +25,8 @@ use crate::{
 ///
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::Decompress;
-/// # use light_token_sdk::compat::TokenData;
+/// # use light_token::token::Decompress;
+/// # use light_token::compat::TokenData;
 /// # use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 /// # let destination = Pubkey::new_unique();
 /// # let payer = Pubkey::new_unique();

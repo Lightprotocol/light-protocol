@@ -5,7 +5,7 @@ mod shared;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_token_sdk::token::LIGHT_TOKEN_PROGRAM_ID;
+use light_token::token::LIGHT_TOKEN_PROGRAM_ID;
 use native_ctoken_examples::{InstructionType, TransferData, ID, TOKEN_ACCOUNT_SEED};
 use shared::*;
 use solana_sdk::{

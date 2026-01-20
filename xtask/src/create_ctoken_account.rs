@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use dirs::home_dir;
 use light_client::rpc::{LightClient, LightClientConfig, Rpc};
-use light_token_sdk::token::{CompressibleParams, CreateTokenAccount};
+use light_token::token::{CompressibleParams, CreateTokenAccount};
 use solana_sdk::{
     signature::{read_keypair_file, Keypair, Signer},
     transaction::Transaction,

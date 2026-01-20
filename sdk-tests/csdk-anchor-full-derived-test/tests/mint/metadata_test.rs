@@ -25,7 +25,7 @@ async fn test_create_mint_with_metadata() {
     use csdk_anchor_full_derived_test::instruction_accounts::{
         CreateMintWithMetadataParams, METADATA_MINT_SIGNER_SEED,
     };
-    use light_token_sdk::token::{
+    use light_token::token::{
         find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
     };
 
@@ -79,11 +79,11 @@ async fn test_create_mint_with_metadata() {
     let symbol = b"TEST".to_vec();
     let uri = b"https://example.com/metadata.json".to_vec();
     let additional_metadata = Some(vec![
-        light_token_sdk::AdditionalMetadata {
+        light_token::AdditionalMetadata {
             key: b"author".to_vec(),
             value: b"Light Protocol".to_vec(),
         },
-        light_token_sdk::AdditionalMetadata {
+        light_token::AdditionalMetadata {
             key: b"version".to_vec(),
             value: b"1.0.0".to_vec(),
         },
@@ -194,7 +194,7 @@ async fn test_create_mint_with_metadata() {
     use light_token_interface::MINT_ADDRESS_TREE;
     let mint_address_tree = solana_pubkey::Pubkey::new_from_array(MINT_ADDRESS_TREE);
     let mint_compressed_address =
-        light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
+        light_token::compressed_token::create_compressed_mint::derive_mint_compressed_address(
             &mint_signer_pda,
             &mint_address_tree,
         );

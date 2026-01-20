@@ -9,7 +9,7 @@
 - Accounts struct: `programs/compressed-token/anchor/src/instructions/create_token_pool.rs:45-72`
 
 **description:**
-Token pool pda is renamed to spl interface pda in the light-token-sdk.
+Token pool pda is renamed to spl interface pda in the light-token.
 1. Creates a token pool PDA for a given SPL or Token-2022 mint
 2. Token pools store underlying SPL/T22 tokens when users compress them into compressed tokens or convert them into ctokens. When tokens are compressed, they are transferred to the pool; when decompressed, tokens are transferred back from the pool to the user
 3. Each mint can have up to 5 token pools (this instruction creates the first pool at index 0)

@@ -3,12 +3,12 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
+use light_token::compressed_token::update_compressed_mint::{
+    update_compressed_mint, UpdateMintInputs,
+};
 use light_token_interface::{
     instructions::mint_action::{MintInstructionData, MintWithContext},
     state::Mint,
-};
-use light_token_sdk::compressed_token::update_compressed_mint::{
-    update_compressed_mint, UpdateMintInputs,
 };
 use light_token_types::MintAuthorityType;
 use solana_instruction::Instruction;

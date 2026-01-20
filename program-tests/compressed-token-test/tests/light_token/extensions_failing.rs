@@ -16,11 +16,11 @@ use light_test_utils::{
     },
     Rpc,
 };
-use light_token_interface::state::TokenDataVersion;
-use light_token_sdk::{
+use light_token::{
     spl_interface::find_spl_interface_pda_with_index,
     token::{CompressibleParams, CreateTokenAccount, TransferChecked, TransferFromSpl},
 };
+use light_token_interface::state::TokenDataVersion;
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 

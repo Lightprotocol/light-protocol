@@ -16,7 +16,7 @@ use crate::compressed_token::{
 /// # Create a transfer SPL to cToken instruction
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::TransferFromSpl;
+/// # use light_token::token::TransferFromSpl;
 /// # let source_spl_token_account = Pubkey::new_unique();
 /// # let destination = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
@@ -54,7 +54,7 @@ pub struct TransferFromSpl {
 
 /// # Transfer SPL to ctoken via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::TransferFromSplCpi;
+/// # use light_token::token::TransferFromSplCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let source_spl_token_account: AccountInfo = todo!();
 /// # let destination: AccountInfo = todo!();

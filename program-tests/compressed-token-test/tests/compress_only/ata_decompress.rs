@@ -14,19 +14,19 @@ use light_test_utils::{
     },
     Rpc, RpcError,
 };
+use light_token::{
+    spl_interface::find_spl_interface_pda_with_index,
+    token::{
+        derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, CreateTokenAccount,
+        TransferFromSpl,
+    },
+};
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
 };
 use light_token_interface::{
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
     state::{ExtensionStruct, TokenDataVersion},
-};
-use light_token_sdk::{
-    spl_interface::find_spl_interface_pda_with_index,
-    token::{
-        derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, CreateTokenAccount,
-        TransferFromSpl,
-    },
 };
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -791,15 +791,15 @@ async fn test_ata_decompress_with_mismatched_amount_fails() {
     use borsh::BorshSerialize;
     use light_compressed_account::compressed_account::PackedMerkleContext;
     use light_sdk::instruction::PackedAccounts;
+    use light_token::compressed_token::transfer2::account_metas::{
+        get_transfer2_instruction_account_metas, Transfer2AccountsMetaConfig,
+    };
     use light_token_interface::{
         instructions::transfer2::{
             CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,
             MultiInputTokenDataWithContext,
         },
         TRANSFER2,
-    };
-    use light_token_sdk::compressed_token::transfer2::account_metas::{
-        get_transfer2_instruction_account_metas, Transfer2AccountsMetaConfig,
     };
     use solana_sdk::instruction::Instruction;
 

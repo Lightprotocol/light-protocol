@@ -8,7 +8,7 @@ use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::spl::{
     create_mint_helper, create_token_2022_account, mint_spl_tokens, CREATE_MINT_HELPER_DECIMALS,
 };
-use light_token_sdk::{
+use light_token::{
     spl_interface::find_spl_interface_pda_with_index,
     token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
 };

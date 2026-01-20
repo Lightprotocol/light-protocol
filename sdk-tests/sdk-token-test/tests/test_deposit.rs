@@ -9,7 +9,7 @@ use light_test_utils::{
     spl::{create_mint_helper, create_token_account, mint_spl_tokens},
     RpcError,
 };
-use light_token_sdk::{
+use light_token::{
     compressed_token::batch_compress::{
         get_batch_compress_instruction_account_metas, BatchCompressMetaConfig, Recipient,
     },

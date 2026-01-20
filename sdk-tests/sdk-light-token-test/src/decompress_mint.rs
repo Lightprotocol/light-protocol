@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_token_sdk::{
+use light_token::{
     token::{DecompressMintCpi, MintWithContext, SystemAccountInfos},
     ValidityProof,
 };

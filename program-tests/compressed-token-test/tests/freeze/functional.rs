@@ -13,9 +13,9 @@ use light_test_utils::{
     conversions::sdk_to_program_token_data, mint_2022::create_token_22_account,
     spl::create_mint_22_helper, Rpc, RpcError,
 };
+use light_token::compat::{AccountState, TokenDataWithMerkleContext};
 use light_token_client::actions::transfer2::{compress_with_version, decompress};
 use light_token_interface::state::TokenDataVersion;
-use light_token_sdk::compat::{AccountState, TokenDataWithMerkleContext};
 use serial_test::serial;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey, signature::Keypair, signer::Signer};
 

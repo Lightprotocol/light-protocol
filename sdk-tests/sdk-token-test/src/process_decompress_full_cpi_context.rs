@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_token_sdk::compressed_token::{
+use light_token::compressed_token::{
     decompress_full::{decompress_full_token_accounts_with_indices, DecompressFullIndices},
     transfer2::Transfer2CpiAccounts,
 };
@@ -16,7 +16,7 @@ use crate::{
 pub fn process_decompress_full_cpi_context<'info>(
     ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
     indices: Vec<DecompressFullIndices>,
-    validity_proof: light_token_sdk::ValidityProof,
+    validity_proof: light_token::ValidityProof,
     params: Option<MintCompressedTokensCpiWriteParams>,
 ) -> Result<()> {
     // Parse CPI accounts following the established pattern

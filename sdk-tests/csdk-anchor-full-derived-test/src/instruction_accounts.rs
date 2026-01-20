@@ -299,7 +299,7 @@ pub struct CreateMintWithMetadataParams {
     pub name: Vec<u8>,
     pub symbol: Vec<u8>,
     pub uri: Vec<u8>,
-    pub additional_metadata: Option<Vec<light_token_sdk::AdditionalMetadata>>,
+    pub additional_metadata: Option<Vec<light_token::AdditionalMetadata>>,
 }
 
 /// Test instruction with #[light_account(init)] with metadata fields.

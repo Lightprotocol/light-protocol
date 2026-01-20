@@ -1,4 +1,4 @@
-use light_token_sdk::token::{derive_token_ata, CreateAssociatedTokenAccount};
+use light_token::token::{derive_token_ata, CreateAssociatedTokenAccount};
 use solana_pubkey::Pubkey;
 
 const CREATE_ATA_DISCRIMINATOR: u8 = 100;

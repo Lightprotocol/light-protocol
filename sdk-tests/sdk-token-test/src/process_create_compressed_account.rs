@@ -10,7 +10,7 @@ use light_sdk::{
     light_account_checks::AccountInfoTrait,
     LightDiscriminator, LightHasher,
 };
-use light_token_sdk::compressed_token::{
+use light_token::compressed_token::{
     transfer::instruction::{TransferConfig, TransferInputs},
     CTokenAccount, TokenAccountMeta,
 };
@@ -96,8 +96,7 @@ pub fn deposit_tokens<'a, 'info>(
         amount,
     };
     let instruction =
-        light_token_sdk::compressed_token::transfer::instruction::transfer(transfer_inputs)
-            .unwrap();
+        light_token::compressed_token::transfer::instruction::transfer(transfer_inputs).unwrap();
     // msg!("instruction {:?}", instruction);
     // We can use the property that account infos don't have to be in order if you use
     // solana program invoke.

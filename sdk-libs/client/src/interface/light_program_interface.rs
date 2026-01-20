@@ -9,7 +9,7 @@
 use std::fmt::Debug;
 
 use light_sdk::interface::Pack;
-use light_token_sdk::token::derive_token_ata;
+use light_token::token::derive_token_ata;
 use solana_pubkey::Pubkey;
 
 use super::{AccountInterface, TokenAccountInterface};

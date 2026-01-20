@@ -8,7 +8,7 @@ use solana_pubkey::Pubkey;
 /// # Approve a delegate for a Light Token account with decimals validation:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::ApproveChecked;
+/// # use light_token::token::ApproveChecked;
 /// # let token_account = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
 /// # let delegate = Pubkey::new_unique();
@@ -43,7 +43,7 @@ pub struct ApproveChecked {
 
 /// # Approve Light Token via CPI with decimals validation:
 /// ```rust,no_run
-/// # use light_token_sdk::token::ApproveCheckedCpi;
+/// # use light_token::token::ApproveCheckedCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let token_account: AccountInfo = todo!();
 /// # let mint: AccountInfo = todo!();

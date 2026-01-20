@@ -20,7 +20,7 @@ use anchor_spl::token::{spl_token, Mint};
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::spl::{create_token_account, mint_spl_tokens};
-use light_token_sdk::{
+use light_token::{
     spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
     token::{
         derive_token_ata, CreateAssociatedTokenAccount, Decompress, Freeze, Thaw, TransferFromSpl,

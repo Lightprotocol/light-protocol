@@ -8,7 +8,7 @@ use solana_pubkey::Pubkey;
 /// # Thaw a frozen Light Token account:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::Thaw;
+/// # use light_token::token::Thaw;
 /// # let token_account = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
 /// # let freeze_authority = Pubkey::new_unique();
@@ -30,7 +30,7 @@ pub struct Thaw {
 
 /// # Thaw Light Token via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::ThawCpi;
+/// # use light_token::token::ThawCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let token_account: AccountInfo = todo!();
 /// # let mint: AccountInfo = todo!();

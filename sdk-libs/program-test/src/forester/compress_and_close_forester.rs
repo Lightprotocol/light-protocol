@@ -4,7 +4,7 @@ use light_client::{
 };
 use light_compressible::config::CompressibleConfig;
 use light_sdk::instruction::PackedAccounts;
-use light_token_sdk::compressed_token::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
+use light_token::compressed_token::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature},

@@ -5,7 +5,7 @@ use light_sdk::{
     light_account_checks::AccountInfoTrait,
 };
 use light_sdk_types::cpi_accounts::CpiAccountsConfig;
-use light_token_sdk::compressed_token::{
+use light_token::compressed_token::{
     transfer::instruction::{compress, transfer, CompressInputs, TransferConfig, TransferInputs},
     CTokenAccount, TokenAccountMeta,
 };

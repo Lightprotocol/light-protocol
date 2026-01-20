@@ -8,7 +8,7 @@ use solana_pubkey::Pubkey;
 /// # Mint tokens to a ctoken account with decimals validation:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::MintToChecked;
+/// # use light_token::token::MintToChecked;
 /// # let mint = Pubkey::new_unique();
 /// # let destination = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
@@ -40,7 +40,7 @@ pub struct MintToChecked {
 
 /// # Mint to ctoken via CPI with decimals validation:
 /// ```rust,no_run
-/// # use light_token_sdk::token::MintToCheckedCpi;
+/// # use light_token::token::MintToCheckedCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let mint: AccountInfo = todo!();
 /// # let destination: AccountInfo = todo!();

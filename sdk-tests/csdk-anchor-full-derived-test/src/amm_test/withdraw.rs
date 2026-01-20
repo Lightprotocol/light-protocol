@@ -1,8 +1,8 @@
 //! Withdraw instruction with BurnCpi.
 
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-use light_token_sdk::token::BurnCpi;
+use light_anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use light_token::token::BurnCpi;
 
 use super::states::*;
 

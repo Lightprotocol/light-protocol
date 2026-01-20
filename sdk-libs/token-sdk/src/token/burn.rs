@@ -8,7 +8,7 @@ use solana_pubkey::Pubkey;
 /// # Burn tokens from a ctoken account:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::Burn;
+/// # use light_token::token::Burn;
 /// # let source = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
@@ -37,7 +37,7 @@ pub struct Burn {
 
 /// # Burn ctoken via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::BurnCpi;
+/// # use light_token::token::BurnCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let source: AccountInfo = todo!();
 /// # let mint: AccountInfo = todo!();

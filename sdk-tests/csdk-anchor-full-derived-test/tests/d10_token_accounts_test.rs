@@ -16,7 +16,7 @@ use light_program_test::{
     ProgramTestConfig, Rpc,
 };
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token_sdk::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
+use light_token::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -162,7 +162,7 @@ async fn test_d10_single_ata() {
     let ata_owner = ctx.payer.pubkey();
 
     // Derive the ATA address using Light Token SDK's derivation
-    let (d10_single_ata, ata_bump) = light_token_sdk::token::derive_token_ata(&ata_owner, &mint);
+    let (d10_single_ata, ata_bump) = light_token::token::derive_token_ata(&ata_owner, &mint);
 
     // Get proof (no PDA accounts for ATA-only instruction)
     let proof_result = get_create_accounts_proof(&ctx.rpc, &ctx.program_id, vec![])

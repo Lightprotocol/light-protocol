@@ -1,8 +1,8 @@
 //! Deposit instruction with MintToCpi.
 
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-use light_token_sdk::token::MintToCpi;
+use light_anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use light_token::token::MintToCpi;
 
 use super::states::*;
 

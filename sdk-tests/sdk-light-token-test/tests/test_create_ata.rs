@@ -5,7 +5,7 @@ mod shared;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_token_sdk::token::LIGHT_TOKEN_PROGRAM_ID;
+use light_token::token::LIGHT_TOKEN_PROGRAM_ID;
 use native_ctoken_examples::{CreateAtaData, ATA_SEED, ID};
 use shared::setup_create_mint;
 use solana_sdk::{
@@ -33,7 +33,7 @@ async fn test_create_ata_invoke() {
 
     // Derive the ATA address
     let owner = payer.pubkey();
-    use light_token_sdk::token::derive_token_ata;
+    use light_token::token::derive_token_ata;
     let (ata_address, bump) = derive_token_ata(&owner, &mint_pda);
 
     // Build CreateAtaData (owner and mint are passed as accounts)
@@ -45,7 +45,7 @@ async fn test_create_ata_invoke() {
     // Discriminator 4 = CreateAtaInvoke
     let instruction_data = [vec![4u8], create_ata_data.try_to_vec().unwrap()].concat();
 
-    use light_token_sdk::token::{config_pda, rent_sponsor_pda};
+    use light_token::token::{config_pda, rent_sponsor_pda};
     let config = config_pda();
     let rent_sponsor = rent_sponsor_pda();
 
@@ -119,7 +119,7 @@ async fn test_create_ata_invoke_signed() {
         .unwrap();
 
     // Derive the ATA address for the PDA owner
-    use light_token_sdk::token::derive_token_ata;
+    use light_token::token::derive_token_ata;
     let (ata_address, bump) = derive_token_ata(&pda_owner, &mint_pda);
 
     // Build CreateAtaData with PDA as owner (owner and mint are passed as accounts)
@@ -131,7 +131,7 @@ async fn test_create_ata_invoke_signed() {
     // Discriminator 5 = CreateAtaInvokeSigned
     let instruction_data = [vec![5u8], create_ata_data.try_to_vec().unwrap()].concat();
 
-    use light_token_sdk::token::{config_pda, rent_sponsor_pda};
+    use light_token::token::{config_pda, rent_sponsor_pda};
     let config = config_pda();
     let rent_sponsor = rent_sponsor_pda();
 

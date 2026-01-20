@@ -54,7 +54,7 @@ jobs:
           - program: token test
             sub-tests: '["cargo-test-sbf -p sdk-token-test"]'
           - program: sdk-libs
-            packages: light-sdk-macros light-sdk light-program-test light-client light-token-types light-token-sdk
+            packages: light-sdk-macros light-sdk light-program-test light-client light-token-types light-token
             test_cmd: |
               cargo test -p light-sdk-macros
               cargo test -p light-sdk-macros --all-features
@@ -64,7 +64,7 @@ jobs:
               cargo test -p light-client
               cargo test -p light-sparse-merkle-tree
               cargo test -p light-token-types
-              cargo test -p light-token-sdk --all-features
+              cargo test -p light-token --all-features
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6

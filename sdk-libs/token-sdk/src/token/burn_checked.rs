@@ -8,7 +8,7 @@ use solana_pubkey::Pubkey;
 /// # Burn tokens from a ctoken account with decimals validation:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::BurnChecked;
+/// # use light_token::token::BurnChecked;
 /// # let source = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
@@ -40,7 +40,7 @@ pub struct BurnChecked {
 
 /// # Burn ctoken via CPI with decimals validation:
 /// ```rust,no_run
-/// # use light_token_sdk::token::BurnCheckedCpi;
+/// # use light_token::token::BurnCheckedCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let source: AccountInfo = todo!();
 /// # let mint: AccountInfo = todo!();

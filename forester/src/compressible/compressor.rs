@@ -10,8 +10,8 @@ use light_registry::{
     instruction::CompressAndClose,
 };
 use light_sdk::instruction::PackedAccounts;
+use light_token::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenAccounts;
 use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
-use light_token_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenAccounts;
 use solana_pubkey::pubkey;
 use solana_sdk::{
     instruction::Instruction,

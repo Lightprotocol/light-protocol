@@ -1,7 +1,7 @@
 #![cfg(feature = "v1")]
 use anchor_lang::ToAccountMetas;
 use light_sdk::constants::REGISTERED_PROGRAM_PDA;
-use light_token_sdk::{
+use light_token::{
     compressed_token::{
         batch_compress::{get_batch_compress_instruction_account_metas, BatchCompressMetaConfig},
         transfer::account_metas::{
