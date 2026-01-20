@@ -10,9 +10,9 @@ repository = "https://github.com/Lightprotocol/light-protocol"
 default = ["anchor-discriminator"]
 v1 = []
 anchor-discriminator = ["light-sdk/anchor-discriminator"]
-anchor = ["anchor-lang", "light-token-types/anchor", "light-token-interface/anchor", "dep:light-sdk-macros", "dep:anchor-spl"]
+anchor = ["anchor-lang", "light-token-types/anchor", "light-token-interface/anchor", "dep:light-sdk-macros"]
 # idl-build feature enables IDL generation for client-side tooling and SDK generation
-idl-build = ["anchor-spl/idl-build", "anchor", "anchor-lang/idl-build", "light-sdk/idl-build"]
+idl-build = ["anchor", "anchor-lang/idl-build", "light-sdk/idl-build"]
 cpi-context = ["light-sdk/cpi-context"]
 
 profile-program = [
@@ -54,7 +54,6 @@ light-program-profiler = { workspace = true }
 
 # Optional Anchor dependency
 anchor-lang = { workspace = true, optional = true }
-anchor-spl = { workspace = true, optional = true }
 light-sdk-macros = { workspace = true, optional = true }
 
 [dev-dependencies]

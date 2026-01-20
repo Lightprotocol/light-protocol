@@ -25,7 +25,7 @@ cpi-without-program-ids = []
 
 [dependencies]
 anchor-lang = { workspace = true }
-anchor-spl = { workspace = true }
+anchor-spl = { version = "0.31.1", features = ["idl-build"] }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
 account-compression = { workspace = true, features = ["cpi", "no-idl"] }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }

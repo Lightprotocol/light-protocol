@@ -2,10 +2,6 @@
 //!
 //! Provides a single import point for Anchor programs using Light Protocol.
 
-// Re-export anchor_lang prelude
-pub use anchor_lang::prelude::*;
-// Re-export anchor_spl (includes memo and idl-build features from git dependency)
-pub use anchor_spl;
 // Re-export Light SDK core types
 pub use light_sdk::{
     account::LightAccount as LightAccountType,

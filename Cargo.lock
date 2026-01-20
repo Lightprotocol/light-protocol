@@ -398,12 +398,12 @@ dependencies = [
 [[package]]
 name = "anchor-spl"
 version = "0.31.1"
-source = "git+https://github.com/lightprotocol/anchor?rev=da005d7f#da005d7f1f977d5220eaa65da26cdae2df0fe25e"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c08cb5d762c0694f74bd02c9a5b04ea53cefc496e2c27b3234acffca5cd076b"
 dependencies = [
  "anchor-lang",
  "mpl-token-metadata",
  "spl-associated-token-account 6.0.0",
- "spl-memo",
  "spl-pod",
  "spl-token 7.0.0",
  "spl-token-2022 6.0.0",
@@ -4224,7 +4224,6 @@ name = "light-token-sdk"
 version = "0.2.1"
 dependencies = [
  "anchor-lang",
- "anchor-spl",
  "arrayvec",
  "borsh 0.10.4",
  "light-account-checks",

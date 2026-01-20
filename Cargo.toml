@@ -131,7 +131,8 @@ bs58 = "^0.5.1"
 litesvm = "0.7"
 # Anchor
 anchor-lang = { version = "0.31.1" }
-anchor-spl = { version = "=0.31.1", git = "https://github.com/lightprotocol/anchor", rev = "da005d7f" }
+anchor-spl = { version = "0.31.1" }
+light-anchor-spl = { version = "0.31.1", features = ["idl-build", "memo"] }
 
 # Anchor compatibility
 borsh = { version = "0.10.4", default-features = false }

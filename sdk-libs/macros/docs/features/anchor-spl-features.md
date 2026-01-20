@@ -7,8 +7,8 @@ This document covers the 12 SPL-specific features available in Anchor through th
 Anchor SPL provides typed wrappers and constraints for SPL Token and Token-2022 programs. These features enable type-safe token account and mint initialization with validation.
 
 ```rust
-use anchor_spl::token::{Token, TokenAccount, Mint};
-use anchor_spl::token_interface::{TokenInterface, TokenAccount as InterfaceTokenAccount};
+use light_anchor_spl::token::{Token, TokenAccount, Mint};
+use light_anchor_spl::token_interface::{TokenInterface, TokenAccount as InterfaceTokenAccount};
 ```
 
 ---
@@ -229,7 +229,7 @@ pub associated_token_program: Program<'info, AssociatedToken>,
 
 **Example**:
 ```rust
-use anchor_spl::token_interface::TokenAccount;
+use light_anchor_spl::token_interface::TokenAccount;
 
 #[derive(Accounts)]
 pub struct TransferTokens<'info> {
@@ -248,7 +248,7 @@ pub struct TransferTokens<'info> {
 
 **Example**:
 ```rust
-use anchor_spl::token_interface::TokenInterface;
+use light_anchor_spl::token_interface::TokenInterface;
 
 #[derive(Accounts)]
 pub struct TokenOp<'info> {
@@ -290,8 +290,8 @@ Anchor SPL supports these Token-2022 extensions through the interface types:
 
 **Example with extensions**:
 ```rust
-use anchor_spl::token_2022::Token2022;
-use anchor_spl::token_interface::{
+use light_anchor_spl::token_2022::Token2022;
+use light_anchor_spl::token_interface::{
     Mint as InterfaceMint,
     TokenAccount as InterfaceTokenAccount,
 };
@@ -318,7 +318,7 @@ pub struct Token2022Op<'info> {
 
 ```rust
 use anchor_lang::prelude::*;
-use anchor_spl::{
+use light_anchor_spl::{
     associated_token::AssociatedToken,
     token_interface::{Mint, TokenAccount, TokenInterface},
 };
@@ -392,7 +392,7 @@ pub mint: InterfaceAccount<'info, Mint>,
 Anchor SPL also provides CPI helpers for token operations:
 
 ```rust
-use anchor_spl::token_interface::{transfer_checked, TransferChecked};
+use light_anchor_spl::token_interface::{transfer_checked, TransferChecked};
 
 // Transfer tokens
 transfer_checked(
