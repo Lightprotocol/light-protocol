@@ -45,6 +45,21 @@ impl LightAccountsBuilder {
             })
     }
 
+    /// Get the expression to access CreateAccountsProof.
+    ///
+    /// Returns either:
+    /// - `proof_ident` (direct) if CreateAccountsProof is passed as a direct argument
+    /// - `params.create_accounts_proof` (nested) if nested inside a params struct
+    fn get_proof_access(&self) -> Result<TokenStream, syn::Error> {
+        if let Some(ref proof_ident) = self.parsed.direct_proof_arg {
+            Ok(quote! { #proof_ident })
+        } else {
+            let first_arg = self.get_first_instruction_arg()?;
+            let params_ident = &first_arg.name;
+            Ok(quote! { #params_ident.create_accounts_proof })
+        }
+    }
+
     /// Validate constraints (e.g., account count < 255).
     pub fn validate(&self) -> Result<(), syn::Error> {
         let total = self.parsed.rentfree_fields.len()
@@ -317,15 +332,16 @@ impl LightAccountsBuilder {
         let rentfree_count = self.parsed.rentfree_fields.len() as u8;
         let pda_count = self.parsed.rentfree_fields.len();
 
-        let first_arg = self.get_first_instruction_arg()?;
-        let params_ident = &first_arg.name;
+        // Get proof access expression (direct arg or nested in params)
+        let proof_access = self.get_proof_access()?;
 
         let first_pda_output_tree = &self.parsed.rentfree_fields[0].output_tree;
 
         let mints = &self.parsed.light_mint_fields;
-        let mint_invocation = LightMintsBuilder::new(mints, params_ident, &self.infra)
-            .with_pda_context(pda_count, quote! { #first_pda_output_tree })
-            .generate_invocation();
+        let mint_invocation =
+            LightMintsBuilder::new(mints, &proof_access, &self.infra)
+                .with_pda_context(pda_count, quote! { #first_pda_output_tree })
+                .generate_invocation();
 
         let fee_payer = &self.infra.fee_payer;
         let compression_config = &self.infra.compression_config;
@@ -356,7 +372,7 @@ impl LightAccountsBuilder {
             use light_sdk::cpi::{InvokeLightSystemProgram, LightCpiInstruction};
             light_sdk::cpi::v2::LightSystemProgramCpi::new_cpi(
                 crate::LIGHT_CPI_SIGNER,
-                #params_ident.create_accounts_proof.proof.clone()
+                #proof_access.proof.clone()
             )
                 .with_new_addresses(&[#(#new_addr_idents),*])
                 .with_account_infos(&all_compressed_infos)
@@ -373,8 +389,8 @@ impl LightAccountsBuilder {
             generate_pda_compress_blocks(&self.parsed.rentfree_fields);
         let rentfree_count = self.parsed.rentfree_fields.len() as u8;
 
-        let first_arg = self.get_first_instruction_arg()?;
-        let params_ident = &first_arg.name;
+        // Get proof access expression (direct arg or nested in params)
+        let proof_access = self.get_proof_access()?;
 
         let fee_payer = &self.infra.fee_payer;
         let compression_config = &self.infra.compression_config;
@@ -397,7 +413,7 @@ impl LightAccountsBuilder {
             use light_sdk::cpi::{InvokeLightSystemProgram, LightCpiInstruction};
             light_sdk::cpi::v2::LightSystemProgramCpi::new_cpi(
                 crate::LIGHT_CPI_SIGNER,
-                #params_ident.create_accounts_proof.proof.clone()
+                #proof_access.proof.clone()
             )
                 .with_new_addresses(&[#(#new_addr_idents),*])
                 .with_account_infos(&all_compressed_infos)
@@ -407,12 +423,12 @@ impl LightAccountsBuilder {
 
     /// Generate mints-only body WITHOUT the Ok(true) return.
     fn generate_pre_init_mints_only_body(&self) -> Result<TokenStream, syn::Error> {
-        let first_arg = self.get_first_instruction_arg()?;
-        let params_ident = &first_arg.name;
+        // Get proof access expression (direct arg or nested in params)
+        let proof_access = self.get_proof_access()?;
 
         let mints = &self.parsed.light_mint_fields;
         let mint_invocation =
-            LightMintsBuilder::new(mints, params_ident, &self.infra).generate_invocation();
+            LightMintsBuilder::new(mints, &proof_access, &self.infra).generate_invocation();
 
         let fee_payer = &self.infra.fee_payer;
 

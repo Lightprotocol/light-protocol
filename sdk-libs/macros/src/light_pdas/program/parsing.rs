@@ -351,13 +351,31 @@ pub fn convert_classified_to_seed_elements_vec(
 // FUNCTION WRAPPING
 // =============================================================================
 
+/// Result from extracting context and params from a function signature.
+pub enum ExtractResult {
+    /// Successfully extracted context type, params ident, and context ident
+    Success {
+        context_type: String,
+        params_ident: Ident,
+        ctx_ident: Ident,
+    },
+    /// Multiple params arguments detected (format-2 case) - caller decides if this is an error
+    MultipleParams {
+        context_type: String,
+        param_names: Vec<String>,
+    },
+    /// No valid context/params combination found
+    None,
+}
+
 /// Extract the Context<T> type name and context parameter name from a function's parameters.
-/// Returns (struct_name, params_ident, ctx_ident) if found.
+/// Returns ExtractResult indicating success, multiple params, or none found.
 /// The ctx_ident is the actual parameter name (e.g., "ctx", "context", "anchor_ctx").
-pub fn extract_context_and_params(fn_item: &ItemFn) -> Option<(String, Ident, Ident)> {
+pub fn extract_context_and_params(fn_item: &ItemFn) -> ExtractResult {
     let mut context_type = None;
-    let mut params_ident = None;
     let mut ctx_ident = None;
+    // Collect ALL potential params arguments to detect multi-arg cases
+    let mut params_candidates: Vec<Ident> = Vec::new();
 
     for input in &fn_item.sig.inputs {
         if let syn::FnArg::Typed(pat_type) = input {
@@ -391,18 +409,31 @@ pub fn extract_context_and_params(fn_item: &ItemFn) -> Option<(String, Ident, Id
                 // Track potential params argument (not the context param, not signer-like names)
                 let name = pat_ident.ident.to_string();
                 if !name.contains("signer") && !name.contains("bump") {
-                    // Prefer "params" but accept others
-                    if name == "params" || params_ident.is_none() {
-                        params_ident = Some(pat_ident.ident.clone());
-                    }
+                    params_candidates.push(pat_ident.ident.clone());
                 }
             }
         }
     }
 
-    match (context_type, params_ident, ctx_ident) {
-        (Some(ctx_type), Some(params), Some(ctx_name)) => Some((ctx_type, params, ctx_name)),
-        _ => None,
+    match (context_type, ctx_ident) {
+        (Some(ctx_type), Some(ctx_name)) => {
+            if params_candidates.len() > 1 {
+                // Multiple params detected - let caller decide if this is an error
+                ExtractResult::MultipleParams {
+                    context_type: ctx_type,
+                    param_names: params_candidates.iter().map(|id| id.to_string()).collect(),
+                }
+            } else if let Some(params) = params_candidates.into_iter().next() {
+                ExtractResult::Success {
+                    context_type: ctx_type,
+                    params_ident: params,
+                    ctx_ident: ctx_name,
+                }
+            } else {
+                ExtractResult::None
+            }
+        }
+        _ => ExtractResult::None,
     }
 }
 
@@ -640,12 +671,18 @@ mod tests {
                 Ok(())
             }
         };
-        let result = extract_context_and_params(&fn_item);
-        assert!(result.is_some());
-        let (ctx_type, params_ident, ctx_ident) = result.unwrap();
-        assert_eq!(ctx_type, "MyAccounts");
-        assert_eq!(params_ident.to_string(), "params");
-        assert_eq!(ctx_ident.to_string(), "ctx");
+        match extract_context_and_params(&fn_item) {
+            ExtractResult::Success {
+                context_type,
+                params_ident,
+                ctx_ident,
+            } => {
+                assert_eq!(context_type, "MyAccounts");
+                assert_eq!(params_ident.to_string(), "params");
+                assert_eq!(ctx_ident.to_string(), "ctx");
+            }
+            _ => panic!("Expected ExtractResult::Success"),
+        }
     }
 
     #[test]
@@ -655,12 +692,18 @@ mod tests {
                 Ok(())
             }
         };
-        let result = extract_context_and_params(&fn_item);
-        assert!(result.is_some());
-        let (ctx_type, params_ident, ctx_ident) = result.unwrap();
-        assert_eq!(ctx_type, "MyAccounts");
-        assert_eq!(params_ident.to_string(), "params");
-        assert_eq!(ctx_ident.to_string(), "context");
+        match extract_context_and_params(&fn_item) {
+            ExtractResult::Success {
+                context_type,
+                params_ident,
+                ctx_ident,
+            } => {
+                assert_eq!(context_type, "MyAccounts");
+                assert_eq!(params_ident.to_string(), "params");
+                assert_eq!(ctx_ident.to_string(), "context");
+            }
+            _ => panic!("Expected ExtractResult::Success"),
+        }
     }
 
     #[test]
@@ -670,12 +713,18 @@ mod tests {
                 Ok(())
             }
         };
-        let result = extract_context_and_params(&fn_item);
-        assert!(result.is_some());
-        let (ctx_type, params_ident, ctx_ident) = result.unwrap();
-        assert_eq!(ctx_type, "MyAccounts");
-        assert_eq!(params_ident.to_string(), "data");
-        assert_eq!(ctx_ident.to_string(), "anchor_ctx");
+        match extract_context_and_params(&fn_item) {
+            ExtractResult::Success {
+                context_type,
+                params_ident,
+                ctx_ident,
+            } => {
+                assert_eq!(context_type, "MyAccounts");
+                assert_eq!(params_ident.to_string(), "data");
+                assert_eq!(ctx_ident.to_string(), "anchor_ctx");
+            }
+            _ => panic!("Expected ExtractResult::Success"),
+        }
     }
 
     #[test]
@@ -685,11 +734,38 @@ mod tests {
                 Ok(())
             }
         };
-        let result = extract_context_and_params(&fn_item);
-        assert!(result.is_some());
-        let (ctx_type, params_ident, ctx_ident) = result.unwrap();
-        assert_eq!(ctx_type, "MyAccounts");
-        assert_eq!(params_ident.to_string(), "p");
-        assert_eq!(ctx_ident.to_string(), "c");
+        match extract_context_and_params(&fn_item) {
+            ExtractResult::Success {
+                context_type,
+                params_ident,
+                ctx_ident,
+            } => {
+                assert_eq!(context_type, "MyAccounts");
+                assert_eq!(params_ident.to_string(), "p");
+                assert_eq!(ctx_ident.to_string(), "c");
+            }
+            _ => panic!("Expected ExtractResult::Success"),
+        }
+    }
+
+    #[test]
+    fn test_extract_context_and_params_multiple_args_detected() {
+        // Format-2 case: multiple instruction arguments should be detected
+        let fn_item: syn::ItemFn = syn::parse_quote! {
+            pub fn handler(ctx: Context<MyAccounts>, amount: u64, owner: Pubkey) -> Result<()> {
+                Ok(())
+            }
+        };
+        match extract_context_and_params(&fn_item) {
+            ExtractResult::MultipleParams {
+                context_type,
+                param_names,
+            } => {
+                assert_eq!(context_type, "MyAccounts");
+                assert!(param_names.contains(&"amount".to_string()));
+                assert!(param_names.contains(&"owner".to_string()));
+            }
+            _ => panic!("Expected ExtractResult::MultipleParams"),
+        }
     }
 }

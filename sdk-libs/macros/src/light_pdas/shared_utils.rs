@@ -85,7 +85,7 @@ pub fn ident_to_type(ident: &Ident) -> Type {
 /// Wrapper for syn::Expr that implements darling's FromMeta trait.
 ///
 /// Enables darling to parse arbitrary expressions in attributes like
-/// `#[light_account(init, mint,mint_signer = self.authority)]`.
+/// `#[light_account(init, mint, mint_signer = self.authority)]`.
 #[derive(Clone)]
 pub struct MetaExpr(Expr);
 
