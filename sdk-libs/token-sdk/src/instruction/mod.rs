@@ -123,8 +123,9 @@ pub use close::{CloseAccount, CloseAccountCpi};
 pub use compressible::{CompressibleParams, CompressibleParamsCpi};
 pub use create::*;
 pub use create_ata::{
-    derive_token_ata, CreateAssociatedTokenAccount,
-    CreateTokenAtaCpi as CreateAssociatedAccountCpi, CreateTokenAtaCpi,
+    derive_associated_token_account, derive_associated_token_account as derive_token_ata,
+    CreateAssociatedTokenAccount, CreateTokenAtaCpi as CreateAssociatedAccountCpi,
+    CreateTokenAtaCpi,
 };
 pub use create_mint::*;
 pub use create_mints::*;

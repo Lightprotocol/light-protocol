@@ -18,7 +18,7 @@ use crate::{
         },
         CTokenAccount2,
     },
-    instruction::derive_token_ata,
+    instruction::derive_associated_token_account,
 };
 
 /// # Decompress compressed tokens to a cToken account
@@ -106,7 +106,7 @@ impl Decompress {
         // For ATA decompress, derive the bump from wallet owner + mint
         // The signer is the wallet owner for ATAs
         let ata_bump = if is_ata {
-            let (_, bump) = derive_token_ata(&self.signer, &self.token_data.mint);
+            let (_, bump) = derive_associated_token_account(&self.signer, &self.token_data.mint);
             bump
         } else {
             0
